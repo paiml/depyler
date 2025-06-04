@@ -211,7 +211,7 @@ mod validator_tests {
     #[tokio::test]
     async fn test_validator_creation() {
         let validator = McpValidator::new();
-        assert_eq!(validator, McpValidator::default());
+        assert_eq!(validator, McpValidator);
     }
 
     #[tokio::test]

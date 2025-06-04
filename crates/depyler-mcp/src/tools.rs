@@ -158,6 +158,7 @@ pub struct RiskComponent {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
+#[allow(dead_code)] // Variants will be used in future implementations
 pub enum RiskLevel {
     Low,
     Medium,

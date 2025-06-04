@@ -178,4 +178,63 @@ def classify_number(n: int) -> str:
         harness.test_transpilation(python_code, "")
             .expect("Conditional logic should transpile successfully");
     }
+
+    #[test]
+    fn test_mcp_functionality() {
+        use depyler_mcp::{DepylerMcpServer, protocol::*};
+        use serde_json::json;
+        use tokio::runtime::Runtime;
+        
+        let rt = Runtime::new().unwrap();
+        
+        rt.block_on(async {
+            let server = DepylerMcpServer::new();
+            
+            // Test Initialize
+            let init_message = McpMessage {
+                id: "test-init".to_string(),
+                method: methods::INITIALIZE.to_string(),
+                params: json!({}),
+            };
+            
+            let response = server.handle_message(init_message).await;
+            assert!(response.error.is_none(), "Initialize should succeed");
+            
+            // Test Tools List
+            let tools_message = McpMessage {
+                id: "test-tools".to_string(),
+                method: methods::TOOLS_LIST.to_string(),
+                params: json!({}),
+            };
+            
+            let response = server.handle_message(tools_message).await;
+            assert!(response.error.is_none(), "Tools list should succeed");
+            
+            if let Some(result) = response.result {
+                let tools = result["tools"].as_array().unwrap();
+                assert_eq!(tools.len(), 3, "Should have 3 MCP tools");
+            }
+            
+            // Test Transpile Tool
+            let transpile_message = McpMessage {
+                id: "test-transpile".to_string(),
+                method: methods::TOOLS_CALL.to_string(),
+                params: json!({
+                    "name": methods::TRANSPILE_PYTHON,
+                    "arguments": {
+                        "source": "def add(a: int, b: int) -> int:\n    return a + b",
+                        "mode": "inline"
+                    }
+                }),
+            };
+            
+            let response = server.handle_message(transpile_message).await;
+            assert!(response.error.is_none(), "Transpilation should succeed");
+            
+            if let Some(result) = response.result {
+                assert!(result["rust_code"].is_string(), "Should return Rust code");
+                assert!(result["metrics"].is_object(), "Should return metrics");
+            }
+        });
+    }
 }
