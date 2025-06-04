@@ -53,8 +53,8 @@ if grep -q "\[Unreleased\]" CHANGELOG.md; then
 " CHANGELOG.md && rm CHANGELOG.md.bak
     
     # Update links
-    sed -i.bak "s|\[Unreleased\]:.*|\[Unreleased\]: https://github.com/depyler/depyler/compare/v$VERSION...HEAD\\
-[$VERSION]: https://github.com/depyler/depyler/releases/tag/v$VERSION|" CHANGELOG.md && rm CHANGELOG.md.bak
+    sed -i.bak "s|\[Unreleased\]:.*|\[Unreleased\]: https://github.com/paiml/depyler/compare/v$VERSION...HEAD\\
+[$VERSION]: https://github.com/paiml/depyler/releases/tag/v$VERSION|" CHANGELOG.md && rm CHANGELOG.md.bak
 else
     echo -e "${YELLOW}Warning: No [Unreleased] section found in CHANGELOG.md${NC}"
 fi

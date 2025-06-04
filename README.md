@@ -3,12 +3,16 @@
 > **Compile Python to energy-efficient, memory-safe Rust code**  
 > *Transitioning off Python to energy-efficient and safe Rust systems*
 
-[![CI](https://github.com/depyler/depyler/workflows/CI/badge.svg)](https://github.com/depyler/depyler/actions)
-[![Release](https://img.shields.io/github/v/release/depyler/depyler)](https://github.com/depyler/depyler/releases)
-[![Coverage](https://codecov.io/gh/depyler/depyler/branch/main/graph/badge.svg)](https://codecov.io/gh/depyler/depyler)
+[![CI](https://github.com/paiml/depyler/actions/workflows/ci.yml/badge.svg)](https://github.com/paiml/depyler/actions/workflows/ci.yml)
+[![Release](https://github.com/paiml/depyler/actions/workflows/release.yml/badge.svg)](https://github.com/paiml/depyler/actions/workflows/release.yml)
+[![Latest Release](https://img.shields.io/github/v/release/paiml/depyler?include_prereleases&sort=semver)](https://github.com/paiml/depyler/releases/latest)
+[![Coverage](https://codecov.io/gh/paiml/depyler/branch/main/graph/badge.svg)](https://codecov.io/gh/paiml/depyler)
+[![Security Audit](https://github.com/paiml/depyler/actions/workflows/ci.yml/badge.svg?event=schedule)](https://github.com/paiml/depyler/actions/workflows/ci.yml)
 [![License: MIT/Apache-2.0](https://img.shields.io/badge/License-MIT%2FApache--2.0-blue.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org)
+[![Rust MSRV](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
+[![Downloads](https://img.shields.io/github/downloads/paiml/depyler/total)](https://github.com/paiml/depyler/releases)
+[![Stars](https://img.shields.io/github/stars/paiml/depyler?style=flat)](https://github.com/paiml/depyler/stargazers)
+[![Issues](https://img.shields.io/github/issues/paiml/depyler)](https://github.com/paiml/depyler/issues)
 
 ---
 
@@ -95,6 +99,12 @@ rustc optimized.rs -O
 - **NASA-grade testing**: 85%+ coverage with exhaustive validation
 - **Compilation validation**: Generated Rust code guaranteed to compile
 
+### 🤖 **AI Integration (NEW)**
+- **Model Context Protocol (MCP)**: Full MCP v1 specification implementation
+- **AI-powered transpilation**: Advanced code analysis and migration assistance
+- **Intelligent fallback**: MCP-based transpilation for complex Python constructs
+- **Migration complexity analysis**: Deep project analysis with migration strategies
+
 ---
 
 ## 🚀 Quick Start
@@ -103,7 +113,7 @@ rustc optimized.rs -O
 
 #### Quick Install (Linux/macOS)
 ```bash
-curl -sSfL https://github.com/depyler/depyler/releases/latest/download/install.sh | sh
+curl -sSfL https://github.com/paiml/depyler/releases/latest/download/install.sh | sh
 ```
 
 This will install depyler to `~/.local/bin`. Make sure this directory is in your PATH:
@@ -117,11 +127,11 @@ Download the latest release for your platform:
 
 | Platform | Download |
 |----------|----------|
-| Linux (x64) | [depyler-linux-amd64.tar.gz](https://github.com/depyler/depyler/releases/latest/download/depyler-linux-amd64.tar.gz) |
-| Linux (ARM64) | [depyler-linux-arm64.tar.gz](https://github.com/depyler/depyler/releases/latest/download/depyler-linux-arm64.tar.gz) |
-| macOS (Intel) | [depyler-darwin-amd64.tar.gz](https://github.com/depyler/depyler/releases/latest/download/depyler-darwin-amd64.tar.gz) |
-| macOS (Apple Silicon) | [depyler-darwin-arm64.tar.gz](https://github.com/depyler/depyler/releases/latest/download/depyler-darwin-arm64.tar.gz) |
-| Windows (x64) | [depyler-windows-amd64.zip](https://github.com/depyler/depyler/releases/latest/download/depyler-windows-amd64.zip) |
+| Linux (x64) | [depyler-linux-amd64.tar.gz](https://github.com/paiml/depyler/releases/latest/download/depyler-linux-amd64.tar.gz) |
+| Linux (ARM64) | [depyler-linux-arm64.tar.gz](https://github.com/paiml/depyler/releases/latest/download/depyler-linux-arm64.tar.gz) |
+| macOS (Intel) | [depyler-darwin-amd64.tar.gz](https://github.com/paiml/depyler/releases/latest/download/depyler-darwin-amd64.tar.gz) |
+| macOS (Apple Silicon) | [depyler-darwin-arm64.tar.gz](https://github.com/paiml/depyler/releases/latest/download/depyler-darwin-arm64.tar.gz) |
+| Windows (x64) | [depyler-windows-amd64.zip](https://github.com/paiml/depyler/releases/latest/download/depyler-windows-amd64.zip) |
 
 Extract and add to your PATH:
 ```bash
@@ -135,7 +145,7 @@ sudo mv depyler /usr/local/bin/
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # Clone and build
-git clone https://github.com/depyler/depyler.git
+git clone https://github.com/paiml/depyler.git
 cd depyler
 cargo build --release
 cargo install --path crates/depyler
@@ -186,6 +196,32 @@ fn main() {
 Python:  2.34s, 45MB memory, 156 watts
 Rust:    0.23s, 2MB memory,   18 watts  ✨ 87% energy reduction!
 ```
+
+### MCP Integration Usage
+
+The Model Context Protocol integration enables AI-powered transpilation assistance:
+
+```bash
+# Start MCP server
+depyler mcp-server --bind 127.0.0.1:9257
+
+# Use MCP tools for complex migration analysis
+curl -X POST http://localhost:9257 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "1",
+    "method": "tools/call",
+    "params": {
+      "name": "analyze_migration_complexity",
+      "arguments": {"project_path": "./my_python_project"}
+    }
+  }'
+```
+
+**MCP Tools Available**:
+- `transpile_python`: Direct Python-to-Rust transpilation with options
+- `analyze_migration_complexity`: Project analysis and migration strategy
+- `verify_transpilation`: Semantic equivalence verification
 
 ---
 
@@ -327,7 +363,7 @@ depyler analyze --suggest-optimizations your_project.py
 ### Building from Source
 
 ```bash
-git clone https://github.com/your-org/depyler.git
+git clone https://github.com/paiml/depyler.git
 cd depyler
 make setup      # Install dependencies
 make test       # Run test suite (85%+ coverage required)
@@ -428,7 +464,7 @@ Every line of Python transpiled to Rust is a step toward a more sustainable futu
 **Ready to make an impact?** ⚡
 
 ```bash
-curl -sSf https://install.depyler.dev | sh
+curl -sSfL https://github.com/paiml/depyler/releases/latest/download/install.sh | sh
 depyler transpile your_code.py --save-the-planet
 ```
 

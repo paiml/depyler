@@ -36,7 +36,7 @@ Python's energy consumption and runtime safety limitations create barriers for s
 - ✅ **HIR (High-level IR)** - Clean intermediate representation
 - ✅ **Type inference engine** - Infer Rust types from Python code
 - ✅ **Property verification** - Formal correctness guarantees
-- ✅ **MCP integration** - Model Context Protocol for AI tooling
+- ✅ **MCP integration** - Full Model Context Protocol v1 implementation with three core tools
 - ✅ **CLI interface** - Complete command-line tool
 - ✅ **Progressive verification** - Multiple verification levels
 
@@ -93,9 +93,14 @@ Python's energy consumption and runtime safety limitations create barriers for s
 - **QuickCheck Integration**: Property-based testing
 
 #### 4. **MCP Integration** (`depyler-mcp/`)
-- **Protocol Implementation**: Model Context Protocol support
-- **Validation Framework**: Input/output validation
-- **AI Tooling Interface**: Integration with AI development tools
+- **Protocol Implementation**: Full MCP v2024.11 specification implementation
+- **Core Tools**: Three primary MCP tools for transpilation workflow
+  - `transpile_python`: Direct Python-to-Rust transpilation with optimization options
+  - `analyze_migration_complexity`: Deep project analysis and migration strategy generation
+  - `verify_transpilation`: Semantic equivalence and safety verification
+- **Validation Framework**: Comprehensive input/output validation with Rust syntax checking
+- **Server Architecture**: Async MCP server with caching and session management
+- **AI Tooling Interface**: Complete integration with Claude Code and other MCP-compatible tools
 
 ---
 
@@ -558,6 +563,6 @@ The implementation provides a solid foundation for sustainable Python-to-Rust mi
 ---
 
 *Generated: 2025-01-06*  
-*Repository: https://github.com/depyler/depyler*  
+*Repository: https://github.com/paiml/depyler*  
 *Analysis: PAIML MCP Agent Toolkit v0.21.0*  
 *Health Score: 75.0/100*

@@ -527,4 +527,3 @@ mod tests {
         assert!(convert_binop(BinOp::NotIn).is_err());
     }
 }
-

@@ -32,20 +32,20 @@ We are excited to announce the first release of Depyler, a Python-to-Rust transp
 
 ### Quick Install (Linux/macOS)
 ```bash
-curl -sSfL https://github.com/depyler/depyler/releases/latest/download/install.sh | sh
+curl -sSfL https://github.com/paiml/depyler/releases/latest/download/install.sh | sh
 ```
 
 ### Manual Download
 Download pre-built binaries for your platform:
-- [Linux x64](https://github.com/depyler/depyler/releases/download/v0.1.0/depyler-linux-amd64.tar.gz)
-- [Linux ARM64](https://github.com/depyler/depyler/releases/download/v0.1.0/depyler-linux-arm64.tar.gz)
-- [macOS Intel](https://github.com/depyler/depyler/releases/download/v0.1.0/depyler-darwin-amd64.tar.gz)
-- [macOS Apple Silicon](https://github.com/depyler/depyler/releases/download/v0.1.0/depyler-darwin-arm64.tar.gz)
-- [Windows x64](https://github.com/depyler/depyler/releases/download/v0.1.0/depyler-windows-amd64.zip)
+- [Linux x64](https://github.com/paiml/depyler/releases/download/v0.1.0/depyler-linux-amd64.tar.gz)
+- [Linux ARM64](https://github.com/paiml/depyler/releases/download/v0.1.0/depyler-linux-arm64.tar.gz)
+- [macOS Intel](https://github.com/paiml/depyler/releases/download/v0.1.0/depyler-darwin-amd64.tar.gz)
+- [macOS Apple Silicon](https://github.com/paiml/depyler/releases/download/v0.1.0/depyler-darwin-arm64.tar.gz)
+- [Windows x64](https://github.com/paiml/depyler/releases/download/v0.1.0/depyler-windows-amd64.zip)
 
 ### Build from Source
 ```bash
-git clone https://github.com/depyler/depyler.git
+git clone https://github.com/paiml/depyler.git
 cd depyler
 cargo build --release
 cargo install --path crates/depyler
@@ -125,13 +125,13 @@ This is a v0.1.0 release with the following limitations:
 
 ## 🐛 Bug Reports
 
-Please report issues at: https://github.com/depyler/depyler/issues
+Please report issues at: https://github.com/paiml/depyler/issues
 
 ## 📚 Documentation
 
-- [User Guide](https://github.com/depyler/depyler/blob/main/docs/user-guide.md)
-- [CLI Reference](https://github.com/depyler/depyler/blob/main/docs/cli-reference.md)
-- [Project Overview](https://github.com/depyler/depyler/blob/main/docs/project-overview.md)
+- [User Guide](https://github.com/paiml/depyler/blob/main/docs/user-guide.md)
+- [CLI Reference](https://github.com/paiml/depyler/blob/main/docs/cli-reference.md)
+- [Project Overview](https://github.com/paiml/depyler/blob/main/docs/project-overview.md)
 
 ---
 

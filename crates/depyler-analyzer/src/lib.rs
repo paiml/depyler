@@ -184,3 +184,135 @@ impl Default for Analyzer {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use depyler_core::hir::*;
+
+    fn create_test_function() -> HirFunction {
+        use smallvec::smallvec;
+        HirFunction {
+            name: "test_func".to_string(),
+            params: smallvec![
+                ("x".to_string(), Type::Int),
+                ("y".to_string(), Type::String)
+            ],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
+            properties: FunctionProperties::default(),
+        }
+    }
+
+    #[test]
+    fn test_analyzer_creation() {
+        let analyzer = Analyzer::new();
+        assert!(analyzer.enable_type_inference);
+
+        let default_analyzer = Analyzer::default();
+        assert!(default_analyzer.enable_type_inference);
+    }
+
+    #[test]
+    fn test_analyze_empty_module() {
+        let analyzer = Analyzer::new();
+        let module = HirModule {
+            functions: vec![],
+            imports: vec![],
+        };
+
+        let result = analyzer.analyze(&module).unwrap();
+        assert_eq!(result.module_metrics.total_functions, 0);
+        assert_eq!(result.function_metrics.len(), 0);
+        assert_eq!(result.type_coverage.total_functions, 0);
+        assert_eq!(result.type_coverage.coverage_percentage, 100.0);
+    }
+
+    #[test]
+    fn test_analyze_single_function() {
+        let analyzer = Analyzer::new();
+        let func = create_test_function();
+        let module = HirModule {
+            functions: vec![func],
+            imports: vec![],
+        };
+
+        let result = analyzer.analyze(&module).unwrap();
+        assert_eq!(result.module_metrics.total_functions, 1);
+        assert_eq!(result.function_metrics.len(), 1);
+
+        let func_metrics = &result.function_metrics[0];
+        assert_eq!(func_metrics.name, "test_func");
+        assert_eq!(func_metrics.parameters, 2);
+        assert!(func_metrics.has_type_annotations);
+        assert!(func_metrics.return_type_annotated);
+    }
+
+    #[test]
+    fn test_type_coverage_calculation() {
+        let analyzer = Analyzer::new();
+        use smallvec::smallvec;
+        let func_with_types = HirFunction {
+            name: "typed_func".to_string(),
+            params: smallvec![("x".to_string(), Type::Int)],
+            ret_type: Type::String,
+            body: vec![],
+            properties: FunctionProperties::default(),
+        };
+
+        let func_without_types = HirFunction {
+            name: "untyped_func".to_string(),
+            params: smallvec![("y".to_string(), Type::Unknown)],
+            ret_type: Type::Unknown,
+            body: vec![],
+            properties: FunctionProperties::default(),
+        };
+
+        let module = HirModule {
+            functions: vec![func_with_types, func_without_types],
+            imports: vec![],
+        };
+
+        let coverage = analyzer.calculate_type_coverage(&module);
+        assert_eq!(coverage.total_parameters, 2);
+        assert_eq!(coverage.annotated_parameters, 1);
+        assert_eq!(coverage.total_functions, 2);
+        assert_eq!(coverage.functions_with_return_type, 1);
+        assert_eq!(coverage.coverage_percentage, 50.0); // 2 annotations out of 4 possible
+    }
+
+    #[test]
+    fn test_module_metrics_calculation() {
+        let analyzer = Analyzer::new();
+        let metrics = vec![
+            FunctionMetrics {
+                name: "func1".to_string(),
+                cyclomatic_complexity: 2,
+                cognitive_complexity: 3,
+                lines_of_code: 5,
+                parameters: 1,
+                max_nesting_depth: 1,
+                has_type_annotations: true,
+                return_type_annotated: true,
+            },
+            FunctionMetrics {
+                name: "func2".to_string(),
+                cyclomatic_complexity: 4,
+                cognitive_complexity: 6,
+                lines_of_code: 10,
+                parameters: 2,
+                max_nesting_depth: 2,
+                has_type_annotations: false,
+                return_type_annotated: false,
+            },
+        ];
+
+        let module_metrics = analyzer.calculate_module_metrics(&metrics);
+        assert_eq!(module_metrics.total_functions, 2);
+        assert_eq!(module_metrics.total_lines, 15);
+        assert_eq!(module_metrics.avg_cyclomatic_complexity, 3.0);
+        assert_eq!(module_metrics.max_cyclomatic_complexity, 4);
+        assert_eq!(module_metrics.avg_cognitive_complexity, 4.5);
+        assert_eq!(module_metrics.max_cognitive_complexity, 6);
+    }
+}

@@ -1,0 +1,171 @@
+# Deep Context Analysis
+
+## Executive Summary
+
+Generated: 2025-06-04 22:49:28.445915467 UTC
+Version: 0.21.0
+Analysis Time: 0.00s
+Cache Hit Rate: 0.0%
+
+## Quality Scorecard
+
+- **Overall Health**: ⚠️ (75.0/100)
+- **Maintainability Index**: 70.0
+- **Technical Debt**: 40.0 hours estimated
+
+## Project Structure
+
+```
+└── /
+    ├── README.md
+    ├── python-stdlib-stubs/
+    ├── CLAUDE.md
+    ├── RELEASE_SUMMARY.md
+    ├── LICENSE
+    ├── Cargo.toml
+    ├── .gitignore
+    ├── docs/
+    │   ├── cli-reference.md
+    │   ├── user-guide.md
+    │   ├── improvements-summary.md
+    │   ├── v0-spec.md
+    │   ├── project-overview.md
+    │   ├── energy-efficiency.md
+    │   └── enterprise/
+    ├── .git/
+    ├── RELEASE.md
+    ├── tests/
+    │   ├── validation/
+    │   │   └── rustc_compilation.rs
+    │   ├── transpilation/
+    │   │   └── test_basic.rs
+    │   ├── integration/
+    │   │   ├── semantic/
+    │   │   ├── transpilation/
+    │   │   ├── type_inference/
+    │   │   ├── transpilation_tests.rs
+    │   │   ├── semantic_equivalence.rs
+    │   │   └── runtime/
+    │   ├── fixtures/
+    │   │   ├── edge_cases/
+    │   │   ├── python_samples/
+    │   │   │   ├── basic_functions.py
+    │   │   │   ├── control_flow.py
+    │   │   │   ├── dictionary_operations.py
+    │   │   │   ├── edge_cases.py
+    │   │   │   ├── string_operations.py
+    │   │   │   └── list_operations.py
+    │   │   └── expected_rust/
+    │   │       ├── basic_functions.rs
+    │   │       └── list_operations.rs
+    │   ├── unit/
+    │   └── semantics/
+    ├── ROADMAP.md
+    ├── benches/
+    │   ├── memory_usage.rs
+    │   ├── binary_size.rs
+    │   └── transpilation.rs
+    ├── .idea/
+    │   ├── modules.xml
+    │   ├── .gitignore
+    │   ├── workspace.xml
+    │   ├── vcs.xml
+    │   └── depyler.iml
+    ├── crates/
+    │   ├── depyler-verify/
+    │   │   ├── Cargo.toml
+    │   │   └── src/
+    │   │       ├── properties.rs
+    │   │       ├── contracts.rs
+    │   │       ├── quickcheck.rs
+    │   │       └── lib.rs
+    │   ├── depyler/
+    │   │   ├── Cargo.toml
+    │   │   └── src/
+    │   │       └── main.rs
+    │   ├── depyler-core/
+    │   │   ├── Cargo.toml
+    │   │   └── src/
+    │   │       ├── codegen.rs
+    │   │       ├── direct_rules.rs
+    │   │       ├── rust_gen.rs
+    │   │       ├── error.rs
+    │   │       ├── type_mapper.rs
+    │   │       ├── lib.rs
+    │   │       ├── ast_bridge.rs
+    │   │       └── hir.rs
+    │   ├── depyler-analyzer/
+    │   │   ├── Cargo.toml
+    │   │   └── src/
+    │   │       ├── complexity.rs
+    │   │       ├── type_flow.rs
+    │   │       ├── metrics.rs
+    │   │       └── lib.rs
+    │   └── depyler-mcp/
+    │       ├── Cargo.toml
+    │       └── src/
+    │           ├── validator.rs
+    │           ├── protocol.rs
+    │           └── lib.rs
+    ├── Makefile
+    ├── examples/
+    │   ├── validation/
+    │   │   └── test_all.py
+    │   ├── demo.rs
+    │   ├── demo.py
+    │   └── showcase/
+    │       ├── calculate_sum.py
+    │       ├── process_config.py
+    │       ├── classify_number.py
+    │       └── binary_search.py
+    ├── Cargo.lock
+    ├── CHANGELOG.md
+    ├── scripts/
+    │   ├── prepare-release.sh
+    │   ├── track_binary_size.sh
+    │   └── run_comprehensive_tests.sh
+    ├── RELEASE_NOTES_v0.1.0.md
+    ├── .github/
+    │   └── workflows/
+    │       ├── release.yml
+    │       └── ci.yml
+    ├── target/
+    └── .cargo/
+        └── config.toml
+
+📊 Total Files: 76, Total Size: 505493 bytes
+```
+
+## Complexity Hotspots
+
+| Function | File | Cyclomatic | Cognitive |
+|----------|------|------------|-----------|
+
+## Code Churn Analysis
+
+**Summary:**
+- Total Commits: 0
+- Files Changed: 0
+
+**Top Changed Files:**
+| File | Commits | Authors |
+|------|---------|---------|
+
+## Technical Debt Analysis
+
+**SATD Summary:**
+
+## Dead Code Analysis
+
+**Summary:**
+- Dead Functions: 0
+- Total Dead Lines: 0
+
+## Defect Probability Analysis
+
+**Risk Assessment:**
+- Total Defects Predicted: 0
+- Defect Density: 0.00 defects per 1000 lines
+
+---
+Generated by deep-context v0.21.0

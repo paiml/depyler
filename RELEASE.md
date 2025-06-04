@@ -88,7 +88,7 @@ git push origin v0.1.0
 1. Verify release assets on GitHub
 2. Test installation script:
    ```bash
-   curl -sSfL https://github.com/depyler/depyler/releases/download/v0.1.0/install.sh | sh
+   curl -sSfL https://github.com/paiml/depyler/releases/download/v0.1.0/install.sh | sh
    ```
 3. Update documentation if needed
 4. Announce release
@@ -98,7 +98,7 @@ git push origin v0.1.0
 ### Quick Install (Verified)
 ```bash
 # Download and run installer
-curl -sSfL https://github.com/depyler/depyler/releases/latest/download/install.sh | sh
+curl -sSfL https://github.com/paiml/depyler/releases/latest/download/install.sh | sh
 
 # The installer will:
 # - Detect platform (Linux/macOS, x64/ARM64)
@@ -111,7 +111,7 @@ curl -sSfL https://github.com/depyler/depyler/releases/latest/download/install.s
 ### Manual Install (Verified)
 ```bash
 # Download for your platform
-wget https://github.com/depyler/depyler/releases/latest/download/depyler-linux-amd64.tar.gz
+wget https://github.com/paiml/depyler/releases/latest/download/depyler-linux-amd64.tar.gz
 
 # Extract
 tar xzf depyler-linux-amd64.tar.gz
@@ -126,7 +126,7 @@ depyler --version
 ### Build from Source (Verified)
 ```bash
 # Clone repository
-git clone https://github.com/depyler/depyler.git
+git clone https://github.com/paiml/depyler.git
 cd depyler
 
 # Build and install

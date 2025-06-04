@@ -6,7 +6,7 @@ Complete command-line interface documentation for the Depyler Python-to-Rust tra
 
 ```bash
 # From source (recommended for development)
-git clone https://github.com/depyler/depyler
+git clone https://github.com/paiml/depyler
 cd depyler
 cargo install --path crates/depyler
 
@@ -506,4 +506,4 @@ When reporting issues, include:
 
 *Generated: 2025-01-06*  
 *Version: 0.1.0*  
-*For issues and contributions: https://github.com/depyler/depyler*
+*For issues and contributions: https://github.com/paiml/depyler*
