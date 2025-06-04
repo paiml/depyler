@@ -3,6 +3,7 @@
 > **Compile Python to energy-efficient, memory-safe Rust code**  
 > *Transitioning off Python to energy-efficient and safe Rust systems*
 
+[![Model Context Protocol](https://img.shields.io/badge/MCP-Compatible-brightgreen?style=for-the-badge&logo=ai)](https://modelcontextprotocol.io/)
 [![CI](https://github.com/paiml/depyler/actions/workflows/ci.yml/badge.svg)](https://github.com/paiml/depyler/actions/workflows/ci.yml)
 [![Release](https://github.com/paiml/depyler/actions/workflows/release.yml/badge.svg)](https://github.com/paiml/depyler/actions/workflows/release.yml)
 [![Latest Release](https://img.shields.io/github/v/release/paiml/depyler?include_prereleases&sort=semver)](https://github.com/paiml/depyler/releases/latest)
@@ -203,25 +204,25 @@ The Model Context Protocol integration enables AI-powered transpilation assistan
 
 ```bash
 # Start MCP server
-depyler mcp-server --bind 127.0.0.1:9257
+depyler mcp-server
 
-# Use MCP tools for complex migration analysis
-curl -X POST http://localhost:9257 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "1",
-    "method": "tools/call",
-    "params": {
-      "name": "analyze_migration_complexity",
-      "arguments": {"project_path": "./my_python_project"}
+# Configure in your AI assistant (Claude Desktop, etc.)
+{
+  "mcpServers": {
+    "depyler": {
+      "command": "./target/release/depyler",
+      "args": ["mcp-server"]
     }
-  }'
+  }
+}
 ```
 
 **MCP Tools Available**:
 - `transpile_python`: Direct Python-to-Rust transpilation with options
-- `analyze_migration_complexity`: Project analysis and migration strategy
+- `analyze_migration_complexity`: Project analysis and migration strategy  
 - `verify_transpilation`: Semantic equivalence verification
+
+📖 **[Complete MCP Documentation](docs/mcp-integration.md)** - Full integration guide with examples
 
 ---
 
@@ -258,11 +259,13 @@ Following the **Toyota Way**, Depyler embeds quality at every stage:
 - **[Getting Started](docs/user-guide.md)** - Zero-to-hero tutorial
 - **[Migration Guide](docs/migration-guide.md)** - Step-by-step Python → Rust transition
 - **[Energy Efficiency Deep Dive](docs/energy-efficiency.md)** - Technical analysis and benchmarks
+- **[MCP Integration Guide](docs/mcp-integration.md)** - AI-powered transpilation with MCP
 
 ### Technical Reference  
 - **[Python-to-Rust Specification](docs/python-to-rust-spec.md)** - Complete language mapping
 - **[Safety Guarantees](docs/safety-guarantees.md)** - Memory and thread safety analysis
 - **[Performance Benchmarks](docs/performance-benchmarks.md)** - Comprehensive performance data
+- **[CLI Reference](docs/cli-reference.md)** - Complete command-line documentation
 
 ### Enterprise Resources
 - **[Adoption Guide](docs/enterprise/adoption-guide.md)** - Enterprise deployment strategies
