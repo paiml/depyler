@@ -635,7 +635,7 @@ mod tests {
         assert!(matches!(int_lit, syn::Expr::Lit(_)));
 
         // Test float literal
-        let float_lit = convert_literal(&Literal::Float(3.14));
+        let float_lit = convert_literal(&Literal::Float(1.234)); // Use arbitrary float for test
         assert!(matches!(float_lit, syn::Expr::Lit(_)));
 
         // Test string literal

@@ -11,6 +11,7 @@ use tracing::{info, warn};
 
 pub struct DepylerMcpServer {
     transpiler: Arc<DepylerPipeline>,
+    #[allow(dead_code)] // Cache will be used in future iterations
     cache: Arc<RwLock<HashMap<String, Value>>>,
 }
 
@@ -235,13 +236,13 @@ impl DepylerMcpServer {
         let python_source = match request.mode {
             Mode::Inline => request.source,
             Mode::File => {
-                std::fs::read_to_string(&request.source).map_err(|e| DepylerMcpError::Io(e))?
+                std::fs::read_to_string(&request.source).map_err(DepylerMcpError::Io)?
             }
             Mode::Project => {
                 // For now, just read the main file - in a full implementation,
                 // this would analyze the entire project
                 let main_file = Path::new(&request.source).join("main.py");
-                std::fs::read_to_string(&main_file).map_err(|e| DepylerMcpError::Io(e))?
+                std::fs::read_to_string(&main_file).map_err(DepylerMcpError::Io)?
             }
         };
 
@@ -373,7 +374,7 @@ impl DepylerMcpServer {
         }
 
         let mut total_lines = 0;
-        if path.is_file() && path.extension().map_or(false, |ext| ext == "py") {
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
             let content = std::fs::read_to_string(path)?;
             total_lines += content.lines().count();
         } else if path.is_dir() {
@@ -381,7 +382,7 @@ impl DepylerMcpServer {
             for entry in std::fs::read_dir(path)? {
                 let entry = entry?;
                 let path = entry.path();
-                if path.is_file() && path.extension().map_or(false, |ext| ext == "py") {
+                if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
                     let content = std::fs::read_to_string(&path)?;
                     total_lines += content.lines().count();
                 }
