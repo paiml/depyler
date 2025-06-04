@@ -110,7 +110,7 @@ jobs:
     - name: Install MSRV toolchain
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: "1.70"  # From Cargo.toml rust-version
+        toolchain: "1.81"  # From Cargo.toml rust-version
     
     - name: Check MSRV
       run: cargo check --workspace --all-features

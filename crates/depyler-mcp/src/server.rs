@@ -235,9 +235,7 @@ impl DepylerMcpServer {
 
         let python_source = match request.mode {
             Mode::Inline => request.source,
-            Mode::File => {
-                std::fs::read_to_string(&request.source).map_err(DepylerMcpError::Io)?
-            }
+            Mode::File => std::fs::read_to_string(&request.source).map_err(DepylerMcpError::Io)?,
             Mode::Project => {
                 // For now, just read the main file - in a full implementation,
                 // this would analyze the entire project
