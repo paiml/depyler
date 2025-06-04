@@ -1,5 +1,15 @@
+mod error;
 pub mod protocol;
+mod server;
+mod tools;
 pub mod validator;
+
+#[cfg(test)]
+mod tests;
+
+pub use error::DepylerMcpError;
+pub use server::DepylerMcpServer;
+pub use tools::{AnalyzeRequest, TranspileRequest, VerifyRequest};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

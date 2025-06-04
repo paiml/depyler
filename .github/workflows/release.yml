@@ -106,7 +106,7 @@ jobs:
           set -euf
           
           VERSION="0.1.0"
-          GITHUB_REPO="depyler/depyler"
+          GITHUB_REPO="paiml/depyler"
           
           echo "Depyler installer v${VERSION}"
           echo "==========================="

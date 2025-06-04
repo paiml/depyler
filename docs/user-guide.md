@@ -18,7 +18,7 @@ Before using Depyler, ensure you have:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/depyler.git
+git clone https://github.com/paiml/depyler.git
 cd depyler
 
 # Build and install
@@ -36,7 +36,7 @@ Once released, Depyler will be available through multiple channels:
 
 ```bash
 # Via our installation script (coming soon)
-curl -sSf https://install.depyler.dev | sh
+curl -sSfL https://github.com/paiml/depyler/releases/latest/download/install.sh | sh
 
 # Via Cargo
 cargo install depyler

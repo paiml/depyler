@@ -12,6 +12,7 @@ pub struct ValidationResult {
     pub explanation_quality: f64,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct McpValidator;
 
 impl Default for McpValidator {
@@ -98,5 +99,53 @@ impl McpValidator {
         }
 
         score.min(1.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_estimate_nesting() {
+        let validator = McpValidator::new();
+        let lines = vec![
+            "fn test() {",
+            "    if true {",
+            "        println!(\"hello\");",
+            "    }",
+            "}",
+        ];
+
+        let nesting = validator.estimate_nesting(&lines);
+        assert_eq!(nesting, 2);
+    }
+
+    #[test]
+    fn test_score_explanation() {
+        let validator = McpValidator::new();
+
+        // Good explanation
+        let good = "This Python function converts to Rust because it needs memory safety and uses ownership patterns since the original used mutable data.";
+        let score = validator.score_explanation(good);
+        assert!(score > 0.8);
+
+        // Poor explanation
+        let poor = "Code";
+        let score2 = validator.score_explanation(poor);
+        assert!(score2 < 0.7);
+    }
+
+    #[test]
+    fn test_check_complexity() {
+        let validator = McpValidator::new();
+
+        // Simple code
+        let simple = "fn test() -> i32 { 42 }";
+        assert!(validator.check_complexity(simple).unwrap());
+
+        // Very long line
+        let long_line = &"a".repeat(200);
+        assert!(!validator.check_complexity(long_line).unwrap());
     }
 }

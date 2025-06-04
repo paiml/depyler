@@ -221,4 +221,3 @@ mod tests {
         assert_eq!(err2.context.len(), 2);
     }
 }
-
