@@ -1,0 +1,101 @@
+[workspace]
+members = [
+    "crates/depyler-core",
+    "crates/depyler-analyzer",
+    "crates/depyler-verify", 
+    "crates/depyler-mcp",
+    "crates/depyler",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Depyler Contributors"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/depyler/depyler"
+rust-version = "1.70"
+
+[workspace.dependencies]
+# Core dependencies
+anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Python parsing
+rustpython-parser = "0.3"
+rustpython-ast = "0.3"
+
+# Code generation
+syn = { version = "2.0", features = ["full", "extra-traits", "visit-mut"] }
+quote = "1.0"
+proc-macro2 = "1.0"
+
+# Analysis
+petgraph = "0.6"
+indexmap = "2.0"
+smallvec = { version = "1.0", features = ["serde"] }
+
+# Testing and verification
+quickcheck = "1.0"
+proptest = "1.0"
+insta = "1.0"
+
+# CLI
+clap = { version = "4.0", features = ["derive", "cargo"] }
+indicatif = "0.17"
+colored = "2.0"
+
+# Async (for MCP)
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+
+# Benchmarking
+criterion = { version = "0.5", features = ["html_reports"] }
+pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"
+
+# Size-optimized build for distribution
+[profile.min-size]
+inherits = "release"
+opt-level = "z"           # Optimize for size
+lto = "fat"               # Full link-time optimization
+codegen-units = 1         # Single codegen unit
+panic = "abort"           # Remove panic unwinding
+strip = true              # Strip all symbols
+
+# Fast development builds
+[profile.dev-fast]
+inherits = "dev"
+opt-level = 1
+incremental = true
+codegen-units = 16
+
+[profile.dev]
+opt-level = 0
+debug = true
+incremental = true
+
+[profile.bench]
+inherits = "release"
+debug = true              # Keep debug info for profiling
+strip = false            # Keep symbols for flamegraphs
+
+# Optimize dependencies in all profiles
+[profile.release.package."*"]
+opt-level = 3
+
+[profile.min-size.package."*"]
+opt-level = "z"
+
+[profile.dev-fast.package."*"]
+opt-level = 1

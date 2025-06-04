@@ -1,0 +1,20 @@
+[package]
+name = "depyler-verify"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+depyler-core = { path = "../depyler-core" }
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+quickcheck.workspace = true
+proptest.workspace = true
+
+[dev-dependencies]
+insta.workspace = true

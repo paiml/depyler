@@ -1,0 +1,10 @@
+[build]
+rustflags = ["-D", "warnings"]
+
+[env]
+CARGO_INCREMENTAL = "0"
+RUSTFLAGS = "-Cinstrument-coverage"
+LLVM_PROFILE_FILE = "cargo-test-%p-%m.profraw"
+
+[target.'cfg(target_os = "linux")']
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]

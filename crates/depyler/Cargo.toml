@@ -1,0 +1,31 @@
+[package]
+name = "depyler"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "depyler"
+path = "src/main.rs"
+
+[dependencies]
+depyler-core = { path = "../depyler-core" }
+depyler-analyzer = { path = "../depyler-analyzer" }
+depyler-verify = { path = "../depyler-verify" }
+depyler-mcp = { path = "../depyler-mcp" }
+
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+clap.workspace = true
+indicatif.workspace = true
+colored.workspace = true
+rustpython-parser.workspace = true
+
+[dev-dependencies]
+insta.workspace = true

@@ -1,0 +1,24 @@
+[package]
+name = "depyler-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+rustpython-parser.workspace = true
+rustpython-ast.workspace = true
+syn.workspace = true
+quote.workspace = true
+proc-macro2.workspace = true
+indexmap.workspace = true
+smallvec.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
