@@ -29,7 +29,7 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev
+        sudo apt-get install -y build-essential binutils lld pkg-config libssl-dev binutils lld binutils lld
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@master
@@ -68,7 +68,7 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev
+        sudo apt-get install -y build-essential binutils lld pkg-config libssl-dev binutils lld binutils lld
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -105,7 +105,7 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev
+        sudo apt-get install -y build-essential binutils lld pkg-config libssl-dev binutils lld binutils lld
     
     - name: Install MSRV toolchain
       uses: dtolnay/rust-toolchain@master
@@ -129,7 +129,7 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev
+        sudo apt-get install -y build-essential binutils lld pkg-config libssl-dev binutils lld binutils lld
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -157,7 +157,7 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential
+        sudo apt-get install -y build-essential binutils lld
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
