@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-01-06
+
+### Added
+- **Augmented Assignment Operators**: Full support for `+=`, `-=`, `*=`, `/=`, `%=`, etc.
+- **Membership Operators**: Implemented `in` and `not in` operators for dictionary membership checks
+- **QuickCheck Integration**: Property-based testing framework for transpilation correctness
+- **Operator Test Suite**: Comprehensive tests covering all supported operators
+- **Property Tests**: Verification of type preservation, purity, and panic-freedom properties
+
+### Changed
+- **Reduced Complexity**: Refactored HirExpr::to_rust_expr from cyclomatic complexity 42 to <20
+- **Cleaner AST Bridge**: Modularized expression and statement conversion with dedicated converters
+- **Better Error Messages**: More informative error reporting for unsupported constructs
+
+### Fixed
+- Fixed transpilation of augmented assignment operators
+- Fixed dictionary membership test operators
+- Improved handling of string literals in generated code
+
+### Metrics
+- **V1.0 Transpilation Success Rate**: 100% (4/4 examples)
+- **Code Quality Score**: 75.0/100
+- **Major complexity hotspots refactored**
+
 ## [0.1.0] - 2025-01-06
 
 ### Initial Release
@@ -42,5 +66,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Error Messages**: Clear, actionable error reporting
 - **Extensible Design**: Easy to add new Python features
 
-[Unreleased]: https://github.com/paiml/depyler/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/paiml/depyler/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/paiml/depyler/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/paiml/depyler/releases/tag/v0.1.0
