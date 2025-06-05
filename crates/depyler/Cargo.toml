@@ -10,6 +10,10 @@ repository.workspace = true
 name = "depyler"
 path = "src/main.rs"
 
+[features]
+default = []
+coverage = [] # Feature flag to disable heavy property tests during coverage runs
+
 [dependencies]
 depyler-core = { path = "../depyler-core" }
 depyler-analyzer = { path = "../depyler-analyzer" }
