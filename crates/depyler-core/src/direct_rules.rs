@@ -32,7 +32,7 @@ fn convert_function(func: &HirFunction, type_mapper: &TypeMapper) -> Result<syn:
     for (param_name, param_type) in &func.params {
         let rust_type = type_mapper.map_type(param_type);
         let ty = rust_type_to_syn(&rust_type)?;
-        // Use same naming scheme for parameters  
+        // Use same naming scheme for parameters
         let param_var_name = format!("var_{}", param_name);
         let pat = syn::Pat::Ident(syn::PatIdent {
             attrs: vec![],
@@ -222,7 +222,10 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
             // Skip string literals (likely docstrings)
             if let HirExpr::Literal(Literal::String(_)) = expr {
                 // Convert to comment instead of expression
-                Ok(syn::Stmt::Expr(parse_quote! { () }, Some(Default::default())))
+                Ok(syn::Stmt::Expr(
+                    parse_quote! { () },
+                    Some(Default::default()),
+                ))
             } else {
                 let rust_expr = convert_expr(expr, type_mapper)?;
                 Ok(syn::Stmt::Expr(rust_expr, Some(Default::default())))
