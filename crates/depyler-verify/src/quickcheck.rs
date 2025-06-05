@@ -49,7 +49,7 @@ impl TypedValue {
                             let n: i32 = Arbitrary::arbitrary(g);
                             n.to_string()
                         }
-                        _ => format!("key_{}", i),
+                        _ => format!("key_{i}"),
                     };
                     let val = Self::arbitrary_for_type(val_ty, g).value;
                     map.insert(key, val);
