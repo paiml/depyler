@@ -32,13 +32,11 @@ fn convert_function(func: &HirFunction, type_mapper: &TypeMapper) -> Result<syn:
     for (param_name, param_type) in &func.params {
         let rust_type = type_mapper.map_type(param_type);
         let ty = rust_type_to_syn(&rust_type)?;
-        // Use same naming scheme for parameters
-        let param_var_name = format!("var_{}", param_name);
         let pat = syn::Pat::Ident(syn::PatIdent {
             attrs: vec![],
             by_ref: None,
             mutability: None,
-            ident: syn::Ident::new(&param_var_name, proc_macro2::Span::call_site()),
+            ident: syn::Ident::new(param_name, proc_macro2::Span::call_site()),
             subpat: None,
         });
 
@@ -141,9 +139,7 @@ fn convert_body(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Result<Vec<syn::
 fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
     match stmt {
         HirStmt::Assign { target, value } => {
-            // Simple V1: Use unique variable names to avoid redeclaration issues
-            let target_name = format!("var_{}", target);
-            let target_ident = syn::Ident::new(&target_name, proc_macro2::Span::call_site());
+            let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
             let value_expr = convert_expr(value, type_mapper)?;
 
             let stmt = syn::Stmt::Local(syn::Local {
@@ -279,9 +275,7 @@ impl<'a> ExprConverter<'a> {
     }
 
     fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
-        // Use same naming scheme as assignments for consistency
-        let var_name = format!("var_{}", name);
-        let ident = syn::Ident::new(&var_name, proc_macro2::Span::call_site());
+        let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
         Ok(parse_quote! { #ident })
     }
 
