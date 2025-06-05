@@ -197,113 +197,168 @@ trait ToRustExpr {
     fn to_rust_expr(&self, ctx: &mut CodeGenContext) -> Result<syn::Expr>;
 }
 
-impl ToRustExpr for HirExpr {
-    fn to_rust_expr(&self, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
-        match self {
-            HirExpr::Literal(lit) => Ok(literal_to_rust_expr(lit)),
-            HirExpr::Var(name) => {
-                let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-                Ok(parse_quote! { #ident })
+/// Expression converter to reduce complexity
+struct ExpressionConverter<'a, 'b> {
+    ctx: &'a mut CodeGenContext<'b>,
+}
+
+impl<'a, 'b> ExpressionConverter<'a, 'b> {
+    fn new(ctx: &'a mut CodeGenContext<'b>) -> Self {
+        Self { ctx }
+    }
+
+    fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
+        let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+        Ok(parse_quote! { #ident })
+    }
+
+    fn convert_binary(&mut self, op: BinOp, left: &HirExpr, right: &HirExpr) -> Result<syn::Expr> {
+        let left_expr = left.to_rust_expr(self.ctx)?;
+        let right_expr = right.to_rust_expr(self.ctx)?;
+
+        match op {
+            BinOp::In => {
+                // Convert "x in dict" to "dict.contains_key(&x)" for dicts
+                // For now, assume it's a dict/hashmap
+                Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
             }
-            HirExpr::Binary { op, left, right } => {
-                let left_expr = left.to_rust_expr(ctx)?;
-                let right_expr = right.to_rust_expr(ctx)?;
-                let rust_op = convert_binop(*op)?;
+            BinOp::NotIn => {
+                // Convert "x not in dict" to "!dict.contains_key(&x)"
+                Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+            }
+            _ => {
+                let rust_op = convert_binop(op)?;
                 Ok(parse_quote! { (#left_expr #rust_op #right_expr) })
             }
-            HirExpr::Unary { op, operand } => {
-                let operand_expr = operand.to_rust_expr(ctx)?;
-                match op {
-                    UnaryOp::Not => Ok(parse_quote! { !#operand_expr }),
-                    UnaryOp::Neg => Ok(parse_quote! { -#operand_expr }),
-                    UnaryOp::Pos => Ok(operand_expr), // No +x in Rust
-                    UnaryOp::BitNot => Ok(parse_quote! { !#operand_expr }),
-                }
-            }
-            HirExpr::Call { func, args } => {
-                let arg_exprs: Vec<syn::Expr> = args
-                    .iter()
-                    .map(|arg| arg.to_rust_expr(ctx))
-                    .collect::<Result<Vec<_>>>()?;
+        }
+    }
 
-                match func.as_str() {
-                    "len" => {
-                        if args.len() != 1 {
-                            bail!("len() requires exactly one argument");
-                        }
-                        let arg = &arg_exprs[0];
-                        Ok(parse_quote! { #arg.len() })
-                    }
-                    "range" => match args.len() {
-                        1 => {
-                            let end = &arg_exprs[0];
-                            Ok(parse_quote! { 0..#end })
-                        }
-                        2 => {
-                            let start = &arg_exprs[0];
-                            let end = &arg_exprs[1];
-                            Ok(parse_quote! { #start..#end })
-                        }
-                        3 => bail!("range() with step parameter not yet supported"),
-                        _ => bail!("Invalid number of arguments for range()"),
-                    },
-                    _ => {
-                        let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
-                        Ok(parse_quote! { #func_ident(#(#arg_exprs),*) })
-                    }
-                }
+    fn convert_unary(&mut self, op: &UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
+        let operand_expr = operand.to_rust_expr(self.ctx)?;
+        match op {
+            UnaryOp::Not => Ok(parse_quote! { !#operand_expr }),
+            UnaryOp::Neg => Ok(parse_quote! { -#operand_expr }),
+            UnaryOp::Pos => Ok(operand_expr), // No +x in Rust
+            UnaryOp::BitNot => Ok(parse_quote! { !#operand_expr }),
+        }
+    }
+
+    fn convert_call(&mut self, func: &str, args: &[HirExpr]) -> Result<syn::Expr> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        match func {
+            "len" => self.convert_len_call(&arg_exprs),
+            "range" => self.convert_range_call(&arg_exprs),
+            _ => self.convert_generic_call(func, &arg_exprs),
+        }
+    }
+
+    fn convert_len_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("len() requires exactly one argument");
+        }
+        let arg = &args[0];
+        Ok(parse_quote! { #arg.len() })
+    }
+
+    fn convert_range_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        match args.len() {
+            1 => {
+                let end = &args[0];
+                Ok(parse_quote! { 0..#end })
             }
-            HirExpr::Index { base, index } => {
-                let base_expr = base.to_rust_expr(ctx)?;
-                let index_expr = index.to_rust_expr(ctx)?;
-                // V1: Safe indexing with bounds checking
-                Ok(parse_quote! {
-                    #base_expr.get(#index_expr as usize).copied().unwrap_or_default()
-                })
+            2 => {
+                let start = &args[0];
+                let end = &args[1];
+                Ok(parse_quote! { #start..#end })
             }
-            HirExpr::List(elts) => {
-                let elt_exprs: Vec<syn::Expr> = elts
-                    .iter()
-                    .map(|e| e.to_rust_expr(ctx))
-                    .collect::<Result<Vec<_>>>()?;
-                Ok(parse_quote! { vec![#(#elt_exprs),*] })
+            3 => bail!("range() with step parameter not yet supported"),
+            _ => bail!("Invalid number of arguments for range()"),
+        }
+    }
+
+    fn convert_generic_call(&self, func: &str, args: &[syn::Expr]) -> Result<syn::Expr> {
+        let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+        Ok(parse_quote! { #func_ident(#(#args),*) })
+    }
+
+    fn convert_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
+        let base_expr = base.to_rust_expr(self.ctx)?;
+        let index_expr = index.to_rust_expr(self.ctx)?;
+        // V1: Safe indexing with bounds checking
+        Ok(parse_quote! {
+            #base_expr.get(#index_expr as usize).copied().unwrap_or_default()
+        })
+    }
+
+    fn convert_list(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
+        let elt_exprs: Vec<syn::Expr> = elts
+            .iter()
+            .map(|e| e.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(parse_quote! { vec![#(#elt_exprs),*] })
+    }
+
+    fn convert_dict(&mut self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
+        self.ctx.needs_hashmap = true;
+        let mut insert_stmts = Vec::new();
+        for (key, value) in items {
+            let key_expr = key.to_rust_expr(self.ctx)?;
+            let val_expr = value.to_rust_expr(self.ctx)?;
+            insert_stmts.push(quote! { map.insert(#key_expr, #val_expr); });
+        }
+        Ok(parse_quote! {
+            {
+                let mut map = HashMap::new();
+                #(#insert_stmts)*
+                map
             }
-            HirExpr::Dict(items) => {
-                ctx.needs_hashmap = true;
-                let mut insert_stmts = Vec::new();
-                for (key, value) in items {
-                    let key_expr = key.to_rust_expr(ctx)?;
-                    let val_expr = value.to_rust_expr(ctx)?;
-                    insert_stmts.push(quote! { map.insert(#key_expr, #val_expr); });
-                }
-                Ok(parse_quote! {
-                    {
-                        let mut map = HashMap::new();
-                        #(#insert_stmts)*
-                        map
-                    }
-                })
-            }
-            HirExpr::Tuple(elts) => {
-                let elt_exprs: Vec<syn::Expr> = elts
-                    .iter()
-                    .map(|e| e.to_rust_expr(ctx))
-                    .collect::<Result<Vec<_>>>()?;
-                Ok(parse_quote! { (#(#elt_exprs),*) })
-            }
-            HirExpr::Attribute { value, attr } => {
-                let value_expr = value.to_rust_expr(ctx)?;
-                let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
-                Ok(parse_quote! { #value_expr.#attr_ident })
-            }
-            HirExpr::Borrow { expr, mutable } => {
-                let expr_tokens = expr.to_rust_expr(ctx)?;
-                if *mutable {
-                    Ok(parse_quote! { &mut #expr_tokens })
-                } else {
-                    Ok(parse_quote! { &#expr_tokens })
-                }
-            }
+        })
+    }
+
+    fn convert_tuple(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
+        let elt_exprs: Vec<syn::Expr> = elts
+            .iter()
+            .map(|e| e.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(parse_quote! { (#(#elt_exprs),*) })
+    }
+
+    fn convert_attribute(&mut self, value: &HirExpr, attr: &str) -> Result<syn::Expr> {
+        let value_expr = value.to_rust_expr(self.ctx)?;
+        let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+        Ok(parse_quote! { #value_expr.#attr_ident })
+    }
+
+    fn convert_borrow(&mut self, expr: &HirExpr, mutable: bool) -> Result<syn::Expr> {
+        let expr_tokens = expr.to_rust_expr(self.ctx)?;
+        if mutable {
+            Ok(parse_quote! { &mut #expr_tokens })
+        } else {
+            Ok(parse_quote! { &#expr_tokens })
+        }
+    }
+}
+
+impl ToRustExpr for HirExpr {
+    fn to_rust_expr(&self, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
+        let mut converter = ExpressionConverter::new(ctx);
+
+        match self {
+            HirExpr::Literal(lit) => Ok(literal_to_rust_expr(lit)),
+            HirExpr::Var(name) => converter.convert_variable(name),
+            HirExpr::Binary { op, left, right } => converter.convert_binary(*op, left, right),
+            HirExpr::Unary { op, operand } => converter.convert_unary(op, operand),
+            HirExpr::Call { func, args } => converter.convert_call(func, args),
+            HirExpr::Index { base, index } => converter.convert_index(base, index),
+            HirExpr::List(elts) => converter.convert_list(elts),
+            HirExpr::Dict(items) => converter.convert_dict(items),
+            HirExpr::Tuple(elts) => converter.convert_tuple(elts),
+            HirExpr::Attribute { value, attr } => converter.convert_attribute(value, attr),
+            HirExpr::Borrow { expr, mutable } => converter.convert_borrow(expr, *mutable),
         }
     }
 }
@@ -364,8 +419,8 @@ fn convert_binop(op: BinOp) -> Result<syn::BinOp> {
         LShift => Ok(parse_quote! { << }),
         RShift => Ok(parse_quote! { >> }),
 
-        // Special membership operators (require special handling)
-        In | NotIn => bail!("in/not in operators require special handling"),
+        // Special membership operators handled in convert_binary
+        In | NotIn => bail!("in/not in operators should be handled by convert_binary"),
     }
 }
 

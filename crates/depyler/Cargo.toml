@@ -29,3 +29,24 @@ rustpython-parser.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
+tempfile.workspace = true
+quickcheck.workspace = true
+quickcheck_macros.workspace = true
+tokio.workspace = true
+quote.workspace = true
+
+[[test]]
+name = "functional_tests"
+path = "../../tests/functional_tests.rs"
+
+[[test]]
+name = "integration_tests"
+path = "../../tests/integration/transpilation_tests.rs"
+
+[[test]]
+name = "property_tests"
+path = "../../tests/property_tests.rs"
+
+[[test]]
+name = "operator_tests"
+path = "../../tests/operator_tests.rs"

@@ -18,3 +18,4 @@ proptest.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
+quickcheck_macros = "1.0"
