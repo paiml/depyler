@@ -282,8 +282,22 @@ impl<'a> ExprConverter<'a> {
     fn convert_binary(&self, op: BinOp, left: &HirExpr, right: &HirExpr) -> Result<syn::Expr> {
         let left_expr = self.convert(left)?;
         let right_expr = self.convert(right)?;
-        let rust_op = convert_binop(op)?;
-        Ok(parse_quote! { #left_expr #rust_op #right_expr })
+
+        match op {
+            BinOp::In => {
+                // Convert "x in dict" to "dict.contains_key(&x)" for dicts
+                // For now, assume it's a dict/hashmap
+                Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+            }
+            BinOp::NotIn => {
+                // Convert "x not in dict" to "!dict.contains_key(&x)"
+                Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+            }
+            _ => {
+                let rust_op = convert_binop(op)?;
+                Ok(parse_quote! { #left_expr #rust_op #right_expr })
+            }
+        }
     }
 
     fn convert_unary(&self, op: UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
@@ -444,8 +458,8 @@ fn convert_binop(op: BinOp) -> Result<syn::BinOp> {
         LShift => Ok(parse_quote! { << }),
         RShift => Ok(parse_quote! { >> }),
 
-        // Special membership operators (require special handling)
-        In | NotIn => bail!("in/not in operators require special handling"),
+        // Special membership operators handled elsewhere
+        In | NotIn => bail!("in/not in operators should be handled by convert_binary"),
     }
 }
 
