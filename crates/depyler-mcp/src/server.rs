@@ -187,7 +187,7 @@ impl DepylerMcpServer {
                     result: None,
                     error: Some(McpError {
                         code: error_codes::INVALID_PARAMS,
-                        message: format!("Invalid tool call parameters: {}", e),
+                        message: format!("Invalid tool call parameters: {e}"),
                         data: None,
                     }),
                 };
@@ -249,7 +249,7 @@ impl DepylerMcpServer {
             Err(e) => {
                 warn!("Transpilation failed: {}", e);
                 // Fallback to a simple transpilation
-                format!("// Transpilation failed: {}\n// Original Python:\n/*\n{}\n*/\n\nfn main() {{\n    println!(\"Transpilation not yet fully implemented\");\n}}", e, python_source)
+                format!("// Transpilation failed: {e}\n// Original Python:\n/*\n{python_source}\n*/\n\nfn main() {{\n    println!(\"Transpilation not yet fully implemented\");\n}}")
             }
         };
 
@@ -366,8 +366,7 @@ impl DepylerMcpServer {
         let path = Path::new(project_path);
         if !path.exists() {
             return Err(DepylerMcpError::InvalidInput(format!(
-                "Project path does not exist: {}",
-                project_path
+                "Project path does not exist: {project_path}"
             )));
         }
 
