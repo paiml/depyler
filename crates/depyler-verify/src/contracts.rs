@@ -30,9 +30,9 @@ impl ContractChecker {
             match param_type {
                 Type::List(_) => {
                     contract.preconditions.push(Condition {
-                        name: format!("{}_not_null", param_name),
-                        expression: format!("{} is not None", param_name),
-                        description: format!("Parameter {} must not be null", param_name),
+                        name: format!("{param_name}_not_null"),
+                        expression: format!("{param_name} is not None"),
+                        description: format!("Parameter {param_name} must not be null"),
                     });
                 }
                 Type::Int => {
@@ -86,7 +86,7 @@ impl ContractChecker {
 
         // Generate precondition checks
         if !contract.preconditions.is_empty() {
-            checks.push_str(&format!("fn check_{}_preconditions(", func_name));
+            checks.push_str(&format!("fn check_{func_name}_preconditions("));
             checks.push_str("/* params */) -> Result<(), &'static str> {\n");
 
             for pre in &contract.preconditions {
@@ -100,7 +100,7 @@ impl ContractChecker {
 
         // Generate postcondition checks
         if !contract.postconditions.is_empty() {
-            checks.push_str(&format!("fn check_{}_postconditions(", func_name));
+            checks.push_str(&format!("fn check_{func_name}_postconditions("));
             checks.push_str("/* result */) -> Result<(), &'static str> {\n");
 
             for post in &contract.postconditions {

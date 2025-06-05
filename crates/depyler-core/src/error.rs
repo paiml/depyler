@@ -86,7 +86,7 @@ impl fmt::Display for TranspileError {
 
         // Add location if available
         if let Some(loc) = &self.location {
-            write!(f, " at {}", loc)?;
+            write!(f, " at {loc}")?;
         }
 
         // Add context if available

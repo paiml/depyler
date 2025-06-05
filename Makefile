@@ -122,8 +122,7 @@ quality-gate: lint clippy complexity-check ## Run quality checks
 
 lint: ## Run linter
 	@echo "Running linter..."
-	$(CARGO) fmt --check
-	$(CARGO) check $(TEST_FLAGS)
+	$(CARGO) clippy $(TEST_FLAGS) -- -D warnings
 
 clippy: ## Run Clippy linter
 	@echo "Running Clippy..."

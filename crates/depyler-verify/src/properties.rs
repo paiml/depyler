@@ -3,7 +3,7 @@ use depyler_core::hir::{HirFunction, Type};
 
 pub fn generate_quickcheck_tests(func: &HirFunction, _iterations: usize) -> Result<String> {
     let func_name = &func.name;
-    let _test_name = format!("prop_{}_properties", func_name);
+    let _test_name = format!("prop_{func_name}_properties");
 
     let mut test_code = String::new();
 
@@ -48,7 +48,7 @@ fn generate_numeric_property_test(func: &HirFunction) -> Result<String> {
     let mut test = String::new();
 
     test.push_str("    quickcheck! {\n");
-    test.push_str(&format!("        fn prop_{}_numeric_overflow(", func_name));
+    test.push_str(&format!("        fn prop_{func_name}_numeric_overflow("));
 
     // Generate parameters
     let param_list: Vec<String> = func
@@ -56,12 +56,12 @@ fn generate_numeric_property_test(func: &HirFunction) -> Result<String> {
         .iter()
         .map(|(name, ty)| {
             match ty {
-                Type::Int => format!("{}: i32", name),
-                Type::Float => format!("{}: f64", name),
+                Type::Int => format!("{name}: i32"),
+                Type::Float => format!("{name}: f64"),
                 Type::List(inner) if matches!(**inner, Type::Int) => {
-                    format!("{}: Vec<i32>", name)
+                    format!("{name}: Vec<i32>")
                 }
-                _ => format!("{}: i32", name), // Default
+                _ => format!("{name}: i32"), // Default
             }
         })
         .collect();
@@ -74,20 +74,19 @@ fn generate_numeric_property_test(func: &HirFunction) -> Result<String> {
     for (name, ty) in &func.params {
         if matches!(ty, Type::Int) {
             test.push_str(&format!(
-                "            if {}.checked_add(1).is_none() {{ return TestResult::discard(); }}\n",
-                name
+                "            if {name}.checked_add(1).is_none() {{ return TestResult::discard(); }}\n"
             ));
         }
     }
 
     // Call the function
-    test.push_str(&format!("            let result = {}(", func_name));
+    test.push_str(&format!("            let result = {func_name}("));
     let args: Vec<String> = func
         .params
         .iter()
         .map(|(name, ty)| {
             if ty.is_container() {
-                format!("&{}", name)
+                format!("&{name}")
             } else {
                 name.clone()
             }
@@ -110,7 +109,7 @@ fn generate_bounds_property_test(func: &HirFunction) -> Result<String> {
     let mut test = String::new();
 
     test.push_str("    quickcheck! {\n");
-    test.push_str(&format!("        fn prop_{}_bounds_checking(", func_name));
+    test.push_str(&format!("        fn prop_{func_name}_bounds_checking("));
 
     // Generate parameters
     let param_list: Vec<String> = func
@@ -119,9 +118,9 @@ fn generate_bounds_property_test(func: &HirFunction) -> Result<String> {
         .map(|(name, ty)| match ty {
             Type::List(inner) => {
                 let inner_type = type_to_rust_string(inner);
-                format!("{}: Vec<{}>", name, inner_type)
+                format!("{name}: Vec<{inner_type}>")
             }
-            _ => format!("{}: i32", name),
+            _ => format!("{name}: i32"),
         })
         .collect();
 
@@ -132,20 +131,19 @@ fn generate_bounds_property_test(func: &HirFunction) -> Result<String> {
     for (name, ty) in &func.params {
         if matches!(ty, Type::List(_)) {
             test.push_str(&format!(
-                "            if {}.is_empty() {{ return TestResult::discard(); }}\n",
-                name
+                "            if {name}.is_empty() {{ return TestResult::discard(); }}\n"
             ));
         }
     }
 
     // Call the function
-    test.push_str(&format!("            let result = {}(", func_name));
+    test.push_str(&format!("            let result = {func_name}("));
     let args: Vec<String> = func
         .params
         .iter()
         .map(|(name, ty)| {
             if ty.is_container() {
-                format!("&{}", name)
+                format!("&{name}")
             } else {
                 name.clone()
             }
@@ -168,13 +166,13 @@ fn generate_termination_test(func: &HirFunction) -> Result<String> {
     let mut test = String::new();
 
     test.push_str("    #[test]\n");
-    test.push_str(&format!("    fn test_{}_terminates() {{\n", func_name));
+    test.push_str(&format!("    fn test_{func_name}_terminates() {{\n"));
     test.push_str(
         "        // For functions proven to terminate, we generate specific test cases\n",
     );
 
     // Generate simple test cases
-    test.push_str(&format!("        let result = {}(", func_name));
+    test.push_str(&format!("        let result = {func_name}("));
     let args: Vec<String> = func
         .params
         .iter()
@@ -204,13 +202,19 @@ fn type_to_rust_string(ty: &Type) -> String {
         Type::String => "String".to_string(),
         Type::Bool => "bool".to_string(),
         Type::None => "()".to_string(),
-        Type::List(inner) => format!("Vec<{}>", type_to_rust_string(inner)),
-        Type::Dict(k, v) => format!(
-            "HashMap<{}, {}>",
-            type_to_rust_string(k),
-            type_to_rust_string(v)
-        ),
-        Type::Optional(inner) => format!("Option<{}>", type_to_rust_string(inner)),
+        Type::List(inner) => {
+            let inner_type = type_to_rust_string(inner);
+            format!("Vec<{inner_type}>")
+        }
+        Type::Dict(k, v) => {
+            let k_type = type_to_rust_string(k);
+            let v_type = type_to_rust_string(v);
+            format!("HashMap<{k_type}, {v_type}>")
+        }
+        Type::Optional(inner) => {
+            let inner_type = type_to_rust_string(inner);
+            format!("Option<{inner_type}>")
+        }
         _ => "i32".to_string(), // Default fallback
     }
 }

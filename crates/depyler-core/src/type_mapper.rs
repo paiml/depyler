@@ -155,12 +155,12 @@ impl RustType {
             RustType::String => "String".to_string(),
             RustType::Str { lifetime } => {
                 if let Some(lt) = lifetime {
-                    format!("&{} str", lt)
+                    format!("&{lt} str")
                 } else {
                     "&str".to_string()
                 }
             }
-            RustType::Cow { lifetime } => format!("Cow<{}, str>", lifetime),
+            RustType::Cow { lifetime } => format!("Cow<{lifetime}, str>"),
             RustType::Vec(inner) => format!("Vec<{}>", inner.to_rust_string()),
             RustType::HashMap(k, v) => {
                 format!("HashMap<{}, {}>", k.to_rust_string(), v.to_rust_string())
@@ -191,7 +191,7 @@ impl RustType {
             }
             RustType::Unit => "()".to_string(),
             RustType::Custom(name) => name.clone(),
-            RustType::Unsupported(desc) => format!("/* unsupported: {} */", desc),
+            RustType::Unsupported(desc) => format!("/* unsupported: {desc} */"),
         }
     }
 }

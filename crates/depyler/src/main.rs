@@ -157,7 +157,7 @@ fn transpile_command(
 
     println!("\n{}", "Transpilation Complete".green().bold());
     println!("  ⏱️  Parse time: {:.2}ms", parse_time.as_millis());
-    println!("  📊 Throughput: {:.1} KB/s", throughput);
+    println!("  📊 Throughput: {throughput:.1} KB/s");
     println!("  ⏱️  Total time: {:.2}ms", total_time.as_millis());
     println!(
         "  📝 Output: {} ({} bytes)",
@@ -196,7 +196,7 @@ fn analyze_command(input: PathBuf, format: String) -> Result<()> {
     match format.as_str() {
         "json" => {
             let json = serde_json::to_string_pretty(&analysis)?;
-            println!("{}", json);
+            println!("{json}");
         }
         _ => {
             // Text format
@@ -244,7 +244,7 @@ fn analyze_command(input: PathBuf, format: String) -> Result<()> {
                 (direct_count as f64 / analysis.function_metrics.len() as f64) * 100.0
             );
             if mcp_count > 0 {
-                println!("  MCP Required: {} function(s)", mcp_count);
+                println!("  MCP Required: {mcp_count} function(s)");
             }
 
             println!("\n{}", "Properties Verified:".yellow());
