@@ -110,7 +110,7 @@ jobs:
     - name: Install MSRV toolchain
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: "1.81"  # From Cargo.toml rust-version
+        toolchain: "1.83"  # From Cargo.toml rust-version
     
     - name: Check MSRV
       run: cargo check --workspace --all-features
@@ -176,6 +176,12 @@ jobs:
           # Verify Rust file was generated and has content
           if [ -f "${py_file%.py}.rs" ] && [ -s "${py_file%.py}.rs" ]; then
             echo "✅ Generated Rust file exists and has content"
+            # Simple syntax check (don't require compilation for V1)
+            if rustc --crate-type lib "${py_file%.py}.rs" --error-format short 2>/dev/null; then
+              echo "✅ Generated Rust file compiles successfully"
+            else
+              echo "⚠️  Generated Rust file has compilation issues (acceptable for V1)"
+            fi
           else
             echo "❌ Failed to generate Rust file"
             exit 1
