@@ -3,7 +3,7 @@ use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
 
-use depyler_core::{DepylerPipeline, Config, TranspileResult};
+use depyler_core::{Config, DepylerPipeline, TranspileResult};
 use depyler_verify::{PropertyVerifier, VerificationResult};
 
 #[derive(Debug)]
@@ -22,9 +22,15 @@ impl TranspilationTestHarness {
         }
     }
 
-    pub fn test_transpilation(&self, python_source: &str, expected_rust: &str) -> Result<(), String> {
+    pub fn test_transpilation(
+        &self,
+        python_source: &str,
+        expected_rust: &str,
+    ) -> Result<(), String> {
         // 1. Transpile Python to Rust
-        let result = self.pipeline.transpile(python_source)
+        let result = self
+            .pipeline
+            .transpile(python_source)
             .map_err(|e| format!("Transpilation failed: {}", e))?;
 
         // 2. Verify generated Rust compiles
@@ -79,7 +85,10 @@ impl TranspilationTestHarness {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             if stderr.contains("error:") {
-                return Err(format!("Generated Rust code has Clippy errors:\n{}", stderr));
+                return Err(format!(
+                    "Generated Rust code has Clippy errors:\n{}",
+                    stderr
+                ));
             }
         }
 
@@ -88,11 +97,13 @@ impl TranspilationTestHarness {
 
     fn compare_outputs(&self, actual: &str, expected: &str) -> Result<(), String> {
         // Normalize whitespace for comparison
-        let normalize = |s: &str| s.lines()
-            .map(|line| line.trim())
-            .filter(|line| !line.is_empty())
-            .collect::<Vec<_>>()
-            .join("\n");
+        let normalize = |s: &str| {
+            s.lines()
+                .map(|line| line.trim())
+                .filter(|line| !line.is_empty())
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
 
         let actual_normalized = normalize(actual);
         let expected_normalized = normalize(expected);
@@ -109,7 +120,7 @@ impl TranspilationTestHarness {
 
     fn verify_properties(&self, result: &TranspileResult) -> Result<(), String> {
         let verification_results = self.verifier.verify(&result.hir);
-        
+
         for result in verification_results {
             if let VerificationResult::Failed(msg) = result {
                 return Err(format!("Property verification failed: {}", msg));
@@ -127,7 +138,7 @@ mod tests {
     #[test]
     fn test_simple_function_transpilation() {
         let harness = TranspilationTestHarness::new();
-        
+
         let python_code = r#"
 def add_numbers(a: int, b: int) -> int:
     return a + b
@@ -139,14 +150,15 @@ pub fn add_numbers(a: i32, b: i32) -> i32 {
 }
 "#;
 
-        harness.test_transpilation(python_code, expected_rust)
+        harness
+            .test_transpilation(python_code, expected_rust)
             .expect("Simple function transpilation should succeed");
     }
 
     #[test]
     fn test_list_operations() {
         let harness = TranspilationTestHarness::new();
-        
+
         let python_code = r#"
 from typing import List
 
@@ -157,14 +169,15 @@ def sum_list(numbers: List[int]) -> int:
     return total
 "#;
 
-        harness.test_transpilation(python_code, "")
+        harness
+            .test_transpilation(python_code, "")
             .expect("List operations should transpile successfully");
     }
 
     #[test]
     fn test_conditional_logic() {
         let harness = TranspilationTestHarness::new();
-        
+
         let python_code = r#"
 def classify_number(n: int) -> str:
     if n > 0:
@@ -175,46 +188,47 @@ def classify_number(n: int) -> str:
         return "zero"
 "#;
 
-        harness.test_transpilation(python_code, "")
+        harness
+            .test_transpilation(python_code, "")
             .expect("Conditional logic should transpile successfully");
     }
 
     #[test]
     fn test_mcp_functionality() {
-        use depyler_mcp::{DepylerMcpServer, protocol::*};
+        use depyler_mcp::{protocol::*, DepylerMcpServer};
         use serde_json::json;
         use tokio::runtime::Runtime;
-        
+
         let rt = Runtime::new().unwrap();
-        
+
         rt.block_on(async {
             let server = DepylerMcpServer::new();
-            
+
             // Test Initialize
             let init_message = McpMessage {
                 id: "test-init".to_string(),
                 method: methods::INITIALIZE.to_string(),
                 params: json!({}),
             };
-            
+
             let response = server.handle_message(init_message).await;
             assert!(response.error.is_none(), "Initialize should succeed");
-            
+
             // Test Tools List
             let tools_message = McpMessage {
                 id: "test-tools".to_string(),
                 method: methods::TOOLS_LIST.to_string(),
                 params: json!({}),
             };
-            
+
             let response = server.handle_message(tools_message).await;
             assert!(response.error.is_none(), "Tools list should succeed");
-            
+
             if let Some(result) = response.result {
                 let tools = result["tools"].as_array().unwrap();
                 assert_eq!(tools.len(), 3, "Should have 3 MCP tools");
             }
-            
+
             // Test Transpile Tool
             let transpile_message = McpMessage {
                 id: "test-transpile".to_string(),
@@ -227,10 +241,10 @@ def classify_number(n: int) -> str:
                     }
                 }),
             };
-            
+
             let response = server.handle_message(transpile_message).await;
             assert!(response.error.is_none(), "Transpilation should succeed");
-            
+
             if let Some(result) = response.result {
                 assert!(result["rust_code"].is_string(), "Should return Rust code");
                 assert!(result["metrics"].is_object(), "Should return metrics");
