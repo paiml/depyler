@@ -1,9 +1,8 @@
 use depyler_core::direct_rules::apply_rules;
 use depyler_core::hir::{
-    BinOp, FunctionProperties, HirExpr, HirFunction, HirModule, HirStmt, Literal, Type,
+    HirExpr, HirFunction, HirModule, HirStmt, Literal, Type,
 };
 use depyler_core::type_mapper::TypeMapper;
-use depyler_verify::quickcheck::TypedValue;
 use quickcheck::{Arbitrary, Gen, TestResult};
 
 /// Property: All transpiled functions should produce valid Rust code

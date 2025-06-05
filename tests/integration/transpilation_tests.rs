@@ -1,10 +1,9 @@
 use std::fs;
-use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
 
-use depyler_core::{Config, DepylerPipeline, TranspileResult};
-use depyler_verify::{PropertyVerifier, VerificationResult};
+use depyler_core::{Config, DepylerPipeline};
+use depyler_verify::PropertyVerifier;
 
 #[derive(Debug)]
 pub struct TranspilationTestHarness {
@@ -17,7 +16,7 @@ impl TranspilationTestHarness {
     pub fn new() -> Self {
         Self {
             temp_dir: TempDir::new().expect("Failed to create temp directory"),
-            pipeline: DepylerPipeline::new(Config::default()),
+            pipeline: DepylerPipeline::new_with_config(Config::default()),
             verifier: PropertyVerifier::new(),
         }
     }
@@ -34,18 +33,18 @@ impl TranspilationTestHarness {
             .map_err(|e| format!("Transpilation failed: {}", e))?;
 
         // 2. Verify generated Rust compiles
-        self.verify_rust_compiles(&result.rust_code)?;
+        self.verify_rust_compiles(&result)?;
 
         // 3. Verify generated code passes Clippy
-        self.verify_clippy_passes(&result.rust_code)?;
+        self.verify_clippy_passes(&result)?;
 
         // 4. Compare with expected output (if provided)
         if !expected_rust.is_empty() {
-            self.compare_outputs(&result.rust_code, expected_rust)?;
+            self.compare_outputs(&result, expected_rust)?;
         }
 
-        // 5. Run property verification
-        self.verify_properties(&result)?;
+        // 5. Run property verification  
+        self.verify_properties(python_source)?;
 
         Ok(())
     }
@@ -118,12 +117,21 @@ impl TranspilationTestHarness {
         Ok(())
     }
 
-    fn verify_properties(&self, result: &TranspileResult) -> Result<(), String> {
-        let verification_results = self.verifier.verify(&result.hir);
+    fn verify_properties(&self, python_source: &str) -> Result<(), String> {
+        // Parse to HIR for verification
+        let hir = self.pipeline.parse_to_hir(python_source)
+            .map_err(|e| format!("Failed to parse for verification: {}", e))?;
 
-        for result in verification_results {
-            if let VerificationResult::Failed(msg) = result {
-                return Err(format!("Property verification failed: {}", msg));
+        for func in &hir.functions {
+            let verification_results = self.verifier.verify_function(func);
+            
+            for result in verification_results {
+                match result.status {
+                    depyler_verify::PropertyStatus::Violated(msg) => {
+                        return Err(format!("Property verification failed: {}", msg));
+                    }
+                    _ => continue,
+                }
             }
         }
 

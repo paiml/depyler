@@ -152,73 +152,94 @@ impl TypeInferencer {
     }
 
     fn infer_expr(&mut self, expr: &HirExpr) -> Result<Type> {
-        Ok(match expr {
-            HirExpr::Literal(lit) => match lit {
-                depyler_core::hir::Literal::Int(_) => Type::Int,
-                depyler_core::hir::Literal::Float(_) => Type::Float,
-                depyler_core::hir::Literal::String(_) => Type::String,
-                depyler_core::hir::Literal::Bool(_) => Type::Bool,
-                depyler_core::hir::Literal::None => Type::None,
-            },
-            HirExpr::Var(name) => self
-                .env
-                .get_var_type(name)
-                .cloned()
-                .unwrap_or(Type::Unknown),
-            HirExpr::Binary { op, left, right } => {
-                let left_type = self.infer_expr(left)?;
-                let right_type = self.infer_expr(right)?;
-                self.infer_binary_op(*op, &left_type, &right_type)
-            }
-            HirExpr::Unary { op, operand } => {
-                let operand_type = self.infer_expr(operand)?;
-                self.infer_unary_op(*op, &operand_type)
-            }
-            HirExpr::Call { func, args } => {
-                // Infer argument types
-                for arg in args {
-                    self.infer_expr(arg)?;
-                }
+        match expr {
+            HirExpr::Literal(lit) => Ok(self.infer_literal(lit)),
+            HirExpr::Var(name) => Ok(self.infer_variable(name)),
+            HirExpr::Binary { op, left, right } => self.infer_binary(op, left, right),
+            HirExpr::Unary { op, operand } => self.infer_unary(op, operand),
+            HirExpr::Call { func, args } => self.infer_call(func, args),
+            HirExpr::Index { base, index } => self.infer_index(base, index),
+            HirExpr::List(elts) => self.infer_list(elts),
+            HirExpr::Dict(items) => self.infer_dict(items),
+            HirExpr::Tuple(elts) => self.infer_tuple(elts),
+            _ => Ok(Type::Unknown),
+        }
+    }
 
-                // Get function return type
-                if let Some(sig) = self.env.get_function_signature(func) {
-                    sig.return_type.clone()
-                } else {
-                    Type::Unknown
-                }
-            }
-            HirExpr::Index { base, index } => {
-                let base_type = self.infer_expr(base)?;
-                self.infer_expr(index)?;
-                self.get_element_type(&base_type)
-            }
-            HirExpr::List(elts) => {
-                if elts.is_empty() {
-                    Type::List(Box::new(Type::Unknown))
-                } else {
-                    let first_type = self.infer_expr(&elts[0])?;
-                    Type::List(Box::new(first_type))
-                }
-            }
-            HirExpr::Dict(items) => {
-                if items.is_empty() {
-                    Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown))
-                } else {
-                    let (k, v) = &items[0];
-                    let key_type = self.infer_expr(k)?;
-                    let val_type = self.infer_expr(v)?;
-                    Type::Dict(Box::new(key_type), Box::new(val_type))
-                }
-            }
-            HirExpr::Tuple(elts) => {
-                let types: Vec<Type> = elts
-                    .iter()
-                    .map(|e| self.infer_expr(e))
-                    .collect::<Result<Vec<_>>>()?;
-                Type::Tuple(types)
-            }
-            _ => Type::Unknown,
+    fn infer_literal(&self, lit: &depyler_core::hir::Literal) -> Type {
+        match lit {
+            depyler_core::hir::Literal::Int(_) => Type::Int,
+            depyler_core::hir::Literal::Float(_) => Type::Float,
+            depyler_core::hir::Literal::String(_) => Type::String,
+            depyler_core::hir::Literal::Bool(_) => Type::Bool,
+            depyler_core::hir::Literal::None => Type::None,
+        }
+    }
+
+    fn infer_variable(&self, name: &str) -> Type {
+        self.env
+            .get_var_type(name)
+            .cloned()
+            .unwrap_or(Type::Unknown)
+    }
+
+    fn infer_binary(&mut self, op: &depyler_core::hir::BinOp, left: &HirExpr, right: &HirExpr) -> Result<Type> {
+        let left_type = self.infer_expr(left)?;
+        let right_type = self.infer_expr(right)?;
+        Ok(self.infer_binary_op(*op, &left_type, &right_type))
+    }
+
+    fn infer_unary(&mut self, op: &depyler_core::hir::UnaryOp, operand: &HirExpr) -> Result<Type> {
+        let operand_type = self.infer_expr(operand)?;
+        Ok(self.infer_unary_op(*op, &operand_type))
+    }
+
+    fn infer_call(&mut self, func: &str, args: &[HirExpr]) -> Result<Type> {
+        // Infer argument types
+        for arg in args {
+            self.infer_expr(arg)?;
+        }
+
+        // Get function return type
+        Ok(if let Some(sig) = self.env.get_function_signature(func) {
+            sig.return_type.clone()
+        } else {
+            Type::Unknown
         })
+    }
+
+    fn infer_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<Type> {
+        let base_type = self.infer_expr(base)?;
+        self.infer_expr(index)?;
+        Ok(self.get_element_type(&base_type))
+    }
+
+    fn infer_list(&mut self, elts: &[HirExpr]) -> Result<Type> {
+        if elts.is_empty() {
+            Ok(Type::List(Box::new(Type::Unknown)))
+        } else {
+            let first_type = self.infer_expr(&elts[0])?;
+            Ok(Type::List(Box::new(first_type)))
+        }
+    }
+
+    fn infer_dict(&mut self, items: &[(HirExpr, HirExpr)]) -> Result<Type> {
+        if items.is_empty() {
+            Ok(Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)))
+        } else {
+            let (k, v) = &items[0];
+            let key_type = self.infer_expr(k)?;
+            let val_type = self.infer_expr(v)?;
+            Ok(Type::Dict(Box::new(key_type), Box::new(val_type)))
+        }
+    }
+
+    fn infer_tuple(&mut self, elts: &[HirExpr]) -> Result<Type> {
+        let types: Vec<Type> = elts
+            .iter()
+            .map(|e| self.infer_expr(e))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Type::Tuple(types))
     }
 
     fn infer_binary_op(&self, op: depyler_core::hir::BinOp, left: &Type, right: &Type) -> Type {
