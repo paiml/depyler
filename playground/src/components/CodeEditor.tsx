@@ -84,38 +84,55 @@ function configurePythonDepyler(monaco: any) {
   // Register the custom Python-Depyler language
   monaco.languages.register({ id: 'python-depyler' });
 
-  // Define tokens for syntax highlighting
-  monaco.languages.setMonarchTokenizer('python-depyler', {
-    tokenizer: {
-      root: [
-        // Depyler annotations
-        [/@depyler:\s*\w+(\s*=\s*\w+)?/, 'annotation'],
-        
-        // Python keywords
-        [/\b(def|class|if|else|elif|for|while|try|except|finally|with|as|import|from|return|yield|break|continue|pass|raise|assert|global|nonlocal|lambda|and|or|not|in|is)\b/, 'keyword'],
-        
-        // Built-in types
-        [/\b(int|float|str|bool|list|dict|tuple|set|None|True|False)\b/, 'type'],
-        
-        // Strings
-        [/".*?"/, 'string'],
-        [/'.*?'/, 'string'],
-        [/"""[\s\S]*?"""/, 'string'],
-        [/'''[\s\S]*?'''/, 'string'],
-        
-        // Numbers
-        [/\b\d+(\.\d+)?\b/, 'number'],
-        
-        // Comments
-        [/#.*$/, 'comment'],
-        
-        // Function definitions
-        [/\b(def)\s+([a-zA-Z_]\w*)/, ['keyword', 'function']],
-        
-        // Class definitions
-        [/\b(class)\s+([a-zA-Z_]\w*)/, ['keyword', 'class']],
-      ],
+  // Define tokens for syntax highlighting  
+  monaco.languages.setLanguageConfiguration('python-depyler', {
+    comments: {
+      lineComment: '#',
+      blockComment: ['"""', '"""']
     },
+    brackets: [
+      ['{', '}'],
+      ['[', ']'],
+      ['(', ')']
+    ],
+    autoClosingPairs: [
+      { open: '{', close: '}' },
+      { open: '[', close: ']' },
+      { open: '(', close: ')' },
+      { open: '"', close: '"' },
+      { open: "'", close: "'" }
+    ]
+  });
+
+  monaco.languages.setTokensProvider('python-depyler', {
+    getInitialState: () => ({ inComment: false }),
+    tokenize: (line: string) => {
+      const tokens: any[] = [];
+      let currentIndex = 0;
+      
+      // Depyler annotations
+      const annotationMatch = line.match(/@depyler:\s*\w+(\s*=\s*\w+)?/);
+      if (annotationMatch) {
+        tokens.push({
+          startIndex: annotationMatch.index || 0,
+          scopes: 'annotation.python-depyler'
+        });
+        currentIndex = (annotationMatch.index || 0) + annotationMatch[0].length;
+      }
+      
+      // Simple tokenization - in production this would be more sophisticated
+      if (currentIndex < line.length) {
+        tokens.push({
+          startIndex: currentIndex,
+          scopes: 'source.python-depyler'
+        });
+      }
+      
+      return {
+        tokens,
+        endState: { inComment: false }
+      };
+    }
   });
 
   // Define theme colors for Depyler annotations
