@@ -1,6 +1,10 @@
 use depyler_annotations::TranspilationAnnotations;
+#[cfg(not(feature = "coverage"))]
 use depyler_core::direct_rules::apply_rules;
-use depyler_core::hir::{HirExpr, HirFunction, HirModule, HirStmt, Literal, Type};
+use depyler_core::hir::{HirExpr, HirFunction, HirStmt, Literal, Type};
+#[cfg(not(feature = "coverage"))]
+use depyler_core::hir::HirModule;
+#[cfg(not(feature = "coverage"))]
 use depyler_core::type_mapper::TypeMapper;
 use quickcheck::{Arbitrary, Gen, TestResult};
 
