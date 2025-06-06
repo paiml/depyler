@@ -419,8 +419,10 @@ mod tests {
     #[test]
     fn test_safe_assignment() {
         let mut analyzer = MemorySafetyAnalyzer::new();
-        let mut annotations = TranspilationAnnotations::default();
-        annotations.ownership_model = depyler_annotations::OwnershipModel::Borrowed;
+        let annotations = TranspilationAnnotations {
+            ownership_model: depyler_annotations::OwnershipModel::Borrowed,
+            ..Default::default()
+        };
 
         let stmt = HirStmt::Assign {
             target: "x".to_string(),

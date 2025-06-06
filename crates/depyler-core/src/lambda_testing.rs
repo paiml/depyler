@@ -904,8 +904,10 @@ mod tests {
     #[test]
     fn test_test_suite_generation() {
         let harness = LambdaTestHarness::new();
-        let mut annotations = depyler_annotations::LambdaAnnotations::default();
-        annotations.event_type = Some(LambdaEventType::ApiGatewayProxyRequest);
+        let annotations = depyler_annotations::LambdaAnnotations {
+            event_type: Some(LambdaEventType::ApiGatewayProxyRequest),
+            ..Default::default()
+        };
 
         let test_suite = harness.generate_test_suite(&annotations).unwrap();
 
@@ -931,8 +933,10 @@ mod tests {
     #[test]
     fn test_cargo_lambda_script() {
         let harness = LambdaTestHarness::new();
-        let mut annotations = depyler_annotations::LambdaAnnotations::default();
-        annotations.event_type = Some(LambdaEventType::S3Event);
+        let annotations = depyler_annotations::LambdaAnnotations {
+            event_type: Some(LambdaEventType::S3Event),
+            ..Default::default()
+        };
 
         let script = harness
             .generate_cargo_lambda_test_script(&annotations)

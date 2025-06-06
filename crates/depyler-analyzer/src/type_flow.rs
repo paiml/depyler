@@ -392,7 +392,7 @@ mod tests {
 
         assert_eq!(inferencer.infer_literal(&Literal::Int(42)), Type::Int);
         assert_eq!(
-            inferencer.infer_literal(&Literal::Float(3.14159)),
+            inferencer.infer_literal(&Literal::Float(std::f64::consts::PI)),
             Type::Float
         );
         assert_eq!(
