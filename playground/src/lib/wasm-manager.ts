@@ -1,8 +1,12 @@
 import { TranspileResult } from '@/types';
 
 interface WasmModule {
-  PlaygroundEngine: new () => any;
+  DepylerWasm: new () => any;
   WasmTranspileOptions: new () => any;
+  WasmTranspileResult: new () => any;
+  WasmEnergyEstimate: new () => any;
+  WasmQualityMetrics: new () => any;
+  default: () => Promise<void>;
 }
 
 class WasmModuleManager {
@@ -31,7 +35,7 @@ class WasmModuleManager {
     
     try {
       // Load the WASM module
-      const wasmModule = await import('/wasm/depyler_playground.js');
+      const wasmModule = await import('/wasm/depyler_wasm.js');
       await wasmModule.default();
       
       performance.mark('wasm-load-end');
@@ -54,7 +58,7 @@ class WasmModuleManager {
     }
 
     const module = await this.loadModule();
-    this.engine = new module.PlaygroundEngine();
+    this.engine = new module.DepylerWasm();
     return this.engine;
   }
 
