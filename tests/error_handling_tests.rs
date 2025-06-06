@@ -33,10 +33,7 @@ fn test_pipeline_invalid_python_syntax() {
     for potentially_valid in potentially_valid_cases {
         let result = pipeline.transpile(potentially_valid);
         // Just ensure it doesn't panic - result can be either success or failure
-        match result {
-            Ok(_) => assert!(true),
-            Err(_) => assert!(true),
-        }
+        let _ = result; // Both Ok and Err are acceptable
     }
 }
 
@@ -57,7 +54,7 @@ fn test_pipeline_unsupported_features() {
         let result = pipeline.transpile(unsupported_python);
         // Most should fail, but some might be partially supported
         if result.is_err() {
-            assert!(true); // Expected failure
+            // Expected failure - test passed
         }
     }
 }
@@ -80,7 +77,7 @@ fn test_annotation_parser_error_cases() {
         match result {
             Err(AnnotationError::UnknownKey(_)) | Err(AnnotationError::InvalidValue { .. }) => {
                 // Expected error types
-                assert!(true);
+                // Expected - we successfully generated an error
             }
             _ => {
                 // Might succeed with default fallback - that's also valid
@@ -113,7 +110,7 @@ fn test_annotation_parser_malformed_syntax() {
             }
             Err(_) => {
                 // Error is also acceptable for malformed syntax
-                assert!(true);
+                // Expected - we successfully generated an error
             }
         }
     }
@@ -175,10 +172,7 @@ fn test_pipeline_empty_and_whitespace() {
     for edge_case in edge_cases {
         let result = pipeline.transpile(edge_case);
         // Should handle gracefully - either succeed with empty output or fail cleanly
-        match result {
-            Ok(_) => assert!(true),  // Success is fine
-            Err(_) => assert!(true), // Clean error is also fine
-        }
+        let _ = result; // Both Ok and Err are acceptable
     }
 }
 
@@ -239,7 +233,7 @@ fn test_pipeline_with_verification_errors() {
         let result = pipeline.transpile(problematic_code);
         // Should either succeed with warnings or fail with useful error messages
         match result {
-            Ok(_) => assert!(true), // Success with verification is good
+            Ok(_) => {} // Success with verification is good
             Err(e) => {
                 // Error should be informative
                 let error_msg = format!("{e}");
@@ -294,10 +288,7 @@ fn test_unicode_and_special_characters() {
     for unicode_case in unicode_cases {
         let result = pipeline.transpile(unicode_case);
         // Should handle Unicode gracefully
-        match result {
-            Ok(_) => assert!(true),
-            Err(_) => assert!(true), // Clean error is acceptable
-        }
+        let _ = result; // Both Ok and Err are acceptable
     }
 }
 
@@ -341,9 +332,6 @@ fn test_concurrent_pipeline_usage() {
     for handle in handles {
         let result = handle.join().unwrap();
         // Each thread should get a result (success or clean error)
-        match result {
-            Ok(_) => assert!(true),
-            Err(_) => assert!(true),
-        }
+        let _ = result; // Both Ok and Err are acceptable
     }
 }

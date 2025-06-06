@@ -134,18 +134,12 @@ fn test_pipeline_error_handling() {
     // Test with empty input
     let result = pipeline.transpile("");
     // Empty can be either success or error, just check it doesn't panic
-    match result {
-        Ok(_) => assert!(true),
-        Err(_) => assert!(true),
-    }
+    let _ = result; // Both Ok and Err are acceptable
 
     // Test with complex unsupported syntax
     let result = pipeline.transpile("async def async_func():\n    await something()");
     // Async might or might not be supported - just check it doesn't panic
-    match result {
-        Ok(_) => assert!(true),
-        Err(_) => assert!(true),
-    }
+    let _ = result; // Both Ok and Err are acceptable
 }
 
 #[test]
