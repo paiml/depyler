@@ -63,9 +63,7 @@ impl LambdaTypeMapper {
             EventTypeMapping {
                 rust_type: "S3Event".to_string(),
                 aws_events_module: "s3".to_string(),
-                imports: vec![
-                    "use aws_lambda_events::s3::S3Event;".to_string(),
-                ],
+                imports: vec!["use aws_lambda_events::s3::S3Event;".to_string()],
                 serde_attributes: vec![],
             },
         );
@@ -149,9 +147,7 @@ impl LambdaTypeMapper {
             ResponseTypeMapping {
                 rust_type: "SqsBatchResponse".to_string(),
                 conversion_impl: None,
-                imports: vec![
-                    "use aws_lambda_events::sqs::SqsBatchResponse;".to_string(),
-                ],
+                imports: vec!["use aws_lambda_events::sqs::SqsBatchResponse;".to_string()],
             },
         );
 
@@ -161,9 +157,7 @@ impl LambdaTypeMapper {
             EventTypeMapping {
                 rust_type: "SnsEvent".to_string(),
                 aws_events_module: "sns".to_string(),
-                imports: vec![
-                    "use aws_lambda_events::sns::SnsEvent;".to_string(),
-                ],
+                imports: vec!["use aws_lambda_events::sns::SnsEvent;".to_string()],
                 serde_attributes: vec![],
             },
         );
@@ -183,9 +177,7 @@ impl LambdaTypeMapper {
             EventTypeMapping {
                 rust_type: "DynamodbEvent".to_string(),
                 aws_events_module: "dynamodb".to_string(),
-                imports: vec![
-                    "use aws_lambda_events::dynamodb::DynamodbEvent;".to_string(),
-                ],
+                imports: vec!["use aws_lambda_events::dynamodb::DynamodbEvent;".to_string()],
                 serde_attributes: vec![],
             },
         );
@@ -232,19 +224,26 @@ impl LambdaTypeMapper {
     pub fn get_event_mapping(&self, event_type: &LambdaEventType) -> Option<&EventTypeMapping> {
         // Handle EventBridge with custom types
         if let LambdaEventType::EventBridgeEvent(Some(_)) = event_type {
-            return self.event_mappings.get(&LambdaEventType::EventBridgeEvent(None));
+            return self
+                .event_mappings
+                .get(&LambdaEventType::EventBridgeEvent(None));
         }
-        
+
         self.event_mappings.get(event_type)
     }
 
     /// Get response type mapping for a Lambda event type
-    pub fn get_response_mapping(&self, event_type: &LambdaEventType) -> Option<&ResponseTypeMapping> {
+    pub fn get_response_mapping(
+        &self,
+        event_type: &LambdaEventType,
+    ) -> Option<&ResponseTypeMapping> {
         // Handle EventBridge with custom types
         if let LambdaEventType::EventBridgeEvent(Some(_)) = event_type {
-            return self.response_mappings.get(&LambdaEventType::EventBridgeEvent(None));
+            return self
+                .response_mappings
+                .get(&LambdaEventType::EventBridgeEvent(None));
         }
-        
+
         self.response_mappings.get(event_type)
     }
 
@@ -273,7 +272,9 @@ impl LambdaTypeMapper {
                 python_pattern: "float".to_string(),
                 rust_type: "f64".to_string(),
                 lambda_context: LambdaContext::Timestamp,
-                serde_attribute: Some("#[serde(with = \"aws_lambda_events::time::float_unix_epoch\")]".to_string()),
+                serde_attribute: Some(
+                    "#[serde(with = \"aws_lambda_events::time::float_unix_epoch\")]".to_string(),
+                ),
             },
             TypeConversionRule {
                 python_pattern: "List[dict]".to_string(),
@@ -329,37 +330,39 @@ pub enum EventType {{
     /// Generate type-safe response builders
     pub fn generate_response_builders(&self, event_type: &LambdaEventType) -> Result<String> {
         match event_type {
-            LambdaEventType::ApiGatewayProxyRequest => {
-                Ok(APIGW_RESPONSE_BUILDER.to_string())
-            }
-            LambdaEventType::ApiGatewayV2HttpRequest => {
-                Ok(APIGW_V2_RESPONSE_BUILDER.to_string())
-            }
-            LambdaEventType::SqsEvent => {
-                Ok(SQS_RESPONSE_BUILDER.to_string())
-            }
+            LambdaEventType::ApiGatewayProxyRequest => Ok(APIGW_RESPONSE_BUILDER.to_string()),
+            LambdaEventType::ApiGatewayV2HttpRequest => Ok(APIGW_V2_RESPONSE_BUILDER.to_string()),
+            LambdaEventType::SqsEvent => Ok(SQS_RESPONSE_BUILDER.to_string()),
             _ => Ok(String::new()),
         }
     }
 
     /// Add custom event type mapping
-    pub fn add_custom_event_mapping(&mut self, event_type: LambdaEventType, mapping: EventTypeMapping) {
+    pub fn add_custom_event_mapping(
+        &mut self,
+        event_type: LambdaEventType,
+        mapping: EventTypeMapping,
+    ) {
         self.event_mappings.insert(event_type, mapping);
     }
 
     /// Add custom response type mapping
-    pub fn add_custom_response_mapping(&mut self, event_type: LambdaEventType, mapping: ResponseTypeMapping) {
+    pub fn add_custom_response_mapping(
+        &mut self,
+        event_type: LambdaEventType,
+        mapping: ResponseTypeMapping,
+    ) {
         self.response_mappings.insert(event_type, mapping);
     }
 
     /// Generate all required imports for an event type
     pub fn get_required_imports(&self, event_type: &LambdaEventType) -> Vec<String> {
         let mut imports = Vec::new();
-        
+
         if let Some(event_mapping) = self.get_event_mapping(event_type) {
             imports.extend(event_mapping.imports.clone());
         }
-        
+
         if let Some(response_mapping) = self.get_response_mapping(event_type) {
             imports.extend(response_mapping.imports.clone());
         }
@@ -555,7 +558,7 @@ mod tests {
     #[test]
     fn test_event_mapping_retrieval() {
         let mapper = LambdaTypeMapper::new();
-        
+
         let s3_mapping = mapper.get_event_mapping(&LambdaEventType::S3Event).unwrap();
         assert_eq!(s3_mapping.rust_type, "S3Event");
         assert_eq!(s3_mapping.aws_events_module, "s3");
@@ -564,8 +567,10 @@ mod tests {
     #[test]
     fn test_response_mapping_retrieval() {
         let mapper = LambdaTypeMapper::new();
-        
-        let apigw_response = mapper.get_response_mapping(&LambdaEventType::ApiGatewayProxyRequest).unwrap();
+
+        let apigw_response = mapper
+            .get_response_mapping(&LambdaEventType::ApiGatewayProxyRequest)
+            .unwrap();
         assert_eq!(apigw_response.rust_type, "ApiGatewayProxyResponse");
         assert!(apigw_response.conversion_impl.is_some());
     }
@@ -573,10 +578,10 @@ mod tests {
     #[test]
     fn test_eventbridge_custom_type() {
         let mapper = LambdaTypeMapper::new();
-        
+
         let custom_event = LambdaEventType::EventBridgeEvent(Some("OrderEvent".to_string()));
         let mapping = mapper.get_event_mapping(&custom_event).unwrap();
-        
+
         assert_eq!(mapping.rust_type, "EventBridgeEvent<serde_json::Value>");
     }
 
@@ -584,9 +589,9 @@ mod tests {
     fn test_type_conversion_rules() {
         let mapper = LambdaTypeMapper::new();
         let rules = mapper.get_type_conversion_rules();
-        
+
         assert!(!rules.is_empty());
-        
+
         let dict_rule = rules.iter().find(|r| r.python_pattern == "dict").unwrap();
         assert_eq!(dict_rule.rust_type, "T: Deserialize");
         assert!(dict_rule.serde_attribute.is_some());
@@ -595,8 +600,10 @@ mod tests {
     #[test]
     fn test_custom_eventbridge_types_generation() {
         let mapper = LambdaTypeMapper::new();
-        let generated = mapper.generate_custom_eventbridge_types("OrderEvent").unwrap();
-        
+        let generated = mapper
+            .generate_custom_eventbridge_types("OrderEvent")
+            .unwrap();
+
         assert!(generated.contains("struct OrderEvent"));
         assert!(generated.contains("enum EventType"));
     }
@@ -605,7 +612,7 @@ mod tests {
     fn test_required_imports() {
         let mapper = LambdaTypeMapper::new();
         let imports = mapper.get_required_imports(&LambdaEventType::ApiGatewayProxyRequest);
-        
+
         assert!(imports.iter().any(|i| i.contains("ApiGatewayProxyRequest")));
         assert!(imports.iter().any(|i| i.contains("HashMap")));
     }
@@ -613,8 +620,10 @@ mod tests {
     #[test]
     fn test_response_builders() {
         let mapper = LambdaTypeMapper::new();
-        let builder = mapper.generate_response_builders(&LambdaEventType::ApiGatewayProxyRequest).unwrap();
-        
+        let builder = mapper
+            .generate_response_builders(&LambdaEventType::ApiGatewayProxyRequest)
+            .unwrap();
+
         assert!(builder.contains("ResponseBuilder"));
         assert!(builder.contains("fn status"));
         assert!(builder.contains("fn json"));
@@ -624,7 +633,7 @@ mod tests {
     fn test_error_conversions() {
         let mapper = LambdaTypeMapper::new();
         let errors = mapper.generate_error_conversions();
-        
+
         assert!(errors.contains("enum LambdaError"));
         assert!(errors.contains("MissingParameter"));
         assert!(errors.contains("thiserror::Error"));
@@ -633,7 +642,7 @@ mod tests {
     #[test]
     fn test_custom_mapping_addition() {
         let mut mapper = LambdaTypeMapper::new();
-        
+
         let custom_event = LambdaEventType::Custom("MyEvent".to_string());
         let custom_mapping = EventTypeMapping {
             rust_type: "MyCustomEvent".to_string(),
@@ -641,9 +650,9 @@ mod tests {
             imports: vec!["use my_crate::MyCustomEvent;".to_string()],
             serde_attributes: vec![],
         };
-        
+
         mapper.add_custom_event_mapping(custom_event.clone(), custom_mapping);
-        
+
         let retrieved = mapper.get_event_mapping(&custom_event).unwrap();
         assert_eq!(retrieved.rust_type, "MyCustomEvent");
     }

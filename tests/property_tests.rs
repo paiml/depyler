@@ -15,9 +15,9 @@ use depyler_core::type_mapper::TypeMapper;
 use quickcheck::TestResult;
 
 #[cfg(not(feature = "coverage"))]
-use quickcheck::Gen;
-#[cfg(not(feature = "coverage"))]
 use quickcheck::Arbitrary;
+#[cfg(not(feature = "coverage"))]
+use quickcheck::Gen;
 
 /// Property: All transpiled functions should produce valid Rust code
 #[cfg(not(feature = "coverage"))] // Disable for coverage runs to avoid segfaults

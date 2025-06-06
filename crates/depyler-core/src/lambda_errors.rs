@@ -57,38 +57,47 @@ pub enum RetryStrategy {
 #[derive(Error, Debug)]
 pub enum LambdaError {
     #[error("Serialization failed: {message}")]
-    Serialization { message: String, cause: Option<Box<dyn std::error::Error + Send + Sync>> },
-    
+    Serialization {
+        message: String,
+        cause: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
+
     #[error("Handler error: {message}")]
-    Handler { message: String, context: Option<String> },
-    
+    Handler {
+        message: String,
+        context: Option<String>,
+    },
+
     #[error("Runtime error: {0}")]
     Runtime(String),
-    
+
     #[error("HTTP error: {status} - {message}")]
     Http { status: u16, message: String },
-    
+
     #[error("Missing parameter: {parameter}")]
     MissingParameter { parameter: String },
-    
+
     #[error("Invalid event format: {message}")]
-    InvalidEvent { message: String, event_type: Option<String> },
-    
+    InvalidEvent {
+        message: String,
+        event_type: Option<String>,
+    },
+
     #[error("Authentication failed: {message}")]
     Authentication { message: String },
-    
+
     #[error("Authorization failed: {message}")]
     Authorization { message: String },
-    
+
     #[error("Timeout occurred: {operation} took {duration_ms}ms")]
     Timeout { operation: String, duration_ms: u64 },
-    
+
     #[error("Resource limit exceeded: {resource} - {limit}")]
     ResourceLimit { resource: String, limit: String },
-    
+
     #[error("Configuration error: {message}")]
     Configuration { message: String },
-    
+
     #[error("External service error: {service} - {message}")]
     ExternalService { service: String, message: String },
 }
@@ -107,7 +116,7 @@ impl LambdaError {
             _ => 500,
         }
     }
-    
+
     pub fn should_retry(&self) -> bool {
         match self {
             LambdaError::Timeout { .. } => true,
@@ -126,7 +135,6 @@ pub struct ErrorConversionCode {
     pub helper_traits: String,
 }
 
-
 impl Default for LambdaErrorHandler {
     fn default() -> Self {
         Self::new()
@@ -136,7 +144,7 @@ impl Default for LambdaErrorHandler {
 impl LambdaErrorHandler {
     pub fn new() -> Self {
         let mut error_mappings = HashMap::new();
-        
+
         // Python KeyError mappings
         error_mappings.insert(
             PythonErrorPattern {
@@ -352,13 +360,14 @@ impl LambdaError {
         }
     }
 }
-"#.to_string()
+"#
+        .to_string()
     }
 
     /// Generate conversion functions from Python error patterns
     fn generate_conversion_functions(&self) -> String {
         let mut functions = String::new();
-        
+
         functions.push_str(
             r#"// Automatic error conversion functions
 impl From<serde_json::Error> for LambdaError {{
@@ -477,7 +486,7 @@ impl From<LambdaError> for aws_lambda_events::apigw::ApiGatewayV2httpResponse {{
     }}
 }}
 
-"#
+"#,
         );
 
         functions
@@ -560,7 +569,8 @@ macro_rules! require_param {{
     }};
 }}
 
-"#.to_string()
+"#
+        .to_string()
     }
 
     /// Generate error handling wrapper for handler functions
@@ -730,7 +740,7 @@ mod tests {
     fn test_error_enum_generation() {
         let handler = LambdaErrorHandler::new();
         let code = handler.generate_error_handling_code().unwrap();
-        
+
         assert!(code.error_enum.contains("enum LambdaError"));
         assert!(code.error_enum.contains("MissingParameter"));
         assert!(code.error_enum.contains("status_code"));
@@ -740,16 +750,20 @@ mod tests {
     fn test_conversion_functions() {
         let handler = LambdaErrorHandler::new();
         let code = handler.generate_error_handling_code().unwrap();
-        
-        assert!(code.conversion_functions.contains("impl From<serde_json::Error>"));
-        assert!(code.conversion_functions.contains("extract_key_error_parameter"));
+
+        assert!(code
+            .conversion_functions
+            .contains("impl From<serde_json::Error>"));
+        assert!(code
+            .conversion_functions
+            .contains("extract_key_error_parameter"));
     }
 
     #[test]
     fn test_helper_traits() {
         let handler = LambdaErrorHandler::new();
         let code = handler.generate_error_handling_code().unwrap();
-        
+
         assert!(code.helper_traits.contains("trait LambdaErrorExt"));
         assert!(code.helper_traits.contains("with_context"));
         assert!(code.helper_traits.contains("LambdaResult"));
@@ -759,7 +773,7 @@ mod tests {
     fn test_handler_wrapper_generation() {
         let handler = LambdaErrorHandler::new().with_strategy(ErrorHandlingStrategy::ReturnError);
         let wrapper = handler.generate_handler_wrapper("my_handler");
-        
+
         assert!(wrapper.contains("my_handler_with_error_handling"));
         assert!(wrapper.contains("match my_handler(event).await"));
     }
@@ -768,7 +782,7 @@ mod tests {
     fn test_retry_logic_generation() {
         let handler = LambdaErrorHandler::new();
         let retry_code = handler.generate_retry_logic();
-        
+
         assert!(retry_code.contains("struct RetryConfig"));
         assert!(retry_code.contains("retry_with_backoff"));
         assert!(retry_code.contains("tokio::time::sleep"));
@@ -777,13 +791,13 @@ mod tests {
     #[test]
     fn test_custom_error_mapping() {
         let mut handler = LambdaErrorHandler::new();
-        
+
         let pattern = PythonErrorPattern {
             error_type: "CustomError".to_string(),
             message_pattern: Some("custom pattern".to_string()),
             context: Some(ErrorContext::Handler),
         };
-        
+
         let mapping = LambdaErrorMapping {
             rust_error_type: "LambdaError::Custom".to_string(),
             status_code: Some(422),
@@ -791,9 +805,9 @@ mod tests {
             include_stack_trace: true,
             retry_strategy: RetryStrategy::Custom("custom_retry".to_string()),
         };
-        
+
         handler.add_error_mapping(pattern.clone(), mapping);
-        
+
         let retrieved = handler.get_error_mapping(&pattern).unwrap();
         assert_eq!(retrieved.status_code, Some(422));
     }
@@ -806,7 +820,7 @@ mod tests {
             ErrorHandlingStrategy::Panic,
             ErrorHandlingStrategy::CustomHandler("custom".to_string()),
         ];
-        
+
         for strategy in strategies {
             let handler = LambdaErrorHandler::new().with_strategy(strategy);
             let wrapper = handler.generate_handler_wrapper("test_handler");
@@ -819,15 +833,15 @@ mod tests {
         let err = LambdaError::MissingParameter {
             parameter: "test_param".to_string(),
         };
-        
+
         assert_eq!(err.status_code(), 400);
         assert!(!err.should_retry());
-        
+
         let timeout_err = LambdaError::Timeout {
             operation: "test_op".to_string(),
             duration_ms: 5000,
         };
-        
+
         assert_eq!(timeout_err.status_code(), 504);
         assert!(timeout_err.should_retry());
     }

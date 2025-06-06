@@ -575,45 +575,65 @@ impl AnnotationParser {
                 }
                 // Lambda-specific annotations
                 "lambda_runtime" => {
-                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    let lambda_annotations = annotations
+                        .lambda_annotations
+                        .get_or_insert_with(LambdaAnnotations::default);
                     lambda_annotations.runtime = self.parse_lambda_runtime(&value)?;
                 }
                 "event_type" => {
-                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    let lambda_annotations = annotations
+                        .lambda_annotations
+                        .get_or_insert_with(LambdaAnnotations::default);
                     lambda_annotations.event_type = Some(self.parse_lambda_event_type(&value)?);
                 }
                 "cold_start_optimize" => {
-                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    let lambda_annotations = annotations
+                        .lambda_annotations
+                        .get_or_insert_with(LambdaAnnotations::default);
                     lambda_annotations.cold_start_optimize = value == "true";
                 }
                 "memory_size" => {
-                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
-                    lambda_annotations.memory_size = value.parse().map_err(|_| AnnotationError::InvalidValue {
-                        key: key.clone(),
-                        value: value.clone(),
-                    })?;
+                    let lambda_annotations = annotations
+                        .lambda_annotations
+                        .get_or_insert_with(LambdaAnnotations::default);
+                    lambda_annotations.memory_size =
+                        value.parse().map_err(|_| AnnotationError::InvalidValue {
+                            key: key.clone(),
+                            value: value.clone(),
+                        })?;
                 }
                 "architecture" => {
-                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    let lambda_annotations = annotations
+                        .lambda_annotations
+                        .get_or_insert_with(LambdaAnnotations::default);
                     lambda_annotations.architecture = self.parse_architecture(&value)?;
                 }
                 "batch_failure_reporting" => {
-                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    let lambda_annotations = annotations
+                        .lambda_annotations
+                        .get_or_insert_with(LambdaAnnotations::default);
                     lambda_annotations.batch_failure_reporting = value == "true";
                 }
                 "custom_serialization" => {
-                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    let lambda_annotations = annotations
+                        .lambda_annotations
+                        .get_or_insert_with(LambdaAnnotations::default);
                     lambda_annotations.custom_serialization = value == "true";
                 }
                 "timeout" => {
-                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
-                    lambda_annotations.timeout = Some(value.parse().map_err(|_| AnnotationError::InvalidValue {
-                        key: key.clone(),
-                        value: value.clone(),
-                    })?);
+                    let lambda_annotations = annotations
+                        .lambda_annotations
+                        .get_or_insert_with(LambdaAnnotations::default);
+                    lambda_annotations.timeout =
+                        Some(value.parse().map_err(|_| AnnotationError::InvalidValue {
+                            key: key.clone(),
+                            value: value.clone(),
+                        })?);
                 }
                 "tracing" => {
-                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    let lambda_annotations = annotations
+                        .lambda_annotations
+                        .get_or_insert_with(LambdaAnnotations::default);
                     lambda_annotations.tracing_enabled = value == "true" || value == "Active";
                 }
                 _ => return Err(AnnotationError::UnknownKey(key)),
@@ -861,7 +881,7 @@ impl AnnotationParser {
             "KinesisEvent" => Ok(LambdaEventType::KinesisEvent),
             _ => {
                 if value.starts_with("EventBridgeEvent<") && value.ends_with('>') {
-                    let inner = &value[17..value.len()-1];
+                    let inner = &value[17..value.len() - 1];
                     Ok(LambdaEventType::EventBridgeEvent(Some(inner.to_string())))
                 } else if value == "EventBridgeEvent" {
                     Ok(LambdaEventType::EventBridgeEvent(None))
@@ -1125,10 +1145,13 @@ def handler(event, context):
 
         let annotations = parser.parse_annotations(source).unwrap();
         assert!(annotations.lambda_annotations.is_some());
-        
+
         let lambda_annotations = annotations.lambda_annotations.unwrap();
         assert_eq!(lambda_annotations.runtime, LambdaRuntime::ProvidedAl2);
-        assert_eq!(lambda_annotations.event_type, Some(LambdaEventType::ApiGatewayProxyRequest));
+        assert_eq!(
+            lambda_annotations.event_type,
+            Some(LambdaEventType::ApiGatewayProxyRequest)
+        );
         assert!(lambda_annotations.cold_start_optimize);
     }
 
@@ -1163,8 +1186,10 @@ def handler(event, context):
         let annotations = parser.parse_annotations(source).unwrap();
         let lambda_annotations = annotations.lambda_annotations.unwrap();
         assert_eq!(
-            lambda_annotations.event_type, 
-            Some(LambdaEventType::EventBridgeEvent(Some("OrderEvent".to_string())))
+            lambda_annotations.event_type,
+            Some(LambdaEventType::EventBridgeEvent(Some(
+                "OrderEvent".to_string()
+            )))
         );
         assert!(lambda_annotations.custom_serialization);
     }
@@ -1182,7 +1207,10 @@ def handler(event, context):
 
         let annotations = parser.parse_annotations(source).unwrap();
         let lambda_annotations = annotations.lambda_annotations.unwrap();
-        assert_eq!(lambda_annotations.event_type, Some(LambdaEventType::SqsEvent));
+        assert_eq!(
+            lambda_annotations.event_type,
+            Some(LambdaEventType::SqsEvent)
+        );
         assert!(lambda_annotations.batch_failure_reporting);
         assert!(lambda_annotations.tracing_enabled);
     }
@@ -1214,6 +1242,9 @@ def handler(event, context):
 
         let annotations = parser.parse_annotations(source).unwrap();
         let lambda_annotations = annotations.lambda_annotations.unwrap();
-        assert_eq!(lambda_annotations.runtime, LambdaRuntime::Custom("rust-runtime-1.0".to_string()));
+        assert_eq!(
+            lambda_annotations.runtime,
+            LambdaRuntime::Custom("rust-runtime-1.0".to_string())
+        );
     }
 }

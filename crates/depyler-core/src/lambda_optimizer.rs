@@ -1,5 +1,5 @@
 use anyhow::Result;
-use depyler_annotations::{LambdaAnnotations, LambdaEventType, Architecture};
+use depyler_annotations::{Architecture, LambdaAnnotations, LambdaEventType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -56,9 +56,9 @@ pub struct DependencyOptimization {
 impl Default for PerformanceTargets {
     fn default() -> Self {
         Self {
-            max_cold_start_ms: 50,     // 50ms cold start target
-            max_binary_size_kb: 2048,  // 2MB binary size target
-            max_memory_usage_mb: 128,  // 128MB memory target
+            max_cold_start_ms: 50,    // 50ms cold start target
+            max_binary_size_kb: 2048, // 2MB binary size target
+            max_memory_usage_mb: 128, // 128MB memory target
             target_throughput_rps: None,
         }
     }
@@ -84,34 +84,46 @@ impl Default for LambdaOptimizer {
 impl LambdaOptimizer {
     pub fn new() -> Self {
         let mut strategies = HashMap::new();
-        
-        strategies.insert(OptimizationStrategy::BinarySize, OptimizationConfig {
-            enabled: true,
-            aggressive_mode: true,
-            size_threshold_kb: Some(1024),
-            cold_start_threshold_ms: None,
-        });
 
-        strategies.insert(OptimizationStrategy::ColdStart, OptimizationConfig {
-            enabled: true,
-            aggressive_mode: true,
-            size_threshold_kb: None,
-            cold_start_threshold_ms: Some(50),
-        });
+        strategies.insert(
+            OptimizationStrategy::BinarySize,
+            OptimizationConfig {
+                enabled: true,
+                aggressive_mode: true,
+                size_threshold_kb: Some(1024),
+                cold_start_threshold_ms: None,
+            },
+        );
 
-        strategies.insert(OptimizationStrategy::PreWarming, OptimizationConfig {
-            enabled: true,
-            aggressive_mode: false,
-            size_threshold_kb: None,
-            cold_start_threshold_ms: None,
-        });
+        strategies.insert(
+            OptimizationStrategy::ColdStart,
+            OptimizationConfig {
+                enabled: true,
+                aggressive_mode: true,
+                size_threshold_kb: None,
+                cold_start_threshold_ms: Some(50),
+            },
+        );
 
-        strategies.insert(OptimizationStrategy::MemoryUsage, OptimizationConfig {
-            enabled: true,
-            aggressive_mode: false,
-            size_threshold_kb: None,
-            cold_start_threshold_ms: None,
-        });
+        strategies.insert(
+            OptimizationStrategy::PreWarming,
+            OptimizationConfig {
+                enabled: true,
+                aggressive_mode: false,
+                size_threshold_kb: None,
+                cold_start_threshold_ms: None,
+            },
+        );
+
+        strategies.insert(
+            OptimizationStrategy::MemoryUsage,
+            OptimizationConfig {
+                enabled: true,
+                aggressive_mode: false,
+                size_threshold_kb: None,
+                cold_start_threshold_ms: None,
+            },
+        );
 
         Self {
             strategies,
@@ -132,7 +144,10 @@ impl LambdaOptimizer {
     }
 
     /// Generate optimization plan based on Lambda annotations and event type
-    pub fn generate_optimization_plan(&self, annotations: &LambdaAnnotations) -> Result<OptimizationPlan> {
+    pub fn generate_optimization_plan(
+        &self,
+        annotations: &LambdaAnnotations,
+    ) -> Result<OptimizationPlan> {
         let mut plan = OptimizationPlan {
             profile_overrides: HashMap::new(),
             cargo_flags: Vec::new(),
@@ -148,7 +163,9 @@ impl LambdaOptimizer {
         }
 
         // Cold start optimizations
-        if self.is_strategy_enabled(&OptimizationStrategy::ColdStart) && annotations.cold_start_optimize {
+        if self.is_strategy_enabled(&OptimizationStrategy::ColdStart)
+            && annotations.cold_start_optimize
+        {
             self.apply_cold_start_optimizations(&mut plan, annotations)?;
         }
 
@@ -165,30 +182,42 @@ impl LambdaOptimizer {
         Ok(plan)
     }
 
-    fn apply_binary_size_optimizations(&self, plan: &mut OptimizationPlan, annotations: &LambdaAnnotations) -> Result<()> {
+    fn apply_binary_size_optimizations(
+        &self,
+        plan: &mut OptimizationPlan,
+        annotations: &LambdaAnnotations,
+    ) -> Result<()> {
         // Profile overrides for maximum size reduction
-        plan.profile_overrides.insert("opt-level".to_string(), "z".to_string());
-        plan.profile_overrides.insert("lto".to_string(), "true".to_string());
-        plan.profile_overrides.insert("codegen-units".to_string(), "1".to_string());
-        plan.profile_overrides.insert("panic".to_string(), "abort".to_string());
-        plan.profile_overrides.insert("strip".to_string(), "true".to_string());
-        plan.profile_overrides.insert("overflow-checks".to_string(), "false".to_string());
-        plan.profile_overrides.insert("incremental".to_string(), "false".to_string());
+        plan.profile_overrides
+            .insert("opt-level".to_string(), "z".to_string());
+        plan.profile_overrides
+            .insert("lto".to_string(), "true".to_string());
+        plan.profile_overrides
+            .insert("codegen-units".to_string(), "1".to_string());
+        plan.profile_overrides
+            .insert("panic".to_string(), "abort".to_string());
+        plan.profile_overrides
+            .insert("strip".to_string(), "true".to_string());
+        plan.profile_overrides
+            .insert("overflow-checks".to_string(), "false".to_string());
+        plan.profile_overrides
+            .insert("incremental".to_string(), "false".to_string());
 
         // Aggressive RUSTC flags for size optimization
         plan.rustc_flags.extend(vec![
-            "-C link-arg=-s".to_string(),           // Strip symbols
-            "-C opt-level=z".to_string(),           // Optimize for size
-            "-C codegen-units=1".to_string(),       // Single codegen unit
-            "-C lto=fat".to_string(),               // Fat LTO
-            "-C embed-bitcode=no".to_string(),      // No bitcode embedding
-            "-C panic=abort".to_string(),           // Abort on panic
+            "-C link-arg=-s".to_string(),      // Strip symbols
+            "-C opt-level=z".to_string(),      // Optimize for size
+            "-C codegen-units=1".to_string(),  // Single codegen unit
+            "-C lto=fat".to_string(),          // Fat LTO
+            "-C embed-bitcode=no".to_string(), // No bitcode embedding
+            "-C panic=abort".to_string(),      // Abort on panic
         ]);
 
         // Architecture-specific optimizations
         match annotations.architecture {
             Architecture::Arm64 => {
-                plan.rustc_flags.push("-C target-cpu=neoverse-n1".to_string());
+                plan.rustc_flags
+                    .push("-C target-cpu=neoverse-n1".to_string());
             }
             Architecture::X86_64 => {
                 plan.rustc_flags.push("-C target-cpu=haswell".to_string());
@@ -214,13 +243,18 @@ impl LambdaOptimizer {
         Ok(())
     }
 
-    fn apply_cold_start_optimizations(&self, plan: &mut OptimizationPlan, annotations: &LambdaAnnotations) -> Result<()> {
+    fn apply_cold_start_optimizations(
+        &self,
+        plan: &mut OptimizationPlan,
+        annotations: &LambdaAnnotations,
+    ) -> Result<()> {
         // Pre-allocation and warming for common types
         let mut pre_warm_code = String::new();
-        
+
         if let Some(ref event_type) = annotations.event_type {
             match event_type {
-                LambdaEventType::ApiGatewayProxyRequest | LambdaEventType::ApiGatewayV2HttpRequest => {
+                LambdaEventType::ApiGatewayProxyRequest
+                | LambdaEventType::ApiGatewayV2HttpRequest => {
                     pre_warm_code.push_str(
                         r#"
     // Pre-warm API Gateway types
@@ -231,7 +265,7 @@ impl LambdaOptimizer {
     let mut response_buf = Vec::with_capacity(4096);
     response_buf.push(0);
     std::mem::forget(response_buf);
-"#
+"#,
                     );
                 }
                 LambdaEventType::SqsEvent => {
@@ -240,7 +274,7 @@ impl LambdaOptimizer {
     // Pre-warm SQS types
     let _ = std::hint::black_box(Vec::<String>::with_capacity(10));
     let _ = std::hint::black_box(String::with_capacity(1024));
-"#
+"#,
                     );
                 }
                 LambdaEventType::S3Event => {
@@ -249,7 +283,7 @@ impl LambdaOptimizer {
     // Pre-warm S3 types
     let _ = std::hint::black_box(std::path::PathBuf::new());
     let _ = std::hint::black_box(String::with_capacity(512));
-"#
+"#,
                     );
                 }
                 _ => {}
@@ -290,15 +324,21 @@ static INIT: extern "C" fn() = {{
     }}
     init
 }};
-"#.to_string();
+"#
+        .to_string();
 
         // Optimize for latency over throughput
-        plan.profile_overrides.insert("opt-level".to_string(), "3".to_string());
+        plan.profile_overrides
+            .insert("opt-level".to_string(), "3".to_string());
 
         Ok(())
     }
 
-    fn apply_pre_warming_optimizations(&self, plan: &mut OptimizationPlan, annotations: &LambdaAnnotations) -> Result<()> {
+    fn apply_pre_warming_optimizations(
+        &self,
+        plan: &mut OptimizationPlan,
+        annotations: &LambdaAnnotations,
+    ) -> Result<()> {
         // Event-specific pre-warming paths
         for path in &annotations.pre_warm_paths {
             plan.pre_warm_code.push_str(&format!(
@@ -313,14 +353,18 @@ static INIT: extern "C" fn() = {{
     // Pre-warm custom serialization paths
     let _ = std::hint::black_box(serde_json::to_string(&serde_json::Value::Null));
     let _ = std::hint::black_box(serde_json::from_str::<serde_json::Value>("null"));
-"#
+"#,
             );
         }
 
         Ok(())
     }
 
-    fn apply_memory_optimizations(&self, plan: &mut OptimizationPlan, annotations: &LambdaAnnotations) -> Result<()> {
+    fn apply_memory_optimizations(
+        &self,
+        plan: &mut OptimizationPlan,
+        annotations: &LambdaAnnotations,
+    ) -> Result<()> {
         // Use mimalloc for better memory allocation patterns
         plan.dependency_optimizations.push(DependencyOptimization {
             crate_name: "mimalloc".to_string(),
@@ -344,7 +388,8 @@ static INIT: extern "C" fn() = {{
         }
 
         // Stack size optimization
-        plan.rustc_flags.push("-C link-arg=-Wl,-z,stack-size=131072".to_string()); // 128KB stack
+        plan.rustc_flags
+            .push("-C link-arg=-Wl,-z,stack-size=131072".to_string()); // 128KB stack
 
         Ok(())
     }
@@ -352,7 +397,7 @@ static INIT: extern "C" fn() = {{
     /// Generate Cargo profile for Lambda optimization
     pub fn generate_lambda_profile(&self, plan: &OptimizationPlan) -> String {
         let mut profile = String::from("\n[profile.lambda]\ninherits = \"release\"\n");
-        
+
         for (key, value) in &plan.profile_overrides {
             profile.push_str(&format!("{key} = {value}\n"));
         }
@@ -366,7 +411,11 @@ static INIT: extern "C" fn() = {{
     }
 
     /// Generate build script with optimization flags
-    pub fn generate_optimized_build_script(&self, plan: &OptimizationPlan, annotations: &LambdaAnnotations) -> String {
+    pub fn generate_optimized_build_script(
+        &self,
+        plan: &OptimizationPlan,
+        annotations: &LambdaAnnotations,
+    ) -> String {
         let mut script = format!(
             r#"#!/bin/bash
 # Generated optimized build script for AWS Lambda
@@ -386,7 +435,10 @@ echo "Target: {} MB memory, {} architecture"
 
         // Set environment variables
         script.push_str("# Optimization environment variables\n");
-        script.push_str(&format!("export RUSTFLAGS=\"{}\"\n", plan.rustc_flags.join(" ")));
+        script.push_str(&format!(
+            "export RUSTFLAGS=\"{}\"\n",
+            plan.rustc_flags.join(" ")
+        ));
         script.push_str("export CARGO_PROFILE_LAMBDA_LTO=true\n");
         script.push_str("export CARGO_PROFILE_LAMBDA_PANIC=\"abort\"\n");
         script.push_str("export CARGO_PROFILE_LAMBDA_CODEGEN_UNITS=1\n");
@@ -436,7 +488,7 @@ if command -v hyperfine > /dev/null; then
 fi
 
 echo "Build completed successfully!"
-"#
+"#,
         );
 
         script
@@ -498,7 +550,9 @@ mod performance {{
 
     /// Check if optimization strategy is enabled
     fn is_strategy_enabled(&self, strategy: &OptimizationStrategy) -> bool {
-        self.strategies.get(strategy).is_some_and(|config| config.enabled)
+        self.strategies
+            .get(strategy)
+            .is_some_and(|config| config.enabled)
     }
 
     /// Estimate performance impact of optimizations
@@ -525,7 +579,11 @@ mod performance {{
         }
 
         // Memory usage improvement
-        if plan.dependency_optimizations.iter().any(|d| d.crate_name == "mimalloc") {
+        if plan
+            .dependency_optimizations
+            .iter()
+            .any(|d| d.crate_name == "mimalloc")
+        {
             estimate.memory_improvement_percent += 15.0;
         }
 
@@ -554,9 +612,9 @@ mod tests {
             event_type: Some(LambdaEventType::ApiGatewayProxyRequest),
             ..Default::default()
         };
-        
+
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
-        
+
         assert!(!plan.profile_overrides.is_empty());
         assert!(!plan.rustc_flags.is_empty());
         assert!(!plan.pre_warm_code.is_empty());
@@ -566,11 +624,15 @@ mod tests {
     fn test_binary_size_optimizations() {
         let mut optimizer = LambdaOptimizer::new();
         // Disable cold start optimization to test only binary size
-        optimizer.strategies.get_mut(&OptimizationStrategy::ColdStart).unwrap().enabled = false;
+        optimizer
+            .strategies
+            .get_mut(&OptimizationStrategy::ColdStart)
+            .unwrap()
+            .enabled = false;
         let annotations = LambdaAnnotations::default();
-        
+
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
-        
+
         assert!(plan.profile_overrides.get("opt-level").unwrap() == "z");
         assert!(plan.profile_overrides.get("lto").unwrap() == "true");
         assert!(plan.rustc_flags.iter().any(|f| f.contains("link-arg=-s")));
@@ -584,9 +646,9 @@ mod tests {
             event_type: Some(LambdaEventType::SqsEvent),
             ..Default::default()
         };
-        
+
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
-        
+
         assert!(plan.pre_warm_code.contains("Pre-warm SQS types"));
         assert!(!plan.init_array_code.is_empty());
     }
@@ -598,11 +660,16 @@ mod tests {
             memory_size: 128,
             ..Default::default()
         };
-        
+
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
-        
-        assert!(plan.dependency_optimizations.iter().any(|d| d.crate_name == "mimalloc"));
-        assert!(plan.pre_warm_code.contains("Memory-constrained optimization"));
+
+        assert!(plan
+            .dependency_optimizations
+            .iter()
+            .any(|d| d.crate_name == "mimalloc"));
+        assert!(plan
+            .pre_warm_code
+            .contains("Memory-constrained optimization"));
     }
 
     #[test]
@@ -610,9 +677,9 @@ mod tests {
         let optimizer = LambdaOptimizer::new();
         let annotations = LambdaAnnotations::default();
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
-        
+
         let profile = optimizer.generate_lambda_profile(&plan);
-        
+
         assert!(profile.contains("[profile.lambda]"));
         assert!(profile.contains("opt-level = \"z\""));
         assert!(profile.contains("lto = true"));
@@ -623,9 +690,9 @@ mod tests {
         let optimizer = LambdaOptimizer::new();
         let annotations = LambdaAnnotations::default();
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
-        
+
         let script = optimizer.generate_optimized_build_script(&plan, &annotations);
-        
+
         assert!(script.contains("cargo lambda build"));
         assert!(script.contains("export RUSTFLAGS"));
         assert!(script.contains("upx --best"));
@@ -636,9 +703,9 @@ mod tests {
         let optimizer = LambdaOptimizer::new();
         let annotations = LambdaAnnotations::default();
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
-        
+
         let estimate = optimizer.estimate_performance_impact(&plan);
-        
+
         assert!(estimate.binary_size_reduction_percent > 0.0);
         assert!(estimate.cold_start_improvement_percent >= 0.0);
     }
@@ -646,7 +713,7 @@ mod tests {
     #[test]
     fn test_aggressive_mode() {
         let optimizer = LambdaOptimizer::new().enable_aggressive_mode();
-        
+
         for config in optimizer.strategies.values() {
             assert!(config.aggressive_mode);
         }
@@ -660,10 +727,13 @@ mod tests {
             max_memory_usage_mb: 64,
             target_throughput_rps: Some(1000),
         };
-        
+
         let optimizer = LambdaOptimizer::new().with_targets(targets);
         assert_eq!(optimizer.performance_targets.max_cold_start_ms, 25);
         assert_eq!(optimizer.performance_targets.max_binary_size_kb, 1024);
-        assert_eq!(optimizer.performance_targets.target_throughput_rps, Some(1000));
+        assert_eq!(
+            optimizer.performance_targets.target_throughput_rps,
+            Some(1000)
+        );
     }
 }
