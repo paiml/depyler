@@ -5,7 +5,10 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use depyler_analyzer::Analyzer;
-use depyler_core::{DepylerPipeline, lambda_inference::LambdaTypeInferencer, lambda_codegen::LambdaCodeGenerator, lambda_optimizer::LambdaOptimizer, lambda_testing::LambdaTestHarness};
+use depyler_core::{
+    lambda_codegen::LambdaCodeGenerator, lambda_inference::LambdaTypeInferencer,
+    lambda_optimizer::LambdaOptimizer, lambda_testing::LambdaTestHarness, DepylerPipeline,
+};
 use depyler_quality::QualityAnalyzer;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
@@ -709,16 +712,16 @@ pub fn check_clippy_clean(python_file: &std::path::Path) -> Result<bool> {
 pub fn lambda_analyze_command(input: PathBuf, format: String, confidence: f64) -> Result<()> {
     let python_source = fs::read_to_string(&input)?;
     let pipeline = DepylerPipeline::new();
-    
+
     // Parse to AST for inference
     let ast = pipeline.parse_python(&python_source)?;
-    
+
     // Create and configure inferencer
     let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(confidence);
-    
+
     // Analyze the handler
     let analysis_report = inferencer.analyze_handler(&ast)?;
-    
+
     match format.as_str() {
         "json" => {
             let json = serde_json::to_string_pretty(&analysis_report)?;
@@ -728,16 +731,26 @@ pub fn lambda_analyze_command(input: PathBuf, format: String, confidence: f64) -
             println!("🔍 Lambda Event Type Analysis");
             println!("==============================");
             println!("📄 File: {}", input.display());
-            println!("🎯 Inferred Event Type: {:?}", analysis_report.inferred_event_type);
+            println!(
+                "🎯 Inferred Event Type: {:?}",
+                analysis_report.inferred_event_type
+            );
             println!("📊 Confidence Scores:");
             for (event_type, confidence) in &analysis_report.confidence_scores {
                 println!("   {event_type:?}: {confidence:.2}");
             }
-            println!("🔍 Detected Patterns: {}", analysis_report.detected_patterns.len());
+            println!(
+                "🔍 Detected Patterns: {}",
+                analysis_report.detected_patterns.len()
+            );
             for pattern in &analysis_report.detected_patterns {
-                println!("   - {:?}: {:?}", pattern.pattern_type, pattern.access_chain.join("."));
+                println!(
+                    "   - {:?}: {:?}",
+                    pattern.pattern_type,
+                    pattern.access_chain.join(".")
+                );
             }
-            
+
             if !analysis_report.recommendations.is_empty() {
                 println!("💡 Recommendations:");
                 for rec in &analysis_report.recommendations {
@@ -746,7 +759,7 @@ pub fn lambda_analyze_command(input: PathBuf, format: String, confidence: f64) -
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -759,7 +772,7 @@ pub fn lambda_convert_command(
 ) -> Result<()> {
     let start = Instant::now();
     let python_source = fs::read_to_string(&input)?;
-    
+
     // Create progress bar
     let pb = ProgressBar::new(6);
     pb.set_style(
@@ -768,43 +781,56 @@ pub fn lambda_convert_command(
             .unwrap()
             .progress_chars("#>-"),
     );
-    
+
     // Step 1: Parse and analyze
     pb.set_message("🔍 Analyzing Lambda function...");
     let pipeline = DepylerPipeline::new();
     let ast = pipeline.parse_python(&python_source)?;
-    
+
     // Infer event type
     let inferencer = LambdaTypeInferencer::new();
     let analysis = inferencer.analyze_handler(&ast)?;
     pb.inc(1);
-    
+
     // Step 2: Extract annotations and generate context
     pb.set_message("📋 Processing annotations...");
     let annotations = depyler_annotations::AnnotationParser::new()
         .parse_annotations(&python_source)
         .unwrap_or_default();
-    
-    let lambda_annotations = annotations.lambda_annotations.unwrap_or_else(|| {
-        depyler_annotations::LambdaAnnotations {
-            event_type: Some(match analysis.inferred_event_type {
-                depyler_core::lambda_inference::EventType::S3Event => depyler_annotations::LambdaEventType::S3Event,
-                depyler_core::lambda_inference::EventType::ApiGatewayV2Http => depyler_annotations::LambdaEventType::ApiGatewayV2HttpRequest,
-                depyler_core::lambda_inference::EventType::SnsEvent => depyler_annotations::LambdaEventType::SnsEvent,
-                depyler_core::lambda_inference::EventType::SqsEvent => depyler_annotations::LambdaEventType::SqsEvent,
-                depyler_core::lambda_inference::EventType::DynamodbEvent => depyler_annotations::LambdaEventType::DynamodbEvent,
-                depyler_core::lambda_inference::EventType::EventBridge => depyler_annotations::LambdaEventType::EventBridgeEvent(None),
-                _ => depyler_annotations::LambdaEventType::Auto,
-            }),
-            ..Default::default()
-        }
-    });
+
+    let lambda_annotations =
+        annotations
+            .lambda_annotations
+            .unwrap_or_else(|| depyler_annotations::LambdaAnnotations {
+                event_type: Some(match analysis.inferred_event_type {
+                    depyler_core::lambda_inference::EventType::S3Event => {
+                        depyler_annotations::LambdaEventType::S3Event
+                    }
+                    depyler_core::lambda_inference::EventType::ApiGatewayV2Http => {
+                        depyler_annotations::LambdaEventType::ApiGatewayV2HttpRequest
+                    }
+                    depyler_core::lambda_inference::EventType::SnsEvent => {
+                        depyler_annotations::LambdaEventType::SnsEvent
+                    }
+                    depyler_core::lambda_inference::EventType::SqsEvent => {
+                        depyler_annotations::LambdaEventType::SqsEvent
+                    }
+                    depyler_core::lambda_inference::EventType::DynamodbEvent => {
+                        depyler_annotations::LambdaEventType::DynamodbEvent
+                    }
+                    depyler_core::lambda_inference::EventType::EventBridge => {
+                        depyler_annotations::LambdaEventType::EventBridgeEvent(None)
+                    }
+                    _ => depyler_annotations::LambdaEventType::Auto,
+                }),
+                ..Default::default()
+            });
     pb.inc(1);
-    
+
     // Step 3: Transpile to Rust
     pb.set_message("🦀 Transpiling to Rust...");
     let rust_code = pipeline.transpile(&python_source)?;
-    
+
     let generation_context = depyler_core::lambda_codegen::LambdaGenerationContext {
         event_type: lambda_annotations.event_type.clone(),
         response_type: "serde_json::Value".to_string(), // Could be inferred better
@@ -816,7 +842,7 @@ pub fn lambda_convert_command(
         module_name: input.file_stem().unwrap().to_string_lossy().to_string(),
     };
     pb.inc(1);
-    
+
     // Step 4: Generate optimized Lambda project
     pb.set_message("⚡ Generating optimized project...");
     let mut generator = LambdaCodeGenerator::new();
@@ -837,25 +863,28 @@ pub fn lambda_convert_command(
         };
         generator = generator.with_optimization_profile(optimized_profile);
     }
-    
+
     let project = generator.generate_lambda_project(&generation_context)?;
     pb.inc(1);
-    
+
     // Step 5: Write output
     pb.set_message("📁 Writing project files...");
     let output_dir = output.unwrap_or_else(|| {
-        input.parent().unwrap().join(format!("{}_lambda", input.file_stem().unwrap().to_string_lossy()))
+        input.parent().unwrap().join(format!(
+            "{}_lambda",
+            input.file_stem().unwrap().to_string_lossy()
+        ))
     });
-    
+
     fs::create_dir_all(&output_dir)?;
     fs::create_dir_all(output_dir.join("src"))?;
-    
+
     // Write main files
     fs::write(output_dir.join("src/main.rs"), &project.handler_code)?;
     fs::write(output_dir.join("Cargo.toml"), &project.cargo_toml)?;
     fs::write(output_dir.join("build.sh"), &project.build_script)?;
     fs::write(output_dir.join("README.md"), &project.readme)?;
-    
+
     // Make build script executable
     #[cfg(unix)]
     {
@@ -864,7 +893,7 @@ pub fn lambda_convert_command(
         perms.set_mode(0o755);
         fs::set_permissions(output_dir.join("build.sh"), perms)?;
     }
-    
+
     if deploy {
         if let Some(ref sam_template) = project.sam_template {
             fs::write(output_dir.join("template.yaml"), sam_template)?;
@@ -874,17 +903,17 @@ pub fn lambda_convert_command(
         }
     }
     pb.inc(1);
-    
+
     // Step 6: Generate tests if requested
     if tests {
         pb.set_message("🧪 Generating test suite...");
         let test_harness = LambdaTestHarness::new();
         let test_suite = test_harness.generate_test_suite(&lambda_annotations)?;
         fs::write(output_dir.join("src/lib.rs"), &test_suite)?;
-        
+
         let test_script = test_harness.generate_cargo_lambda_test_script(&lambda_annotations)?;
         fs::write(output_dir.join("test.sh"), &test_script)?;
-        
+
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -894,20 +923,26 @@ pub fn lambda_convert_command(
         }
     }
     pb.inc(1);
-    
+
     pb.finish_and_clear();
-    
+
     // Print summary
     let total_time = start.elapsed();
     println!("🎉 Lambda conversion completed!");
     println!("📄 Input: {}", input.display());
     println!("📁 Output: {}", output_dir.display());
     println!("🎯 Event Type: {:?}", analysis.inferred_event_type);
-    println!("⚡ Optimizations: {}", if optimize { "Enabled" } else { "Standard" });
+    println!(
+        "⚡ Optimizations: {}",
+        if optimize { "Enabled" } else { "Standard" }
+    );
     println!("🧪 Tests: {}", if tests { "Generated" } else { "Skipped" });
-    println!("🚀 Deploy Templates: {}", if deploy { "Generated" } else { "Skipped" });
+    println!(
+        "🚀 Deploy Templates: {}",
+        if deploy { "Generated" } else { "Skipped" }
+    );
     println!("⏱️  Total Time: {:.2}ms", total_time.as_millis());
-    
+
     // Show next steps
     println!("\n📋 Next Steps:");
     println!("   cd {}", output_dir.display());
@@ -916,7 +951,7 @@ pub fn lambda_convert_command(
         println!("   ./test.sh                     # Run tests");
     }
     println!("   cargo lambda deploy           # Deploy to AWS");
-    
+
     Ok(())
 }
 
@@ -929,16 +964,16 @@ pub fn lambda_test_command(
     if !input.join("Cargo.toml").exists() {
         return Err(anyhow::anyhow!("Not a valid Lambda project directory"));
     }
-    
+
     let current_dir = std::env::current_dir()?;
     std::env::set_current_dir(&input)?;
-    
+
     if let Some(event_name) = event {
         println!("🧪 Running specific test event: {event_name}");
         let output = Command::new("cargo")
             .args(["test", &format!("test_{event_name}")])
             .output()?;
-        
+
         if output.status.success() {
             println!("✅ Test passed");
         } else {
@@ -948,7 +983,7 @@ pub fn lambda_test_command(
     } else {
         println!("🧪 Running all tests...");
         let output = Command::new("cargo").arg("test").output()?;
-        
+
         if output.status.success() {
             println!("✅ All tests passed");
         } else {
@@ -956,7 +991,7 @@ pub fn lambda_test_command(
             println!("{}", String::from_utf8_lossy(&output.stderr));
         }
     }
-    
+
     if benchmark {
         println!("📊 Running performance benchmarks...");
         if input.join("test.sh").exists() {
@@ -966,14 +1001,14 @@ pub fn lambda_test_command(
             println!("⚠️ No test.sh script found for benchmarking");
         }
     }
-    
+
     if load_test {
         println!("🔥 Generating load test script...");
         let harness = LambdaTestHarness::new();
         let annotations = depyler_annotations::LambdaAnnotations::default(); // Could read from project
         let load_script = harness.generate_load_test_script(&annotations)?;
         fs::write("load_test.sh", &load_script)?;
-        
+
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -981,10 +1016,10 @@ pub fn lambda_test_command(
             perms.set_mode(0o755);
             fs::set_permissions("load_test.sh", perms)?;
         }
-        
+
         println!("✅ Load test script generated: load_test.sh");
     }
-    
+
     std::env::set_current_dir(current_dir)?;
     Ok(())
 }
@@ -998,31 +1033,31 @@ pub fn lambda_build_command(
     if !input.join("Cargo.toml").exists() {
         return Err(anyhow::anyhow!("Not a valid Lambda project directory"));
     }
-    
+
     let current_dir = std::env::current_dir()?;
     std::env::set_current_dir(&input)?;
-    
+
     println!("🏗️ Building Lambda function...");
-    
+
     let arch_flag = match arch.as_str() {
         "arm64" | "aarch64" => "--arm64",
         "x86_64" | "x64" => "--x86-64",
         _ => return Err(anyhow::anyhow!("Unsupported architecture: {}", arch)),
     };
-    
+
     let mut build_cmd = Command::new("cargo");
     build_cmd.args(["lambda", "build", "--release", arch_flag]);
-    
+
     if optimize_size || optimize_cold_start {
         build_cmd.arg("--profile").arg("lambda");
     }
-    
+
     println!("Running: cargo lambda build --release {arch_flag}");
     let output = build_cmd.output()?;
-    
+
     if output.status.success() {
         println!("✅ Build successful");
-        
+
         // Show binary size if available
         if let Ok(entries) = fs::read_dir("target/lambda") {
             for entry in entries.flatten() {
@@ -1031,7 +1066,7 @@ pub fn lambda_build_command(
                     if let Ok(metadata) = fs::metadata(&bootstrap_path) {
                         let size_kb = metadata.len() / 1024;
                         println!("📦 Binary size: {size_kb}KB");
-                        
+
                         if optimize_size && size_kb > 2048 {
                             println!("⚠️ Binary size is larger than 2MB, consider additional optimizations");
                         }
@@ -1043,7 +1078,7 @@ pub fn lambda_build_command(
         println!("❌ Build failed");
         println!("{}", String::from_utf8_lossy(&output.stderr));
     }
-    
+
     std::env::set_current_dir(current_dir)?;
     Ok(())
 }
@@ -1058,14 +1093,13 @@ pub fn lambda_deploy_command(
     if !input.join("Cargo.toml").exists() {
         return Err(anyhow::anyhow!("Not a valid Lambda project directory"));
     }
-    
+
     let current_dir = std::env::current_dir()?;
     std::env::set_current_dir(&input)?;
-    
-    let func_name = function_name.unwrap_or_else(|| {
-        input.file_name().unwrap().to_string_lossy().to_string()
-    });
-    
+
+    let func_name =
+        function_name.unwrap_or_else(|| input.file_name().unwrap().to_string_lossy().to_string());
+
     if dry_run {
         println!("🔍 Dry run deployment for function: {func_name}");
         if let Some(ref region) = region {
@@ -1078,22 +1112,22 @@ pub fn lambda_deploy_command(
         std::env::set_current_dir(current_dir)?;
         return Ok(());
     }
-    
+
     println!("🚀 Deploying Lambda function: {func_name}");
-    
+
     let mut deploy_cmd = Command::new("cargo");
     deploy_cmd.args(["lambda", "deploy", &func_name]);
-    
+
     if let Some(ref region) = region {
         deploy_cmd.args(["--region", region]);
     }
-    
+
     if let Some(ref role) = role {
         deploy_cmd.args(["--iam-role", role]);
     }
-    
+
     let output = deploy_cmd.output()?;
-    
+
     if output.status.success() {
         println!("✅ Deployment successful");
         println!("{}", String::from_utf8_lossy(&output.stdout));
@@ -1101,7 +1135,7 @@ pub fn lambda_deploy_command(
         println!("❌ Deployment failed");
         println!("{}", String::from_utf8_lossy(&output.stderr));
     }
-    
+
     std::env::set_current_dir(current_dir)?;
     Ok(())
 }

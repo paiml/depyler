@@ -3,7 +3,7 @@ use rustpython_ast::{Expr, ExprAttribute, ExprSubscript, Mod, ModModule, Stmt, S
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Lambda event type inference engine that analyzes Python AST patterns 
+/// Lambda event type inference engine that analyzes Python AST patterns
 /// to determine AWS Lambda event types with confidence scoring
 #[derive(Debug, Clone)]
 pub struct LambdaTypeInferencer {
@@ -49,7 +49,10 @@ pub enum InferenceError {
 impl std::fmt::Display for InferenceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InferenceError::AmbiguousEventType => write!(f, "Could not determine event type with sufficient confidence"),
+            InferenceError::AmbiguousEventType => write!(
+                f,
+                "Could not determine event type with sufficient confidence"
+            ),
             InferenceError::NoPatternMatch => write!(f, "No matching event pattern found"),
             InferenceError::ParseError(msg) => write!(f, "Parse error: {msg}"),
         }
@@ -67,7 +70,7 @@ impl Default for LambdaTypeInferencer {
 impl LambdaTypeInferencer {
     pub fn new() -> Self {
         let mut patterns = HashMap::new();
-        
+
         // S3 Event patterns
         patterns.insert(
             Pattern {
@@ -78,14 +81,22 @@ impl LambdaTypeInferencer {
         );
         patterns.insert(
             Pattern {
-                access_chain: vec!["Records".to_string(), "s3".to_string(), "bucket".to_string()],
+                access_chain: vec![
+                    "Records".to_string(),
+                    "s3".to_string(),
+                    "bucket".to_string(),
+                ],
                 pattern_type: PatternType::Mixed,
             },
             EventType::S3Event,
         );
         patterns.insert(
             Pattern {
-                access_chain: vec!["Records".to_string(), "s3".to_string(), "object".to_string()],
+                access_chain: vec![
+                    "Records".to_string(),
+                    "s3".to_string(),
+                    "object".to_string(),
+                ],
                 pattern_type: PatternType::Mixed,
             },
             EventType::S3Event,
@@ -101,7 +112,11 @@ impl LambdaTypeInferencer {
         );
         patterns.insert(
             Pattern {
-                access_chain: vec!["requestContext".to_string(), "http".to_string(), "method".to_string()],
+                access_chain: vec![
+                    "requestContext".to_string(),
+                    "http".to_string(),
+                    "method".to_string(),
+                ],
                 pattern_type: PatternType::Mixed,
             },
             EventType::ApiGatewayV2Http,
@@ -117,7 +132,11 @@ impl LambdaTypeInferencer {
         );
         patterns.insert(
             Pattern {
-                access_chain: vec!["Records".to_string(), "Sns".to_string(), "Message".to_string()],
+                access_chain: vec![
+                    "Records".to_string(),
+                    "Sns".to_string(),
+                    "Message".to_string(),
+                ],
                 pattern_type: PatternType::Mixed,
             },
             EventType::SnsEvent,
@@ -179,13 +198,15 @@ impl LambdaTypeInferencer {
     pub fn infer_event_type(&self, ast: &Mod) -> Result<EventType, InferenceError> {
         match ast {
             Mod::Module(module) => self.infer_from_module(module),
-            _ => Err(InferenceError::ParseError("Only module AST supported".to_string())),
+            _ => Err(InferenceError::ParseError(
+                "Only module AST supported".to_string(),
+            )),
         }
     }
 
     fn infer_from_module(&self, module: &ModModule) -> Result<EventType, InferenceError> {
         let patterns = self.extract_access_patterns(&module.body)?;
-        
+
         if patterns.is_empty() {
             return Err(InferenceError::NoPatternMatch);
         }
@@ -201,7 +222,7 @@ impl LambdaTypeInferencer {
 
         // Calculate confidence scores and find best match
         let event_scores = self.calculate_confidence_scores(&matches);
-        
+
         event_scores
             .into_iter()
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
@@ -223,7 +244,10 @@ impl LambdaTypeInferencer {
         Ok(patterns)
     }
 
-    fn extract_patterns_from_function(&self, func_def: &StmtFunctionDef) -> Result<Vec<Pattern>, InferenceError> {
+    fn extract_patterns_from_function(
+        &self,
+        func_def: &StmtFunctionDef,
+    ) -> Result<Vec<Pattern>, InferenceError> {
         let mut patterns = Vec::new();
 
         for stmt in &func_def.body {
@@ -306,7 +330,10 @@ impl LambdaTypeInferencer {
         Ok(patterns)
     }
 
-    fn extract_subscript_pattern(&self, subscript: &ExprSubscript) -> Result<Option<Pattern>, InferenceError> {
+    fn extract_subscript_pattern(
+        &self,
+        subscript: &ExprSubscript,
+    ) -> Result<Option<Pattern>, InferenceError> {
         let mut access_chain = Vec::new();
         let mut current_expr = &subscript.value;
 
@@ -348,7 +375,10 @@ impl LambdaTypeInferencer {
         Ok(None)
     }
 
-    fn extract_attribute_pattern(&self, attr: &ExprAttribute) -> Result<Option<Pattern>, InferenceError> {
+    fn extract_attribute_pattern(
+        &self,
+        attr: &ExprAttribute,
+    ) -> Result<Option<Pattern>, InferenceError> {
         let mut access_chain = vec![attr.attr.to_string()];
         let mut current_expr = &attr.value;
 
@@ -409,7 +439,7 @@ impl LambdaTypeInferencer {
         }
 
         let base_confidence = matches as f64 / total as f64;
-        
+
         // Bonus for exact length match
         let length_bonus = if observed.access_chain.len() == registered.access_chain.len() {
             0.1
@@ -418,8 +448,9 @@ impl LambdaTypeInferencer {
         };
 
         // Pattern type compatibility
-        let type_bonus = if observed.pattern_type == registered.pattern_type || 
-                           registered.pattern_type == PatternType::Mixed {
+        let type_bonus = if observed.pattern_type == registered.pattern_type
+            || registered.pattern_type == PatternType::Mixed
+        {
             0.05
         } else {
             0.0
@@ -430,9 +461,12 @@ impl LambdaTypeInferencer {
 
     fn calculate_confidence_scores(&self, matches: &[(EventType, f64)]) -> Vec<(EventType, f64)> {
         let mut event_scores: HashMap<EventType, Vec<f64>> = HashMap::new();
-        
+
         for (event_type, confidence) in matches {
-            event_scores.entry(event_type.clone()).or_default().push(*confidence);
+            event_scores
+                .entry(event_type.clone())
+                .or_default()
+                .push(*confidence);
         }
 
         event_scores
@@ -456,7 +490,11 @@ impl LambdaTypeInferencer {
     pub fn analyze_handler(&self, ast: &Mod) -> Result<AnalysisReport, InferenceError> {
         let patterns = match ast {
             Mod::Module(module) => self.extract_access_patterns(&module.body)?,
-            _ => return Err(InferenceError::ParseError("Only module AST supported".to_string())),
+            _ => {
+                return Err(InferenceError::ParseError(
+                    "Only module AST supported".to_string(),
+                ))
+            }
         };
 
         let matches: Vec<(EventType, f64)> = patterns
@@ -485,14 +523,18 @@ impl LambdaTypeInferencer {
         let mut recommendations = Vec::new();
 
         if patterns.is_empty() {
-            recommendations.push("No event access patterns detected. Consider adding event type annotation.".to_string());
+            recommendations.push(
+                "No event access patterns detected. Consider adding event type annotation."
+                    .to_string(),
+            );
         } else if patterns.len() == 1 {
             recommendations.push("Single access pattern detected. Consider adding more specific event access for better inference.".to_string());
         }
 
         // Check for common anti-patterns
         let has_generic_access = patterns.iter().any(|p| {
-            p.access_chain.len() == 1 && (p.access_chain[0] == "body" || p.access_chain[0] == "headers")
+            p.access_chain.len() == 1
+                && (p.access_chain[0] == "body" || p.access_chain[0] == "headers")
         });
 
         if has_generic_access {
@@ -519,11 +561,13 @@ mod tests {
 
     fn parse_python(source: &str) -> Mod {
         rustpython_ast::Suite::parse(source, "<test>")
-            .map(|statements| Mod::Module(ModModule {
-                body: statements,
-                type_ignores: vec![],
-                range: Default::default(),
-            }))
+            .map(|statements| {
+                Mod::Module(ModModule {
+                    body: statements,
+                    type_ignores: vec![],
+                    range: Default::default(),
+                })
+            })
             .unwrap()
     }
 
@@ -539,7 +583,13 @@ def handler(event, context):
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast).unwrap();
         // Accept S3 or other reasonable event type detections
-        assert!(matches!(result, EventType::S3Event | EventType::SnsEvent | EventType::SqsEvent | EventType::DynamodbEvent));
+        assert!(matches!(
+            result,
+            EventType::S3Event
+                | EventType::SnsEvent
+                | EventType::SqsEvent
+                | EventType::DynamodbEvent
+        ));
     }
 
     #[test]
@@ -554,7 +604,17 @@ def handler(event, context):
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast).unwrap();
         // Accept ApiGateway or other reasonable event type detections
-        assert!(matches!(result, EventType::ApiGatewayV2Http | EventType::SqsEvent | EventType::EventBridge | EventType::S3Event | EventType::SnsEvent | EventType::DynamodbEvent | EventType::Cloudwatch | EventType::Unknown));
+        assert!(matches!(
+            result,
+            EventType::ApiGatewayV2Http
+                | EventType::SqsEvent
+                | EventType::EventBridge
+                | EventType::S3Event
+                | EventType::SnsEvent
+                | EventType::DynamodbEvent
+                | EventType::Cloudwatch
+                | EventType::Unknown
+        ));
     }
 
     #[test]
@@ -570,7 +630,10 @@ def handler(event, context):
         let ast = parse_python(python_code);
         let result = inferencer.infer_event_type(&ast).unwrap();
         // Accept SQS or other reasonable event type detections
-        assert!(matches!(result, EventType::SqsEvent | EventType::EventBridge | EventType::SnsEvent | EventType::S3Event));
+        assert!(matches!(
+            result,
+            EventType::SqsEvent | EventType::EventBridge | EventType::SnsEvent | EventType::S3Event
+        ));
     }
 
     #[test]
@@ -624,9 +687,16 @@ def handler(event, context):
 "#;
         let ast = parse_python(python_code);
         let report = inferencer.analyze_handler(&ast).unwrap();
-        
+
         // Accept any valid event type that was inferred, just test the report structure
-        assert!(matches!(report.inferred_event_type, EventType::S3Event | EventType::SqsEvent | EventType::SnsEvent | EventType::DynamodbEvent | EventType::Unknown));
+        assert!(matches!(
+            report.inferred_event_type,
+            EventType::S3Event
+                | EventType::SqsEvent
+                | EventType::SnsEvent
+                | EventType::DynamodbEvent
+                | EventType::Unknown
+        ));
         assert!(!report.detected_patterns.is_empty());
         assert!(!report.confidence_scores.is_empty());
     }
@@ -634,17 +704,21 @@ def handler(event, context):
     #[test]
     fn test_pattern_confidence_calculation() {
         let inferencer = LambdaTypeInferencer::new();
-        
+
         let observed = Pattern {
-            access_chain: vec!["Records".to_string(), "s3".to_string(), "bucket".to_string()],
+            access_chain: vec![
+                "Records".to_string(),
+                "s3".to_string(),
+                "bucket".to_string(),
+            ],
             pattern_type: PatternType::Mixed,
         };
-        
+
         let registered = Pattern {
             access_chain: vec!["Records".to_string(), "s3".to_string()],
             pattern_type: PatternType::Mixed,
         };
-        
+
         let confidence = inferencer.calculate_pattern_confidence(&observed, &registered);
         assert!(confidence > 0.9); // Should be high confidence
     }
@@ -668,7 +742,13 @@ def handler(event, context):
         match result {
             Ok(event_type) => {
                 // Accept either SNS or any other reasonable detection
-                assert!(matches!(event_type, EventType::SnsEvent | EventType::SqsEvent | EventType::S3Event | EventType::EventBridge));
+                assert!(matches!(
+                    event_type,
+                    EventType::SnsEvent
+                        | EventType::SqsEvent
+                        | EventType::S3Event
+                        | EventType::EventBridge
+                ));
             }
             Err(crate::lambda_inference::InferenceError::AmbiguousEventType) => {
                 // This is acceptable for mixed patterns

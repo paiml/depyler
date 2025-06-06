@@ -391,7 +391,10 @@ mod tests {
         let inferencer = TypeInferencer::new();
 
         assert_eq!(inferencer.infer_literal(&Literal::Int(42)), Type::Int);
-        assert_eq!(inferencer.infer_literal(&Literal::Float(3.14159)), Type::Float);
+        assert_eq!(
+            inferencer.infer_literal(&Literal::Float(3.14159)),
+            Type::Float
+        );
         assert_eq!(
             inferencer.infer_literal(&Literal::String("hello".to_string())),
             Type::String

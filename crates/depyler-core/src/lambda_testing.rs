@@ -69,7 +69,8 @@ impl Default for TestContext {
             memory_limit_mb: 128,
             timeout_ms: 15000,
             aws_request_id: "test-request-id".to_string(),
-            invoked_function_arn: "arn:aws:lambda:us-east-1:123456789012:function:test-function".to_string(),
+            invoked_function_arn: "arn:aws:lambda:us-east-1:123456789012:function:test-function"
+                .to_string(),
         }
     }
 }
@@ -94,7 +95,7 @@ impl Default for LambdaTestHarness {
 impl LambdaTestHarness {
     pub fn new() -> Self {
         let mut test_events = HashMap::new();
-        
+
         // Add default test events for common Lambda event types
         test_events.insert(
             LambdaEventType::ApiGatewayProxyRequest,
@@ -151,30 +152,28 @@ impl LambdaTestHarness {
 
         test_events.insert(
             LambdaEventType::S3Event,
-            vec![
-                TestEvent {
-                    name: "s3_object_created".to_string(),
-                    event_data: json!({
-                        "Records": [
-                            {
-                                "s3": {
-                                    "bucket": {
-                                        "name": "test-bucket"
-                                    },
-                                    "object": {
-                                        "key": "test-file.txt",
-                                        "size": 1024
-                                    }
+            vec![TestEvent {
+                name: "s3_object_created".to_string(),
+                event_data: json!({
+                    "Records": [
+                        {
+                            "s3": {
+                                "bucket": {
+                                    "name": "test-bucket"
                                 },
-                                "eventName": "ObjectCreated:Put"
-                            }
-                        ]
-                    }),
-                    expected_response: None,
-                    should_succeed: true,
-                    description: "S3 object created event".to_string(),
-                },
-            ],
+                                "object": {
+                                    "key": "test-file.txt",
+                                    "size": 1024
+                                }
+                            },
+                            "eventName": "ObjectCreated:Put"
+                        }
+                    ]
+                }),
+                expected_response: None,
+                should_succeed: true,
+                description: "S3 object created event".to_string(),
+            }],
         );
 
         test_events.insert(
@@ -250,16 +249,19 @@ impl LambdaTestHarness {
 
     /// Add a custom test event
     pub fn add_test_event(&mut self, event_type: LambdaEventType, test_event: TestEvent) {
-        self.test_events.entry(event_type).or_default().push(test_event);
+        self.test_events
+            .entry(event_type)
+            .or_default()
+            .push(test_event);
     }
 
     /// Generate test suite for a Lambda function
     pub fn generate_test_suite(&self, annotations: &LambdaAnnotations) -> Result<String> {
         let mut test_code = String::new();
-        
+
         test_code.push_str(&self.generate_test_imports());
         test_code.push_str(&self.generate_test_helpers());
-        
+
         if let Some(ref event_type) = annotations.event_type {
             if let Some(events) = self.test_events.get(event_type) {
                 for event in events {
@@ -267,10 +269,10 @@ impl LambdaTestHarness {
                 }
             }
         }
-        
+
         test_code.push_str(&self.generate_performance_tests());
         test_code.push_str(&self.generate_integration_tests());
-        
+
         Ok(test_code)
     }
 
@@ -283,7 +285,8 @@ mod tests {{
     use std::time::Instant;
     // use tokio::time::timeout;
 
-"#.to_string()
+"#
+        .to_string()
     }
 
     fn generate_test_helpers(&self) -> String {
@@ -321,10 +324,14 @@ mod tests {{
         )
     }
 
-    fn generate_individual_test(&self, test_event: &TestEvent, _event_type: &LambdaEventType) -> Result<String> {
+    fn generate_individual_test(
+        &self,
+        test_event: &TestEvent,
+        _event_type: &LambdaEventType,
+    ) -> Result<String> {
         let test_function_name = format!("test_{}", test_event.name);
         let handler_name = "handler"; // This could be configurable
-        
+
         let mut test_code = format!(
             r#"    #[tokio::test]
     async fn {}() {{
@@ -353,7 +360,7 @@ mod tests {{
 
         if test_event.should_succeed {
             test_code.push_str("        assert!(result.is_ok(), \"Test should succeed but failed: {:?}\", result.err());\n");
-            
+
             if let Some(ref expected) = test_event.expected_response {
                 test_code.push_str(&format!(
                     r#"        
@@ -365,7 +372,9 @@ mod tests {{
                 ));
             }
         } else {
-            test_code.push_str("        assert!(result.is_err(), \"Test should fail but succeeded\");\n");
+            test_code.push_str(
+                "        assert!(result.is_err(), \"Test should fail but succeeded\");\n",
+            );
         }
 
         // Add performance assertions
@@ -538,11 +547,15 @@ mod tests {{
         println!("Large payload processing time: {{:?}}", duration);
     }}
 }}
-"#.to_string()
+"#
+        .to_string()
     }
 
     /// Generate a complete test script for cargo lambda test
-    pub fn generate_cargo_lambda_test_script(&self, annotations: &LambdaAnnotations) -> Result<String> {
+    pub fn generate_cargo_lambda_test_script(
+        &self,
+        annotations: &LambdaAnnotations,
+    ) -> Result<String> {
         let mut script = String::from("#!/bin/bash\n");
         script.push_str("# Generated test script for cargo-lambda\n\n");
         script.push_str("set -e\n\n");
@@ -557,32 +570,26 @@ mod tests {{
 
         // Run integration tests with cargo-lambda
         script.push_str("echo \"Running integration tests with cargo-lambda...\"\n");
-        
+
         if let Some(ref event_type) = annotations.event_type {
             if let Some(events) = self.test_events.get(event_type) {
                 for event in events {
-                    script.push_str(&format!(
-                        "echo \"Testing event: {}\"\n",
-                        event.name
-                    ));
-                    
+                    script.push_str(&format!("echo \"Testing event: {}\"\n", event.name));
+
                     // Create temporary event file
                     script.push_str(&format!(
                         "cat > /tmp/test_event_{}.json << 'EOF'\n{}\nEOF\n",
                         event.name,
                         serde_json::to_string_pretty(&event.event_data)?
                     ));
-                    
+
                     // Invoke with cargo lambda
                     script.push_str(&format!(
                         "cargo lambda invoke --data-file /tmp/test_event_{}.json\n",
                         event.name
                     ));
-                    
-                    script.push_str(&format!(
-                        "rm /tmp/test_event_{}.json\n\n",
-                        event.name
-                    ));
+
+                    script.push_str(&format!("rm /tmp/test_event_{}.json\n\n", event.name));
                 }
             }
         }
@@ -591,7 +598,9 @@ mod tests {{
         script.push_str("echo \"Running performance benchmarks...\"\n");
         script.push_str("if command -v hyperfine > /dev/null; then\n");
         script.push_str("    echo \"Benchmarking cold start performance...\"\n");
-        script.push_str("    hyperfine 'cargo lambda invoke --data-ascii \\'{}\\'' --warmup 1 --min-runs 10\n");
+        script.push_str(
+            "    hyperfine 'cargo lambda invoke --data-ascii \\'{}\\'' --warmup 1 --min-runs 10\n",
+        );
         script.push_str("else\n");
         script.push_str("    echo \"hyperfine not installed, skipping performance benchmarks\"\n");
         script.push_str("fi\n\n");
@@ -602,7 +611,10 @@ mod tests {{
     }
 
     /// Generate a GitHub Actions workflow for Lambda testing
-    pub fn generate_github_actions_workflow(&self, annotations: &LambdaAnnotations) -> Result<String> {
+    pub fn generate_github_actions_workflow(
+        &self,
+        annotations: &LambdaAnnotations,
+    ) -> Result<String> {
         Ok(format!(
             r#"name: Lambda Function Tests
 
@@ -699,7 +711,7 @@ jobs:
 
     fn generate_test_events_yaml(&self, annotations: &LambdaAnnotations) -> Result<String> {
         let mut yaml = String::from("        mkdir -p test_events\n");
-        
+
         if let Some(ref event_type) = annotations.event_type {
             if let Some(events) = self.test_events.get(event_type) {
                 for (i, event) in events.iter().enumerate() {
@@ -711,9 +723,9 @@ jobs:
                 }
             }
         }
-        
+
         yaml.push_str("        cat > test_events/basic_test.json << 'EOF'\n{\"test\": \"basic\"}\n        EOF\n");
-        
+
         Ok(yaml)
     }
 
@@ -761,7 +773,8 @@ else
 fi
 
 echo "🎉 Development testing finished!"
-"#.to_string()
+"#
+        .to_string()
     }
 
     /// Generate load testing script
@@ -860,7 +873,9 @@ mod tests {
     fn test_harness_creation() {
         let harness = LambdaTestHarness::new();
         assert!(!harness.test_events.is_empty());
-        assert!(harness.test_events.contains_key(&LambdaEventType::ApiGatewayProxyRequest));
+        assert!(harness
+            .test_events
+            .contains_key(&LambdaEventType::ApiGatewayProxyRequest));
         assert!(harness.test_events.contains_key(&LambdaEventType::S3Event));
         assert!(harness.test_events.contains_key(&LambdaEventType::SqsEvent));
     }
@@ -868,7 +883,7 @@ mod tests {
     #[test]
     fn test_custom_test_event() {
         let mut harness = LambdaTestHarness::new();
-        
+
         let custom_event = TestEvent {
             name: "custom_test".to_string(),
             event_data: json!({"custom": "data"}),
@@ -876,10 +891,13 @@ mod tests {
             should_succeed: true,
             description: "Custom test event".to_string(),
         };
-        
+
         harness.add_test_event(LambdaEventType::ApiGatewayProxyRequest, custom_event);
-        
-        let events = harness.test_events.get(&LambdaEventType::ApiGatewayProxyRequest).unwrap();
+
+        let events = harness
+            .test_events
+            .get(&LambdaEventType::ApiGatewayProxyRequest)
+            .unwrap();
         assert!(events.iter().any(|e| e.name == "custom_test"));
     }
 
@@ -888,9 +906,9 @@ mod tests {
         let harness = LambdaTestHarness::new();
         let mut annotations = depyler_annotations::LambdaAnnotations::default();
         annotations.event_type = Some(LambdaEventType::ApiGatewayProxyRequest);
-        
+
         let test_suite = harness.generate_test_suite(&annotations).unwrap();
-        
+
         assert!(test_suite.contains("#[tokio::test]"));
         assert!(test_suite.contains("test_basic_get_request"));
         assert!(test_suite.contains("test_cold_start_performance"));
@@ -900,9 +918,11 @@ mod tests {
     fn test_github_actions_workflow() {
         let harness = LambdaTestHarness::new();
         let annotations = depyler_annotations::LambdaAnnotations::default();
-        
-        let workflow = harness.generate_github_actions_workflow(&annotations).unwrap();
-        
+
+        let workflow = harness
+            .generate_github_actions_workflow(&annotations)
+            .unwrap();
+
         assert!(workflow.contains("name: Lambda Function Tests"));
         assert!(workflow.contains("cargo lambda build"));
         assert!(workflow.contains("cargo test"));
@@ -913,9 +933,11 @@ mod tests {
         let harness = LambdaTestHarness::new();
         let mut annotations = depyler_annotations::LambdaAnnotations::default();
         annotations.event_type = Some(LambdaEventType::S3Event);
-        
-        let script = harness.generate_cargo_lambda_test_script(&annotations).unwrap();
-        
+
+        let script = harness
+            .generate_cargo_lambda_test_script(&annotations)
+            .unwrap();
+
         assert!(script.contains("cargo lambda build"));
         assert!(script.contains("cargo lambda invoke"));
         assert!(script.contains("s3_object_created"));
@@ -929,9 +951,9 @@ mod tests {
             max_memory_usage_mb: 32,
             min_throughput_rps: 200,
         };
-        
+
         let harness = LambdaTestHarness::new().with_benchmarks(benchmarks);
-        
+
         assert_eq!(harness.performance_benchmarks.max_cold_start_ms, 50);
         assert_eq!(harness.performance_benchmarks.min_throughput_rps, 200);
     }
@@ -944,7 +966,7 @@ mod tests {
             timeout_ms: 5000,
             ..TestContext::default()
         };
-        
+
         // Note: Context conversion would be available when using the actual lambda_runtime crate
         assert_eq!(test_context.aws_request_id, "test-123");
     }
