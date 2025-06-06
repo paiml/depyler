@@ -43,7 +43,7 @@ impl TranspilationTestHarness {
             self.compare_outputs(&result, expected_rust)?;
         }
 
-        // 5. Run property verification  
+        // 5. Run property verification
         self.verify_properties(python_source)?;
 
         Ok(())
@@ -121,12 +121,14 @@ impl TranspilationTestHarness {
 
     fn verify_properties(&self, python_source: &str) -> Result<(), String> {
         // Parse to HIR for verification
-        let hir = self.pipeline.parse_to_hir(python_source)
+        let hir = self
+            .pipeline
+            .parse_to_hir(python_source)
             .map_err(|e| format!("Failed to parse for verification: {}", e))?;
 
         for func in &hir.functions {
             let verification_results = self.verifier.verify_function(func);
-            
+
             for result in verification_results {
                 match result.status {
                     depyler_verify::PropertyStatus::Violated(msg) => {

@@ -160,60 +160,52 @@ mod tests {
     #[test]
     fn test_cyclomatic_simple_function() {
         // Function with no control flow should have complexity 1
-        let body = vec![
-            HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))
-        ];
+        let body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))];
         assert_eq!(calculate_cyclomatic(&body), 1);
     }
 
     #[test]
     fn test_cyclomatic_if_statement() {
         // Function with if statement should have complexity 2
-        let body = vec![
-            HirStmt::If {
-                condition: HirExpr::Literal(Literal::Bool(true)),
-                then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-                else_body: None,
-            }
-        ];
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            else_body: None,
+        }];
         assert_eq!(calculate_cyclomatic(&body), 2);
     }
 
     #[test]
     fn test_cyclomatic_if_else_statement() {
         // Function with if-else should have complexity 2
-        let body = vec![
-            HirStmt::If {
-                condition: HirExpr::Literal(Literal::Bool(true)),
-                then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
-            }
-        ];
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
+                2,
+            ))))]),
+        }];
         assert_eq!(calculate_cyclomatic(&body), 2);
     }
 
     #[test]
     fn test_cyclomatic_while_loop() {
         // Function with while loop should have complexity 2
-        let body = vec![
-            HirStmt::While {
-                condition: HirExpr::Literal(Literal::Bool(true)),
-                body: vec![HirStmt::Return(None)],
-            }
-        ];
+        let body = vec![HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Return(None)],
+        }];
         assert_eq!(calculate_cyclomatic(&body), 2);
     }
 
     #[test]
     fn test_cyclomatic_for_loop() {
         // Function with for loop should have complexity 2
-        let body = vec![
-            HirStmt::For {
-                target: "i".to_string(),
-                iter: HirExpr::Literal(Literal::Int(0)),
-                body: vec![HirStmt::Return(None)],
-            }
-        ];
+        let body = vec![HirStmt::For {
+            target: "i".to_string(),
+            iter: HirExpr::Literal(Literal::Int(0)),
+            body: vec![HirStmt::Return(None)],
+        }];
         assert_eq!(calculate_cyclomatic(&body), 2);
     }
 
@@ -225,19 +217,15 @@ mod tests {
             left: Box::new(HirExpr::Literal(Literal::Bool(true))),
             right: Box::new(HirExpr::Literal(Literal::Bool(false))),
         };
-        
-        let body = vec![
-            HirStmt::Expr(condition)
-        ];
+
+        let body = vec![HirStmt::Expr(condition)];
         assert_eq!(calculate_cyclomatic(&body), 2); // 1 base + 1 for And
     }
 
     #[test]
     fn test_cognitive_simple_function() {
         // Simple function should have cognitive complexity 0
-        let body = vec![
-            HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))
-        ];
+        let body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))];
         assert_eq!(calculate_cognitive(&body), 0);
     }
 
@@ -250,14 +238,12 @@ mod tests {
             else_body: None,
         };
 
-        let body = vec![
-            HirStmt::If {
-                condition: HirExpr::Literal(Literal::Bool(true)),
-                then_body: vec![nested_if],
-                else_body: None,
-            }
-        ];
-        
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![nested_if],
+            else_body: None,
+        }];
+
         // First if: 1 + 0 (nesting), nested if: 1 + 1 (nesting) = 3
         assert_eq!(calculate_cognitive(&body), 3);
     }
@@ -274,13 +260,11 @@ mod tests {
             right: Box::new(HirExpr::Literal(Literal::Bool(true))),
         };
 
-        let body = vec![
-            HirStmt::If {
-                condition: complex_condition,
-                then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-                else_body: None,
-            }
-        ];
+        let body = vec![HirStmt::If {
+            condition: complex_condition,
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            else_body: None,
+        }];
 
         // If: 1, condition: 2 (for And and Or) = 3
         assert_eq!(calculate_cognitive(&body), 3);
@@ -300,7 +284,7 @@ mod tests {
                     HirStmt::Return(None),
                 ],
                 else_body: Some(vec![HirStmt::Return(None)]),
-            }
+            },
         ];
         // 2 top-level + 2 in then + 1 in else = 5
         assert_eq!(count_statements(&body), 5);
@@ -308,24 +292,18 @@ mod tests {
 
     #[test]
     fn test_max_nesting() {
-        let deeply_nested = vec![
-            HirStmt::If {
+        let deeply_nested = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::While {
                 condition: HirExpr::Literal(Literal::Bool(true)),
-                then_body: vec![
-                    HirStmt::While {
-                        condition: HirExpr::Literal(Literal::Bool(true)),
-                        body: vec![
-                            HirStmt::For {
-                                target: "i".to_string(),
-                                iter: HirExpr::Literal(Literal::Int(0)),
-                                body: vec![HirStmt::Return(None)],
-                            }
-                        ],
-                    }
-                ],
-                else_body: None,
-            }
-        ];
+                body: vec![HirStmt::For {
+                    target: "i".to_string(),
+                    iter: HirExpr::Literal(Literal::Int(0)),
+                    body: vec![HirStmt::Return(None)],
+                }],
+            }],
+            else_body: None,
+        }];
         // if (1) -> while (2) -> for (3) = max nesting 3
         assert_eq!(calculate_max_nesting(&deeply_nested), 3);
     }

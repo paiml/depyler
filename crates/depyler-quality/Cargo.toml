@@ -11,5 +11,6 @@ smallvec = { version = "1.0", features = ["serde"] }
 depyler-core = { path = "../depyler-core" }
 depyler-analyzer = { path = "../depyler-analyzer" }
 depyler-annotations = { path = "../depyler-annotations" }
+tempfile = "3.2"
 
 [dev-dependencies]

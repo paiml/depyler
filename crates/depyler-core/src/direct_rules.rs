@@ -427,25 +427,31 @@ fn convert_literal(lit: &Literal) -> syn::Expr {
 fn convert_binop(op: BinOp) -> Result<syn::BinOp> {
     match op {
         // Arithmetic operators
-        BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod | BinOp::FloorDiv | BinOp::Pow => {
-            convert_arithmetic_op(op)
-        }
-        
+        BinOp::Add
+        | BinOp::Sub
+        | BinOp::Mul
+        | BinOp::Div
+        | BinOp::Mod
+        | BinOp::FloorDiv
+        | BinOp::Pow => convert_arithmetic_op(op),
+
         // Comparison operators
         BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq => {
             convert_comparison_op(op)
         }
-        
+
         // Logical operators
         BinOp::And | BinOp::Or => convert_logical_op(op),
-        
+
         // Bitwise operators
         BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor | BinOp::LShift | BinOp::RShift => {
             convert_bitwise_op(op)
         }
-        
+
         // Special membership operators
-        BinOp::In | BinOp::NotIn => bail!("in/not in operators should be handled by convert_binary"),
+        BinOp::In | BinOp::NotIn => {
+            bail!("in/not in operators should be handled by convert_binary")
+        }
     }
 }
 

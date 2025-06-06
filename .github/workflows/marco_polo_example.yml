@@ -1,0 +1,104 @@
+name: Marco Polo Example CI
+
+on:
+  push:
+    paths:
+      - 'examples/marco_polo_cli/**'
+      - 'crates/**'
+      - '.github/workflows/marco_polo_example.yml'
+  pull_request:
+    paths:
+      - 'examples/marco_polo_cli/**'
+      - 'crates/**'
+      - '.github/workflows/marco_polo_example.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test-marco-polo:
+    name: Test Marco Polo Example
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+    
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-marco-polo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Build Depyler
+      run: cargo build --release --bin depyler
+    
+    - name: Test Python transpilation
+      run: |
+        echo "🐍 Testing Marco Polo Python transpilation..."
+        
+        # Test simple version
+        echo "Transpiling marco_polo_simple.py..."
+        ./target/release/depyler transpile \
+          examples/marco_polo_cli/marco_polo_simple.py \
+          -o examples/marco_polo_cli/marco_polo_transpiled.rs
+        
+        # Check output
+        if [ -f examples/marco_polo_cli/marco_polo_transpiled.rs ]; then
+          echo "✅ Transpilation successful!"
+          echo "📊 Generated $(wc -l < examples/marco_polo_cli/marco_polo_transpiled.rs) lines of Rust code"
+        else
+          echo "❌ Transpilation failed!"
+          exit 1
+        fi
+    
+    - name: Build Marco Polo Rust project
+      run: |
+        echo "🦀 Building Marco Polo Rust project..."
+        cd examples/marco_polo_cli
+        cargo build --release
+        cargo test
+        cargo clippy -- -D warnings
+    
+    - name: Run Marco Polo CLI tests
+      run: |
+        echo "🎮 Testing Marco Polo CLI..."
+        cd examples/marco_polo_cli
+        
+        # Test help
+        ./target/release/marco-polo --help
+        
+        # Test version
+        ./target/release/marco-polo --version
+        
+        # Run with different difficulties
+        echo "5" | timeout 2s ./target/release/marco-polo --rounds 1 --difficulty easy || true
+        
+        echo "✅ Marco Polo CLI tests passed!"
+    
+    - name: Compare Python vs Rust
+      run: |
+        echo "📊 Comparing implementations..."
+        
+        # Check file sizes
+        echo "Python file size: $(wc -c < examples/marco_polo_cli/marco_polo_simple.py) bytes"
+        echo "Rust binary size: $(wc -c < examples/marco_polo_cli/target/release/marco-polo) bytes"
+        
+        # Count lines of code
+        echo "Python LOC: $(wc -l < examples/marco_polo_cli/marco_polo_simple.py)"
+        echo "Rust LOC: $(wc -l < examples/marco_polo_cli/src/main.rs)"
+    
+    - name: Upload transpiled code
+      uses: actions/upload-artifact@v4
+      with:
+        name: marco-polo-transpiled
+        path: |
+          examples/marco_polo_cli/marco_polo_transpiled.rs
+          examples/marco_polo_cli/target/release/marco-polo

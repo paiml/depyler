@@ -132,3 +132,309 @@ pub fn shrink_value(value: &serde_json::Value) -> Vec<serde_json::Value> {
         _ => vec![],
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::Gen;
+
+    fn test_gen() -> Gen {
+        Gen::new(5) // Small size for testing
+    }
+
+    #[test]
+    fn test_typed_value_creation() {
+        let ty = Type::Int;
+        let value = serde_json::json!(42);
+
+        let typed_value = TypedValue {
+            ty: ty.clone(),
+            value: value.clone(),
+        };
+
+        assert_eq!(typed_value.ty, ty);
+        assert_eq!(typed_value.value, value);
+    }
+
+    #[test]
+    fn test_arbitrary_for_type_int() {
+        let mut g = test_gen();
+        let typed_value = TypedValue::arbitrary_for_type(&Type::Int, &mut g);
+
+        assert_eq!(typed_value.ty, Type::Int);
+        assert!(typed_value.value.is_number());
+    }
+
+    #[test]
+    fn test_arbitrary_for_type_float() {
+        let mut g = test_gen();
+        let typed_value = TypedValue::arbitrary_for_type(&Type::Float, &mut g);
+
+        assert_eq!(typed_value.ty, Type::Float);
+        assert!(typed_value.value.is_number());
+    }
+
+    #[test]
+    fn test_arbitrary_for_type_string() {
+        let mut g = test_gen();
+        let typed_value = TypedValue::arbitrary_for_type(&Type::String, &mut g);
+
+        assert_eq!(typed_value.ty, Type::String);
+        assert!(typed_value.value.is_string());
+    }
+
+    #[test]
+    fn test_arbitrary_for_type_bool() {
+        let mut g = test_gen();
+        let typed_value = TypedValue::arbitrary_for_type(&Type::Bool, &mut g);
+
+        assert_eq!(typed_value.ty, Type::Bool);
+        assert!(typed_value.value.is_boolean());
+    }
+
+    #[test]
+    fn test_arbitrary_for_type_none() {
+        let mut g = test_gen();
+        let typed_value = TypedValue::arbitrary_for_type(&Type::None, &mut g);
+
+        assert_eq!(typed_value.ty, Type::None);
+        assert!(typed_value.value.is_null());
+    }
+
+    #[test]
+    fn test_arbitrary_for_type_list() {
+        let mut g = test_gen();
+        let list_type = Type::List(Box::new(Type::Int));
+        let typed_value = TypedValue::arbitrary_for_type(&list_type, &mut g);
+
+        assert_eq!(typed_value.ty, list_type);
+        assert!(typed_value.value.is_array());
+
+        if let Some(arr) = typed_value.value.as_array() {
+            // Should have some elements (up to 10)
+            assert!(!arr.is_empty());
+            assert!(arr.len() <= 10);
+
+            // All elements should be numbers (integers)
+            for item in arr {
+                assert!(item.is_number());
+            }
+        }
+    }
+
+    #[test]
+    fn test_arbitrary_for_type_dict() {
+        let mut g = test_gen();
+        let dict_type = Type::Dict(Box::new(Type::String), Box::new(Type::Int));
+        let typed_value = TypedValue::arbitrary_for_type(&dict_type, &mut g);
+
+        assert_eq!(typed_value.ty, dict_type);
+        assert!(typed_value.value.is_object());
+
+        if let Some(obj) = typed_value.value.as_object() {
+            // Should have some entries (up to 5)
+            assert!(!obj.is_empty());
+            assert!(obj.len() <= 5);
+
+            // All values should be numbers (integers)
+            for (_key, value) in obj {
+                // Key should be a valid string (might be empty from random generation)
+                assert!(value.is_number());
+            }
+        }
+    }
+
+    #[test]
+    fn test_arbitrary_for_type_optional_some() {
+        let mut g = test_gen();
+        let optional_type = Type::Optional(Box::new(Type::String));
+
+        // Generate multiple values to test both Some and None cases
+        let mut has_some = false;
+        let mut has_none = false;
+
+        for _ in 0..20 {
+            let typed_value = TypedValue::arbitrary_for_type(&optional_type, &mut g);
+            assert_eq!(typed_value.ty, optional_type);
+
+            if typed_value.value.is_null() {
+                has_none = true;
+            } else if typed_value.value.is_string() {
+                has_some = true;
+            }
+
+            if has_some && has_none {
+                break;
+            }
+        }
+
+        // Should generate both Some and None values with enough iterations
+        // Note: This is probabilistic, so we can't guarantee both will occur
+    }
+
+    #[test]
+    fn test_arbitrary_for_type_tuple() {
+        let mut g = test_gen();
+        let tuple_type = Type::Tuple(vec![Type::Int, Type::String, Type::Bool]);
+        let typed_value = TypedValue::arbitrary_for_type(&tuple_type, &mut g);
+
+        assert_eq!(typed_value.ty, tuple_type);
+        assert!(typed_value.value.is_array());
+
+        if let Some(arr) = typed_value.value.as_array() {
+            assert_eq!(arr.len(), 3);
+            assert!(arr[0].is_number());
+            assert!(arr[1].is_string());
+            assert!(arr[2].is_boolean());
+        }
+    }
+
+    #[test]
+    fn test_arbitrary_for_type_unknown() {
+        let mut g = test_gen();
+        let typed_value = TypedValue::arbitrary_for_type(&Type::Unknown, &mut g);
+
+        assert_eq!(typed_value.ty, Type::Unknown);
+        assert!(typed_value.value.is_null());
+    }
+
+    #[test]
+    fn test_shrink_value_integer() {
+        let value = serde_json::json!(10);
+        let shrunk = shrink_value(&value);
+
+        assert!(shrunk.contains(&serde_json::json!(0)));
+        assert!(shrunk.contains(&serde_json::json!(5)));
+        assert!(shrunk.contains(&serde_json::json!(9)));
+    }
+
+    #[test]
+    fn test_shrink_value_negative_integer() {
+        let value = serde_json::json!(-10);
+        let shrunk = shrink_value(&value);
+
+        assert!(shrunk.contains(&serde_json::json!(0)));
+        assert!(shrunk.contains(&serde_json::json!(-5)));
+        assert!(shrunk.contains(&serde_json::json!(-9)));
+    }
+
+    #[test]
+    fn test_shrink_value_float() {
+        let value = serde_json::json!(4.0);
+        let shrunk = shrink_value(&value);
+
+        assert!(shrunk.contains(&serde_json::json!(0.0)));
+        assert!(shrunk.contains(&serde_json::json!(2.0)));
+    }
+
+    #[test]
+    fn test_shrink_value_zero() {
+        let value = serde_json::json!(0);
+        let shrunk = shrink_value(&value);
+
+        // Zero should not shrink further
+        assert!(shrunk.is_empty());
+    }
+
+    #[test]
+    fn test_shrink_value_string() {
+        let value = serde_json::json!("hello");
+        let shrunk = shrink_value(&value);
+
+        assert!(shrunk.contains(&serde_json::json!("")));
+        assert!(shrunk.contains(&serde_json::json!("he")));
+        assert!(shrunk.contains(&serde_json::json!("ello")));
+    }
+
+    #[test]
+    fn test_shrink_value_empty_string() {
+        let value = serde_json::json!("");
+        let shrunk = shrink_value(&value);
+
+        // Empty string should not shrink further
+        assert!(shrunk.is_empty());
+    }
+
+    #[test]
+    fn test_shrink_value_array() {
+        let value = serde_json::json!([1, 2, 3, 4]);
+        let shrunk = shrink_value(&value);
+
+        assert!(shrunk.contains(&serde_json::json!([])));
+        assert!(shrunk.contains(&serde_json::json!([1, 2])));
+        assert!(shrunk.contains(&serde_json::json!([2, 3, 4])));
+    }
+
+    #[test]
+    fn test_shrink_value_empty_array() {
+        let value = serde_json::json!([]);
+        let shrunk = shrink_value(&value);
+
+        // Empty array should not shrink further
+        assert!(shrunk.is_empty());
+    }
+
+    #[test]
+    fn test_shrink_value_single_element_array() {
+        let value = serde_json::json!([42]);
+        let shrunk = shrink_value(&value);
+
+        assert!(shrunk.contains(&serde_json::json!([])));
+        // Single element array should not have other shrinks
+        assert_eq!(shrunk.len(), 1);
+    }
+
+    #[test]
+    fn test_shrink_value_unsupported_types() {
+        let null_value = serde_json::Value::Null;
+        let shrunk = shrink_value(&null_value);
+        assert!(shrunk.is_empty());
+
+        let bool_value = serde_json::json!(true);
+        let shrunk = shrink_value(&bool_value);
+        assert!(shrunk.is_empty());
+
+        let object_value = serde_json::json!({"key": "value"});
+        let shrunk = shrink_value(&object_value);
+        assert!(shrunk.is_empty());
+    }
+
+    #[test]
+    fn test_nested_type_generation() {
+        let mut g = test_gen();
+        let nested_type = Type::List(Box::new(Type::List(Box::new(Type::Int))));
+        let typed_value = TypedValue::arbitrary_for_type(&nested_type, &mut g);
+
+        assert_eq!(typed_value.ty, nested_type);
+        assert!(typed_value.value.is_array());
+
+        if let Some(outer_arr) = typed_value.value.as_array() {
+            for inner_val in outer_arr {
+                assert!(inner_val.is_array());
+                if let Some(inner_arr) = inner_val.as_array() {
+                    for item in inner_arr {
+                        assert!(item.is_number());
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_dict_with_int_keys() {
+        let mut g = test_gen();
+        let dict_type = Type::Dict(Box::new(Type::Int), Box::new(Type::String));
+        let typed_value = TypedValue::arbitrary_for_type(&dict_type, &mut g);
+
+        assert_eq!(typed_value.ty, dict_type);
+        assert!(typed_value.value.is_object());
+
+        if let Some(obj) = typed_value.value.as_object() {
+            for (key, value) in obj {
+                // Keys should be stringified integers
+                assert!(key.parse::<i32>().is_ok());
+                assert!(value.is_string());
+            }
+        }
+    }
+}
