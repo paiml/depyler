@@ -1,4 +1,4 @@
-import type { monaco } from '@monaco-editor/react';
+import type * as monaco from 'monaco-editor';
 import { LRUCache } from 'lru-cache';
 import { AnnotationSuggestion, AntiPattern, StaticAnalysis } from '@/types';
 
