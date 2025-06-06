@@ -1,4 +1,4 @@
-name: Simple Release
+name: Release
 
 on:
   push:
@@ -12,35 +12,88 @@ permissions:
   contents: write
 
 jobs:
-  build-linux:
-    name: Build Linux Binary
+  create-release:
+    name: Create Release
     runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+
+  build-release:
+    name: Build Release Binary
+    needs: create-release
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: linux-amd64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: darwin-amd64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: darwin-arm64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: windows-amd64
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
       
-      - name: Install build tools
+      - name: Install Linux build tools
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential gcc g++
       
       - name: Build release binary
         run: |
-          export RUSTFLAGS="-C linker=gcc"
-          cargo build --release --bin depyler
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            export RUSTFLAGS="-C linker=gcc"
+            cargo build --release --bin depyler
+          else
+            cargo build --release --target ${{ matrix.target }} --bin depyler
+          fi
+        shell: bash
       
       - name: Package binary
+        shell: bash
         run: |
-          cd target/release
-          tar czf ../../depyler-linux-amd64.tar.gz depyler
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            cd target/release
+            tar czf ../../depyler-${{ matrix.name }}.tar.gz depyler
+          elif [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cd target/${{ matrix.target }}/release
+            7z a ../../../depyler-${{ matrix.name }}.zip depyler.exe
+            echo "ASSET_PATH=depyler-${{ matrix.name }}.zip" >> $GITHUB_ENV
+          else
+            cd target/${{ matrix.target }}/release
+            tar czf ../../../depyler-${{ matrix.name }}.tar.gz depyler
+            echo "ASSET_PATH=depyler-${{ matrix.name }}.tar.gz" >> $GITHUB_ENV
+          fi
+          
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            echo "ASSET_PATH=depyler-${{ matrix.name }}.tar.gz" >> $GITHUB_ENV
+          fi
       
-      - name: Create Release
+      - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
-          files: depyler-linux-amd64.tar.gz
-          draft: false
-          prerelease: false
-          generate_release_notes: true
+          files: ${{ env.ASSET_PATH }}
