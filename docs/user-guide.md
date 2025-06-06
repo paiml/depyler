@@ -462,6 +462,280 @@ pub fn process_data(data: Vec<HashMap<String, f64>>) -> HashMap<String, f64> {
 }
 ```
 
+## Running the Interactive Playground
+
+The Depyler Interactive Playground provides a zero-configuration, browser-based environment for exploring Python-to-Rust transpilation. It's the fastest way to understand Depyler's capabilities and see real-time energy efficiency comparisons.
+
+### Building the WASM Module
+
+Before running the playground locally, you need to build the WebAssembly module:
+
+```bash
+# Install wasm-pack if not already installed
+curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+# Build the WASM module from the repository root
+cd crates/depyler-wasm
+wasm-pack build --target web --out-dir ../../playground/public/wasm
+
+# Optimize the WASM module for size
+wasm-opt -Oz -o ../../playground/public/wasm/optimized.wasm \
+  ../../playground/public/wasm/depyler_bg.wasm
+
+# Verify the build (should be < 1.5MB gzipped)
+gzip -9 < ../../playground/public/wasm/optimized.wasm > ../../playground/public/wasm/depyler.wasm.gz
+ls -lh ../../playground/public/wasm/depyler.wasm.gz
+```
+
+### Running Locally
+
+#### Quick Start
+
+```bash
+# Navigate to the playground directory
+cd playground
+
+# Install dependencies
+npm install  # or yarn install
+
+# Start the development server
+npm run dev  # or yarn dev
+
+# Open in browser
+# Navigate to http://localhost:5173
+```
+
+#### Using Deno (Alternative)
+
+If you prefer Deno for a more secure runtime:
+
+```bash
+# Ensure Deno is installed
+curl -fsSL https://deno.land/x/install/install.sh | sh
+
+# Run with Deno
+cd playground
+deno task dev
+
+# Build for production
+deno task build
+deno task preview
+```
+
+### Playground Features
+
+#### 1. **Real-Time Transpilation**
+- As you type Python code, see the Rust output update instantly
+- Syntax highlighting for both Python and Rust
+- Error indicators with helpful suggestions
+
+#### 2. **Intelli-Sensei Assistant**
+The built-in AI assistant provides:
+- **Annotation Suggestions**: Type `@` to see available Depyler annotations
+- **Type Hints**: Automatic type inference with override suggestions
+- **Anti-Pattern Detection**: Warnings for Python patterns that don't transpile well
+- **Optimization Tips**: Inline hints for better performance
+
+Example with Intelli-Sensei:
+```python
+# Type '@' to see annotation options
+@depyler:optimize-speed
+def process_data(items):  # <- Intelli-Sensei suggests: items: List[int]
+    total = 0
+    for item in items:
+        total += item  # <- Hint: Consider using sum() for better optimization
+    return total
+```
+
+#### 3. **Side-by-Side Execution**
+- Run both Python and Rust versions in sandboxed environments
+- Compare output, execution time, and memory usage
+- See actual energy consumption estimates
+
+#### 4. **Energy Efficiency Visualization**
+- Interactive gauge showing energy savings (0-100%)
+- Detailed breakdown of CPU vs memory energy usage
+- Real-world equivalents (e.g., "Saves energy equivalent to 5 Google searches")
+- Confidence indicators based on code complexity
+
+#### 5. **Deep Dive Mode**
+View the complete transpilation pipeline:
+- **Python Source** → **HIR (High-level IR)** → **Rust Output**
+- Hover over code to see mappings between stages
+- Understand how Python constructs map to Rust idioms
+
+### Example Workflows
+
+#### Testing a Simple Function
+
+1. Enter Python code:
+```python
+def fibonacci(n: int) -> int:
+    if n <= 1:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+# Test the function
+print(fibonacci(10))
+```
+
+2. Click "Run Comparison" to see:
+   - Rust output with proper recursion
+   - Execution time comparison
+   - Energy savings visualization
+
+#### Exploring Annotations
+
+1. Use Depyler annotations for optimization:
+```python
+@depyler:memo
+def fibonacci(n: int) -> int:
+    """Memoized fibonacci for better performance"""
+    if n <= 1:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+```
+
+2. See how annotations affect:
+   - Generated Rust code (adds memoization)
+   - Performance metrics
+   - Energy efficiency
+
+#### Working with Complex Types
+
+```python
+from typing import List, Dict, Optional
+
+@depyler:strict-types
+def process_records(
+    records: List[Dict[str, float]], 
+    threshold: Optional[float] = None
+) -> Dict[str, float]:
+    """Aggregate records by key with optional filtering"""
+    result: Dict[str, float] = {}
+    
+    for record in records:
+        for key, value in record.items():
+            if threshold is None or value >= threshold:
+                result[key] = result.get(key, 0.0) + value
+    
+    return result
+```
+
+### Troubleshooting Common Issues
+
+#### 1. **WASM Module Loading Errors**
+
+**Problem**: "Failed to load WASM module"
+
+**Solutions**:
+- Ensure WASM module is built: `ls playground/public/wasm/`
+- Check browser console for CORS errors
+- Verify your browser supports WebAssembly
+
+#### 2. **Slow Initial Load**
+
+**Problem**: First run takes several seconds
+
+**Explanation**: The playground downloads:
+- WASM transpiler (~1.5MB gzipped)
+- Pyodide runtime (~15MB) for Python execution
+- Rust toolchain (~21MB) for compilation
+
+**Solutions**:
+- These are cached after first download
+- Use a fast internet connection for initial setup
+- The loading indicator shows progress
+
+#### 3. **Transpilation Errors**
+
+**Problem**: "Unsupported Python feature"
+
+**Solutions**:
+- Check the [Language Support Matrix](#language-support-matrix)
+- Simplify dynamic features
+- Add type hints for better inference
+- Use `@depyler:skip` to exclude problematic functions
+
+#### 4. **Performance Warnings**
+
+**Problem**: "Transpilation timeout" or slow performance
+
+**Solutions**:
+- Break large functions into smaller ones
+- Avoid deeply nested structures
+- Use the complexity indicator as a guide
+- Enable `@depyler:optimize` annotations
+
+### Sharing and Collaboration
+
+#### Share Your Code
+
+1. Click the "Share" button to generate a unique URL
+2. The URL includes your code and configuration
+3. Share with colleagues for review or debugging
+
+#### Export Options
+
+- **Download Rust**: Get the generated `.rs` file
+- **Copy as Gist**: Create a GitHub Gist
+- **Export Report**: PDF with code, metrics, and analysis
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl/Cmd + Enter` | Run transpilation |
+| `Ctrl/Cmd + S` | Save to browser storage |
+| `Ctrl/Cmd + Shift + F` | Format code |
+| `Ctrl/Cmd + D` | Toggle deep dive view |
+| `Ctrl/Cmd + /` | Toggle comment |
+| `F1` | Command palette |
+
+### Privacy and Security
+
+The playground runs entirely in your browser:
+- **No code leaves your machine** - all processing is local
+- **Sandboxed execution** - Python and Rust run in isolated environments
+- **No network requests** - after initial resource loading
+- **No tracking** - anonymous quality metrics only (opt-out available)
+
+### Advanced Configuration
+
+For power users, access advanced settings via the gear icon:
+
+```javascript
+{
+  "transpilation": {
+    "target": "wasm32-unknown-unknown",
+    "optimizationLevel": 2,
+    "enableAnnotations": true
+  },
+  "editor": {
+    "fontSize": 14,
+    "theme": "vs-dark",
+    "minimap": false
+  },
+  "execution": {
+    "pythonTimeout": 5000,
+    "rustTimeout": 10000,
+    "memoryLimit": 256  // MB
+  }
+}
+```
+
+### Playground Limitations
+
+Current limitations in the playground environment:
+
+1. **File System**: No access to local files
+2. **Network**: No external API calls
+3. **Dependencies**: Limited to standard library
+4. **Execution Time**: 5s timeout for safety
+5. **Memory**: 256MB limit per execution
+
+For full features, use the Depyler CLI tool.
+
 ## Best Practices
 
 ### Code Organization

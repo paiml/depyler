@@ -21,5 +21,14 @@ indexmap.workspace = true
 smallvec.workspace = true
 depyler-annotations = { path = "../depyler-annotations" }
 
+[features]
+default = []
+wasm = ["instant"]
+deterministic = []
+
+[dependencies.instant]
+workspace = true
+optional = true
+
 [dev-dependencies]
 insta.workspace = true

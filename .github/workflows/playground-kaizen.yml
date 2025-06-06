@@ -1,0 +1,358 @@
+name: Playground Continuous Improvement
+
+on:
+  push:
+    paths:
+      - 'playground/**'
+      - 'crates/depyler-wasm/**'
+      - 'crates/depyler-quality/**'
+  pull_request:
+    paths:
+      - 'playground/**'
+      - 'crates/depyler-wasm/**'
+      - 'crates/depyler-quality/**'
+  schedule:
+    - cron: '0 2 * * *' # Daily quality check
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  quality-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy, rustfmt
+      
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      
+      - name: Install wasm-opt
+        run: |
+          wget https://github.com/WebAssembly/binaryen/releases/download/version_116/binaryen-version_116-x86_64-linux.tar.gz
+          tar xf binaryen-version_116-x86_64-linux.tar.gz
+          sudo cp binaryen-version_116/bin/wasm-opt /usr/local/bin/
+      
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Run PMAT Analysis
+        run: |
+          cargo run -p depyler-quality -- \
+            analyze playground/ \
+            --format sarif \
+            --output playground-quality.sarif
+      
+      - name: Check Quality Gates
+        run: |
+          cargo run -p depyler-quality -- \
+            enforce playground/ \
+            --max-tdg 2.0 \
+            --min-coverage 85.0 \
+            --max-complexity 15
+      
+      - name: Run Clippy on Playground
+        run: |
+          cargo clippy --manifest-path playground/depyler-playground/Cargo.toml --target wasm32-unknown-unknown -- -D warnings
+      
+      - name: Run Clippy on WASM Crate
+        run: |
+          cargo clippy --manifest-path crates/depyler-wasm/Cargo.toml --target wasm32-unknown-unknown -- -D warnings
+      
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+      
+      - name: Build WASM Module
+        run: |
+          cd crates/depyler-wasm
+          wasm-pack build --target web --out-dir ../../playground/public/wasm
+      
+      - name: Measure WASM Size
+        run: |
+          cd playground/public/wasm
+          wasm-opt -Oz -o optimized.wasm depyler_wasm_bg.wasm
+          gzip -9 < optimized.wasm > bundle.wasm.gz
+          
+          SIZE_KB=$(du -k bundle.wasm.gz | cut -f1)
+          echo "WASM_SIZE_KB=$SIZE_KB" >> $GITHUB_ENV
+          echo "WASM size: ${SIZE_KB}KB"
+          
+          if [ $SIZE_KB -gt 1500 ]; then
+            echo "::error::WASM size ${SIZE_KB}KB exceeds 1500KB budget"
+            exit 1
+          fi
+      
+      - name: Upload WASM Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: wasm-bundle
+          path: playground/public/wasm/
+          retention-days: 7
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    needs: quality-analysis
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+      
+      - name: Download WASM Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: wasm-bundle
+          path: playground/public/wasm/
+      
+      - name: Cache Deno dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/deno
+          key: ${{ runner.os }}-deno-${{ hashFiles('playground/deno.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deno-
+      
+      - name: Lint TypeScript
+        run: |
+          cd playground
+          deno lint
+      
+      - name: Type Check
+        run: |
+          cd playground
+          deno check src/**/*.ts src/**/*.tsx
+      
+      - name: Build Frontend
+        run: |
+          cd playground
+          deno task build
+      
+      - name: Measure Bundle Size
+        run: |
+          cd playground/dist
+          
+          # Measure JavaScript bundle size
+          JS_SIZE=$(find . -name "*.js" -exec cat {} \; | gzip | wc -c)
+          JS_SIZE_KB=$((JS_SIZE / 1024))
+          echo "JS_BUNDLE_SIZE_KB=$JS_SIZE_KB" >> $GITHUB_ENV
+          echo "JavaScript bundle size: ${JS_SIZE_KB}KB"
+          
+          # Measure CSS bundle size
+          CSS_SIZE=$(find . -name "*.css" -exec cat {} \; | gzip | wc -c)
+          CSS_SIZE_KB=$((CSS_SIZE / 1024))
+          echo "CSS_BUNDLE_SIZE_KB=$CSS_SIZE_KB" >> $GITHUB_ENV
+          echo "CSS bundle size: ${CSS_SIZE_KB}KB"
+          
+          # Check bundle size budgets
+          if [ $JS_SIZE_KB -gt 500 ]; then
+            echo "::warning::JavaScript bundle size ${JS_SIZE_KB}KB exceeds 500KB recommended"
+          fi
+          
+          if [ $CSS_SIZE_KB -gt 100 ]; then
+            echo "::warning::CSS bundle size ${CSS_SIZE_KB}KB exceeds 100KB recommended"
+          fi
+      
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: playground/dist/
+          retention-days: 7
+
+  performance-benchmarks:
+    runs-on: ubuntu-latest
+    needs: [quality-analysis, frontend-build]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+      
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-build
+          path: playground/dist/
+      
+      - name: Download WASM Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: wasm-bundle
+          path: playground/public/wasm/
+      
+      - name: Install Playwright
+        run: |
+          cd playground
+          deno run -A https://deno.land/x/playwright@1.40.0/install.ts chromium
+      
+      - name: Run Performance Benchmarks
+        run: |
+          cd playground
+          deno task bench --json > benchmarks.json
+          
+          # Extract key metrics
+          P95_SIMPLE=$(cat benchmarks.json | jq -r '.transpilation.simple.p95 // 0')
+          P95_MEDIUM=$(cat benchmarks.json | jq -r '.transpilation.medium.p95 // 0')
+          P95_COMPLEX=$(cat benchmarks.json | jq -r '.transpilation.complex.p95 // 0')
+          
+          echo "BENCHMARK_P95_SIMPLE=$P95_SIMPLE" >> $GITHUB_ENV
+          echo "BENCHMARK_P95_MEDIUM=$P95_MEDIUM" >> $GITHUB_ENV
+          echo "BENCHMARK_P95_COMPLEX=$P95_COMPLEX" >> $GITHUB_ENV
+          
+          echo "Transpilation P95 latencies:"
+          echo "  Simple: ${P95_SIMPLE}ms"
+          echo "  Medium: ${P95_MEDIUM}ms" 
+          echo "  Complex: ${P95_COMPLEX}ms"
+          
+          # Check performance budgets
+          if (( $(echo "$P95_SIMPLE > 50" | bc -l) )); then
+            echo "::warning::Simple transpilation P95 ${P95_SIMPLE}ms exceeds 50ms target"
+          fi
+          
+          if (( $(echo "$P95_MEDIUM > 200" | bc -l) )); then
+            echo "::warning::Medium transpilation P95 ${P95_MEDIUM}ms exceeds 200ms target"
+          fi
+          
+          if (( $(echo "$P95_COMPLEX > 1000" | bc -l) )); then
+            echo "::error::Complex transpilation P95 ${P95_COMPLEX}ms exceeds 1000ms target"
+            exit 1
+          fi
+      
+      - name: Upload Benchmark Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results
+          path: playground/benchmarks.json
+          retention-days: 30
+
+  lighthouse-audit:
+    runs-on: ubuntu-latest
+    needs: frontend-build
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-build
+          path: playground/dist/
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli@0.12.x
+      
+      - name: Serve Built Site
+        run: |
+          cd playground/dist
+          npx http-server -p 8080 &
+          sleep 5
+      
+      - name: Run Lighthouse CI
+        run: |
+          lhci autorun --upload.target=temporary-public-storage --collect.url=http://localhost:8080
+      
+      - name: Parse Lighthouse Results
+        run: |
+          # Extract scores from Lighthouse results
+          PERF_SCORE=$(cat .lighthouseci/lhr-*.json | jq -r '.categories.performance.score * 100')
+          ACCESSIBILITY_SCORE=$(cat .lighthouseci/lhr-*.json | jq -r '.categories.accessibility.score * 100')
+          BEST_PRACTICES_SCORE=$(cat .lighthouseci/lhr-*.json | jq -r '.categories["best-practices"].score * 100')
+          
+          echo "LIGHTHOUSE_PERFORMANCE=$PERF_SCORE" >> $GITHUB_ENV
+          echo "LIGHTHOUSE_ACCESSIBILITY=$ACCESSIBILITY_SCORE" >> $GITHUB_ENV
+          echo "LIGHTHOUSE_BEST_PRACTICES=$BEST_PRACTICES_SCORE" >> $GITHUB_ENV
+          
+          echo "Lighthouse Scores:"
+          echo "  Performance: $PERF_SCORE"
+          echo "  Accessibility: $ACCESSIBILITY_SCORE"
+          echo "  Best Practices: $BEST_PRACTICES_SCORE"
+          
+          # Check quality gates
+          if (( $(echo "$PERF_SCORE < 90" | bc -l) )); then
+            echo "::warning::Performance score $PERF_SCORE below 90 target"
+          fi
+          
+          if (( $(echo "$ACCESSIBILITY_SCORE < 100" | bc -l) )); then
+            echo "::error::Accessibility score $ACCESSIBILITY_SCORE below 100 requirement"
+            exit 1
+          fi
+          
+          if (( $(echo "$BEST_PRACTICES_SCORE < 100" | bc -l) )); then
+            echo "::warning::Best practices score $BEST_PRACTICES_SCORE below 100 target"
+          fi
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'playground/'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  quality-summary:
+    runs-on: ubuntu-latest
+    needs: [quality-analysis, frontend-build, performance-benchmarks, lighthouse-audit]
+    if: always()
+    steps:
+      - name: Create Quality Summary
+        run: |
+          echo "# 📊 Playground Quality Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📏 Size Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "- WASM Bundle: ${{ env.WASM_SIZE_KB }}KB / 1500KB budget" >> $GITHUB_STEP_SUMMARY
+          echo "- JavaScript Bundle: ${{ env.JS_BUNDLE_SIZE_KB }}KB / 500KB recommended" >> $GITHUB_STEP_SUMMARY
+          echo "- CSS Bundle: ${{ env.CSS_BUNDLE_SIZE_KB }}KB / 100KB recommended" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ⚡ Performance Benchmarks" >> $GITHUB_STEP_SUMMARY
+          echo "- Simple Transpilation P95: ${{ env.BENCHMARK_P95_SIMPLE }}ms" >> $GITHUB_STEP_SUMMARY
+          echo "- Medium Transpilation P95: ${{ env.BENCHMARK_P95_MEDIUM }}ms" >> $GITHUB_STEP_SUMMARY
+          echo "- Complex Transpilation P95: ${{ env.BENCHMARK_P95_COMPLEX }}ms" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🏆 Lighthouse Scores" >> $GITHUB_STEP_SUMMARY
+          echo "- Performance: ${{ env.LIGHTHOUSE_PERFORMANCE }}/100" >> $GITHUB_STEP_SUMMARY
+          echo "- Accessibility: ${{ env.LIGHTHOUSE_ACCESSIBILITY }}/100" >> $GITHUB_STEP_SUMMARY
+          echo "- Best Practices: ${{ env.LIGHTHOUSE_BEST_PRACTICES }}/100" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Determine overall status
+          if [[ "${{ needs.quality-analysis.result }}" == "success" && \
+                "${{ needs.frontend-build.result }}" == "success" && \
+                "${{ needs.performance-benchmarks.result }}" == "success" && \
+                "${{ needs.lighthouse-audit.result }}" == "success" ]]; then
+            echo "## ✅ Overall Status: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ Overall Status: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
