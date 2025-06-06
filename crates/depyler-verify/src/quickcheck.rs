@@ -175,7 +175,10 @@ mod tests {
         assert_eq!(typed_value.ty, Type::Float);
         // Debug print for investigating test failure
         if !typed_value.value.is_number() {
-            eprintln!("Generated non-number for Float type: {:?}", typed_value.value);
+            eprintln!(
+                "Generated non-number for Float type: {:?}",
+                typed_value.value
+            );
         }
         assert!(typed_value.value.is_number());
     }
