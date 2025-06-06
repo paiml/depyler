@@ -19,6 +19,8 @@ depyler-core = { path = "../depyler-core" }
 depyler-analyzer = { path = "../depyler-analyzer" }
 depyler-verify = { path = "../depyler-verify" }
 depyler-mcp = { path = "../depyler-mcp" }
+depyler-annotations = { path = "../depyler-annotations" }
+depyler-quality = { path = "../depyler-quality" }
 
 anyhow.workspace = true
 thiserror.workspace = true
@@ -38,6 +40,7 @@ quickcheck.workspace = true
 quickcheck_macros.workspace = true
 tokio.workspace = true
 quote.workspace = true
+smallvec.workspace = true
 
 [[test]]
 name = "functional_tests"
@@ -54,3 +57,15 @@ path = "../../tests/property_tests.rs"
 [[test]]
 name = "operator_tests"
 path = "../../tests/operator_tests.rs"
+
+[[test]]
+name = "cli_tests"
+path = "../../tests/cli_tests.rs"
+
+[[test]]
+name = "quality_gates_tests"
+path = "../../tests/quality_gates_tests.rs"
+
+[[test]]
+name = "error_handling_tests"
+path = "../../tests/error_handling_tests.rs"

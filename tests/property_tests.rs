@@ -2,6 +2,7 @@ use depyler_core::direct_rules::apply_rules;
 use depyler_core::hir::{
     HirExpr, HirFunction, HirModule, HirStmt, Literal, Type,
 };
+use depyler_annotations::TranspilationAnnotations;
 use depyler_core::type_mapper::TypeMapper;
 use quickcheck::{Arbitrary, Gen, TestResult};
 
@@ -47,6 +48,7 @@ fn prop_type_preservation(expr: ArbitraryTypedExpr) -> TestResult {
         ret_type: expr.ty.clone(),
         body: vec![HirStmt::Return(Some(expr.expr))],
         properties: Default::default(),
+        annotations: TranspilationAnnotations::default(),
     };
 
     let module = HirModule {
@@ -149,6 +151,7 @@ impl Arbitrary for ArbitraryFunction {
             ret_type,
             body,
             properties: Default::default(),
+            annotations: TranspilationAnnotations::default(),
         })
     }
 }

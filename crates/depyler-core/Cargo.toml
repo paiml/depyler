@@ -19,6 +19,7 @@ quote.workspace = true
 proc-macro2.workspace = true
 indexmap.workspace = true
 smallvec.workspace = true
+depyler-annotations = { path = "../depyler-annotations" }
 
 [dev-dependencies]
 insta.workspace = true

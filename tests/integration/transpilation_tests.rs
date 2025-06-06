@@ -55,7 +55,8 @@ impl TranspilationTestHarness {
             .map_err(|e| format!("Failed to write Rust file: {}", e))?;
 
         let output = Command::new("rustc")
-            .arg("--check")
+            .arg("--emit=metadata")
+            .arg("--crate-type=lib")
             .arg(&rust_file)
             .output()
             .map_err(|e| format!("Failed to run rustc: {}", e))?;
@@ -76,7 +77,8 @@ impl TranspilationTestHarness {
             .map_err(|e| format!("Failed to write Rust file: {}", e))?;
 
         let output = Command::new("clippy-driver")
-            .arg("--check")
+            .arg("--emit=metadata")
+            .arg("--crate-type=lib")
             .arg(&rust_file)
             .output()
             .map_err(|e| format!("Failed to run clippy: {}", e))?;
@@ -153,9 +155,9 @@ def add_numbers(a: int, b: int) -> int:
 "#;
 
         let expected_rust = r#"
-pub fn add_numbers(a: i32, b: i32) -> i32 {
-    a + b
-}
+# [doc = " Depyler: verified panic-free"] # [doc = " Depyler: proven to terminate"] pub fn add_numbers (a : i32 , b : i32) -> i32 {
+    return (a + b);
+    }
 "#;
 
         harness

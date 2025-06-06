@@ -425,41 +425,75 @@ fn convert_literal(lit: &Literal) -> syn::Expr {
 
 /// Convert HIR binary operators to Rust binary operators
 fn convert_binop(op: BinOp) -> Result<syn::BinOp> {
-    use BinOp::*;
-
     match op {
         // Arithmetic operators
+        BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod | BinOp::FloorDiv | BinOp::Pow => {
+            convert_arithmetic_op(op)
+        }
+        
+        // Comparison operators
+        BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq => {
+            convert_comparison_op(op)
+        }
+        
+        // Logical operators
+        BinOp::And | BinOp::Or => convert_logical_op(op),
+        
+        // Bitwise operators
+        BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor | BinOp::LShift | BinOp::RShift => {
+            convert_bitwise_op(op)
+        }
+        
+        // Special membership operators
+        BinOp::In | BinOp::NotIn => bail!("in/not in operators should be handled by convert_binary"),
+    }
+}
+
+fn convert_arithmetic_op(op: BinOp) -> Result<syn::BinOp> {
+    use BinOp::*;
+    match op {
         Add => Ok(parse_quote! { + }),
         Sub => Ok(parse_quote! { - }),
         Mul => Ok(parse_quote! { * }),
         Div => Ok(parse_quote! { / }),
         Mod => Ok(parse_quote! { % }),
-
-        // Special arithmetic cases
         FloorDiv => Ok(parse_quote! { / }), // TODO: Handle floor division properly
         Pow => bail!("Power operator not directly supported in Rust"),
+        _ => unreachable!("Non-arithmetic operator passed to convert_arithmetic_op"),
+    }
+}
 
-        // Comparison operators
+fn convert_comparison_op(op: BinOp) -> Result<syn::BinOp> {
+    use BinOp::*;
+    match op {
         Eq => Ok(parse_quote! { == }),
         NotEq => Ok(parse_quote! { != }),
         Lt => Ok(parse_quote! { < }),
         LtEq => Ok(parse_quote! { <= }),
         Gt => Ok(parse_quote! { > }),
         GtEq => Ok(parse_quote! { >= }),
+        _ => unreachable!("Non-comparison operator passed to convert_comparison_op"),
+    }
+}
 
-        // Logical operators
+fn convert_logical_op(op: BinOp) -> Result<syn::BinOp> {
+    use BinOp::*;
+    match op {
         And => Ok(parse_quote! { && }),
         Or => Ok(parse_quote! { || }),
+        _ => unreachable!("Non-logical operator passed to convert_logical_op"),
+    }
+}
 
-        // Bitwise operators
+fn convert_bitwise_op(op: BinOp) -> Result<syn::BinOp> {
+    use BinOp::*;
+    match op {
         BitAnd => Ok(parse_quote! { & }),
         BitOr => Ok(parse_quote! { | }),
         BitXor => Ok(parse_quote! { ^ }),
         LShift => Ok(parse_quote! { << }),
         RShift => Ok(parse_quote! { >> }),
-
-        // Special membership operators handled elsewhere
-        In | NotIn => bail!("in/not in operators should be handled by convert_binary"),
+        _ => unreachable!("Non-bitwise operator passed to convert_bitwise_op"),
     }
 }
 
@@ -467,6 +501,7 @@ fn convert_binop(op: BinOp) -> Result<syn::BinOp> {
 mod tests {
     use super::*;
     use crate::type_mapper::TypeMapper;
+    use depyler_annotations::TranspilationAnnotations;
 
     fn create_test_type_mapper() -> TypeMapper {
         TypeMapper::default()
@@ -688,6 +723,7 @@ mod tests {
                 panic_free: true,
                 max_stack_depth: Some(1),
             },
+            annotations: TranspilationAnnotations::default(),
         };
 
         let result = convert_function(&func, &type_mapper).unwrap();
@@ -712,6 +748,7 @@ mod tests {
                     right: Box::new(HirExpr::Var("b".to_string())),
                 }))],
                 properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
             }],
             imports: vec![],
         };
