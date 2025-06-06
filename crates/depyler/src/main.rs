@@ -1,9 +1,9 @@
 use anyhow::Result;
 use clap::Parser;
 use depyler::{
-    analyze_command, check_command, inspect_command, interactive_command, quality_check_command,
-    transpile_command, lambda_analyze_command, lambda_convert_command, lambda_test_command,
-    lambda_build_command, lambda_deploy_command, Cli, Commands, LambdaCommands,
+    analyze_command, check_command, inspect_command, interactive_command, lambda_analyze_command,
+    lambda_build_command, lambda_convert_command, lambda_deploy_command, lambda_test_command,
+    quality_check_command, transpile_command, Cli, Commands, LambdaCommands,
 };
 
 fn main() -> Result<()> {

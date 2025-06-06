@@ -1,5 +1,5 @@
 use anyhow::Result;
-use depyler_annotations::{LambdaAnnotations, LambdaEventType, Architecture};
+use depyler_annotations::{Architecture, LambdaAnnotations, LambdaEventType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -66,16 +66,34 @@ impl Default for LambdaCodeGenerator {
 impl LambdaCodeGenerator {
     pub fn new() -> Self {
         let mut templates = HashMap::new();
-        
+
         // Basic handler template
-        templates.insert(LambdaTemplate::BasicHandler, BASIC_HANDLER_TEMPLATE.to_string());
-        templates.insert(LambdaTemplate::StreamingHandler, STREAMING_HANDLER_TEMPLATE.to_string());
-        templates.insert(LambdaTemplate::BatchProcessor, BATCH_PROCESSOR_TEMPLATE.to_string());
-        templates.insert(LambdaTemplate::EventBridgeHandler, EVENTBRIDGE_HANDLER_TEMPLATE.to_string());
+        templates.insert(
+            LambdaTemplate::BasicHandler,
+            BASIC_HANDLER_TEMPLATE.to_string(),
+        );
+        templates.insert(
+            LambdaTemplate::StreamingHandler,
+            STREAMING_HANDLER_TEMPLATE.to_string(),
+        );
+        templates.insert(
+            LambdaTemplate::BatchProcessor,
+            BATCH_PROCESSOR_TEMPLATE.to_string(),
+        );
+        templates.insert(
+            LambdaTemplate::EventBridgeHandler,
+            EVENTBRIDGE_HANDLER_TEMPLATE.to_string(),
+        );
         templates.insert(LambdaTemplate::CargoToml, CARGO_TOML_TEMPLATE.to_string());
-        templates.insert(LambdaTemplate::BuildScript, BUILD_SCRIPT_TEMPLATE.to_string());
+        templates.insert(
+            LambdaTemplate::BuildScript,
+            BUILD_SCRIPT_TEMPLATE.to_string(),
+        );
         templates.insert(LambdaTemplate::SamTemplate, SAM_TEMPLATE.to_string());
-        templates.insert(LambdaTemplate::CdkConstruct, CDK_CONSTRUCT_TEMPLATE.to_string());
+        templates.insert(
+            LambdaTemplate::CdkConstruct,
+            CDK_CONSTRUCT_TEMPLATE.to_string(),
+        );
 
         Self {
             templates,
@@ -89,11 +107,14 @@ impl LambdaCodeGenerator {
     }
 
     /// Generate complete Lambda Rust project from Python handler
-    pub fn generate_lambda_project(&self, context: &LambdaGenerationContext) -> Result<LambdaProject> {
+    pub fn generate_lambda_project(
+        &self,
+        context: &LambdaGenerationContext,
+    ) -> Result<LambdaProject> {
         let handler_code = self.generate_handler(context)?;
         let cargo_toml = self.generate_cargo_toml(context)?;
         let build_script = self.generate_build_script(context)?;
-        
+
         let mut project = LambdaProject {
             handler_code,
             cargo_toml,
@@ -118,19 +139,22 @@ impl LambdaCodeGenerator {
             Some(LambdaEventType::SqsEvent) if context.annotations.batch_failure_reporting => {
                 self.templates.get(&LambdaTemplate::BatchProcessor)
             }
-            Some(LambdaEventType::EventBridgeEvent(_)) if context.annotations.custom_serialization => {
+            Some(LambdaEventType::EventBridgeEvent(_))
+                if context.annotations.custom_serialization =>
+            {
                 self.templates.get(&LambdaTemplate::EventBridgeHandler)
             }
-            _ => self.templates.get(&LambdaTemplate::BasicHandler)
-        }.ok_or_else(|| anyhow::anyhow!("Template not found"))?;
+            _ => self.templates.get(&LambdaTemplate::BasicHandler),
+        }
+        .ok_or_else(|| anyhow::anyhow!("Template not found"))?;
 
         let mut code = template.clone();
-        
+
         // Replace template variables
         code = code.replace("{{function_name}}", &context.function_name);
         code = code.replace("{{handler_body}}", &context.handler_body);
         code = code.replace("{{response_type}}", &context.response_type);
-        
+
         // Handle event type specific replacements
         if let Some(event_type) = &context.event_type {
             let (event_module, event_rust_type) = self.get_event_type_mapping(event_type);
@@ -157,15 +181,17 @@ impl LambdaCodeGenerator {
 
     /// Generate Cargo.toml for Lambda project
     pub fn generate_cargo_toml(&self, context: &LambdaGenerationContext) -> Result<String> {
-        let template = self.templates.get(&LambdaTemplate::CargoToml)
+        let template = self
+            .templates
+            .get(&LambdaTemplate::CargoToml)
             .ok_or_else(|| anyhow::anyhow!("Cargo.toml template not found"))?;
 
         let mut cargo_toml = template.clone();
         cargo_toml = cargo_toml.replace("{{package_name}}", &context.module_name);
-        
+
         // Add event-specific dependencies
         let mut dependencies = context.dependencies.clone();
-        
+
         // Core Lambda dependencies
         dependencies.push("lambda_runtime = \"0.8\"".to_string());
         dependencies.push("tokio = { version = \"1\", features = [\"macros\"] }".to_string());
@@ -184,7 +210,8 @@ impl LambdaCodeGenerator {
         }
 
         if self.optimization_profile.mimalloc {
-            dependencies.push("mimalloc = { version = \"0.1\", default-features = false }".to_string());
+            dependencies
+                .push("mimalloc = { version = \"0.1\", default-features = false }".to_string());
         }
 
         let deps_section = dependencies.join("\n");
@@ -203,11 +230,13 @@ impl LambdaCodeGenerator {
 
     /// Generate build script for cargo-lambda
     pub fn generate_build_script(&self, context: &LambdaGenerationContext) -> Result<String> {
-        let template = self.templates.get(&LambdaTemplate::BuildScript)
+        let template = self
+            .templates
+            .get(&LambdaTemplate::BuildScript)
             .ok_or_else(|| anyhow::anyhow!("Build script template not found"))?;
 
         let mut script = template.clone();
-        
+
         let arch_flag = match context.annotations.architecture {
             Architecture::Arm64 => "--arm64",
             Architecture::X86_64 => "--x86-64",
@@ -219,13 +248,18 @@ impl LambdaCodeGenerator {
 
     /// Generate SAM template
     pub fn generate_sam_template(&self, context: &LambdaGenerationContext) -> Result<String> {
-        let template = self.templates.get(&LambdaTemplate::SamTemplate)
+        let template = self
+            .templates
+            .get(&LambdaTemplate::SamTemplate)
             .ok_or_else(|| anyhow::anyhow!("SAM template not found"))?;
 
         let mut sam = template.clone();
         sam = sam.replace("{{function_name}}", &context.function_name);
-        sam = sam.replace("{{memory_size}}", &context.annotations.memory_size.to_string());
-        
+        sam = sam.replace(
+            "{{memory_size}}",
+            &context.annotations.memory_size.to_string(),
+        );
+
         let timeout = context.annotations.timeout.unwrap_or(15);
         sam = sam.replace("{{timeout}}", &timeout.to_string());
 
@@ -240,13 +274,18 @@ impl LambdaCodeGenerator {
 
     /// Generate CDK construct
     pub fn generate_cdk_construct(&self, context: &LambdaGenerationContext) -> Result<String> {
-        let template = self.templates.get(&LambdaTemplate::CdkConstruct)
+        let template = self
+            .templates
+            .get(&LambdaTemplate::CdkConstruct)
             .ok_or_else(|| anyhow::anyhow!("CDK template not found"))?;
 
         let mut cdk = template.clone();
         cdk = cdk.replace("{{function_name}}", &context.function_name);
-        cdk = cdk.replace("{{memory_size}}", &context.annotations.memory_size.to_string());
-        
+        cdk = cdk.replace(
+            "{{memory_size}}",
+            &context.annotations.memory_size.to_string(),
+        );
+
         let timeout = context.annotations.timeout.unwrap_or(15);
         cdk = cdk.replace("{{timeout}}", &timeout.to_string());
 
@@ -295,19 +334,32 @@ cargo lambda deploy
     fn get_event_type_mapping(&self, event_type: &LambdaEventType) -> (String, String) {
         match event_type {
             LambdaEventType::S3Event => ("s3".to_string(), "S3Event".to_string()),
-            LambdaEventType::ApiGatewayProxyRequest => ("apigw".to_string(), "ApiGatewayProxyRequest".to_string()),
-            LambdaEventType::ApiGatewayV2HttpRequest => ("apigw".to_string(), "ApiGatewayV2httpRequest".to_string()),
+            LambdaEventType::ApiGatewayProxyRequest => {
+                ("apigw".to_string(), "ApiGatewayProxyRequest".to_string())
+            }
+            LambdaEventType::ApiGatewayV2HttpRequest => {
+                ("apigw".to_string(), "ApiGatewayV2httpRequest".to_string())
+            }
             LambdaEventType::SqsEvent => ("sqs".to_string(), "SqsEvent".to_string()),
             LambdaEventType::SnsEvent => ("sns".to_string(), "SnsEvent".to_string()),
             LambdaEventType::DynamodbEvent => ("dynamodb".to_string(), "DynamodbEvent".to_string()),
             LambdaEventType::EventBridgeEvent(custom_type) => {
                 if let Some(custom) = custom_type {
-                    ("eventbridge".to_string(), format!("EventBridgeEvent<{custom}>"))
+                    (
+                        "eventbridge".to_string(),
+                        format!("EventBridgeEvent<{custom}>"),
+                    )
                 } else {
-                    ("eventbridge".to_string(), "EventBridgeEvent<serde_json::Value>".to_string())
+                    (
+                        "eventbridge".to_string(),
+                        "EventBridgeEvent<serde_json::Value>".to_string(),
+                    )
                 }
             }
-            LambdaEventType::CloudwatchEvent => ("cloudwatch_events".to_string(), "CloudWatchEvent".to_string()),
+            LambdaEventType::CloudwatchEvent => (
+                "cloudwatch_events".to_string(),
+                "CloudWatchEvent".to_string(),
+            ),
             LambdaEventType::KinesisEvent => ("kinesis".to_string(), "KinesisEvent".to_string()),
             LambdaEventType::Custom(name) => ("".to_string(), name.clone()),
             LambdaEventType::Auto => ("".to_string(), "serde_json::Value".to_string()),
@@ -330,7 +382,11 @@ incremental = false
             self.optimization_profile.opt_level,
             self.optimization_profile.lto,
             self.optimization_profile.codegen_units,
-            if self.optimization_profile.panic_abort { "abort" } else { "unwind" },
+            if self.optimization_profile.panic_abort {
+                "abort"
+            } else {
+                "unwind"
+            },
             self.optimization_profile.strip
         )
     }
@@ -594,7 +650,7 @@ mod tests {
     fn test_basic_handler_generation() {
         let generator = LambdaCodeGenerator::new();
         let context = create_test_context();
-        
+
         let handler = generator.generate_handler(&context).unwrap();
         assert!(handler.contains("async fn handler"));
         assert!(handler.contains("ApiGatewayProxyRequest"));
@@ -605,7 +661,7 @@ mod tests {
     fn test_cargo_toml_generation() {
         let generator = LambdaCodeGenerator::new();
         let context = create_test_context();
-        
+
         let cargo_toml = generator.generate_cargo_toml(&context).unwrap();
         assert!(cargo_toml.contains("lambda_runtime"));
         assert!(cargo_toml.contains("aws-lambda-events"));
@@ -618,7 +674,7 @@ mod tests {
         let mut context = create_test_context();
         context.event_type = Some(LambdaEventType::SqsEvent);
         context.annotations.batch_failure_reporting = true;
-        
+
         let handler = generator.generate_handler(&context).unwrap();
         assert!(handler.contains("SqsBatchResponse"));
         assert!(handler.contains("batch_item_failures"));
@@ -628,9 +684,11 @@ mod tests {
     fn test_eventbridge_handler() {
         let generator = LambdaCodeGenerator::new();
         let mut context = create_test_context();
-        context.event_type = Some(LambdaEventType::EventBridgeEvent(Some("OrderEvent".to_string())));
+        context.event_type = Some(LambdaEventType::EventBridgeEvent(Some(
+            "OrderEvent".to_string(),
+        )));
         context.annotations.custom_serialization = true;
-        
+
         let handler = generator.generate_handler(&context).unwrap();
         assert!(handler.contains("EventBridgeEvent"));
     }
@@ -639,7 +697,7 @@ mod tests {
     fn test_full_project_generation() {
         let generator = LambdaCodeGenerator::new();
         let context = create_test_context();
-        
+
         let project = generator.generate_lambda_project(&context).unwrap();
         assert!(!project.handler_code.is_empty());
         assert!(!project.cargo_toml.is_empty());
@@ -654,10 +712,10 @@ mod tests {
             lto: false,
             ..OptimizationProfile::default()
         };
-        
+
         let generator = LambdaCodeGenerator::new().with_optimization_profile(profile);
         let context = create_test_context();
-        
+
         let cargo_toml = generator.generate_cargo_toml(&context).unwrap();
         assert!(cargo_toml.contains("opt-level = \"s\""));
         assert!(cargo_toml.contains("lto = false"));

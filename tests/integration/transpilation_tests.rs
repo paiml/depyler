@@ -57,8 +57,7 @@ impl TranspilationTestHarness {
 
     fn verify_rust_compiles(&self, rust_code: &str) -> Result<(), String> {
         let rust_file = self.temp_dir.path().join("test.rs");
-        fs::write(&rust_file, rust_code)
-            .map_err(|e| format!("Failed to write Rust file: {e}"))?;
+        fs::write(&rust_file, rust_code).map_err(|e| format!("Failed to write Rust file: {e}"))?;
 
         let output = Command::new("rustc")
             .arg("--emit=metadata")
@@ -92,9 +91,7 @@ impl TranspilationTestHarness {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             if stderr.contains("error:") {
-                return Err(format!(
-                    "Generated Rust code has Clippy errors:\n{stderr}"
-                ));
+                return Err(format!("Generated Rust code has Clippy errors:\n{stderr}"));
             }
         }
 
