@@ -4,6 +4,12 @@ pub mod codegen;
 pub mod direct_rules;
 pub mod error;
 pub mod hir;
+pub mod lambda_codegen;
+pub mod lambda_errors;
+pub mod lambda_inference;
+pub mod lambda_optimizer;
+pub mod lambda_testing;
+pub mod lambda_types;
 pub mod optimization;
 pub mod rust_gen;
 pub mod type_mapper;
@@ -121,7 +127,7 @@ impl DepylerPipeline {
         self.parse_to_hir(source)
     }
 
-    fn parse_python(&self, source: &str) -> Result<rustpython_ast::Mod> {
+    pub fn parse_python(&self, source: &str) -> Result<rustpython_ast::Mod> {
         use rustpython_ast::Suite;
         use rustpython_parser::Parse;
 

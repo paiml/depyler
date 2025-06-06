@@ -2,7 +2,8 @@ use anyhow::Result;
 use clap::Parser;
 use depyler::{
     analyze_command, check_command, inspect_command, interactive_command, quality_check_command,
-    transpile_command, Cli, Commands,
+    transpile_command, lambda_analyze_command, lambda_convert_command, lambda_test_command,
+    lambda_build_command, lambda_deploy_command, Cli, Commands, LambdaCommands,
 };
 
 fn main() -> Result<()> {
@@ -55,6 +56,49 @@ fn main() -> Result<()> {
         } => {
             inspect_command(input, repr, format, output)?;
         }
+        Commands::Lambda(lambda_cmd) => match lambda_cmd {
+            LambdaCommands::Analyze {
+                input,
+                format,
+                confidence,
+            } => {
+                lambda_analyze_command(input, format, confidence)?;
+            }
+            LambdaCommands::Convert {
+                input,
+                output,
+                optimize,
+                tests,
+                deploy,
+            } => {
+                lambda_convert_command(input, output, optimize, tests, deploy)?;
+            }
+            LambdaCommands::Test {
+                input,
+                event,
+                benchmark,
+                load_test,
+            } => {
+                lambda_test_command(input, event, benchmark, load_test)?;
+            }
+            LambdaCommands::Build {
+                input,
+                arch,
+                optimize_size,
+                optimize_cold_start,
+            } => {
+                lambda_build_command(input, arch, optimize_size, optimize_cold_start)?;
+            }
+            LambdaCommands::Deploy {
+                input,
+                region,
+                function_name,
+                role,
+                dry_run,
+            } => {
+                lambda_deploy_command(input, region, function_name, role, dry_run)?;
+            }
+        },
     }
 
     Ok(())
