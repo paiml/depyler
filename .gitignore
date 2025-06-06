@@ -1,3 +1,4 @@
+deep_context.md
 # Rust
 /target/
 /Cargo.lock
@@ -82,3 +83,6 @@ transpiled_output/
 # MCP testing artifacts
 mcp_test_results/
 *.mcp.log
+
+# Context files
+deep_context.md

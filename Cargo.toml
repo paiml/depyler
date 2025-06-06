@@ -4,6 +4,8 @@ members = [
     "crates/depyler-analyzer",
     "crates/depyler-verify", 
     "crates/depyler-mcp",
+    "crates/depyler-annotations",
+    "crates/depyler-quality",
     "crates/depyler",
 ]
 resolver = "2"
@@ -38,6 +40,7 @@ proc-macro2 = "1.0"
 petgraph = "0.6"
 indexmap = "2.0"
 smallvec = { version = "1.0", features = ["serde"] }
+regex = "1.10"
 
 # Testing and verification
 quickcheck = "1.0"

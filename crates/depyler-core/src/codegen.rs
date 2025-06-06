@@ -375,6 +375,7 @@ fn prettify_rust_code(code: String) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use depyler_annotations::TranspilationAnnotations;
 
     #[test]
     fn test_simple_function_generation() {
@@ -388,6 +389,7 @@ mod tests {
                 right: Box::new(HirExpr::Var("b".to_string())),
             }))],
             properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
         };
 
         let module = HirModule {
@@ -463,6 +465,7 @@ mod tests {
                 ret_type: Type::None,
                 body: vec![],
                 properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
             }],
             imports: vec![],
         };
@@ -476,6 +479,7 @@ mod tests {
                 ret_type: Type::Int,
                 body: vec![],
                 properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
             }],
             imports: vec![],
         };

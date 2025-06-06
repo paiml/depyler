@@ -1,6 +1,7 @@
 use depyler_core::direct_rules::apply_rules;
 use depyler_core::hir::{BinOp, HirExpr, HirFunction, HirModule, HirStmt, Literal, Type};
 use depyler_core::type_mapper::TypeMapper;
+use depyler_annotations::TranspilationAnnotations;
 
 #[test]
 fn test_augmented_assignment() {
@@ -26,6 +27,7 @@ fn test_augmented_assignment() {
                 HirStmt::Return(Some(HirExpr::Var("total".to_string()))),
             ],
             properties: Default::default(),
+            annotations: TranspilationAnnotations::default(),
         }],
         imports: vec![],
     };
@@ -60,6 +62,7 @@ fn test_in_operator() {
                 })),
             ],
             properties: Default::default(),
+            annotations: TranspilationAnnotations::default(),
         }],
         imports: vec![],
     };
@@ -91,6 +94,7 @@ fn test_not_in_operator() {
                 })),
             ],
             properties: Default::default(),
+            annotations: TranspilationAnnotations::default(),
         }],
         imports: vec![],
     };
@@ -125,6 +129,7 @@ fn test_all_arithmetic_operators() {
                     right: Box::new(HirExpr::Var("b".to_string())),
                 }))],
                 properties: Default::default(),
+                annotations: TranspilationAnnotations::default(),
             }],
             imports: vec![],
         };
@@ -165,6 +170,7 @@ fn test_comparison_operators() {
                     right: Box::new(HirExpr::Var("b".to_string())),
                 }))],
                 properties: Default::default(),
+                annotations: TranspilationAnnotations::default(),
             }],
             imports: vec![],
         };
@@ -198,6 +204,7 @@ fn test_logical_operators() {
                     right: Box::new(HirExpr::Var("b".to_string())),
                 }))],
                 properties: Default::default(),
+                annotations: TranspilationAnnotations::default(),
             }],
             imports: vec![],
         };
@@ -237,6 +244,7 @@ fn test_bitwise_operators() {
                     right: Box::new(HirExpr::Var("b".to_string())),
                 }))],
                 properties: Default::default(),
+                annotations: TranspilationAnnotations::default(),
             }],
             imports: vec![],
         };
@@ -268,6 +276,7 @@ fn test_power_operator_not_supported() {
                 right: Box::new(HirExpr::Var("b".to_string())),
             }))],
             properties: Default::default(),
+            annotations: TranspilationAnnotations::default(),
         }],
         imports: vec![],
     };

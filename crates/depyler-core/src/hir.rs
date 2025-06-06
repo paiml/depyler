@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use depyler_annotations::TranspilationAnnotations;
 
 pub type Symbol = String;
 
@@ -37,6 +38,7 @@ pub struct HirFunction {
     pub ret_type: Type,
     pub body: Vec<HirStmt>,
     pub properties: FunctionProperties,
+    pub annotations: TranspilationAnnotations,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]

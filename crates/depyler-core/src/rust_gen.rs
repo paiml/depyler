@@ -468,6 +468,7 @@ fn format_rust_code(code: String) -> String {
 mod tests {
     use super::*;
     use crate::type_mapper::TypeMapper;
+    use depyler_annotations::TranspilationAnnotations;
 
     fn create_test_context() -> CodeGenContext<'static> {
         // This is a bit of a hack for testing - in real use, the TypeMapper would have a longer lifetime
@@ -490,6 +491,7 @@ mod tests {
                 right: Box::new(HirExpr::Var("b".to_string())),
             }))],
             properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
         };
 
         let mut ctx = create_test_context();
