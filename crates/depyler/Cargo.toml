@@ -31,7 +31,9 @@ tracing-subscriber.workspace = true
 clap.workspace = true
 indicatif.workspace = true
 colored.workspace = true
+dialoguer.workspace = true
 rustpython-parser.workspace = true
+rustpython-ast.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
@@ -69,3 +71,7 @@ path = "../../tests/quality_gates_tests.rs"
 [[test]]
 name = "error_handling_tests"
 path = "../../tests/error_handling_tests.rs"
+
+[[test]]
+name = "marco_polo_integration_test"
+path = "../../tests/marco_polo_integration_test.rs"

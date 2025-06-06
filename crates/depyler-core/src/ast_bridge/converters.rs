@@ -1,7 +1,10 @@
+use super::{
+    convert_aug_op, convert_binop, convert_body, convert_cmpop, convert_unaryop,
+    extract_assign_target,
+};
 use crate::hir::*;
 use anyhow::{bail, Result};
 use rustpython_ast::{self as ast};
-use super::{convert_aug_op, convert_binop, convert_cmpop, convert_unaryop, extract_assign_target, convert_body};
 
 /// Statement converter to reduce complexity
 pub struct StmtConverter;

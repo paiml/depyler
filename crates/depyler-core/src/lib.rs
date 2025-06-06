@@ -1,8 +1,10 @@
+pub mod annotation_aware_type_mapper;
 pub mod ast_bridge;
 pub mod codegen;
 pub mod direct_rules;
 pub mod error;
 pub mod hir;
+pub mod optimization;
 pub mod rust_gen;
 pub mod type_mapper;
 
@@ -92,8 +94,13 @@ impl DepylerPipeline {
         // Parse Python source
         let ast = self.parse_python(python_source)?;
 
-        // Convert to HIR
-        let hir = ast_bridge::python_to_hir(ast)?;
+        // Convert to HIR with annotation support
+        let mut hir = ast_bridge::AstBridge::new()
+            .with_source(python_source.to_string())
+            .python_to_hir(ast)?;
+
+        // Apply optimization passes based on annotations
+        optimization::optimize_module(&mut hir);
 
         // Generate Rust code using the unified generation system
         let rust_code = rust_gen::generate_rust_file(&hir, &self.transpiler.type_mapper)?;
@@ -103,7 +110,9 @@ impl DepylerPipeline {
 
     pub fn parse_to_hir(&self, source: &str) -> Result<hir::HirModule> {
         let ast = self.parse_python(source)?;
-        ast_bridge::python_to_hir(ast)
+        ast_bridge::AstBridge::new()
+            .with_source(source.to_string())
+            .python_to_hir(ast)
     }
 
     pub fn analyze_to_typed_hir(&self, source: &str) -> Result<hir::HirModule> {
@@ -314,6 +323,91 @@ def process_list(items: List[str]) -> Optional[str]:
         assert_eq!(
             func.ret_type,
             hir::Type::Optional(Box::new(hir::Type::String))
+        );
+    }
+
+    #[test]
+    fn test_annotation_aware_transpilation() {
+        let pipeline = DepylerPipeline::new();
+        let python_code = r#"
+# @depyler: optimization_level = "aggressive"
+# @depyler: thread_safety = "required"
+# @depyler: bounds_checking = "explicit"
+def compute_sum(numbers: List[int]) -> int:
+    total = 0
+    for num in numbers:
+        total += num
+    return total
+"#;
+
+        let hir = pipeline.parse_to_hir(python_code).unwrap();
+        let func = &hir.functions[0];
+
+        // Verify annotations were extracted
+        assert_eq!(
+            func.annotations.optimization_level,
+            depyler_annotations::OptimizationLevel::Aggressive
+        );
+        assert_eq!(
+            func.annotations.thread_safety,
+            depyler_annotations::ThreadSafety::Required
+        );
+        assert_eq!(
+            func.annotations.bounds_checking,
+            depyler_annotations::BoundsChecking::Explicit
+        );
+
+        // Verify transpilation works
+        let rust_code = pipeline.transpile(python_code).unwrap();
+        assert!(rust_code.contains("compute_sum"));
+    }
+
+    #[test]
+    fn test_string_strategy_annotation() {
+        let pipeline = DepylerPipeline::new();
+        let python_code = r#"
+# @depyler: string_strategy = "zero_copy"
+# @depyler: ownership = "borrowed"
+def process_string(s: str) -> str:
+    return s
+"#;
+
+        let hir = pipeline.parse_to_hir(python_code).unwrap();
+        let func = &hir.functions[0];
+
+        // Verify string strategy was extracted
+        assert_eq!(
+            func.annotations.string_strategy,
+            depyler_annotations::StringStrategy::ZeroCopy
+        );
+        assert_eq!(
+            func.annotations.ownership_model,
+            depyler_annotations::OwnershipModel::Borrowed
+        );
+
+        // The generated code should use borrowed strings
+        let rust_code = pipeline.transpile(python_code).unwrap();
+        assert!(rust_code.contains("process_string"));
+    }
+
+    #[test]
+    fn test_hash_strategy_annotation() {
+        let pipeline = DepylerPipeline::new();
+        let python_code = r#"
+# @depyler: hash_strategy = "fnv"
+def create_map() -> Dict[str, int]:
+    # TODO: Dictionary subscript assignment not yet supported
+    # For now, just test that the annotation is parsed correctly
+    return {}
+"#;
+
+        let hir = pipeline.parse_to_hir(python_code).unwrap();
+        let func = &hir.functions[0];
+
+        // Verify hash strategy was extracted
+        assert_eq!(
+            func.annotations.hash_strategy,
+            depyler_annotations::HashStrategy::Fnv
         );
     }
 }

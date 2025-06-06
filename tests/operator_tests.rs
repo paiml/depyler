@@ -1,7 +1,7 @@
+use depyler_annotations::TranspilationAnnotations;
 use depyler_core::direct_rules::apply_rules;
 use depyler_core::hir::{BinOp, HirExpr, HirFunction, HirModule, HirStmt, Literal, Type};
 use depyler_core::type_mapper::TypeMapper;
-use depyler_annotations::TranspilationAnnotations;
 
 #[test]
 fn test_augmented_assignment() {

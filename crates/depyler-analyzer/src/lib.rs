@@ -3,7 +3,9 @@ pub mod metrics;
 pub mod type_flow;
 
 // Re-export complexity functions for easier use
-pub use complexity::{calculate_cyclomatic, calculate_cognitive, calculate_max_nesting, count_statements};
+pub use complexity::{
+    calculate_cognitive, calculate_cyclomatic, calculate_max_nesting, count_statements,
+};
 
 use anyhow::Result;
 use depyler_core::hir::{HirFunction, HirModule};

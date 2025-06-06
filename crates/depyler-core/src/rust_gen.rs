@@ -1,3 +1,4 @@
+use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
 use crate::hir::*;
 use anyhow::{bail, Result};
 use quote::quote;
@@ -6,7 +7,13 @@ use syn::{self, parse_quote};
 /// Context for code generation including type mapping and configuration
 pub struct CodeGenContext<'a> {
     pub type_mapper: &'a crate::type_mapper::TypeMapper,
+    pub annotation_aware_mapper: AnnotationAwareTypeMapper,
     pub needs_hashmap: bool,
+    pub needs_fnv_hashmap: bool,
+    pub needs_ahash_hashmap: bool,
+    pub needs_arc: bool,
+    pub needs_rc: bool,
+    pub needs_cow: bool,
 }
 
 /// Trait for converting HIR elements to Rust tokens
@@ -21,10 +28,16 @@ pub fn generate_rust_file(
 ) -> Result<String> {
     let mut ctx = CodeGenContext {
         type_mapper,
+        annotation_aware_mapper: AnnotationAwareTypeMapper::with_base_mapper(type_mapper.clone()),
         needs_hashmap: false,
+        needs_fnv_hashmap: false,
+        needs_ahash_hashmap: false,
+        needs_arc: false,
+        needs_rc: false,
+        needs_cow: false,
     };
 
-    // Convert all functions first to detect if we need HashMap
+    // Convert all functions first to detect what imports we need
     let functions: Vec<_> = module
         .functions
         .iter()
@@ -37,6 +50,36 @@ pub fn generate_rust_file(
     if ctx.needs_hashmap {
         items.push(quote! {
             use std::collections::HashMap;
+        });
+    }
+
+    if ctx.needs_fnv_hashmap {
+        items.push(quote! {
+            use fnv::FnvHashMap;
+        });
+    }
+
+    if ctx.needs_ahash_hashmap {
+        items.push(quote! {
+            use ahash::AHashMap;
+        });
+    }
+
+    if ctx.needs_arc {
+        items.push(quote! {
+            use std::sync::Arc;
+        });
+    }
+
+    if ctx.needs_rc {
+        items.push(quote! {
+            use std::rc::Rc;
+        });
+    }
+
+    if ctx.needs_cow {
+        items.push(quote! {
+            use std::borrow::Cow;
         });
     }
 
@@ -54,17 +97,26 @@ impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         let name = syn::Ident::new(&self.name, proc_macro2::Span::call_site());
 
-        // Convert parameters
+        // Convert parameters using annotation-aware mapping
         let params: Vec<_> = self
             .params
             .iter()
             .map(|(param_name, param_type)| {
                 let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
-                let rust_type = ctx.type_mapper.map_type(param_type);
+                let rust_type = ctx
+                    .annotation_aware_mapper
+                    .map_type_with_annotations(param_type, &self.annotations);
+
+                // Check if we need special imports
+                update_import_needs(ctx, &rust_type);
+
                 let ty = rust_type_to_syn(&rust_type)?;
 
-                // Use references for non-copy types
-                let ty = if ctx.type_mapper.needs_reference(&rust_type) {
+                // Use references based on annotations
+                let ty = if ctx
+                    .annotation_aware_mapper
+                    .needs_reference_with_annotations(&rust_type, &self.annotations)
+                {
                     parse_quote! { &#ty }
                 } else {
                     ty
@@ -74,8 +126,10 @@ impl RustCodeGen for HirFunction {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        // Convert return type
-        let rust_ret_type = ctx.type_mapper.map_return_type(&self.ret_type);
+        // Convert return type using annotation-aware mapping
+        let rust_ret_type = ctx
+            .annotation_aware_mapper
+            .map_return_type_with_annotations(&self.ret_type, &self.annotations);
         let return_type = if matches!(rust_ret_type, crate::type_mapper::RustType::Unit) {
             quote! {}
         } else {
@@ -433,6 +487,18 @@ fn rust_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<syn::Typ
             parse_quote! { #ident }
         }
         RustType::String => parse_quote! { String },
+        RustType::Str { lifetime } => {
+            if let Some(lt) = lifetime {
+                let lt_ident = syn::Lifetime::new(lt, proc_macro2::Span::call_site());
+                parse_quote! { &#lt_ident str }
+            } else {
+                parse_quote! { &str }
+            }
+        }
+        RustType::Cow { lifetime } => {
+            let lt_ident = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+            parse_quote! { Cow<#lt_ident, str> }
+        }
         RustType::Vec(inner) => {
             let inner_ty = rust_type_to_syn(inner)?;
             parse_quote! { Vec<#inner_ty> }
@@ -446,8 +512,44 @@ fn rust_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<syn::Typ
             let inner_ty = rust_type_to_syn(inner)?;
             parse_quote! { Option<#inner_ty> }
         }
+        RustType::Result(ok, err) => {
+            let ok_ty = rust_type_to_syn(ok)?;
+            let err_ty = rust_type_to_syn(err)?;
+            parse_quote! { Result<#ok_ty, #err_ty> }
+        }
+        RustType::Reference {
+            lifetime,
+            mutable,
+            inner,
+        } => {
+            let inner_ty = rust_type_to_syn(inner)?;
+            if *mutable {
+                if let Some(lt) = lifetime {
+                    let lt_ident = syn::Lifetime::new(lt, proc_macro2::Span::call_site());
+                    parse_quote! { &#lt_ident mut #inner_ty }
+                } else {
+                    parse_quote! { &mut #inner_ty }
+                }
+            } else if let Some(lt) = lifetime {
+                let lt_ident = syn::Lifetime::new(lt, proc_macro2::Span::call_site());
+                parse_quote! { &#lt_ident #inner_ty }
+            } else {
+                parse_quote! { &#inner_ty }
+            }
+        }
+        RustType::Tuple(types) => {
+            let tys: Vec<_> = types
+                .iter()
+                .map(rust_type_to_syn)
+                .collect::<Result<Vec<_>>>()?;
+            parse_quote! { (#(#tys),*) }
+        }
         RustType::Unit => parse_quote! { () },
-        _ => bail!("Unsupported Rust type: {:?}", rust_type),
+        RustType::Custom(name) => {
+            let ty: syn::Type = syn::parse_str(name)?;
+            ty
+        }
+        RustType::Unsupported(reason) => bail!("Unsupported Rust type: {}", reason),
     })
 }
 
@@ -464,6 +566,49 @@ fn format_rust_code(code: String) -> String {
         )
 }
 
+/// Updates the import needs based on the rust type being used
+fn update_import_needs(ctx: &mut CodeGenContext, rust_type: &crate::type_mapper::RustType) {
+    match rust_type {
+        crate::type_mapper::RustType::HashMap(_, _) => ctx.needs_hashmap = true,
+        crate::type_mapper::RustType::Cow { .. } => ctx.needs_cow = true,
+        crate::type_mapper::RustType::Custom(name) => {
+            if name.contains("FnvHashMap") {
+                ctx.needs_fnv_hashmap = true;
+            } else if name.contains("AHashMap") {
+                ctx.needs_ahash_hashmap = true;
+            } else if name.contains("Arc<") {
+                ctx.needs_arc = true;
+            } else if name.contains("Rc<") {
+                ctx.needs_rc = true;
+            } else if name.contains("HashMap<")
+                && !name.contains("FnvHashMap")
+                && !name.contains("AHashMap")
+            {
+                ctx.needs_hashmap = true;
+            }
+        }
+        crate::type_mapper::RustType::Reference { inner, .. } => {
+            update_import_needs(ctx, inner);
+        }
+        crate::type_mapper::RustType::Vec(inner) => {
+            update_import_needs(ctx, inner);
+        }
+        crate::type_mapper::RustType::Option(inner) => {
+            update_import_needs(ctx, inner);
+        }
+        crate::type_mapper::RustType::Result(ok, err) => {
+            update_import_needs(ctx, ok);
+            update_import_needs(ctx, err);
+        }
+        crate::type_mapper::RustType::Tuple(types) => {
+            for t in types {
+                update_import_needs(ctx, t);
+            }
+        }
+        _ => {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -475,7 +620,15 @@ mod tests {
         let type_mapper: &'static TypeMapper = Box::leak(Box::new(TypeMapper::default()));
         CodeGenContext {
             type_mapper,
+            annotation_aware_mapper: AnnotationAwareTypeMapper::with_base_mapper(
+                type_mapper.clone(),
+            ),
             needs_hashmap: false,
+            needs_fnv_hashmap: false,
+            needs_ahash_hashmap: false,
+            needs_arc: false,
+            needs_rc: false,
+            needs_cow: false,
         }
     }
 

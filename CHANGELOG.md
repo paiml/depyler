@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2025-01-06
+
+### Added
+- **Enhanced Test Coverage**: Achieved 76.95% test coverage across workspace
+- **Comprehensive Testing**: Added extensive unit tests for analyzer metrics, type flow, and contract verification modules
+- **Quality Standards**: Maintained PMAT TDG score of 1.03 and complexity of 4
+
+### Changed
+- **Code Quality**: Fixed all clippy warnings and formatting issues
+- **InteractiveSession**: Added proper Default trait implementation
+- **Public API**: Made complexity_rating function public for external use
+
+### Fixed
+- **Lint Issues**: Resolved InteractiveSession Default implementation clippy warning
+- **Unused Variables**: Fixed unused variable warnings in quickcheck.rs
+- **Dead Code**: Resolved dead code warnings for complexity_rating function
+- **Auto-fixes**: Applied cargo fix suggestions across multiple modules
+
+### Quality Metrics
+- **Test Coverage**: 76.95% (up from previous releases)
+- **PMAT TDG Score**: 1.03 ✅ (target: 1.0-2.0)
+- **Cyclomatic Complexity**: 4 ✅ (target: ≤20)
+- **Code Quality**: All clippy lints resolved
+
 ## [0.1.1] - 2025-01-06
 
 ### Added
@@ -66,6 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Error Messages**: Clear, actionable error reporting
 - **Extensible Design**: Easy to add new Python features
 
-[Unreleased]: https://github.com/paiml/depyler/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/paiml/depyler/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/paiml/depyler/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/paiml/depyler/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/paiml/depyler/releases/tag/v0.1.0

@@ -1,7 +1,7 @@
 use crate::hir::*;
 use anyhow::{bail, Result};
+use depyler_annotations::{AnnotationExtractor, AnnotationParser, TranspilationAnnotations};
 use rustpython_ast::{self as ast};
-use depyler_annotations::{AnnotationParser, TranspilationAnnotations};
 
 mod converters;
 mod properties;
@@ -11,75 +11,119 @@ pub use converters::{ExprConverter, StmtConverter};
 pub use properties::FunctionAnalyzer;
 pub use type_extraction::TypeExtractor;
 
-pub fn python_to_hir(module: ast::Mod) -> Result<HirModule> {
-    match module {
-        ast::Mod::Module(m) => convert_module(m),
-        _ => bail!("Only module-level code is supported"),
+pub struct AstBridge {
+    source_code: Option<String>,
+    annotation_extractor: AnnotationExtractor,
+    annotation_parser: AnnotationParser,
+}
+
+impl Default for AstBridge {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
-fn convert_module(module: ast::ModModule) -> Result<HirModule> {
-    let mut functions = Vec::new();
-    let mut imports = Vec::new();
-
-    for stmt in module.body {
-        match stmt {
-            ast::Stmt::FunctionDef(f) => {
-                functions.push(convert_function(f)?);
-            }
-            ast::Stmt::Import(i) => {
-                imports.extend(convert_import(i)?);
-            }
-            ast::Stmt::ImportFrom(i) => {
-                imports.extend(convert_import_from(i)?);
-            }
-            _ => {
-                // Skip other statements for now
-            }
+impl AstBridge {
+    pub fn new() -> Self {
+        Self {
+            source_code: None,
+            annotation_extractor: AnnotationExtractor::new(),
+            annotation_parser: AnnotationParser::new(),
         }
     }
 
-    Ok(HirModule { functions, imports })
-}
+    pub fn with_source(mut self, source: String) -> Self {
+        self.source_code = Some(source);
+        self
+    }
 
-fn convert_function(func: ast::StmtFunctionDef) -> Result<HirFunction> {
-    let name = func.name.to_string();
-    let params = convert_parameters(&func.args)?;
-    let ret_type = TypeExtractor::extract_return_type(&func.returns)?;
-    
-    // Extract annotations from docstring or comments before moving body
-    let annotations = extract_function_annotations(&func);
-    
-    let body = convert_body(func.body)?;
-    let properties = FunctionAnalyzer::analyze(&body);
+    pub fn python_to_hir(&self, module: ast::Mod) -> Result<HirModule> {
+        match module {
+            ast::Mod::Module(m) => self.convert_module(m),
+            _ => bail!("Only module-level code is supported"),
+        }
+    }
 
-    Ok(HirFunction {
-        name,
-        params: params.into(),
-        ret_type,
-        body,
-        properties,
-        annotations,
-    })
-}
+    fn convert_module(&self, module: ast::ModModule) -> Result<HirModule> {
+        let mut functions = Vec::new();
+        let mut imports = Vec::new();
 
-fn extract_function_annotations(func: &ast::StmtFunctionDef) -> TranspilationAnnotations {
-    // For now, return default annotations
-    // In a real implementation, we would extract from docstrings or preceding comments
-    let annotation_parser = AnnotationParser::new();
-    
-    // Try to extract from docstring if present
-    if let Some(ast::Stmt::Expr(expr)) = func.body.first() {
-        if let ast::Expr::Constant(constant) = expr.value.as_ref() {
-            if let ast::Constant::Str(docstring) = &constant.value {
-                if let Ok(annotations) = annotation_parser.parse_annotations(docstring) {
+        for stmt in module.body {
+            match stmt {
+                ast::Stmt::FunctionDef(f) => {
+                    functions.push(self.convert_function(f)?);
+                }
+                ast::Stmt::Import(i) => {
+                    imports.extend(convert_import(i)?);
+                }
+                ast::Stmt::ImportFrom(i) => {
+                    imports.extend(convert_import_from(i)?);
+                }
+                _ => {
+                    // Skip other statements for now
+                }
+            }
+        }
+
+        Ok(HirModule { functions, imports })
+    }
+
+    fn convert_function(&self, func: ast::StmtFunctionDef) -> Result<HirFunction> {
+        let name = func.name.to_string();
+        let params = convert_parameters(&func.args)?;
+        let ret_type = TypeExtractor::extract_return_type(&func.returns)?;
+
+        // Extract annotations from source code if available
+        let annotations = self.extract_function_annotations(&func);
+
+        let body = convert_body(func.body)?;
+        let properties = FunctionAnalyzer::analyze(&body);
+
+        Ok(HirFunction {
+            name,
+            params: params.into(),
+            ret_type,
+            body,
+            properties,
+            annotations,
+        })
+    }
+
+    fn extract_function_annotations(
+        &self,
+        func: &ast::StmtFunctionDef,
+    ) -> TranspilationAnnotations {
+        // Try to extract from source code comments first
+        if let Some(source) = &self.source_code {
+            if let Some(annotation_text) = self
+                .annotation_extractor
+                .extract_function_annotations(source, &func.name)
+            {
+                if let Ok(annotations) = self.annotation_parser.parse_annotations(&annotation_text)
+                {
                     return annotations;
                 }
             }
         }
+
+        // Fallback: Try to extract from docstring if present
+        if let Some(ast::Stmt::Expr(expr)) = func.body.first() {
+            if let ast::Expr::Constant(constant) = expr.value.as_ref() {
+                if let ast::Constant::Str(docstring) = &constant.value {
+                    if let Ok(annotations) = self.annotation_parser.parse_annotations(docstring) {
+                        return annotations;
+                    }
+                }
+            }
+        }
+
+        TranspilationAnnotations::default()
     }
-    
-    TranspilationAnnotations::default()
+}
+
+// Keep the old function for backwards compatibility
+pub fn python_to_hir(module: ast::Mod) -> Result<HirModule> {
+    AstBridge::new().python_to_hir(module)
 }
 
 fn convert_parameters(args: &ast::Arguments) -> Result<Vec<(Symbol, Type)>> {
@@ -204,7 +248,6 @@ fn convert_import_from(import: ast::StmtImportFrom) -> Result<Vec<Import>> {
     Ok(vec![Import { module, items }])
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -218,7 +261,10 @@ mod tests {
             type_ignores: vec![],
             range: Default::default(),
         });
-        python_to_hir(ast).unwrap()
+        AstBridge::new()
+            .with_source(source.to_string())
+            .python_to_hir(ast)
+            .unwrap()
     }
 
     #[test]
@@ -434,5 +480,63 @@ def call_functions() -> int:
         } else {
             panic!("Expected function call");
         }
+    }
+
+    #[test]
+    fn test_annotation_extraction() {
+        let source = r#"
+# @depyler: type_strategy = "aggressive"
+# @depyler: optimization_level = "aggressive"
+# @depyler: thread_safety = "required"
+def process_data(items: List[int]) -> int:
+    total = 0
+    for x in items:
+        total = total + x * 2
+    return total
+"#;
+        let hir = parse_python_to_hir(source);
+
+        let func = &hir.functions[0];
+        assert_eq!(
+            func.annotations.type_strategy,
+            depyler_annotations::TypeStrategy::Aggressive
+        );
+        assert_eq!(
+            func.annotations.optimization_level,
+            depyler_annotations::OptimizationLevel::Aggressive
+        );
+        assert_eq!(
+            func.annotations.thread_safety,
+            depyler_annotations::ThreadSafety::Required
+        );
+    }
+
+    #[test]
+    fn test_annotation_with_performance_hints() {
+        let source = r#"
+# @depyler: performance_critical = "true"
+# @depyler: vectorize = "true"
+# @depyler: bounds_checking = "disabled"
+def compute(data: List[float]) -> float:
+    total = 0.0
+    for x in data:
+        total += x
+    return total
+"#;
+        let hir = parse_python_to_hir(source);
+
+        let func = &hir.functions[0];
+        assert!(func
+            .annotations
+            .performance_hints
+            .contains(&depyler_annotations::PerformanceHint::PerformanceCritical));
+        assert!(func
+            .annotations
+            .performance_hints
+            .contains(&depyler_annotations::PerformanceHint::Vectorize));
+        assert_eq!(
+            func.annotations.bounds_checking,
+            depyler_annotations::BoundsChecking::Disabled
+        );
     }
 }
