@@ -120,7 +120,7 @@ fn test_all_arithmetic_operators() {
     for (op, expected) in test_cases {
         let module = HirModule {
             functions: vec![HirFunction {
-                name: format!("test_{:?}", op).to_lowercase(),
+                name: format!("test_{op:?}").to_lowercase(),
                 params: vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)].into(),
                 ret_type: Type::Int,
                 body: vec![HirStmt::Return(Some(HirExpr::Binary {
@@ -139,10 +139,8 @@ fn test_all_arithmetic_operators() {
         let code = quote::quote! { #result }.to_string();
 
         assert!(
-            code.contains(&format!("a {} b", expected)),
-            "Expected operator {} in code: {}",
-            expected,
-            code
+            code.contains(&format!("a {expected} b")),
+            "Expected operator {expected} in code: {code}"
         );
     }
 }
@@ -161,7 +159,7 @@ fn test_comparison_operators() {
     for (op, expected) in test_cases {
         let module = HirModule {
             functions: vec![HirFunction {
-                name: format!("test_{:?}", op).to_lowercase(),
+                name: format!("test_{op:?}").to_lowercase(),
                 params: vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)].into(),
                 ret_type: Type::Bool,
                 body: vec![HirStmt::Return(Some(HirExpr::Binary {
@@ -180,10 +178,8 @@ fn test_comparison_operators() {
         let code = quote::quote! { #result }.to_string();
 
         assert!(
-            code.contains(&format!("a {} b", expected)),
-            "Expected operator {} in code: {}",
-            expected,
-            code
+            code.contains(&format!("a {expected} b")),
+            "Expected operator {expected} in code: {code}"
         );
     }
 }
@@ -195,7 +191,7 @@ fn test_logical_operators() {
     for (op, expected) in test_cases {
         let module = HirModule {
             functions: vec![HirFunction {
-                name: format!("test_{:?}", op).to_lowercase(),
+                name: format!("test_{op:?}").to_lowercase(),
                 params: vec![("a".to_string(), Type::Bool), ("b".to_string(), Type::Bool)].into(),
                 ret_type: Type::Bool,
                 body: vec![HirStmt::Return(Some(HirExpr::Binary {
@@ -214,10 +210,8 @@ fn test_logical_operators() {
         let code = quote::quote! { #result }.to_string();
 
         assert!(
-            code.contains(&format!("a {} b", expected)),
-            "Expected operator {} in code: {}",
-            expected,
-            code
+            code.contains(&format!("a {expected} b")),
+            "Expected operator {expected} in code: {code}"
         );
     }
 }
@@ -235,7 +229,7 @@ fn test_bitwise_operators() {
     for (op, expected) in test_cases {
         let module = HirModule {
             functions: vec![HirFunction {
-                name: format!("test_{:?}", op).to_lowercase(),
+                name: format!("test_{op:?}").to_lowercase(),
                 params: vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)].into(),
                 ret_type: Type::Int,
                 body: vec![HirStmt::Return(Some(HirExpr::Binary {
@@ -254,10 +248,8 @@ fn test_bitwise_operators() {
         let code = quote::quote! { #result }.to_string();
 
         assert!(
-            code.contains(&format!("a {} b", expected)),
-            "Expected operator {} in code: {}",
-            expected,
-            code
+            code.contains(&format!("a {expected} b")),
+            "Expected operator {expected} in code: {code}"
         );
     }
 }

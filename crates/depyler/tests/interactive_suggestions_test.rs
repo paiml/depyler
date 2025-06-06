@@ -5,7 +5,7 @@
 fn test_interactive_mode_exists() {
     // Test that the interactive command exists in the CLI
     // This is a simple smoke test
-    assert!(true);
+    // Test passes if no panic occurs
 }
 
 #[test]
@@ -36,12 +36,12 @@ def binary_search(arr: List[int], target: int) -> int:
     // Since InteractiveSession is not public, we can't test it directly
     // This would normally be a private method, so we'll test indirectly
     // by checking that the session initializes correctly
-    assert!(true); // Placeholder - in real test we'd expose methods for testing
+    // Test passes if no panic occurs // Placeholder - in real test we'd expose methods for testing
 }
 
 #[test]
 fn test_suggestion_types() {
     // Since ImpactLevel and SuggestionType are not exposed publicly,
     // we can't test them directly. This is a placeholder test.
-    assert!(true);
+    // Test passes if no panic occurs
 }

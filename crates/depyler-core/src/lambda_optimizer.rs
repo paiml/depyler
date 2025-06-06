@@ -549,9 +549,11 @@ mod tests {
     #[test]
     fn test_optimization_plan_generation() {
         let optimizer = LambdaOptimizer::new();
-        let mut annotations = LambdaAnnotations::default();
-        annotations.cold_start_optimize = true;
-        annotations.event_type = Some(LambdaEventType::ApiGatewayProxyRequest);
+        let annotations = LambdaAnnotations {
+            cold_start_optimize: true,
+            event_type: Some(LambdaEventType::ApiGatewayProxyRequest),
+            ..Default::default()
+        };
         
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
         
@@ -577,9 +579,11 @@ mod tests {
     #[test]
     fn test_cold_start_optimizations() {
         let optimizer = LambdaOptimizer::new();
-        let mut annotations = LambdaAnnotations::default();
-        annotations.cold_start_optimize = true;
-        annotations.event_type = Some(LambdaEventType::SqsEvent);
+        let annotations = LambdaAnnotations {
+            cold_start_optimize: true,
+            event_type: Some(LambdaEventType::SqsEvent),
+            ..Default::default()
+        };
         
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
         
@@ -590,8 +594,10 @@ mod tests {
     #[test]
     fn test_memory_optimizations() {
         let optimizer = LambdaOptimizer::new();
-        let mut annotations = LambdaAnnotations::default();
-        annotations.memory_size = 128;
+        let annotations = LambdaAnnotations {
+            memory_size: 128,
+            ..Default::default()
+        };
         
         let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
         

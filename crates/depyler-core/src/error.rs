@@ -202,7 +202,7 @@ mod tests {
             .with_context("in function 'my_func'")
             .with_context("processing @decorator syntax");
 
-        let display = format!("{}", err);
+        let display = format!("{err}");
         assert!(display.contains("Unsupported Python feature"));
         assert!(display.contains("example.py:25:10"));
         assert!(display.contains("in function 'my_func'"));
