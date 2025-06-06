@@ -35,10 +35,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - target: x86_64-unknown-linux-musl
+          - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             name: linux-amd64
-          - target: aarch64-unknown-linux-musl
+          - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             name: linux-arm64
             use-cross: true
@@ -60,6 +60,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      
       
       - name: Install cross
         if: matrix.use-cross
@@ -105,7 +106,8 @@ jobs:
           # Depyler installer script
           set -euf
           
-          VERSION="0.1.0"
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
           GITHUB_REPO="paiml/depyler"
           
           echo "Depyler installer v${VERSION}"
