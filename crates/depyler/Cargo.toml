@@ -75,3 +75,7 @@ path = "../../tests/error_handling_tests.rs"
 [[test]]
 name = "marco_polo_integration_test"
 path = "../../tests/marco_polo_integration_test.rs"
+
+[[test]]
+name = "lambda_integration_test"
+path = "../../tests/lambda_integration_test.rs"
