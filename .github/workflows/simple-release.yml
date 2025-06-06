@@ -1,0 +1,39 @@
+name: Simple Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux Binary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Build release binary
+        run: cargo build --release --bin depyler
+      
+      - name: Package binary
+        run: |
+          cd target/release
+          tar czf ../../depyler-linux-amd64.tar.gz depyler
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: depyler-linux-amd64.tar.gz
+          draft: false
+          prerelease: false
+          generate_release_notes: true
