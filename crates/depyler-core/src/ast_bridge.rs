@@ -1,6 +1,7 @@
 use crate::hir::*;
 use anyhow::{bail, Result};
 use rustpython_ast::{self as ast};
+use depyler_annotations::{AnnotationParser, TranspilationAnnotations};
 
 mod converters;
 mod properties;
@@ -45,8 +46,11 @@ fn convert_function(func: ast::StmtFunctionDef) -> Result<HirFunction> {
     let name = func.name.to_string();
     let params = convert_parameters(&func.args)?;
     let ret_type = TypeExtractor::extract_return_type(&func.returns)?;
+    
+    // Extract annotations from docstring or comments before moving body
+    let annotations = extract_function_annotations(&func);
+    
     let body = convert_body(func.body)?;
-
     let properties = FunctionAnalyzer::analyze(&body);
 
     Ok(HirFunction {
@@ -55,7 +59,27 @@ fn convert_function(func: ast::StmtFunctionDef) -> Result<HirFunction> {
         ret_type,
         body,
         properties,
+        annotations,
     })
+}
+
+fn extract_function_annotations(func: &ast::StmtFunctionDef) -> TranspilationAnnotations {
+    // For now, return default annotations
+    // In a real implementation, we would extract from docstrings or preceding comments
+    let annotation_parser = AnnotationParser::new();
+    
+    // Try to extract from docstring if present
+    if let Some(ast::Stmt::Expr(expr)) = func.body.first() {
+        if let ast::Expr::Constant(constant) = expr.value.as_ref() {
+            if let ast::Constant::Str(docstring) = &constant.value {
+                if let Ok(annotations) = annotation_parser.parse_annotations(docstring) {
+                    return annotations;
+                }
+            }
+        }
+    }
+    
+    TranspilationAnnotations::default()
 }
 
 fn convert_parameters(args: &ast::Arguments) -> Result<Vec<(Symbol, Type)>> {

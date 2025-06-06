@@ -2,9 +2,15 @@ pub mod complexity;
 pub mod metrics;
 pub mod type_flow;
 
+// Re-export complexity functions for easier use
+pub use complexity::{calculate_cyclomatic, calculate_cognitive, calculate_max_nesting, count_statements};
+
 use anyhow::Result;
 use depyler_core::hir::{HirFunction, HirModule};
 use serde::{Deserialize, Serialize};
+
+#[cfg(test)]
+use depyler_annotations::TranspilationAnnotations;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalysisResult {
@@ -201,6 +207,7 @@ mod tests {
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
             properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
         }
     }
 
@@ -258,6 +265,7 @@ mod tests {
             ret_type: Type::String,
             body: vec![],
             properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
         };
 
         let func_without_types = HirFunction {
@@ -266,6 +274,7 @@ mod tests {
             ret_type: Type::Unknown,
             body: vec![],
             properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
         };
 
         let module = HirModule {

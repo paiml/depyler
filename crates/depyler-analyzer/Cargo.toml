@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 depyler-core = { path = "../depyler-core" }
+depyler-annotations = { path = "../depyler-annotations" }
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
