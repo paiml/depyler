@@ -3,7 +3,7 @@
 > **Compile Python to energy-efficient, memory-safe Rust code**  
 > *Transitioning off Python to energy-efficient and safe Rust systems*
 
-[![Model Context Protocol](https://img.shields.io/badge/MCP-Compatible-brightgreen?style=for-the-badge&logo=ai)](https://modelcontextprotocol.io/)
+[![Model Context Protocol](https://img.shields.io/badge/MCP-Compatible-brightgreen?style=for-the-badge)](https://modelcontextprotocol.io/)
 [![CI](https://github.com/paiml/depyler/actions/workflows/ci.yml/badge.svg)](https://github.com/paiml/depyler/actions/workflows/ci.yml)
 [![Release](https://github.com/paiml/depyler/actions/workflows/release.yml/badge.svg)](https://github.com/paiml/depyler/actions/workflows/release.yml)
 [![Latest Release](https://img.shields.io/github/v/release/paiml/depyler?include_prereleases&sort=semver)](https://github.com/paiml/depyler/releases/latest)
@@ -1315,7 +1315,7 @@ For additional support:
 - 📖 **Documentation**: [docs/](docs/)
 - 🐛 **Bug Reports**: [GitHub Issues](https://github.com/paiml/depyler/issues)
 - 💬 **Community**: [Discussions](https://github.com/paiml/depyler/discussions)
-- 📧 **Enterprise Support**: [enterprise@paiml.com](mailto:enterprise@paiml.com)
+- 📧 **Enterprise Support**: enterprise@paiml.com
 
 ---
 
@@ -1328,7 +1328,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ## 🙏 Acknowledgments
 
 - **RustPython Team** - AST parsing foundation
-- **Sister Projects** - [rash](../rash) and [paiml-mcp-agent-toolkit](../paiml-mcp-agent-toolkit) for quality standards
+- **Sister Projects** - [rash](https://github.com/paiml/rash) and [paiml-mcp-agent-toolkit](https://github.com/paiml/paiml-mcp-agent-toolkit) for quality standards
 - **Energy Efficiency Research** - Pereira et al., Google, AWS, and the sustainable computing community
 - **Toyota Production System** - Inspiring our development philosophy
 
