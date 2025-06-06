@@ -15,6 +15,8 @@ impl TypedValue {
             }
             Type::Float => {
                 let f: f64 = Arbitrary::arbitrary(g);
+                // Avoid NaN and infinity which may not be considered numbers by is_number()
+                let f = if f.is_finite() { f } else { 1.0 };
                 serde_json::json!(f)
             }
             Type::String => {
@@ -171,6 +173,10 @@ mod tests {
         let typed_value = TypedValue::arbitrary_for_type(&Type::Float, &mut g);
 
         assert_eq!(typed_value.ty, Type::Float);
+        // Debug print for investigating test failure
+        if !typed_value.value.is_number() {
+            eprintln!("Generated non-number for Float type: {:?}", typed_value.value);
+        }
         assert!(typed_value.value.is_number());
     }
 

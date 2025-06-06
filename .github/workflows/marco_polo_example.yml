@@ -23,6 +23,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
     
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential gcc g++
+    
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
@@ -38,7 +43,9 @@ jobs:
         key: ${{ runner.os }}-cargo-marco-polo-${{ hashFiles('**/Cargo.lock') }}
     
     - name: Build Depyler
-      run: cargo build --release --bin depyler
+      run: |
+        export RUSTFLAGS="-C linker=gcc"
+        cargo build --release --bin depyler
     
     - name: Test Python transpilation
       run: |
@@ -63,6 +70,7 @@ jobs:
       run: |
         echo "🦀 Building Marco Polo Rust project..."
         cd examples/marco_polo_cli
+        export RUSTFLAGS="-C linker=gcc"
         cargo build --release
         cargo test
         cargo clippy -- -D warnings

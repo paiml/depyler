@@ -29,7 +29,7 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev binutils lld
+        sudo apt-get install -y build-essential gcc g++
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@master
@@ -50,13 +50,25 @@ jobs:
       run: cargo fmt --all -- --check
     
     - name: Run clippy
-      run: cargo clippy --all-targets --all-features -- -D warnings
+      run: |
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          export RUSTFLAGS="-C linker=gcc"
+        fi
+        cargo clippy --all-targets --all-features -- -D warnings
     
     - name: Run tests
-      run: cargo test --workspace --all-features
+      run: |
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          export RUSTFLAGS="-C linker=gcc"
+        fi
+        cargo test --workspace --all-features
     
     - name: Build all targets
-      run: cargo build --workspace --all-targets
+      run: |
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          export RUSTFLAGS="-C linker=gcc"
+        fi
+        cargo build --workspace --all-targets
 
   coverage:
     name: Code Coverage
@@ -68,16 +80,20 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev binutils lld
+        sudo apt-get install -y build-essential gcc g++
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
     
     - name: Install cargo-tarpaulin
-      run: cargo install cargo-tarpaulin
+      run: |
+        export RUSTFLAGS="-C linker=gcc"
+        cargo install cargo-tarpaulin
     
     - name: Generate code coverage
-      run: cargo tarpaulin --features coverage --workspace --timeout 120 --out Xml
+      run: |
+        export RUSTFLAGS="-C linker=gcc"
+        cargo tarpaulin --features coverage --workspace --timeout 120 --out Xml
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -105,7 +121,7 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev binutils lld
+        sudo apt-get install -y build-essential gcc g++
     
     - name: Install MSRV toolchain
       uses: dtolnay/rust-toolchain@master
@@ -113,7 +129,9 @@ jobs:
         toolchain: "1.83"  # From Cargo.toml rust-version
     
     - name: Check MSRV
-      run: cargo check --workspace --all-features
+      run: |
+        export RUSTFLAGS="-C linker=gcc"
+        cargo check --workspace --all-features
 
   build-release:
     name: Build Release Binary
@@ -129,13 +147,17 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libssl-dev binutils lld
+        sudo apt-get install -y build-essential gcc g++
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
     
     - name: Build release
-      run: cargo build --release --workspace
+      run: |
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          export RUSTFLAGS="-C linker=gcc"
+        fi
+        cargo build --release --workspace
     
     - name: Test release build
       run: ./target/release/depyler --version
@@ -157,13 +179,15 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential binutils lld
+        sudo apt-get install -y build-essential gcc g++
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
     
     - name: Build depyler
-      run: cargo build --release --bin depyler
+      run: |
+        export RUSTFLAGS="-C linker=gcc"
+        cargo build --release --bin depyler
     
     - name: Run example transpilations
       run: |
