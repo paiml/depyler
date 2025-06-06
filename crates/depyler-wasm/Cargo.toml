@@ -1,0 +1,49 @@
+[package]
+name = "depyler-wasm"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "WebAssembly bindings for Depyler Python-to-Rust transpiler"
+keywords = ["python", "rust", "transpiler", "wasm", "webassembly"]
+categories = ["development-tools", "wasm"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+depyler-core = { path = "../depyler-core", features = ["wasm", "deterministic"] }
+depyler-quality = { path = "../depyler-quality" }
+depyler-analyzer = { path = "../depyler-analyzer" }
+wasm-bindgen.workspace = true
+serde.workspace = true
+serde-wasm-bindgen.workspace = true
+js-sys.workspace = true
+web-sys = { version = "0.3", features = [
+    "console",
+    "Performance",
+    "Navigator",
+    "Window",
+    "Document",
+] }
+instant.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+console_error_panic_hook = { version = "0.1.7", optional = true }
+
+[features]
+default = ["console_error_panic_hook"]
+console_error_panic_hook = ["dep:console_error_panic_hook"]
+
+# Tell `rustc` to optimize for small code size.
+[profile.release]
+opt-level = "s"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-mutable-globals"]

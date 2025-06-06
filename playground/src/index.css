@@ -1,0 +1,251 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom CSS for Depyler Playground */
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  code, pre {
+    font-family: 'JetBrains Mono', 'Monaco', 'Menlo', monospace;
+  }
+}
+
+@layer components {
+  /* Monaco Editor container */
+  .monaco-editor-container {
+    @apply border border-gray-200 rounded-lg overflow-hidden;
+  }
+  
+  /* Code editor styles */
+  .code-editor {
+    @apply h-full w-full;
+  }
+  
+  /* Energy gauge styles */
+  .energy-gauge-container {
+    @apply relative;
+  }
+  
+  .energy-gauge-container svg {
+    @apply w-full h-auto;
+  }
+  
+  /* Execution button styles */
+  .execution-button {
+    @apply inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200;
+  }
+  
+  .execution-button:disabled {
+    @apply bg-gray-400 cursor-not-allowed;
+  }
+  
+  /* Quality metrics cards */
+  .quality-card {
+    @apply bg-white rounded-lg shadow-sm border p-4;
+  }
+  
+  .quality-card-header {
+    @apply text-lg font-semibold text-gray-900 mb-2;
+  }
+  
+  .quality-card-content {
+    @apply text-sm text-gray-600;
+  }
+  
+  /* Performance visualization */
+  .performance-chart {
+    @apply bg-white rounded-lg shadow-sm border;
+  }
+  
+  /* Tooltip styles */
+  .tooltip {
+    @apply absolute z-50 px-2 py-1 text-xs text-white bg-gray-900 rounded shadow-lg pointer-events-none;
+  }
+  
+  /* Loading states */
+  .loading-overlay {
+    @apply absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10;
+  }
+  
+  .loading-spinner {
+    @apply animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600;
+  }
+  
+  /* Tab navigation */
+  .tab-nav {
+    @apply flex space-x-8 border-b border-gray-200;
+  }
+  
+  .tab-button {
+    @apply py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200;
+  }
+  
+  .tab-button.active {
+    @apply border-blue-500 text-blue-600;
+  }
+  
+  .tab-button:not(.active) {
+    @apply border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300;
+  }
+  
+  /* Progress indicators */
+  .progress-bar {
+    @apply bg-gray-200 rounded-full h-2 overflow-hidden;
+  }
+  
+  .progress-fill {
+    @apply bg-blue-600 h-full rounded-full transition-all duration-300 ease-out;
+  }
+  
+  /* Energy efficiency indicators */
+  .energy-savings-high {
+    @apply text-green-600 bg-green-50 border-green-200;
+  }
+  
+  .energy-savings-medium {
+    @apply text-yellow-600 bg-yellow-50 border-yellow-200;
+  }
+  
+  .energy-savings-low {
+    @apply text-red-600 bg-red-50 border-red-200;
+  }
+}
+
+@layer utilities {
+  /* Custom scrollbars */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 3px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+  }
+  
+  /* Focus states for accessibility */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+  }
+  
+  /* Animation utilities */
+  .fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  
+  .slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  /* Typography scale */
+  .text-display {
+    @apply text-4xl font-bold tracking-tight;
+  }
+  
+  .text-heading {
+    @apply text-2xl font-semibold;
+  }
+  
+  .text-subheading {
+    @apply text-lg font-medium;
+  }
+  
+  .text-body {
+    @apply text-base;
+  }
+  
+  .text-caption {
+    @apply text-sm text-gray-600;
+  }
+  
+  /* Layout utilities */
+  .container-narrow {
+    @apply max-w-4xl mx-auto;
+  }
+  
+  .container-wide {
+    @apply max-w-7xl mx-auto;
+  }
+  
+  /* Responsive grid */
+  .grid-responsive {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+  }
+}
+
+/* Keyframes */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+/* Monaco Editor theme customizations */
+.monaco-editor .monaco-editor-background {
+  background-color: #1e1e1e !important;
+}
+
+.monaco-editor .margin {
+  background-color: #1e1e1e !important;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .tab-button {
+    @apply border-2;
+  }
+  
+  .execution-button {
+    @apply border-2 border-blue-800;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .loading-spinner {
+    animation: none;
+  }
+}

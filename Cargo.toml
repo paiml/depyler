@@ -7,11 +7,18 @@ members = [
     "crates/depyler-annotations",
     "crates/depyler-quality",
     "crates/depyler",
+    "crates/depyler-wasm",
 ]
 resolver = "2"
 
+[workspace.metadata.quality]
+max_tdg_score = 2.0
+min_coverage = 85.0
+max_cyclomatic_complexity = 15
+required_documentation_coverage = 100.0
+
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Depyler Contributors"]
 license = "MIT OR Apache-2.0"
@@ -63,6 +70,14 @@ reqwest = { version = "0.11", default-features = false, features = ["json", "rus
 criterion = { version = "0.5", features = ["html_reports"] }
 pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
 
+# WASM dependencies
+wasm-bindgen = "0.2.100"
+serde-wasm-bindgen = "0.6"
+js-sys = "0.3"
+web-sys = "0.3"
+instant = { version = "0.1", features = ["wasm-bindgen"] }
+toml = "0.8"
+
 [profile.release]
 opt-level = 3
 lto = "fat"
@@ -95,6 +110,16 @@ incremental = true
 inherits = "release"
 debug = true              # Keep debug info for profiling
 strip = false            # Keep symbols for flamegraphs
+
+# WASM production build profile
+[profile.wasm-production]
+inherits = "release"
+opt-level = "z"          # Size optimization
+lto = "fat"              # Cross-crate inlining
+codegen-units = 1        # Single compilation unit
+strip = true             # Remove debug symbols
+panic = "abort"          # No unwinding
+incremental = false      # Deterministic builds
 
 # Optimize dependencies in all profiles
 [profile.release.package."*"]

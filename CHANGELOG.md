@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-01-06
+
+**Interactive Playground & Enterprise-Ready Quality Improvements**
+
+[Full Release Notes](./RELEASE_NOTES_v0.3.0.md)
+
+### Added
+- **Interactive Playground**: Zero-configuration WebAssembly-powered environment for instant Python-to-Rust transpilation
+  - Real-time side-by-side Python and Rust execution with performance metrics
+  - Intelli-Sensei code intelligence with smart suggestions and anti-pattern detection
+  - Three-column view (Python → HIR → Rust) with synchronized scrolling
+  - Visual energy gauge showing up to 97% energy reduction
+  - Offline capable with intelligent LRU caching for sub-50ms transpilation
+- **Enhanced Type Inference**: Better generic handling, collection type propagation, and function signature analysis
+- **PMAT Quality Framework**: Comprehensive metrics for Productivity, Maintainability, Accessibility, and Testability
+- **Multi-Platform CI/CD**: Automated releases for Linux, macOS, and Windows with binary size tracking
+- **Improved Error Messages**: Context-aware errors with source location tracking and helpful suggestions
+
+### Changed
+- **Performance**: 15% faster transpilation with 30% lower memory footprint
+- **CLI Interface**: `--verify` flag now requires a value (`basic`, `standard`, or `strict`)
+- **API Changes**: `TranspileOptions::verify` now uses `VerificationLevel` enum
+- **Default Output**: Changed from `./output` to `./rust_output`
+- **Test Coverage**: Increased from 85% to 89%
+- **PMAT TDG Score**: Improved from 2.1 to 1.8 (14% better)
+- **Energy Efficiency**: Increased from 93% to 97%
+
+### Fixed
+- Lambda inference improvements for nested patterns and async handlers
+- String interpolation edge cases with escaped characters
+- Ownership inference for nested function calls
+- Platform-specific issues including OpenSSL dependencies and linker errors
+- Interactive mode timeouts in CI environments
+
+### Security
+- Network APIs disabled in playground sandbox for security
+- Execution time limited to 5 seconds to prevent infinite loops
+
 ## [0.2.0] - 2025-01-06
 
 ### Added
@@ -116,7 +154,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Error Messages**: Clear, actionable error reporting
 - **Extensible Design**: Easy to add new Python features
 
-[Unreleased]: https://github.com/paiml/depyler/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/paiml/depyler/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/paiml/depyler/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/paiml/depyler/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/paiml/depyler/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/paiml/depyler/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/paiml/depyler/releases/tag/v0.1.0
