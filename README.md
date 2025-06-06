@@ -131,7 +131,10 @@ sudo mv depyler /usr/local/bin/
 git clone https://github.com/paiml/depyler.git
 cd depyler
 
-# Build and install
+# Quick start with Makefile
+make quickstart           # Builds and tests everything
+
+# Or manually:
 cargo build --release
 cargo install --path crates/depyler
 
@@ -139,18 +142,60 @@ cargo install --path crates/depyler
 depyler --version
 ```
 
-### Playground Mode (Coming Soon)
+### Using the Makefile
+
+Depyler includes a comprehensive Makefile for all common tasks:
 
 ```bash
-# Run the interactive playground locally
-depyler playground
+# Quick start commands
+make quickstart              # Build and test everything
+make playground-quickstart   # Start the interactive playground
 
-# Opens browser at http://localhost:8080
+# Building
+make build                   # Build release binary
+make build-dev              # Build debug binary
+make clean                  # Clean build artifacts
+
+# Testing
+make test                   # Run fast tests with coverage
+make test-comprehensive     # Run all tests
+make bench                  # Run benchmarks
+
+# Playground (v0.3.0+)
+make playground             # Build and run playground
+make playground-dev         # Run playground in dev mode
+make playground-test        # Test playground
+
+# Quality
+make lint                   # Run linter
+make fmt                    # Format code
+make coverage               # Generate coverage report
+make validate               # Full validation pipeline
+
+# Help
+make help                   # Show all available commands
+```
+
+### Interactive Playground (v0.3.0+)
+
+```bash
+# Quick start the playground
+make playground-quickstart
+
+# Or step by step:
+make playground-build       # Build WASM module and frontend
+make playground-run         # Start the server
+
+# Development mode
+make playground-dev         # Hot reload enabled
+
+# Opens browser at http://localhost:5173
 # Features:
 # - Live transpilation as you type
-# - Energy savings visualization
-# - Annotation suggestions
+# - Energy savings visualization  
+# - PMAT quality scoring
 # - Side-by-side Python/Rust comparison
+# - WebAssembly-powered transpilation
 ```
 
 ---
