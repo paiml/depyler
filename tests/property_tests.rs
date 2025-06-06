@@ -1,12 +1,23 @@
+#[cfg(not(feature = "coverage"))]
 use depyler_annotations::TranspilationAnnotations;
 #[cfg(not(feature = "coverage"))]
+use depyler_core::hir::{HirExpr, Literal, Type};
+#[cfg(not(feature = "coverage"))]
+use depyler_core::hir::{HirFunction, HirStmt};
+
+#[cfg(not(feature = "coverage"))]
 use depyler_core::direct_rules::apply_rules;
-use depyler_core::hir::{HirExpr, HirFunction, HirStmt, Literal, Type};
 #[cfg(not(feature = "coverage"))]
 use depyler_core::hir::HirModule;
 #[cfg(not(feature = "coverage"))]
 use depyler_core::type_mapper::TypeMapper;
-use quickcheck::{Arbitrary, Gen, TestResult};
+#[cfg(not(feature = "coverage"))]
+use quickcheck::TestResult;
+
+#[cfg(not(feature = "coverage"))]
+use quickcheck::Gen;
+#[cfg(not(feature = "coverage"))]
+use quickcheck::Arbitrary;
 
 /// Property: All transpiled functions should produce valid Rust code
 #[cfg(not(feature = "coverage"))] // Disable for coverage runs to avoid segfaults
@@ -133,9 +144,11 @@ fn prop_panic_free_functions_dont_panic(func: ArbitraryPanicFreeFunction) -> boo
 
 // Arbitrary implementations for property testing
 
+#[cfg(not(feature = "coverage"))]
 #[derive(Clone, Debug)]
 struct ArbitraryFunction(HirFunction);
 
+#[cfg(not(feature = "coverage"))]
 impl Arbitrary for ArbitraryFunction {
     fn arbitrary(g: &mut Gen) -> Self {
         let name = format!("func_{}", u32::arbitrary(g) % 100); // Reduce range
@@ -158,12 +171,14 @@ impl Arbitrary for ArbitraryFunction {
     }
 }
 
+#[cfg(not(feature = "coverage"))]
 #[derive(Clone, Debug)]
 struct ArbitraryTypedExpr {
     ty: Type,
     expr: HirExpr,
 }
 
+#[cfg(not(feature = "coverage"))]
 impl Arbitrary for ArbitraryTypedExpr {
     fn arbitrary(g: &mut Gen) -> Self {
         let ty = arbitrary_simple_type(g);
@@ -172,9 +187,11 @@ impl Arbitrary for ArbitraryTypedExpr {
     }
 }
 
+#[cfg(not(feature = "coverage"))]
 #[derive(Clone, Debug)]
 struct ArbitraryPureFunction(HirFunction);
 
+#[cfg(not(feature = "coverage"))]
 impl Arbitrary for ArbitraryPureFunction {
     fn arbitrary(g: &mut Gen) -> Self {
         let mut func = ArbitraryFunction::arbitrary(g).0;
@@ -185,9 +202,11 @@ impl Arbitrary for ArbitraryPureFunction {
     }
 }
 
+#[cfg(not(feature = "coverage"))]
 #[derive(Clone, Debug)]
 struct ArbitraryPanicFreeFunction(HirFunction);
 
+#[cfg(not(feature = "coverage"))]
 impl Arbitrary for ArbitraryPanicFreeFunction {
     fn arbitrary(g: &mut Gen) -> Self {
         let mut func = ArbitraryFunction::arbitrary(g).0;
@@ -200,6 +219,7 @@ impl Arbitrary for ArbitraryPanicFreeFunction {
 
 // Helper functions
 
+#[cfg(not(feature = "coverage"))]
 fn arbitrary_simple_type(g: &mut Gen) -> Type {
     // Use a fixed seed-based approach to avoid non-deterministic behavior
     match (g.size() + 42) % 4 {
@@ -211,6 +231,7 @@ fn arbitrary_simple_type(g: &mut Gen) -> Type {
     }
 }
 
+#[cfg(not(feature = "coverage"))]
 fn arbitrary_expr_of_type(g: &mut Gen, ty: &Type) -> HirExpr {
     match ty {
         Type::Int => {
@@ -241,6 +262,7 @@ fn arbitrary_expr_of_type(g: &mut Gen, ty: &Type) -> HirExpr {
     }
 }
 
+#[cfg(not(feature = "coverage"))]
 fn arbitrary_pure_expr(g: &mut Gen) -> HirExpr {
     use depyler_core::hir::BinOp;
 
@@ -276,6 +298,7 @@ fn arbitrary_pure_expr(g: &mut Gen) -> HirExpr {
     }
 }
 
+#[cfg(not(feature = "coverage"))]
 fn arbitrary_safe_expr(g: &mut Gen) -> HirExpr {
     // Only generate simple, safe expressions that won't panic
     match g.size() % 3 {
@@ -294,12 +317,13 @@ fn arbitrary_safe_expr(g: &mut Gen) -> HirExpr {
     }
 }
 
+#[cfg(not(feature = "coverage"))]
 fn arbitrary_function_body(g: &mut Gen, ret_type: &Type) -> Vec<HirStmt> {
     // Simple body that just returns a value of the correct type
     vec![HirStmt::Return(Some(arbitrary_expr_of_type(g, ret_type)))]
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "coverage")))]
 mod tests {
     use super::*;
 
