@@ -1,8 +1,6 @@
-use depyler_core::direct_rules::apply_rules;
-use depyler_core::hir::{
-    HirExpr, HirFunction, HirModule, HirStmt, Literal, Type,
-};
 use depyler_annotations::TranspilationAnnotations;
+use depyler_core::direct_rules::apply_rules;
+use depyler_core::hir::{HirExpr, HirFunction, HirModule, HirStmt, Literal, Type};
 use depyler_core::type_mapper::TypeMapper;
 use quickcheck::{Arbitrary, Gen, TestResult};
 
@@ -14,7 +12,7 @@ fn prop_transpiled_functions_are_valid_rust(func: ArbitraryFunction) -> TestResu
     if func.0.body.len() > 5 {
         return TestResult::discard();
     }
-    
+
     let module = HirModule {
         functions: vec![func.0],
         imports: vec![],
@@ -200,7 +198,8 @@ impl Arbitrary for ArbitraryPanicFreeFunction {
 
 fn arbitrary_simple_type(g: &mut Gen) -> Type {
     // Use a fixed seed-based approach to avoid non-deterministic behavior
-    match (g.size() + 42) % 4 { // Only use 4 types to simplify
+    match (g.size() + 42) % 4 {
+        // Only use 4 types to simplify
         0 => Type::Int,
         1 => Type::String,
         2 => Type::Bool,
@@ -240,7 +239,7 @@ fn arbitrary_expr_of_type(g: &mut Gen, ty: &Type) -> HirExpr {
 
 fn arbitrary_pure_expr(g: &mut Gen) -> HirExpr {
     use depyler_core::hir::BinOp;
-    
+
     // Limit recursion depth to prevent stack overflow
     if g.size() < 2 {
         let n: i32 = Arbitrary::arbitrary(g);
@@ -287,9 +286,7 @@ fn arbitrary_safe_expr(g: &mut Gen) -> HirExpr {
             let idx = (base as usize) % options.len();
             HirExpr::Literal(Literal::String(options[idx].to_string()))
         }
-        _ => {
-            HirExpr::Literal(Literal::Bool(true))
-        }
+        _ => HirExpr::Literal(Literal::Bool(true)),
     }
 }
 

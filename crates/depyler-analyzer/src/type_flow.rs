@@ -183,7 +183,12 @@ impl TypeInferencer {
             .unwrap_or(Type::Unknown)
     }
 
-    fn infer_binary(&mut self, op: &depyler_core::hir::BinOp, left: &HirExpr, right: &HirExpr) -> Result<Type> {
+    fn infer_binary(
+        &mut self,
+        op: &depyler_core::hir::BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+    ) -> Result<Type> {
         let left_type = self.infer_expr(left)?;
         let right_type = self.infer_expr(right)?;
         Ok(self.infer_binary_op(*op, &left_type, &right_type))
@@ -306,5 +311,376 @@ impl TypeInferencer {
             Type::String => Type::String, // For string indexing
             _ => Type::Unknown,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use depyler_core::hir::{BinOp, Literal, UnaryOp};
+
+    #[test]
+    fn test_type_environment_new() {
+        let env = TypeEnvironment::new();
+        assert!(env.variables.is_empty());
+
+        // Should have built-in functions
+        assert!(env.get_function_signature("len").is_some());
+        assert!(env.get_function_signature("range").is_some());
+        assert!(env.get_function_signature("abs").is_some());
+    }
+
+    #[test]
+    fn test_type_environment_default() {
+        let env = TypeEnvironment::default();
+        assert!(env.variables.is_empty());
+        assert!(env.get_function_signature("len").is_some());
+    }
+
+    #[test]
+    fn test_type_environment_variable_management() {
+        let mut env = TypeEnvironment::new();
+
+        // Test setting and getting variables
+        env.set_var_type("x".to_string(), Type::Int);
+        assert_eq!(env.get_var_type("x"), Some(&Type::Int));
+
+        env.set_var_type("y".to_string(), Type::String);
+        assert_eq!(env.get_var_type("y"), Some(&Type::String));
+
+        // Test non-existent variable
+        assert_eq!(env.get_var_type("z"), None);
+    }
+
+    #[test]
+    fn test_builtin_function_signatures() {
+        let env = TypeEnvironment::new();
+
+        // Test len function
+        let len_sig = env.get_function_signature("len").unwrap();
+        assert_eq!(len_sig.params, vec![Type::Unknown]);
+        assert_eq!(len_sig.return_type, Type::Int);
+
+        // Test range function
+        let range_sig = env.get_function_signature("range").unwrap();
+        assert_eq!(range_sig.params, vec![Type::Int]);
+        assert_eq!(range_sig.return_type, Type::Custom("range".to_string()));
+
+        // Test numeric functions
+        for func in ["abs", "max", "min", "sum"] {
+            let sig = env.get_function_signature(func).unwrap();
+            assert_eq!(sig.params, vec![Type::Unknown]);
+            assert_eq!(sig.return_type, Type::Unknown);
+        }
+    }
+
+    #[test]
+    fn test_type_inferencer_new() {
+        let inferencer = TypeInferencer::new();
+        assert!(inferencer.env.variables.is_empty());
+    }
+
+    #[test]
+    fn test_type_inferencer_default() {
+        let inferencer = TypeInferencer::default();
+        assert!(inferencer.env.variables.is_empty());
+    }
+
+    #[test]
+    fn test_infer_literal() {
+        let inferencer = TypeInferencer::new();
+
+        assert_eq!(inferencer.infer_literal(&Literal::Int(42)), Type::Int);
+        assert_eq!(inferencer.infer_literal(&Literal::Float(3.14)), Type::Float);
+        assert_eq!(
+            inferencer.infer_literal(&Literal::String("hello".to_string())),
+            Type::String
+        );
+        assert_eq!(inferencer.infer_literal(&Literal::Bool(true)), Type::Bool);
+        assert_eq!(inferencer.infer_literal(&Literal::None), Type::None);
+    }
+
+    #[test]
+    fn test_infer_variable() {
+        let mut inferencer = TypeInferencer::new();
+
+        // Test unknown variable
+        assert_eq!(inferencer.infer_variable("unknown"), Type::Unknown);
+
+        // Test known variable
+        inferencer.env.set_var_type("x".to_string(), Type::Int);
+        assert_eq!(inferencer.infer_variable("x"), Type::Int);
+    }
+
+    #[test]
+    fn test_infer_binary_op_arithmetic() {
+        let inferencer = TypeInferencer::new();
+
+        // Int + Int = Int
+        assert_eq!(
+            inferencer.infer_binary_op(BinOp::Add, &Type::Int, &Type::Int),
+            Type::Int
+        );
+
+        // Float + Int = Float
+        assert_eq!(
+            inferencer.infer_binary_op(BinOp::Add, &Type::Float, &Type::Int),
+            Type::Float
+        );
+
+        // Int + Float = Float
+        assert_eq!(
+            inferencer.infer_binary_op(BinOp::Mul, &Type::Int, &Type::Float),
+            Type::Float
+        );
+
+        // Unknown types
+        assert_eq!(
+            inferencer.infer_binary_op(BinOp::Add, &Type::String, &Type::Int),
+            Type::Unknown
+        );
+    }
+
+    #[test]
+    fn test_infer_binary_op_comparison() {
+        let inferencer = TypeInferencer::new();
+
+        for op in [
+            BinOp::Eq,
+            BinOp::NotEq,
+            BinOp::Lt,
+            BinOp::LtEq,
+            BinOp::Gt,
+            BinOp::GtEq,
+        ] {
+            assert_eq!(
+                inferencer.infer_binary_op(op, &Type::Int, &Type::Int),
+                Type::Bool
+            );
+        }
+    }
+
+    #[test]
+    fn test_infer_binary_op_logical() {
+        let inferencer = TypeInferencer::new();
+
+        assert_eq!(
+            inferencer.infer_binary_op(BinOp::And, &Type::Bool, &Type::Bool),
+            Type::Bool
+        );
+
+        assert_eq!(
+            inferencer.infer_binary_op(BinOp::Or, &Type::Bool, &Type::Bool),
+            Type::Bool
+        );
+    }
+
+    #[test]
+    fn test_infer_binary_op_bitwise() {
+        let inferencer = TypeInferencer::new();
+
+        for op in [
+            BinOp::BitAnd,
+            BinOp::BitOr,
+            BinOp::BitXor,
+            BinOp::LShift,
+            BinOp::RShift,
+        ] {
+            assert_eq!(
+                inferencer.infer_binary_op(op, &Type::Int, &Type::Int),
+                Type::Int
+            );
+
+            assert_eq!(
+                inferencer.infer_binary_op(op, &Type::String, &Type::Int),
+                Type::Unknown
+            );
+        }
+    }
+
+    #[test]
+    fn test_infer_binary_op_membership() {
+        let inferencer = TypeInferencer::new();
+
+        assert_eq!(
+            inferencer.infer_binary_op(BinOp::In, &Type::Int, &Type::List(Box::new(Type::Int))),
+            Type::Bool
+        );
+
+        assert_eq!(
+            inferencer.infer_binary_op(
+                BinOp::NotIn,
+                &Type::String,
+                &Type::List(Box::new(Type::String))
+            ),
+            Type::Bool
+        );
+    }
+
+    #[test]
+    fn test_infer_unary_op() {
+        let inferencer = TypeInferencer::new();
+
+        // Not operator
+        assert_eq!(
+            inferencer.infer_unary_op(UnaryOp::Not, &Type::Bool),
+            Type::Bool
+        );
+
+        // Negation/positive preserve type
+        assert_eq!(
+            inferencer.infer_unary_op(UnaryOp::Neg, &Type::Int),
+            Type::Int
+        );
+
+        assert_eq!(
+            inferencer.infer_unary_op(UnaryOp::Pos, &Type::Float),
+            Type::Float
+        );
+
+        // Bitwise not on integers
+        assert_eq!(
+            inferencer.infer_unary_op(UnaryOp::BitNot, &Type::Int),
+            Type::Int
+        );
+
+        assert_eq!(
+            inferencer.infer_unary_op(UnaryOp::BitNot, &Type::String),
+            Type::Unknown
+        );
+    }
+
+    #[test]
+    fn test_get_element_type() {
+        let inferencer = TypeInferencer::new();
+
+        // List elements
+        assert_eq!(
+            inferencer.get_element_type(&Type::List(Box::new(Type::Int))),
+            Type::Int
+        );
+
+        // Tuple elements (first element)
+        assert_eq!(
+            inferencer.get_element_type(&Type::Tuple(vec![Type::String, Type::Int])),
+            Type::String
+        );
+
+        // Empty tuple
+        assert_eq!(
+            inferencer.get_element_type(&Type::Tuple(vec![])),
+            Type::Unknown
+        );
+
+        // Dict values
+        assert_eq!(
+            inferencer.get_element_type(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))),
+            Type::Int
+        );
+
+        // String indexing
+        assert_eq!(inferencer.get_element_type(&Type::String), Type::String);
+
+        // Unknown container
+        assert_eq!(inferencer.get_element_type(&Type::Unknown), Type::Unknown);
+    }
+
+    #[test]
+    fn test_function_signature() {
+        let sig = FunctionSignature {
+            params: vec![Type::Int, Type::String],
+            return_type: Type::Bool,
+        };
+
+        assert_eq!(sig.params, vec![Type::Int, Type::String]);
+        assert_eq!(sig.return_type, Type::Bool);
+    }
+
+    // Integration tests with HIR expressions
+    use depyler_core::hir::HirExpr;
+
+    #[test]
+    fn test_infer_expr_literal() {
+        let mut inferencer = TypeInferencer::new();
+
+        let expr = HirExpr::Literal(Literal::Int(42));
+        let result = inferencer.infer_expr(&expr).unwrap();
+        assert_eq!(result, Type::Int);
+    }
+
+    #[test]
+    fn test_infer_expr_list() {
+        let mut inferencer = TypeInferencer::new();
+
+        // Empty list
+        let expr = HirExpr::List(vec![]);
+        let result = inferencer.infer_expr(&expr).unwrap();
+        assert_eq!(result, Type::List(Box::new(Type::Unknown)));
+
+        // List with integers
+        let expr = HirExpr::List(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ]);
+        let result = inferencer.infer_expr(&expr).unwrap();
+        assert_eq!(result, Type::List(Box::new(Type::Int)));
+    }
+
+    #[test]
+    fn test_infer_expr_dict() {
+        let mut inferencer = TypeInferencer::new();
+
+        // Empty dict
+        let expr = HirExpr::Dict(vec![]);
+        let result = inferencer.infer_expr(&expr).unwrap();
+        assert_eq!(
+            result,
+            Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown))
+        );
+
+        // Dict with string keys and int values
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("key".to_string())),
+            HirExpr::Literal(Literal::Int(42)),
+        )]);
+        let result = inferencer.infer_expr(&expr).unwrap();
+        assert_eq!(
+            result,
+            Type::Dict(Box::new(Type::String), Box::new(Type::Int))
+        );
+    }
+
+    #[test]
+    fn test_infer_expr_tuple() {
+        let mut inferencer = TypeInferencer::new();
+
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::String("hello".to_string())),
+            HirExpr::Literal(Literal::Bool(true)),
+        ]);
+        let result = inferencer.infer_expr(&expr).unwrap();
+        assert_eq!(
+            result,
+            Type::Tuple(vec![Type::Int, Type::String, Type::Bool])
+        );
+    }
+
+    #[test]
+    fn test_infer_call_builtin() {
+        let mut inferencer = TypeInferencer::new();
+
+        // len() call
+        let result = inferencer
+            .infer_call(
+                "len",
+                &[HirExpr::Literal(Literal::String("test".to_string()))],
+            )
+            .unwrap();
+        assert_eq!(result, Type::Int);
+
+        // Unknown function
+        let result = inferencer.infer_call("unknown_func", &[]).unwrap();
+        assert_eq!(result, Type::Unknown);
     }
 }

@@ -1,4 +1,5 @@
 pub mod contracts;
+pub mod memory_safety;
 pub mod properties;
 pub mod quickcheck;
 
@@ -76,7 +77,34 @@ impl PropertyVerifier {
             results.push(result);
         }
 
-        // Property 2: Panic freedom
+        // Property 2: Memory safety
+        let mut memory_analyzer = memory_safety::MemorySafetyAnalyzer::new();
+        results.push(memory_analyzer.analyze_function(func));
+
+        // Property 3: Null safety
+        let null_violations = memory_safety::check_null_safety(func);
+        if null_violations.is_empty() {
+            results.push(VerificationResult {
+                property: "null_safety".into(),
+                status: PropertyStatus::Proven,
+                confidence: 1.0,
+                method: VerificationMethod::StaticAnalysis,
+                counterexamples: vec![],
+            });
+        } else {
+            results.push(VerificationResult {
+                property: "null_safety".into(),
+                status: PropertyStatus::Violated(format!(
+                    "{} violations found",
+                    null_violations.len()
+                )),
+                confidence: 1.0,
+                method: VerificationMethod::StaticAnalysis,
+                counterexamples: vec![],
+            });
+        }
+
+        // Property 4: Panic freedom
         if func.properties.panic_free {
             results.push(VerificationResult {
                 property: "panic_free".into(),
@@ -87,7 +115,7 @@ impl PropertyVerifier {
             });
         }
 
-        // Property 3: Termination
+        // Property 5: Termination
         if func.properties.always_terminates {
             results.push(VerificationResult {
                 property: "termination".into(),
@@ -98,7 +126,7 @@ impl PropertyVerifier {
             });
         }
 
-        // Property 4: Purity
+        // Property 6: Purity
         if func.properties.is_pure {
             results.push(VerificationResult {
                 property: "pure".into(),
@@ -107,6 +135,11 @@ impl PropertyVerifier {
                 method: VerificationMethod::StaticAnalysis,
                 counterexamples: vec![],
             });
+        }
+
+        // Property 7: Thread safety (if required)
+        if func.annotations.thread_safety == depyler_annotations::ThreadSafety::Required {
+            results.push(self.verify_thread_safety(func));
         }
 
         results
@@ -136,6 +169,38 @@ impl PropertyVerifier {
                 counterexamples: vec![],
             })
         }
+    }
+
+    fn verify_thread_safety(&self, func: &HirFunction) -> VerificationResult {
+        // Check for proper synchronization when thread safety is required
+        let has_shared_state = self.detect_shared_state(func);
+        let has_proper_sync = func.annotations.interior_mutability
+            == depyler_annotations::InteriorMutability::ArcMutex;
+
+        if !has_shared_state || has_proper_sync {
+            VerificationResult {
+                property: "thread_safety".into(),
+                status: PropertyStatus::Proven,
+                confidence: 0.95,
+                method: VerificationMethod::StaticAnalysis,
+                counterexamples: vec![],
+            }
+        } else {
+            VerificationResult {
+                property: "thread_safety".into(),
+                status: PropertyStatus::Violated(
+                    "Shared state without proper synchronization".to_string(),
+                ),
+                confidence: 1.0,
+                method: VerificationMethod::StaticAnalysis,
+                counterexamples: vec![],
+            }
+        }
+    }
+
+    fn detect_shared_state(&self, func: &HirFunction) -> bool {
+        // Simplified check - in reality would analyze data flow
+        func.annotations.ownership_model == depyler_annotations::OwnershipModel::Shared
     }
 
     pub fn generate_property_tests(&self, func: &HirFunction) -> Result<String> {

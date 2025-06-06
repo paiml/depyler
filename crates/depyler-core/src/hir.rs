@@ -1,6 +1,6 @@
+use depyler_annotations::TranspilationAnnotations;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use depyler_annotations::TranspilationAnnotations;
 
 pub type Symbol = String;
 

@@ -198,6 +198,85 @@ depyler init simulation --template scientific --rust-target
 depyler init cli-tool --template cli --git --license Apache-2.0
 ```
 
+### `interactive` - Interactive Transpilation
+
+Run interactive transpilation with annotation suggestions and real-time feedback.
+
+```bash
+depyler interactive [OPTIONS] <INPUT>
+
+Arguments:
+  <INPUT>               Python source file
+
+Options:
+  --annotate           Enable annotation suggestion mode
+```
+
+#### Examples
+
+```bash
+# Interactive transpilation
+depyler interactive game.py
+
+# With annotation suggestions
+depyler interactive complex_code.py --annotate
+```
+
+The interactive mode provides:
+- Step-by-step transpilation feedback
+- Annotation suggestions for optimization
+- Interactive selection of improvements
+- Diff visualization of changes
+- Backup creation before modifications
+
+### `inspect` - AST/HIR Inspection
+
+Inspect intermediate representations during transpilation for debugging and optimization.
+
+```bash
+depyler inspect [OPTIONS] <INPUT>
+
+Arguments:
+  <INPUT>               Python source file
+
+Options:
+  -r, --repr <TYPE>     Representation to inspect [default: hir]
+                        [possible values: python-ast, hir, typed-hir]
+  -f, --format <FORMAT> Output format [default: pretty]
+                        [possible values: pretty, json, debug]
+  -o, --output <FILE>   Output to file instead of stdout
+```
+
+#### Examples
+
+```bash
+# Inspect HIR with pretty formatting
+depyler inspect marco_polo.py
+
+# Get Python AST as JSON
+depyler inspect code.py --repr python-ast --format json
+
+# Save HIR analysis to file
+depyler inspect complex.py --repr hir --format json -o analysis.json
+
+# Debug representation for troubleshooting
+depyler inspect broken.py --repr python-ast --format debug
+```
+
+#### Representations
+
+- **python-ast**: Original Python AST from rustpython-parser
+- **hir**: Depyler's High-level Intermediate Representation with types and annotations
+- **typed-hir**: Enhanced HIR with additional type analysis
+
+#### Use Cases
+
+- Understanding Python AST structure
+- Debugging transpilation issues  
+- Verifying annotation extraction
+- Analyzing function properties (pure, terminates, panic-free)
+- Optimizing code based on HIR analysis
+
 ## Configuration
 
 ### Project Configuration File
