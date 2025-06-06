@@ -36,6 +36,8 @@ pub struct TranspilationAnnotations {
     pub migration_strategy: Option<MigrationStrategy>,
     pub compatibility_layer: Option<CompatibilityLayer>,
     pub pattern: Option<String>,
+    // Lambda-specific annotations
+    pub lambda_annotations: Option<LambdaAnnotations>,
 }
 
 impl Default for TranspilationAnnotations {
@@ -62,8 +64,70 @@ impl Default for TranspilationAnnotations {
             migration_strategy: None,
             compatibility_layer: None,
             pattern: None,
+            lambda_annotations: None,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LambdaAnnotations {
+    pub runtime: LambdaRuntime,
+    pub event_type: Option<LambdaEventType>,
+    pub cold_start_optimize: bool,
+    pub memory_size: u16,
+    pub architecture: Architecture,
+    pub pre_warm_paths: Vec<String>,
+    pub custom_serialization: bool,
+    pub batch_failure_reporting: bool,
+    pub timeout: Option<u16>,
+    pub tracing_enabled: bool,
+    pub environment_variables: Vec<(String, String)>,
+}
+
+impl Default for LambdaAnnotations {
+    fn default() -> Self {
+        Self {
+            runtime: LambdaRuntime::ProvidedAl2,
+            event_type: None,
+            cold_start_optimize: true,
+            memory_size: 128,
+            architecture: Architecture::Arm64,
+            pre_warm_paths: vec![],
+            custom_serialization: false,
+            batch_failure_reporting: false,
+            timeout: None,
+            tracing_enabled: false,
+            environment_variables: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum LambdaRuntime {
+    ProvidedAl2,
+    ProvidedAl2023,
+    Custom(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum LambdaEventType {
+    Auto,
+    S3Event,
+    ApiGatewayProxyRequest,
+    ApiGatewayV2HttpRequest,
+    SqsEvent,
+    SnsEvent,
+    DynamodbEvent,
+    EventBridgeEvent(Option<String>),
+    CloudwatchEvent,
+    KinesisEvent,
+    Custom(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Architecture {
+    X86_64,
+    Arm64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -509,6 +573,49 @@ impl AnnotationParser {
                 "pattern" => {
                     annotations.pattern = Some(value);
                 }
+                // Lambda-specific annotations
+                "lambda_runtime" => {
+                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    lambda_annotations.runtime = self.parse_lambda_runtime(&value)?;
+                }
+                "event_type" => {
+                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    lambda_annotations.event_type = Some(self.parse_lambda_event_type(&value)?);
+                }
+                "cold_start_optimize" => {
+                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    lambda_annotations.cold_start_optimize = value == "true";
+                }
+                "memory_size" => {
+                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    lambda_annotations.memory_size = value.parse().map_err(|_| AnnotationError::InvalidValue {
+                        key: key.clone(),
+                        value: value.clone(),
+                    })?;
+                }
+                "architecture" => {
+                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    lambda_annotations.architecture = self.parse_architecture(&value)?;
+                }
+                "batch_failure_reporting" => {
+                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    lambda_annotations.batch_failure_reporting = value == "true";
+                }
+                "custom_serialization" => {
+                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    lambda_annotations.custom_serialization = value == "true";
+                }
+                "timeout" => {
+                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    lambda_annotations.timeout = Some(value.parse().map_err(|_| AnnotationError::InvalidValue {
+                        key: key.clone(),
+                        value: value.clone(),
+                    })?);
+                }
+                "tracing" => {
+                    let lambda_annotations = annotations.lambda_annotations.get_or_insert_with(LambdaAnnotations::default);
+                    lambda_annotations.tracing_enabled = value == "true" || value == "Active";
+                }
                 _ => return Err(AnnotationError::UnknownKey(key)),
             }
         }
@@ -728,6 +835,49 @@ impl AnnotationParser {
             "none" => Ok(CompatibilityLayer::None),
             _ => Err(AnnotationError::InvalidValue {
                 key: "compatibility_layer".to_string(),
+                value: value.to_string(),
+            }),
+        }
+    }
+
+    fn parse_lambda_runtime(&self, value: &str) -> Result<LambdaRuntime, AnnotationError> {
+        match value {
+            "provided.al2" => Ok(LambdaRuntime::ProvidedAl2),
+            "provided.al2023" => Ok(LambdaRuntime::ProvidedAl2023),
+            _ => Ok(LambdaRuntime::Custom(value.to_string())),
+        }
+    }
+
+    fn parse_lambda_event_type(&self, value: &str) -> Result<LambdaEventType, AnnotationError> {
+        match value {
+            "auto" => Ok(LambdaEventType::Auto),
+            "S3Event" => Ok(LambdaEventType::S3Event),
+            "APIGatewayProxyRequest" => Ok(LambdaEventType::ApiGatewayProxyRequest),
+            "APIGatewayV2HttpRequest" => Ok(LambdaEventType::ApiGatewayV2HttpRequest),
+            "SqsEvent" => Ok(LambdaEventType::SqsEvent),
+            "SnsEvent" => Ok(LambdaEventType::SnsEvent),
+            "DynamodbEvent" => Ok(LambdaEventType::DynamodbEvent),
+            "CloudwatchEvent" => Ok(LambdaEventType::CloudwatchEvent),
+            "KinesisEvent" => Ok(LambdaEventType::KinesisEvent),
+            _ => {
+                if value.starts_with("EventBridgeEvent<") && value.ends_with('>') {
+                    let inner = &value[17..value.len()-1];
+                    Ok(LambdaEventType::EventBridgeEvent(Some(inner.to_string())))
+                } else if value == "EventBridgeEvent" {
+                    Ok(LambdaEventType::EventBridgeEvent(None))
+                } else {
+                    Ok(LambdaEventType::Custom(value.to_string()))
+                }
+            }
+        }
+    }
+
+    fn parse_architecture(&self, value: &str) -> Result<Architecture, AnnotationError> {
+        match value {
+            "x86_64" | "x64" => Ok(Architecture::X86_64),
+            "arm64" | "aarch64" => Ok(Architecture::Arm64),
+            _ => Err(AnnotationError::InvalidValue {
+                key: "architecture".to_string(),
                 value: value.to_string(),
             }),
         }
@@ -960,5 +1110,110 @@ def global_function():
 
         let annotations = parser.parse_annotations(source).unwrap();
         assert_eq!(annotations.global_strategy, GlobalStrategy::LazyStatic);
+    }
+
+    #[test]
+    fn test_lambda_annotations_basic() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: lambda_runtime = "provided.al2"
+# @depyler: event_type = "APIGatewayProxyRequest"
+# @depyler: cold_start_optimize = "true"
+def handler(event, context):
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert!(annotations.lambda_annotations.is_some());
+        
+        let lambda_annotations = annotations.lambda_annotations.unwrap();
+        assert_eq!(lambda_annotations.runtime, LambdaRuntime::ProvidedAl2);
+        assert_eq!(lambda_annotations.event_type, Some(LambdaEventType::ApiGatewayProxyRequest));
+        assert!(lambda_annotations.cold_start_optimize);
+    }
+
+    #[test]
+    fn test_lambda_annotations_memory_and_architecture() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: memory_size = "256"
+# @depyler: architecture = "arm64"
+# @depyler: timeout = "30"
+def handler(event, context):
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        let lambda_annotations = annotations.lambda_annotations.unwrap();
+        assert_eq!(lambda_annotations.memory_size, 256);
+        assert_eq!(lambda_annotations.architecture, Architecture::Arm64);
+        assert_eq!(lambda_annotations.timeout, Some(30));
+    }
+
+    #[test]
+    fn test_lambda_eventbridge_with_custom_type() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: event_type = "EventBridgeEvent<OrderEvent>"
+# @depyler: custom_serialization = "true"
+def handler(event, context):
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        let lambda_annotations = annotations.lambda_annotations.unwrap();
+        assert_eq!(
+            lambda_annotations.event_type, 
+            Some(LambdaEventType::EventBridgeEvent(Some("OrderEvent".to_string())))
+        );
+        assert!(lambda_annotations.custom_serialization);
+    }
+
+    #[test]
+    fn test_lambda_sqs_batch_processing() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: event_type = "SqsEvent"
+# @depyler: batch_failure_reporting = "true"
+# @depyler: tracing = "Active"
+def handler(event, context):
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        let lambda_annotations = annotations.lambda_annotations.unwrap();
+        assert_eq!(lambda_annotations.event_type, Some(LambdaEventType::SqsEvent));
+        assert!(lambda_annotations.batch_failure_reporting);
+        assert!(lambda_annotations.tracing_enabled);
+    }
+
+    #[test]
+    fn test_lambda_auto_event_type() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: event_type = "auto"
+# @depyler: cold_start_optimize = "true"
+def handler(event, context):
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        let lambda_annotations = annotations.lambda_annotations.unwrap();
+        assert_eq!(lambda_annotations.event_type, Some(LambdaEventType::Auto));
+        assert!(lambda_annotations.cold_start_optimize);
+    }
+
+    #[test]
+    fn test_lambda_custom_runtime() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: lambda_runtime = "rust-runtime-1.0"
+def handler(event, context):
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        let lambda_annotations = annotations.lambda_annotations.unwrap();
+        assert_eq!(lambda_annotations.runtime, LambdaRuntime::Custom("rust-runtime-1.0".to_string()));
     }
 }
