@@ -266,6 +266,5 @@ fn test_print_quality_report() {
 
     // Should not panic when printing report
     analyzer.print_quality_report(&report);
-    // If we reach here, the print function didn't panic
-    assert!(true);
+    // If we reach here, the print function didn't panic - test passed
 }

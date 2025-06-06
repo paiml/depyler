@@ -422,8 +422,10 @@ mod tests {
     fn test_aggressive_optimizations() {
         let mut optimizer = PerformanceOptimizer::new();
 
-        let mut annotations = TranspilationAnnotations::default();
-        annotations.optimization_level = OptimizationLevel::Aggressive;
+        let mut annotations = TranspilationAnnotations {
+            optimization_level: OptimizationLevel::Aggressive,
+            ..Default::default()
+        };
         annotations
             .performance_hints
             .push(PerformanceHint::Vectorize);
