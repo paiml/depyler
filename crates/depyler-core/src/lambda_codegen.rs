@@ -302,7 +302,7 @@ cargo lambda deploy
             LambdaEventType::DynamodbEvent => ("dynamodb".to_string(), "DynamodbEvent".to_string()),
             LambdaEventType::EventBridgeEvent(custom_type) => {
                 if let Some(custom) = custom_type {
-                    ("eventbridge".to_string(), format!("EventBridgeEvent<{}>", custom))
+                    ("eventbridge".to_string(), format!("EventBridgeEvent<{custom}>"))
                 } else {
                     ("eventbridge".to_string(), "EventBridgeEvent<serde_json::Value>".to_string())
                 }

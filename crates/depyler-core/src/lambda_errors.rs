@@ -36,9 +36,10 @@ pub enum ErrorContext {
     Initialization,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum ErrorHandlingStrategy {
     Panic,
+    #[default]
     ReturnError,
     LogAndContinue,
     CustomHandler(String),
@@ -125,11 +126,6 @@ pub struct ErrorConversionCode {
     pub helper_traits: String,
 }
 
-impl Default for ErrorHandlingStrategy {
-    fn default() -> Self {
-        ErrorHandlingStrategy::ReturnError
-    }
-}
 
 impl Default for LambdaErrorHandler {
     fn default() -> Self {
@@ -263,109 +259,107 @@ impl LambdaErrorHandler {
 
     /// Generate Rust error enum definition
     fn generate_error_enum(&self) -> String {
-        format!(
-            r#"#[derive(Debug, thiserror::Error)]
-pub enum LambdaError {{
-    #[error("Serialization failed: {{message}}")]
-    Serialization {{
+        r#"#[derive(Debug, thiserror::Error)]
+pub enum LambdaError {
+    #[error("Serialization failed: {message}")]
+    Serialization {
         message: String,
         #[source]
         cause: Option<Box<dyn std::error::Error + Send + Sync>>,
-    }},
+    },
     
-    #[error("Handler error: {{message}}")]
-    Handler {{
+    #[error("Handler error: {message}")]
+    Handler {
         message: String,
         context: Option<String>,
-    }},
+    },
     
-    #[error("Runtime error: {{0}}")]
+    #[error("Runtime error: {0}")]
     Runtime(#[from] lambda_runtime::Error),
     
-    #[error("HTTP error: {{status}} - {{message}}")]
-    Http {{
+    #[error("HTTP error: {status} - {message}")]
+    Http {
         status: u16,
         message: String,
-    }},
+    },
     
-    #[error("Missing parameter: {{parameter}}")]
-    MissingParameter {{
+    #[error("Missing parameter: {parameter}")]
+    MissingParameter {
         parameter: String,
-    }},
+    },
     
-    #[error("Invalid event format: {{message}}")]
-    InvalidEvent {{
+    #[error("Invalid event format: {message}")]
+    InvalidEvent {
         message: String,
         event_type: Option<String>,
-    }},
+    },
     
-    #[error("Authentication failed: {{message}}")]
-    Authentication {{
+    #[error("Authentication failed: {message}")]
+    Authentication {
         message: String,
-    }},
+    },
     
-    #[error("Authorization failed: {{message}}")]
-    Authorization {{
+    #[error("Authorization failed: {message}")]
+    Authorization {
         message: String,
-    }},
+    },
     
-    #[error("Timeout occurred: {{operation}} took {{duration_ms}}ms")]
-    Timeout {{
+    #[error("Timeout occurred: {operation} took {duration_ms}ms")]
+    Timeout {
         operation: String,
         duration_ms: u64,
-    }},
+    },
     
-    #[error("Resource limit exceeded: {{resource}} - {{limit}}")]
-    ResourceLimit {{
+    #[error("Resource limit exceeded: {resource} - {limit}")]
+    ResourceLimit {
         resource: String,
         limit: String,
-    }},
+    },
     
-    #[error("Configuration error: {{message}}")]
-    Configuration {{
+    #[error("Configuration error: {message}")]
+    Configuration {
         message: String,
-    }},
+    },
     
-    #[error("External service error: {{service}} - {{message}}")]
-    ExternalService {{
+    #[error("External service error: {service} - {message}")]
+    ExternalService {
         service: String,
         message: String,
-    }},
-}}
+    },
+}
 
-impl LambdaError {{
-    pub fn status_code(&self) -> u16 {{
-        match self {{
-            LambdaError::MissingParameter {{ .. }} => 400,
-            LambdaError::Handler {{ .. }} => 400,
-            LambdaError::InvalidEvent {{ .. }} => 400,
-            LambdaError::Authentication {{ .. }} => 401,
-            LambdaError::Authorization {{ .. }} => 403,
-            LambdaError::Timeout {{ .. }} => 504,
-            LambdaError::ExternalService {{ .. }} => 502,
-            LambdaError::Http {{ status, .. }} => *status,
+impl LambdaError {
+    pub fn status_code(&self) -> u16 {
+        match self {
+            LambdaError::MissingParameter { .. } => 400,
+            LambdaError::Handler { .. } => 400,
+            LambdaError::InvalidEvent { .. } => 400,
+            LambdaError::Authentication { .. } => 401,
+            LambdaError::Authorization { .. } => 403,
+            LambdaError::Timeout { .. } => 504,
+            LambdaError::ExternalService { .. } => 502,
+            LambdaError::Http { status, .. } => *status,
             _ => 500,
-        }}
-    }}
+        }
+    }
     
-    pub fn should_retry(&self) -> bool {{
-        match self {{
-            LambdaError::Timeout {{ .. }} => true,
-            LambdaError::ExternalService {{ .. }} => true,
-            LambdaError::Http {{ status, .. }} => *status >= 500,
+    pub fn should_retry(&self) -> bool {
+        match self {
+            LambdaError::Timeout { .. } => true,
+            LambdaError::ExternalService { .. } => true,
+            LambdaError::Http { status, .. } => *status >= 500,
             _ => false,
-        }}
-    }}
-}}
-"#
-        )
+        }
+    }
+}
+"#.to_string()
     }
 
     /// Generate conversion functions from Python error patterns
     fn generate_conversion_functions(&self) -> String {
         let mut functions = String::new();
         
-        functions.push_str(&format!(
+        functions.push_str(
             r#"// Automatic error conversion functions
 impl From<serde_json::Error> for LambdaError {{
     fn from(err: serde_json::Error) -> Self {{
@@ -417,10 +411,10 @@ fn extract_key_error_parameter(error_msg: &str) -> Option<String> {{
 }}
 
 "#
-        ));
+        );
 
         // Generate API Gateway specific error handling
-        functions.push_str(&format!(
+        functions.push_str(
             r#"// API Gateway specific error handling
 impl From<LambdaError> for aws_lambda_events::apigw::ApiGatewayProxyResponse {{
     fn from(err: LambdaError) -> Self {{
@@ -484,20 +478,19 @@ impl From<LambdaError> for aws_lambda_events::apigw::ApiGatewayV2httpResponse {{
 }}
 
 "#
-        ));
+        );
 
         functions
     }
 
     /// Generate helper traits for error handling
     fn generate_helper_traits(&self) -> String {
-        format!(
-            r#"// Helper traits for error handling
-pub trait LambdaErrorExt {{
+        r#"// Helper traits for error handling
+pub trait LambdaErrorExt {
     fn with_context(self, context: &str) -> LambdaError;
     fn with_parameter(self, parameter: &str) -> LambdaError;
     fn with_status(self, status: u16) -> LambdaError;
-}}
+}
 
 impl LambdaErrorExt for String {{
     fn with_context(self, context: &str) -> LambdaError {{
@@ -567,8 +560,7 @@ macro_rules! require_param {{
     }};
 }}
 
-"#
-        )
+"#.to_string()
     }
 
     /// Generate error handling wrapper for handler functions
@@ -576,11 +568,11 @@ macro_rules! require_param {{
         match &self.error_strategy {
             ErrorHandlingStrategy::ReturnError => {
                 format!(
-                    r#"// Error handling wrapper for {}
-async fn {}_with_error_handling(
+                    r#"// Error handling wrapper for {handler_name}
+async fn {handler_name}_with_error_handling(
     event: LambdaEvent<serde_json::Value>
 ) -> Result<serde_json::Value, LambdaError> {{
-    match {}(event).await {{
+    match {handler_name}(event).await {{
         Ok(response) => Ok(response),
         Err(err) => {{
             // Log the error for debugging
@@ -591,17 +583,16 @@ async fn {}_with_error_handling(
         }}
     }}
 }}
-"#,
-                    handler_name, handler_name, handler_name
+"#
                 )
             }
             ErrorHandlingStrategy::LogAndContinue => {
                 format!(
-                    r#"// Error handling wrapper for {} (log and continue)
-async fn {}_with_error_handling(
+                    r#"// Error handling wrapper for {handler_name} (log and continue)
+async fn {handler_name}_with_error_handling(
     event: LambdaEvent<serde_json::Value>
 ) -> Result<serde_json::Value, LambdaError> {{
-    match {}(event).await {{
+    match {handler_name}(event).await {{
         Ok(response) => Ok(response),
         Err(err) => {{
             // Log the error
@@ -615,17 +606,16 @@ async fn {}_with_error_handling(
         }}
     }}
 }}
-"#,
-                    handler_name, handler_name, handler_name
+"#
                 )
             }
             ErrorHandlingStrategy::Panic => {
                 format!(
-                    r#"// Error handling wrapper for {} (panic on error)
-async fn {}_with_error_handling(
+                    r#"// Error handling wrapper for {handler_name} (panic on error)
+async fn {handler_name}_with_error_handling(
     event: LambdaEvent<serde_json::Value>
 ) -> Result<serde_json::Value, LambdaError> {{
-    match {}(event).await {{
+    match {handler_name}(event).await {{
         Ok(response) => Ok(response),
         Err(err) => {{
             eprintln!("Handler error (panicking): {{:?}}", err);
@@ -633,25 +623,23 @@ async fn {}_with_error_handling(
         }}
     }}
 }}
-"#,
-                    handler_name, handler_name, handler_name
+"#
                 )
             }
             ErrorHandlingStrategy::CustomHandler(custom_code) => {
                 format!(
-                    r#"// Custom error handling wrapper for {}
-async fn {}_with_error_handling(
+                    r#"// Custom error handling wrapper for {handler_name}
+async fn {handler_name}_with_error_handling(
     event: LambdaEvent<serde_json::Value>
 ) -> Result<serde_json::Value, LambdaError> {{
-    match {}(event).await {{
+    match {handler_name}(event).await {{
         Ok(response) => Ok(response),
         Err(err) => {{
-            {}
+            {custom_code}
         }}
     }}
 }}
-"#,
-                    handler_name, handler_name, handler_name, custom_code
+"#
                 )
             }
         }
@@ -659,8 +647,7 @@ async fn {}_with_error_handling(
 
     /// Generate retry logic for Lambda functions
     pub fn generate_retry_logic(&self) -> String {
-        format!(
-            r#"// Retry logic for Lambda functions
+        r#"// Retry logic for Lambda functions
 pub struct RetryConfig {{
     pub max_attempts: u32,
     pub base_delay_ms: u64,
@@ -708,8 +695,7 @@ where
     Err(last_error.unwrap())
 }}
 
-"#
-        )
+"#.to_string()
     }
 
     /// Add custom error mapping
@@ -727,10 +713,10 @@ impl fmt::Display for PythonErrorPattern {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.error_type)?;
         if let Some(ref message) = self.message_pattern {
-            write!(f, " ({})", message)?;
+            write!(f, " ({message})")?;
         }
         if let Some(ref context) = self.context {
-            write!(f, " in {:?}", context)?;
+            write!(f, " in {context:?}")?;
         }
         Ok(())
     }

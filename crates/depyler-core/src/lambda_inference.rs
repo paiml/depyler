@@ -51,7 +51,7 @@ impl std::fmt::Display for InferenceError {
         match self {
             InferenceError::AmbiguousEventType => write!(f, "Could not determine event type with sufficient confidence"),
             InferenceError::NoPatternMatch => write!(f, "No matching event pattern found"),
-            InferenceError::ParseError(msg) => write!(f, "Parse error: {}", msg),
+            InferenceError::ParseError(msg) => write!(f, "Parse error: {msg}"),
         }
     }
 }
@@ -214,12 +214,10 @@ impl LambdaTypeInferencer {
         let mut patterns = Vec::new();
 
         for stmt in statements {
-            match stmt {
-                Stmt::FunctionDef(func_def) => {
-                    patterns.extend(self.extract_patterns_from_function(func_def)?);
-                }
-                _ => {} // Skip non-function statements for now
+            if let Stmt::FunctionDef(func_def) = stmt {
+                patterns.extend(self.extract_patterns_from_function(func_def)?);
             }
+            // Skip non-function statements for now
         }
 
         Ok(patterns)

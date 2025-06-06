@@ -221,7 +221,7 @@ impl LambdaOptimizer {
         if let Some(ref event_type) = annotations.event_type {
             match event_type {
                 LambdaEventType::ApiGatewayProxyRequest | LambdaEventType::ApiGatewayV2HttpRequest => {
-                    pre_warm_code.push_str(&format!(
+                    pre_warm_code.push_str(
                         r#"
     // Pre-warm API Gateway types
     let _ = std::hint::black_box(serde_json::from_str::<serde_json::Value>("{{}}"));
@@ -232,32 +232,32 @@ impl LambdaOptimizer {
     response_buf.push(0);
     std::mem::forget(response_buf);
 "#
-                    ));
+                    );
                 }
                 LambdaEventType::SqsEvent => {
-                    pre_warm_code.push_str(&format!(
+                    pre_warm_code.push_str(
                         r#"
     // Pre-warm SQS types
     let _ = std::hint::black_box(Vec::<String>::with_capacity(10));
     let _ = std::hint::black_box(String::with_capacity(1024));
 "#
-                    ));
+                    );
                 }
                 LambdaEventType::S3Event => {
-                    pre_warm_code.push_str(&format!(
+                    pre_warm_code.push_str(
                         r#"
     // Pre-warm S3 types
     let _ = std::hint::black_box(std::path::PathBuf::new());
     let _ = std::hint::black_box(String::with_capacity(512));
 "#
-                    ));
+                    );
                 }
                 _ => {}
             }
         }
 
         // Global pre-warming
-        pre_warm_code.push_str(&format!(
+        pre_warm_code.push_str(
             r#"
     // Pre-warm common allocations
     let _ = std::hint::black_box(serde_json::Value::Null);
@@ -268,13 +268,12 @@ impl LambdaOptimizer {
     }}
     BUFFER.with(|_| {{}});
 "#
-        ));
+        );
 
         plan.pre_warm_code = pre_warm_code;
 
         // Init array for early initialization
-        plan.init_array_code = format!(
-            r#"
+        plan.init_array_code = r#"
 #[link_section = ".init_array"]
 static INIT: extern "C" fn() = {{
     extern "C" fn init() {{
@@ -291,8 +290,7 @@ static INIT: extern "C" fn() = {{
     }}
     init
 }};
-"#
-        );
+"#.to_string();
 
         // Optimize for latency over throughput
         plan.profile_overrides.insert("opt-level".to_string(), "3".to_string());
@@ -304,20 +302,19 @@ static INIT: extern "C" fn() = {{
         // Event-specific pre-warming paths
         for path in &annotations.pre_warm_paths {
             plan.pre_warm_code.push_str(&format!(
-                "    // Pre-warm path: {}\n    let _ = std::hint::black_box(String::from(\"{}\"));\n",
-                path, path
+                "    // Pre-warm path: {path}\n    let _ = std::hint::black_box(String::from(\"{path}\"));\n"
             ));
         }
 
         // Serde pre-warming for custom serialization
         if annotations.custom_serialization {
-            plan.pre_warm_code.push_str(&format!(
+            plan.pre_warm_code.push_str(
                 r#"
     // Pre-warm custom serialization paths
     let _ = std::hint::black_box(serde_json::to_string(&serde_json::Value::Null));
     let _ = std::hint::black_box(serde_json::from_str::<serde_json::Value>("null"));
 "#
-            ));
+            );
         }
 
         Ok(())
@@ -357,7 +354,7 @@ static INIT: extern "C" fn() = {{
         let mut profile = String::from("\n[profile.lambda]\ninherits = \"release\"\n");
         
         for (key, value) in &plan.profile_overrides {
-            profile.push_str(&format!("{} = {}\n", key, value));
+            profile.push_str(&format!("{key} = {value}\n"));
         }
 
         // Add lambda-specific package overrides
@@ -405,15 +402,14 @@ echo "Target: {} MB memory, {} architecture"
 # Build with cargo-lambda
 cargo lambda build \
     --profile lambda \
-    {} \
+    {arch_flag} \
     --output-format zip
 
-"#,
-            arch_flag
+"#
         ));
 
         // Post-build optimizations
-        script.push_str(&format!(
+        script.push_str(
             r#"
 # Post-build optimizations
 BINARY_PATH="target/lambda/*/bootstrap"
@@ -441,7 +437,7 @@ fi
 
 echo "Build completed successfully!"
 "#
-        ));
+        );
 
         script
     }
@@ -502,7 +498,7 @@ mod performance {{
 
     /// Check if optimization strategy is enabled
     fn is_strategy_enabled(&self, strategy: &OptimizationStrategy) -> bool {
-        self.strategies.get(strategy).map_or(false, |config| config.enabled)
+        self.strategies.get(strategy).is_some_and(|config| config.enabled)
     }
 
     /// Estimate performance impact of optimizations
