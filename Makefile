@@ -25,6 +25,22 @@ RELEASE_FLAGS := --release
 # Default target
 all: validate
 
+##@ Quick Start
+
+quickstart: ## Quick start - build and test everything
+	@echo "🚀 Depyler Quick Start"
+	@echo "Building project..."
+	@$(MAKE) build
+	@echo "Running tests..."
+	@$(MAKE) test
+	@echo "✅ Ready to use! Try: ./target/release/depyler --help"
+
+playground-quickstart: ## Quick start the playground
+	@echo "🎮 Starting Depyler Playground"
+	@$(MAKE) playground-build
+	@echo "✅ Playground ready! Opening in browser..."
+	@$(MAKE) playground-run
+
 # Main test target - fast tests with coverage report
 test: ## Run fast tests and generate coverage report
 	@echo "Running fast tests with coverage..."
@@ -42,6 +58,38 @@ build-dev: ## Build for development
 
 clean: ## Clean build artifacts
 	$(CARGO) clean
+
+##@ Playground
+
+playground: playground-build playground-run ## Build and run the playground
+
+playground-build: ## Build WASM module and frontend
+	@echo "Building WASM module..."
+	cd crates/depyler-wasm && wasm-pack build --target web --out-dir ../../playground/public/wasm
+	@echo "Installing playground dependencies..."
+	cd playground && npm install
+	@echo "Building playground frontend..."
+	cd playground && npm run build
+
+playground-dev: ## Run playground in development mode
+	@echo "Building WASM module..."
+	cd crates/depyler-wasm && wasm-pack build --target web --out-dir ../../playground/public/wasm --dev
+	@echo "Starting playground dev server..."
+	cd playground && npm run dev
+
+playground-run: ## Run the playground
+	@echo "Starting playground server..."
+	cd playground && npm run preview
+
+playground-test: ## Run playground tests
+	@echo "Running playground tests..."
+	cd playground && npm test
+
+playground-clean: ## Clean playground build artifacts
+	rm -rf playground/dist
+	rm -rf playground/public/wasm
+	rm -rf playground/node_modules
+	rm -rf crates/depyler-wasm/target
 
 ##@ Testing
 
