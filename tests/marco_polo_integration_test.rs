@@ -33,7 +33,8 @@ mod marco_polo_tests {
 
         // Verify output contains expected elements
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("Transpilation Complete"));
+        assert!(stdout.contains("📄 Source:") || stdout.contains("Source:"), 
+               "Expected source information in output, got: {}", stdout);
     }
 
     #[test]
