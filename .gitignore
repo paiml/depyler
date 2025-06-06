@@ -86,3 +86,6 @@ mcp_test_results/
 
 # Context files
 deep_context.md
+
+# Node modules
+playground/node_modules/

@@ -1,0 +1,21 @@
+{
+  "tasks": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "deno lint",
+    "test": "vitest",
+    "bench": "vitest bench",
+    "wasm:build": "wasm-pack build ../depyler-playground --target web --out-dir ../../dist/wasm",
+    "wasm:optimize": "wasm-opt -Oz -o dist/optimized.wasm dist/wasm/depyler_playground_bg.wasm"
+  },
+  "imports": {
+    "@/": "./src/",
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+    "@monaco-editor/react": "https://esm.sh/@monaco-editor/react@4.6.0",
+    "d3": "https://esm.sh/d3@7.8.5",
+    "zustand": "https://esm.sh/zustand@4.5.0",
+    "lru-cache": "https://esm.sh/lru-cache@10.2.0"
+  }
+}
