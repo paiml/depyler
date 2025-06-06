@@ -84,6 +84,8 @@ playground-run: ## Run the playground
 playground-test: ## Run playground tests
 	@echo "Running playground tests..."
 	cd playground && npm test
+	@echo "Running Deno TypeScript validation..."
+	cd playground && deno test src/components/__tests__/*.deno.test.ts --allow-read
 
 playground-clean: ## Clean playground build artifacts
 	rm -rf playground/dist
