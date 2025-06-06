@@ -19,7 +19,7 @@ fn test_basic_transpile_command() {
         .output()
         .expect("Failed to execute command");
 
-    assert!(output.status.success() || output.stderr.is_empty() == false);
+    assert!(output.status.success() || !output.stderr.is_empty());
 }
 
 #[test]
@@ -38,7 +38,7 @@ fn test_analyze_command() {
         .output()
         .expect("Failed to execute command");
 
-    assert!(output.status.success() || output.stderr.is_empty() == false);
+    assert!(output.status.success() || !output.stderr.is_empty());
 }
 
 #[test]

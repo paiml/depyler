@@ -80,7 +80,7 @@ fn test_cli_functionality() {
 
     // Test CLI transpile command - use cargo run instead of direct binary
     let output = Command::new("cargo")
-        .args(&["run", "--release", "--", "transpile", "test_cli.py"])
+        .args(["run", "--release", "--", "transpile", "test_cli.py"])
         .output()
         .expect("Failed to execute CLI command");
 
@@ -95,7 +95,7 @@ fn test_cli_functionality() {
 
     // Test CLI check command
     let output = Command::new("cargo")
-        .args(&["run", "--release", "--", "check", "test_cli.py"])
+        .args(["run", "--release", "--", "check", "test_cli.py"])
         .output()
         .expect("Failed to execute CLI check command");
 
@@ -103,7 +103,7 @@ fn test_cli_functionality() {
 
     // Test CLI analyze command
     let output = Command::new("cargo")
-        .args(&["run", "--release", "--", "analyze", "test_cli.py"])
+        .args(["run", "--release", "--", "analyze", "test_cli.py"])
         .output()
         .expect("Failed to execute CLI analyze command");
 

@@ -12,6 +12,12 @@ pub struct TranspilationTestHarness {
     verifier: PropertyVerifier,
 }
 
+impl Default for TranspilationTestHarness {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TranspilationTestHarness {
     pub fn new() -> Self {
         Self {
@@ -30,7 +36,7 @@ impl TranspilationTestHarness {
         let result = self
             .pipeline
             .transpile(python_source)
-            .map_err(|e| format!("Transpilation failed: {}", e))?;
+            .map_err(|e| format!("Transpilation failed: {e}"))?;
 
         // 2. Verify generated Rust compiles
         self.verify_rust_compiles(&result)?;
@@ -52,14 +58,14 @@ impl TranspilationTestHarness {
     fn verify_rust_compiles(&self, rust_code: &str) -> Result<(), String> {
         let rust_file = self.temp_dir.path().join("test.rs");
         fs::write(&rust_file, rust_code)
-            .map_err(|e| format!("Failed to write Rust file: {}", e))?;
+            .map_err(|e| format!("Failed to write Rust file: {e}"))?;
 
         let output = Command::new("rustc")
             .arg("--emit=metadata")
             .arg("--crate-type=lib")
             .arg(&rust_file)
             .output()
-            .map_err(|e| format!("Failed to run rustc: {}", e))?;
+            .map_err(|e| format!("Failed to run rustc: {e}"))?;
 
         if !output.status.success() {
             return Err(format!(
@@ -73,22 +79,21 @@ impl TranspilationTestHarness {
 
     fn verify_clippy_passes(&self, rust_code: &str) -> Result<(), String> {
         let rust_file = self.temp_dir.path().join("clippy_test.rs");
-        fs::write(&rust_file, format!("#![allow(dead_code)]\n{}", rust_code))
-            .map_err(|e| format!("Failed to write Rust file: {}", e))?;
+        fs::write(&rust_file, format!("#![allow(dead_code)]\n{rust_code}"))
+            .map_err(|e| format!("Failed to write Rust file: {e}"))?;
 
         let output = Command::new("clippy-driver")
             .arg("--emit=metadata")
             .arg("--crate-type=lib")
             .arg(&rust_file)
             .output()
-            .map_err(|e| format!("Failed to run clippy: {}", e))?;
+            .map_err(|e| format!("Failed to run clippy: {e}"))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             if stderr.contains("error:") {
                 return Err(format!(
-                    "Generated Rust code has Clippy errors:\n{}",
-                    stderr
+                    "Generated Rust code has Clippy errors:\n{stderr}"
                 ));
             }
         }
@@ -111,8 +116,7 @@ impl TranspilationTestHarness {
 
         if actual_normalized != expected_normalized {
             return Err(format!(
-                "Generated Rust does not match expected:\nActual:\n{}\nExpected:\n{}",
-                actual, expected
+                "Generated Rust does not match expected:\nActual:\n{actual}\nExpected:\n{expected}"
             ));
         }
 
@@ -124,7 +128,7 @@ impl TranspilationTestHarness {
         let hir = self
             .pipeline
             .parse_to_hir(python_source)
-            .map_err(|e| format!("Failed to parse for verification: {}", e))?;
+            .map_err(|e| format!("Failed to parse for verification: {e}"))?;
 
         for func in &hir.functions {
             let verification_results = self.verifier.verify_function(func);
@@ -132,7 +136,7 @@ impl TranspilationTestHarness {
             for result in verification_results {
                 match result.status {
                     depyler_verify::PropertyStatus::Violated(msg) => {
-                        return Err(format!("Property verification failed: {}", msg));
+                        return Err(format!("Property verification failed: {msg}"));
                     }
                     _ => continue,
                 }

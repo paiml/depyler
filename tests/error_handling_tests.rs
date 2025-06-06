@@ -20,8 +20,7 @@ fn test_pipeline_invalid_python_syntax() {
         let result = pipeline.transpile(invalid_python);
         assert!(
             result.is_err(),
-            "Should fail for invalid Python: {}",
-            invalid_python
+            "Should fail for invalid Python: {invalid_python}"
         );
     }
 
@@ -243,7 +242,7 @@ fn test_pipeline_with_verification_errors() {
             Ok(_) => assert!(true), // Success with verification is good
             Err(e) => {
                 // Error should be informative
-                let error_msg = format!("{}", e);
+                let error_msg = format!("{e}");
                 assert!(!error_msg.is_empty());
             }
         }
@@ -260,7 +259,7 @@ fn test_large_input_handling() {
 
     // Add many similar statements
     for i in 0..100 {
-        large_function.push_str(&format!("    if x > {}:\n        result += {}\n", i, i));
+        large_function.push_str(&format!("    if x > {i}:\n        result += {i}\n"));
     }
     large_function.push_str("    return result\n");
 
@@ -274,7 +273,7 @@ fn test_large_input_handling() {
         }
         Err(e) => {
             // If it fails, should be a clean error
-            let error_msg = format!("{}", e);
+            let error_msg = format!("{e}");
             assert!(!error_msg.is_empty());
         }
     }
@@ -332,7 +331,7 @@ fn test_concurrent_pipeline_usage() {
     for i in 0..5 {
         let pipeline_clone = Arc::clone(&pipeline);
         let handle = thread::spawn(move || {
-            let test_code = format!("def test_func_{}(x: int) -> int:\n    return x + {}", i, i);
+            let test_code = format!("def test_func_{i}(x: int) -> int:\n    return x + {i}");
             pipeline_clone.transpile(&test_code)
         });
         handles.push(handle);

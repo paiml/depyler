@@ -141,7 +141,7 @@ impl Arbitrary for ArbitraryFunction {
         let name = format!("func_{}", u32::arbitrary(g) % 100); // Reduce range
         let num_params = std::cmp::min(g.size() % 3, 2); // Limit to max 2 params
         let params: Vec<(String, Type)> = (0..num_params)
-            .map(|i| (format!("param_{}", i), arbitrary_simple_type(g)))
+            .map(|i| (format!("param_{i}"), arbitrary_simple_type(g)))
             .collect();
 
         let ret_type = arbitrary_simple_type(g);

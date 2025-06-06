@@ -673,7 +673,7 @@ def handler(event, context):
             Err(crate::lambda_inference::InferenceError::AmbiguousEventType) => {
                 // This is acceptable for mixed patterns
             }
-            Err(e) => panic!("Unexpected error: {:?}", e),
+            Err(e) => panic!("Unexpected error: {e:?}"),
         }
     }
 }
