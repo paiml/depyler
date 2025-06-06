@@ -33,11 +33,11 @@ def lambda_handler(event: dict, context: dict) -> int:
     // Step 1: Analyze the Lambda function
     println!("\n1️⃣ Analyzing Lambda function...");
     let analyze_output = Command::new(env!("CARGO_BIN_EXE_depyler"))
-        .args(&["lambda", "analyze", lambda_path.to_str().unwrap()])
+        .args(["lambda", "analyze", lambda_path.to_str().unwrap()])
         .output()?;
     
     let analyze_stdout = String::from_utf8_lossy(&analyze_output.stdout);
-    println!("{}", analyze_stdout);
+    println!("{analyze_stdout}");
     assert!(analyze_output.status.success(), "Lambda analysis failed");
     // The analyzer should run successfully - event type detection is still being improved
     assert!(analyze_stdout.contains("Lambda Event Type Analysis"), "Should show analysis output");
@@ -46,7 +46,7 @@ def lambda_handler(event: dict, context: dict) -> int:
     println!("\n2️⃣ Converting to Rust Lambda...");
     let output_dir = temp_path.join("lambda_demo_rust");
     let convert_output = Command::new(env!("CARGO_BIN_EXE_depyler"))
-        .args(&[
+        .args([
             "lambda", "convert",
             lambda_path.to_str().unwrap(),
             "--output", output_dir.to_str().unwrap(),
@@ -57,9 +57,9 @@ def lambda_handler(event: dict, context: dict) -> int:
     
     let convert_stdout = String::from_utf8_lossy(&convert_output.stdout);
     let convert_stderr = String::from_utf8_lossy(&convert_output.stderr);
-    println!("STDOUT: {}", convert_stdout);
-    println!("STDERR: {}", convert_stderr);
-    assert!(convert_output.status.success(), "Lambda conversion failed: {}", convert_stderr);
+    println!("STDOUT: {convert_stdout}");
+    println!("STDERR: {convert_stderr}");
+    assert!(convert_output.status.success(), "Lambda conversion failed: {convert_stderr}");
     assert!(output_dir.exists(), "Output directory should be created");
     
     // Verify generated files
@@ -71,7 +71,7 @@ def lambda_handler(event: dict, context: dict) -> int:
     // Read and verify Cargo.toml
     let cargo_toml = fs::read_to_string(output_dir.join("Cargo.toml"))?;
     println!("\n📦 Generated Cargo.toml:");
-    println!("{}", cargo_toml);
+    println!("{cargo_toml}");
     assert!(cargo_toml.contains("lambda_runtime"), "Should include lambda_runtime");
     assert!(cargo_toml.contains("aws-lambda-events"), "Should include aws-lambda-events");
     assert!(cargo_toml.contains("tokio"), "Should include tokio");
@@ -99,7 +99,7 @@ def lambda_handler(event: dict, context: dict) -> int:
         // Change to the output directory and run cargo check
         let check_output = Command::new("cargo")
             .current_dir(&output_dir)
-            .args(&["check", "--message-format=short"])
+            .args(["check", "--message-format=short"])
             .output()?;
         
         if check_output.status.success() {
@@ -107,7 +107,7 @@ def lambda_handler(event: dict, context: dict) -> int:
         } else {
             let stderr = String::from_utf8_lossy(&check_output.stderr);
             println!("⚠️ Cargo check failed (this might be due to missing dependencies):");
-            println!("{}", stderr);
+            println!("{stderr}");
             // Don't fail the test - cargo-lambda might not be installed
         }
     } else {
@@ -117,7 +117,7 @@ def lambda_handler(event: dict, context: dict) -> int:
     // Step 4: Check for cargo-lambda and test if available
     println!("\n4️⃣ Checking for cargo-lambda...");
     let cargo_lambda_check = Command::new("cargo")
-        .args(&["lambda", "--version"])
+        .args(["lambda", "--version"])
         .output();
     
     if let Ok(output) = cargo_lambda_check {
@@ -128,7 +128,7 @@ def lambda_handler(event: dict, context: dict) -> int:
             println!("\n5️⃣ Building with cargo-lambda...");
             let build_output = Command::new("cargo")
                 .current_dir(&output_dir)
-                .args(&["lambda", "build", "--release"])
+                .args(["lambda", "build", "--release"])
                 .output()?;
             
             if build_output.status.success() {
@@ -139,13 +139,13 @@ def lambda_handler(event: dict, context: dict) -> int:
                 if bootstrap_path.exists() {
                     let metadata = fs::metadata(&bootstrap_path)?;
                     let size_mb = metadata.len() as f64 / (1024.0 * 1024.0);
-                    println!("📦 Binary size: {:.2} MB", size_mb);
+                    println!("📦 Binary size: {size_mb:.2} MB");
                     assert!(size_mb < 10.0, "Binary should be reasonably sized");
                 }
             } else {
                 let stderr = String::from_utf8_lossy(&build_output.stderr);
                 println!("⚠️ cargo-lambda build failed:");
-                println!("{}", stderr);
+                println!("{stderr}");
             }
         } else {
             println!("ℹ️ cargo-lambda not installed. Install with: cargo install cargo-lambda");
@@ -195,7 +195,7 @@ def lambda_handler(event: dict, context: dict) -> int:
 fn test_lambda_commands_help() -> Result<()> {
     // Test that Lambda commands are available
     let help_output = Command::new(env!("CARGO_BIN_EXE_depyler"))
-        .args(&["lambda", "--help"])
+        .args(["lambda", "--help"])
         .output()?;
     
     assert!(help_output.status.success(), "Lambda help should succeed");
@@ -254,19 +254,19 @@ def handler(event, context):
     let temp_dir = TempDir::new()?;
     
     for (name, code) in patterns {
-        println!("\nTesting {} pattern...", name);
+        println!("\nTesting {name} pattern...");
         
         let file_path = temp_dir.path().join(format!("{}_handler.py", name.to_lowercase().replace(' ', "_")));
         fs::write(&file_path, code)?;
         
         let output = Command::new(env!("CARGO_BIN_EXE_depyler"))
-            .args(&["lambda", "analyze", file_path.to_str().unwrap(), "--format", "json"])
+            .args(["lambda", "analyze", file_path.to_str().unwrap(), "--format", "json"])
             .output()?;
         
-        assert!(output.status.success(), "{} pattern analysis should succeed", name);
+        assert!(output.status.success(), "{name} pattern analysis should succeed");
         
         let stdout = String::from_utf8_lossy(&output.stdout);
-        println!("Analysis result: {}", stdout);
+        println!("Analysis result: {stdout}");
         
         // Just verify it produces valid JSON
         let _: serde_json::Value = serde_json::from_str(&stdout)

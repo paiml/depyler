@@ -15,13 +15,12 @@ mod marco_polo_tests {
             .join("examples/marco_polo_cli/marco_polo_simple.py");
         assert!(
             example_path.exists(),
-            "Marco Polo simple example should exist at {:?}",
-            example_path
+            "Marco Polo simple example should exist at {example_path:?}"
         );
 
         // Try to transpile it
         let output = Command::new("cargo")
-            .args(&["run", "--", "transpile", example_path.to_str().unwrap()])
+            .args(["run", "--", "transpile", example_path.to_str().unwrap()])
             .output()
             .expect("Failed to run transpilation");
 
@@ -34,7 +33,7 @@ mod marco_polo_tests {
         // Verify output contains expected elements
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("📄 Source:") || stdout.contains("Source:"), 
-               "Expected source information in output, got: {}", stdout);
+               "Expected source information in output, got: {stdout}");
     }
 
     #[test]
@@ -75,13 +74,12 @@ mod marco_polo_tests {
         let cargo_path = project_dir.join("Cargo.toml");
         assert!(
             cargo_path.exists(),
-            "Marco Polo Rust project should exist at {:?}",
-            cargo_path
+            "Marco Polo Rust project should exist at {cargo_path:?}"
         );
 
         // Verify the Rust project builds
         let output = Command::new("cargo")
-            .args(&["check"])
+            .args(["check"])
             .current_dir(&project_dir)
             .output()
             .expect("Failed to check Rust project");
