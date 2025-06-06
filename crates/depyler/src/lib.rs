@@ -722,7 +722,7 @@ pub fn lambda_analyze_command(input: PathBuf, format: String, confidence: f64) -
     match format.as_str() {
         "json" => {
             let json = serde_json::to_string_pretty(&analysis_report)?;
-            println!("{}", json);
+            println!("{json}");
         }
         _ => {
             println!("🔍 Lambda Event Type Analysis");
@@ -731,7 +731,7 @@ pub fn lambda_analyze_command(input: PathBuf, format: String, confidence: f64) -
             println!("🎯 Inferred Event Type: {:?}", analysis_report.inferred_event_type);
             println!("📊 Confidence Scores:");
             for (event_type, confidence) in &analysis_report.confidence_scores {
-                println!("   {:?}: {:.2}", event_type, confidence);
+                println!("   {event_type:?}: {confidence:.2}");
             }
             println!("🔍 Detected Patterns: {}", analysis_report.detected_patterns.len());
             for pattern in &analysis_report.detected_patterns {
@@ -741,7 +741,7 @@ pub fn lambda_analyze_command(input: PathBuf, format: String, confidence: f64) -
             if !analysis_report.recommendations.is_empty() {
                 println!("💡 Recommendations:");
                 for rec in &analysis_report.recommendations {
-                    println!("   - {}", rec);
+                    println!("   - {rec}");
                 }
             }
         }
@@ -786,17 +786,18 @@ pub fn lambda_convert_command(
         .unwrap_or_default();
     
     let lambda_annotations = annotations.lambda_annotations.unwrap_or_else(|| {
-        let mut la = depyler_annotations::LambdaAnnotations::default();
-        la.event_type = Some(match analysis.inferred_event_type {
-            depyler_core::lambda_inference::EventType::S3Event => depyler_annotations::LambdaEventType::S3Event,
-            depyler_core::lambda_inference::EventType::ApiGatewayV2Http => depyler_annotations::LambdaEventType::ApiGatewayV2HttpRequest,
-            depyler_core::lambda_inference::EventType::SnsEvent => depyler_annotations::LambdaEventType::SnsEvent,
-            depyler_core::lambda_inference::EventType::SqsEvent => depyler_annotations::LambdaEventType::SqsEvent,
-            depyler_core::lambda_inference::EventType::DynamodbEvent => depyler_annotations::LambdaEventType::DynamodbEvent,
-            depyler_core::lambda_inference::EventType::EventBridge => depyler_annotations::LambdaEventType::EventBridgeEvent(None),
-            _ => depyler_annotations::LambdaEventType::Auto,
-        });
-        la
+        depyler_annotations::LambdaAnnotations {
+            event_type: Some(match analysis.inferred_event_type {
+                depyler_core::lambda_inference::EventType::S3Event => depyler_annotations::LambdaEventType::S3Event,
+                depyler_core::lambda_inference::EventType::ApiGatewayV2Http => depyler_annotations::LambdaEventType::ApiGatewayV2HttpRequest,
+                depyler_core::lambda_inference::EventType::SnsEvent => depyler_annotations::LambdaEventType::SnsEvent,
+                depyler_core::lambda_inference::EventType::SqsEvent => depyler_annotations::LambdaEventType::SqsEvent,
+                depyler_core::lambda_inference::EventType::DynamodbEvent => depyler_annotations::LambdaEventType::DynamodbEvent,
+                depyler_core::lambda_inference::EventType::EventBridge => depyler_annotations::LambdaEventType::EventBridgeEvent(None),
+                _ => depyler_annotations::LambdaEventType::Auto,
+            }),
+            ..Default::default()
+        }
     });
     pb.inc(1);
     
@@ -933,9 +934,9 @@ pub fn lambda_test_command(
     std::env::set_current_dir(&input)?;
     
     if let Some(event_name) = event {
-        println!("🧪 Running specific test event: {}", event_name);
+        println!("🧪 Running specific test event: {event_name}");
         let output = Command::new("cargo")
-            .args(&["test", &format!("test_{}", event_name)])
+            .args(["test", &format!("test_{event_name}")])
             .output()?;
         
         if output.status.success() {
@@ -1010,13 +1011,13 @@ pub fn lambda_build_command(
     };
     
     let mut build_cmd = Command::new("cargo");
-    build_cmd.args(&["lambda", "build", "--release", arch_flag]);
+    build_cmd.args(["lambda", "build", "--release", arch_flag]);
     
     if optimize_size || optimize_cold_start {
         build_cmd.arg("--profile").arg("lambda");
     }
     
-    println!("Running: cargo lambda build --release {}", arch_flag);
+    println!("Running: cargo lambda build --release {arch_flag}");
     let output = build_cmd.output()?;
     
     if output.status.success() {
@@ -1024,17 +1025,15 @@ pub fn lambda_build_command(
         
         // Show binary size if available
         if let Ok(entries) = fs::read_dir("target/lambda") {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let bootstrap_path = entry.path().join("bootstrap");
-                    if bootstrap_path.exists() {
-                        if let Ok(metadata) = fs::metadata(&bootstrap_path) {
-                            let size_kb = metadata.len() / 1024;
-                            println!("📦 Binary size: {}KB", size_kb);
-                            
-                            if optimize_size && size_kb > 2048 {
-                                println!("⚠️ Binary size is larger than 2MB, consider additional optimizations");
-                            }
+            for entry in entries.flatten() {
+                let bootstrap_path = entry.path().join("bootstrap");
+                if bootstrap_path.exists() {
+                    if let Ok(metadata) = fs::metadata(&bootstrap_path) {
+                        let size_kb = metadata.len() / 1024;
+                        println!("📦 Binary size: {size_kb}KB");
+                        
+                        if optimize_size && size_kb > 2048 {
+                            println!("⚠️ Binary size is larger than 2MB, consider additional optimizations");
                         }
                     }
                 }
@@ -1068,29 +1067,29 @@ pub fn lambda_deploy_command(
     });
     
     if dry_run {
-        println!("🔍 Dry run deployment for function: {}", func_name);
+        println!("🔍 Dry run deployment for function: {func_name}");
         if let Some(ref region) = region {
-            println!("📍 Region: {}", region);
+            println!("📍 Region: {region}");
         }
         if let Some(ref role) = role {
-            println!("🔑 IAM Role: {}", role);
+            println!("🔑 IAM Role: {role}");
         }
         println!("✅ Dry run completed - no actual deployment");
         std::env::set_current_dir(current_dir)?;
         return Ok(());
     }
     
-    println!("🚀 Deploying Lambda function: {}", func_name);
+    println!("🚀 Deploying Lambda function: {func_name}");
     
     let mut deploy_cmd = Command::new("cargo");
-    deploy_cmd.args(&["lambda", "deploy", &func_name]);
+    deploy_cmd.args(["lambda", "deploy", &func_name]);
     
     if let Some(ref region) = region {
-        deploy_cmd.args(&["--region", region]);
+        deploy_cmd.args(["--region", region]);
     }
     
     if let Some(ref role) = role {
-        deploy_cmd.args(&["--iam-role", role]);
+        deploy_cmd.args(["--iam-role", role]);
     }
     
     let output = deploy_cmd.output()?;

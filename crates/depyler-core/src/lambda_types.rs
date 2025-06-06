@@ -307,7 +307,7 @@ impl LambdaTypeMapper {
         Ok(format!(
             r#"#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct {} {{
+pub struct {custom_type} {{
     // Define your custom event fields here
     // Example:
     // pub event_id: String,
@@ -319,11 +319,10 @@ pub struct {} {{
 #[serde(tag = "detail-type", content = "detail")]
 pub enum EventType {{
     #[serde(rename = "Custom Event")]
-    CustomEvent({}),
+    CustomEvent({custom_type}),
     // Add more event variants as needed
 }}
-"#,
-            custom_type, custom_type
+"#
         ))
     }
 

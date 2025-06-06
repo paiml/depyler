@@ -275,8 +275,7 @@ impl LambdaTestHarness {
     }
 
     fn generate_test_imports(&self) -> String {
-        format!(
-            r#"#[cfg(test)]
+        r#"#[cfg(test)]
 mod tests {{
     use super::*;
     use lambda_runtime::{{Context, LambdaEvent}};
@@ -284,8 +283,7 @@ mod tests {{
     use std::time::Instant;
     // use tokio::time::timeout;
 
-"#
-        )
+"#.to_string()
     }
 
     fn generate_test_helpers(&self) -> String {
@@ -493,8 +491,7 @@ mod tests {{
     }
 
     fn generate_integration_tests(&self) -> String {
-        format!(
-            r#"    #[tokio::test]
+        r#"    #[tokio::test]
     async fn test_error_handling() {{
         // Test with invalid event data to ensure proper error handling
         let invalid_event = json!({{ "invalid": "data" }});
@@ -541,8 +538,7 @@ mod tests {{
         println!("Large payload processing time: {{:?}}", duration);
     }}
 }}
-"#
-        )
+"#.to_string()
     }
 
     /// Generate a complete test script for cargo lambda test
@@ -723,8 +719,7 @@ jobs:
 
     /// Generate local development testing script
     pub fn generate_local_dev_script(&self) -> String {
-        format!(
-            r#"#!/bin/bash
+        r#"#!/bin/bash
 # Local development testing script
 
 set -e
@@ -766,8 +761,7 @@ else
 fi
 
 echo "🎉 Development testing finished!"
-"#
-        )
+"#.to_string()
     }
 
     /// Generate load testing script
