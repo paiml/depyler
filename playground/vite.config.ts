@@ -6,16 +6,13 @@ export default defineConfig({
   plugins: [react(), wasm()],
   worker: {
     format: 'es',
-    plugins: [wasm()]
+    plugins: () => [wasm()]
   },
   build: {
     target: 'es2022',
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        passes: 3
-      }
+    minify: false,
+    rollupOptions: {
+      external: ['/wasm/depyler_wasm.js']
     }
   },
   resolve: {
