@@ -38,10 +38,6 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             name: linux-amd64
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            name: linux-arm64
-            use-cross: true
           - target: x86_64-apple-darwin
             os: macos-latest
             name: darwin-amd64
@@ -62,17 +58,8 @@ jobs:
           targets: ${{ matrix.target }}
       
       
-      - name: Install cross
-        if: matrix.use-cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
-      
       - name: Build release binary
-        run: |
-          if [ "${{ matrix.use-cross }}" = "true" ]; then
-            cross build --release --target ${{ matrix.target }} --bin depyler
-          else
-            cargo build --release --target ${{ matrix.target }} --bin depyler
-          fi
+        run: cargo build --release --target ${{ matrix.target }} --bin depyler
         shell: bash
       
       - name: Package binary
