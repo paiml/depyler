@@ -1,19 +1,23 @@
 # Python-to-Rust Language Mapping Specification
 
-> **Complete technical specification for Python language constructs to Rust transpilation**
+> **Complete technical specification for Python language constructs to Rust
+> transpilation**
 
-This document defines the precise mapping between Python language features and their Rust equivalents as implemented by Depyler.
+This document defines the precise mapping between Python language features and
+their Rust equivalents as implemented by Depyler.
 
 ---
 
 ## 🎯 Specification Overview
 
 ### Supported Python Version
+
 - **Target**: Python 3.8+
 - **Type Hints**: Required for optimal transpilation
 - **Compatibility**: PEP 484, 585, 604 type annotations
 
 ### Rust Target
+
 - **Version**: Rust 1.75+
 - **Edition**: 2021
 - **Features**: Safe Rust only (no unsafe blocks)
@@ -24,15 +28,16 @@ This document defines the precise mapping between Python language features and t
 
 ### Primitive Types
 
-| Python Type | Rust Type | Notes |
-|-------------|-----------|-------|
-| `int` | `i32` / `i64` | Configurable based on range |
-| `float` | `f64` | Always 64-bit for precision |
-| `str` | `String` / `&str` | Strategy-dependent |
-| `bool` | `bool` | Direct mapping |
-| `None` | `()` / `Option<T>` | Context-dependent |
+| Python Type | Rust Type          | Notes                       |
+| ----------- | ------------------ | --------------------------- |
+| `int`       | `i32` / `i64`      | Configurable based on range |
+| `float`     | `f64`              | Always 64-bit for precision |
+| `str`       | `String` / `&str`  | Strategy-dependent          |
+| `bool`      | `bool`             | Direct mapping              |
+| `None`      | `()` / `Option<T>` | Context-dependent           |
 
 #### Type Inference Rules
+
 ```python
 # Python
 x = 42              # -> i32 (default)
@@ -53,14 +58,15 @@ let active: bool = true;
 
 ### Collection Types
 
-| Python Type | Rust Type | Implementation |
-|-------------|-----------|----------------|
-| `List[T]` | `Vec<T>` | Dynamic array |
-| `Dict[K, V]` | `HashMap<K, V>` | Hash table |
-| `Set[T]` | `HashSet<T>` | Hash-based set |
-| `Tuple[T, U, ...]` | `(T, U, ...)` | Product type |
+| Python Type        | Rust Type       | Implementation |
+| ------------------ | --------------- | -------------- |
+| `List[T]`          | `Vec<T>`        | Dynamic array  |
+| `Dict[K, V]`       | `HashMap<K, V>` | Hash table     |
+| `Set[T]`           | `HashSet<T>`    | Hash-based set |
+| `Tuple[T, U, ...]` | `(T, U, ...)`   | Product type   |
 
 #### Collection Examples
+
 ```python
 # Python
 numbers: List[int] = [1, 2, 3, 4, 5]
@@ -83,11 +89,11 @@ let point: (f64, f64) = (3.14, 2.71);
 
 ### Optional Types
 
-| Python Pattern | Rust Type | Strategy |
-|----------------|-----------|----------|
-| `Optional[T]` | `Option<T>` | Explicit handling |
-| `Union[T, None]` | `Option<T>` | Normalized form |
-| `T \| None` | `Option<T>` | Python 3.10+ syntax |
+| Python Pattern   | Rust Type   | Strategy            |
+| ---------------- | ----------- | ------------------- |
+| `Optional[T]`    | `Option<T>` | Explicit handling   |
+| `Union[T, None]` | `Option<T>` | Normalized form     |
+| `T \| None`      | `Option<T>` | Python 3.10+ syntax |
 
 ```python
 # Python
@@ -110,14 +116,15 @@ fn find_user(id: i32) -> Option<User> {
 
 ### Function Signatures
 
-| Python Feature | Rust Equivalent | Notes |
-|----------------|-----------------|-------|
-| Function def | `fn` declaration | Direct mapping |
-| Return annotation | Return type | Required for transpilation |
-| Default arguments | Option parameters | Converted to Option<T> |
-| Keyword arguments | Struct parameters | When beneficial |
+| Python Feature    | Rust Equivalent   | Notes                      |
+| ----------------- | ----------------- | -------------------------- |
+| Function def      | `fn` declaration  | Direct mapping             |
+| Return annotation | Return type       | Required for transpilation |
+| Default arguments | Option parameters | Converted to Option<T>     |
+| Keyword arguments | Struct parameters | When beneficial            |
 
 #### Basic Functions
+
 ```python
 # Python
 def add(a: int, b: int) -> int:
@@ -145,12 +152,12 @@ pub fn greet(name: String, greeting: Option<String>) -> String {
 
 ### Method Mapping
 
-| Python Pattern | Rust Pattern | Implementation |
-|----------------|--------------|----------------|
-| Instance method | `&self` method | Immutable reference |
-| Mutating method | `&mut self` method | Mutable reference |
-| Class method | Associated function | Static function |
-| Static method | Associated function | No self parameter |
+| Python Pattern  | Rust Pattern        | Implementation      |
+| --------------- | ------------------- | ------------------- |
+| Instance method | `&self` method      | Immutable reference |
+| Mutating method | `&mut self` method  | Mutable reference   |
+| Class method    | Associated function | Static function     |
+| Static method   | Associated function | No self parameter   |
 
 ```python
 # Python
@@ -205,11 +212,11 @@ impl Counter {
 
 ### Conditional Statements
 
-| Python Construct | Rust Construct | Notes |
-|------------------|-----------------|-------|
-| `if/elif/else` | `if/else if/else` | Direct mapping |
-| Ternary operator | `if` expression | Rust if is expression |
-| Pattern matching | `match` statement | When beneficial |
+| Python Construct | Rust Construct    | Notes                 |
+| ---------------- | ----------------- | --------------------- |
+| `if/elif/else`   | `if/else if/else` | Direct mapping        |
+| Ternary operator | `if` expression   | Rust if is expression |
+| Pattern matching | `match` statement | When beneficial       |
 
 ```python
 # Python
@@ -243,12 +250,12 @@ let sign = if x > 0 { "positive" } else { "non-positive" }.to_string();
 
 ### Loop Constructs
 
-| Python Loop | Rust Equivalent | Implementation |
-|-------------|-----------------|----------------|
-| `for x in iterable` | `for x in iterable` | Iterator-based |
-| `while condition` | `while condition` | Direct mapping |
-| `for i in range(n)` | `for i in 0..n` | Range syntax |
-| List comprehension | `map`/`filter`/`collect` | Functional style |
+| Python Loop         | Rust Equivalent          | Implementation   |
+| ------------------- | ------------------------ | ---------------- |
+| `for x in iterable` | `for x in iterable`      | Iterator-based   |
+| `while condition`   | `while condition`        | Direct mapping   |
+| `for i in range(n)` | `for i in 0..n`          | Range syntax     |
+| List comprehension  | `map`/`filter`/`collect` | Functional style |
 
 ```python
 # Python
@@ -286,47 +293,47 @@ let squares: Vec<i32> = numbers
 
 ### Arithmetic Operators
 
-| Python Operator | Rust Operator | Notes |
-|------------------|---------------|-------|
-| `+` | `+` | Addition |
-| `-` | `-` | Subtraction |
-| `*` | `*` | Multiplication |
-| `/` | `/` | Division (float result) |
-| `//` | `/` | Integer division |
-| `%` | `%` | Modulo |
-| `**` | `.pow()` | Exponentiation |
+| Python Operator | Rust Operator | Notes                   |
+| --------------- | ------------- | ----------------------- |
+| `+`             | `+`           | Addition                |
+| `-`             | `-`           | Subtraction             |
+| `*`             | `*`           | Multiplication          |
+| `/`             | `/`           | Division (float result) |
+| `//`            | `/`           | Integer division        |
+| `%`             | `%`           | Modulo                  |
+| `**`            | `.pow()`      | Exponentiation          |
 
 ### Comparison Operators
 
-| Python Operator | Rust Operator | Notes |
-|------------------|---------------|-------|
-| `==` | `==` | Equality |
-| `!=` | `!=` | Inequality |
-| `<` | `<` | Less than |
-| `<=` | `<=` | Less than or equal |
-| `>` | `>` | Greater than |
-| `>=` | `>=` | Greater than or equal |
-| `is` | `std::ptr::eq` | Identity comparison |
-| `in` | `.contains()` | Membership testing |
+| Python Operator | Rust Operator  | Notes                 |
+| --------------- | -------------- | --------------------- |
+| `==`            | `==`           | Equality              |
+| `!=`            | `!=`           | Inequality            |
+| `<`             | `<`            | Less than             |
+| `<=`            | `<=`           | Less than or equal    |
+| `>`             | `>`            | Greater than          |
+| `>=`            | `>=`           | Greater than or equal |
+| `is`            | `std::ptr::eq` | Identity comparison   |
+| `in`            | `.contains()`  | Membership testing    |
 
 ### Logical Operators
 
-| Python Operator | Rust Operator | Notes |
-|------------------|---------------|-------|
-| `and` | `&&` | Logical AND |
-| `or` | `\|\|` | Logical OR |
-| `not` | `!` | Logical NOT |
+| Python Operator | Rust Operator | Notes       |
+| --------------- | ------------- | ----------- |
+| `and`           | `&&`          | Logical AND |
+| `or`            | `\|\|`        | Logical OR  |
+| `not`           | `!`           | Logical NOT |
 
 ### Bitwise Operators
 
-| Python Operator | Rust Operator | Notes |
-|------------------|---------------|-------|
-| `&` | `&` | Bitwise AND |
-| `\|` | `\|` | Bitwise OR |
-| `^` | `^` | Bitwise XOR |
-| `~` | `!` | Bitwise NOT |
-| `<<` | `<<` | Left shift |
-| `>>` | `>>` | Right shift |
+| Python Operator | Rust Operator | Notes       |
+| --------------- | ------------- | ----------- |
+| `&`             | `&`           | Bitwise AND |
+| `\|`            | `\|`          | Bitwise OR  |
+| `^`             | `^`           | Bitwise XOR |
+| `~`             | `!`           | Bitwise NOT |
+| `<<`            | `<<`          | Left shift  |
+| `>>`            | `>>`          | Right shift |
 
 ---
 
@@ -334,11 +341,11 @@ let squares: Vec<i32> = numbers
 
 ### Error Handling
 
-| Python Pattern | Rust Pattern | Strategy |
-|----------------|--------------|----------|
-| `try/except` | `Result<T, E>` | Explicit error handling |
-| `raise Exception` | `Err(error)` | Return error |
-| Exception propagation | `?` operator | Error bubbling |
+| Python Pattern        | Rust Pattern   | Strategy                |
+| --------------------- | -------------- | ----------------------- |
+| `try/except`          | `Result<T, E>` | Explicit error handling |
+| `raise Exception`     | `Err(error)`   | Return error            |
+| Exception propagation | `?` operator   | Error bubbling          |
 
 ```python
 # Python
@@ -380,11 +387,11 @@ pub fn safe_divide(a: f64, b: f64) -> f64 {
 
 ### Context Managers
 
-| Python Pattern | Rust Pattern | Implementation |
-|----------------|--------------|----------------|
-| `with` statement | RAII + Drop | Automatic cleanup |
-| File handling | `std::fs` | Built-in functions |
-| Resource cleanup | Drop trait | Automatic |
+| Python Pattern   | Rust Pattern | Implementation     |
+| ---------------- | ------------ | ------------------ |
+| `with` statement | RAII + Drop  | Automatic cleanup  |
+| File handling    | `std::fs`    | Built-in functions |
+| Resource cleanup | Drop trait   | Automatic          |
 
 ```python
 # Python
@@ -407,11 +414,11 @@ pub fn read_config(filename: &str) -> Result<serde_json::Value, Box<dyn std::err
 
 ### Generators and Iterators
 
-| Python Pattern | Rust Pattern | Implementation |
-|----------------|--------------|----------------|
-| Generator function | Iterator impl | Custom iterator |
-| `yield` | Iterator::next() | State machine |
-| Generator expression | Iterator chain | Lazy evaluation |
+| Python Pattern       | Rust Pattern     | Implementation  |
+| -------------------- | ---------------- | --------------- |
+| Generator function   | Iterator impl    | Custom iterator |
+| `yield`              | Iterator::next() | State machine   |
+| Generator expression | Iterator chain   | Lazy evaluation |
 
 ```python
 # Python
@@ -468,14 +475,15 @@ pub fn fibonacci(n: usize) -> Fibonacci {
 
 ### String Strategy Selection
 
-| Strategy | Use Case | Rust Type | Performance |
-|----------|----------|-----------|-------------|
-| `always_owned` | Modifying strings | `String` | High memory |
-| `zero_copy` | Read-only strings | `&str` | Low memory |
-| `cow` | Mixed usage | `Cow<str>` | Balanced |
-| `smart` | Auto-detection | Mixed | Optimal |
+| Strategy       | Use Case          | Rust Type  | Performance |
+| -------------- | ----------------- | ---------- | ----------- |
+| `always_owned` | Modifying strings | `String`   | High memory |
+| `zero_copy`    | Read-only strings | `&str`     | Low memory  |
+| `cow`          | Mixed usage       | `Cow<str>` | Balanced    |
+| `smart`        | Auto-detection    | Mixed      | Optimal     |
 
 #### Configuration Examples
+
 ```python
 # @depyler: string_strategy = "zero_copy"
 def process_text(text: str) -> str:
@@ -504,20 +512,20 @@ pub fn modify_text(text: String) -> String {
 
 ### Ownership Strategies
 
-| Strategy | Description | Use Case | Performance |
-|----------|-------------|----------|-------------|
-| `owned` | Take ownership | Consuming functions | High safety |
-| `borrowed` | Immutable reference | Read-only access | Zero-copy |
-| `mutable` | Mutable reference | In-place modification | Efficient |
-| `smart` | Context-aware | Mixed patterns | Balanced |
+| Strategy   | Description         | Use Case              | Performance |
+| ---------- | ------------------- | --------------------- | ----------- |
+| `owned`    | Take ownership      | Consuming functions   | High safety |
+| `borrowed` | Immutable reference | Read-only access      | Zero-copy   |
+| `mutable`  | Mutable reference   | In-place modification | Efficient   |
+| `smart`    | Context-aware       | Mixed patterns        | Balanced    |
 
 ### Lifetime Management
 
-| Python Pattern | Rust Lifetime | Strategy |
-|----------------|---------------|----------|
+| Python Pattern   | Rust Lifetime | Strategy            |
+| ---------------- | ------------- | ------------------- |
 | Return reference | `'a` lifetime | Explicit annotation |
-| Borrowed data | `&'a T` | Reference borrowing |
-| Self-reference | `&'a self` | Method borrowing |
+| Borrowed data    | `&'a T`       | Reference borrowing |
+| Self-reference   | `&'a self`    | Method borrowing    |
 
 ---
 
@@ -525,22 +533,22 @@ pub fn modify_text(text: String) -> String {
 
 ### Currently Unsupported
 
-| Python Feature | Status | Workaround |
-|----------------|--------|------------|
-| `async/await` | Planned (v0.2) | Use sync alternatives |
-| Multiple inheritance | Complex | Use composition |
-| Metaclasses | Complex | Use macros/traits |
-| `eval()`/`exec()` | Security risk | Static alternatives |
-| Dynamic typing | Limited | Add type hints |
+| Python Feature       | Status         | Workaround            |
+| -------------------- | -------------- | --------------------- |
+| `async/await`        | Planned (v0.2) | Use sync alternatives |
+| Multiple inheritance | Complex        | Use composition       |
+| Metaclasses          | Complex        | Use macros/traits     |
+| `eval()`/`exec()`    | Security risk  | Static alternatives   |
+| Dynamic typing       | Limited        | Add type hints        |
 
 ### Partial Support
 
-| Feature | Support Level | Notes |
-|---------|---------------|-------|
-| Class inheritance | Basic | Single inheritance only |
-| Decorators | Limited | Function decorators only |
-| Import system | Basic | Standard library mapping |
-| Regular expressions | Full | Via `regex` crate |
+| Feature             | Support Level | Notes                    |
+| ------------------- | ------------- | ------------------------ |
+| Class inheritance   | Basic         | Single inheritance only  |
+| Decorators          | Limited       | Function decorators only |
+| Import system       | Basic         | Standard library mapping |
+| Regular expressions | Full          | Via `regex` crate        |
 
 ---
 
@@ -548,12 +556,12 @@ pub fn modify_text(text: String) -> String {
 
 ### Verification Strategies
 
-| Level | Description | Tools |
-|-------|-------------|-------|
-| Syntax | Valid Rust code | `rustc` compilation |
-| Semantics | Equivalent behavior | Property testing |
-| Performance | Expected speedup | Benchmarking |
-| Safety | Memory safety | Static analysis |
+| Level       | Description         | Tools               |
+| ----------- | ------------------- | ------------------- |
+| Syntax      | Valid Rust code     | `rustc` compilation |
+| Semantics   | Equivalent behavior | Property testing    |
+| Performance | Expected speedup    | Benchmarking        |
+| Safety      | Memory safety       | Static analysis     |
 
 ### Testing Framework
 
@@ -717,18 +725,20 @@ impl Default for Calculator {
 
 ### Roadmap Integration
 
-| Version | New Features | Specification Updates |
-|---------|--------------|----------------------|
-| v0.2.0 | Async/await support | Async function mapping |
-| v0.3.0 | Advanced classes | Inheritance patterns |
-| v0.4.0 | Generic types | Type parameter mapping |
-| v0.5.0 | Macro system | Code generation patterns |
+| Version | New Features        | Specification Updates    |
+| ------- | ------------------- | ------------------------ |
+| v0.2.0  | Async/await support | Async function mapping   |
+| v0.3.0  | Advanced classes    | Inheritance patterns     |
+| v0.4.0  | Generic types       | Type parameter mapping   |
+| v0.5.0  | Macro system        | Code generation patterns |
 
 For the latest specification updates and implementation details, see:
+
 - **[GitHub Repository](https://github.com/paiml/depyler)**
 - **[API Documentation](https://docs.rs/depyler)**
 - **[Community Discussions](https://github.com/paiml/depyler/discussions)**
 
 ---
 
-*This specification is a living document, updated with each Depyler release to reflect the latest Python-to-Rust mapping capabilities.*
+_This specification is a living document, updated with each Depyler release to
+reflect the latest Python-to-Rust mapping capabilities._

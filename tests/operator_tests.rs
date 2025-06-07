@@ -1,6 +1,7 @@
 use depyler_annotations::TranspilationAnnotations;
 use depyler_core::direct_rules::apply_rules;
 use depyler_core::hir::{BinOp, HirExpr, HirFunction, HirModule, HirStmt, Literal, Type};
+use depyler_core::rust_gen::generate_rust_file;
 use depyler_core::type_mapper::TypeMapper;
 
 #[test]
@@ -28,6 +29,7 @@ fn test_augmented_assignment() {
             ],
             properties: Default::default(),
             annotations: TranspilationAnnotations::default(),
+            docstring: None,
         }],
         imports: vec![],
     };
@@ -63,6 +65,7 @@ fn test_in_operator() {
             ],
             properties: Default::default(),
             annotations: TranspilationAnnotations::default(),
+            docstring: None,
         }],
         imports: vec![],
     };
@@ -95,6 +98,7 @@ fn test_not_in_operator() {
             ],
             properties: Default::default(),
             annotations: TranspilationAnnotations::default(),
+            docstring: None,
         }],
         imports: vec![],
     };
@@ -130,6 +134,7 @@ fn test_all_arithmetic_operators() {
                 }))],
                 properties: Default::default(),
                 annotations: TranspilationAnnotations::default(),
+                docstring: None,
             }],
             imports: vec![],
         };
@@ -169,6 +174,7 @@ fn test_comparison_operators() {
                 }))],
                 properties: Default::default(),
                 annotations: TranspilationAnnotations::default(),
+                docstring: None,
             }],
             imports: vec![],
         };
@@ -201,6 +207,7 @@ fn test_logical_operators() {
                 }))],
                 properties: Default::default(),
                 annotations: TranspilationAnnotations::default(),
+                docstring: None,
             }],
             imports: vec![],
         };
@@ -239,6 +246,7 @@ fn test_bitwise_operators() {
                 }))],
                 properties: Default::default(),
                 annotations: TranspilationAnnotations::default(),
+                docstring: None,
             }],
             imports: vec![],
         };
@@ -269,10 +277,114 @@ fn test_power_operator_not_supported() {
             }))],
             properties: Default::default(),
             annotations: TranspilationAnnotations::default(),
+            docstring: None,
         }],
         imports: vec![],
     };
 
     let type_mapper = TypeMapper::default();
     apply_rules(&module, &type_mapper).unwrap();
+}
+
+#[test]
+fn test_array_length_subtraction_safety() {
+    // Test that len(arr) - 1 uses saturating_sub
+    let module = HirModule {
+        functions: vec![HirFunction {
+            name: "safe_last_index".to_string(),
+            params: vec![("arr".to_string(), Type::List(Box::new(Type::Int)))].into(),
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: BinOp::Sub,
+                left: Box::new(HirExpr::Call {
+                    func: "len".to_string(),
+                    args: vec![HirExpr::Var("arr".to_string())],
+                }),
+                right: Box::new(HirExpr::Literal(Literal::Int(1))),
+            }))],
+            properties: Default::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: Some("Get the last index of an array safely".to_string()),
+        }],
+        imports: vec![],
+    };
+
+    let type_mapper = TypeMapper::default();
+    let result = generate_rust_file(&module, &type_mapper).unwrap();
+
+    // Verify that saturating_sub is used
+    assert!(
+        result.contains("saturating_sub"),
+        "Expected saturating_sub for array length subtraction, got: {}",
+        result
+    );
+}
+
+#[test]
+fn test_regular_subtraction_unchanged() {
+    // Test that regular x - y doesn't use saturating_sub
+    let module = HirModule {
+        functions: vec![HirFunction {
+            name: "regular_sub".to_string(),
+            params: vec![("x".to_string(), Type::Int), ("y".to_string(), Type::Int)].into(),
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: BinOp::Sub,
+                left: Box::new(HirExpr::Var("x".to_string())),
+                right: Box::new(HirExpr::Var("y".to_string())),
+            }))],
+            properties: Default::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        }],
+        imports: vec![],
+    };
+
+    let type_mapper = TypeMapper::default();
+    let result = generate_rust_file(&module, &type_mapper).unwrap();
+
+    // Verify regular subtraction doesn't use saturating_sub
+    assert!(
+        !result.contains("saturating_sub"),
+        "Regular subtraction should not use saturating_sub, got: {}",
+        result
+    );
+}
+
+#[test]
+fn test_len_variable_subtraction_safety() {
+    // Test that len(items) - offset uses saturating_sub
+    let module = HirModule {
+        functions: vec![HirFunction {
+            name: "complex_len_sub".to_string(),
+            params: vec![
+                ("items".to_string(), Type::List(Box::new(Type::String))),
+                ("offset".to_string(), Type::Int),
+            ]
+            .into(),
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: BinOp::Sub,
+                left: Box::new(HirExpr::Call {
+                    func: "len".to_string(),
+                    args: vec![HirExpr::Var("items".to_string())],
+                }),
+                right: Box::new(HirExpr::Var("offset".to_string())),
+            }))],
+            properties: Default::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: Some("Subtract offset from list length".to_string()),
+        }],
+        imports: vec![],
+    };
+
+    let type_mapper = TypeMapper::default();
+    let result = generate_rust_file(&module, &type_mapper).unwrap();
+
+    // Should use saturating_sub for len() - variable
+    assert!(
+        result.contains("saturating_sub"),
+        "Expected saturating_sub for len() - variable, got: {}",
+        result
+    );
 }

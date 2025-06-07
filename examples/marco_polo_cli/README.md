@@ -8,7 +8,10 @@
 
 ## 🎮 Overview
 
-Marco Polo CLI is the canonical example demonstrating Depyler's Python-to-Rust transpilation capabilities. This number guessing game showcases how clean Python code can be transformed into idiomatic, performant Rust with proper CLI support using clap.
+Marco Polo CLI is the canonical example demonstrating Depyler's Python-to-Rust
+transpilation capabilities. This number guessing game showcases how clean Python
+code can be transformed into idiomatic, performant Rust with proper CLI support
+using clap.
 
 ## 📁 Project Structure
 
@@ -56,6 +59,7 @@ cargo run -- --rounds 5 --difficulty medium
 ### 1. Original Python Code
 
 The original `marco_polo.py` demonstrates typical Python patterns:
+
 - Class-based game logic
 - argparse for CLI parsing
 - Exception handling
@@ -74,6 +78,7 @@ def calculate_performance(self) -> str:
 ```
 
 Key annotations used:
+
 - **String Strategy**: Controls how strings are handled (owned vs borrowed)
 - **Ownership Model**: Specifies Rust ownership semantics
 - **Error Strategy**: Determines error handling approach
@@ -92,6 +97,7 @@ depyler quality-check marco_polo_simple.py --enforce
 ### 4. Target Rust Code
 
 The ideal Rust output (`src/main.rs`) demonstrates:
+
 - ✅ Idiomatic Rust patterns
 - ✅ Clap for CLI parsing
 - ✅ Result-based error handling
@@ -101,6 +107,7 @@ The ideal Rust output (`src/main.rs`) demonstrates:
 ## 🎯 Game Rules
 
 Marco Polo is a number guessing game where:
+
 1. The computer picks a random number
 2. You guess, and receive hints:
    - "Marco!" means you're wrong (with distance hints)
@@ -110,6 +117,7 @@ Marco Polo is a number guessing game where:
 ## 📊 Features Demonstrated
 
 ### Python Features
+
 - Command-line argument parsing
 - Classes and methods
 - Exception handling
@@ -118,6 +126,7 @@ Marco Polo is a number guessing game where:
 - User input handling
 
 ### Rust Translation
+
 - Clap derive macros for CLI
 - Struct-based state management
 - Result<T, E> for error handling
@@ -127,7 +136,9 @@ Marco Polo is a number guessing game where:
 
 ## 🔧 Current Limitations
 
-The simplified version (`marco_polo_simple.py`) works with current Depyler capabilities:
+The simplified version (`marco_polo_simple.py`) works with current Depyler
+capabilities:
+
 - ✅ Simple functions with type annotations
 - ✅ Basic arithmetic and comparisons
 - ✅ String operations
@@ -140,7 +151,7 @@ The simplified version (`marco_polo_simple.py`) works with current Depyler capab
 Performance comparison (average of 1000 rounds):
 
 | Implementation | Time per Round | Memory Usage | Binary Size |
-|----------------|----------------|--------------|-------------|
+| -------------- | -------------- | ------------ | ----------- |
 | Python         | 15.2ms         | 28MB         | N/A         |
 | Rust (debug)   | 2.1ms          | 1.2MB        | 4.8MB       |
 | Rust (release) | 0.8ms          | 0.9MB        | 2.1MB       |
@@ -180,6 +191,7 @@ cargo bench
 ## 🤝 Contributing
 
 This example is part of the Depyler project. To contribute:
+
 1. Improve Python implementation
 2. Add more Depyler annotations
 3. Enhance Rust target code

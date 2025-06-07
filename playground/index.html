@@ -1,136 +1,154 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Depyler Interactive Playground</title>
-  <meta name="description" content="Zero-configuration Python-to-Rust transpiler with energy efficiency analysis. Experience the future of sustainable computing." />
-  <meta name="keywords" content="python, rust, transpiler, energy efficiency, performance, sustainability, webassembly" />
-  
-  <!-- Open Graph / Social Media -->
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="Depyler Interactive Playground" />
-  <meta property="og:description" content="Transform Python to Rust instantly with real-time energy efficiency analysis" />
-  <meta property="og:url" content="https://playground.depyler.io" />
-  <meta property="og:image" content="https://playground.depyler.io/og-image.png" />
-  
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Depyler Interactive Playground" />
-  <meta name="twitter:description" content="Transform Python to Rust instantly with real-time energy efficiency analysis" />
-  <meta name="twitter:image" content="https://playground.depyler.io/og-image.png" />
-  
-  <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="icon" type="image/png" href="/favicon.png" />
-  
-  <!-- Web App Manifest -->
-  <link rel="manifest" href="/manifest.json" />
-  
-  <!-- Preconnect to improve performance -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  
-  <!-- Font loading with performance optimization -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  
-  <!-- Theme color for mobile browsers -->
-  <meta name="theme-color" content="#2563eb" />
-  
-  <!-- Security headers for WASM -->
-  <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
-  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
-  
-  <!-- Preload critical resources -->
-  <link rel="modulepreload" href="/src/main.tsx" />
-  
-  <style>
-    /* Critical CSS for above-the-fold content */
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      background-color: #f9fafb;
-      color: #111827;
-      line-height: 1.5;
-    }
-    
-    #root {
-      min-height: 100vh;
-    }
-    
-    /* Loading spinner */
-    .loading-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      flex-direction: column;
-      gap: 1rem;
-    }
-    
-    .loading-spinner {
-      width: 2rem;
-      height: 2rem;
-      border: 2px solid #e5e7eb;
-      border-radius: 50%;
-      border-top-color: #2563eb;
-      animation: spin 1s ease-in-out infinite;
-    }
-    
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    
-    .loading-text {
-      color: #6b7280;
-      font-size: 0.875rem;
-    }
-  </style>
-</head>
-<body>
-  <div id="root">
-    <div class="loading-container">
-      <div class="loading-spinner"></div>
-      <div class="loading-text">Loading Depyler Playground...</div>
-    </div>
-  </div>
-  
-  <script type="module" src="/src/main.tsx"></script>
-  
-  <!-- Service Worker registration -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(registration => {
-            console.log('SW registered: ', registration);
-          })
-          .catch(registrationError => {
-            console.log('SW registration failed: ', registrationError);
-          });
-      });
-    }
-  </script>
-  
-  <!-- Performance monitoring -->
-  <script>
-    // Mark critical performance metrics
-    performance.mark('page-load-start');
-    
-    window.addEventListener('load', () => {
-      performance.mark('page-load-end');
-      performance.measure('page-load', 'page-load-start', 'page-load-end');
-      
-      // Report to analytics if available
-      if (window.gtag) {
-        const loadTime = performance.getEntriesByName('page-load')[0]?.duration;
-        window.gtag('event', 'page_load_time', {
-          value: Math.round(loadTime),
-          custom_parameter: 'playground'
-        });
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Depyler Interactive Playground</title>
+    <meta
+      name="description"
+      content="Zero-configuration Python-to-Rust transpiler with energy efficiency analysis. Experience the future of sustainable computing."
+    />
+    <meta
+      name="keywords"
+      content="python, rust, transpiler, energy efficiency, performance, sustainability, webassembly"
+    />
+
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Depyler Interactive Playground" />
+    <meta
+      property="og:description"
+      content="Transform Python to Rust instantly with real-time energy efficiency analysis"
+    />
+    <meta property="og:url" content="https://playground.depyler.io" />
+    <meta property="og:image" content="https://playground.depyler.io/og-image.png" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Depyler Interactive Playground" />
+    <meta
+      name="twitter:description"
+      content="Transform Python to Rust instantly with real-time energy efficiency analysis"
+    />
+    <meta name="twitter:image" content="https://playground.depyler.io/og-image.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Preconnect to improve performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Font loading with performance optimization -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Theme color for mobile browsers -->
+    <meta name="theme-color" content="#2563eb" />
+
+    <!-- Security headers for WASM -->
+    <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
+    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
+
+    <!-- Preload critical resources -->
+    <link rel="modulepreload" href="/src/main.tsx" />
+
+    <style>
+      /* Critical CSS for above-the-fold content */
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+        background-color: #f9fafb;
+        color: #111827;
+        line-height: 1.5;
       }
-    });
-  </script>
-</body>
+
+      #root {
+        min-height: 100vh;
+      }
+
+      /* Loading spinner */
+      .loading-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .loading-spinner {
+        width: 2rem;
+        height: 2rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 50%;
+        border-top-color: #2563eb;
+        animation: spin 1s ease-in-out infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .loading-text {
+        color: #6b7280;
+        font-size: 0.875rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading Depyler Playground...</div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Service Worker registration -->
+    <script>
+      // Service worker disabled for localhost development
+      // if ("serviceWorker" in navigator && location.protocol === 'https:') {
+      //   window.addEventListener("load", () => {
+      //     navigator.serviceWorker.register("/sw.js")
+      //       .then((registration) => {
+      //         console.log("SW registered: ", registration);
+      //       })
+      //       .catch((registrationError) => {
+      //         console.log("SW registration failed: ", registrationError);
+      //       });
+      //   });
+      // }
+    </script>
+
+    <!-- Performance monitoring -->
+    <script>
+      // Mark critical performance metrics
+      performance.mark("page-load-start");
+
+      window.addEventListener("load", () => {
+        performance.mark("page-load-end");
+        performance.measure("page-load", "page-load-start", "page-load-end");
+
+        // Report to analytics if available
+        if (window.gtag) {
+          const loadTime = performance.getEntriesByName("page-load")[0]?.duration;
+          window.gtag("event", "page_load_time", {
+            value: Math.round(loadTime),
+            custom_parameter: "playground",
+          });
+        }
+      });
+    </script>
+  </body>
 </html>

@@ -62,6 +62,7 @@ fn prop_type_preservation(expr: ArbitraryTypedExpr) -> TestResult {
         body: vec![HirStmt::Return(Some(expr.expr))],
         properties: Default::default(),
         annotations: TranspilationAnnotations::default(),
+        docstring: None,
     };
 
     let module = HirModule {
@@ -167,6 +168,7 @@ impl Arbitrary for ArbitraryFunction {
             body,
             properties: Default::default(),
             annotations: TranspilationAnnotations::default(),
+            docstring: None,
         })
     }
 }

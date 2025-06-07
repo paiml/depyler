@@ -2,7 +2,10 @@
 
 ## Overview
 
-Depyler annotations are special comments that guide the transpilation process, providing hints about type strategies, memory management, performance optimization, and safety requirements. Annotations use the `@depyler:` prefix and follow a key-value syntax.
+Depyler annotations are special comments that guide the transpilation process,
+providing hints about type strategies, memory management, performance
+optimization, and safety requirements. Annotations use the `@depyler:` prefix
+and follow a key-value syntax.
 
 ## Syntax Format
 
@@ -24,10 +27,12 @@ Depyler annotations are special comments that guide the transpilation process, p
 Control how types are inferred and mapped from Python to Rust.
 
 #### `type_strategy`
-- **Values**: `"conservative"` | `"aggressive"` | `"zero_copy"` | `"always_owned"`
+
+- **Values**: `"conservative"` | `"aggressive"` | `"zero_copy"` |
+  `"always_owned"`
 - **Default**: `"conservative"`
 - **Description**: Controls the overall type mapping strategy
-- **Example**: 
+- **Example**:
   ```python
   # @depyler: type_strategy = "zero_copy"
   def process_data(data: bytes) -> bytes:
@@ -35,6 +40,7 @@ Control how types are inferred and mapped from Python to Rust.
   ```
 
 #### `string_strategy`
+
 - **Values**: `"conservative"` | `"always_owned"` | `"zero_copy"`
 - **Default**: `"conservative"`
 - **Description**: Specific strategy for string handling
@@ -50,9 +56,11 @@ Control how types are inferred and mapped from Python to Rust.
 Control ownership and memory safety patterns.
 
 #### `ownership`
+
 - **Values**: `"owned"` | `"borrowed"` | `"shared"`
 - **Default**: `"owned"`
-- **Description**: Specifies the ownership model for function parameters and return values
+- **Description**: Specifies the ownership model for function parameters and
+  return values
 - **Example**:
   ```python
   # @depyler: ownership = "borrowed"
@@ -61,6 +69,7 @@ Control ownership and memory safety patterns.
   ```
 
 #### `interior_mutability`
+
 - **Values**: `"none"` | `"arc_mutex"` | `"ref_cell"` | `"cell"`
 - **Default**: `"none"`
 - **Description**: Specifies interior mutability pattern for shared state
@@ -77,6 +86,7 @@ Control ownership and memory safety patterns.
 Control safety checks and error handling.
 
 #### `safety_level`
+
 - **Values**: `"safe"` | `"unsafe_allowed"`
 - **Default**: `"safe"`
 - **Description**: Whether to allow unsafe Rust code generation
@@ -89,6 +99,7 @@ Control safety checks and error handling.
   ```
 
 #### `bounds_checking`
+
 - **Values**: `"explicit"` | `"implicit"` | `"disabled"`
 - **Default**: `"explicit"`
 - **Description**: Controls array bounds checking behavior
@@ -102,6 +113,7 @@ Control safety checks and error handling.
   ```
 
 #### `panic_behavior`
+
 - **Values**: `"propagate"` | `"return_error"` | `"abort"`
 - **Default**: `"propagate"`
 - **Description**: How to handle panic situations
@@ -115,6 +127,7 @@ Control safety checks and error handling.
   ```
 
 #### `error_strategy`
+
 - **Values**: `"panic"` | `"result_type"` | `"option_type"`
 - **Default**: `"panic"`
 - **Description**: Error handling approach
@@ -133,6 +146,7 @@ Control safety checks and error handling.
 Guide optimization decisions.
 
 #### `optimization_level`
+
 - **Values**: `"standard"` | `"aggressive"` | `"conservative"`
 - **Default**: `"standard"`
 - **Description**: Overall optimization aggressiveness
@@ -145,6 +159,7 @@ Guide optimization decisions.
   ```
 
 #### `performance_critical`
+
 - **Values**: `"true"` | `"false"`
 - **Default**: `"false"`
 - **Description**: Marks functions as performance critical
@@ -156,6 +171,7 @@ Guide optimization decisions.
   ```
 
 #### `optimization_hint`
+
 - **Values**: `"vectorize"` | `"latency"` | `"throughput"` | `"async_ready"`
 - **Description**: Specific optimization hints
 - **Example**:
@@ -166,6 +182,7 @@ Guide optimization decisions.
   ```
 
 #### `vectorize`
+
 - **Values**: `"true"` | `"false"`
 - **Default**: `"false"`
 - **Description**: Enable SIMD vectorization
@@ -177,6 +194,7 @@ Guide optimization decisions.
   ```
 
 #### `unroll_loops`
+
 - **Values**: Numeric (e.g., `"4"`, `"8"`)
 - **Description**: Loop unrolling factor
 - **Example**:
@@ -194,6 +212,7 @@ Guide optimization decisions.
 Control thread safety and concurrency patterns.
 
 #### `thread_safety`
+
 - **Values**: `"required"` | `"not_required"`
 - **Default**: `"not_required"`
 - **Description**: Whether the code must be thread-safe
@@ -209,6 +228,7 @@ Control thread safety and concurrency patterns.
 Guide formal verification and property checking.
 
 #### `termination`
+
 - **Values**: `"unknown"` | `"proven"` | `"bounded_N"` (where N is a number)
 - **Default**: `"unknown"`
 - **Description**: Termination guarantee
@@ -222,6 +242,7 @@ Guide formal verification and property checking.
   ```
 
 #### `invariant`
+
 - **Values**: String expression
 - **Description**: Loop or function invariants
 - **Example**:
@@ -234,6 +255,7 @@ Guide formal verification and property checking.
   ```
 
 #### `verify_bounds`
+
 - **Values**: `"true"` | `"false"`
 - **Default**: `"false"`
 - **Description**: Enable bounds verification
@@ -249,6 +271,7 @@ Guide formal verification and property checking.
 Guide architectural decisions.
 
 #### `service_type`
+
 - **Values**: `"web_api"` | `"cli"` | `"library"`
 - **Description**: Type of service being built
 - **Example**:
@@ -260,6 +283,7 @@ Guide architectural decisions.
   ```
 
 #### `global_strategy`
+
 - **Values**: `"none"` | `"lazy_static"` | `"once_cell"`
 - **Default**: `"none"`
 - **Description**: Strategy for handling global state
@@ -270,6 +294,7 @@ Guide architectural decisions.
   ```
 
 #### `hash_strategy`
+
 - **Values**: `"standard"` | `"fnv"` | `"ahash"`
 - **Default**: `"standard"`
 - **Description**: Hash function strategy for dictionaries
@@ -285,6 +310,7 @@ Guide architectural decisions.
 Control migration strategy from Python to Rust.
 
 #### `migration_strategy`
+
 - **Values**: `"incremental"` | `"big_bang"` | `"hybrid"`
 - **Description**: Overall migration approach
 - **Example**:
@@ -296,6 +322,7 @@ Control migration strategy from Python to Rust.
   ```
 
 #### `compatibility_layer`
+
 - **Values**: `"pyo3"` | `"ctypes"` | `"none"`
 - **Description**: Python-Rust interop mechanism
 - **Example**:
@@ -310,6 +337,7 @@ Control migration strategy from Python to Rust.
 Control fallback behavior for complex constructs.
 
 #### `fallback`
+
 - **Values**: `"mcp"` | `"manual"` | `"error"`
 - **Default**: `"error"`
 - **Description**: What to do when automatic transpilation fails
@@ -322,6 +350,7 @@ Control fallback behavior for complex constructs.
   ```
 
 #### `pattern`
+
 - **Values**: String (e.g., `"builder"`, `"singleton"`)
 - **Description**: Design pattern hint for MCP
 - **Example**:
@@ -354,7 +383,7 @@ Control fallback behavior for complex constructs.
    ```python
    # @depyler: migration_strategy = "incremental"
    # @depyler: service_type = "web_api"
-   
+
    import typing
    ```
 
@@ -369,21 +398,29 @@ Control fallback behavior for complex constructs.
 ## Annotation Validation
 
 The annotation parser performs validation to ensure:
-- No conflicting annotations (e.g., `string_strategy = "zero_copy"` with `ownership = "owned"`)
+
+- No conflicting annotations (e.g., `string_strategy = "zero_copy"` with
+  `ownership = "owned"`)
 - Valid values for each annotation key
-- Appropriate combinations (e.g., `thread_safety = "required"` requires thread-safe interior mutability)
+- Appropriate combinations (e.g., `thread_safety = "required"` requires
+  thread-safe interior mutability)
 
 ## Best Practices
 
-1. **Start Conservative**: Begin with conservative defaults and add annotations as needed
-2. **Profile First**: Use performance annotations only after profiling identifies bottlenecks
-3. **Document Intent**: Annotations serve as documentation for transpilation decisions
-4. **Incremental Adoption**: Add annotations gradually as you understand their impact
+1. **Start Conservative**: Begin with conservative defaults and add annotations
+   as needed
+2. **Profile First**: Use performance annotations only after profiling
+   identifies bottlenecks
+3. **Document Intent**: Annotations serve as documentation for transpilation
+   decisions
+4. **Incremental Adoption**: Add annotations gradually as you understand their
+   impact
 5. **Validate Early**: Run validation checks to catch annotation conflicts early
 
 ## Examples
 
 ### Example 1: High-Performance Numeric Computation
+
 ```python
 # @depyler: performance_critical = "true"
 # @depyler: optimization_level = "aggressive"
@@ -404,6 +441,7 @@ def matrix_multiply(a: List[List[float]], b: List[List[float]]) -> List[List[flo
 ```
 
 ### Example 2: Thread-Safe Web Service
+
 ```python
 # @depyler: service_type = "web_api"
 # @depyler: thread_safety = "required"
@@ -421,6 +459,7 @@ def handle_api_request(request: Dict[str, Any]) -> Union[Dict[str, Any], str]:
 ```
 
 ### Example 3: Zero-Copy String Processing
+
 ```python
 # @depyler: string_strategy = "zero_copy"
 # @depyler: ownership = "borrowed"
@@ -444,6 +483,7 @@ def extract_fields(data: str, delimiter: str = ",") -> List[str]:
 ## Future Extensions
 
 The annotation system is designed to be extensible. Future versions may add:
+
 - Async/await annotations
 - GPU computation hints
 - Distributed computing annotations

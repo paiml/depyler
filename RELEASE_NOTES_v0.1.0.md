@@ -2,19 +2,27 @@
 
 **Release Date:** January 6, 2025
 
-We are excited to announce the first release of Depyler, a Python-to-Rust transpiler focused on energy efficiency and memory safety. This initial release provides a solid foundation for transpiling a practical subset of Python to idiomatic, safe Rust code.
+We are excited to announce the first release of Depyler, a Python-to-Rust
+transpiler focused on energy efficiency and memory safety. This initial release
+provides a solid foundation for transpiling a practical subset of Python to
+idiomatic, safe Rust code.
 
 ## 🎯 Highlights
 
-- **Core Transpilation Engine**: Fully functional Python-to-Rust transpiler supporting essential Python features
-- **Type-Safe Code Generation**: Automatic type inference and mapping to Rust's type system
-- **Memory Optimized**: Uses SmallVec and other optimizations to minimize allocations
+- **Core Transpilation Engine**: Fully functional Python-to-Rust transpiler
+  supporting essential Python features
+- **Type-Safe Code Generation**: Automatic type inference and mapping to Rust's
+  type system
+- **Memory Optimized**: Uses SmallVec and other optimizations to minimize
+  allocations
 - **Comprehensive Testing**: 62.88% function coverage with 70 tests
-- **Energy Efficient**: Generated Rust code uses significantly less energy than interpreted Python
+- **Energy Efficient**: Generated Rust code uses significantly less energy than
+  interpreted Python
 
 ## ✨ Features
 
 ### Supported Python Features
+
 - **Basic Types**: `int`, `float`, `str`, `bool`, `None`
 - **Collections**: `list`, `dict`, `tuple` with type annotations
 - **Control Flow**: `if/else`, `while`, `for` loops
@@ -23,20 +31,26 @@ We are excited to announce the first release of Depyler, a Python-to-Rust transp
 - **Type Annotations**: Full support for `typing` module annotations
 
 ### Architecture Highlights
-- **HIR (High-level Intermediate Representation)**: Clean abstraction layer between Python AST and Rust code
-- **Unified Code Generation**: Single source of truth for all code generation paths
+
+- **HIR (High-level Intermediate Representation)**: Clean abstraction layer
+  between Python AST and Rust code
+- **Unified Code Generation**: Single source of truth for all code generation
+  paths
 - **Context-Aware Errors**: Detailed error messages with source locations
 - **Property Verification**: Framework for ensuring semantic correctness
 
 ## 📦 Installation
 
 ### Quick Install (Linux/macOS)
+
 ```bash
 curl -sSfL https://github.com/paiml/depyler/releases/latest/download/install.sh | sh
 ```
 
 ### Manual Download
+
 Download pre-built binaries for your platform:
+
 - [Linux x64](https://github.com/paiml/depyler/releases/download/v0.1.0/depyler-linux-amd64.tar.gz)
 - [Linux ARM64](https://github.com/paiml/depyler/releases/download/v0.1.0/depyler-linux-arm64.tar.gz)
 - [macOS Intel](https://github.com/paiml/depyler/releases/download/v0.1.0/depyler-darwin-amd64.tar.gz)
@@ -44,6 +58,7 @@ Download pre-built binaries for your platform:
 - [Windows x64](https://github.com/paiml/depyler/releases/download/v0.1.0/depyler-windows-amd64.zip)
 
 ### Build from Source
+
 ```bash
 git clone https://github.com/paiml/depyler.git
 cd depyler
@@ -54,6 +69,7 @@ cargo install --path crates/depyler
 ## 🚀 Usage
 
 ### Basic Example
+
 ```python
 # fibonacci.py
 def fibonacci(n: int) -> int:
@@ -63,11 +79,13 @@ def fibonacci(n: int) -> int:
 ```
 
 Transpile to Rust:
+
 ```bash
 depyler transpile fibonacci.py -o fibonacci.rs
 ```
 
 ### Example with Type Annotations
+
 ```python
 # process.py
 from typing import List, Dict
@@ -82,12 +100,14 @@ def process_data(items: List[int]) -> Dict[str, int]:
 ## 🔧 Technical Details
 
 ### Code Quality Metrics
+
 - **Function Coverage**: 62.88% (exceeding 60% threshold)
 - **Total Tests**: 70 comprehensive tests
 - **Zero Warnings**: Clean clippy and fmt checks
 - **Complexity**: Reduced through strategy pattern refactoring
 
 ### Performance
+
 - **Transpilation Speed**: ~1.8 MB/s on typical Python code
 - **Memory Usage**: Optimized with SmallVec for common patterns
 - **Binary Size**: ~15-20MB release build (platform dependent)
@@ -96,9 +116,12 @@ def process_data(items: List[int]) -> Dict[str, int]:
 
 This is a v0.1.0 release with the following limitations:
 
-1. **Limited Python Feature Set**: Only supports V1 subset (no classes, decorators, async)
-2. **Code Formatting**: Generated Rust code needs manual formatting (rustfmt integration coming)
-3. **Docstrings**: Currently converted to string literals instead of doc comments
+1. **Limited Python Feature Set**: Only supports V1 subset (no classes,
+   decorators, async)
+2. **Code Formatting**: Generated Rust code needs manual formatting (rustfmt
+   integration coming)
+3. **Docstrings**: Currently converted to string literals instead of doc
+   comments
 4. **Error Recovery**: Stops on first error (no error recovery yet)
 5. **Standard Library**: No Python stdlib support yet
 
@@ -111,7 +134,8 @@ This is a v0.1.0 release with the following limitations:
 
 ## 🙏 Acknowledgments
 
-- Built following Toyota Way principles (Jidoka, Genchi Genbutsu, Hansei, Kaizen)
+- Built following Toyota Way principles (Jidoka, Genchi Genbutsu, Hansei,
+  Kaizen)
 - Inspired by the Rash project's quality standards
 - Uses rustpython-parser for Python AST parsing
 - Follows NASA/SQLite testing standards
@@ -135,4 +159,5 @@ Please report issues at: https://github.com/paiml/depyler/issues
 
 ---
 
-Thank you for trying Depyler! We're excited to help you transition your Python code to energy-efficient Rust.
+Thank you for trying Depyler! We're excited to help you transition your Python
+code to energy-efficient Rust.

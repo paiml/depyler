@@ -18,7 +18,7 @@ max_cyclomatic_complexity = 15
 required_documentation_coverage = 100.0
 
 [workspace.package]
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 authors = ["Depyler Contributors"]
 license = "MIT OR Apache-2.0"

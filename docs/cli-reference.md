@@ -1,6 +1,7 @@
 # Depyler CLI Reference
 
-Complete command-line interface documentation for the Depyler Python-to-Rust transpiler.
+Complete command-line interface documentation for the Depyler Python-to-Rust
+transpiler.
 
 ## Installation
 
@@ -109,7 +110,8 @@ depyler verify project/ --report json > verification_report.json
 
 ### `analyze` - Code Analysis and Metrics
 
-Analyze Python code for complexity, energy efficiency, and performance characteristics.
+Analyze Python code for complexity, energy efficiency, and performance
+characteristics.
 
 ```bash
 depyler analyze [OPTIONS] <INPUT>
@@ -200,7 +202,8 @@ depyler init cli-tool --template cli --git --license Apache-2.0
 
 ### `interactive` - Interactive Transpilation
 
-Run interactive transpilation with annotation suggestions and real-time feedback.
+Run interactive transpilation with annotation suggestions and real-time
+feedback.
 
 ```bash
 depyler interactive [OPTIONS] <INPUT>
@@ -223,6 +226,7 @@ depyler interactive complex_code.py --annotate
 ```
 
 The interactive mode provides:
+
 - Step-by-step transpilation feedback
 - Annotation suggestions for optimization
 - Interactive selection of improvements
@@ -231,7 +235,8 @@ The interactive mode provides:
 
 ### `inspect` - AST/HIR Inspection
 
-Inspect intermediate representations during transpilation for debugging and optimization.
+Inspect intermediate representations during transpilation for debugging and
+optimization.
 
 ```bash
 depyler inspect [OPTIONS] <INPUT>
@@ -266,13 +271,14 @@ depyler inspect broken.py --repr python-ast --format debug
 #### Representations
 
 - **python-ast**: Original Python AST from rustpython-parser
-- **hir**: Depyler's High-level Intermediate Representation with types and annotations
+- **hir**: Depyler's High-level Intermediate Representation with types and
+  annotations
 - **typed-hir**: Enhanced HIR with additional type analysis
 
 #### Use Cases
 
 - Understanding Python AST structure
-- Debugging transpilation issues  
+- Debugging transpilation issues
 - Verifying annotation extraction
 - Analyzing function properties (pure, terminates, panic-free)
 - Optimizing code based on HIR analysis
@@ -330,22 +336,23 @@ export DEPYLER_CACHE_DIR=\"~/.cache/depyler\"
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0    | Success |
-| 1    | General error |
-| 2    | Parse error |
-| 3    | Type error |
-| 4    | Verification failure |
+| Code | Meaning               |
+| ---- | --------------------- |
+| 0    | Success               |
+| 1    | General error         |
+| 2    | Parse error           |
+| 3    | Type error            |
+| 4    | Verification failure  |
 | 5    | Unsupported construct |
-| 6    | I/O error |
-| 7    | Configuration error |
+| 6    | I/O error             |
+| 7    | Configuration error   |
 
 ## Error Handling
 
 ### Common Errors and Solutions
 
 #### Parse Errors
+
 ```bash
 Error: Failed to parse Python source
   --> input.py:15:23
@@ -357,6 +364,7 @@ Solution: Fix Python syntax errors before transpilation
 ```
 
 #### Type Inference Errors
+
 ```bash
 Error: Cannot infer type for variable 'data'
   --> input.py:8:5
@@ -368,6 +376,7 @@ Solution: Add type hints or use --verify-level none
 ```
 
 #### Unsupported Construct Errors
+
 ```bash
 Error: Unsupported construct: async function
   --> input.py:12:1
@@ -386,7 +395,7 @@ Solution: Use synchronous alternatives or wait for async support
    ```bash
    # Fast development iteration
    depyler transpile --verify-level none
-   
+
    # Production builds
    depyler transpile --verify-level strict
    ```
@@ -457,24 +466,24 @@ jobs:
   transpile:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Install Depyler
-      run: |
-        curl -sSf https://install.depyler.rs | sh
-        echo \"$HOME/.depyler/bin\" >> $GITHUB_PATH
-    
-    - name: Check Python compatibility
-      run: depyler check src/ --strict
-    
-    - name: Verify Python properties
-      run: depyler verify src/ --property-tests --contracts
-    
-    - name: Transpile to Rust
-      run: depyler transpile src/ --verify-level strict
-    
-    - name: Test generated Rust
-      run: cargo test --all
+      - uses: actions/checkout@v3
+
+      - name: Install Depyler
+        run: |
+          curl -sSf https://install.depyler.rs | sh
+          echo \"$HOME/.depyler/bin\" >> $GITHUB_PATH
+
+      - name: Check Python compatibility
+        run: depyler check src/ --strict
+
+      - name: Verify Python properties
+        run: depyler verify src/ --property-tests --contracts
+
+      - name: Transpile to Rust
+        run: depyler transpile src/ --verify-level strict
+
+      - name: Test generated Rust
+        run: cargo test --all
 ```
 
 ### VS Code Integration
@@ -516,7 +525,7 @@ Create `.vscode/tasks.json`:
    ```bash
    # Ensure Rust is installed
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   
+
    # Update PATH
    source ~/.cargo/env
    ```
@@ -525,7 +534,7 @@ Create `.vscode/tasks.json`:
    ```bash
    # Increase memory limit
    export DEPYLER_MAX_MEMORY=16G
-   
+
    # Use streaming mode for large files
    export DEPYLER_STREAMING=true
    ```
@@ -534,7 +543,7 @@ Create `.vscode/tasks.json`:
    ```bash
    # Increase timeout for complex verification
    export DEPYLER_VERIFY_TIMEOUT=300
-   
+
    # Or disable problematic checks
    depyler verify --no-termination-analysis
    ```
@@ -583,6 +592,6 @@ When reporting issues, include:
 
 ---
 
-*Generated: 2025-01-06*  
-*Version: 0.1.0*  
-*For issues and contributions: https://github.com/paiml/depyler*
+_Generated: 2025-01-06_\
+_Version: 0.1.0_\
+_For issues and contributions: https://github.com/paiml/depyler_

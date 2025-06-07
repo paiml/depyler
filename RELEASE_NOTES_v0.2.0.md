@@ -4,7 +4,10 @@
 
 **AWS Lambda Transpilation & Energy-Efficient Serverless Computing**
 
-This major release introduces comprehensive AWS Lambda transpilation capabilities, enabling developers to automatically convert Python Lambda functions to blazing-fast, energy-efficient Rust implementations with up to **97% reduction in cold start times** and **93% cost savings**.
+This major release introduces comprehensive AWS Lambda transpilation
+capabilities, enabling developers to automatically convert Python Lambda
+functions to blazing-fast, energy-efficient Rust implementations with up to
+**97% reduction in cold start times** and **93% cost savings**.
 
 ---
 
@@ -12,21 +15,31 @@ This major release introduces comprehensive AWS Lambda transpilation capabilitie
 
 ### 🔥 AWS Lambda Transpilation Pipeline
 
-Transform your Python Lambda functions into optimized Rust with automatic event type detection and cold start optimization:
+Transform your Python Lambda functions into optimized Rust with automatic event
+type detection and cold start optimization:
 
 #### Automatic Event Type Inference
-- **Smart Pattern Detection**: Automatically detects S3, API Gateway, SQS, SNS, DynamoDB, and EventBridge event patterns
+
+- **Smart Pattern Detection**: Automatically detects S3, API Gateway, SQS, SNS,
+  DynamoDB, and EventBridge event patterns
 - **Confidence Scoring**: ML-based pattern matching with confidence thresholds
-- **Type Safety**: Generates strongly-typed Rust handlers for each AWS event type
+- **Type Safety**: Generates strongly-typed Rust handlers for each AWS event
+  type
 
 #### Cold Start Optimization
-- **Pre-warming Strategies**: Reduces cold starts by 85-95% through intelligent pre-allocation
-- **Binary Size Optimization**: Aggressive LTO, strip, and panic=abort configurations
+
+- **Pre-warming Strategies**: Reduces cold starts by 85-95% through intelligent
+  pre-allocation
+- **Binary Size Optimization**: Aggressive LTO, strip, and panic=abort
+  configurations
 - **Memory Pool Pre-allocation**: Event-specific memory optimization patterns
-- **Init Array Optimization**: Early initialization for critical runtime components
+- **Init Array Optimization**: Early initialization for critical runtime
+  components
 
 #### cargo-lambda Integration
-- **Direct Deployment**: Seamless integration with cargo-lambda for AWS deployment
+
+- **Direct Deployment**: Seamless integration with cargo-lambda for AWS
+  deployment
 - **Multi-Architecture Support**: Optimized builds for both ARM64 and x86_64
 - **Local Testing**: Built-in test harness for Lambda event simulation
 - **Performance Benchmarking**: Automated cold start and throughput testing
@@ -53,6 +66,7 @@ depyler lambda deploy lambda_project/ --region us-east-1
 ### 📊 Performance Metrics
 
 #### Real-World Lambda Benchmarks
+
 ```
 🔬 Lambda Cold Start Comparison
 ├── Python Lambda:     456ms  │  128MB init  │  $0.0000166/req
@@ -67,16 +81,19 @@ depyler lambda deploy lambda_project/ --region us-east-1
 ### 🛠️ Lambda Code Generation Features
 
 #### Event Type Mappings
+
 - Complete AWS event type mappings for all major services
 - Automatic serde serialization/deserialization
 - Type-safe event field access with proper error handling
 
 #### Optimization Profiles
+
 - **Size-optimized**: Minimal binary size for faster cold starts
 - **Performance-optimized**: Maximum throughput for compute-intensive tasks
 - **Memory-optimized**: Reduced memory footprint for cost efficiency
 
 #### Testing & Deployment
+
 - Automatic test suite generation for each event type
 - Load testing scripts with Artillery integration
 - SAM and CDK template generation for infrastructure as code
@@ -87,17 +104,20 @@ depyler lambda deploy lambda_project/ --region us-east-1
 ## 🔧 Additional Improvements
 
 ### Core Transpilation Enhancements
+
 - **Enhanced Type Inference**: Better handling of complex Python type patterns
 - **Improved Error Messages**: More helpful transpilation error diagnostics
 - **Performance Optimizations**: 15% faster transpilation for large files
 
 ### Quality & Testing
+
 - **Test Coverage**: Increased to 85%+ across all modules
 - **Property Testing**: Enhanced quickcheck integration for verification
 - **CI/CD Pipeline**: Fixed all test failures and coverage issues
 - **Cross-Platform**: Full support for Linux, macOS, and Windows
 
 ### Bug Fixes
+
 - Fixed coverage build failures with conditional compilation
 - Resolved all clippy warnings and formatting issues
 - Fixed interactive mode test timeout in CI
@@ -108,11 +128,13 @@ depyler lambda deploy lambda_project/ --region us-east-1
 ## 📦 Installation
 
 ### Quick Install
+
 ```bash
 curl -sSfL https://github.com/paiml/depyler/releases/download/v0.2.0/install.sh | sh
 ```
 
 ### Build from Source
+
 ```bash
 git clone https://github.com/paiml/depyler.git
 cd depyler
@@ -122,6 +144,7 @@ cargo install --path crates/depyler
 ```
 
 ### Verify Installation
+
 ```bash
 depyler --version
 # depyler 0.2.0
@@ -135,6 +158,7 @@ depyler lambda analyze examples/lambda_handler.py
 ## 🚀 Quick Start: Lambda Transpilation
 
 ### 1. Create a Python Lambda Handler
+
 ```python
 # image_processor.py
 import json
@@ -159,6 +183,7 @@ def lambda_handler(event, context):
 ```
 
 ### 2. Convert to Rust Lambda
+
 ```bash
 # Analyze and convert with optimizations
 depyler lambda convert image_processor.py --optimize --tests
@@ -175,6 +200,7 @@ cargo lambda deploy
 ```
 
 ### 3. Enjoy the Benefits
+
 - ⚡ **12ms cold starts** (vs 456ms Python)
 - 💰 **93% cost reduction** in AWS Lambda bills
 - 🌱 **87% energy reduction** for sustainable computing
@@ -203,19 +229,23 @@ cargo lambda deploy
 
 ## 🙏 Contributors
 
-Special thanks to all contributors who made this major release possible, especially those who helped implement the comprehensive AWS Lambda transpilation pipeline.
+Special thanks to all contributors who made this major release possible,
+especially those who helped implement the comprehensive AWS Lambda transpilation
+pipeline.
 
 ---
 
 ## 📈 What's Next
 
 ### v0.2.1 (Coming Soon)
+
 - Enhanced async/await support for Lambda handlers
 - DynamoDB Streams optimization patterns
 - Step Functions integration
 - Lambda Layers support
 
 ### v0.3.0 (Roadmap)
+
 - Full async Python transpilation
 - Class inheritance support
 - Advanced IDE integration
@@ -225,13 +255,20 @@ Special thanks to all contributors who made this major release possible, especia
 
 ## 🔗 Resources
 
-- **Documentation**: [https://github.com/paiml/depyler/tree/v0.2.0/docs](https://github.com/paiml/depyler/tree/v0.2.0/docs)
-- **Lambda Guide**: [docs/lambda-transpile-spec.md](https://github.com/paiml/depyler/blob/v0.2.0/docs/lambda-transpile-spec.md)
-- **Issue Tracker**: [https://github.com/paiml/depyler/issues](https://github.com/paiml/depyler/issues)
-- **Discussions**: [https://github.com/paiml/depyler/discussions](https://github.com/paiml/depyler/discussions)
+- **Documentation**:
+  [https://github.com/paiml/depyler/tree/v0.2.0/docs](https://github.com/paiml/depyler/tree/v0.2.0/docs)
+- **Lambda Guide**:
+  [docs/lambda-transpile-spec.md](https://github.com/paiml/depyler/blob/v0.2.0/docs/lambda-transpile-spec.md)
+- **Issue Tracker**:
+  [https://github.com/paiml/depyler/issues](https://github.com/paiml/depyler/issues)
+- **Discussions**:
+  [https://github.com/paiml/depyler/discussions](https://github.com/paiml/depyler/discussions)
 
 ---
 
-**Energy Impact**: This release brings energy-efficient computing to the serverless world. Each Lambda function transpiled from Python to Rust reduces global carbon emissions while delivering superior performance and cost savings.
+**Energy Impact**: This release brings energy-efficient computing to the
+serverless world. Each Lambda function transpiled from Python to Rust reduces
+global carbon emissions while delivering superior performance and cost savings.
 
-🌱 **Join the serverless energy revolution**: `depyler lambda convert your_handler.py --save-the-planet`
+🌱 **Join the serverless energy revolution**:
+`depyler lambda convert your_handler.py --save-the-planet`

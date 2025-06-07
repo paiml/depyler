@@ -1,9 +1,10 @@
 # Depyler Makefile - Comprehensive Testing Infrastructure
 # Following NASA/SQLite reliability standards
 
-.PHONY: all build test test-fast test-comprehensive test-fixtures test-property \
+.PHONY: all build test test-full test-rust test-frontend test-fast test-comprehensive test-fixtures test-property \
         test-compilation test-semantic validate quality-gate coverage \
-        clean-test lint clippy fmt check bench install-deps help
+        clean-test lint lint-rust lint-frontend clippy fmt format fmt-check fmt-fix fmt-rust fmt-frontend fmt-docs \
+        check bench install-deps help
 
 # Configuration
 CARGO := cargo
@@ -41,13 +42,54 @@ playground-quickstart: ## Quick start the playground
 	@echo "✅ Playground ready! Opening in browser..."
 	@$(MAKE) playground-run
 
+playground-fast: ## Start playground quickly (skip builds if possible)
+	@echo "🎮 Starting Depyler Playground (fast mode)"
+	@if [ ! -d "playground/public/wasm" ]; then \
+		echo "WASM not found, building..."; \
+		cd crates/depyler-wasm && wasm-pack build --target web --out-dir ../../playground/public/wasm; \
+	else \
+		echo "✓ Using existing WASM build"; \
+	fi
+	@if [ ! -d "playground/node_modules" ]; then \
+		echo "Installing dependencies..."; \
+		cd playground && npm install; \
+	else \
+		echo "✓ Dependencies already installed"; \
+	fi
+	@if [ ! -d "playground/dist" ]; then \
+		echo "Building frontend..."; \
+		cd playground && npm run build; \
+	else \
+		echo "✓ Using existing frontend build"; \
+	fi
+	@echo "✅ Playground ready! Starting server..."
+	cd playground && npm run preview
+
 # Main test target - fast tests with coverage report
-test: ## Run fast tests and generate coverage report
-	@echo "Running fast tests with coverage..."
+test: ## Run Rust tests with coverage
+	@echo "Running Rust tests with coverage..."
 	$(CARGO) llvm-cov --workspace --lib --summary-only --fail-under-functions $(COVERAGE_THRESHOLD) || true
 	@echo ""
 	@echo "=== Coverage Summary ==="
 	$(CARGO) llvm-cov --workspace --lib --summary-only
+
+test-full: test test-frontend ## Run all tests (Rust + frontend)
+
+test-rust: test ## Alias for main test target
+
+test-frontend: ## Run frontend tests (npm + deno)
+	@echo "Running frontend tests..."
+	@if [ -d "playground" ]; then \
+		echo "Running npm tests..."; \
+		cd playground && npm test; \
+		echo "Running Deno tests..."; \
+		cd playground && deno test \
+			--allow-read \
+			--allow-env \
+			--allow-net \
+			src/**/*.deno.test.ts \
+			src/**/*.test.ts 2>/dev/null || true; \
+	fi
 
 ##@ Building
 build: ## Build the project
@@ -170,16 +212,106 @@ quick-validate: lint test-fast ## Quick validation for development
 quality-gate: lint clippy complexity-check ## Run quality checks
 	@echo "Quality gate passed ✅"
 
-lint: ## Run linter
-	@echo "Running linter..."
+lint: lint-rust lint-frontend ## Run all linters (Rust + frontend)
+
+lint-rust: ## Run Rust linter (clippy)
+	@echo "Running Rust linter..."
 	$(CARGO) clippy $(TEST_FLAGS) -- -D warnings
+
+lint-frontend: ## Run frontend linter (deno lint)
+	@echo "Running frontend linter..."
+	@if [ -d "playground" ]; then \
+		echo "Running Deno lint..."; \
+		cd playground && deno lint \
+			--unstable-component \
+			src/ \
+			*.ts \
+			*.tsx \
+			*.js \
+			*.jsx 2>/dev/null || true; \
+	fi
 
 clippy: ## Run Clippy linter
 	@echo "Running Clippy..."
 	$(RUST_FLAGS) $(CARGO) clippy $(TEST_FLAGS) -- -D warnings -D clippy::all
 
-fmt: ## Format code
+format: fmt-rust fmt-frontend fmt-docs ## Format all code artifacts comprehensively
+
+fmt: format ## Alias for comprehensive formatting
+
+fmt-rust: ## Format Rust code
+	@echo "Formatting Rust code..."
 	$(CARGO) fmt
+
+fmt-frontend: ## Format TypeScript, JavaScript, CSS, HTML, JSON with Deno
+	@echo "Formatting frontend code with Deno..."
+	@if [ -d "playground" ]; then \
+		cd playground && deno fmt \
+			--unstable-component \
+			--line-width=100 \
+			--indent-width=2 \
+			--single-quote=false \
+			--no-semicolons=false \
+			--ext=ts,tsx,js,jsx,json,html,css,md \
+			src/ \
+			*.ts \
+			*.tsx \
+			*.js \
+			*.jsx \
+			*.json \
+			*.html \
+			*.css \
+			*.md 2>/dev/null || true; \
+	fi
+
+fmt-docs: ## Format documentation files with Deno
+	@echo "Formatting documentation with Deno..."
+	@deno fmt \
+		--line-width=80 \
+		--prose-wrap=always \
+		--indent-width=2 \
+		--ext=md \
+		*.md \
+		docs/*.md \
+		crates/*/README.md \
+		examples/*/README.md \
+		playground/README.md 2>/dev/null || true
+
+fmt-check: ## Check if all files are formatted
+	@echo "Checking Rust formatting..."
+	$(CARGO) fmt --check
+	@echo "Checking frontend formatting..."
+	@if [ -d "playground" ]; then \
+		cd playground && deno fmt --check \
+			--unstable-component \
+			--line-width=100 \
+			--indent-width=2 \
+			--single-quote=false \
+			--no-semicolons=false \
+			--ext=ts,tsx,js,jsx,json,html,css,md \
+			src/ \
+			*.ts \
+			*.tsx \
+			*.js \
+			*.jsx \
+			*.json \
+			*.html \
+			*.css \
+			*.md 2>/dev/null || true; \
+	fi
+	@echo "Checking documentation formatting..."
+	@deno fmt --check \
+		--line-width=80 \
+		--prose-wrap=always \
+		--indent-width=2 \
+		--ext=md \
+		*.md \
+		docs/*.md \
+		crates/*/README.md \
+		examples/*/README.md \
+		playground/README.md 2>/dev/null || true
+
+fmt-fix: format ## Alias for comprehensive formatting
 
 complexity-check: ## Check code complexity
 	@echo "Checking code complexity..."

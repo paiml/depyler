@@ -158,9 +158,9 @@ def add_numbers(a: int, b: int) -> int:
 "#;
 
         let expected_rust = r#"
-# [doc = " Depyler: verified panic-free"] # [doc = " Depyler: proven to terminate"] pub fn add_numbers (a : i32 , b : i32) -> i32 {
-    return (a + b);
-    }
+#[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn add_numbers(a: i32, b: i32)  -> i32 {
+    return(a + b)
+}
 "#;
 
         harness

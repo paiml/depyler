@@ -7,12 +7,13 @@
 Before using Depyler, ensure you have:
 
 - **Rust 1.70+** with Cargo toolchain
-- **Python 3.8+** for source code analysis  
+- **Python 3.8+** for source code analysis
 - **Git** for version control and dependency management
 
 ### Installation
 
-**Note**: Depyler is currently in active development. Until our first stable release, installation requires building from source.
+**Note**: Depyler is currently in active development. Until our first stable
+release, installation requires building from source.
 
 #### Building from Source
 
@@ -54,6 +55,7 @@ apt install depyler                     # Ubuntu/Debian
 Let's start with a simple Python function:
 
 **example.py**:
+
 ```python
 def add_numbers(a: int, b: int) -> int:
     """Add two numbers together."""
@@ -74,6 +76,7 @@ depyler transpile example.py --output example.rs
 ```
 
 **Generated example.rs**:
+
 ```rust
 /// Add two numbers together.
 pub fn add_numbers(a: i32, b: i32) -> i32 {
@@ -129,31 +132,31 @@ depyler validate <output.rs>
 
 ### Supported Python Features ✅
 
-| Feature | Support Level | Example |
-|---------|---------------|---------|
-| **Functions** | Full | `def func(x: int) -> str:` |
-| **Basic Types** | Full | `int, float, str, bool` |
-| **Control Flow** | Full | `if/else, for, while` |
-| **Lists** | Full | `[1, 2, 3]` |
-| **Tuples** | Full | `(1, "hello", True)` |
-| **Dictionaries** | Basic | `{"key": "value"}` |
-| **Type Hints** | Full | `List[int], Optional[str]` |
-| **Basic Classes** | Partial | Simple classes only |
+| Feature           | Support Level | Example                    |
+| ----------------- | ------------- | -------------------------- |
+| **Functions**     | Full          | `def func(x: int) -> str:` |
+| **Basic Types**   | Full          | `int, float, str, bool`    |
+| **Control Flow**  | Full          | `if/else, for, while`      |
+| **Lists**         | Full          | `[1, 2, 3]`                |
+| **Tuples**        | Full          | `(1, "hello", True)`       |
+| **Dictionaries**  | Basic         | `{"key": "value"}`         |
+| **Type Hints**    | Full          | `List[int], Optional[str]` |
+| **Basic Classes** | Partial       | Simple classes only        |
 
 ### Planned Features 🚧
 
-| Feature | Timeline | Notes |
-|---------|----------|-------|
-| **Async/Await** | Q2 2025 | Tokio integration |
-| **Class Inheritance** | Q2 2025 | Multiple inheritance limitations |
-| **Decorators** | Q3 2025 | Common decorators first |
-| **Context Managers** | Q3 2025 | `with` statements |
-| **Generators** | Q4 2025 | Iterator trait mapping |
+| Feature               | Timeline | Notes                            |
+| --------------------- | -------- | -------------------------------- |
+| **Async/Await**       | Q2 2025  | Tokio integration                |
+| **Class Inheritance** | Q2 2025  | Multiple inheritance limitations |
+| **Decorators**        | Q3 2025  | Common decorators first          |
+| **Context Managers**  | Q3 2025  | `with` statements                |
+| **Generators**        | Q4 2025  | Iterator trait mapping           |
 
 ### Unsupported Features ❌
 
 - Dynamic typing without hints
-- `eval()` and `exec()` 
+- `eval()` and `exec()`
 - Monkey patching
 - Multiple inheritance (complex cases)
 - Python's introspection features
@@ -162,29 +165,29 @@ depyler validate <output.rs>
 
 ### Primitive Types
 
-| Python | Rust | Notes |
-|--------|------|-------|
-| `int` | `i32` / `i64` | Configurable width |
-| `float` | `f64` | Double precision default |
-| `str` | `String` | Owned strings (V1) |
-| `bool` | `bool` | Direct mapping |
-| `None` | `()` | Unit type |
+| Python  | Rust          | Notes                    |
+| ------- | ------------- | ------------------------ |
+| `int`   | `i32` / `i64` | Configurable width       |
+| `float` | `f64`         | Double precision default |
+| `str`   | `String`      | Owned strings (V1)       |
+| `bool`  | `bool`        | Direct mapping           |
+| `None`  | `()`          | Unit type                |
 
 ### Collection Types
 
-| Python | Rust | Notes |
-|--------|------|-------|
-| `List[T]` | `Vec<T>` | Dynamic arrays |
-| `Dict[K, V]` | `HashMap<K, V>` | Hash maps |
-| `Tuple[T1, T2]` | `(T1, T2)` | Fixed-size tuples |
-| `Set[T]` | `HashSet<T>` | Hash sets |
+| Python          | Rust            | Notes             |
+| --------------- | --------------- | ----------------- |
+| `List[T]`       | `Vec<T>`        | Dynamic arrays    |
+| `Dict[K, V]`    | `HashMap<K, V>` | Hash maps         |
+| `Tuple[T1, T2]` | `(T1, T2)`      | Fixed-size tuples |
+| `Set[T]`        | `HashSet<T>`    | Hash sets         |
 
 ### Advanced Types
 
-| Python | Rust | Notes |
-|--------|------|-------|
-| `Optional[T]` | `Option<T>` | Null safety |
-| `Union[T1, T2]` | `enum` | Tagged unions |
+| Python             | Rust         | Notes             |
+| ------------------ | ------------ | ----------------- |
+| `Optional[T]`      | `Option<T>`  | Null safety       |
+| `Union[T1, T2]`    | `enum`       | Tagged unions     |
 | `Callable[[T], R]` | `fn(T) -> R` | Function pointers |
 
 ## Configuration
@@ -232,18 +235,21 @@ def performance_critical_function(data: List[int]) -> int:
 ### Incremental Migration
 
 **Strategy 1: Bottom-Up (Recommended)**
+
 1. Start with utility functions and data structures
 2. Move to computational kernels and algorithms
 3. Gradually replace higher-level application logic
 4. Maintain Python interfaces during transition
 
 **Strategy 2: Hot Path Optimization**
+
 1. Profile your application to identify bottlenecks
 2. Transpile performance-critical functions first
 3. Use Python/Rust interop during transition
 4. Expand to related components
 
 **Strategy 3: Service-by-Service**
+
 1. Identify self-contained microservices
 2. Transpile entire services to Rust
 3. Update interfaces and deployment
@@ -341,28 +347,36 @@ def vector_operation(data: List[float]) -> List[float]:
 ### Common Issues
 
 **Issue**: Type inference failures
+
 ```
 Error: Cannot infer type for variable 'x'
 ```
+
 **Solution**: Add explicit type hints
+
 ```python
 x: int = some_function()  # Instead of: x = some_function()
 ```
 
 **Issue**: Unsupported Python feature
+
 ```
 Error: Dynamic attribute access not supported
 ```
+
 **Solution**: Refactor to use static attribute access or dictionaries
+
 ```python
 # Instead of: getattr(obj, attr_name)
 # Use: obj.known_attribute or obj_dict[attr_name]
 ```
 
 **Issue**: Memory safety violation
+
 ```
 Error: Cannot borrow value as mutable
 ```
+
 **Solution**: Review ownership patterns, may need code restructuring
 
 ### Debug Options
@@ -383,7 +397,7 @@ depyler transpile --emit-hir --emit-llvm main.py
 
 ### Getting Help
 
-- **Documentation**: [https://docs.depyler.dev](docs/)
+- **Documentation**: Available in this repository's [docs directory](../docs/)
 - **GitHub Issues**: Report bugs and request features
 - **Discord Community**: Real-time help and discussions
 - **Stack Overflow**: Tag questions with `depyler`
@@ -393,6 +407,7 @@ depyler transpile --emit-hir --emit-llvm main.py
 ### Web Server Migration
 
 **Python (FastAPI)**:
+
 ```python
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -409,6 +424,7 @@ async def create_item(item: Item):
 ```
 
 **Rust (Axum)**:
+
 ```rust
 use axum::{Json, Router, routing::post};
 use serde::{Deserialize, Serialize};
@@ -438,6 +454,7 @@ pub fn app() -> Router {
 ### Data Processing Pipeline
 
 **Python (Pandas-style)**:
+
 ```python
 def process_data(data: List[Dict[str, float]]) -> Dict[str, float]:
     totals = {}
@@ -448,6 +465,7 @@ def process_data(data: List[Dict[str, float]]) -> Dict[str, float]:
 ```
 
 **Rust (Generated)**:
+
 ```rust
 use std::collections::HashMap;
 
@@ -462,9 +480,16 @@ pub fn process_data(data: Vec<HashMap<String, f64>>) -> HashMap<String, f64> {
 }
 ```
 
-## Running the Interactive Playground
+## Running the Interactive Playground (🧪 EXPERIMENTAL - UNSTABLE)
 
-The Depyler Interactive Playground provides a zero-configuration, browser-based environment for exploring Python-to-Rust transpilation. It's the fastest way to understand Depyler's capabilities and see real-time energy efficiency comparisons.
+> ⚠️ **WARNING**: The Interactive Playground is currently **EXPERIMENTAL** and **UNSTABLE**. 
+> It is not recommended for production use. Features may change or break without notice.
+> Use `DEPYLER_EXPERIMENTAL=true depyler playground` to acknowledge this status.
+
+The Depyler Interactive Playground provides a zero-configuration, browser-based
+environment for exploring Python-to-Rust transpilation. It's the fastest way to
+understand Depyler's capabilities and see real-time energy efficiency
+comparisons.
 
 ### Building the WASM Module
 
@@ -525,18 +550,23 @@ deno task preview
 ### Playground Features
 
 #### 1. **Real-Time Transpilation**
+
 - As you type Python code, see the Rust output update instantly
 - Syntax highlighting for both Python and Rust
 - Error indicators with helpful suggestions
 
 #### 2. **Intelli-Sensei Assistant**
+
 The built-in AI assistant provides:
+
 - **Annotation Suggestions**: Type `@` to see available Depyler annotations
 - **Type Hints**: Automatic type inference with override suggestions
-- **Anti-Pattern Detection**: Warnings for Python patterns that don't transpile well
+- **Anti-Pattern Detection**: Warnings for Python patterns that don't transpile
+  well
 - **Optimization Tips**: Inline hints for better performance
 
 Example with Intelli-Sensei:
+
 ```python
 # Type '@' to see annotation options
 @depyler:optimize-speed
@@ -548,18 +578,22 @@ def process_data(items):  # <- Intelli-Sensei suggests: items: List[int]
 ```
 
 #### 3. **Side-by-Side Execution**
+
 - Run both Python and Rust versions in sandboxed environments
 - Compare output, execution time, and memory usage
 - See actual energy consumption estimates
 
 #### 4. **Energy Efficiency Visualization**
+
 - Interactive gauge showing energy savings (0-100%)
 - Detailed breakdown of CPU vs memory energy usage
 - Real-world equivalents (e.g., "Saves energy equivalent to 5 Google searches")
 - Confidence indicators based on code complexity
 
 #### 5. **Deep Dive Mode**
+
 View the complete transpilation pipeline:
+
 - **Python Source** → **HIR (High-level IR)** → **Rust Output**
 - Hover over code to see mappings between stages
 - Understand how Python constructs map to Rust idioms
@@ -569,6 +603,7 @@ View the complete transpilation pipeline:
 #### Testing a Simple Function
 
 1. Enter Python code:
+
 ```python
 def fibonacci(n: int) -> int:
     if n <= 1:
@@ -587,6 +622,7 @@ print(fibonacci(10))
 #### Exploring Annotations
 
 1. Use Depyler annotations for optimization:
+
 ```python
 @depyler:memo
 def fibonacci(n: int) -> int:
@@ -629,6 +665,7 @@ def process_records(
 **Problem**: "Failed to load WASM module"
 
 **Solutions**:
+
 - Ensure WASM module is built: `ls playground/public/wasm/`
 - Check browser console for CORS errors
 - Verify your browser supports WebAssembly
@@ -638,11 +675,13 @@ def process_records(
 **Problem**: First run takes several seconds
 
 **Explanation**: The playground downloads:
+
 - WASM transpiler (~1.5MB gzipped)
 - Pyodide runtime (~15MB) for Python execution
 - Rust toolchain (~21MB) for compilation
 
 **Solutions**:
+
 - These are cached after first download
 - Use a fast internet connection for initial setup
 - The loading indicator shows progress
@@ -652,6 +691,7 @@ def process_records(
 **Problem**: "Unsupported Python feature"
 
 **Solutions**:
+
 - Check the [Language Support Matrix](#language-support-matrix)
 - Simplify dynamic features
 - Add type hints for better inference
@@ -662,6 +702,7 @@ def process_records(
 **Problem**: "Transpilation timeout" or slow performance
 
 **Solutions**:
+
 - Break large functions into smaller ones
 - Avoid deeply nested structures
 - Use the complexity indicator as a guide
@@ -683,18 +724,19 @@ def process_records(
 
 ### Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl/Cmd + Enter` | Run transpilation |
-| `Ctrl/Cmd + S` | Save to browser storage |
-| `Ctrl/Cmd + Shift + F` | Format code |
-| `Ctrl/Cmd + D` | Toggle deep dive view |
-| `Ctrl/Cmd + /` | Toggle comment |
-| `F1` | Command palette |
+| Shortcut               | Action                  |
+| ---------------------- | ----------------------- |
+| `Ctrl/Cmd + Enter`     | Run transpilation       |
+| `Ctrl/Cmd + S`         | Save to browser storage |
+| `Ctrl/Cmd + Shift + F` | Format code             |
+| `Ctrl/Cmd + D`         | Toggle deep dive view   |
+| `Ctrl/Cmd + /`         | Toggle comment          |
+| `F1`                   | Command palette         |
 
 ### Privacy and Security
 
 The playground runs entirely in your browser:
+
 - **No code leaves your machine** - all processing is local
 - **Sandboxed execution** - Python and Rust run in isolated environments
 - **No network requests** - after initial resource loading
@@ -761,4 +803,6 @@ For full features, use the Depyler CLI tool.
 
 ---
 
-This guide will continue to evolve as Depyler develops. For the latest information, see our [online documentation](docs/) and [release notes](CHANGELOG.md).
+This guide will continue to evolve as Depyler develops. For the latest
+information, see our [documentation](../) and
+[release notes](../CHANGELOG.md).

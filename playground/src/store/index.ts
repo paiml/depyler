@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { PlaygroundState, TranspileResult, ExecutionResult } from '@/types';
+import { create } from "zustand";
+import { ExecutionResult, PlaygroundState, TranspileResult } from "@/types";
 
 interface PlaygroundActions {
   setPythonCode: (code: string) => void;
@@ -28,7 +28,7 @@ def calculate_fibonacci(n: int) -> int:
 # Example usage
 result = calculate_fibonacci(20)
 print(f"The 20th Fibonacci number is: {result}")`,
-  rustCode: '',
+  rustCode: "",
   isTranspiling: false,
   isExecuting: false,
   transpileResult: null,
@@ -47,12 +47,12 @@ export const usePlaygroundStore = create<PlaygroundStore>((set, get) => ({
 
   setPythonCode: (code: string) => {
     set({ pythonCode: code });
-    
+
     // Debounced auto-transpilation
     if (transpileTimeout) {
       clearTimeout(transpileTimeout);
     }
-    
+
     transpileTimeout = setTimeout(() => {
       get().transpileCode();
     }, 300);
@@ -65,7 +65,7 @@ export const usePlaygroundStore = create<PlaygroundStore>((set, get) => ({
   transpileCode: async () => {
     const { pythonCode } = get();
     if (!pythonCode.trim()) {
-      set({ rustCode: '', transpileResult: null, errors: [], warnings: [] });
+      set({ rustCode: "", transpileResult: null, errors: [], warnings: [] });
       return;
     }
 
@@ -73,12 +73,12 @@ export const usePlaygroundStore = create<PlaygroundStore>((set, get) => ({
 
     try {
       // Lazy load WASM module
-      const wasmModule = await import('@/lib/wasm-manager');
+      const wasmModule = await import("@/lib/wasm-manager");
       const result = await wasmModule.transpileCode(pythonCode, {
         verify: true,
         optimize: true,
         emit_docs: false,
-        target_version: '1.83',
+        target_version: "1.83",
       });
 
       if (result.success) {
@@ -91,7 +91,7 @@ export const usePlaygroundStore = create<PlaygroundStore>((set, get) => ({
         });
       } else {
         set({
-          rustCode: '',
+          rustCode: "",
           transpileResult: result,
           errors: result.errors,
           warnings: result.warnings,
@@ -100,7 +100,7 @@ export const usePlaygroundStore = create<PlaygroundStore>((set, get) => ({
       }
     } catch (error) {
       set({
-        errors: [error instanceof Error ? error.message : 'Unknown transpilation error'],
+        errors: [error instanceof Error ? error.message : "Unknown transpilation error"],
         isTranspiling: false,
       });
     }
@@ -116,16 +116,16 @@ export const usePlaygroundStore = create<PlaygroundStore>((set, get) => ({
 
     try {
       // Execute both Python and Rust code
-      const executionModule = await import('@/lib/execution-manager');
+      const executionModule = await import("@/lib/execution-manager");
       const result = await executionModule.executeComparison(pythonCode, rustCode);
-      
+
       set({
         executionResult: result,
         isExecuting: false,
       });
     } catch (error) {
       set({
-        errors: [...get().errors, error instanceof Error ? error.message : 'Execution failed'],
+        errors: [...get().errors, error instanceof Error ? error.message : "Execution failed"],
         isExecuting: false,
       });
     }

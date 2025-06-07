@@ -1,41 +1,44 @@
-import React, { useState, useCallback } from 'react';
-import { usePlaygroundStore } from '@/store';
-import { LoadingState } from '@/types';
+import React, { useCallback, useState, useRef } from "react";
+import { usePlaygroundStore } from "@/store";
+import { LoadingState } from "@/types";
 
 export function ExecutionButton() {
-  const { executeCode, transpileCode, pythonCode, rustCode, isExecuting, isTranspiling } = usePlaygroundStore();
-  const [loadingState, setLoadingState] = useState<LoadingState>({ type: 'idle' });
+  const { executeCode, transpileCode, pythonCode, rustCode, isExecuting, isTranspiling } =
+    usePlaygroundStore();
+  const [loadingState, setLoadingState] = useState<LoadingState>({ type: "idle" });
+  const isProcessingRef = useRef(false);
 
   const handleExecute = useCallback(async () => {
-    if (!pythonCode.trim()) {
+    if (!pythonCode.trim() || isProcessingRef.current || loadingState.type !== "idle" || isExecuting || isTranspiling) {
       return;
     }
 
+    isProcessingRef.current = true;
     try {
       // First ensure we have transpiled code
       if (!rustCode.trim()) {
         setLoadingState({
-          type: 'compiling',
-          message: 'Transpiling Python to Rust...'
+          type: "compiling",
+          message: "Transpiling Python to Rust...",
         });
-        
-        await transpileCode();
-        await new Promise(resolve => setTimeout(resolve, 100)); // UI update
-      }
-      
-      setLoadingState({
-        type: 'executing',
-        message: 'Running performance comparison...'
-      });
-      
-      await executeCode();
-      
-    } finally {
-      setLoadingState({ type: 'idle' });
-    }
-  }, [pythonCode, rustCode, transpileCode, executeCode]);
 
-  const isLoading = loadingState.type !== 'idle' || isExecuting || isTranspiling;
+        await transpileCode();
+        await new Promise((resolve) => setTimeout(resolve, 100)); // UI update
+      }
+
+      setLoadingState({
+        type: "executing",
+        message: "Running performance comparison...",
+      });
+
+      await executeCode();
+    } finally {
+      setLoadingState({ type: "idle" });
+      isProcessingRef.current = false;
+    }
+  }, [pythonCode, rustCode, transpileCode, executeCode, loadingState.type, isExecuting, isTranspiling]);
+
+  const isLoading = loadingState.type !== "idle" || isExecuting || isTranspiling;
   const isDisabled = !pythonCode.trim() || isLoading;
 
   const renderButtonContent = () => {
@@ -49,7 +52,7 @@ export function ExecutionButton() {
     }
 
     switch (loadingState.type) {
-      case 'downloading':
+      case "downloading":
         return (
           <div className="flex items-center space-x-2">
             <CircularProgress value={loadingState.progress} size={20} />
@@ -59,8 +62,8 @@ export function ExecutionButton() {
             </div>
           </div>
         );
-      case 'compiling':
-      case 'executing':
+      case "compiling":
+      case "executing":
         return (
           <div className="flex items-center space-x-2">
             <Spinner size={20} />
@@ -79,23 +82,25 @@ export function ExecutionButton() {
 
   return (
     <button
+      type="button"
       onClick={handleExecute}
       disabled={isDisabled}
       className={`
         inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white
-        ${isDisabled 
-          ? 'bg-gray-400 cursor-not-allowed' 
-          : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-        }
+        ${
+        isDisabled
+          ? "bg-gray-400 cursor-not-allowed"
+          : "bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+      }
         transition-colors duration-200
       `}
       aria-busy={isLoading}
-      aria-describedby={isLoading ? 'execution-status' : undefined}
+      aria-describedby={isLoading ? "execution-status" : undefined}
     >
       {renderButtonContent()}
       {isLoading && (
         <span id="execution-status" className="sr-only">
-          {loadingState.message || 'Processing...'}
+          {loadingState.message || "Processing..."}
         </span>
       )}
     </button>
@@ -136,7 +141,7 @@ function CircularProgress({ value = 0, size = 24 }: { value?: number; size?: num
   const strokeDashoffset = circumference - (value / 100) * circumference;
 
   return (
-    <div className="relative" style={{ width: size, height: size }}>
+    <div className="relative" style={{ width: size, height: size }} role="progressbar" aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={100}>
       <svg
         className="transform -rotate-90"
         width={size}
@@ -162,7 +167,7 @@ function CircularProgress({ value = 0, size = 24 }: { value?: number; size?: num
           strokeDasharray={strokeDasharray}
           strokeDashoffset={strokeDashoffset}
           className="opacity-75"
-          style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+          style={{ transition: "stroke-dashoffset 0.3s ease" }}
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">

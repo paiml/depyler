@@ -217,6 +217,7 @@ mod tests {
             body,
             properties,
             annotations: TranspilationAnnotations::default(),
+            docstring: None,
         }
     }
 

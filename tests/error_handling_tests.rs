@@ -143,6 +143,7 @@ fn test_quality_analyzer_edge_cases() {
         ],
         properties: FunctionProperties::default(),
         annotations: TranspilationAnnotations::default(),
+        docstring: None,
     };
 
     let functions = vec![problematic_function];

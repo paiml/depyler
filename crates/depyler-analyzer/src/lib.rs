@@ -210,6 +210,7 @@ mod tests {
             body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
+            docstring: None,
         }
     }
 
@@ -268,6 +269,7 @@ mod tests {
             body: vec![],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
+            docstring: None,
         };
 
         let func_without_types = HirFunction {
@@ -277,6 +279,7 @@ mod tests {
             body: vec![],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
+            docstring: None,
         };
 
         let module = HirModule {
