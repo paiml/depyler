@@ -73,6 +73,14 @@ fn convert_function(func: &HirFunction, type_mapper: &TypeMapper) -> Result<syn:
 
     // Add documentation
     let mut attrs = vec![];
+
+    // Add docstring as documentation if present
+    if let Some(docstring) = &func.docstring {
+        attrs.push(parse_quote! {
+            #[doc = #docstring]
+        });
+    }
+
     if func.properties.panic_free {
         attrs.push(parse_quote! {
             #[doc = " Depyler: verified panic-free"]
@@ -215,17 +223,8 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
             Ok(syn::Stmt::Expr(for_expr, Some(Default::default())))
         }
         HirStmt::Expr(expr) => {
-            // Skip string literals (likely docstrings)
-            if let HirExpr::Literal(Literal::String(_)) = expr {
-                // Convert to comment instead of expression
-                Ok(syn::Stmt::Expr(
-                    parse_quote! { () },
-                    Some(Default::default()),
-                ))
-            } else {
-                let rust_expr = convert_expr(expr, type_mapper)?;
-                Ok(syn::Stmt::Expr(rust_expr, Some(Default::default())))
-            }
+            let rust_expr = convert_expr(expr, type_mapper)?;
+            Ok(syn::Stmt::Expr(rust_expr, Some(Default::default())))
         }
     }
 }
@@ -292,6 +291,16 @@ impl<'a> ExprConverter<'a> {
             BinOp::NotIn => {
                 // Convert "x not in dict" to "!dict.contains_key(&x)"
                 Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+            }
+            BinOp::Sub => {
+                // Check if we're subtracting from a .len() call to prevent underflow
+                if is_len_call(left) {
+                    // Use saturating_sub to prevent underflow when subtracting from array length
+                    Ok(parse_quote! { #left_expr.saturating_sub(#right_expr) })
+                } else {
+                    let rust_op = convert_binop(op)?;
+                    Ok(parse_quote! { #left_expr #rust_op #right_expr })
+                }
             }
             _ => {
                 let rust_op = convert_binop(op)?;
@@ -399,6 +408,11 @@ impl<'a> ExprConverter<'a> {
             .collect::<Result<Vec<_>>>()?;
         Ok(parse_quote! { (#(#elt_exprs),*) })
     }
+}
+
+/// Check if an expression is a len() call
+fn is_len_call(expr: &HirExpr) -> bool {
+    matches!(expr, HirExpr::Call { func, args } if func == "len" && args.len() == 1)
 }
 
 fn convert_literal(lit: &Literal) -> syn::Expr {
@@ -730,6 +744,7 @@ mod tests {
                 max_stack_depth: Some(1),
             },
             annotations: TranspilationAnnotations::default(),
+            docstring: None,
         };
 
         let result = convert_function(&func, &type_mapper).unwrap();
@@ -755,6 +770,7 @@ mod tests {
                 }))],
                 properties: FunctionProperties::default(),
                 annotations: TranspilationAnnotations::default(),
+                docstring: None,
             }],
             imports: vec![],
         };

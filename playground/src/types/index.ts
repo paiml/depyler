@@ -81,7 +81,7 @@ export interface PageLoadMetrics {
 
 export interface TranspilationMetrics {
   latency_p95_ms: number;
-  complexity_bucket: 'Simple' | 'Medium' | 'Complex';
+  complexity_bucket: "Simple" | "Medium" | "Complex";
   cache_hit_rate: number;
   error_rate: number;
 }
@@ -96,17 +96,17 @@ export interface ExecutionMetrics {
 export interface QualityEvent {
   timestamp: number;
   event_type: QualityEventType;
-  severity: 'Info' | 'Warning' | 'Critical';
+  severity: "Info" | "Warning" | "Critical";
   message: string;
   metrics_snapshot?: PmatScore;
 }
 
-export type QualityEventType = 
-  | 'PerformanceRegression'
-  | 'PerformanceImprovement'
-  | 'ErrorThresholdExceeded'
-  | 'CacheEfficiencyDrop'
-  | 'EnergyEfficiencyImprovement';
+export type QualityEventType =
+  | "PerformanceRegression"
+  | "PerformanceImprovement"
+  | "ErrorThresholdExceeded"
+  | "CacheEfficiencyDrop"
+  | "EnergyEfficiencyImprovement";
 
 export interface PmatScore {
   productivity: number;
@@ -118,7 +118,7 @@ export interface PmatScore {
 }
 
 export interface LoadingState {
-  type: 'idle' | 'downloading' | 'compiling' | 'executing';
+  type: "idle" | "downloading" | "compiling" | "executing";
   progress?: number;
   message?: string;
 }
@@ -129,7 +129,7 @@ export interface AnnotationSuggestion {
   annotation_type: string;
   description: string;
   example: string;
-  impact: 'low' | 'medium' | 'high';
+  impact: "low" | "medium" | "high";
 }
 
 export interface AntiPattern {
@@ -137,7 +137,7 @@ export interface AntiPattern {
   column: number;
   pattern: string;
   description: string;
-  severity: 'info' | 'warning' | 'error';
+  severity: "info" | "warning" | "error";
   suggestion?: string;
 }
 

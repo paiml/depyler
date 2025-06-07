@@ -462,6 +462,7 @@ mod tests {
             }))],
             properties: Default::default(),
             annotations: Default::default(),
+            docstring: None,
         };
 
         let result = analyzer.analyze_function(&func);

@@ -1,8 +1,10 @@
 # Contributing to Depyler
 
-Thank you for your interest in contributing to Depyler! This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to Depyler! This document provides
+guidelines and instructions for contributing to the project.
 
 ## Table of Contents
+
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
 - [Development Philosophy](#development-philosophy)
@@ -16,6 +18,7 @@ Thank you for your interest in contributing to Depyler! This document provides g
 ## Code of Conduct
 
 By participating in this project, you agree to abide by our Code of Conduct:
+
 - Be respectful and inclusive
 - Welcome newcomers and help them get started
 - Focus on constructive criticism
@@ -39,16 +42,19 @@ By participating in this project, you agree to abide by our Code of Conduct:
 We follow the Toyota Production System principles:
 
 ### 🔧 Jidoka (自働化) - Build Quality In
+
 - Never merge incomplete features
 - All code must have tests
 - Quality gates must pass before merge
 
 ### 🏭 Genchi Genbutsu (現地現物) - Direct Observation
+
 - Test with real Python code
 - Profile actual performance
 - Debug at the Rust level
 
 ### 📈 Kaizen (改善) - Continuous Improvement
+
 - Fix bugs before adding features
 - Improve existing code quality
 - Optimize performance iteratively
@@ -56,12 +62,14 @@ We follow the Toyota Production System principles:
 ## How to Contribute
 
 ### Reporting Issues
+
 - Check existing issues first
 - Use issue templates when available
 - Include minimal reproducible examples
 - Specify your environment (OS, Rust version, Python version)
 
 ### Suggesting Features
+
 - Open a discussion first for major features
 - Explain the use case and benefits
 - Consider implementation complexity
@@ -70,6 +78,7 @@ We follow the Toyota Production System principles:
 ### Contributing Code
 
 #### Priority Areas
+
 1. **Bug Fixes** - Always welcome!
 2. **Test Coverage** - Help us reach 95%+ coverage
 3. **Documentation** - Improve clarity and completeness
@@ -79,6 +88,7 @@ We follow the Toyota Production System principles:
 ## Development Setup
 
 ### Prerequisites
+
 ```bash
 # Install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -95,6 +105,7 @@ npm install -g http-server
 ```
 
 ### Building the Project
+
 ```bash
 # Build all crates
 cargo build --workspace
@@ -113,12 +124,14 @@ wasm-pack build --target web --out-dir ../../playground/public/wasm
 ## Testing Guidelines
 
 ### Test Requirements
+
 - All new features must have tests
 - Maintain or improve code coverage
 - Include both unit and integration tests
 - Test edge cases and error conditions
 
 ### Running Tests
+
 ```bash
 # Run all tests
 cargo test --workspace
@@ -134,6 +147,7 @@ cargo bench
 ```
 
 ### Test Structure
+
 ```rust
 #[cfg(test)]
 mod tests {
@@ -163,6 +177,7 @@ mod tests {
 ## Code Style
 
 ### Rust Style
+
 - Follow standard Rust formatting: `cargo fmt`
 - Pass clippy lints: `cargo clippy -- -D warnings`
 - Use meaningful variable names
@@ -170,6 +185,7 @@ mod tests {
 - Keep functions small and focused
 
 ### Error Handling
+
 ```rust
 // Use Result for fallible operations
 pub fn transpile(code: &str) -> Result<String, TranspileError> {
@@ -184,7 +200,8 @@ return Err(TranspileError::InvalidSyntax {
 ```
 
 ### Documentation
-```rust
+
+````rust
 /// Transpiles Python code to Rust.
 ///
 /// # Arguments
@@ -202,7 +219,7 @@ return Err(TranspileError::InvalidSyntax {
 pub fn transpile(code: &str) -> Result<String, TranspileError> {
     // Implementation
 }
-```
+````
 
 ## Commit Messages
 
@@ -217,6 +234,7 @@ footer
 ```
 
 ### Types
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -227,6 +245,7 @@ footer
 - `chore`: Maintenance tasks
 
 ### Examples
+
 ```
 feat(core): add support for f-string expressions
 
@@ -282,6 +301,7 @@ through intermediate variables in loops.
    - Add screenshots for UI changes
 
 ### PR Checklist
+
 - [ ] Tests pass: `cargo test --workspace`
 - [ ] Lints pass: `cargo clippy -- -D warnings`
 - [ ] Formatted: `cargo fmt`
@@ -290,6 +310,7 @@ through intermediate variables in loops.
 - [ ] Quality gates pass: `cargo run -p depyler-quality -- analyze .`
 
 ### Review Process
+
 1. Automated CI checks must pass
 2. At least one maintainer review required
 3. Address review feedback
@@ -297,8 +318,10 @@ through intermediate variables in loops.
 
 ## Questions?
 
-- Open a [Discussion](https://github.com/paiml/depyler/discussions) for general questions
+- Open a [Discussion](https://github.com/paiml/depyler/discussions) for general
+  questions
 - Join our community channels (coming soon)
-- Check the [Documentation](./docs/README.md)
+- Check the [Documentation](./docs/)
 
-Thank you for contributing to Depyler! Your efforts help make Python-to-Rust transpilation better for everyone. 🚀
+Thank you for contributing to Depyler! Your efforts help make Python-to-Rust
+transpilation better for everyone. 🚀

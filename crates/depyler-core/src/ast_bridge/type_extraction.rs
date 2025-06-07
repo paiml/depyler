@@ -28,6 +28,10 @@ impl TypeExtractor {
             "str" => Type::String,
             "bool" => Type::Bool,
             "None" => Type::None,
+            // Handle plain 'list' as a generic list (List[Unknown])
+            "list" => Type::List(Box::new(Type::Unknown)),
+            // Handle plain 'dict' as a generic dict
+            "dict" => Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)),
             name => Type::Custom(name.to_string()),
         })
     }

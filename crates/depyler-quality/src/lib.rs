@@ -573,6 +573,7 @@ mod tests {
             body,
             properties: Default::default(),
             annotations: Default::default(),
+            docstring: None,
         }
     }
 

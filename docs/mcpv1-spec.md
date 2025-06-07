@@ -2,7 +2,11 @@
 
 ## Executive Summary
 
-This specification defines a minimal Model Context Protocol (MCP) integration for the Depyler transpiler, enabling AI agents to perform automated Python-to-Rust code conversion with semantic analysis and verification. The integration exposes three core tools through MCP: `transpile_python`, `analyze_migration_complexity`, and `verify_transpilation`.
+This specification defines a minimal Model Context Protocol (MCP) integration
+for the Depyler transpiler, enabling AI agents to perform automated
+Python-to-Rust code conversion with semantic analysis and verification. The
+integration exposes three core tools through MCP: `transpile_python`,
+`analyze_migration_complexity`, and `verify_transpilation`.
 
 ## Architecture Overview
 
@@ -31,7 +35,8 @@ impl McpProtocolHandler for DepylerMcpServer {
 
 ### 1. `transpile_python` Tool
 
-Performs direct Python-to-Rust transpilation with configurable optimization levels.
+Performs direct Python-to-Rust transpilation with configurable optimization
+levels.
 
 ```json
 {
@@ -128,7 +133,8 @@ async fn handle_transpile(&self, params: Value) -> Result<Value> {
 
 ### 2. `analyze_migration_complexity` Tool
 
-Performs deep analysis of Python codebases to assess migration complexity and generate migration strategies.
+Performs deep analysis of Python codebases to assess migration complexity and
+generate migration strategies.
 
 ```json
 {
@@ -208,7 +214,8 @@ fn calculate_migration_complexity(&self, context: &DeepContextResult) -> f64 {
 
 ### 3. `verify_transpilation` Tool
 
-Performs semantic equivalence verification between Python source and generated Rust code.
+Performs semantic equivalence verification between Python source and generated
+Rust code.
 
 ```json
 {
@@ -486,4 +493,6 @@ async def migrate_project():
     print(f"Energy reduction: {result['metrics']['estimated_energy_reduction']}%")
 ```
 
-This MCP integration provides immediate value for Python-to-Rust migration with minimal setup complexity while maintaining the high-performance characteristics of the Depyler transpiler.
+This MCP integration provides immediate value for Python-to-Rust migration with
+minimal setup complexity while maintaining the high-performance characteristics
+of the Depyler transpiler.

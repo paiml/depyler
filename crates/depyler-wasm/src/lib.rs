@@ -1,5 +1,8 @@
 mod utils;
 
+#[cfg(test)]
+mod tests;
+
 use depyler_core::DepylerPipeline;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -698,6 +701,9 @@ impl Default for DepylerWasm {
         Self::new()
     }
 }
+
+// Convenience alias for playground usage
+pub type PlaygroundEngine = DepylerWasm;
 
 // Called when the wasm module is instantiated
 #[wasm_bindgen(start)]

@@ -2,6 +2,7 @@ use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
 use crate::hir::*;
 use anyhow::{bail, Result};
 use quote::quote;
+use std::collections::HashSet;
 use syn::{self, parse_quote};
 
 /// Context for code generation including type mapping and configuration
@@ -14,6 +15,29 @@ pub struct CodeGenContext<'a> {
     pub needs_arc: bool,
     pub needs_rc: bool,
     pub needs_cow: bool,
+    pub declared_vars: Vec<HashSet<String>>,
+}
+
+impl<'a> CodeGenContext<'a> {
+    fn enter_scope(&mut self) {
+        self.declared_vars.push(HashSet::new());
+    }
+
+    fn exit_scope(&mut self) {
+        self.declared_vars.pop();
+    }
+
+    fn is_declared(&self, var_name: &str) -> bool {
+        self.declared_vars
+            .iter()
+            .any(|scope| scope.contains(var_name))
+    }
+
+    fn declare_var(&mut self, var_name: &str) {
+        if let Some(current_scope) = self.declared_vars.last_mut() {
+            current_scope.insert(var_name.to_string());
+        }
+    }
 }
 
 /// Trait for converting HIR elements to Rust tokens
@@ -35,6 +59,7 @@ pub fn generate_rust_file(
         needs_arc: false,
         needs_rc: false,
         needs_cow: false,
+        declared_vars: vec![HashSet::new()],
     };
 
     // Convert all functions first to detect what imports we need
@@ -137,6 +162,12 @@ impl RustCodeGen for HirFunction {
             quote! { -> #ty }
         };
 
+        // Enter function scope and declare parameters
+        ctx.enter_scope();
+        for (param_name, _) in &self.params {
+            ctx.declare_var(param_name);
+        }
+
         // Convert body
         let body_stmts: Vec<_> = self
             .body
@@ -144,8 +175,18 @@ impl RustCodeGen for HirFunction {
             .map(|stmt| stmt.to_rust_tokens(ctx))
             .collect::<Result<Vec<_>>>()?;
 
+        ctx.exit_scope();
+
         // Add documentation
         let mut attrs = vec![];
+
+        // Add docstring as documentation if present
+        if let Some(docstring) = &self.docstring {
+            attrs.push(quote! {
+                #[doc = #docstring]
+            });
+        }
+
         if self.properties.panic_free {
             attrs.push(quote! {
                 #[doc = " Depyler: verified panic-free"]
@@ -172,7 +213,15 @@ impl RustCodeGen for HirStmt {
             HirStmt::Assign { target, value } => {
                 let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
                 let value_expr = value.to_rust_expr(ctx)?;
-                Ok(quote! { let mut #target_ident = #value_expr; })
+
+                if ctx.is_declared(target) {
+                    // Variable already exists, just assign
+                    Ok(quote! { #target_ident = #value_expr; })
+                } else {
+                    // First declaration, use let mut
+                    ctx.declare_var(target);
+                    Ok(quote! { let mut #target_ident = #value_expr; })
+                }
             }
             HirStmt::Return(expr) => {
                 if let Some(e) = expr {
@@ -188,16 +237,20 @@ impl RustCodeGen for HirStmt {
                 else_body,
             } => {
                 let cond = condition.to_rust_expr(ctx)?;
+                ctx.enter_scope();
                 let then_stmts: Vec<_> = then_body
                     .iter()
                     .map(|s| s.to_rust_tokens(ctx))
                     .collect::<Result<Vec<_>>>()?;
+                ctx.exit_scope();
 
                 if let Some(else_stmts) = else_body {
+                    ctx.enter_scope();
                     let else_tokens: Vec<_> = else_stmts
                         .iter()
                         .map(|s| s.to_rust_tokens(ctx))
                         .collect::<Result<Vec<_>>>()?;
+                    ctx.exit_scope();
                     Ok(quote! {
                         if #cond {
                             #(#then_stmts)*
@@ -215,10 +268,12 @@ impl RustCodeGen for HirStmt {
             }
             HirStmt::While { condition, body } => {
                 let cond = condition.to_rust_expr(ctx)?;
+                ctx.enter_scope();
                 let body_stmts: Vec<_> = body
                     .iter()
                     .map(|s| s.to_rust_tokens(ctx))
                     .collect::<Result<Vec<_>>>()?;
+                ctx.exit_scope();
                 Ok(quote! {
                     while #cond {
                         #(#body_stmts)*
@@ -228,10 +283,13 @@ impl RustCodeGen for HirStmt {
             HirStmt::For { target, iter, body } => {
                 let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
                 let iter_expr = iter.to_rust_expr(ctx)?;
+                ctx.enter_scope();
+                ctx.declare_var(target); // for loop variable is declared in the loop scope
                 let body_stmts: Vec<_> = body
                     .iter()
                     .map(|s| s.to_rust_tokens(ctx))
                     .collect::<Result<Vec<_>>>()?;
+                ctx.exit_scope();
                 Ok(quote! {
                     for #target_ident in #iter_expr {
                         #(#body_stmts)*
@@ -279,6 +337,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             BinOp::NotIn => {
                 // Convert "x not in dict" to "!dict.contains_key(&x)"
                 Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+            }
+            BinOp::Sub => {
+                // Check if we're subtracting from a .len() call to prevent underflow
+                if self.is_len_call(left) {
+                    // Use saturating_sub to prevent underflow when subtracting from array length
+                    Ok(parse_quote! { #left_expr.saturating_sub(#right_expr) })
+                } else {
+                    let rust_op = convert_binop(op)?;
+                    Ok(parse_quote! { (#left_expr #rust_op #right_expr) })
+                }
             }
             _ => {
                 let rust_op = convert_binop(op)?;
@@ -329,7 +397,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let end = &args[1];
                 Ok(parse_quote! { #start..#end })
             }
-            3 => bail!("range() with step parameter not yet supported"),
+            3 => {
+                let start = &args[0];
+                let end = &args[1];
+                let step = &args[2];
+                Ok(parse_quote! { (#start..#end).step_by(#step as usize) })
+            }
             _ => bail!("Invalid number of arguments for range()"),
         }
     }
@@ -394,6 +467,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         } else {
             Ok(parse_quote! { &#expr_tokens })
         }
+    }
+
+    /// Check if an expression is a len() call
+    fn is_len_call(&self, expr: &HirExpr) -> bool {
+        matches!(expr, HirExpr::Call { func, args } if func == "len" && args.len() == 1)
     }
 }
 
@@ -564,6 +642,49 @@ fn format_rust_code(code: String) -> String {
             "use std :: collections :: HashMap ;",
             "use std::collections::HashMap;",
         )
+        // Fix method call spacing
+        .replace(" . ", ".")
+        .replace(" (", "(")
+        .replace(" )", ")")
+        // Fix specific common patterns
+        .replace(".len ()", ".len()")
+        .replace(".push (", ".push(")
+        .replace(".insert (", ".insert(")
+        .replace(".get (", ".get(")
+        .replace(".contains_key (", ".contains_key(")
+        .replace(".to_string ()", ".to_string()")
+        // Fix spacing around operators in some contexts
+        .replace(" ::", "::")
+        .replace(":: ", "::")
+        // Fix attribute spacing
+        .replace("# [", "#[")
+        // Fix type annotations
+        .replace(" : ", ": ")
+        // Fix parameter spacing
+        .replace(" , ", ", ")
+        // Fix assignment operator spacing issues
+        .replace("=(", " = (")
+        .replace("= (", " = (")
+        .replace("  =", " =") // Fix multiple spaces before =
+        .replace("   =", " =") // Fix even more spaces
+        // Fix generic type spacing
+        .replace("Vec < ", "Vec<")
+        .replace(" < ", "<")
+        .replace(" > ", ">")
+        .replace("> ", ">")
+        .replace("< ", "<")
+        .replace(" >", ">") // Fix trailing space before closing bracket
+        // Fix return type spacing
+        .replace("->", " -> ")
+        .replace(" ->  ", " -> ")
+        .replace(" ->   ", " -> ")
+        // Fix range spacing
+        .replace(" .. ", "..")
+        .replace(" ..", "..")
+        .replace(".. ", "..")
+        // Fix 'in' keyword spacing
+        .replace("in(", "in (")
+        .replace(";\n    }", "\n}")
 }
 
 /// Updates the import needs based on the rust type being used
@@ -629,6 +750,7 @@ mod tests {
             needs_arc: false,
             needs_rc: false,
             needs_cow: false,
+            declared_vars: vec![HashSet::new()],
         }
     }
 
@@ -645,6 +767,7 @@ mod tests {
             }))],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
+            docstring: None,
         };
 
         let mut ctx = create_test_context();

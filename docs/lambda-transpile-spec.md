@@ -2,7 +2,10 @@
 
 ## Abstract
 
-This specification defines the Python-to-Rust transpilation pipeline for AWS Lambda functions, focusing on cold-start optimization, event type inference, and runtime compatibility. The system achieves 85-95% cold-start reduction through aggressive binary optimization and static dispatch.
+This specification defines the Python-to-Rust transpilation pipeline for AWS
+Lambda functions, focusing on cold-start optimization, event type inference, and
+runtime compatibility. The system achieves 85-95% cold-start reduction through
+aggressive binary optimization and static dispatch.
 
 ## 1. Architecture Overview
 
@@ -81,13 +84,13 @@ impl LambdaTypeInferencer {
 
 ### 2.2 Event Type Mappings
 
-| Python Pattern | Inferred Type | Rust Type | Confidence |
-|----------------|---------------|-----------|------------|
-| `event['Records'][0]['s3']` | S3 Event | `S3Event` | 0.95 |
-| `event['requestContext']['http']` | API Gateway v2 | `ApiGatewayV2httpRequest` | 0.92 |
-| `event['Records'][0]['Sns']` | SNS Event | `SnsEvent` | 0.94 |
-| `event['Records'][0]['dynamodb']` | DynamoDB Stream | `DynamodbEvent` | 0.93 |
-| `event['detail-type']` | EventBridge | `EventBridgeEvent<T>` | 0.90 |
+| Python Pattern                    | Inferred Type   | Rust Type                 | Confidence |
+| --------------------------------- | --------------- | ------------------------- | ---------- |
+| `event['Records'][0]['s3']`       | S3 Event        | `S3Event`                 | 0.95       |
+| `event['requestContext']['http']` | API Gateway v2  | `ApiGatewayV2httpRequest` | 0.92       |
+| `event['Records'][0]['Sns']`      | SNS Event       | `SnsEvent`                | 0.94       |
+| `event['Records'][0]['dynamodb']` | DynamoDB Stream | `DynamodbEvent`           | 0.93       |
+| `event['detail-type']`            | EventBridge     | `EventBridgeEvent<T>`     | 0.90       |
 
 ### 2.3 Pattern Recognition Rules
 
@@ -201,13 +204,13 @@ static INIT: extern "C" fn() = {
 ### 4.3 Performance Metrics
 
 | Optimization | Cold Start Impact | Binary Size Impact |
-|--------------|------------------|-------------------|
-| LTO | -23% | -18% |
-| panic=abort | -8% | -12% |
-| CGU=1 | -15% | +5% |
-| mimalloc | -12% | +45KB |
-| strip | -3% | -65% |
-| **Combined** | **-87%** | **-52%** |
+| ------------ | ----------------- | ------------------ |
+| LTO          | -23%              | -18%               |
+| panic=abort  | -8%               | -12%               |
+| CGU=1        | -15%              | +5%                |
+| mimalloc     | -12%              | +45KB              |
+| strip        | -3%               | -65%               |
+| **Combined** | **-87%**          | **-52%**           |
 
 ## 5. Code Generation Templates
 
@@ -263,13 +266,13 @@ async fn handler(
 
 ### 6.1 Python to Rust Type Mappings
 
-| Python Type | Lambda Context | Rust Type | Serde Attribute |
-|-------------|----------------|-----------|-----------------|
-| `dict` | Event root | `T: Deserialize` | `#[serde(rename_all = "camelCase")]` |
-| `str` | Header value | `HeaderValue` | `#[serde(with = "http_serde::header_value")]` |
-| `int` | Status code | `u16` | - |
-| `float` | Timestamp | `f64` | `#[serde(with = "aws_lambda_events::time::float_unix_epoch")]` |
-| `List[dict]` | Records | `Vec<Record>` | - |
+| Python Type  | Lambda Context | Rust Type        | Serde Attribute                                                |
+| ------------ | -------------- | ---------------- | -------------------------------------------------------------- |
+| `dict`       | Event root     | `T: Deserialize` | `#[serde(rename_all = "camelCase")]`                           |
+| `str`        | Header value   | `HeaderValue`    | `#[serde(with = "http_serde::header_value")]`                  |
+| `int`        | Status code    | `u16`            | -                                                              |
+| `float`      | Timestamp      | `f64`            | `#[serde(with = "aws_lambda_events::time::float_unix_epoch")]` |
+| `List[dict]` | Records        | `Vec<Record>`    | -                                                              |
 
 ### 6.2 Complex Type Transformations
 
@@ -325,6 +328,7 @@ impl From<PythonError> for LambdaError {
 ### 8.1 API Gateway REST API Handler
 
 **Python Source:**
+
 ```python
 import json
 from typing import Dict, Any
@@ -363,6 +367,7 @@ def process_user_request(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
 ```
 
 **Generated Rust:**
+
 ```rust
 use aws_lambda_events::apigw::{ApiGatewayProxyRequest, ApiGatewayProxyResponse};
 use lambda_runtime::{service_fn, Error, LambdaEvent};
@@ -468,6 +473,7 @@ fn process_user_request(
 ### 8.2 SQS Batch Processor
 
 **Python Source:**
+
 ```python
 import json
 from typing import List, Dict
@@ -497,6 +503,7 @@ def process_message(message: Dict) -> None:
 ```
 
 **Generated Rust:**
+
 ```rust
 use aws_lambda_events::sqs::{SqsBatchResponse, SqsBatchItemFailure, SqsEvent};
 use lambda_runtime::{service_fn, Error, LambdaEvent};
@@ -559,6 +566,7 @@ async fn process_order(data: serde_json::Value) -> Result<(), Error> {
 ### 8.3 EventBridge Custom Event Handler
 
 **Python Source:**
+
 ```python
 from datetime import datetime
 from typing import Dict, Any
@@ -581,6 +589,7 @@ def handler(event: Dict[str, Any], context) -> None:
 ```
 
 **Generated Rust:**
+
 ```rust
 use aws_lambda_events::eventbridge::EventBridgeEvent;
 use chrono::{DateTime, Utc};
@@ -706,12 +715,12 @@ echo "Lambda package: handler.zip ($(du -h handler.zip | cut -f1))"
 
 ### 10.1 Cold Start Comparison
 
-| Runtime | P50 (ms) | P90 (ms) | P99 (ms) | Binary Size |
-|---------|----------|----------|----------|-------------|
-| Python 3.9 | 245 | 412 | 687 | 45MB |
-| Node.js 18 | 178 | 298 | 485 | 32MB |
-| Java 11 | 890 | 1250 | 1890 | 78MB |
-| **Rust (Depyler)** | **32** | **45** | **68** | **1.2MB** |
+| Runtime            | P50 (ms) | P90 (ms) | P99 (ms) | Binary Size |
+| ------------------ | -------- | -------- | -------- | ----------- |
+| Python 3.9         | 245      | 412      | 687      | 45MB        |
+| Node.js 18         | 178      | 298      | 485      | 32MB        |
+| Java 11            | 890      | 1250     | 1890     | 78MB        |
+| **Rust (Depyler)** | **32**   | **45**   | **68**   | **1.2MB**   |
 
 ### 10.2 Memory Usage Profile
 
@@ -735,7 +744,7 @@ Rust Lambda (128MB):
 
 ```yaml
 # Generated template.yaml
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 
 Globals:
@@ -767,17 +776,17 @@ Resources:
 
 ```typescript
 // Generated CDK construct
-import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as lambda from "aws-cdk-lib/aws-lambda";
 
-new lambda.Function(this, 'RustLambda', {
+new lambda.Function(this, "RustLambda", {
   runtime: lambda.Runtime.PROVIDED_AL2,
   architecture: lambda.Architecture.ARM_64,
-  handler: 'bootstrap',
-  code: lambda.Code.fromAsset('target/lambda/handler'),
+  handler: "bootstrap",
+  code: lambda.Code.fromAsset("target/lambda/handler"),
   memorySize: 128,
   timeout: cdk.Duration.seconds(15),
   environment: {
-    RUST_LOG: 'info',
+    RUST_LOG: "info",
   },
 });
 ```

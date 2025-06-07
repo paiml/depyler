@@ -1,6 +1,7 @@
 use crate::hir::*;
 use anyhow::Result;
 use quote::{quote, ToTokens};
+use std::collections::HashSet;
 use syn;
 
 pub fn generate_rust(file: syn::File) -> Result<String> {
@@ -92,6 +93,38 @@ fn expr_uses_hashmap(expr: &HirExpr) -> bool {
     }
 }
 
+struct ScopeTracker {
+    declared_vars: Vec<HashSet<String>>,
+}
+
+impl ScopeTracker {
+    fn new() -> Self {
+        Self {
+            declared_vars: vec![HashSet::new()],
+        }
+    }
+
+    fn enter_scope(&mut self) {
+        self.declared_vars.push(HashSet::new());
+    }
+
+    fn exit_scope(&mut self) {
+        self.declared_vars.pop();
+    }
+
+    fn is_declared(&self, var_name: &str) -> bool {
+        self.declared_vars
+            .iter()
+            .any(|scope| scope.contains(var_name))
+    }
+
+    fn declare_var(&mut self, var_name: &str) {
+        if let Some(current_scope) = self.declared_vars.last_mut() {
+            current_scope.insert(var_name.to_string());
+        }
+    }
+}
+
 fn convert_function_to_rust(func: &HirFunction) -> Result<proc_macro2::TokenStream> {
     let name = syn::Ident::new(&func.name, proc_macro2::Span::call_site());
 
@@ -109,11 +142,18 @@ fn convert_function_to_rust(func: &HirFunction) -> Result<proc_macro2::TokenStre
     // Convert return type
     let return_type = type_to_rust_type(&func.ret_type);
 
-    // Convert body
+    // Convert body with scope tracking
+    let mut scope_tracker = ScopeTracker::new();
+
+    // Declare function parameters in the scope
+    for (param_name, _) in &func.params {
+        scope_tracker.declare_var(param_name);
+    }
+
     let body_stmts: Vec<_> = func
         .body
         .iter()
-        .map(stmt_to_rust_tokens)
+        .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, &mut scope_tracker))
         .collect::<Result<Vec<_>>>()?;
 
     Ok(quote! {
@@ -160,12 +200,30 @@ fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
     }
 }
 
+#[allow(dead_code)]
 fn stmt_to_rust_tokens(stmt: &HirStmt) -> Result<proc_macro2::TokenStream> {
+    // Legacy function - delegate to the new scope-aware version with a throwaway scope
+    let mut scope_tracker = ScopeTracker::new();
+    stmt_to_rust_tokens_with_scope(stmt, &mut scope_tracker)
+}
+
+fn stmt_to_rust_tokens_with_scope(
+    stmt: &HirStmt,
+    scope_tracker: &mut ScopeTracker,
+) -> Result<proc_macro2::TokenStream> {
     match stmt {
         HirStmt::Assign { target, value } => {
             let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
             let value_tokens = expr_to_rust_tokens(value)?;
-            Ok(quote! { let #target_ident = #value_tokens; })
+
+            if scope_tracker.is_declared(target) {
+                // Variable already exists, just assign
+                Ok(quote! { #target_ident = #value_tokens; })
+            } else {
+                // First declaration, use let mut
+                scope_tracker.declare_var(target);
+                Ok(quote! { let mut #target_ident = #value_tokens; })
+            }
         }
         HirStmt::Return(expr_opt) => {
             if let Some(expr) = expr_opt {
@@ -181,16 +239,20 @@ fn stmt_to_rust_tokens(stmt: &HirStmt) -> Result<proc_macro2::TokenStream> {
             else_body,
         } => {
             let cond_tokens = expr_to_rust_tokens(condition)?;
+            scope_tracker.enter_scope();
             let then_stmts: Vec<_> = then_body
                 .iter()
-                .map(stmt_to_rust_tokens)
+                .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, scope_tracker))
                 .collect::<Result<Vec<_>>>()?;
+            scope_tracker.exit_scope();
 
             if let Some(else_stmts) = else_body {
+                scope_tracker.enter_scope();
                 let else_tokens: Vec<_> = else_stmts
                     .iter()
-                    .map(stmt_to_rust_tokens)
+                    .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, scope_tracker))
                     .collect::<Result<Vec<_>>>()?;
+                scope_tracker.exit_scope();
                 Ok(quote! {
                     if #cond_tokens {
                         #(#then_stmts)*
@@ -208,10 +270,12 @@ fn stmt_to_rust_tokens(stmt: &HirStmt) -> Result<proc_macro2::TokenStream> {
         }
         HirStmt::While { condition, body } => {
             let cond_tokens = expr_to_rust_tokens(condition)?;
+            scope_tracker.enter_scope();
             let body_stmts: Vec<_> = body
                 .iter()
-                .map(stmt_to_rust_tokens)
+                .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, scope_tracker))
                 .collect::<Result<Vec<_>>>()?;
+            scope_tracker.exit_scope();
             Ok(quote! {
                 while #cond_tokens {
                     #(#body_stmts)*
@@ -221,10 +285,13 @@ fn stmt_to_rust_tokens(stmt: &HirStmt) -> Result<proc_macro2::TokenStream> {
         HirStmt::For { target, iter, body } => {
             let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
             let iter_tokens = expr_to_rust_tokens(iter)?;
+            scope_tracker.enter_scope();
+            scope_tracker.declare_var(target); // for loop variable is declared in the loop scope
             let body_stmts: Vec<_> = body
                 .iter()
-                .map(stmt_to_rust_tokens)
+                .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, scope_tracker))
                 .collect::<Result<Vec<_>>>()?;
+            scope_tracker.exit_scope();
             Ok(quote! {
                 for #target_ident in #iter_tokens {
                     #(#body_stmts)*
@@ -248,8 +315,18 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
         HirExpr::Binary { op, left, right } => {
             let left_tokens = expr_to_rust_tokens(left)?;
             let right_tokens = expr_to_rust_tokens(right)?;
-            let op_tokens = binop_to_rust_tokens(op);
-            Ok(quote! { (#left_tokens #op_tokens #right_tokens) })
+
+            // Special handling for subtraction to prevent underflow
+            match op {
+                BinOp::Sub if is_len_call(left) => {
+                    // Use saturating_sub to prevent underflow when subtracting from array length
+                    Ok(quote! { #left_tokens.saturating_sub(#right_tokens) })
+                }
+                _ => {
+                    let op_tokens = binop_to_rust_tokens(op);
+                    Ok(quote! { (#left_tokens #op_tokens #right_tokens) })
+                }
+            }
         }
         HirExpr::Unary { op, operand } => {
             let operand_tokens = expr_to_rust_tokens(operand)?;
@@ -370,6 +447,29 @@ fn prettify_rust_code(code: String) -> String {
             "use std :: collections :: HashMap ;",
             "use std::collections::HashMap;",
         )
+        // Fix method call spacing
+        .replace(" . ", ".")
+        .replace(" (", "(")
+        .replace(" )", ")")
+        // Fix specific common patterns
+        .replace(".len ()", ".len()")
+        .replace(".push (", ".push(")
+        .replace(".insert (", ".insert(")
+        .replace(".get (", ".get(")
+        .replace(".contains_key (", ".contains_key(")
+        .replace(".to_string ()", ".to_string()")
+        // Fix spacing around operators in some contexts
+        .replace(" ::", "::")
+        // Fix attribute spacing
+        .replace("# [", "#[")
+        // Fix type annotations
+        .replace(" : ", ": ")
+        .replace(";\n    }", "\n}")
+}
+
+/// Check if an expression is a len() call
+fn is_len_call(expr: &HirExpr) -> bool {
+    matches!(expr, HirExpr::Call { func, args } if func == "len" && args.len() == 1)
 }
 
 #[cfg(test)]
@@ -390,6 +490,7 @@ mod tests {
             }))],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
+            docstring: None,
         };
 
         let module = HirModule {
@@ -400,7 +501,7 @@ mod tests {
         let rust_code = hir_to_rust(&module).unwrap();
         assert!(rust_code.contains("pub fn add"));
         assert!(rust_code.contains("i32"));
-        assert!(rust_code.contains("return (a + b)"));
+        assert!(rust_code.contains("return(a + b)"));
     }
 
     #[test]
@@ -466,6 +567,7 @@ mod tests {
                 body: vec![],
                 properties: FunctionProperties::default(),
                 annotations: TranspilationAnnotations::default(),
+                docstring: None,
             }],
             imports: vec![],
         };
@@ -480,6 +582,7 @@ mod tests {
                 body: vec![],
                 properties: FunctionProperties::default(),
                 annotations: TranspilationAnnotations::default(),
+                docstring: None,
             }],
             imports: vec![],
         };
@@ -496,7 +599,7 @@ mod tests {
 
         let tokens = stmt_to_rust_tokens(&assign).unwrap();
         let code = tokens.to_string();
-        assert!(code.contains("let x = 42"));
+        assert!(code.contains("let mut x = 42"));
     }
 
     #[test]

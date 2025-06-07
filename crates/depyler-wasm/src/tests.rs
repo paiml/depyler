@@ -1,18 +1,20 @@
-use depyler_wasm::{PlaygroundEngine, WasmTranspileOptions};
+#![allow(dead_code)]
+
+use super::*;
 use wasm_bindgen_test::*;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
 fn test_depyler_wasm_initialization() {
-    let engine = PlaygroundEngine::new();
+    let engine = DepylerWasm::new();
     // Engine initializes successfully
     drop(engine);
 }
 
 #[wasm_bindgen_test]
 fn test_simple_function_transpilation() {
-    let engine = PlaygroundEngine::new();
+    let engine = DepylerWasm::new();
     let options = WasmTranspileOptions::new();
 
     let python_code = r#"
@@ -32,7 +34,7 @@ def add(a: int, b: int) -> int:
 
 #[wasm_bindgen_test]
 fn test_energy_estimation_accuracy() {
-    let engine = PlaygroundEngine::new();
+    let engine = DepylerWasm::new();
     let options = WasmTranspileOptions::new();
 
     let python_code = r#"
@@ -58,7 +60,7 @@ def fibonacci(n: int) -> int:
 
 #[wasm_bindgen_test]
 fn test_error_handling_invalid_syntax() {
-    let engine = PlaygroundEngine::new();
+    let engine = DepylerWasm::new();
     let options = WasmTranspileOptions::new();
 
     let invalid_python = r#"
@@ -76,7 +78,7 @@ def broken_function(
 
 #[wasm_bindgen_test]
 fn test_quality_metrics_calculation() {
-    let engine = PlaygroundEngine::new();
+    let engine = DepylerWasm::new();
     let options = WasmTranspileOptions::new();
 
     let python_code = r#"
@@ -114,7 +116,7 @@ def complex_function(data: list) -> dict:
 
 #[wasm_bindgen_test]
 fn test_transpilation_performance_target() {
-    let engine = PlaygroundEngine::new();
+    let engine = DepylerWasm::new();
     let options = WasmTranspileOptions::new();
 
     let simple_function = r#"
@@ -139,7 +141,7 @@ def add(a: int, b: int) -> int:
 
 #[wasm_bindgen_test]
 fn test_code_analysis_functionality() {
-    let engine = PlaygroundEngine::new();
+    let engine = DepylerWasm::new();
 
     let python_code = r#"
 def example_function():
@@ -159,7 +161,7 @@ def example_function():
 
 #[wasm_bindgen_test]
 fn test_benchmark_functionality() {
-    let engine = PlaygroundEngine::new();
+    let engine = DepylerWasm::new();
 
     let test_code = r#"
 def test_function(x: int) -> int:
@@ -176,7 +178,7 @@ def test_function(x: int) -> int:
 
 #[wasm_bindgen_test]
 fn test_memory_usage_measurement() {
-    let engine = PlaygroundEngine::new();
+    let engine = DepylerWasm::new();
     let options = WasmTranspileOptions::new();
 
     let memory_intensive_code = r#"
@@ -201,7 +203,7 @@ def process_large_data():
 
 #[wasm_bindgen_test]
 fn test_annotation_handling() {
-    let engine = PlaygroundEngine::new();
+    let engine = DepylerWasm::new();
     let options = WasmTranspileOptions::new();
 
     let annotated_code = r#"
@@ -222,7 +224,7 @@ def optimized_function(text: str) -> str:
 
 #[wasm_bindgen_test]
 fn test_deterministic_transpilation() {
-    let engine = PlaygroundEngine::new();
+    let engine = DepylerWasm::new();
     let options = WasmTranspileOptions::new();
 
     let python_code = r#"
@@ -253,7 +255,7 @@ def deterministic_test(x: int, y: int) -> int:
 // Performance stress test
 #[wasm_bindgen_test]
 fn test_large_function_handling() {
-    let engine = PlaygroundEngine::new();
+    let engine = DepylerWasm::new();
     let options = WasmTranspileOptions::new();
 
     // Generate a larger function

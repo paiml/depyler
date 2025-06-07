@@ -76,16 +76,18 @@ impl AstBridge {
         // Extract annotations from source code if available
         let annotations = self.extract_function_annotations(&func);
 
-        let body = convert_body(func.body)?;
-        let properties = FunctionAnalyzer::analyze(&body);
+        // Extract docstring and filter it from the body
+        let (docstring, filtered_body) = extract_docstring_and_body(func.body)?;
+        let properties = FunctionAnalyzer::analyze(&filtered_body);
 
         Ok(HirFunction {
             name,
             params: params.into(),
             ret_type,
-            body,
+            body: filtered_body,
             properties,
             annotations,
+            docstring,
         })
     }
 
@@ -246,6 +248,37 @@ fn convert_import_from(import: ast::StmtImportFrom) -> Result<Vec<Import>> {
         .collect();
 
     Ok(vec![Import { module, items }])
+}
+
+fn extract_docstring_and_body(body: Vec<ast::Stmt>) -> Result<(Option<String>, Vec<HirStmt>)> {
+    if body.is_empty() {
+        return Ok((None, vec![]));
+    }
+
+    // Check if the first statement is a string literal (docstring)
+    let docstring = if let ast::Stmt::Expr(expr) = &body[0] {
+        if let ast::Expr::Constant(constant) = expr.value.as_ref() {
+            if let ast::Constant::Str(s) = &constant.value {
+                Some(s.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    // Convert the body, skipping the docstring if it exists
+    let start_index = if docstring.is_some() { 1 } else { 0 };
+    let filtered_body = body
+        .into_iter()
+        .skip(start_index)
+        .map(convert_stmt)
+        .collect::<Result<Vec<_>>>()?;
+
+    Ok((docstring, filtered_body))
 }
 
 #[cfg(test)]
@@ -538,5 +571,36 @@ def compute(data: List[float]) -> float:
             func.annotations.bounds_checking,
             depyler_annotations::BoundsChecking::Disabled
         );
+    }
+
+    #[test]
+    fn test_docstring_extraction() {
+        let source = r#"
+def example_function(x: int) -> int:
+    """This is a docstring that should become a comment"""
+    return x * 2
+
+def function_without_docstring(y: int) -> int:
+    print("Not a docstring") 
+    return y + 1
+"#;
+        let hir = parse_python_to_hir(source);
+
+        assert_eq!(hir.functions.len(), 2);
+
+        // First function should have a docstring
+        let func_with_docstring = &hir.functions[0];
+        assert_eq!(func_with_docstring.name, "example_function");
+        assert_eq!(
+            func_with_docstring.docstring,
+            Some("This is a docstring that should become a comment".to_string())
+        );
+        assert_eq!(func_with_docstring.body.len(), 1); // Only the return statement
+
+        // Second function should not have a docstring
+        let func_without_docstring = &hir.functions[1];
+        assert_eq!(func_without_docstring.name, "function_without_docstring");
+        assert_eq!(func_without_docstring.docstring, None);
+        assert_eq!(func_without_docstring.body.len(), 2); // print statement + return
     }
 }

@@ -4,7 +4,8 @@
 
 ### Global Computing Energy Consumption
 
-The environmental impact of software development choices has reached critical importance:
+The environmental impact of software development choices has reached critical
+importance:
 
 - **Data centers consume 1% of global electricity** (200+ TWh annually)
 - **Software inefficiency contributes 23% of computing carbon emissions**
@@ -14,13 +15,15 @@ The environmental impact of software development choices has reached critical im
 
 #### Pereira et al. (2017): "Energy Efficiency across Programming Languages"
 
-This landmark study in *Science of Computer Programming* analyzed 27 programming languages across 10 computational problems, measuring:
+This landmark study in _Science of Computer Programming_ analyzed 27 programming
+languages across 10 computational problems, measuring:
 
 - **Energy consumption** (Joules)
 - **Execution time** (seconds)
 - **Memory usage** (MB)
 
 **Key Findings**:
+
 ```
 Language Rankings (Energy Efficiency):
 1. C              1.00x (baseline)
@@ -33,17 +36,20 @@ Language Rankings (Energy Efficiency):
 ```
 
 **Rust Performance Characteristics**:
+
 - **Energy**: Only 3% more than C (virtually identical)
-- **Speed**: 4% slower than C (negligible difference)  
+- **Speed**: 4% slower than C (negligible difference)
 - **Memory**: 8% more than C (excellent efficiency)
 
 #### MIT Study (2023): "Software Carbon Footprint Analysis"
 
-Recent research from MIT's Computer Science and Artificial Intelligence Laboratory:
+Recent research from MIT's Computer Science and Artificial Intelligence
+Laboratory:
 
 - **23% of data center emissions** attributed to software inefficiency
 - **65% energy reduction possible** through language optimization
-- **Compound effect**: Efficiency improvements multiply across millions of devices
+- **Compound effect**: Efficiency improvements multiply across millions of
+  devices
 
 #### Google's Carbon Efficiency Research (2023)
 
@@ -54,6 +60,7 @@ Google's internal study on language migration impact:
 - **JavaScript to WebAssembly**: 30-50% energy reduction
 
 **Projected Impact**: If 50% of Python workloads migrated to Rust:
+
 - **Global CO₂ reduction**: 2.3 million tons annually
 - **Equivalent to**: Removing 500,000 cars from roads
 
@@ -70,6 +77,7 @@ Amazon's analysis of Rust workloads on ARM-based Graviton processors:
 ### Measurement Tools and Techniques
 
 #### Hardware-Level Measurement
+
 ```bash
 # Intel's Running Average Power Limit (RAPL)
 sudo apt install linux-tools-generic
@@ -80,6 +88,7 @@ sudo powertop --html=report.html
 ```
 
 #### Software-Level Profiling
+
 ```bash
 # Rust-specific energy profiling
 cargo install cargo-energy
@@ -96,12 +105,14 @@ make measure LANG=python,rust
 Our energy measurements follow established academic protocols:
 
 **Environment Standardization**:
+
 - Isolated test machines (no background processes)
 - Fixed CPU frequency (disable frequency scaling)
 - Consistent ambient temperature
 - Multiple runs with statistical significance testing
 
 **Measurement Points**:
+
 1. **Baseline**: System idle power consumption
 2. **Execution**: Power during program execution
 3. **Delta**: Difference between execution and baseline
@@ -174,6 +185,7 @@ Energy Reduction: 87.2% (7.8x more efficient)
 ### CPU Efficiency Factors
 
 #### Memory Management
+
 ```
 Python:
 ├── Garbage Collection: 15-30% CPU overhead
@@ -189,6 +201,7 @@ Rust:
 ```
 
 #### Instruction Efficiency
+
 ```
 Assembly Analysis (fibonacci(40)):
 
@@ -212,6 +225,7 @@ Instruction Reduction: 98.5% (68x fewer instructions)
 #### Memory Usage Patterns
 
 **Python Memory Characteristics**:
+
 ```
 Base Interpreter: 15-25MB
 ├── CPython Runtime: 8-12MB
@@ -227,6 +241,7 @@ Per Object Overhead:
 ```
 
 **Rust Memory Characteristics**:
+
 ```
 Base Binary: 200KB - 2MB
 ├── Core Runtime: <100KB
@@ -244,6 +259,7 @@ Per Value Size:
 #### Cache Performance
 
 **Cache Miss Analysis** (Processing 1M integers):
+
 ```
 Python:
 ├── L1 Cache Misses: 45,678,234
@@ -295,6 +311,7 @@ RUSTFLAGS="-Cprofile-use=/tmp/pgo-data/merged.profdata" cargo build --release
 ```
 
 **PGO Impact on Energy**:
+
 - **5-15% additional performance improvement**
 - **3-8% energy reduction** beyond standard optimization
 - **Better branch prediction** and cache utilization
@@ -304,6 +321,7 @@ RUSTFLAGS="-Cprofile-use=/tmp/pgo-data/merged.profdata" cargo build --release
 ### Linear Scaling Characteristics
 
 #### Single-Core Performance
+
 ```
 Workload: Prime number calculation (10M iterations)
 
@@ -323,6 +341,7 @@ Efficiency Gain: 24.7x better performance per watt
 ```
 
 #### Multi-Core Scaling
+
 ```
 Workload: Parallel matrix multiplication (2048x2048)
 
@@ -344,6 +363,7 @@ Multi-core Energy Advantage: 40x more efficient at 8 cores
 ### Memory Scaling
 
 #### Large Dataset Processing
+
 ```
 Dataset Size vs Memory Usage:
 
@@ -368,6 +388,7 @@ Dataset Size vs Memory Usage:
 ### Individual Application Impact
 
 #### Typical Web Application
+
 **Scenario**: E-commerce platform, 10k daily active users
 
 ```
@@ -388,6 +409,7 @@ Equivalent to: 47,000 miles not driven in gasoline car
 ```
 
 #### Data Processing Pipeline
+
 **Scenario**: Financial data aggregation, 24/7 operation
 
 ```
@@ -411,6 +433,7 @@ ROI on Migration: 350% first year
 ### Industry-Wide Impact Potential
 
 #### Global Python Usage Statistics
+
 ```
 Estimated Global Python Deployment:
 ├── Web applications: 2.3 million production deployments
@@ -429,6 +452,7 @@ Total estimated computing resources:
 #### Migration Impact Scenarios
 
 **Conservative Scenario (10% adoption)**:
+
 ```
 Assumptions:
 ├── 10% of Python workloads migrate to Rust
@@ -443,6 +467,7 @@ Impact:
 ```
 
 **Optimistic Scenario (30% adoption)**:
+
 ```
 Assumptions:
 ├── 30% of Python workloads migrate to Rust
@@ -461,6 +486,7 @@ Impact:
 #### Carbon Accounting Integration
 
 **Proposed Standards**:
+
 ```
 Energy Efficiency Metrics:
 ├── Joules per operation (J/op)
@@ -478,10 +504,11 @@ Reporting Framework:
 
 #### Green Software Foundation Alignment
 
-Depyler aligns with the [Green Software Foundation](https://greensoftware.foundation/) principles:
+Depyler aligns with the
+[Green Software Foundation](https://greensoftware.foundation/) principles:
 
 1. **Carbon Efficiency**: Minimize CO₂ emissions per unit of work
-2. **Energy Efficiency**: Minimize energy consumption per unit of work  
+2. **Energy Efficiency**: Minimize energy consumption per unit of work
 3. **Carbon Awareness**: Optimize for times/locations with cleaner energy
 4. **Hardware Efficiency**: Maximize utilization of computing resources
 5. **Measurement**: Quantify energy consumption and carbon emissions
@@ -492,6 +519,7 @@ Depyler aligns with the [Green Software Foundation](https://greensoftware.founda
 ### Advanced Compilation Techniques
 
 #### WebAssembly Target
+
 ```bash
 # Compile Rust to WebAssembly for browser/edge deployment
 rustup target add wasm32-unknown-unknown
@@ -505,6 +533,7 @@ Benefits:
 ```
 
 #### GPU Acceleration
+
 ```rust
 // Future: Automatic GPU acceleration for data-parallel workloads
 #[depyler(gpu)]
@@ -516,6 +545,7 @@ fn parallel_computation(data: Vec<f32>) -> Vec<f32> {
 ```
 
 #### Quantum Computing Integration
+
 ```rust
 // Experimental: Quantum algorithm compilation
 #[depyler(quantum)]
@@ -527,6 +557,7 @@ fn quantum_search(database: Vec<i32>, target: i32) -> Option<usize> {
 ### Ecosystem Integration
 
 #### Cloud-Native Optimization
+
 ```yaml
 # Kubernetes resource optimization based on Rust efficiency
 apiVersion: apps/v1
@@ -534,22 +565,23 @@ kind: Deployment
 metadata:
   name: rust-microservice
 spec:
-  replicas: 2  # Reduced from 8 Python replicas
+  replicas: 2 # Reduced from 8 Python replicas
   template:
     spec:
       containers:
-      - name: app
-        image: rust-app:latest
-        resources:
-          requests:
-            cpu: 100m     # Reduced from 500m
-            memory: 64Mi  # Reduced from 512Mi
-          limits:
-            cpu: 200m     # Reduced from 1000m  
-            memory: 128Mi # Reduced from 1024Mi
+        - name: app
+          image: rust-app:latest
+          resources:
+            requests:
+              cpu: 100m # Reduced from 500m
+              memory: 64Mi # Reduced from 512Mi
+            limits:
+              cpu: 200m # Reduced from 1000m
+              memory: 128Mi # Reduced from 1024Mi
 ```
 
 #### Edge Computing Deployment
+
 ```
 Edge Device Resource Utilization:
 
@@ -567,4 +599,6 @@ Benefits for IoT:
 
 ---
 
-*This analysis is based on current research and will be updated as new energy efficiency studies become available. For the latest benchmarks and measurements, see our [performance dashboard](https://benchmarks.depyler.dev).*
+_This analysis is based on current research and will be updated as new energy
+efficiency studies become available. For the latest benchmarks and measurements,
+see our [performance dashboard](https://benchmarks.depyler.dev)._

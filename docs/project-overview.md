@@ -2,7 +2,10 @@
 
 ## Executive Summary
 
-Depyler is a **Python-to-Rust transpiler** focusing on energy-efficient, safe code generation with progressive verification. The system produces idiomatic Rust code with formal correctness guarantees for a practical Python subset, following Toyota Way principles for quality and continuous improvement.
+Depyler is a **Python-to-Rust transpiler** focusing on energy-efficient, safe
+code generation with progressive verification. The system produces idiomatic
+Rust code with formal correctness guarantees for a practical Python subset,
+following Toyota Way principles for quality and continuous improvement.
 
 ## Table of Contents
 
@@ -23,7 +26,9 @@ Depyler is a **Python-to-Rust transpiler** focusing on energy-efficient, safe co
 
 ### Problem Statement
 
-Python's energy consumption and runtime safety limitations create barriers for sustainable computing and critical system deployment. Depyler addresses this gap by providing:
+Python's energy consumption and runtime safety limitations create barriers for
+sustainable computing and critical system deployment. Depyler addresses this gap
+by providing:
 
 1. **Energy-efficient transpilation** - Convert Python to optimized Rust
 2. **Type safety guarantees** - Leverage Rust's type system for Python code
@@ -36,7 +41,8 @@ Python's energy consumption and runtime safety limitations create barriers for s
 - ✅ **HIR (High-level IR)** - Clean intermediate representation
 - ✅ **Type inference engine** - Infer Rust types from Python code
 - ✅ **Property verification** - Formal correctness guarantees
-- ✅ **MCP integration** - Full Model Context Protocol v1 implementation with three core tools
+- ✅ **MCP integration** - Full Model Context Protocol v1 implementation with
+  three core tools
 - ✅ **CLI interface** - Complete command-line tool
 - ✅ **Progressive verification** - Multiple verification levels
 
@@ -76,11 +82,13 @@ Python's energy consumption and runtime safety limitations create barriers for s
 ### Core Components
 
 #### 1. **Analyzer Layer** (`depyler-analyzer/`)
+
 - **Type Flow Analysis**: Advanced type inference for Python constructs
 - **Complexity Metrics**: Cognitive and cyclomatic complexity analysis
 - **Function Metrics**: Performance and safety characteristics
 
 #### 2. **Core Layer** (`depyler-core/`)
+
 - **AST Bridge**: Python AST to HIR conversion with safety guarantees
 - **HIR**: High-level intermediate representation
 - **Codegen**: Idiomatic Rust code generation
@@ -88,19 +96,25 @@ Python's energy consumption and runtime safety limitations create barriers for s
 - **Direct Rules**: Direct transpilation patterns
 
 #### 3. **Verification Layer** (`depyler-verify/`)
+
 - **Property Verification**: Formal correctness guarantees
 - **Contract System**: Pre/post condition verification
 - **QuickCheck Integration**: Property-based testing
 
 #### 4. **MCP Integration** (`depyler-mcp/`)
+
 - **Protocol Implementation**: Full MCP v2024.11 specification implementation
 - **Core Tools**: Three primary MCP tools for transpilation workflow
-  - `transpile_python`: Direct Python-to-Rust transpilation with optimization options
-  - `analyze_migration_complexity`: Deep project analysis and migration strategy generation
+  - `transpile_python`: Direct Python-to-Rust transpilation with optimization
+    options
+  - `analyze_migration_complexity`: Deep project analysis and migration strategy
+    generation
   - `verify_transpilation`: Semantic equivalence and safety verification
-- **Validation Framework**: Comprehensive input/output validation with Rust syntax checking
+- **Validation Framework**: Comprehensive input/output validation with Rust
+  syntax checking
 - **Server Architecture**: Async MCP server with caching and session management
-- **AI Tooling Interface**: Complete integration with Claude Code and other MCP-compatible tools
+- **AI Tooling Interface**: Complete integration with Claude Code and other
+  MCP-compatible tools
 
 ---
 
@@ -135,6 +149,7 @@ def count_words(text: str) -> Dict[str, int]:
 ### Generated Rust Example
 
 **Input Python:**
+
 ```python
 def binary_search(arr: List[int], target: int) -> int:
     left, right = 0, len(arr) - 1
@@ -150,6 +165,7 @@ def binary_search(arr: List[int], target: int) -> int:
 ```
 
 **Generated Rust:**
+
 ```rust
 fn binary_search(arr: &[i32], target: i32) -> i32 {
     let mut left = 0i32;
@@ -193,18 +209,21 @@ Based on PAIML analysis, the project implements comprehensive testing:
 ### Test Categories
 
 #### 1. **Unit Tests**
+
 - **AST Bridge Tests**: Python AST parsing and HIR conversion
 - **Type Flow Tests**: Type inference engine validation
 - **Codegen Tests**: Rust code generation verification
 - **Property Tests**: Contract and property verification
 
 #### 2. **Integration Tests**
+
 - **End-to-end transpilation**: Complete Python-to-Rust pipeline
 - **MCP protocol testing**: Model Context Protocol compliance
 - **Verification framework**: Property-based test generation
 - **Cross-platform compatibility**: Linux, macOS, Windows support
 
 #### 3. **Semantic Equivalence**
+
 - **Runtime behavior matching**: Python and Rust output comparison
 - **Performance benchmarking**: Energy and speed measurements
 - **Type inference validation**: Correctness of inferred types
@@ -236,6 +255,7 @@ Using the PAIML MCP Agent Toolkit for comprehensive code analysis:
 ```
 
 ### Top Complexity Hotspots
+
 1. `convert_expr` - cyclomatic complexity: 39 (ast_bridge.rs)
 2. `convert_expr` - cyclomatic complexity: 38 (direct_rules.rs)
 3. `TypeInferencer::infer_expr` - cyclomatic complexity: 31 (type_flow.rs)
@@ -243,6 +263,7 @@ Using the PAIML MCP Agent Toolkit for comprehensive code analysis:
 5. `expr_to_rust_tokens` - cyclomatic complexity: 26 (codegen.rs)
 
 ### Risk Assessment
+
 - **Overall Health Score**: 75.0/100 ⚠️
 - **Predicted High-Risk Files**: 5
 - **Dead Code**: 0.2%
@@ -359,13 +380,13 @@ depyler/                        # 36 Rust files, ~15,000 lines of code
 
 ### Transpilation Performance
 
-| Operation | Target | Current Status | Method |
-|-----------|--------|----------------|--------|
-| Parse Python (1KLOC) | <10ms | Framework in place | rustpython_parser |
-| Type Inference (1KLOC) | <50ms | Framework in place | Custom engine |
-| HIR Generation (1KLOC) | <20ms | Framework in place | AST bridge |
-| Rust Codegen (1KLOC) | <30ms | Framework in place | syn + quote |
-| Total Pipeline (1KLOC) | <110ms | Framework in place | End-to-end |
+| Operation              | Target | Current Status     | Method            |
+| ---------------------- | ------ | ------------------ | ----------------- |
+| Parse Python (1KLOC)   | <10ms  | Framework in place | rustpython_parser |
+| Type Inference (1KLOC) | <50ms  | Framework in place | Custom engine     |
+| HIR Generation (1KLOC) | <20ms  | Framework in place | AST bridge        |
+| Rust Codegen (1KLOC)   | <30ms  | Framework in place | syn + quote       |
+| Total Pipeline (1KLOC) | <110ms | Framework in place | End-to-end        |
 
 ### Energy Efficiency
 
@@ -388,48 +409,64 @@ depyler/                        # 36 Rust files, ~15,000 lines of code
 ### Toyota Way Principles (from CLAUDE.md)
 
 #### 自働化 (Jidoka) - Build Quality In
-- **Never ship incomplete transpilation**: All HIR transformations include complete error handling
-- **Verification-first development**: Every AST-to-Rust mapping requires property verification
+
+- **Never ship incomplete transpilation**: All HIR transformations include
+  complete error handling
+- **Verification-first development**: Every AST-to-Rust mapping requires
+  property verification
 - **Complete error handling**: No TODO markers in critical paths
 
 #### 現地現物 (Genchi Genbutsu) - Direct Observation
-- **Test against real Rust**: Don't rely on syn parsing alone; test with `cargo check`
-- **Profile actual compilation**: Measure transpilation time/memory on realistic Python codebases
+
+- **Test against real Rust**: Don't rely on syn parsing alone; test with
+  `cargo check`
+- **Profile actual compilation**: Measure transpilation time/memory on realistic
+  Python codebases
 - **Debug at the Rust level**: Examine generated Rust code, not just HIR
 
 #### 反省 (Hansei) - Fix Before Adding
+
 - **Current broken functionality to prioritize**:
-    1. Type inference generates incorrect ownership patterns
-    2. String handling creates unnecessary allocations
-    3. Property verification doesn't catch all lifetime violations
-- **Do not add** advanced features until core function transpilation is bulletproof
+  1. Type inference generates incorrect ownership patterns
+  2. String handling creates unnecessary allocations
+  3. Property verification doesn't catch all lifetime violations
+- **Do not add** advanced features until core function transpilation is
+  bulletproof
 
 #### 改善 (Kaizen) - Continuous Improvement
-- **Incremental verification**: Start with basic verification, achieve 100% coverage, then advance
-- **Performance baselines**: Generated Rust must compile in <500ms for typical functions
-- **Code quality targets**: Output should pass `clippy::pedantic` without warnings
+
+- **Incremental verification**: Start with basic verification, achieve 100%
+  coverage, then advance
+- **Performance baselines**: Generated Rust must compile in <500ms for typical
+  functions
+- **Code quality targets**: Output should pass `clippy::pedantic` without
+  warnings
 
 ### CLI Commands
 
 #### Transpile Command
+
 ```bash
 depyler transpile examples/showcase/binary_search.py --verify
 depyler transpile input.py --output output.rs --verify-level strict
 ```
 
 #### Verify Command
+
 ```bash
 depyler verify examples/showcase/ --property-tests
 depyler verify input.py --contracts --quickcheck
 ```
 
 #### Analyze Command
+
 ```bash
 depyler analyze examples/showcase/ --complexity --energy
 depyler analyze input.py --types --performance
 ```
 
 ### Build Commands (from CLAUDE.md)
+
 ```bash
 # Run full test suite with property verification
 cargo test --workspace
@@ -535,6 +572,7 @@ strategy:
 ### Learning Outcomes
 
 The project demonstrates:
+
 - Advanced Rust systems programming
 - Compiler design and implementation
 - Formal verification techniques
@@ -545,9 +583,13 @@ The project demonstrates:
 
 ## Conclusion
 
-Depyler represents a successful implementation of a **production-ready Python-to-Rust transpiler** with energy efficiency and formal verification focus. The project demonstrates enterprise-grade engineering practices with comprehensive testing, quality analysis, and performance optimization.
+Depyler represents a successful implementation of a **production-ready
+Python-to-Rust transpiler** with energy efficiency and formal verification
+focus. The project demonstrates enterprise-grade engineering practices with
+comprehensive testing, quality analysis, and performance optimization.
 
 Key achievements:
+
 - ✅ **Functional transpiler** converting Python to idiomatic Rust
 - ✅ **287 functions** across modular crate architecture
 - ✅ **Progressive verification** with property-based testing
@@ -556,13 +598,16 @@ Key achievements:
 - ✅ **Toyota Way principles** integrated throughout development
 - ✅ **MCP protocol support** for AI tooling integration
 
-The implementation provides a solid foundation for sustainable Python-to-Rust migration, bringing energy efficiency and memory safety to Python codebases while maintaining familiar development workflows.
+The implementation provides a solid foundation for sustainable Python-to-Rust
+migration, bringing energy efficiency and memory safety to Python codebases
+while maintaining familiar development workflows.
 
-**Project Status**: ✅ **Core functionality implemented with quality infrastructure in place**
+**Project Status**: ✅ **Core functionality implemented with quality
+infrastructure in place**
 
 ---
 
-*Generated: 2025-01-06*  
-*Repository: https://github.com/paiml/depyler*  
-*Analysis: PAIML MCP Agent Toolkit v0.21.0*  
-*Health Score: 75.0/100*
+_Generated: 2025-01-06_\
+_Repository: https://github.com/paiml/depyler_\
+_Analysis: PAIML MCP Agent Toolkit v0.21.0_\
+_Health Score: 75.0/100_

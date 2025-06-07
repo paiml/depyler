@@ -5,6 +5,7 @@ This document outlines the steps for releasing Depyler v0.1.0.
 ## Pre-Release Verification
 
 ### ✅ Code Quality
+
 - [x] All tests passing (70 tests)
 - [x] Function coverage > 60% (achieved 62.88%)
 - [x] Zero clippy warnings
@@ -12,12 +13,14 @@ This document outlines the steps for releasing Depyler v0.1.0.
 - [x] No security vulnerabilities (`cargo audit`)
 
 ### ✅ Documentation
+
 - [x] README.md with accurate installation instructions
 - [x] CHANGELOG.md following Keep a Changelog format
 - [x] API documentation generated with `cargo doc`
 - [x] Example code working correctly
 
 ### ✅ Release Infrastructure
+
 - [x] GitHub Actions workflow for automated releases
 - [x] Multi-platform build matrix (Linux, macOS, Windows)
 - [x] Installer script with proper error handling
@@ -26,6 +29,7 @@ This document outlines the steps for releasing Depyler v0.1.0.
 ## Release Process
 
 ### 1. Prepare Release
+
 ```bash
 # Run the release preparation script
 ./scripts/prepare-release.sh
@@ -40,6 +44,7 @@ This document outlines the steps for releasing Depyler v0.1.0.
 ```
 
 ### 2. Review Changes
+
 ```bash
 # Review all changes
 git diff
@@ -51,12 +56,14 @@ git diff
 ```
 
 ### 3. Commit Changes
+
 ```bash
 git add -A
 git commit -m "chore: prepare release v0.1.0"
 ```
 
 ### 4. Create and Push Tag
+
 ```bash
 # Create annotated tag
 git tag -a v0.1.0 -m "Release v0.1.0
@@ -74,6 +81,7 @@ git push origin v0.1.0
 ```
 
 ### 5. GitHub Actions Will Automatically:
+
 1. Create GitHub release with generated notes
 2. Build binaries for all platforms:
    - `depyler-linux-amd64.tar.gz`
@@ -85,6 +93,7 @@ git push origin v0.1.0
 4. Create SHA256SUMS file
 
 ### 6. Post-Release
+
 1. Verify release assets on GitHub
 2. Test installation script:
    ```bash
@@ -96,6 +105,7 @@ git push origin v0.1.0
 ## Installation Verification
 
 ### Quick Install (Verified)
+
 ```bash
 # Download and run installer
 curl -sSfL https://github.com/paiml/depyler/releases/latest/download/install.sh | sh
@@ -109,6 +119,7 @@ curl -sSfL https://github.com/paiml/depyler/releases/latest/download/install.sh 
 ```
 
 ### Manual Install (Verified)
+
 ```bash
 # Download for your platform
 wget https://github.com/paiml/depyler/releases/latest/download/depyler-linux-amd64.tar.gz
@@ -124,6 +135,7 @@ depyler --version
 ```
 
 ### Build from Source (Verified)
+
 ```bash
 # Clone repository
 git clone https://github.com/paiml/depyler.git

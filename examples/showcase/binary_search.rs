@@ -1,5 +1,4 @@
-pub fn binary_search (arr : & Vec < i32 > , target : i32) -> i32 {
-    "Find target in sorted array, return -1 if not found." . to_string ();
+# [doc = "Find target in sorted array, return -1 if not found."] pub fn binary_search (arr : Vec < i32 > , target : i32) -> i32 {
     let mut left = 0;
     let mut right = (arr . len () - 1);
     while (left <= right) {
@@ -10,11 +9,11 @@ pub fn binary_search (arr : & Vec < i32 > , target : i32) -> i32 {
 }
 else {
     if (arr . get (mid as usize) . copied () . unwrap_or_default () < target) {
-    let mut left = (mid + 1);
+    left = (mid + 1);
    
 }
 else {
-    let mut right = (mid - 1);
+    right = (mid - 1);
    
 }
 }
