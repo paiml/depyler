@@ -1,8 +1,10 @@
 # Safety Guarantees: Memory and Thread Safety Analysis
 
-> **Comprehensive analysis of Depyler's memory safety, thread safety, and formal correctness guarantees**
+> **Comprehensive analysis of Depyler's memory safety, thread safety, and formal
+> correctness guarantees**
 
-Depyler prioritizes safety above all else, ensuring that generated Rust code is not only fast and energy-efficient, but also provably safe and correct.
+Depyler prioritizes safety above all else, ensuring that generated Rust code is
+not only fast and energy-efficient, but also provably safe and correct.
 
 ---
 
@@ -26,6 +28,7 @@ graph TD
 ```
 
 ### Safety-First Design
+
 - **Zero unsafe code** in generated output
 - **Compile-time verification** of all safety properties
 - **Formal property verification** through testing
@@ -37,9 +40,11 @@ graph TD
 
 ### Rust's Ownership System
 
-Depyler leverages Rust's ownership system to provide absolute memory safety guarantees:
+Depyler leverages Rust's ownership system to provide absolute memory safety
+guarantees:
 
 #### 1. No Use-After-Free
+
 ```python
 # Python (potentially unsafe)
 def unsafe_example():
@@ -58,6 +63,7 @@ fn safe_example() -> Vec<i32> {
 ```
 
 #### 2. No Double-Free
+
 ```python
 # Python (reference counting prevents this)
 def python_example():
@@ -74,6 +80,7 @@ fn rust_example() -> Vec<i32> {
 ```
 
 #### 3. No Memory Leaks
+
 ```python
 # Python (garbage collected)
 class Node:
@@ -101,6 +108,7 @@ impl Node {
 ### Memory Layout Verification
 
 #### Stack vs Heap Allocation Analysis
+
 ```rust
 // Depyler performs automatic analysis:
 
@@ -140,6 +148,7 @@ graph LR
 ### Concurrency Safety Model
 
 #### Send and Sync Traits
+
 Depyler automatically implements appropriate concurrency traits:
 
 ```python
@@ -204,6 +213,7 @@ graph TD
 ### Deadlock Prevention Strategies
 
 #### Lock Ordering
+
 ```rust
 // Generated code follows consistent lock ordering
 pub struct BankAccount {
@@ -228,6 +238,7 @@ pub fn transfer(from: &BankAccount, to: &BankAccount, amount: f64) -> Result<(),
 ```
 
 #### Lock-Free Alternatives
+
 ```rust
 // When possible, Depyler generates lock-free code
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -260,6 +271,7 @@ impl AtomicCounter {
 ### Compile-Time Type Checking
 
 #### Null Safety
+
 ```python
 # Python (runtime null checks)
 def process_user(user: Optional[User]) -> str:
@@ -280,6 +292,7 @@ pub fn process_user(user: Option<User>) -> String {
 ```
 
 #### Integer Overflow Safety
+
 ```python
 # Python (unchecked overflow)
 def calculate_factorial(n: int) -> int:
@@ -529,13 +542,13 @@ pub fn format_message(template: &str, value: &str) -> String {
 
 ### Safety Quality Gates
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| Memory Safety Violations | 0 | Static analysis |
-| Data Race Potential | 0 | Thread safety analysis |
-| Panic Probability | <1% | Property testing |
-| Unsafe Code Blocks | 0 | Code generation rules |
-| Buffer Overflow Risk | 0 | Bounds checking |
+| Metric                   | Target | Measurement            |
+| ------------------------ | ------ | ---------------------- |
+| Memory Safety Violations | 0      | Static analysis        |
+| Data Race Potential      | 0      | Thread safety analysis |
+| Panic Probability        | <1%    | Property testing       |
+| Unsafe Code Blocks       | 0      | Code generation rules  |
+| Buffer Overflow Risk     | 0      | Bounds checking        |
 
 ### Verification Dashboard
 
@@ -624,7 +637,8 @@ def cryptographic_hash(data: bytes) -> bytes:
 
 Depyler's safety guarantees are built on solid theoretical foundations:
 
-- **Rust's Type System**: Based on affine types and region-based memory management
+- **Rust's Type System**: Based on affine types and region-based memory
+  management
 - **Ownership Types**: Formal verification of memory safety properties
 - **Session Types**: Protocol verification for concurrent programs
 - **Dependent Types**: Advanced type-level constraints
@@ -669,6 +683,7 @@ mod verification {
 ### Common Patterns
 
 #### Safe Error Handling
+
 ```rust
 // Always use Result for fallible operations
 pub fn safe_division(a: f64, b: f64) -> Result<f64, DivisionError> {
@@ -683,6 +698,7 @@ pub fn safe_division(a: f64, b: f64) -> Result<f64, DivisionError> {
 ```
 
 #### Safe Concurrency
+
 ```rust
 // Use appropriate synchronization primitives
 pub struct ThreadSafeCounter {
@@ -701,22 +717,30 @@ impl ThreadSafeCounter {
 ## 📚 Safety Resources
 
 ### Documentation
+
 - **[Rust Book - Ownership](https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html)**
 - **[Rustonomicon](https://doc.rust-lang.org/nomicon/)** - Advanced unsafe Rust
 - **[Rust Reference - Safety](https://doc.rust-lang.org/reference/behavior-considered-undefined.html)**
 
 ### Tools and Libraries
-- **[Miri](https://github.com/rust-lang/miri)** - Mid-level IR interpreter for detecting UB
-- **[Kani](https://github.com/model-checking/kani)** - Formal verification for Rust
-- **[MIRAI](https://github.com/facebookexperimental/MIRAI)** - Static analyzer for Rust
+
+- **[Miri](https://github.com/rust-lang/miri)** - Mid-level IR interpreter for
+  detecting UB
+- **[Kani](https://github.com/model-checking/kani)** - Formal verification for
+  Rust
+- **[MIRAI](https://github.com/facebookexperimental/MIRAI)** - Static analyzer
+  for Rust
 
 ### Community Resources
+
 - **[Rust Safety Guidelines](https://anssi-fr.github.io/rust-guide/)**
 - **[Safe Rust Patterns](https://rust-unofficial.github.io/patterns/)**
 - **[Security Advisory Database](https://rustsec.org/)**
 
 ---
 
-*Depyler's safety guarantees represent the state-of-the-art in automated transpilation safety. Every line of generated code is provably safe, giving you confidence to migrate critical systems from Python to Rust.*
+_Depyler's safety guarantees represent the state-of-the-art in automated
+transpilation safety. Every line of generated code is provably safe, giving you
+confidence to migrate critical systems from Python to Rust._
 
 🛡️ **Your safety is our priority. Your performance is our passion.**

@@ -1,7 +1,7 @@
 # Depyler: Python-to-Rust Transpiler ⚡🦀
 
-> **Compile Python to energy-efficient, memory-safe Rust code**  
-> *Transitioning off Python to energy-efficient and safe Rust systems*
+> **Compile Python to energy-efficient, memory-safe Rust code**\
+> _Transitioning off Python to energy-efficient and safe Rust systems_
 
 [![Model Context Protocol](https://img.shields.io/badge/MCP-Compatible-brightgreen?style=for-the-badge)](https://modelcontextprotocol.io/)
 [![CI](https://github.com/paiml/depyler/actions/workflows/ci.yml/badge.svg)](https://github.com/paiml/depyler/actions/workflows/ci.yml)
@@ -19,9 +19,14 @@
 
 ## 🌍 The Energy Crisis of Modern Computing
 
-**The Problem**: Python's environmental impact is staggering. Research from Google and AWS reveals that interpreted languages like Python consume **10-100x more energy** than compiled alternatives, contributing significantly to global carbon emissions.
+**The Problem**: Python's environmental impact is staggering. Research from
+Google and AWS reveals that interpreted languages like Python consume **10-100x
+more energy** than compiled alternatives, contributing significantly to global
+carbon emissions.
 
-**The Solution**: Depyler automatically transpiles Python to high-performance, memory-safe Rust code, delivering massive energy savings without sacrificing developer productivity.
+**The Solution**: Depyler automatically transpiles Python to high-performance,
+memory-safe Rust code, delivering massive energy savings without sacrificing
+developer productivity.
 
 ```bash
 # Transform your Python codebase to energy-efficient Rust
@@ -39,47 +44,67 @@ rustc optimized.rs -O
 ## 🎯 Core Features
 
 ### 🔄 **Automatic Transpilation**
-- **Type inference**: Smart Python type analysis with HIR (High-level Intermediate Representation)
+
+- **Type inference**: Smart Python type analysis with HIR (High-level
+  Intermediate Representation)
 - **Memory safety**: Automatic borrow checker compliance
 - **Zero-copy optimization**: Eliminates unnecessary allocations
-- **Annotation Protocol**: Structured comments for guiding transpilation strategy
+- **Annotation Protocol**: Structured comments for guiding transpilation
+  strategy
 
-### 🛡️ **Safety Guarantees** 
+### 🛡️ **Safety Guarantees**
+
 - **Memory safety**: No segfaults, buffer overflows, or memory leaks
 - **Thread safety**: Data race prevention at compile time
 - **Type safety**: Comprehensive type checking and validation
 - **Bounds checking**: Automatic insertion of safety checks where needed
 
 ### ⚡ **Performance Optimization**
+
 - **LLVM backend**: State-of-the-art code generation and optimization
 - **Binary size optimization**: LTO, strip, and panic=abort configurations
 - **Cache-friendly code**: Memory layout optimization for modern CPUs
 - **Energy efficiency**: 75-85% reduction in power consumption vs Python
 
 ### 🧪 **Testing & Verification**
+
 - **Property-based testing**: Semantic equivalence verification with QuickCheck
 - **Test coverage**: 85%+ coverage across all modules
 - **Compilation validation**: Generated Rust code guaranteed to compile
 - **Quality gates**: PMAT scoring system with TDG < 2.0 requirement
 
 ### 🚀 **AWS Lambda Transpilation**
-- **Automatic event type inference**: Detects S3, API Gateway, SQS, SNS, DynamoDB, EventBridge patterns
-- **Cold start optimization**: 85-95% reduction through pre-warming and binary optimization
-- **cargo-lambda integration**: Direct deployment to AWS Lambda with optimized builds
-- **Event type mappings**: Automatic Python-to-Rust type conversion for all AWS events
+
+- **Automatic event type inference**: Detects S3, API Gateway, SQS, SNS,
+  DynamoDB, EventBridge patterns
+- **Cold start optimization**: 85-95% reduction through pre-warming and binary
+  optimization
+- **cargo-lambda integration**: Direct deployment to AWS Lambda with optimized
+  builds
+- **Event type mappings**: Automatic Python-to-Rust type conversion for all AWS
+  events
 - **Performance monitoring**: Built-in cold start tracking and memory profiling
 
 ### 🤖 **AI Integration**
+
 - **Model Context Protocol (MCP)**: Full MCP v1 specification implementation
 - **AI-powered transpilation**: Advanced code analysis and migration assistance
-- **Intelligent fallback**: MCP-based transpilation for complex Python constructs
-- **Migration complexity analysis**: Deep project analysis with migration strategies
+- **Intelligent fallback**: MCP-based transpilation for complex Python
+  constructs
+- **Migration complexity analysis**: Deep project analysis with migration
+  strategies
 
-### 🎮 **Interactive Playground** (Coming Soon)
+### 🎮 **Interactive Playground** (🧪 EXPERIMENTAL - UNSTABLE)
+
+> ⚠️ **WARNING**: The Interactive Playground is currently **EXPERIMENTAL** and **UNSTABLE**. 
+> It is not recommended for production use. Features may change or break without notice.
+
 - **WebAssembly playground**: Zero-configuration browser-based transpiler
 - **Live transpilation**: Real-time Python to Rust conversion as you type
 - **Energy visualization**: See energy savings in real-time
 - **Annotation suggestions**: AI-powered optimization hints
+
+**Note**: Use `DEPYLER_EXPERIMENTAL=true depyler playground` to acknowledge the experimental status.
 
 ---
 
@@ -88,16 +113,20 @@ rustc optimized.rs -O
 ### Quick Install (Recommended)
 
 #### Linux/macOS
+
 ```bash
 curl -sSfL https://github.com/paiml/depyler/releases/latest/download/install.sh | sh
 ```
 
-This will install depyler to `~/.local/bin`. Make sure this directory is in your PATH:
+This will install depyler to `~/.local/bin`. Make sure this directory is in your
+PATH:
+
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
 #### Windows
+
 ```powershell
 iwr -useb https://github.com/paiml/depyler/releases/latest/download/install.ps1 | iex
 ```
@@ -106,15 +135,16 @@ iwr -useb https://github.com/paiml/depyler/releases/latest/download/install.ps1 
 
 Download the latest release for your platform:
 
-| Platform | Download | Size |
-|----------|----------|------|
-| Linux (x64) | [depyler-linux-amd64.tar.gz](https://github.com/paiml/depyler/releases/latest/download/depyler-linux-amd64.tar.gz) | ~4.5MB |
-| Linux (ARM64) | [depyler-linux-arm64.tar.gz](https://github.com/paiml/depyler/releases/latest/download/depyler-linux-arm64.tar.gz) | ~4.3MB |
-| macOS (Intel) | [depyler-darwin-amd64.tar.gz](https://github.com/paiml/depyler/releases/latest/download/depyler-darwin-amd64.tar.gz) | ~4.6MB |
+| Platform              | Download                                                                                                             | Size   |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------- | ------ |
+| Linux (x64)           | [depyler-linux-amd64.tar.gz](https://github.com/paiml/depyler/releases/latest/download/depyler-linux-amd64.tar.gz)   | ~4.5MB |
+| Linux (ARM64)         | [depyler-linux-arm64.tar.gz](https://github.com/paiml/depyler/releases/latest/download/depyler-linux-arm64.tar.gz)   | ~4.3MB |
+| macOS (Intel)         | [depyler-darwin-amd64.tar.gz](https://github.com/paiml/depyler/releases/latest/download/depyler-darwin-amd64.tar.gz) | ~4.6MB |
 | macOS (Apple Silicon) | [depyler-darwin-arm64.tar.gz](https://github.com/paiml/depyler/releases/latest/download/depyler-darwin-arm64.tar.gz) | ~4.4MB |
-| Windows (x64) | [depyler-windows-amd64.zip](https://github.com/paiml/depyler/releases/latest/download/depyler-windows-amd64.zip) | ~4.8MB |
+| Windows (x64)         | [depyler-windows-amd64.zip](https://github.com/paiml/depyler/releases/latest/download/depyler-windows-amd64.zip)     | ~4.8MB |
 
 Extract and add to your PATH:
+
 ```bash
 tar xzf depyler-*.tar.gz
 sudo mv depyler /usr/local/bin/
@@ -204,49 +234,49 @@ make playground-dev         # Hot reload enabled
 
 ### ✅ Fully Supported
 
-| Feature | Python Example | Notes |
-|---------|----------------|-------|
-| **Basic Types** | `int`, `float`, `str`, `bool`, `None` | Direct mapping to Rust types |
-| **Collections** | `List[T]`, `Dict[K,V]`, `Set[T]`, `Tuple[...]` | Maps to `Vec`, `HashMap`, `HashSet`, tuples |
-| **Functions** | `def func(a: int) -> int:` | Type annotations required |
-| **Control Flow** | `if`/`elif`/`else`, `while`, `for` | Full support with pattern matching |
-| **Operators** | `+`, `-`, `*`, `/`, `%`, `**`, `//` | Including augmented assignments |
-| **Comparisons** | `==`, `!=`, `<`, `>`, `<=`, `>=` | Type-safe comparisons |
-| **Boolean Logic** | `and`, `or`, `not` | Short-circuit evaluation |
-| **String Operations** | f-strings, concatenation, slicing | Efficient Rust string handling |
-| **List Comprehensions** | `[x*2 for x in items if x > 0]` | Optimized to iterators |
-| **Dict Comprehensions** | `{k: v*2 for k, v in data.items()}` | Efficient HashMap construction |
-| **Optional Types** | `Optional[T]`, `T | None` | Maps to `Option<T>` |
-| **Type Unions** | `Union[int, str]` | Limited support via enums |
-| **Classes** | Basic classes with methods | No inheritance yet |
-| **Dataclasses** | `@dataclass` decorators | Converts to Rust structs |
-| **Pattern Matching** | `match` statements (3.10+) | Native Rust pattern matching |
-| **Context Managers** | `with` statements | RAII pattern conversion |
-| **Exceptions** | `try`/`except`/`finally` | Converts to `Result<T, E>` |
-| **Lambdas** | Simple lambda expressions | Limited to single expressions |
-| **Annotations** | `# @depyler:` comments | Transpilation guidance |
+| Feature                 | Python Example                                 | Notes                                       |
+| ----------------------- | ---------------------------------------------- | ------------------------------------------- |
+| **Basic Types**         | `int`, `float`, `str`, `bool`, `None`          | Direct mapping to Rust types                |
+| **Collections**         | `List[T]`, `Dict[K,V]`, `Set[T]`, `Tuple[...]` | Maps to `Vec`, `HashMap`, `HashSet`, tuples |
+| **Functions**           | `def func(a: int) -> int:`                     | Type annotations required                   |
+| **Control Flow**        | `if`/`elif`/`else`, `while`, `for`             | Full support with pattern matching          |
+| **Operators**           | `+`, `-`, `*`, `/`, `%`, `**`, `//`            | Including augmented assignments             |
+| **Comparisons**         | `==`, `!=`, `<`, `>`, `<=`, `>=`               | Type-safe comparisons                       |
+| **Boolean Logic**       | `and`, `or`, `not`                             | Short-circuit evaluation                    |
+| **String Operations**   | f-strings, concatenation, slicing              | Efficient Rust string handling              |
+| **List Comprehensions** | `[x*2 for x in items if x > 0]`                | Optimized to iterators                      |
+| **Dict Comprehensions** | `{k: v*2 for k, v in data.items()}`            | Efficient HashMap construction              |
+| **Optional Types**      | `Optional[T]`, `T                              | None`                                       |
+| **Type Unions**         | `Union[int, str]`                              | Limited support via enums                   |
+| **Classes**             | Basic classes with methods                     | No inheritance yet                          |
+| **Dataclasses**         | `@dataclass` decorators                        | Converts to Rust structs                    |
+| **Pattern Matching**    | `match` statements (3.10+)                     | Native Rust pattern matching                |
+| **Context Managers**    | `with` statements                              | RAII pattern conversion                     |
+| **Exceptions**          | `try`/`except`/`finally`                       | Converts to `Result<T, E>`                  |
+| **Lambdas**             | Simple lambda expressions                      | Limited to single expressions               |
+| **Annotations**         | `# @depyler:` comments                         | Transpilation guidance                      |
 
 ### ⚠️ Partially Supported
 
-| Feature | Limitation | Workaround |
-|---------|------------|------------|
-| **Async/Await** | Basic support only | Use sync versions or MCP fallback |
-| **Generators** | Simple yields only | Convert to iterators manually |
-| **Decorators** | Limited set supported | Use annotations instead |
-| **Multiple Inheritance** | Not supported | Use composition |
-| **Dynamic Attributes** | Not supported | Define all attributes upfront |
-| **Metaclasses** | Not supported | Use code generation |
+| Feature                  | Limitation            | Workaround                        |
+| ------------------------ | --------------------- | --------------------------------- |
+| **Async/Await**          | Basic support only    | Use sync versions or MCP fallback |
+| **Generators**           | Simple yields only    | Convert to iterators manually     |
+| **Decorators**           | Limited set supported | Use annotations instead           |
+| **Multiple Inheritance** | Not supported         | Use composition                   |
+| **Dynamic Attributes**   | Not supported         | Define all attributes upfront     |
+| **Metaclasses**          | Not supported         | Use code generation               |
 
 ### ❌ Not Supported
 
-| Feature | Reason | Alternative |
-|---------|--------|-------------|
-| **eval()/exec()** | Security & type safety | Redesign without dynamic execution |
-| **globals()/locals()** | No runtime reflection | Use explicit passing |
-| **\_\_getattr\_\_** | Dynamic dispatch | Use explicit methods |
-| **Monkey patching** | Type safety violation | Use proper inheritance |
-| **C Extensions** | Binary incompatibility | Rewrite in Rust or use PyO3 |
-| **Multiple dispatch** | Complex type resolution | Use pattern matching |
+| Feature                | Reason                  | Alternative                        |
+| ---------------------- | ----------------------- | ---------------------------------- |
+| **eval()/exec()**      | Security & type safety  | Redesign without dynamic execution |
+| **globals()/locals()** | No runtime reflection   | Use explicit passing               |
+| **\_\_getattr\_\_**    | Dynamic dispatch        | Use explicit methods               |
+| **Monkey patching**    | Type safety violation   | Use proper inheritance             |
+| **C Extensions**       | Binary incompatibility  | Rewrite in Rust or use PyO3        |
+| **Multiple dispatch**  | Complex type resolution | Use pattern matching               |
 
 ---
 
@@ -370,6 +400,7 @@ depyler lambda deploy lambda_project/ # Deploy to AWS
 ### Real-World Usage Patterns
 
 #### Pattern 1: Development Workflow
+
 ```bash
 # 1. Write Python code with type hints
 vim my_algorithm.py
@@ -389,6 +420,7 @@ rustc my_algorithm.rs -O
 ```
 
 #### Pattern 2: CI/CD Integration
+
 ```yaml
 # .github/workflows/python-to-rust.yml
 name: Python to Rust Migration
@@ -414,14 +446,14 @@ jobs:
 
 ### Current Status (v0.2.0)
 
-| Metric | Value | Target | Status |
-|--------|-------|--------|--------|
-| **Test Coverage** | 85%+ | ≥85% | ✅ |
-| **PMAT TDG Score** | 1.03 | 1.0-2.0 | ✅ |
-| **Cyclomatic Complexity** | 4 | ≤20 | ✅ |
-| **Documentation Coverage** | 100% | 100% | ✅ |
-| **Clippy Warnings** | 0 | 0 | ✅ |
-| **Security Vulnerabilities** | 0 | 0 | ✅ |
+| Metric                       | Value | Target  | Status |
+| ---------------------------- | ----- | ------- | ------ |
+| **Test Coverage**            | 85%+  | ≥85%    | ✅     |
+| **PMAT TDG Score**           | 1.03  | 1.0-2.0 | ✅     |
+| **Cyclomatic Complexity**    | 4     | ≤20     | ✅     |
+| **Documentation Coverage**   | 100%  | 100%    | ✅     |
+| **Clippy Warnings**          | 0     | 0       | ✅     |
+| **Security Vulnerabilities** | 0     | 0       | ✅     |
 
 ### Test Suite
 
@@ -445,6 +477,7 @@ cargo bench
 ### Quality Gates
 
 All pull requests must pass:
+
 - ✅ **85%+ test coverage** across all modules
 - ✅ **PMAT TDG score** between 1.0 and 2.0
 - ✅ **No cyclomatic complexity** above 15
@@ -457,38 +490,60 @@ All pull requests must pass:
 ## 📚 Documentation
 
 ### Getting Started
-- **[User Guide](docs/user-guide.md)** - Complete tutorial from installation to advanced usage
-- **[Migration Guide](docs/migration-guide.md)** - Step-by-step Python to Rust transition guide
-- **[Playground Guide](docs/playground-spec.md)** - Interactive playground documentation
+
+- **[User Guide](docs/user-guide.md)** - Complete tutorial from installation to
+  advanced usage
+- **[Migration Guide](docs/migration-guide.md)** - Step-by-step Python to Rust
+  transition guide
+- **[Playground Guide](docs/playground-spec.md)** - Interactive playground
+  documentation
 - **[Examples](examples/)** - Working examples of transpiled code
 
-### Technical Reference  
-- **[Python-to-Rust Specification](docs/python-to-rust-spec.md)** - Complete language mapping reference
-- **[Annotation Syntax](docs/annotation-syntax.md)** - Depyler annotation protocol documentation
-- **[CLI Reference](docs/cli-reference.md)** - Complete command-line interface documentation
+### Technical Reference
+
+- **[Python-to-Rust Specification](docs/python-to-rust-spec.md)** - Complete
+  language mapping reference
+- **[Annotation Syntax](docs/annotation-syntax.md)** - Depyler annotation
+  protocol documentation
+- **[CLI Reference](docs/cli-reference.md)** - Complete command-line interface
+  documentation
 - **[API Documentation](https://docs.rs/depyler)** - Rust API documentation
 
 ### Advanced Topics
-- **[Safety Guarantees](docs/safety-guarantees.md)** - Memory and thread safety analysis
-- **[Performance Benchmarks](docs/performance-benchmarks.md)** - Detailed performance comparisons
-- **[Energy Efficiency Analysis](docs/energy-efficiency.md)** - Environmental impact study
-- **[MCP Integration](docs/mcp-integration.md)** - AI-powered transpilation with Model Context Protocol
+
+- **[Safety Guarantees](docs/safety-guarantees.md)** - Memory and thread safety
+  analysis
+- **[Performance Benchmarks](docs/performance-benchmarks.md)** - Detailed
+  performance comparisons
+- **[Energy Efficiency Analysis](docs/energy-efficiency.md)** - Environmental
+  impact study
+- **[MCP Integration](docs/mcp-integration.md)** - AI-powered transpilation with
+  Model Context Protocol
 
 ### AWS Lambda
-- **[Lambda Transpilation Guide](docs/lambda-transpile-spec.md)** - Complete Lambda migration guide
-- **[Lambda Examples](examples/simple_s3_lambda.py)** - S3 trigger Lambda examples
-- **[Cold Start Optimization](docs/lambda-transpile-spec.md#cold-start-optimization)** - Performance tuning guide
+
+- **[Lambda Transpilation Guide](docs/lambda-transpile-spec.md)** - Complete
+  Lambda migration guide
+- **[Lambda Examples](examples/simple_s3_lambda.py)** - S3 trigger Lambda
+  examples
+- **[Cold Start Optimization](docs/lambda-transpile-spec.md#cold-start-optimization)** -
+  Performance tuning guide
 
 ### Enterprise Resources
-- **[Adoption Guide](docs/enterprise/adoption-guide.md)** - Enterprise deployment strategies
-- **[ROI Calculator](docs/enterprise/roi-calculator.md)** - Calculate your cost and energy savings
-- **[Case Studies](docs/enterprise/performance-case-studies.md)** - Real-world success stories
+
+- **[Adoption Guide](docs/enterprise/adoption-guide.md)** - Enterprise
+  deployment strategies
+- **[ROI Calculator](docs/enterprise/roi-calculator.md)** - Calculate your cost
+  and energy savings
+- **[Case Studies](docs/enterprise/performance-case-studies.md)** - Real-world
+  success stories
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Depyler follows the **Toyota Way** principles for quality-driven development.
+We welcome contributions! Depyler follows the **Toyota Way** principles for
+quality-driven development.
 
 ### Getting Started
 
@@ -508,10 +563,10 @@ We welcome contributions! Depyler follows the **Toyota Way** principles for qual
    # Install Rust toolchain
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    rustup component add clippy rustfmt
-   
+
    # Install development tools
    cargo install cargo-tarpaulin cargo-audit cargo-outdated
-   
+
    # Run initial build and tests
    cargo build
    cargo test
@@ -533,14 +588,14 @@ We welcome contributions! Depyler follows the **Toyota Way** principles for qual
    ```bash
    # Full test suite
    cargo test --workspace --all-features
-   
+
    # Check code quality
    cargo clippy -- -D warnings
    cargo fmt -- --check
-   
+
    # Run property tests
    cargo test --features quickcheck
-   
+
    # Generate coverage report
    cargo tarpaulin --out Html
    ```
@@ -554,8 +609,9 @@ We welcome contributions! Depyler follows the **Toyota Way** principles for qual
 ### Priority Areas
 
 1. **Python Feature Coverage** - Expanding supported Python constructs
-2. **Performance Optimization** - Improving transpilation speed and output quality
-3. **Error Messages** - Making errors more helpful and actionable  
+2. **Performance Optimization** - Improving transpilation speed and output
+   quality
+3. **Error Messages** - Making errors more helpful and actionable
 4. **Documentation** - Examples, tutorials, and guides
 5. **IDE Integration** - VS Code and PyCharm extensions
 6. **Verification Properties** - Expanding safety guarantees
@@ -570,18 +626,22 @@ We welcome contributions! Depyler follows the **Toyota Way** principles for qual
 ### Code of Conduct
 
 We are committed to providing a welcoming and inclusive environment. Please:
+
 - Be respectful and constructive in discussions
 - Focus on what is best for the community
 - Show empathy towards other community members
-- Follow the [Rust Code of Conduct](https://www.rust-lang.org/policies/code-of-conduct)
+- Follow the
+  [Rust Code of Conduct](https://www.rust-lang.org/policies/code-of-conduct)
 
 ---
 
 ## 📜 License
 
-Depyler is dual-licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Depyler is dual-licensed under the MIT License - see the [LICENSE](LICENSE) file
+for details.
 
 This project includes code from:
+
 - RustPython Parser (MIT License)
 - Various Rust crates (see Cargo.toml for full list)
 
@@ -600,8 +660,9 @@ depyler transpile my_script.py
 depyler analyze my_script.py --compare
 ```
 
-*"The best time to plant a tree was 20 years ago. The second best time is now."*  
-*The best time to optimize your code's energy consumption is now.* 🌱
+_"The best time to plant a tree was 20 years ago. The second best time is
+now."_\
+_The best time to optimize your code's energy consumption is now._ 🌱
 
 ---
 

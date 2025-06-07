@@ -2,7 +2,9 @@
 
 ### Revised Architecture: Practical Verification-First Design
 
-Building on the feedback, Depyler V1 adopts a **progressive verification** strategy: ship working transpilation immediately, layer verification incrementally, prove properties opportunistically.
+Building on the feedback, Depyler V1 adopts a **progressive verification**
+strategy: ship working transpilation immediately, layer verification
+incrementally, prove properties opportunistically.
 
 ```rust
 // Revised pipeline with optional verification stages
@@ -305,16 +307,16 @@ impl McpValidator {
 
 ### Realistic Performance Profile
 
-| Metric | V1 Target | Measurement Method |
-|--------|-----------|-------------------|
-| **Parsing** | 20MB/s | Using rustpython-parser |
-| **HIR Generation** | 40MB/s | Post-parsing transform |
-| **Direct Transpilation** | 90% coverage | On V1 safe subset |
-| **Type Inference** | O(n) | Linear in function size |
-| **Property Checking** | <50ms/function | QuickCheck with 1k tests |
-| **MCP Round-trip** | <2s | Including validation |
-| **Binary Size** | 4.5MB | No embedded SMT solver |
-| **Memory Usage** | 10x source | Peak during transpilation |
+| Metric                   | V1 Target      | Measurement Method        |
+| ------------------------ | -------------- | ------------------------- |
+| **Parsing**              | 20MB/s         | Using rustpython-parser   |
+| **HIR Generation**       | 40MB/s         | Post-parsing transform    |
+| **Direct Transpilation** | 90% coverage   | On V1 safe subset         |
+| **Type Inference**       | O(n)           | Linear in function size   |
+| **Property Checking**    | <50ms/function | QuickCheck with 1k tests  |
+| **MCP Round-trip**       | <2s            | Including validation      |
+| **Binary Size**          | 4.5MB          | No embedded SMT solver    |
+| **Memory Usage**         | 10x source     | Peak during transpilation |
 
 ### Analysis Output Example
 
@@ -351,6 +353,7 @@ Generated Artifacts:
 ### Code Generation Example
 
 **Input:**
+
 ```python
 def binary_search(arr: List[int], target: int) -> int:
     """Find target in sorted array, return -1 if not found."""
@@ -369,6 +372,7 @@ def binary_search(arr: List[int], target: int) -> int:
 ```
 
 **Output:**
+
 ```rust
 /// Find target in sorted array, return -1 if not found.
 /// 
@@ -423,27 +427,32 @@ mod tests {
 ### Development Roadmap
 
 **V1.0 (3 months): Core Transpilation**
+
 - Safe subset transpilation with rustpython-parser
 - PMAT integration for quality metrics
 - Property-based test generation
 - Basic MCP fallback for unsupported constructs
 
 **V1.1 (6 months): Enhanced Type System**
+
 - Lifetime inference for simple borrowing patterns
 - `@dataclass` support with ownership inference
 - Improved string handling (String vs &str)
 - Contract-based verification
 
 **V1.2 (9 months): Async & Advanced Patterns**
+
 - `async`/`await` support
 - Iterator protocol mapping
 - Context managers → RAII
 - Basic formal verification for critical properties
 
 **V2.0 (12 months): Full Python Subset**
+
 - Class inheritance (single)
 - Generator expressions
 - Limited dynamic dispatch
 - SMT-based verification for core properties
 
-This pragmatic approach delivers value immediately while building toward the ambitious verification goals incrementally.
+This pragmatic approach delivers value immediately while building toward the
+ambitious verification goals incrementally.

@@ -1,8 +1,22 @@
 # Depyler Interactive Environment: Technical Specification v3
 
+> ⚠️ **EXPERIMENTAL FEATURE - UNSTABLE**
+> 
+> This Interactive Playground is currently under active development and is marked as:
+> - **🧪 EXPERIMENTAL**: Features and APIs may change without notice
+> - **⚡ UNSTABLE**: May contain bugs, performance issues, or incomplete features  
+> - **🚧 NOT FOR PRODUCTION**: Use only for testing and evaluation purposes
+>
+> To use the playground, you must acknowledge this status by setting:
+> `DEPYLER_EXPERIMENTAL=true depyler playground`
+
 ## Executive Summary
 
-A production-grade WebAssembly playground implementing Toyota Production System principles for continuous quality improvement. This specification establishes a zero-configuration, deterministic analysis environment that serves as both the primary onboarding vector and a kaizen-driven development tool for Python-to-Rust transpilation.
+A production-grade WebAssembly playground implementing Toyota Production System
+principles for continuous quality improvement. This specification establishes a
+zero-configuration, deterministic analysis environment that serves as both the
+primary onboarding vector and a kaizen-driven development tool for
+Python-to-Rust transpilation.
 
 ## Architecture: 現地現物 (Genchi Genbutsu) - Go and See
 
@@ -194,166 +208,175 @@ impl ScoringFunctions {
 
 ```typescript
 // playground/src/editor/intelli-sensei.ts
-import type { monaco } from '@monaco-editor/react';
-import { LRUCache } from 'lru-cache';
-import { debounce } from '../utils/debounce';
+import type { monaco } from "@monaco-editor/react";
+import { LRUCache } from "lru-cache";
+import { debounce } from "../utils/debounce";
 
 interface FunctionContext {
-    name: string;
-    signature: string;
-    body: string;
-    complexity: number;
-    lastModified: number;
+  name: string;
+  signature: string;
+  body: string;
+  complexity: number;
+  lastModified: number;
 }
 
 interface AnalysisCache {
-    context: FunctionContext;
-    suggestions: AnnotationSuggestion[];
-    antiPatterns: AntiPattern[];
-    validUntil: number;
+  context: FunctionContext;
+  suggestions: AnnotationSuggestion[];
+  antiPatterns: AntiPattern[];
+  validUntil: number;
 }
 
 export class IntelliSensei {
-    private advisorWorker: Worker;
-    private analysisCache: LRUCache<string, AnalysisCache>;
-    private pendingAnalysis: Map<string, Promise<AnalysisResult>>;
-    
-    constructor(private monaco: typeof monaco) {
-        this.advisorWorker = new Worker(
-            new URL('./workers/advisor.worker.ts', import.meta.url),
-            { type: 'module', name: 'intelli-sensei-advisor' }
-        );
-        
-        // LRU cache with 50 function capacity
-        this.analysisCache = new LRUCache<string, AnalysisCache>({
-            max: 50,
-            ttl: 1000 * 60 * 5, // 5 minute TTL
-            updateAgeOnGet: true,
-        });
-        
-        this.pendingAnalysis = new Map();
+  private advisorWorker: Worker;
+  private analysisCache: LRUCache<string, AnalysisCache>;
+  private pendingAnalysis: Map<string, Promise<AnalysisResult>>;
+
+  constructor(private monaco: typeof monaco) {
+    this.advisorWorker = new Worker(
+      new URL("./workers/advisor.worker.ts", import.meta.url),
+      { type: "module", name: "intelli-sensei-advisor" },
+    );
+
+    // LRU cache with 50 function capacity
+    this.analysisCache = new LRUCache<string, AnalysisCache>({
+      max: 50,
+      ttl: 1000 * 60 * 5, // 5 minute TTL
+      updateAgeOnGet: true,
+    });
+
+    this.pendingAnalysis = new Map();
+  }
+
+  async initialize(editor: monaco.editor.IStandaloneCodeEditor) {
+    // Register Depyler-enhanced Python language
+    this.registerDepylerLanguage();
+
+    // Debounced analysis to prevent worker spam
+    const debouncedAnalysis = debounce(
+      (value: string, position: monaco.Position) =>
+        this.analyzeContext(value, position),
+      300,
+    );
+
+    // Real-time pattern detection with caching
+    editor.onDidChangeModelContent(async (e) => {
+      const position = editor.getPosition();
+      if (!position) return;
+
+      await debouncedAnalysis(editor.getValue(), position);
+    });
+
+    // Annotation provider with cache-aware completions
+    this.monaco.languages.registerCompletionItemProvider("python-depyler", {
+      triggerCharacters: ["@", ":"],
+      provideCompletionItems: async (model, position) => {
+        return this.getAnnotationCompletions(model, position);
+      },
+    });
+
+    // Inline hints for optimization opportunities
+    this.monaco.languages.registerInlayHintsProvider("python-depyler", {
+      provideInlayHints: async (model, range, token) => {
+        return this.getOptimizationHints(model, range);
+      },
+    });
+  }
+
+  private async analyzeContext(
+    code: string,
+    position: monaco.Position,
+  ): Promise<AnalysisResult> {
+    const functionContext = this.extractFunctionContext(code, position);
+    if (!functionContext) return { suggestions: [], antiPatterns: [] };
+
+    const cacheKey = this.computeCacheKey(functionContext);
+
+    // Check cache validity
+    const cached = this.analysisCache.get(cacheKey);
+    if (cached && this.isCacheValid(cached, functionContext)) {
+      return {
+        suggestions: cached.suggestions,
+        antiPatterns: cached.antiPatterns,
+      };
     }
-    
-    async initialize(editor: monaco.editor.IStandaloneCodeEditor) {
-        // Register Depyler-enhanced Python language
-        this.registerDepylerLanguage();
-        
-        // Debounced analysis to prevent worker spam
-        const debouncedAnalysis = debounce(
-            (value: string, position: monaco.Position) => this.analyzeContext(value, position),
-            300
-        );
-        
-        // Real-time pattern detection with caching
-        editor.onDidChangeModelContent(async (e) => {
-            const position = editor.getPosition();
-            if (!position) return;
-            
-            await debouncedAnalysis(editor.getValue(), position);
-        });
-        
-        // Annotation provider with cache-aware completions
-        this.monaco.languages.registerCompletionItemProvider('python-depyler', {
-            triggerCharacters: ['@', ':'],
-            provideCompletionItems: async (model, position) => {
-                return this.getAnnotationCompletions(model, position);
-            }
-        });
-        
-        // Inline hints for optimization opportunities
-        this.monaco.languages.registerInlayHintsProvider('python-depyler', {
-            provideInlayHints: async (model, range, token) => {
-                return this.getOptimizationHints(model, range);
-            }
-        });
+
+    // Prevent duplicate analysis requests
+    const pending = this.pendingAnalysis.get(cacheKey);
+    if (pending) return pending;
+
+    // Perform analysis
+    const analysisPromise = this.performAnalysis(functionContext);
+    this.pendingAnalysis.set(cacheKey, analysisPromise);
+
+    try {
+      const result = await analysisPromise;
+
+      // Update cache
+      this.analysisCache.set(cacheKey, {
+        context: functionContext,
+        suggestions: result.suggestions,
+        antiPatterns: result.antiPatterns,
+        validUntil: Date.now() + 60000, // 1 minute validity
+      });
+
+      return result;
+    } finally {
+      this.pendingAnalysis.delete(cacheKey);
     }
-    
-    private async analyzeContext(code: string, position: monaco.Position): Promise<AnalysisResult> {
-        const functionContext = this.extractFunctionContext(code, position);
-        if (!functionContext) return { suggestions: [], antiPatterns: [] };
-        
-        const cacheKey = this.computeCacheKey(functionContext);
-        
-        // Check cache validity
-        const cached = this.analysisCache.get(cacheKey);
-        if (cached && this.isCacheValid(cached, functionContext)) {
-            return {
-                suggestions: cached.suggestions,
-                antiPatterns: cached.antiPatterns,
-            };
+  }
+
+  private computeCacheKey(context: FunctionContext): string {
+    // Deterministic key based on function signature and body hash
+    const bodyHash = this.hashCode(context.body);
+    return `${context.name}:${context.signature}:${bodyHash}`;
+  }
+
+  private isCacheValid(
+    cached: AnalysisCache,
+    current: FunctionContext,
+  ): boolean {
+    // Structural comparison to detect meaningful changes
+    return cached.context.signature === current.signature &&
+      cached.context.body === current.body &&
+      Date.now() < cached.validUntil;
+  }
+
+  private async performAnalysis(
+    context: FunctionContext,
+  ): Promise<AnalysisResult> {
+    return new Promise((resolve, reject) => {
+      const messageId = crypto.randomUUID();
+
+      const handler = (e: MessageEvent) => {
+        if (e.data.id === messageId) {
+          this.advisorWorker.removeEventListener("message", handler);
+          if (e.data.error) {
+            reject(new Error(e.data.error));
+          } else {
+            resolve(e.data.result);
+          }
         }
-        
-        // Prevent duplicate analysis requests
-        const pending = this.pendingAnalysis.get(cacheKey);
-        if (pending) return pending;
-        
-        // Perform analysis
-        const analysisPromise = this.performAnalysis(functionContext);
-        this.pendingAnalysis.set(cacheKey, analysisPromise);
-        
-        try {
-            const result = await analysisPromise;
-            
-            // Update cache
-            this.analysisCache.set(cacheKey, {
-                context: functionContext,
-                suggestions: result.suggestions,
-                antiPatterns: result.antiPatterns,
-                validUntil: Date.now() + 60000, // 1 minute validity
-            });
-            
-            return result;
-        } finally {
-            this.pendingAnalysis.delete(cacheKey);
-        }
+      };
+
+      this.advisorWorker.addEventListener("message", handler);
+      this.advisorWorker.postMessage({
+        type: "ANALYZE_FUNCTION",
+        id: messageId,
+        context,
+      });
+    });
+  }
+
+  private hashCode(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
     }
-    
-    private computeCacheKey(context: FunctionContext): string {
-        // Deterministic key based on function signature and body hash
-        const bodyHash = this.hashCode(context.body);
-        return `${context.name}:${context.signature}:${bodyHash}`;
-    }
-    
-    private isCacheValid(cached: AnalysisCache, current: FunctionContext): boolean {
-        // Structural comparison to detect meaningful changes
-        return cached.context.signature === current.signature &&
-               cached.context.body === current.body &&
-               Date.now() < cached.validUntil;
-    }
-    
-    private async performAnalysis(context: FunctionContext): Promise<AnalysisResult> {
-        return new Promise((resolve, reject) => {
-            const messageId = crypto.randomUUID();
-            
-            const handler = (e: MessageEvent) => {
-                if (e.data.id === messageId) {
-                    this.advisorWorker.removeEventListener('message', handler);
-                    if (e.data.error) {
-                        reject(new Error(e.data.error));
-                    } else {
-                        resolve(e.data.result);
-                    }
-                }
-            };
-            
-            this.advisorWorker.addEventListener('message', handler);
-            this.advisorWorker.postMessage({
-                type: 'ANALYZE_FUNCTION',
-                id: messageId,
-                context,
-            });
-        });
-    }
-    
-    private hashCode(str: string): number {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Convert to 32-bit integer
-        }
-        return Math.abs(hash);
-    }
+    return Math.abs(hash);
+  }
 }
 ```
 
@@ -361,219 +384,220 @@ export class IntelliSensei {
 
 ```typescript
 // playground/src/workers/execution-sandbox.worker.ts
-import { PyodideInterface } from 'pyodide';
-import { RustcWasm, CompilationResult } from '@depyler/rustc-wasm';
+import { PyodideInterface } from "pyodide";
+import { CompilationResult, RustcWasm } from "@depyler/rustc-wasm";
 
 interface ExecutionRequest {
-    id: string;
-    type: 'EXECUTE_PYTHON' | 'EXECUTE_RUST';
-    code: string;
+  id: string;
+  type: "EXECUTE_PYTHON" | "EXECUTE_RUST";
+  code: string;
 }
 
 interface ExecutionResult {
-    id: string;
-    success: boolean;
-    stdout: string;
-    stderr: string;
-    executionTimeMs: number;
-    memoryUsageMb: number;
-    energyEstimate: EnergyEstimate;
-    diagnostics?: CompilerDiagnostic[];
+  id: string;
+  success: boolean;
+  stdout: string;
+  stderr: string;
+  executionTimeMs: number;
+  memoryUsageMb: number;
+  energyEstimate: EnergyEstimate;
+  diagnostics?: CompilerDiagnostic[];
 }
 
 interface CompilerDiagnostic {
-    level: 'error' | 'warning' | 'info';
-    message: string;
-    location?: {
-        line: number;
-        column: number;
-        file: string;
-    };
-    suggestion?: string;
+  level: "error" | "warning" | "info";
+  message: string;
+  location?: {
+    line: number;
+    column: number;
+    file: string;
+  };
+  suggestion?: string;
 }
 
 class ExecutionSandbox {
-    private pyodide: PyodideInterface | null = null;
-    private rustc: RustcWasm | null = null;
-    private outputBuffers: Map<string, string[]> = new Map();
-    
-    constructor() {
-        // Security: Freeze network APIs immediately
-        this.freezeNetworkAPIs();
-        
-        // Set up message handling
-        self.addEventListener('message', this.handleMessage.bind(this));
-    }
-    
-    private freezeNetworkAPIs() {
-        // Prevent any network access from within the sandbox
-        const networkAPIs = ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource'];
-        networkAPIs.forEach(api => {
-            if (api in self) {
-                Object.defineProperty(self, api, {
-                    value: undefined,
-                    writable: false,
-                    configurable: false
-                });
-            }
+  private pyodide: PyodideInterface | null = null;
+  private rustc: RustcWasm | null = null;
+  private outputBuffers: Map<string, string[]> = new Map();
+
+  constructor() {
+    // Security: Freeze network APIs immediately
+    this.freezeNetworkAPIs();
+
+    // Set up message handling
+    self.addEventListener("message", this.handleMessage.bind(this));
+  }
+
+  private freezeNetworkAPIs() {
+    // Prevent any network access from within the sandbox
+    const networkAPIs = ["fetch", "XMLHttpRequest", "WebSocket", "EventSource"];
+    networkAPIs.forEach((api) => {
+      if (api in self) {
+        Object.defineProperty(self, api, {
+          value: undefined,
+          writable: false,
+          configurable: false,
         });
-    }
-    
-    async executeRust(code: string): Promise<ExecutionResult> {
-        const startTime = performance.now();
-        const memBefore = this.measureMemory();
-        
-        try {
-            // Compile with full diagnostics
-            const compilationResult = await this.rustc!.compile({
-                source: code,
-                target: 'wasm32-unknown-unknown',
-                emitDiagnostics: true,
-                optimizationLevel: 2,
-            });
-            
-            if (!compilationResult.success) {
-                // Parse structured compiler output
-                const diagnostics = this.parseRustcDiagnostics(compilationResult.stderr);
-                
-                return {
-                    id: '',
-                    success: false,
-                    stdout: compilationResult.stdout,
-                    stderr: compilationResult.stderr,
-                    executionTimeMs: performance.now() - startTime,
-                    memoryUsageMb: 0,
-                    energyEstimate: this.estimateEnergy('rust', 0),
-                    diagnostics,
-                };
-            }
-            
-            // Execute compiled WASM
-            const wasmModule = await WebAssembly.compile(compilationResult.wasm);
-            const memory = new WebAssembly.Memory({ initial: 256, maximum: 4096 });
-            
-            const instance = await WebAssembly.instantiate(wasmModule, {
-                wasi_snapshot_preview1: this.createWasiImports(memory),
-                env: { memory },
-            });
-            
-            // Execute with timeout protection
-            const executionResult = await this.executeWithTimeout(
-                () => (instance.exports.main as Function)(),
-                5000 // 5 second timeout
-            );
-            
-            const executionTime = performance.now() - startTime;
-            const memoryUsed = this.measureMemory() - memBefore;
-            
-            return {
-                id: '',
-                success: true,
-                stdout: this.outputBuffers.get('rust')?.join('\n') || '',
-                stderr: '',
-                executionTimeMs: executionTime,
-                memoryUsageMb: memoryUsed,
-                energyEstimate: this.estimateEnergy('rust', executionTime, memoryUsed),
-            };
-            
-        } catch (error) {
-            return {
-                id: '',
-                success: false,
-                stdout: this.outputBuffers.get('rust')?.join('\n') || '',
-                stderr: String(error),
-                executionTimeMs: performance.now() - startTime,
-                memoryUsageMb: 0,
-                energyEstimate: this.estimateEnergy('rust', 0),
-            };
-        }
-    }
-    
-    private parseRustcDiagnostics(stderr: string): CompilerDiagnostic[] {
-        const diagnostics: CompilerDiagnostic[] = [];
-        const lines = stderr.split('\n');
-        
-        // Rust compiler output format:
-        // error[E0308]: mismatched types
-        //  --> src/main.rs:10:5
-        //   |
-        // 10 |     x + "string"
-        //   |     ^^^^^^^^^^^^ expected `i32`, found `&str`
-        
-        const diagnosticRegex = /(error|warning)\[([A-Z0-9]+)\]: (.+)/;
-        const locationRegex = /\s*--> ([^:]+):(\d+):(\d+)/;
-        
-        for (let i = 0; i < lines.length; i++) {
-            const match = lines[i].match(diagnosticRegex);
-            if (match) {
-                const [, level, code, message] = match;
-                const diagnostic: CompilerDiagnostic = {
-                    level: level as 'error' | 'warning',
-                    message: `${message} [${code}]`,
-                };
-                
-                // Look for location on next line
-                if (i + 1 < lines.length) {
-                    const locMatch = lines[i + 1].match(locationRegex);
-                    if (locMatch) {
-                        diagnostic.location = {
-                            file: locMatch[1],
-                            line: parseInt(locMatch[2]),
-                            column: parseInt(locMatch[3]),
-                        };
-                    }
-                }
-                
-                diagnostics.push(diagnostic);
-            }
-        }
-        
-        return diagnostics;
-    }
-    
-    private estimateEnergy(
-        language: 'python' | 'rust',
-        executionMs: number,
-        memoryMb: number = 0
-    ): EnergyEstimate {
-        // Enhanced energy model based on Pereira et al. (2017) with memory component
-        const profiles = {
-            python: {
-                cpuJoulesPerMs: 0.07588,
-                memJoulesPerMb: 0.0012,
-                baselineWatts: 75.88,
-            },
-            rust: {
-                cpuJoulesPerMs: 0.001,
-                memJoulesPerMb: 0.0002,
-                baselineWatts: 1.0,
-            },
-        };
-        
-        const profile = profiles[language];
-        const cpuEnergy = executionMs * profile.cpuJoulesPerMs;
-        const memEnergy = memoryMb * profile.memJoulesPerMb;
-        const totalJoules = cpuEnergy + memEnergy;
-        
+      }
+    });
+  }
+
+  async executeRust(code: string): Promise<ExecutionResult> {
+    const startTime = performance.now();
+    const memBefore = this.measureMemory();
+
+    try {
+      // Compile with full diagnostics
+      const compilationResult = await this.rustc!.compile({
+        source: code,
+        target: "wasm32-unknown-unknown",
+        emitDiagnostics: true,
+        optimizationLevel: 2,
+      });
+
+      if (!compilationResult.success) {
+        // Parse structured compiler output
+        const diagnostics = this.parseRustcDiagnostics(
+          compilationResult.stderr,
+        );
+
         return {
-            joules: totalJoules,
-            wattsAverage: profile.baselineWatts,
-            co2Grams: totalJoules * 0.475, // US grid average
-            breakdown: {
-                cpu: cpuEnergy,
-                memory: memEnergy,
-            },
-            confidence: this.calculateConfidence(executionMs, memoryMb),
-            equivalentTo: this.getDetailedEnergyEquivalent(totalJoules),
+          id: "",
+          success: false,
+          stdout: compilationResult.stdout,
+          stderr: compilationResult.stderr,
+          executionTimeMs: performance.now() - startTime,
+          memoryUsageMb: 0,
+          energyEstimate: this.estimateEnergy("rust", 0),
+          diagnostics,
         };
+      }
+
+      // Execute compiled WASM
+      const wasmModule = await WebAssembly.compile(compilationResult.wasm);
+      const memory = new WebAssembly.Memory({ initial: 256, maximum: 4096 });
+
+      const instance = await WebAssembly.instantiate(wasmModule, {
+        wasi_snapshot_preview1: this.createWasiImports(memory),
+        env: { memory },
+      });
+
+      // Execute with timeout protection
+      const executionResult = await this.executeWithTimeout(
+        () => (instance.exports.main as Function)(),
+        5000, // 5 second timeout
+      );
+
+      const executionTime = performance.now() - startTime;
+      const memoryUsed = this.measureMemory() - memBefore;
+
+      return {
+        id: "",
+        success: true,
+        stdout: this.outputBuffers.get("rust")?.join("\n") || "",
+        stderr: "",
+        executionTimeMs: executionTime,
+        memoryUsageMb: memoryUsed,
+        energyEstimate: this.estimateEnergy("rust", executionTime, memoryUsed),
+      };
+    } catch (error) {
+      return {
+        id: "",
+        success: false,
+        stdout: this.outputBuffers.get("rust")?.join("\n") || "",
+        stderr: String(error),
+        executionTimeMs: performance.now() - startTime,
+        memoryUsageMb: 0,
+        energyEstimate: this.estimateEnergy("rust", 0),
+      };
     }
-    
-    private calculateConfidence(executionMs: number, memoryMb: number): number {
-        // Higher confidence for longer-running, memory-intensive operations
-        const timeWeight = Math.min(executionMs / 100, 1.0) * 0.7;
-        const memWeight = Math.min(memoryMb / 10, 1.0) * 0.3;
-        return timeWeight + memWeight;
+  }
+
+  private parseRustcDiagnostics(stderr: string): CompilerDiagnostic[] {
+    const diagnostics: CompilerDiagnostic[] = [];
+    const lines = stderr.split("\n");
+
+    // Rust compiler output format:
+    // error[E0308]: mismatched types
+    //  --> src/main.rs:10:5
+    //   |
+    // 10 |     x + "string"
+    //   |     ^^^^^^^^^^^^ expected `i32`, found `&str`
+
+    const diagnosticRegex = /(error|warning)\[([A-Z0-9]+)\]: (.+)/;
+    const locationRegex = /\s*--> ([^:]+):(\d+):(\d+)/;
+
+    for (let i = 0; i < lines.length; i++) {
+      const match = lines[i].match(diagnosticRegex);
+      if (match) {
+        const [, level, code, message] = match;
+        const diagnostic: CompilerDiagnostic = {
+          level: level as "error" | "warning",
+          message: `${message} [${code}]`,
+        };
+
+        // Look for location on next line
+        if (i + 1 < lines.length) {
+          const locMatch = lines[i + 1].match(locationRegex);
+          if (locMatch) {
+            diagnostic.location = {
+              file: locMatch[1],
+              line: parseInt(locMatch[2]),
+              column: parseInt(locMatch[3]),
+            };
+          }
+        }
+
+        diagnostics.push(diagnostic);
+      }
     }
+
+    return diagnostics;
+  }
+
+  private estimateEnergy(
+    language: "python" | "rust",
+    executionMs: number,
+    memoryMb: number = 0,
+  ): EnergyEstimate {
+    // Enhanced energy model based on Pereira et al. (2017) with memory component
+    const profiles = {
+      python: {
+        cpuJoulesPerMs: 0.07588,
+        memJoulesPerMb: 0.0012,
+        baselineWatts: 75.88,
+      },
+      rust: {
+        cpuJoulesPerMs: 0.001,
+        memJoulesPerMb: 0.0002,
+        baselineWatts: 1.0,
+      },
+    };
+
+    const profile = profiles[language];
+    const cpuEnergy = executionMs * profile.cpuJoulesPerMs;
+    const memEnergy = memoryMb * profile.memJoulesPerMb;
+    const totalJoules = cpuEnergy + memEnergy;
+
+    return {
+      joules: totalJoules,
+      wattsAverage: profile.baselineWatts,
+      co2Grams: totalJoules * 0.475, // US grid average
+      breakdown: {
+        cpu: cpuEnergy,
+        memory: memEnergy,
+      },
+      confidence: this.calculateConfidence(executionMs, memoryMb),
+      equivalentTo: this.getDetailedEnergyEquivalent(totalJoules),
+    };
+  }
+
+  private calculateConfidence(executionMs: number, memoryMb: number): number {
+    // Higher confidence for longer-running, memory-intensive operations
+    const timeWeight = Math.min(executionMs / 100, 1.0) * 0.7;
+    const memWeight = Math.min(memoryMb / 10, 1.0) * 0.3;
+    return timeWeight + memWeight;
+  }
 }
 ```
 
@@ -581,117 +605,122 @@ class ExecutionSandbox {
 
 ```typescript
 // playground/src/components/visualizations/EnergyGauge.tsx
-import { useRef, useEffect, useMemo } from 'react';
-import * as d3 from 'd3';
+import { useEffect, useMemo, useRef } from "react";
+import * as d3 from "d3";
 
 interface EnergyGaugeProps {
-    savings: number;
-    breakdown: EnergyBreakdown;
-    confidence: number;
+  savings: number;
+  breakdown: EnergyBreakdown;
+  confidence: number;
 }
 
-export function EnergyGauge({ savings, breakdown, confidence }: EnergyGaugeProps) {
-    const svgRef = useRef<SVGSVGElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
-    
-    // Memoize scales to prevent recreation
-    const scales = useMemo(() => ({
-        savings: d3.scaleLinear().domain([0, 100]).range([-Math.PI / 2, Math.PI / 2]),
-        color: d3.scaleSequential()
-            .domain([0, 100])
-            .interpolator(d3.interpolateRdYlGn),
-    }), []);
-    
-    useEffect(() => {
-        if (!svgRef.current || !containerRef.current) return;
-        
-        const svg = d3.select(svgRef.current);
-        const { width, height } = containerRef.current.getBoundingClientRect();
-        const radius = Math.min(width, height) / 2 - 20;
-        
-        // Use D3's idiomatic enter/update/exit pattern
-        const g = svg.selectAll<SVGGElement, number>('g.gauge-container')
-            .data([savings], d => d)
-            .join(
-                enter => enter.append('g')
-                    .attr('class', 'gauge-container')
-                    .call(g => g.append('path').attr('class', 'gauge-background'))
-                    .call(g => g.append('path').attr('class', 'gauge-value'))
-                    .call(g => g.append('text').attr('class', 'gauge-text'))
-                    .call(g => g.append('text').attr('class', 'gauge-label')),
-                update => update,
-                exit => exit.remove()
-            )
-            .attr('transform', `translate(${width / 2}, ${height - 20})`);
-        
-        // Background arc
-        const backgroundArc = d3.arc<any>()
-            .innerRadius(radius * 0.7)
-            .outerRadius(radius)
-            .startAngle(-Math.PI / 2)
-            .endAngle(Math.PI / 2);
-        
-        g.select('.gauge-background')
-            .attr('d', backgroundArc)
-            .style('fill', '#e0e0e0');
-        
-        // Value arc with smooth transition
-        const valueArc = d3.arc<any>()
-            .innerRadius(radius * 0.7)
-            .outerRadius(radius)
-            .startAngle(-Math.PI / 2);
-        
-        g.select('.gauge-value')
-            .datum({ endAngle: scales.savings(savings) })
-            .style('fill', scales.color(savings))
-            .transition()
-            .duration(750)
-            .ease(d3.easeCubicInOut)
-            .attrTween('d', function(d) {
-                const interpolate = d3.interpolate(
-                    this._current || { endAngle: -Math.PI / 2 },
-                    d
-                );
-                this._current = interpolate(1);
-                return t => valueArc(interpolate(t));
-            });
-        
-        // Animated text
-        g.select('.gauge-text')
-            .attr('text-anchor', 'middle')
-            .attr('dy', '-0.5em')
-            .style('font-size', '2.5em')
-            .style('font-weight', 'bold')
-            .style('fill', scales.color(savings))
-            .transition()
-            .duration(750)
-            .tween('text', function() {
-                const interpolate = d3.interpolate(
-                    this._current || 0,
-                    savings
-                );
-                this._current = savings;
-                return function(t) {
-                    this.textContent = `${Math.round(interpolate(t))}%`;
-                };
-            });
-        
-        // Confidence indicator
-        g.select('.gauge-label')
-            .attr('text-anchor', 'middle')
-            .attr('dy', '1em')
-            .style('font-size', '0.9em')
-            .style('fill', '#666')
-            .text(`Confidence: ${Math.round(confidence * 100)}%`);
-            
-    }, [savings, breakdown, confidence, scales]);
-    
-    return (
-        <div ref={containerRef} className="energy-gauge-container">
-            <svg ref={svgRef} width="100%" height="200" />
-            <EnergyBreakdownDetails breakdown={breakdown} />
-        </div>
-    );
+export function EnergyGauge(
+  { savings, breakdown, confidence }: EnergyGaugeProps,
+) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Memoize scales to prevent recreation
+  const scales = useMemo(() => ({
+    savings: d3.scaleLinear().domain([0, 100]).range([
+      -Math.PI / 2,
+      Math.PI / 2,
+    ]),
+    color: d3.scaleSequential()
+      .domain([0, 100])
+      .interpolator(d3.interpolateRdYlGn),
+  }), []);
+
+  useEffect(() => {
+    if (!svgRef.current || !containerRef.current) return;
+
+    const svg = d3.select(svgRef.current);
+    const { width, height } = containerRef.current.getBoundingClientRect();
+    const radius = Math.min(width, height) / 2 - 20;
+
+    // Use D3's idiomatic enter/update/exit pattern
+    const g = svg.selectAll<SVGGElement, number>("g.gauge-container")
+      .data([savings], (d) => d)
+      .join(
+        (enter) =>
+          enter.append("g")
+            .attr("class", "gauge-container")
+            .call((g) => g.append("path").attr("class", "gauge-background"))
+            .call((g) => g.append("path").attr("class", "gauge-value"))
+            .call((g) => g.append("text").attr("class", "gauge-text"))
+            .call((g) => g.append("text").attr("class", "gauge-label")),
+        (update) => update,
+        (exit) => exit.remove(),
+      )
+      .attr("transform", `translate(${width / 2}, ${height - 20})`);
+
+    // Background arc
+    const backgroundArc = d3.arc<any>()
+      .innerRadius(radius * 0.7)
+      .outerRadius(radius)
+      .startAngle(-Math.PI / 2)
+      .endAngle(Math.PI / 2);
+
+    g.select(".gauge-background")
+      .attr("d", backgroundArc)
+      .style("fill", "#e0e0e0");
+
+    // Value arc with smooth transition
+    const valueArc = d3.arc<any>()
+      .innerRadius(radius * 0.7)
+      .outerRadius(radius)
+      .startAngle(-Math.PI / 2);
+
+    g.select(".gauge-value")
+      .datum({ endAngle: scales.savings(savings) })
+      .style("fill", scales.color(savings))
+      .transition()
+      .duration(750)
+      .ease(d3.easeCubicInOut)
+      .attrTween("d", function (d) {
+        const interpolate = d3.interpolate(
+          this._current || { endAngle: -Math.PI / 2 },
+          d,
+        );
+        this._current = interpolate(1);
+        return (t) => valueArc(interpolate(t));
+      });
+
+    // Animated text
+    g.select(".gauge-text")
+      .attr("text-anchor", "middle")
+      .attr("dy", "-0.5em")
+      .style("font-size", "2.5em")
+      .style("font-weight", "bold")
+      .style("fill", scales.color(savings))
+      .transition()
+      .duration(750)
+      .tween("text", function () {
+        const interpolate = d3.interpolate(
+          this._current || 0,
+          savings,
+        );
+        this._current = savings;
+        return function (t) {
+          this.textContent = `${Math.round(interpolate(t))}%`;
+        };
+      });
+
+    // Confidence indicator
+    g.select(".gauge-label")
+      .attr("text-anchor", "middle")
+      .attr("dy", "1em")
+      .style("font-size", "0.9em")
+      .style("fill", "#666")
+      .text(`Confidence: ${Math.round(confidence * 100)}%`);
+  }, [savings, breakdown, confidence, scales]);
+
+  return (
+    <div ref={containerRef} className="energy-gauge-container">
+      <svg ref={svgRef} width="100%" height="200" />
+      <EnergyBreakdownDetails breakdown={breakdown} />
+    </div>
+  );
 }
 ```
 
@@ -699,95 +728,97 @@ export function EnergyGauge({ savings, breakdown, confidence }: EnergyGaugeProps
 
 ```typescript
 // playground/src/components/ExecutionButton.tsx
-import { useState, useCallback } from 'react';
-import { usePlaygroundStore } from '../store';
+import { useCallback, useState } from "react";
+import { usePlaygroundStore } from "../store";
 
 interface LoadingState {
-    type: 'idle' | 'downloading' | 'compiling' | 'executing';
-    progress?: number;
-    message?: string;
+  type: "idle" | "downloading" | "compiling" | "executing";
+  progress?: number;
+  message?: string;
 }
 
 export function ExecutionButton() {
-    const [loadingState, setLoadingState] = useState<LoadingState>({ type: 'idle' });
-    const { executeCode, isToolchainCached } = usePlaygroundStore();
-    
-    const handleExecute = useCallback(async () => {
-        try {
-            if (!isToolchainCached) {
-                setLoadingState({
-                    type: 'downloading',
-                    progress: 0,
-                    message: 'Downloading Rust toolchain (21 MB)... This only happens once.'
-                });
-                
-                // Download with progress tracking
-                await downloadToolchain({
-                    onProgress: (progress) => {
-                        setLoadingState(prev => ({
-                            ...prev,
-                            progress: Math.round(progress * 100)
-                        }));
-                    }
-                });
-            }
-            
-            setLoadingState({
-                type: 'compiling',
-                message: 'Compiling Rust code...'
-            });
-            
-            await new Promise(resolve => setTimeout(resolve, 100)); // UI update
-            
-            setLoadingState({
-                type: 'executing',
-                message: 'Executing and measuring performance...'
-            });
-            
-            await executeCode();
-            
-        } finally {
-            setLoadingState({ type: 'idle' });
-        }
-    }, [executeCode, isToolchainCached]);
-    
-    const renderButtonContent = () => {
-        switch (loadingState.type) {
-            case 'downloading':
-                return (
-                    <div className="flex items-center space-x-2">
-                        <CircularProgress value={loadingState.progress} size={20} />
-                        <span className="text-sm">{loadingState.message}</span>
-                    </div>
-                );
-            case 'compiling':
-            case 'executing':
-                return (
-                    <div className="flex items-center space-x-2">
-                        <Spinner size={20} />
-                        <span>{loadingState.message}</span>
-                    </div>
-                );
-            default:
-                return (
-                    <div className="flex items-center space-x-2">
-                        <PlayIcon size={20} />
-                        <span>Run Comparison</span>
-                    </div>
-                );
-        }
-    };
-    
-    return (
-        <button
-            onClick={handleExecute}
-            disabled={loadingState.type !== 'idle'}
-            className="execution-button"
-            aria-busy={loadingState.type !== 'idle'}
-        >
-            {renderButtonContent()}
-        </button>
-    );
+  const [loadingState, setLoadingState] = useState<LoadingState>({
+    type: "idle",
+  });
+  const { executeCode, isToolchainCached } = usePlaygroundStore();
+
+  const handleExecute = useCallback(async () => {
+    try {
+      if (!isToolchainCached) {
+        setLoadingState({
+          type: "downloading",
+          progress: 0,
+          message:
+            "Downloading Rust toolchain (21 MB)... This only happens once.",
+        });
+
+        // Download with progress tracking
+        await downloadToolchain({
+          onProgress: (progress) => {
+            setLoadingState((prev) => ({
+              ...prev,
+              progress: Math.round(progress * 100),
+            }));
+          },
+        });
+      }
+
+      setLoadingState({
+        type: "compiling",
+        message: "Compiling Rust code...",
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 100)); // UI update
+
+      setLoadingState({
+        type: "executing",
+        message: "Executing and measuring performance...",
+      });
+
+      await executeCode();
+    } finally {
+      setLoadingState({ type: "idle" });
+    }
+  }, [executeCode, isToolchainCached]);
+
+  const renderButtonContent = () => {
+    switch (loadingState.type) {
+      case "downloading":
+        return (
+          <div className="flex items-center space-x-2">
+            <CircularProgress value={loadingState.progress} size={20} />
+            <span className="text-sm">{loadingState.message}</span>
+          </div>
+        );
+      case "compiling":
+      case "executing":
+        return (
+          <div className="flex items-center space-x-2">
+            <Spinner size={20} />
+            <span>{loadingState.message}</span>
+          </div>
+        );
+      default:
+        return (
+          <div className="flex items-center space-x-2">
+            <PlayIcon size={20} />
+            <span>Run Comparison</span>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <button
+      onClick={handleExecute}
+      disabled={loadingState.type !== "idle"}
+      className="execution-button"
+      aria-busy={loadingState.type !== "idle"}
+    >
+      {renderButtonContent()}
+    </button>
+  );
 }
 ```
 
@@ -796,136 +827,136 @@ export function ExecutionButton() {
 ```typescript
 // playground/src/lib/telemetry/quality-telemetry.ts
 interface CodeMetrics {
-    sizeBytes: number;
-    numFunctions: number;
-    numLoops: number;
-    numConditionals: number;
-    maxNesting: number;
-    usesAsyncAwait: boolean;
-    usesComplexTypes: boolean;
-    hasAnnotations: boolean;
+  sizeBytes: number;
+  numFunctions: number;
+  numLoops: number;
+  numConditionals: number;
+  maxNesting: number;
+  usesAsyncAwait: boolean;
+  usesComplexTypes: boolean;
+  hasAnnotations: boolean;
 }
 
 interface TelemetryPayload {
-    sessionId: string;
-    timestamp: number;
-    metrics: PlaygroundMetrics;
-    pmatScore: PmatScore;
-    codeMetrics: CodeMetrics;
-    environment: {
-        browser: string;
-        viewport: { width: number; height: number };
-        connection: string;
-        deviceMemory?: number;
-    };
-    qualityEvents: QualityEvent[];
+  sessionId: string;
+  timestamp: number;
+  metrics: PlaygroundMetrics;
+  pmatScore: PmatScore;
+  codeMetrics: CodeMetrics;
+  environment: {
+    browser: string;
+    viewport: { width: number; height: number };
+    connection: string;
+    deviceMemory?: number;
+  };
+  qualityEvents: QualityEvent[];
 }
 
 export class QualityTelemetry {
-    private sessionId: string;
-    private buffer: TelemetryPayload[] = [];
-    private flushTimer?: number;
-    
-    constructor() {
-        this.sessionId = this.generateSessionId();
-        
-        // Batch telemetry for efficiency
-        this.scheduleFlush();
-        
-        // Flush on page unload
-        window.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden') {
-                this.flush();
-            }
-        });
+  private sessionId: string;
+  private buffer: TelemetryPayload[] = [];
+  private flushTimer?: number;
+
+  constructor() {
+    this.sessionId = this.generateSessionId();
+
+    // Batch telemetry for efficiency
+    this.scheduleFlush();
+
+    // Flush on page unload
+    window.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        this.flush();
+      }
+    });
+  }
+
+  recordQualityEvent(event: QualityEvent, codeContext: string) {
+    const codeMetrics = this.analyzeCode(codeContext);
+    const environment = this.captureEnvironment();
+
+    const payload: TelemetryPayload = {
+      sessionId: this.sessionId,
+      timestamp: Date.now(),
+      metrics: event.metrics,
+      pmatScore: event.pmatScore,
+      codeMetrics,
+      environment,
+      qualityEvents: [event],
+    };
+
+    this.buffer.push(payload);
+
+    // Immediate send for critical events
+    if (event.severity === "critical") {
+      this.flush();
     }
-    
-    recordQualityEvent(event: QualityEvent, codeContext: string) {
-        const codeMetrics = this.analyzeCode(codeContext);
-        const environment = this.captureEnvironment();
-        
-        const payload: TelemetryPayload = {
-            sessionId: this.sessionId,
-            timestamp: Date.now(),
-            metrics: event.metrics,
-            pmatScore: event.pmatScore,
-            codeMetrics,
-            environment,
-            qualityEvents: [event],
-        };
-        
-        this.buffer.push(payload);
-        
-        // Immediate send for critical events
-        if (event.severity === 'critical') {
-            this.flush();
-        }
+  }
+
+  private analyzeCode(code: string): CodeMetrics {
+    // Quick static analysis for telemetry
+    const lines = code.split("\n");
+    const functionPattern = /^def\s+\w+\s*\(/gm;
+    const loopPattern = /^\s*(for|while)\s+/gm;
+    const conditionalPattern = /^\s*if\s+/gm;
+
+    let maxNesting = 0;
+    let currentNesting = 0;
+
+    lines.forEach((line) => {
+      const indent = line.search(/\S/);
+      if (indent !== -1) {
+        currentNesting = Math.floor(indent / 4);
+        maxNesting = Math.max(maxNesting, currentNesting);
+      }
+    });
+
+    return {
+      sizeBytes: new TextEncoder().encode(code).length,
+      numFunctions: (code.match(functionPattern) || []).length,
+      numLoops: (code.match(loopPattern) || []).length,
+      numConditionals: (code.match(conditionalPattern) || []).length,
+      maxNesting,
+      usesAsyncAwait: /async\s+def/.test(code),
+      usesComplexTypes: /Dict\[|List\[|Tuple\[/.test(code),
+      hasAnnotations: /#\s*@depyler:/.test(code),
+    };
+  }
+
+  private captureEnvironment() {
+    const connection = (navigator as any).connection;
+
+    return {
+      browser: navigator.userAgent,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      },
+      connection: connection?.effectiveType || "unknown",
+      deviceMemory: (navigator as any).deviceMemory,
+    };
+  }
+
+  private flush() {
+    if (this.buffer.length === 0) return;
+
+    const payload = JSON.stringify(this.buffer);
+    this.buffer = [];
+
+    // Use sendBeacon for reliability
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon("/api/telemetry", payload);
+    } else {
+      // Fallback for older browsers
+      fetch("/api/telemetry", {
+        method: "POST",
+        body: payload,
+        keepalive: true,
+      }).catch(() => {
+        // Telemetry is best-effort
+      });
     }
-    
-    private analyzeCode(code: string): CodeMetrics {
-        // Quick static analysis for telemetry
-        const lines = code.split('\n');
-        const functionPattern = /^def\s+\w+\s*\(/gm;
-        const loopPattern = /^\s*(for|while)\s+/gm;
-        const conditionalPattern = /^\s*if\s+/gm;
-        
-        let maxNesting = 0;
-        let currentNesting = 0;
-        
-        lines.forEach(line => {
-            const indent = line.search(/\S/);
-            if (indent !== -1) {
-                currentNesting = Math.floor(indent / 4);
-                maxNesting = Math.max(maxNesting, currentNesting);
-            }
-        });
-        
-        return {
-            sizeBytes: new TextEncoder().encode(code).length,
-            numFunctions: (code.match(functionPattern) || []).length,
-            numLoops: (code.match(loopPattern) || []).length,
-            numConditionals: (code.match(conditionalPattern) || []).length,
-            maxNesting,
-            usesAsyncAwait: /async\s+def/.test(code),
-            usesComplexTypes: /Dict\[|List\[|Tuple\[/.test(code),
-            hasAnnotations: /#\s*@depyler:/.test(code),
-        };
-    }
-    
-    private captureEnvironment() {
-        const connection = (navigator as any).connection;
-        
-        return {
-            browser: navigator.userAgent,
-            viewport: {
-                width: window.innerWidth,
-                height: window.innerHeight,
-            },
-            connection: connection?.effectiveType || 'unknown',
-            deviceMemory: (navigator as any).deviceMemory,
-        };
-    }
-    
-    private flush() {
-        if (this.buffer.length === 0) return;
-        
-        const payload = JSON.stringify(this.buffer);
-        this.buffer = [];
-        
-        // Use sendBeacon for reliability
-        if (navigator.sendBeacon) {
-            navigator.sendBeacon('/api/telemetry', payload);
-        } else {
-            // Fallback for older browsers
-            fetch('/api/telemetry', {
-                method: 'POST',
-                body: payload,
-                keepalive: true,
-            }).catch(() => {
-                // Telemetry is best-effort
-            });
-        }
-    }
+  }
 }
 ```
 
@@ -940,23 +971,23 @@ name: Playground Continuous Improvement
 on:
   push:
     paths:
-      - 'playground/**'
+      - "playground/**"
   schedule:
-    - cron: '0 2 * * *' # Daily quality check
+    - cron: "0 2 * * *" # Daily quality check
 
 jobs:
   quality-analysis:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Run PMAT Analysis
         run: |
           cargo run -p depyler-quality -- \
             analyze playground/ \
             --format sarif \
             --output playground-quality.sarif
-      
+
       - name: Check Quality Gates
         run: |
           cargo run -p depyler-quality -- \
@@ -964,27 +995,27 @@ jobs:
             --max-tdg 2.0 \
             --min-coverage 85.0 \
             --max-complexity 15
-      
+
       - name: Measure WASM Size
         run: |
           cd playground/depyler-playground
           cargo build --profile wasm-production --target wasm32-unknown-unknown
           wasm-opt -Oz -o optimized.wasm target/wasm32-unknown-unknown/wasm-production/depyler_playground.wasm
           gzip -9 < optimized.wasm > bundle.wasm.gz
-          
+
           SIZE_KB=$(du -k bundle.wasm.gz | cut -f1)
           echo "WASM_SIZE_KB=$SIZE_KB" >> $GITHUB_ENV
-          
+
           if [ $SIZE_KB -gt 1500 ]; then
             echo "::error::WASM size ${SIZE_KB}KB exceeds 1500KB budget"
             exit 1
           fi
-      
+
       - name: Performance Benchmarks
         run: |
           cd playground
           deno task bench --json > benchmarks.json
-          
+
           # Check P95 latencies
           P95_SIMPLE=$(jq '.transpilation.simple.p95' benchmarks.json)
           if (( $(echo "$P95_SIMPLE > 50" | bc -l) )); then
@@ -1029,16 +1060,21 @@ server {
 }
 ```
 
-This specification embodies the Toyota Way principles throughout, with continuous quality measurement, intelligent caching for performance, comprehensive error handling, and a relentless focus on user experience. The architecture ensures deterministic builds, measurable quality improvements, and a foundation for kaizen-driven development.
-
+This specification embodies the Toyota Way principles throughout, with
+continuous quality measurement, intelligent caching for performance,
+comprehensive error handling, and a relentless focus on user experience. The
+architecture ensures deterministic builds, measurable quality improvements, and
+a foundation for kaizen-driven development.
 
 # Depyler Interactive Environment: Implementation Checklist
 
 ## Phase 0: Foundation & Infrastructure
 
 ### Workspace Configuration
+
 - [ ] Create `playground/` directory structure in repository root
-- [ ] Add `playground/depyler-playground/` to workspace members in root `Cargo.toml`
+- [ ] Add `playground/depyler-playground/` to workspace members in root
+      `Cargo.toml`
 - [ ] Create `playground/depyler-playground/Cargo.toml` with:
   - [ ] WASM-specific profile `[profile.wasm-production]`
   - [ ] Verify `opt-level = "z"` and `lto = "fat"`
@@ -1050,12 +1086,12 @@ This specification embodies the Toyota Way principles throughout, with continuou
   ttfmp_p50_ms = 1000.0
   tti_p90_ms = 3000.0
   wasm_size_budget_kb = 1500.0
-  
+
   [targets.transpile_targets]
   simple_p95_ms = 50.0
   medium_p95_ms = 100.0
   complex_p95_ms = 250.0
-  
+
   [scoring]
   sigmoid_steepness = 5.0
   exponential_decay_rate = 0.5
@@ -1069,6 +1105,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
   ```
 
 ### Development Environment
+
 - [ ] Create `playground/deno.json`:
   ```json
   {
@@ -1095,32 +1132,33 @@ This specification embodies the Toyota Way principles throughout, with continuou
   ```
 - [ ] Create `playground/vite.config.ts` with WASM support:
   ```typescript
-  import { defineConfig } from 'vite';
-  import react from '@vitejs/plugin-react';
-  import wasm from 'vite-plugin-wasm';
-  
+  import { defineConfig } from "vite";
+  import react from "@vitejs/plugin-react";
+  import wasm from "vite-plugin-wasm";
+
   export default defineConfig({
     plugins: [react(), wasm()],
     worker: {
-      format: 'es',
-      plugins: [wasm()]
+      format: "es",
+      plugins: [wasm()],
     },
     build: {
-      target: 'es2022',
-      minify: 'terser',
+      target: "es2022",
+      minify: "terser",
       terserOptions: {
         compress: {
           drop_console: true,
-          passes: 3
-        }
-      }
-    }
+          passes: 3,
+        },
+      },
+    },
   });
   ```
 
 ## Phase 1: WASM Module Implementation
 
 ### Core WASM Bindings
+
 - [ ] Create `crates/depyler-wasm/src/lib.rs`:
   - [ ] Implement `WasmTranspiler` struct with `#[wasm_bindgen]`
   - [ ] Add `transpile()` method returning structured metrics
@@ -1139,6 +1177,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
   ```
 
 ### Quality Module
+
 - [ ] Create `playground/depyler-playground/src/quality/mod.rs`:
   - [ ] Implement `PmatConfiguration` with TOML deserialization
   - [ ] Add validation in `PmatConfiguration::load()`
@@ -1159,6 +1198,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
 ## Phase 2: Frontend Infrastructure
 
 ### TypeScript Setup
+
 - [ ] Create `playground/src/types/index.ts`:
   ```typescript
   export interface TranspileMetrics {
@@ -1169,7 +1209,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
     complexity_score: number;
     energy_reduction: EnergyEstimate;
   }
-  
+
   export interface EnergyEstimate {
     joules: number;
     wattsAverage: number;
@@ -1186,6 +1226,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
   - [ ] Implement optimistic UI updates
 
 ### WASM Module Manager
+
 - [ ] Create `playground/src/lib/wasm-manager.ts`:
   - [ ] Implement `WasmModuleManager` class
   - [ ] Add streaming compilation: `WebAssembly.compileStreaming()`
@@ -1198,16 +1239,17 @@ This specification embodies the Toyota Way principles throughout, with continuou
   - [ ] Add structured error reporting
 - [ ] Verify WASM loading performance:
   ```typescript
-  performance.mark('wasm-load-start');
-  await wasmManager.loadModule('depyler', '/wasm/depyler_bg.wasm');
-  performance.mark('wasm-load-end');
-  performance.measure('wasm-load', 'wasm-load-start', 'wasm-load-end');
+  performance.mark("wasm-load-start");
+  await wasmManager.loadModule("depyler", "/wasm/depyler_bg.wasm");
+  performance.mark("wasm-load-end");
+  performance.measure("wasm-load", "wasm-load-start", "wasm-load-end");
   // Assert: < 500ms on fast connection
   ```
 
 ## Phase 3: Intelli-Sensei Editor
 
 ### Monaco Editor Integration
+
 - [ ] Create `playground/src/editor/monaco-config.ts`:
   - [ ] Register `python-depyler` language
   - [ ] Define Monarch tokenizer with `@depyler:` annotation support
@@ -1228,6 +1270,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
   - [ ] Add inlay hints provider
 
 ### Advisor Worker
+
 - [ ] Create `playground/src/workers/advisor.worker.ts`:
   - [ ] Handle `ANALYZE_FUNCTION` messages
   - [ ] Implement anti-pattern detection:
@@ -1245,14 +1288,15 @@ This specification embodies the Toyota Way principles throughout, with continuou
 ## Phase 4: Execution Sandbox
 
 ### Sandbox Worker Implementation
+
 - [ ] Create `playground/src/workers/execution-sandbox.worker.ts`:
   - [ ] Implement network API freezing:
     ```typescript
-    ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource'].forEach(api => {
+    ["fetch", "XMLHttpRequest", "WebSocket", "EventSource"].forEach((api) => {
       Object.defineProperty(self, api, {
         value: undefined,
         writable: false,
-        configurable: false
+        configurable: false,
       });
     });
     ```
@@ -1263,6 +1307,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
   - [ ] Add memory measurement hooks
 
 ### Rust Toolchain Integration
+
 - [ ] Create mock `@depyler/rustc-wasm` package:
   - [ ] Define `CompilationResult` interface
   - [ ] Add diagnostic parsing
@@ -1274,9 +1319,9 @@ This specification embodies the Toyota Way principles throughout, with continuou
   name = "playground"
   version = "0.1.0"
   edition = "2021"
-  
+
   [dependencies]
-  
+
   [[bin]]
   name = "playground"
   path = "main.rs"
@@ -1285,11 +1330,14 @@ This specification embodies the Toyota Way principles throughout, with continuou
 - [ ] Verify compilation error propagation:
   ```typescript
   // Test: Compile invalid Rust
-  const result = await sandbox.executeRust('fn main() { let x: i32 = "string"; }');
-  assert(result.diagnostics[0].message.includes('mismatched types'));
+  const result = await sandbox.executeRust(
+    'fn main() { let x: i32 = "string"; }',
+  );
+  assert(result.diagnostics[0].message.includes("mismatched types"));
   ```
 
 ### Energy Estimation
+
 - [ ] Implement enhanced energy model:
   - [ ] CPU energy: `executionMs * profile.cpuJoulesPerMs`
   - [ ] Memory energy: `memoryMb * profile.memJoulesPerMb`
@@ -1307,18 +1355,21 @@ This specification embodies the Toyota Way principles throughout, with continuou
 ## Phase 5: Visualization Components
 
 ### Energy Gauge
+
 - [ ] Create `playground/src/components/visualizations/EnergyGauge.tsx`:
   - [ ] Implement D3 enter/update/exit pattern
   - [ ] Add smooth transitions (750ms, cubic-in-out)
   - [ ] Implement color scale (red-yellow-green)
   - [ ] Add confidence indicator
   - [ ] Prevent DOM pollution with proper selections
-- [ ] Create `playground/src/components/visualizations/EnergyBreakdownDetails.tsx`:
+- [ ] Create
+      `playground/src/components/visualizations/EnergyBreakdownDetails.tsx`:
   - [ ] Show CPU vs memory energy breakdown
   - [ ] Add tooltip explanations
   - [ ] Include confidence visualization
 
 ### Execution Button
+
 - [ ] Create `playground/src/components/ExecutionButton.tsx`:
   - [ ] Implement loading states: idle, downloading, compiling, executing
   - [ ] Add progress tracking for downloads
@@ -1329,6 +1380,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
   - [ ] Implement proper ARIA attributes
 
 ### Performance Dashboard
+
 - [ ] Create `playground/src/components/InsightDashboard.tsx`:
   - [ ] Add tabs: Output, Performance, Energy, Deep Dive
   - [ ] Implement side-by-side output comparison
@@ -1343,6 +1395,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
 ## Phase 6: Quality Monitoring
 
 ### Telemetry System
+
 - [ ] Create `playground/src/lib/telemetry/quality-telemetry.ts`:
   - [ ] Implement `QualityTelemetry` class
   - [ ] Add code analysis for metrics:
@@ -1363,6 +1416,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
     ```
 
 ### Performance Monitoring
+
 - [ ] Create `playground/src/lib/quality-monitor.ts`:
   - [ ] Use PerformanceObserver API
   - [ ] Track key metrics:
@@ -1376,22 +1430,23 @@ This specification embodies the Toyota Way principles throughout, with continuou
 ## Phase 7: Build & Optimization
 
 ### WASM Build Pipeline
+
 - [ ] Create `playground/scripts/build-wasm.sh`:
   ```bash
   #!/bin/bash
   set -euo pipefail
-  
+
   cd ../crates/depyler-wasm
   wasm-pack build --target web --out-dir ../../playground/public/wasm
-  
+
   # Optimize with wasm-opt
   wasm-opt -Oz \
     -o ../../playground/public/wasm/optimized.wasm \
     ../../playground/public/wasm/depyler_bg.wasm
-  
+
   # Compress
   gzip -9 < ../../playground/public/wasm/optimized.wasm > ../../playground/public/wasm/depyler.wasm.gz
-  
+
   # Verify size
   SIZE_KB=$(du -k ../../playground/public/wasm/depyler.wasm.gz | cut -f1)
   if [ $SIZE_KB -gt 1500 ]; then
@@ -1403,6 +1458,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
 - [ ] Implement deterministic builds verification
 
 ### Frontend Build
+
 - [ ] Configure Terser for aggressive minification
 - [ ] Set up code splitting for lazy loading:
   - [ ] Critical: Monaco, core UI
@@ -1414,6 +1470,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
 ## Phase 8: Testing & Validation
 
 ### Unit Tests
+
 - [ ] WASM module tests:
   - [ ] Transpilation accuracy
   - [ ] Energy estimation precision
@@ -1427,19 +1484,21 @@ This specification embodies the Toyota Way principles throughout, with continuou
   - [ ] Threshold validation
 
 ### Integration Tests
+
 - [ ] End-to-end transpilation flow
 - [ ] Python execution verification
 - [ ] Rust compilation and execution
 - [ ] Performance benchmarks:
   ```typescript
-  it('should transpile simple function in <50ms', async () => {
+  it("should transpile simple function in <50ms", async () => {
     const start = performance.now();
-    await transpiler.transpile('def add(a: int, b: int) -> int: return a + b');
+    await transpiler.transpile("def add(a: int, b: int) -> int: return a + b");
     expect(performance.now() - start).toBeLessThan(50);
   });
   ```
 
 ### Performance Validation
+
 - [ ] Measure and verify:
   - [ ] TTFMP < 1000ms (fast connection)
   - [ ] TTI < 3000ms
@@ -1453,6 +1512,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
 ## Phase 9: CI/CD Integration
 
 ### GitHub Actions
+
 - [ ] Create `.github/workflows/playground-ci.yml`:
   - [ ] WASM build and size check
   - [ ] Frontend build and tests
@@ -1466,6 +1526,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
   - [ ] Run smoke tests
 
 ### Quality Gates
+
 - [ ] Enforce in CI:
   - [ ] PMAT TDG score < 2.0
   - [ ] Test coverage > 85%
@@ -1476,6 +1537,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
 ## Phase 10: Production Deployment
 
 ### Infrastructure
+
 - [ ] Configure nginx with:
   - [ ] HTTP/2 and Brotli
   - [ ] Security headers
@@ -1491,6 +1553,7 @@ This specification embodies the Toyota Way principles throughout, with continuou
   - [ ] Performance dashboards
 
 ### Documentation
+
 - [ ] Write user guide
 - [ ] Document architecture
 - [ ] Create troubleshooting guide

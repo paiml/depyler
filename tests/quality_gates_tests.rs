@@ -11,6 +11,7 @@ fn create_simple_function() -> HirFunction {
         body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
         properties: FunctionProperties::default(),
         annotations: TranspilationAnnotations::default(),
+        docstring: None,
     }
 }
 
@@ -48,6 +49,7 @@ fn create_complex_function() -> HirFunction {
         }],
         properties: FunctionProperties::default(),
         annotations: TranspilationAnnotations::default(),
+        docstring: None,
     }
 }
 
@@ -198,6 +200,7 @@ fn test_pmat_edge_cases() {
         body: vec![], // Empty body
         properties: FunctionProperties::default(),
         annotations: TranspilationAnnotations::default(),
+        docstring: None,
     };
 
     let functions = vec![zero_complexity_func];

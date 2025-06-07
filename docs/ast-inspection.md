@@ -2,11 +2,15 @@
 
 ## Overview
 
-Depyler provides powerful AST inspection capabilities to help you understand how Python code is transformed into Rust. The `inspect` command allows you to examine intermediate representations at different stages of the transpilation pipeline.
+Depyler provides powerful AST inspection capabilities to help you understand how
+Python code is transformed into Rust. The `inspect` command allows you to
+examine intermediate representations at different stages of the transpilation
+pipeline.
 
 ## Available Representations
 
 ### 1. Python AST (`python-ast`)
+
 The original Python Abstract Syntax Tree as parsed by rustpython-parser.
 
 ```bash
@@ -14,12 +18,15 @@ depyler inspect example.py --repr python-ast --format pretty
 ```
 
 **Use cases:**
+
 - Understanding how Python code is parsed
 - Debugging Python syntax issues
 - Learning AST structure
 
 ### 2. HIR - High-level IR (`hir`)
+
 Depyler's high-level intermediate representation that includes:
+
 - Type information
 - Function properties (pure, terminates, panic-free)
 - Depyler annotations
@@ -30,12 +37,15 @@ depyler inspect example.py --repr hir --format pretty
 ```
 
 **Use cases:**
+
 - Understanding type inference results
 - Checking annotation extraction
 - Verifying function properties
 
 ### 3. Typed HIR (`typed-hir`)
-Enhanced HIR with additional type analysis (currently same as HIR, will be extended).
+
+Enhanced HIR with additional type analysis (currently same as HIR, will be
+extended).
 
 ```bash
 depyler inspect example.py --repr typed-hir --format json
@@ -44,6 +54,7 @@ depyler inspect example.py --repr typed-hir --format json
 ## Output Formats
 
 ### Pretty Format (`--format pretty`)
+
 Human-readable, structured output with colors and formatting.
 
 ```
@@ -67,6 +78,7 @@ Human-readable, structured output with colors and formatting.
 ```
 
 ### JSON Format (`--format json`)
+
 Machine-readable JSON for programmatic processing.
 
 ```json
@@ -95,11 +107,13 @@ Machine-readable JSON for programmatic processing.
 ```
 
 ### Debug Format (`--format debug`)
+
 Raw Rust debug output showing all internal details.
 
 ## Command Examples
 
 ### Basic Inspection
+
 ```bash
 # Inspect HIR with pretty formatting
 depyler inspect marco_polo_simple.py
@@ -112,6 +126,7 @@ depyler inspect marco_polo_simple.py --format json
 ```
 
 ### Advanced Usage
+
 ```bash
 # Save to file
 depyler inspect code.py --repr hir --format json -o analysis.json
@@ -123,6 +138,7 @@ diff python.ast depyler.hir
 ```
 
 ### Integration with Other Tools
+
 ```bash
 # Process with jq
 depyler inspect code.py --format json | jq '.functions[0].name'
@@ -137,20 +153,24 @@ depyler inspect code.py --format json | jq '.functions[].annotations'
 ## Understanding HIR Output
 
 ### Function Properties
+
 - **pure**: Function has no side effects
 - **terminates**: Function guaranteed to terminate
 - **panic-free**: Function cannot panic
 
 ### Type Information
+
 - **Int**: i32 in Rust
-- **Float**: f64 in Rust  
+- **Float**: f64 in Rust
 - **String**: String in Rust
 - **Bool**: bool in Rust
 - **List(T)**: Vec<T> in Rust
 - **Dict(K,V)**: HashMap<K,V> in Rust
 
 ### Annotations
+
 Extracted from `# @depyler:` comments:
+
 - **optimization_level**: Conservative, Standard, Aggressive
 - **string_strategy**: Conservative, AlwaysOwned, ZeroCopy
 - **ownership_model**: Owned, Borrowed, Shared
@@ -159,21 +179,25 @@ Extracted from `# @depyler:` comments:
 ## Debugging Workflow
 
 ### 1. Check Python Parsing
+
 ```bash
 depyler inspect broken.py --repr python-ast
 ```
 
 ### 2. Verify HIR Generation
+
 ```bash
 depyler inspect working.py --repr hir --format pretty
 ```
 
 ### 3. Examine Annotations
+
 ```bash
 depyler inspect annotated.py --repr hir --format json | jq '.functions[].annotations'
 ```
 
 ### 4. Compare Before/After
+
 ```bash
 # Before adding annotations
 depyler inspect code.py --repr hir -o before.json
@@ -188,6 +212,7 @@ diff before.json after.json
 ## Integration with IDEs
 
 ### VS Code
+
 Create a task in `.vscode/tasks.json`:
 
 ```json
@@ -204,6 +229,7 @@ Create a task in `.vscode/tasks.json`:
 ```
 
 ### Vim/Neovim
+
 Add to your config:
 
 ```vim
@@ -263,4 +289,5 @@ depyler inspect code.py --repr hir --format json | jq '.functions[] | select(.an
 
 ---
 
-The inspect command is essential for understanding Depyler's transpilation process and optimizing your Python code for better Rust output.
+The inspect command is essential for understanding Depyler's transpilation
+process and optimizing your Python code for better Rust output.

@@ -2,7 +2,13 @@
 
 ## Executive Summary
 
-Depyler V0.2 represents a significant advancement toward production-ready Python-to-Rust transpilation. Building on the V0.1 foundation, V0.2 introduces a structured **Annotation Protocol** system that enables 90% automated structural conversion with AI-assisted completion for complex constructs. This specification focuses on **energy efficiency**, **safety guarantees**, and **developer productivity** through progressive verification and interactive fix workflows.
+Depyler V0.2 represents a significant advancement toward production-ready
+Python-to-Rust transpilation. Building on the V0.1 foundation, V0.2 introduces a
+structured **Annotation Protocol** system that enables 90% automated structural
+conversion with AI-assisted completion for complex constructs. This
+specification focuses on **energy efficiency**, **safety guarantees**, and
+**developer productivity** through progressive verification and interactive fix
+workflows.
 
 ## Table of Contents
 
@@ -23,19 +29,25 @@ Depyler V0.2 represents a significant advancement toward production-ready Python
 
 ### Toyota Way Integration (継続的改善)
 
-Following the **改善 (Kaizen)** principles established in CLAUDE.md, V0.2 embeds quality at every stage:
+Following the **改善 (Kaizen)** principles established in CLAUDE.md, V0.2 embeds
+quality at every stage:
 
-- **自働化 (Jidoka)**: Build quality in - comprehensive annotation validation before transpilation
-- **現地現物 (Genchi Genbutsu)**: Direct observation - test against real Python codebases with rustc verification
-- **反省 (Hansei)**: Reflection - every transpilation failure improves the annotation system
-- **改善 (Kaizen)**: Continuous improvement - progressive enhancement of conversion accuracy
+- **自働化 (Jidoka)**: Build quality in - comprehensive annotation validation
+  before transpilation
+- **現地現物 (Genchi Genbutsu)**: Direct observation - test against real Python
+  codebases with rustc verification
+- **反省 (Hansei)**: Reflection - every transpilation failure improves the
+  annotation system
+- **改善 (Kaizen)**: Continuous improvement - progressive enhancement of
+  conversion accuracy
 
 ### Energy-First Development
 
 V0.2 prioritizes **energy efficiency** as a first-class design constraint:
 
 - **Compile-time optimization**: Aggressive LLVM optimization with LTO
-- **Memory layout optimization**: Cache-friendly data structures in generated Rust
+- **Memory layout optimization**: Cache-friendly data structures in generated
+  Rust
 - **Zero-runtime overhead**: All safety checks moved to compile time
 - **Binary size optimization**: Strip symbols, panic=abort configuration
 
@@ -44,24 +56,28 @@ V0.2 prioritizes **energy efficiency** as a first-class design constraint:
 ## Core Features
 
 ### 🔄 **90% Automated Conversion**
+
 - Structural transpilation for 90% of common Python patterns
 - Smart type inference with ownership analysis
 - Automatic memory safety guarantees
 - Idiomatic Rust code generation
 
 ### 📝 **Annotation Protocol System**
+
 - Structured annotation framework for transpilation guidance
 - Interactive fix workflow for complex constructs
 - AI-assisted completion via MCP integration
 - Quality gates with automated verification
 
 ### 🛡️ **Safety Guarantees**
+
 - Memory safety: No buffer overflows or null pointer dereferences
 - Thread safety: Data race prevention at compile time
 - Type safety: Comprehensive type checking and validation
 - Panic freedom: Bounds checking and error handling verification
 
 ### ⚡ **Performance Optimization**
+
 - **Target**: 5-15x faster execution than Python
 - **Energy**: 75-85% reduction in power consumption
 - **Memory**: 50-70% reduction in working set size
@@ -73,7 +89,9 @@ V0.2 prioritizes **energy efficiency** as a first-class design constraint:
 
 ### Overview
 
-The Annotation Protocol enables developers to guide transpilation through structured comments and type hints, bridging the gap between Python's dynamic nature and Rust's static type system.
+The Annotation Protocol enables developers to guide transpilation through
+structured comments and type hints, bridging the gap between Python's dynamic
+nature and Rust's static type system.
 
 ### Annotation Syntax
 
@@ -314,6 +332,7 @@ Python Source with Annotations
 ### Core Components
 
 #### 1. **Annotation Parser** (`depyler-annotations/`)
+
 ```rust
 pub struct AnnotationParser {
     strategy_resolver: StrategyResolver,
@@ -332,6 +351,7 @@ pub struct TranspilationAnnotations {
 ```
 
 #### 2. **Enhanced HIR** (`depyler-core/`)
+
 ```rust
 #[derive(Debug, Clone)]
 pub struct HirFunction {
@@ -354,6 +374,7 @@ pub struct VerifiedProperties {
 ```
 
 #### 3. **Quality Gate System** (`depyler-quality/`)
+
 ```rust
 pub struct QualityGate {
     pub name: String,
@@ -423,16 +444,16 @@ quality_targets:
   productivity:
     transpilation_time: "<1s per 1KLOC"
     error_resolution_time: "<30s average"
-  
+
   maintainability:
     cyclomatic_complexity: "≤20 per function"
     cognitive_complexity: "≤15 per function"
     code_duplication: "≤5%"
-  
+
   accessibility:
     error_message_clarity: "≥80% user satisfaction"
     documentation_coverage: "≥90%"
-  
+
   testability:
     line_coverage: "≥80%"
     branch_coverage: "≥75%"
@@ -461,6 +482,7 @@ def matrix_operations(data: List[List[float]]) -> float:
 ```
 
 **Depyler V0.2 Solution**:
+
 ```bash
 depyler transpile scientific_compute.py --target-energy-reduction=80%
 
@@ -474,6 +496,7 @@ Generated: scientific_compute.rs
 ```
 
 **Generated Rust**:
+
 ```rust
 use nalgebra::{DMatrix, ComplexField};
 
@@ -515,6 +538,7 @@ def validate_and_process(request: Dict[str, str]) -> Dict[str, str]:
 ```
 
 **Depyler V0.2 Solution**:
+
 ```bash
 depyler transpile web_service.py --optimize-for=latency --interactive
 
@@ -561,6 +585,7 @@ def new_algorithm(data: List[int]) -> List[int]:
 ```
 
 **Depyler V0.2 Solution**:
+
 ```bash
 depyler migrate-project legacy_system/ --strategy=incremental
 
@@ -583,26 +608,30 @@ Migration Plan:
 ### Phase 1: Foundation (Weeks 1-2)
 
 **Week 1: Annotation System**
+
 - [ ] Implement annotation parser and validator
 - [ ] Create annotation syntax specification
 - [ ] Add annotation-aware HIR generation
 - [ ] Basic quality gate framework
 
 **Week 2: Quality Infrastructure**
+
 - [ ] PMAT metrics integration
 - [ ] Coverage measurement system
-- [ ] rustc compilation verification  
+- [ ] rustc compilation verification
 - [ ] Clippy integration and enforcement
 
 ### Phase 2: Core Features (Weeks 3-4)
 
 **Week 3: Enhanced Transpilation**
+
 - [ ] Implement the three core use cases
 - [ ] Advanced type inference with annotations
 - [ ] Memory safety verification
 - [ ] Performance optimization passes
 
 **Week 4: Interactive Workflow**
+
 - [ ] Interactive fix CLI interface
 - [ ] Suggestion generation system
 - [ ] MCP integration for complex constructs
@@ -611,12 +640,14 @@ Migration Plan:
 ### Phase 3: Production Polish (Weeks 5-6)
 
 **Week 5: Performance & Testing**
+
 - [ ] Property-based testing with QuickCheck
 - [ ] Performance benchmarking suite
 - [ ] Energy efficiency measurement
 - [ ] Documentation and examples
 
 **Week 6: CI/CD & Release**
+
 - [ ] Automated quality gate enforcement
 - [ ] Release automation
 - [ ] User documentation
@@ -628,36 +659,36 @@ Migration Plan:
 
 ### Transpilation Performance
 
-| Operation | V0.2 Target | Measurement | Current Status |
-|-----------|-------------|-------------|----------------|
-| **Parse Python (1KLOC)** | <10ms | rustpython-parser | ✅ Framework ready |
-| **Annotation Processing** | <5ms | Custom parser | 🚧 Implementation needed |
-| **Type Inference (1KLOC)** | <30ms | Advanced inference | 🚧 Enhancement needed |
-| **HIR Generation (1KLOC)** | <15ms | AST bridge | ✅ Basic implementation |
-| **Quality Gate Analysis** | <20ms | PMAT integration | 🚧 Implementation needed |
-| **Rust Codegen (1KLOC)** | <25ms | syn + quote | ✅ Framework ready |
-| **rustc Verification** | <100ms | Compilation check | 🚧 Implementation needed |
-| **Total Pipeline (1KLOC)** | <200ms | End-to-end | 🎯 Target metric |
+| Operation                  | V0.2 Target | Measurement        | Current Status           |
+| -------------------------- | ----------- | ------------------ | ------------------------ |
+| **Parse Python (1KLOC)**   | <10ms       | rustpython-parser  | ✅ Framework ready       |
+| **Annotation Processing**  | <5ms        | Custom parser      | 🚧 Implementation needed |
+| **Type Inference (1KLOC)** | <30ms       | Advanced inference | 🚧 Enhancement needed    |
+| **HIR Generation (1KLOC)** | <15ms       | AST bridge         | ✅ Basic implementation  |
+| **Quality Gate Analysis**  | <20ms       | PMAT integration   | 🚧 Implementation needed |
+| **Rust Codegen (1KLOC)**   | <25ms       | syn + quote        | ✅ Framework ready       |
+| **rustc Verification**     | <100ms      | Compilation check  | 🚧 Implementation needed |
+| **Total Pipeline (1KLOC)** | <200ms      | End-to-end         | 🎯 Target metric         |
 
 ### Generated Code Performance
 
-| Metric | Target vs Python | Verification Method |
-|--------|------------------|-------------------|
-| **Execution Speed** | 5-15x faster | Benchmark suite |
-| **Energy Consumption** | 75-85% reduction | Power measurement |
-| **Memory Usage** | 50-70% reduction | Profiling tools |
-| **Binary Size** | Optimized | LTO + strip |
-| **Compilation Time** | <500ms typical | rustc integration |
+| Metric                 | Target vs Python | Verification Method |
+| ---------------------- | ---------------- | ------------------- |
+| **Execution Speed**    | 5-15x faster     | Benchmark suite     |
+| **Energy Consumption** | 75-85% reduction | Power measurement   |
+| **Memory Usage**       | 50-70% reduction | Profiling tools     |
+| **Binary Size**        | Optimized        | LTO + strip         |
+| **Compilation Time**   | <500ms typical   | rustc integration   |
 
 ### Quality Metrics
 
-| Quality Gate | Target | Measurement |
-|--------------|--------|-------------|
-| **PMAT TDG** | 1.0-2.0 | Automated analysis |
-| **Complexity** | ≤20 per function | Cyclomatic + cognitive |
-| **Test Coverage** | ≥80% | Coverage.py integration |
-| **Clippy Clean** | 0 warnings | clippy::pedantic |
-| **Energy Efficiency** | ≥75% reduction | Benchmark comparison |
+| Quality Gate          | Target           | Measurement             |
+| --------------------- | ---------------- | ----------------------- |
+| **PMAT TDG**          | 1.0-2.0          | Automated analysis      |
+| **Complexity**        | ≤20 per function | Cyclomatic + cognitive  |
+| **Test Coverage**     | ≥80%             | Coverage.py integration |
+| **Clippy Clean**      | 0 warnings       | clippy::pedantic        |
+| **Energy Efficiency** | ≥75% reduction   | Benchmark comparison    |
 
 ---
 
@@ -747,22 +778,22 @@ jobs:
         run: |
           depyler analyze --pmat-metrics
           depyler quality-check --require-tdg-range=1.0-2.0
-      
+
       - name: Complexity Check
         run: |
           depyler analyze --complexity
           depyler quality-check --max-complexity=20
-      
+
       - name: Coverage Verification
         run: |
           cargo test --workspace
           depyler quality-check --min-coverage=80%
-      
+
       - name: Rust Compilation Check
         run: |
           depyler test-transpilation examples/
           depyler verify-compilation --all-examples
-      
+
       - name: Energy Efficiency Test
         run: |
           depyler benchmark --energy-profile
@@ -773,7 +804,11 @@ jobs:
 
 ## Conclusion
 
-Depyler V0.2 represents a significant step toward production-ready Python-to-Rust transpilation. By introducing the **Annotation Protocol** system, implementing comprehensive **Quality Gates**, and focusing on **energy efficiency**, V0.2 bridges the gap between experimental tool and production deployment.
+Depyler V0.2 represents a significant step toward production-ready
+Python-to-Rust transpilation. By introducing the **Annotation Protocol** system,
+implementing comprehensive **Quality Gates**, and focusing on **energy
+efficiency**, V0.2 bridges the gap between experimental tool and production
+deployment.
 
 ### Key Achievements
 
@@ -786,17 +821,19 @@ Depyler V0.2 represents a significant step toward production-ready Python-to-Rus
 
 ### Success Metrics
 
-| Metric | Target | Verification |
-|--------|--------|-------------|
-| **PMAT TDG** | 1.0-2.0 | ✅ Automated analysis |
-| **Complexity** | ≤20 per function | ✅ Static analysis |
-| **Coverage** | ≥80% | ✅ Test integration |
-| **Compilation** | 100% success | ✅ rustc verification |
-| **Energy Reduction** | ≥75% | ✅ Benchmark suite |
+| Metric               | Target           | Verification          |
+| -------------------- | ---------------- | --------------------- |
+| **PMAT TDG**         | 1.0-2.0          | ✅ Automated analysis |
+| **Complexity**       | ≤20 per function | ✅ Static analysis    |
+| **Coverage**         | ≥80%             | ✅ Test integration   |
+| **Compilation**      | 100% success     | ✅ rustc verification |
+| **Energy Reduction** | ≥75%             | ✅ Benchmark suite    |
 
-V0.2 establishes Depyler as the **production-ready solution** for energy-efficient Python-to-Rust migration, combining automation with intelligence to deliver safe, fast, and sustainable code.
+V0.2 establishes Depyler as the **production-ready solution** for
+energy-efficient Python-to-Rust migration, combining automation with
+intelligence to deliver safe, fast, and sustainable code.
 
 ---
 
-*"Energy efficiency is not just an optimization—it's a responsibility."*  
-*Depyler V0.2: Making sustainable computing accessible.* 🌱⚡
+_"Energy efficiency is not just an optimization—it's a responsibility."_\
+_Depyler V0.2: Making sustainable computing accessible._ 🌱⚡

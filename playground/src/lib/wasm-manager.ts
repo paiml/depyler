@@ -1,4 +1,4 @@
-import { TranspileResult } from '@/types';
+import { TranspileResult } from "@/types";
 
 interface WasmModule {
   DepylerWasm: new () => any;
@@ -26,29 +26,47 @@ class WasmModuleManager {
     this.loading = this.initializeModule();
     this.module = await this.loading;
     this.loading = null;
-    
+
     return this.module;
   }
 
   private async initializeModule(): Promise<WasmModule> {
-    performance.mark('wasm-load-start');
-    
+    performance.mark("wasm-load-start");
+
     try {
-      // Load the WASM module
-      const wasmModule = await import('/wasm/depyler_wasm.js');
+      // Load the WASM module using fetch to avoid Vite's module restrictions
+      const response = await fetch('/wasm/depyler_wasm.js');
+      let moduleText = await response.text();
+      
+      // Fix the relative WASM path to be absolute
+      moduleText = moduleText.replace(
+        /new URL\(['"]depyler_wasm_bg\.wasm['"], import\.meta\.url\)/g,
+        `new URL('/wasm/depyler_wasm_bg.wasm', window.location.origin)`
+      );
+      
+      // Create a blob URL and import it as a module
+      const blob = new Blob([moduleText], { type: 'application/javascript' });
+      const blobUrl = URL.createObjectURL(blob);
+      
+      const wasmModule = await import(/* @vite-ignore */ blobUrl);
+      
+      // Clean up the blob URL
+      URL.revokeObjectURL(blobUrl);
+      
+      // Initialize the WASM module
       await wasmModule.default();
-      
-      performance.mark('wasm-load-end');
-      performance.measure('wasm-load', 'wasm-load-start', 'wasm-load-end');
-      
-      const loadTime = performance.getEntriesByName('wasm-load')[0]?.duration || 0;
+
+      performance.mark("wasm-load-end");
+      performance.measure("wasm-load", "wasm-load-start", "wasm-load-end");
+
+      const loadTime = performance.getEntriesByName("wasm-load")[0]?.duration || 0;
       console.log(`WASM module loaded in ${loadTime.toFixed(2)}ms`);
-      
+
       return wasmModule;
     } catch (error) {
-      performance.mark('wasm-load-error');
-      console.error('Failed to load WASM module:', error);
-      throw new Error('Failed to initialize Depyler WASM module');
+      performance.mark("wasm-load-error");
+      console.error("Failed to load WASM module:", error);
+      throw new Error("Failed to initialize Depyler WASM module");
     }
   }
 
@@ -70,11 +88,32 @@ class WasmModuleManager {
   }): Promise<any> {
     const module = await this.loadModule();
     const wasmOptions = new module.WasmTranspileOptions();
+
+    // Use setter methods as available in WASM bindings
+    if (typeof wasmOptions.set_verify === 'function') {
+      wasmOptions.set_verify(options.verify);
+    } else {
+      wasmOptions.verify = options.verify;
+    }
     
-    wasmOptions.set_verify(options.verify);
-    wasmOptions.set_optimize(options.optimize);
-    // Note: emit_docs and target_version would need to be added to WASM bindings
+    if (typeof wasmOptions.set_optimize === 'function') {
+      wasmOptions.set_optimize(options.optimize);
+    } else {
+      wasmOptions.optimize = options.optimize;
+    }
     
+    if (typeof wasmOptions.set_emit_docs === 'function') {
+      wasmOptions.set_emit_docs(options.emit_docs);
+    } else {
+      wasmOptions.emit_docs = options.emit_docs;
+    }
+    
+    if (typeof wasmOptions.set_target_version === 'function') {
+      wasmOptions.set_target_version(options.target_version);
+    } else {
+      wasmOptions.target_version = options.target_version;
+    }
+
     return wasmOptions;
   }
 }
@@ -89,56 +128,54 @@ export async function transpileCode(
     optimize: boolean;
     emit_docs: boolean;
     target_version: string;
-  }
+  },
 ): Promise<TranspileResult> {
   try {
     const engine = await wasmManager.getEngine();
     const wasmOptions = await wasmManager.createOptions(options);
-    
-    performance.mark('transpile-start');
-    const result = engine.transpile_with_metrics(pythonCode, wasmOptions);
-    performance.mark('transpile-end');
-    
-    const transpileTime = performance.getEntriesByName('transpile-end')[0]?.startTime - 
-                         performance.getEntriesByName('transpile-start')[0]?.startTime || 0;
-    
-    // Parse the result (it comes as a complex object with WASM bindings)
-    const parsedResult = typeof result === 'string' ? JSON.parse(result) : result;
-    
+
+    performance.mark("transpile-start");
+    const result = engine.transpile(pythonCode, wasmOptions);
+    performance.mark("transpile-end");
+
+    const transpileTime = performance.getEntriesByName("transpile-end")[0]?.startTime -
+        performance.getEntriesByName("transpile-start")[0]?.startTime || 0;
+
+    // Result is a WasmTranspileResult object with direct properties
     return {
-      success: parsedResult.transpile_result.success,
-      rust_code: parsedResult.transpile_result.rust_code,
-      errors: parsedResult.transpile_result.errors || [],
-      warnings: parsedResult.transpile_result.warnings || [],
-      transpile_time_ms: transpileTime,
-      memory_usage_mb: parsedResult.transpile_result.memory_usage_mb || 0,
+      success: result.success,
+      rust_code: result.rust_code,
+      errors: Array.from(result.errors) || [],
+      warnings: Array.from(result.warnings) || [],
+      transpile_time_ms: result.transpile_time_ms || transpileTime,
+      memory_usage_mb: result.memory_usage_mb || 0,
       energy_estimate: {
-        joules: parsedResult.transpile_result.energy_estimate.joules,
-        wattsAverage: parsedResult.transpile_result.energy_estimate.watts_average,
-        co2Grams: parsedResult.transpile_result.energy_estimate.co2_grams,
+        joules: result.energy_estimate.joules,
+        wattsAverage: result.energy_estimate.watts_average,
+        co2Grams: result.energy_estimate.co2_grams,
         breakdown: {
-          cpu: parsedResult.transpile_result.energy_estimate.joules * 0.7, // Estimated
-          memory: parsedResult.transpile_result.energy_estimate.joules * 0.3,
+          cpu: result.energy_estimate.joules * 0.7, // Estimated breakdown
+          memory: result.energy_estimate.joules * 0.3,
         },
-        confidence: parsedResult.transpile_result.energy_estimate.confidence,
-        equivalentTo: getEnergyEquivalent(parsedResult.transpile_result.energy_estimate.joules),
+        confidence: result.energy_estimate.confidence,
+        equivalentTo: getEnergyEquivalent(result.energy_estimate.joules),
       },
       quality_metrics: {
-        pmat_score: parsedResult.pmat_score.tdg,
-        productivity: parsedResult.pmat_score.productivity,
-        maintainability: parsedResult.pmat_score.maintainability,
-        accessibility: parsedResult.pmat_score.accessibility,
-        testability: parsedResult.pmat_score.testability,
-        code_complexity: 0, // Would need to be calculated
-        cyclomatic_complexity: 0, // Would need to be calculated
+        pmat_score: result.quality_metrics.pmat_score,
+        productivity: result.quality_metrics.productivity,
+        maintainability: result.quality_metrics.maintainability,
+        accessibility: result.quality_metrics.accessibility,
+        testability: result.quality_metrics.testability,
+        code_complexity: result.quality_metrics.code_complexity,
+        cyclomatic_complexity: result.quality_metrics.cyclomatic_complexity,
       },
     };
   } catch (error) {
-    console.error('Transpilation failed:', error);
+    console.error("Transpilation failed:", error);
     return {
       success: false,
-      rust_code: '',
-      errors: [error instanceof Error ? error.message : 'Transpilation failed'],
+      rust_code: "",
+      errors: [error instanceof Error ? error.message : "Transpilation failed"],
       warnings: [],
       transpile_time_ms: 0,
       memory_usage_mb: 0,
@@ -148,7 +185,7 @@ export async function transpileCode(
         co2Grams: 0,
         breakdown: { cpu: 0, memory: 0 },
         confidence: 0,
-        equivalentTo: '',
+        equivalentTo: "",
       },
       quality_metrics: {
         pmat_score: 0,
@@ -172,13 +209,13 @@ function getEnergyEquivalent(joules: number): string {
     { threshold: 10.0, text: "running a laptop for 1 second" },
     { threshold: 100.0, text: "boiling a cup of water" },
   ];
-  
+
   for (const equiv of equivalents) {
     if (joules < equiv.threshold) {
       return equiv.text;
     }
   }
-  
+
   return "running a small appliance for 1 minute";
 }
 
@@ -186,9 +223,9 @@ export async function analyzeCode(pythonCode: string) {
   try {
     const engine = await wasmManager.getEngine();
     const result = engine.analyze_code(pythonCode);
-    return typeof result === 'string' ? JSON.parse(result) : result;
+    return typeof result === "string" ? JSON.parse(result) : result;
   } catch (error) {
-    console.error('Code analysis failed:', error);
+    console.error("Code analysis failed:", error);
     return null;
   }
 }
@@ -197,9 +234,9 @@ export async function benchmarkCode(pythonCode: string, iterations: number = 10)
   try {
     const engine = await wasmManager.getEngine();
     const result = engine.benchmark(pythonCode, iterations);
-    return typeof result === 'string' ? JSON.parse(result) : result;
+    return typeof result === "string" ? JSON.parse(result) : result;
   } catch (error) {
-    console.error('Benchmark failed:', error);
+    console.error("Benchmark failed:", error);
     return null;
   }
 }
@@ -208,8 +245,8 @@ export async function benchmarkCode(pythonCode: string, iterations: number = 10)
 export async function preloadWasm(): Promise<void> {
   try {
     await wasmManager.loadModule();
-    console.log('WASM module preloaded successfully');
+    console.log("WASM module preloaded successfully");
   } catch (error) {
-    console.warn('Failed to preload WASM module:', error);
+    console.warn("Failed to preload WASM module:", error);
   }
 }

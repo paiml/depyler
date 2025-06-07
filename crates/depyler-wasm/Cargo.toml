@@ -38,9 +38,7 @@ console_error_panic_hook = { version = "0.1.7", optional = true }
 default = ["console_error_panic_hook"]
 console_error_panic_hook = ["dep:console_error_panic_hook"]
 
-# Tell `rustc` to optimize for small code size.
-[profile.release]
-opt-level = "s"
+# Profile settings are in workspace root Cargo.toml
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

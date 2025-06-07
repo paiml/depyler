@@ -238,6 +238,7 @@ mod tests {
             body: vec![],
             properties,
             annotations: TranspilationAnnotations::default(),
+            docstring: None,
         }
     }
 

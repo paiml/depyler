@@ -91,7 +91,7 @@ impl TypeMapper {
 
     pub fn map_type(&self, py_type: &PythonType) -> RustType {
         match py_type {
-            PythonType::Unknown => RustType::Unsupported("unknown".to_string()),
+            PythonType::Unknown => RustType::Custom("serde_json::Value".to_string()), // Default to dynamic type for unknown
             PythonType::Int => RustType::Primitive(match self.width_preference {
                 IntWidth::I32 => PrimitiveType::I32,
                 IntWidth::I64 => PrimitiveType::I64,
@@ -443,10 +443,10 @@ mod tests {
         );
 
         let unknown_type = PythonType::Unknown;
-        if let RustType::Unsupported(desc) = mapper.map_type(&unknown_type) {
-            assert_eq!(desc, "unknown");
+        if let RustType::Custom(name) = mapper.map_type(&unknown_type) {
+            assert_eq!(name, "serde_json::Value");
         } else {
-            panic!("Expected unsupported type");
+            panic!("Expected custom type serde_json::Value for unknown type");
         }
     }
 

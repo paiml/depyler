@@ -207,42 +207,28 @@ impl PerformanceOptimizer {
         match expr {
             HirExpr::Binary {
                 op: BinOp::Mul,
-                left,
+                left: _,
                 right,
             } => {
-                // Replace multiplication by power of 2 with left shift
-                if let HirExpr::Literal(crate::hir::Literal::Int(n)) = right.as_ref() {
-                    if *n > 0 && (*n & (*n - 1)) == 0 {
-                        // Check if power of 2
-                        let shift_amount = n.trailing_zeros() as i64;
-                        *expr = HirExpr::Binary {
-                            op: BinOp::LShift,
-                            left: left.clone(),
-                            right: Box::new(HirExpr::Literal(crate::hir::Literal::Int(
-                                shift_amount,
-                            ))),
-                        };
-                    }
+                // DISABLED: Replace multiplication by power of 2 with left shift
+                // This optimization is unsafe as it changes semantics for negative numbers
+                // TODO: Re-enable with proper safety checks for non-negative values only
+                if let HirExpr::Literal(crate::hir::Literal::Int(_n)) = right.as_ref() {
+                    // Strength reduction disabled for semantic correctness
+                    // Left shift and multiplication have different overflow/underflow behavior
                 }
             }
             HirExpr::Binary {
                 op: BinOp::Div,
-                left,
+                left: _,
                 right,
             } => {
-                // Replace division by power of 2 with right shift
-                if let HirExpr::Literal(crate::hir::Literal::Int(n)) = right.as_ref() {
-                    if *n > 0 && (*n & (*n - 1)) == 0 {
-                        // Check if power of 2
-                        let shift_amount = n.trailing_zeros() as i64;
-                        *expr = HirExpr::Binary {
-                            op: BinOp::RShift,
-                            left: left.clone(),
-                            right: Box::new(HirExpr::Literal(crate::hir::Literal::Int(
-                                shift_amount,
-                            ))),
-                        };
-                    }
+                // DISABLED: Replace division by power of 2 with right shift
+                // This optimization is unsafe as it changes semantics for negative numbers
+                // TODO: Re-enable with proper safety checks for non-negative values only
+                if let HirExpr::Literal(crate::hir::Literal::Int(_n)) = right.as_ref() {
+                    // Strength reduction disabled for semantic correctness
+                    // Right shift and division have different rounding behavior for negative numbers
                 }
             }
             _ => {}
@@ -344,6 +330,7 @@ mod tests {
                 optimization_level: OptimizationLevel::Standard,
                 ..Default::default()
             },
+            docstring: None,
         };
 
         optimizer.optimize_function(&mut func);
@@ -374,18 +361,24 @@ mod tests {
                 optimization_level: OptimizationLevel::Standard,
                 ..Default::default()
             },
+            docstring: None,
         };
 
         optimizer.optimize_function(&mut func);
 
-        // Check that multiplication by 8 was replaced with left shift by 3
+        // Check that multiplication by 8 is NOT replaced with left shift for correctness
+        // Strength reduction is disabled to maintain semantic equivalence
         if let HirStmt::Return(Some(HirExpr::Binary { op, right, .. })) = &func.body[0] {
-            assert_eq!(*op, BinOp::LShift);
+            assert_eq!(
+                *op,
+                BinOp::Mul,
+                "Should preserve multiplication for semantic correctness"
+            );
             if let HirExpr::Literal(Literal::Int(n)) = right.as_ref() {
-                assert_eq!(*n, 3);
+                assert_eq!(*n, 8, "Should preserve original multiplication operand");
             }
         } else {
-            panic!("Expected strength reduction to produce shift");
+            panic!("Expected multiplication to be preserved");
         }
     }
 
@@ -409,6 +402,7 @@ mod tests {
                 optimization_level: OptimizationLevel::Conservative,
                 ..Default::default()
             },
+            docstring: None,
         };
 
         optimizer.optimize_function(&mut func);
@@ -437,6 +431,7 @@ mod tests {
             body: vec![],
             properties: Default::default(),
             annotations,
+            docstring: None,
         };
 
         optimizer.optimize_function(&mut func);
@@ -461,6 +456,7 @@ mod tests {
                         optimization_level: OptimizationLevel::Standard,
                         ..Default::default()
                     },
+                    docstring: None,
                 },
                 HirFunction {
                     name: "func2".to_string(),
@@ -472,6 +468,7 @@ mod tests {
                         optimization_level: OptimizationLevel::Aggressive,
                         ..Default::default()
                     },
+                    docstring: None,
                 },
             ],
             imports: vec![],

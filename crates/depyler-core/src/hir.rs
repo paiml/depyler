@@ -39,6 +39,7 @@ pub struct HirFunction {
     pub body: Vec<HirStmt>,
     pub properties: FunctionProperties,
     pub annotations: TranspilationAnnotations,
+    pub docstring: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]

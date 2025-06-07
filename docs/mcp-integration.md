@@ -2,7 +2,9 @@
 
 [![Model Context Protocol](https://img.shields.io/badge/MCP-Compatible-brightgreen?style=for-the-badge&logo=ai)](https://modelcontextprotocol.io/)
 
-Depyler provides full integration with the **Model Context Protocol (MCP)** v2024.11, enabling AI assistants to perform Python-to-Rust transpilation with formal verification capabilities.
+Depyler provides full integration with the **Model Context Protocol (MCP)**
+v2024.11, enabling AI assistants to perform Python-to-Rust transpilation with
+formal verification capabilities.
 
 ## Overview
 
@@ -51,13 +53,14 @@ Add Depyler to your MCP client configuration:
 Converts Python code to verified Rust with optimization options.
 
 #### Input Schema
+
 ```json
 {
   "source": "def add(a: int, b: int) -> int:\n    return a + b",
   "mode": "inline",
   "options": {
     "optimization_level": "energy",
-    "type_inference": "conservative", 
+    "type_inference": "conservative",
     "memory_safety": "strict",
     "verification_level": "basic"
   }
@@ -66,16 +69,17 @@ Converts Python code to verified Rust with optimization options.
 
 #### Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `source` | string | required | Python source code to transpile |
-| `mode` | enum | `"inline"` | Transpilation mode: `inline`, `file`, `project` |
-| `options.optimization_level` | enum | `"balanced"` | `speed`, `size`, `energy`, `balanced` |
-| `options.type_inference` | enum | `"conservative"` | `conservative`, `aggressive`, `minimal` |
-| `options.memory_safety` | enum | `"strict"` | `strict`, `permissive` |
-| `options.verification_level` | enum | `"basic"` | `none`, `basic`, `comprehensive` |
+| Parameter                    | Type   | Default          | Description                                     |
+| ---------------------------- | ------ | ---------------- | ----------------------------------------------- |
+| `source`                     | string | required         | Python source code to transpile                 |
+| `mode`                       | enum   | `"inline"`       | Transpilation mode: `inline`, `file`, `project` |
+| `options.optimization_level` | enum   | `"balanced"`     | `speed`, `size`, `energy`, `balanced`           |
+| `options.type_inference`     | enum   | `"conservative"` | `conservative`, `aggressive`, `minimal`         |
+| `options.memory_safety`      | enum   | `"strict"`       | `strict`, `permissive`                          |
+| `options.verification_level` | enum   | `"basic"`        | `none`, `basic`, `comprehensive`                |
 
 #### Output Schema
+
 ```json
 {
   "rust_code": "pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}",
@@ -100,6 +104,7 @@ Converts Python code to verified Rust with optimization options.
 Analyzes an entire Python codebase to estimate migration effort and complexity.
 
 #### Input Schema
+
 ```json
 {
   "project_path": "/path/to/python/project",
@@ -114,15 +119,16 @@ Analyzes an entire Python codebase to estimate migration effort and complexity.
 
 #### Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `project_path` | string | required | Path to Python project directory |
-| `analysis_depth` | enum | `"standard"` | `quick`, `standard`, `deep` |
-| `options.include_patterns` | array | `["*.py"]` | File patterns to include |
-| `options.exclude_patterns` | array | `[]` | File patterns to exclude |
-| `options.consider_dependencies` | boolean | `true` | Analyze external dependencies |
+| Parameter                       | Type    | Default      | Description                      |
+| ------------------------------- | ------- | ------------ | -------------------------------- |
+| `project_path`                  | string  | required     | Path to Python project directory |
+| `analysis_depth`                | enum    | `"standard"` | `quick`, `standard`, `deep`      |
+| `options.include_patterns`      | array   | `["*.py"]`   | File patterns to include         |
+| `options.exclude_patterns`      | array   | `[]`         | File patterns to exclude         |
+| `options.consider_dependencies` | boolean | `true`       | Analyze external dependencies    |
 
 #### Output Schema
+
 ```json
 {
   "complexity_score": 7.2,
@@ -163,9 +169,11 @@ Analyzes an entire Python codebase to estimate migration effort and complexity.
 
 ### 3. verify_transpilation
 
-Verifies that transpiled Rust code is semantically equivalent to the original Python.
+Verifies that transpiled Rust code is semantically equivalent to the original
+Python.
 
 #### Input Schema
+
 ```json
 {
   "python_source": "def factorial(n):\n    return 1 if n <= 1 else n * factorial(n-1)",
@@ -174,7 +182,7 @@ Verifies that transpiled Rust code is semantically equivalent to the original Py
   "options": {
     "property_checks": ["termination", "memory_safety", "overflow"],
     "test_cases": [
-      {"input": [5], "expected_output": 120}
+      { "input": [5], "expected_output": 120 }
     ]
   }
 }
@@ -182,22 +190,23 @@ Verifies that transpiled Rust code is semantically equivalent to the original Py
 
 #### Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `python_source` | string | required | Original Python source code |
-| `rust_source` | string | required | Transpiled Rust source code |
-| `verification_level` | enum | `"basic"` | `basic`, `standard`, `comprehensive` |
-| `options.property_checks` | array | `["basic"]` | Properties to verify |
-| `options.test_cases` | array | `[]` | Custom test cases for validation |
+| Parameter                 | Type   | Default     | Description                          |
+| ------------------------- | ------ | ----------- | ------------------------------------ |
+| `python_source`           | string | required    | Original Python source code          |
+| `rust_source`             | string | required    | Transpiled Rust source code          |
+| `verification_level`      | enum   | `"basic"`   | `basic`, `standard`, `comprehensive` |
+| `options.property_checks` | array  | `["basic"]` | Properties to verify                 |
+| `options.test_cases`      | array  | `[]`        | Custom test cases for validation     |
 
 #### Output Schema
+
 ```json
 {
   "verification_passed": true,
   "semantic_equivalence_score": 0.98,
   "safety_guarantees": [
     "memory_safe",
-    "panic_free", 
+    "panic_free",
     "no_undefined_behavior",
     "terminates"
   ],
@@ -286,10 +295,12 @@ The MCP server returns structured error responses:
 
 For large projects, use these optimization strategies:
 
-1. **Incremental Analysis**: Use `analysis_depth: "quick"` for initial assessment
+1. **Incremental Analysis**: Use `analysis_depth: "quick"` for initial
+   assessment
 2. **Caching**: The MCP server caches analysis results between calls
 3. **Parallel Processing**: Transpile independent modules simultaneously
-4. **Verification Levels**: Use `basic` verification during development, `comprehensive` for production
+4. **Verification Levels**: Use `basic` verification during development,
+   `comprehensive` for production
 
 ## Integration Examples
 
@@ -324,22 +335,22 @@ For large projects, use these optimization strategies:
 ### Custom AI Assistant Integration
 
 ```typescript
-import { MCPClient } from '@modelcontextprotocol/sdk';
+import { MCPClient } from "@modelcontextprotocol/sdk";
 
 const client = new MCPClient();
-await client.connect('stdio', {
-  command: './target/release/depyler',
-  args: ['mcp-server']
+await client.connect("stdio", {
+  command: "./target/release/depyler",
+  args: ["mcp-server"],
 });
 
 // Transpile Python function
-const result = await client.callTool('transpile_python', {
+const result = await client.callTool("transpile_python", {
   source: 'def greet(name: str) -> str:\n    return f"Hello, {name}!"',
-  mode: 'inline',
+  mode: "inline",
   options: {
-    optimization_level: 'energy',
-    verification_level: 'comprehensive'
-  }
+    optimization_level: "energy",
+    verification_level: "comprehensive",
+  },
 });
 ```
 
@@ -395,4 +406,5 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for detailed guidelines.
 
 ## License
 
-Depyler MCP integration is licensed under the same terms as Depyler. See [LICENSE](../LICENSE) for details.
+Depyler MCP integration is licensed under the same terms as Depyler. See
+[LICENSE](../LICENSE) for details.
