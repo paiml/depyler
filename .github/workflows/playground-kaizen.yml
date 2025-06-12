@@ -40,7 +40,7 @@ jobs:
           sudo cp binaryen-version_116/bin/wasm-opt /usr/local/bin/
       
       - name: Cache Cargo dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -97,7 +97,7 @@ jobs:
           fi
       
       - name: Upload WASM Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wasm-bundle
           path: playground/public/wasm/
@@ -115,13 +115,13 @@ jobs:
           deno-version: v1.x
       
       - name: Download WASM Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: wasm-bundle
           path: playground/public/wasm/
       
       - name: Cache Deno dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/deno
           key: ${{ runner.os }}-deno-${{ hashFiles('playground/deno.lock') }}
@@ -169,7 +169,7 @@ jobs:
           fi
       
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: frontend-build
           path: playground/dist/
@@ -187,13 +187,13 @@ jobs:
           deno-version: v1.x
       
       - name: Download Build Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: frontend-build
           path: playground/dist/
       
       - name: Download WASM Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: wasm-bundle
           path: playground/public/wasm/
@@ -237,7 +237,7 @@ jobs:
           fi
       
       - name: Upload Benchmark Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
           path: playground/benchmarks.json
@@ -250,7 +250,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Download Build Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: frontend-build
           path: playground/dist/
@@ -317,7 +317,7 @@ jobs:
           output: 'trivy-results.sarif'
       
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
