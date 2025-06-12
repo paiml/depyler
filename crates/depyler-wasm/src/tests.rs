@@ -9,7 +9,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 fn test_depyler_wasm_initialization() {
     let engine = DepylerWasm::new();
     // Engine initializes successfully
-    drop(engine);
+    let _ = engine; // Suppress unused variable warning
 }
 
 #[wasm_bindgen_test]
