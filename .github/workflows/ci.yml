@@ -50,6 +50,7 @@ jobs:
       run: cargo fmt --all -- --check
     
     - name: Run clippy
+      shell: bash
       run: |
         if [ "${{ runner.os }}" = "Linux" ]; then
           export RUSTFLAGS="-C linker=gcc"
@@ -57,6 +58,7 @@ jobs:
         cargo clippy --all-targets --all-features -- -D warnings
     
     - name: Run tests
+      shell: bash
       run: |
         if [ "${{ runner.os }}" = "Linux" ]; then
           export RUSTFLAGS="-C linker=gcc"
@@ -64,6 +66,7 @@ jobs:
         cargo test --workspace --all-features
     
     - name: Build all targets
+      shell: bash
       run: |
         if [ "${{ runner.os }}" = "Linux" ]; then
           export RUSTFLAGS="-C linker=gcc"
@@ -153,6 +156,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     
     - name: Build release
+      shell: bash
       run: |
         if [ "${{ runner.os }}" = "Linux" ]; then
           export RUSTFLAGS="-C linker=gcc"
