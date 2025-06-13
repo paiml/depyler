@@ -10,7 +10,7 @@ qualityMonitor.recordWasmLoadStart();
 
 // Initialize telemetry
 telemetry.recordUserInteraction("page_load", {
-  url: window.location.href,
+  url: globalThis.location.href,
   referrer: document.referrer,
   timestamp: Date.now(),
 });

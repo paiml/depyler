@@ -162,9 +162,9 @@ Deno.test("Tokenizer functionality", () => {
 Deno.test("Completion provider logic", () => {
   const completionProvider = {
     triggerCharacters: ["@", ":"],
-    provideCompletionItems: (model: any, position: any) => {
+    provideCompletionItems: (_model: any, _position: any) => {
       const line = "# @depyler:";
-      const wordInfo = { word: "depyler", startColumn: 3, endColumn: 10 };
+      // const wordInfo = { word: "depyler", startColumn: 3, endColumn: 10 };
 
       if (line.includes("@depyler:") || line.includes("@depyler")) {
         return {
@@ -208,7 +208,7 @@ Deno.test("Completion provider logic", () => {
 
 Deno.test("Hover provider logic", () => {
   const hoverProvider = {
-    provideHover: (model: any, position: any) => {
+    provideHover: (_model: any, _position: any) => {
       const word = { word: "optimize_energy", startColumn: 1, endColumn: 15 };
 
       const hoverMap: Record<string, string> = {

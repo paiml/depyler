@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { ExecutionResult, PlaygroundState, TranspileResult } from "@/types";
+import { PlaygroundState } from "@/types";
 
 interface PlaygroundActions {
   setPythonCode: (code: string) => void;

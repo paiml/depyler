@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { usePlaygroundStore } from "@/store";
 import { EnergyGauge } from "./visualizations/EnergyGauge";
 import { PerformanceChart } from "./visualizations/PerformanceChart";
@@ -8,7 +8,7 @@ type TabType = "output" | "performance" | "energy" | "deep-dive";
 
 export function InsightDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>("output");
-  const { executionResult, transpileResult, pythonCode, rustCode } = usePlaygroundStore();
+  const { executionResult, transpileResult } = usePlaygroundStore();
 
   const tabs = [
     { id: "output" as TabType, label: "Output", icon: "📄" },
@@ -68,6 +68,7 @@ export function InsightDashboard() {
         <nav className="flex space-x-8 px-6" aria-label="Tabs">
           {tabs.map((tab) => (
             <button
+              type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`

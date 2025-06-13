@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { CodeEditor } from "./CodeEditor";
 import { usePlaygroundStore } from "@/store";
 
@@ -140,6 +140,7 @@ export function TabbedEditor() {
 
           return (
             <button
+              type="button"
               key={tab.id}
               role="tab"
               aria-selected={isActive}

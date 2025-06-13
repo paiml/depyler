@@ -265,7 +265,7 @@ describe("CodeEditor Monaco Configuration", () => {
         language="python"
         value="# test code"
         onChange={() => {}}
-        readOnly={true}
+        readOnly
       />
     );
 
