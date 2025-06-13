@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { usePlaygroundStore } from "@/store";
 import { EnergyGauge } from "./visualizations/EnergyGauge";
 import { PerformanceChart } from "./visualizations/PerformanceChart";
@@ -18,7 +18,7 @@ export function InsightDashboard() {
   ];
 
   // Calculate energy data for visualization
-  const energyData = React.useMemo(() => {
+  const energyData = useMemo(() => {
     if (!executionResult || !transpileResult) {
       return {
         python: createEmptyEnergyEstimate(),
@@ -54,7 +54,7 @@ export function InsightDashboard() {
     return { python: pythonEnergy, rust: rustEnergy };
   }, [executionResult, transpileResult]);
 
-  const energySavings = React.useMemo(() => {
+  const energySavings = useMemo(() => {
     if (energyData.python.joules === 0) return 0;
     return Math.max(
       0,
