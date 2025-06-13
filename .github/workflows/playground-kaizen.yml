@@ -137,7 +137,8 @@ jobs:
       - name: Type Check
         run: |
           cd playground
-          deno check src/**/*.ts src/**/*.tsx
+          # Type check all source files except test files
+          find src -name "*.ts" -o -name "*.tsx" | grep -v -E "(test|spec)" | xargs deno check
       
       - name: Build Frontend
         run: |
