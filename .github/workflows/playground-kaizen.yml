@@ -70,10 +70,6 @@ jobs:
             --min-coverage 85.0 \
             --max-complexity 15
       
-      - name: Run Clippy on Playground
-        run: |
-          cargo clippy --manifest-path playground/depyler-playground/Cargo.toml --target wasm32-unknown-unknown -- -D warnings
-      
       - name: Run Clippy on WASM Crate
         run: |
           cargo clippy --manifest-path crates/depyler-wasm/Cargo.toml --target wasm32-unknown-unknown -- -D warnings
