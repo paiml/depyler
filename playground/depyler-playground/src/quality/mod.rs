@@ -67,12 +67,12 @@ impl PmatConfiguration {
     /// Load from embedded configuration with validation
     pub fn load() -> Result<Self, ConfigError> {
         const CONFIG_TOML: &str = include_str!("../config/pmat.toml");
-        let config: Self = toml::from_str(CONFIG_TOML)
-            .map_err(|e| ConfigError::ParseError(e.to_string()))?;
+        let config: Self =
+            toml::from_str(CONFIG_TOML).map_err(|e| ConfigError::ParseError(e.to_string()))?;
         config.validate()?;
         Ok(config)
     }
-    
+
     /// Create default configuration for playground
     pub fn default_playground() -> Self {
         Self {
@@ -97,20 +97,28 @@ impl PmatConfiguration {
             },
         }
     }
-    
+
     /// Validate configuration against invariants
     fn validate(&self) -> Result<(), ConfigError> {
         if self.targets.ttfmp_p50_ms <= 0.0 {
-            return Err(ConfigError::InvalidTarget("ttfmp_p50_ms must be positive".to_string()));
+            return Err(ConfigError::InvalidTarget(
+                "ttfmp_p50_ms must be positive".to_string(),
+            ));
         }
         if self.targets.tti_p90_ms <= self.targets.ttfmp_p50_ms {
-            return Err(ConfigError::InvalidRange("tti_p90_ms must be greater than ttfmp_p50_ms".to_string()));
+            return Err(ConfigError::InvalidRange(
+                "tti_p90_ms must be greater than ttfmp_p50_ms".to_string(),
+            ));
         }
         if self.targets.wasm_size_budget_kb <= 0.0 {
-            return Err(ConfigError::InvalidTarget("wasm_size_budget_kb must be positive".to_string()));
+            return Err(ConfigError::InvalidTarget(
+                "wasm_size_budget_kb must be positive".to_string(),
+            ));
         }
         if self.scoring.sigmoid_steepness <= 0.0 {
-            return Err(ConfigError::InvalidTarget("sigmoid_steepness must be positive".to_string()));
+            return Err(ConfigError::InvalidTarget(
+                "sigmoid_steepness must be positive".to_string(),
+            ));
         }
         Ok(())
     }
@@ -198,7 +206,7 @@ impl PlaygroundMetrics {
         let maintainability = self.calculate_maintainability();
         let accessibility = self.calculate_accessibility(&config.targets);
         let testability = self.calculate_testability();
-        
+
         PmatScore {
             productivity,
             maintainability,
@@ -208,7 +216,7 @@ impl PlaygroundMetrics {
             timestamp: SystemTime::now(),
         }
     }
-    
+
     fn calculate_productivity(&self, targets: &QualityTargets, scoring: &ScoringFunctions) -> f64 {
         // Non-linear scoring based on empirical distribution
         let load_score = scoring.exponential_decay(
@@ -216,7 +224,7 @@ impl PlaygroundMetrics {
             targets.tti_p90_ms,
             0.5, // decay rate
         );
-        
+
         let transpile_score = match self.transpilation.complexity_bucket {
             ComplexityBucket::Simple => scoring.sigmoid(
                 self.transpilation.latency_p95_ms,
@@ -231,19 +239,19 @@ impl PlaygroundMetrics {
                 targets.transpile_targets.complex_p95_ms,
             ),
         };
-        
+
         // Weighted combination based on user impact
         0.3 * load_score + 0.7 * transpile_score
     }
-    
+
     fn calculate_maintainability(&self) -> f64 {
         // Based on cache hit rate and error rate
         let cache_score = self.transpilation.cache_hit_rate;
         let error_score = 1.0 - self.transpilation.error_rate.min(1.0);
-        
+
         (cache_score + error_score) / 2.0
     }
-    
+
     fn calculate_accessibility(&self, targets: &QualityTargets) -> f64 {
         // Based on load time and WASM size
         let load_accessibility = if self.page_load.ttfmp_ms <= targets.ttfmp_p50_ms {
@@ -251,16 +259,16 @@ impl PlaygroundMetrics {
         } else {
             targets.ttfmp_p50_ms / self.page_load.ttfmp_ms
         };
-        
+
         let size_accessibility = if self.page_load.wasm_size_kb <= targets.wasm_size_budget_kb {
             1.0
         } else {
             targets.wasm_size_budget_kb / self.page_load.wasm_size_kb
         };
-        
+
         (load_accessibility + size_accessibility) / 2.0
     }
-    
+
     fn calculate_testability(&self) -> f64 {
         // Based on energy efficiency and execution performance
         let energy_score = self.execution.energy_savings_percent / 100.0;
@@ -269,14 +277,14 @@ impl PlaygroundMetrics {
         } else {
             1.0
         };
-        
+
         // Better testability when Rust is faster and more energy efficient
         let speed_score = if performance_ratio < 1.0 {
             1.0 - performance_ratio
         } else {
             0.5
         };
-        
+
         (energy_score + speed_score) / 2.0
     }
 }
@@ -294,7 +302,7 @@ impl ScoringFunctions {
         let x = (target - actual) / target;
         1.0 / (1.0 + (-self.sigmoid_steepness * x).exp())
     }
-    
+
     /// Exponential decay for time-based metrics
     pub fn exponential_decay(&self, actual: f64, target: f64, rate: f64) -> f64 {
         if actual <= target {
@@ -320,43 +328,45 @@ impl QualityMonitor {
             events: Vec::new(),
         }
     }
-    
+
     pub fn record_metrics(&mut self, metrics: &PlaygroundMetrics) -> PmatScore {
         let score = metrics.calculate_pmat(&self.config);
-        
+
         // Check for quality events
         if let Some(event) = self.detect_quality_event(&score) {
             self.events.push(event);
         }
-        
+
         self.history.push(score.clone());
-        
+
         // Keep only recent history for trend analysis
         if self.history.len() > self.config.kaizen_thresholds.trend_sample_size * 2 {
             self.history.remove(0);
         }
-        
+
         score
     }
-    
+
     fn detect_quality_event(&self, current_score: &PmatScore) -> Option<QualityEvent> {
         if self.history.is_empty() {
             return None;
         }
-        
-        let recent_scores: Vec<_> = self.history
+
+        let recent_scores: Vec<_> = self
+            .history
             .iter()
             .rev()
             .take(self.config.kaizen_thresholds.trend_sample_size)
             .collect();
-        
+
         if recent_scores.len() < 2 {
             return None;
         }
-        
-        let avg_recent = recent_scores.iter().map(|s| s.tdg).sum::<f64>() / recent_scores.len() as f64;
+
+        let avg_recent =
+            recent_scores.iter().map(|s| s.tdg).sum::<f64>() / recent_scores.len() as f64;
         let change_percent = ((current_score.tdg - avg_recent) / avg_recent * 100.0).abs();
-        
+
         if change_percent >= self.config.kaizen_thresholds.min_improvement_percent {
             if current_score.tdg > avg_recent {
                 Some(QualityEvent {
@@ -381,7 +391,7 @@ impl QualityMonitor {
             None
         }
     }
-    
+
     pub fn get_recent_events(&self, duration: Duration) -> Vec<&QualityEvent> {
         let cutoff = SystemTime::now() - duration;
         self.events
@@ -389,36 +399,38 @@ impl QualityMonitor {
             .filter(|e| e.timestamp >= cutoff)
             .collect()
     }
-    
+
     pub fn get_trend_analysis(&self) -> TrendAnalysis {
         if self.history.len() < self.config.kaizen_thresholds.trend_sample_size {
             return TrendAnalysis::InsufficientData;
         }
-        
-        let recent_scores: Vec<f64> = self.history
+
+        let recent_scores: Vec<f64> = self
+            .history
             .iter()
             .rev()
             .take(self.config.kaizen_thresholds.trend_sample_size)
             .map(|s| s.tdg)
             .collect();
-        
-        let older_scores: Vec<f64> = self.history
+
+        let older_scores: Vec<f64> = self
+            .history
             .iter()
             .rev()
             .skip(self.config.kaizen_thresholds.trend_sample_size)
             .take(self.config.kaizen_thresholds.trend_sample_size)
             .map(|s| s.tdg)
             .collect();
-        
+
         if older_scores.is_empty() {
             return TrendAnalysis::InsufficientData;
         }
-        
+
         let recent_avg = recent_scores.iter().sum::<f64>() / recent_scores.len() as f64;
         let older_avg = older_scores.iter().sum::<f64>() / older_scores.len() as f64;
-        
+
         let change_percent = (recent_avg - older_avg) / older_avg * 100.0;
-        
+
         if change_percent.abs() < self.config.kaizen_thresholds.min_improvement_percent {
             TrendAnalysis::Stable { change_percent }
         } else if change_percent > 0.0 {
@@ -440,7 +452,7 @@ pub enum TrendAnalysis {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_pmat_configuration_default() {
         let config = PmatConfiguration::default_playground();
@@ -448,30 +460,30 @@ mod tests {
         assert!(config.targets.ttfmp_p50_ms > 0.0);
         assert!(config.targets.tti_p90_ms > config.targets.ttfmp_p50_ms);
     }
-    
+
     #[test]
     fn test_scoring_functions() {
         let scoring = ScoringFunctions {
             sigmoid_steepness: 3.0,
             exponential_decay_rate: 0.5,
         };
-        
+
         // Test sigmoid - should be 1.0 when actual <= target
         assert!(scoring.sigmoid(50.0, 100.0) > 0.5);
         assert!(scoring.sigmoid(100.0, 100.0) >= 0.5);
         assert!(scoring.sigmoid(150.0, 100.0) < 0.5);
-        
+
         // Test exponential decay - should be 1.0 when actual <= target
         assert_eq!(scoring.exponential_decay(50.0, 100.0, 0.5), 1.0);
         assert_eq!(scoring.exponential_decay(100.0, 100.0, 0.5), 1.0);
         assert!(scoring.exponential_decay(150.0, 100.0, 0.5) < 1.0);
     }
-    
+
     #[test]
     fn test_quality_monitor() {
         let config = PmatConfiguration::default_playground();
         let mut monitor = QualityMonitor::new(config);
-        
+
         let metrics = PlaygroundMetrics {
             page_load: PageLoadMetrics {
                 ttfmp_ms: 500.0,
@@ -493,7 +505,7 @@ mod tests {
             },
             quality_events: vec![],
         };
-        
+
         let score = monitor.record_metrics(&metrics);
         assert!(score.tdg > 0.0);
         assert!(score.tdg <= 1.0);
@@ -502,37 +514,40 @@ mod tests {
         assert!(score.accessibility > 0.0);
         assert!(score.testability > 0.0);
     }
-    
+
     #[test]
     fn test_configuration_validation() {
         let mut config = PmatConfiguration::default_playground();
         assert!(config.validate().is_ok());
-        
+
         // Test invalid configurations
         config.targets.ttfmp_p50_ms = 0.0;
         assert!(config.validate().is_err());
-        
+
         config.targets.ttfmp_p50_ms = 100.0;
         config.targets.tti_p90_ms = 50.0; // Less than ttfmp
         assert!(config.validate().is_err());
-        
+
         config.targets.tti_p90_ms = 200.0;
         config.targets.wasm_size_budget_kb = 0.0;
         assert!(config.validate().is_err());
-        
+
         config.targets.wasm_size_budget_kb = 1000.0;
         config.scoring.sigmoid_steepness = 0.0;
         assert!(config.validate().is_err());
     }
-    
+
     #[test]
     fn test_trend_analysis() {
         let config = PmatConfiguration::default_playground();
         let mut monitor = QualityMonitor::new(config.clone());
-        
+
         // Test insufficient data case
-        assert!(matches!(monitor.get_trend_analysis(), TrendAnalysis::InsufficientData));
-        
+        assert!(matches!(
+            monitor.get_trend_analysis(),
+            TrendAnalysis::InsufficientData
+        ));
+
         // Add enough data for trend analysis
         let base_metrics = PlaygroundMetrics {
             page_load: PageLoadMetrics {
@@ -555,19 +570,19 @@ mod tests {
             },
             quality_events: vec![],
         };
-        
+
         // Add older scores
         for _ in 0..config.kaizen_thresholds.trend_sample_size {
             monitor.record_metrics(&base_metrics);
         }
-        
+
         // Add recent scores with improvement
         let mut improved_metrics = base_metrics.clone();
         improved_metrics.transpilation.latency_p95_ms = 20.0; // Better latency
         for _ in 0..config.kaizen_thresholds.trend_sample_size {
             monitor.record_metrics(&improved_metrics);
         }
-        
+
         // Should detect improvement
         let trend = monitor.get_trend_analysis();
         match trend {
@@ -577,14 +592,14 @@ mod tests {
             _ => panic!("Expected improving trend"),
         }
     }
-    
+
     #[test]
     fn test_quality_events() {
         let mut config = PmatConfiguration::default_playground();
         config.kaizen_thresholds.min_improvement_percent = 5.0;
         config.kaizen_thresholds.max_regression_percent = 10.0;
         let mut monitor = QualityMonitor::new(config);
-        
+
         let base_metrics = PlaygroundMetrics {
             page_load: PageLoadMetrics {
                 ttfmp_ms: 500.0,
@@ -606,27 +621,30 @@ mod tests {
             },
             quality_events: vec![],
         };
-        
+
         // Build baseline
         for _ in 0..5 {
             monitor.record_metrics(&base_metrics);
         }
-        
+
         // Trigger improvement event
         let mut improved = base_metrics.clone();
         improved.transpilation.latency_p95_ms = 25.0; // 50% improvement
         monitor.record_metrics(&improved);
-        
+
         let events = monitor.get_recent_events(std::time::Duration::from_secs(60));
         assert!(!events.is_empty());
-        assert!(matches!(events[0].event_type, QualityEventType::PerformanceImprovement));
+        assert!(matches!(
+            events[0].event_type,
+            QualityEventType::PerformanceImprovement
+        ));
     }
-    
+
     #[test]
     fn test_complexity_bucket_calculations() {
         let config = PmatConfiguration::default_playground();
         let scoring = &config.scoring;
-        
+
         let metrics_simple = PlaygroundMetrics {
             page_load: PageLoadMetrics {
                 ttfmp_ms: 500.0,
@@ -648,17 +666,17 @@ mod tests {
             },
             quality_events: vec![],
         };
-        
+
         let score_simple = metrics_simple.calculate_productivity(&config.targets, scoring);
         assert!(score_simple > 0.0 && score_simple <= 1.0);
-        
+
         // Test medium complexity
         let mut metrics_medium = metrics_simple.clone();
         metrics_medium.transpilation.complexity_bucket = ComplexityBucket::Medium;
         metrics_medium.transpilation.latency_p95_ms = 150.0;
         let score_medium = metrics_medium.calculate_productivity(&config.targets, scoring);
         assert!(score_medium > 0.0 && score_medium <= 1.0);
-        
+
         // Test complex
         let mut metrics_complex = metrics_simple.clone();
         metrics_complex.transpilation.complexity_bucket = ComplexityBucket::Complex;
@@ -666,11 +684,11 @@ mod tests {
         let score_complex = metrics_complex.calculate_productivity(&config.targets, scoring);
         assert!(score_complex > 0.0 && score_complex <= 1.0);
     }
-    
+
     #[test]
     fn test_edge_cases() {
         let config = PmatConfiguration::default_playground();
-        
+
         // Test with zero python execution time
         let metrics = PlaygroundMetrics {
             page_load: PageLoadMetrics {
@@ -683,7 +701,7 @@ mod tests {
                 latency_p95_ms: 30.0,
                 complexity_bucket: ComplexityBucket::Simple,
                 cache_hit_rate: 0.0, // No cache hits
-                error_rate: 1.0, // 100% error rate
+                error_rate: 1.0,     // 100% error rate
             },
             execution: ExecutionMetrics {
                 rust_execution_ms: 10.0,
@@ -693,32 +711,32 @@ mod tests {
             },
             quality_events: vec![],
         };
-        
+
         let score = metrics.calculate_pmat(&config);
         assert!(score.tdg >= 0.0);
         assert!(score.tdg <= 1.0);
         assert!(score.maintainability == 0.0); // Due to 100% error rate
     }
-    
+
     #[test]
     fn test_config_error_display() {
         let error = ConfigError::InvalidTarget("Test error".to_string());
         assert_eq!(format!("{}", error), "Invalid target: Test error");
-        
+
         let error = ConfigError::InvalidRange("Range error".to_string());
         assert_eq!(format!("{}", error), "Invalid range: Range error");
-        
+
         let error = ConfigError::ParseError("Parse error".to_string());
         assert_eq!(format!("{}", error), "Parse error: Parse error");
     }
-    
+
     #[test]
     fn test_regression_detection() {
         let mut config = PmatConfiguration::default_playground();
         config.kaizen_thresholds.min_improvement_percent = 5.0;
         config.kaizen_thresholds.max_regression_percent = 10.0;
         let mut monitor = QualityMonitor::new(config);
-        
+
         let good_metrics = PlaygroundMetrics {
             page_load: PageLoadMetrics {
                 ttfmp_ms: 500.0,
@@ -740,29 +758,32 @@ mod tests {
             },
             quality_events: vec![],
         };
-        
+
         // Build baseline with good metrics
         for _ in 0..5 {
             monitor.record_metrics(&good_metrics);
         }
-        
+
         // Trigger regression event (worse performance)
         let mut bad_metrics = good_metrics.clone();
         bad_metrics.transpilation.latency_p95_ms = 100.0; // Much worse
         bad_metrics.transpilation.error_rate = 0.5; // 50% errors
         monitor.record_metrics(&bad_metrics);
-        
+
         let events = monitor.get_recent_events(std::time::Duration::from_secs(60));
         assert!(!events.is_empty());
-        assert!(matches!(events[0].event_type, QualityEventType::PerformanceRegression));
+        assert!(matches!(
+            events[0].event_type,
+            QualityEventType::PerformanceRegression
+        ));
         assert!(matches!(events[0].severity, QualityEventSeverity::Warning));
     }
-    
+
     #[test]
     fn test_trend_stable() {
         let config = PmatConfiguration::default_playground();
         let mut monitor = QualityMonitor::new(config.clone());
-        
+
         let metrics = PlaygroundMetrics {
             page_load: PageLoadMetrics {
                 ttfmp_ms: 500.0,
@@ -784,12 +805,12 @@ mod tests {
             },
             quality_events: vec![],
         };
-        
+
         // Add enough consistent data for stable trend
         for _ in 0..(config.kaizen_thresholds.trend_sample_size * 2) {
             monitor.record_metrics(&metrics);
         }
-        
+
         let trend = monitor.get_trend_analysis();
         match trend {
             TrendAnalysis::Stable { change_percent } => {
@@ -798,12 +819,12 @@ mod tests {
             _ => panic!("Expected stable trend"),
         }
     }
-    
+
     #[test]
     fn test_declining_trend() {
         let config = PmatConfiguration::default_playground();
         let mut monitor = QualityMonitor::new(config.clone());
-        
+
         let good_metrics = PlaygroundMetrics {
             page_load: PageLoadMetrics {
                 ttfmp_ms: 500.0,
@@ -825,12 +846,12 @@ mod tests {
             },
             quality_events: vec![],
         };
-        
+
         // Add good metrics first
         for _ in 0..config.kaizen_thresholds.trend_sample_size {
             monitor.record_metrics(&good_metrics);
         }
-        
+
         // Add worse metrics
         let mut worse_metrics = good_metrics.clone();
         worse_metrics.transpilation.latency_p95_ms = 60.0; // Worse latency
@@ -838,7 +859,7 @@ mod tests {
         for _ in 0..config.kaizen_thresholds.trend_sample_size {
             monitor.record_metrics(&worse_metrics);
         }
-        
+
         let trend = monitor.get_trend_analysis();
         match trend {
             TrendAnalysis::Declining { change_percent } => {
