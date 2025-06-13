@@ -44,15 +44,6 @@ optional = true
 [features]
 default = ["console_error_panic_hook"]
 
-[profile.wasm-production]
-inherits = "release"
-opt-level = "z"          # Size optimization
-lto = "fat"              # Cross-crate inlining
-codegen-units = 1        # Single compilation unit
-strip = true             # Remove debug symbols
-panic = "abort"          # No unwinding
-incremental = false      # Deterministic builds
-
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 
