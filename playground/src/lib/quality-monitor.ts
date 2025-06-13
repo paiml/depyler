@@ -59,7 +59,7 @@ export class QualityMonitor {
           for (const entry of list.getEntries()) {
             if (entry.entryType === "navigation") {
               const navEntry = entry as PerformanceNavigationTiming;
-              this.metrics.tti = navEntry.loadEventEnd - (navEntry.navigationStart || 0);
+              this.metrics.tti = navEntry.loadEventEnd - navEntry.startTime;
               this.checkQualityGate("tti", this.metrics.tti);
             }
           }
