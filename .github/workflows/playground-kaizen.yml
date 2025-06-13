@@ -85,7 +85,7 @@ jobs:
       - name: Measure WASM Size
         run: |
           cd playground/public/wasm
-          wasm-opt -Oz -o optimized.wasm depyler_wasm_bg.wasm
+          wasm-opt -Oz --enable-bulk-memory -o optimized.wasm depyler_wasm_bg.wasm
           gzip -9 < optimized.wasm > bundle.wasm.gz
           
           SIZE_KB=$(du -k bundle.wasm.gz | cut -f1)

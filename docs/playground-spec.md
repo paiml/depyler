@@ -1000,7 +1000,7 @@ jobs:
         run: |
           cd playground/depyler-playground
           cargo build --profile wasm-production --target wasm32-unknown-unknown
-          wasm-opt -Oz -o optimized.wasm target/wasm32-unknown-unknown/wasm-production/depyler_playground.wasm
+          wasm-opt -Oz --enable-bulk-memory -o optimized.wasm target/wasm32-unknown-unknown/wasm-production/depyler_playground.wasm
           gzip -9 < optimized.wasm > bundle.wasm.gz
 
           SIZE_KB=$(du -k bundle.wasm.gz | cut -f1)
