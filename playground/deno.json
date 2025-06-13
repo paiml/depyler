@@ -1,11 +1,11 @@
 {
   "tasks": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "deno run -A npm:vite",
+    "build": "deno run -A npm:vite build",
+    "preview": "deno run -A npm:vite preview",
     "lint": "deno lint",
-    "test": "vitest",
-    "bench": "vitest bench",
+    "test": "deno run -A npm:vitest",
+    "bench": "deno run -A npm:vitest bench",
     "wasm:build": "wasm-pack build ../depyler-playground --target web --out-dir ../../dist/wasm",
     "wasm:optimize": "wasm-opt -Oz --enable-bulk-memory -o dist/optimized.wasm dist/wasm/depyler_playground_bg.wasm"
   },
