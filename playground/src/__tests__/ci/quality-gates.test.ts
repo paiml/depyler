@@ -81,7 +81,7 @@ class QualityGateValidator {
         threshold: this.config.pmat.minCoverage,
         details: mockCoverageData,
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         passed: false,
         coverage: 0,
@@ -103,7 +103,7 @@ class QualityGateValidator {
         threshold: this.config.performance.maxWasmSizeKb,
         optimized,
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         passed: false,
         sizeKb: 0,
@@ -138,7 +138,7 @@ class QualityGateValidator {
         threshold: this.config.security.maxVulnerabilities,
         details: [mockAuditResults],
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         passed: false,
         vulnerabilities: -1,
@@ -172,7 +172,7 @@ class QualityGateValidator {
         licenses: [...new Set(licenses)],
         violations,
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         passed: false,
         licenses: [],
@@ -218,7 +218,7 @@ class QualityGateValidator {
         benchmarks: mockBenchmarks,
         violations,
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         passed: false,
         benchmarks: {},
@@ -246,7 +246,7 @@ class QualityGateValidator {
         threshold: this.config.pmat.maxTdgScore,
         breakdown: mockPmatBreakdown,
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         passed: false,
         tdgScore: 999,
@@ -272,7 +272,7 @@ class QualityGateValidator {
         threshold: this.config.accessibility.minWcagScore,
         level: this.config.accessibility.requiredLevel,
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         passed: false,
         wcagScore: 0,
@@ -335,7 +335,7 @@ class QualityGateValidator {
         threshold: this.config.pmat.requiredDocumentationCoverage,
         missing,
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         passed: false,
         coverage: 0,
@@ -593,7 +593,7 @@ describe("CI Quality Gates Validation", () => {
         lighthouse: true,
       };
 
-      Object.entries(tools).forEach(([tool, available]) => {
+      Object.entries(tools).forEach(([_tool, available]) => {
         expect(available).toBe(true);
       });
     });

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { App } from "../App";
-import { mockWasmModule } from "@test/setup";
+// import { mockWasmModule } from "@test/setup";
 
 // Mock the WASM module
 vi.mock("@/lib/wasm-manager", () => ({

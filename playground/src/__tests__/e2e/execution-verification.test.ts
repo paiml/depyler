@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { Browser, chromium, Page } from "playwright";
+import { Browser, Page } from "playwright";
 
 // Mock execution results for testing
 interface ExecutionResult {
@@ -60,7 +60,7 @@ class ExecutionVerifier {
     },
   ];
 
-  async verifySemanticEquivalence(page: Page, testCase: any): Promise<{
+  async verifySemanticEquivalence(_page: Page, testCase: any): Promise<{
     passed: boolean;
     pythonResult: ExecutionResult;
     rustResult: ExecutionResult;
@@ -244,7 +244,7 @@ describe("End-to-End Execution Verification", () => {
   describe("Semantic Equivalence Verification", () => {
     const testCases = new ExecutionVerifier().getTestCases();
 
-    testCases.forEach((testCase, index) => {
+    testCases.forEach((testCase, _index) => {
       it(`verifies semantic equivalence for ${testCase.name}`, async () => {
         const result = await verifier.verifySemanticEquivalence(page, testCase);
 
@@ -402,7 +402,7 @@ describe("End-to-End Execution Verification", () => {
     });
 
     it("handles execution timeouts properly", async () => {
-      const infiniteLoopCode = "def infinite_loop():\n    while True:\n        pass";
+      // const infiniteLoopCode = "def infinite_loop():\n    while True:\n        pass";
 
       // Mock execution timeout
       const mockExecutionResult: ExecutionResult = {

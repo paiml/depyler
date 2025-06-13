@@ -77,7 +77,7 @@ const ANTI_PATTERNS = [
 ];
 
 // Optimization opportunity detection
-const OPTIMIZATION_PATTERNS = [
+const _OPTIMIZATION_PATTERNS = [
   {
     pattern: /for\s+\w+\s+in\s+range\(\d+\):/,
     type: "loop_optimization",

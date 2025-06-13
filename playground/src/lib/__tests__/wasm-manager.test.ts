@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 // Create a more complete mock that matches the actual WASM module structure
 const createMockWasmResult = (overrides?: any) => ({

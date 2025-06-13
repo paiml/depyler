@@ -87,7 +87,7 @@ export class QualityTelemetry {
         this.isEnabled = false;
         console.log("Telemetry disabled due to user preference");
       }
-    } catch (e) {
+    } catch (_e) {
       // localStorage might not be available
     }
   }
@@ -347,7 +347,7 @@ export class QualityTelemetry {
     this.isEnabled = false;
     try {
       localStorage.setItem("depyler-telemetry-optout", "true");
-    } catch (e) {
+    } catch (_e) {
       // localStorage might not be available
     }
 
@@ -362,7 +362,7 @@ export class QualityTelemetry {
     this.isEnabled = true;
     try {
       localStorage.removeItem("depyler-telemetry-optout");
-    } catch (e) {
+    } catch (_e) {
       // localStorage might not be available
     }
 
@@ -401,7 +401,7 @@ export const telemetry = new QualityTelemetry("/api/telemetry");
 // Helper functions for common telemetry tasks
 export function recordCodeTranspilation(
   pythonCode: string,
-  rustCode: string,
+  _rustCode: string,
   transpileTime: number,
   success: boolean,
 ) {
@@ -425,7 +425,7 @@ export function recordCodeTranspilation(
 }
 
 export function recordCodeExecution(
-  pythonTime: number,
+  _pythonTime: number,
   rustTime: number,
   energySavings: number,
   codeContext: string,

@@ -26,7 +26,7 @@ const mockWindow = {
   innerWidth: 1920,
   innerHeight: 1080,
   addEventListener: vi.fn(),
-  setInterval: vi.fn((fn, delay) => 123), // Return a mock timer ID
+  setInterval: vi.fn((_fn, _delay) => 123), // Return a mock timer ID
   clearInterval: vi.fn(),
 };
 
