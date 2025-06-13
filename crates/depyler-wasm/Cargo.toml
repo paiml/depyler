@@ -11,7 +11,7 @@ keywords = ["python", "rust", "transpiler", "wasm", "webassembly"]
 categories = ["development-tools", "wasm"]
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 depyler-core = { path = "../depyler-core", features = ["wasm", "deterministic"] }
