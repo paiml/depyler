@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { TabbedEditor } from "./TabbedEditor";
 import { ExecutionButton } from "./ExecutionButton";
 import { InsightDashboard } from "./InsightDashboard";
@@ -8,7 +8,7 @@ import { usePlaygroundStore } from "@/store";
 import { preloadWasm } from "@/lib/wasm-manager";
 
 export function App() {
-  const { errors = [] } = usePlaygroundStore();
+  usePlaygroundStore();
 
   useEffect(() => {
     // Preload WASM module for better performance

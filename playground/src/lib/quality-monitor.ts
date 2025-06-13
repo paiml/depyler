@@ -308,7 +308,7 @@ export class QualityMonitor {
     }
   }
 
-  public trackTranspilation(code: string, result: any) {
+  public trackTranspilation(_code: string, result: any) {
     if (this.telemetry) {
       this.telemetry.trackTranspilation({
         latency_p95_ms: result.transpile_time_ms,
@@ -325,7 +325,7 @@ export class QualityMonitor {
     }
   }
 
-  public calculatePmatScore(metrics: any) {
+  public calculatePmatScore(_metrics: any) {
     return {
       productivity: 0.85,
       maintainability: 0.9,

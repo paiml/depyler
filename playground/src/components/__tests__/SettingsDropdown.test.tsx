@@ -66,7 +66,7 @@ describe("SettingsDropdown", () => {
     render(
       <div>
         <SettingsDropdown />
-        <button>Outside button</button>
+        <button type="button">Outside button</button>
       </div>
     );
     

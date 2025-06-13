@@ -101,12 +101,12 @@ export class QualityTelemetry {
     });
 
     // Flush on page unload
-    window.addEventListener("beforeunload", () => {
+    globalThis.addEventListener("beforeunload", () => {
       this.flush();
     });
 
     // Flush on page freeze (mobile Safari)
-    window.addEventListener("pagehide", () => {
+    globalThis.addEventListener("pagehide", () => {
       this.flush();
     });
   }
@@ -142,7 +142,7 @@ export class QualityTelemetry {
 
   recordUserInteraction(
     action: string,
-    context: Record<string, any> = {},
+    _context: Record<string, any> = {},
     codeContext?: string,
   ) {
     if (!this.isEnabled) return;
@@ -229,8 +229,8 @@ export class QualityTelemetry {
     return {
       browser: this.getBrowserInfo(),
       viewport: {
-        width: window.innerWidth,
-        height: window.innerHeight,
+        width: globalThis.innerWidth,
+        height: globalThis.innerHeight,
       },
       connection: connection?.effectiveType || "unknown",
       deviceMemory: (navigator as any).deviceMemory,
@@ -262,7 +262,7 @@ export class QualityTelemetry {
   }
 
   private scheduleFlush() {
-    this.flushTimer = window.setInterval(() => {
+    this.flushTimer = globalThis.setInterval(() => {
       if (this.buffer.length > 0) {
         this.flush();
       }

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { axe, toHaveNoViolations } from "jest-axe";
 import { App } from "../../components/App";
@@ -497,7 +497,7 @@ describe("Accessibility Compliance Testing", () => {
       expect(contrastResults.issues).toHaveLength(0);
 
       // All elements should meet minimum contrast ratios
-      contrastResults.contrastRatios.forEach(({ ratio, required, element }) => {
+      contrastResults.contrastRatios.forEach(({ ratio, required }) => {
         expect(ratio).toBeGreaterThanOrEqual(required);
       });
     });
@@ -546,7 +546,7 @@ describe("Accessibility Compliance Testing", () => {
 
       // Essential animations should have pause/play controls
       // Non-essential animations should respect prefers-reduced-motion
-      const animationControls = screen.queryAllByRole("button", { name: /pause|play|stop/ });
+      // const animationControls = screen.queryAllByRole("button", { name: /pause|play|stop/ });
 
       // At minimum, should respect system preferences
       expect(document.documentElement).not.toHaveClass("no-reduce-motion");

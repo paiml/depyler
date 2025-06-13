@@ -1,6 +1,6 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { QualityMonitor } from "../quality-monitor";
-import { QualityTelemetry } from "../telemetry/quality-telemetry";
+// import { QualityTelemetry } from "../telemetry/quality-telemetry";
 
 // Mock QualityTelemetry
 vi.mock("../telemetry/quality-telemetry", () => ({

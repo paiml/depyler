@@ -17,5 +17,10 @@
     "d3": "https://esm.sh/d3@7.8.5",
     "zustand": "https://esm.sh/zustand@4.5.0",
     "lru-cache": "https://esm.sh/lru-cache@10.2.0"
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-explicit-any", "require-await", "no-node-globals"]
+    }
   }
 }
