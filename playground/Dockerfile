@@ -20,7 +20,7 @@ RUN cd crates/depyler-wasm && \
 
 # Optimize WASM
 RUN cd playground/public/wasm && \
-    wasm-opt -Oz -o optimized.wasm depyler_wasm_bg.wasm && \
+    wasm-opt -Oz --enable-bulk-memory -o optimized.wasm depyler_wasm_bg.wasm && \
     mv optimized.wasm depyler_wasm_bg.wasm
 
 # Frontend build stage

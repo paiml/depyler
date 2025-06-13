@@ -15,7 +15,7 @@
     "typecheck": "tsc --noEmit",
     "bench": "vitest bench",
     "wasm:build": "cd ../crates/depyler-wasm && wasm-pack build --target web --out-dir ../../playground/public/wasm",
-    "wasm:optimize": "wasm-opt -Oz -o public/wasm/optimized.wasm public/wasm/depyler_playground_bg.wasm"
+    "wasm:optimize": "wasm-opt -Oz --enable-bulk-memory -o public/wasm/optimized.wasm public/wasm/depyler_playground_bg.wasm"
   },
   "dependencies": {
     "react": "^18.2.0",
