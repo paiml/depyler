@@ -8,6 +8,7 @@ members = [
     "crates/depyler-quality",
     "crates/depyler",
     "crates/depyler-wasm",
+    "playground/depyler-playground",
 ]
 resolver = "2"
 
