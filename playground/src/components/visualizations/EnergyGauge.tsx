@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as d3 from "d3";
 import { EnergyEstimate } from "@/types";
 

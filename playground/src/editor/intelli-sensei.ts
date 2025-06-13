@@ -1,6 +1,6 @@
 import type * as monaco from "monaco-editor";
 import { LRUCache } from "lru-cache";
-import { AnnotationSuggestion, AntiPattern, StaticAnalysis } from "@/types";
+import { AnnotationSuggestion, AntiPattern } from "@/types";
 
 interface FunctionContext {
   name: string;
@@ -57,7 +57,7 @@ export class IntelliSensei {
     );
 
     // Real-time pattern detection with caching
-    editor.onDidChangeModelContent(async (e) => {
+    editor.onDidChangeModelContent(async (_e) => {
       const position = editor.getPosition();
       if (!position) return;
 
@@ -74,14 +74,14 @@ export class IntelliSensei {
 
     // Inline hints for optimization opportunities
     this.monaco.languages.registerInlayHintsProvider("python-depyler", {
-      provideInlayHints: async (model, range, token) => {
+      provideInlayHints: async (model, range, _token) => {
         return this.getOptimizationHints(model, range);
       },
     });
 
     // Code action provider for automatic fixes
     this.monaco.languages.registerCodeActionProvider("python-depyler", {
-      provideCodeActions: async (model, range, context, token) => {
+      provideCodeActions: async (model, range, context, _token) => {
         return this.getCodeActions(model, range, context);
       },
     });
@@ -276,7 +276,6 @@ export class IntelliSensei {
 
   private async getAnnotationCompletions(model: any, position: any) {
     const line = model.getLineContent(position.lineNumber);
-    const wordInfo = model.getWordUntilPosition(position);
 
     if (line.includes("@depyler:") || line.includes("@depyler")) {
       return {
@@ -324,13 +323,13 @@ export class IntelliSensei {
     return { suggestions: [] };
   }
 
-  private async getOptimizationHints(model: any, range: any) {
+  private async getOptimizationHints(_model: any, _range: any) {
     // This would analyze the code and provide inline hints
     // For now, return empty array
     return { hints: [] };
   }
 
-  private async getCodeActions(model: any, range: any, context: any) {
+  private async getCodeActions(model: any, range: any, _context: any) {
     const actions = [];
 
     // Check for common anti-patterns and suggest fixes

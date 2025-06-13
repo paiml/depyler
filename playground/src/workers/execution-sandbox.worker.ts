@@ -503,8 +503,8 @@ class ExecutionSandbox {
   }
 }
 
-// Initialize the sandbox
-const sandbox = new ExecutionSandbox();
+// Initialize the sandbox (sets up message handlers in constructor)
+const _sandbox = new ExecutionSandbox();
 
 // Handle worker errors
 self.addEventListener("error", (event) => {

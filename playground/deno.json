@@ -20,7 +20,11 @@
   },
   "lint": {
     "rules": {
-      "exclude": ["no-explicit-any", "require-await", "no-node-globals"]
-    }
+      "exclude": ["no-explicit-any", "require-await", "no-node-globals", "no-unused-vars"]
+    },
+    "exclude": [
+      "public/wasm/**",
+      "dist/**"
+    ]
   }
 }
