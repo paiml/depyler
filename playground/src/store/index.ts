@@ -1,3 +1,4 @@
+/// <reference path="../global.d.ts" />
 import { create } from "zustand";
 import { PlaygroundState } from "@/types";
 
@@ -40,7 +41,7 @@ print(f"The 20th Fibonacci number is: {result}")`,
 };
 
 // Debounced transpilation function
-let transpileTimeout: NodeJS.Timeout | null = null;
+let transpileTimeout: number | null = null;
 
 export const usePlaygroundStore = create<PlaygroundStore>((set, get) => ({
   ...initialState,

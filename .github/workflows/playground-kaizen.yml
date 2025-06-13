@@ -137,8 +137,8 @@ jobs:
       - name: Type Check
         run: |
           cd playground
-          # Type check all source files except test files
-          find src -name "*.ts" -o -name "*.tsx" | grep -v -E "(test|spec)" | xargs deno check
+          # Type check all source files except test files and mocks
+          find src -name "*.ts" -o -name "*.tsx" | grep -v -E "(test|spec|__mocks__)" | xargs deno check --unstable-sloppy-imports
       
       - name: Build Frontend
         run: |

@@ -30,7 +30,9 @@
     "types": ["vitest/globals", "@testing-library/jest-dom"]
   },
   "include": [
-    "src"
+    "src",
+    "src/vite-env.d.ts",
+    "src/global.d.ts"
   ],
   "exclude": [
     "src/**/*.test.ts",
