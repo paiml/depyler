@@ -22,7 +22,6 @@ js-sys.workspace = true
 web-sys = { workspace = true, features = [
     "console",
     "Performance",
-    "MemoryInfo",
     "Navigator",
     "Window",
     "Document",
@@ -40,6 +39,7 @@ toml.workspace = true
 
 [dependencies.console_error_panic_hook]
 version = "0.1.7"
+optional = true
 
 [features]
 default = ["console_error_panic_hook"]
@@ -52,6 +52,9 @@ codegen-units = 1        # Single compilation unit
 strip = true             # Remove debug symbols
 panic = "abort"          # No unwinding
 incremental = false      # Deterministic builds
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
 
 [build-dependencies]
 wasm-opt = "0.116"       # Binaryen optimizer
