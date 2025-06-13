@@ -31,11 +31,6 @@ impl PlaygroundEngine {
     
     #[wasm_bindgen]
     pub fn transpile_with_metrics(&mut self, python_code: &str, options: &WasmTranspileOptions) -> Result<JsValue, JsValue> {
-        let start_time = web_sys::window()
-            .and_then(|w| w.performance())
-            .map(|p| p.now())
-            .unwrap_or(0.0);
-        
         // Perform transpilation
         let result = self.depyler.transpile(python_code, options)?;
         
