@@ -23,6 +23,7 @@ cd ../../playground/public/wasm
 if command -v wasm-opt &> /dev/null; then
   echo "🔧 Optimizing WASM with wasm-opt..."
   wasm-opt -Oz \
+    --enable-bulk-memory \
     -o optimized.wasm \
     depyler_wasm_bg.wasm
   

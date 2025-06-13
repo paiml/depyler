@@ -7,7 +7,7 @@
     "test": "vitest",
     "bench": "vitest bench",
     "wasm:build": "wasm-pack build ../depyler-playground --target web --out-dir ../../dist/wasm",
-    "wasm:optimize": "wasm-opt -Oz -o dist/optimized.wasm dist/wasm/depyler_playground_bg.wasm"
+    "wasm:optimize": "wasm-opt -Oz --enable-bulk-memory -o dist/optimized.wasm dist/wasm/depyler_playground_bg.wasm"
   },
   "imports": {
     "@/": "./src/",
