@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 // Mock the advisor analysis
-const mockAnalyzeFunction = vi.fn((context) => {
+const mockAnalyzeFunction = vi.fn((_context) => {
   return {
     suggestions: [
       {

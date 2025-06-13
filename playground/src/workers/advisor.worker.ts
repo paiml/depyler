@@ -240,7 +240,7 @@ self.addEventListener("message", (event: MessageEvent<WorkerMessage>) => {
 
   try {
     switch (type) {
-      case "ANALYZE_FUNCTION":
+      case "ANALYZE_FUNCTION": {
         if (!context) {
           throw new Error("Missing function context");
         }
@@ -252,6 +252,7 @@ self.addEventListener("message", (event: MessageEvent<WorkerMessage>) => {
           result,
         });
         break;
+      }
 
       default:
         throw new Error(`Unknown message type: ${type}`);

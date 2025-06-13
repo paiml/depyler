@@ -1,6 +1,5 @@
-import React, { useEffect, useRef } from "react";
+import { useRef } from "react";
 import Editor from "@monaco-editor/react";
-import type * as monaco from "monaco-editor";
 
 interface CodeEditorProps {
   language: string;
@@ -82,11 +81,11 @@ export function CodeEditor({
 
 function configureDepylerCompletion(monaco: any) {
   // Register completion provider for Python to support @depyler annotations
-  const completionProviderDisposable = monaco.languages.registerCompletionItemProvider("python", {
+  monaco.languages.registerCompletionItemProvider("python", {
     triggerCharacters: ["@", ":"],
     provideCompletionItems: (model: any, position: any) => {
       const line = model.getLineContent(position.lineNumber);
-      const wordInfo = model.getWordUntilPosition(position);
+      // const wordInfo = model.getWordUntilPosition(position);
 
       if (line.includes("@depyler:") || line.includes("@depyler")) {
         return {

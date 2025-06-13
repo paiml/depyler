@@ -161,7 +161,7 @@ class ExecutionSandbox {
         env: { memory },
       });
 
-      const result = (instance.instance.exports.main as Function)();
+      const result = (instance.instance.exports.main as () => any)();
 
       const executionTime = mockSelf.performance.now() - startTime;
       const memoryUsed = this.measureMemory() - memBefore;

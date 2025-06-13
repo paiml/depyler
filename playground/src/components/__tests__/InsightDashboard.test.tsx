@@ -17,7 +17,7 @@ vi.mock("../visualizations/EnergyGauge", () => ({
 }));
 
 vi.mock("../visualizations/PerformanceChart", () => ({
-  PerformanceChart: ({ data }: any) => (
+  PerformanceChart: ({ _data }: any) => (
     <div data-testid="performance-chart">Performance Chart</div>
   ),
 }));

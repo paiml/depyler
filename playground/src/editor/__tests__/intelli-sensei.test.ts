@@ -58,7 +58,7 @@ class MockWorker {
   private listeners: Map<string, Set<EventListener>> = new Map();
   postMessage: any;
 
-  constructor(scriptURL: string | URL, options?: WorkerOptions) {
+  constructor(_scriptURL: string | URL, _options?: WorkerOptions) {
     this.postMessage = vi.fn((message: any) => {
     // Simulate immediate response
     setTimeout(() => {

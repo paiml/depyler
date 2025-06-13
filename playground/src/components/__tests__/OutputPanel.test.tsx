@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { createMockPlaygroundStore } from "@test/setup";
+// import { createMockPlaygroundStore } from "@test/setup";
 
 // Mock component since we don't have the actual implementation
 const OutputPanel = ({ result }: { result: any }) => {

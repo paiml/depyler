@@ -408,7 +408,7 @@ def deeply_nested():
         .find((call) => call[0] === "visibilitychange")?.[1];
 
       if (visibilityHandler) {
-        (visibilityHandler as Function)();
+        (visibilityHandler as () => void)();
         expect(flushSpy).toHaveBeenCalled();
       }
     });

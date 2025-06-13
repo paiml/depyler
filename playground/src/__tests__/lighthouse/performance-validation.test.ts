@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { Browser, chromium, Page } from "playwright";
+import { Browser, Page } from "playwright";
 
 // Mock Lighthouse for testing environment
 interface LighthouseResult {
@@ -22,7 +22,7 @@ interface LighthouseResult {
 }
 
 class MockLighthouse {
-  static async run(url: string, options: any): Promise<LighthouseResult> {
+  static async run(_url: string, _options: any): Promise<LighthouseResult> {
     // Simulate realistic performance metrics for playground
     return {
       lhr: {
@@ -207,7 +207,7 @@ class PerformanceValidator {
     };
   }
 
-  async validateBundleSize(page: Page): Promise<{
+  async validateBundleSize(_page: Page): Promise<{
     totalSize: number;
     wasmSize: number;
     jsSize: number;
@@ -273,7 +273,7 @@ class PerformanceValidator {
 }
 
 describe("Lighthouse Performance Validation", () => {
-  let browser: Browser;
+  let _browser: Browser;
   let page: Page;
   let validator: PerformanceValidator;
 
