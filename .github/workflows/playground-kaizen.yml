@@ -208,12 +208,15 @@ jobs:
       - name: Install Playwright
         run: |
           cd playground
-          deno run -A https://deno.land/x/playwright@1.40.0/install.ts chromium
+          # Skip Playwright installation for now - benchmarks don't require browser testing
+          echo "Skipping Playwright installation"
       
       - name: Run Performance Benchmarks
         run: |
           cd playground
-          deno task bench --json > benchmarks.json
+          
+          # Run the benchmark script
+          deno run -A scripts/run-benchmarks.ts
           
           # Extract key metrics
           P95_SIMPLE=$(cat benchmarks.json | jq -r '.transpilation.simple.p95 // 0')
