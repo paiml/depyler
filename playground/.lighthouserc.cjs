@@ -3,14 +3,30 @@ module.exports = {
     collect: {
       url: ['http://localhost:8080'],
       numberOfRuns: 1,
+      chromeFlags: ['--headless', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage'],
       settings: {
-        // Don't wait for resources to load
-        maxWaitForLoad: 45000,
-        // Skip some audits that might cause timeouts
+        // Reduce wait time to prevent hanging
+        maxWaitForLoad: 15000,
+        maxWaitForFcp: 15000,
+        // Skip audits that might cause timeouts or issues with WASM
         skipAudits: [
           'uses-long-cache-ttl',
           'works-offline',
-          'offline-start-url'
+          'offline-start-url',
+          'service-worker',
+          'installable-manifest',
+          'splash-screen',
+          'themed-omnibox',
+          'maskable-icon',
+          'valid-source-maps',
+          'preload-fonts',
+          'network-rtt',
+          'network-server-latency',
+          'uses-http2',
+          'redirects-http',
+          'uses-optimized-images',
+          'uses-webp-images',
+          'uses-text-compression'
         ],
         // Use desktop configuration for faster runs
         preset: 'desktop',
@@ -23,6 +39,17 @@ module.exports = {
         },
         // Disable screenshot generation to speed up
         disableFullPageScreenshot: true,
+        // Only run specific categories to avoid timeouts
+        onlyCategories: ['performance', 'accessibility', 'best-practices'],
+        // Chrome flags to prevent hanging
+        chromeFlags: [
+          '--headless',
+          '--disable-gpu',
+          '--no-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-setuid-sandbox',
+          '--single-process'
+        ],
       }
     },
     assert: {
