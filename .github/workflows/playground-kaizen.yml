@@ -113,7 +113,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v1
         with:
-          deno-version: v1.x
+          deno-version: v2.x
       
       - name: Download WASM Artifacts
         uses: actions/download-artifact@v4
@@ -185,7 +185,7 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v1
         with:
-          deno-version: v1.x
+          deno-version: v2.x
       
       - name: Download Build Artifacts
         uses: actions/download-artifact@v4
