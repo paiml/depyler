@@ -4,6 +4,18 @@ import { usePlaygroundStore } from "@/store";
 
 type TabType = "python" | "rust" | "output" | "errors";
 
+// Local type for the flattened execution result used in this component
+interface FlatExecutionResult {
+  pythonOutput: string;
+  rustOutput: string;
+  pythonTime: number;
+  rustTime: number;
+  speedup: number;
+  memorySaved: number;
+  pythonExitCode?: number;
+  rustExitCode?: number;
+}
+
 interface Tab {
   id: TabType;
   label: string;
@@ -31,6 +43,18 @@ export function TabbedEditor() {
 
   const hasErrors = errors.length > 0;
   const hasWarnings = warnings.length > 0;
+
+  // Transform the nested ExecutionResult to flat structure for backward compatibility
+  const flatExecutionResult: FlatExecutionResult | null = executionResult ? {
+    pythonOutput: executionResult.python.output,
+    rustOutput: executionResult.rust.output,
+    pythonTime: executionResult.python.execution_time_ms,
+    rustTime: executionResult.rust.execution_time_ms,
+    speedup: executionResult.python.execution_time_ms / executionResult.rust.execution_time_ms,
+    memorySaved: 0, // This would need to be calculated or tracked separately
+    pythonExitCode: executionResult.python.error ? 1 : 0,
+    rustExitCode: executionResult.rust.error ? 1 : 0,
+  } : null;
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -60,29 +84,29 @@ export function TabbedEditor() {
       case "output":
         return (
           <div className="h-[500px] overflow-auto bg-gray-900 text-gray-100 p-4 font-mono text-sm">
-            {executionResult ? (
+            {flatExecutionResult ? (
               <div>
                 <div className="mb-4">
                   <h3 className="text-green-400 font-semibold mb-2">Python Output:</h3>
-                  <pre className="whitespace-pre-wrap">{executionResult.pythonOutput}</pre>
+                  <pre className="whitespace-pre-wrap">{flatExecutionResult.pythonOutput}</pre>
                   <div className="text-gray-500 text-xs mt-1">
-                    Time: {executionResult.pythonTime.toFixed(2)}ms
+                    Time: {flatExecutionResult.pythonTime.toFixed(2)}ms
                   </div>
                 </div>
                 
                 <div className="border-t border-gray-700 pt-4">
                   <h3 className="text-blue-400 font-semibold mb-2">Rust Output:</h3>
-                  <pre className="whitespace-pre-wrap">{executionResult.rustOutput}</pre>
+                  <pre className="whitespace-pre-wrap">{flatExecutionResult.rustOutput}</pre>
                   <div className="text-gray-500 text-xs mt-1">
-                    Time: {executionResult.rustTime.toFixed(2)}ms
+                    Time: {flatExecutionResult.rustTime.toFixed(2)}ms
                   </div>
                 </div>
 
                 <div className="border-t border-gray-700 pt-4 mt-4">
                   <h3 className="text-yellow-400 font-semibold mb-2">Performance Comparison:</h3>
                   <div className="text-sm">
-                    <div>Speedup: {executionResult.speedup.toFixed(2)}x faster</div>
-                    <div>Memory saved: {executionResult.memorySaved.toFixed(2)} MB</div>
+                    <div>Speedup: {flatExecutionResult.speedup.toFixed(2)}x faster</div>
+                    <div>Memory saved: {flatExecutionResult.memorySaved.toFixed(2)} MB</div>
                   </div>
                 </div>
               </div>

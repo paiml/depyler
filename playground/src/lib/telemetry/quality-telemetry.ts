@@ -1,3 +1,5 @@
+/// <reference path="../../vite-env.d.ts" />
+/// <reference path="../../global.d.ts" />
 import { PlaygroundMetrics, PmatScore, QualityEvent } from "@/types";
 
 interface CodeMetrics {

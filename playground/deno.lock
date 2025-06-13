@@ -1,5 +1,12 @@
 {
   "version": "5",
+  "redirects": {
+    "https://esm.sh/@types/d3@~7.4.3/index.d.ts": "https://esm.sh/@types/d3@7.4.3/index.d.ts",
+    "https://esm.sh/@types/react-dom@~18.2.25/client.d.ts": "https://esm.sh/@types/react-dom@18.2.25/client.d.ts",
+    "https://esm.sh/@types/react@~18.2.79/index.d.ts": "https://esm.sh/@types/react@18.2.79/index.d.ts",
+    "https://esm.sh/@types/react@~18.2.79/jsx-runtime.d.ts": "https://esm.sh/@types/react@18.2.79/jsx-runtime.d.ts",
+    "https://esm.sh/@types/react@~18.3.18/index.d.ts": "https://esm.sh/@types/react@18.3.23/index.d.ts"
+  },
   "remote": {
     "https://deno.land/std@0.219.0/assert/_constants.ts": "a271e8ef5a573f1df8e822a6eb9d09df064ad66a4390f21b3e31f820a38e0975",
     "https://deno.land/std@0.219.0/assert/_diff.ts": "dcc63d94ca289aec80644030cf88ccbf7acaa6fbd7b0f22add93616b36593840",
@@ -32,7 +39,14 @@
     "https://deno.land/std@0.219.0/assert/mod.ts": "7e41449e77a31fef91534379716971bebcfc12686e143d38ada5438e04d4a90e",
     "https://deno.land/std@0.219.0/assert/unimplemented.ts": "47ca67d1c6dc53abd0bd729b71a31e0825fc452dbcd4fde4ca06789d5644e7fd",
     "https://deno.land/std@0.219.0/assert/unreachable.ts": "3670816a4ab3214349acb6730e3e6f5299021234657eefe05b48092f3848c270",
-    "https://deno.land/std@0.219.0/fmt/colors.ts": "d239d84620b921ea520125d778947881f62c50e78deef2657073840b8af9559a"
+    "https://deno.land/std@0.219.0/fmt/colors.ts": "d239d84620b921ea520125d778947881f62c50e78deef2657073840b8af9559a",
+    "https://esm.sh/@monaco-editor/react@4.6.0": "7148317bd35044ce21c8ce779ee7af29b166edb2021c019b25f10e222f0ce6aa",
+    "https://esm.sh/d3@7.8.5": "736ad9dd62d32b081f91d1d1e216c4edbefa7d73d95266dd2d067af6fc99e951",
+    "https://esm.sh/lru-cache@10.2.0": "bcdc532eb5f99f504f39f7cc77fa2473e5fe4abd8bad4d493242a3b3fb23ddd5",
+    "https://esm.sh/react-dom@18.2.0/client": "f43f7bb47905958ce487302ca818ba5a845a6029daa7ea22ef097a575b72045b",
+    "https://esm.sh/react@18.2.0": "fed8aeb7d240bb42a2167c9c7c6e842e128c7630cbcb08c4d61c9c1926f89c75",
+    "https://esm.sh/react@18.2.0/jsx-runtime": "0bb3cca902d25a6827ac8153c8038b637e21bd20180bd58e827515d67de80582",
+    "https://esm.sh/zustand@4.5.0": "2dc070ea49c3ce24cfcf84b96e0f47417a9eed549e2da584d07f6aa942a63512"
   },
   "workspace": {
     "packageJson": {

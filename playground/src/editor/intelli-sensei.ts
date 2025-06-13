@@ -1,3 +1,4 @@
+/// <reference path="../global.d.ts" />
 import type * as monaco from "monaco-editor";
 import { LRUCache } from "lru-cache";
 import { AnnotationSuggestion, AntiPattern } from "@/types";
@@ -57,7 +58,7 @@ export class IntelliSensei {
     );
 
     // Real-time pattern detection with caching
-    editor.onDidChangeModelContent(async (_e) => {
+    editor.onDidChangeModelContent(async (_e: any) => {
       const position = editor.getPosition();
       if (!position) return;
 
@@ -67,21 +68,21 @@ export class IntelliSensei {
     // Annotation provider with cache-aware completions
     this.monaco.languages.registerCompletionItemProvider("python-depyler", {
       triggerCharacters: ["@", ":"],
-      provideCompletionItems: async (model, position) => {
+      provideCompletionItems: async (model: any, position: any) => {
         return this.getAnnotationCompletions(model, position);
       },
     });
 
     // Inline hints for optimization opportunities
     this.monaco.languages.registerInlayHintsProvider("python-depyler", {
-      provideInlayHints: async (model, range, _token) => {
+      provideInlayHints: async (model: any, range: any, _token: any) => {
         return this.getOptimizationHints(model, range);
       },
     });
 
     // Code action provider for automatic fixes
     this.monaco.languages.registerCodeActionProvider("python-depyler", {
-      provideCodeActions: async (model, range, context, _token) => {
+      provideCodeActions: async (model: any, range: any, context: any, _token: any) => {
         return this.getCodeActions(model, range, context);
       },
     });
@@ -368,7 +369,7 @@ export class IntelliSensei {
     func: T,
     wait: number,
   ): (...args: Parameters<T>) => void {
-    let timeout: NodeJS.Timeout;
+    let timeout: number;
 
     return (...args: Parameters<T>) => {
       clearTimeout(timeout);

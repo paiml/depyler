@@ -86,7 +86,7 @@ export function EnergyGauge({ savings, energyData, confidence }: EnergyGaugeProp
           d,
         );
         node._current = interpolate(1);
-        return (t: number) => valueArc(interpolate(t));
+        return (t: number) => valueArc(interpolate(t)) || "";
       });
 
     // Animated text
