@@ -23,6 +23,12 @@ edition = "2021"
 authors = ["Depyler Contributors"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/paiml/depyler"
+homepage = "https://github.com/paiml/depyler"
+documentation = "https://docs.rs/depyler"
+description = "A Python-to-Rust transpiler focusing on energy-efficient, safe code generation with progressive verification"
+keywords = ["python", "rust", "transpiler", "compiler", "verification"]
+categories = ["compilers", "development-tools", "parser-implementations"]
+readme = "README.md"
 rust-version = "1.83"
 
 [workspace.dependencies]
