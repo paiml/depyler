@@ -1,8 +1,16 @@
 [package]
 name = "depyler-annotations"
-version = "0.3.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
 description = "Annotation parsing and processing for Depyler"
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 regex = "1.10"
