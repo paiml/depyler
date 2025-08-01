@@ -4,7 +4,7 @@ use depyler_core::DepylerPipeline;
 use pmcp::error::Error as McpError;
 use pmcp::server::{RequestHandlerExtra, Server, ToolHandler};
 use pmcp::types::*;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
