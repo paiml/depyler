@@ -1,7 +1,9 @@
 use crate::error::DepylerMcpError;
-use crate::protocol::*;
 use crate::tools::*;
 use depyler_core::DepylerPipeline;
+use pmcp::server::{RequestHandlerExtra, Server, ToolHandler};
+use pmcp::types::*;
+use pmcp::error::Error as McpError;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
@@ -23,224 +25,91 @@ impl DepylerMcpServer {
         }
     }
 
-    pub async fn handle_message(&self, message: McpMessage) -> McpResponse {
-        match message.method.as_str() {
-            methods::INITIALIZE => self.handle_initialize(message.id, message.params).await,
-            methods::TOOLS_LIST => self.handle_tools_list(message.id).await,
-            methods::TOOLS_CALL => self.handle_tools_call(message.id, message.params).await,
-            _ => McpResponse {
-                id: message.id,
-                result: None,
-                error: Some(McpError {
-                    code: error_codes::METHOD_NOT_FOUND,
-                    message: format!("Method '{}' not found", message.method),
-                    data: None,
-                }),
-            },
-        }
+    pub async fn create_server() -> Result<Server, McpError> {
+        let depyler_server = Self::new();
+        
+        let server = Server::builder()
+            .name("depyler-mcp")
+            .version(env!("CARGO_PKG_VERSION"))
+            .tool("transpile_python", TranspileTool::new(depyler_server.transpiler.clone()))
+            .tool("analyze_migration_complexity", AnalyzeTool::new(depyler_server.transpiler.clone()))
+            .tool("verify_transpilation", VerifyTool::new(depyler_server.transpiler.clone()))
+            .build()?;
+
+        Ok(server)
     }
 
-    async fn handle_initialize(&self, id: String, _params: Value) -> McpResponse {
-        let result = InitializeResult {
-            protocol_version: MCP_VERSION.to_string(),
-            capabilities: ServerCapabilities {
-                tools: ToolsCapability {
-                    list_changed: Some(true),
-                },
-                experimental: Some(json!({
-                    "transpilation": {
-                        "supported_languages": ["python"],
-                        "target_languages": ["rust"],
-                        "optimization_profiles": ["size", "speed", "energy"],
-                    }
-                })),
-            },
-            server_info: Some(ServerInfo {
-                name: "depyler-mcp".to_string(),
-                version: env!("CARGO_PKG_VERSION").to_string(),
-            }),
-        };
-
-        McpResponse {
-            id,
-            result: Some(serde_json::to_value(result).unwrap()),
-            error: None,
+    fn count_python_lines(&self, project_path: &str) -> Result<usize, DepylerMcpError> {
+        let path = Path::new(project_path);
+        if !path.exists() {
+            return Err(DepylerMcpError::InvalidInput(format!(
+                "Project path does not exist: {project_path}"
+            )));
         }
+
+        let mut total_lines = 0;
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
+            let content = std::fs::read_to_string(path)?;
+            total_lines += content.lines().count();
+        } else if path.is_dir() {
+            // Simplified: just count a few common files
+            for entry in std::fs::read_dir(path)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
+                    let content = std::fs::read_to_string(&path)?;
+                    total_lines += content.lines().count();
+                }
+            }
+        }
+
+        Ok(total_lines)
     }
 
-    async fn handle_tools_list(&self, id: String) -> McpResponse {
-        let tools = vec![
-            ToolDefinition {
-                name: methods::TRANSPILE_PYTHON.to_string(),
-                description: "Transpile Python code to memory-safe, energy-efficient Rust"
-                    .to_string(),
-                input_schema: json!({
-                    "type": "object",
-                    "properties": {
-                        "source": {
-                            "type": "string",
-                            "description": "Python source code or file path"
-                        },
-                        "mode": {
-                            "type": "string",
-                            "enum": ["inline", "file", "project"],
-                            "default": "inline"
-                        },
-                        "options": {
-                            "type": "object",
-                            "properties": {
-                                "optimization_level": {
-                                    "type": "string",
-                                    "enum": ["size", "speed", "energy"],
-                                    "default": "energy"
-                                },
-                                "type_inference": {
-                                    "type": "string",
-                                    "enum": ["conservative", "aggressive", "ml_assisted"],
-                                    "default": "conservative"
-                                },
-                                "memory_model": {
-                                    "type": "string",
-                                    "enum": ["stack_preferred", "arena", "rc_refcell"],
-                                    "default": "stack_preferred"
-                                }
-                            }
-                        }
-                    },
-                    "required": ["source"]
-                }),
-            },
-            ToolDefinition {
-                name: methods::ANALYZE_MIGRATION_COMPLEXITY.to_string(),
-                description: "Analyze Python project complexity and generate migration strategy"
-                    .to_string(),
-                input_schema: json!({
-                    "type": "object",
-                    "properties": {
-                        "project_path": {
-                            "type": "string",
-                            "description": "Path to Python project root"
-                        },
-                        "analysis_depth": {
-                            "type": "string",
-                            "enum": ["surface", "standard", "deep"],
-                            "default": "standard"
-                        },
-                        "include_patterns": {
-                            "type": "array",
-                            "items": { "type": "string" },
-                            "default": ["**/*.py"]
-                        }
-                    },
-                    "required": ["project_path"]
-                }),
-            },
-            ToolDefinition {
-                name: methods::VERIFY_TRANSPILATION.to_string(),
-                description: "Verify semantic equivalence and safety of transpiled code"
-                    .to_string(),
-                input_schema: json!({
-                    "type": "object",
-                    "properties": {
-                        "python_source": {
-                            "type": "string",
-                            "description": "Original Python source"
-                        },
-                        "rust_source": {
-                            "type": "string",
-                            "description": "Transpiled Rust source"
-                        },
-                        "test_cases": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "input": { "type": "any" },
-                                    "expected_output": { "type": "any" }
-                                }
-                            }
-                        },
-                        "verification_level": {
-                            "type": "string",
-                            "enum": ["basic", "comprehensive", "formal"],
-                            "default": "comprehensive"
-                        }
-                    },
-                    "required": ["python_source", "rust_source"]
-                }),
-            },
-        ];
-
-        McpResponse {
-            id,
-            result: Some(json!({ "tools": tools })),
-            error: None,
-        }
+    fn calculate_complexity_score(&self, total_lines: usize) -> f64 {
+        // Simple heuristic based on project size
+        let base_complexity = (total_lines as f64).ln() + 1.0;
+        base_complexity * 1.5
     }
+}
 
-    async fn handle_tools_call(&self, id: String, params: Value) -> McpResponse {
-        let tool_call: ToolCallRequest = match serde_json::from_value(params) {
-            Ok(call) => call,
-            Err(e) => {
-                return McpResponse {
-                    id,
-                    result: None,
-                    error: Some(McpError {
-                        code: error_codes::INVALID_PARAMS,
-                        message: format!("Invalid tool call parameters: {e}"),
-                        data: None,
-                    }),
-                };
-            }
-        };
-
-        let result = match tool_call.name.as_str() {
-            methods::TRANSPILE_PYTHON => {
-                self.handle_transpile(tool_call.arguments.unwrap_or_default())
-                    .await
-            }
-            methods::ANALYZE_MIGRATION_COMPLEXITY => {
-                self.handle_analyze(tool_call.arguments.unwrap_or_default())
-                    .await
-            }
-            methods::VERIFY_TRANSPILATION => {
-                self.handle_verify(tool_call.arguments.unwrap_or_default())
-                    .await
-            }
-            _ => Err(DepylerMcpError::InvalidInput(format!(
-                "Unknown tool: {}",
-                tool_call.name
-            ))),
-        };
-
-        match result {
-            Ok(value) => McpResponse {
-                id,
-                result: Some(value),
-                error: None,
-            },
-            Err(e) => McpResponse {
-                id,
-                result: None,
-                error: Some(e.into()),
-            },
-        }
+impl Default for DepylerMcpServer {
+    fn default() -> Self {
+        Self::new()
     }
+}
 
-    async fn handle_transpile(&self, params: Value) -> Result<Value, DepylerMcpError> {
-        let request: TranspileRequest = serde_json::from_value(params)
-            .map_err(|e| DepylerMcpError::InvalidInput(e.to_string()))?;
+// Tool handler implementations
+
+#[derive(Clone)]
+pub struct TranspileTool {
+    transpiler: Arc<DepylerPipeline>,
+}
+
+impl TranspileTool {
+    pub fn new(transpiler: Arc<DepylerPipeline>) -> Self {
+        Self { transpiler }
+    }
+}
+
+#[async_trait::async_trait]
+impl ToolHandler for TranspileTool {
+    async fn handle(&self, args: Value, _extra: RequestHandlerExtra) -> Result<Value, McpError> {
+        let request: TranspileRequest = serde_json::from_value(args)
+            .map_err(|e| McpError::InvalidParams(format!("Invalid transpile request: {}", e)))?;
 
         info!("Transpiling Python code with mode: {:?}", request.mode);
 
         let python_source = match request.mode {
             Mode::Inline => request.source,
-            Mode::File => std::fs::read_to_string(&request.source).map_err(DepylerMcpError::Io)?,
+            Mode::File => std::fs::read_to_string(&request.source)
+                .map_err(|e| McpError::InternalError(format!("Failed to read file: {}", e)))?,
             Mode::Project => {
                 // For now, just read the main file - in a full implementation,
                 // this would analyze the entire project
                 let main_file = Path::new(&request.source).join("main.py");
-                std::fs::read_to_string(&main_file).map_err(DepylerMcpError::Io)?
+                std::fs::read_to_string(&main_file)
+                    .map_err(|e| McpError::InternalError(format!("Failed to read project main file: {}", e)))?
             }
         };
 
@@ -270,12 +139,64 @@ impl DepylerMcpServer {
             },
         };
 
-        Ok(serde_json::to_value(response)?)
+        serde_json::to_value(response)
+            .map_err(|e| McpError::InternalError(format!("Failed to serialize response: {}", e)))
+    }
+}
+
+#[derive(Clone)]
+pub struct AnalyzeTool {
+    transpiler: Arc<DepylerPipeline>,
+}
+
+impl AnalyzeTool {
+    pub fn new(transpiler: Arc<DepylerPipeline>) -> Self {
+        Self { transpiler }
     }
 
-    async fn handle_analyze(&self, params: Value) -> Result<Value, DepylerMcpError> {
-        let request: AnalyzeRequest = serde_json::from_value(params)
-            .map_err(|e| DepylerMcpError::InvalidInput(e.to_string()))?;
+    fn count_python_lines(&self, project_path: &str) -> Result<usize, McpError> {
+        let path = Path::new(project_path);
+        if !path.exists() {
+            return Err(McpError::InvalidParams(format!(
+                "Project path does not exist: {project_path}"
+            )));
+        }
+
+        let mut total_lines = 0;
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
+            let content = std::fs::read_to_string(path)
+                .map_err(|e| McpError::InternalError(format!("Failed to read file: {}", e)))?;
+            total_lines += content.lines().count();
+        } else if path.is_dir() {
+            // Simplified: just count a few common files
+            for entry in std::fs::read_dir(path)
+                .map_err(|e| McpError::InternalError(format!("Failed to read directory: {}", e)))? {
+                let entry = entry
+                    .map_err(|e| McpError::InternalError(format!("Failed to read directory entry: {}", e)))?;
+                let path = entry.path();
+                if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
+                    let content = std::fs::read_to_string(&path)
+                        .map_err(|e| McpError::InternalError(format!("Failed to read file: {}", e)))?;
+                    total_lines += content.lines().count();
+                }
+            }
+        }
+
+        Ok(total_lines)
+    }
+
+    fn calculate_complexity_score(&self, total_lines: usize) -> f64 {
+        // Simple heuristic based on project size
+        let base_complexity = (total_lines as f64).ln() + 1.0;
+        base_complexity * 1.5
+    }
+}
+
+#[async_trait::async_trait]
+impl ToolHandler for AnalyzeTool {
+    async fn handle(&self, args: Value, _extra: RequestHandlerExtra) -> Result<Value, McpError> {
+        let request: AnalyzeRequest = serde_json::from_value(args)
+            .map_err(|e| McpError::InvalidParams(format!("Invalid analyze request: {}", e)))?;
 
         info!("Analyzing project: {}", request.project_path);
 
@@ -322,12 +243,28 @@ impl DepylerMcpServer {
             estimated_effort_hours: complexity_score * 2.5,
         };
 
-        Ok(serde_json::to_value(response)?)
+        serde_json::to_value(response)
+            .map_err(|e| McpError::InternalError(format!("Failed to serialize response: {}", e)))
     }
+}
 
-    async fn handle_verify(&self, params: Value) -> Result<Value, DepylerMcpError> {
-        let request: VerifyRequest = serde_json::from_value(params)
-            .map_err(|e| DepylerMcpError::InvalidInput(e.to_string()))?;
+#[derive(Clone)]
+pub struct VerifyTool {
+    #[allow(dead_code)]
+    transpiler: Arc<DepylerPipeline>,
+}
+
+impl VerifyTool {
+    pub fn new(transpiler: Arc<DepylerPipeline>) -> Self {
+        Self { transpiler }
+    }
+}
+
+#[async_trait::async_trait]
+impl ToolHandler for VerifyTool {
+    async fn handle(&self, args: Value, _extra: RequestHandlerExtra) -> Result<Value, McpError> {
+        let request: VerifyRequest = serde_json::from_value(args)
+            .map_err(|e| McpError::InvalidParams(format!("Invalid verify request: {}", e)))?;
 
         info!("Verifying transpilation");
 
@@ -359,45 +296,7 @@ impl DepylerMcpServer {
             },
         };
 
-        Ok(serde_json::to_value(response)?)
-    }
-
-    fn count_python_lines(&self, project_path: &str) -> Result<usize, DepylerMcpError> {
-        let path = Path::new(project_path);
-        if !path.exists() {
-            return Err(DepylerMcpError::InvalidInput(format!(
-                "Project path does not exist: {project_path}"
-            )));
-        }
-
-        let mut total_lines = 0;
-        if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
-            let content = std::fs::read_to_string(path)?;
-            total_lines += content.lines().count();
-        } else if path.is_dir() {
-            // Simplified: just count a few common files
-            for entry in std::fs::read_dir(path)? {
-                let entry = entry?;
-                let path = entry.path();
-                if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
-                    let content = std::fs::read_to_string(&path)?;
-                    total_lines += content.lines().count();
-                }
-            }
-        }
-
-        Ok(total_lines)
-    }
-
-    fn calculate_complexity_score(&self, total_lines: usize) -> f64 {
-        // Simple heuristic based on project size
-        let base_complexity = (total_lines as f64).ln() + 1.0;
-        base_complexity * 1.5
-    }
-}
-
-impl Default for DepylerMcpServer {
-    fn default() -> Self {
-        Self::new()
+        serde_json::to_value(response)
+            .map_err(|e| McpError::InternalError(format!("Failed to serialize response: {}", e)))
     }
 }
