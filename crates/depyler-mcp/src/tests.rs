@@ -1,7 +1,7 @@
 use crate::server::*;
 use crate::tools::*;
-use pmcp::server::{RequestHandlerExtra, ToolHandler};
-use pmcp::types::*;
+use pmcp::server::ToolHandler;
+use pmcp::RequestHandlerExtra;
 use serde_json::json;
 use tokio::sync::mpsc;
 
