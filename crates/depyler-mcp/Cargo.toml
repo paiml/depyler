@@ -20,8 +20,18 @@ serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 tokio = { workspace = true, features = ["sync"] }
-reqwest.workspace = true
+tokio-util.workspace = true
+pmcp.workspace = true
+async-trait.workspace = true
 syn.workspace = true
+
+[features]
+default = ["stdio"]
+stdio = []
+websocket = ["pmcp/websocket"]
+http = ["pmcp/http"]
+validation = ["pmcp/validation"]
+full = ["stdio", "websocket", "http", "validation"]
 
 [dev-dependencies]
 insta.workspace = true

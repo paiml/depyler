@@ -1,7 +1,7 @@
 mod error;
-pub mod protocol;
 mod server;
 mod tools;
+pub mod transport;
 pub mod validator;
 
 #[cfg(test)]
@@ -10,15 +10,23 @@ mod tests;
 pub use error::DepylerMcpError;
 pub use server::DepylerMcpServer;
 pub use tools::{AnalyzeRequest, TranspileRequest, VerifyRequest};
+pub use transport::TransportFactory;
+
+// Re-export pmcp types for convenience
+pub use pmcp::{
+    client::Client,
+    error::Error as McpError,
+    server::{RequestHandlerExtra, Server, ToolHandler},
+    shared::transport::{StdioTransport, Transport},
+    types::*,
+};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use tokio::runtime::Runtime;
 
 #[derive(Debug)]
 pub struct McpClient {
-    endpoint: Option<String>,
-    runtime: Runtime,
+    client: Option<Client>,
 }
 
 #[derive(Debug, Serialize)]
@@ -82,44 +90,98 @@ pub struct AlternativeApproach {
 impl McpClient {
     pub fn new() -> Result<Self> {
         Ok(Self {
-            endpoint: None,
-            runtime: Runtime::new()?,
+            client: None,
         })
     }
 
-    pub fn with_endpoint(mut self, endpoint: String) -> Self {
-        self.endpoint = Some(endpoint);
-        self
+    pub async fn with_transport<T>(transport: T) -> Result<Self>
+    where
+        T: Transport + 'static,
+    {
+        let mut client = Client::new(transport);
+        
+        // Initialize the client with default capabilities
+        let capabilities = ClientCapabilities::default();
+        client.initialize(capabilities).await.map_err(|e| anyhow::anyhow!("Failed to initialize MCP client: {}", e))?;
+        
+        Ok(Self {
+            client: Some(client),
+        })
     }
 
     pub fn is_available(&self) -> bool {
-        self.endpoint.is_some()
+        self.client.is_some()
     }
 
     pub async fn transpile_fallback(
-        &self,
-        _request: McpTranspilationRequest,
+        &mut self,
+        request: McpTranspilationRequest,
     ) -> Result<McpTranspilationResponse> {
-        // V1: Stub implementation
-        // In a real implementation, this would make an HTTP request to the MCP service
+        if let Some(client) = &mut self.client {
+            // Try to call the transpile tool via MCP
+            let tool_args = serde_json::json!({
+                "source": request.python_ast.to_string(),
+                "mode": "inline",
+                "options": {
+                    "optimization_level": match request.quality_hints.style_level {
+                        StyleLevel::Basic => "size",
+                        StyleLevel::Idiomatic => "energy", 
+                        StyleLevel::Optimized => "speed",
+                    },
+                    "type_inference": "conservative",
+                    "memory_model": "stack_preferred"
+                }
+            });
 
+            match client.call_tool("transpile_python".to_string(), tool_args).await {
+                Ok(result) => {
+                    // Parse the MCP tool result into our response format
+                    let rust_code = result.get("rust_code")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("// MCP transpilation returned invalid format")
+                        .to_string();
+                    
+                    let explanation = result.get("explanation")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Transpiled via MCP")
+                        .to_string();
+
+                    Ok(McpTranspilationResponse {
+                        rust_code,
+                        explanation,
+                        test_cases: vec![],
+                        confidence: 0.9,
+                        alternative_approaches: vec![],
+                    })
+                }
+                Err(e) => {
+                    tracing::warn!("MCP tool call failed: {}", e);
+                    self.fallback_response(request).await
+                }
+            }
+        } else {
+            self.fallback_response(request).await
+        }
+    }
+
+    async fn fallback_response(&self, _request: McpTranspilationRequest) -> Result<McpTranspilationResponse> {
         let mock_response = McpTranspilationResponse {
-            rust_code: "// MCP transpilation not yet implemented".to_string(),
+            rust_code: "// MCP client not initialized - fallback response".to_string(),
             explanation: "This construct requires MCP assistance for proper transpilation"
                 .to_string(),
             test_cases: vec![],
-            confidence: 0.5,
+            confidence: 0.1,
             alternative_approaches: vec![],
         };
 
         Ok(mock_response)
     }
 
-    pub fn transpile_fallback_sync(
-        &self,
+    pub async fn transpile_fallback_sync(
+        &mut self,
         request: McpTranspilationRequest,
     ) -> Result<McpTranspilationResponse> {
-        self.runtime.block_on(self.transpile_fallback(request))
+        self.transpile_fallback(request).await
     }
 }
 

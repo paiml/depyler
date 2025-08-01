@@ -1,164 +1,121 @@
-use crate::protocol::*;
-use crate::server::DepylerMcpServer;
+use crate::server::*;
 use crate::tools::*;
+use pmcp::server::{RequestHandlerExtra, ToolHandler};
+use pmcp::types::*;
 use serde_json::json;
+use tokio::sync::mpsc;
 
 #[tokio::test]
-async fn test_initialize() {
-    let server = DepylerMcpServer::new();
-    let message = McpMessage {
-        id: "1".to_string(),
-        method: methods::INITIALIZE.to_string(),
-        params: json!({}),
-    };
-
-    let response = server.handle_message(message).await;
-    assert!(response.error.is_none());
-    assert!(response.result.is_some());
-
-    let result: InitializeResult = serde_json::from_value(response.result.unwrap()).unwrap();
-    assert_eq!(result.protocol_version, MCP_VERSION);
-    assert!(result.server_info.is_some());
-    assert_eq!(result.server_info.unwrap().name, "depyler-mcp");
+async fn test_server_creation() {
+    let server_result = DepylerMcpServer::create_server().await;
+    assert!(server_result.is_ok());
 }
 
 #[tokio::test]
-async fn test_tools_list() {
-    let server = DepylerMcpServer::new();
-    let message = McpMessage {
-        id: "2".to_string(),
-        method: methods::TOOLS_LIST.to_string(),
-        params: json!({}),
+async fn test_transpile_tool_handler() {
+    let transpiler = std::sync::Arc::new(depyler_core::DepylerPipeline::new());
+    let tool = TranspileTool::new(transpiler);
+    
+    let args = json!({
+        "source": "def add(a: int, b: int) -> int:\n    return a + b",
+        "mode": "inline"
+    });
+
+    let (tx, _rx) = mpsc::unbounded_channel();
+    let extra = RequestHandlerExtra {
+        request_id: "test".to_string(),
+        cancellation_token: tokio_util::sync::CancellationToken::new(),
+        progress_reporter: Some(tx),
     };
 
-    let response = server.handle_message(message).await;
-    assert!(response.error.is_none());
-    assert!(response.result.is_some());
+    let result = tool.handle(args, extra).await;
+    assert!(result.is_ok());
 
-    let result = response.result.unwrap();
-    let tools = result["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 3);
-
-    let tool_names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
-    assert!(tool_names.contains(&methods::TRANSPILE_PYTHON));
-    assert!(tool_names.contains(&methods::ANALYZE_MIGRATION_COMPLEXITY));
-    assert!(tool_names.contains(&methods::VERIFY_TRANSPILATION));
+    let response = result.unwrap();
+    assert!(response["rust_code"].is_string());
+    assert!(response["metrics"].is_object());
+    assert!(response["compilation_command"].is_string());
 }
 
 #[tokio::test]
-async fn test_transpile_python_inline() {
-    let server = DepylerMcpServer::new();
-    let message = McpMessage {
-        id: "3".to_string(),
-        method: methods::TOOLS_CALL.to_string(),
-        params: json!({
-            "name": methods::TRANSPILE_PYTHON,
-            "arguments": {
-                "source": "def add(a: int, b: int) -> int:\n    return a + b",
-                "mode": "inline"
-            }
-        }),
-    };
-
-    let response = server.handle_message(message).await;
-    assert!(response.error.is_none());
-    assert!(response.result.is_some());
-
-    let result = response.result.unwrap();
-    assert!(result["rust_code"].is_string());
-    assert!(result["metrics"].is_object());
-    assert!(result["compilation_command"].is_string());
-}
-
-#[tokio::test]
-async fn test_analyze_migration_complexity() {
-    let server = DepylerMcpServer::new();
+async fn test_analyze_tool_handler() {
+    let transpiler = std::sync::Arc::new(depyler_core::DepylerPipeline::new());
+    let tool = AnalyzeTool::new(transpiler);
 
     // Create a temporary directory with a Python file for testing
-    let temp_dir = std::env::temp_dir().join("depyler_test");
+    let temp_dir = std::env::temp_dir().join("depyler_test_analyze");
     std::fs::create_dir_all(&temp_dir).unwrap();
     let test_file = temp_dir.join("test.py");
     std::fs::write(&test_file, "def hello():\n    print('Hello, world!')").unwrap();
 
-    let message = McpMessage {
-        id: "4".to_string(),
-        method: methods::TOOLS_CALL.to_string(),
-        params: json!({
-            "name": methods::ANALYZE_MIGRATION_COMPLEXITY,
-            "arguments": {
-                "project_path": temp_dir.to_string_lossy()
-            }
-        }),
+    let args = json!({
+        "project_path": temp_dir.to_string_lossy()
+    });
+
+    let (tx, _rx) = mpsc::unbounded_channel();
+    let extra = RequestHandlerExtra {
+        request_id: "test".to_string(),
+        cancellation_token: tokio_util::sync::CancellationToken::new(),
+        progress_reporter: Some(tx),
     };
 
-    let response = server.handle_message(message).await;
-    assert!(response.error.is_none());
-    assert!(response.result.is_some());
+    let result = tool.handle(args, extra).await;
+    assert!(result.is_ok());
 
-    let result = response.result.unwrap();
-    assert!(result["complexity_score"].is_number());
-    assert!(result["total_python_loc"].is_number());
-    assert!(result["migration_strategy"].is_object());
+    let response = result.unwrap();
+    assert!(response["complexity_score"].is_number());
+    assert!(response["total_python_loc"].is_number());
+    assert!(response["migration_strategy"].is_object());
 
     // Cleanup
     std::fs::remove_dir_all(&temp_dir).unwrap();
 }
 
 #[tokio::test]
-async fn test_verify_transpilation() {
-    let server = DepylerMcpServer::new();
-    let message = McpMessage {
-        id: "5".to_string(),
-        method: methods::TOOLS_CALL.to_string(),
-        params: json!({
-            "name": methods::VERIFY_TRANSPILATION,
-            "arguments": {
-                "python_source": "def add(a: int, b: int) -> int:\n    return a + b",
-                "rust_source": "pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}"
-            }
-        }),
+async fn test_verify_tool_handler() {
+    let transpiler = std::sync::Arc::new(depyler_core::DepylerPipeline::new());
+    let tool = VerifyTool::new(transpiler);
+
+    let args = json!({
+        "python_source": "def add(a: int, b: int) -> int:\n    return a + b",
+        "rust_source": "pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}"
+    });
+
+    let (tx, _rx) = mpsc::unbounded_channel();
+    let extra = RequestHandlerExtra {
+        request_id: "test".to_string(),
+        cancellation_token: tokio_util::sync::CancellationToken::new(),
+        progress_reporter: Some(tx),
     };
 
-    let response = server.handle_message(message).await;
-    assert!(response.error.is_none());
-    assert!(response.result.is_some());
+    let result = tool.handle(args, extra).await;
+    assert!(result.is_ok());
 
-    let result = response.result.unwrap();
-    assert!(result["verification_passed"].is_boolean());
-    assert!(result["semantic_equivalence_score"].is_number());
-    assert!(result["test_results"].is_object());
-    assert!(result["safety_guarantees"].is_object());
+    let response = result.unwrap();
+    assert!(response["verification_passed"].is_boolean());
+    assert!(response["semantic_equivalence_score"].is_number());
+    assert!(response["test_results"].is_object());
+    assert!(response["safety_guarantees"].is_object());
 }
 
 #[tokio::test]
-async fn test_invalid_tool_call() {
-    let server = DepylerMcpServer::new();
-    let message = McpMessage {
-        id: "6".to_string(),
-        method: methods::TOOLS_CALL.to_string(),
-        params: json!({
-            "name": "nonexistent_tool",
-            "arguments": {}
-        }),
+async fn test_transpile_tool_invalid_args() {
+    let transpiler = std::sync::Arc::new(depyler_core::DepylerPipeline::new());
+    let tool = TranspileTool::new(transpiler);
+
+    let args = json!({
+        "invalid_field": "value"
+    });
+
+    let (tx, _rx) = mpsc::unbounded_channel();
+    let extra = RequestHandlerExtra {
+        request_id: "test".to_string(),
+        cancellation_token: tokio_util::sync::CancellationToken::new(),
+        progress_reporter: Some(tx),
     };
 
-    let response = server.handle_message(message).await;
-    assert!(response.error.is_some());
-    assert!(response.result.is_none());
-}
-
-#[tokio::test]
-async fn test_invalid_method() {
-    let server = DepylerMcpServer::new();
-    let message = McpMessage {
-        id: "7".to_string(),
-        method: "invalid_method".to_string(),
-        params: json!({}),
-    };
-
-    let response = server.handle_message(message).await;
-    assert!(response.error.is_some());
-    assert_eq!(response.error.unwrap().code, error_codes::METHOD_NOT_FOUND);
+    let result = tool.handle(args, extra).await;
+    assert!(result.is_err());
 }
 
 #[test]
@@ -252,5 +209,71 @@ mod validator_tests {
         // Note: tests_pass is based on empty test cases OR confidence > 0.8,
         // so with empty test cases and confidence 0.1, it should pass in the validator logic
         // but since syntactically_valid is false, overall validation should fail
+    }
+}
+
+// Transport tests
+mod transport_tests {
+    use crate::transport::*;
+
+    #[test]
+    fn test_transport_type_default() {
+        assert!(matches!(TransportType::default(), TransportType::Stdio));
+    }
+
+    #[test]
+    fn test_transport_factory_stdio() {
+        let transport = TransportFactory::create_stdio();
+        assert!(transport.is_ok());
+    }
+
+    #[test]  
+    fn test_transport_from_env_stdio() {
+        std::env::set_var("DEPYLER_MCP_TRANSPORT", "stdio");
+        let transport_type = TransportFactory::from_env().unwrap();
+        assert!(matches!(transport_type, TransportType::Stdio));
+        std::env::remove_var("DEPYLER_MCP_TRANSPORT");
+    }
+
+    #[test]
+    fn test_transport_from_env_default() {
+        std::env::remove_var("DEPYLER_MCP_TRANSPORT");
+        let transport_type = TransportFactory::from_env().unwrap();
+        assert!(matches!(transport_type, TransportType::Stdio));
+    }
+
+    #[cfg(feature = "websocket")]
+    #[test]
+    fn test_transport_from_env_websocket() {
+        std::env::set_var("DEPYLER_MCP_TRANSPORT", "ws://localhost:8080");
+        let transport_type = TransportFactory::from_env().unwrap();
+        assert!(matches!(transport_type, TransportType::WebSocket(_)));
+        std::env::remove_var("DEPYLER_MCP_TRANSPORT");
+    }
+
+    #[cfg(feature = "http")]
+    #[test]
+    fn test_transport_from_env_http() {
+        std::env::set_var("DEPYLER_MCP_TRANSPORT", "http://localhost:8080");
+        let transport_type = TransportFactory::from_env().unwrap();
+        assert!(matches!(transport_type, TransportType::Http(_)));
+        std::env::remove_var("DEPYLER_MCP_TRANSPORT");
+    }
+}
+
+// Client tests
+mod client_tests {
+    use crate::McpClient;
+
+    #[test]
+    fn test_client_creation() {
+        let client = McpClient::new();
+        assert!(client.is_ok());
+    }
+
+    #[test]
+    fn test_client_availability() {
+        let client = McpClient::new().unwrap();
+        assert!(!client.is_available()); // Should be false when no transport is configured
     }
 }
