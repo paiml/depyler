@@ -44,13 +44,16 @@ impl From<DepylerMcpError> for McpError {
             DepylerMcpError::UnsupportedDynamicFeature(msg) => {
                 McpError::Internal(anyhow::anyhow!("Dynamic feature not supported: {}", msg))
             }
-            DepylerMcpError::TranspilationTimeout(secs) => {
-                McpError::Internal(anyhow::anyhow!("Transpilation timeout after {} seconds", secs))
-            }
+            DepylerMcpError::TranspilationTimeout(secs) => McpError::Internal(anyhow::anyhow!(
+                "Transpilation timeout after {} seconds",
+                secs
+            )),
             DepylerMcpError::InvalidInput(msg) => McpError::Internal(anyhow::anyhow!("{}", msg)),
             DepylerMcpError::Internal(msg) => McpError::Internal(anyhow::anyhow!("{}", msg)),
             DepylerMcpError::Io(err) => McpError::Internal(anyhow::anyhow!("IO error: {}", err)),
-            DepylerMcpError::Json(err) => McpError::Internal(anyhow::anyhow!("JSON error: {}", err)),
+            DepylerMcpError::Json(err) => {
+                McpError::Internal(anyhow::anyhow!("JSON error: {}", err))
+            }
         }
     }
 }

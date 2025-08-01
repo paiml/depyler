@@ -179,16 +179,16 @@ impl AnalyzeTool {
             total_lines += content.lines().count();
         } else if path.is_dir() {
             // Simplified: just count a few common files
-            for entry in std::fs::read_dir(path)
-                .map_err(|e| McpError::Internal(anyhow::anyhow!("Failed to read directory: {}", e)))?
-            {
+            for entry in std::fs::read_dir(path).map_err(|e| {
+                McpError::Internal(anyhow::anyhow!("Failed to read directory: {}", e))
+            })? {
                 let entry = entry.map_err(|e| {
                     McpError::Internal(anyhow::anyhow!("Failed to read directory entry: {}", e))
                 })?;
                 let path = entry.path();
                 if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
                     let content = std::fs::read_to_string(&path).map_err(|e| {
-                        McpError::InternalError(format!("Failed to read file: {}", e))
+                        McpError::Internal(anyhow::anyhow!("Failed to read file: {}", e))
                     })?;
                     total_lines += content.lines().count();
                 }
