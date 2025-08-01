@@ -35,13 +35,17 @@ impl TransportFactory {
 
             #[cfg(feature = "websocket")]
             TransportType::WebSocket(url) => {
-                let transport = WebSocketTransport::new(&url)?;
+                use pmcp::WebSocketConfig;
+                let config = WebSocketConfig::new(url.clone());
+                let transport = WebSocketTransport::new(config);
                 Ok(Box::new(transport))
             }
 
             #[cfg(feature = "http")]
             TransportType::Http(url) => {
-                let transport = HttpTransport::new(&url)?;
+                use pmcp::HttpConfig;
+                let config = HttpConfig::new(url.clone());
+                let transport = HttpTransport::new(config);
                 Ok(Box::new(transport))
             }
         }
@@ -53,12 +57,16 @@ impl TransportFactory {
 
     #[cfg(feature = "websocket")]
     pub fn create_websocket(url: &str) -> Result<WebSocketTransport> {
-        WebSocketTransport::new(url)
+        use pmcp::WebSocketConfig;
+        let config = WebSocketConfig::new(url.to_string());
+        Ok(WebSocketTransport::new(config))
     }
 
     #[cfg(feature = "http")]
     pub fn create_http(url: &str) -> Result<HttpTransport> {
-        HttpTransport::new(url)
+        use pmcp::HttpConfig;
+        let config = HttpConfig::new(url.to_string());
+        Ok(HttpTransport::new(config))
     }
 
     pub fn from_env() -> Result<TransportType> {
