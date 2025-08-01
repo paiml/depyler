@@ -1,5 +1,5 @@
 use anyhow::Result;
-use pmcp::{transport::Transport, StdioTransport};
+use pmcp::{StdioTransport, Transport};
 use std::fmt::Debug;
 
 #[cfg(feature = "websocket")]
