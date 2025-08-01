@@ -18,8 +18,7 @@ pub use pmcp::{
     error::Error as McpError,
     server::{Server, ToolHandler},
     transport::Transport,
-    RequestHandlerExtra,
-    StdioTransport,
+    RequestHandlerExtra, StdioTransport,
 };
 
 use anyhow::Result;
@@ -95,9 +94,7 @@ impl McpClient {
 
     pub async fn with_stdio() -> Result<Self> {
         // For now, create a disabled client since the API has changed significantly
-        Ok(Self {
-            client: None,
-        })
+        Ok(Self { client: None })
     }
 
     pub fn is_available(&self) -> bool {
