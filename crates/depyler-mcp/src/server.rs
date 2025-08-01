@@ -1,9 +1,9 @@
 use crate::error::DepylerMcpError;
 use crate::tools::*;
 use depyler_core::DepylerPipeline;
+use pmcp::error::Error as McpError;
 use pmcp::server::{RequestHandlerExtra, Server, ToolHandler};
 use pmcp::types::*;
-use pmcp::error::Error as McpError;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
@@ -27,13 +27,22 @@ impl DepylerMcpServer {
 
     pub async fn create_server() -> Result<Server, McpError> {
         let depyler_server = Self::new();
-        
+
         let server = Server::builder()
             .name("depyler-mcp")
             .version(env!("CARGO_PKG_VERSION"))
-            .tool("transpile_python", TranspileTool::new(depyler_server.transpiler.clone()))
-            .tool("analyze_migration_complexity", AnalyzeTool::new(depyler_server.transpiler.clone()))
-            .tool("verify_transpilation", VerifyTool::new(depyler_server.transpiler.clone()))
+            .tool(
+                "transpile_python",
+                TranspileTool::new(depyler_server.transpiler.clone()),
+            )
+            .tool(
+                "analyze_migration_complexity",
+                AnalyzeTool::new(depyler_server.transpiler.clone()),
+            )
+            .tool(
+                "verify_transpilation",
+                VerifyTool::new(depyler_server.transpiler.clone()),
+            )
             .build()?;
 
         Ok(server)
@@ -108,8 +117,9 @@ impl ToolHandler for TranspileTool {
                 // For now, just read the main file - in a full implementation,
                 // this would analyze the entire project
                 let main_file = Path::new(&request.source).join("main.py");
-                std::fs::read_to_string(&main_file)
-                    .map_err(|e| McpError::InternalError(format!("Failed to read project main file: {}", e)))?
+                std::fs::read_to_string(&main_file).map_err(|e| {
+                    McpError::InternalError(format!("Failed to read project main file: {}", e))
+                })?
             }
         };
 
@@ -170,13 +180,16 @@ impl AnalyzeTool {
         } else if path.is_dir() {
             // Simplified: just count a few common files
             for entry in std::fs::read_dir(path)
-                .map_err(|e| McpError::InternalError(format!("Failed to read directory: {}", e)))? {
-                let entry = entry
-                    .map_err(|e| McpError::InternalError(format!("Failed to read directory entry: {}", e)))?;
+                .map_err(|e| McpError::InternalError(format!("Failed to read directory: {}", e)))?
+            {
+                let entry = entry.map_err(|e| {
+                    McpError::InternalError(format!("Failed to read directory entry: {}", e))
+                })?;
                 let path = entry.path();
                 if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
-                    let content = std::fs::read_to_string(&path)
-                        .map_err(|e| McpError::InternalError(format!("Failed to read file: {}", e)))?;
+                    let content = std::fs::read_to_string(&path).map_err(|e| {
+                        McpError::InternalError(format!("Failed to read file: {}", e))
+                    })?;
                     total_lines += content.lines().count();
                 }
             }
