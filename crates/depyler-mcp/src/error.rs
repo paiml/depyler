@@ -36,24 +36,21 @@ impl From<DepylerMcpError> for McpError {
         match err {
             DepylerMcpError::Mcp(mcp_err) => mcp_err,
             DepylerMcpError::TypeInferenceError(msg) => {
-                McpError::Internal(anyhow::anyhow!("Type inference failed: {}", msg))
+                McpError::Internal(format!("Type inference failed: {}", msg))
             }
             DepylerMcpError::UnsafePatternError { pattern, location } => McpError::Internal(
-                anyhow::anyhow!("Unsafe pattern detected: {} at {}", pattern, location),
+                format!("Unsafe pattern detected: {} at {}", pattern, location),
             ),
             DepylerMcpError::UnsupportedDynamicFeature(msg) => {
-                McpError::Internal(anyhow::anyhow!("Dynamic feature not supported: {}", msg))
+                McpError::Internal(format!("Dynamic feature not supported: {}", msg))
             }
-            DepylerMcpError::TranspilationTimeout(secs) => McpError::Internal(anyhow::anyhow!(
-                "Transpilation timeout after {} seconds",
-                secs
-            )),
-            DepylerMcpError::InvalidInput(msg) => McpError::Internal(anyhow::anyhow!("{}", msg)),
-            DepylerMcpError::Internal(msg) => McpError::Internal(anyhow::anyhow!("{}", msg)),
-            DepylerMcpError::Io(err) => McpError::Internal(anyhow::anyhow!("IO error: {}", err)),
-            DepylerMcpError::Json(err) => {
-                McpError::Internal(anyhow::anyhow!("JSON error: {}", err))
+            DepylerMcpError::TranspilationTimeout(secs) => {
+                McpError::Internal(format!("Transpilation timeout after {} seconds", secs))
             }
+            DepylerMcpError::InvalidInput(msg) => McpError::Internal(msg),
+            DepylerMcpError::Internal(msg) => McpError::Internal(msg),
+            DepylerMcpError::Io(err) => McpError::Internal(format!("IO error: {}", err)),
+            DepylerMcpError::Json(err) => McpError::Internal(format!("JSON error: {}", err)),
         }
     }
 }
