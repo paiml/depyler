@@ -2,8 +2,8 @@ use crate::error::DepylerMcpError;
 use crate::tools::*;
 use depyler_core::DepylerPipeline;
 use pmcp::error::Error as McpError;
-use pmcp::server::{RequestHandlerExtra, Server, ToolHandler};
-use pmcp::types::*;
+use pmcp::server::{Server, ToolHandler};
+use pmcp::RequestHandlerExtra;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
@@ -105,20 +105,20 @@ impl TranspileTool {
 impl ToolHandler for TranspileTool {
     async fn handle(&self, args: Value, _extra: RequestHandlerExtra) -> Result<Value, McpError> {
         let request: TranspileRequest = serde_json::from_value(args)
-            .map_err(|e| McpError::InvalidParams(format!("Invalid transpile request: {}", e)))?;
+            .map_err(|e| McpError::Internal(anyhow::anyhow!("Invalid transpile request: {}", e)))?;
 
         info!("Transpiling Python code with mode: {:?}", request.mode);
 
         let python_source = match request.mode {
             Mode::Inline => request.source,
             Mode::File => std::fs::read_to_string(&request.source)
-                .map_err(|e| McpError::InternalError(format!("Failed to read file: {}", e)))?,
+                .map_err(|e| McpError::Internal(anyhow::anyhow!("Failed to read file: {}", e)))?,
             Mode::Project => {
                 // For now, just read the main file - in a full implementation,
                 // this would analyze the entire project
                 let main_file = Path::new(&request.source).join("main.py");
                 std::fs::read_to_string(&main_file).map_err(|e| {
-                    McpError::InternalError(format!("Failed to read project main file: {}", e))
+                    McpError::Internal(anyhow::anyhow!("Failed to read project main file: {}", e))
                 })?
             }
         };
@@ -150,7 +150,7 @@ impl ToolHandler for TranspileTool {
         };
 
         serde_json::to_value(response)
-            .map_err(|e| McpError::InternalError(format!("Failed to serialize response: {}", e)))
+            .map_err(|e| McpError::Internal(anyhow::anyhow!("Failed to serialize response: {}", e)))
     }
 }
 
@@ -167,7 +167,7 @@ impl AnalyzeTool {
     fn count_python_lines(&self, project_path: &str) -> Result<usize, McpError> {
         let path = Path::new(project_path);
         if !path.exists() {
-            return Err(McpError::InvalidParams(format!(
+            return Err(McpError::Internal(anyhow::anyhow!(
                 "Project path does not exist: {project_path}"
             )));
         }
@@ -175,15 +175,15 @@ impl AnalyzeTool {
         let mut total_lines = 0;
         if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
             let content = std::fs::read_to_string(path)
-                .map_err(|e| McpError::InternalError(format!("Failed to read file: {}", e)))?;
+                .map_err(|e| McpError::Internal(anyhow::anyhow!("Failed to read file: {}", e)))?;
             total_lines += content.lines().count();
         } else if path.is_dir() {
             // Simplified: just count a few common files
             for entry in std::fs::read_dir(path)
-                .map_err(|e| McpError::InternalError(format!("Failed to read directory: {}", e)))?
+                .map_err(|e| McpError::Internal(anyhow::anyhow!("Failed to read directory: {}", e)))?
             {
                 let entry = entry.map_err(|e| {
-                    McpError::InternalError(format!("Failed to read directory entry: {}", e))
+                    McpError::Internal(anyhow::anyhow!("Failed to read directory entry: {}", e))
                 })?;
                 let path = entry.path();
                 if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
@@ -209,7 +209,7 @@ impl AnalyzeTool {
 impl ToolHandler for AnalyzeTool {
     async fn handle(&self, args: Value, _extra: RequestHandlerExtra) -> Result<Value, McpError> {
         let request: AnalyzeRequest = serde_json::from_value(args)
-            .map_err(|e| McpError::InvalidParams(format!("Invalid analyze request: {}", e)))?;
+            .map_err(|e| McpError::Internal(anyhow::anyhow!("Invalid analyze request: {}", e)))?;
 
         info!("Analyzing project: {}", request.project_path);
 
@@ -257,7 +257,7 @@ impl ToolHandler for AnalyzeTool {
         };
 
         serde_json::to_value(response)
-            .map_err(|e| McpError::InternalError(format!("Failed to serialize response: {}", e)))
+            .map_err(|e| McpError::Internal(anyhow::anyhow!("Failed to serialize response: {}", e)))
     }
 }
 
@@ -277,7 +277,7 @@ impl VerifyTool {
 impl ToolHandler for VerifyTool {
     async fn handle(&self, args: Value, _extra: RequestHandlerExtra) -> Result<Value, McpError> {
         let request: VerifyRequest = serde_json::from_value(args)
-            .map_err(|e| McpError::InvalidParams(format!("Invalid verify request: {}", e)))?;
+            .map_err(|e| McpError::Internal(anyhow::anyhow!("Invalid verify request: {}", e)))?;
 
         info!("Verifying transpilation");
 
@@ -310,6 +310,6 @@ impl ToolHandler for VerifyTool {
         };
 
         serde_json::to_value(response)
-            .map_err(|e| McpError::InternalError(format!("Failed to serialize response: {}", e)))
+            .map_err(|e| McpError::Internal(anyhow::anyhow!("Failed to serialize response: {}", e)))
     }
 }

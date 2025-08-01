@@ -36,21 +36,21 @@ impl From<DepylerMcpError> for McpError {
         match err {
             DepylerMcpError::Mcp(mcp_err) => mcp_err,
             DepylerMcpError::TypeInferenceError(msg) => {
-                McpError::InvalidParams(format!("Type inference failed: {}", msg))
+                McpError::Internal(anyhow::anyhow!("Type inference failed: {}", msg))
             }
-            DepylerMcpError::UnsafePatternError { pattern, location } => McpError::InvalidParams(
-                format!("Unsafe pattern detected: {} at {}", pattern, location),
+            DepylerMcpError::UnsafePatternError { pattern, location } => McpError::Internal(
+                anyhow::anyhow!("Unsafe pattern detected: {} at {}", pattern, location),
             ),
             DepylerMcpError::UnsupportedDynamicFeature(msg) => {
-                McpError::InvalidParams(format!("Dynamic feature not supported: {}", msg))
+                McpError::Internal(anyhow::anyhow!("Dynamic feature not supported: {}", msg))
             }
             DepylerMcpError::TranspilationTimeout(secs) => {
-                McpError::InternalError(format!("Transpilation timeout after {} seconds", secs))
+                McpError::Internal(anyhow::anyhow!("Transpilation timeout after {} seconds", secs))
             }
-            DepylerMcpError::InvalidInput(msg) => McpError::InvalidParams(msg),
-            DepylerMcpError::Internal(msg) => McpError::InternalError(msg),
-            DepylerMcpError::Io(err) => McpError::InternalError(format!("IO error: {}", err)),
-            DepylerMcpError::Json(err) => McpError::InternalError(format!("JSON error: {}", err)),
+            DepylerMcpError::InvalidInput(msg) => McpError::Internal(anyhow::anyhow!("{}", msg)),
+            DepylerMcpError::Internal(msg) => McpError::Internal(anyhow::anyhow!("{}", msg)),
+            DepylerMcpError::Io(err) => McpError::Internal(anyhow::anyhow!("IO error: {}", err)),
+            DepylerMcpError::Json(err) => McpError::Internal(anyhow::anyhow!("JSON error: {}", err)),
         }
     }
 }

@@ -1,12 +1,12 @@
 use anyhow::Result;
-use pmcp::shared::transport::{StdioTransport, Transport};
+use pmcp::{StdioTransport, transport::Transport};
 use std::fmt::Debug;
 
 #[cfg(feature = "websocket")]
-use pmcp::shared::transport::WebSocketTransport;
+use pmcp::WebSocketTransport;
 
 #[cfg(feature = "http")]
-use pmcp::shared::transport::HttpTransport;
+use pmcp::HttpTransport;
 
 #[derive(Debug, Clone)]
 pub enum TransportType {
