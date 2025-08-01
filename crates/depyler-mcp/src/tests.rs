@@ -15,7 +15,7 @@ async fn test_server_creation() {
 async fn test_transpile_tool_handler() {
     let transpiler = std::sync::Arc::new(depyler_core::DepylerPipeline::new());
     let tool = TranspileTool::new(transpiler);
-    
+
     let args = json!({
         "source": "def add(a: int, b: int) -> int:\n    return a + b",
         "mode": "inline"
@@ -227,7 +227,7 @@ mod transport_tests {
         assert!(transport.is_ok());
     }
 
-    #[test]  
+    #[test]
     fn test_transport_from_env_stdio() {
         std::env::set_var("DEPYLER_MCP_TRANSPORT", "stdio");
         let transport_type = TransportFactory::from_env().unwrap();

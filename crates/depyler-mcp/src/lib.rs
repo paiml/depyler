@@ -89,9 +89,7 @@ pub struct AlternativeApproach {
 
 impl McpClient {
     pub fn new() -> Result<Self> {
-        Ok(Self {
-            client: None,
-        })
+        Ok(Self { client: None })
     }
 
     pub async fn with_transport<T>(transport: T) -> Result<Self>
@@ -99,11 +97,14 @@ impl McpClient {
         T: Transport + 'static,
     {
         let mut client = Client::new(transport);
-        
+
         // Initialize the client with default capabilities
         let capabilities = ClientCapabilities::default();
-        client.initialize(capabilities).await.map_err(|e| anyhow::anyhow!("Failed to initialize MCP client: {}", e))?;
-        
+        client
+            .initialize(capabilities)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to initialize MCP client: {}", e))?;
+
         Ok(Self {
             client: Some(client),
         })
@@ -125,7 +126,7 @@ impl McpClient {
                 "options": {
                     "optimization_level": match request.quality_hints.style_level {
                         StyleLevel::Basic => "size",
-                        StyleLevel::Idiomatic => "energy", 
+                        StyleLevel::Idiomatic => "energy",
                         StyleLevel::Optimized => "speed",
                     },
                     "type_inference": "conservative",
@@ -133,15 +134,20 @@ impl McpClient {
                 }
             });
 
-            match client.call_tool("transpile_python".to_string(), tool_args).await {
+            match client
+                .call_tool("transpile_python".to_string(), tool_args)
+                .await
+            {
                 Ok(result) => {
                     // Parse the MCP tool result into our response format
-                    let rust_code = result.get("rust_code")
+                    let rust_code = result
+                        .get("rust_code")
                         .and_then(|v| v.as_str())
                         .unwrap_or("// MCP transpilation returned invalid format")
                         .to_string();
-                    
-                    let explanation = result.get("explanation")
+
+                    let explanation = result
+                        .get("explanation")
                         .and_then(|v| v.as_str())
                         .unwrap_or("Transpiled via MCP")
                         .to_string();
@@ -164,7 +170,10 @@ impl McpClient {
         }
     }
 
-    async fn fallback_response(&self, _request: McpTranspilationRequest) -> Result<McpTranspilationResponse> {
+    async fn fallback_response(
+        &self,
+        _request: McpTranspilationRequest,
+    ) -> Result<McpTranspilationResponse> {
         let mock_response = McpTranspilationResponse {
             rust_code: "// MCP client not initialized - fallback response".to_string(),
             explanation: "This construct requires MCP assistance for proper transpilation"
