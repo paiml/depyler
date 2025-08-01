@@ -35,10 +35,18 @@ impl From<DepylerMcpError> for McpError {
     fn from(err: DepylerMcpError) -> Self {
         match err {
             DepylerMcpError::Mcp(mcp_err) => mcp_err,
-            DepylerMcpError::TypeInferenceError(msg) => McpError::InvalidParams(format!("Type inference failed: {}", msg)),
-            DepylerMcpError::UnsafePatternError { pattern, location } => McpError::InvalidParams(format!("Unsafe pattern detected: {} at {}", pattern, location)),
-            DepylerMcpError::UnsupportedDynamicFeature(msg) => McpError::InvalidParams(format!("Dynamic feature not supported: {}", msg)),
-            DepylerMcpError::TranspilationTimeout(secs) => McpError::InternalError(format!("Transpilation timeout after {} seconds", secs)),
+            DepylerMcpError::TypeInferenceError(msg) => {
+                McpError::InvalidParams(format!("Type inference failed: {}", msg))
+            }
+            DepylerMcpError::UnsafePatternError { pattern, location } => McpError::InvalidParams(
+                format!("Unsafe pattern detected: {} at {}", pattern, location),
+            ),
+            DepylerMcpError::UnsupportedDynamicFeature(msg) => {
+                McpError::InvalidParams(format!("Dynamic feature not supported: {}", msg))
+            }
+            DepylerMcpError::TranspilationTimeout(secs) => {
+                McpError::InternalError(format!("Transpilation timeout after {} seconds", secs))
+            }
             DepylerMcpError::InvalidInput(msg) => McpError::InvalidParams(msg),
             DepylerMcpError::Internal(msg) => McpError::InternalError(msg),
             DepylerMcpError::Io(err) => McpError::InternalError(format!("IO error: {}", err)),

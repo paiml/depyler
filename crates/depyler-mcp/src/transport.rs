@@ -32,13 +32,13 @@ impl TransportFactory {
                 let transport = StdioTransport::new();
                 Ok(Box::new(transport))
             }
-            
+
             #[cfg(feature = "websocket")]
             TransportType::WebSocket(url) => {
                 let transport = WebSocketTransport::new(&url)?;
                 Ok(Box::new(transport))
             }
-            
+
             #[cfg(feature = "http")]
             TransportType::Http(url) => {
                 let transport = HttpTransport::new(&url)?;
@@ -65,17 +65,17 @@ impl TransportFactory {
         if let Ok(mcp_transport) = std::env::var("DEPYLER_MCP_TRANSPORT") {
             match mcp_transport.as_str() {
                 "stdio" => Ok(TransportType::Stdio),
-                
+
                 #[cfg(feature = "websocket")]
                 url if url.starts_with("ws://") || url.starts_with("wss://") => {
                     Ok(TransportType::WebSocket(url.to_string()))
                 }
-                
+
                 #[cfg(feature = "http")]
                 url if url.starts_with("http://") || url.starts_with("https://") => {
                     Ok(TransportType::Http(url.to_string()))
                 }
-                
+
                 _ => {
                     tracing::warn!("Unknown transport type in DEPYLER_MCP_TRANSPORT: {}, falling back to stdio", mcp_transport);
                     Ok(TransportType::Stdio)
