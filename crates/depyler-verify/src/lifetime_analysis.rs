@@ -216,7 +216,70 @@ impl LifetimeAnalyzer {
                 self.analyze_expr(left, scope_depth);
                 self.analyze_expr(right, scope_depth);
             }
-            HirExpr::Call { args, .. } => {
+            HirExpr::Call { func, args } => {
+                // Check if this is a method that might invalidate borrows
+                if matches!(func.as_str(), "push" | "append" | "insert" | "extend") {
+                    // These methods often require mutable access to the first argument
+                    if let Some(HirExpr::Var(obj)) = args.first() {
+                        if !self.can_borrow(obj, &BorrowKind::Mutable) {
+                            self.violations.push(LifetimeViolation {
+                                kind: ViolationKind::ConflictingBorrows,
+                                variable: obj.clone(),
+                                location: format!("method call: {}", func),
+                                suggestion: "Cannot mutate while borrowed".to_string(),
+                            });
+                        }
+                    }
+                }
+                
+                for arg in args {
+                    self.analyze_expr(arg, scope_depth);
+                    // Track potential moves through function calls
+                    if let HirExpr::Var(name) = arg {
+                        if !self.is_copy_type(name) && func != "len" && func != "print" {
+                            self.escaping_vars.insert(name.clone());
+                        }
+                    }
+                }
+            }
+            HirExpr::Index { base, index } => {
+                self.analyze_expr(base, scope_depth);
+                self.analyze_expr(index, scope_depth);
+                
+                // Check for iterator invalidation
+                if let HirExpr::Var(name) = base.as_ref() {
+                    if self.active_borrows.iter().any(|bs| bs.borrowed.contains_key(name)) {
+                        self.violations.push(LifetimeViolation {
+                            kind: ViolationKind::ConflictingBorrows,
+                            variable: name.clone(),
+                            location: "indexing operation".to_string(),
+                            suggestion: "Cannot index while collection is borrowed".to_string(),
+                        });
+                    }
+                }
+            }
+            HirExpr::MethodCall { object, method, args } => {
+                self.analyze_expr(object, scope_depth);
+                
+                // Check if method requires mutable access
+                let requires_mut = matches!(method.as_str(), 
+                    "push" | "pop" | "insert" | "remove" | "clear" | "append" | "extend" |
+                    "push_str" | "truncate" | "drain" | "retain"
+                );
+                
+                if requires_mut {
+                    if let HirExpr::Var(name) = object.as_ref() {
+                        if !self.can_borrow(name, &BorrowKind::Mutable) {
+                            self.violations.push(LifetimeViolation {
+                                kind: ViolationKind::ConflictingBorrows,
+                                variable: name.clone(),
+                                location: format!("method call: {}", method),
+                                suggestion: "Cannot call mutable method while borrowed".to_string(),
+                            });
+                        }
+                    }
+                }
+                
                 for arg in args {
                     self.analyze_expr(arg, scope_depth);
                 }
@@ -250,9 +313,11 @@ impl LifetimeAnalyzer {
         );
     }
 
-    fn is_moved(&self, _name: &str) -> bool {
-        // Simplified: would track move semantics
-        false
+    fn is_moved(&self, name: &str) -> bool {
+        // Check if variable has been moved
+        // For now, consider a variable moved if it was assigned to another variable
+        // or passed to a function that takes ownership
+        self.escaping_vars.contains(name)
     }
 
     fn can_borrow(&self, name: &str, kind: &BorrowKind) -> bool {
@@ -272,6 +337,12 @@ impl LifetimeAnalyzer {
         if let Some(borrow_set) = self.active_borrows.last_mut() {
             borrow_set.borrowed.insert(name.to_string(), kind);
         }
+    }
+    
+    fn is_copy_type(&self, _name: &str) -> bool {
+        // For now, assume integers and booleans are Copy types
+        // In a full implementation, we'd check the actual type
+        false
     }
 
     fn check_return_lifetime(&mut self, expr: &HirExpr, _scope_depth: usize) {

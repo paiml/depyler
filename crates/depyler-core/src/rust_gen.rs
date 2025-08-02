@@ -623,13 +623,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             BinOp::Add => {
                 // Special handling for string concatenation
-                // When concatenating strings in a for loop over borrowed strings,
-                // we need to handle references properly
-                // Check if we're doing string concatenation (heuristic: if right is a string literal)
-                if matches!(right, HirExpr::Literal(Literal::String(_))) {
-                    // Use format! macro for string concatenation to handle references
+                // Only use format! if we're certain at least one operand is a string
+                let is_definitely_string = matches!(left, HirExpr::Literal(Literal::String(_))) 
+                    || matches!(right, HirExpr::Literal(Literal::String(_)));
+                    
+                if is_definitely_string {
+                    // This is string concatenation - use format! to handle references properly
                     Ok(parse_quote! { format!("{}{}", #left_expr, #right_expr) })
                 } else {
+                    // Regular arithmetic addition or unknown types
                     let rust_op = convert_binop(op)?;
                     Ok(parse_quote! { (#left_expr #rust_op #right_expr) })
                 }
