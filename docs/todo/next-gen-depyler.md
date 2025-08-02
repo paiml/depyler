@@ -2,104 +2,119 @@
 
 This document provides a granular, prioritized list of development tasks for the Depyler Python-to-Rust transpiler, based on the current codebase state and CLAUDE.md guidelines.
 
+## Recent Completions (2025-08-02)
+
+The following Priority 1 (Critical Fixes) and Priority 2 (Core Features) tasks have been completed:
+
+### Priority 1 - Critical Fixes ✅
+- **Type Inference & Ownership**: Fixed incorrect ownership patterns, implemented proper borrowing inference, added lifetime annotations, and ensured borrow checking aligns with Rust semantics
+- **String Handling**: Optimized string allocations, implemented `&str` inference, added `Cow<'static, str>` support, fixed unnecessary `.to_string()` calls, and implemented string interning
+- **Property Verification**: Fixed lifetime violation detection gaps, added comprehensive lifetime analysis, implemented proper scope tracking, and added iterator invalidation detection
+
+### Priority 2 - Core Features ✅
+- **Control Flow & Operators**: Implemented `range()` with step parameter support
+- **Error Handling**: Completed error propagation patterns, exception mapping, try/except/finally transpilation, custom error types, and error chaining
+- **Collections**: Implemented dictionary subscript assignment (partial), list slicing with step, dictionary comprehensions, and list comprehensions
+- **Testing Infrastructure**: Fixed linker errors, added QuickCheck property tests, implemented semantic equivalence testing
+
 ## Critical Fixes (Priority 1 - Broken Functionality)
 
 ### Type Inference & Ownership
-- [ ] Fix incorrect ownership patterns in type inference (`type_mapper.rs`)
-  - [ ] Implement proper borrowing inference for function parameters
-    - [ ] Add `BorrowingContext` struct to track parameter usage
-    - [ ] Analyze function body for parameter mutations
-    - [ ] Detect parameter escaping (stored in structs/returned)
-    - [ ] Generate `&T` vs `&mut T` vs `T` based on usage patterns
-    - [ ] Add tests for complex borrowing scenarios
-  - [ ] Fix lifetime annotations for string references
-    - [ ] Create `LifetimeInference` module in `type_mapper.rs`
-    - [ ] Track string origin (literal, parameter, return value)
-    - [ ] Implement lifetime elision rules from Rust RFC 141
-    - [ ] Add explicit lifetime annotations when needed
-    - [ ] Handle string slicing and substring operations
-  - [ ] Add ownership transfer validation for method calls
-    - [ ] Track ownership state in HIR nodes
-    - [ ] Detect move vs borrow for self parameters
-    - [ ] Validate no use-after-move
-    - [ ] Generate proper `self`, `&self`, `&mut self` signatures
-    - [ ] Add error messages for ownership violations
-  - [ ] Ensure mutable/immutable borrow checking aligns with Rust semantics
-    - [ ] Implement `BorrowChecker` for HIR
-    - [ ] Track active borrows with scope information
-    - [ ] Detect conflicting borrows (mut + immut)
-    - [ ] Add two-phase borrowing support
-    - [ ] Generate helpful error messages with suggestions
+- [x] Fix incorrect ownership patterns in type inference (`type_mapper.rs`)
+  - [x] Implement proper borrowing inference for function parameters
+    - [x] Add `BorrowingContext` struct to track parameter usage
+    - [x] Analyze function body for parameter mutations
+    - [x] Detect parameter escaping (stored in structs/returned)
+    - [x] Generate `&T` vs `&mut T` vs `T` based on usage patterns
+    - [x] Add tests for complex borrowing scenarios
+  - [x] Fix lifetime annotations for string references
+    - [x] Create `LifetimeInference` module in `type_mapper.rs`
+    - [x] Track string origin (literal, parameter, return value)
+    - [x] Implement lifetime elision rules from Rust RFC 141
+    - [x] Add explicit lifetime annotations when needed
+    - [x] Handle string slicing and substring operations
+  - [x] Add ownership transfer validation for method calls
+    - [x] Track ownership state in HIR nodes
+    - [x] Detect move vs borrow for self parameters
+    - [x] Validate no use-after-move
+    - [x] Generate proper `self`, `&self`, `&mut self` signatures
+    - [x] Add error messages for ownership violations
+  - [x] Ensure mutable/immutable borrow checking aligns with Rust semantics
+    - [x] Implement `BorrowChecker` for HIR
+    - [x] Track active borrows with scope information
+    - [x] Detect conflicting borrows (mut + immut)
+    - [x] Add two-phase borrowing support
+    - [x] Generate helpful error messages with suggestions
 
 ### String Handling
-- [ ] Optimize string allocations (`direct_rules.rs`, `codegen.rs`)
-  - [ ] Implement `&str` inference where possible (currently always uses `String`)
-    - [ ] Add `StringUsageAnalyzer` to track string usage patterns
-    - [ ] Detect read-only string usage
-    - [ ] Identify string literals that don't need allocation
-    - [ ] Update `convert_literal` to return `&'static str` when safe
-    - [ ] Add configuration option for string strategy preference
-  - [ ] Add `Cow<'static, str>` support for mixed ownership scenarios
-    - [ ] Detect functions that sometimes return literals, sometimes owned
-    - [ ] Implement `CowInference` logic
-    - [ ] Update type mapper to support `Cow` type generation
-    - [ ] Add smart constructors for `Cow::Borrowed` vs `Cow::Owned`
-    - [ ] Generate `.into_owned()` calls where necessary
-  - [ ] Fix unnecessary `.to_string()` calls in literal conversions
-    - [ ] Audit all uses of `.to_string()` in codegen
-    - [ ] Replace with `&str` where receiver accepts it
-    - [ ] Use `format!` macro instead of multiple allocations
-    - [ ] Implement string concatenation optimization
-    - [ ] Add benchmarks to measure allocation reduction
-  - [ ] Implement string interning for repeated literals
-    - [ ] Create `StringInterner` struct with `FxHashMap`
-    - [ ] Track string literal usage frequency
-    - [ ] Generate `lazy_static!` for frequently used strings
-    - [ ] Use `Arc<str>` for shared string data
-    - [ ] Add configuration threshold for interning
+- [x] Optimize string allocations (`direct_rules.rs`, `codegen.rs`)
+  - [x] Implement `&str` inference where possible (currently always uses `String`)
+    - [x] Add `StringUsageAnalyzer` to track string usage patterns
+    - [x] Detect read-only string usage
+    - [x] Identify string literals that don't need allocation
+    - [x] Update `convert_literal` to return `&'static str` when safe
+    - [x] Add configuration option for string strategy preference
+  - [x] Add `Cow<'static, str>` support for mixed ownership scenarios
+    - [x] Detect functions that sometimes return literals, sometimes owned
+    - [x] Implement `CowInference` logic
+    - [x] Update type mapper to support `Cow` type generation
+    - [x] Add smart constructors for `Cow::Borrowed` vs `Cow::Owned`
+    - [x] Generate `.into_owned()` calls where necessary
+  - [x] Fix unnecessary `.to_string()` calls in literal conversions
+    - [x] Audit all uses of `.to_string()` in codegen
+    - [x] Replace with `&str` where receiver accepts it
+    - [x] Use `format!` macro instead of multiple allocations
+    - [x] Implement string concatenation optimization
+    - [x] Add benchmarks to measure allocation reduction
+  - [x] Implement string interning for repeated literals
+    - [x] Create `StringInterner` struct with `FxHashMap`
+    - [x] Track string literal usage frequency
+    - [x] Generate `lazy_static!` for frequently used strings
+    - [x] Use `Arc<str>` for shared string data
+    - [x] Add configuration threshold for interning
 
 ### Property Verification
-- [ ] Fix lifetime violation detection gaps (`verify/memory_safety.rs`)
-  - [ ] Add comprehensive lifetime analysis for all HIR nodes
-    - [ ] Implement `LifetimeAnalyzer` visitor for HIR
-    - [ ] Track lifetime constraints for each expression
-    - [ ] Build lifetime dependency graph
-    - [ ] Detect cyclic lifetime dependencies
-    - [ ] Generate lifetime bounds for generic functions
-  - [ ] Implement proper scope tracking for references
-    - [ ] Create `ScopeTracker` with nested scope support
-    - [ ] Track variable initialization points
-    - [ ] Record last use of each variable
-    - [ ] Implement non-lexical lifetime analysis
-    - [ ] Add debug visualization for scope trees
-  - [ ] Fix false negatives in borrow checker integration
-    - [ ] Add test cases for known false negatives
-    - [ ] Implement path-sensitive analysis
-    - [ ] Track conditional borrowing patterns
-    - [ ] Handle loop-carried dependencies
-    - [ ] Add heuristics for common patterns
-  - [ ] Add verification for iterator invalidation patterns
-    - [ ] Detect collection modification during iteration
-    - [ ] Track iterator lifetimes separately
-    - [ ] Implement invalidation rules for each collection type
-    - [ ] Generate safe iteration patterns (collect then iterate)
-    - [ ] Add warnings for potential invalidation
+- [x] Fix lifetime violation detection gaps (`verify/memory_safety.rs`)
+  - [x] Add comprehensive lifetime analysis for all HIR nodes
+    - [x] Implement `LifetimeAnalyzer` visitor for HIR
+    - [x] Track lifetime constraints for each expression
+    - [x] Build lifetime dependency graph
+    - [x] Detect cyclic lifetime dependencies
+    - [x] Generate lifetime bounds for generic functions
+  - [x] Implement proper scope tracking for references
+    - [x] Create `ScopeTracker` with nested scope support
+    - [x] Track variable initialization points
+    - [x] Record last use of each variable
+    - [x] Implement non-lexical lifetime analysis
+    - [x] Add debug visualization for scope trees
+  - [x] Fix false negatives in borrow checker integration
+    - [x] Add test cases for known false negatives
+    - [x] Implement path-sensitive analysis
+    - [x] Track conditional borrowing patterns
+    - [x] Handle loop-carried dependencies
+    - [x] Add heuristics for common patterns
+  - [x] Add verification for iterator invalidation patterns
+    - [x] Detect collection modification during iteration
+    - [x] Track iterator lifetimes separately
+    - [x] Implement invalidation rules for each collection type
+    - [x] Generate safe iteration patterns (collect then iterate)
+    - [x] Add warnings for potential invalidation
 
 ## Core Features (Priority 2 - Incomplete V1.0)
 
 ### Control Flow & Operators
-- [ ] Implement `range()` with step parameter support (`direct_rules.rs:355`)
-  - [ ] Update `convert_builtin_call` to handle 3-argument range
-    - [ ] Parse step parameter from args[2]
-    - [ ] Generate `(start..end).step_by(step)` for positive steps
-    - [ ] Handle negative steps with `.rev()` and bounds adjustment
-    - [ ] Add validation for zero step (should panic like Python)
-    - [ ] Test edge cases: negative ranges, large steps
-  - [ ] Add range type inference
-    - [ ] Infer integer type from arguments
-    - [ ] Handle mixed integer types (cast to common type)
-    - [ ] Support range over custom types with Step trait
-    - [ ] Generate appropriate type annotations
+- [x] Implement `range()` with step parameter support (`direct_rules.rs:355`)
+  - [x] Update `convert_builtin_call` to handle 3-argument range
+    - [x] Parse step parameter from args[2]
+    - [x] Generate `(start..end).step_by(step)` for positive steps
+    - [x] Handle negative steps with `.rev()` and bounds adjustment
+    - [x] Add validation for zero step (should panic like Python)
+    - [x] Test edge cases: negative ranges, large steps
+  - [x] Add range type inference
+    - [x] Infer integer type from arguments
+    - [x] Handle mixed integer types (cast to common type)
+    - [x] Support range over custom types with Step trait
+    - [x] Generate appropriate type annotations
 - [ ] Add proper floor division handling (`direct_rules.rs:480`, `rust_gen.rs:532`)
   - [ ] Implement `FloorDiv` operator conversion
     - [ ] Generate `(a / b).floor()` for floating point
@@ -147,55 +162,55 @@ This document provides a granular, prioritized list of development tasks for the
     - [ ] Mapping patterns for dictionaries
 
 ### Error Handling
-- [ ] Complete error propagation patterns
-  - [ ] Map Python exceptions to Rust `Result<T, E>` types
-    - [ ] Create exception hierarchy mapping
-    - [ ] Generate error enums for each module
-    - [ ] Map built-in exceptions (ValueError, KeyError, etc.)
-    - [ ] Support exception inheritance chains
-    - [ ] Add conversion traits between error types
-  - [ ] Implement try/except/finally transpilation
-    - [ ] Convert try blocks to Result-returning closures
-    - [ ] Map except clauses to match arms
-    - [ ] Implement finally with Drop trait or defer pattern
-    - [ ] Handle multiple except clauses with proper ordering
-    - [ ] Support exception binding and re-raising
-  - [ ] Add custom error type generation
-    - [ ] Generate error structs from Python exception classes
-    - [ ] Include error context and backtrace support
-    - [ ] Implement Display and Error traits
-    - [ ] Add #[derive(thiserror::Error)] when available
-    - [ ] Support error wrapping and downcasting
-  - [ ] Support error chaining and context
-    - [ ] Use anyhow/eyre for context propagation
-    - [ ] Generate `.context()` calls from Python comments
-    - [ ] Map `raise from` to error sources
-    - [ ] Preserve stack traces across boundaries
-    - [ ] Add structured error reporting
+- [x] Complete error propagation patterns
+  - [x] Map Python exceptions to Rust `Result<T, E>` types
+    - [x] Create exception hierarchy mapping
+    - [x] Generate error enums for each module
+    - [x] Map built-in exceptions (ValueError, KeyError, etc.)
+    - [x] Support exception inheritance chains
+    - [x] Add conversion traits between error types
+  - [x] Implement try/except/finally transpilation
+    - [x] Convert try blocks to Result-returning closures
+    - [x] Map except clauses to match arms
+    - [x] Implement finally with Drop trait or defer pattern
+    - [x] Handle multiple except clauses with proper ordering
+    - [x] Support exception binding and re-raising
+  - [x] Add custom error type generation
+    - [x] Generate error structs from Python exception classes
+    - [x] Include error context and backtrace support
+    - [x] Implement Display and Error traits
+    - [x] Add #[derive(thiserror::Error)] when available
+    - [x] Support error wrapping and downcasting
+  - [x] Support error chaining and context
+    - [x] Use anyhow/eyre for context propagation
+    - [x] Generate `.context()` calls from Python comments
+    - [x] Map `raise from` to error sources
+    - [x] Preserve stack traces across boundaries
+    - [x] Add structured error reporting
 
 ### Collections
-- [ ] Dictionary subscript assignment (`lib.rs:405`)
-  - [ ] Implement assignment desugaring
-    - [ ] Convert `d[k] = v` to `d.insert(k, v)`
+- [x] Dictionary subscript assignment (`lib.rs:405`)
+  - [x] Implement assignment desugaring
+    - [x] Convert `d[k] = v` to `d.insert(k, v)`
     - [ ] Handle nested assignments `d[k1][k2] = v`
     - [ ] Support tuple key assignments
     - [ ] Add get_mut for update operations
     - [ ] Generate entry API calls for efficiency
-  - [ ] Type inference for dictionary operations
-    - [ ] Infer key and value types from usage
-    - [ ] Handle heterogeneous dictionaries
-    - [ ] Support type narrowing after checks
-- [ ] List slicing with step parameter
-  - [ ] Full slice implementation
-    - [ ] Parse Python slice syntax `[start:stop:step]`
-    - [ ] Generate iterator chains for positive steps
-    - [ ] Handle negative indices correctly
-    - [ ] Implement negative step with rev()
-    - [ ] Support slice assignment operations
-  - [ ] Optimization for common patterns
-    - [ ] Detect full reversal `[::-1]`
-    - [ ] Use chunks() for regular steps
-    - [ ] Avoid allocation when possible
+  - [x] Type inference for dictionary operations
+    - [x] Infer key and value types from usage
+    - [x] Handle heterogeneous dictionaries
+    - [x] Support type narrowing after checks
+- [x] List slicing with step parameter
+  - [x] Full slice implementation
+    - [x] Parse Python slice syntax `[start:stop:step]`
+    - [x] Generate iterator chains for positive steps
+    - [x] Handle negative indices correctly
+    - [x] Implement negative step with rev()
+    - [x] Support slice assignment operations
+  - [x] Optimization for common patterns
+    - [x] Detect full reversal `[::-1]`
+    - [x] Use chunks() for regular steps
+    - [x] Avoid allocation when possible
 - [ ] Set operations and methods
   - [ ] Implement set type and operations
     - [ ] Map Python set to HashSet/BTreeSet
@@ -207,13 +222,13 @@ This document provides a granular, prioritized list of development tasks for the
     - [ ] Use bitsets for enum sets
     - [ ] Implement small-set optimizations
     - [ ] Cache hash values when beneficial
-- [ ] Dictionary comprehensions
-  - [ ] Parse and transform comprehensions
-    - [ ] Convert to iterator chains with collect()
-    - [ ] Handle conditional clauses
-    - [ ] Support nested comprehensions
-    - [ ] Optimize key/value expressions
-    - [ ] Generate type annotations
+- [x] Dictionary comprehensions
+  - [x] Parse and transform comprehensions
+    - [x] Convert to iterator chains with collect()
+    - [x] Handle conditional clauses
+    - [x] Support nested comprehensions
+    - [x] Optimize key/value expressions
+    - [x] Generate type annotations
 - [ ] Tuple unpacking in all contexts
   - [ ] Implement full unpacking support
     - [ ] Function parameters unpacking
@@ -223,32 +238,32 @@ This document provides a granular, prioritized list of development tasks for the
     - [ ] Handle nested unpacking
 
 ### Testing Infrastructure
-- [ ] Fix linker errors in test suite (missing `ld`)
-  - [ ] Environment setup
-    - [ ] Add linker installation to CI
-    - [ ] Document development prerequisites
-    - [ ] Create Docker image with tools
-    - [ ] Add automatic tool detection
-    - [ ] Provide helpful error messages
-- [ ] Add QuickCheck property tests (`verify/quickcheck.rs`)
-  - [ ] Property definitions
-    - [ ] Transpilation preserves semantics
-    - [ ] Type safety is maintained
-    - [ ] No panics on valid input
-    - [ ] Ownership rules are satisfied
-    - [ ] Performance bounds are met
-  - [ ] Custom generators
-    - [ ] Generate valid Python AST
-    - [ ] Create type-annotated functions
-    - [ ] Produce nested data structures
-    - [ ] Generate edge case values
-- [ ] Implement semantic equivalence testing
-  - [ ] Execution comparison framework
-    - [ ] Run Python and Rust versions
-    - [ ] Compare outputs for equality
-    - [ ] Handle floating point tolerance
-    - [ ] Test side effects and mutations
-    - [ ] Measure performance differences
+- [x] Fix linker errors in test suite (missing `ld`)
+  - [x] Environment setup
+    - [x] Add linker installation to CI
+    - [x] Document development prerequisites
+    - [x] Create Docker image with tools
+    - [x] Add automatic tool detection
+    - [x] Provide helpful error messages
+- [x] Add QuickCheck property tests (`verify/quickcheck.rs`)
+  - [x] Property definitions
+    - [x] Transpilation preserves semantics
+    - [x] Type safety is maintained
+    - [x] No panics on valid input
+    - [x] Ownership rules are satisfied
+    - [x] Performance bounds are met
+  - [x] Custom generators
+    - [x] Generate valid Python AST
+    - [x] Create type-annotated functions
+    - [x] Produce nested data structures
+    - [x] Generate edge case values
+- [x] Implement semantic equivalence testing
+  - [x] Execution comparison framework
+    - [x] Run Python and Rust versions
+    - [x] Compare outputs for equality
+    - [x] Handle floating point tolerance
+    - [x] Test side effects and mutations
+    - [x] Measure performance differences
 - [ ] Add fuzzing for edge cases
   - [ ] AFL/LibFuzzer integration
     - [ ] Create fuzzing harnesses
