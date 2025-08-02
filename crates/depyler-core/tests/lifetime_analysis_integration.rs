@@ -28,6 +28,7 @@ fn test_lifetime_inference_for_string_parameter() {
         imports: vec![],
         type_aliases: vec![],
         protocols: vec![],
+        classes: vec![],
     };
 
     let type_mapper = TypeMapper::new();
@@ -102,6 +103,7 @@ fn test_lifetime_inference_with_multiple_parameters() {
         imports: vec![],
         type_aliases: vec![],
         protocols: vec![],
+        classes: vec![],
     };
 
     let type_mapper = TypeMapper::new();

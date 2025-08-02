@@ -474,6 +474,7 @@ mod tests {
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            classes: vec![],
         };
 
         let optimizations = optimize_module(&mut module);
