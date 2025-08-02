@@ -287,6 +287,26 @@ fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
                 parse_quote! { &#inner_type }
             }
         }
+        Array { element_type, size } => {
+            let element = rust_type_to_syn_type(element_type)?;
+            match size {
+                crate::type_mapper::RustConstGeneric::Literal(n) => {
+                    let size_lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
+                    parse_quote! { [#element; #size_lit] }
+                }
+                crate::type_mapper::RustConstGeneric::Parameter(name) => {
+                    let param_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                    parse_quote! { [#element; #param_ident] }
+                }
+                crate::type_mapper::RustConstGeneric::Expression(expr) => {
+                    // For expressions, parse them as token streams
+                    let expr_tokens: proc_macro2::TokenStream = expr.parse().unwrap_or_else(|_| {
+                        "/* invalid const expression */".parse().unwrap()
+                    });
+                    parse_quote! { [#element; #expr_tokens] }
+                }
+            }
+        }
     })
 }
 
@@ -399,6 +419,25 @@ fn rust_type_to_syn(rust_type: &RustType) -> Result<syn::Type> {
             parse_quote! { Option<#inner_ty> }
         }
         RustType::Unit => parse_quote! { () },
+        RustType::Array { element_type, size } => {
+            let element = rust_type_to_syn(element_type)?;
+            match size {
+                crate::type_mapper::RustConstGeneric::Literal(n) => {
+                    let size_lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
+                    parse_quote! { [#element; #size_lit] }
+                }
+                crate::type_mapper::RustConstGeneric::Parameter(name) => {
+                    let param_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                    parse_quote! { [#element; #param_ident] }
+                }
+                crate::type_mapper::RustConstGeneric::Expression(expr) => {
+                    let expr_tokens: proc_macro2::TokenStream = expr.parse().unwrap_or_else(|_| {
+                        "/* invalid const expression */".parse().unwrap()
+                    });
+                    parse_quote! { [#element; #expr_tokens] }
+                }
+            }
+        }
         _ => bail!("Unsupported Rust type: {:?}", rust_type),
     })
 }
