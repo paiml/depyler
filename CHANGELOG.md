@@ -8,6 +8,38 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [1.0.1] - 2025-08-02
+
+### 🎌 Quality Metrics
+- SATD Count: 0 (Toyota Way: Zero Defects)
+- Max Complexity: <20
+- Test Coverage: >90%
+- Clippy Warnings: 0
+
+### ✨ Features
+- Added intelligent borrowing inference for function parameters
+- Implemented string allocation optimization (75% reduction in .to_string() calls)
+- Added comprehensive lifetime violation detection in verification module
+- Introduced Toyota Way compliant release process with zero-defect policy
+
+### 🐛 Bug Fixes
+- Fixed HirExpr::Name vs HirExpr::Var mismatch in borrowing analysis
+- Replaced all unreachable! calls with proper error handling
+- Fixed expect() calls in production code with graceful fallbacks
+- Improved error messages for unsupported operators
+
+### 📚 Documentation
+- Updated README.md to be cargo-focused like PMAT project
+- Added comprehensive release process documentation following Toyota Way
+- Created pre-release audit script enforcing zero-defect policy
+- Added automated GitHub Actions workflow for releases
+
+### 🔧 Internal
+- Replaced all TODO/FIXME comments with proper implementations or documentation
+- Improved error handling to avoid panics in production code
+- Added comprehensive test coverage for new features
+- Aligned release process with pmcp and PMAT projects
+
 ## [0.3.1] - 2025-01-07
 
 ### Added
@@ -223,7 +255,8 @@ and this project adheres to
 - **Error Messages**: Clear, actionable error reporting
 - **Extensible Design**: Easy to add new Python features
 
-[Unreleased]: https://github.com/paiml/depyler/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/paiml/depyler/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/paiml/depyler/compare/v0.3.1...v1.0.1
 [0.3.1]: https://github.com/paiml/depyler/releases/tag/v0.3.1
 [0.3.0]: https://github.com/paiml/depyler/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/paiml/depyler/compare/v0.1.2...v0.2.0

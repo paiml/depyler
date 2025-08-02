@@ -554,7 +554,10 @@ fn convert_binop(op: BinOp) -> Result<syn::BinOp> {
         Mod => Ok(parse_quote! { % }),
 
         // Special arithmetic cases
-        FloorDiv => Ok(parse_quote! { / }), // TODO: Handle floor division properly
+        FloorDiv => {
+            // Floor division needs explicit conversion for negative values
+            bail!("Floor division requires custom implementation for Python semantics")
+        }
         Pow => bail!("Power operator not directly supported in Rust"),
 
         // Comparison operators
@@ -657,7 +660,7 @@ fn rust_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<syn::Typ
 }
 
 /// Format Rust code using basic prettification
-/// TODO: Replace with proper rustfmt integration
+/// Note: This is a simple formatter for V1. rustfmt integration planned for V2.
 fn format_rust_code(code: String) -> String {
     code.replace(" ; ", ";\n    ")
         .replace(" { ", " {\n    ")

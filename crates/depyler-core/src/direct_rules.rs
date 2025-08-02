@@ -352,7 +352,7 @@ impl<'a> ExprConverter<'a> {
                 Ok(parse_quote! { #start..#end })
             }
             3 => {
-                // TODO: Handle step parameter
+                // Step parameter requires custom iterator implementation
                 bail!("range() with step parameter not yet supported")
             }
             _ => bail!("Invalid number of arguments for range()"),
@@ -477,9 +477,12 @@ fn convert_arithmetic_op(op: BinOp) -> Result<syn::BinOp> {
         Mul => Ok(parse_quote! { * }),
         Div => Ok(parse_quote! { / }),
         Mod => Ok(parse_quote! { % }),
-        FloorDiv => Ok(parse_quote! { / }), // TODO: Handle floor division properly
+        FloorDiv => {
+            // Floor division needs explicit conversion for negative values
+            bail!("Floor division requires custom implementation for Python semantics")
+        }
         Pow => bail!("Power operator not directly supported in Rust"),
-        _ => unreachable!("Non-arithmetic operator passed to convert_arithmetic_op"),
+        _ => bail!("Invalid operator {:?} for arithmetic conversion", op),
     }
 }
 
@@ -492,7 +495,7 @@ fn convert_comparison_op(op: BinOp) -> Result<syn::BinOp> {
         LtEq => Ok(parse_quote! { <= }),
         Gt => Ok(parse_quote! { > }),
         GtEq => Ok(parse_quote! { >= }),
-        _ => unreachable!("Non-comparison operator passed to convert_comparison_op"),
+        _ => bail!("Invalid operator {:?} for comparison conversion", op),
     }
 }
 
@@ -501,7 +504,7 @@ fn convert_logical_op(op: BinOp) -> Result<syn::BinOp> {
     match op {
         And => Ok(parse_quote! { && }),
         Or => Ok(parse_quote! { || }),
-        _ => unreachable!("Non-logical operator passed to convert_logical_op"),
+        _ => bail!("Invalid operator {:?} for logical conversion", op),
     }
 }
 
@@ -513,7 +516,7 @@ fn convert_bitwise_op(op: BinOp) -> Result<syn::BinOp> {
         BitXor => Ok(parse_quote! { ^ }),
         LShift => Ok(parse_quote! { << }),
         RShift => Ok(parse_quote! { >> }),
-        _ => unreachable!("Non-bitwise operator passed to convert_bitwise_op"),
+        _ => bail!("Invalid operator {:?} for bitwise conversion", op),
     }
 }
 

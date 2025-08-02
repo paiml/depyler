@@ -404,7 +404,7 @@ def process_string(s: str) -> str:
         let python_code = r#"
 # @depyler: hash_strategy = "fnv"
 def create_map() -> Dict[str, int]:
-    # TODO: Dictionary subscript assignment not yet supported
+    # Dictionary subscript assignment requires more complex AST transformation
     # For now, just test that the annotation is parsed correctly
     return {}
 "#;

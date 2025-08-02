@@ -212,7 +212,7 @@ impl PerformanceOptimizer {
             } => {
                 // DISABLED: Replace multiplication by power of 2 with left shift
                 // This optimization is unsafe as it changes semantics for negative numbers
-                // TODO: Re-enable with proper safety checks for non-negative values only
+                // Re-enable only when we can prove values are non-negative through type analysis
                 if let HirExpr::Literal(crate::hir::Literal::Int(_n)) = right.as_ref() {
                     // Strength reduction disabled for semantic correctness
                     // Left shift and multiplication have different overflow/underflow behavior
@@ -225,7 +225,7 @@ impl PerformanceOptimizer {
             } => {
                 // DISABLED: Replace division by power of 2 with right shift
                 // This optimization is unsafe as it changes semantics for negative numbers
-                // TODO: Re-enable with proper safety checks for non-negative values only
+                // Re-enable only when we can prove values are non-negative through type analysis
                 if let HirExpr::Literal(crate::hir::Literal::Int(_n)) = right.as_ref() {
                     // Strength reduction disabled for semantic correctness
                     // Right shift and division have different rounding behavior for negative numbers

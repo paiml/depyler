@@ -128,6 +128,11 @@ impl McpClient {
 
 impl Default for McpClient {
     fn default() -> Self {
-        Self::new().expect("Failed to create MCP client")
+        Self::new().unwrap_or_else(|e| {
+            eprintln!("Warning: Failed to create MCP client: {}", e);
+            McpClient {
+                _client: None,
+            }
+        })
     }
 }
