@@ -614,6 +614,7 @@ impl BorrowingContext {
     }
 
     /// Check if a type implements Copy
+    #[allow(clippy::only_used_in_recursion)]
     fn is_copy_type(&self, rust_type: &RustType) -> bool {
         match rust_type {
             RustType::Primitive(_) => true,
