@@ -1,4 +1,4 @@
-use crate::hir::Type as PythonType;
+use crate::hir::{Type as PythonType, ConstGeneric};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -56,6 +56,21 @@ pub enum RustType {
         name: String,
         variants: Vec<(String, RustType)>,
     },
+    /// Fixed-size array type
+    Array {
+        element_type: Box<RustType>,
+        size: RustConstGeneric,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RustConstGeneric {
+    /// Literal constant value (e.g., 5 in [T; 5])
+    Literal(usize),
+    /// Const generic parameter (e.g., N in [T; N])
+    Parameter(String),
+    /// Expression involving const generics (e.g., N + 1)
+    Expression(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -182,6 +197,12 @@ impl TypeMapper {
                     }
                 }
             }
+            PythonType::Array { element_type, size } => {
+                RustType::Array {
+                    element_type: Box::new(self.map_type(element_type)),
+                    size: self.map_const_generic(size),
+                }
+            }
         }
     }
 
@@ -197,6 +218,7 @@ impl TypeMapper {
             RustType::String => false, // V1: Always owned
             RustType::Vec(_) | RustType::HashMap(_, _) => true,
             RustType::Primitive(_) => false,
+            RustType::Array { .. } => true, // Arrays need references for large sizes
             _ => false,
         }
     }
@@ -206,7 +228,23 @@ impl TypeMapper {
         match rust_type {
             RustType::Primitive(_) | RustType::Unit => true,
             RustType::Tuple(types) => types.iter().all(|t| self.can_copy(t)),
+            RustType::Array { element_type, size } => {
+                // Arrays are copy if elements are copy and size is reasonable
+                match size {
+                    RustConstGeneric::Literal(n) if *n <= 32 => self.can_copy(element_type),
+                    _ => false, // Large or unknown size arrays are not Copy
+                }
+            }
             _ => false,
+        }
+    }
+
+    /// Map a const generic from HIR to Rust representation
+    pub fn map_const_generic(&self, const_generic: &ConstGeneric) -> RustConstGeneric {
+        match const_generic {
+            ConstGeneric::Literal(value) => RustConstGeneric::Literal(*value),
+            ConstGeneric::Parameter(name) => RustConstGeneric::Parameter(name.clone()),
+            ConstGeneric::Expression(expr) => RustConstGeneric::Expression(expr.clone()),
         }
     }
 }
@@ -261,6 +299,19 @@ impl RustType {
                 format!("{}<{}>", base, param_strs.join(", "))
             }
             RustType::Enum { name, .. } => name.clone(),
+            RustType::Array { element_type, size } => {
+                format!("[{}; {}]", element_type.to_rust_string(), size.to_rust_string())
+            }
+        }
+    }
+}
+
+impl RustConstGeneric {
+    pub fn to_rust_string(&self) -> String {
+        match self {
+            RustConstGeneric::Literal(value) => value.to_string(),
+            RustConstGeneric::Parameter(name) => name.clone(),
+            RustConstGeneric::Expression(expr) => expr.clone(),
         }
     }
 }

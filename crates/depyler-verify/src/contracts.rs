@@ -424,6 +424,14 @@ fn type_to_rust_string(ty: &Type) -> String {
             let type_strs: Vec<String> = types.iter().map(type_to_rust_string).collect();
             format!("Union<{}>", type_strs.join(", "))
         }
+        Type::Array { element_type, size } => {
+            let element_str = type_to_rust_string(element_type);
+            match size {
+                depyler_core::hir::ConstGeneric::Literal(n) => format!("[{}; {}]", element_str, n),
+                depyler_core::hir::ConstGeneric::Parameter(name) => format!("[{}; {}]", element_str, name),
+                depyler_core::hir::ConstGeneric::Expression(expr) => format!("[{}; {}]", element_str, expr),
+            }
+        }
     }
 }
 

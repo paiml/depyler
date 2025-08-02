@@ -20,6 +20,7 @@ pub mod test_generation;
 pub mod type_mapper;
 pub mod generic_inference;
 pub mod union_enum_gen;
+pub mod const_generic_inference;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -111,6 +112,10 @@ impl DepylerPipeline {
         let mut hir = ast_bridge::AstBridge::new()
             .with_source(python_source.to_string())
             .python_to_hir(ast)?;
+
+        // Apply const generic inference
+        let mut const_inferencer = const_generic_inference::ConstGenericInferencer::new();
+        const_inferencer.analyze_module(&mut hir)?;
 
         // Apply optimization passes based on annotations
         optimization::optimize_module(&mut hir);
