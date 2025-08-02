@@ -16,9 +16,9 @@ categories = ["development-tools", "wasm"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-depyler-core = { version = "0.3.1", path = "../depyler-core", features = ["wasm", "deterministic"] }
-depyler-quality = { version = "0.3.1", path = "../depyler-quality" }
-depyler-analyzer = { version = "0.3.1", path = "../depyler-analyzer" }
+depyler-core = { version = "1.0.1", path = "../depyler-core", features = ["wasm", "deterministic"] }
+depyler-quality = { version = "1.0.1", path = "../depyler-quality" }
+depyler-analyzer = { version = "1.0.1", path = "../depyler-analyzer" }
 wasm-bindgen.workspace = true
 serde.workspace = true
 serde-wasm-bindgen.workspace = true
