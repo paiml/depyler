@@ -40,7 +40,7 @@ fn convert_type_alias(type_alias: &TypeAlias, type_mapper: &TypeMapper) -> Resul
     let alias_name = syn::Ident::new(&type_alias.name, proc_macro2::Span::call_site());
     let rust_type = type_mapper.map_type(&type_alias.target_type);
     let target_type = rust_type_to_syn_type(&rust_type)?;
-    
+
     if type_alias.is_newtype {
         // Generate a NewType struct: pub struct UserId(pub i32);
         Ok(parse_quote! {
@@ -57,12 +57,14 @@ fn convert_type_alias(type_alias: &TypeAlias, type_mapper: &TypeMapper) -> Resul
 
 fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> Result<syn::Item> {
     let trait_name = syn::Ident::new(&protocol.name, proc_macro2::Span::call_site());
-    
+
     // Convert type parameters to generic parameters
     let generics = if protocol.type_params.is_empty() {
         syn::Generics::default()
     } else {
-        let params: Vec<syn::GenericParam> = protocol.type_params.iter()
+        let params: Vec<syn::GenericParam> = protocol
+            .type_params
+            .iter()
             .map(|param| {
                 let ident = syn::Ident::new(param, proc_macro2::Span::call_site());
                 syn::GenericParam::Type(syn::TypeParam {
@@ -75,7 +77,7 @@ fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> R
                 })
             })
             .collect();
-        
+
         syn::Generics {
             lt_token: Some(syn::Token![<](proc_macro2::Span::call_site())),
             params: params.into_iter().collect(),
@@ -113,12 +115,15 @@ fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> R
     }))
 }
 
-fn convert_protocol_method_to_trait_method(method: &ProtocolMethod, type_mapper: &TypeMapper) -> Result<syn::TraitItem> {
+fn convert_protocol_method_to_trait_method(
+    method: &ProtocolMethod,
+    type_mapper: &TypeMapper,
+) -> Result<syn::TraitItem> {
     let method_name = syn::Ident::new(&method.name, proc_macro2::Span::call_site());
-    
+
     // Convert parameters
     let mut inputs = syn::punctuated::Punctuated::new();
-    
+
     // Add self parameter for methods (skip first param if it's 'self')
     let method_params = if !method.params.is_empty() && method.params[0].0 == "self" {
         // Add &self receiver
@@ -140,7 +145,7 @@ fn convert_protocol_method_to_trait_method(method: &ProtocolMethod, type_mapper:
         let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
         let rust_type = type_mapper.map_type(param_type);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
-        
+
         inputs.push(syn::FnArg::Typed(syn::PatType {
             attrs: vec![],
             pat: Box::new(syn::Pat::Ident(syn::PatIdent {
@@ -223,14 +228,16 @@ fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
         String => parse_quote! { String },
         Str { lifetime } => {
             if let Some(lt) = lifetime {
-                let lifetime_token = syn::Lifetime::new(&format!("'{}", lt), proc_macro2::Span::call_site());
+                let lifetime_token =
+                    syn::Lifetime::new(&format!("'{}", lt), proc_macro2::Span::call_site());
                 parse_quote! { &#lifetime_token str }
             } else {
                 parse_quote! { &str }
             }
         }
         Cow { lifetime } => {
-            let lifetime_token = syn::Lifetime::new(&format!("'{}", lifetime), proc_macro2::Span::call_site());
+            let lifetime_token =
+                syn::Lifetime::new(&format!("'{}", lifetime), proc_macro2::Span::call_site());
             parse_quote! { std::borrow::Cow<#lifetime_token, str> }
         }
         Vec(inner) => {
@@ -252,7 +259,8 @@ fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
             parse_quote! { Result<#ok_type, #err_type> }
         }
         Tuple(types) => {
-            let type_tokens: anyhow::Result<std::vec::Vec<_>> = types.iter().map(rust_type_to_syn_type).collect();
+            let type_tokens: anyhow::Result<std::vec::Vec<_>> =
+                types.iter().map(rust_type_to_syn_type).collect();
             let type_tokens = type_tokens?;
             parse_quote! { (#(#type_tokens),*) }
         }
@@ -262,7 +270,10 @@ fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
         }
         Unsupported(name) => {
             // For unsupported types, just generate a placeholder comment type
-            let ident = syn::Ident::new(&format!("UnsupportedType_{}", name.replace(" ", "_")), proc_macro2::Span::call_site());
+            let ident = syn::Ident::new(
+                &format!("UnsupportedType_{}", name.replace(" ", "_")),
+                proc_macro2::Span::call_site(),
+            );
             parse_quote! { #ident }
         }
         TypeParam(name) => {
@@ -271,7 +282,8 @@ fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
         }
         Generic { base, params } => {
             let base_ident = syn::Ident::new(base, proc_macro2::Span::call_site());
-            let param_types: anyhow::Result<std::vec::Vec<_>> = params.iter().map(rust_type_to_syn_type).collect();
+            let param_types: anyhow::Result<std::vec::Vec<_>> =
+                params.iter().map(rust_type_to_syn_type).collect();
             let param_types = param_types?;
             parse_quote! { #base_ident<#(#param_types),*> }
         }
@@ -300,9 +312,9 @@ fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
                 }
                 crate::type_mapper::RustConstGeneric::Expression(expr) => {
                     // For expressions, parse them as token streams
-                    let expr_tokens: proc_macro2::TokenStream = expr.parse().unwrap_or_else(|_| {
-                        "/* invalid const expression */".parse().unwrap()
-                    });
+                    let expr_tokens: proc_macro2::TokenStream = expr
+                        .parse()
+                        .unwrap_or_else(|_| "/* invalid const expression */".parse().unwrap());
                     parse_quote! { [#element; #expr_tokens] }
                 }
             }
@@ -431,9 +443,9 @@ fn rust_type_to_syn(rust_type: &RustType) -> Result<syn::Type> {
                     parse_quote! { [#element; #param_ident] }
                 }
                 crate::type_mapper::RustConstGeneric::Expression(expr) => {
-                    let expr_tokens: proc_macro2::TokenStream = expr.parse().unwrap_or_else(|_| {
-                        "/* invalid const expression */".parse().unwrap()
-                    });
+                    let expr_tokens: proc_macro2::TokenStream = expr
+                        .parse()
+                        .unwrap_or_else(|_| "/* invalid const expression */".parse().unwrap());
                     parse_quote! { [#element; #expr_tokens] }
                 }
             }
@@ -620,6 +632,23 @@ impl<'a> ExprConverter<'a> {
                     Ok(parse_quote! { #left_expr #rust_op #right_expr })
                 }
             }
+            BinOp::FloorDiv => {
+                // Python floor division semantics differ from Rust integer division
+                // Python: rounds towards negative infinity (floor)
+                // Rust: truncates towards zero
+                // For now, we generate code that works for integers with proper floor semantics
+                // TODO: Add type-based dispatch for float division when type inference is available
+
+                Ok(parse_quote! {
+                    {
+                        let a = #left_expr;
+                        let b = #right_expr;
+                        let q = a / b;
+                        let r = a % b;
+                        if (r != 0) && ((r < 0) != (b < 0)) { q - 1 } else { q }
+                    }
+                })
+            }
             _ => {
                 let rust_op = convert_binop(op)?;
                 Ok(parse_quote! { #left_expr #rust_op #right_expr })
@@ -796,8 +825,9 @@ fn convert_arithmetic_op(op: BinOp) -> Result<syn::BinOp> {
         Div => Ok(parse_quote! { / }),
         Mod => Ok(parse_quote! { % }),
         FloorDiv => {
-            // Floor division needs explicit conversion for negative values
-            bail!("Floor division requires custom implementation for Python semantics")
+            // Floor division requires special handling - it's not implemented as an operator
+            // but handled in convert_expr for proper type-based conversion
+            bail!("Floor division handled in convert_expr, not as simple operator")
         }
         Pow => bail!("Power operator not directly supported in Rust"),
         _ => bail!("Invalid operator {:?} for arithmetic conversion", op),
@@ -1024,6 +1054,34 @@ mod tests {
         assert!(convert_binop(BinOp::Pow).is_err());
         assert!(convert_binop(BinOp::In).is_err());
         assert!(convert_binop(BinOp::NotIn).is_err());
+        assert!(convert_binop(BinOp::FloorDiv).is_err()); // Floor division is handled specially
+    }
+
+    #[test]
+    fn test_floor_division_handling() {
+        let type_mapper = create_test_type_mapper();
+        let converter = ExprConverter::new(&type_mapper);
+
+        // Test integer floor division
+        let int_floor_div = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(7))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+
+        let result = converter.convert(&int_floor_div).unwrap();
+        // Should generate a block expression with the floor division formula
+        assert!(matches!(result, syn::Expr::Block(_)));
+
+        // Test with negative operands
+        let neg_floor_div = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(-7))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+
+        let result = converter.convert(&neg_floor_div).unwrap();
+        assert!(matches!(result, syn::Expr::Block(_)));
     }
 
     #[test]

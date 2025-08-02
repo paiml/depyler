@@ -1,4 +1,4 @@
-use depyler_core::{DepylerPipeline, hir::Type};
+use depyler_core::{hir::Type, DepylerPipeline};
 
 #[test]
 fn test_simple_generic_function() {
@@ -11,7 +11,7 @@ def identity(x: T) -> T:
     let result = pipeline.transpile(python_code);
     assert!(result.is_ok());
     let rust_code = result.unwrap();
-    
+
     // Should generate a generic function
     assert!(rust_code.contains("pub fn identity<T: Clone>(x: T)"));
     assert!(rust_code.contains("-> T"));
@@ -31,7 +31,7 @@ def first_element(items: List[T]) -> T:
     let result = pipeline.transpile(python_code);
     assert!(result.is_ok());
     let rust_code = result.unwrap();
-    
+
     // Should generate a generic function with Vec<T>
     assert!(rust_code.contains("T: Clone") || rust_code.contains("T:Clone"));
     assert!(rust_code.contains("Vec<T>"));
@@ -51,7 +51,7 @@ def pair(a: T, b: U) -> Tuple[T, U]:
     let result = pipeline.transpile(python_code);
     assert!(result.is_ok());
     let rust_code = result.unwrap();
-    
+
     // Should generate function with two type parameters
     // Check that both T and U are declared with Clone bounds
     assert!(rust_code.contains("T: Clone") || rust_code.contains("T:Clone"));
@@ -74,10 +74,11 @@ def compare(a: T, b: T) -> bool:
     let result = pipeline.transpile(python_code);
     assert!(result.is_ok());
     let rust_code = result.unwrap();
-    
+
     // Should infer PartialOrd constraint from < operator
-    assert!(rust_code.contains("T: Clone + PartialOrd") || 
-            rust_code.contains("T: PartialOrd + Clone"));
+    assert!(
+        rust_code.contains("T: Clone + PartialOrd") || rust_code.contains("T: PartialOrd + Clone")
+    );
 }
 
 #[test]
@@ -95,7 +96,7 @@ def process_value(x: Union[int, str]) -> str:
 
     let hir = pipeline.parse_to_hir(python_code).unwrap();
     assert_eq!(hir.functions.len(), 1);
-    
+
     let func = &hir.functions[0];
     match &func.params[0].1 {
         Type::Union(types) => {
@@ -120,7 +121,7 @@ def get_value(mapping: Dict[K, V], key: K) -> V:
     let result = pipeline.transpile(python_code);
     assert!(result.is_ok());
     let rust_code = result.unwrap();
-    
+
     // Should generate function with K and V type parameters
     assert!(rust_code.contains("K: Clone") || rust_code.contains("K:"));
     assert!(rust_code.contains("V: Clone") || rust_code.contains("V:"));
@@ -140,7 +141,7 @@ def maybe_value(x: Optional[T]) -> T:
     let result = pipeline.transpile(python_code);
     assert!(result.is_ok());
     let rust_code = result.unwrap();
-    
+
     // Should handle Optional with type parameter
     assert!(rust_code.contains("T: Clone") || rust_code.contains("T:Clone"));
     assert!(rust_code.contains("x: Option<T>"));
@@ -152,14 +153,14 @@ def maybe_value(x: Optional[T]) -> T:
 //     let pipeline = DepylerPipeline::new();
 //     let python_code = r#"
 // from typing import Generic
-// 
+//
 // def create_container() -> Container[int]:
 //     return Container[int]()
 // "#;
-// 
+//
 //     let hir = pipeline.parse_to_hir(python_code).unwrap();
 //     assert_eq!(hir.functions.len(), 1);
-//     
+//
 //     let func = &hir.functions[0];
 //     match &func.ret_type {
 //         Type::Generic { base, params } => {

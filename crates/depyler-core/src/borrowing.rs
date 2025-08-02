@@ -254,7 +254,9 @@ impl BorrowingContext {
             Type::TypeVar(name) => name.clone(),
             Type::Generic { base, .. } => base.clone(),
             Type::Union(_) => "Union".to_string(),
-            Type::Array { element_type, .. } => format!("Array<{}>", self.type_to_rust_string(element_type)),
+            Type::Array { element_type, .. } => {
+                format!("Array<{}>", self.type_to_rust_string(element_type))
+            }
         }
     }
 }
