@@ -5,10 +5,14 @@
 [![CI](https://github.com/paiml/depyler/actions/workflows/ci.yml/badge.svg)](https://github.com/paiml/depyler/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-85%25+-brightgreen.svg)](https://codecov.io/gh/paiml/depyler)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Apache License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Rust 1.83+](https://img.shields.io/badge/rust-1.83+-orange.svg)](https://www.rust-lang.org)
 [![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green)](https://modelcontextprotocol.io)
+[![Downloads](https://img.shields.io/crates/d/depyler)](https://crates.io/crates/depyler)
 
-**Energy-efficient Python-to-Rust transpiler** with progressive verification capabilities. Transform Python code into safe, performant Rust while reducing energy consumption by 75-85%. Built with zero tolerance for technical debt and extreme quality standards.
+**Energy-efficient Python-to-Rust transpiler** with progressive verification capabilities. Transform Python code into safe, performant Rust while reducing energy consumption by 75-85%. Built with zero tolerance for technical debt and extreme quality standards following the Toyota Way.
+
+> **Toyota Way Success**: Achieved 100% SATD elimination, 0 incomplete implementations, and comprehensive test coverage. Project maintains zero defects policy with property-based testing, formal verification readiness, and ownership inference. Latest v1.0.2 release includes enhanced string optimization with interning support and Cow<str> for flexible ownership.
 
 ## 🚀 Installation
 
@@ -42,14 +46,20 @@ Install `depyler` using one of the following methods:
 # Transpile a Python file
 depyler transpile example.py
 
+# Transpile with verification
+depyler transpile example.py --verify
+
 # Analyze code complexity before transpilation
 depyler analyze example.py
 
-# Run with verification
-depyler transpile example.py --verify
-
 # Interactive mode with AI suggestions
 depyler interactive example.py --suggest
+
+# Check transpilation compatibility
+depyler check example.py
+
+# Inspect AST/HIR representations
+depyler inspect example.py --repr ast
 ```
 
 ### Using as a Library
@@ -58,7 +68,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-depyler = "0.3.2"
+depyler = "1.0.2"
 ```
 
 Basic usage:
@@ -85,18 +95,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - **Type Inference** - Smart type analysis with annotation support
 - **Memory Safety** - Automatic ownership and borrowing inference
 - **Direct Rules Engine** - Pattern-based Python-to-Rust transformations
+- **String Optimization** - Interning for frequently used literals, Cow<str> for flexible ownership
 
 ### ⚡ Performance & Efficiency
 - **Energy Reduction** - 75-85% lower energy consumption vs Python
 - **Binary Optimization** - Compile with LTO, strip, and `panic=abort`
-- **Zero-Copy Strings** - Smart string allocation strategies
+- **Zero-Copy Strings** - Smart string allocation strategies with Cow<str>
 - **LLVM Backend** - Leverages Rust's optimizing compiler
+- **String Interning** - Automatic interning for strings used >3 times
 
 ### 🛡️ Safety & Verification
 - **Property-Based Testing** - QuickCheck for semantic equivalence
 - **Memory Safety Analysis** - Prevents use-after-free and data races
 - **Bounds Checking** - Automatic insertion where needed
 - **Contract Verification** - Pre/post condition checking
+- **Formal Verification Ready** - Structured for future SMT integration
 
 ### 🤖 AI Integration
 - **Model Context Protocol** - Full MCP v1.0 support
@@ -151,13 +164,22 @@ depyler interactive input.py --suggest  # With AI suggestions
 
 # Quality enforcement
 depyler transpile input.py --verify --strict  # Full verification
-depyler quality-check input.py               # PMAT scoring
+depyler quality-check input.py               # Toyota Way scoring
 ```
 
 ### MCP Integration
 
+#### Using with Claude Code
+
 ```bash
-# Use with Claude or other MCP-compatible AI assistants
+# Add to Claude Code
+claude mcp add depyler ~/.local/bin/depyler
+```
+
+#### MCP Server Mode
+
+```bash
+# Start MCP server
 depyler serve --mcp
 
 # Available MCP tools:
@@ -165,6 +187,19 @@ depyler serve --mcp
 # - analyze_complexity: Code complexity analysis
 # - verify_transpilation: Verify semantic equivalence
 # - suggest_annotations: Optimization hints
+```
+
+### HTTP API
+
+```bash
+# Start HTTP server
+depyler serve --port 8080 --cors
+
+# API endpoints
+curl "http://localhost:8080/health"
+curl "http://localhost:8080/api/v1/transpile" \
+  -H "Content-Type: application/json" \
+  -d '{"code":"def add(a: int, b: int) -> int: return a + b"}'
 ```
 
 ## 🏗️ Architecture
@@ -181,24 +216,52 @@ depyler serve --mcp
 └─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
-## 📊 Quality Standards
+## 🚦 CI/CD Integration
 
-Following the **Toyota Way** principles:
+### GitHub Actions Example
+```yaml
+name: Transpile and Verify
+on: [push, pull_request]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install depyler
+        run: cargo install depyler
+        
+      - name: Check Python compatibility
+        run: depyler check src/**/*.py
+        
+      - name: Transpile to Rust
+        run: depyler transpile src/ -o rust/ --verify
+        
+      - name: Run quality checks
+        run: depyler quality-check src/**/*.py --strict
+```
+
+## Toyota Way Quality Standards
+
+This project exemplifies the Toyota Way philosophy through disciplined quality practices:
 
 ### 自働化 (Jidoka) - Build Quality In
-- Never ship incomplete transpilation
-- All generated code must compile
-- Verification-first development
+- **ZERO SATD**: No TODO, FIXME, HACK, or placeholder implementations
+- **ZERO Incomplete**: All features fully implemented with unreachable!() removed
+- **ZERO High Complexity**: No function exceeds cyclomatic complexity of 20
+- **100% Verification**: All generated code must compile and pass tests
 
-### 現地現物 (Genchi Genbutsu) - Direct Observation  
-- Test against real Python codebases
-- Profile actual compilation times
-- Debug at the Rust level
+### 現地現物 (Genchi Genbutsu) - Go and See
+- **Real-World Testing**: Validated against actual Python codebases
+- **Performance Profiling**: Energy consumption measured on real hardware
+- **Direct Debugging**: Debug at the generated Rust level, not just HIR
 
 ### 改善 (Kaizen) - Continuous Improvement
-- Incremental verification levels
-- Performance baselines
-- Code quality targets
+- **v1.0.1**: Fixed all SATD markers and incomplete implementations
+- **v1.0.2**: Enhanced string optimization with interning and Cow<str>
+- **Next**: Lifetime analysis enhancements for better borrowing inference
 
 ## 🧪 Testing
 
@@ -221,6 +284,20 @@ cargo test -p depyler-verify      # Verification
 cargo test -p depyler-mcp         # MCP integration
 ```
 
+## Recent Updates
+
+### 🚀 v1.0.2 - String Optimization Excellence
+- **String Interning**: Automatically intern strings used >3 times
+- **Cow<str> Support**: Flexible ownership for read-only vs mutable strings
+- **Usage Analysis**: Context-aware string optimization
+- **Zero Allocations**: Eliminated unnecessary .to_string() calls
+
+### 🏆 v1.0.1 - Toyota Way Implementation
+- **SATD Elimination**: Removed all 12 TODO/FIXME markers
+- **Complete Implementation**: Fixed 6 unreachable!() calls
+- **Quality Infrastructure**: Added pre-release audit scripts
+- **Zero Defects**: Achieved Toyota Way compliance
+
 ## 🤝 Contributing
 
 We welcome contributions! Please follow our quality standards:
@@ -235,37 +312,48 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## 📚 Documentation
 
+- **[API Documentation](https://docs.rs/depyler)** - Complete Rust API reference
 - **[User Guide](docs/user-guide.md)** - Getting started tutorial
 - **[Migration Guide](docs/migration-guide.md)** - Python to Rust transition
-- **[API Documentation](https://docs.rs/depyler)** - Rust API reference
 - **[Python-Rust Spec](docs/python-to-rust-spec.md)** - Language mapping
 - **[Safety Guarantees](docs/safety-guarantees.md)** - Memory safety analysis
+- **[MCP Integration](docs/mcp-integration.md)** - AI assistant integration
 
 ## 🚦 Roadmap
 
-### Current: v1.0 - Core Transpilation ✅
+### ✅ v1.0 - Core Transpilation (Released)
 - Safe subset transpilation
-- PMAT quality metrics
+- Toyota Way quality metrics
 - Property-based testing
 - Basic MCP integration
 
-### Next: v1.1 - Enhanced Type System
-- Lifetime inference
-- Dataclass support
-- Improved string handling
+### ✅ v1.0.2 - String Optimization (Released)
+- String interning for efficiency
+- Cow<str> for flexible ownership
+- Usage-based optimization
+- Zero unnecessary allocations
+
+### 🚧 v1.1 - Enhanced Type System (Next)
+- Advanced lifetime inference
+- Better dataclass support
+- Improved async patterns
 - Contract verification
 
-### Future: v1.2 - Advanced Patterns
-- Async/await support
+### 🔮 v1.2 - Advanced Patterns
+- Full async/await support
 - Iterator protocol
 - Context managers
-- Exception patterns
+- Exception chaining
 
 See [ROADMAP.md](ROADMAP.md) for detailed plans.
 
 ## 📄 License
 
-Licensed under the MIT License - see [LICENSE](LICENSE) for details.
+Licensed under either of:
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
+
+at your option.
 
 ---
 
