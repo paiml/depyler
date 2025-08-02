@@ -17,6 +17,8 @@ macro_rules! params {
 pub struct HirModule {
     pub functions: Vec<HirFunction>,
     pub imports: Vec<Import>,
+    pub type_aliases: Vec<TypeAlias>,
+    pub protocols: Vec<Protocol>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -29,6 +31,30 @@ pub struct Import {
 pub enum ImportItem {
     Named(String),
     Aliased { name: String, alias: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TypeAlias {
+    pub name: String,
+    pub target_type: Type,
+    pub is_newtype: bool, // true for NewType, false for simple alias
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Protocol {
+    pub name: String,
+    pub type_params: Vec<String>, // Generic type parameters like T, U
+    pub methods: Vec<ProtocolMethod>,
+    pub is_runtime_checkable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProtocolMethod {
+    pub name: String,
+    pub params: SmallVec<[(Symbol, Type); 4]>,
+    pub ret_type: Type,
+    pub is_optional: bool,
+    pub has_default: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -177,7 +203,7 @@ pub enum UnaryOp {
     BitNot,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Type {
     Unknown,
     Int,
@@ -191,6 +217,12 @@ pub enum Type {
     Optional(Box<Type>),
     Function { params: Vec<Type>, ret: Box<Type> },
     Custom(String),
+    /// Type variable for generics (e.g., T, U)
+    TypeVar(String),
+    /// Generic type with parameters (e.g., List<T>, Dict<K, V>)
+    Generic { base: String, params: Vec<Type> },
+    /// Union type (e.g., Union[int, str])
+    Union(Vec<Type>),
 }
 
 impl Type {

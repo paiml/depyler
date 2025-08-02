@@ -414,6 +414,16 @@ fn type_to_rust_string(ty: &Type) -> String {
                 type_to_rust_string(ret)
             )
         }
+        Type::TypeVar(name) => name.clone(),
+        Type::Generic { base, params } => {
+            let param_strs: Vec<String> = params.iter().map(type_to_rust_string).collect();
+            format!("{}<{}>", base, param_strs.join(", "))
+        }
+        Type::Union(types) => {
+            // For Union types, we'll use an enum placeholder
+            let type_strs: Vec<String> = types.iter().map(type_to_rust_string).collect();
+            format!("Union<{}>", type_strs.join(", "))
+        }
     }
 }
 

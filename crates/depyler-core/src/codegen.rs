@@ -197,6 +197,16 @@ fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
             quote! { #ident }
         }
         Type::Unknown => quote! { () },
+        Type::TypeVar(name) => {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            quote! { #ident }
+        }
+        Type::Generic { base, params } => {
+            let base_ident = syn::Ident::new(base, proc_macro2::Span::call_site());
+            let param_types: Vec<_> = params.iter().map(type_to_rust_type).collect();
+            quote! { #base_ident<#(#param_types),*> }
+        }
+        Type::Union(_) => quote! { UnionType }, // Placeholder, will be handled by enum generation
     }
 }
 
@@ -580,6 +590,8 @@ mod tests {
         let module = HirModule {
             functions: vec![func],
             imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
         };
 
         let rust_code = hir_to_rust(&module).unwrap();
@@ -654,6 +666,8 @@ mod tests {
                 docstring: None,
             }],
             imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
         };
 
         assert!(needs_std_collections(&module_with_dict));
@@ -669,6 +683,8 @@ mod tests {
                 docstring: None,
             }],
             imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
         };
 
         assert!(!needs_std_collections(&module_without_dict));
