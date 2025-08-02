@@ -129,7 +129,7 @@ impl RustCodeGen for HirFunction {
         // Analyze function for borrowing patterns
         let mut borrowing_ctx = BorrowingContext::new();
         borrowing_ctx.analyze_function(self);
-        
+
         // Analyze function for string optimization
         ctx.string_optimizer.analyze_function(self);
 
@@ -516,7 +516,7 @@ fn literal_to_rust_expr(lit: &Literal, string_optimizer: &StringOptimizer) -> sy
         }
         Literal::String(s) => {
             let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-            
+
             // Use string optimizer to determine if we need .to_string()
             let context = StringContext::Literal(s.clone());
             match string_optimizer.get_optimal_type(&context) {

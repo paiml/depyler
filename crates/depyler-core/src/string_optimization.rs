@@ -85,9 +85,9 @@ impl StringOptimizer {
     fn analyze_stmt(&mut self, stmt: &HirStmt) {
         match stmt {
             HirStmt::Assign { target, value } => {
-                // Track mutations
-                if let HirExpr::Var(name) = target {
-                    self.immutable_params.remove(name);
+                // Track mutations - target is already a String (Symbol)
+                if self.immutable_params.contains(target) {
+                    self.immutable_params.remove(target);
                 }
                 self.analyze_expr(value, false);
             }
@@ -189,11 +189,19 @@ pub enum StringContext {
     Concatenation,
 }
 
+impl std::fmt::Display for StringContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StringContext::Literal(s) => write!(f, "\"{}\"", s),
+            StringContext::Parameter(name) => write!(f, "{}", name),
+            StringContext::Return => write!(f, "<return>"),
+            StringContext::Concatenation => write!(f, "<concat>"),
+        }
+    }
+}
+
 /// Generates optimized string code based on usage
-pub fn generate_optimized_string(
-    optimizer: &StringOptimizer,
-    context: &StringContext,
-) -> String {
+pub fn generate_optimized_string(optimizer: &StringOptimizer, context: &StringContext) -> String {
     match optimizer.get_optimal_type(context) {
         OptimalStringType::StaticStr => {
             // For static strings, we don't need .to_string()
@@ -247,7 +255,7 @@ mod tests {
 
         let func = HirFunction {
             name: "test".to_string(),
-            params: vec![],
+            params: vec![].into(),
             ret_type: Type::None,
             body: vec![HirStmt::Expr(HirExpr::Call {
                 func: "print".to_string(),
@@ -273,7 +281,7 @@ mod tests {
 
         let func = HirFunction {
             name: "test".to_string(),
-            params: vec![],
+            params: vec![].into(),
             ret_type: Type::String,
             body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::String(
                 "result".to_string(),
@@ -299,7 +307,7 @@ mod tests {
 
         let func = HirFunction {
             name: "test".to_string(),
-            params: vec![("s".to_string(), Type::String)],
+            params: vec![("s".to_string(), Type::String)].into(),
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Call {
                 func: "len".to_string(),
@@ -326,10 +334,8 @@ mod tests {
         let optimizer = StringOptimizer::new();
 
         // Test static string generation
-        let code = generate_optimized_string(
-            &optimizer,
-            &StringContext::Literal("hello".to_string()),
-        );
+        let code =
+            generate_optimized_string(&optimizer, &StringContext::Literal("hello".to_string()));
         assert!(code == "\"hello\".to_string()" || code == "\"hello\"");
     }
 }

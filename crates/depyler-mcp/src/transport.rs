@@ -8,19 +8,14 @@ use pmcp::WebSocketTransport;
 #[cfg(feature = "http")]
 use pmcp::HttpTransport;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum TransportType {
+    #[default]
     Stdio,
     #[cfg(feature = "websocket")]
     WebSocket(String), // URL
     #[cfg(feature = "http")]
     Http(String), // URL
-}
-
-impl Default for TransportType {
-    fn default() -> Self {
-        TransportType::Stdio
-    }
 }
 
 pub struct TransportFactory;
@@ -36,7 +31,15 @@ impl TransportFactory {
             #[cfg(feature = "websocket")]
             TransportType::WebSocket(url) => {
                 use pmcp::WebSocketConfig;
-                let config = WebSocketConfig { url: url.clone() };
+                let config = WebSocketConfig {
+                    url: url.parse().map_err(|e| anyhow::anyhow!("Invalid URL: {}", e))?,
+                    auto_reconnect: true,
+                    max_reconnect_attempts: Some(5),
+                    max_reconnect_delay: std::time::Duration::from_secs(30),
+                    ping_interval: Some(std::time::Duration::from_secs(30)),
+                    request_timeout: std::time::Duration::from_secs(10),
+                    reconnect_delay: std::time::Duration::from_secs(1),
+                };
                 let transport = WebSocketTransport::new(config);
                 Ok(Box::new(transport))
             }
@@ -45,7 +48,12 @@ impl TransportFactory {
             TransportType::Http(url) => {
                 use pmcp::HttpConfig;
                 let config = HttpConfig {
-                    base_url: url.clone(),
+                    base_url: url.parse().map_err(|e| anyhow::anyhow!("Invalid URL: {}", e))?,
+                    headers: vec![],
+                    timeout: std::time::Duration::from_secs(30),
+                    max_idle_per_host: 8,
+                    enable_pooling: true,
+                    sse_endpoint: None,
                 };
                 let transport = HttpTransport::new(config);
                 Ok(Box::new(transport))
@@ -61,7 +69,13 @@ impl TransportFactory {
     pub fn create_websocket(url: &str) -> Result<WebSocketTransport> {
         use pmcp::WebSocketConfig;
         let config = WebSocketConfig {
-            url: url.to_string(),
+            url: url.parse().map_err(|e| anyhow::anyhow!("Invalid URL: {}", e))?,
+            auto_reconnect: true,
+            max_reconnect_attempts: Some(5),
+            max_reconnect_delay: std::time::Duration::from_secs(30),
+            ping_interval: Some(std::time::Duration::from_secs(30)),
+            request_timeout: std::time::Duration::from_secs(10),
+            reconnect_delay: std::time::Duration::from_secs(1),
         };
         Ok(WebSocketTransport::new(config))
     }
@@ -70,7 +84,12 @@ impl TransportFactory {
     pub fn create_http(url: &str) -> Result<HttpTransport> {
         use pmcp::HttpConfig;
         let config = HttpConfig {
-            base_url: url.to_string(),
+            base_url: url.parse().map_err(|e| anyhow::anyhow!("Invalid URL: {}", e))?,
+            headers: vec![],
+            timeout: std::time::Duration::from_secs(30),
+            max_idle_per_host: 8,
+            enable_pooling: true,
+            sse_endpoint: None,
         };
         Ok(HttpTransport::new(config))
     }
