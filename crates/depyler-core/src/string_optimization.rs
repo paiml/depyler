@@ -199,14 +199,22 @@ pub fn generate_optimized_string(
             // For static strings, we don't need .to_string()
             match context {
                 StringContext::Literal(s) => format!("\"{}\"", s),
-                _ => unreachable!("StaticStr only for literals"),
+                _ => {
+                    // Fallback to owned string for non-literal contexts
+                    eprintln!("Warning: StaticStr type used for non-literal context");
+                    format!("{}.to_string()", context)
+                }
             }
         }
         OptimalStringType::BorrowedStr { .. } => {
             // Parameters should be borrowed
             match context {
                 StringContext::Parameter(name) => format!("&{}", name),
-                _ => unreachable!("BorrowedStr only for parameters"),
+                _ => {
+                    // Fallback to owned string for non-parameter contexts
+                    eprintln!("Warning: BorrowedStr type used for non-parameter context");
+                    format!("{}.to_string()", context)
+                }
             }
         }
         OptimalStringType::OwnedString => {

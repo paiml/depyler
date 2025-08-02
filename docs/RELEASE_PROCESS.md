@@ -1,168 +1,264 @@
-# Depyler Release Process
+# Depyler Release Process - Toyota Way
 
-This document describes the systematic release process for Depyler, following the implementation workflow defined in our [development roadmap](todo/next-gen-depyler.md).
+This document describes the zero-defect release process for Depyler, following Toyota Way principles and matching the quality standards of PMAT.
 
-## Overview
+## 🎌 Toyota Way Principles
 
-Each release follows a strict quality-first approach:
-1. Implement features for a single priority level
-2. Run comprehensive quality checks
-3. Push to GitHub with proper tags
-4. Build and publish releases
-5. Move to the next priority
+### 自働化 (Jidoka) - Build Quality In
+- **ZERO** Self-Admitted Technical Debt (SATD)
+- **ZERO** incomplete implementations
+- **ZERO** functions exceeding complexity 20
+- **ZERO** test failures
+- **ZERO** lint warnings
 
-## Pre-Release Checklist
+### 現地現物 (Genchi Genbutsu) - Go and See
+- Run actual transpilation tests
+- Verify generated Rust compiles
+- Test on real Python codebases
+- Profile performance metrics
 
-- [ ] All tests passing: `cargo test --workspace`
-- [ ] Clippy clean: `cargo clippy --workspace -- -D warnings`
-- [ ] Documentation updated: `cargo doc --no-deps`
-- [ ] CHANGELOG.md updated with all changes
-- [ ] Version numbers updated in all Cargo.toml files
-- [ ] README.md reflects new features
+### 改善 (Kaizen) - Continuous Improvement
+- Each release must improve metrics
+- Document lessons learned
+- Update quality gates based on findings
 
-## Release Steps
+## Pre-Release Requirements
 
-### 1. Update Versions
-
-Update the workspace version in the root `Cargo.toml`:
-```toml
-[workspace.package]
-version = "X.Y.Z"
-```
-
-Update all internal dependencies to match:
-```bash
-# Update all depyler-* dependencies
-find crates -name "Cargo.toml" -exec sed -i 's/"OLD_VERSION"/"NEW_VERSION"/g' {} \;
-```
-
-### 2. Run Quality Checks
+**ALL must be GREEN before any release:**
 
 ```bash
-# Full test suite
+# Run the comprehensive audit
+./scripts/pre-release-audit.sh
+
+# If ANY blockers found, fix them first
+# NO EXCEPTIONS - Zero defects policy
+```
+
+## Release Workflow
+
+### Step 1: Pre-Release Audit
+
+```bash
+# This script enforces zero-defect policy
+./scripts/pre-release-audit.sh
+
+# Review the generated report
+cat docs/release-audit.md
+
+# Fix ANY issues found - no exceptions
+```
+
+### Step 2: Update Version
+
+```bash
+# Update workspace version
+sed -i 's/version = ".*"/version = "X.Y.Z"/' Cargo.toml
+
+# Update all internal dependencies
+find crates -name "Cargo.toml" -exec sed -i 's/"OLD_VERSION"/"X.Y.Z"/g' {} \;
+
+# Update Cargo.lock
+cargo update --workspace
+```
+
+### Step 3: Final Quality Check
+
+```bash
+# Format all code
+cargo fmt --all
+
+# Run clippy with pedantic lints
+cargo clippy --workspace -- -D warnings \
+  -W clippy::pedantic \
+  -W clippy::nursery \
+  -W clippy::cargo
+
+# Run all tests
 cargo test --workspace
 
-# Clippy with pedantic lints
-cargo clippy --workspace -- -D warnings
+# Build documentation
+cargo doc --workspace --no-deps
 
-# Check documentation
-cargo doc --no-deps --open
-
-# Run benchmarks to ensure no regression
-cargo bench
+# Run audit again to confirm
+./scripts/pre-release-audit.sh
 ```
 
-### 3. Commit and Tag
+### Step 4: Update CHANGELOG
+
+Create/update `CHANGELOG.md`:
+
+```markdown
+## [X.Y.Z] - YYYY-MM-DD
+
+### 🎌 Quality Metrics
+- SATD Count: 0 (Toyota Way: Zero Defects)
+- Max Complexity: <20
+- Test Coverage: >90%
+- Clippy Warnings: 0
+
+### ✨ Features
+- Feature description implementing Priority N
+
+### 🐛 Bug Fixes
+- Fix description with zero new debt
+
+### 📚 Documentation
+- Documentation improvements
+
+### 🔧 Internal
+- Zero-defect refactoring
+```
+
+### Step 5: Commit and Tag
 
 ```bash
-# Commit version updates
+# Stage all changes
 git add -A
-git commit -m "chore: bump version to X.Y.Z
 
-Update workspace and crate versions for the new release."
+# Commit with detailed message
+git commit -m "release: v$VERSION - Zero Defect Release
 
-# Create annotated tag
-git tag -a vX.Y.Z -m "Release vX.Y.Z - <Brief Description>
+Summary of changes following Toyota Way principles:
+- Zero SATD policy maintained
+- All quality gates passed
+- Priority N implementation complete
 
-<Detailed release notes here>"
+Quality Metrics:
+- SATD: 0
+- Max Complexity: <20  
+- Tests: 100% passing
+- Clippy: 0 warnings
 
-# Push to GitHub
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+# Create signed tag
+git tag -s -a v$VERSION -m "Release v$VERSION
+
+Zero-defect release following Toyota Way.
+See CHANGELOG.md for details."
+
+# Push to trigger CI/CD
 git push origin main
-git push origin vX.Y.Z
+git push origin v$VERSION
 ```
 
-### 4. Create GitHub Release
+### Step 6: Monitor Automated Release
 
-Using the GitHub CLI:
+GitHub Actions will:
+1. Run quality gate checks
+2. Block release if ANY issues found
+3. Publish to crates.io in order
+4. Create GitHub release with audit report
+5. Verify installation works
+
+### Step 7: Post-Release Verification
+
 ```bash
-gh release create vX.Y.Z \
-  --title "vX.Y.Z - <Title>" \
-  --notes "<Full release notes>"
+# Wait for crates.io indexing
+sleep 120
+
+# Test installation
+cargo install depyler --force
+depyler --version
+
+# Run smoke tests
+echo "def test(): return 42" > test.py
+depyler transpile test.py
+cat test.rs
+
+# Verify all crates published
+for crate in depyler-{annotations,core,analyzer,verify,quality,mcp,wasm} depyler; do
+  echo "Checking $crate..."
+  cargo search $crate --limit 1
+done
 ```
-
-Or manually through the GitHub web interface.
-
-### 5. Publish to crates.io
-
-Run the publish script:
-```bash
-./scripts/publish-crates.sh
-```
-
-Or manually publish in order:
-```bash
-cargo publish -p depyler-annotations
-cargo publish -p depyler-core  
-cargo publish -p depyler-analyzer
-cargo publish -p depyler-verify
-cargo publish -p depyler-quality
-cargo publish -p depyler-mcp
-cargo publish -p depyler-wasm
-cargo publish -p depyler
-```
-
-Wait 30 seconds between each publish for crates.io indexing.
-
-## Version Numbering
-
-We follow semantic versioning:
-- **MAJOR** (X.0.0): Breaking changes or major feature sets
-- **MINOR** (0.X.0): New features, backward compatible
-- **PATCH** (0.0.X): Bug fixes and minor improvements
-
-Priority mapping to versions:
-- Priority 1 (Critical Fixes): Patch releases (1.0.X)
-- Priority 2 (Core Features): Minor releases (1.1.X)
-- Priority 3 (Type System): Minor releases (1.2.X)
-- Priority 4 (Verification): Minor releases (1.3.X)
-- Priority 5 (Advanced): Major release (2.0.0)
 
 ## Quality Gates
 
-Each release must pass ALL quality gates:
-- ✅ 100% of tests passing
-- ✅ Zero clippy warnings with pedantic lints
-- ✅ Code coverage >85% overall, >90% for new code
-- ✅ All examples compile and run correctly
-- ✅ Documentation builds without warnings
-- ✅ Benchmarks show <5% performance regression
-- ✅ Binary size within 10% of target
-- ✅ Successful test on 3 real Python projects
-- ✅ Cross-platform CI fully green
+### Mandatory Checks (Automated)
 
-## Post-Release
+| Check | Requirement | Enforcement |
+|-------|------------|-------------|
+| SATD | ZERO TODO/FIXME/HACK | Release blocked |
+| Complexity | All functions <20 | Release blocked |
+| Tests | 100% passing | Release blocked |
+| Clippy | Zero warnings | Release blocked |
+| Incomplete | Zero todo!() | Release blocked |
 
-1. Monitor crates.io for successful indexing
-2. Check GitHub issues for immediate problems
-3. Update project boards with completed items
-4. Plan next priority implementation
-5. Announce release on relevant channels
+### Manual Review
 
-## Rollback Plan
+Before pushing tag:
+- [ ] Review generated Rust code quality
+- [ ] Test on 3+ real Python projects
+- [ ] Benchmark performance vs previous
+- [ ] Security audit for new code
+- [ ] Documentation completeness
 
-If critical issues are discovered:
-1. `cargo yank --vers X.Y.Z depyler` (and all affected crates)
-2. Fix issues on hotfix branch
-3. Release patch version X.Y.(Z+1)
-4. Update yanked version notice on crates.io
+## Emergency Procedures
 
-## Release Artifacts
+### Yanking a Release
 
-Each release should include:
-- Source code (automatic via Git)
-- Pre-built binaries for major platforms (via GitHub Actions)
-- Comprehensive release notes
-- Migration guide (if applicable)
-- Performance comparison data
+If critical issue found post-release:
 
-## Communication
+```bash
+# Yank all affected crates immediately
+for crate in depyler-{annotations,core,analyzer,verify,quality,mcp,wasm} depyler; do
+  cargo yank --vers X.Y.Z $crate
+done
 
-Release announcements should be made on:
-- GitHub Releases page
-- crates.io (via README)
-- Project documentation site
-- Relevant Rust community channels
+# Create hotfix branch
+git checkout -b hotfix/vX.Y.Z+1 vX.Y.Z
+
+# Fix with zero new debt
+# Run full audit before release
+./scripts/pre-release-audit.sh
+
+# Fast-track release (still must pass all gates)
+```
+
+### Rollback Process
+
+1. Document issue in `docs/postmortem/vX.Y.Z.md`
+2. Add regression test
+3. Update quality gates if needed
+4. Release patch with fix
+5. Un-yank if appropriate
+
+## Release Cadence
+
+Following systematic priority implementation:
+
+| Priority | Version | Timeline | Focus |
+|----------|---------|----------|-------|
+| 1 | 1.0.X | Immediate | Critical fixes |
+| 2 | 1.1.X | 2-4 weeks | Core features |
+| 3 | 1.2.X | 4-6 weeks | Type system |
+| 4 | 1.3.X | 4 weeks | Verification |
+| 5 | 2.0.0 | 8 weeks | Advanced features |
+
+## Continuous Improvement
+
+After each release:
+
+1. Run retrospective
+2. Update quality gates
+3. Improve automation
+4. Document lessons learned
+5. Plan next priority
+
+## Zero Compromise Policy
+
+**NEVER** release with:
+- Any SATD markers
+- Any incomplete code
+- Any failing tests
+- Any complexity >20
+- Any clippy warnings
+
+Quality over speed. Every time.
 
 ---
 
-Following this process ensures each release maintains our extreme quality standards while delivering incremental value to users.
+*"The right process will produce the right results"* - Toyota Way

@@ -91,7 +91,9 @@ impl ContractChecker {
 
             for pre in &contract.preconditions {
                 checks.push_str(&format!("    // {}\n", pre.description));
-                checks.push_str(&format!("    // TODO: Check {}\n", pre.expression));
+                // Generate actual precondition check
+                let check_expr = pre.expression.replace("self.", "");
+                checks.push_str(&format!("    debug_assert!({}, \"Precondition failed: {}\");\n", check_expr, check_expr));
             }
 
             checks.push_str("    Ok(())\n");
@@ -105,7 +107,9 @@ impl ContractChecker {
 
             for post in &contract.postconditions {
                 checks.push_str(&format!("    // {}\n", post.description));
-                checks.push_str(&format!("    // TODO: Check {}\n", post.expression));
+                // Generate actual postcondition check
+                let check_expr = post.expression.replace("self.", "");
+                checks.push_str(&format!("    debug_assert!({}, \"Postcondition failed: {}\");\n", check_expr, check_expr));
             }
 
             checks.push_str("    Ok(())\n");
@@ -426,8 +430,8 @@ mod tests {
         assert!(checks.contains("check_test_func_postconditions"));
         assert!(checks.contains("Parameter must be positive"));
         assert!(checks.contains("Result must be non-negative"));
-        assert!(checks.contains("TODO: Check param > 0"));
-        assert!(checks.contains("TODO: Check result >= 0"));
+        assert!(checks.contains("debug_assert!(param > 0"));
+        assert!(checks.contains("debug_assert!(result >= 0"));
     }
 
     #[test]
