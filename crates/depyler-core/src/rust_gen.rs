@@ -1511,6 +1511,25 @@ pub fn rust_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<syn:
             let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
             parse_quote! { #ident }
         }
+        RustType::Array { element_type, size } => {
+            let element = rust_type_to_syn(element_type)?;
+            match size {
+                crate::type_mapper::RustConstGeneric::Literal(n) => {
+                    let size_lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
+                    parse_quote! { [#element; #size_lit] }
+                }
+                crate::type_mapper::RustConstGeneric::Parameter(name) => {
+                    let param_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                    parse_quote! { [#element; #param_ident] }
+                }
+                crate::type_mapper::RustConstGeneric::Expression(expr) => {
+                    let expr_tokens: proc_macro2::TokenStream = expr.parse().unwrap_or_else(|_| {
+                        quote! { /* invalid const expression */ }
+                    });
+                    parse_quote! { [#element; #expr_tokens] }
+                }
+            }
+        }
     })
 }
 

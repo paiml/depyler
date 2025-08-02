@@ -207,6 +207,26 @@ fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
             quote! { #base_ident<#(#param_types),*> }
         }
         Type::Union(_) => quote! { UnionType }, // Placeholder, will be handled by enum generation
+        Type::Array { element_type, size } => {
+            let element = type_to_rust_type(element_type);
+            match size {
+                crate::hir::ConstGeneric::Literal(n) => {
+                    let size_lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
+                    quote! { [#element; #size_lit] }
+                }
+                crate::hir::ConstGeneric::Parameter(name) => {
+                    let param_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                    quote! { [#element; #param_ident] }
+                }
+                crate::hir::ConstGeneric::Expression(expr) => {
+                    // For expressions, parse them as token streams
+                    let expr_tokens: proc_macro2::TokenStream = expr.parse().unwrap_or_else(|_| {
+                        quote! { /* invalid const expression */ }
+                    });
+                    quote! { [#element; #expr_tokens] }
+                }
+            }
+        }
     }
 }
 

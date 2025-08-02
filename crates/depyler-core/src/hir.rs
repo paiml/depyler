@@ -204,6 +204,16 @@ pub enum UnaryOp {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ConstGeneric {
+    /// Literal constant value (e.g., 5 in [T; 5])
+    Literal(usize),
+    /// Const generic parameter (e.g., N in [T; N])
+    Parameter(String),
+    /// Expression involving const generics (e.g., N + 1)
+    Expression(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Type {
     Unknown,
     Int,
@@ -223,6 +233,8 @@ pub enum Type {
     Generic { base: String, params: Vec<Type> },
     /// Union type (e.g., Union[int, str])
     Union(Vec<Type>),
+    /// Fixed-size array with const generic size (e.g., [T; N])
+    Array { element_type: Box<Type>, size: ConstGeneric },
 }
 
 impl Type {
@@ -231,6 +243,6 @@ impl Type {
     }
 
     pub fn is_container(&self) -> bool {
-        matches!(self, Type::List(_) | Type::Dict(_, _) | Type::Tuple(_))
+        matches!(self, Type::List(_) | Type::Dict(_, _) | Type::Tuple(_) | Type::Array { .. })
     }
 }
