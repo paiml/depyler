@@ -19,6 +19,7 @@ pub struct HirModule {
     pub imports: Vec<Import>,
     pub type_aliases: Vec<TypeAlias>,
     pub protocols: Vec<Protocol>,
+    pub classes: Vec<HirClass>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -55,6 +56,36 @@ pub struct ProtocolMethod {
     pub ret_type: Type,
     pub is_optional: bool,
     pub has_default: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HirClass {
+    pub name: String,
+    pub base_classes: Vec<String>, // For inheritance, empty for now
+    pub methods: Vec<HirMethod>,
+    pub fields: Vec<HirField>,
+    pub is_dataclass: bool,
+    pub docstring: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HirMethod {
+    pub name: String,
+    pub params: SmallVec<[(Symbol, Type); 4]>,
+    pub ret_type: Type,
+    pub body: Vec<HirStmt>,
+    pub is_static: bool,
+    pub is_classmethod: bool,
+    pub is_property: bool,
+    pub docstring: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HirField {
+    pub name: String,
+    pub field_type: Type,
+    pub default_value: Option<HirExpr>,
+    pub is_class_var: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

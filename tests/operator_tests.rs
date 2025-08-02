@@ -34,6 +34,7 @@ fn test_augmented_assignment() {
         imports: vec![],
         type_aliases: vec![],
         protocols: vec![],
+        classes: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -72,6 +73,7 @@ fn test_in_operator() {
         imports: vec![],
         type_aliases: vec![],
         protocols: vec![],
+        classes: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -107,6 +109,7 @@ fn test_not_in_operator() {
         imports: vec![],
         type_aliases: vec![],
         protocols: vec![],
+        classes: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -146,6 +149,7 @@ fn test_all_arithmetic_operators() {
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            classes: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -188,6 +192,7 @@ fn test_comparison_operators() {
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            classes: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -223,6 +228,7 @@ fn test_logical_operators() {
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            classes: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -264,6 +270,7 @@ fn test_bitwise_operators() {
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            classes: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -297,6 +304,7 @@ fn test_power_operator_not_supported() {
         imports: vec![],
         type_aliases: vec![],
         protocols: vec![],
+        classes: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -326,6 +334,7 @@ fn test_array_length_subtraction_safety() {
         imports: vec![],
         type_aliases: vec![],
         protocols: vec![],
+        classes: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -359,6 +368,7 @@ fn test_regular_subtraction_unchanged() {
         imports: vec![],
         type_aliases: vec![],
         protocols: vec![],
+        classes: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -399,6 +409,7 @@ fn test_len_variable_subtraction_safety() {
         imports: vec![],
         type_aliases: vec![],
         protocols: vec![],
+        classes: vec![],
     };
 
     let type_mapper = TypeMapper::default();
