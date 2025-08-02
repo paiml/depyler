@@ -18,6 +18,8 @@ pub mod rust_gen;
 pub mod string_optimization;
 pub mod test_generation;
 pub mod type_mapper;
+pub mod generic_inference;
+pub mod union_enum_gen;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

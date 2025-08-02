@@ -26,6 +26,8 @@ fn test_lifetime_inference_for_string_parameter() {
     let module = HirModule {
         functions: vec![func],
         imports: vec![],
+        type_aliases: vec![],
+        protocols: vec![],
     };
 
     let type_mapper = TypeMapper::new();
@@ -98,6 +100,8 @@ fn test_lifetime_inference_with_multiple_parameters() {
     let module = HirModule {
         functions: vec![func],
         imports: vec![],
+        type_aliases: vec![],
+        protocols: vec![],
     };
 
     let type_mapper = TypeMapper::new();

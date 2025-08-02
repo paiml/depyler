@@ -215,6 +215,12 @@ fn type_to_rust_string(ty: &Type) -> String {
             let inner_type = type_to_rust_string(inner);
             format!("Option<{inner_type}>")
         }
+        Type::TypeVar(name) => name.clone(),
+        Type::Generic { base, params } => {
+            let param_strs: Vec<String> = params.iter().map(type_to_rust_string).collect();
+            format!("{}<{}>", base, param_strs.join(", "))
+        }
+        Type::Union(_) => "UnionType".to_string(), // Placeholder for Union types
         _ => "i32".to_string(), // Default fallback
     }
 }
