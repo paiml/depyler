@@ -8,6 +8,35 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [1.0.4] - 2025-08-02
+
+### 🎌 Quality Metrics
+- SATD Count: 0 (Toyota Way: Zero Defects)
+- Max Complexity: <20
+- Test Coverage: >90%
+- Clippy Warnings: 0
+
+### ✨ Features
+- **Contract-Based Verification**: Comprehensive Design by Contract implementation
+- **Precondition Validation**: Support for @requires annotations with runtime checks
+- **Postcondition Verification**: Support for @ensures annotations with state tracking
+- **Invariant Checking**: Support for @invariant annotations for loops and functions
+- **Predicate System**: Rich predicate language for expressing complex conditions
+- **Contract Extraction**: Automatic extraction from Python docstrings and type annotations
+
+### 🛡️ Safety Improvements
+- **Null Safety Contracts**: Automatic null checks for list and dict parameters
+- **Bounds Checking**: Predicate support for array bounds verification
+- **Type Contracts**: Type-based precondition generation
+- **State Tracking**: Pre/post state tracking for postcondition verification
+
+### 🔧 Internal
+- **Comprehensive Contract Framework**: PreconditionChecker, PostconditionVerifier, InvariantChecker
+- **Predicate AST**: Support for logical operators, quantifiers, and custom predicates
+- **Contract Inheritance**: Framework for inheriting contracts (future work)
+- **SMT Solver Integration**: Placeholder for future Z3/CVC5 integration
+- **64 Contract Tests**: Comprehensive test coverage for all contract features
+
 ## [1.0.3] - 2025-08-02
 
 ### 🎌 Quality Metrics
@@ -311,7 +340,10 @@ and this project adheres to
 - **Error Messages**: Clear, actionable error reporting
 - **Extensible Design**: Easy to add new Python features
 
-[Unreleased]: https://github.com/paiml/depyler/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/paiml/depyler/compare/v1.0.4...HEAD
+[1.0.4]: https://github.com/paiml/depyler/compare/v1.0.3...v1.0.4
+[1.0.3]: https://github.com/paiml/depyler/compare/v1.0.2...v1.0.3
+[1.0.2]: https://github.com/paiml/depyler/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/paiml/depyler/compare/v0.3.1...v1.0.1
 [0.3.1]: https://github.com/paiml/depyler/releases/tag/v0.3.1
 [0.3.0]: https://github.com/paiml/depyler/compare/v0.2.0...v0.3.0

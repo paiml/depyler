@@ -32,7 +32,9 @@ impl TransportFactory {
             TransportType::WebSocket(url) => {
                 use pmcp::WebSocketConfig;
                 let config = WebSocketConfig {
-                    url: url.parse().map_err(|e| anyhow::anyhow!("Invalid URL: {}", e))?,
+                    url: url
+                        .parse()
+                        .map_err(|e| anyhow::anyhow!("Invalid URL: {}", e))?,
                     auto_reconnect: true,
                     max_reconnect_attempts: Some(5),
                     max_reconnect_delay: std::time::Duration::from_secs(30),
@@ -48,7 +50,9 @@ impl TransportFactory {
             TransportType::Http(url) => {
                 use pmcp::HttpConfig;
                 let config = HttpConfig {
-                    base_url: url.parse().map_err(|e| anyhow::anyhow!("Invalid URL: {}", e))?,
+                    base_url: url
+                        .parse()
+                        .map_err(|e| anyhow::anyhow!("Invalid URL: {}", e))?,
                     headers: vec![],
                     timeout: std::time::Duration::from_secs(30),
                     max_idle_per_host: 8,
@@ -69,7 +73,9 @@ impl TransportFactory {
     pub fn create_websocket(url: &str) -> Result<WebSocketTransport> {
         use pmcp::WebSocketConfig;
         let config = WebSocketConfig {
-            url: url.parse().map_err(|e| anyhow::anyhow!("Invalid URL: {}", e))?,
+            url: url
+                .parse()
+                .map_err(|e| anyhow::anyhow!("Invalid URL: {}", e))?,
             auto_reconnect: true,
             max_reconnect_attempts: Some(5),
             max_reconnect_delay: std::time::Duration::from_secs(30),
@@ -84,7 +90,9 @@ impl TransportFactory {
     pub fn create_http(url: &str) -> Result<HttpTransport> {
         use pmcp::HttpConfig;
         let config = HttpConfig {
-            base_url: url.parse().map_err(|e| anyhow::anyhow!("Invalid URL: {}", e))?,
+            base_url: url
+                .parse()
+                .map_err(|e| anyhow::anyhow!("Invalid URL: {}", e))?,
             headers: vec![],
             timeout: std::time::Duration::from_secs(30),
             max_idle_per_host: 8,
