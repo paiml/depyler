@@ -3,7 +3,7 @@
 //! This module implements comprehensive precondition and postcondition
 //! verification using logical predicates and SMT solving.
 
-use crate::contracts::Contract;
+use crate::contracts::{Condition, Contract};
 use depyler_core::hir::{HirFunction, HirStmt, Type};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -146,6 +146,28 @@ pub struct InvariantChecker {
     loop_invariants: HashMap<String, Vec<Predicate>>,
     /// Function invariants
     func_invariants: HashMap<String, Vec<Predicate>>,
+}
+
+/// Contract inheritance support
+#[derive(Debug, Default)]
+pub struct ContractInheritance {
+    /// Base contracts by function name
+    base_contracts: HashMap<String, Contract>,
+    /// Inheritance chains
+    inheritance_chains: HashMap<String, Vec<String>>,
+    /// Contract refinements
+    refinements: HashMap<String, ContractRefinement>,
+}
+
+/// Contract refinement for inheritance
+#[derive(Debug, Clone)]
+pub struct ContractRefinement {
+    /// Weakened preconditions (for Liskov substitution)
+    weakened_preconditions: Vec<Condition>,
+    /// Strengthened postconditions
+    strengthened_postconditions: Vec<Condition>,
+    /// Additional invariants
+    additional_invariants: Vec<Condition>,
 }
 
 /// An invariant that must hold
@@ -641,6 +663,142 @@ impl InvariantChecker {
     }
 }
 
+impl ContractInheritance {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Register a base contract
+    pub fn register_base_contract(&mut self, func_name: String, contract: Contract) {
+        self.base_contracts.insert(func_name, contract);
+    }
+
+    /// Add inheritance relationship
+    pub fn add_inheritance(&mut self, derived: String, base: String) {
+        self.inheritance_chains
+            .entry(derived)
+            .or_default()
+            .push(base);
+    }
+
+    /// Get inherited contract for a function
+    pub fn get_inherited_contract(&self, func_name: &str) -> Option<Contract> {
+        // First check direct contract
+        if let Some(contract) = self.base_contracts.get(func_name) {
+            return Some(contract.clone());
+        }
+
+        // Check inheritance chain
+        if let Some(bases) = self.inheritance_chains.get(func_name) {
+            for base in bases {
+                if let Some(base_contract) = self.base_contracts.get(base) {
+                    // Apply refinements if any
+                    if let Some(refinement) = self.refinements.get(func_name) {
+                        return Some(self.apply_refinement(base_contract, refinement));
+                    }
+                    return Some(base_contract.clone());
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Apply contract refinement (Liskov substitution principle)
+    fn apply_refinement(&self, base: &Contract, refinement: &ContractRefinement) -> Contract {
+        let mut refined = base.clone();
+
+        // Weaken preconditions (can accept more)
+        for weakened in &refinement.weakened_preconditions {
+            // Remove stronger precondition if it exists
+            refined.preconditions.retain(|p| p.name != weakened.name);
+            refined.preconditions.push(weakened.clone());
+        }
+
+        // Strengthen postconditions (must guarantee more)
+        refined
+            .postconditions
+            .extend(refinement.strengthened_postconditions.clone());
+
+        // Add additional invariants
+        refined
+            .invariants
+            .extend(refinement.additional_invariants.clone());
+
+        refined
+    }
+
+    /// Verify Liskov substitution principle
+    pub fn verify_lsp(&self, derived: &str, base: &str) -> Result<(), String> {
+        let base_contract = self
+            .base_contracts
+            .get(base)
+            .ok_or_else(|| format!("Base contract '{}' not found", base))?;
+
+        let derived_contract = self
+            .base_contracts
+            .get(derived)
+            .ok_or_else(|| format!("Derived contract '{}' not found", derived))?;
+
+        // Check preconditions are not strengthened
+        for base_pre in &base_contract.preconditions {
+            let has_weaker = derived_contract
+                .preconditions
+                .iter()
+                .any(|d| self.is_weaker_than(&d.expression, &base_pre.expression));
+            if !has_weaker {
+                return Err(format!(
+                    "Precondition '{}' is strengthened in derived contract",
+                    base_pre.description
+                ));
+            }
+        }
+
+        // Check postconditions are not weakened
+        for base_post in &base_contract.postconditions {
+            let has_stronger = derived_contract
+                .postconditions
+                .iter()
+                .any(|d| self.is_stronger_than(&d.expression, &base_post.expression));
+            if !has_stronger {
+                return Err(format!(
+                    "Postcondition '{}' is weakened in derived contract",
+                    base_post.description
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Check if one predicate is weaker than another
+    fn is_weaker_than(&self, pred1: &str, pred2: &str) -> bool {
+        // Simplified - would use SMT solver in real implementation
+        // x >= 0 is weaker than x > 0 (accepts more values)
+        if pred1 == pred2 {
+            return true;
+        }
+
+        // Check for >= being weaker than >
+        if pred1.contains(">=") && pred2.contains(">") && !pred2.contains("=") {
+            return true;
+        }
+
+        // Check for <= being weaker than <
+        if pred1.contains("<=") && pred2.contains("<") && !pred2.contains("=") {
+            return true;
+        }
+
+        false
+    }
+
+    /// Check if one predicate is stronger than another
+    fn is_stronger_than(&self, pred1: &str, pred2: &str) -> bool {
+        // Simplified - would use SMT solver in real implementation
+        pred1 == pred2 || pred1.contains("<") && pred2.contains("<")
+    }
+}
+
 /// Result of predicate verification
 #[allow(dead_code)]
 enum PredicateResult {
@@ -759,5 +917,86 @@ mod tests {
         assert!(matches!(parse_value("\"hello\""), Some(Value::String(_))));
         assert!(matches!(parse_value("None"), Some(Value::Null)));
         assert!(matches!(parse_value("variable"), Some(Value::Var(_))));
+    }
+
+    #[test]
+    fn test_contract_inheritance() {
+        use crate::contracts::{Condition, Contract};
+
+        let mut inheritance = ContractInheritance::new();
+
+        // Base contract
+        let base_contract = Contract {
+            preconditions: vec![Condition {
+                name: "items_not_null".to_string(),
+                expression: "items is not None".to_string(),
+                description: "Items must not be null".to_string(),
+            }],
+            postconditions: vec![Condition {
+                name: "result_valid".to_string(),
+                expression: "result >= 0".to_string(),
+                description: "Result must be non-negative".to_string(),
+            }],
+            invariants: vec![],
+        };
+
+        inheritance.register_base_contract("base_search".to_string(), base_contract);
+        inheritance.add_inheritance("binary_search".to_string(), "base_search".to_string());
+
+        let inherited = inheritance.get_inherited_contract("binary_search");
+        assert!(inherited.is_some());
+        let contract = inherited.unwrap();
+        assert_eq!(contract.preconditions.len(), 1);
+        assert_eq!(contract.postconditions.len(), 1);
+    }
+
+    #[test]
+    fn test_contract_refinement() {
+        use crate::contracts::{Condition, Contract};
+
+        let mut inheritance = ContractInheritance::new();
+
+        // Base and derived contracts
+        let base_contract = Contract {
+            preconditions: vec![Condition {
+                name: "x_positive".to_string(),
+                expression: "x > 0".to_string(),
+                description: "x must be positive".to_string(),
+            }],
+            postconditions: vec![Condition {
+                name: "result_positive".to_string(),
+                expression: "result > 0".to_string(),
+                description: "Result must be positive".to_string(),
+            }],
+            invariants: vec![],
+        };
+
+        let derived_contract = Contract {
+            preconditions: vec![Condition {
+                name: "x_positive".to_string(),
+                expression: "x >= 0".to_string(), // Weakened
+                description: "x must be non-negative".to_string(),
+            }],
+            postconditions: vec![
+                Condition {
+                    name: "result_positive".to_string(),
+                    expression: "result > 0".to_string(),
+                    description: "Result must be positive".to_string(),
+                },
+                Condition {
+                    name: "result_bounded".to_string(),
+                    expression: "result < 100".to_string(), // Strengthened
+                    description: "Result must be bounded".to_string(),
+                },
+            ],
+            invariants: vec![],
+        };
+
+        inheritance.register_base_contract("base".to_string(), base_contract);
+        inheritance.register_base_contract("derived".to_string(), derived_contract);
+
+        // LSP should pass for valid refinement
+        let result = inheritance.verify_lsp("derived", "base");
+        assert!(result.is_ok());
     }
 }
