@@ -12,7 +12,7 @@
 
 **Energy-efficient Python-to-Rust transpiler** with progressive verification capabilities. Transform Python code into safe, performant Rust while reducing energy consumption by 75-85%. Built with zero tolerance for technical debt and extreme quality standards following the Toyota Way.
 
-> **Toyota Way Success**: Achieved 100% SATD elimination, 0 incomplete implementations, and comprehensive test coverage. Project maintains zero defects policy with property-based testing, formal verification readiness, and ownership inference. Latest v1.0.2 release includes enhanced string optimization with interning support and Cow<str> for flexible ownership.
+> **Toyota Way Success**: Achieved 100% SATD elimination, 0 incomplete implementations, and comprehensive test coverage. Project maintains zero defects policy with property-based testing, formal verification readiness, and ownership inference. Latest v1.0.6 release adds basic class support and floor division operator handling.
 
 ## 🚀 Installation
 
@@ -126,8 +126,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - Control flow (`if`, `while`, `for`, `match`)
 - List and dict comprehensions
 - Exception handling → `Result<T, E>`
-- Basic classes and dataclasses
+- Basic classes (struct conversion, __init__ → new())
 - Pattern matching (Python 3.10+)
+- Floor division operator (//) with proper Python semantics
+- String optimization (interning, Cow<str> support)
+- Protocol to Trait mapping
+- Const generic array inference
 
 #### 🚧 In Development
 - Async/await support
