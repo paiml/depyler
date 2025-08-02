@@ -873,6 +873,30 @@ impl<'a> ExprConverter<'a> {
                     }
                 })
             }
+            BinOp::Mul => {
+                // Special case: [value] * n or n * [value] creates an array
+                match (left, right) {
+                    // Pattern: [x] * n
+                    (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size))) 
+                        if elts.len() == 1 && *size > 0 && *size <= 32 => {
+                        let elem = self.convert(&elts[0])?;
+                        let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                        Ok(parse_quote! { [#elem; #size_lit] })
+                    }
+                    // Pattern: n * [x]
+                    (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elts))
+                        if elts.len() == 1 && *size > 0 && *size <= 32 => {
+                        let elem = self.convert(&elts[0])?;
+                        let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                        Ok(parse_quote! { [#elem; #size_lit] })
+                    }
+                    // Default multiplication
+                    _ => {
+                        let rust_op = convert_binop(op)?;
+                        Ok(parse_quote! { #left_expr #rust_op #right_expr })
+                    }
+                }
+            }
             _ => {
                 let rust_op = convert_binop(op)?;
                 Ok(parse_quote! { #left_expr #rust_op #right_expr })
@@ -899,6 +923,7 @@ impl<'a> ExprConverter<'a> {
         match func {
             "len" => self.convert_len_call(&arg_exprs),
             "range" => self.convert_range_call(&arg_exprs),
+            "zeros" | "ones" | "full" => self.convert_array_init_call(func, args, &arg_exprs),
             _ => self.convert_generic_call(func, &arg_exprs),
         }
     }
@@ -930,6 +955,71 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
+    fn convert_array_init_call(&self, func: &str, args: &[HirExpr], _arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+        // Handle zeros(n), ones(n), full(n, value) patterns
+        if args.is_empty() {
+            bail!("{} requires at least one argument", func);
+        }
+        
+        // Extract size from first argument if it's a literal
+        if let HirExpr::Literal(Literal::Int(size)) = &args[0] {
+            if *size > 0 && *size <= 32 {
+                let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                match func {
+                    "zeros" => Ok(parse_quote! { [0; #size_lit] }),
+                    "ones" => Ok(parse_quote! { [1; #size_lit] }),
+                    "full" => {
+                        if args.len() >= 2 {
+                            let value = self.convert(&args[1])?;
+                            Ok(parse_quote! { [#value; #size_lit] })
+                        } else {
+                            bail!("full() requires a value argument");
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            } else {
+                // For large arrays or dynamic sizes, fall back to vec!
+                match func {
+                    "zeros" => {
+                        let size_expr = self.convert(&args[0])?;
+                        Ok(parse_quote! { vec![0; #size_expr as usize] })
+                    }
+                    "ones" => {
+                        let size_expr = self.convert(&args[0])?;
+                        Ok(parse_quote! { vec![1; #size_expr as usize] })
+                    }
+                    "full" => {
+                        if args.len() >= 2 {
+                            let size_expr = self.convert(&args[0])?;
+                            let value = self.convert(&args[1])?;
+                            Ok(parse_quote! { vec![#value; #size_expr as usize] })
+                        } else {
+                            bail!("full() requires a value argument");
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+        } else {
+            // Dynamic size - use vec!
+            let size_expr = self.convert(&args[0])?;
+            match func {
+                "zeros" => Ok(parse_quote! { vec![0; #size_expr as usize] }),
+                "ones" => Ok(parse_quote! { vec![1; #size_expr as usize] }),
+                "full" => {
+                    if args.len() >= 2 {
+                        let value = self.convert(&args[1])?;
+                        Ok(parse_quote! { vec![#value; #size_expr as usize] })
+                    } else {
+                        bail!("full() requires a value argument");
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+
     fn convert_generic_call(&self, func: &str, args: &[syn::Expr]) -> Result<syn::Expr> {
         let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
         Ok(parse_quote! { #func_ident(#(#args),*) })
@@ -950,7 +1040,25 @@ impl<'a> ExprConverter<'a> {
             .iter()
             .map(|e| self.convert(e))
             .collect::<Result<Vec<_>>>()?;
-        Ok(parse_quote! { vec![#(#elt_exprs),*] })
+        
+        // Check if this list has a known fixed size that should be an array
+        // Arrays are preferred for small fixed sizes (typically < 32 elements)
+        if !elts.is_empty() && elts.len() <= 32 {
+            // Check if all elements are literals or constants (good candidate for array)
+            let all_literals = elts.iter().all(|e| matches!(e, HirExpr::Literal(_)));
+            
+            if all_literals {
+                // Generate array literal instead of vec!
+                Ok(parse_quote! { [#(#elt_exprs),*] })
+            } else {
+                // For now, still use vec! for non-literal lists
+                // Future: integrate with const generic inference for smarter detection
+                Ok(parse_quote! { vec![#(#elt_exprs),*] })
+            }
+        } else {
+            // Use vec! for empty lists or large lists
+            Ok(parse_quote! { vec![#(#elt_exprs),*] })
+        }
     }
 
     fn convert_dict(&self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
@@ -1193,6 +1301,7 @@ mod tests {
         let type_mapper = create_test_type_mapper();
         let converter = ExprConverter::new(&type_mapper);
 
+        // Test literal list (should generate array)
         let list_expr = HirExpr::List(vec![
             HirExpr::Literal(Literal::Int(1)),
             HirExpr::Literal(Literal::Int(2)),
@@ -1200,8 +1309,18 @@ mod tests {
         ]);
 
         let result = converter.convert(&list_expr).unwrap();
-        // Should generate a macro call expression (vec![...])
-        assert!(matches!(result, syn::Expr::Macro(_)));
+        // Small literal lists should generate array expressions
+        assert!(matches!(result, syn::Expr::Array(_)));
+        
+        // Test non-literal list (should generate vec!)
+        let var_list = HirExpr::List(vec![
+            HirExpr::Var("x".to_string()),
+            HirExpr::Var("y".to_string()),
+        ]);
+        
+        let result2 = converter.convert(&var_list).unwrap();
+        // Non-literal lists should generate vec! macro
+        assert!(matches!(result2, syn::Expr::Macro(_)));
     }
 
     #[test]
