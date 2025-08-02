@@ -3,7 +3,6 @@ use crate::tools::*;
 use pmcp::server::ToolHandler;
 use pmcp::RequestHandlerExtra;
 use serde_json::json;
-use tokio::sync::mpsc;
 
 #[tokio::test]
 async fn test_server_creation() {
@@ -21,11 +20,11 @@ async fn test_transpile_tool_handler() {
         "mode": "inline"
     });
 
-    let (tx, _rx) = mpsc::unbounded_channel();
     let extra = RequestHandlerExtra {
+        session_id: Some("test-session".to_string()),
+        auth_info: None,
         request_id: "test".to_string(),
         cancellation_token: tokio_util::sync::CancellationToken::new(),
-        progress_reporter: Some(tx),
     };
 
     let result = tool.handle(args, extra).await;
@@ -52,11 +51,11 @@ async fn test_analyze_tool_handler() {
         "project_path": temp_dir.to_string_lossy()
     });
 
-    let (tx, _rx) = mpsc::unbounded_channel();
     let extra = RequestHandlerExtra {
+        session_id: Some("test-session".to_string()),
+        auth_info: None,
         request_id: "test".to_string(),
         cancellation_token: tokio_util::sync::CancellationToken::new(),
-        progress_reporter: Some(tx),
     };
 
     let result = tool.handle(args, extra).await;
@@ -81,11 +80,11 @@ async fn test_verify_tool_handler() {
         "rust_source": "pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}"
     });
 
-    let (tx, _rx) = mpsc::unbounded_channel();
     let extra = RequestHandlerExtra {
+        session_id: Some("test-session".to_string()),
+        auth_info: None,
         request_id: "test".to_string(),
         cancellation_token: tokio_util::sync::CancellationToken::new(),
-        progress_reporter: Some(tx),
     };
 
     let result = tool.handle(args, extra).await;
@@ -107,11 +106,11 @@ async fn test_transpile_tool_invalid_args() {
         "invalid_field": "value"
     });
 
-    let (tx, _rx) = mpsc::unbounded_channel();
     let extra = RequestHandlerExtra {
+        session_id: Some("test-session".to_string()),
+        auth_info: None,
         request_id: "test".to_string(),
         cancellation_token: tokio_util::sync::CancellationToken::new(),
-        progress_reporter: Some(tx),
     };
 
     let result = tool.handle(args, extra).await;

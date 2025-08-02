@@ -93,7 +93,10 @@ impl ContractChecker {
                 checks.push_str(&format!("    // {}\n", pre.description));
                 // Generate actual precondition check
                 let check_expr = pre.expression.replace("self.", "");
-                checks.push_str(&format!("    debug_assert!({}, \"Precondition failed: {}\");\n", check_expr, check_expr));
+                checks.push_str(&format!(
+                    "    debug_assert!({}, \"Precondition failed: {}\");\n",
+                    check_expr, check_expr
+                ));
             }
 
             checks.push_str("    Ok(())\n");
@@ -109,7 +112,10 @@ impl ContractChecker {
                 checks.push_str(&format!("    // {}\n", post.description));
                 // Generate actual postcondition check
                 let check_expr = post.expression.replace("self.", "");
-                checks.push_str(&format!("    debug_assert!({}, \"Postcondition failed: {}\");\n", check_expr, check_expr));
+                checks.push_str(&format!(
+                    "    debug_assert!({}, \"Postcondition failed: {}\");\n",
+                    check_expr, check_expr
+                ));
             }
 
             checks.push_str("    Ok(())\n");

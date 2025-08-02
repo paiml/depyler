@@ -81,7 +81,7 @@ impl PropertyVerifier {
         // Property 2: Memory safety
         let mut memory_analyzer = memory_safety::MemorySafetyAnalyzer::new();
         results.push(memory_analyzer.analyze_function(func));
-        
+
         // Property 2b: Lifetime safety
         let mut lifetime_analyzer = lifetime_analysis::LifetimeAnalyzer::new();
         let lifetime_violations = lifetime_analyzer.analyze_function(func);

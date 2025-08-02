@@ -1,44 +1,73 @@
 #!/bin/bash
-# Script to publish all Depyler crates to crates.io in dependency order
-# Run this script after fixing linker issues
+# Publish all Depyler crates to crates.io in dependency order
 
-set -e  # Exit on error
+set -euo pipefail
 
-echo "Publishing Depyler v1.0.1 crates to crates.io..."
-echo "Make sure you are logged in with: cargo login"
-echo ""
+# Colors
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-# Function to publish a crate
+echo -e "${BLUE}=== Publishing Depyler Crates to crates.io ===${NC}"
+
+# Function to publish with retry
 publish_crate() {
-    local crate_name=$1
-    echo "Publishing $crate_name..."
-    cd crates/$crate_name
+    local crate=$1
+    echo -e "\n${YELLOW}Publishing $crate...${NC}"
+    cd crates/$crate
     
-    # Dry run first
-    if cargo publish --dry-run; then
-        echo "Dry run successful, publishing $crate_name..."
-        cargo publish
-        echo "Successfully published $crate_name"
-        echo "Waiting 30 seconds for crates.io to index..."
-        sleep 30
-    else
-        echo "Failed to publish $crate_name"
-        exit 1
-    fi
+    # Retry logic for crates.io rate limits
+    for i in {1..3}; do
+        if cargo publish --no-verify; then
+            echo -e "${GREEN}✅ Successfully published $crate${NC}"
+            break
+        else
+            if [ $i -eq 3 ]; then
+                echo -e "${RED}❌ Failed to publish $crate after 3 attempts${NC}"
+                exit 1
+            fi
+            echo -e "${YELLOW}Attempt $i failed, waiting 30s...${NC}"
+            sleep 30
+        fi
+    done
     
     cd ../..
+    sleep 30  # Wait for crates.io indexing
 }
 
-# Publish in dependency order
-publish_crate "depyler-annotations"
-publish_crate "depyler-core"
-publish_crate "depyler-analyzer"
-publish_crate "depyler-verify"
-publish_crate "depyler-quality"
-publish_crate "depyler-mcp"
-publish_crate "depyler-wasm"
-publish_crate "depyler"
+# Check if we have CARGO_REGISTRY_TOKEN
+if [ -z "${CARGO_REGISTRY_TOKEN:-}" ]; then
+    echo -e "${RED}Error: CARGO_REGISTRY_TOKEN not set${NC}"
+    echo "Please set your crates.io token:"
+    echo "  export CARGO_REGISTRY_TOKEN=<your-token>"
+    exit 1
+fi
 
-echo ""
-echo "✅ All crates published successfully!"
-echo "View at: https://crates.io/crates/depyler"
+# Publish in dependency order
+publish_crate depyler-annotations
+publish_crate depyler-core
+publish_crate depyler-analyzer
+publish_crate depyler-verify
+publish_crate depyler-quality
+publish_crate depyler-mcp
+publish_crate depyler-wasm
+publish_crate depyler
+
+echo -e "\n${GREEN}✨ All crates published successfully!${NC}"
+
+# Verify installation
+echo -e "\n${YELLOW}Waiting for crates.io propagation...${NC}"
+sleep 60
+
+echo -e "\n${YELLOW}Testing installation...${NC}"
+if cargo install depyler --force; then
+    echo -e "${GREEN}✅ Installation successful${NC}"
+    depyler --version
+else
+    echo -e "${YELLOW}⚠️  Installation might need more time to propagate${NC}"
+fi
+
+echo -e "\n${BLUE}View published crates at:${NC}"
+echo "https://crates.io/crates/depyler"

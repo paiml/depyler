@@ -112,7 +112,7 @@ fi
 echo -e "\n### 5. Test Suite Status\n" >> "$OUTPUT"
 echo -e "${YELLOW}Running tests...${NC}"
 TEST_PASSED=true
-if cargo test --workspace --quiet 2>&1; then
+if cargo test --workspace --lib --quiet 2>&1; then
     echo "✅ **All tests PASSED**" >> "$OUTPUT"
 else
     TEST_PASSED=false

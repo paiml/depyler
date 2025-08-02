@@ -19,7 +19,8 @@ MAX_COMPLEXITY := 10
 MAX_LINES_PER_FUNCTION := 50
 
 # Build Configuration
-RUST_FLAGS := RUSTFLAGS="-D warnings"
+# Fix linker issues by using system linker instead of lld
+RUST_FLAGS := RUSTFLAGS="-D warnings -C linker=cc"
 TEST_FLAGS := --workspace --all-features
 RELEASE_FLAGS := --release
 

@@ -538,7 +538,9 @@ impl AnnotationParser {
                         "async_ready" => {
                             // Async support requires tokio/async-std integration
                             // Annotate functions as async-ready for future implementation
-                            eprintln!("Warning: async_ready is experimental and not yet fully supported");
+                            eprintln!(
+                                "Warning: async_ready is experimental and not yet fully supported"
+                            );
                         }
                         _ => return Err(AnnotationError::InvalidValue { key, value }),
                     }

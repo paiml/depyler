@@ -1,4 +1,3 @@
-use crate::error::DepylerMcpError;
 use crate::tools::*;
 use depyler_core::DepylerPipeline;
 use pmcp::error::Error as McpError;
@@ -48,38 +47,6 @@ impl DepylerMcpServer {
         Ok(server)
     }
 
-    fn count_python_lines(&self, project_path: &str) -> Result<usize, DepylerMcpError> {
-        let path = Path::new(project_path);
-        if !path.exists() {
-            return Err(DepylerMcpError::InvalidInput(format!(
-                "Project path does not exist: {project_path}"
-            )));
-        }
-
-        let mut total_lines = 0;
-        if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
-            let content = std::fs::read_to_string(path)?;
-            total_lines += content.lines().count();
-        } else if path.is_dir() {
-            // Simplified: just count a few common files
-            for entry in std::fs::read_dir(path)? {
-                let entry = entry?;
-                let path = entry.path();
-                if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
-                    let content = std::fs::read_to_string(&path)?;
-                    total_lines += content.lines().count();
-                }
-            }
-        }
-
-        Ok(total_lines)
-    }
-
-    fn calculate_complexity_score(&self, total_lines: usize) -> f64 {
-        // Simple heuristic based on project size
-        let base_complexity = (total_lines as f64).ln() + 1.0;
-        base_complexity * 1.5
-    }
 }
 
 impl Default for DepylerMcpServer {
@@ -156,6 +123,7 @@ impl ToolHandler for TranspileTool {
 
 #[derive(Clone)]
 pub struct AnalyzeTool {
+    #[allow(dead_code)]
     transpiler: Arc<DepylerPipeline>,
 }
 
@@ -164,6 +132,7 @@ impl AnalyzeTool {
         Self { transpiler }
     }
 
+    #[allow(clippy::result_large_err)]
     fn count_python_lines(&self, project_path: &str) -> Result<usize, McpError> {
         let path = Path::new(project_path);
         if !path.exists() {
