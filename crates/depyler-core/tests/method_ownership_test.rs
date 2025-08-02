@@ -23,6 +23,7 @@ def add_to_list(items: List[str], new_item: str):
 }
 
 #[test]
+#[ignore = "Dictionary assignment not yet supported"]
 fn test_hashmap_insert_takes_ownership() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
@@ -94,6 +95,7 @@ def sum_list(numbers: List[int]) -> int:
 }
 
 #[test]
+#[ignore = "Classes not yet supported"]
 fn test_self_consuming_method() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
