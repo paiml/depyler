@@ -1,0 +1,10 @@
+#[doc = " Depyler: proven to terminate"] pub fn test_arrays()  -> Result<serde_json::Value, IndexError>{
+    let mut arr1 = [1, 2, 3, 4, 5];
+    let mut arr2 = [0, 0, 0, 0];
+    let mut zeros = [0;
+    10];
+    let mut ones = [1;
+    5];
+    let mut sum_val  = (arr1.get(0 as usize).copied().unwrap_or_default() + arr1.get(1 as usize).copied().unwrap_or_default());
+    return Ok(sum_val)
+}
