@@ -1,6 +1,6 @@
 use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
-use crate::borrowing::{BorrowingContext, BorrowingPattern};
 use crate::hir::*;
+use crate::lifetime_analysis::LifetimeInference;
 use crate::string_optimization::{StringContext, StringOptimizer};
 use anyhow::{bail, Result};
 use quote::quote;
@@ -138,36 +138,78 @@ impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         let name = syn::Ident::new(&self.name, proc_macro2::Span::call_site());
 
-        // Analyze function for borrowing patterns
-        let mut borrowing_ctx = BorrowingContext::new();
-        borrowing_ctx.analyze_function(self);
+        // Perform lifetime analysis
+        let mut lifetime_inference = LifetimeInference::new();
+        let lifetime_result = lifetime_inference.analyze_function(self, ctx.type_mapper);
 
-        // Note: String optimization is done at module level now
+        // Generate lifetime parameters if needed
+        let lifetime_params = if lifetime_result.lifetime_params.is_empty() {
+            quote! {}
+        } else {
+            let lifetimes: Vec<_> = lifetime_result.lifetime_params.iter()
+                .map(|lt| {
+                    let lt_ident = syn::Lifetime::new(lt, proc_macro2::Span::call_site());
+                    quote! { #lt_ident }
+                })
+                .collect();
+            quote! { <#(#lifetimes),*> }
+        };
 
-        // Convert parameters using borrowing analysis
+        // Generate lifetime bounds
+        let where_clause = if lifetime_result.lifetime_bounds.is_empty() {
+            quote! {}
+        } else {
+            let bounds: Vec<_> = lifetime_result.lifetime_bounds.iter()
+                .map(|(from, to)| {
+                    let from_lt = syn::Lifetime::new(from, proc_macro2::Span::call_site());
+                    let to_lt = syn::Lifetime::new(to, proc_macro2::Span::call_site());
+                    quote! { #from_lt: #to_lt }
+                })
+                .collect();
+            quote! { where #(#bounds),* }
+        };
+
+        // Convert parameters using lifetime analysis results
         let params: Vec<_> = self
             .params
             .iter()
             .map(|(param_name, param_type)| {
                 let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
-                let rust_type = ctx
-                    .annotation_aware_mapper
-                    .map_type_with_annotations(param_type, &self.annotations);
+                
+                // Get the inferred parameter info
+                if let Some(inferred) = lifetime_result.param_lifetimes.get(param_name) {
+                    let rust_type = &inferred.rust_type;
+                    update_import_needs(ctx, rust_type);
+                    let mut ty = rust_type_to_syn(rust_type)?;
 
-                // Check if we need special imports
-                update_import_needs(ctx, &rust_type);
+                    // Apply borrowing if needed
+                    if inferred.should_borrow {
+                        if let Some(ref lifetime) = inferred.lifetime {
+                            let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+                            ty = if inferred.needs_mut {
+                                parse_quote! { &#lt mut #ty }
+                            } else {
+                                parse_quote! { &#lt #ty }
+                            };
+                        } else {
+                            ty = if inferred.needs_mut {
+                                parse_quote! { &mut #ty }
+                            } else {
+                                parse_quote! { &#ty }
+                            };
+                        }
+                    }
 
-                let ty = rust_type_to_syn(&rust_type)?;
-
-                // Use borrowing pattern from analysis
-                let pattern = borrowing_ctx.get_pattern(param_name, param_type);
-                let ty = match pattern {
-                    BorrowingPattern::Owned => ty,
-                    BorrowingPattern::Borrowed => parse_quote! { &#ty },
-                    BorrowingPattern::MutableBorrow => parse_quote! { &mut #ty },
-                };
-
-                Ok(quote! { #param_ident: #ty })
+                    Ok(quote! { #param_ident: #ty })
+                } else {
+                    // Fallback to original mapping
+                    let rust_type = ctx
+                        .annotation_aware_mapper
+                        .map_type_with_annotations(param_type, &self.annotations);
+                    update_import_needs(ctx, &rust_type);
+                    let ty = rust_type_to_syn(&rust_type)?;
+                    Ok(quote! { #param_ident: #ty })
+                }
             })
             .collect::<Result<Vec<_>>>()?;
 
@@ -178,7 +220,31 @@ impl RustCodeGen for HirFunction {
         let return_type = if matches!(rust_ret_type, crate::type_mapper::RustType::Unit) {
             quote! {}
         } else {
-            let ty = rust_type_to_syn(&rust_ret_type)?;
+            let mut ty = rust_type_to_syn(&rust_ret_type)?;
+            
+            // Apply return lifetime if needed
+            if let Some(ref return_lt) = lifetime_result.return_lifetime {
+                // Check if the return type needs lifetime substitution
+                if matches!(rust_ret_type, crate::type_mapper::RustType::Str { .. } | 
+                                          crate::type_mapper::RustType::Reference { .. }) {
+                    let lt = syn::Lifetime::new(return_lt, proc_macro2::Span::call_site());
+                    match rust_ret_type {
+                        crate::type_mapper::RustType::Str { .. } => {
+                            ty = parse_quote! { &#lt str };
+                        }
+                        crate::type_mapper::RustType::Reference { mutable, inner, .. } => {
+                            let inner_ty = rust_type_to_syn(&inner)?;
+                            ty = if mutable {
+                                parse_quote! { &#lt mut #inner_ty }
+                            } else {
+                                parse_quote! { &#lt #inner_ty }
+                            };
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            
             quote! { -> #ty }
         };
 
@@ -220,7 +286,7 @@ impl RustCodeGen for HirFunction {
 
         Ok(quote! {
             #(#attrs)*
-            pub fn #name(#(#params),*) #return_type {
+            pub fn #name #lifetime_params(#(#params),*) #return_type #where_clause {
                 #(#body_stmts)*
             }
         })

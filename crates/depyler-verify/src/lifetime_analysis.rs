@@ -432,7 +432,7 @@ mod tests {
 
     #[test]
     fn test_conflicting_borrows() {
-        let mut analyzer = LifetimeAnalyzer::new();
+        let analyzer = LifetimeAnalyzer::new();
 
         // This would require more complex HIR to properly test
         // For now, verify the analyzer initializes correctly
