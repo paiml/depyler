@@ -137,12 +137,12 @@ impl StringOptimizer {
             HirExpr::Literal(Literal::String(s)) => {
                 // Count string literal occurrences
                 *self.string_literal_count.entry(s.clone()).or_insert(0) += 1;
-                
+
                 // Check if this string should be interned (used more than 3 times)
                 if self.string_literal_count.get(s).copied().unwrap_or(0) > 3 {
                     self.interned_strings.insert(s.clone());
                 }
-                
+
                 if is_returned {
                     self.returned_strings.insert(s.clone());
                 } else {
@@ -252,7 +252,10 @@ impl StringOptimizer {
                     _ => '_',
                 })
                 .collect::<String>();
-            Some(format!("STR_{}", if name.is_empty() { "EMPTY" } else { &name }))
+            Some(format!(
+                "STR_{}",
+                if name.is_empty() { "EMPTY" } else { &name }
+            ))
         } else {
             None
         }

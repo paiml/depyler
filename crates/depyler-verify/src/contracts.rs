@@ -1,6 +1,10 @@
 use depyler_core::hir::{HirExpr, HirFunction, HirStmt, Type};
 use serde::{Deserialize, Serialize};
 
+use crate::contract_verification::{
+    InvariantChecker, PostconditionVerifier, PreconditionChecker, VerificationResult,
+};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Contract {
     pub preconditions: Vec<Condition>,
@@ -24,6 +28,14 @@ impl ContractChecker {
             postconditions: vec![],
             invariants: vec![],
         };
+
+        // Extract contracts from docstring annotations
+        if let Some(docstring) = &func.docstring {
+            let extracted = Self::extract_docstring_contracts(docstring);
+            contract.preconditions.extend(extracted.preconditions);
+            contract.postconditions.extend(extracted.postconditions);
+            contract.invariants.extend(extracted.invariants);
+        }
 
         // Extract implicit preconditions from parameter types
         for (param_name, param_type) in &func.params {
@@ -91,12 +103,21 @@ impl ContractChecker {
 
             for pre in &contract.preconditions {
                 checks.push_str(&format!("    // {}\n", pre.description));
-                // Generate actual precondition check
-                let check_expr = pre.expression.replace("self.", "");
-                checks.push_str(&format!(
-                    "    debug_assert!({}, \"Precondition failed: {}\");\n",
-                    check_expr, check_expr
-                ));
+                // Generate actual precondition check using verification framework
+                if pre.expression.contains("is not None") {
+                    let var_name = pre.expression.split_whitespace().next().unwrap_or("");
+                    checks.push_str(&format!(
+                        "    if {}.is_none() {{ return Err(\"Precondition failed: {}\"); }}\n",
+                        var_name, pre.description
+                    ));
+                } else {
+                    // For other conditions, use debug_assert for now
+                    let check_expr = pre.expression.replace("self.", "");
+                    checks.push_str(&format!(
+                        "    debug_assert!({}, \"Precondition failed: {}\");\n",
+                        check_expr, pre.description
+                    ));
+                }
             }
 
             checks.push_str("    Ok(())\n");
@@ -110,12 +131,21 @@ impl ContractChecker {
 
             for post in &contract.postconditions {
                 checks.push_str(&format!("    // {}\n", post.description));
-                // Generate actual postcondition check
-                let check_expr = post.expression.replace("self.", "");
-                checks.push_str(&format!(
-                    "    debug_assert!({}, \"Postcondition failed: {}\");\n",
-                    check_expr, check_expr
-                ));
+                // Generate actual postcondition check using verification framework
+                if post.expression.contains("result") {
+                    let check_expr = post.expression.replace("self.", "");
+                    checks.push_str(&format!(
+                        "    if !({}) {{ return Err(\"Postcondition failed: {}\"); }}\n",
+                        check_expr, post.description
+                    ));
+                } else {
+                    // For other conditions, use debug_assert
+                    let check_expr = post.expression.replace("self.", "");
+                    checks.push_str(&format!(
+                        "    debug_assert!({}, \"Postcondition failed: {}\");\n",
+                        check_expr, post.description
+                    ));
+                }
             }
 
             checks.push_str("    Ok(())\n");
@@ -134,6 +164,129 @@ impl ContractChecker {
         }
 
         violations
+    }
+
+    /// Extract contracts from Python docstring annotations
+    fn extract_docstring_contracts(docstring: &str) -> Contract {
+        let mut contract = Contract {
+            preconditions: vec![],
+            postconditions: vec![],
+            invariants: vec![],
+        };
+
+        let _precondition_checker = PreconditionChecker::new();
+        let _postcondition_verifier = PostconditionVerifier::new();
+
+        for line in docstring.lines() {
+            let trimmed = line.trim();
+
+            if trimmed.starts_with("@requires") {
+                // Parse precondition
+                if let Some(annotation) = trimmed.strip_prefix("@requires").map(str::trim) {
+                    if !annotation.is_empty() {
+                        contract.preconditions.push(Condition {
+                            name: format!("requires_{}", contract.preconditions.len()),
+                            expression: annotation.to_string(),
+                            description: format!("Requires: {}", annotation),
+                        });
+                    }
+                }
+            } else if trimmed.starts_with("@ensures") {
+                // Parse postcondition
+                if let Some(annotation) = trimmed.strip_prefix("@ensures").map(str::trim) {
+                    if !annotation.is_empty() {
+                        contract.postconditions.push(Condition {
+                            name: format!("ensures_{}", contract.postconditions.len()),
+                            expression: annotation.to_string(),
+                            description: format!("Ensures: {}", annotation),
+                        });
+                    }
+                }
+            } else if trimmed.starts_with("@invariant") {
+                // Parse invariant
+                if let Some(annotation) = trimmed.strip_prefix("@invariant").map(str::trim) {
+                    if !annotation.is_empty() {
+                        contract.invariants.push(Condition {
+                            name: format!("invariant_{}", contract.invariants.len()),
+                            expression: annotation.to_string(),
+                            description: format!("Invariant: {}", annotation),
+                        });
+                    }
+                }
+            }
+        }
+
+        contract
+    }
+
+    /// Verify contracts using the advanced verification framework
+    pub fn verify_contracts(func: &HirFunction) -> VerificationResult {
+        let mut precondition_checker = PreconditionChecker::new();
+        let mut postcondition_verifier = PostconditionVerifier::new();
+        let invariant_checker = InvariantChecker::new();
+
+        // Extract and verify contracts
+        let contract = Self::extract_contracts(func);
+
+        // Parse and validate preconditions
+        if let Some(docstring) = &func.docstring {
+            let rules = precondition_checker.parse_requires_annotations(docstring);
+            for rule in rules {
+                precondition_checker.add_rule(rule);
+            }
+        }
+
+        // Verify preconditions
+        let mut result = precondition_checker.validate_preconditions(func);
+
+        // Capture pre-state for postcondition verification
+        postcondition_verifier.capture_pre_state(func);
+
+        // Verify postconditions
+        let post_result = postcondition_verifier.verify_postconditions(func, &contract);
+
+        // Merge results
+        result.violations.extend(post_result.violations);
+        result.warnings.extend(post_result.warnings);
+        result
+            .proven_conditions
+            .extend(post_result.proven_conditions);
+        result
+            .unproven_conditions
+            .extend(post_result.unproven_conditions);
+        result.success = result.success && post_result.success;
+
+        // Check invariants
+        let invariant_violations = invariant_checker.check_invariants(func);
+        for violation in invariant_violations {
+            result.violations.push(violation);
+            result.success = false;
+        }
+
+        result
+    }
+
+    /// Generate runtime assertions using the verification framework
+    pub fn generate_advanced_contract_checks(contract: &Contract, _func: &HirFunction) -> String {
+        let mut checks = String::new();
+        let precondition_checker = PreconditionChecker::new();
+        let postcondition_verifier = PostconditionVerifier::new();
+
+        // Generate precondition runtime assertions
+        if !contract.preconditions.is_empty() {
+            checks.push_str("    // Precondition checks\n");
+            let assertions = precondition_checker.generate_runtime_assertions(contract);
+            checks.push_str(&assertions);
+        }
+
+        // Generate postcondition runtime checks
+        if !contract.postconditions.is_empty() {
+            checks.push_str("\n    // Postcondition checks\n");
+            let post_checks = postcondition_verifier.generate_postcondition_checks(contract);
+            checks.push_str(&post_checks);
+        }
+
+        checks
     }
 }
 
@@ -437,7 +590,10 @@ mod tests {
         assert!(checks.contains("Parameter must be positive"));
         assert!(checks.contains("Result must be non-negative"));
         assert!(checks.contains("debug_assert!(param > 0"));
-        assert!(checks.contains("debug_assert!(result >= 0"));
+        // Postcondition format changed to use if statement
+        assert!(
+            checks.contains("if !(result >= 0)") || checks.contains("debug_assert!(result >= 0")
+        );
     }
 
     #[test]
@@ -583,5 +739,120 @@ mod tests {
         let deserialized: Contract = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.preconditions.len(), 1);
         assert_eq!(deserialized.preconditions[0].name, "test");
+    }
+
+    #[test]
+    fn test_extract_docstring_contracts() {
+        let docstring = r#"
+        Binary search implementation.
+        
+        @requires items is not None
+        @requires low >= 0
+        @requires high < len(items)
+        @ensures result >= -1
+        @ensures result < len(items)
+        @invariant low <= high
+        "#;
+
+        let contract = ContractChecker::extract_docstring_contracts(docstring);
+
+        assert_eq!(contract.preconditions.len(), 3);
+        assert_eq!(contract.postconditions.len(), 2);
+        assert_eq!(contract.invariants.len(), 1);
+
+        assert_eq!(contract.preconditions[0].expression, "items is not None");
+        assert_eq!(contract.preconditions[1].expression, "low >= 0");
+        assert_eq!(contract.preconditions[2].expression, "high < len(items)");
+
+        assert_eq!(contract.postconditions[0].expression, "result >= -1");
+        assert_eq!(contract.postconditions[1].expression, "result < len(items)");
+
+        assert_eq!(contract.invariants[0].expression, "low <= high");
+    }
+
+    #[test]
+    fn test_verify_contracts() {
+        let func = create_test_function(
+            "safe_divide",
+            vec![
+                ("numerator".to_string(), Type::Float),
+                ("denominator".to_string(), Type::Float),
+            ],
+            Type::Float,
+            vec![],
+            FunctionProperties::default(),
+        );
+
+        let result = ContractChecker::verify_contracts(&func);
+
+        // Should have some unproven conditions since we can't statically verify everything
+        assert!(!result.unproven_conditions.is_empty() || result.success);
+    }
+
+    #[test]
+    fn test_generate_advanced_contract_checks() {
+        let contract = Contract {
+            preconditions: vec![
+                Condition {
+                    name: "items_not_null".to_string(),
+                    expression: "items is not None".to_string(),
+                    description: "Parameter items must not be null".to_string(),
+                },
+                Condition {
+                    name: "index_bounds".to_string(),
+                    expression: "index >= 0".to_string(),
+                    description: "Index must be non-negative".to_string(),
+                },
+            ],
+            postconditions: vec![Condition {
+                name: "result_valid".to_string(),
+                expression: "result is not None".to_string(),
+                description: "Result must not be null".to_string(),
+            }],
+            invariants: vec![],
+        };
+
+        let func = create_test_function(
+            "get_item",
+            vec![
+                ("items".to_string(), Type::List(Box::new(Type::Int))),
+                ("index".to_string(), Type::Int),
+            ],
+            Type::Optional(Box::new(Type::Int)),
+            vec![],
+            FunctionProperties::default(),
+        );
+
+        let checks = ContractChecker::generate_advanced_contract_checks(&contract, &func);
+
+        assert!(checks.contains("Precondition checks"));
+        assert!(checks.contains("Postcondition checks"));
+    }
+
+    #[test]
+    fn test_contract_with_function_annotations() {
+        let mut func = create_test_function(
+            "annotated_func",
+            vec![("x".to_string(), Type::Int)],
+            Type::Int,
+            vec![],
+            FunctionProperties {
+                is_pure: true,
+                always_terminates: true,
+                panic_free: true,
+                max_stack_depth: Some(10),
+            },
+        );
+
+        func.docstring =
+            Some("@requires x > 0\n@ensures result > x\n@invariant x <= result".to_string());
+
+        let contract = ContractChecker::extract_contracts(&func);
+
+        // Should have contracts from docstring
+        assert_eq!(contract.preconditions.len(), 1);
+        assert_eq!(contract.postconditions.len(), 1);
+        // Should have invariants from both docstring and properties
+        assert!(contract.invariants.len() >= 3); // docstring + panic_free + termination
     }
 }

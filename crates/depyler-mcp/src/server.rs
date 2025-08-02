@@ -46,7 +46,6 @@ impl DepylerMcpServer {
 
         Ok(server)
     }
-
 }
 
 impl Default for DepylerMcpServer {

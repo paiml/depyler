@@ -1,3 +1,4 @@
+pub mod contract_verification;
 pub mod contracts;
 pub mod lifetime_analysis;
 pub mod memory_safety;
