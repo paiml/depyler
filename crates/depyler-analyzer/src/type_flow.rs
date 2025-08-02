@@ -147,6 +147,14 @@ impl TypeInferencer {
             HirStmt::Expr(expr) => {
                 self.infer_expr(expr)?;
             }
+            HirStmt::Raise { exception, cause } => {
+                if let Some(exc) = exception {
+                    self.infer_expr(exc)?;
+                }
+                if let Some(c) = cause {
+                    self.infer_expr(c)?;
+                }
+            }
         }
         Ok(())
     }

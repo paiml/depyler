@@ -69,10 +69,10 @@ fn test_lifetime_inference_for_mutable_parameter() {
     let mut inference = LifetimeInference::new();
     let result = inference.analyze_function(&func, &type_mapper);
 
-    // The parameter should be inferred as needing a mutable borrow
+    // When a string is reassigned in Python, Rust needs ownership
     let s_param = result.param_lifetimes.get("s").unwrap();
-    assert!(s_param.should_borrow);
-    assert!(s_param.needs_mut);
+    assert!(!s_param.should_borrow);
+    assert!(!s_param.needs_mut);
 }
 
 #[test]
