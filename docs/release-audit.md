@@ -1,6 +1,6 @@
 # Release Audit Report - v1.0.2
 
-Generated: Sat Aug  2 12:27:18 PM CEST 2025
+Generated: Sat Aug  2 03:13:56 PM CEST 2025
 Standard: Toyota Way Zero Defects
 
 ## Executive Summary
@@ -75,7 +75,6 @@ crates/depyler-core/src/ast_bridge.rs:514:            panic!("Expected function 
 **Policy**: Zero warnings with pedantic lints
 
 ```
-    Checking depyler-annotations v1.0.2 (/home/noah/src/depyler/crates/depyler-annotations)
     Checking depyler-core v1.0.2 (/home/noah/src/depyler/crates/depyler-core)
     Checking depyler-analyzer v1.0.2 (/home/noah/src/depyler/crates/depyler-analyzer)
     Checking depyler-verify v1.0.2 (/home/noah/src/depyler/crates/depyler-verify)
@@ -83,7 +82,7 @@ crates/depyler-core/src/ast_bridge.rs:514:            panic!("Expected function 
     Checking depyler-quality v1.0.2 (/home/noah/src/depyler/crates/depyler-quality)
     Checking depyler v1.0.2 (/home/noah/src/depyler/crates/depyler)
     Checking depyler-wasm v1.0.2 (/home/noah/src/depyler/crates/depyler-wasm)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.49s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.57s
 ```
 ✅ **Clippy: PASSED** - No warnings
 
