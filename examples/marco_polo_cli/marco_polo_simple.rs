@@ -1,5 +1,16 @@
-#[doc = "Generate a number in range(simplified without random)."] #[doc = " Depyler: proven to terminate"] pub fn generate_number(min_val: i32, max_val: i32)  -> i32 {
-    return((min_val + max_val) / 2);
+use std::borrow::Cow;
+    #[doc = "Generate a number in range(simplified without random)."] #[doc = " Depyler: proven to terminate"] pub fn generate_number(min_val: i32, max_val: i32)  -> Result<i32, ZeroDivisionError>{
+    return Ok({ let a  = (min_val + max_val);
+    let b = 2;
+    let q = a / b;
+    let r = a % b;
+    if(r != 0) &&((r<0) ! = (b<0)) {
+    q - 1
+}
+else {
+    q
+}
+});
    
 }
 #[doc = "Provide a hint based on the guess."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn get_hint(guess: i32, target: i32)  -> String {
@@ -54,20 +65,20 @@ else {
 }
 }
 }
-} #[doc = "Calculate average with safety check."] #[doc = " Depyler: proven to terminate"] pub fn calculate_average(total: i32, count: i32)  -> f64 {
+} #[doc = "Calculate average with safety check."] #[doc = " Depyler: proven to terminate"] pub fn calculate_average(total: i32, count: i32)  -> Result<f64, ZeroDivisionError>{
     if(count == 0) {
-    return 0;
+    return Ok(0);
    
 }
-return(total / count);
+return Ok((total / count));
    
 }
 #[doc = "Format game statistics as string."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn format_statistics(score: i32, attempts: i32, rounds: i32)  -> String {
     let mut avg = calculate_average(attempts, rounds);
-    let mut result = "Game Statistics:\n".to_string();
-    result  = (((result + "Score: ".to_string()) + str(score)) + "\n".to_string());
-    result  = (((result + "Attempts: ".to_string()) + str(attempts)) + "\n".to_string());
-    result  = (((result + "Average: ".to_string()) + str(avg)) + "\n".to_string());
+    let mut result = "Game Statistics:\n";
+    result = format !("{}{}" ,(format !("{}{}", result, "Score: ") + str(score)), "\n");
+    result = format !("{}{}" ,(format !("{}{}", result, "Attempts: ") + str(attempts)), "\n");
+    result = format !("{}{}" ,(format !("{}{}", result, "Average: ") + str(avg)), "\n");
     return result;
    
 }
@@ -103,5 +114,37 @@ else {
 }
 }
 }
-return attempts
+return attempts;
+   
+}
+#[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_generate_number_examples() {
+    assert_eq !(generate_number(0, 0), 0);
+    assert_eq !(generate_number(1, 2), 3);
+    assert_eq !(generate_number(- 1, 1), 0);
+   
+}
+} #[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_calculate_score_examples() {
+    assert_eq !(calculate_score(0, 0), 0);
+    assert_eq !(calculate_score(1, 2), 3);
+    assert_eq !(calculate_score(- 1, 1), 0);
+   
+}
+} #[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_play_simple_round_examples() {
+    assert_eq !(play_simple_round(0, 0), 0);
+    assert_eq !(play_simple_round(1, 2), 3);
+    assert_eq !(play_simple_round(- 1, 1), 0);
+   
+}
 }

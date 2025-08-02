@@ -1,6 +1,6 @@
-use crate::hir::{Type, HirFunction, HirExpr, HirStmt};
-use std::collections::{HashMap, HashSet};
+use crate::hir::{HirExpr, HirFunction, HirStmt, Type};
 use anyhow::Result;
+use std::collections::{HashMap, HashSet};
 
 /// Tracks type variables and their constraints for generic inference
 #[derive(Debug, Default)]
@@ -75,30 +75,32 @@ impl TypeVarRegistry {
     /// Infer generic type parameters for a function
     pub fn infer_function_generics(&mut self, func: &HirFunction) -> Result<Vec<TypeParameter>> {
         let mut collector = TypeVarCollector::new();
-        
+
         // Collect type variables from parameters
         for (_, param_type) in &func.params {
             collector.collect_from_type(param_type);
         }
-        
+
         // Collect from return type
         collector.collect_from_type(&func.ret_type);
-        
+
         // Collect from function body
         for stmt in &func.body {
             collector.collect_from_stmt(stmt);
         }
-        
+
         // Build constraints from usage
         let mut inference = TypeInference::new();
         inference.analyze_function(func)?;
-        
+
         // Generate type parameters
-        let type_params = self.generate_type_parameters(&collector.type_vars, &inference.constraints)?;
-        
+        let type_params =
+            self.generate_type_parameters(&collector.type_vars, &inference.constraints)?;
+
         // Store for later use
-        self.function_type_params.insert(func.name.clone(), type_params.clone());
-        
+        self.function_type_params
+            .insert(func.name.clone(), type_params.clone());
+
         Ok(type_params)
     }
 
@@ -121,9 +123,8 @@ impl TypeVarRegistry {
         if params.is_empty() {
             name.to_string()
         } else {
-            let param_strs: Vec<String> = params.iter()
-                .map(|p| self.type_to_rust_string(p))
-                .collect();
+            let param_strs: Vec<String> =
+                params.iter().map(|p| self.type_to_rust_string(p)).collect();
             format!("{}<{}>", name, param_strs.join(", "))
         }
     }
@@ -137,15 +138,15 @@ impl TypeVarRegistry {
             Type::Bool => "bool".to_string(),
             Type::None => "()".to_string(),
             Type::List(inner) => format!("Vec<{}>", self.type_to_rust_string(inner)),
-            Type::Dict(k, v) => format!("HashMap<{}, {}>", 
-                self.type_to_rust_string(k), 
+            Type::Dict(k, v) => format!(
+                "HashMap<{}, {}>",
+                self.type_to_rust_string(k),
                 self.type_to_rust_string(v)
             ),
             Type::Optional(inner) => format!("Option<{}>", self.type_to_rust_string(inner)),
             Type::Tuple(types) => {
-                let type_strs: Vec<String> = types.iter()
-                    .map(|t| self.type_to_rust_string(t))
-                    .collect();
+                let type_strs: Vec<String> =
+                    types.iter().map(|t| self.type_to_rust_string(t)).collect();
                 format!("({})", type_strs.join(", "))
             }
             Type::Custom(name) => name.clone(),
@@ -159,10 +160,10 @@ impl TypeVarRegistry {
         constraints: &HashMap<String, Vec<TypeConstraint>>,
     ) -> Result<Vec<TypeParameter>> {
         let mut params = Vec::new();
-        
+
         for var in type_vars {
             let mut bounds = std::collections::HashSet::new();
-            
+
             // Add constraints as bounds
             if let Some(var_constraints) = constraints.get(var) {
                 for constraint in var_constraints {
@@ -180,7 +181,7 @@ impl TypeVarRegistry {
                     }
                 }
             }
-            
+
             // Add default bounds based on usage
             if bounds.is_empty() {
                 // If used in collections, might need Clone
@@ -189,18 +190,18 @@ impl TypeVarRegistry {
                 // Always add Clone as it's needed for most operations
                 bounds.insert("Clone".to_string());
             }
-            
+
             // Convert to sorted Vec for consistent output
             let mut bounds_vec: Vec<String> = bounds.into_iter().collect();
             bounds_vec.sort();
-            
+
             params.push(TypeParameter {
                 name: var.clone(),
                 bounds: bounds_vec,
                 default: None,
             });
         }
-        
+
         Ok(params)
     }
 }
@@ -252,7 +253,11 @@ impl TypeVarCollector {
         match stmt {
             HirStmt::Assign { value, .. } => self.collect_from_expr(value),
             HirStmt::Return(Some(expr)) => self.collect_from_expr(expr),
-            HirStmt::If { condition, then_body, else_body } => {
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
                 self.collect_from_expr(condition);
                 for s in then_body {
                     self.collect_from_stmt(s);
@@ -355,7 +360,9 @@ impl TypeInference {
         // Analyze parameter usage to infer constraints
         for (param_name, param_type) in &func.params {
             match param_type {
-                Type::Custom(type_var) if type_var.len() == 1 && type_var.chars().next().unwrap().is_uppercase() => {
+                Type::Custom(type_var)
+                    if type_var.len() == 1 && type_var.chars().next().unwrap().is_uppercase() =>
+                {
                     // This is a type variable, analyze its usage
                     self.analyze_param_usage(param_name, type_var, &func.body)?;
                 }
@@ -366,18 +373,28 @@ impl TypeInference {
                 _ => {}
             }
         }
-        
+
         Ok(())
     }
 
-    fn analyze_param_usage(&mut self, param_name: &str, type_var: &str, body: &[HirStmt]) -> Result<()> {
+    fn analyze_param_usage(
+        &mut self,
+        param_name: &str,
+        type_var: &str,
+        body: &[HirStmt],
+    ) -> Result<()> {
         for stmt in body {
             self.analyze_stmt_for_param(param_name, type_var, stmt)?;
         }
         Ok(())
     }
 
-    fn analyze_stmt_for_param(&mut self, param_name: &str, type_var: &str, stmt: &HirStmt) -> Result<()> {
+    fn analyze_stmt_for_param(
+        &mut self,
+        param_name: &str,
+        type_var: &str,
+        stmt: &HirStmt,
+    ) -> Result<()> {
         match stmt {
             HirStmt::Expr(expr) => {
                 self.analyze_expr_for_param(param_name, type_var, expr)?;
@@ -388,7 +405,11 @@ impl TypeInference {
             HirStmt::Return(Some(expr)) => {
                 self.analyze_expr_for_param(param_name, type_var, expr)?;
             }
-            HirStmt::If { condition, then_body, else_body } => {
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
                 self.analyze_expr_for_param(param_name, type_var, condition)?;
                 for s in then_body {
                     self.analyze_stmt_for_param(param_name, type_var, s)?;
@@ -403,15 +424,25 @@ impl TypeInference {
         }
         Ok(())
     }
-    
-    fn analyze_expr_for_param(&mut self, param_name: &str, type_var: &str, expr: &HirExpr) -> Result<()> {
+
+    fn analyze_expr_for_param(
+        &mut self,
+        param_name: &str,
+        type_var: &str,
+        expr: &HirExpr,
+    ) -> Result<()> {
         match expr {
             HirExpr::Binary { left, right, op } => {
                 self.check_binary_op_usage(param_name, type_var, left, right, *op)?;
                 self.analyze_expr_for_param(param_name, type_var, left)?;
                 self.analyze_expr_for_param(param_name, type_var, right)?;
             }
-            HirExpr::MethodCall { object, method, args, .. } => {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+                ..
+            } => {
                 if let HirExpr::Var(var) = object.as_ref() {
                     if var == param_name {
                         self.add_method_constraint(type_var, method);
@@ -439,8 +470,9 @@ impl TypeInference {
             "clone" => TypeConstraint::MustImplement("Clone".to_string()),
             _ => return,
         };
-        
-        self.constraints.entry(type_var.to_string())
+
+        self.constraints
+            .entry(type_var.to_string())
             .or_default()
             .push(constraint);
     }
@@ -454,32 +486,31 @@ impl TypeInference {
         op: crate::hir::BinOp,
     ) -> Result<()> {
         use crate::hir::BinOp;
-        
+
         let uses_param = match (left, right) {
             (HirExpr::Var(l), _) if l == param_name => true,
             (_, HirExpr::Var(r)) if r == param_name => true,
             _ => false,
         };
-        
+
         if uses_param {
             let constraint = match op {
                 BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div => {
                     TypeConstraint::MustImplement("std::ops::Add".to_string())
                 }
-                BinOp::Eq | BinOp::NotEq => {
-                    TypeConstraint::MustImplement("PartialEq".to_string())
-                }
+                BinOp::Eq | BinOp::NotEq => TypeConstraint::MustImplement("PartialEq".to_string()),
                 BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq => {
                     TypeConstraint::MustImplement("PartialOrd".to_string())
                 }
                 _ => return Ok(()),
             };
-            
-            self.constraints.entry(type_var.to_string())
+
+            self.constraints
+                .entry(type_var.to_string())
                 .or_default()
                 .push(constraint);
         }
-        
+
         Ok(())
     }
 }
@@ -492,11 +523,11 @@ mod tests {
     #[test]
     fn test_type_var_detection() {
         let mut collector = TypeVarCollector::new();
-        
+
         collector.collect_from_type(&Type::Custom("T".to_string()));
         collector.collect_from_type(&Type::List(Box::new(Type::Custom("U".to_string()))));
         collector.collect_from_type(&Type::Custom("MyClass".to_string())); // Not a type var
-        
+
         assert!(collector.type_vars.contains("T"));
         assert!(collector.type_vars.contains("U"));
         assert!(!collector.type_vars.contains("MyClass"));
@@ -505,7 +536,7 @@ mod tests {
     #[test]
     fn test_generic_function_inference() {
         let mut registry = TypeVarRegistry::new();
-        
+
         let func = HirFunction {
             name: "identity".to_string(),
             params: smallvec::smallvec![("x".to_string(), Type::Custom("T".to_string()))],
@@ -515,7 +546,7 @@ mod tests {
             annotations: Default::default(),
             docstring: None,
         };
-        
+
         let type_params = registry.infer_function_generics(&func).unwrap();
         assert_eq!(type_params.len(), 1);
         assert_eq!(type_params[0].name, "T");
@@ -524,11 +555,11 @@ mod tests {
     #[test]
     fn test_constraint_inference() {
         let mut inference = TypeInference::new();
-        
+
         // Test method constraint
         inference.add_method_constraint("T", "len");
-        assert!(inference.constraints["T"].iter().any(|c| {
-            matches!(c, TypeConstraint::MustImplement(s) if s == "HasLen")
-        }));
+        assert!(inference.constraints["T"]
+            .iter()
+            .any(|c| { matches!(c, TypeConstraint::MustImplement(s) if s == "HasLen") }));
     }
 }

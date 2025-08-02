@@ -161,7 +161,7 @@ def add_numbers(a: int, b: int) -> int:
         harness
             .test_transpilation(python_code, "")
             .expect("Simple function transpilation should succeed");
-        
+
         // Verify the generated code has the expected components
         let result = harness.pipeline.transpile(python_code).unwrap();
         assert!(result.contains("pub fn add_numbers"));

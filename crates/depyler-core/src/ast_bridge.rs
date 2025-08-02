@@ -88,7 +88,12 @@ impl AstBridge {
             }
         }
 
-        Ok(HirModule { functions, imports, type_aliases, protocols })
+        Ok(HirModule {
+            functions,
+            imports,
+            type_aliases,
+            protocols,
+        })
     }
 
     fn convert_function(&self, func: ast::StmtFunctionDef) -> Result<HirFunction> {
@@ -168,9 +173,7 @@ impl AstBridge {
                 }
             }
             // Generic alias: UserId = Optional[int]
-            ast::Expr::Subscript(_) => {
-                (TypeExtractor::extract_type(&assign.value)?, false)
-            }
+            ast::Expr::Subscript(_) => (TypeExtractor::extract_type(&assign.value)?, false),
             // NewType pattern: UserId = NewType('UserId', int)
             ast::Expr::Call(call) => {
                 if let ast::Expr::Name(func_name) = call.func.as_ref() {
@@ -195,7 +198,10 @@ impl AstBridge {
         }))
     }
 
-    fn try_convert_annotated_type_alias(&self, ann_assign: &ast::StmtAnnAssign) -> Result<Option<TypeAlias>> {
+    fn try_convert_annotated_type_alias(
+        &self,
+        ann_assign: &ast::StmtAnnAssign,
+    ) -> Result<Option<TypeAlias>> {
         // Look for patterns like: UserId: TypeAlias = int
         let target = match ann_assign.target.as_ref() {
             ast::Expr::Name(name) => name.id.as_str(),
@@ -220,9 +226,7 @@ impl AstBridge {
                     (TypeExtractor::extract_simple_type(type_name)?, false)
                 }
                 // Generic alias: UserId: TypeAlias = Optional[int]
-                ast::Expr::Subscript(_) => {
-                    (TypeExtractor::extract_type(value)?, false)
-                }
+                ast::Expr::Subscript(_) => (TypeExtractor::extract_type(value)?, false),
                 // NewType pattern: UserId: TypeAlias = NewType('UserId', int)
                 ast::Expr::Call(call) => {
                     if let ast::Expr::Name(func_name) = call.func.as_ref() {
@@ -250,27 +254,47 @@ impl AstBridge {
     }
 
     fn is_type_name(&self, name: &str) -> bool {
-        matches!(name, "int" | "float" | "str" | "bool" | "None" | 
-                      "list" | "dict" | "tuple" | "set" | "frozenset" |
-                      "List" | "Dict" | "Tuple" | "Set" | "FrozenSet" |
-                      "Optional" | "Union" | "Callable" | "Any" | "TypeVar")
+        matches!(
+            name,
+            "int"
+                | "float"
+                | "str"
+                | "bool"
+                | "None"
+                | "list"
+                | "dict"
+                | "tuple"
+                | "set"
+                | "frozenset"
+                | "List"
+                | "Dict"
+                | "Tuple"
+                | "Set"
+                | "FrozenSet"
+                | "Optional"
+                | "Union"
+                | "Callable"
+                | "Any"
+                | "TypeVar"
+        )
     }
 
     fn try_convert_protocol(&self, class: &ast::StmtClassDef) -> Result<Option<Protocol>> {
         // Check if this class inherits from Protocol
-        let is_protocol = class.bases.iter().any(|base| {
-            matches!(base, ast::Expr::Name(n) if n.id.as_str() == "Protocol")
-        });
+        let is_protocol = class
+            .bases
+            .iter()
+            .any(|base| matches!(base, ast::Expr::Name(n) if n.id.as_str() == "Protocol"));
 
         if !is_protocol {
             return Ok(None);
         }
 
         let name = class.name.to_string();
-        
+
         // Extract type parameters from class definition
         let type_params = self.extract_class_type_params(class);
-        
+
         // Check for @runtime_checkable decorator
         let is_runtime_checkable = class.decorator_list.iter().any(|decorator| {
             matches!(decorator, ast::Expr::Name(n) if n.id.as_str() == "runtime_checkable")
@@ -313,17 +337,17 @@ impl AstBridge {
     fn extract_generic_params(&self, slice: &ast::Expr) -> Vec<String> {
         match slice {
             ast::Expr::Name(n) => vec![n.id.to_string()],
-            ast::Expr::Tuple(tuple) => {
-                tuple.elts.iter()
-                    .filter_map(|elt| {
-                        if let ast::Expr::Name(n) = elt {
-                            Some(n.id.to_string())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            }
+            ast::Expr::Tuple(tuple) => tuple
+                .elts
+                .iter()
+                .filter_map(|elt| {
+                    if let ast::Expr::Name(n) = elt {
+                        Some(n.id.to_string())
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
             _ => Vec::new(),
         }
     }
@@ -332,12 +356,12 @@ impl AstBridge {
         let name = func.name.to_string();
         let params = convert_parameters(&func.args)?;
         let ret_type = TypeExtractor::extract_return_type(&func.returns)?;
-        
+
         // Check if method has @abstractmethod decorator
         let is_optional = !func.decorator_list.iter().any(|decorator| {
             matches!(decorator, ast::Expr::Name(n) if n.id.as_str() == "abstractmethod")
         });
-        
+
         // Check if method has a default implementation (non-empty body beyond docstring)
         let has_default = self.method_has_default_implementation(&func.body);
 
@@ -352,20 +376,29 @@ impl AstBridge {
 
     fn method_has_default_implementation(&self, body: &[ast::Stmt]) -> bool {
         // Filter out docstrings and ellipsis statements
-        let meaningful_stmts: Vec<_> = body.iter()
+        let meaningful_stmts: Vec<_> = body
+            .iter()
             .filter(|stmt| {
                 match stmt {
                     // Skip docstring
-                    ast::Stmt::Expr(expr) if matches!(expr.value.as_ref(), 
-                        ast::Expr::Constant(c) if matches!(c.value, ast::Constant::Str(_))) => false,
+                    ast::Stmt::Expr(expr)
+                        if matches!(expr.value.as_ref(),
+                        ast::Expr::Constant(c) if matches!(c.value, ast::Constant::Str(_))) =>
+                    {
+                        false
+                    }
                     // Skip ellipsis (...)
-                    ast::Stmt::Expr(expr) if matches!(expr.value.as_ref(),
-                        ast::Expr::Constant(c) if matches!(c.value, ast::Constant::Ellipsis)) => false,
+                    ast::Stmt::Expr(expr)
+                        if matches!(expr.value.as_ref(),
+                        ast::Expr::Constant(c) if matches!(c.value, ast::Constant::Ellipsis)) =>
+                    {
+                        false
+                    }
                     _ => true,
                 }
             })
             .collect();
-        
+
         !meaningful_stmts.is_empty()
     }
 }

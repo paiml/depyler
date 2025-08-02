@@ -221,7 +221,7 @@ fn type_to_rust_string(ty: &Type) -> String {
             format!("{}<{}>", base, param_strs.join(", "))
         }
         Type::Union(_) => "UnionType".to_string(), // Placeholder for Union types
-        _ => "i32".to_string(), // Default fallback
+        _ => "i32".to_string(),                    // Default fallback
     }
 }
 

@@ -358,11 +358,24 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             let left_tokens = expr_to_rust_tokens(left)?;
             let right_tokens = expr_to_rust_tokens(right)?;
 
-            // Special handling for subtraction to prevent underflow
+            // Special handling for specific operators
             match op {
                 BinOp::Sub if is_len_call(left) => {
                     // Use saturating_sub to prevent underflow when subtracting from array length
                     Ok(quote! { #left_tokens.saturating_sub(#right_tokens) })
+                }
+                BinOp::FloorDiv => {
+                    // Python floor division semantics
+                    // For now, assume numeric types and use the integer floor division formula
+                    Ok(quote! {
+                        {
+                            let a = #left_tokens;
+                            let b = #right_tokens;
+                            let q = a / b;
+                            let r = a % b;
+                            if (r != 0) && ((r < 0) != (b < 0)) { q - 1 } else { q }
+                        }
+                    })
                 }
                 _ => {
                     let op_tokens = binop_to_rust_tokens(op);
@@ -749,5 +762,34 @@ mod tests {
             let tokens = binop_to_rust_tokens(&op);
             assert_eq!(tokens.to_string(), expected);
         }
+    }
+
+    #[test]
+    fn test_floor_division_codegen() {
+        // Test floor division with positive integers
+        let floor_div = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(7))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+
+        let tokens = expr_to_rust_tokens(&floor_div).unwrap();
+        let code = tokens.to_string();
+        // Should generate the floor division block
+        assert!(code.contains("let a"));
+        assert!(code.contains("let b"));
+        assert!(code.contains("let q = a / b"));
+        assert!(code.contains("let r = a % b"));
+
+        // Test with negative operands
+        let neg_floor_div = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(-7))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+
+        let tokens = expr_to_rust_tokens(&neg_floor_div).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("if (r != 0) && ((r < 0) != (b < 0))"));
     }
 }

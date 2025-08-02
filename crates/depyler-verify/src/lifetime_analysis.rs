@@ -231,7 +231,7 @@ impl LifetimeAnalyzer {
                         }
                     }
                 }
-                
+
                 for arg in args {
                     self.analyze_expr(arg, scope_depth);
                     // Track potential moves through function calls
@@ -245,10 +245,14 @@ impl LifetimeAnalyzer {
             HirExpr::Index { base, index } => {
                 self.analyze_expr(base, scope_depth);
                 self.analyze_expr(index, scope_depth);
-                
+
                 // Check for iterator invalidation
                 if let HirExpr::Var(name) = base.as_ref() {
-                    if self.active_borrows.iter().any(|bs| bs.borrowed.contains_key(name)) {
+                    if self
+                        .active_borrows
+                        .iter()
+                        .any(|bs| bs.borrowed.contains_key(name))
+                    {
                         self.violations.push(LifetimeViolation {
                             kind: ViolationKind::ConflictingBorrows,
                             variable: name.clone(),
@@ -258,15 +262,29 @@ impl LifetimeAnalyzer {
                     }
                 }
             }
-            HirExpr::MethodCall { object, method, args } => {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+            } => {
                 self.analyze_expr(object, scope_depth);
-                
+
                 // Check if method requires mutable access
-                let requires_mut = matches!(method.as_str(), 
-                    "push" | "pop" | "insert" | "remove" | "clear" | "append" | "extend" |
-                    "push_str" | "truncate" | "drain" | "retain"
+                let requires_mut = matches!(
+                    method.as_str(),
+                    "push"
+                        | "pop"
+                        | "insert"
+                        | "remove"
+                        | "clear"
+                        | "append"
+                        | "extend"
+                        | "push_str"
+                        | "truncate"
+                        | "drain"
+                        | "retain"
                 );
-                
+
                 if requires_mut {
                     if let HirExpr::Var(name) = object.as_ref() {
                         if !self.can_borrow(name, &BorrowKind::Mutable) {
@@ -279,7 +297,7 @@ impl LifetimeAnalyzer {
                         }
                     }
                 }
-                
+
                 for arg in args {
                     self.analyze_expr(arg, scope_depth);
                 }
@@ -338,7 +356,7 @@ impl LifetimeAnalyzer {
             borrow_set.borrowed.insert(name.to_string(), kind);
         }
     }
-    
+
     fn is_copy_type(&self, _name: &str) -> bool {
         // For now, assume integers and booleans are Copy types
         // In a full implementation, we'd check the actual type

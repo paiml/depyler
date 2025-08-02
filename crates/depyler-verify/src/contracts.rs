@@ -428,8 +428,12 @@ fn type_to_rust_string(ty: &Type) -> String {
             let element_str = type_to_rust_string(element_type);
             match size {
                 depyler_core::hir::ConstGeneric::Literal(n) => format!("[{}; {}]", element_str, n),
-                depyler_core::hir::ConstGeneric::Parameter(name) => format!("[{}; {}]", element_str, name),
-                depyler_core::hir::ConstGeneric::Expression(expr) => format!("[{}; {}]", element_str, expr),
+                depyler_core::hir::ConstGeneric::Parameter(name) => {
+                    format!("[{}; {}]", element_str, name)
+                }
+                depyler_core::hir::ConstGeneric::Expression(expr) => {
+                    format!("[{}; {}]", element_str, expr)
+                }
             }
         }
     }
