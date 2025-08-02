@@ -1,4 +1,4 @@
-use crate::hir::{Type as PythonType, ConstGeneric};
+use crate::hir::{ConstGeneric, Type as PythonType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -160,49 +160,52 @@ impl TypeMapper {
                     "List" if params.len() == 1 => {
                         RustType::Vec(Box::new(self.map_type(&params[0])))
                     }
-                    "Dict" if params.len() == 2 => {
-                        RustType::HashMap(
-                            Box::new(self.map_type(&params[0])),
-                            Box::new(self.map_type(&params[1]))
-                        )
-                    }
+                    "Dict" if params.len() == 2 => RustType::HashMap(
+                        Box::new(self.map_type(&params[0])),
+                        Box::new(self.map_type(&params[1])),
+                    ),
                     _ => RustType::Generic {
                         base: base.clone(),
                         params: params.iter().map(|t| self.map_type(t)).collect(),
-                    }
+                    },
                 }
             }
             PythonType::Union(types) => {
                 // For now, map Union to an enum or use dynamic typing
                 if types.len() == 2 && types.iter().any(|t| matches!(t, PythonType::None)) {
                     // Union[T, None] is Optional[T]
-                    let non_none = types.iter().find(|t| !matches!(t, PythonType::None)).unwrap();
+                    let non_none = types
+                        .iter()
+                        .find(|t| !matches!(t, PythonType::None))
+                        .unwrap();
                     RustType::Option(Box::new(self.map_type(non_none)))
                 } else {
                     // For non-optional unions, we'll need to generate an enum
                     // The actual enum will be generated during code generation
                     RustType::Enum {
                         name: "UnionType".to_string(), // Placeholder, will be replaced
-                        variants: types.iter().enumerate().map(|(i, t)| {
-                            let variant_name = match t {
-                                PythonType::Int => "Integer".to_string(),
-                                PythonType::Float => "Float".to_string(),
-                                PythonType::String => "Text".to_string(),
-                                PythonType::Bool => "Boolean".to_string(),
-                                PythonType::None => "None".to_string(),
-                                _ => format!("Variant{}", i),
-                            };
-                            (variant_name, self.map_type(t))
-                        }).collect(),
+                        variants: types
+                            .iter()
+                            .enumerate()
+                            .map(|(i, t)| {
+                                let variant_name = match t {
+                                    PythonType::Int => "Integer".to_string(),
+                                    PythonType::Float => "Float".to_string(),
+                                    PythonType::String => "Text".to_string(),
+                                    PythonType::Bool => "Boolean".to_string(),
+                                    PythonType::None => "None".to_string(),
+                                    _ => format!("Variant{}", i),
+                                };
+                                (variant_name, self.map_type(t))
+                            })
+                            .collect(),
                     }
                 }
             }
-            PythonType::Array { element_type, size } => {
-                RustType::Array {
-                    element_type: Box::new(self.map_type(element_type)),
-                    size: self.map_const_generic(size),
-                }
-            }
+            PythonType::Array { element_type, size } => RustType::Array {
+                element_type: Box::new(self.map_type(element_type)),
+                size: self.map_const_generic(size),
+            },
         }
     }
 
@@ -300,7 +303,11 @@ impl RustType {
             }
             RustType::Enum { name, .. } => name.clone(),
             RustType::Array { element_type, size } => {
-                format!("[{}; {}]", element_type.to_rust_string(), size.to_rust_string())
+                format!(
+                    "[{}; {}]",
+                    element_type.to_rust_string(),
+                    size.to_rust_string()
+                )
             }
         }
     }

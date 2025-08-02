@@ -1,7 +1,7 @@
 use crate::hir::Type;
 use crate::type_mapper::RustType;
-use std::collections::HashMap;
 use quote::quote;
+use std::collections::HashMap;
 
 /// Generates Rust enum types for Python Union types
 #[derive(Debug, Default)]
@@ -22,14 +22,14 @@ impl UnionEnumGenerator {
         // Check if we've already generated an enum for these types
         let mut sorted_types = types.to_vec();
         sorted_types.sort_by_key(|t| format!("{:?}", t));
-        
+
         if let Some(cached_name) = self.enum_cache.get(&sorted_types) {
             return (cached_name.clone(), quote! {});
         }
 
         // Generate a descriptive enum name
         let enum_name = self.generate_enum_name(&sorted_types);
-        
+
         // Generate variant names and types
         let variants: Vec<_> = sorted_types
             .iter()
@@ -69,15 +69,15 @@ impl UnionEnumGenerator {
 
         // Generate conversion implementations
         let from_impls = self.generate_from_impls(&enum_ident, &variants);
-        
+
         // Generate match helper methods
         let match_methods = self.generate_match_methods(&enum_ident, &variants);
 
         let full_definition = quote! {
             #enum_def
-            
+
             #from_impls
-            
+
             impl #enum_ident {
                 #match_methods
             }
@@ -85,7 +85,7 @@ impl UnionEnumGenerator {
 
         // Cache the enum name
         self.enum_cache.insert(sorted_types, enum_name.clone());
-        
+
         (enum_name, full_definition)
     }
 
@@ -150,7 +150,7 @@ impl UnionEnumGenerator {
                     Ok(tokens) => tokens,
                     Err(_) => syn::parse_quote! { () },
                 };
-                
+
                 quote! {
                     impl From<#ty_tokens> for #enum_ident {
                         fn from(value: #ty_tokens) -> Self {
@@ -179,13 +179,13 @@ impl UnionEnumGenerator {
                     proc_macro2::Span::call_site(),
                 );
                 let variant_ident = syn::Ident::new(variant_name, proc_macro2::Span::call_site());
-                
+
                 let pattern = if matches!(ty, Type::None) {
                     quote! { #enum_ident::#variant_ident }
                 } else {
                     quote! { #enum_ident::#variant_ident(_) }
                 };
-                
+
                 quote! {
                     pub fn #method_name(&self) -> bool {
                         matches!(self, #pattern)
@@ -208,7 +208,7 @@ impl UnionEnumGenerator {
                     Ok(tokens) => tokens,
                     Err(_) => syn::parse_quote! { () },
                 };
-                
+
                 quote! {
                     pub fn #method_name(&self) -> Option<&#ty_tokens> {
                         match self {
@@ -235,7 +235,7 @@ mod tests {
     fn test_simple_union_enum() {
         let mut generator = UnionEnumGenerator::new();
         let types = vec![Type::Int, Type::String];
-        
+
         let (name, _tokens) = generator.generate_union_enum(&types);
         assert_eq!(name, "IntOrStringUnion");
     }
@@ -244,10 +244,10 @@ mod tests {
     fn test_union_with_none() {
         let mut generator = UnionEnumGenerator::new();
         let types = vec![Type::String, Type::None];
-        
+
         let (name, tokens) = generator.generate_union_enum(&types);
         assert_eq!(name, "NoneOrStringUnion");
-        
+
         // Should generate is_none and is_text methods
         let code = tokens.to_string();
         assert!(code.contains("is_none"));
@@ -263,7 +263,7 @@ mod tests {
             Type::List(Box::new(Type::Float)),
             Type::Bool,
         ];
-        
+
         let (name, _) = generator.generate_union_enum(&types);
         assert_eq!(name, "UnionType1");
     }
@@ -273,10 +273,10 @@ mod tests {
         let mut generator = UnionEnumGenerator::new();
         let types1 = vec![Type::Int, Type::String];
         let types2 = vec![Type::String, Type::Int]; // Different order
-        
+
         let (name1, _) = generator.generate_union_enum(&types1);
         let (name2, tokens2) = generator.generate_union_enum(&types2);
-        
+
         // Should return the same enum name (cached)
         assert_eq!(name1, name2);
         // Second call should return empty tokens (no redefinition)

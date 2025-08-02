@@ -225,16 +225,25 @@ pub enum Type {
     Dict(Box<Type>, Box<Type>),
     Tuple(Vec<Type>),
     Optional(Box<Type>),
-    Function { params: Vec<Type>, ret: Box<Type> },
+    Function {
+        params: Vec<Type>,
+        ret: Box<Type>,
+    },
     Custom(String),
     /// Type variable for generics (e.g., T, U)
     TypeVar(String),
     /// Generic type with parameters (e.g., List<T>, Dict<K, V>)
-    Generic { base: String, params: Vec<Type> },
+    Generic {
+        base: String,
+        params: Vec<Type>,
+    },
     /// Union type (e.g., Union[int, str])
     Union(Vec<Type>),
     /// Fixed-size array with const generic size (e.g., [T; N])
-    Array { element_type: Box<Type>, size: ConstGeneric },
+    Array {
+        element_type: Box<Type>,
+        size: ConstGeneric,
+    },
 }
 
 impl Type {
@@ -243,6 +252,9 @@ impl Type {
     }
 
     pub fn is_container(&self) -> bool {
-        matches!(self, Type::List(_) | Type::Dict(_, _) | Type::Tuple(_) | Type::Array { .. })
+        matches!(
+            self,
+            Type::List(_) | Type::Dict(_, _) | Type::Tuple(_) | Type::Array { .. }
+        )
     }
 }

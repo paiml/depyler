@@ -4,7 +4,6 @@ mod marco_polo_tests {
     use std::process::Command;
 
     #[test]
-    #[ignore = "marco_polo_simple.py uses floor division which is not yet implemented"]
     fn test_marco_polo_simple_transpilation() {
         // Check if the example file exists
         let workspace_root = env!("CARGO_MANIFEST_DIR");

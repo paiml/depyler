@@ -94,7 +94,9 @@ impl TypeExtractor {
     fn extract_union_type(s: &ast::ExprSubscript) -> Result<Type> {
         match s.slice.as_ref() {
             ast::Expr::Tuple(t) => {
-                let types = t.elts.iter()
+                let types = t
+                    .elts
+                    .iter()
                     .map(Self::extract_type)
                     .collect::<Result<Vec<_>>>()?;
                 Ok(Type::Union(types))
@@ -109,11 +111,7 @@ impl TypeExtractor {
 
     fn extract_type_params(s: &ast::ExprSubscript) -> Result<Vec<Type>> {
         match s.slice.as_ref() {
-            ast::Expr::Tuple(t) => {
-                t.elts.iter()
-                    .map(Self::extract_type)
-                    .collect()
-            }
+            ast::Expr::Tuple(t) => t.elts.iter().map(Self::extract_type).collect(),
             // Single type parameter
             expr => Ok(vec![Self::extract_type(expr)?]),
         }
@@ -122,21 +120,34 @@ impl TypeExtractor {
     fn extract_parameterized_generic(s: &ast::ExprSubscript) -> Result<Type> {
         // For Generic[T] syntax in Python, we extract T as a type variable
         match s.slice.as_ref() {
-            ast::Expr::Name(n) if n.id.as_str().len() == 1 && n.id.as_str().chars().next().is_some_and(|c| c.is_uppercase()) => {
+            ast::Expr::Name(n)
+                if n.id.as_str().len() == 1
+                    && n.id
+                        .as_str()
+                        .chars()
+                        .next()
+                        .is_some_and(|c| c.is_uppercase()) =>
+            {
                 Ok(Type::TypeVar(n.id.to_string()))
             }
             ast::Expr::Tuple(t) => {
                 // Multiple type vars in Generic[T, U, V]
                 if t.elts.len() == 1 {
                     if let ast::Expr::Name(n) = &t.elts[0] {
-                        if n.id.as_str().len() == 1 && n.id.as_str().chars().next().is_some_and(|c| c.is_uppercase()) {
+                        if n.id.as_str().len() == 1
+                            && n.id
+                                .as_str()
+                                .chars()
+                                .next()
+                                .is_some_and(|c| c.is_uppercase())
+                        {
                             return Ok(Type::TypeVar(n.id.to_string()));
                         }
                     }
                 }
                 bail!("Complex Generic parameters not supported")
             }
-            _ => bail!("Invalid Generic type annotation")
+            _ => bail!("Invalid Generic type annotation"),
         }
     }
 }

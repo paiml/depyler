@@ -45,7 +45,7 @@ impl<'a> CodeGenContext<'a> {
             current_scope.insert(var_name.to_string());
         }
     }
-    
+
     /// Process a Union type and generate an enum if needed
     pub fn process_union_type(&mut self, types: &[crate::hir::Type]) -> String {
         let (enum_name, enum_def) = self.union_enum_generator.generate_union_enum(types);
@@ -143,7 +143,7 @@ pub fn generate_rust_file(
 
     // Add generated union enums before functions
     items.extend(ctx.generated_enums.clone());
-    
+
     // Add all functions
     items.extend(functions);
 
@@ -174,39 +174,43 @@ impl RustCodeGen for HirFunction {
         // Perform generic type inference
         let mut generic_registry = crate::generic_inference::TypeVarRegistry::new();
         let type_params = generic_registry.infer_function_generics(self)?;
-        
+
         // Perform lifetime analysis
         let mut lifetime_inference = LifetimeInference::new();
         let lifetime_result = lifetime_inference.analyze_function(self, ctx.type_mapper);
 
         // Generate combined generic parameters (lifetimes + type params)
-        let generic_params = if type_params.is_empty() && lifetime_result.lifetime_params.is_empty() {
+        let generic_params = if type_params.is_empty() && lifetime_result.lifetime_params.is_empty()
+        {
             quote! {}
         } else {
             let mut all_params = Vec::new();
-            
+
             // Add lifetime parameters first
             for lt in &lifetime_result.lifetime_params {
                 let lt_ident = syn::Lifetime::new(lt, proc_macro2::Span::call_site());
                 all_params.push(quote! { #lt_ident });
             }
-            
+
             // Add type parameters with their bounds
             for type_param in &type_params {
                 let param_name = syn::Ident::new(&type_param.name, proc_macro2::Span::call_site());
                 if type_param.bounds.is_empty() {
                     all_params.push(quote! { #param_name });
                 } else {
-                    let bounds: Vec<_> = type_param.bounds.iter()
+                    let bounds: Vec<_> = type_param
+                        .bounds
+                        .iter()
                         .map(|b| {
-                            let bound: syn::Path = syn::parse_str(b).unwrap_or_else(|_| parse_quote! { Clone });
+                            let bound: syn::Path =
+                                syn::parse_str(b).unwrap_or_else(|_| parse_quote! { Clone });
                             quote! { #bound }
                         })
                         .collect();
                     all_params.push(quote! { #param_name: #(#bounds)+* });
                 }
             }
-            
+
             quote! { <#(#all_params),*> }
         };
 
@@ -237,29 +241,33 @@ impl RustCodeGen for HirFunction {
                 let is_param_mutated = matches!(
                     lifetime_result.borrowing_strategies.get(param_name),
                     Some(crate::borrowing_context::BorrowingStrategy::TakeOwnership)
-                ) && self.body.iter().any(|stmt| matches!(stmt, HirStmt::Assign { target, .. } if target == param_name));
+                ) && self.body.iter().any(
+                    |stmt| matches!(stmt, HirStmt::Assign { target, .. } if target == param_name),
+                );
 
                 // Get the inferred parameter info
                 if let Some(inferred) = lifetime_result.param_lifetimes.get(param_name) {
                     let rust_type = &inferred.rust_type;
-                    
+
                     // Check if this is a placeholder Union enum that needs proper generation
-                    let actual_rust_type = if let crate::type_mapper::RustType::Enum { name, variants: _ } = rust_type {
-                        if name == "UnionType" {
-                            // Generate a proper enum name and definition from the original Union type
-                            if let Type::Union(types) = param_type {
-                                let enum_name = ctx.process_union_type(types);
-                                crate::type_mapper::RustType::Custom(enum_name)
+                    let actual_rust_type =
+                        if let crate::type_mapper::RustType::Enum { name, variants: _ } = rust_type
+                        {
+                            if name == "UnionType" {
+                                // Generate a proper enum name and definition from the original Union type
+                                if let Type::Union(types) = param_type {
+                                    let enum_name = ctx.process_union_type(types);
+                                    crate::type_mapper::RustType::Custom(enum_name)
+                                } else {
+                                    rust_type.clone()
+                                }
                             } else {
                                 rust_type.clone()
                             }
                         } else {
                             rust_type.clone()
-                        }
-                    } else {
-                        rust_type.clone()
-                    };
-                    
+                        };
+
                     update_import_needs(ctx, &actual_rust_type);
                     let mut ty = rust_type_to_syn(&actual_rust_type)?;
 
@@ -268,7 +276,8 @@ impl RustCodeGen for HirFunction {
                         match strategy {
                             crate::borrowing_context::BorrowingStrategy::UseCow { lifetime } => {
                                 ctx.needs_cow = true;
-                                let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+                                let lt =
+                                    syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
                                 ty = parse_quote! { Cow<#lt, str> };
                             }
                             _ => {
@@ -277,7 +286,10 @@ impl RustCodeGen for HirFunction {
                                     // Special case for strings: use &str instead of &String
                                     if matches!(rust_type, crate::type_mapper::RustType::String) {
                                         if let Some(ref lifetime) = inferred.lifetime {
-                                            let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+                                            let lt = syn::Lifetime::new(
+                                                lifetime,
+                                                proc_macro2::Span::call_site(),
+                                            );
                                             ty = if inferred.needs_mut {
                                                 parse_quote! { &#lt mut str }
                                             } else {
@@ -293,7 +305,10 @@ impl RustCodeGen for HirFunction {
                                     } else {
                                         // Non-string types
                                         if let Some(ref lifetime) = inferred.lifetime {
-                                            let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+                                            let lt = syn::Lifetime::new(
+                                                lifetime,
+                                                proc_macro2::Span::call_site(),
+                                            );
                                             ty = if inferred.needs_mut {
                                                 parse_quote! { &#lt mut #ty }
                                             } else {
@@ -316,7 +331,10 @@ impl RustCodeGen for HirFunction {
                             // Special case for strings: use &str instead of &String
                             if matches!(rust_type, crate::type_mapper::RustType::String) {
                                 if let Some(ref lifetime) = inferred.lifetime {
-                                    let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+                                    let lt = syn::Lifetime::new(
+                                        lifetime,
+                                        proc_macro2::Span::call_site(),
+                                    );
                                     ty = if inferred.needs_mut {
                                         parse_quote! { &#lt mut str }
                                     } else {
@@ -332,7 +350,10 @@ impl RustCodeGen for HirFunction {
                             } else {
                                 // Non-string types
                                 if let Some(ref lifetime) = inferred.lifetime {
-                                    let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+                                    let lt = syn::Lifetime::new(
+                                        lifetime,
+                                        proc_macro2::Span::call_site(),
+                                    );
                                     ty = if inferred.needs_mut {
                                         parse_quote! { &#lt mut #ty }
                                     } else {
@@ -374,23 +395,24 @@ impl RustCodeGen for HirFunction {
         let mapped_ret_type = ctx
             .annotation_aware_mapper
             .map_return_type_with_annotations(&self.ret_type, &self.annotations);
-            
+
         // Check if this is a placeholder Union enum that needs proper generation
-        let rust_ret_type = if let crate::type_mapper::RustType::Enum { name, .. } = &mapped_ret_type {
-            if name == "UnionType" {
-                // Generate a proper enum name and definition from the original Union type
-                if let Type::Union(types) = &self.ret_type {
-                    let enum_name = ctx.process_union_type(types);
-                    crate::type_mapper::RustType::Custom(enum_name)
+        let rust_ret_type =
+            if let crate::type_mapper::RustType::Enum { name, .. } = &mapped_ret_type {
+                if name == "UnionType" {
+                    // Generate a proper enum name and definition from the original Union type
+                    if let Type::Union(types) = &self.ret_type {
+                        let enum_name = ctx.process_union_type(types);
+                        crate::type_mapper::RustType::Custom(enum_name)
+                    } else {
+                        mapped_ret_type
+                    }
                 } else {
                     mapped_ret_type
                 }
             } else {
                 mapped_ret_type
-            }
-        } else {
-            mapped_ret_type
-        };
+            };
 
         // Check if function can fail and needs Result wrapper
         let can_fail = self.properties.can_fail;
@@ -612,7 +634,7 @@ impl RustCodeGen for HirStmt {
             HirStmt::For { target, iter, body } => {
                 let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
                 let mut iter_expr = iter.to_rust_expr(ctx)?;
-                
+
                 // Check if we're iterating over a borrowed collection
                 // If iter is a simple variable that refers to a borrowed collection (e.g., &Vec<T>),
                 // we need to add .iter() to properly iterate over it
@@ -623,7 +645,7 @@ impl RustCodeGen for HirStmt {
                     // so we need to call .iter() on it
                     iter_expr = parse_quote! { #iter_expr.iter() };
                 }
-                
+
                 ctx.enter_scope();
                 ctx.declare_var(target); // for loop variable is declared in the loop scope
                 let body_stmts: Vec<_> = body
@@ -695,9 +717,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             BinOp::Add => {
                 // Special handling for string concatenation
                 // Only use format! if we're certain at least one operand is a string
-                let is_definitely_string = matches!(left, HirExpr::Literal(Literal::String(_))) 
+                let is_definitely_string = matches!(left, HirExpr::Literal(Literal::String(_)))
                     || matches!(right, HirExpr::Literal(Literal::String(_)));
-                    
+
                 if is_definitely_string {
                     // This is string concatenation - use format! to handle references properly
                     Ok(parse_quote! { format!("{}{}", #left_expr, #right_expr) })
@@ -706,6 +728,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let rust_op = convert_binop(op)?;
                     Ok(parse_quote! { (#left_expr #rust_op #right_expr) })
                 }
+            }
+            BinOp::FloorDiv => {
+                // Python floor division semantics differ from Rust integer division
+                // Python: rounds towards negative infinity (floor)
+                // Rust: truncates towards zero
+                // For now, we generate code that works for integers with proper floor semantics
+                Ok(parse_quote! {
+                    {
+                        let a = #left_expr;
+                        let b = #right_expr;
+                        let q = a / b;
+                        let r = a % b;
+                        if (r != 0) && ((r < 0) != (b < 0)) { q - 1 } else { q }
+                    }
+                })
             }
             BinOp::Sub => {
                 // Check if we're subtracting from a .len() call to prevent underflow

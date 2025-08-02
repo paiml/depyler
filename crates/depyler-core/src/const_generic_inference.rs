@@ -1,4 +1,4 @@
-use crate::hir::{ConstGeneric, HirExpr, HirModule, HirFunction, HirStmt, Literal, Type};
+use crate::hir::{ConstGeneric, HirExpr, HirFunction, HirModule, HirStmt, Literal, Type};
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 
@@ -30,15 +30,15 @@ impl ConstGenericInferencer {
     pub fn analyze_function(&mut self, function: &mut HirFunction) -> Result<()> {
         // First pass: detect const values from literals and parameters
         self.collect_const_values(function)?;
-        
+
         // Second pass: transform types and expressions
         self.transform_function_types(function)?;
-        
+
         // Third pass: transform function body
         for stmt in &mut function.body {
             self.transform_statement(stmt)?;
         }
-        
+
         Ok(())
     }
 
@@ -51,12 +51,12 @@ impl ConstGenericInferencer {
                 // For now, we'll detect const usage in the function body
             }
         }
-        
+
         // Scan function body for const patterns
         for stmt in &function.body {
             self.scan_statement_for_consts(stmt)?;
         }
-        
+
         Ok(())
     }
 
@@ -69,7 +69,11 @@ impl ConstGenericInferencer {
                     self.const_values.insert(target.clone(), size);
                 }
             }
-            HirStmt::If { condition: _, then_body, else_body } => {
+            HirStmt::If {
+                condition: _,
+                then_body,
+                else_body,
+            } => {
                 for s in then_body {
                     self.scan_statement_for_consts(s)?;
                 }
@@ -98,15 +102,23 @@ impl ConstGenericInferencer {
     fn detect_fixed_size_pattern(&self, expr: &HirExpr) -> Option<usize> {
         match expr {
             // Pattern: [value] * size or [value, value, ...]
-            HirExpr::Binary { op: crate::hir::BinOp::Mul, left, right } => {
+            HirExpr::Binary {
+                op: crate::hir::BinOp::Mul,
+                left,
+                right,
+            } => {
                 // Check for [x] * n pattern
-                if let (HirExpr::List(elements), HirExpr::Literal(Literal::Int(size))) = (left.as_ref(), right.as_ref()) {
+                if let (HirExpr::List(elements), HirExpr::Literal(Literal::Int(size))) =
+                    (left.as_ref(), right.as_ref())
+                {
                     if elements.len() == 1 && *size > 0 {
                         return Some(*size as usize);
                     }
                 }
                 // Check for n * [x] pattern
-                if let (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elements)) = (left.as_ref(), right.as_ref()) {
+                if let (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elements)) =
+                    (left.as_ref(), right.as_ref())
+                {
                     if elements.len() == 1 && *size > 0 {
                         return Some(*size as usize);
                     }
@@ -120,18 +132,16 @@ impl ConstGenericInferencer {
                 }
             }
             // Pattern: function calls like zeros(10) or ones(5, 5)
-            HirExpr::Call { func, args } => {
-                match func.as_str() {
-                    "zeros" | "ones" | "full" => {
-                        if let Some(HirExpr::Literal(Literal::Int(size))) = args.first() {
-                            if *size > 0 && *size < 1000 {
-                                return Some(*size as usize);
-                            }
+            HirExpr::Call { func, args } => match func.as_str() {
+                "zeros" | "ones" | "full" => {
+                    if let Some(HirExpr::Literal(Literal::Int(size))) = args.first() {
+                        if *size > 0 && *size < 1000 {
+                            return Some(*size as usize);
                         }
                     }
-                    _ => {}
                 }
-            }
+                _ => {}
+            },
             _ => {}
         }
         None
@@ -175,7 +185,11 @@ impl ConstGenericInferencer {
     }
 
     /// Infer const size for a parameter based on usage
-    fn infer_const_size_for_param(&self, param_name: &str, function: &HirFunction) -> Option<usize> {
+    fn infer_const_size_for_param(
+        &self,
+        param_name: &str,
+        function: &HirFunction,
+    ) -> Option<usize> {
         // Look for patterns like len(param) == constant
         // or indexing with known bounds
         for stmt in &function.body {
@@ -219,10 +233,12 @@ impl ConstGenericInferencer {
     /// Find const usage patterns in statements
     fn find_const_usage_in_stmt(&self, param_name: &str, stmt: &HirStmt) -> Option<usize> {
         match stmt {
-            HirStmt::Assign { value, .. } => {
-                self.find_const_usage_in_expr(param_name, value)
-            }
-            HirStmt::If { condition: _, then_body, else_body } => {
+            HirStmt::Assign { value, .. } => self.find_const_usage_in_expr(param_name, value),
+            HirStmt::If {
+                condition: _,
+                then_body,
+                else_body,
+            } => {
                 // Check condition for len(param) == N
                 // Recursively check bodies
                 for s in then_body {
@@ -239,7 +255,7 @@ impl ConstGenericInferencer {
                 }
                 None
             }
-            _ => None
+            _ => None,
         }
     }
 
@@ -247,8 +263,14 @@ impl ConstGenericInferencer {
     fn find_const_usage_in_expr(&self, param_name: &str, expr: &HirExpr) -> Option<usize> {
         match expr {
             // Pattern: len(param) == N
-            HirExpr::Binary { op: crate::hir::BinOp::Eq, left, right } => {
-                if let (HirExpr::Call { func, args }, HirExpr::Literal(Literal::Int(size))) = (left.as_ref(), right.as_ref()) {
+            HirExpr::Binary {
+                op: crate::hir::BinOp::Eq,
+                left,
+                right,
+            } => {
+                if let (HirExpr::Call { func, args }, HirExpr::Literal(Literal::Int(size))) =
+                    (left.as_ref(), right.as_ref())
+                {
                     if func == "len" && args.len() == 1 {
                         if let HirExpr::Var(var_name) = &args[0] {
                             if var_name == param_name && *size > 0 {
@@ -258,7 +280,9 @@ impl ConstGenericInferencer {
                     }
                 }
                 // Check reverse: N == len(param)
-                if let (HirExpr::Literal(Literal::Int(size)), HirExpr::Call { func, args }) = (left.as_ref(), right.as_ref()) {
+                if let (HirExpr::Literal(Literal::Int(size)), HirExpr::Call { func, args }) =
+                    (left.as_ref(), right.as_ref())
+                {
                     if func == "len" && args.len() == 1 {
                         if let HirExpr::Var(var_name) = &args[0] {
                             if var_name == param_name && *size > 0 {
@@ -294,7 +318,11 @@ impl ConstGenericInferencer {
             HirStmt::Return(Some(expr)) => {
                 self.transform_expression(expr)?;
             }
-            HirStmt::If { condition, then_body, else_body } => {
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
                 self.transform_expression(condition)?;
                 for s in then_body {
                     self.transform_statement(s)?;
@@ -359,7 +387,12 @@ impl ConstGenericInferencer {
                 self.transform_expression(base)?;
                 self.transform_expression(index)?;
             }
-            HirExpr::Slice { base, start, stop, step } => {
+            HirExpr::Slice {
+                base,
+                start,
+                stop,
+                step,
+            } => {
                 self.transform_expression(base)?;
                 if let Some(start_expr) = start {
                     self.transform_expression(start_expr)?;
@@ -385,7 +418,12 @@ impl ConstGenericInferencer {
             HirExpr::Borrow { expr, .. } => {
                 self.transform_expression(expr)?;
             }
-            HirExpr::ListComp { element, iter, condition, .. } => {
+            HirExpr::ListComp {
+                element,
+                iter,
+                condition,
+                ..
+            } => {
                 self.transform_expression(element)?;
                 self.transform_expression(iter)?;
                 if let Some(condition) = condition {
@@ -419,55 +457,55 @@ impl Default for ConstGenericInferencer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::{HirFunction, HirStmt, HirExpr, BinOp, FunctionProperties};
+    use crate::hir::{BinOp, FunctionProperties, HirExpr, HirFunction, HirStmt};
     use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
 
     #[test]
     fn test_detect_fixed_size_list() {
         let inferencer = ConstGenericInferencer::new();
-        
+
         // Test [1, 2, 3] pattern
         let expr = HirExpr::List(vec![
             HirExpr::Literal(Literal::Int(1)),
             HirExpr::Literal(Literal::Int(2)),
             HirExpr::Literal(Literal::Int(3)),
         ]);
-        
+
         assert_eq!(inferencer.detect_fixed_size_pattern(&expr), Some(3));
     }
 
     #[test]
     fn test_detect_multiply_pattern() {
         let inferencer = ConstGenericInferencer::new();
-        
+
         // Test [0] * 5 pattern
         let expr = HirExpr::Binary {
             op: BinOp::Mul,
             left: Box::new(HirExpr::List(vec![HirExpr::Literal(Literal::Int(0))])),
             right: Box::new(HirExpr::Literal(Literal::Int(5))),
         };
-        
+
         assert_eq!(inferencer.detect_fixed_size_pattern(&expr), Some(5));
     }
 
     #[test]
     fn test_detect_zeros_call() {
         let inferencer = ConstGenericInferencer::new();
-        
+
         // Test zeros(10) pattern
         let expr = HirExpr::Call {
             func: "zeros".to_string(),
             args: vec![HirExpr::Literal(Literal::Int(10))],
         };
-        
+
         assert_eq!(inferencer.detect_fixed_size_pattern(&expr), Some(10));
     }
 
     #[test]
     fn test_function_analysis() {
         let mut inferencer = ConstGenericInferencer::new();
-        
+
         let mut function = HirFunction {
             name: "process_array".to_string(),
             params: smallvec![("arr".to_string(), Type::List(Box::new(Type::Int)))],
@@ -487,9 +525,9 @@ mod tests {
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
-        
+
         inferencer.analyze_function(&mut function).unwrap();
-        
+
         // Should detect size 3 for the return type
         assert!(matches!(function.ret_type, Type::Array { .. }));
     }
@@ -497,7 +535,7 @@ mod tests {
     #[test]
     fn test_len_equality_detection() {
         let inferencer = ConstGenericInferencer::new();
-        
+
         // Test len(arr) == 5
         let expr = HirExpr::Binary {
             op: BinOp::Eq,
@@ -507,20 +545,20 @@ mod tests {
             }),
             right: Box::new(HirExpr::Literal(Literal::Int(5))),
         };
-        
+
         assert_eq!(inferencer.find_const_usage_in_expr("arr", &expr), Some(5));
     }
 
     #[test]
     fn test_index_access_detection() {
         let inferencer = ConstGenericInferencer::new();
-        
+
         // Test arr[4] (implies size >= 5)
         let expr = HirExpr::Index {
             base: Box::new(HirExpr::Var("arr".to_string())),
             index: Box::new(HirExpr::Literal(Literal::Int(4))),
         };
-        
+
         assert_eq!(inferencer.find_const_usage_in_expr("arr", &expr), Some(5));
     }
 }

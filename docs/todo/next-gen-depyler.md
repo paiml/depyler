@@ -17,6 +17,13 @@ The following Priority 1 (Critical Fixes) and Priority 2 (Core Features) tasks h
 - **Collections**: Implemented dictionary subscript assignment (partial), list slicing with step, dictionary comprehensions, and list comprehensions
 - **Testing Infrastructure**: Fixed linker errors, added QuickCheck property tests, implemented semantic equivalence testing
 
+### Priority 3 - Type System Enhancements ✅
+- **Generic Type Parameter Inference**: Implemented type variable tracking, generic function inference with constraint analysis, and integration with borrowing analysis
+- **Union Type Support**: Added Union enum generation, pattern matching generation, and smart enum naming
+- **Type Aliases and NewType**: Supported type alias handling and NewType pattern detection
+- **Protocol to Trait Mapping**: Full Python Protocol → Rust trait conversion with generic protocols, runtime checkable protocols, and abstract method detection
+- **Const Generic Inference**: Added infrastructure for fixed-size array detection, const generic parameters, and array type support in HIR and code generation
+
 ## Critical Fixes (Priority 1 - Broken Functionality)
 
 ### Type Inference & Ownership
@@ -100,21 +107,9 @@ The following Priority 1 (Critical Fixes) and Priority 2 (Core Features) tasks h
     - [x] Generate safe iteration patterns (collect then iterate)
     - [x] Add warnings for potential invalidation
 
-## Core Features (Priority 2 - Incomplete V1.0)
+## Immediate Priorities (Next Implementation Phase)
 
-### Control Flow & Operators
-- [x] Implement `range()` with step parameter support (`direct_rules.rs:355`)
-  - [x] Update `convert_builtin_call` to handle 3-argument range
-    - [x] Parse step parameter from args[2]
-    - [x] Generate `(start..end).step_by(step)` for positive steps
-    - [x] Handle negative steps with `.rev()` and bounds adjustment
-    - [x] Add validation for zero step (should panic like Python)
-    - [x] Test edge cases: negative ranges, large steps
-  - [x] Add range type inference
-    - [x] Infer integer type from arguments
-    - [x] Handle mixed integer types (cast to common type)
-    - [x] Support range over custom types with Step trait
-    - [x] Generate appropriate type annotations
+### Priority 1 - Floor Division Operator (Blocking Tests)
 - [ ] Add proper floor division handling (`direct_rules.rs:480`, `rust_gen.rs:532`)
   - [ ] Implement `FloorDiv` operator conversion
     - [ ] Generate `(a / b).floor()` for floating point
@@ -126,6 +121,52 @@ The following Priority 1 (Critical Fixes) and Priority 2 (Core Features) tasks h
     - [ ] Detect integer-only floor division
     - [ ] Avoid unnecessary `.floor()` calls
     - [ ] Use bit shifting for power-of-2 divisors
+
+### Priority 2 - Basic Class Support
+- [ ] Basic class to struct+impl conversion
+  - [ ] Implement class structure analysis
+    - [ ] Create `ClassAnalyzer` for Python class definitions
+    - [ ] Parse class attributes and methods
+    - [ ] Support `__init__` method conversion
+    - [ ] Handle self parameter correctly
+    - [ ] Add basic visibility (pub/private)
+  - [ ] Generate Rust struct definitions
+    - [ ] Convert class attributes to struct fields
+    - [ ] Add field type inference
+    - [ ] Support default values
+    - [ ] Generate appropriate derive macros
+    - [ ] Add struct documentation
+  - [ ] Create impl block generation
+    - [ ] Convert class methods to impl blocks
+    - [ ] Handle self, &self, &mut self parameters
+    - [ ] Support method visibility
+    - [ ] Add constructor pattern (new())
+    - [ ] Generate method documentation
+
+### Priority 3 - Complete Const Generic Array Generation
+- [ ] Finish const generic array code generation
+  - [ ] Update `convert_list` in direct_rules.rs
+    - [ ] Detect fixed-size patterns during code generation
+    - [ ] Generate `[T; N]` syntax instead of `vec![]`
+    - [ ] Support array initialization patterns
+    - [ ] Handle array method calls
+    - [ ] Add array bounds checking
+  - [ ] Integrate with type system
+    - [ ] Map Array HIR type to Rust arrays
+    - [ ] Support array in function signatures
+    - [ ] Handle array passing and returns
+    - [ ] Add array type inference
+    - [ ] Generate const assertions
+
+### Priority 4 - Dictionary Assignment Operations
+- [ ] Complete dictionary subscript assignment
+  - [ ] Handle nested assignments `d[k1][k2] = v`
+  - [ ] Support tuple key assignments
+  - [ ] Add get_mut for update operations
+  - [ ] Generate entry API calls for efficiency
+  - [ ] Support dictionary method calls
+
+## Core Features (Priority 2 - Remaining V1.0)
 - [ ] Implement power operator (`**`) transpilation
   - [ ] Add `pow` method selection based on types
     - [ ] Use `.pow()` for integer exponents
