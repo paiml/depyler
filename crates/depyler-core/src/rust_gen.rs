@@ -19,6 +19,7 @@ pub struct CodeGenContext<'a> {
     pub needs_rc: bool,
     pub needs_cow: bool,
     pub declared_vars: Vec<HashSet<String>>,
+    pub current_function_can_fail: bool,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -64,6 +65,7 @@ pub fn generate_rust_file(
         needs_rc: false,
         needs_cow: false,
         declared_vars: vec![HashSet::new()],
+        current_function_can_fail: false,
     };
 
     // Analyze all functions first for string optimization
@@ -127,6 +129,19 @@ pub fn generate_rust_file(
     // Add all functions
     items.extend(functions);
 
+    // Generate tests for functions if applicable
+    let test_gen = crate::test_generation::TestGenerator::new(Default::default());
+    let mut test_modules = Vec::new();
+
+    for func in &module.functions {
+        if let Some(test_module) = test_gen.generate_tests(func)? {
+            test_modules.push(test_module);
+        }
+    }
+
+    // Add test modules
+    items.extend(test_modules);
+
     let file = quote! {
         #(#items)*
     };
@@ -180,31 +195,116 @@ impl RustCodeGen for HirFunction {
             .map(|(param_name, param_type)| {
                 let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
 
+                // Check if parameter is mutated
+                let is_param_mutated = if let Some(strategy) = lifetime_result.borrowing_strategies.get(param_name) {
+                    match strategy {
+                        crate::borrowing_context::BorrowingStrategy::TakeOwnership => {
+                            // Check if we're taking ownership because of mutation
+                            self.body.iter().any(|stmt| matches!(stmt, HirStmt::Assign { target, .. } if target == param_name))
+                        }
+                        _ => false,
+                    }
+                } else {
+                    false
+                };
+
                 // Get the inferred parameter info
                 if let Some(inferred) = lifetime_result.param_lifetimes.get(param_name) {
                     let rust_type = &inferred.rust_type;
                     update_import_needs(ctx, rust_type);
                     let mut ty = rust_type_to_syn(rust_type)?;
 
-                    // Apply borrowing if needed
-                    if inferred.should_borrow {
-                        if let Some(ref lifetime) = inferred.lifetime {
-                            let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
-                            ty = if inferred.needs_mut {
-                                parse_quote! { &#lt mut #ty }
+                    // Check if we're dealing with a string that should use Cow
+                    if let Some(strategy) = lifetime_result.borrowing_strategies.get(param_name) {
+                        match strategy {
+                            crate::borrowing_context::BorrowingStrategy::UseCow { lifetime } => {
+                                ctx.needs_cow = true;
+                                let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+                                ty = parse_quote! { Cow<#lt, str> };
+                            }
+                            _ => {
+                                // Apply normal borrowing if needed
+                                if inferred.should_borrow {
+                                    // Special case for strings: use &str instead of &String
+                                    if matches!(rust_type, crate::type_mapper::RustType::String) {
+                                        if let Some(ref lifetime) = inferred.lifetime {
+                                            let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+                                            ty = if inferred.needs_mut {
+                                                parse_quote! { &#lt mut str }
+                                            } else {
+                                                parse_quote! { &#lt str }
+                                            };
+                                        } else {
+                                            ty = if inferred.needs_mut {
+                                                parse_quote! { &mut str }
+                                            } else {
+                                                parse_quote! { &str }
+                                            };
+                                        }
+                                    } else {
+                                        // Non-string types
+                                        if let Some(ref lifetime) = inferred.lifetime {
+                                            let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+                                            ty = if inferred.needs_mut {
+                                                parse_quote! { &#lt mut #ty }
+                                            } else {
+                                                parse_quote! { &#lt #ty }
+                                            };
+                                        } else {
+                                            ty = if inferred.needs_mut {
+                                                parse_quote! { &mut #ty }
+                                            } else {
+                                                parse_quote! { &#ty }
+                                            };
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Fallback to normal borrowing
+                        if inferred.should_borrow {
+                            // Special case for strings: use &str instead of &String
+                            if matches!(rust_type, crate::type_mapper::RustType::String) {
+                                if let Some(ref lifetime) = inferred.lifetime {
+                                    let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+                                    ty = if inferred.needs_mut {
+                                        parse_quote! { &#lt mut str }
+                                    } else {
+                                        parse_quote! { &#lt str }
+                                    };
+                                } else {
+                                    ty = if inferred.needs_mut {
+                                        parse_quote! { &mut str }
+                                    } else {
+                                        parse_quote! { &str }
+                                    };
+                                }
                             } else {
-                                parse_quote! { &#lt #ty }
-                            };
-                        } else {
-                            ty = if inferred.needs_mut {
-                                parse_quote! { &mut #ty }
-                            } else {
-                                parse_quote! { &#ty }
-                            };
+                                // Non-string types
+                                if let Some(ref lifetime) = inferred.lifetime {
+                                    let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+                                    ty = if inferred.needs_mut {
+                                        parse_quote! { &#lt mut #ty }
+                                    } else {
+                                        parse_quote! { &#lt #ty }
+                                    };
+                                } else {
+                                    ty = if inferred.needs_mut {
+                                        parse_quote! { &mut #ty }
+                                    } else {
+                                        parse_quote! { &#ty }
+                                    };
+                                }
+                            }
                         }
                     }
 
-                    Ok(quote! { #param_ident: #ty })
+                    if is_param_mutated {
+                        Ok(quote! { mut #param_ident: #ty })
+                    } else {
+                        Ok(quote! { #param_ident: #ty })
+                    }
                 } else {
                     // Fallback to original mapping
                     let rust_type = ctx
@@ -212,7 +312,11 @@ impl RustCodeGen for HirFunction {
                         .map_type_with_annotations(param_type, &self.annotations);
                     update_import_needs(ctx, &rust_type);
                     let ty = rust_type_to_syn(&rust_type)?;
-                    Ok(quote! { #param_ident: #ty })
+                    if is_param_mutated {
+                        Ok(quote! { mut #param_ident: #ty })
+                    } else {
+                        Ok(quote! { #param_ident: #ty })
+                    }
                 }
             })
             .collect::<Result<Vec<_>>>()?;
@@ -221,42 +325,99 @@ impl RustCodeGen for HirFunction {
         let rust_ret_type = ctx
             .annotation_aware_mapper
             .map_return_type_with_annotations(&self.ret_type, &self.annotations);
+
+        // Check if function can fail and needs Result wrapper
+        let can_fail = self.properties.can_fail;
+        let error_type_str = if can_fail && !self.properties.error_types.is_empty() {
+            // Use first error type or generic for mixed types
+            if self.properties.error_types.len() == 1 {
+                self.properties.error_types[0].clone()
+            } else {
+                "Box<dyn std::error::Error>".to_string()
+            }
+        } else {
+            "Box<dyn std::error::Error>".to_string()
+        };
+
         let return_type = if matches!(rust_ret_type, crate::type_mapper::RustType::Unit) {
-            quote! {}
+            if can_fail {
+                let error_type: syn::Type = syn::parse_str(&error_type_str)
+                    .unwrap_or_else(|_| parse_quote! { Box<dyn std::error::Error> });
+                quote! { -> Result<(), #error_type> }
+            } else {
+                quote! {}
+            }
         } else {
             let mut ty = rust_type_to_syn(&rust_ret_type)?;
 
-            // Apply return lifetime if needed
-            if let Some(ref return_lt) = lifetime_result.return_lifetime {
-                // Check if the return type needs lifetime substitution
-                if matches!(
-                    rust_ret_type,
-                    crate::type_mapper::RustType::Str { .. }
-                        | crate::type_mapper::RustType::Reference { .. }
-                ) {
-                    let lt = syn::Lifetime::new(return_lt, proc_macro2::Span::call_site());
-                    match rust_ret_type {
-                        crate::type_mapper::RustType::Str { .. } => {
-                            ty = parse_quote! { &#lt str };
+            // Check if any parameter escapes through return and uses Cow
+            let mut uses_cow_return = false;
+            for (param_name, _) in &self.params {
+                if let Some(strategy) = lifetime_result.borrowing_strategies.get(param_name) {
+                    if matches!(
+                        strategy,
+                        crate::borrowing_context::BorrowingStrategy::UseCow { .. }
+                    ) {
+                        if let Some(_usage) = lifetime_result.param_lifetimes.get(param_name) {
+                            // If a Cow parameter escapes, return type should also be Cow
+                            if matches!(self.ret_type, crate::hir::Type::String) {
+                                uses_cow_return = true;
+                                break;
+                            }
                         }
-                        crate::type_mapper::RustType::Reference { mutable, inner, .. } => {
-                            let inner_ty = rust_type_to_syn(&inner)?;
-                            ty = if mutable {
-                                parse_quote! { &#lt mut #inner_ty }
-                            } else {
-                                parse_quote! { &#lt #inner_ty }
-                            };
-                        }
-                        _ => {}
                     }
                 }
             }
 
-            quote! { -> #ty }
+            if uses_cow_return {
+                // Use the same Cow type for return
+                ctx.needs_cow = true;
+                if let Some(ref return_lt) = lifetime_result.return_lifetime {
+                    let lt = syn::Lifetime::new(return_lt, proc_macro2::Span::call_site());
+                    ty = parse_quote! { Cow<#lt, str> };
+                } else {
+                    ty = parse_quote! { Cow<'static, str> };
+                }
+            } else {
+                // Apply return lifetime if needed
+                if let Some(ref return_lt) = lifetime_result.return_lifetime {
+                    // Check if the return type needs lifetime substitution
+                    if matches!(
+                        rust_ret_type,
+                        crate::type_mapper::RustType::Str { .. }
+                            | crate::type_mapper::RustType::Reference { .. }
+                    ) {
+                        let lt = syn::Lifetime::new(return_lt, proc_macro2::Span::call_site());
+                        match rust_ret_type {
+                            crate::type_mapper::RustType::Str { .. } => {
+                                ty = parse_quote! { &#lt str };
+                            }
+                            crate::type_mapper::RustType::Reference { mutable, inner, .. } => {
+                                let inner_ty = rust_type_to_syn(&inner)?;
+                                ty = if mutable {
+                                    parse_quote! { &#lt mut #inner_ty }
+                                } else {
+                                    parse_quote! { &#lt #inner_ty }
+                                };
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
+            if can_fail {
+                let error_type: syn::Type = syn::parse_str(&error_type_str)
+                    .unwrap_or_else(|_| parse_quote! { Box<dyn std::error::Error> });
+                quote! { -> Result<#ty, #error_type> }
+            } else {
+                quote! { -> #ty }
+            }
         };
 
         // Enter function scope and declare parameters
         ctx.enter_scope();
+        ctx.current_function_can_fail = can_fail;
         for (param_name, _) in &self.params {
             ctx.declare_var(param_name);
         }
@@ -269,6 +430,7 @@ impl RustCodeGen for HirFunction {
             .collect::<Result<Vec<_>>>()?;
 
         ctx.exit_scope();
+        ctx.current_function_can_fail = false;
 
         // Add documentation
         let mut attrs = vec![];
@@ -319,7 +481,13 @@ impl RustCodeGen for HirStmt {
             HirStmt::Return(expr) => {
                 if let Some(e) = expr {
                     let expr_tokens = e.to_rust_expr(ctx)?;
-                    Ok(quote! { return #expr_tokens; })
+                    if ctx.current_function_can_fail {
+                        Ok(quote! { return Ok(#expr_tokens); })
+                    } else {
+                        Ok(quote! { return #expr_tokens; })
+                    }
+                } else if ctx.current_function_can_fail {
+                    Ok(quote! { return Ok(()); })
                 } else {
                     Ok(quote! { return; })
                 }
@@ -392,6 +560,19 @@ impl RustCodeGen for HirStmt {
             HirStmt::Expr(expr) => {
                 let expr_tokens = expr.to_rust_expr(ctx)?;
                 Ok(quote! { #expr_tokens; })
+            }
+            HirStmt::Raise {
+                exception,
+                cause: _,
+            } => {
+                // For V1, we'll implement basic error handling
+                if let Some(exc) = exception {
+                    let exc_expr = exc.to_rust_expr(ctx)?;
+                    Ok(quote! { return Err(#exc_expr); })
+                } else {
+                    // Re-raise or bare raise - use generic error
+                    Ok(quote! { return Err("Exception raised".into()); })
+                }
             }
         }
     }
@@ -494,7 +675,43 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let start = &args[0];
                 let end = &args[1];
                 let step = &args[2];
-                Ok(parse_quote! { (#start..#end).step_by(#step as usize) })
+
+                // Check if step is negative by looking at the expression
+                let is_negative_step = if let syn::Expr::Unary(unary) = step {
+                    matches!(unary.op, syn::UnOp::Neg(_))
+                } else {
+                    false
+                };
+
+                if is_negative_step {
+                    // For negative steps, we need to reverse the range
+                    // Python: range(10, 0, -1) → Rust: (0..10).rev()
+                    // But we also need to handle step sizes > 1
+                    Ok(parse_quote! {
+                        {
+                            let step = (#step).abs() as usize;
+                            if step == 0 {
+                                panic!("range() arg 3 must not be zero");
+                            }
+                            if step == 1 {
+                                (#end..#start).rev()
+                            } else {
+                                (#end..#start).rev().step_by(step)
+                            }
+                        }
+                    })
+                } else {
+                    // Positive step - check for zero
+                    Ok(parse_quote! {
+                        {
+                            let step = #step as usize;
+                            if step == 0 {
+                                panic!("range() arg 3 must not be zero");
+                            }
+                            (#start..#end).step_by(step)
+                        }
+                    })
+                }
             }
             _ => bail!("Invalid number of arguments for range()"),
         }
@@ -505,6 +722,159 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { #func_ident(#(#args),*) })
     }
 
+    fn convert_method_call(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<syn::Expr> {
+        let object_expr = object.to_rust_expr(self.ctx)?;
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Map Python collection methods to Rust equivalents
+        match method {
+            // List methods
+            "append" => {
+                if arg_exprs.len() != 1 {
+                    bail!("append() requires exactly one argument");
+                }
+                let arg = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.push(#arg) })
+            }
+            "extend" => {
+                if arg_exprs.len() != 1 {
+                    bail!("extend() requires exactly one argument");
+                }
+                let arg = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.extend(#arg) })
+            }
+            "pop" => {
+                if arg_exprs.is_empty() {
+                    Ok(parse_quote! { #object_expr.pop().unwrap_or_default() })
+                } else {
+                    bail!("pop() with index not supported in V1");
+                }
+            }
+            "insert" => {
+                if arg_exprs.len() != 2 {
+                    bail!("insert() requires exactly two arguments");
+                }
+                let index = &arg_exprs[0];
+                let value = &arg_exprs[1];
+                Ok(parse_quote! { #object_expr.insert(#index as usize, #value) })
+            }
+            "remove" => {
+                if arg_exprs.len() != 1 {
+                    bail!("remove() requires exactly one argument");
+                }
+                let value = &arg_exprs[0];
+                // This is a simplified version - real implementation would need to find and remove
+                Ok(parse_quote! {
+                    if let Some(pos) = #object_expr.iter().position(|x| x == &#value) {
+                        #object_expr.remove(pos)
+                    } else {
+                        panic!("ValueError: list.remove(x): x not in list")
+                    }
+                })
+            }
+
+            // Dict methods
+            "get" => {
+                if arg_exprs.len() == 1 {
+                    let key = &arg_exprs[0];
+                    Ok(parse_quote! { #object_expr.get(&#key).cloned() })
+                } else if arg_exprs.len() == 2 {
+                    let key = &arg_exprs[0];
+                    let default = &arg_exprs[1];
+                    Ok(parse_quote! { #object_expr.get(&#key).cloned().unwrap_or(#default) })
+                } else {
+                    bail!("get() requires 1 or 2 arguments");
+                }
+            }
+            "keys" => {
+                if !arg_exprs.is_empty() {
+                    bail!("keys() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.keys().cloned().collect::<Vec<_>>() })
+            }
+            "values" => {
+                if !arg_exprs.is_empty() {
+                    bail!("values() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.values().cloned().collect::<Vec<_>>() })
+            }
+            "items" => {
+                if !arg_exprs.is_empty() {
+                    bail!("items() takes no arguments");
+                }
+                Ok(
+                    parse_quote! { #object_expr.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>() },
+                )
+            }
+            "update" => {
+                if arg_exprs.len() != 1 {
+                    bail!("update() requires exactly one argument");
+                }
+                let arg = &arg_exprs[0];
+                Ok(parse_quote! {
+                    for (k, v) in #arg {
+                        #object_expr.insert(k, v);
+                    }
+                })
+            }
+
+            // String methods
+            "upper" => {
+                if !arg_exprs.is_empty() {
+                    bail!("upper() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.to_uppercase() })
+            }
+            "lower" => {
+                if !arg_exprs.is_empty() {
+                    bail!("lower() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.to_lowercase() })
+            }
+            "strip" => {
+                if !arg_exprs.is_empty() {
+                    bail!("strip() with arguments not supported in V1");
+                }
+                Ok(parse_quote! { #object_expr.trim().to_string() })
+            }
+            "split" => {
+                if arg_exprs.is_empty() {
+                    Ok(
+                        parse_quote! { #object_expr.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() },
+                    )
+                } else if arg_exprs.len() == 1 {
+                    let sep = &arg_exprs[0];
+                    Ok(
+                        parse_quote! { #object_expr.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() },
+                    )
+                } else {
+                    bail!("split() with maxsplit not supported in V1");
+                }
+            }
+            "join" => {
+                if arg_exprs.len() != 1 {
+                    bail!("join() requires exactly one argument");
+                }
+                let iterable = &arg_exprs[0];
+                Ok(parse_quote! { #iterable.join(#object_expr) })
+            }
+
+            // Generic method call fallback
+            _ => {
+                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) })
+            }
+        }
+    }
+
     fn convert_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
         let base_expr = base.to_rust_expr(self.ctx)?;
         let index_expr = index.to_rust_expr(self.ctx)?;
@@ -512,6 +882,200 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! {
             #base_expr.get(#index_expr as usize).copied().unwrap_or_default()
         })
+    }
+
+    fn convert_slice(
+        &mut self,
+        base: &HirExpr,
+        start: &Option<Box<HirExpr>>,
+        stop: &Option<Box<HirExpr>>,
+        step: &Option<Box<HirExpr>>,
+    ) -> Result<syn::Expr> {
+        let base_expr = base.to_rust_expr(self.ctx)?;
+
+        // Convert slice parameters
+        let start_expr = if let Some(s) = start {
+            Some(s.to_rust_expr(self.ctx)?)
+        } else {
+            None
+        };
+
+        let stop_expr = if let Some(s) = stop {
+            Some(s.to_rust_expr(self.ctx)?)
+        } else {
+            None
+        };
+
+        let step_expr = if let Some(s) = step {
+            Some(s.to_rust_expr(self.ctx)?)
+        } else {
+            None
+        };
+
+        // Generate slice code based on the parameters
+        match (start_expr, stop_expr, step_expr) {
+            // Full slice with step: base[::step]
+            (None, None, Some(step)) => {
+                Ok(parse_quote! {
+                    {
+                        let step = #step;
+                        if step == 1 {
+                            #base_expr.clone()
+                        } else if step > 0 {
+                            #base_expr.iter().step_by(step as usize).cloned().collect::<Vec<_>>()
+                        } else if step == -1 {
+                            #base_expr.iter().rev().cloned().collect::<Vec<_>>()
+                        } else {
+                            // Negative step with abs value
+                            let abs_step = (-step) as usize;
+                            #base_expr.iter().rev().step_by(abs_step).cloned().collect::<Vec<_>>()
+                        }
+                    }
+                })
+            }
+
+            // Start and stop: base[start:stop]
+            (Some(start), Some(stop), None) => Ok(parse_quote! {
+                {
+                    let start = (#start).max(0) as usize;
+                    let stop = (#stop).max(0) as usize;
+                    if start < #base_expr.len() {
+                        #base_expr[start..stop.min(#base_expr.len())].to_vec()
+                    } else {
+                        Vec::new()
+                    }
+                }
+            }),
+
+            // Start only: base[start:]
+            (Some(start), None, None) => Ok(parse_quote! {
+                {
+                    let start = (#start).max(0) as usize;
+                    if start < #base_expr.len() {
+                        #base_expr[start..].to_vec()
+                    } else {
+                        Vec::new()
+                    }
+                }
+            }),
+
+            // Stop only: base[:stop]
+            (None, Some(stop), None) => Ok(parse_quote! {
+                {
+                    let stop = (#stop).max(0) as usize;
+                    #base_expr[..stop.min(#base_expr.len())].to_vec()
+                }
+            }),
+
+            // Full slice: base[:]
+            (None, None, None) => Ok(parse_quote! { #base_expr.clone() }),
+
+            // Start, stop, and step: base[start:stop:step]
+            (Some(start), Some(stop), Some(step)) => {
+                Ok(parse_quote! {
+                    {
+                        let start = (#start).max(0) as usize;
+                        let stop = (#stop).max(0) as usize;
+                        let step = #step;
+
+                        if step == 1 {
+                            if start < #base_expr.len() {
+                                #base_expr[start..stop.min(#base_expr.len())].to_vec()
+                            } else {
+                                Vec::new()
+                            }
+                        } else if step > 0 {
+                            #base_expr[start..stop.min(#base_expr.len())]
+                                .iter()
+                                .step_by(step as usize)
+                                .cloned()
+                                .collect::<Vec<_>>()
+                        } else {
+                            // Negative step - slice in reverse
+                            let abs_step = (-step) as usize;
+                            if start < #base_expr.len() {
+                                #base_expr[start..stop.min(#base_expr.len())]
+                                    .iter()
+                                    .rev()
+                                    .step_by(abs_step)
+                                    .cloned()
+                                    .collect::<Vec<_>>()
+                            } else {
+                                Vec::new()
+                            }
+                        }
+                    }
+                })
+            }
+
+            // Start and step: base[start::step]
+            (Some(start), None, Some(step)) => Ok(parse_quote! {
+                {
+                    let start = (#start).max(0) as usize;
+                    let step = #step;
+
+                    if start < #base_expr.len() {
+                        if step == 1 {
+                            #base_expr[start..].to_vec()
+                        } else if step > 0 {
+                            #base_expr[start..]
+                                .iter()
+                                .step_by(step as usize)
+                                .cloned()
+                                .collect::<Vec<_>>()
+                        } else if step == -1 {
+                            #base_expr[start..]
+                                .iter()
+                                .rev()
+                                .cloned()
+                                .collect::<Vec<_>>()
+                        } else {
+                            let abs_step = (-step) as usize;
+                            #base_expr[start..]
+                                .iter()
+                                .rev()
+                                .step_by(abs_step)
+                                .cloned()
+                                .collect::<Vec<_>>()
+                        }
+                    } else {
+                        Vec::new()
+                    }
+                }
+            }),
+
+            // Stop and step: base[:stop:step]
+            (None, Some(stop), Some(step)) => Ok(parse_quote! {
+                {
+                    let stop = (#stop).max(0) as usize;
+                    let step = #step;
+
+                    if step == 1 {
+                        #base_expr[..stop.min(#base_expr.len())].to_vec()
+                    } else if step > 0 {
+                        #base_expr[..stop.min(#base_expr.len())]
+                            .iter()
+                            .step_by(step as usize)
+                            .cloned()
+                            .collect::<Vec<_>>()
+                    } else if step == -1 {
+                        #base_expr[..stop.min(#base_expr.len())]
+                            .iter()
+                            .rev()
+                            .cloned()
+                            .collect::<Vec<_>>()
+                    } else {
+                        let abs_step = (-step) as usize;
+                        #base_expr[..stop.min(#base_expr.len())]
+                            .iter()
+                            .rev()
+                            .step_by(abs_step)
+                            .cloned()
+                            .collect::<Vec<_>>()
+                    }
+                }
+            }),
+        }
     }
 
     fn convert_list(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
@@ -562,6 +1126,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    fn convert_list_comp(
+        &mut self,
+        element: &HirExpr,
+        target: &str,
+        iter: &HirExpr,
+        condition: &Option<Box<HirExpr>>,
+    ) -> Result<syn::Expr> {
+        let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+        let iter_expr = iter.to_rust_expr(self.ctx)?;
+        let element_expr = element.to_rust_expr(self.ctx)?;
+
+        if let Some(cond) = condition {
+            // With condition: iter().filter().map().collect()
+            let cond_expr = cond.to_rust_expr(self.ctx)?;
+            Ok(parse_quote! {
+                #iter_expr
+                    .into_iter()
+                    .filter(|#target_ident| #cond_expr)
+                    .map(|#target_ident| #element_expr)
+                    .collect::<Vec<_>>()
+            })
+        } else {
+            // Without condition: iter().map().collect()
+            Ok(parse_quote! {
+                #iter_expr
+                    .into_iter()
+                    .map(|#target_ident| #element_expr)
+                    .collect::<Vec<_>>()
+            })
+        }
+    }
+
     /// Check if an expression is a len() call
     fn is_len_call(&self, expr: &HirExpr) -> bool {
         matches!(expr, HirExpr::Call { func, args } if func == "len" && args.len() == 1)
@@ -590,12 +1186,29 @@ impl ToRustExpr for HirExpr {
             HirExpr::Binary { op, left, right } => converter.convert_binary(*op, left, right),
             HirExpr::Unary { op, operand } => converter.convert_unary(op, operand),
             HirExpr::Call { func, args } => converter.convert_call(func, args),
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+            } => converter.convert_method_call(object, method, args),
             HirExpr::Index { base, index } => converter.convert_index(base, index),
+            HirExpr::Slice {
+                base,
+                start,
+                stop,
+                step,
+            } => converter.convert_slice(base, start, stop, step),
             HirExpr::List(elts) => converter.convert_list(elts),
             HirExpr::Dict(items) => converter.convert_dict(items),
             HirExpr::Tuple(elts) => converter.convert_tuple(elts),
             HirExpr::Attribute { value, attr } => converter.convert_attribute(value, attr),
             HirExpr::Borrow { expr, mutable } => converter.convert_borrow(expr, *mutable),
+            HirExpr::ListComp {
+                element,
+                target,
+                iter,
+                condition,
+            } => converter.convert_list_comp(element, target, iter, condition),
         }
     }
 }
@@ -890,6 +1503,7 @@ mod tests {
             needs_rc: false,
             needs_cow: false,
             declared_vars: vec![HashSet::new()],
+            current_function_can_fail: false,
         }
     }
 

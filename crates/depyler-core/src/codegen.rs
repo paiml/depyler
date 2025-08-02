@@ -302,6 +302,18 @@ fn stmt_to_rust_tokens_with_scope(
             let expr_tokens = expr_to_rust_tokens(expr)?;
             Ok(quote! { #expr_tokens; })
         }
+        HirStmt::Raise {
+            exception,
+            cause: _,
+        } => {
+            // Simple error handling for codegen - just generate a panic for now
+            if let Some(exc) = exception {
+                let exc_tokens = expr_to_rust_tokens(exc)?;
+                Ok(quote! { panic!("Exception: {}", #exc_tokens); })
+            } else {
+                Ok(quote! { panic!("Exception raised"); })
+            }
+        }
     }
 }
 
@@ -386,6 +398,78 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
                 Ok(quote! { &mut #expr_tokens })
             } else {
                 Ok(quote! { &#expr_tokens })
+            }
+        }
+        HirExpr::MethodCall {
+            object,
+            method,
+            args,
+        } => {
+            let obj_tokens = expr_to_rust_tokens(object)?;
+            let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+            let arg_tokens: Vec<_> = args
+                .iter()
+                .map(expr_to_rust_tokens)
+                .collect::<Result<Vec<_>>>()?;
+            Ok(quote! { #obj_tokens.#method_ident(#(#arg_tokens),*) })
+        }
+        HirExpr::Slice {
+            base,
+            start,
+            stop,
+            step,
+        } => {
+            let base_tokens = expr_to_rust_tokens(base)?;
+            // Simple codegen - just use slice notation where possible
+            match (start, stop, step) {
+                (None, None, None) => Ok(quote! { #base_tokens.clone() }),
+                (Some(start), Some(stop), None) => {
+                    let start_tokens = expr_to_rust_tokens(start)?;
+                    let stop_tokens = expr_to_rust_tokens(stop)?;
+                    Ok(quote! { #base_tokens[#start_tokens..#stop_tokens].to_vec() })
+                }
+                (Some(start), None, None) => {
+                    let start_tokens = expr_to_rust_tokens(start)?;
+                    Ok(quote! { #base_tokens[#start_tokens..].to_vec() })
+                }
+                (None, Some(stop), None) => {
+                    let stop_tokens = expr_to_rust_tokens(stop)?;
+                    Ok(quote! { #base_tokens[..#stop_tokens].to_vec() })
+                }
+                _ => {
+                    // For complex cases with step, fall back to method call
+                    Ok(quote! { slice_complex(#base_tokens) })
+                }
+            }
+        }
+        HirExpr::ListComp {
+            element,
+            target,
+            iter,
+            condition,
+        } => {
+            let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+            let iter_tokens = expr_to_rust_tokens(iter)?;
+            let element_tokens = expr_to_rust_tokens(element)?;
+
+            if let Some(cond) = condition {
+                // With condition: iter().filter().map().collect()
+                let cond_tokens = expr_to_rust_tokens(cond)?;
+                Ok(quote! {
+                    #iter_tokens
+                        .into_iter()
+                        .filter(|#target_ident| #cond_tokens)
+                        .map(|#target_ident| #element_tokens)
+                        .collect::<Vec<_>>()
+                })
+            } else {
+                // Without condition: iter().map().collect()
+                Ok(quote! {
+                    #iter_tokens
+                        .into_iter()
+                        .map(|#target_ident| #element_tokens)
+                        .collect::<Vec<_>>()
+                })
             }
         }
     }

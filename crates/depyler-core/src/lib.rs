@@ -1,6 +1,7 @@
 pub mod annotation_aware_type_mapper;
 pub mod ast_bridge;
 pub mod borrowing;
+pub mod borrowing_context;
 pub mod codegen;
 pub mod direct_rules;
 pub mod error;
@@ -15,6 +16,7 @@ pub mod lifetime_analysis;
 pub mod optimization;
 pub mod rust_gen;
 pub mod string_optimization;
+pub mod test_generation;
 pub mod type_mapper;
 
 use anyhow::Result;

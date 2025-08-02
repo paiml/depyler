@@ -226,6 +226,19 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
             let rust_expr = convert_expr(expr, type_mapper)?;
             Ok(syn::Stmt::Expr(rust_expr, Some(Default::default())))
         }
+        HirStmt::Raise {
+            exception,
+            cause: _,
+        } => {
+            // Convert to Rust panic for direct rules
+            let panic_expr = if let Some(exc) = exception {
+                let exc_expr = convert_expr(exc, type_mapper)?;
+                parse_quote! { panic!("Exception: {}", #exc_expr) }
+            } else {
+                parse_quote! { panic!("Exception raised") }
+            };
+            Ok(syn::Stmt::Expr(panic_expr, Some(Default::default())))
+        }
     }
 }
 
@@ -745,6 +758,8 @@ mod tests {
                 always_terminates: true,
                 panic_free: true,
                 max_stack_depth: Some(1),
+                can_fail: false,
+                error_types: vec![],
             },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
