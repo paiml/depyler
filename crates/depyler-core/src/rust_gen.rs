@@ -20,6 +20,7 @@ pub struct CodeGenContext<'a> {
     pub needs_cow: bool,
     pub declared_vars: Vec<HashSet<String>>,
     pub current_function_can_fail: bool,
+    pub current_return_type: Option<Type>,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -66,6 +67,7 @@ pub fn generate_rust_file(
         needs_cow: false,
         declared_vars: vec![HashSet::new()],
         current_function_can_fail: false,
+        current_return_type: None,
     };
 
     // Analyze all functions first for string optimization
@@ -196,17 +198,10 @@ impl RustCodeGen for HirFunction {
                 let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
 
                 // Check if parameter is mutated
-                let is_param_mutated = if let Some(strategy) = lifetime_result.borrowing_strategies.get(param_name) {
-                    match strategy {
-                        crate::borrowing_context::BorrowingStrategy::TakeOwnership => {
-                            // Check if we're taking ownership because of mutation
-                            self.body.iter().any(|stmt| matches!(stmt, HirStmt::Assign { target, .. } if target == param_name))
-                        }
-                        _ => false,
-                    }
-                } else {
-                    false
-                };
+                let is_param_mutated = matches!(
+                    lifetime_result.borrowing_strategies.get(param_name),
+                    Some(crate::borrowing_context::BorrowingStrategy::TakeOwnership)
+                ) && self.body.iter().any(|stmt| matches!(stmt, HirStmt::Assign { target, .. } if target == param_name));
 
                 // Get the inferred parameter info
                 if let Some(inferred) = lifetime_result.param_lifetimes.get(param_name) {
@@ -418,6 +413,7 @@ impl RustCodeGen for HirFunction {
         // Enter function scope and declare parameters
         ctx.enter_scope();
         ctx.current_function_can_fail = can_fail;
+        ctx.current_return_type = Some(self.ret_type.clone());
         for (param_name, _) in &self.params {
             ctx.declare_var(param_name);
         }
@@ -431,6 +427,7 @@ impl RustCodeGen for HirFunction {
 
         ctx.exit_scope();
         ctx.current_function_can_fail = false;
+        ctx.current_return_type = None;
 
         // Add documentation
         let mut attrs = vec![];
@@ -845,6 +842,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 Ok(parse_quote! { #object_expr.trim().to_string() })
             }
+            "startswith" => {
+                if arg_exprs.len() != 1 {
+                    bail!("startswith() requires exactly one argument");
+                }
+                let prefix = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.starts_with(#prefix) })
+            }
+            "endswith" => {
+                if arg_exprs.len() != 1 {
+                    bail!("endswith() requires exactly one argument");
+                }
+                let suffix = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.ends_with(#suffix) })
+            }
             "split" => {
                 if arg_exprs.is_empty() {
                     Ok(
@@ -1170,7 +1181,7 @@ impl ToRustExpr for HirExpr {
 
         match self {
             HirExpr::Literal(lit) => {
-                let expr = literal_to_rust_expr(lit, &ctx.string_optimizer, &ctx.needs_cow);
+                let expr = literal_to_rust_expr(lit, &ctx.string_optimizer, &ctx.needs_cow, ctx);
                 if let Literal::String(s) = lit {
                     let context = StringContext::Literal(s.clone());
                     if matches!(
@@ -1217,6 +1228,7 @@ fn literal_to_rust_expr(
     lit: &Literal,
     string_optimizer: &StringOptimizer,
     _needs_cow: &bool,
+    ctx: &CodeGenContext,
 ) -> syn::Expr {
     match lit {
         Literal::Int(n) => {
@@ -1247,8 +1259,14 @@ fn literal_to_rust_expr(
                         parse_quote! { #lit }
                     }
                     crate::string_optimization::OptimalStringType::CowStr => {
-                        // Use Cow for flexible ownership
-                        parse_quote! { std::borrow::Cow::Borrowed(#lit) }
+                        // Check if we're in a context where String is required
+                        if let Some(Type::String) = &ctx.current_return_type {
+                            // Function returns String, so convert to owned
+                            parse_quote! { #lit.to_string() }
+                        } else {
+                            // Use Cow for flexible ownership
+                            parse_quote! { std::borrow::Cow::Borrowed(#lit) }
+                        }
                     }
                     crate::string_optimization::OptimalStringType::OwnedString => {
                         // Only use .to_string() when absolutely necessary
@@ -1504,6 +1522,7 @@ mod tests {
             needs_cow: false,
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
+            current_return_type: None,
         }
     }
 

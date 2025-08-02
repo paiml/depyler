@@ -261,6 +261,7 @@ impl TestGenerator {
     }
 
     /// Convert Python type to quickcheck-compatible type
+    #[allow(clippy::only_used_in_recursion)]
     fn type_to_quickcheck_type(&self, ty: &Type) -> proc_macro2::TokenStream {
         match ty {
             Type::Int => quote! { i32 },
@@ -434,6 +435,8 @@ enum TestProperty {
     Sorted,
     SameElements,
     Idempotent,
+    #[allow(dead_code)]
     Distributive,
+    #[allow(dead_code)]
     Monotonic,
 }

@@ -282,6 +282,8 @@ mod tests {
             always_terminates: true,
             panic_free: false,
             max_stack_depth: None,
+            can_fail: false,
+            error_types: vec![],
         };
 
         let func = create_test_function(
@@ -432,6 +434,8 @@ mod tests {
             always_terminates: true,
             panic_free: true,
             max_stack_depth: Some(10),
+            can_fail: false,
+            error_types: vec![],
         };
 
         let func = create_test_function(

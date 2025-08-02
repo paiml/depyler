@@ -221,6 +221,7 @@ impl LifetimeInference {
     }
 
     /// Analyze how parameters are used in the function body
+    #[allow(dead_code)]
     fn analyze_parameter_usage(&mut self, func: &HirFunction) {
         for (param_name, _param_type) in &func.params {
             let mut usage = ParamUsage::default();
@@ -232,6 +233,7 @@ impl LifetimeInference {
     }
 
     /// Recursively analyze statements for parameter usage
+    #[allow(dead_code)]
     fn analyze_stmt_for_param(
         &self,
         param: &str,
@@ -292,7 +294,7 @@ impl LifetimeInference {
     }
 
     /// Analyze expressions for parameter usage
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(dead_code, clippy::only_used_in_recursion)]
     fn analyze_expr_for_param(
         &self,
         param: &str,
@@ -409,6 +411,7 @@ impl LifetimeInference {
     }
 
     /// Infer parameter lifetimes based on usage analysis
+    #[allow(dead_code)]
     fn infer_parameter_lifetimes(
         &mut self,
         func: &HirFunction,
