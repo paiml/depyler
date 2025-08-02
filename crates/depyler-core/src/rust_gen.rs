@@ -1,5 +1,7 @@
 use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
+use crate::borrowing::{BorrowingContext, BorrowingPattern};
 use crate::hir::*;
+use crate::string_optimization::{StringContext, StringOptimizer};
 use anyhow::{bail, Result};
 use quote::quote;
 use std::collections::HashSet;
@@ -9,6 +11,7 @@ use syn::{self, parse_quote};
 pub struct CodeGenContext<'a> {
     pub type_mapper: &'a crate::type_mapper::TypeMapper,
     pub annotation_aware_mapper: AnnotationAwareTypeMapper,
+    pub string_optimizer: StringOptimizer,
     pub needs_hashmap: bool,
     pub needs_fnv_hashmap: bool,
     pub needs_ahash_hashmap: bool,
@@ -53,6 +56,7 @@ pub fn generate_rust_file(
     let mut ctx = CodeGenContext {
         type_mapper,
         annotation_aware_mapper: AnnotationAwareTypeMapper::with_base_mapper(type_mapper.clone()),
+        string_optimizer: StringOptimizer::new(),
         needs_hashmap: false,
         needs_fnv_hashmap: false,
         needs_ahash_hashmap: false,
@@ -122,7 +126,14 @@ impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         let name = syn::Ident::new(&self.name, proc_macro2::Span::call_site());
 
-        // Convert parameters using annotation-aware mapping
+        // Analyze function for borrowing patterns
+        let mut borrowing_ctx = BorrowingContext::new();
+        borrowing_ctx.analyze_function(self);
+        
+        // Analyze function for string optimization
+        ctx.string_optimizer.analyze_function(self);
+
+        // Convert parameters using borrowing analysis
         let params: Vec<_> = self
             .params
             .iter()
@@ -137,14 +148,12 @@ impl RustCodeGen for HirFunction {
 
                 let ty = rust_type_to_syn(&rust_type)?;
 
-                // Use references based on annotations
-                let ty = if ctx
-                    .annotation_aware_mapper
-                    .needs_reference_with_annotations(&rust_type, &self.annotations)
-                {
-                    parse_quote! { &#ty }
-                } else {
-                    ty
+                // Use borrowing pattern from analysis
+                let pattern = borrowing_ctx.get_pattern(param_name, param_type);
+                let ty = match pattern {
+                    BorrowingPattern::Owned => ty,
+                    BorrowingPattern::Borrowed => parse_quote! { &#ty },
+                    BorrowingPattern::MutableBorrow => parse_quote! { &mut #ty },
                 };
 
                 Ok(quote! { #param_ident: #ty })
@@ -480,7 +489,7 @@ impl ToRustExpr for HirExpr {
         let mut converter = ExpressionConverter::new(ctx);
 
         match self {
-            HirExpr::Literal(lit) => Ok(literal_to_rust_expr(lit)),
+            HirExpr::Literal(lit) => Ok(literal_to_rust_expr(lit, &ctx.string_optimizer)),
             HirExpr::Var(name) => converter.convert_variable(name),
             HirExpr::Binary { op, left, right } => converter.convert_binary(*op, left, right),
             HirExpr::Unary { op, operand } => converter.convert_unary(op, operand),
@@ -495,7 +504,7 @@ impl ToRustExpr for HirExpr {
     }
 }
 
-fn literal_to_rust_expr(lit: &Literal) -> syn::Expr {
+fn literal_to_rust_expr(lit: &Literal, string_optimizer: &StringOptimizer) -> syn::Expr {
     match lit {
         Literal::Int(n) => {
             let lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
@@ -507,7 +516,23 @@ fn literal_to_rust_expr(lit: &Literal) -> syn::Expr {
         }
         Literal::String(s) => {
             let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-            parse_quote! { #lit.to_string() }
+            
+            // Use string optimizer to determine if we need .to_string()
+            let context = StringContext::Literal(s.clone());
+            match string_optimizer.get_optimal_type(&context) {
+                crate::string_optimization::OptimalStringType::StaticStr => {
+                    // For read-only strings, just use the literal
+                    parse_quote! { #lit }
+                }
+                crate::string_optimization::OptimalStringType::CowStr => {
+                    // Use Cow for flexible ownership
+                    parse_quote! { std::borrow::Cow::Borrowed(#lit) }
+                }
+                _ => {
+                    // Default to owned String
+                    parse_quote! { #lit.to_string() }
+                }
+            }
         }
         Literal::Bool(b) => {
             let lit = syn::LitBool::new(*b, proc_macro2::Span::call_site());
@@ -744,6 +769,7 @@ mod tests {
             annotation_aware_mapper: AnnotationAwareTypeMapper::with_base_mapper(
                 type_mapper.clone(),
             ),
+            string_optimizer: StringOptimizer::new(),
             needs_hashmap: false,
             needs_fnv_hashmap: false,
             needs_ahash_hashmap: false,

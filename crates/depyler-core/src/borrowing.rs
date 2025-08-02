@@ -72,7 +72,7 @@ impl BorrowingContext {
     pub fn generate_param_signature(&self, param_name: &str, param_type: &Type) -> String {
         let pattern = self.get_pattern(param_name, param_type);
         let type_str = self.type_to_rust_string(param_type);
-
+        
         match pattern {
             BorrowingPattern::Owned => format!("{}: {}", param_name, type_str),
             BorrowingPattern::Borrowed => format!("{}: &{}", param_name, type_str),
@@ -84,7 +84,7 @@ impl BorrowingContext {
         match stmt {
             HirStmt::Assign { target, value } => {
                 // Check if we're assigning to a parameter
-                if let HirExpr::Name(name) = target {
+                if let HirExpr::Var(name) = target {
                     self.mutated_params.insert(name.clone());
                 }
                 // Check if we're assigning a parameter (escaping)
@@ -99,12 +99,8 @@ impl BorrowingContext {
             HirStmt::Expr(expr) => {
                 self.analyze_expr(expr);
             }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
-                self.analyze_expr(condition);
+            HirStmt::If { test, then_body, else_body } => {
+                self.analyze_expr(test);
                 for stmt in then_body {
                     self.analyze_stmt(stmt);
                 }
@@ -122,11 +118,7 @@ impl BorrowingContext {
                     self.analyze_stmt(stmt);
                 }
             }
-            HirStmt::For {
-                target: _,
-                iter,
-                body,
-            } => {
+            HirStmt::For { target: _, iter, body } => {
                 self.analyze_expr(iter);
                 // Mark parameters used in loops
                 self.mark_loop_params(body);
@@ -178,14 +170,14 @@ impl BorrowingContext {
 
     fn check_escaping_expr(&mut self, expr: &HirExpr) {
         match expr {
-            HirExpr::Name(name) => {
+            HirExpr::Var(name) => {
                 // Direct return of parameter
                 self.escaping_params.insert(name.clone());
             }
             HirExpr::List(elts) | HirExpr::Tuple(elts) => {
                 // Parameters in collections that are returned
                 for elt in elts {
-                    if let HirExpr::Name(name) = elt {
+                    if let HirExpr::Var(name) = elt {
                         self.escaping_params.insert(name.clone());
                     }
                 }
@@ -209,18 +201,20 @@ impl BorrowingContext {
     }
 
     fn find_params_in_expr(&mut self, expr: &HirExpr) {
-        if let HirExpr::Name(name) = expr {
-            if self.read_only_params.contains(name)
-                || self.mutated_params.contains(name)
-                || self.escaping_params.contains(name)
-            {
+        if let HirExpr::Var(name) = expr {
+            if self.read_only_params.contains(name) 
+                || self.mutated_params.contains(name) 
+                || self.escaping_params.contains(name) {
                 self.loop_used_params.insert(name.clone());
             }
         }
     }
 
     fn is_copyable(&self, ty: &Type) -> bool {
-        matches!(ty, Type::Int | Type::Float | Type::Bool | Type::None)
+        matches!(
+            ty,
+            Type::Int | Type::Float | Type::Bool | Type::None
+        )
     }
 
     fn type_to_rust_string(&self, ty: &Type) -> String {
@@ -232,17 +226,18 @@ impl BorrowingContext {
             Type::Bool => "bool".to_string(),
             Type::None => "()".to_string(),
             Type::List(inner) => format!("Vec<{}>", self.type_to_rust_string(inner)),
-            Type::Dict(k, v) => format!(
-                "HashMap<{}, {}>",
-                self.type_to_rust_string(k),
+            Type::Dict(k, v) => format!("HashMap<{}, {}>", 
+                self.type_to_rust_string(k), 
                 self.type_to_rust_string(v)
             ),
             Type::Tuple(types) => {
                 if types.is_empty() {
                     "()".to_string()
                 } else {
-                    let type_strs: Vec<String> =
-                        types.iter().map(|t| self.type_to_rust_string(t)).collect();
+                    let type_strs: Vec<String> = types
+                        .iter()
+                        .map(|t| self.type_to_rust_string(t))
+                        .collect();
                     format!("({})", type_strs.join(", "))
                 }
             }
@@ -261,15 +256,17 @@ mod tests {
     #[test]
     fn test_read_only_parameter() {
         let mut ctx = BorrowingContext::new();
-
+        
         let func = HirFunction {
             name: "test".to_string(),
             params: vec![("x".to_string(), Type::String)],
             ret_type: Type::Int,
-            body: vec![HirStmt::Return(Some(HirExpr::Call {
-                func: "len".to_string(),
-                args: vec![HirExpr::Name("x".to_string())],
-            }))],
+            body: vec![
+                HirStmt::Return(Some(HirExpr::Call {
+                    func: "len".to_string(),
+                    args: vec![HirExpr::Var("x".to_string())],
+                }))
+            ],
         };
 
         ctx.analyze_function(&func);
@@ -282,18 +279,20 @@ mod tests {
     #[test]
     fn test_mutated_parameter() {
         let mut ctx = BorrowingContext::new();
-
+        
         let func = HirFunction {
             name: "test".to_string(),
             params: vec![("x".to_string(), Type::List(Box::new(Type::Int)))],
             ret_type: Type::None,
-            body: vec![HirStmt::Expr(HirExpr::Call {
-                func: "append".to_string(),
-                args: vec![
-                    HirExpr::Name("x".to_string()),
-                    HirExpr::Literal(Literal::Int(42)),
-                ],
-            })],
+            body: vec![
+                HirStmt::Expr(HirExpr::Call {
+                    func: "append".to_string(),
+                    args: vec![
+                        HirExpr::Var("x".to_string()),
+                        HirExpr::Literal(Literal::Int(42)),
+                    ],
+                })
+            ],
         };
 
         ctx.analyze_function(&func);
@@ -304,41 +303,51 @@ mod tests {
     #[test]
     fn test_escaping_parameter() {
         let mut ctx = BorrowingContext::new();
-
+        
         let func = HirFunction {
             name: "test".to_string(),
             params: vec![("x".to_string(), Type::String)],
             ret_type: Type::String,
-            body: vec![HirStmt::Return(Some(HirExpr::Name("x".to_string())))],
+            body: vec![
+                HirStmt::Return(Some(HirExpr::Var("x".to_string())))
+            ],
         };
 
         ctx.analyze_function(&func);
-        assert_eq!(ctx.get_pattern("x", &Type::String), BorrowingPattern::Owned);
+        assert_eq!(
+            ctx.get_pattern("x", &Type::String),
+            BorrowingPattern::Owned
+        );
     }
 
     #[test]
     fn test_copyable_parameter() {
         let mut ctx = BorrowingContext::new();
-
+        
         let func = HirFunction {
             name: "test".to_string(),
             params: vec![("x".to_string(), Type::Int)],
             ret_type: Type::Int,
-            body: vec![HirStmt::Return(Some(HirExpr::BinOp {
-                op: BinOp::Add,
-                left: Box::new(HirExpr::Name("x".to_string())),
-                right: Box::new(HirExpr::Literal(Literal::Int(1))),
-            }))],
+            body: vec![
+                HirStmt::Return(Some(HirExpr::BinOp {
+                    op: BinOp::Add,
+                    left: Box::new(HirExpr::Var("x".to_string())),
+                    right: Box::new(HirExpr::Literal(Literal::Int(1))),
+                }))
+            ],
         };
 
         ctx.analyze_function(&func);
-        assert_eq!(ctx.get_pattern("x", &Type::Int), BorrowingPattern::Owned);
+        assert_eq!(
+            ctx.get_pattern("x", &Type::Int),
+            BorrowingPattern::Owned
+        );
     }
 
     #[test]
     fn test_generate_param_signature() {
         let ctx = BorrowingContext::new();
-
+        
         // Test borrowed string
         let mut ctx_borrow = BorrowingContext::new();
         ctx_borrow.read_only_params.insert("s".to_string());
@@ -346,8 +355,11 @@ mod tests {
             ctx_borrow.generate_param_signature("s", &Type::String),
             "s: &String"
         );
-
+        
         // Test owned int
-        assert_eq!(ctx.generate_param_signature("n", &Type::Int), "n: i32");
+        assert_eq!(
+            ctx.generate_param_signature("n", &Type::Int),
+            "n: i32"
+        );
     }
 }
