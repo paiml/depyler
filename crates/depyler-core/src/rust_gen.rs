@@ -66,7 +66,12 @@ pub fn generate_rust_file(
         declared_vars: vec![HashSet::new()],
     };
 
-    // Convert all functions first to detect what imports we need
+    // Analyze all functions first for string optimization
+    for func in &module.functions {
+        ctx.string_optimizer.analyze_function(func);
+    }
+
+    // Convert all functions to detect what imports we need
     let functions: Vec<_> = module
         .functions
         .iter()
@@ -74,6 +79,13 @@ pub fn generate_rust_file(
         .collect::<Result<Vec<_>>>()?;
 
     let mut items = Vec::new();
+
+    // Add interned string constants at the top
+    let interned_constants = ctx.string_optimizer.generate_interned_constants();
+    for constant in interned_constants {
+        let tokens: proc_macro2::TokenStream = constant.parse().unwrap_or_default();
+        items.push(tokens);
+    }
 
     // Add imports if needed
     if ctx.needs_hashmap {
@@ -130,8 +142,7 @@ impl RustCodeGen for HirFunction {
         let mut borrowing_ctx = BorrowingContext::new();
         borrowing_ctx.analyze_function(self);
 
-        // Analyze function for string optimization
-        ctx.string_optimizer.analyze_function(self);
+        // Note: String optimization is done at module level now
 
         // Convert parameters using borrowing analysis
         let params: Vec<_> = self
@@ -489,7 +500,19 @@ impl ToRustExpr for HirExpr {
         let mut converter = ExpressionConverter::new(ctx);
 
         match self {
-            HirExpr::Literal(lit) => Ok(literal_to_rust_expr(lit, &ctx.string_optimizer)),
+            HirExpr::Literal(lit) => {
+                let expr = literal_to_rust_expr(lit, &ctx.string_optimizer, &ctx.needs_cow);
+                if let Literal::String(s) = lit {
+                    let context = StringContext::Literal(s.clone());
+                    if matches!(
+                        ctx.string_optimizer.get_optimal_type(&context),
+                        crate::string_optimization::OptimalStringType::CowStr
+                    ) {
+                        ctx.needs_cow = true;
+                    }
+                }
+                Ok(expr)
+            }
             HirExpr::Var(name) => converter.convert_variable(name),
             HirExpr::Binary { op, left, right } => converter.convert_binary(*op, left, right),
             HirExpr::Unary { op, operand } => converter.convert_unary(op, operand),
@@ -504,7 +527,7 @@ impl ToRustExpr for HirExpr {
     }
 }
 
-fn literal_to_rust_expr(lit: &Literal, string_optimizer: &StringOptimizer) -> syn::Expr {
+fn literal_to_rust_expr(lit: &Literal, string_optimizer: &StringOptimizer, _needs_cow: &bool) -> syn::Expr {
     match lit {
         Literal::Int(n) => {
             let lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
@@ -515,22 +538,32 @@ fn literal_to_rust_expr(lit: &Literal, string_optimizer: &StringOptimizer) -> sy
             parse_quote! { #lit }
         }
         Literal::String(s) => {
-            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+            // Check if this string should be interned
+            if let Some(interned_name) = string_optimizer.get_interned_name(s) {
+                let ident = syn::Ident::new(&interned_name, proc_macro2::Span::call_site());
+                parse_quote! { #ident }
+            } else {
+                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
 
-            // Use string optimizer to determine if we need .to_string()
-            let context = StringContext::Literal(s.clone());
-            match string_optimizer.get_optimal_type(&context) {
-                crate::string_optimization::OptimalStringType::StaticStr => {
-                    // For read-only strings, just use the literal
-                    parse_quote! { #lit }
-                }
-                crate::string_optimization::OptimalStringType::CowStr => {
-                    // Use Cow for flexible ownership
-                    parse_quote! { std::borrow::Cow::Borrowed(#lit) }
-                }
-                _ => {
-                    // Default to owned String
-                    parse_quote! { #lit.to_string() }
+                // Use string optimizer to determine if we need .to_string()
+                let context = StringContext::Literal(s.clone());
+                match string_optimizer.get_optimal_type(&context) {
+                    crate::string_optimization::OptimalStringType::StaticStr => {
+                        // For read-only strings, just use the literal
+                        parse_quote! { #lit }
+                    }
+                    crate::string_optimization::OptimalStringType::BorrowedStr { .. } => {
+                        // Use &'static str for literals that can be borrowed
+                        parse_quote! { #lit }
+                    }
+                    crate::string_optimization::OptimalStringType::CowStr => {
+                        // Use Cow for flexible ownership
+                        parse_quote! { std::borrow::Cow::Borrowed(#lit) }
+                    }
+                    crate::string_optimization::OptimalStringType::OwnedString => {
+                        // Only use .to_string() when absolutely necessary
+                        parse_quote! { #lit.to_string() }
+                    }
                 }
             }
         }
