@@ -540,7 +540,19 @@ impl RustCodeGen for HirStmt {
             }
             HirStmt::For { target, iter, body } => {
                 let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
-                let iter_expr = iter.to_rust_expr(ctx)?;
+                let mut iter_expr = iter.to_rust_expr(ctx)?;
+                
+                // Check if we're iterating over a borrowed collection
+                // If iter is a simple variable that refers to a borrowed collection (e.g., &Vec<T>),
+                // we need to add .iter() to properly iterate over it
+                if let HirExpr::Var(_var_name) = iter {
+                    // This is a simple heuristic: if the expression is just a variable name,
+                    // it's likely a parameter or local var that might be borrowed
+                    // The generated code already has the variable as borrowed (e.g., data: &Vec<T>)
+                    // so we need to call .iter() on it
+                    iter_expr = parse_quote! { #iter_expr.iter() };
+                }
+                
                 ctx.enter_scope();
                 ctx.declare_var(target); // for loop variable is declared in the loop scope
                 let body_stmts: Vec<_> = body
@@ -608,6 +620,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             BinOp::NotIn => {
                 // Convert "x not in dict" to "!dict.contains_key(&x)"
                 Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+            }
+            BinOp::Add => {
+                // Special handling for string concatenation
+                // When concatenating strings in a for loop over borrowed strings,
+                // we need to handle references properly
+                // Check if we're doing string concatenation (heuristic: if right is a string literal)
+                if matches!(right, HirExpr::Literal(Literal::String(_))) {
+                    // Use format! macro for string concatenation to handle references
+                    Ok(parse_quote! { format!("{}{}", #left_expr, #right_expr) })
+                } else {
+                    let rust_op = convert_binop(op)?;
+                    Ok(parse_quote! { (#left_expr #rust_op #right_expr) })
+                }
             }
             BinOp::Sub => {
                 // Check if we're subtracting from a .len() call to prevent underflow
