@@ -1,4 +1,5 @@
 pub mod contracts;
+pub mod lifetime_analysis;
 pub mod memory_safety;
 pub mod properties;
 pub mod quickcheck;
@@ -80,6 +81,30 @@ impl PropertyVerifier {
         // Property 2: Memory safety
         let mut memory_analyzer = memory_safety::MemorySafetyAnalyzer::new();
         results.push(memory_analyzer.analyze_function(func));
+        
+        // Property 2b: Lifetime safety
+        let mut lifetime_analyzer = lifetime_analysis::LifetimeAnalyzer::new();
+        let lifetime_violations = lifetime_analyzer.analyze_function(func);
+        if lifetime_violations.is_empty() {
+            results.push(VerificationResult {
+                property: "lifetime_safety".into(),
+                status: PropertyStatus::Proven,
+                confidence: 1.0,
+                method: VerificationMethod::StaticAnalysis,
+                counterexamples: vec![],
+            });
+        } else {
+            results.push(VerificationResult {
+                property: "lifetime_safety".into(),
+                status: PropertyStatus::Violated(format!(
+                    "{} lifetime violations found",
+                    lifetime_violations.len()
+                )),
+                confidence: 1.0,
+                method: VerificationMethod::StaticAnalysis,
+                counterexamples: vec![],
+            });
+        }
 
         // Property 3: Null safety
         let null_violations = memory_safety::check_null_safety(func);
