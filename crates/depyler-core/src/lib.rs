@@ -11,6 +11,7 @@ pub mod lambda_inference;
 pub mod lambda_optimizer;
 pub mod lambda_testing;
 pub mod lambda_types;
+pub mod lifetime_analysis;
 pub mod optimization;
 pub mod rust_gen;
 pub mod string_optimization;
