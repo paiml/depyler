@@ -251,6 +251,10 @@ impl BorrowingContext {
             Type::Optional(inner) => format!("Option<{}>", self.type_to_rust_string(inner)),
             Type::Function { .. } => "/* function */".to_string(),
             Type::Custom(name) => name.clone(),
+            Type::TypeVar(name) => name.clone(),
+            Type::Generic { base, .. } => base.clone(),
+            Type::Union(_) => "Union".to_string(),
+            Type::Array { element_type, .. } => format!("Array<{}>", self.type_to_rust_string(element_type)),
         }
     }
 }

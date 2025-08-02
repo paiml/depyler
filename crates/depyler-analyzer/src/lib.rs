@@ -229,6 +229,8 @@ mod tests {
         let module = HirModule {
             functions: vec![],
             imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
         };
 
         let result = analyzer.analyze(&module).unwrap();
@@ -245,6 +247,8 @@ mod tests {
         let module = HirModule {
             functions: vec![func],
             imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
         };
 
         let result = analyzer.analyze(&module).unwrap();
@@ -285,6 +289,8 @@ mod tests {
         let module = HirModule {
             functions: vec![func_with_types, func_without_types],
             imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
         };
 
         let coverage = analyzer.calculate_type_coverage(&module);
