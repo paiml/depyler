@@ -438,7 +438,9 @@ impl Default for AnnotationParser {
 impl AnnotationParser {
     pub fn new() -> Self {
         let pattern =
-            Regex::new(r"#\s*@depyler:\s*(\w+)\s*=\s*(.+)").expect("Invalid regex pattern");
+            // This regex is statically known to be valid
+            Regex::new(r"#\s*@depyler:\s*(\w+)\s*=\s*(.+)")
+                .unwrap_or_else(|e| panic!("Failed to compile annotation regex: {}", e));
         Self { pattern }
     }
 
@@ -533,7 +535,11 @@ impl AnnotationParser {
                         "throughput" => annotations
                             .performance_hints
                             .push(PerformanceHint::OptimizeForThroughput),
-                        "async_ready" => {} // TODO: Add async support in future
+                        "async_ready" => {
+                            // Async support requires tokio/async-std integration
+                            // Annotate functions as async-ready for future implementation
+                            eprintln!("Warning: async_ready is experimental and not yet fully supported");
+                        }
                         _ => return Err(AnnotationError::InvalidValue { key, value }),
                     }
                 }
