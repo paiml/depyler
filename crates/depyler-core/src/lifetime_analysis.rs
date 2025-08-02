@@ -3,6 +3,7 @@
 //! This module implements sophisticated lifetime inference to generate
 //! idiomatic Rust code with proper borrowing and ownership patterns.
 
+use crate::borrowing_context::{BorrowingContext, BorrowingStrategy};
 use crate::hir::{HirExpr, HirFunction, HirStmt};
 use crate::type_mapper::RustType;
 use indexmap::IndexMap;
@@ -88,6 +89,8 @@ pub struct LifetimeResult {
     pub lifetime_params: Vec<String>,
     /// Lifetime bounds (e.g., "'a: 'b")
     pub lifetime_bounds: Vec<(String, String)>,
+    /// Borrowing strategies for parameters
+    pub borrowing_strategies: IndexMap<String, BorrowingStrategy>,
 }
 
 /// Inferred parameter information
@@ -126,6 +129,7 @@ impl LifetimeInference {
     }
 
     /// Add a lifetime constraint (from outlives to)
+    #[allow(dead_code)]
     fn add_constraint(&mut self, from: &str, to: &str, _constraint: LifetimeConstraint) {
         self.lifetime_constraints
             .entry(from.to_string())
@@ -139,34 +143,80 @@ impl LifetimeInference {
         func: &HirFunction,
         type_mapper: &crate::type_mapper::TypeMapper,
     ) -> LifetimeResult {
-        // First, analyze how each parameter is used
-        self.analyze_parameter_usage(func);
+        // Use enhanced borrowing context for comprehensive analysis
+        let mut borrowing_ctx = BorrowingContext::new(Some(func.ret_type.clone()));
+        let borrowing_result = borrowing_ctx.analyze_function(func, type_mapper);
 
-        // Then infer lifetimes based on usage patterns
-        let param_lifetimes = self.infer_parameter_lifetimes(func, type_mapper);
+        // Convert borrowing strategies to lifetime information
+        let mut param_lifetimes = IndexMap::new();
+        let mut lifetime_params = HashSet::new();
+
+        for (param_name, param_type) in &func.params {
+            let strategy = borrowing_result
+                .param_strategies
+                .get(param_name)
+                .cloned()
+                .unwrap_or(BorrowingStrategy::TakeOwnership);
+
+            let rust_type = type_mapper.map_type(param_type);
+
+            let (should_borrow, needs_mut, lifetime) = match strategy {
+                BorrowingStrategy::BorrowImmutable { lifetime } => {
+                    let lt = lifetime.unwrap_or_else(|| self.next_lifetime());
+                    lifetime_params.insert(lt.clone());
+                    (true, false, Some(lt))
+                }
+                BorrowingStrategy::BorrowMutable { lifetime } => {
+                    let lt = lifetime.unwrap_or_else(|| self.next_lifetime());
+                    lifetime_params.insert(lt.clone());
+                    (true, true, Some(lt))
+                }
+                BorrowingStrategy::UseCow { lifetime } => {
+                    lifetime_params.insert(lifetime.clone());
+                    // Cow is not a borrow, it's a flexible ownership type
+                    (false, false, Some(lifetime))
+                }
+                _ => (false, false, None),
+            };
+
+            if let Some(ref lt) = lifetime {
+                self.variable_lifetimes.insert(
+                    param_name.clone(),
+                    LifetimeInfo {
+                        name: lt.clone(),
+                        is_static: lt == "'static",
+                        outlives: HashSet::new(),
+                        source: LifetimeSource::Parameter(param_name.clone()),
+                    },
+                );
+            }
+
+            param_lifetimes.insert(
+                param_name.clone(),
+                InferredParam {
+                    should_borrow,
+                    needs_mut,
+                    lifetime,
+                    rust_type,
+                },
+            );
+        }
 
         // Analyze return type lifetime requirements
         let return_lifetime = self.analyze_return_lifetime(func, type_mapper);
-
-        // Compute lifetime bounds from the constraint graph
-        let lifetime_bounds = self.compute_lifetime_bounds();
-
-        // Collect all unique lifetime parameters
-        let mut lifetime_params = HashSet::new();
-        for param in param_lifetimes.values() {
-            if let Some(ref lt) = param.lifetime {
-                lifetime_params.insert(lt.clone());
-            }
-        }
         if let Some(ref lt) = return_lifetime {
             lifetime_params.insert(lt.clone());
         }
+
+        // Compute lifetime bounds from the constraint graph
+        let lifetime_bounds = self.compute_lifetime_bounds();
 
         LifetimeResult {
             param_lifetimes,
             return_lifetime,
             lifetime_params: lifetime_params.into_iter().collect(),
             lifetime_bounds,
+            borrowing_strategies: borrowing_result.param_strategies,
         }
     }
 
@@ -228,6 +278,14 @@ impl LifetimeInference {
                 self.analyze_expr_for_param(param, iter, usage, true, false);
                 for stmt in body {
                     self.analyze_stmt_for_param(param, stmt, usage, true);
+                }
+            }
+            HirStmt::Raise { exception, cause } => {
+                if let Some(exc) = exception {
+                    self.analyze_expr_for_param(param, exc, usage, in_loop, false);
+                }
+                if let Some(c) = cause {
+                    self.analyze_expr_for_param(param, c, usage, in_loop, false);
                 }
             }
         }
@@ -302,8 +360,50 @@ impl LifetimeInference {
                 self.analyze_expr_for_param(param, operand, usage, in_loop, false);
             }
             HirExpr::Literal(_) => {}
+            HirExpr::MethodCall { object, args, .. } => {
+                self.analyze_expr_for_param(param, object, usage, in_loop, in_return);
+                for arg in args {
+                    self.analyze_expr_for_param(param, arg, usage, in_loop, in_return);
+                }
+            }
+            HirExpr::Slice {
+                base,
+                start,
+                stop,
+                step,
+            } => {
+                self.analyze_expr_for_param(param, base, usage, in_loop, in_return);
+                if let Some(s) = start {
+                    self.analyze_expr_for_param(param, s, usage, in_loop, in_return);
+                }
+                if let Some(s) = stop {
+                    self.analyze_expr_for_param(param, s, usage, in_loop, in_return);
+                }
+                if let Some(s) = step {
+                    self.analyze_expr_for_param(param, s, usage, in_loop, in_return);
+                }
+            }
             HirExpr::Borrow { expr, .. } => {
                 self.analyze_expr_for_param(param, expr, usage, in_loop, in_return);
+            }
+            HirExpr::ListComp {
+                element,
+                target,
+                iter,
+                condition,
+            } => {
+                // List comprehensions create a new scope, so the target variable
+                // shadows any outer variable with the same name
+                if target != param {
+                    // Only analyze if the comprehension target doesn't shadow our parameter
+                    self.analyze_expr_for_param(param, iter, usage, true, false);
+                    self.analyze_expr_for_param(param, element, usage, true, in_return);
+                    if let Some(cond) = condition {
+                        self.analyze_expr_for_param(param, cond, usage, true, false);
+                    }
+                }
+                // If target shadows param, we don't analyze element/condition
+                // since they would refer to the comprehension variable, not the parameter
             }
         }
     }
@@ -455,6 +555,7 @@ impl LifetimeInference {
                 return_lifetime: None,
                 lifetime_params: vec![],
                 lifetime_bounds: vec![],
+                borrowing_strategies: full_result.borrowing_strategies,
             });
         }
 
@@ -467,6 +568,7 @@ impl LifetimeInference {
                     return_lifetime: None,   // Elided
                     lifetime_params: vec![], // No explicit lifetimes needed
                     lifetime_bounds: vec![],
+                    borrowing_strategies: full_result.borrowing_strategies,
                 });
             }
         }
@@ -479,6 +581,7 @@ impl LifetimeInference {
                     return_lifetime: None, // Uses self's lifetime implicitly
                     lifetime_params: vec![],
                     lifetime_bounds: vec![],
+                    borrowing_strategies: full_result.borrowing_strategies,
                 });
             }
         }
@@ -621,9 +724,10 @@ mod tests {
 
         let result = inference.analyze_function(&func, &type_mapper);
 
-        // Should detect that 's' is mutated
+        // When a string parameter is reassigned (mutated in Python terms),
+        // Rust requires ownership since strings are not Copy
         let s_param = result.param_lifetimes.get("s").unwrap();
-        assert!(s_param.should_borrow);
-        assert!(s_param.needs_mut);
+        assert!(!s_param.should_borrow); // Should take ownership
+        assert!(!s_param.needs_mut); // Not a mutable borrow
     }
 }

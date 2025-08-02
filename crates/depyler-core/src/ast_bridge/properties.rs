@@ -4,11 +4,14 @@ pub struct FunctionAnalyzer;
 
 impl FunctionAnalyzer {
     pub fn analyze(body: &[HirStmt]) -> FunctionProperties {
+        let (can_fail, error_types) = Self::check_can_fail(body);
         FunctionProperties {
             is_pure: Self::check_pure(body),
             always_terminates: Self::check_termination(body),
             panic_free: Self::check_panic_free(body),
             max_stack_depth: Self::calculate_max_stack_depth(body),
+            can_fail,
+            error_types,
         }
     }
 
@@ -104,6 +107,7 @@ impl FunctionAnalyzer {
             HirStmt::For { iter, body, .. } => {
                 Self::expr_has_panic_risk(iter) || body.iter().any(Self::has_panic_risk)
             }
+            HirStmt::Raise { .. } => true, // Raise statements can fail
             _ => false,
         }
     }
@@ -120,6 +124,129 @@ impl FunctionAnalyzer {
             }
             HirExpr::Call { args, .. } => args.iter().any(Self::expr_has_panic_risk),
             _ => false,
+        }
+    }
+
+    fn check_can_fail(body: &[HirStmt]) -> (bool, Vec<String>) {
+        let mut error_types = Vec::new();
+        let mut can_fail = false;
+
+        for stmt in body {
+            let (stmt_can_fail, mut stmt_errors) = Self::stmt_can_fail(stmt);
+            if stmt_can_fail {
+                can_fail = true;
+                error_types.append(&mut stmt_errors);
+            }
+        }
+
+        // Remove duplicates
+        error_types.sort();
+        error_types.dedup();
+
+        (can_fail, error_types)
+    }
+
+    fn stmt_can_fail(stmt: &HirStmt) -> (bool, Vec<String>) {
+        match stmt {
+            HirStmt::Raise { exception, .. } => {
+                let error_type = Self::extract_exception_type(exception);
+                (true, vec![error_type])
+            }
+            HirStmt::Expr(expr) | HirStmt::Assign { value: expr, .. } => Self::expr_can_fail(expr),
+            HirStmt::Return(Some(expr)) => Self::expr_can_fail(expr),
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
+                let (cond_fail, cond_errors) = Self::expr_can_fail(condition);
+                let (then_fail, mut then_errors) = Self::check_can_fail(then_body);
+                let (else_fail, mut else_errors) = else_body
+                    .as_ref()
+                    .map(|b| Self::check_can_fail(b))
+                    .unwrap_or((false, Vec::new()));
+
+                let mut all_errors = cond_errors;
+                all_errors.append(&mut then_errors);
+                all_errors.append(&mut else_errors);
+
+                (cond_fail || then_fail || else_fail, all_errors)
+            }
+            HirStmt::While { condition, body } => {
+                let (cond_fail, cond_errors) = Self::expr_can_fail(condition);
+                let (body_fail, mut body_errors) = Self::check_can_fail(body);
+
+                let mut all_errors = cond_errors;
+                all_errors.append(&mut body_errors);
+
+                (cond_fail || body_fail, all_errors)
+            }
+            HirStmt::For { iter, body, .. } => {
+                let (iter_fail, iter_errors) = Self::expr_can_fail(iter);
+                let (body_fail, mut body_errors) = Self::check_can_fail(body);
+
+                let mut all_errors = iter_errors;
+                all_errors.append(&mut body_errors);
+
+                (iter_fail || body_fail, all_errors)
+            }
+            _ => (false, Vec::new()),
+        }
+    }
+
+    fn expr_can_fail(expr: &HirExpr) -> (bool, Vec<String>) {
+        match expr {
+            HirExpr::Index { .. } => (true, vec!["IndexError".to_string()]),
+            HirExpr::Binary {
+                op: BinOp::Div | BinOp::FloorDiv | BinOp::Mod,
+                ..
+            } => (true, vec!["ZeroDivisionError".to_string()]),
+            HirExpr::Call { func, args } => {
+                // Check if function can fail and combine with argument errors
+                let func_errors = match func.as_str() {
+                    "int" => vec!["ValueError".to_string()],
+                    _ => Vec::new(),
+                };
+
+                let (args_fail, mut args_errors) = Self::check_exprs_can_fail(args);
+                let mut all_errors = func_errors.clone();
+                all_errors.append(&mut args_errors);
+
+                (!func_errors.is_empty() || args_fail, all_errors)
+            }
+            HirExpr::Binary { left, right, .. } => {
+                let (left_fail, left_errors) = Self::expr_can_fail(left);
+                let (right_fail, mut right_errors) = Self::expr_can_fail(right);
+
+                let mut all_errors = left_errors;
+                all_errors.append(&mut right_errors);
+
+                (left_fail || right_fail, all_errors)
+            }
+            _ => (false, Vec::new()),
+        }
+    }
+
+    fn check_exprs_can_fail(exprs: &[HirExpr]) -> (bool, Vec<String>) {
+        let mut can_fail = false;
+        let mut all_errors = Vec::new();
+
+        for expr in exprs {
+            let (expr_fail, mut expr_errors) = Self::expr_can_fail(expr);
+            if expr_fail {
+                can_fail = true;
+                all_errors.append(&mut expr_errors);
+            }
+        }
+
+        (can_fail, all_errors)
+    }
+
+    fn extract_exception_type(exception: &Option<HirExpr>) -> String {
+        match exception {
+            Some(HirExpr::Call { func, .. }) => func.clone(),
+            Some(HirExpr::Var(name)) => name.clone(),
+            _ => "Exception".to_string(),
         }
     }
 
@@ -146,6 +273,7 @@ impl FunctionAnalyzer {
                 HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
                     Self::estimate_stack_depth(body, current + 1)
                 }
+                HirStmt::Raise { .. } => current, // Raise doesn't add stack depth
                 _ => current,
             };
             max_depth.max(stmt_depth)

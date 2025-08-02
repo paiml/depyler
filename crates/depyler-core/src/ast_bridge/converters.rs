@@ -20,6 +20,7 @@ impl StmtConverter {
             ast::Stmt::While(w) => Self::convert_while(w),
             ast::Stmt::For(f) => Self::convert_for(f),
             ast::Stmt::Expr(e) => Self::convert_expr_stmt(e),
+            ast::Stmt::Raise(r) => Self::convert_raise(r),
             _ => bail!("Statement type not yet supported"),
         }
     }
@@ -89,6 +90,12 @@ impl StmtConverter {
         let value = HirExpr::Binary { op, left, right };
         Ok(HirStmt::Assign { target, value })
     }
+
+    fn convert_raise(r: ast::StmtRaise) -> Result<HirStmt> {
+        let exception = r.exc.map(|e| super::convert_expr(*e)).transpose()?;
+        let cause = r.cause.map(|c| super::convert_expr(*c)).transpose()?;
+        Ok(HirStmt::Raise { exception, cause })
+    }
 }
 
 /// Expression converter to reduce complexity
@@ -107,6 +114,7 @@ impl ExprConverter {
             ast::Expr::Dict(d) => Self::convert_dict(d),
             ast::Expr::Tuple(t) => Self::convert_tuple(t),
             ast::Expr::Compare(c) => Self::convert_compare(c),
+            ast::Expr::ListComp(lc) => Self::convert_list_comp(lc),
             _ => bail!("Expression type not yet supported"),
         }
     }
@@ -145,23 +153,71 @@ impl ExprConverter {
     }
 
     fn convert_call(c: ast::ExprCall) -> Result<HirExpr> {
-        let func = if let ast::Expr::Name(n) = c.func.as_ref() {
-            n.id.to_string()
-        } else {
-            bail!("Only simple function calls supported")
-        };
         let args = c
             .args
             .into_iter()
             .map(Self::convert)
             .collect::<Result<Vec<_>>>()?;
-        Ok(HirExpr::Call { func, args })
+
+        match c.func.as_ref() {
+            ast::Expr::Name(n) => {
+                // Simple function call
+                let func = n.id.to_string();
+                Ok(HirExpr::Call { func, args })
+            }
+            ast::Expr::Attribute(attr) => {
+                // Method call
+                let object = Box::new(Self::convert(*attr.value.clone())?);
+                let method = attr.attr.to_string();
+                Ok(HirExpr::MethodCall {
+                    object,
+                    method,
+                    args,
+                })
+            }
+            _ => bail!("Unsupported function call type"),
+        }
     }
 
     fn convert_subscript(s: ast::ExprSubscript) -> Result<HirExpr> {
         let base = Box::new(Self::convert(*s.value)?);
-        let index = Box::new(Self::convert(*s.slice)?);
-        Ok(HirExpr::Index { base, index })
+
+        // Check if the slice is actually a slice expression or a simple index
+        match s.slice.as_ref() {
+            ast::Expr::Slice(slice_expr) => {
+                // Convert slice expression
+                let start = slice_expr
+                    .lower
+                    .as_ref()
+                    .map(|e| Self::convert(e.as_ref().clone()))
+                    .transpose()?
+                    .map(Box::new);
+                let stop = slice_expr
+                    .upper
+                    .as_ref()
+                    .map(|e| Self::convert(e.as_ref().clone()))
+                    .transpose()?
+                    .map(Box::new);
+                let step = slice_expr
+                    .step
+                    .as_ref()
+                    .map(|e| Self::convert(e.as_ref().clone()))
+                    .transpose()?
+                    .map(Box::new);
+
+                Ok(HirExpr::Slice {
+                    base,
+                    start,
+                    stop,
+                    step,
+                })
+            }
+            _ => {
+                // Regular indexing
+                let index = Box::new(Self::convert(*s.slice)?);
+                Ok(HirExpr::Index { base, index })
+            }
+        }
     }
 
     fn convert_list(l: ast::ExprList) -> Result<HirExpr> {
@@ -205,5 +261,42 @@ impl ExprConverter {
         let left = Box::new(Self::convert(*c.left)?);
         let right = Box::new(Self::convert(c.comparators.into_iter().next().unwrap())?);
         Ok(HirExpr::Binary { op, left, right })
+    }
+
+    fn convert_list_comp(lc: ast::ExprListComp) -> Result<HirExpr> {
+        // Convert only simple list comprehensions for now
+        if lc.generators.len() != 1 {
+            bail!("Nested list comprehensions not yet supported");
+        }
+
+        let generator = &lc.generators[0];
+
+        // Extract the target variable
+        let target = match &generator.target {
+            ast::Expr::Name(n) => n.id.to_string(),
+            _ => bail!("Complex comprehension targets not yet supported"),
+        };
+
+        // Convert the iterator expression
+        let iter = Box::new(Self::convert(generator.iter.clone())?);
+
+        // Convert the element expression
+        let element = Box::new(Self::convert(*lc.elt)?);
+
+        // Convert the condition if present
+        let condition = if generator.ifs.is_empty() {
+            None
+        } else if generator.ifs.len() == 1 {
+            Some(Box::new(Self::convert(generator.ifs[0].clone())?))
+        } else {
+            bail!("Multiple conditions in list comprehension not yet supported");
+        };
+
+        Ok(HirExpr::ListComp {
+            element,
+            target,
+            iter,
+            condition,
+        })
     }
 }

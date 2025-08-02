@@ -48,6 +48,8 @@ pub struct FunctionProperties {
     pub max_stack_depth: Option<usize>,
     pub always_terminates: bool,
     pub panic_free: bool,
+    pub can_fail: bool,
+    pub error_types: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -72,6 +74,11 @@ pub enum HirStmt {
         body: Vec<HirStmt>,
     },
     Expr(HirExpr),
+    // Basic exception support
+    Raise {
+        exception: Option<HirExpr>,
+        cause: Option<HirExpr>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -91,9 +98,20 @@ pub enum HirExpr {
         func: Symbol,
         args: Vec<HirExpr>,
     },
+    MethodCall {
+        object: Box<HirExpr>,
+        method: Symbol,
+        args: Vec<HirExpr>,
+    },
     Index {
         base: Box<HirExpr>,
         index: Box<HirExpr>,
+    },
+    Slice {
+        base: Box<HirExpr>,
+        start: Option<Box<HirExpr>>,
+        stop: Option<Box<HirExpr>>,
+        step: Option<Box<HirExpr>>,
     },
     Attribute {
         value: Box<HirExpr>,
@@ -106,6 +124,13 @@ pub enum HirExpr {
     Borrow {
         expr: Box<HirExpr>,
         mutable: bool,
+    },
+    // List comprehension
+    ListComp {
+        element: Box<HirExpr>,
+        target: Symbol,
+        iter: Box<HirExpr>,
+        condition: Option<Box<HirExpr>>,
     },
 }
 
