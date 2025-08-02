@@ -134,7 +134,11 @@ impl LifetimeInference {
     }
 
     /// Analyze a function to infer parameter lifetimes
-    pub fn analyze_function(&mut self, func: &HirFunction, type_mapper: &crate::type_mapper::TypeMapper) -> LifetimeResult {
+    pub fn analyze_function(
+        &mut self,
+        func: &HirFunction,
+        type_mapper: &crate::type_mapper::TypeMapper,
+    ) -> LifetimeResult {
         // First, analyze how each parameter is used
         self.analyze_parameter_usage(func);
 
@@ -178,7 +182,13 @@ impl LifetimeInference {
     }
 
     /// Recursively analyze statements for parameter usage
-    fn analyze_stmt_for_param(&self, param: &str, stmt: &HirStmt, usage: &mut ParamUsage, in_loop: bool) {
+    fn analyze_stmt_for_param(
+        &self,
+        param: &str,
+        stmt: &HirStmt,
+        usage: &mut ParamUsage,
+        in_loop: bool,
+    ) {
         match stmt {
             HirStmt::Expr(expr) => self.analyze_expr_for_param(param, expr, usage, in_loop, false),
             HirStmt::Assign { target, value } => {
@@ -193,7 +203,11 @@ impl LifetimeInference {
                     self.analyze_expr_for_param(param, expr, usage, in_loop, true);
                 }
             }
-            HirStmt::If { condition, then_body, else_body } => {
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
                 self.analyze_expr_for_param(param, condition, usage, in_loop, false);
                 for stmt in then_body {
                     self.analyze_stmt_for_param(param, stmt, usage, in_loop);
@@ -221,7 +235,14 @@ impl LifetimeInference {
 
     /// Analyze expressions for parameter usage
     #[allow(clippy::only_used_in_recursion)]
-    fn analyze_expr_for_param(&self, param: &str, expr: &HirExpr, usage: &mut ParamUsage, in_loop: bool, in_return: bool) {
+    fn analyze_expr_for_param(
+        &self,
+        param: &str,
+        expr: &HirExpr,
+        usage: &mut ParamUsage,
+        in_loop: bool,
+        in_return: bool,
+    ) {
         match expr {
             HirExpr::Var(id) => {
                 if id == param {
@@ -288,22 +309,32 @@ impl LifetimeInference {
     }
 
     /// Infer parameter lifetimes based on usage analysis
-    fn infer_parameter_lifetimes(&mut self, func: &HirFunction, type_mapper: &crate::type_mapper::TypeMapper) -> IndexMap<String, InferredParam> {
+    fn infer_parameter_lifetimes(
+        &mut self,
+        func: &HirFunction,
+        type_mapper: &crate::type_mapper::TypeMapper,
+    ) -> IndexMap<String, InferredParam> {
         let mut result = IndexMap::new();
 
         for (param_name, param_type) in &func.params {
-            let usage = self.param_analysis.get(param_name).cloned().unwrap_or_default();
+            let usage = self
+                .param_analysis
+                .get(param_name)
+                .cloned()
+                .unwrap_or_default();
             let rust_type = type_mapper.map_type(param_type);
-            
+
             // Determine if we should borrow or take ownership
             // If parameter escapes (returned) and it's the same type as return, it should be moved
-            let escapes_as_self = usage.escapes && rust_type == type_mapper.map_return_type(&func.ret_type);
-            let should_borrow = !usage.is_moved && !escapes_as_self && (usage.is_read_only || usage.is_mutated);
+            let escapes_as_self =
+                usage.escapes && rust_type == type_mapper.map_return_type(&func.ret_type);
+            let should_borrow =
+                !usage.is_moved && !escapes_as_self && (usage.is_read_only || usage.is_mutated);
             let needs_mut = usage.is_mutated;
-            
+
             let lifetime = if should_borrow {
                 let lt = self.next_lifetime();
-                
+
                 // Add lifetime to our tracking
                 self.variable_lifetimes.insert(
                     param_name.clone(),
@@ -314,12 +345,12 @@ impl LifetimeInference {
                         source: LifetimeSource::Parameter(param_name.clone()),
                     },
                 );
-                
+
                 // If parameter escapes, it needs to outlive the return
                 if usage.escapes {
                     self.add_constraint(&lt, "'return", LifetimeConstraint::Outlives);
                 }
-                
+
                 Some(lt)
             } else {
                 None
@@ -340,7 +371,11 @@ impl LifetimeInference {
     }
 
     /// Analyze return type lifetime requirements
-    fn analyze_return_lifetime(&mut self, func: &HirFunction, type_mapper: &crate::type_mapper::TypeMapper) -> Option<String> {
+    fn analyze_return_lifetime(
+        &mut self,
+        func: &HirFunction,
+        type_mapper: &crate::type_mapper::TypeMapper,
+    ) -> Option<String> {
         // Check if return type needs a lifetime
         let return_rust_type = type_mapper.map_return_type(&func.ret_type);
         if self.return_type_needs_lifetime(&return_rust_type) {
@@ -352,7 +387,7 @@ impl LifetimeInference {
                     }
                 }
             }
-            
+
             // If no escaping parameters, might need a new lifetime
             Some(self.next_lifetime())
         } else {
@@ -367,7 +402,9 @@ impl LifetimeInference {
             RustType::Str { .. } => true,
             RustType::Reference { .. } => true,
             RustType::Cow { .. } => true,
-            RustType::Vec(inner) | RustType::Option(inner) => self.return_type_needs_lifetime(inner),
+            RustType::Vec(inner) | RustType::Option(inner) => {
+                self.return_type_needs_lifetime(inner)
+            }
             RustType::Result(ok, err) => {
                 self.return_type_needs_lifetime(ok) || self.return_type_needs_lifetime(err)
             }
@@ -379,25 +416,32 @@ impl LifetimeInference {
     /// Compute lifetime bounds from the constraints
     fn compute_lifetime_bounds(&self) -> Vec<(String, String)> {
         let mut bounds = Vec::new();
-        
+
         for (from, tos) in &self.lifetime_constraints {
             for to in tos {
-                if to != "'return" { // Don't include internal markers
+                if to != "'return" {
+                    // Don't include internal markers
                     bounds.push((from.clone(), to.clone()));
                 }
             }
         }
-        
+
         bounds
     }
 
     /// Apply Rust's lifetime elision rules
-    pub fn apply_elision_rules(&mut self, func: &HirFunction, type_mapper: &crate::type_mapper::TypeMapper) -> Option<LifetimeResult> {
+    pub fn apply_elision_rules(
+        &mut self,
+        func: &HirFunction,
+        type_mapper: &crate::type_mapper::TypeMapper,
+    ) -> Option<LifetimeResult> {
         // First, do the full analysis
         let full_result = self.analyze_function(func, type_mapper);
-        
+
         // Count reference parameters
-        let ref_params: Vec<_> = full_result.param_lifetimes.iter()
+        let ref_params: Vec<_> = full_result
+            .param_lifetimes
+            .iter()
             .filter(|(_, param)| param.should_borrow)
             .collect();
 
@@ -420,7 +464,7 @@ impl LifetimeInference {
                 // The return type uses the same lifetime as the single input
                 return Some(LifetimeResult {
                     param_lifetimes: full_result.param_lifetimes,
-                    return_lifetime: None, // Elided
+                    return_lifetime: None,   // Elided
                     lifetime_params: vec![], // No explicit lifetimes needed
                     lifetime_bounds: vec![],
                 });
@@ -462,9 +506,9 @@ impl Default for LifetimeInference {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::{HirFunction, Type as PythonType, FunctionProperties, Literal};
-    use smallvec::smallvec;
+    use crate::hir::{FunctionProperties, HirFunction, Literal, Type as PythonType};
     use depyler_annotations::TranspilationAnnotations;
+    use smallvec::smallvec;
 
     #[test]
     fn test_lifetime_generation() {
@@ -479,15 +523,13 @@ mod tests {
     fn test_parameter_usage_analysis() {
         let mut inference = LifetimeInference::new();
         let _type_mapper = crate::type_mapper::TypeMapper::new();
-        
+
         // Create a simple function that reads a parameter
         let func = HirFunction {
             name: "test".to_string(),
             params: smallvec![("x".to_string(), PythonType::String)],
             ret_type: PythonType::String,
-            body: vec![
-                HirStmt::Return(Some(HirExpr::Var("x".to_string())))
-            ],
+            body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
             docstring: None,
@@ -504,24 +546,22 @@ mod tests {
     fn test_lifetime_inference() {
         let mut inference = LifetimeInference::new();
         let type_mapper = crate::type_mapper::TypeMapper::new();
-        
+
         let func = HirFunction {
             name: "get_len".to_string(),
             params: smallvec![("s".to_string(), PythonType::String)],
             ret_type: PythonType::Int,
-            body: vec![
-                HirStmt::Return(Some(HirExpr::Attribute {
-                    value: Box::new(HirExpr::Var("s".to_string())),
-                    attr: "len".to_string(),
-                }))
-            ],
+            body: vec![HirStmt::Return(Some(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("s".to_string())),
+                attr: "len".to_string(),
+            }))],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
 
         let result = inference.analyze_function(&func, &type_mapper);
-        
+
         // Should infer that 's' can be borrowed
         let s_param = result.param_lifetimes.get("s").unwrap();
         assert!(s_param.should_borrow);
@@ -533,7 +573,7 @@ mod tests {
     fn test_elision_rules() {
         let mut inference = LifetimeInference::new();
         let type_mapper = crate::type_mapper::TypeMapper::new();
-        
+
         // Function with single reference parameter
         let func = HirFunction {
             name: "identity".to_string(),
@@ -549,7 +589,7 @@ mod tests {
         let elision_result = inference.apply_elision_rules(&func, &type_mapper);
         // Elision rules are now implemented
         assert!(elision_result.is_some());
-        
+
         // With elision, no explicit lifetime parameters should be needed
         if let Some(result) = elision_result {
             assert!(result.lifetime_params.is_empty());
@@ -560,29 +600,27 @@ mod tests {
     fn test_mutable_parameter_detection() {
         let mut inference = LifetimeInference::new();
         let type_mapper = crate::type_mapper::TypeMapper::new();
-        
+
         // Function that mutates a parameter
         let func = HirFunction {
             name: "append_bang".to_string(),
             params: smallvec![("s".to_string(), PythonType::String)],
             ret_type: PythonType::None,
-            body: vec![
-                HirStmt::Assign {
-                    target: "s".to_string(),
-                    value: HirExpr::Binary {
-                        op: crate::hir::BinOp::Add,
-                        left: Box::new(HirExpr::Var("s".to_string())),
-                        right: Box::new(HirExpr::Literal(Literal::String("!".to_string()))),
-                    },
-                }
-            ],
+            body: vec![HirStmt::Assign {
+                target: "s".to_string(),
+                value: HirExpr::Binary {
+                    op: crate::hir::BinOp::Add,
+                    left: Box::new(HirExpr::Var("s".to_string())),
+                    right: Box::new(HirExpr::Literal(Literal::String("!".to_string()))),
+                },
+            }],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
             docstring: None,
         };
 
         let result = inference.analyze_function(&func, &type_mapper);
-        
+
         // Should detect that 's' is mutated
         let s_param = result.param_lifetimes.get("s").unwrap();
         assert!(s_param.should_borrow);

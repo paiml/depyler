@@ -146,7 +146,9 @@ impl RustCodeGen for HirFunction {
         let lifetime_params = if lifetime_result.lifetime_params.is_empty() {
             quote! {}
         } else {
-            let lifetimes: Vec<_> = lifetime_result.lifetime_params.iter()
+            let lifetimes: Vec<_> = lifetime_result
+                .lifetime_params
+                .iter()
                 .map(|lt| {
                     let lt_ident = syn::Lifetime::new(lt, proc_macro2::Span::call_site());
                     quote! { #lt_ident }
@@ -159,7 +161,9 @@ impl RustCodeGen for HirFunction {
         let where_clause = if lifetime_result.lifetime_bounds.is_empty() {
             quote! {}
         } else {
-            let bounds: Vec<_> = lifetime_result.lifetime_bounds.iter()
+            let bounds: Vec<_> = lifetime_result
+                .lifetime_bounds
+                .iter()
                 .map(|(from, to)| {
                     let from_lt = syn::Lifetime::new(from, proc_macro2::Span::call_site());
                     let to_lt = syn::Lifetime::new(to, proc_macro2::Span::call_site());
@@ -175,7 +179,7 @@ impl RustCodeGen for HirFunction {
             .iter()
             .map(|(param_name, param_type)| {
                 let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
-                
+
                 // Get the inferred parameter info
                 if let Some(inferred) = lifetime_result.param_lifetimes.get(param_name) {
                     let rust_type = &inferred.rust_type;
@@ -221,12 +225,15 @@ impl RustCodeGen for HirFunction {
             quote! {}
         } else {
             let mut ty = rust_type_to_syn(&rust_ret_type)?;
-            
+
             // Apply return lifetime if needed
             if let Some(ref return_lt) = lifetime_result.return_lifetime {
                 // Check if the return type needs lifetime substitution
-                if matches!(rust_ret_type, crate::type_mapper::RustType::Str { .. } | 
-                                          crate::type_mapper::RustType::Reference { .. }) {
+                if matches!(
+                    rust_ret_type,
+                    crate::type_mapper::RustType::Str { .. }
+                        | crate::type_mapper::RustType::Reference { .. }
+                ) {
                     let lt = syn::Lifetime::new(return_lt, proc_macro2::Span::call_site());
                     match rust_ret_type {
                         crate::type_mapper::RustType::Str { .. } => {
@@ -244,7 +251,7 @@ impl RustCodeGen for HirFunction {
                     }
                 }
             }
-            
+
             quote! { -> #ty }
         };
 
@@ -593,7 +600,11 @@ impl ToRustExpr for HirExpr {
     }
 }
 
-fn literal_to_rust_expr(lit: &Literal, string_optimizer: &StringOptimizer, _needs_cow: &bool) -> syn::Expr {
+fn literal_to_rust_expr(
+    lit: &Literal,
+    string_optimizer: &StringOptimizer,
+    _needs_cow: &bool,
+) -> syn::Expr {
     match lit {
         Literal::Int(n) => {
             let lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
