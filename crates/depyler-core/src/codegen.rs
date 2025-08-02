@@ -625,6 +625,7 @@ mod tests {
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            classes: vec![],
         };
 
         let rust_code = hir_to_rust(&module).unwrap();
@@ -701,6 +702,7 @@ mod tests {
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            classes: vec![],
         };
 
         assert!(needs_std_collections(&module_with_dict));
@@ -718,6 +720,7 @@ mod tests {
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            classes: vec![],
         };
 
         assert!(!needs_std_collections(&module_without_dict));

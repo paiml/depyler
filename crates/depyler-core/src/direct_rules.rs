@@ -1,6 +1,7 @@
 use crate::hir::*;
 use crate::type_mapper::{RustType, TypeMapper};
 use anyhow::{bail, Result};
+use quote::quote;
 use syn::{self, parse_quote};
 
 pub fn apply_rules(module: &HirModule, type_mapper: &TypeMapper) -> Result<syn::File> {
@@ -21,6 +22,12 @@ pub fn apply_rules(module: &HirModule, type_mapper: &TypeMapper) -> Result<syn::
     for protocol in &module.protocols {
         let trait_item = convert_protocol_to_trait(protocol, type_mapper)?;
         items.push(trait_item);
+    }
+
+    // Convert classes to structs
+    for class in &module.classes {
+        let struct_items = convert_class_to_struct(class, type_mapper)?;
+        items.extend(struct_items);
     }
 
     // Convert functions
@@ -113,6 +120,223 @@ fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> R
         brace_token: syn::token::Brace::default(),
         items: trait_items,
     }))
+}
+
+pub fn convert_class_to_struct(class: &HirClass, type_mapper: &TypeMapper) -> Result<Vec<syn::Item>> {
+    let mut items = Vec::new();
+    let struct_name = syn::Ident::new(&class.name, proc_macro2::Span::call_site());
+    
+    // Generate struct fields
+    let mut fields = Vec::new();
+    for field in &class.fields {
+        let field_name = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
+        let rust_type = type_mapper.map_type(&field.field_type);
+        let field_type = rust_type_to_syn_type(&rust_type)?;
+        
+        fields.push(syn::Field {
+            attrs: vec![],
+            vis: syn::Visibility::Public(syn::Token![pub](proc_macro2::Span::call_site())),
+            mutability: syn::FieldMutability::None,
+            ident: Some(field_name),
+            colon_token: Some(syn::Token![:](proc_macro2::Span::call_site())),
+            ty: field_type,
+        });
+    }
+    
+    // Create the struct
+    let struct_item = syn::Item::Struct(syn::ItemStruct {
+        attrs: if class.is_dataclass {
+            vec![parse_quote! { #[derive(Debug, Clone, PartialEq)] }]
+        } else {
+            vec![parse_quote! { #[derive(Debug, Clone)] }]
+        },
+        vis: syn::Visibility::Public(syn::Token![pub](proc_macro2::Span::call_site())),
+        struct_token: syn::Token![struct](proc_macro2::Span::call_site()),
+        ident: struct_name.clone(),
+        generics: syn::Generics::default(),
+        fields: syn::Fields::Named(syn::FieldsNamed {
+            brace_token: syn::token::Brace::default(),
+            named: fields.into_iter().collect(),
+        }),
+        semi_token: None,
+    });
+    items.push(struct_item);
+    
+    // Generate impl block with methods
+    let mut impl_items = Vec::new();
+    
+    // Convert __init__ to new() if present
+    for method in &class.methods {
+        if method.name == "__init__" {
+            let new_method = convert_init_to_new(method, &struct_name, type_mapper)?;
+            impl_items.push(syn::ImplItem::Fn(new_method));
+        } else {
+            let rust_method = convert_method_to_impl_item(method, type_mapper)?;
+            impl_items.push(syn::ImplItem::Fn(rust_method));
+        }
+    }
+    
+    // Only generate impl block if there are methods
+    if !impl_items.is_empty() {
+        let impl_block = syn::Item::Impl(syn::ItemImpl {
+            attrs: vec![],
+            defaultness: None,
+            unsafety: None,
+            impl_token: syn::Token![impl](proc_macro2::Span::call_site()),
+            generics: syn::Generics::default(),
+            trait_: None,
+            self_ty: Box::new(parse_quote! { #struct_name }),
+            brace_token: syn::token::Brace::default(),
+            items: impl_items,
+        });
+        items.push(impl_block);
+    }
+    
+    Ok(items)
+}
+
+fn convert_init_to_new(
+    init_method: &HirMethod,
+    _struct_name: &syn::Ident,
+    type_mapper: &TypeMapper,
+) -> Result<syn::ImplItemFn> {
+    // Convert parameters
+    let mut inputs = syn::punctuated::Punctuated::new();
+    
+    for (param_name, param_type) in &init_method.params {
+        let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
+        let rust_type = type_mapper.map_type(param_type);
+        let param_syn_type = rust_type_to_syn_type(&rust_type)?;
+        
+        inputs.push(syn::FnArg::Typed(syn::PatType {
+            attrs: vec![],
+            pat: Box::new(syn::Pat::Ident(syn::PatIdent {
+                attrs: vec![],
+                by_ref: None,
+                mutability: None,
+                ident: param_ident,
+                subpat: None,
+            })),
+            colon_token: syn::Token![:](proc_macro2::Span::call_site()),
+            ty: Box::new(param_syn_type),
+        }));
+    }
+    
+    // Generate body that initializes struct fields
+    // For now, assume fields are initialized from parameters with same names
+    let field_inits = init_method.params.iter()
+        .map(|(param_name, _)| {
+            let field_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
+            quote! { #field_ident }
+        })
+        .collect::<Vec<_>>();
+    
+    let body = parse_quote! {
+        {
+            Self {
+                #(#field_inits),*
+            }
+        }
+    };
+    
+    Ok(syn::ImplItemFn {
+        attrs: vec![],
+        vis: syn::Visibility::Public(syn::Token![pub](proc_macro2::Span::call_site())),
+        defaultness: None,
+        sig: syn::Signature {
+            constness: None,
+            asyncness: None,
+            unsafety: None,
+            abi: None,
+            fn_token: syn::Token![fn](proc_macro2::Span::call_site()),
+            ident: syn::Ident::new("new", proc_macro2::Span::call_site()),
+            generics: syn::Generics::default(),
+            paren_token: syn::token::Paren::default(),
+            inputs,
+            variadic: None,
+            output: syn::ReturnType::Type(
+                syn::Token![->](proc_macro2::Span::call_site()),
+                Box::new(parse_quote! { Self }),
+            ),
+        },
+        block: body,
+    })
+}
+
+fn convert_method_to_impl_item(
+    method: &HirMethod,
+    type_mapper: &TypeMapper,
+) -> Result<syn::ImplItemFn> {
+    let method_name = syn::Ident::new(&method.name, proc_macro2::Span::call_site());
+    
+    // Convert parameters
+    let mut inputs = syn::punctuated::Punctuated::new();
+    
+    // Add self parameter based on method type
+    if !method.is_static {
+        if method.is_property {
+            // Properties typically use &self
+            inputs.push(parse_quote! { &self });
+        } else {
+            // Regular methods use &mut self by default (can be refined later)
+            inputs.push(parse_quote! { &mut self });
+        }
+    }
+    
+    // Add other parameters
+    for (param_name, param_type) in &method.params {
+        let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
+        let rust_type = type_mapper.map_type(param_type);
+        let param_syn_type = rust_type_to_syn_type(&rust_type)?;
+        
+        inputs.push(syn::FnArg::Typed(syn::PatType {
+            attrs: vec![],
+            pat: Box::new(syn::Pat::Ident(syn::PatIdent {
+                attrs: vec![],
+                by_ref: None,
+                mutability: None,
+                ident: param_ident,
+                subpat: None,
+            })),
+            colon_token: syn::Token![:](proc_macro2::Span::call_site()),
+            ty: Box::new(param_syn_type),
+        }));
+    }
+    
+    // Convert return type
+    let rust_ret_type = type_mapper.map_type(&method.ret_type);
+    let ret_type = rust_type_to_syn_type(&rust_ret_type)?;
+    
+    // Convert body - for now, just return default implementation
+    // TODO: Implement proper method body conversion
+    let body = parse_quote! {
+        {
+            todo!("Method body conversion not yet implemented")
+        }
+    };
+    
+    Ok(syn::ImplItemFn {
+        attrs: vec![],
+        vis: syn::Visibility::Public(syn::Token![pub](proc_macro2::Span::call_site())),
+        defaultness: None,
+        sig: syn::Signature {
+            constness: None,
+            asyncness: None,
+            unsafety: None,
+            abi: None,
+            fn_token: syn::Token![fn](proc_macro2::Span::call_site()),
+            ident: method_name,
+            generics: syn::Generics::default(),
+            paren_token: syn::token::Paren::default(),
+            inputs,
+            variadic: None,
+            output: syn::ReturnType::Type(
+                syn::Token![->](proc_macro2::Span::call_site()),
+                Box::new(ret_type),
+            ),
+        },
+        block: body,
+    })
 }
 
 fn convert_protocol_method_to_trait_method(
@@ -1156,6 +1380,7 @@ mod tests {
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            classes: vec![],
         };
 
         let result = apply_rules(&module, &type_mapper).unwrap();

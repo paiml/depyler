@@ -3,7 +3,7 @@ use crate::hir::*;
 use crate::lifetime_analysis::LifetimeInference;
 use crate::string_optimization::{StringContext, StringOptimizer};
 use anyhow::{bail, Result};
-use quote::quote;
+use quote::{quote, ToTokens};
 use std::collections::HashSet;
 use syn::{self, parse_quote};
 
@@ -88,6 +88,18 @@ pub fn generate_rust_file(
         ctx.string_optimizer.analyze_function(func);
     }
 
+    // Convert classes first (they might be used by functions)
+    // Always use direct_rules for classes for now
+    let mut class_items = Vec::new();
+    for class in &module.classes {
+        let items = crate::direct_rules::convert_class_to_struct(class, ctx.type_mapper)?;
+        for item in items {
+            let tokens = item.to_token_stream();
+            class_items.push(tokens);
+        }
+    }
+    let classes = class_items;
+
     // Convert all functions to detect what imports we need
     let functions: Vec<_> = module
         .functions
@@ -141,8 +153,11 @@ pub fn generate_rust_file(
         });
     }
 
-    // Add generated union enums before functions
+    // Add generated union enums
     items.extend(ctx.generated_enums.clone());
+
+    // Add classes
+    items.extend(classes);
 
     // Add all functions
     items.extend(functions);

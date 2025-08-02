@@ -49,6 +49,7 @@ impl AstBridge {
         let mut imports = Vec::new();
         let mut type_aliases = Vec::new();
         let mut protocols = Vec::new();
+        let mut classes = Vec::new();
 
         for stmt in module.body {
             match stmt {
@@ -62,11 +63,15 @@ impl AstBridge {
                     imports.extend(convert_import_from(i)?);
                 }
                 ast::Stmt::ClassDef(class) => {
-                    // Try to parse as protocol
+                    // Try to parse as protocol first
                     if let Some(protocol) = self.try_convert_protocol(&class)? {
                         protocols.push(protocol);
+                    } else {
+                        // Convert regular class
+                        if let Some(hir_class) = self.try_convert_class(&class)? {
+                            classes.push(hir_class);
+                        }
                     }
-                    // Otherwise skip regular classes for now
                 }
                 ast::Stmt::Assign(assign) => {
                     // Try to parse as type alias
@@ -93,6 +98,7 @@ impl AstBridge {
             imports,
             type_aliases,
             protocols,
+            classes,
         })
     }
 
@@ -318,6 +324,158 @@ impl AstBridge {
             methods,
             is_runtime_checkable,
         }))
+    }
+
+    fn try_convert_class(&self, class: &ast::StmtClassDef) -> Result<Option<HirClass>> {
+        
+        // Extract docstring if present
+        let docstring = self.extract_class_docstring(&class.body);
+        
+        // Check if it's a dataclass
+        let is_dataclass = class.decorator_list.iter().any(|d| {
+            matches!(d, ast::Expr::Name(n) if n.id.as_str() == "dataclass")
+                || matches!(d, ast::Expr::Attribute(a) if a.attr.as_str() == "dataclass")
+        });
+        
+        // Extract base classes (for now, just store the names)
+        let base_classes = class
+            .bases
+            .iter()
+            .filter_map(|base| {
+                if let ast::Expr::Name(n) = base {
+                    Some(n.id.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        
+        // Convert methods and fields
+        let mut methods = Vec::new();
+        let mut fields = Vec::new();
+        
+        for stmt in &class.body {
+            match stmt {
+                ast::Stmt::FunctionDef(method) => {
+                    if let Some(hir_method) = self.convert_method(method)? {
+                        methods.push(hir_method);
+                    }
+                }
+                ast::Stmt::AnnAssign(ann_assign) => {
+                    // Handle annotated fields
+                    if let ast::Expr::Name(target) = ann_assign.target.as_ref() {
+                        let field_name = target.id.to_string();
+                        let field_type = TypeExtractor::extract_type(&ann_assign.annotation)?;
+                        
+                        let default_value = if let Some(_value) = &ann_assign.value {
+                            // For now, skip default value conversion
+                            // TODO: Implement expression conversion for class fields
+                            None
+                        } else {
+                            None
+                        };
+                        
+                        fields.push(HirField {
+                            name: field_name,
+                            field_type,
+                            default_value,
+                            is_class_var: false, // TODO: Detect class variables
+                        });
+                    }
+                }
+                _ => {
+                    // Skip other statements for now
+                }
+            }
+        }
+        
+        Ok(Some(HirClass {
+            name: class.name.to_string(),
+            base_classes,
+            methods,
+            fields,
+            is_dataclass,
+            docstring,
+        }))
+    }
+    
+    fn convert_method(&self, method: &ast::StmtFunctionDef) -> Result<Option<HirMethod>> {
+        use smallvec::smallvec;
+        
+        let name = method.name.to_string();
+        
+        // Skip dunder methods except __init__
+        if name.starts_with("__") && name.ends_with("__") && name != "__init__" {
+            return Ok(None);
+        }
+        
+        // Extract docstring
+        let docstring = self.extract_class_docstring(&method.body);
+        
+        // Check decorators
+        let is_static = method.decorator_list.iter().any(|d| {
+            matches!(d, ast::Expr::Name(n) if n.id.as_str() == "staticmethod")
+        });
+        let is_classmethod = method.decorator_list.iter().any(|d| {
+            matches!(d, ast::Expr::Name(n) if n.id.as_str() == "classmethod")
+        });
+        let is_property = method.decorator_list.iter().any(|d| {
+            matches!(d, ast::Expr::Name(n) if n.id.as_str() == "property")
+        });
+        
+        // Convert parameters (skip 'self' for regular methods)
+        let mut params = smallvec![];
+        let skip_first = !is_static && !is_classmethod && method.args.args.first()
+            .map(|arg| arg.def.arg.as_str() == "self")
+            .unwrap_or(false);
+            
+        let args_to_process = if skip_first {
+            &method.args.args[1..]
+        } else {
+            &method.args.args[..]
+        };
+        
+        for arg in args_to_process {
+            let param_name = arg.def.arg.to_string();
+            let param_type = if let Some(ann) = &arg.def.annotation {
+                TypeExtractor::extract_type(ann)?
+            } else {
+                Type::Unknown
+            };
+            params.push((param_name, param_type));
+        }
+        
+        // Convert return type
+        let ret_type = if let Some(ret) = &method.returns {
+            TypeExtractor::extract_type(ret)?
+        } else {
+            Type::None
+        };
+        
+        // Convert body - simplified for now
+        let body = vec![]; // TODO: Implement method body conversion
+        
+        Ok(Some(HirMethod {
+            name,
+            params,
+            ret_type,
+            body,
+            is_static,
+            is_classmethod,
+            is_property,
+            docstring,
+        }))
+    }
+    
+    fn extract_class_docstring(&self, body: &[ast::Stmt]) -> Option<String> {
+        if let Some(ast::Stmt::Expr(expr)) = body.first() {
+            if let ast::Expr::Constant(c) = expr.value.as_ref() {
+                if let ast::Constant::Str(s) = &c.value {
+                    return Some(s.to_string());
+                }
+            }
+        }
+        None
     }
 
     fn extract_class_type_params(&self, class: &ast::StmtClassDef) -> Vec<String> {
