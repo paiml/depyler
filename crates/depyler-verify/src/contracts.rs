@@ -288,6 +288,133 @@ impl ContractChecker {
 
         checks
     }
+
+    /// Generate complete function with contract checks
+    pub fn generate_function_with_contracts(
+        func: &HirFunction,
+        body_code: &str,
+        include_runtime_checks: bool,
+    ) -> String {
+        let contract = Self::extract_contracts(func);
+        let mut result = String::new();
+
+        // Add contract documentation
+        if !contract.preconditions.is_empty()
+            || !contract.postconditions.is_empty()
+            || !contract.invariants.is_empty()
+        {
+            result.push_str("/// Contract specifications:\n");
+            for pre in &contract.preconditions {
+                result.push_str(&format!("/// @requires {}\n", pre.expression));
+            }
+            for post in &contract.postconditions {
+                result.push_str(&format!("/// @ensures {}\n", post.expression));
+            }
+            for inv in &contract.invariants {
+                result.push_str(&format!("/// @invariant {}\n", inv.expression));
+            }
+        }
+
+        // Generate function signature
+        result.push_str(&format!("pub fn {}", func.name));
+
+        // Add parameters
+        result.push('(');
+        let params: Vec<String> = func
+            .params
+            .iter()
+            .map(|(name, ty)| format!("{}: {}", name, type_to_rust_string(ty)))
+            .collect();
+        result.push_str(&params.join(", "));
+        result.push(')');
+
+        // Add return type
+        if !matches!(func.ret_type, Type::None) {
+            result.push_str(&format!(" -> {}", type_to_rust_string(&func.ret_type)));
+        }
+
+        result.push_str(" {\n");
+
+        if include_runtime_checks {
+            // Add precondition checks at function start
+            if !contract.preconditions.is_empty() {
+                result.push_str("    // Contract precondition validation\n");
+                for pre in &contract.preconditions {
+                    result.push_str(&format!(
+                        "    assert!({}, \"Precondition violated: {}\");\n",
+                        pre.expression.replace("is not None", "is_some()"),
+                        pre.description
+                    ));
+                }
+                result.push('\n');
+            }
+
+            // Store old values for postcondition checks
+            if contract
+                .postconditions
+                .iter()
+                .any(|p| p.expression.contains("old("))
+            {
+                result.push_str("    // Store old values for postcondition checks\n");
+                // Would generate old value storage here
+                result.push('\n');
+            }
+        }
+
+        // Add the function body
+        result.push_str(body_code);
+
+        if include_runtime_checks {
+            // Add postcondition checks before return
+            if !contract.postconditions.is_empty() {
+                result.push_str("\n    // Contract postcondition validation\n");
+                for post in &contract.postconditions {
+                    if post.expression.contains("result") {
+                        // Would need to adapt for actual result checking
+                        result.push_str(&format!(
+                            "    // TODO: Verify postcondition: {}\n",
+                            post.description
+                        ));
+                    }
+                }
+            }
+        }
+
+        result.push_str("}\n");
+        result
+    }
+}
+
+/// Convert HIR type to Rust type string
+fn type_to_rust_string(ty: &Type) -> String {
+    match ty {
+        Type::Int => "i32".to_string(),
+        Type::Float => "f64".to_string(),
+        Type::String => "String".to_string(),
+        Type::Bool => "bool".to_string(),
+        Type::None => "()".to_string(),
+        Type::List(inner) => format!("Vec<{}>", type_to_rust_string(inner)),
+        Type::Dict(k, v) => format!(
+            "HashMap<{}, {}>",
+            type_to_rust_string(k),
+            type_to_rust_string(v)
+        ),
+        Type::Tuple(types) => {
+            let type_strs: Vec<String> = types.iter().map(type_to_rust_string).collect();
+            format!("({})", type_strs.join(", "))
+        }
+        Type::Optional(inner) => format!("Option<{}>", type_to_rust_string(inner)),
+        Type::Unknown => "_".to_string(),
+        Type::Custom(name) => name.clone(),
+        Type::Function { params, ret } => {
+            let param_strs: Vec<String> = params.iter().map(type_to_rust_string).collect();
+            format!(
+                "fn({}) -> {}",
+                param_strs.join(", "),
+                type_to_rust_string(ret)
+            )
+        }
+    }
 }
 
 fn check_stmt_contracts(stmt: &HirStmt) -> Vec<String> {
@@ -854,5 +981,51 @@ mod tests {
         assert_eq!(contract.postconditions.len(), 1);
         // Should have invariants from both docstring and properties
         assert!(contract.invariants.len() >= 3); // docstring + panic_free + termination
+    }
+
+    #[test]
+    fn test_generate_function_with_contracts() {
+        let func = create_test_function(
+            "safe_add",
+            vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)],
+            Type::Int,
+            vec![],
+            FunctionProperties::default(),
+        );
+
+        let body_code = "    let result = a + b;\n    result\n";
+        let generated = ContractChecker::generate_function_with_contracts(&func, body_code, true);
+
+        // Should have function signature
+        assert!(generated.contains("pub fn safe_add(a: i32, b: i32) -> i32"));
+        // Should have body
+        assert!(generated.contains("let result = a + b"));
+    }
+
+    #[test]
+    fn test_generate_function_with_contract_checks() {
+        let mut func = create_test_function(
+            "checked_divide",
+            vec![
+                ("num".to_string(), Type::Float),
+                ("denom".to_string(), Type::Float),
+            ],
+            Type::Float,
+            vec![],
+            FunctionProperties::default(),
+        );
+
+        func.docstring = Some("@requires denom != 0\n@ensures result == num / denom".to_string());
+
+        let body_code = "    num / denom\n";
+        let generated = ContractChecker::generate_function_with_contracts(&func, body_code, true);
+
+        // Should have contract documentation
+        assert!(generated.contains("/// @requires denom != 0"));
+        assert!(generated.contains("/// @ensures result == num / denom"));
+
+        // Should have precondition check
+        assert!(generated.contains("Contract precondition validation"));
+        assert!(generated.contains("Precondition violated"));
     }
 }
