@@ -11,6 +11,18 @@ pub fn apply_rules(module: &HirModule, type_mapper: &TypeMapper) -> Result<syn::
         use std::collections::HashMap;
     });
 
+    // Generate type aliases
+    for type_alias in &module.type_aliases {
+        let alias_item = convert_type_alias(type_alias, type_mapper)?;
+        items.push(alias_item);
+    }
+
+    // Generate protocols as traits
+    for protocol in &module.protocols {
+        let trait_item = convert_protocol_to_trait(protocol, type_mapper)?;
+        items.push(trait_item);
+    }
+
     // Convert functions
     for func in &module.functions {
         let rust_func = convert_function(func, type_mapper)?;
@@ -21,6 +33,280 @@ pub fn apply_rules(module: &HirModule, type_mapper: &TypeMapper) -> Result<syn::
         shebang: None,
         attrs: vec![],
         items,
+    })
+}
+
+fn convert_type_alias(type_alias: &TypeAlias, type_mapper: &TypeMapper) -> Result<syn::Item> {
+    let alias_name = syn::Ident::new(&type_alias.name, proc_macro2::Span::call_site());
+    let rust_type = type_mapper.map_type(&type_alias.target_type);
+    let target_type = rust_type_to_syn_type(&rust_type)?;
+    
+    if type_alias.is_newtype {
+        // Generate a NewType struct: pub struct UserId(pub i32);
+        Ok(parse_quote! {
+            #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+            pub struct #alias_name(pub #target_type);
+        })
+    } else {
+        // Generate a type alias: pub type UserId = i32;
+        Ok(parse_quote! {
+            pub type #alias_name = #target_type;
+        })
+    }
+}
+
+fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> Result<syn::Item> {
+    let trait_name = syn::Ident::new(&protocol.name, proc_macro2::Span::call_site());
+    
+    // Convert type parameters to generic parameters
+    let generics = if protocol.type_params.is_empty() {
+        syn::Generics::default()
+    } else {
+        let params: Vec<syn::GenericParam> = protocol.type_params.iter()
+            .map(|param| {
+                let ident = syn::Ident::new(param, proc_macro2::Span::call_site());
+                syn::GenericParam::Type(syn::TypeParam {
+                    attrs: vec![],
+                    ident,
+                    colon_token: None,
+                    bounds: syn::punctuated::Punctuated::new(),
+                    eq_token: None,
+                    default: None,
+                })
+            })
+            .collect();
+        
+        syn::Generics {
+            lt_token: Some(syn::Token![<](proc_macro2::Span::call_site())),
+            params: params.into_iter().collect(),
+            gt_token: Some(syn::Token![>](proc_macro2::Span::call_site())),
+            where_clause: None,
+        }
+    };
+
+    // Convert protocol methods to trait methods
+    let mut trait_items = Vec::new();
+    for method in &protocol.methods {
+        let method_item = convert_protocol_method_to_trait_method(method, type_mapper)?;
+        trait_items.push(method_item);
+    }
+
+    // Add trait-level attributes for runtime checkable protocols
+    let mut attrs = vec![];
+    if protocol.is_runtime_checkable {
+        attrs.push(parse_quote! { #[cfg(feature = "runtime_checkable")] });
+    }
+
+    Ok(syn::Item::Trait(syn::ItemTrait {
+        attrs,
+        vis: parse_quote! { pub },
+        unsafety: None,
+        auto_token: None,
+        restriction: None,
+        trait_token: syn::Token![trait](proc_macro2::Span::call_site()),
+        ident: trait_name,
+        generics,
+        colon_token: None,
+        supertraits: syn::punctuated::Punctuated::new(),
+        brace_token: syn::token::Brace::default(),
+        items: trait_items,
+    }))
+}
+
+fn convert_protocol_method_to_trait_method(method: &ProtocolMethod, type_mapper: &TypeMapper) -> Result<syn::TraitItem> {
+    let method_name = syn::Ident::new(&method.name, proc_macro2::Span::call_site());
+    
+    // Convert parameters
+    let mut inputs = syn::punctuated::Punctuated::new();
+    
+    // Add self parameter for methods (skip first param if it's 'self')
+    let method_params = if !method.params.is_empty() && method.params[0].0 == "self" {
+        // Add &self receiver
+        inputs.push(syn::FnArg::Receiver(syn::Receiver {
+            attrs: vec![],
+            reference: Some((syn::Token![&](proc_macro2::Span::call_site()), None)),
+            mutability: None,
+            self_token: syn::Token![self](proc_macro2::Span::call_site()),
+            colon_token: None,
+            ty: Box::new(parse_quote! { Self }),
+        }));
+        &method.params[1..] // Skip self parameter
+    } else {
+        &method.params[..]
+    };
+
+    // Add remaining parameters
+    for (param_name, param_type) in method_params {
+        let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
+        let rust_type = type_mapper.map_type(param_type);
+        let param_syn_type = rust_type_to_syn_type(&rust_type)?;
+        
+        inputs.push(syn::FnArg::Typed(syn::PatType {
+            attrs: vec![],
+            pat: Box::new(syn::Pat::Ident(syn::PatIdent {
+                attrs: vec![],
+                by_ref: None,
+                mutability: None,
+                ident: param_ident,
+                subpat: None,
+            })),
+            colon_token: syn::Token![:](proc_macro2::Span::call_site()),
+            ty: Box::new(param_syn_type),
+        }));
+    }
+
+    // Convert return type
+    let rust_return_type = type_mapper.map_type(&method.ret_type);
+    let return_type = rust_type_to_syn_type(&rust_return_type)?;
+
+    // Create function signature
+    let sig = syn::Signature {
+        constness: None,
+        asyncness: None,
+        unsafety: None,
+        abi: None,
+        fn_token: syn::Token![fn](proc_macro2::Span::call_site()),
+        ident: method_name,
+        generics: syn::Generics::default(),
+        paren_token: syn::token::Paren::default(),
+        inputs,
+        variadic: None,
+        output: syn::ReturnType::Type(
+            syn::Token![->](proc_macro2::Span::call_site()),
+            Box::new(return_type),
+        ),
+    };
+
+    // Create trait method (with or without default implementation)
+    if method.has_default {
+        // For now, skip default implementations in traits - would need body conversion
+        Ok(syn::TraitItem::Fn(syn::TraitItemFn {
+            attrs: vec![],
+            sig,
+            default: None,
+            semi_token: Some(syn::Token![;](proc_macro2::Span::call_site())),
+        }))
+    } else {
+        Ok(syn::TraitItem::Fn(syn::TraitItemFn {
+            attrs: vec![],
+            sig,
+            default: None,
+            semi_token: Some(syn::Token![;](proc_macro2::Span::call_site())),
+        }))
+    }
+}
+
+fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
+    use RustType::*;
+    Ok(match rust_type {
+        Unit => parse_quote! { () },
+        Primitive(prim_type) => {
+            use crate::type_mapper::PrimitiveType;
+            match prim_type {
+                PrimitiveType::Bool => parse_quote! { bool },
+                PrimitiveType::I8 => parse_quote! { i8 },
+                PrimitiveType::I16 => parse_quote! { i16 },
+                PrimitiveType::I32 => parse_quote! { i32 },
+                PrimitiveType::I64 => parse_quote! { i64 },
+                PrimitiveType::I128 => parse_quote! { i128 },
+                PrimitiveType::ISize => parse_quote! { isize },
+                PrimitiveType::U8 => parse_quote! { u8 },
+                PrimitiveType::U16 => parse_quote! { u16 },
+                PrimitiveType::U32 => parse_quote! { u32 },
+                PrimitiveType::U64 => parse_quote! { u64 },
+                PrimitiveType::U128 => parse_quote! { u128 },
+                PrimitiveType::USize => parse_quote! { usize },
+                PrimitiveType::F32 => parse_quote! { f32 },
+                PrimitiveType::F64 => parse_quote! { f64 },
+            }
+        }
+        String => parse_quote! { String },
+        Str { lifetime } => {
+            if let Some(lt) = lifetime {
+                let lifetime_token = syn::Lifetime::new(&format!("'{}", lt), proc_macro2::Span::call_site());
+                parse_quote! { &#lifetime_token str }
+            } else {
+                parse_quote! { &str }
+            }
+        }
+        Cow { lifetime } => {
+            let lifetime_token = syn::Lifetime::new(&format!("'{}", lifetime), proc_macro2::Span::call_site());
+            parse_quote! { std::borrow::Cow<#lifetime_token, str> }
+        }
+        Vec(inner) => {
+            let inner_type = rust_type_to_syn_type(inner)?;
+            parse_quote! { Vec<#inner_type> }
+        }
+        HashMap(key, value) => {
+            let key_type = rust_type_to_syn_type(key)?;
+            let value_type = rust_type_to_syn_type(value)?;
+            parse_quote! { HashMap<#key_type, #value_type> }
+        }
+        Option(inner) => {
+            let inner_type = rust_type_to_syn_type(inner)?;
+            parse_quote! { Option<#inner_type> }
+        }
+        Result(ok, err) => {
+            let ok_type = rust_type_to_syn_type(ok)?;
+            let err_type = rust_type_to_syn_type(err)?;
+            parse_quote! { Result<#ok_type, #err_type> }
+        }
+        Tuple(types) => {
+            let type_tokens: anyhow::Result<std::vec::Vec<_>> = types.iter().map(rust_type_to_syn_type).collect();
+            let type_tokens = type_tokens?;
+            parse_quote! { (#(#type_tokens),*) }
+        }
+        Custom(name) => {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            parse_quote! { #ident }
+        }
+        Unsupported(name) => {
+            // For unsupported types, just generate a placeholder comment type
+            let ident = syn::Ident::new(&format!("UnsupportedType_{}", name.replace(" ", "_")), proc_macro2::Span::call_site());
+            parse_quote! { #ident }
+        }
+        TypeParam(name) => {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            parse_quote! { #ident }
+        }
+        Generic { base, params } => {
+            let base_ident = syn::Ident::new(base, proc_macro2::Span::call_site());
+            let param_types: anyhow::Result<std::vec::Vec<_>> = params.iter().map(rust_type_to_syn_type).collect();
+            let param_types = param_types?;
+            parse_quote! { #base_ident<#(#param_types),*> }
+        }
+        Enum { name, variants: _ } => {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            parse_quote! { #ident }
+        }
+        Reference { inner, mutable, .. } => {
+            let inner_type = rust_type_to_syn_type(inner)?;
+            if *mutable {
+                parse_quote! { &mut #inner_type }
+            } else {
+                parse_quote! { &#inner_type }
+            }
+        }
+        Array { element_type, size } => {
+            let element = rust_type_to_syn_type(element_type)?;
+            match size {
+                crate::type_mapper::RustConstGeneric::Literal(n) => {
+                    let size_lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
+                    parse_quote! { [#element; #size_lit] }
+                }
+                crate::type_mapper::RustConstGeneric::Parameter(name) => {
+                    let param_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                    parse_quote! { [#element; #param_ident] }
+                }
+                crate::type_mapper::RustConstGeneric::Expression(expr) => {
+                    // For expressions, parse them as token streams
+                    let expr_tokens: proc_macro2::TokenStream = expr.parse().unwrap_or_else(|_| {
+                        "/* invalid const expression */".parse().unwrap()
+                    });
+                    parse_quote! { [#element; #expr_tokens] }
+                }
+            }
+        }
     })
 }
 
@@ -133,6 +419,25 @@ fn rust_type_to_syn(rust_type: &RustType) -> Result<syn::Type> {
             parse_quote! { Option<#inner_ty> }
         }
         RustType::Unit => parse_quote! { () },
+        RustType::Array { element_type, size } => {
+            let element = rust_type_to_syn(element_type)?;
+            match size {
+                crate::type_mapper::RustConstGeneric::Literal(n) => {
+                    let size_lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
+                    parse_quote! { [#element; #size_lit] }
+                }
+                crate::type_mapper::RustConstGeneric::Parameter(name) => {
+                    let param_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                    parse_quote! { [#element; #param_ident] }
+                }
+                crate::type_mapper::RustConstGeneric::Expression(expr) => {
+                    let expr_tokens: proc_macro2::TokenStream = expr.parse().unwrap_or_else(|_| {
+                        "/* invalid const expression */".parse().unwrap()
+                    });
+                    parse_quote! { [#element; #expr_tokens] }
+                }
+            }
+        }
         _ => bail!("Unsupported Rust type: {:?}", rust_type),
     })
 }
@@ -791,6 +1096,8 @@ mod tests {
                 docstring: None,
             }],
             imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
         };
 
         let result = apply_rules(&module, &type_mapper).unwrap();

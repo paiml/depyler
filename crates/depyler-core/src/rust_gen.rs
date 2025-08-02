@@ -12,6 +12,8 @@ pub struct CodeGenContext<'a> {
     pub type_mapper: &'a crate::type_mapper::TypeMapper,
     pub annotation_aware_mapper: AnnotationAwareTypeMapper,
     pub string_optimizer: StringOptimizer,
+    pub union_enum_generator: crate::union_enum_gen::UnionEnumGenerator,
+    pub generated_enums: Vec<proc_macro2::TokenStream>,
     pub needs_hashmap: bool,
     pub needs_fnv_hashmap: bool,
     pub needs_ahash_hashmap: bool,
@@ -43,6 +45,15 @@ impl<'a> CodeGenContext<'a> {
             current_scope.insert(var_name.to_string());
         }
     }
+    
+    /// Process a Union type and generate an enum if needed
+    pub fn process_union_type(&mut self, types: &[crate::hir::Type]) -> String {
+        let (enum_name, enum_def) = self.union_enum_generator.generate_union_enum(types);
+        if !enum_def.is_empty() {
+            self.generated_enums.push(enum_def);
+        }
+        enum_name
+    }
 }
 
 /// Trait for converting HIR elements to Rust tokens
@@ -59,6 +70,8 @@ pub fn generate_rust_file(
         type_mapper,
         annotation_aware_mapper: AnnotationAwareTypeMapper::with_base_mapper(type_mapper.clone()),
         string_optimizer: StringOptimizer::new(),
+        union_enum_generator: crate::union_enum_gen::UnionEnumGenerator::new(),
+        generated_enums: Vec::new(),
         needs_hashmap: false,
         needs_fnv_hashmap: false,
         needs_ahash_hashmap: false,
@@ -128,6 +141,9 @@ pub fn generate_rust_file(
         });
     }
 
+    // Add generated union enums before functions
+    items.extend(ctx.generated_enums.clone());
+    
     // Add all functions
     items.extend(functions);
 
@@ -155,23 +171,43 @@ impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         let name = syn::Ident::new(&self.name, proc_macro2::Span::call_site());
 
+        // Perform generic type inference
+        let mut generic_registry = crate::generic_inference::TypeVarRegistry::new();
+        let type_params = generic_registry.infer_function_generics(self)?;
+        
         // Perform lifetime analysis
         let mut lifetime_inference = LifetimeInference::new();
         let lifetime_result = lifetime_inference.analyze_function(self, ctx.type_mapper);
 
-        // Generate lifetime parameters if needed
-        let lifetime_params = if lifetime_result.lifetime_params.is_empty() {
+        // Generate combined generic parameters (lifetimes + type params)
+        let generic_params = if type_params.is_empty() && lifetime_result.lifetime_params.is_empty() {
             quote! {}
         } else {
-            let lifetimes: Vec<_> = lifetime_result
-                .lifetime_params
-                .iter()
-                .map(|lt| {
-                    let lt_ident = syn::Lifetime::new(lt, proc_macro2::Span::call_site());
-                    quote! { #lt_ident }
-                })
-                .collect();
-            quote! { <#(#lifetimes),*> }
+            let mut all_params = Vec::new();
+            
+            // Add lifetime parameters first
+            for lt in &lifetime_result.lifetime_params {
+                let lt_ident = syn::Lifetime::new(lt, proc_macro2::Span::call_site());
+                all_params.push(quote! { #lt_ident });
+            }
+            
+            // Add type parameters with their bounds
+            for type_param in &type_params {
+                let param_name = syn::Ident::new(&type_param.name, proc_macro2::Span::call_site());
+                if type_param.bounds.is_empty() {
+                    all_params.push(quote! { #param_name });
+                } else {
+                    let bounds: Vec<_> = type_param.bounds.iter()
+                        .map(|b| {
+                            let bound: syn::Path = syn::parse_str(b).unwrap_or_else(|_| parse_quote! { Clone });
+                            quote! { #bound }
+                        })
+                        .collect();
+                    all_params.push(quote! { #param_name: #(#bounds)+* });
+                }
+            }
+            
+            quote! { <#(#all_params),*> }
         };
 
         // Generate lifetime bounds
@@ -206,8 +242,26 @@ impl RustCodeGen for HirFunction {
                 // Get the inferred parameter info
                 if let Some(inferred) = lifetime_result.param_lifetimes.get(param_name) {
                     let rust_type = &inferred.rust_type;
-                    update_import_needs(ctx, rust_type);
-                    let mut ty = rust_type_to_syn(rust_type)?;
+                    
+                    // Check if this is a placeholder Union enum that needs proper generation
+                    let actual_rust_type = if let crate::type_mapper::RustType::Enum { name, variants: _ } = rust_type {
+                        if name == "UnionType" {
+                            // Generate a proper enum name and definition from the original Union type
+                            if let Type::Union(types) = param_type {
+                                let enum_name = ctx.process_union_type(types);
+                                crate::type_mapper::RustType::Custom(enum_name)
+                            } else {
+                                rust_type.clone()
+                            }
+                        } else {
+                            rust_type.clone()
+                        }
+                    } else {
+                        rust_type.clone()
+                    };
+                    
+                    update_import_needs(ctx, &actual_rust_type);
+                    let mut ty = rust_type_to_syn(&actual_rust_type)?;
 
                     // Check if we're dealing with a string that should use Cow
                     if let Some(strategy) = lifetime_result.borrowing_strategies.get(param_name) {
@@ -317,9 +371,26 @@ impl RustCodeGen for HirFunction {
             .collect::<Result<Vec<_>>>()?;
 
         // Convert return type using annotation-aware mapping
-        let rust_ret_type = ctx
+        let mapped_ret_type = ctx
             .annotation_aware_mapper
             .map_return_type_with_annotations(&self.ret_type, &self.annotations);
+            
+        // Check if this is a placeholder Union enum that needs proper generation
+        let rust_ret_type = if let crate::type_mapper::RustType::Enum { name, .. } = &mapped_ret_type {
+            if name == "UnionType" {
+                // Generate a proper enum name and definition from the original Union type
+                if let Type::Union(types) = &self.ret_type {
+                    let enum_name = ctx.process_union_type(types);
+                    crate::type_mapper::RustType::Custom(enum_name)
+                } else {
+                    mapped_ret_type
+                }
+            } else {
+                mapped_ret_type
+            }
+        } else {
+            mapped_ret_type
+        };
 
         // Check if function can fail and needs Result wrapper
         let can_fail = self.properties.can_fail;
@@ -452,7 +523,7 @@ impl RustCodeGen for HirFunction {
 
         Ok(quote! {
             #(#attrs)*
-            pub fn #name #lifetime_params(#(#params),*) #return_type #where_clause {
+            pub fn #name #generic_params(#(#params),*) #return_type #where_clause {
                 #(#body_stmts)*
             }
         })
@@ -1352,7 +1423,7 @@ fn convert_binop(op: BinOp) -> Result<syn::BinOp> {
     }
 }
 
-fn rust_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<syn::Type> {
+pub fn rust_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<syn::Type> {
     use crate::type_mapper::RustType;
 
     Ok(match rust_type {
@@ -1424,6 +1495,41 @@ fn rust_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<syn::Typ
             ty
         }
         RustType::Unsupported(reason) => bail!("Unsupported Rust type: {}", reason),
+        RustType::TypeParam(name) => {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            parse_quote! { #ident }
+        }
+        RustType::Generic { base, params } => {
+            let base_ident = syn::Ident::new(base, proc_macro2::Span::call_site());
+            let param_types: Vec<_> = params
+                .iter()
+                .map(rust_type_to_syn)
+                .collect::<Result<Vec<_>>>()?;
+            parse_quote! { #base_ident<#(#param_types),*> }
+        }
+        RustType::Enum { name, .. } => {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            parse_quote! { #ident }
+        }
+        RustType::Array { element_type, size } => {
+            let element = rust_type_to_syn(element_type)?;
+            match size {
+                crate::type_mapper::RustConstGeneric::Literal(n) => {
+                    let size_lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
+                    parse_quote! { [#element; #size_lit] }
+                }
+                crate::type_mapper::RustConstGeneric::Parameter(name) => {
+                    let param_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                    parse_quote! { [#element; #param_ident] }
+                }
+                crate::type_mapper::RustConstGeneric::Expression(expr) => {
+                    let expr_tokens: proc_macro2::TokenStream = expr.parse().unwrap_or_else(|_| {
+                        quote! { /* invalid const expression */ }
+                    });
+                    parse_quote! { [#element; #expr_tokens] }
+                }
+            }
+        }
     })
 }
 
@@ -1541,6 +1647,8 @@ mod tests {
                 type_mapper.clone(),
             ),
             string_optimizer: StringOptimizer::new(),
+            union_enum_generator: crate::union_enum_gen::UnionEnumGenerator::new(),
+            generated_enums: Vec::new(),
             needs_hashmap: false,
             needs_fnv_hashmap: false,
             needs_ahash_hashmap: false,

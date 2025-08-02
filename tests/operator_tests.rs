@@ -32,6 +32,8 @@ fn test_augmented_assignment() {
             docstring: None,
         }],
         imports: vec![],
+        type_aliases: vec![],
+        protocols: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -68,6 +70,8 @@ fn test_in_operator() {
             docstring: None,
         }],
         imports: vec![],
+        type_aliases: vec![],
+        protocols: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -101,6 +105,8 @@ fn test_not_in_operator() {
             docstring: None,
         }],
         imports: vec![],
+        type_aliases: vec![],
+        protocols: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -138,6 +144,8 @@ fn test_all_arithmetic_operators() {
                 docstring: None,
             }],
             imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -178,6 +186,8 @@ fn test_comparison_operators() {
                 docstring: None,
             }],
             imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -211,6 +221,8 @@ fn test_logical_operators() {
                 docstring: None,
             }],
             imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -250,6 +262,8 @@ fn test_bitwise_operators() {
                 docstring: None,
             }],
             imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -281,6 +295,8 @@ fn test_power_operator_not_supported() {
             docstring: None,
         }],
         imports: vec![],
+        type_aliases: vec![],
+        protocols: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -308,6 +324,8 @@ fn test_array_length_subtraction_safety() {
             docstring: Some("Get the last index of an array safely".to_string()),
         }],
         imports: vec![],
+        type_aliases: vec![],
+        protocols: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -339,6 +357,8 @@ fn test_regular_subtraction_unchanged() {
             docstring: None,
         }],
         imports: vec![],
+        type_aliases: vec![],
+        protocols: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -377,6 +397,8 @@ fn test_len_variable_subtraction_safety() {
             docstring: Some("Subtract offset from list length".to_string()),
         }],
         imports: vec![],
+        type_aliases: vec![],
+        protocols: vec![],
     };
 
     let type_mapper = TypeMapper::default();

@@ -197,6 +197,36 @@ fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
             quote! { #ident }
         }
         Type::Unknown => quote! { () },
+        Type::TypeVar(name) => {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            quote! { #ident }
+        }
+        Type::Generic { base, params } => {
+            let base_ident = syn::Ident::new(base, proc_macro2::Span::call_site());
+            let param_types: Vec<_> = params.iter().map(type_to_rust_type).collect();
+            quote! { #base_ident<#(#param_types),*> }
+        }
+        Type::Union(_) => quote! { UnionType }, // Placeholder, will be handled by enum generation
+        Type::Array { element_type, size } => {
+            let element = type_to_rust_type(element_type);
+            match size {
+                crate::hir::ConstGeneric::Literal(n) => {
+                    let size_lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
+                    quote! { [#element; #size_lit] }
+                }
+                crate::hir::ConstGeneric::Parameter(name) => {
+                    let param_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                    quote! { [#element; #param_ident] }
+                }
+                crate::hir::ConstGeneric::Expression(expr) => {
+                    // For expressions, parse them as token streams
+                    let expr_tokens: proc_macro2::TokenStream = expr.parse().unwrap_or_else(|_| {
+                        quote! { /* invalid const expression */ }
+                    });
+                    quote! { [#element; #expr_tokens] }
+                }
+            }
+        }
     }
 }
 
@@ -580,6 +610,8 @@ mod tests {
         let module = HirModule {
             functions: vec![func],
             imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
         };
 
         let rust_code = hir_to_rust(&module).unwrap();
@@ -654,6 +686,8 @@ mod tests {
                 docstring: None,
             }],
             imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
         };
 
         assert!(needs_std_collections(&module_with_dict));
@@ -669,6 +703,8 @@ mod tests {
                 docstring: None,
             }],
             imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
         };
 
         assert!(!needs_std_collections(&module_without_dict));

@@ -47,6 +47,8 @@ impl AstBridge {
     fn convert_module(&self, module: ast::ModModule) -> Result<HirModule> {
         let mut functions = Vec::new();
         let mut imports = Vec::new();
+        let mut type_aliases = Vec::new();
+        let mut protocols = Vec::new();
 
         for stmt in module.body {
             match stmt {
@@ -59,13 +61,34 @@ impl AstBridge {
                 ast::Stmt::ImportFrom(i) => {
                     imports.extend(convert_import_from(i)?);
                 }
+                ast::Stmt::ClassDef(class) => {
+                    // Try to parse as protocol
+                    if let Some(protocol) = self.try_convert_protocol(&class)? {
+                        protocols.push(protocol);
+                    }
+                    // Otherwise skip regular classes for now
+                }
+                ast::Stmt::Assign(assign) => {
+                    // Try to parse as type alias
+                    if let Some(type_alias) = self.try_convert_type_alias(&assign)? {
+                        type_aliases.push(type_alias);
+                    }
+                    // Otherwise skip regular assignments at module level
+                }
+                ast::Stmt::AnnAssign(ann_assign) => {
+                    // Try to parse annotated assignment as type alias
+                    if let Some(type_alias) = self.try_convert_annotated_type_alias(&ann_assign)? {
+                        type_aliases.push(type_alias);
+                    }
+                    // Otherwise skip regular annotated assignments at module level
+                }
                 _ => {
                     // Skip other statements for now
                 }
             }
         }
 
-        Ok(HirModule { functions, imports })
+        Ok(HirModule { functions, imports, type_aliases, protocols })
     }
 
     fn convert_function(&self, func: ast::StmtFunctionDef) -> Result<HirFunction> {
@@ -120,6 +143,230 @@ impl AstBridge {
         }
 
         TranspilationAnnotations::default()
+    }
+
+    fn try_convert_type_alias(&self, assign: &ast::StmtAssign) -> Result<Option<TypeAlias>> {
+        // Look for patterns like: UserId = int or UserId = NewType('UserId', int)
+        if assign.targets.len() != 1 {
+            return Ok(None); // Skip multiple assignment targets
+        }
+
+        let target = match &assign.targets[0] {
+            ast::Expr::Name(name) => name.id.as_str(),
+            _ => return Ok(None), // Skip complex assignment targets
+        };
+
+        // Check if this looks like a type alias (simple assignment of a type)
+        let (target_type, is_newtype) = match assign.value.as_ref() {
+            // Simple alias: UserId = int
+            ast::Expr::Name(n) => {
+                let type_name = n.id.as_str();
+                if self.is_type_name(type_name) {
+                    (TypeExtractor::extract_simple_type(type_name)?, false)
+                } else {
+                    return Ok(None); // Not a type name
+                }
+            }
+            // Generic alias: UserId = Optional[int]
+            ast::Expr::Subscript(_) => {
+                (TypeExtractor::extract_type(&assign.value)?, false)
+            }
+            // NewType pattern: UserId = NewType('UserId', int)
+            ast::Expr::Call(call) => {
+                if let ast::Expr::Name(func_name) = call.func.as_ref() {
+                    if func_name.id.as_str() == "NewType" && call.args.len() == 2 {
+                        // Second argument should be the base type
+                        let base_type = TypeExtractor::extract_type(&call.args[1])?;
+                        (base_type, true)
+                    } else {
+                        return Ok(None); // Not a NewType call
+                    }
+                } else {
+                    return Ok(None); // Complex function call
+                }
+            }
+            _ => return Ok(None), // Not a type alias pattern
+        };
+
+        Ok(Some(TypeAlias {
+            name: target.to_string(),
+            target_type,
+            is_newtype,
+        }))
+    }
+
+    fn try_convert_annotated_type_alias(&self, ann_assign: &ast::StmtAnnAssign) -> Result<Option<TypeAlias>> {
+        // Look for patterns like: UserId: TypeAlias = int
+        let target = match ann_assign.target.as_ref() {
+            ast::Expr::Name(name) => name.id.as_str(),
+            _ => return Ok(None), // Skip complex assignment targets
+        };
+
+        // Check if annotation is TypeAlias
+        let is_type_alias = match ann_assign.annotation.as_ref() {
+            ast::Expr::Name(n) => n.id.as_str() == "TypeAlias",
+            _ => false,
+        };
+
+        if !is_type_alias {
+            return Ok(None); // Not explicitly marked as TypeAlias
+        }
+
+        if let Some(value) = &ann_assign.value {
+            let (target_type, is_newtype) = match value.as_ref() {
+                // Simple alias: UserId: TypeAlias = int
+                ast::Expr::Name(n) => {
+                    let type_name = n.id.as_str();
+                    (TypeExtractor::extract_simple_type(type_name)?, false)
+                }
+                // Generic alias: UserId: TypeAlias = Optional[int]
+                ast::Expr::Subscript(_) => {
+                    (TypeExtractor::extract_type(value)?, false)
+                }
+                // NewType pattern: UserId: TypeAlias = NewType('UserId', int)
+                ast::Expr::Call(call) => {
+                    if let ast::Expr::Name(func_name) = call.func.as_ref() {
+                        if func_name.id.as_str() == "NewType" && call.args.len() == 2 {
+                            let base_type = TypeExtractor::extract_type(&call.args[1])?;
+                            (base_type, true)
+                        } else {
+                            return Ok(None);
+                        }
+                    } else {
+                        return Ok(None);
+                    }
+                }
+                _ => return Ok(None),
+            };
+
+            Ok(Some(TypeAlias {
+                name: target.to_string(),
+                target_type,
+                is_newtype,
+            }))
+        } else {
+            Ok(None) // No value assigned
+        }
+    }
+
+    fn is_type_name(&self, name: &str) -> bool {
+        matches!(name, "int" | "float" | "str" | "bool" | "None" | 
+                      "list" | "dict" | "tuple" | "set" | "frozenset" |
+                      "List" | "Dict" | "Tuple" | "Set" | "FrozenSet" |
+                      "Optional" | "Union" | "Callable" | "Any" | "TypeVar")
+    }
+
+    fn try_convert_protocol(&self, class: &ast::StmtClassDef) -> Result<Option<Protocol>> {
+        // Check if this class inherits from Protocol
+        let is_protocol = class.bases.iter().any(|base| {
+            matches!(base, ast::Expr::Name(n) if n.id.as_str() == "Protocol")
+        });
+
+        if !is_protocol {
+            return Ok(None);
+        }
+
+        let name = class.name.to_string();
+        
+        // Extract type parameters from class definition
+        let type_params = self.extract_class_type_params(class);
+        
+        // Check for @runtime_checkable decorator
+        let is_runtime_checkable = class.decorator_list.iter().any(|decorator| {
+            matches!(decorator, ast::Expr::Name(n) if n.id.as_str() == "runtime_checkable")
+        });
+
+        // Extract methods from class body
+        let mut methods = Vec::new();
+        for stmt in &class.body {
+            if let ast::Stmt::FunctionDef(func) = stmt {
+                // Skip special methods like __init__, but include abstract methods
+                if !func.name.as_str().starts_with("__") || func.name.as_str() == "__call__" {
+                    let method = self.convert_protocol_method(func)?;
+                    methods.push(method);
+                }
+            }
+        }
+
+        Ok(Some(Protocol {
+            name,
+            type_params,
+            methods,
+            is_runtime_checkable,
+        }))
+    }
+
+    fn extract_class_type_params(&self, class: &ast::StmtClassDef) -> Vec<String> {
+        // Look for Generic[T, U] in base classes
+        for base in &class.bases {
+            if let ast::Expr::Subscript(subscript) = base {
+                if let ast::Expr::Name(n) = subscript.value.as_ref() {
+                    if n.id.as_str() == "Generic" {
+                        return self.extract_generic_params(&subscript.slice);
+                    }
+                }
+            }
+        }
+        Vec::new()
+    }
+
+    fn extract_generic_params(&self, slice: &ast::Expr) -> Vec<String> {
+        match slice {
+            ast::Expr::Name(n) => vec![n.id.to_string()],
+            ast::Expr::Tuple(tuple) => {
+                tuple.elts.iter()
+                    .filter_map(|elt| {
+                        if let ast::Expr::Name(n) = elt {
+                            Some(n.id.to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    fn convert_protocol_method(&self, func: &ast::StmtFunctionDef) -> Result<ProtocolMethod> {
+        let name = func.name.to_string();
+        let params = convert_parameters(&func.args)?;
+        let ret_type = TypeExtractor::extract_return_type(&func.returns)?;
+        
+        // Check if method has @abstractmethod decorator
+        let is_optional = !func.decorator_list.iter().any(|decorator| {
+            matches!(decorator, ast::Expr::Name(n) if n.id.as_str() == "abstractmethod")
+        });
+        
+        // Check if method has a default implementation (non-empty body beyond docstring)
+        let has_default = self.method_has_default_implementation(&func.body);
+
+        Ok(ProtocolMethod {
+            name,
+            params: params.into(),
+            ret_type,
+            is_optional,
+            has_default,
+        })
+    }
+
+    fn method_has_default_implementation(&self, body: &[ast::Stmt]) -> bool {
+        // Filter out docstrings and ellipsis statements
+        let meaningful_stmts: Vec<_> = body.iter()
+            .filter(|stmt| {
+                match stmt {
+                    // Skip docstring
+                    ast::Stmt::Expr(expr) if matches!(expr.value.as_ref(), 
+                        ast::Expr::Constant(c) if matches!(c.value, ast::Constant::Str(_))) => false,
+                    // Skip ellipsis (...)
+                    ast::Stmt::Expr(expr) if matches!(expr.value.as_ref(),
+                        ast::Expr::Constant(c) if matches!(c.value, ast::Constant::Ellipsis)) => false,
+                    _ => true,
+                }
+            })
+            .collect();
+        
+        !meaningful_stmts.is_empty()
     }
 }
 
