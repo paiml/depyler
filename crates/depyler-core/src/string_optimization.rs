@@ -1,5 +1,5 @@
 use crate::hir::{HirExpr, HirFunction, HirStmt, Literal, Type};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// Analyzes string usage patterns to determine optimal string types
 #[derive(Debug, Default)]
@@ -12,6 +12,10 @@ pub struct StringOptimizer {
     returned_strings: HashSet<String>,
     /// Strings used in multiple contexts (may need Cow)
     mixed_usage_strings: HashSet<String>,
+    /// String literal frequency counter for interning decisions
+    string_literal_count: HashMap<String, usize>,
+    /// Strings that should be interned due to frequent use
+    interned_strings: HashSet<String>,
 }
 
 /// Optimal string representation based on usage analysis
@@ -131,6 +135,14 @@ impl StringOptimizer {
     fn analyze_expr(&mut self, expr: &HirExpr, is_returned: bool) {
         match expr {
             HirExpr::Literal(Literal::String(s)) => {
+                // Count string literal occurrences
+                *self.string_literal_count.entry(s.clone()).or_insert(0) += 1;
+                
+                // Check if this string should be interned (used more than 3 times)
+                if self.string_literal_count.get(s).copied().unwrap_or(0) > 3 {
+                    self.interned_strings.insert(s.clone());
+                }
+                
                 if is_returned {
                     self.returned_strings.insert(s.clone());
                 } else {
@@ -143,11 +155,26 @@ impl StringOptimizer {
                     self.mixed_usage_strings.insert(name.clone());
                 }
             }
-            HirExpr::Binary { left, right, .. } => {
+            HirExpr::Binary { op, left, right } => {
+                // String concatenation needs owned strings
+                if matches!(op, crate::hir::BinOp::Add) {
+                    // Check if either side is a string
+                    if self.is_string_expr(left) || self.is_string_expr(right) {
+                        // Mark both sides as needing ownership for concatenation
+                        self.mark_as_owned(left);
+                        self.mark_as_owned(right);
+                    }
+                }
                 self.analyze_expr(left, false);
                 self.analyze_expr(right, false);
             }
-            HirExpr::Call { args, .. } => {
+            HirExpr::Call { func, args } => {
+                // Analyze method calls that might mutate strings
+                if self.is_mutating_method(func) && !args.is_empty() {
+                    if let HirExpr::Var(name) = &args[0] {
+                        self.immutable_params.remove(name);
+                    }
+                }
                 for arg in args {
                     self.analyze_expr(arg, false);
                 }
@@ -173,6 +200,77 @@ impl StringOptimizer {
 
     fn is_immutable(&self, param: &str) -> bool {
         self.immutable_params.contains(param)
+    }
+
+    /// Check if an expression is a string type
+    fn is_string_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Literal(Literal::String(_)) => true,
+            HirExpr::Var(name) => self.immutable_params.contains(name),
+            HirExpr::Call { func, .. } => {
+                // Common string-returning functions
+                matches!(func.as_str(), "str" | "format" | "to_string" | "join")
+            }
+            _ => false,
+        }
+    }
+
+    /// Mark a string expression as needing ownership
+    fn mark_as_owned(&mut self, expr: &HirExpr) {
+        match expr {
+            HirExpr::Literal(Literal::String(s)) => {
+                self.read_only_strings.remove(s);
+            }
+            HirExpr::Var(name) => {
+                self.immutable_params.remove(name);
+            }
+            _ => {}
+        }
+    }
+
+    /// Check if a method call mutates the string
+    fn is_mutating_method(&self, method: &str) -> bool {
+        matches!(
+            method,
+            "push_str" | "push" | "insert" | "insert_str" | "replace_range" | "clear" | "truncate"
+        )
+    }
+
+    /// Check if a string literal should be interned
+    pub fn should_intern(&self, s: &str) -> bool {
+        self.interned_strings.contains(s)
+    }
+
+    /// Get interned string name for a literal
+    pub fn get_interned_name(&self, s: &str) -> Option<String> {
+        if self.should_intern(s) {
+            // Generate a constant name from the string content
+            let name = s
+                .chars()
+                .map(|c| match c {
+                    'a'..='z' | 'A'..='Z' | '0'..='9' => c.to_ascii_uppercase(),
+                    _ => '_',
+                })
+                .collect::<String>();
+            Some(format!("STR_{}", if name.is_empty() { "EMPTY" } else { &name }))
+        } else {
+            None
+        }
+    }
+
+    /// Generate interned string constants
+    pub fn generate_interned_constants(&self) -> Vec<String> {
+        let mut constants = Vec::new();
+        for s in &self.interned_strings {
+            if let Some(name) = self.get_interned_name(s) {
+                constants.push(format!(
+                    "const {}: &'static str = \"{}\";",
+                    name,
+                    escape_string(s)
+                ));
+            }
+        }
+        constants
     }
 }
 
@@ -206,10 +304,9 @@ pub fn generate_optimized_string(optimizer: &StringOptimizer, context: &StringCo
         OptimalStringType::StaticStr => {
             // For static strings, we don't need .to_string()
             match context {
-                StringContext::Literal(s) => format!("\"{}\"", s),
+                StringContext::Literal(s) => format!("\"{}\"", escape_string(s)),
                 _ => {
                     // Fallback to owned string for non-literal contexts
-                    eprintln!("Warning: StaticStr type used for non-literal context");
                     format!("{}.to_string()", context)
                 }
             }
@@ -217,31 +314,46 @@ pub fn generate_optimized_string(optimizer: &StringOptimizer, context: &StringCo
         OptimalStringType::BorrowedStr { .. } => {
             // Parameters should be borrowed
             match context {
-                StringContext::Parameter(name) => format!("&{}", name),
+                StringContext::Parameter(name) => name.clone(), // Already &str in function signature
+                StringContext::Literal(s) => format!("\"{}\"", escape_string(s)), // Literals can be &'static str
                 _ => {
-                    // Fallback to owned string for non-parameter contexts
-                    eprintln!("Warning: BorrowedStr type used for non-parameter context");
-                    format!("{}.to_string()", context)
+                    format!("{}.as_str()", context)
                 }
             }
         }
         OptimalStringType::OwnedString => {
             // Need full String ownership
             match context {
-                StringContext::Literal(s) => format!("\"{}\".to_string()", s),
-                StringContext::Parameter(name) => name.clone(),
+                StringContext::Literal(s) => format!("\"{}\".to_string()", escape_string(s)),
+                StringContext::Parameter(name) => format!("{}.to_string()", name),
+                StringContext::Concatenation => "String::new()".to_string(),
                 _ => "String::new()".to_string(),
             }
         }
         OptimalStringType::CowStr => {
             // Use Cow for flexible ownership
             match context {
-                StringContext::Literal(s) => format!("Cow::Borrowed(\"{}\")", s),
+                StringContext::Literal(s) => format!("Cow::Borrowed(\"{}\")", escape_string(s)),
                 StringContext::Parameter(name) => format!("Cow::Borrowed({})", name),
+                StringContext::Concatenation => "Cow::Owned(String::new())".to_string(),
                 _ => "Cow::Owned(String::new())".to_string(),
             }
         }
     }
+}
+
+/// Escape a string for use in Rust string literals
+fn escape_string(s: &str) -> String {
+    s.chars()
+        .flat_map(|c| match c {
+            '"' => vec!['\\', '"'],
+            '\\' => vec!['\\', '\\'],
+            '\n' => vec!['\\', 'n'],
+            '\r' => vec!['\\', 'r'],
+            '\t' => vec!['\\', 't'],
+            c => vec![c],
+        })
+        .collect()
 }
 
 #[cfg(test)]
