@@ -31,6 +31,8 @@ fn prop_transpiled_functions_are_valid_rust(func: ArbitraryFunction) -> TestResu
     let module = HirModule {
         functions: vec![func.0],
         imports: vec![],
+        type_aliases: vec![],
+        protocols: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -68,6 +70,8 @@ fn prop_type_preservation(expr: ArbitraryTypedExpr) -> TestResult {
     let module = HirModule {
         functions: vec![func],
         imports: vec![],
+        type_aliases: vec![],
+        protocols: vec![],
     };
 
     match apply_rules(&module, &type_mapper) {
@@ -95,6 +99,8 @@ fn prop_pure_functions_have_no_side_effects(func: ArbitraryPureFunction) -> Test
     let module = HirModule {
         functions: vec![func.0],
         imports: vec![],
+        type_aliases: vec![],
+        protocols: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -123,6 +129,8 @@ fn prop_panic_free_functions_dont_panic(func: ArbitraryPanicFreeFunction) -> boo
     let module = HirModule {
         functions: vec![func.0],
         imports: vec![],
+        type_aliases: vec![],
+        protocols: vec![],
     };
 
     let type_mapper = TypeMapper::default();

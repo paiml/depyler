@@ -44,6 +44,18 @@ pub enum RustType {
     Unit,
     Custom(String),
     Unsupported(String),
+    /// Type parameter for generics
+    TypeParam(String),
+    /// Generic type with parameters
+    Generic {
+        base: String,
+        params: Vec<RustType>,
+    },
+    /// Enum type for union types
+    Enum {
+        name: String,
+        variants: Vec<(String, RustType)>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -118,7 +130,58 @@ impl TypeMapper {
                 // For V1, we don't map function types directly
                 RustType::Unsupported("function".to_string())
             }
-            PythonType::Custom(name) => RustType::Custom(name.clone()),
+            PythonType::Custom(name) => {
+                // Check if this is a single uppercase letter (type parameter)
+                if name.len() == 1 && name.chars().next().unwrap().is_uppercase() {
+                    RustType::TypeParam(name.clone())
+                } else {
+                    RustType::Custom(name.clone())
+                }
+            }
+            PythonType::TypeVar(name) => RustType::TypeParam(name.clone()),
+            PythonType::Generic { base, params } => {
+                // Map generic types like MyClass<T> to appropriate Rust types
+                match base.as_str() {
+                    "List" if params.len() == 1 => {
+                        RustType::Vec(Box::new(self.map_type(&params[0])))
+                    }
+                    "Dict" if params.len() == 2 => {
+                        RustType::HashMap(
+                            Box::new(self.map_type(&params[0])),
+                            Box::new(self.map_type(&params[1]))
+                        )
+                    }
+                    _ => RustType::Generic {
+                        base: base.clone(),
+                        params: params.iter().map(|t| self.map_type(t)).collect(),
+                    }
+                }
+            }
+            PythonType::Union(types) => {
+                // For now, map Union to an enum or use dynamic typing
+                if types.len() == 2 && types.iter().any(|t| matches!(t, PythonType::None)) {
+                    // Union[T, None] is Optional[T]
+                    let non_none = types.iter().find(|t| !matches!(t, PythonType::None)).unwrap();
+                    RustType::Option(Box::new(self.map_type(non_none)))
+                } else {
+                    // For non-optional unions, we'll need to generate an enum
+                    // The actual enum will be generated during code generation
+                    RustType::Enum {
+                        name: "UnionType".to_string(), // Placeholder, will be replaced
+                        variants: types.iter().enumerate().map(|(i, t)| {
+                            let variant_name = match t {
+                                PythonType::Int => "Integer".to_string(),
+                                PythonType::Float => "Float".to_string(),
+                                PythonType::String => "Text".to_string(),
+                                PythonType::Bool => "Boolean".to_string(),
+                                PythonType::None => "None".to_string(),
+                                _ => format!("Variant{}", i),
+                            };
+                            (variant_name, self.map_type(t))
+                        }).collect(),
+                    }
+                }
+            }
         }
     }
 
@@ -192,6 +255,12 @@ impl RustType {
             RustType::Unit => "()".to_string(),
             RustType::Custom(name) => name.clone(),
             RustType::Unsupported(desc) => format!("/* unsupported: {desc} */"),
+            RustType::TypeParam(name) => name.clone(),
+            RustType::Generic { base, params } => {
+                let param_strs: Vec<String> = params.iter().map(|p| p.to_rust_string()).collect();
+                format!("{}<{}>", base, param_strs.join(", "))
+            }
+            RustType::Enum { name, .. } => name.clone(),
         }
     }
 }
