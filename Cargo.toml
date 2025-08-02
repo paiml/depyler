@@ -76,6 +76,7 @@ reqwest = { version = "0.11", default-features = false, features = ["json", "rus
 # MCP SDK
 pmcp = { version = "0.6.3", features = ["validation", "websocket", "http"] }
 async-trait = "0.1"
+url = "2.5"
 
 # Benchmarking
 criterion = { version = "0.5", features = ["html_reports"] }
