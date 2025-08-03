@@ -1,0 +1,29 @@
+#[derive(Debug, Clone, PartialEq)] pub struct Point {
+    pub x: i32, pub y: i32
+}
+impl Point {
+    pub fn move_by(& mut self, dx: i32, dy: i32) {
+   
+}
+pub fn distance_to(& mut self, other: DynamicType)  -> f64 {
+   
+}
+pub fn origin () {
+   
+}
+pub fn from_tuple(& mut self, cls: DynamicType, coords :(i32, i32)) {
+   
+}
+pub fn magnitude(& self)  -> f64 {
+   
+}
+} #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_point()  -> DynamicType {
+    let mut p1 = Point(0, 0);
+    let mut p2 = Point(3, 4);
+    p1.move_by(1, 1);
+    let mut origin = Point.origin ();
+    let mut p3 = Point.from_tuple((5, 5));
+    let mut mag = p2.magnitude;
+    let mut dist = p1.distance_to(p2);
+    return(dist, mag)
+}

@@ -176,6 +176,12 @@ impl TypeInferencer {
             HirExpr::List(elts) => self.infer_list(elts),
             HirExpr::Dict(items) => self.infer_dict(items),
             HirExpr::Tuple(elts) => self.infer_tuple(elts),
+            HirExpr::Attribute { value, attr: _ } => {
+                // For attribute access, infer the type of the base value
+                // In a more sophisticated implementation, we would track attribute types
+                let _base_type = self.infer_expr(value)?;
+                Ok(Type::Unknown)
+            }
             _ => Ok(Type::Unknown),
         }
     }
