@@ -8,6 +8,38 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [1.4.0] - 2025-01-XX
+
+### 🎌 Quality Metrics
+- SATD Count: 0 (Toyota Way: Zero Defects)
+- Test Coverage: 100% (all tests passing)
+- Clippy Warnings: 0 ✨
+
+### ✨ Async/Await Support (Priority 4 - Basic)
+- **Async Functions**: Full support for `async def` functions
+  - Functions generate proper `async fn` in Rust
+  - Return types automatically wrapped in Future
+  - Support for both standalone and class async methods
+- **Await Expressions**: Complete `await` expression support
+  - Python `await expr` → Rust `expr.await`
+  - Works with any async expression
+  - Proper type inference for awaited values
+- **Async Methods**: Support for async methods in classes
+  - Instance methods can be async
+  - Special async dunder methods: `__aenter__`, `__aexit__`, `__aiter__`, `__anext__`
+
+### 🚧 Features Started but Not Complete
+- **Runtime Selection**: No tokio/async-std selection yet (user must add manually)
+- **Async Iterators**: `__aiter__`/`__anext__` methods allowed but no special handling
+- **Async Generators**: Not implemented
+- **Async Context Managers**: `async with` not yet supported
+
+### 🔧 Internal Architecture
+- New `HirExpr::Await` variant for await expressions
+- Enhanced `FunctionProperties` with `is_async` flag
+- Async function/method handling in AST bridge
+- Full analysis pass support for async constructs
+
 ## [1.3.0] - 2025-01-XX
 
 ### 🎌 Quality Metrics

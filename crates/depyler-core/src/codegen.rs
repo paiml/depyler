@@ -156,11 +156,22 @@ fn convert_function_to_rust(func: &HirFunction) -> Result<proc_macro2::TokenStre
         .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, &mut scope_tracker))
         .collect::<Result<Vec<_>>>()?;
 
-    Ok(quote! {
-        pub fn #name(#(#params),*) -> #return_type {
-            #(#body_stmts)*
+    // Add async if needed
+    let func_tokens = if func.properties.is_async {
+        quote! {
+            pub async fn #name(#(#params),*) -> #return_type {
+                #(#body_stmts)*
+            }
         }
-    })
+    } else {
+        quote! {
+            pub fn #name(#(#params),*) -> #return_type {
+                #(#body_stmts)*
+            }
+        }
+    };
+
+    Ok(func_tokens)
 }
 
 fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
@@ -653,6 +664,10 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
                         .collect::<HashSet<_>>()
                 })
             }
+        }
+        HirExpr::Await { value } => {
+            let value_tokens = expr_to_rust_tokens(value)?;
+            Ok(quote! { #value_tokens.await })
         }
     }
 }

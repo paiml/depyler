@@ -54,13 +54,16 @@ impl AstBridge {
         for stmt in module.body {
             match stmt {
                 ast::Stmt::FunctionDef(f) => {
-                    functions.push(self.convert_function(f)?);
+                    functions.push(self.convert_function(f, false)?);
                 }
                 ast::Stmt::Import(i) => {
                     imports.extend(convert_import(i)?);
                 }
                 ast::Stmt::ImportFrom(i) => {
                     imports.extend(convert_import_from(i)?);
+                }
+                ast::Stmt::AsyncFunctionDef(f) => {
+                    functions.push(self.convert_async_function(f)?);
                 }
                 ast::Stmt::ClassDef(class) => {
                     // Try to parse as protocol first
@@ -102,7 +105,7 @@ impl AstBridge {
         })
     }
 
-    fn convert_function(&self, func: ast::StmtFunctionDef) -> Result<HirFunction> {
+    fn convert_function(&self, func: ast::StmtFunctionDef, is_async: bool) -> Result<HirFunction> {
         let name = func.name.to_string();
         let params = convert_parameters(&func.args)?;
         let ret_type = TypeExtractor::extract_return_type(&func.returns)?;
@@ -112,7 +115,32 @@ impl AstBridge {
 
         // Extract docstring and filter it from the body
         let (docstring, filtered_body) = extract_docstring_and_body(func.body)?;
-        let properties = FunctionAnalyzer::analyze(&filtered_body);
+        let mut properties = FunctionAnalyzer::analyze(&filtered_body);
+        properties.is_async = is_async;
+
+        Ok(HirFunction {
+            name,
+            params: params.into(),
+            ret_type,
+            body: filtered_body,
+            properties,
+            annotations,
+            docstring,
+        })
+    }
+
+    fn convert_async_function(&self, func: ast::StmtAsyncFunctionDef) -> Result<HirFunction> {
+        let name = func.name.to_string();
+        let params = convert_parameters(&func.args)?;
+        let ret_type = TypeExtractor::extract_return_type(&func.returns)?;
+
+        // Extract annotations from source code if available
+        let annotations = self.extract_async_function_annotations(&func);
+
+        // Extract docstring and filter it from the body
+        let (docstring, filtered_body) = extract_docstring_and_body(func.body)?;
+        let mut properties = FunctionAnalyzer::analyze(&filtered_body);
+        properties.is_async = true;
 
         Ok(HirFunction {
             name,
@@ -128,6 +156,37 @@ impl AstBridge {
     fn extract_function_annotations(
         &self,
         func: &ast::StmtFunctionDef,
+    ) -> TranspilationAnnotations {
+        // Try to extract from source code comments first
+        if let Some(source) = &self.source_code {
+            if let Some(annotation_text) = self
+                .annotation_extractor
+                .extract_function_annotations(source, &func.name)
+            {
+                if let Ok(annotations) = self.annotation_parser.parse_annotations(&annotation_text)
+                {
+                    return annotations;
+                }
+            }
+        }
+
+        // Fallback: Try to extract from docstring if present
+        if let Some(ast::Stmt::Expr(expr)) = func.body.first() {
+            if let ast::Expr::Constant(constant) = expr.value.as_ref() {
+                if let ast::Constant::Str(docstring) = &constant.value {
+                    if let Ok(annotations) = self.annotation_parser.parse_annotations(docstring) {
+                        return annotations;
+                    }
+                }
+            }
+        }
+
+        TranspilationAnnotations::default()
+    }
+
+    fn extract_async_function_annotations(
+        &self,
+        func: &ast::StmtAsyncFunctionDef,
     ) -> TranspilationAnnotations {
         // Try to extract from source code comments first
         if let Some(source) = &self.source_code {
@@ -361,7 +420,12 @@ impl AstBridge {
                         // Store __init__ for field inference
                         init_method = Some(method);
                     }
-                    if let Some(hir_method) = self.convert_method(method)? {
+                    if let Some(hir_method) = self.convert_method(method, false)? {
+                        methods.push(hir_method);
+                    }
+                }
+                ast::Stmt::AsyncFunctionDef(method) => {
+                    if let Some(hir_method) = self.convert_async_method(method)? {
                         methods.push(hir_method);
                     }
                 }
@@ -410,7 +474,11 @@ impl AstBridge {
         }))
     }
 
-    fn convert_method(&self, method: &ast::StmtFunctionDef) -> Result<Option<HirMethod>> {
+    fn convert_method(
+        &self,
+        method: &ast::StmtFunctionDef,
+        is_async: bool,
+    ) -> Result<Option<HirMethod>> {
         use smallvec::smallvec;
 
         let name = method.name.to_string();
@@ -508,6 +576,121 @@ impl AstBridge {
             is_static,
             is_classmethod,
             is_property,
+            is_async,
+            docstring,
+        }))
+    }
+
+    fn convert_async_method(
+        &self,
+        method: &ast::StmtAsyncFunctionDef,
+    ) -> Result<Option<HirMethod>> {
+        use smallvec::smallvec;
+
+        let name = method.name.to_string();
+
+        // Skip dunder methods except __init__, __iter__, __next__, __enter__, __exit__, __aenter__, __aexit__
+        if name.starts_with("__")
+            && name.ends_with("__")
+            && !matches!(
+                name.as_str(),
+                "__init__"
+                    | "__iter__"
+                    | "__next__"
+                    | "__enter__"
+                    | "__exit__"
+                    | "__aenter__"
+                    | "__aexit__"
+                    | "__anext__"
+                    | "__aiter__"
+            )
+        {
+            return Ok(None);
+        }
+
+        // Extract docstring
+        let docstring = self.extract_class_docstring(&method.body);
+
+        // Check decorators
+        let is_static = method
+            .decorator_list
+            .iter()
+            .any(|d| matches!(d, ast::Expr::Name(n) if n.id.as_str() == "staticmethod"));
+        let is_classmethod = method
+            .decorator_list
+            .iter()
+            .any(|d| matches!(d, ast::Expr::Name(n) if n.id.as_str() == "classmethod"));
+        let is_property = method
+            .decorator_list
+            .iter()
+            .any(|d| matches!(d, ast::Expr::Name(n) if n.id.as_str() == "property"));
+
+        // Convert parameters
+        let mut params = smallvec![];
+        let skip_first = if is_static {
+            false
+        } else if is_classmethod {
+            // Skip 'cls' parameter for classmethods
+            method
+                .args
+                .args
+                .first()
+                .map(|arg| arg.def.arg.as_str() == "cls")
+                .unwrap_or(false)
+        } else {
+            // Skip 'self' parameter for instance methods
+            method
+                .args
+                .args
+                .first()
+                .map(|arg| arg.def.arg.as_str() == "self")
+                .unwrap_or(false)
+        };
+
+        let args_to_process = if skip_first {
+            &method.args.args[1..]
+        } else {
+            &method.args.args[..]
+        };
+
+        for arg in args_to_process {
+            let param_name = arg.def.arg.to_string();
+            let param_type = if let Some(ann) = &arg.def.annotation {
+                TypeExtractor::extract_type(ann)?
+            } else {
+                Type::Unknown
+            };
+            params.push((param_name, param_type));
+        }
+
+        // Convert return type
+        let ret_type = if let Some(ret) = &method.returns {
+            TypeExtractor::extract_type(ret)?
+        } else {
+            Type::None
+        };
+
+        // Convert body (filter out docstring)
+        let filtered_body = if docstring.is_some() && method.body.len() > 1 {
+            // Skip first statement if it's the docstring
+            method.body[1..].to_vec()
+        } else if docstring.is_some() && method.body.len() == 1 {
+            // Only docstring, no actual body
+            vec![]
+        } else {
+            method.body.clone()
+        };
+        let body = convert_body(filtered_body)?;
+
+        Ok(Some(HirMethod {
+            name,
+            params,
+            ret_type,
+            body,
+            is_static,
+            is_classmethod,
+            is_property,
+            is_async: true,
             docstring,
         }))
     }

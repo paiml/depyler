@@ -454,6 +454,10 @@ impl LifetimeInference {
                 // If target shadows param, we don't analyze element/condition
                 // since they would refer to the comprehension variable, not the parameter
             }
+            HirExpr::Await { value } => {
+                // Await expressions propagate parameter usage
+                self.analyze_expr_for_param(param, value, usage, in_loop, in_return);
+            }
         }
     }
 

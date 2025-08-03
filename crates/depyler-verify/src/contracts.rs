@@ -657,6 +657,7 @@ mod tests {
             max_stack_depth: Some(100),
             can_fail: false,
             error_types: vec![],
+            is_async: false,
         };
 
         let func = create_test_function("safe_function", vec![], Type::Int, vec![], properties);
@@ -679,6 +680,7 @@ mod tests {
             max_stack_depth: Some(100),
             can_fail: false,
             error_types: vec![],
+            is_async: false,
         };
 
         let func = create_test_function(
@@ -707,6 +709,7 @@ mod tests {
             max_stack_depth: Some(100),
             can_fail: false,
             error_types: vec![],
+            is_async: false,
         };
 
         let func = create_test_function(
@@ -1003,6 +1006,7 @@ mod tests {
                 max_stack_depth: Some(10),
                 can_fail: false,
                 error_types: vec![],
+                is_async: false,
             },
         );
 

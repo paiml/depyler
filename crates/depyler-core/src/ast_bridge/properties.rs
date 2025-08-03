@@ -12,6 +12,7 @@ impl FunctionAnalyzer {
             max_stack_depth: Self::calculate_max_stack_depth(body),
             can_fail,
             error_types,
+            is_async: false, // Set by AST bridge when needed
         }
     }
 
