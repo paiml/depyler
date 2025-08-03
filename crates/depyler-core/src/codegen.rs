@@ -515,6 +515,23 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
                 })
             }
         }
+        HirExpr::Lambda { params, body } => {
+            // Convert parameters to identifiers
+            let param_idents: Vec<proc_macro2::Ident> = params
+                .iter()
+                .map(|p| quote::format_ident!("{}", p))
+                .collect();
+            
+            // Convert body
+            let body_tokens = expr_to_rust_tokens(body)?;
+            
+            // Generate closure
+            if params.is_empty() {
+                Ok(quote! { || #body_tokens })
+            } else {
+                Ok(quote! { |#(#param_idents),*| #body_tokens })
+            }
+        }
     }
 }
 

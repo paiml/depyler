@@ -189,6 +189,11 @@ pub enum HirExpr {
         iter: Box<HirExpr>,
         condition: Option<Box<HirExpr>>,
     },
+    // Lambda function
+    Lambda {
+        params: Vec<Symbol>,
+        body: Box<HirExpr>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

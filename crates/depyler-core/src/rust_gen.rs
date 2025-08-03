@@ -1423,6 +1423,37 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    fn convert_lambda(
+        &mut self,
+        params: &[String],
+        body: &HirExpr,
+    ) -> Result<syn::Expr> {
+        // Convert parameters to pattern identifiers
+        let param_pats: Vec<syn::Pat> = params
+            .iter()
+            .map(|p| {
+                let ident = syn::Ident::new(p, proc_macro2::Span::call_site());
+                parse_quote! { #ident }
+            })
+            .collect();
+        
+        // Convert body expression
+        let body_expr = body.to_rust_expr(self.ctx)?;
+        
+        // Generate closure
+        if params.is_empty() {
+            // No parameters
+            Ok(parse_quote! { || #body_expr })
+        } else if params.len() == 1 {
+            // Single parameter
+            let param = &param_pats[0];
+            Ok(parse_quote! { |#param| #body_expr })
+        } else {
+            // Multiple parameters
+            Ok(parse_quote! { |#(#param_pats),*| #body_expr })
+        }
+    }
+
     /// Check if an expression is a len() call
     fn is_len_call(&self, expr: &HirExpr) -> bool {
         matches!(expr, HirExpr::Call { func, args } if func == "len" && args.len() == 1)
@@ -1474,6 +1505,7 @@ impl ToRustExpr for HirExpr {
                 iter,
                 condition,
             } => converter.convert_list_comp(element, target, iter, condition),
+            HirExpr::Lambda { params, body } => converter.convert_lambda(params, body),
         }
     }
 }
