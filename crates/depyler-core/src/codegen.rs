@@ -382,6 +382,34 @@ fn stmt_to_rust_tokens_with_scope(
                 Ok(quote! { continue; })
             }
         }
+        HirStmt::With { context, target, body } => {
+            // Convert context expression
+            let context_tokens = expr_to_rust_tokens(context)?;
+            
+            // Convert body statements
+            let body_tokens: Vec<_> = body
+                .iter()
+                .map(stmt_to_rust_tokens)
+                .collect::<Result<_>>()?;
+            
+            // Generate scoped block with optional variable binding
+            if let Some(var_name) = target {
+                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                Ok(quote! {
+                    {
+                        let mut #var_ident = #context_tokens;
+                        #(#body_tokens)*
+                    }
+                })
+            } else {
+                Ok(quote! {
+                    {
+                        let _context = #context_tokens;
+                        #(#body_tokens)*
+                    }
+                })
+            }
+        }
     }
 }
 

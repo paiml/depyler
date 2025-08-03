@@ -777,6 +777,36 @@ impl RustCodeGen for HirStmt {
                     Ok(quote! { continue; })
                 }
             }
+            HirStmt::With { context, target, body } => {
+                // Convert context expression
+                let context_expr = context.to_rust_expr(ctx)?;
+                
+                // Convert body statements
+                let body_stmts: Vec<_> = body
+                    .iter()
+                    .map(|stmt| stmt.to_rust_tokens(ctx))
+                    .collect::<Result<_>>()?;
+                
+                // For now, generate a simple scope block
+                // TODO: Implement proper RAII pattern with Drop trait
+                if let Some(var_name) = target {
+                    let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                    ctx.declare_var(var_name);
+                    Ok(quote! {
+                        {
+                            let mut #var_ident = #context_expr;
+                            #(#body_stmts)*
+                        }
+                    })
+                } else {
+                    Ok(quote! {
+                        {
+                            let _context = #context_expr;
+                            #(#body_stmts)*
+                        }
+                    })
+                }
+            }
         }
     }
 }
@@ -1374,7 +1404,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // Generic method call fallback
             _ => {
-                eprintln!("DEBUG: Converting method call: {}", method);
                 let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
                 Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) })
             }

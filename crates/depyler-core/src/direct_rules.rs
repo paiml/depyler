@@ -1011,6 +1011,33 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
             };
             Ok(syn::Stmt::Expr(continue_expr, Some(Default::default())))
         }
+        HirStmt::With { context, target, body } => {
+            // Convert context expression
+            let context_expr = convert_expr(context, type_mapper)?;
+            
+            // Convert body to a block
+            let body_block = convert_block(body, type_mapper)?;
+            
+            // Generate a scope block with optional variable binding
+            let block_expr = if let Some(var_name) = target {
+                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                parse_quote! {
+                    {
+                        let mut #var_ident = #context_expr;
+                        #body_block
+                    }
+                }
+            } else {
+                parse_quote! {
+                    {
+                        let _context = #context_expr;
+                        #body_block
+                    }
+                }
+            };
+            
+            Ok(syn::Stmt::Expr(block_expr, None))
+        }
     }
 }
 

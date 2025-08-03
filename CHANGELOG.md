@@ -8,7 +8,34 @@ and this project adheres to
 
 ## [Unreleased]
 
-## [1.2.0] - 2025-01-XX
+## [1.3.0] - 2025-01-XX
+
+### 🎌 Quality Metrics
+- SATD Count: 0 (Toyota Way: Zero Defects)
+- Test Coverage: 100% (all tests passing)
+- Clippy Warnings: <20 (minor collapsible_match warnings)
+
+### ✨ Advanced Type System Features (Priority 3 - Partial)
+- **With Statement Support**: Basic `with` statement transpilation to scope blocks
+  - Single context manager support
+  - Optional target variable binding
+  - Automatic scope management
+- **Iterator Protocol**: Support for `__iter__` and `__next__` methods
+  - Custom iterator classes can define these methods
+  - Manual iteration pattern (full `for...in` support pending)
+  - Basic protocol compliance
+
+### 🚧 Features Started but Not Complete
+- **Function Decorators**: Infrastructure in place but not implemented
+- **Generator Functions**: `yield` expressions not yet supported
+- **Multiple Context Managers**: Single manager only for now
+
+### 🔧 Internal Architecture
+- New `HirStmt::With` variant for context management
+- Enhanced method filtering to allow key dunder methods
+- With statement handling across multiple analysis passes
+
+## [1.2.0] - 2025-01-03
 
 ### 🎌 Quality Metrics
 - SATD Count: 0 (Toyota Way: Zero Defects)
