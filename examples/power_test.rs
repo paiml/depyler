@@ -1,0 +1,97 @@
+#[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_integer_power()  -> serde_json::Value {
+    let mut a = 2.checked_pow(3 as u32).expect("Power operation overflowed");
+    let mut b = 10.checked_pow(2 as u32).expect("Power operation overflowed");
+    let mut c = 5.checked_pow(0 as u32).expect("Power operation overflowed");
+    let mut base = 3;
+    let mut exp = 4;
+    let mut d = {
+    if exp>= 0 && exp <= u32::MAX as i64 {
+    base.checked_pow(exp as u32).expect("Power operation overflowed")
+}
+else {
+   (base as f64).powf(exp as f64) as i64
+}
+};
+    return(a, b, c, d);
+   
+}
+#[doc = " Depyler: proven to terminate"] pub fn test_float_power()  -> Result<serde_json::Value, ZeroDivisionError>{
+    let mut a = 2.5.powf(2 as f64);
+    let mut b = 10.powf(3 as f64);
+    let mut c  = (4 as f64).powf(0.5);
+    let mut d = {
+    if(1 / 3)>= 0 &&(1 / 3) <= u32::MAX as i64 {
+    8.checked_pow((1 / 3) as u32).expect("Power operation overflowed")
+}
+else {
+   (8 as f64).powf((1 / 3) as f64) as i64
+}
+};
+    return Ok((a, b, c, d));
+   
+}
+#[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_negative_exponent()  -> serde_json::Value {
+    let mut a = {
+    if - 1>= 0 && - 1 <= u32::MAX as i64 {
+    2.checked_pow(- 1 as u32).expect("Power operation overflowed")
+}
+else {
+   (2 as f64).powf(- 1 as f64) as i64
+}
+};
+    let mut b = {
+    if - 2>= 0 && - 2 <= u32::MAX as i64 {
+    10.checked_pow(- 2 as u32).expect("Power operation overflowed")
+}
+else {
+   (10 as f64).powf(- 2 as f64) as i64
+}
+};
+    let mut c = {
+    if - 3>= 0 && - 3 <= u32::MAX as i64 {
+    5.checked_pow(- 3 as u32).expect("Power operation overflowed")
+}
+else {
+   (5 as f64).powf(- 3 as f64) as i64
+}
+};
+    return(a, b, c);
+   
+}
+#[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_large_powers()  -> serde_json::Value {
+    let mut a = 2.checked_pow(10 as u32).expect("Power operation overflowed");
+    let mut b = 2.checked_pow(20 as u32).expect("Power operation overflowed");
+    let mut c = 10.checked_pow(6 as u32).expect("Power operation overflowed");
+    return(a, b, c);
+   
+}
+#[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_mixed_operations()  -> serde_json::Value {
+    let mut a  = (2 + 3.checked_pow(2 as u32).expect("Power operation overflowed"));
+    let mut b = 5.checked_pow(2 as u32).expect("Power operation overflowed");
+    let mut c  = (2.checked_pow(3 as u32).expect("Power operation overflowed") * 4);
+    let mut d = 2.checked_pow(6 as u32).expect("Power operation overflowed");
+    return(a, b, c, d);
+   
+}
+#[doc = "Test power with function parameters"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn compute_power(base: i32, exp: i32)  -> i32 {
+    return {
+    if exp>= 0 && exp <= u32::MAX as i64 {
+    base.checked_pow(exp as u32).expect("Power operation overflowed")
+}
+else {
+   (base as f64).powf(exp as f64) as i64
+}
+};
+   
+}
+#[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_compute_power_examples() {
+    assert_eq !(compute_power(0, 0), 0);
+    assert_eq !(compute_power(1, 2), 3);
+    assert_eq !(compute_power(- 1, 1), 0);
+   
+}
+}

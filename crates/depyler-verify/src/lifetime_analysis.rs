@@ -1,4 +1,4 @@
-use depyler_core::hir::{HirExpr, HirFunction, HirStmt, Type};
+use depyler_core::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Type};
 use std::collections::{HashMap, HashSet};
 
 /// Tracks lifetime constraints and relationships
@@ -101,17 +101,19 @@ impl LifetimeAnalyzer {
                 // Check if value can be assigned
                 self.analyze_expr(value, scope_depth);
 
-                // target is already a String (Symbol), not HirExpr
-                let var_name = target;
-                // Check for move semantics
-                if self.is_moved(var_name) {
-                    self.violations.push(LifetimeViolation {
-                        kind: ViolationKind::UseAfterMove,
-                        variable: var_name.clone(),
-                        location: format!("assignment to {}", var_name),
-                        suggestion: "Consider borrowing instead of moving".to_string(),
-                    });
+                // Handle different assignment target types
+                if let AssignTarget::Symbol(var_name) = target {
+                    // Check for move semantics
+                    if self.is_moved(var_name) {
+                        self.violations.push(LifetimeViolation {
+                            kind: ViolationKind::UseAfterMove,
+                            variable: var_name.clone(),
+                            location: format!("assignment to {}", var_name),
+                            suggestion: "Consider borrowing instead of moving".to_string(),
+                        });
+                    }
                 }
+                // TODO: Handle subscript and attribute assignments
             }
             HirStmt::Return(Some(expr)) => {
                 self.analyze_expr(expr, scope_depth);
@@ -472,7 +474,7 @@ mod tests {
             ret_type: Type::String,
             body: vec![
                 HirStmt::Assign {
-                    target: "local".to_string(),
+                    target: depyler_core::hir::AssignTarget::Symbol("local".to_string()),
                     value: HirExpr::Literal(Literal::String("temp".to_string())),
                 },
                 HirStmt::Return(Some(HirExpr::Borrow {

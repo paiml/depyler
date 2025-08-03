@@ -1,0 +1,56 @@
+use std::collections::HashSet;
+    #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_all_set_features()  -> HashSet<i32>{
+    let mut s1 = {
+    let mut set = HashSet::new();
+    set.insert(1);
+    set.insert(2);
+    set.insert(3);
+    set };
+    let mut s2 = [4, 5, 6].into_iter().collect::<HashSet<_>>();
+    let mut empty = HashSet::new();
+    let mut union = s1.union(& s2).cloned().collect();
+    let mut intersection = {
+    let mut set = HashSet::new();
+    set.insert(1);
+    set.insert(2);
+    set.insert(3);
+    set
+}
+. intersection(& {
+    let mut set = HashSet::new();
+    set.insert(2);
+    set.insert(3);
+    set.insert(4);
+    set }).cloned().collect();
+    let mut difference = {
+    let mut set = HashSet::new();
+    set.insert(1);
+    set.insert(2);
+    set.insert(3);
+    set.insert(4);
+    set
+}
+. difference(& {
+    let mut set = HashSet::new();
+    set.insert(3);
+    set.insert(4);
+    set.insert(5);
+    set }).cloned().collect();
+    let mut symmetric_diff = {
+    let mut set = HashSet::new();
+    set.insert(1);
+    set.insert(2);
+    set.insert(3);
+    set
+}
+. symmetric_difference(& {
+    let mut set = HashSet::new();
+    set.insert(2);
+    set.insert(3);
+    set.insert(4);
+    set }).cloned().collect();
+    s1.insert(4);
+    s2.remove(& 5);
+    let mut result  = ((union.union(& intersection).cloned().collect() | difference) | symmetric_diff);
+    return result
+}

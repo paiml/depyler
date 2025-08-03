@@ -1,4 +1,6 @@
-use crate::hir::{ConstGeneric, HirExpr, HirFunction, HirModule, HirStmt, Literal, Type};
+use crate::hir::{
+    AssignTarget, ConstGeneric, HirExpr, HirFunction, HirModule, HirStmt, Literal, Type,
+};
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 
@@ -65,8 +67,10 @@ impl ConstGenericInferencer {
         match stmt {
             HirStmt::Assign { target, value } => {
                 // Look for assignments like: arr = [0] * 10
-                if let Some(size) = self.detect_fixed_size_pattern(value) {
-                    self.const_values.insert(target.clone(), size);
+                if let AssignTarget::Symbol(symbol) = target {
+                    if let Some(size) = self.detect_fixed_size_pattern(value) {
+                        self.const_values.insert(symbol.clone(), size);
+                    }
                 }
             }
             HirStmt::If {
@@ -206,8 +210,10 @@ impl ConstGenericInferencer {
         let mut var_sizes = HashMap::new();
         for stmt in &function.body {
             if let HirStmt::Assign { target, value } = stmt {
-                if let Some(size) = self.detect_fixed_size_pattern(value) {
-                    var_sizes.insert(target.clone(), size);
+                if let AssignTarget::Symbol(symbol) = target {
+                    if let Some(size) = self.detect_fixed_size_pattern(value) {
+                        var_sizes.insert(symbol.clone(), size);
+                    }
                 }
             }
         }
@@ -512,7 +518,7 @@ mod tests {
             ret_type: Type::List(Box::new(Type::Int)),
             body: vec![
                 HirStmt::Assign {
-                    target: "result".to_string(),
+                    target: AssignTarget::Symbol("result".to_string()),
                     value: HirExpr::List(vec![
                         HirExpr::Literal(Literal::Int(0)),
                         HirExpr::Literal(Literal::Int(1)),

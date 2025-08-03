@@ -1,4 +1,4 @@
-use crate::hir::{HirExpr, HirFunction, HirStmt, Type};
+use crate::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Type};
 use std::collections::HashSet;
 
 /// Tracks how parameters are used within a function to infer borrowing patterns
@@ -83,9 +83,11 @@ impl BorrowingContext {
     fn analyze_stmt(&mut self, stmt: &HirStmt) {
         match stmt {
             HirStmt::Assign { target, value } => {
-                // target is already a String (Symbol), check if it's a parameter
-                if self.read_only_params.contains(target) {
-                    self.mutated_params.insert(target.clone());
+                // Check if target is a simple symbol that's a parameter
+                if let AssignTarget::Symbol(symbol) = target {
+                    if self.read_only_params.contains(symbol) {
+                        self.mutated_params.insert(symbol.clone());
+                    }
                 }
                 // Check if we're assigning a parameter (escaping)
                 self.check_escaping_expr(value);
@@ -257,6 +259,7 @@ impl BorrowingContext {
             Type::Array { element_type, .. } => {
                 format!("Array<{}>", self.type_to_rust_string(element_type))
             }
+            Type::Set(element) => format!("HashSet<{}>", self.type_to_rust_string(element)),
         }
     }
 }

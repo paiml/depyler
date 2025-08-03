@@ -1,4 +1,4 @@
-use crate::hir::{HirExpr, HirFunction, HirStmt, Literal, Type};
+use crate::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Literal, Type};
 use std::collections::{HashMap, HashSet};
 
 /// Analyzes string usage patterns to determine optimal string types
@@ -89,9 +89,11 @@ impl StringOptimizer {
     fn analyze_stmt(&mut self, stmt: &HirStmt) {
         match stmt {
             HirStmt::Assign { target, value } => {
-                // Track mutations - target is already a String (Symbol)
-                if self.immutable_params.contains(target) {
-                    self.immutable_params.remove(target);
+                // Track mutations for simple symbol assignments
+                if let AssignTarget::Symbol(symbol) = target {
+                    if self.immutable_params.contains(symbol) {
+                        self.immutable_params.remove(symbol);
+                    }
                 }
                 self.analyze_expr(value, false);
             }

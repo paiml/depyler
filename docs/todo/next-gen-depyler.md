@@ -16,6 +16,19 @@ This document provides a granular, prioritized list of development tasks for the
   - Field type annotations supported
   - Method stubs generated (body conversion in progress)
 
+- **v1.0.7**: Const Generic Array Generation
+  - Small literal arrays now generate Rust arrays `[1, 2, 3]`
+  - Array multiplication patterns `[0] * 10` → `[0; 10]`
+  - Support for `zeros()`, `ones()`, `full()` array functions
+  - Arrays >32 elements fall back to `vec!` for heap allocation
+  - Integration with type system for array types
+
+- **v1.0.8**: Lambda Function Support
+  - Python lambda expressions transpile to Rust closures
+  - Zero, single, and multiple parameter lambdas supported
+  - Lambda expressions can be passed as function arguments
+  - Full integration with type inference and borrowing analysis
+
 The following Priority 1 (Critical Fixes) and Priority 2 (Core Features) tasks have been completed:
 
 ### Priority 1 - Critical Fixes ✅
@@ -35,6 +48,12 @@ The following Priority 1 (Critical Fixes) and Priority 2 (Core Features) tasks h
 - **Type Aliases and NewType**: Supported type alias handling and NewType pattern detection
 - **Protocol to Trait Mapping**: Full Python Protocol → Rust trait conversion with generic protocols, runtime checkable protocols, and abstract method detection
 - **Const Generic Inference**: Added infrastructure for fixed-size array detection, const generic parameters, and array type support in HIR and code generation
+
+### Priority 4 - Lambda Function Support ✅
+- **Lambda Expression Parsing**: Added Lambda variant to HirExpr, implemented convert_lambda in AST bridge
+- **Closure Generation**: Added closure generation in both rust_gen and direct_rules
+- **Type Integration**: Updated pattern matching across all modules (borrowing_context, codegen, lifetime_analysis)
+- **Function Arguments**: Lambdas can be passed as function arguments and stored in variables
 
 ## Critical Fixes (Priority 1 - Broken Functionality)
 

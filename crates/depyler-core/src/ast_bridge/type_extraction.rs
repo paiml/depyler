@@ -32,6 +32,8 @@ impl TypeExtractor {
             "list" => Type::List(Box::new(Type::Unknown)),
             // Handle plain 'dict' as a generic dict
             "dict" => Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)),
+            // Handle plain 'set' as a generic set
+            "set" => Type::Set(Box::new(Type::Unknown)),
             // Single uppercase letters are type variables
             name if name.len() == 1 && name.chars().next().is_some_and(|c| c.is_uppercase()) => {
                 Type::TypeVar(name.to_string())
@@ -45,9 +47,11 @@ impl TypeExtractor {
             match n.id.as_str() {
                 "List" => Self::extract_list_type(s),
                 "Dict" => Self::extract_dict_type(s),
+                "Set" => Self::extract_set_type(s),
                 "Optional" => Self::extract_optional_type(s),
                 "Union" => Self::extract_union_type(s),
                 "Generic" => Self::extract_parameterized_generic(s),
+                "tuple" => Self::extract_tuple_type(s),
                 // Check if it's a generic class with type parameters
                 base_name => {
                     // Extract type parameters for custom generics
@@ -83,6 +87,29 @@ impl TypeExtractor {
             }
         } else {
             bail!("Invalid Dict type annotation")
+        }
+    }
+
+    fn extract_set_type(s: &ast::ExprSubscript) -> Result<Type> {
+        let inner = Self::extract_type(s.slice.as_ref())?;
+        Ok(Type::Set(Box::new(inner)))
+    }
+
+    fn extract_tuple_type(s: &ast::ExprSubscript) -> Result<Type> {
+        match s.slice.as_ref() {
+            ast::Expr::Tuple(t) => {
+                let types = t
+                    .elts
+                    .iter()
+                    .map(Self::extract_type)
+                    .collect::<Result<Vec<_>>>()?;
+                Ok(Type::Tuple(types))
+            }
+            // Single type in tuple[T] case - make it a 1-tuple
+            expr => {
+                let ty = Self::extract_type(expr)?;
+                Ok(Type::Tuple(vec![ty]))
+            }
         }
     }
 

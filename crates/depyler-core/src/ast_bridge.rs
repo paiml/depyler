@@ -327,16 +327,15 @@ impl AstBridge {
     }
 
     fn try_convert_class(&self, class: &ast::StmtClassDef) -> Result<Option<HirClass>> {
-        
         // Extract docstring if present
         let docstring = self.extract_class_docstring(&class.body);
-        
+
         // Check if it's a dataclass
         let is_dataclass = class.decorator_list.iter().any(|d| {
             matches!(d, ast::Expr::Name(n) if n.id.as_str() == "dataclass")
                 || matches!(d, ast::Expr::Attribute(a) if a.attr.as_str() == "dataclass")
         });
-        
+
         // Extract base classes (for now, just store the names)
         let base_classes = class
             .bases
@@ -349,11 +348,11 @@ impl AstBridge {
                 }
             })
             .collect();
-        
+
         // Convert methods and fields
         let mut methods = Vec::new();
         let mut fields = Vec::new();
-        
+
         for stmt in &class.body {
             match stmt {
                 ast::Stmt::FunctionDef(method) => {
@@ -366,7 +365,7 @@ impl AstBridge {
                     if let ast::Expr::Name(target) = ann_assign.target.as_ref() {
                         let field_name = target.id.to_string();
                         let field_type = TypeExtractor::extract_type(&ann_assign.annotation)?;
-                        
+
                         let default_value = if let Some(_value) = &ann_assign.value {
                             // For now, skip default value conversion
                             // TODO: Implement expression conversion for class fields
@@ -374,7 +373,7 @@ impl AstBridge {
                         } else {
                             None
                         };
-                        
+
                         fields.push(HirField {
                             name: field_name,
                             field_type,
@@ -388,7 +387,7 @@ impl AstBridge {
                 }
             }
         }
-        
+
         Ok(Some(HirClass {
             name: class.name.to_string(),
             base_classes,
@@ -398,43 +397,51 @@ impl AstBridge {
             docstring,
         }))
     }
-    
+
     fn convert_method(&self, method: &ast::StmtFunctionDef) -> Result<Option<HirMethod>> {
         use smallvec::smallvec;
-        
+
         let name = method.name.to_string();
-        
+
         // Skip dunder methods except __init__
         if name.starts_with("__") && name.ends_with("__") && name != "__init__" {
             return Ok(None);
         }
-        
+
         // Extract docstring
         let docstring = self.extract_class_docstring(&method.body);
-        
+
         // Check decorators
-        let is_static = method.decorator_list.iter().any(|d| {
-            matches!(d, ast::Expr::Name(n) if n.id.as_str() == "staticmethod")
-        });
-        let is_classmethod = method.decorator_list.iter().any(|d| {
-            matches!(d, ast::Expr::Name(n) if n.id.as_str() == "classmethod")
-        });
-        let is_property = method.decorator_list.iter().any(|d| {
-            matches!(d, ast::Expr::Name(n) if n.id.as_str() == "property")
-        });
-        
+        let is_static = method
+            .decorator_list
+            .iter()
+            .any(|d| matches!(d, ast::Expr::Name(n) if n.id.as_str() == "staticmethod"));
+        let is_classmethod = method
+            .decorator_list
+            .iter()
+            .any(|d| matches!(d, ast::Expr::Name(n) if n.id.as_str() == "classmethod"));
+        let is_property = method
+            .decorator_list
+            .iter()
+            .any(|d| matches!(d, ast::Expr::Name(n) if n.id.as_str() == "property"));
+
         // Convert parameters (skip 'self' for regular methods)
         let mut params = smallvec![];
-        let skip_first = !is_static && !is_classmethod && method.args.args.first()
-            .map(|arg| arg.def.arg.as_str() == "self")
-            .unwrap_or(false);
-            
+        let skip_first = !is_static
+            && !is_classmethod
+            && method
+                .args
+                .args
+                .first()
+                .map(|arg| arg.def.arg.as_str() == "self")
+                .unwrap_or(false);
+
         let args_to_process = if skip_first {
             &method.args.args[1..]
         } else {
             &method.args.args[..]
         };
-        
+
         for arg in args_to_process {
             let param_name = arg.def.arg.to_string();
             let param_type = if let Some(ann) = &arg.def.annotation {
@@ -444,17 +451,17 @@ impl AstBridge {
             };
             params.push((param_name, param_type));
         }
-        
+
         // Convert return type
         let ret_type = if let Some(ret) = &method.returns {
             TypeExtractor::extract_type(ret)?
         } else {
             Type::None
         };
-        
+
         // Convert body - simplified for now
         let body = vec![]; // TODO: Implement method body conversion
-        
+
         Ok(Some(HirMethod {
             name,
             params,
@@ -466,7 +473,7 @@ impl AstBridge {
             docstring,
         }))
     }
-    
+
     fn extract_class_docstring(&self, body: &[ast::Stmt]) -> Option<String> {
         if let Some(ast::Stmt::Expr(expr)) = body.first() {
             if let ast::Expr::Constant(c) = expr.value.as_ref() {
@@ -590,10 +597,30 @@ fn convert_stmt(stmt: ast::Stmt) -> Result<HirStmt> {
     StmtConverter::convert(stmt)
 }
 
-pub(crate) fn extract_assign_target(expr: &ast::Expr) -> Result<Symbol> {
+pub(crate) fn extract_assign_target(expr: &ast::Expr) -> Result<AssignTarget> {
+    use crate::ast_bridge::converters::ExprConverter;
+    match expr {
+        ast::Expr::Name(n) => Ok(AssignTarget::Symbol(n.id.to_string())),
+        ast::Expr::Subscript(s) => {
+            let base = Box::new(ExprConverter::convert(s.value.as_ref().clone())?);
+            let index = Box::new(ExprConverter::convert(s.slice.as_ref().clone())?);
+            Ok(AssignTarget::Index { base, index })
+        }
+        ast::Expr::Attribute(a) => {
+            let value = Box::new(ExprConverter::convert(a.value.as_ref().clone())?);
+            Ok(AssignTarget::Attribute {
+                value,
+                attr: a.attr.to_string(),
+            })
+        }
+        _ => bail!("Unsupported assignment target"),
+    }
+}
+
+pub(crate) fn extract_simple_target(expr: &ast::Expr) -> Result<Symbol> {
     match expr {
         ast::Expr::Name(n) => Ok(n.id.to_string()),
-        _ => bail!("Only simple name targets supported for assignment"),
+        _ => bail!("Only simple name targets supported for loops"),
     }
 }
 
