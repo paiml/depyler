@@ -977,14 +977,8 @@ fn convert_import(import: ast::StmtImport) -> Result<Vec<Import>> {
         .into_iter()
         .map(|alias| {
             let module = alias.name.to_string();
-            let items = if let Some(asname) = alias.asname {
-                vec![ImportItem::Aliased {
-                    name: module.clone(),
-                    alias: asname.to_string(),
-                }]
-            } else {
-                vec![ImportItem::Named(module.clone())]
-            };
+            // For "import module" or "import module as alias", we import the whole module
+            let items = vec![];
             Ok(Import { module, items })
         })
         .collect()
