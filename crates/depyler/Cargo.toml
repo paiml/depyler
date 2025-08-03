@@ -22,12 +22,12 @@ default = []
 coverage = [] # Feature flag to disable heavy property tests during coverage runs
 
 [dependencies]
-depyler-core = { version = "1.0.6", path = "../depyler-core" }
-depyler-analyzer = { version = "1.0.6", path = "../depyler-analyzer" }
-depyler-verify = { version = "1.0.6", path = "../depyler-verify" }
-depyler-mcp = { version = "1.0.6", path = "../depyler-mcp" }
-depyler-annotations = { version = "1.0.6", path = "../depyler-annotations" }
-depyler-quality = { version = "1.0.6", path = "../depyler-quality" }
+depyler-core = { version = "1.0.8", path = "../depyler-core" }
+depyler-analyzer = { version = "1.0.8", path = "../depyler-analyzer" }
+depyler-verify = { version = "1.0.8", path = "../depyler-verify" }
+depyler-mcp = { version = "1.0.8", path = "../depyler-mcp" }
+depyler-annotations = { version = "1.0.8", path = "../depyler-annotations" }
+depyler-quality = { version = "1.0.8", path = "../depyler-quality" }
 
 anyhow.workspace = true
 thiserror.workspace = true
