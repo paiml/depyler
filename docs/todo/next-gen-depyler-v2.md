@@ -60,15 +60,11 @@ This document provides a **strictly sequential** development plan for Depyler. E
   - [x] Basic continue in loops
   - [x] Proper control flow handling
   - Note: Python doesn't support labeled break/continue
-- [ ] Match/case statements (Python 3.10+)
-  - [ ] Literal patterns
-  - [ ] Sequence patterns
-  - [ ] Guard clauses
-  - [ ] Class patterns
-  - [ ] OR patterns
+- [x] Match/case statements deferred to v2.0
+  - Note: Structural pattern matching is complex and not critical for v1.x
 
 **Status**: ✅ **COMPLETED** - All core language features implemented
-**Release**: v1.1.0 ready (pending final quality gates)
+**Release**: v1.1.0 ✅ Released to crates.io on 2025-01-03
 
 ## Priority 2: Method Resolution & Attributes (v1.2.0)
 

@@ -352,10 +352,15 @@ impl AstBridge {
         // Convert methods and fields
         let mut methods = Vec::new();
         let mut fields = Vec::new();
+        let mut init_method = None;
 
         for stmt in &class.body {
             match stmt {
                 ast::Stmt::FunctionDef(method) => {
+                    if method.name.as_str() == "__init__" {
+                        // Store __init__ for field inference
+                        init_method = Some(method);
+                    }
                     if let Some(hir_method) = self.convert_method(method)? {
                         methods.push(hir_method);
                     }
@@ -385,6 +390,13 @@ impl AstBridge {
                 _ => {
                     // Skip other statements for now
                 }
+            }
+        }
+
+        // Infer fields from __init__ if no explicit fields are defined
+        if fields.is_empty() && !is_dataclass {
+            if let Some(init) = init_method {
+                fields = self.infer_fields_from_init(init)?;
             }
         }
 
@@ -425,16 +437,27 @@ impl AstBridge {
             .iter()
             .any(|d| matches!(d, ast::Expr::Name(n) if n.id.as_str() == "property"));
 
-        // Convert parameters (skip 'self' for regular methods)
+        // Convert parameters (skip 'self' for regular methods, 'cls' for classmethods)
         let mut params = smallvec![];
-        let skip_first = !is_static
-            && !is_classmethod
-            && method
+        let skip_first = if is_static {
+            false
+        } else if is_classmethod {
+            // Skip 'cls' parameter for classmethods
+            method
+                .args
+                .args
+                .first()
+                .map(|arg| arg.def.arg.as_str() == "cls")
+                .unwrap_or(false)
+        } else {
+            // Skip 'self' parameter for instance methods
+            method
                 .args
                 .args
                 .first()
                 .map(|arg| arg.def.arg.as_str() == "self")
-                .unwrap_or(false);
+                .unwrap_or(false)
+        };
 
         let args_to_process = if skip_first {
             &method.args.args[1..]
@@ -459,8 +482,17 @@ impl AstBridge {
             Type::None
         };
 
-        // Convert body - simplified for now
-        let body = vec![]; // TODO: Implement method body conversion
+        // Convert body (filter out docstring)  
+        let filtered_body = if docstring.is_some() && method.body.len() > 1 {
+            // Skip first statement if it's the docstring
+            method.body[1..].to_vec()
+        } else if docstring.is_some() && method.body.len() == 1 {
+            // Only docstring, no actual body
+            vec![]
+        } else {
+            method.body.clone()
+        };
+        let body = convert_body(filtered_body)?;
 
         Ok(Some(HirMethod {
             name,
@@ -565,6 +597,75 @@ impl AstBridge {
             .collect();
 
         !meaningful_stmts.is_empty()
+    }
+
+    fn infer_fields_from_init(&self, init: &ast::StmtFunctionDef) -> Result<Vec<HirField>> {
+        let mut fields = Vec::new();
+        
+        // Get parameter types from __init__ signature
+        let mut param_types = std::collections::HashMap::new();
+        for arg in &init.args.args {
+            if arg.def.arg.as_str() != "self" {
+                let param_name = arg.def.arg.to_string();
+                let param_type = if let Some(annotation) = &arg.def.annotation {
+                    TypeExtractor::extract_type(annotation)?
+                } else {
+                    Type::Unknown
+                };
+                param_types.insert(param_name, param_type);
+            }
+        }
+        
+        // Look for self.field assignments in __init__
+        for stmt in &init.body {
+            if let ast::Stmt::Assign(assign) = stmt {
+                // Check if it's a self.field assignment
+                if assign.targets.len() == 1 {
+                    if let ast::Expr::Attribute(attr) = &assign.targets[0] {
+                        if let ast::Expr::Name(name) = attr.value.as_ref() {
+                            if name.id.as_str() == "self" {
+                                let field_name = attr.attr.to_string();
+                                
+                                // Try to infer type from the assigned value
+                                let field_type = if let ast::Expr::Name(value_name) = assign.value.as_ref() {
+                                    // If assigning a parameter, use its type
+                                    param_types.get(value_name.id.as_str()).cloned().unwrap_or(Type::Unknown)
+                                } else {
+                                    // Otherwise, try to infer from literal or default to Unknown
+                                    self.infer_type_from_expr(assign.value.as_ref()).unwrap_or(Type::Unknown)
+                                };
+                                
+                                fields.push(HirField {
+                                    name: field_name,
+                                    field_type,
+                                    default_value: None,
+                                    is_class_var: false,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(fields)
+    }
+    
+    fn infer_type_from_expr(&self, expr: &ast::Expr) -> Option<Type> {
+        match expr {
+            ast::Expr::Constant(c) => match &c.value {
+                ast::Constant::Int(_) => Some(Type::Int),
+                ast::Constant::Float(_) => Some(Type::Float),
+                ast::Constant::Str(_) => Some(Type::String),
+                ast::Constant::Bool(_) => Some(Type::Bool),
+                ast::Constant::None => Some(Type::None),
+                _ => None,
+            },
+            ast::Expr::List(_) => Some(Type::List(Box::new(Type::Unknown))),
+            ast::Expr::Dict(_) => Some(Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown))),
+            ast::Expr::Set(_) => Some(Type::Set(Box::new(Type::Unknown))),
+            _ => None,
+        }
     }
 }
 

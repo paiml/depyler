@@ -87,12 +87,19 @@ impl StmtConverter {
     fn convert_aug_assign(a: ast::StmtAugAssign) -> Result<HirStmt> {
         let target = extract_assign_target(&a.target)?;
         let op = convert_aug_op(&a.op)?;
-        // For augmented assignment, we need to extract the symbol if it's a simple variable
-        let var_name = match &target {
-            AssignTarget::Symbol(s) => s.clone(),
-            _ => bail!("Augmented assignment only supported for simple variables"),
+        
+        // Convert the target to an expression for the left side of the binary op
+        let left = match &target {
+            AssignTarget::Symbol(s) => Box::new(HirExpr::Var(s.clone())),
+            AssignTarget::Attribute { value, attr } => {
+                Box::new(HirExpr::Attribute {
+                    value: value.clone(),
+                    attr: attr.clone(),
+                })
+            }
+            _ => bail!("Augmented assignment not supported for this target type"),
         };
-        let left = Box::new(HirExpr::Var(var_name));
+        
         let right = Box::new(super::convert_expr(*a.value)?);
         let value = HirExpr::Binary { op, left, right };
         Ok(HirStmt::Assign { target, value })
@@ -137,6 +144,7 @@ impl ExprConverter {
             ast::Expr::SetComp(sc) => Self::convert_set_comp(sc),
             ast::Expr::Lambda(l) => Self::convert_lambda(l),
             ast::Expr::Set(s) => Self::convert_set(s),
+            ast::Expr::Attribute(a) => Self::convert_attribute(a),
             _ => bail!("Expression type not yet supported"),
         }
     }
@@ -381,5 +389,11 @@ impl ExprConverter {
             .map(super::convert_expr)
             .collect::<Result<Vec<_>>>()?;
         Ok(HirExpr::Set(elems))
+    }
+
+    fn convert_attribute(a: ast::ExprAttribute) -> Result<HirExpr> {
+        let value = Box::new(Self::convert(*a.value)?);
+        let attr = a.attr.to_string();
+        Ok(HirExpr::Attribute { value, attr })
     }
 }

@@ -244,6 +244,11 @@ impl MemorySafetyAnalyzer {
                 }
             }
 
+            HirExpr::Attribute { value, .. } => {
+                // Check for moves in the base value expression
+                self.check_expr_moves(value, location)
+            }
+
             _ => None,
         }
     }
@@ -263,6 +268,11 @@ impl MemorySafetyAnalyzer {
                 for item in items {
                     self.handle_expr_moves(item, annotations);
                 }
+            }
+
+            HirExpr::Attribute { value, .. } => {
+                // Handle potential moves in the base value expression
+                self.handle_expr_moves(value, annotations);
             }
 
             _ => {}

@@ -504,6 +504,10 @@ fn check_expr_contracts(expr: &HirExpr) -> Vec<String> {
                 violations.extend(check_expr_contracts(arg));
             }
         }
+        HirExpr::Attribute { value, .. } => {
+            // Check contracts for the base value expression
+            violations.extend(check_expr_contracts(value));
+        }
         _ => {}
     }
 

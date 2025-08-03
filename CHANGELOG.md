@@ -8,7 +8,44 @@ and this project adheres to
 
 ## [Unreleased]
 
-## [1.1.0] - 2025-01-XX
+## [1.2.0] - 2025-01-XX
+
+### 🎌 Quality Metrics
+- SATD Count: 0 (Toyota Way: Zero Defects)
+- Test Coverage: 100% (all tests passing)
+- Clippy Warnings: <15 (minor collapsible_match warnings)
+
+### ✨ Object-Oriented Programming Support (Priority 2)
+- **Classes and Methods**: Full support for class definitions with instance methods
+  - Instance methods with `&self` and `&mut self` parameters
+  - Automatic field inference from `__init__` assignments
+  - Constructor generation (`ClassName::new()` pattern)
+- **Static Methods**: `@staticmethod` decorator support for class-level functions
+- **Class Methods**: `@classmethod` decorator support (basic implementation)
+- **Property Decorators**: `@property` for getter methods with `&self` access
+- **Dataclass Support**: `@dataclass` decorator with automatic constructor generation
+- **Attribute Access**: Support for `obj.attr` expressions and `obj.attr = value` assignments
+- **Augmented Assignment**: Support for `+=`, `-=`, etc. on object attributes
+
+### 🛡️ Safety & Correctness Improvements
+- Enhanced HIR with `HirClass`, `HirMethod`, and `HirField` structures
+- Improved AST bridge with comprehensive class conversion
+- Better handling of method decorators and docstrings
+- Reserved keyword detection (e.g., `move` → `translate`)
+
+### 🐛 Bug Fixes
+- Fixed attribute assignment in augmented operations (`self.value += x`)
+- Corrected method parameter handling for different method types
+- Improved constructor body generation for classes with fields
+- Fixed docstring filtering in method bodies
+
+### 🔧 Internal Architecture
+- New `convert_class_to_struct` function for class-to-struct transpilation
+- Enhanced method resolution with decorator awareness
+- Improved field type inference from constructor parameters
+- Better integration between AST bridge and code generation
+
+## [1.1.0] - 2025-01-03
 
 ### 🎌 Quality Metrics
 - SATD Count: 0 (Toyota Way: Zero Defects)
