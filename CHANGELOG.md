@@ -30,18 +30,27 @@ and this project adheres to
   - Reduced memory allocations in HIR processing
   - Faster constant evaluation
   - Optimized code generation
+- **Type Inference Hints**: Intelligent type suggestion system
+  - Analyzes usage patterns to infer parameter and return types
+  - Confidence-based inference (Low, Medium, High, Certain)
+  - Automatic application of high-confidence hints
+  - Visual display of inference reasoning
+  - Supports string, numeric, list, and boolean type inference
 
 ### 🔧 Internal Architecture
 - New `Optimizer` struct with configurable passes
 - Enhanced error reporting system with `EnhancedError`
+- Type inference system with `TypeHintProvider`
 - Better integration of optimization pipeline
 - Comprehensive test coverage for all optimization passes
 
 ### 📈 Examples
 - Added `test_optimization.py` demonstrating optimization capabilities
+- Added `type_inference_demo.py` showcasing type inference
 - Constants are propagated: `x = 5; y = x + 3` → `y = 8`
 - Dead code is eliminated: unused variables are removed
 - Arithmetic is pre-computed: `3.14 * 2.0` → `6.28`
+- Types are inferred: `text.upper()` → `text: &str`
 
 ## [1.6.0] - 2025-01-XX
 
