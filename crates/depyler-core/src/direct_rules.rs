@@ -819,6 +819,7 @@ impl<'a> ExprConverter<'a> {
             HirExpr::List(elts) => self.convert_list(elts),
             HirExpr::Dict(items) => self.convert_dict(items),
             HirExpr::Tuple(elts) => self.convert_tuple(elts),
+            HirExpr::Lambda { params, body } => self.convert_lambda(params, body),
             _ => bail!("Expression type not yet supported: {:?}", expr),
         }
     }
@@ -1086,6 +1087,33 @@ impl<'a> ExprConverter<'a> {
             .map(|e| self.convert(e))
             .collect::<Result<Vec<_>>>()?;
         Ok(parse_quote! { (#(#elt_exprs),*) })
+    }
+
+    fn convert_lambda(&self, params: &[String], body: &HirExpr) -> Result<syn::Expr> {
+        // Convert parameters to pattern identifiers
+        let param_pats: Vec<syn::Pat> = params
+            .iter()
+            .map(|p| {
+                let ident = syn::Ident::new(p, proc_macro2::Span::call_site());
+                parse_quote! { #ident }
+            })
+            .collect();
+        
+        // Convert body expression
+        let body_expr = self.convert(body)?;
+        
+        // Generate closure
+        if params.is_empty() {
+            // No parameters
+            Ok(parse_quote! { || #body_expr })
+        } else if params.len() == 1 {
+            // Single parameter
+            let param = &param_pats[0];
+            Ok(parse_quote! { |#param| #body_expr })
+        } else {
+            // Multiple parameters
+            Ok(parse_quote! { |#(#param_pats),*| #body_expr })
+        }
     }
 }
 
