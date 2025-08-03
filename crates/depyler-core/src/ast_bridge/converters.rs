@@ -23,6 +23,7 @@ impl StmtConverter {
             ast::Stmt::Raise(r) => Self::convert_raise(r),
             ast::Stmt::Break(b) => Self::convert_break(b),
             ast::Stmt::Continue(c) => Self::convert_continue(c),
+            ast::Stmt::With(w) => Self::convert_with(w),
             _ => bail!("Statement type not yet supported"),
         }
     }
@@ -121,6 +122,35 @@ impl StmtConverter {
         // Python's AST doesn't support labeled continue directly
         // Labels are handled at a higher level with loop naming
         Ok(HirStmt::Continue { label: None })
+    }
+
+    fn convert_with(w: ast::StmtWith) -> Result<HirStmt> {
+        // For now, only support single context manager
+        if w.items.len() != 1 {
+            bail!("Multiple context managers not yet supported");
+        }
+        
+        let item = &w.items[0];
+        let context = super::convert_expr(item.context_expr.clone())?;
+        
+        // Extract optional target variable
+        let target = item.optional_vars.as_ref().and_then(|vars| {
+            match vars.as_ref() {
+                ast::Expr::Name(n) => Some(n.id.to_string()),
+                _ => None, // Complex targets not supported yet
+            }
+        });
+        
+        // Convert body
+        let body = w.body.into_iter()
+            .map(super::convert_stmt)
+            .collect::<Result<Vec<_>>>()?;
+        
+        Ok(HirStmt::With {
+            context,
+            target,
+            body,
+        })
     }
 }
 

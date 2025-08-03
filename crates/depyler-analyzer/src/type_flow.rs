@@ -161,6 +161,16 @@ impl TypeInferencer {
             HirStmt::Break { .. } | HirStmt::Continue { .. } => {
                 // Break and continue don't affect type inference
             }
+            HirStmt::With { context, target, body } => {
+                // Infer type of context expression
+                self.infer_expr(context)?;
+                
+                // If there's a target variable, we should infer its type
+                // For now, just analyze the body
+                for stmt in body {
+                    self.infer_stmt(stmt)?;
+                }
+            }
         }
         Ok(())
     }
