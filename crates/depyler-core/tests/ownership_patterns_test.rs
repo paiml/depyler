@@ -210,7 +210,7 @@ fn test_loop_usage_affects_borrowing() {
         ret_type: PythonType::Int,
         body: vec![
             HirStmt::Assign {
-                target: "count".to_string(),
+                target: depyler_core::hir::AssignTarget::Symbol("count".to_string()),
                 value: HirExpr::Literal(Literal::Int(0)),
             },
             HirStmt::While {
@@ -224,7 +224,7 @@ fn test_loop_usage_affects_borrowing() {
                         ],
                     },
                     then_body: vec![HirStmt::Assign {
-                        target: "count".to_string(),
+                        target: depyler_core::hir::AssignTarget::Symbol("count".to_string()),
                         value: HirExpr::Binary {
                             op: BinOp::Add,
                             left: Box::new(HirExpr::Var("count".to_string())),

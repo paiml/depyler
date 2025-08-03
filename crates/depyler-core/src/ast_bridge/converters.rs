@@ -1,6 +1,6 @@
 use super::{
     convert_aug_op, convert_binop, convert_body, convert_cmpop, convert_unaryop,
-    extract_assign_target,
+    extract_assign_target, extract_simple_target,
 };
 use crate::hir::*;
 use anyhow::{bail, Result};
@@ -21,6 +21,8 @@ impl StmtConverter {
             ast::Stmt::For(f) => Self::convert_for(f),
             ast::Stmt::Expr(e) => Self::convert_expr_stmt(e),
             ast::Stmt::Raise(r) => Self::convert_raise(r),
+            ast::Stmt::Break(b) => Self::convert_break(b),
+            ast::Stmt::Continue(c) => Self::convert_continue(c),
             _ => bail!("Statement type not yet supported"),
         }
     }
@@ -71,7 +73,7 @@ impl StmtConverter {
     }
 
     fn convert_for(f: ast::StmtFor) -> Result<HirStmt> {
-        let target = extract_assign_target(&f.target)?;
+        let target = extract_simple_target(&f.target)?;
         let iter = super::convert_expr(*f.iter)?;
         let body = convert_body(f.body)?;
         Ok(HirStmt::For { target, iter, body })
@@ -85,7 +87,12 @@ impl StmtConverter {
     fn convert_aug_assign(a: ast::StmtAugAssign) -> Result<HirStmt> {
         let target = extract_assign_target(&a.target)?;
         let op = convert_aug_op(&a.op)?;
-        let left = Box::new(HirExpr::Var(target.clone()));
+        // For augmented assignment, we need to extract the symbol if it's a simple variable
+        let var_name = match &target {
+            AssignTarget::Symbol(s) => s.clone(),
+            _ => bail!("Augmented assignment only supported for simple variables"),
+        };
+        let left = Box::new(HirExpr::Var(var_name));
         let right = Box::new(super::convert_expr(*a.value)?);
         let value = HirExpr::Binary { op, left, right };
         Ok(HirStmt::Assign { target, value })
@@ -95,6 +102,18 @@ impl StmtConverter {
         let exception = r.exc.map(|e| super::convert_expr(*e)).transpose()?;
         let cause = r.cause.map(|c| super::convert_expr(*c)).transpose()?;
         Ok(HirStmt::Raise { exception, cause })
+    }
+
+    fn convert_break(_b: ast::StmtBreak) -> Result<HirStmt> {
+        // Python's AST doesn't support labeled break directly
+        // Labels are handled at a higher level with loop naming
+        Ok(HirStmt::Break { label: None })
+    }
+
+    fn convert_continue(_c: ast::StmtContinue) -> Result<HirStmt> {
+        // Python's AST doesn't support labeled continue directly
+        // Labels are handled at a higher level with loop naming
+        Ok(HirStmt::Continue { label: None })
     }
 }
 
@@ -115,7 +134,9 @@ impl ExprConverter {
             ast::Expr::Tuple(t) => Self::convert_tuple(t),
             ast::Expr::Compare(c) => Self::convert_compare(c),
             ast::Expr::ListComp(lc) => Self::convert_list_comp(lc),
+            ast::Expr::SetComp(sc) => Self::convert_set_comp(sc),
             ast::Expr::Lambda(l) => Self::convert_lambda(l),
+            ast::Expr::Set(s) => Self::convert_set(s),
             _ => bail!("Expression type not yet supported"),
         }
     }
@@ -301,16 +322,64 @@ impl ExprConverter {
         })
     }
 
+    fn convert_set_comp(sc: ast::ExprSetComp) -> Result<HirExpr> {
+        // Convert only simple set comprehensions for now
+        if sc.generators.len() != 1 {
+            bail!("Nested set comprehensions not yet supported");
+        }
+
+        let generator = &sc.generators[0];
+
+        // Extract the target variable
+        let target = match &generator.target {
+            ast::Expr::Name(n) => n.id.to_string(),
+            _ => bail!("Complex comprehension targets not yet supported"),
+        };
+
+        // Convert the iterator expression
+        let iter = Box::new(Self::convert(generator.iter.clone())?);
+
+        // Convert the element expression
+        let element = Box::new(Self::convert(*sc.elt)?);
+
+        // Convert the condition if present
+        let condition = if generator.ifs.is_empty() {
+            None
+        } else if generator.ifs.len() == 1 {
+            Some(Box::new(Self::convert(generator.ifs[0].clone())?))
+        } else {
+            bail!("Multiple if conditions in set comprehensions not yet supported");
+        };
+
+        Ok(HirExpr::SetComp {
+            element,
+            target,
+            iter,
+            condition,
+        })
+    }
+
     fn convert_lambda(l: ast::ExprLambda) -> Result<HirExpr> {
         // Extract parameter names
-        let params: Vec<String> = l.args.args
+        let params: Vec<String> = l
+            .args
+            .args
             .iter()
             .map(|arg| arg.def.arg.to_string())
             .collect();
-        
+
         // Convert body expression
         let body = Box::new(super::convert_expr(*l.body)?);
-        
+
         Ok(HirExpr::Lambda { params, body })
+    }
+
+    fn convert_set(s: ast::ExprSet) -> Result<HirExpr> {
+        let elems = s
+            .elts
+            .into_iter()
+            .map(super::convert_expr)
+            .collect::<Result<Vec<_>>>()?;
+        Ok(HirExpr::Set(elems))
     }
 }

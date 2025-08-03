@@ -1,8 +1,11 @@
 use depyler_annotations::TranspilationAnnotations;
 use depyler_core::direct_rules::apply_rules;
-use depyler_core::hir::{BinOp, HirExpr, HirFunction, HirModule, HirStmt, Literal, Type};
+use depyler_core::hir::{
+    AssignTarget, BinOp, HirExpr, HirFunction, HirModule, HirStmt, Literal, Type,
+};
 use depyler_core::rust_gen::generate_rust_file;
 use depyler_core::type_mapper::TypeMapper;
+use quote::ToTokens;
 
 #[test]
 fn test_augmented_assignment() {
@@ -13,12 +16,12 @@ fn test_augmented_assignment() {
             ret_type: Type::Int,
             body: vec![
                 HirStmt::Assign {
-                    target: "total".to_string(),
+                    target: AssignTarget::Symbol("total".to_string()),
                     value: HirExpr::Literal(Literal::Int(0)),
                 },
                 // total += x (converted to total = total + x)
                 HirStmt::Assign {
-                    target: "total".to_string(),
+                    target: AssignTarget::Symbol("total".to_string()),
                     value: HirExpr::Binary {
                         op: BinOp::Add,
                         left: Box::new(HirExpr::Var("total".to_string())),
@@ -54,7 +57,7 @@ fn test_in_operator() {
             ret_type: Type::Bool,
             body: vec![
                 HirStmt::Assign {
-                    target: "dict".to_string(),
+                    target: AssignTarget::Symbol("dict".to_string()),
                     value: HirExpr::Dict(vec![(
                         HirExpr::Literal(Literal::String("key".to_string())),
                         HirExpr::Literal(Literal::String("value".to_string())),
@@ -93,7 +96,7 @@ fn test_not_in_operator() {
             ret_type: Type::Bool,
             body: vec![
                 HirStmt::Assign {
-                    target: "dict".to_string(),
+                    target: AssignTarget::Symbol("dict".to_string()),
                     value: HirExpr::Dict(vec![]),
                 },
                 HirStmt::Return(Some(HirExpr::Binary {
@@ -285,8 +288,7 @@ fn test_bitwise_operators() {
 }
 
 #[test]
-#[should_panic(expected = "Power operator not directly supported")]
-fn test_power_operator_not_supported() {
+fn test_power_operator() {
     let module = HirModule {
         functions: vec![HirFunction {
             name: "test_pow".to_string(),
@@ -307,8 +309,15 @@ fn test_power_operator_not_supported() {
         classes: vec![],
     };
 
+    // Power operator should now be supported
     let type_mapper = TypeMapper::default();
-    apply_rules(&module, &type_mapper).unwrap();
+    let rust_module = apply_rules(&module, &type_mapper).unwrap();
+    let rust_code = rust_module.to_token_stream().to_string();
+
+    // Should generate runtime check for negative exponents
+    assert!(rust_code.contains("if b >= 0"));
+    assert!(rust_code.contains("checked_pow"));
+    assert!(rust_code.contains("powf"));
 }
 
 #[test]

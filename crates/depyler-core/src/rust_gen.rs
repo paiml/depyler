@@ -15,6 +15,7 @@ pub struct CodeGenContext<'a> {
     pub union_enum_generator: crate::union_enum_gen::UnionEnumGenerator,
     pub generated_enums: Vec<proc_macro2::TokenStream>,
     pub needs_hashmap: bool,
+    pub needs_hashset: bool,
     pub needs_fnv_hashmap: bool,
     pub needs_ahash_hashmap: bool,
     pub needs_arc: bool,
@@ -73,6 +74,7 @@ pub fn generate_rust_file(
         union_enum_generator: crate::union_enum_gen::UnionEnumGenerator::new(),
         generated_enums: Vec::new(),
         needs_hashmap: false,
+        needs_hashset: false,
         needs_fnv_hashmap: false,
         needs_ahash_hashmap: false,
         needs_arc: false,
@@ -120,6 +122,12 @@ pub fn generate_rust_file(
     if ctx.needs_hashmap {
         items.push(quote! {
             use std::collections::HashMap;
+        });
+    }
+
+    if ctx.needs_hashset {
+        items.push(quote! {
+            use std::collections::HashSet;
         });
     }
 
@@ -257,7 +265,7 @@ impl RustCodeGen for HirFunction {
                     lifetime_result.borrowing_strategies.get(param_name),
                     Some(crate::borrowing_context::BorrowingStrategy::TakeOwnership)
                 ) && self.body.iter().any(
-                    |stmt| matches!(stmt, HirStmt::Assign { target, .. } if target == param_name),
+                    |stmt| matches!(stmt, HirStmt::Assign { target: AssignTarget::Symbol(s), .. } if s == param_name),
                 );
 
                 // Get the inferred parameter info
@@ -567,20 +575,76 @@ impl RustCodeGen for HirFunction {
     }
 }
 
+/// Helper to build nested dictionary access for assignment
+/// Returns (base_expr, access_chain) where access_chain is a vec of index expressions
+fn extract_nested_indices_tokens(
+    expr: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> Result<(syn::Expr, Vec<syn::Expr>)> {
+    let mut indices = Vec::new();
+    let mut current = expr;
+
+    // Walk up the chain collecting indices
+    loop {
+        match current {
+            HirExpr::Index { base, index } => {
+                let index_expr = index.to_rust_expr(ctx)?;
+                indices.push(index_expr);
+                current = base;
+            }
+            _ => {
+                // We've reached the base
+                let base_expr = current.to_rust_expr(ctx)?;
+                indices.reverse(); // We collected from inner to outer, need outer to inner
+                return Ok((base_expr, indices));
+            }
+        }
+    }
+}
+
 impl RustCodeGen for HirStmt {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         match self {
             HirStmt::Assign { target, value } => {
-                let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
                 let value_expr = value.to_rust_expr(ctx)?;
 
-                if ctx.is_declared(target) {
-                    // Variable already exists, just assign
-                    Ok(quote! { #target_ident = #value_expr; })
-                } else {
-                    // First declaration, use let mut
-                    ctx.declare_var(target);
-                    Ok(quote! { let mut #target_ident = #value_expr; })
+                match target {
+                    AssignTarget::Symbol(symbol) => {
+                        let target_ident = syn::Ident::new(symbol, proc_macro2::Span::call_site());
+                        if ctx.is_declared(symbol) {
+                            // Variable already exists, just assign
+                            Ok(quote! { #target_ident = #value_expr; })
+                        } else {
+                            // First declaration, use let mut
+                            ctx.declare_var(symbol);
+                            Ok(quote! { let mut #target_ident = #value_expr; })
+                        }
+                    }
+                    AssignTarget::Index { base, index } => {
+                        // Dictionary/list subscript assignment
+                        let final_index = index.to_rust_expr(ctx)?;
+
+                        // Extract the base and all intermediate indices
+                        let (base_expr, indices) = extract_nested_indices_tokens(base, ctx)?;
+
+                        if indices.is_empty() {
+                            // Simple assignment: d[k] = v
+                            Ok(quote! { #base_expr.insert(#final_index, #value_expr); })
+                        } else {
+                            // Nested assignment: build chain of get_mut calls
+                            let mut chain = quote! { #base_expr };
+                            for idx in &indices {
+                                chain = quote! {
+                                    #chain.get_mut(&#idx).unwrap()
+                                };
+                            }
+
+                            Ok(quote! { #chain.insert(#final_index, #value_expr); })
+                        }
+                    }
+                    AssignTarget::Attribute { .. } => {
+                        bail!("Attribute assignment not yet implemented")
+                    }
                 }
             }
             HirStmt::Return(expr) => {
@@ -691,6 +755,28 @@ impl RustCodeGen for HirStmt {
                     Ok(quote! { return Err("Exception raised".into()); })
                 }
             }
+            HirStmt::Break { label } => {
+                if let Some(label_name) = label {
+                    let label_ident = syn::Lifetime::new(
+                        &format!("'{}", label_name),
+                        proc_macro2::Span::call_site(),
+                    );
+                    Ok(quote! { break #label_ident; })
+                } else {
+                    Ok(quote! { break; })
+                }
+            }
+            HirStmt::Continue { label } => {
+                if let Some(label_name) = label {
+                    let label_ident = syn::Lifetime::new(
+                        &format!("'{}", label_name),
+                        proc_macro2::Span::call_site(),
+                    );
+                    Ok(quote! { continue #label_ident; })
+                } else {
+                    Ok(quote! { continue; })
+                }
+            }
         }
     }
 }
@@ -759,6 +845,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                 })
             }
+            // Set operators - check if both operands are sets
+            BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor 
+                if self.is_set_expr(left) && self.is_set_expr(right) => {
+                self.convert_set_operation(op, left_expr, right_expr)
+            }
+            BinOp::Sub if self.is_set_expr(left) && self.is_set_expr(right) => {
+                // Set difference operation
+                self.convert_set_operation(op, left_expr, right_expr)
+            }
             BinOp::Sub => {
                 // Check if we're subtracting from a .len() call to prevent underflow
                 if self.is_len_call(left) {
@@ -773,23 +868,78 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Special case: [value] * n or n * [value] creates an array
                 match (left, right) {
                     // Pattern: [x] * n
-                    (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size))) 
-                        if elts.len() == 1 && *size > 0 && *size <= 32 => {
+                    (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size)))
+                        if elts.len() == 1 && *size > 0 && *size <= 32 =>
+                    {
                         let elem = elts[0].to_rust_expr(self.ctx)?;
-                        let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                        let size_lit =
+                            syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
                         Ok(parse_quote! { [#elem; #size_lit] })
                     }
                     // Pattern: n * [x]
                     (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elts))
-                        if elts.len() == 1 && *size > 0 && *size <= 32 => {
+                        if elts.len() == 1 && *size > 0 && *size <= 32 =>
+                    {
                         let elem = elts[0].to_rust_expr(self.ctx)?;
-                        let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                        let size_lit =
+                            syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
                         Ok(parse_quote! { [#elem; #size_lit] })
                     }
                     // Default multiplication
                     _ => {
                         let rust_op = convert_binop(op)?;
                         Ok(parse_quote! { (#left_expr #rust_op #right_expr) })
+                    }
+                }
+            }
+            BinOp::Pow => {
+                // Python power operator ** needs type-specific handling in Rust
+                // For integers: use .pow() with u32 exponent
+                // For floats: use .powf() with f64 exponent
+                // For negative integer exponents: convert to float
+
+                // Check if we have literals to determine types
+                match (left, right) {
+                    // Integer literal base with integer literal exponent
+                    (HirExpr::Literal(Literal::Int(_)), HirExpr::Literal(Literal::Int(exp))) => {
+                        if *exp < 0 {
+                            // Negative exponent: convert to float operation
+                            Ok(parse_quote! {
+                                (#left_expr as f64).powf(#right_expr as f64)
+                            })
+                        } else {
+                            // Positive integer exponent: use .pow() with u32
+                            // Add checked_pow for overflow safety
+                            Ok(parse_quote! {
+                                #left_expr.checked_pow(#right_expr as u32)
+                                    .expect("Power operation overflowed")
+                            })
+                        }
+                    }
+                    // Float literal base: always use .powf()
+                    (HirExpr::Literal(Literal::Float(_)), _) => Ok(parse_quote! {
+                        #left_expr.powf(#right_expr as f64)
+                    }),
+                    // Any base with float exponent: use .powf()
+                    (_, HirExpr::Literal(Literal::Float(_))) => Ok(parse_quote! {
+                        (#left_expr as f64).powf(#right_expr)
+                    }),
+                    // Variables or complex expressions: generate type-safe code
+                    _ => {
+                        // For non-literal expressions, we need runtime type checking
+                        // This is a conservative approach that works for common cases
+                        Ok(parse_quote! {
+                            {
+                                // Try integer power first if exponent can be u32
+                                if #right_expr >= 0 && #right_expr <= u32::MAX as i64 {
+                                    #left_expr.checked_pow(#right_expr as u32)
+                                        .expect("Power operation overflowed")
+                                } else {
+                                    // Fall back to float power for negative or large exponents
+                                    (#left_expr as f64).powf(#right_expr as f64) as i64
+                                }
+                            }
+                        })
                     }
                 }
             }
@@ -820,6 +970,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "len" => self.convert_len_call(&arg_exprs),
             "range" => self.convert_range_call(&arg_exprs),
             "zeros" | "ones" | "full" => self.convert_array_init_call(func, args, &arg_exprs),
+            "set" => self.convert_set_constructor(&arg_exprs),
+            "frozenset" => self.convert_frozenset_constructor(&arg_exprs),
             _ => self.convert_generic_call(func, &arg_exprs),
         }
     }
@@ -889,12 +1041,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_array_init_call(&mut self, func: &str, args: &[HirExpr], _arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    fn convert_array_init_call(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+        _arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         // Handle zeros(n), ones(n), full(n, value) patterns
         if args.is_empty() {
             bail!("{} requires at least one argument", func);
         }
-        
+
         // Extract size from first argument if it's a literal
         if let HirExpr::Literal(Literal::Int(size)) = &args[0] {
             if *size > 0 && *size <= 32 {
@@ -954,6 +1111,39 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    fn convert_set_constructor(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        self.ctx.needs_hashset = true;
+        if args.is_empty() {
+            // Empty set: set()
+            Ok(parse_quote! { HashSet::new() })
+        } else if args.len() == 1 {
+            // Set from iterable: set([1, 2, 3])
+            let arg = &args[0];
+            Ok(parse_quote! {
+                #arg.into_iter().collect::<HashSet<_>>()
+            })
+        } else {
+            bail!("set() takes at most 1 argument ({} given)", args.len())
+        }
+    }
+
+    fn convert_frozenset_constructor(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        self.ctx.needs_hashset = true;
+        if args.is_empty() {
+            // Empty frozenset: frozenset()
+            // In Rust, we can use Arc<HashSet> to make it immutable
+            Ok(parse_quote! { std::sync::Arc::new(HashSet::new()) })
+        } else if args.len() == 1 {
+            // Frozenset from iterable: frozenset([1, 2, 3])
+            let arg = &args[0];
+            Ok(parse_quote! {
+                std::sync::Arc::new(#arg.into_iter().collect::<HashSet<_>>())
+            })
+        } else {
+            bail!("frozenset() takes at most 1 argument ({} given)", args.len())
+        }
+    }
+
     fn convert_generic_call(&self, func: &str, args: &[syn::Expr]) -> Result<syn::Expr> {
         let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
         Ok(parse_quote! { #func_ident(#(#args),*) })
@@ -989,10 +1179,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! { #object_expr.extend(#arg) })
             }
             "pop" => {
-                if arg_exprs.is_empty() {
-                    Ok(parse_quote! { #object_expr.pop().unwrap_or_default() })
+                if self.is_set_expr(object) {
+                    if !arg_exprs.is_empty() {
+                        bail!("pop() takes no arguments for sets");
+                    }
+                    // HashSet doesn't have pop(), simulate with iter().next() and remove
+                    Ok(parse_quote! {
+                        #object_expr.iter().next().cloned().map(|x| {
+                            #object_expr.remove(&x);
+                            x
+                        }).expect("pop from empty set")
+                    })
                 } else {
-                    bail!("pop() with index not supported in V1");
+                    // List pop
+                    if arg_exprs.is_empty() {
+                        Ok(parse_quote! { #object_expr.pop().unwrap_or_default() })
+                    } else {
+                        bail!("pop() with index not supported in V1");
+                    }
                 }
             }
             "insert" => {
@@ -1008,14 +1212,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("remove() requires exactly one argument");
                 }
                 let value = &arg_exprs[0];
-                // This is a simplified version - real implementation would need to find and remove
-                Ok(parse_quote! {
-                    if let Some(pos) = #object_expr.iter().position(|x| x == &#value) {
-                        #object_expr.remove(pos)
-                    } else {
-                        panic!("ValueError: list.remove(x): x not in list")
-                    }
-                })
+                // Check if it's a set or list based on the object expression
+                if self.is_set_expr(object) {
+                    // HashSet's remove returns bool, Python's raises KeyError if not found
+                    Ok(parse_quote! {
+                        if !#object_expr.remove(&#value) {
+                            panic!("KeyError: element not in set");
+                        }
+                    })
+                } else {
+                    // List remove behavior
+                    Ok(parse_quote! {
+                        if let Some(pos) = #object_expr.iter().position(|x| x == &#value) {
+                            #object_expr.remove(pos)
+                        } else {
+                            panic!("ValueError: list.remove(x): x not in list")
+                        }
+                    })
+                }
             }
 
             // Dict methods
@@ -1116,6 +1330,29 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let iterable = &arg_exprs[0];
                 Ok(parse_quote! { #iterable.join(#object_expr) })
+            }
+            
+            // Set methods
+            "add" => {
+                if arg_exprs.len() != 1 {
+                    bail!("add() requires exactly one argument");
+                }
+                let arg = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.insert(#arg) })
+            }
+            "discard" => {
+                if arg_exprs.len() != 1 {
+                    bail!("discard() requires exactly one argument");
+                }
+                let arg = &arg_exprs[0];
+                // discard() is like remove() but doesn't raise error
+                Ok(parse_quote! { #object_expr.remove(&#arg) })
+            }
+            "clear" => {
+                if !arg_exprs.is_empty() {
+                    bail!("clear() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.clear() })
             }
 
             // Generic method call fallback
@@ -1334,12 +1571,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .iter()
             .map(|e| e.to_rust_expr(self.ctx))
             .collect::<Result<Vec<_>>>()?;
-        
+
         // Check if this list should be an array
         if !elts.is_empty() && elts.len() <= 32 {
             // Check if all elements are literals (good candidate for array)
             let all_literals = elts.iter().all(|e| matches!(e, HirExpr::Literal(_)));
-            
+
             if all_literals {
                 // Generate array literal instead of vec!
                 Ok(parse_quote! { [#(#elt_exprs),*] })
@@ -1374,6 +1611,39 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .map(|e| e.to_rust_expr(self.ctx))
             .collect::<Result<Vec<_>>>()?;
         Ok(parse_quote! { (#(#elt_exprs),*) })
+    }
+
+    fn convert_set(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
+        self.ctx.needs_hashset = true;
+        let mut insert_stmts = Vec::new();
+        for elem in elts {
+            let elem_expr = elem.to_rust_expr(self.ctx)?;
+            insert_stmts.push(quote! { set.insert(#elem_expr); });
+        }
+        Ok(parse_quote! {
+            {
+                let mut set = HashSet::new();
+                #(#insert_stmts)*
+                set
+            }
+        })
+    }
+
+    fn convert_frozenset(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
+        self.ctx.needs_hashset = true;
+        self.ctx.needs_arc = true;
+        let mut insert_stmts = Vec::new();
+        for elem in elts {
+            let elem_expr = elem.to_rust_expr(self.ctx)?;
+            insert_stmts.push(quote! { set.insert(#elem_expr); });
+        }
+        Ok(parse_quote! {
+            {
+                let mut set = HashSet::new();
+                #(#insert_stmts)*
+                std::sync::Arc::new(set)
+            }
+        })
     }
 
     fn convert_attribute(&mut self, value: &HirExpr, attr: &str) -> Result<syn::Expr> {
@@ -1423,11 +1693,71 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_lambda(
+    fn is_set_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Set(_) | HirExpr::FrozenSet(_) => true,
+            HirExpr::Call { func, .. } if func == "set" || func == "frozenset" => true,
+            HirExpr::Var(_name) => {
+                // For rust_gen, we're more conservative since we don't have type info
+                // Only treat explicit set literals and calls as sets
+                false
+            }
+            _ => false,
+        }
+    }
+    
+    fn convert_set_operation(&self, op: BinOp, left: syn::Expr, right: syn::Expr) -> Result<syn::Expr> {
+        match op {
+            BinOp::BitAnd => Ok(parse_quote! {
+                #left.intersection(&#right).cloned().collect()
+            }),
+            BinOp::BitOr => Ok(parse_quote! {
+                #left.union(&#right).cloned().collect()
+            }),
+            BinOp::Sub => Ok(parse_quote! {
+                #left.difference(&#right).cloned().collect()
+            }),
+            BinOp::BitXor => Ok(parse_quote! {
+                #left.symmetric_difference(&#right).cloned().collect()
+            }),
+            _ => bail!("Invalid set operator"),
+        }
+    }
+
+    fn convert_set_comp(
         &mut self,
-        params: &[String],
-        body: &HirExpr,
+        element: &HirExpr,
+        target: &str,
+        iter: &HirExpr,
+        condition: &Option<Box<HirExpr>>,
     ) -> Result<syn::Expr> {
+        self.ctx.needs_hashset = true;
+        let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+        let iter_expr = iter.to_rust_expr(self.ctx)?;
+        let element_expr = element.to_rust_expr(self.ctx)?;
+
+        if let Some(cond) = condition {
+            // With condition: iter().filter().map().collect()
+            let cond_expr = cond.to_rust_expr(self.ctx)?;
+            Ok(parse_quote! {
+                #iter_expr
+                    .into_iter()
+                    .filter(|#target_ident| #cond_expr)
+                    .map(|#target_ident| #element_expr)
+                    .collect::<HashSet<_>>()
+            })
+        } else {
+            // Without condition: iter().map().collect()
+            Ok(parse_quote! {
+                #iter_expr
+                    .into_iter()
+                    .map(|#target_ident| #element_expr)
+                    .collect::<HashSet<_>>()
+            })
+        }
+    }
+
+    fn convert_lambda(&mut self, params: &[String], body: &HirExpr) -> Result<syn::Expr> {
         // Convert parameters to pattern identifiers
         let param_pats: Vec<syn::Pat> = params
             .iter()
@@ -1436,10 +1766,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! { #ident }
             })
             .collect();
-        
+
         // Convert body expression
         let body_expr = body.to_rust_expr(self.ctx)?;
-        
+
         // Generate closure
         if params.is_empty() {
             // No parameters
@@ -1497,6 +1827,8 @@ impl ToRustExpr for HirExpr {
             HirExpr::List(elts) => converter.convert_list(elts),
             HirExpr::Dict(items) => converter.convert_dict(items),
             HirExpr::Tuple(elts) => converter.convert_tuple(elts),
+            HirExpr::Set(elts) => converter.convert_set(elts),
+            HirExpr::FrozenSet(elts) => converter.convert_frozenset(elts),
             HirExpr::Attribute { value, attr } => converter.convert_attribute(value, attr),
             HirExpr::Borrow { expr, mutable } => converter.convert_borrow(expr, *mutable),
             HirExpr::ListComp {
@@ -1506,6 +1838,12 @@ impl ToRustExpr for HirExpr {
                 condition,
             } => converter.convert_list_comp(element, target, iter, condition),
             HirExpr::Lambda { params, body } => converter.convert_lambda(params, body),
+            HirExpr::SetComp {
+                element,
+                target,
+                iter,
+                condition,
+            } => converter.convert_set_comp(element, target, iter, condition),
         }
     }
 }
@@ -1718,6 +2056,10 @@ pub fn rust_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<syn:
                 }
             }
         }
+        RustType::HashSet(inner) => {
+            let inner_ty = rust_type_to_syn(inner)?;
+            parse_quote! { HashSet<#inner_ty> }
+        }
     })
 }
 
@@ -1838,6 +2180,7 @@ mod tests {
             union_enum_generator: crate::union_enum_gen::UnionEnumGenerator::new(),
             generated_enums: Vec::new(),
             needs_hashmap: false,
+            needs_hashset: false,
             needs_fnv_hashmap: false,
             needs_ahash_hashmap: false,
             needs_arc: false,
@@ -1917,13 +2260,13 @@ mod tests {
         assert!(code.contains("1"));
         assert!(code.contains("2"));
         assert!(code.contains("3"));
-        
+
         // Test non-literal list still uses vec!
         let var_list = HirExpr::List(vec![
             HirExpr::Var("x".to_string()),
             HirExpr::Var("y".to_string()),
         ]);
-        
+
         let expr2 = var_list.to_rust_expr(&mut ctx).unwrap();
         let code2 = quote! { #expr2 }.to_string();
         assert!(code2.contains("vec !"));

@@ -110,9 +110,22 @@ pub struct FunctionProperties {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum AssignTarget {
+    /// Simple variable assignment: x = value
+    Symbol(Symbol),
+    /// Subscript assignment: x[key] = value
+    Index {
+        base: Box<HirExpr>,
+        index: Box<HirExpr>,
+    },
+    /// Attribute assignment: x.attr = value (for future use)
+    Attribute { value: Box<HirExpr>, attr: Symbol },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum HirStmt {
     Assign {
-        target: Symbol,
+        target: AssignTarget,
         value: HirExpr,
     },
     Return(Option<HirExpr>),
@@ -135,6 +148,12 @@ pub enum HirStmt {
     Raise {
         exception: Option<HirExpr>,
         cause: Option<HirExpr>,
+    },
+    Break {
+        label: Option<Symbol>,
+    },
+    Continue {
+        label: Option<Symbol>,
     },
 }
 
@@ -177,6 +196,8 @@ pub enum HirExpr {
     List(Vec<HirExpr>),
     Dict(Vec<(HirExpr, HirExpr)>),
     Tuple(Vec<HirExpr>),
+    Set(Vec<HirExpr>),
+    FrozenSet(Vec<HirExpr>),
     // Ownership hints from analysis
     Borrow {
         expr: Box<HirExpr>,
@@ -184,6 +205,13 @@ pub enum HirExpr {
     },
     // List comprehension
     ListComp {
+        element: Box<HirExpr>,
+        target: Symbol,
+        iter: Box<HirExpr>,
+        condition: Option<Box<HirExpr>>,
+    },
+    // Set comprehension
+    SetComp {
         element: Box<HirExpr>,
         target: Symbol,
         iter: Box<HirExpr>,
@@ -260,6 +288,7 @@ pub enum Type {
     List(Box<Type>),
     Dict(Box<Type>, Box<Type>),
     Tuple(Vec<Type>),
+    Set(Box<Type>),
     Optional(Box<Type>),
     Function {
         params: Vec<Type>,
@@ -290,7 +319,7 @@ impl Type {
     pub fn is_container(&self) -> bool {
         matches!(
             self,
-            Type::List(_) | Type::Dict(_, _) | Type::Tuple(_) | Type::Array { .. }
+            Type::List(_) | Type::Dict(_, _) | Type::Tuple(_) | Type::Set(_) | Type::Array { .. }
         )
     }
 }

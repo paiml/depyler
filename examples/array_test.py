@@ -1,58 +1,50 @@
-"""Test file for const generic array generation"""
+"""Test array generation from fixed-size lists"""
 
-def test_literal_arrays():
-    """Test literal array patterns"""
-    # Small literal arrays should become Rust arrays
+def test_array_literals():
+    # Small literal arrays should generate Rust arrays
     arr1 = [1, 2, 3, 4, 5]
     arr2 = [0, 0, 0, 0]
-    arr3 = ['a', 'b', 'c']
+    arr3 = [True, False, True]
     
-    # Array multiplication patterns
-    zeros_array = [0] * 10
-    ones_array = [1] * 5
-    pattern_array = [42] * 8
+    # Mixed literals
+    arr4 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     
-    return arr1, zeros_array, ones_array
+    return arr1, arr2, arr3, arr4
 
-def test_array_functions():
-    """Test array initialization functions"""
-    # Create our own array functions for testing
-    def zeros(n: int) -> list[int]:
-        return [0] * n
+def test_array_multiplication():
+    # Array multiplication patterns
+    zeros = [0] * 10
+    ones = [1] * 5
+    pattern = [42] * 8
     
-    def ones(n: int) -> list[int]:
-        return [1] * n
-        
-    def full(n: int, val: float) -> list[float]:
-        return [val] * n
+    # Reverse multiplication
+    reverse_zeros = 10 * [0]
+    reverse_ones = 5 * [1]
     
-    # These should generate fixed-size arrays when size is literal
-    z1 = zeros(5)
-    o1 = ones(10)
-    f1 = full(8, 3.14)
+    return zeros, ones, pattern, reverse_zeros, reverse_ones
+
+def test_array_init_functions():
+    # zeros, ones, full functions
+    z = zeros(10)
+    o = ones(5)
+    f = full(8, 42)
     
-    # Large sizes should still use vec!
-    z2 = zeros(100)
+    return z, o, f
+
+def test_large_arrays():
+    # Arrays larger than 32 should use vec!
+    large = [0] * 50
+    very_large = [1] * 100
     
-    return z1, o1, f1
+    # Non-literal arrays should use vec!
+    x = 5
+    dynamic = [x] * 10
+    
+    return large, very_large, dynamic
 
 def test_nested_arrays():
-    """Test nested array patterns"""
-    # Simple nested array
-    row1 = [1, 2, 3]
-    row2 = [4, 5, 6]
-    row3 = [7, 8, 9]
-    matrix = [row1, row2, row3]
+    # 2D arrays
+    matrix = [[0, 0], [0, 0], [0, 0]]
+    identity = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
     
-    return matrix
-
-def process_fixed_array(data: list[int]) -> list[int]:
-    """Process array with known size constraints"""
-    # This could potentially use const generics
-    result = [0] * 10
-    
-    for i in range(10):
-        if i < len(data):
-            result[i] = data[i] * 2
-            
-    return result
+    return matrix, identity

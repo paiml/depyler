@@ -56,7 +56,7 @@ fn test_lifetime_inference_for_mutable_parameter() {
         params: smallvec![("s".to_string(), Type::String)],
         ret_type: Type::None,
         body: vec![HirStmt::Assign {
-            target: "s".to_string(),
+            target: depyler_core::hir::AssignTarget::Symbol("s".to_string()),
             value: HirExpr::Binary {
                 op: BinOp::Add,
                 left: Box::new(HirExpr::Var("s".to_string())),
