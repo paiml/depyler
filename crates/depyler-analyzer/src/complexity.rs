@@ -123,6 +123,7 @@ fn cognitive_condition(expr: &HirExpr) -> u32 {
             right,
         } => 1 + cognitive_condition(left) + cognitive_condition(right),
         HirExpr::Unary { operand, .. } => cognitive_condition(operand),
+        HirExpr::Attribute { value, .. } => cognitive_condition(value),
         _ => 0,
     }
 }

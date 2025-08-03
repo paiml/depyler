@@ -304,6 +304,10 @@ impl LifetimeAnalyzer {
                     self.analyze_expr(arg, scope_depth);
                 }
             }
+            HirExpr::Attribute { value, .. } => {
+                // Analyze the base value expression for lifetime issues
+                self.analyze_expr(value, scope_depth);
+            }
             _ => {}
         }
     }

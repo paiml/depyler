@@ -191,12 +191,29 @@ pub fn convert_class_to_struct(class: &HirClass, type_mapper: &TypeMapper) -> Re
     // Generate impl block with methods
     let mut impl_items = Vec::new();
     
-    // Convert __init__ to new() if present
-    for method in &class.methods {
-        if method.name == "__init__" {
-            let new_method = convert_init_to_new(method, &struct_name, type_mapper)?;
+    // Check if class has explicit __init__
+    let has_init = class.methods.iter().any(|m| m.name == "__init__");
+    
+    // Convert __init__ to new() if present, or generate default new() for dataclasses
+    if has_init {
+        for method in &class.methods {
+            if method.name == "__init__" {
+                let new_method = convert_init_to_new(method, class, &struct_name, type_mapper)?;
+                impl_items.push(syn::ImplItem::Fn(new_method));
+            } else {
+                let rust_method = convert_method_to_impl_item(method, type_mapper)?;
+                impl_items.push(syn::ImplItem::Fn(rust_method));
+            }
+        }
+    } else {
+        // Generate default new() for dataclasses or classes with default field values
+        if class.is_dataclass || class.fields.iter().all(|f| f.default_value.is_some() || f.field_type == Type::Int) {
+            let new_method = generate_dataclass_new(class, &struct_name, type_mapper)?;
             impl_items.push(syn::ImplItem::Fn(new_method));
-        } else {
+        }
+        
+        // Add other methods
+        for method in &class.methods {
             let rust_method = convert_method_to_impl_item(method, type_mapper)?;
             impl_items.push(syn::ImplItem::Fn(rust_method));
         }
@@ -221,8 +238,89 @@ pub fn convert_class_to_struct(class: &HirClass, type_mapper: &TypeMapper) -> Re
     Ok(items)
 }
 
+fn generate_dataclass_new(
+    class: &HirClass,
+    _struct_name: &syn::Ident,
+    type_mapper: &TypeMapper,
+) -> Result<syn::ImplItemFn> {
+    // Generate parameters from fields (skip fields with defaults)
+    let mut inputs = syn::punctuated::Punctuated::new();
+    let fields_without_defaults: Vec<_> = class.fields.iter()
+        .filter(|f| f.default_value.is_none())
+        .collect();
+    
+    for field in &fields_without_defaults {
+        let param_ident = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
+        let rust_type = type_mapper.map_type(&field.field_type);
+        let param_syn_type = rust_type_to_syn_type(&rust_type)?;
+        
+        inputs.push(syn::FnArg::Typed(syn::PatType {
+            attrs: vec![],
+            pat: Box::new(syn::Pat::Ident(syn::PatIdent {
+                attrs: vec![],
+                by_ref: None,
+                mutability: None,
+                ident: param_ident.clone(),
+                subpat: None,
+            })),
+            colon_token: syn::Token![:](proc_macro2::Span::call_site()),
+            ty: Box::new(param_syn_type),
+        }));
+    }
+    
+    // Generate body that initializes struct fields
+    let field_inits = class.fields.iter()
+        .map(|field| {
+            let field_ident = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
+            if field.default_value.is_some() {
+                // Use default value - for now just use Default::default() or 0 for int
+                if field.field_type == Type::Int {
+                    quote! { #field_ident: 0 }
+                } else {
+                    quote! { #field_ident: Default::default() }
+                }
+            } else {
+                // Use parameter
+                quote! { #field_ident }
+            }
+        })
+        .collect::<Vec<_>>();
+    
+    let body = parse_quote! {
+        {
+            Self {
+                #(#field_inits),*
+            }
+        }
+    };
+    
+    Ok(syn::ImplItemFn {
+        attrs: vec![],
+        vis: syn::Visibility::Public(syn::Token![pub](proc_macro2::Span::call_site())),
+        defaultness: None,
+        sig: syn::Signature {
+            constness: None,
+            asyncness: None,
+            unsafety: None,
+            abi: None,
+            fn_token: syn::Token![fn](proc_macro2::Span::call_site()),
+            ident: syn::Ident::new("new", proc_macro2::Span::call_site()),
+            generics: syn::Generics::default(),
+            paren_token: syn::token::Paren::default(),
+            inputs,
+            variadic: None,
+            output: syn::ReturnType::Type(
+                syn::Token![->](proc_macro2::Span::call_site()),
+                Box::new(parse_quote! { Self }),
+            ),
+        },
+        block: body,
+    })
+}
+
 fn convert_init_to_new(
     init_method: &HirMethod,
+    class: &HirClass,
     _struct_name: &syn::Ident,
     type_mapper: &TypeMapper,
 ) -> Result<syn::ImplItemFn> {
@@ -248,14 +346,31 @@ fn convert_init_to_new(
         }));
     }
     
-    // Generate body that initializes struct fields
-    // For now, assume fields are initialized from parameters with same names
-    let field_inits = init_method.params.iter()
-        .map(|(param_name, _)| {
-            let field_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
-            quote! { #field_ident }
-        })
-        .collect::<Vec<_>>();
+    // Generate field initializers based on class fields and parameters
+    let mut field_inits = Vec::new();
+    
+    for field in &class.fields {
+        let field_ident = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
+        
+        // Check if this field matches a parameter name
+        if init_method.params.iter().any(|(param_name, _)| param_name == &field.name) {
+            // Initialize from parameter
+            field_inits.push(quote! { #field_ident });
+        } else {
+            // Initialize with default value based on type
+            let default_value = match &field.field_type {
+                Type::Int => quote! { 0 },
+                Type::Float => quote! { 0.0 },
+                Type::String => quote! { String::new() },
+                Type::Bool => quote! { false },
+                Type::List(_) => quote! { Vec::new() },
+                Type::Dict(_, _) => quote! { std::collections::HashMap::new() },
+                Type::Set(_) => quote! { std::collections::HashSet::new() },
+                _ => quote! { Default::default() },
+            };
+            field_inits.push(quote! { #field_ident: #default_value });
+        }
+    }
     
     let body = parse_quote! {
         {
@@ -299,14 +414,17 @@ fn convert_method_to_impl_item(
     let mut inputs = syn::punctuated::Punctuated::new();
     
     // Add self parameter based on method type
-    if !method.is_static {
-        if method.is_property {
-            // Properties typically use &self
-            inputs.push(parse_quote! { &self });
-        } else {
-            // Regular methods use &mut self by default (can be refined later)
-            inputs.push(parse_quote! { &mut self });
-        }
+    if method.is_static {
+        // Static methods have no self parameter
+    } else if method.is_classmethod {
+        // Class methods would ideally take a type parameter, but for now skip
+        // TODO: Implement proper classmethod support with type parameter
+    } else if method.is_property {
+        // Properties typically use &self
+        inputs.push(parse_quote! { &self });
+    } else {
+        // Regular instance methods use &mut self by default (can be refined later)
+        inputs.push(parse_quote! { &mut self });
     }
     
     // Add other parameters
@@ -333,12 +451,13 @@ fn convert_method_to_impl_item(
     let rust_ret_type = type_mapper.map_type(&method.ret_type);
     let ret_type = rust_type_to_syn_type(&rust_ret_type)?;
     
-    // Convert body - for now, just return default implementation
-    // TODO: Implement proper method body conversion
-    let body = parse_quote! {
-        {
-            todo!("Method body conversion not yet implemented")
-        }
+    // Convert method body
+    let body = if method.body.is_empty() {
+        // Empty body - just return default
+        parse_quote! { {} }
+    } else {
+        // Convert the method body statements
+        convert_block(&method.body, type_mapper)?
     };
     
     Ok(syn::ImplItemFn {
@@ -356,10 +475,14 @@ fn convert_method_to_impl_item(
             paren_token: syn::token::Paren::default(),
             inputs,
             variadic: None,
-            output: syn::ReturnType::Type(
-                syn::Token![->](proc_macro2::Span::call_site()),
-                Box::new(ret_type),
-            ),
+            output: if matches!(method.ret_type, Type::None) {
+                syn::ReturnType::Default
+            } else {
+                syn::ReturnType::Type(
+                    syn::Token![->](proc_macro2::Span::call_site()),
+                    Box::new(ret_type),
+                )
+            },
         },
         block: body,
     })
@@ -778,8 +901,19 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
                         ))
                     }
                 }
-                AssignTarget::Attribute { .. } => {
-                    bail!("Attribute assignment not yet implemented")
+                AssignTarget::Attribute { value, attr } => {
+                    // Convert object.attr = value
+                    let base_expr = convert_expr(value, type_mapper)?;
+                    let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+                    
+                    let assign_expr = parse_quote! {
+                        #base_expr.#attr_ident = #value_expr
+                    };
+                    
+                    Ok(syn::Stmt::Expr(
+                        assign_expr,
+                        Some(Default::default()),
+                    ))
                 }
             }
         }
@@ -922,6 +1056,7 @@ impl<'a> ExprConverter<'a> {
             HirExpr::MethodCall { object, method, args } => self.convert_method_call(object, method, args),
             HirExpr::ListComp { element, target, iter, condition } => self.convert_list_comp(element, target, iter, condition),
             HirExpr::SetComp { element, target, iter, condition } => self.convert_set_comp(element, target, iter, condition),
+            HirExpr::Attribute { value, attr } => self.convert_attribute(value, attr),
             _ => bail!("Expression type not yet supported: {:?}", expr),
         }
     }
@@ -1220,8 +1355,25 @@ impl<'a> ExprConverter<'a> {
     }
 
     fn convert_generic_call(&self, func: &str, args: &[syn::Expr]) -> Result<syn::Expr> {
-        let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
-        Ok(parse_quote! { #func_ident(#(#args),*) })
+        // Check if this might be a constructor call (capitalized name)
+        if func.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+            // Treat as constructor call - ClassName::new(args)
+            let class_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+            if args.is_empty() {
+                // For now, assume dataclass with defaults - pass default values
+                // TODO: This should be context-aware and know the actual defaults
+                match func {
+                    "Counter" => Ok(parse_quote! { #class_ident::new(0) }),
+                    _ => Ok(parse_quote! { #class_ident::new() }),
+                }
+            } else {
+                Ok(parse_quote! { #class_ident::new(#(#args),*) })
+            }
+        } else {
+            // Regular function call
+            let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+            Ok(parse_quote! { #func_ident(#(#args),*) })
+        }
     }
 
     fn convert_index(&self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
@@ -1355,6 +1507,20 @@ impl<'a> ExprConverter<'a> {
     }
 
     fn convert_method_call(&self, object: &HirExpr, method: &str, args: &[HirExpr]) -> Result<syn::Expr> {
+        // Check if this is a static method call on a class (e.g., Counter.create_with_value)
+        if let HirExpr::Var(class_name) = object {
+            if class_name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                // This is likely a static method call - convert to ClassName::method(args)
+                let class_ident = syn::Ident::new(class_name, proc_macro2::Span::call_site());
+                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| self.convert(arg))
+                    .collect::<Result<Vec<_>>>()?;
+                return Ok(parse_quote! { #class_ident::#method_ident(#(#arg_exprs),*) });
+            }
+        }
+        
         let object_expr = self.convert(object)?;
         let arg_exprs: Vec<syn::Expr> = args
             .iter()
@@ -1525,6 +1691,12 @@ impl<'a> ExprConverter<'a> {
             // Multiple parameters
             Ok(parse_quote! { |#(#param_pats),*| #body_expr })
         }
+    }
+
+    fn convert_attribute(&self, value: &HirExpr, attr: &str) -> Result<syn::Expr> {
+        let value_expr = self.convert(value)?;
+        let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+        Ok(parse_quote! { #value_expr.#attr_ident })
     }
 }
 

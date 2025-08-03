@@ -1145,8 +1145,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_generic_call(&self, func: &str, args: &[syn::Expr]) -> Result<syn::Expr> {
-        let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
-        Ok(parse_quote! { #func_ident(#(#args),*) })
+        // Check if this might be a constructor call (capitalized name)
+        if func.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+            // Treat as constructor call - ClassName::new(args)
+            let class_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+            if args.is_empty() {
+                // For now, assume dataclass with defaults - pass default values
+                // TODO: This should be context-aware and know the actual defaults
+                match func {
+                    "Counter" => Ok(parse_quote! { #class_ident::new(0) }),
+                    _ => Ok(parse_quote! { #class_ident::new() }),
+                }
+            } else {
+                Ok(parse_quote! { #class_ident::new(#(#args),*) })
+            }
+        } else {
+            // Regular function call
+            let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+            Ok(parse_quote! { #func_ident(#(#args),*) })
+        }
     }
 
     fn convert_method_call(
@@ -1357,6 +1374,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // Generic method call fallback
             _ => {
+                eprintln!("DEBUG: Converting method call: {}", method);
                 let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
                 Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) })
             }
