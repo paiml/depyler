@@ -22,6 +22,7 @@ pub mod optimizer;
 pub mod rust_gen;
 pub mod string_optimization;
 pub mod test_generation;
+pub mod type_hints;
 pub mod type_mapper;
 pub mod union_enum_gen;
 
@@ -119,6 +120,57 @@ impl DepylerPipeline {
         // Apply const generic inference
         let mut const_inferencer = const_generic_inference::ConstGenericInferencer::new();
         const_inferencer.analyze_module(&mut hir)?;
+
+        // Apply type inference hints
+        if self.analyzer.type_inference_enabled {
+            let mut type_hint_provider = type_hints::TypeHintProvider::new();
+            
+            // Analyze all functions and collect hints
+            let mut function_hints = Vec::new();
+            for (idx, func) in hir.functions.iter().enumerate() {
+                if let Ok(hints) = type_hint_provider.analyze_function(func) {
+                    if !hints.is_empty() {
+                        eprintln!("{}", "Type inference hints:".to_string());
+                        eprintln!("{}", type_hint_provider.format_hints(&hints));
+                        function_hints.push((idx, hints));
+                    }
+                }
+            }
+            
+            // Apply high-confidence hints to the HIR
+            for (func_idx, hints) in function_hints {
+                let func = &mut hir.functions[func_idx];
+                
+                // Apply parameter type hints
+                for (param_name, param_type) in &mut func.params {
+                    if matches!(param_type, hir::Type::Unknown) {
+                        // Find hint for this parameter
+                        for hint in &hints {
+                            if let type_hints::HintTarget::Parameter(hint_param) = &hint.target {
+                                if hint_param == param_name 
+                                    && matches!(hint.confidence, type_hints::Confidence::High | type_hints::Confidence::Certain) {
+                                    *param_type = hint.suggested_type.clone();
+                                    eprintln!("Applied type hint: {} -> {:?}", param_name, param_type);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Apply return type hints
+                if matches!(func.ret_type, hir::Type::Unknown) {
+                    for hint in &hints {
+                        if matches!(hint.target, type_hints::HintTarget::Return)
+                            && matches!(hint.confidence, type_hints::Confidence::High | type_hints::Confidence::Certain) {
+                            func.ret_type = hint.suggested_type.clone();
+                            eprintln!("Applied return type hint: {:?}", func.ret_type);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
 
         // Apply optimization passes based on annotations
         optimization::optimize_module(&mut hir);
