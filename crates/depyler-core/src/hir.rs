@@ -155,6 +155,11 @@ pub enum HirStmt {
     Continue {
         label: Option<Symbol>,
     },
+    With {
+        context: HirExpr,
+        target: Option<Symbol>,
+        body: Vec<HirStmt>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

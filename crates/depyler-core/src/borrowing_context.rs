@@ -245,6 +245,18 @@ impl BorrowingContext {
             HirStmt::Break { .. } | HirStmt::Continue { .. } => {
                 // Break and continue don't analyze any expressions
             }
+            HirStmt::With { context, target, body } => {
+                // Analyze context expression
+                self.analyze_expression(context, 0);
+                
+                // Track the target variable if present
+                // Note: We don't track local variables here, only parameters
+                
+                // Analyze body statements
+                for stmt in body {
+                    self.analyze_statement(stmt);
+                }
+            }
         }
     }
 

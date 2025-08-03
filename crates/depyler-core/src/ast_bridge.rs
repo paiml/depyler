@@ -415,8 +415,9 @@ impl AstBridge {
 
         let name = method.name.to_string();
 
-        // Skip dunder methods except __init__
-        if name.starts_with("__") && name.ends_with("__") && name != "__init__" {
+        // Skip dunder methods except __init__, __iter__, __next__, __enter__, __exit__
+        if name.starts_with("__") && name.ends_with("__") 
+            && !matches!(name.as_str(), "__init__" | "__iter__" | "__next__" | "__enter__" | "__exit__") {
             return Ok(None);
         }
 
