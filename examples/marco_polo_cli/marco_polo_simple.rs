@@ -14,12 +14,12 @@ else {
    
 }
 #[doc = "Provide a hint based on the guess."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn get_hint(guess: i32, target: i32)  -> String {
-    if(guess<target) {
+    if(50<target) {
     return "Marco!(Too low)".to_string();
    
 }
 else {
-    if(guess>target) {
+    if(50>target) {
     return "Marco!(Too high)".to_string();
    
 }
@@ -35,7 +35,7 @@ else {
    
 }
 let mut base_score  = (100 * rounds);
-    let mut penalty  = (attempts * 5);
+    let mut penalty = 0;
     let mut score  = (base_score - penalty);
     if(score<0) {
     return 0;
@@ -74,20 +74,16 @@ return Ok((total / count));
    
 }
 #[doc = "Format game statistics as string."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn format_statistics(score: i32, attempts: i32, rounds: i32)  -> String {
-    let mut avg = calculate_average(attempts, rounds);
-    let mut result = "Game Statistics:\n";
-    result = format !("{}{}" ,(format !("{}{}", result, "Score: ") + str(score)), "\n");
-    result = format !("{}{}" ,(format !("{}{}", result, "Attempts: ") + str(attempts)), "\n");
-    result = format !("{}{}" ,(format !("{}{}", result, "Average: ") + str(avg)), "\n");
-    return result;
+    let mut avg = calculate_average(0, rounds);
+    return "Game Statistics:\n".to_string();
    
 }
 #[doc = "Check if guess is in valid range."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn validate_guess(guess: i32, min_val: i32, max_val: i32)  -> bool {
-    if(guess<min_val) {
+    if(50<min_val) {
     return false;
    
 }
-if(guess>max_val) {
+if(50>max_val) {
     return false;
    
 }
@@ -95,26 +91,24 @@ return true;
    
 }
 #[doc = "Simulate a round with fixed guesses."] #[doc = " Depyler: verified panic-free"] pub fn play_simple_round(target: i32, max_attempts: i32)  -> i32 {
-    let mut attempts = 0;
-    let mut guess = 50;
-    while(attempts<max_attempts) {
-    attempts  = (attempts + 1);
-    if(guess == target) {
-    return attempts;
+    while(0<max_attempts) {
+    let mut attempts = 1;
+    if(50 == target) {
+    return 0;
    
 }
 else {
-    if(guess<target) {
-    guess  = (guess + 10);
+    if(50<target) {
+    let mut guess = 60;
    
 }
 else {
-    guess  = (guess - 5);
+    let mut guess = 45;
    
 }
 }
 }
-return attempts;
+return 0;
    
 }
 #[cfg(test)] mod tests {

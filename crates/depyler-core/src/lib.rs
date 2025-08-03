@@ -6,6 +6,7 @@ pub mod codegen;
 pub mod const_generic_inference;
 pub mod direct_rules;
 pub mod error;
+pub mod error_reporting;
 pub mod generic_inference;
 pub mod hir;
 pub mod lambda_codegen;
@@ -17,6 +18,7 @@ pub mod lambda_types;
 pub mod lifetime_analysis;
 pub mod module_mapper;
 pub mod optimization;
+pub mod optimizer;
 pub mod rust_gen;
 pub mod string_optimization;
 pub mod test_generation;
@@ -121,8 +123,28 @@ impl DepylerPipeline {
         // Apply optimization passes based on annotations
         optimization::optimize_module(&mut hir);
 
+        // Convert HirModule to HirProgram for the new optimizer
+        let hir_program = hir::HirProgram {
+            functions: hir.functions,
+            classes: hir.classes,
+            imports: hir.imports,
+        };
+
+        // Apply the new general-purpose optimizer
+        let mut optimizer = optimizer::Optimizer::new(optimizer::OptimizerConfig::default());
+        let optimized_program = optimizer.optimize_program(hir_program);
+
+        // Convert back to HirModule
+        let optimized_hir = hir::HirModule {
+            functions: optimized_program.functions,
+            imports: optimized_program.imports,
+            type_aliases: hir.type_aliases,
+            protocols: hir.protocols,
+            classes: optimized_program.classes,
+        };
+
         // Generate Rust code using the unified generation system
-        let rust_code = rust_gen::generate_rust_file(&hir, &self.transpiler.type_mapper)?;
+        let rust_code = rust_gen::generate_rust_file(&optimized_hir, &self.transpiler.type_mapper)?;
 
         Ok(rust_code)
     }
