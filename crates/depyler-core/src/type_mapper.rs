@@ -151,7 +151,18 @@ impl TypeMapper {
                 if name.len() == 1 && name.chars().next().unwrap().is_uppercase() {
                     RustType::TypeParam(name.clone())
                 } else {
-                    RustType::Custom(name.clone())
+                    // Handle common typing imports when used without parameters
+                    match name.as_str() {
+                        "Dict" => RustType::HashMap(
+                            Box::new(RustType::String), // Default to String keys
+                            Box::new(RustType::Custom("serde_json::Value".to_string())), // Default to JSON Value
+                        ),
+                        "List" => RustType::Vec(Box::new(RustType::Custom(
+                            "serde_json::Value".to_string(),
+                        ))),
+                        "Set" => RustType::HashSet(Box::new(RustType::String)),
+                        _ => RustType::Custom(name.clone()),
+                    }
                 }
             }
             PythonType::TypeVar(name) => RustType::TypeParam(name.clone()),
