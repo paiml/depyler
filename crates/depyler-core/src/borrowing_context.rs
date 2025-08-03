@@ -245,13 +245,17 @@ impl BorrowingContext {
             HirStmt::Break { .. } | HirStmt::Continue { .. } => {
                 // Break and continue don't analyze any expressions
             }
-            HirStmt::With { context, target, body } => {
+            HirStmt::With {
+                context,
+                target: _,
+                body,
+            } => {
                 // Analyze context expression
                 self.analyze_expression(context, 0);
-                
+
                 // Track the target variable if present
                 // Note: We don't track local variables here, only parameters
-                
+
                 // Analyze body statements
                 for stmt in body {
                     self.analyze_statement(stmt);
@@ -430,21 +434,21 @@ impl BorrowingContext {
             } => {
                 // Set comprehensions create a new scope
                 self.context_stack.push(AnalysisContext::Loop);
-                
+
                 // Analyze the iterator
                 self.analyze_expression(iter, borrow_depth);
-                
+
                 // The target variable is local to the comprehension
                 // We don't track it as a parameter usage
-                
+
                 // Analyze the element expression
                 self.analyze_expression(element, borrow_depth);
-                
+
                 // Analyze the condition if present
                 if let Some(cond) = condition {
                     self.analyze_expression(cond, borrow_depth);
                 }
-                
+
                 self.context_stack.pop();
             }
         }

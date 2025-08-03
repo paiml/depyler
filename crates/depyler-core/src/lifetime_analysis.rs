@@ -295,10 +295,14 @@ impl LifetimeInference {
             HirStmt::Break { .. } | HirStmt::Continue { .. } => {
                 // Break and continue don't contain expressions to analyze
             }
-            HirStmt::With { context, target: _, body } => {
+            HirStmt::With {
+                context,
+                target: _,
+                body,
+            } => {
                 // Analyze context expression
                 self.analyze_expr_for_param(param, context, usage, in_loop, false);
-                
+
                 // Analyze body statements
                 for stmt in body {
                     self.analyze_stmt_for_param(param, stmt, usage, in_loop);

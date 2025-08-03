@@ -88,19 +88,17 @@ impl StmtConverter {
     fn convert_aug_assign(a: ast::StmtAugAssign) -> Result<HirStmt> {
         let target = extract_assign_target(&a.target)?;
         let op = convert_aug_op(&a.op)?;
-        
+
         // Convert the target to an expression for the left side of the binary op
         let left = match &target {
             AssignTarget::Symbol(s) => Box::new(HirExpr::Var(s.clone())),
-            AssignTarget::Attribute { value, attr } => {
-                Box::new(HirExpr::Attribute {
-                    value: value.clone(),
-                    attr: attr.clone(),
-                })
-            }
+            AssignTarget::Attribute { value, attr } => Box::new(HirExpr::Attribute {
+                value: value.clone(),
+                attr: attr.clone(),
+            }),
             _ => bail!("Augmented assignment not supported for this target type"),
         };
-        
+
         let right = Box::new(super::convert_expr(*a.value)?);
         let value = HirExpr::Binary { op, left, right };
         Ok(HirStmt::Assign { target, value })
@@ -129,10 +127,10 @@ impl StmtConverter {
         if w.items.len() != 1 {
             bail!("Multiple context managers not yet supported");
         }
-        
+
         let item = &w.items[0];
         let context = super::convert_expr(item.context_expr.clone())?;
-        
+
         // Extract optional target variable
         let target = item.optional_vars.as_ref().and_then(|vars| {
             match vars.as_ref() {
@@ -140,12 +138,14 @@ impl StmtConverter {
                 _ => None, // Complex targets not supported yet
             }
         });
-        
+
         // Convert body
-        let body = w.body.into_iter()
+        let body = w
+            .body
+            .into_iter()
             .map(super::convert_stmt)
             .collect::<Result<Vec<_>>>()?;
-        
+
         Ok(HirStmt::With {
             context,
             target,

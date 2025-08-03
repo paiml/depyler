@@ -1,6 +1,6 @@
-use crate::hir::{BinOp, HirExpr, HirFunction, HirStmt};
 #[cfg(test)]
 use crate::hir::AssignTarget;
+use crate::hir::{BinOp, HirExpr, HirFunction, HirStmt};
 use depyler_annotations::{OptimizationLevel, PerformanceHint};
 
 /// Performance optimizer that applies transformations based on annotations

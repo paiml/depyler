@@ -65,13 +65,14 @@ impl ConstGenericInferencer {
     /// Scan statements to detect const usage patterns
     fn scan_statement_for_consts(&mut self, stmt: &HirStmt) -> Result<()> {
         match stmt {
-            HirStmt::Assign { target, value } => {
+            HirStmt::Assign { target: AssignTarget::Symbol(symbol), value } => {
                 // Look for assignments like: arr = [0] * 10
-                if let AssignTarget::Symbol(symbol) = target {
-                    if let Some(size) = self.detect_fixed_size_pattern(value) {
-                        self.const_values.insert(symbol.clone(), size);
-                    }
+                if let Some(size) = self.detect_fixed_size_pattern(value) {
+                    self.const_values.insert(symbol.clone(), size);
                 }
+            }
+            HirStmt::Assign { .. } => {
+                // Non-symbol assignment targets
             }
             HirStmt::If {
                 condition: _,
@@ -209,11 +210,9 @@ impl ConstGenericInferencer {
         // First, collect variable assignments
         let mut var_sizes = HashMap::new();
         for stmt in &function.body {
-            if let HirStmt::Assign { target, value } = stmt {
-                if let AssignTarget::Symbol(symbol) = target {
-                    if let Some(size) = self.detect_fixed_size_pattern(value) {
-                        var_sizes.insert(symbol.clone(), size);
-                    }
+            if let HirStmt::Assign { target: AssignTarget::Symbol(symbol), value } = stmt {
+                if let Some(size) = self.detect_fixed_size_pattern(value) {
+                    var_sizes.insert(symbol.clone(), size);
                 }
             }
         }
