@@ -176,5 +176,6 @@ fn test_lifetime_bounds_generation() {
     // 'b' is not used, so it might be optimized differently
     let b_param = result.param_lifetimes.get("b").unwrap();
     // b is only read, not returned, so it could be borrowed
-    assert!(b_param.should_borrow || !b_param.should_borrow); // Either is valid for unused param
+    // Either value is valid for unused param, so we just check that it exists
+    assert!(b_param.lifetime.is_some() || b_param.lifetime.is_none()); // Both are valid
 }

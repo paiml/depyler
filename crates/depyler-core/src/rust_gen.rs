@@ -24,6 +24,9 @@ pub struct CodeGenContext<'a> {
     pub declared_vars: Vec<HashSet<String>>,
     pub current_function_can_fail: bool,
     pub current_return_type: Option<Type>,
+    pub module_mapper: crate::module_mapper::ModuleMapper,
+    pub imported_modules: std::collections::HashMap<String, crate::module_mapper::ModuleMapping>,
+    pub imported_items: std::collections::HashMap<String, String>,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -67,6 +70,55 @@ pub fn generate_rust_file(
     module: &HirModule,
     type_mapper: &crate::type_mapper::TypeMapper,
 ) -> Result<String> {
+    let module_mapper = crate::module_mapper::ModuleMapper::new();
+    let mut imported_modules = std::collections::HashMap::new();
+    let mut imported_items = std::collections::HashMap::new();
+
+    // Process imports to populate the context
+    for import in &module.imports {
+        if import.items.is_empty() {
+            // Whole module import
+            if let Some(mapping) = module_mapper.get_mapping(&import.module) {
+                imported_modules.insert(import.module.clone(), mapping.clone());
+            }
+        } else {
+            // Specific items import
+            if let Some(mapping) = module_mapper.get_mapping(&import.module) {
+                for item in &import.items {
+                    match item {
+                        ImportItem::Named(name) => {
+                            if let Some(rust_name) = mapping.item_map.get(name) {
+                                // Special handling for typing module
+                                if import.module == "typing" && !rust_name.is_empty() {
+                                    // Types from typing module don't need full paths
+                                    imported_items.insert(name.clone(), rust_name.clone());
+                                } else if !mapping.rust_path.is_empty() {
+                                    imported_items.insert(
+                                        name.clone(),
+                                        format!("{}::{}", mapping.rust_path, rust_name),
+                                    );
+                                }
+                            }
+                        }
+                        ImportItem::Aliased { name, alias } => {
+                            if let Some(rust_name) = mapping.item_map.get(name) {
+                                // Special handling for typing module
+                                if import.module == "typing" && !rust_name.is_empty() {
+                                    imported_items.insert(alias.clone(), rust_name.clone());
+                                } else if !mapping.rust_path.is_empty() {
+                                    imported_items.insert(
+                                        alias.clone(),
+                                        format!("{}::{}", mapping.rust_path, rust_name),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let mut ctx = CodeGenContext {
         type_mapper,
         annotation_aware_mapper: AnnotationAwareTypeMapper::with_base_mapper(type_mapper.clone()),
@@ -83,6 +135,9 @@ pub fn generate_rust_file(
         declared_vars: vec![HashSet::new()],
         current_function_can_fail: false,
         current_return_type: None,
+        module_mapper,
+        imported_modules,
+        imported_items,
     };
 
     // Analyze all functions first for string optimization
@@ -111,14 +166,61 @@ pub fn generate_rust_file(
 
     let mut items = Vec::new();
 
-    // Add interned string constants at the top
+    // Generate module imports first
+    let module_mapper = crate::module_mapper::ModuleMapper::new();
+    let mut external_imports = Vec::new();
+    let mut std_imports = Vec::new();
+
+    for import in &module.imports {
+        let rust_imports = module_mapper.map_import(import);
+        for rust_import in rust_imports {
+            if rust_import.path.starts_with("//") {
+                // Comment for unmapped imports
+                let comment = &rust_import.path;
+                items.push(quote! { #[doc = #comment] });
+            } else if rust_import.is_external {
+                external_imports.push(rust_import);
+            } else {
+                std_imports.push(rust_import);
+            }
+        }
+    }
+
+    // Add external imports
+    for import in external_imports {
+        let path: syn::Path =
+            syn::parse_str(&import.path).unwrap_or_else(|_| parse_quote! { unknown });
+        if let Some(alias) = import.alias {
+            let alias_ident = syn::Ident::new(&alias, proc_macro2::Span::call_site());
+            items.push(quote! { use #path as #alias_ident; });
+        } else {
+            items.push(quote! { use #path; });
+        }
+    }
+
+    // Add standard library imports
+    for import in std_imports {
+        // Skip typing imports as they're handled by the type system
+        if import.path.starts_with("::") || import.path.is_empty() {
+            continue;
+        }
+        let path: syn::Path = syn::parse_str(&import.path).unwrap_or_else(|_| parse_quote! { std });
+        if let Some(alias) = import.alias {
+            let alias_ident = syn::Ident::new(&alias, proc_macro2::Span::call_site());
+            items.push(quote! { use #path as #alias_ident; });
+        } else {
+            items.push(quote! { use #path; });
+        }
+    }
+
+    // Add interned string constants after imports
     let interned_constants = ctx.string_optimizer.generate_interned_constants();
     for constant in interned_constants {
         let tokens: proc_macro2::TokenStream = constant.parse().unwrap_or_default();
         items.push(tokens);
     }
 
-    // Add imports if needed
+    // Add collection imports if needed
     if ctx.needs_hashmap {
         items.push(quote! {
             use std::collections::HashMap;
@@ -436,6 +538,9 @@ impl RustCodeGen for HirFunction {
             } else {
                 mapped_ret_type
             };
+
+        // Update import needs based on return type
+        update_import_needs(ctx, &rust_ret_type);
 
         // Check if function can fail and needs Result wrapper
         let can_fail = self.properties.can_fail;
@@ -1195,6 +1300,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_generic_call(&self, func: &str, args: &[syn::Expr]) -> Result<syn::Expr> {
+        // Check if this is an imported function
+        if let Some(rust_path) = self.ctx.imported_items.get(func) {
+            // Parse the rust path and generate the call
+            let path_parts: Vec<&str> = rust_path.split("::").collect();
+            let mut path = quote! {};
+            for (i, part) in path_parts.iter().enumerate() {
+                let part_ident = syn::Ident::new(part, proc_macro2::Span::call_site());
+                if i == 0 {
+                    path = quote! { #part_ident };
+                } else {
+                    path = quote! { #path::#part_ident };
+                }
+            }
+            if args.is_empty() {
+                return Ok(parse_quote! { #path() });
+            } else {
+                return Ok(parse_quote! { #path(#(#args),*) });
+            }
+        }
+
         // Check if this might be a constructor call (capitalized name)
         if func
             .chars()
@@ -1227,6 +1352,58 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<syn::Expr> {
+        // Check if this is a module method call (e.g., os.getcwd())
+        if let HirExpr::Var(module_name) = object {
+            let rust_name_opt = self
+                .ctx
+                .imported_modules
+                .get(module_name)
+                .and_then(|mapping| mapping.item_map.get(method).cloned());
+
+            if let Some(rust_name) = rust_name_opt {
+                // Convert args
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| arg.to_rust_expr(self.ctx))
+                    .collect::<Result<Vec<_>>>()?;
+
+                // Build the Rust function path
+                let path_parts: Vec<&str> = rust_name.split("::").collect();
+                let mut path = quote! { std };
+                for part in path_parts {
+                    let part_ident = syn::Ident::new(part, proc_macro2::Span::call_site());
+                    path = quote! { #path::#part_ident };
+                }
+
+                // Special handling for certain functions
+                match rust_name.as_str() {
+                    "env::current_dir" => {
+                        // current_dir returns Result<PathBuf>, we need to convert to String
+                        return Ok(parse_quote! {
+                            #path().unwrap().to_string_lossy().to_string()
+                        });
+                    }
+                    "Regex::new" => {
+                        // re.compile(pattern) -> Regex::new(pattern)
+                        if arg_exprs.is_empty() {
+                            bail!("re.compile() requires a pattern argument");
+                        }
+                        let pattern = &arg_exprs[0];
+                        return Ok(parse_quote! {
+                            regex::Regex::new(#pattern).unwrap()
+                        });
+                    }
+                    _ => {
+                        if arg_exprs.is_empty() {
+                            return Ok(parse_quote! { #path() });
+                        } else {
+                            return Ok(parse_quote! { #path(#(#arg_exprs),*) });
+                        }
+                    }
+                }
+            }
+        }
+
         let object_expr = object.to_rust_expr(self.ctx)?;
         let arg_exprs: Vec<syn::Expr> = args
             .iter()
@@ -1425,6 +1602,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("clear() takes no arguments");
                 }
                 Ok(parse_quote! { #object_expr.clear() })
+            }
+
+            // Regex methods
+            "findall" => {
+                // regex.findall(text) -> regex.find_iter(text).map(|m| m.as_str().to_string()).collect()
+                if arg_exprs.is_empty() {
+                    bail!("findall() requires at least one argument");
+                }
+                let text = &arg_exprs[0];
+                Ok(parse_quote! {
+                    #object_expr.find_iter(#text)
+                        .map(|m| m.as_str().to_string())
+                        .collect::<Vec<String>>()
+                })
             }
 
             // Generic method call fallback
@@ -1719,6 +1910,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_attribute(&mut self, value: &HirExpr, attr: &str) -> Result<syn::Expr> {
+        // Check if this is a module attribute access
+        if let HirExpr::Var(module_name) = value {
+            let rust_name_opt = self
+                .ctx
+                .imported_modules
+                .get(module_name)
+                .and_then(|mapping| mapping.item_map.get(attr).cloned());
+
+            if let Some(rust_name) = rust_name_opt {
+                // Map to the Rust equivalent
+                let path_parts: Vec<&str> = rust_name.split("::").collect();
+                if path_parts.len() > 1 {
+                    // It's a path like "env::current_dir"
+                    let mut path = quote! { std };
+                    for part in path_parts {
+                        let part_ident = syn::Ident::new(part, proc_macro2::Span::call_site());
+                        path = quote! { #path::#part_ident };
+                    }
+                    return Ok(parse_quote! { #path });
+                } else {
+                    // Simple identifier
+                    let ident = syn::Ident::new(&rust_name, proc_macro2::Span::call_site());
+                    return Ok(parse_quote! { #ident });
+                }
+            }
+        }
+
+        // Default behavior for non-module attributes
         let value_expr = value.to_rust_expr(self.ctx)?;
         let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
         Ok(parse_quote! { #value_expr.#attr_ident })
@@ -2272,6 +2491,9 @@ mod tests {
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
+            module_mapper: crate::module_mapper::ModuleMapper::new(),
+            imported_modules: std::collections::HashMap::new(),
+            imported_items: std::collections::HashMap::new(),
         }
     }
 

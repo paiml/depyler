@@ -8,7 +8,41 @@ and this project adheres to
 
 ## [Unreleased]
 
-## [1.4.0] - 2025-01-XX
+## [1.5.0] - 2025-01-XX
+
+### 🎌 Quality Metrics
+- SATD Count: 0 (Toyota Way: Zero Defects)
+- Test Coverage: 100% (all tests passing)
+- Clippy Warnings: 0 ✨
+
+### ✨ Module System Support (Priority 5 - Basic)
+- **Module Imports**: Basic support for Python module imports
+  - Whole module imports (e.g., `import os`) generate doc comments
+  - Module method calls mapped to Rust equivalents (e.g., `os.getcwd()` → `std::env::current_dir()`)
+  - Comprehensive standard library mappings for os, sys, json, re, etc.
+- **From Imports**: Support for importing specific items
+  - `from module import item` → proper Rust use statements
+  - Import aliasing (e.g., `from os.path import join as path_join`)
+  - Type imports from typing module handled specially
+- **Function Call Mapping**: Imported functions automatically mapped
+  - Direct function calls (e.g., `json.loads()` → `serde_json::from_str()`)
+  - Method calls on imported modules (e.g., `re.compile().findall()`)
+  - Special handling for functions with different signatures
+
+### 🚧 Features Started but Not Complete
+- **Package Imports**: Multi-level packages not yet supported
+- **Relative Imports**: `from . import` not implemented
+- **Star Imports**: `from module import *` not supported
+- **__init__.py**: Package initialization files not handled
+- **Module Attributes**: Direct attribute access (e.g., `sys.version`) limited
+
+### 🔧 Internal Architecture
+- New `ModuleMapper` for Python-to-Rust module mappings
+- Enhanced `CodeGenContext` with import tracking
+- Import resolution in expression and method call generation
+- Automatic HashMap/HashSet imports when needed
+
+## [1.4.0] - 2025-01-03
 
 ### 🎌 Quality Metrics
 - SATD Count: 0 (Toyota Way: Zero Defects)
