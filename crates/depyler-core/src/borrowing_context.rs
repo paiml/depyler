@@ -395,6 +395,11 @@ impl BorrowingContext {
 
                 self.context_stack.pop();
             }
+            HirExpr::Lambda { params: _, body } => {
+                // Lambda functions capture variables by reference
+                // For now, treat lambda bodies like any other expression
+                self.analyze_expression(body, borrow_depth);
+            }
         }
     }
 

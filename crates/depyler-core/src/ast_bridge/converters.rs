@@ -115,6 +115,7 @@ impl ExprConverter {
             ast::Expr::Tuple(t) => Self::convert_tuple(t),
             ast::Expr::Compare(c) => Self::convert_compare(c),
             ast::Expr::ListComp(lc) => Self::convert_list_comp(lc),
+            ast::Expr::Lambda(l) => Self::convert_lambda(l),
             _ => bail!("Expression type not yet supported"),
         }
     }
@@ -298,5 +299,18 @@ impl ExprConverter {
             iter,
             condition,
         })
+    }
+
+    fn convert_lambda(l: ast::ExprLambda) -> Result<HirExpr> {
+        // Extract parameter names
+        let params: Vec<String> = l.args.args
+            .iter()
+            .map(|arg| arg.def.arg.to_string())
+            .collect();
+        
+        // Convert body expression
+        let body = Box::new(super::convert_expr(*l.body)?);
+        
+        Ok(HirExpr::Lambda { params, body })
     }
 }

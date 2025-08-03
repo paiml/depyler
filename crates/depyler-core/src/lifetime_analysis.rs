@@ -407,6 +407,11 @@ impl LifetimeInference {
                 // If target shadows param, we don't analyze element/condition
                 // since they would refer to the comprehension variable, not the parameter
             }
+            HirExpr::Lambda { params: _, body } => {
+                // Lambda functions can capture parameters by reference
+                // Analyze the body for parameter usage
+                self.analyze_expr_for_param(param, body, usage, in_loop, in_return);
+            }
         }
     }
 
