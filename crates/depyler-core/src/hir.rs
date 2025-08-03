@@ -22,6 +22,14 @@ pub struct HirModule {
     pub classes: Vec<HirClass>,
 }
 
+/// Simplified program representation for optimization passes
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HirProgram {
+    pub functions: Vec<HirFunction>,
+    pub classes: Vec<HirClass>,
+    pub imports: Vec<Import>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Import {
     pub module: String,

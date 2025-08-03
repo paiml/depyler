@@ -1,0 +1,39 @@
+#[doc = "Demonstrates constant propagation and dead code elimination"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn compute_constants()  -> i32 {
+    let mut z = 15;
+    let mut result  = (z * 2);
+    return result;
+   
+}
+#[doc = "Example that won't be fully optimized(recursive)"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn fibonacci(n: i32)  -> i32 {
+    if(n <= 1) {
+    return n;
+   
+}
+return(fibonacci((n - 1)) + fibonacci((n - 2)));
+   
+}
+#[doc = "More constant folding examples"] #[doc = " Depyler: proven to terminate"] pub fn simple_math()  -> Result<f64, ZeroDivisionError>{
+    let mut c = 6.28;
+    let mut d  = (c / 2);
+    return Ok(d);
+   
+}
+#[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_compute_constants_examples() {
+    let _ = compute_constants();
+   
+}
+} #[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_fibonacci_examples() {
+    assert_eq !(fibonacci(0), 0);
+    assert_eq !(fibonacci(1), 1);
+    assert_eq !(fibonacci(- 1), - 1);
+   
+}
+}
