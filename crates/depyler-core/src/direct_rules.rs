@@ -12,7 +12,7 @@ fn extract_nested_indices(
 ) -> Result<(syn::Expr, Vec<syn::Expr>)> {
     let mut indices = Vec::new();
     let mut current = expr;
-    
+
     // Walk up the chain collecting indices
     loop {
         match current {
@@ -148,17 +148,20 @@ fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> R
     }))
 }
 
-pub fn convert_class_to_struct(class: &HirClass, type_mapper: &TypeMapper) -> Result<Vec<syn::Item>> {
+pub fn convert_class_to_struct(
+    class: &HirClass,
+    type_mapper: &TypeMapper,
+) -> Result<Vec<syn::Item>> {
     let mut items = Vec::new();
     let struct_name = syn::Ident::new(&class.name, proc_macro2::Span::call_site());
-    
+
     // Generate struct fields
     let mut fields = Vec::new();
     for field in &class.fields {
         let field_name = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
         let rust_type = type_mapper.map_type(&field.field_type);
         let field_type = rust_type_to_syn_type(&rust_type)?;
-        
+
         fields.push(syn::Field {
             attrs: vec![],
             vis: syn::Visibility::Public(syn::Token![pub](proc_macro2::Span::call_site())),
@@ -168,7 +171,7 @@ pub fn convert_class_to_struct(class: &HirClass, type_mapper: &TypeMapper) -> Re
             ty: field_type,
         });
     }
-    
+
     // Create the struct
     let struct_item = syn::Item::Struct(syn::ItemStruct {
         attrs: if class.is_dataclass {
@@ -187,13 +190,13 @@ pub fn convert_class_to_struct(class: &HirClass, type_mapper: &TypeMapper) -> Re
         semi_token: None,
     });
     items.push(struct_item);
-    
+
     // Generate impl block with methods
     let mut impl_items = Vec::new();
-    
+
     // Check if class has explicit __init__
     let has_init = class.methods.iter().any(|m| m.name == "__init__");
-    
+
     // Convert __init__ to new() if present, or generate default new() for dataclasses
     if has_init {
         for method in &class.methods {
@@ -207,18 +210,23 @@ pub fn convert_class_to_struct(class: &HirClass, type_mapper: &TypeMapper) -> Re
         }
     } else {
         // Generate default new() for dataclasses or classes with default field values
-        if class.is_dataclass || class.fields.iter().all(|f| f.default_value.is_some() || f.field_type == Type::Int) {
+        if class.is_dataclass
+            || class
+                .fields
+                .iter()
+                .all(|f| f.default_value.is_some() || f.field_type == Type::Int)
+        {
             let new_method = generate_dataclass_new(class, &struct_name, type_mapper)?;
             impl_items.push(syn::ImplItem::Fn(new_method));
         }
-        
+
         // Add other methods
         for method in &class.methods {
             let rust_method = convert_method_to_impl_item(method, type_mapper)?;
             impl_items.push(syn::ImplItem::Fn(rust_method));
         }
     }
-    
+
     // Only generate impl block if there are methods
     if !impl_items.is_empty() {
         let impl_block = syn::Item::Impl(syn::ItemImpl {
@@ -234,7 +242,7 @@ pub fn convert_class_to_struct(class: &HirClass, type_mapper: &TypeMapper) -> Re
         });
         items.push(impl_block);
     }
-    
+
     Ok(items)
 }
 
@@ -245,15 +253,17 @@ fn generate_dataclass_new(
 ) -> Result<syn::ImplItemFn> {
     // Generate parameters from fields (skip fields with defaults)
     let mut inputs = syn::punctuated::Punctuated::new();
-    let fields_without_defaults: Vec<_> = class.fields.iter()
+    let fields_without_defaults: Vec<_> = class
+        .fields
+        .iter()
         .filter(|f| f.default_value.is_none())
         .collect();
-    
+
     for field in &fields_without_defaults {
         let param_ident = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
         let rust_type = type_mapper.map_type(&field.field_type);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
-        
+
         inputs.push(syn::FnArg::Typed(syn::PatType {
             attrs: vec![],
             pat: Box::new(syn::Pat::Ident(syn::PatIdent {
@@ -267,9 +277,11 @@ fn generate_dataclass_new(
             ty: Box::new(param_syn_type),
         }));
     }
-    
+
     // Generate body that initializes struct fields
-    let field_inits = class.fields.iter()
+    let field_inits = class
+        .fields
+        .iter()
         .map(|field| {
             let field_ident = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
             if field.default_value.is_some() {
@@ -285,7 +297,7 @@ fn generate_dataclass_new(
             }
         })
         .collect::<Vec<_>>();
-    
+
     let body = parse_quote! {
         {
             Self {
@@ -293,7 +305,7 @@ fn generate_dataclass_new(
             }
         }
     };
-    
+
     Ok(syn::ImplItemFn {
         attrs: vec![],
         vis: syn::Visibility::Public(syn::Token![pub](proc_macro2::Span::call_site())),
@@ -326,12 +338,12 @@ fn convert_init_to_new(
 ) -> Result<syn::ImplItemFn> {
     // Convert parameters
     let mut inputs = syn::punctuated::Punctuated::new();
-    
+
     for (param_name, param_type) in &init_method.params {
         let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
         let rust_type = type_mapper.map_type(param_type);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
-        
+
         inputs.push(syn::FnArg::Typed(syn::PatType {
             attrs: vec![],
             pat: Box::new(syn::Pat::Ident(syn::PatIdent {
@@ -345,15 +357,19 @@ fn convert_init_to_new(
             ty: Box::new(param_syn_type),
         }));
     }
-    
+
     // Generate field initializers based on class fields and parameters
     let mut field_inits = Vec::new();
-    
+
     for field in &class.fields {
         let field_ident = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
-        
+
         // Check if this field matches a parameter name
-        if init_method.params.iter().any(|(param_name, _)| param_name == &field.name) {
+        if init_method
+            .params
+            .iter()
+            .any(|(param_name, _)| param_name == &field.name)
+        {
             // Initialize from parameter
             field_inits.push(quote! { #field_ident });
         } else {
@@ -371,7 +387,7 @@ fn convert_init_to_new(
             field_inits.push(quote! { #field_ident: #default_value });
         }
     }
-    
+
     let body = parse_quote! {
         {
             Self {
@@ -379,7 +395,7 @@ fn convert_init_to_new(
             }
         }
     };
-    
+
     Ok(syn::ImplItemFn {
         attrs: vec![],
         vis: syn::Visibility::Public(syn::Token![pub](proc_macro2::Span::call_site())),
@@ -409,10 +425,10 @@ fn convert_method_to_impl_item(
     type_mapper: &TypeMapper,
 ) -> Result<syn::ImplItemFn> {
     let method_name = syn::Ident::new(&method.name, proc_macro2::Span::call_site());
-    
+
     // Convert parameters
     let mut inputs = syn::punctuated::Punctuated::new();
-    
+
     // Add self parameter based on method type
     if method.is_static {
         // Static methods have no self parameter
@@ -426,13 +442,13 @@ fn convert_method_to_impl_item(
         // Regular instance methods use &mut self by default (can be refined later)
         inputs.push(parse_quote! { &mut self });
     }
-    
+
     // Add other parameters
     for (param_name, param_type) in &method.params {
         let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
         let rust_type = type_mapper.map_type(param_type);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
-        
+
         inputs.push(syn::FnArg::Typed(syn::PatType {
             attrs: vec![],
             pat: Box::new(syn::Pat::Ident(syn::PatIdent {
@@ -446,11 +462,11 @@ fn convert_method_to_impl_item(
             ty: Box::new(param_syn_type),
         }));
     }
-    
+
     // Convert return type
     let rust_ret_type = type_mapper.map_type(&method.ret_type);
     let ret_type = rust_type_to_syn_type(&rust_ret_type)?;
-    
+
     // Convert method body
     let body = if method.body.is_empty() {
         // Empty body - just return default
@@ -459,7 +475,7 @@ fn convert_method_to_impl_item(
         // Convert the method body statements
         convert_block(&method.body, type_mapper)?
     };
-    
+
     Ok(syn::ImplItemFn {
         attrs: vec![],
         vis: syn::Visibility::Public(syn::Token![pub](proc_macro2::Span::call_site())),
@@ -869,19 +885,16 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
                 AssignTarget::Index { base, index } => {
                     // Dictionary/list subscript assignment
                     let final_index = convert_expr(index, type_mapper)?;
-                    
+
                     // Extract the base and all intermediate indices
                     let (base_expr, indices) = extract_nested_indices(base, type_mapper)?;
-                    
+
                     if indices.is_empty() {
                         // Simple assignment: d[k] = v
                         let assign_expr = parse_quote! {
                             #base_expr.insert(#final_index, #value_expr)
                         };
-                        Ok(syn::Stmt::Expr(
-                            assign_expr,
-                            Some(Default::default()),
-                        ))
+                        Ok(syn::Stmt::Expr(assign_expr, Some(Default::default())))
                     } else {
                         // Nested assignment: build chain of get_mut calls
                         let mut chain = base_expr;
@@ -890,30 +903,24 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
                                 #chain.get_mut(&#idx).unwrap()
                             };
                         }
-                        
+
                         let assign_expr = parse_quote! {
                             #chain.insert(#final_index, #value_expr)
                         };
-                        
-                        Ok(syn::Stmt::Expr(
-                            assign_expr,
-                            Some(Default::default()),
-                        ))
+
+                        Ok(syn::Stmt::Expr(assign_expr, Some(Default::default())))
                     }
                 }
                 AssignTarget::Attribute { value, attr } => {
                     // Convert object.attr = value
                     let base_expr = convert_expr(value, type_mapper)?;
                     let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
-                    
+
                     let assign_expr = parse_quote! {
                         #base_expr.#attr_ident = #value_expr
                     };
-                    
-                    Ok(syn::Stmt::Expr(
-                        assign_expr,
-                        Some(Default::default()),
-                    ))
+
+                    Ok(syn::Stmt::Expr(assign_expr, Some(Default::default())))
                 }
             }
         }
@@ -989,10 +996,8 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
         }
         HirStmt::Break { label } => {
             let break_expr = if let Some(label_name) = label {
-                let label_ident = syn::Lifetime::new(
-                    &format!("'{}", label_name),
-                    proc_macro2::Span::call_site(),
-                );
+                let label_ident =
+                    syn::Lifetime::new(&format!("'{}", label_name), proc_macro2::Span::call_site());
                 parse_quote! { break #label_ident }
             } else {
                 parse_quote! { break }
@@ -1001,23 +1006,25 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
         }
         HirStmt::Continue { label } => {
             let continue_expr = if let Some(label_name) = label {
-                let label_ident = syn::Lifetime::new(
-                    &format!("'{}", label_name),
-                    proc_macro2::Span::call_site(),
-                );
+                let label_ident =
+                    syn::Lifetime::new(&format!("'{}", label_name), proc_macro2::Span::call_site());
                 parse_quote! { continue #label_ident }
             } else {
                 parse_quote! { continue }
             };
             Ok(syn::Stmt::Expr(continue_expr, Some(Default::default())))
         }
-        HirStmt::With { context, target, body } => {
+        HirStmt::With {
+            context,
+            target,
+            body,
+        } => {
             // Convert context expression
             let context_expr = convert_expr(context, type_mapper)?;
-            
+
             // Convert body to a block
             let body_block = convert_block(body, type_mapper)?;
-            
+
             // Generate a scope block with optional variable binding
             let block_expr = if let Some(var_name) = target {
                 let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
@@ -1035,7 +1042,7 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
                     }
                 }
             };
-            
+
             Ok(syn::Stmt::Expr(block_expr, None))
         }
     }
@@ -1080,9 +1087,23 @@ impl<'a> ExprConverter<'a> {
             HirExpr::Set(elts) => self.convert_set(elts),
             HirExpr::FrozenSet(elts) => self.convert_frozenset(elts),
             HirExpr::Lambda { params, body } => self.convert_lambda(params, body),
-            HirExpr::MethodCall { object, method, args } => self.convert_method_call(object, method, args),
-            HirExpr::ListComp { element, target, iter, condition } => self.convert_list_comp(element, target, iter, condition),
-            HirExpr::SetComp { element, target, iter, condition } => self.convert_set_comp(element, target, iter, condition),
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+            } => self.convert_method_call(object, method, args),
+            HirExpr::ListComp {
+                element,
+                target,
+                iter,
+                condition,
+            } => self.convert_list_comp(element, target, iter, condition),
+            HirExpr::SetComp {
+                element,
+                target,
+                iter,
+                condition,
+            } => self.convert_set_comp(element, target, iter, condition),
             HirExpr::Attribute { value, attr } => self.convert_attribute(value, attr),
             _ => bail!("Expression type not yet supported: {:?}", expr),
         }
@@ -1112,8 +1133,9 @@ impl<'a> ExprConverter<'a> {
                 Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
             }
             // Set operators - check if both operands are sets
-            BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor 
-                if self.is_set_expr(left) && self.is_set_expr(right) => {
+            BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor
+                if self.is_set_expr(left) && self.is_set_expr(right) =>
+            {
                 self.convert_set_operation(op, left_expr, right_expr)
             }
             BinOp::Sub if self.is_set_expr(left) && self.is_set_expr(right) => {
@@ -1151,17 +1173,21 @@ impl<'a> ExprConverter<'a> {
                 // Special case: [value] * n or n * [value] creates an array
                 match (left, right) {
                     // Pattern: [x] * n
-                    (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size))) 
-                        if elts.len() == 1 && *size > 0 && *size <= 32 => {
+                    (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size)))
+                        if elts.len() == 1 && *size > 0 && *size <= 32 =>
+                    {
                         let elem = self.convert(&elts[0])?;
-                        let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                        let size_lit =
+                            syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
                         Ok(parse_quote! { [#elem; #size_lit] })
                     }
                     // Pattern: n * [x]
                     (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elts))
-                        if elts.len() == 1 && *size > 0 && *size <= 32 => {
+                        if elts.len() == 1 && *size > 0 && *size <= 32 =>
+                    {
                         let elem = self.convert(&elts[0])?;
-                        let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                        let size_lit =
+                            syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
                         Ok(parse_quote! { [#elem; #size_lit] })
                     }
                     // Default multiplication
@@ -1176,7 +1202,7 @@ impl<'a> ExprConverter<'a> {
                 // For integers: use .pow() with u32 exponent
                 // For floats: use .powf() with f64 exponent
                 // For negative integer exponents: convert to float
-                
+
                 // Check if we have literals to determine types
                 match (left, right) {
                     // Integer literal base with integer literal exponent
@@ -1196,17 +1222,13 @@ impl<'a> ExprConverter<'a> {
                         }
                     }
                     // Float literal base: always use .powf()
-                    (HirExpr::Literal(Literal::Float(_)), _) => {
-                        Ok(parse_quote! {
-                            #left_expr.powf(#right_expr as f64)
-                        })
-                    }
+                    (HirExpr::Literal(Literal::Float(_)), _) => Ok(parse_quote! {
+                        #left_expr.powf(#right_expr as f64)
+                    }),
                     // Any base with float exponent: use .powf()
-                    (_, HirExpr::Literal(Literal::Float(_))) => {
-                        Ok(parse_quote! {
-                            (#left_expr as f64).powf(#right_expr)
-                        })
-                    }
+                    (_, HirExpr::Literal(Literal::Float(_))) => Ok(parse_quote! {
+                        (#left_expr as f64).powf(#right_expr)
+                    }),
                     // Variables or complex expressions: generate type-safe code
                     _ => {
                         // For non-literal expressions, we need runtime type checking
@@ -1286,12 +1308,17 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
-    fn convert_array_init_call(&self, func: &str, args: &[HirExpr], _arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    fn convert_array_init_call(
+        &self,
+        func: &str,
+        args: &[HirExpr],
+        _arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         // Handle zeros(n), ones(n), full(n, value) patterns
         if args.is_empty() {
             bail!("{} requires at least one argument", func);
         }
-        
+
         // Extract size from first argument if it's a literal
         if let HirExpr::Literal(Literal::Int(size)) = &args[0] {
             if *size > 0 && *size <= 32 {
@@ -1377,13 +1404,21 @@ impl<'a> ExprConverter<'a> {
                 std::sync::Arc::new(#arg.into_iter().collect::<HashSet<_>>())
             })
         } else {
-            bail!("frozenset() takes at most 1 argument ({} given)", args.len())
+            bail!(
+                "frozenset() takes at most 1 argument ({} given)",
+                args.len()
+            )
         }
     }
 
     fn convert_generic_call(&self, func: &str, args: &[syn::Expr]) -> Result<syn::Expr> {
         // Check if this might be a constructor call (capitalized name)
-        if func.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+        if func
+            .chars()
+            .next()
+            .map(|c| c.is_uppercase())
+            .unwrap_or(false)
+        {
             // Treat as constructor call - ClassName::new(args)
             let class_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
             if args.is_empty() {
@@ -1418,13 +1453,13 @@ impl<'a> ExprConverter<'a> {
             .iter()
             .map(|e| self.convert(e))
             .collect::<Result<Vec<_>>>()?;
-        
+
         // Check if this list has a known fixed size that should be an array
         // Arrays are preferred for small fixed sizes (typically < 32 elements)
         if !elts.is_empty() && elts.len() <= 32 {
             // Check if all elements are literals or constants (good candidate for array)
             let all_literals = elts.iter().all(|e| matches!(e, HirExpr::Literal(_)));
-            
+
             if all_literals {
                 // Generate array literal instead of vec!
                 Ok(parse_quote! { [#(#elt_exprs),*] })
@@ -1465,7 +1500,7 @@ impl<'a> ExprConverter<'a> {
             .collect::<Result<Vec<_>>>()?;
         Ok(parse_quote! { (#(#elt_exprs),*) })
     }
-    
+
     fn convert_set(&self, elts: &[HirExpr]) -> Result<syn::Expr> {
         let insert_exprs: Vec<syn::Expr> = elts
             .iter()
@@ -1514,8 +1549,13 @@ impl<'a> ExprConverter<'a> {
             _ => false,
         }
     }
-    
-    fn convert_set_operation(&self, op: BinOp, left: syn::Expr, right: syn::Expr) -> Result<syn::Expr> {
+
+    fn convert_set_operation(
+        &self,
+        op: BinOp,
+        left: syn::Expr,
+        right: syn::Expr,
+    ) -> Result<syn::Expr> {
         match op {
             BinOp::BitAnd => Ok(parse_quote! {
                 #left.intersection(&#right).cloned().collect()
@@ -1533,10 +1573,20 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
-    fn convert_method_call(&self, object: &HirExpr, method: &str, args: &[HirExpr]) -> Result<syn::Expr> {
+    fn convert_method_call(
+        &self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<syn::Expr> {
         // Check if this is a static method call on a class (e.g., Counter.create_with_value)
         if let HirExpr::Var(class_name) = object {
-            if class_name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+            if class_name
+                .chars()
+                .next()
+                .map(|c| c.is_uppercase())
+                .unwrap_or(false)
+            {
                 // This is likely a static method call - convert to ClassName::method(args)
                 let class_ident = syn::Ident::new(class_name, proc_macro2::Span::call_site());
                 let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
@@ -1547,7 +1597,7 @@ impl<'a> ExprConverter<'a> {
                 return Ok(parse_quote! { #class_ident::#method_ident(#(#arg_exprs),*) });
             }
         }
-        
+
         let object_expr = self.convert(object)?;
         let arg_exprs: Vec<syn::Expr> = args
             .iter()
@@ -1588,7 +1638,7 @@ impl<'a> ExprConverter<'a> {
                     })
                 }
             }
-            
+
             // Set methods
             "add" => {
                 if arg_exprs.len() != 1 {
@@ -1632,7 +1682,7 @@ impl<'a> ExprConverter<'a> {
                     }
                 }
             }
-            
+
             // Generic method call fallback
             _ => {
                 let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
@@ -1641,7 +1691,13 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
-    fn convert_list_comp(&self, element: &HirExpr, target: &str, iter: &HirExpr, condition: &Option<Box<HirExpr>>) -> Result<syn::Expr> {
+    fn convert_list_comp(
+        &self,
+        element: &HirExpr,
+        target: &str,
+        iter: &HirExpr,
+        condition: &Option<Box<HirExpr>>,
+    ) -> Result<syn::Expr> {
         let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
         let iter_expr = self.convert(iter)?;
         let element_expr = self.convert(element)?;
@@ -1667,7 +1723,13 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
-    fn convert_set_comp(&self, element: &HirExpr, target: &str, iter: &HirExpr, condition: &Option<Box<HirExpr>>) -> Result<syn::Expr> {
+    fn convert_set_comp(
+        &self,
+        element: &HirExpr,
+        target: &str,
+        iter: &HirExpr,
+        condition: &Option<Box<HirExpr>>,
+    ) -> Result<syn::Expr> {
         let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
         let iter_expr = self.convert(iter)?;
         let element_expr = self.convert(element)?;
@@ -1702,10 +1764,10 @@ impl<'a> ExprConverter<'a> {
                 parse_quote! { #ident }
             })
             .collect();
-        
+
         // Convert body expression
         let body_expr = self.convert(body)?;
-        
+
         // Generate closure
         if params.is_empty() {
             // No parameters
@@ -1998,13 +2060,13 @@ mod tests {
         let result = converter.convert(&list_expr).unwrap();
         // Small literal lists should generate array expressions
         assert!(matches!(result, syn::Expr::Array(_)));
-        
+
         // Test non-literal list (should generate vec!)
         let var_list = HirExpr::List(vec![
             HirExpr::Var("x".to_string()),
             HirExpr::Var("y".to_string()),
         ]);
-        
+
         let result2 = converter.convert(&var_list).unwrap();
         // Non-literal lists should generate vec! macro
         assert!(matches!(result2, syn::Expr::Macro(_)));

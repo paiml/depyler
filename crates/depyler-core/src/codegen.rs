@@ -362,10 +362,8 @@ fn stmt_to_rust_tokens_with_scope(
         }
         HirStmt::Break { label } => {
             if let Some(label_name) = label {
-                let label_ident = syn::Lifetime::new(
-                    &format!("'{}", label_name),
-                    proc_macro2::Span::call_site(),
-                );
+                let label_ident =
+                    syn::Lifetime::new(&format!("'{}", label_name), proc_macro2::Span::call_site());
                 Ok(quote! { break #label_ident; })
             } else {
                 Ok(quote! { break; })
@@ -373,25 +371,27 @@ fn stmt_to_rust_tokens_with_scope(
         }
         HirStmt::Continue { label } => {
             if let Some(label_name) = label {
-                let label_ident = syn::Lifetime::new(
-                    &format!("'{}", label_name),
-                    proc_macro2::Span::call_site(),
-                );
+                let label_ident =
+                    syn::Lifetime::new(&format!("'{}", label_name), proc_macro2::Span::call_site());
                 Ok(quote! { continue #label_ident; })
             } else {
                 Ok(quote! { continue; })
             }
         }
-        HirStmt::With { context, target, body } => {
+        HirStmt::With {
+            context,
+            target,
+            body,
+        } => {
             // Convert context expression
             let context_tokens = expr_to_rust_tokens(context)?;
-            
+
             // Convert body statements
             let body_tokens: Vec<_> = body
                 .iter()
                 .map(stmt_to_rust_tokens)
                 .collect::<Result<_>>()?;
-            
+
             // Generate scoped block with optional variable binding
             if let Some(var_name) = target {
                 let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());

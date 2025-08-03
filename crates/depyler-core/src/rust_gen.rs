@@ -777,16 +777,20 @@ impl RustCodeGen for HirStmt {
                     Ok(quote! { continue; })
                 }
             }
-            HirStmt::With { context, target, body } => {
+            HirStmt::With {
+                context,
+                target,
+                body,
+            } => {
                 // Convert context expression
                 let context_expr = context.to_rust_expr(ctx)?;
-                
+
                 // Convert body statements
                 let body_stmts: Vec<_> = body
                     .iter()
                     .map(|stmt| stmt.to_rust_tokens(ctx))
                     .collect::<Result<_>>()?;
-                
+
                 // For now, generate a simple scope block
                 // TODO: Implement proper RAII pattern with Drop trait
                 if let Some(var_name) = target {
@@ -876,8 +880,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 })
             }
             // Set operators - check if both operands are sets
-            BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor 
-                if self.is_set_expr(left) && self.is_set_expr(right) => {
+            BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor
+                if self.is_set_expr(left) && self.is_set_expr(right) =>
+            {
                 self.convert_set_operation(op, left_expr, right_expr)
             }
             BinOp::Sub if self.is_set_expr(left) && self.is_set_expr(right) => {
@@ -1170,13 +1175,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 std::sync::Arc::new(#arg.into_iter().collect::<HashSet<_>>())
             })
         } else {
-            bail!("frozenset() takes at most 1 argument ({} given)", args.len())
+            bail!(
+                "frozenset() takes at most 1 argument ({} given)",
+                args.len()
+            )
         }
     }
 
     fn convert_generic_call(&self, func: &str, args: &[syn::Expr]) -> Result<syn::Expr> {
         // Check if this might be a constructor call (capitalized name)
-        if func.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+        if func
+            .chars()
+            .next()
+            .map(|c| c.is_uppercase())
+            .unwrap_or(false)
+        {
             // Treat as constructor call - ClassName::new(args)
             let class_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
             if args.is_empty() {
@@ -1378,7 +1391,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let iterable = &arg_exprs[0];
                 Ok(parse_quote! { #iterable.join(#object_expr) })
             }
-            
+
             // Set methods
             "add" => {
                 if arg_exprs.len() != 1 {
@@ -1752,8 +1765,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             _ => false,
         }
     }
-    
-    fn convert_set_operation(&self, op: BinOp, left: syn::Expr, right: syn::Expr) -> Result<syn::Expr> {
+
+    fn convert_set_operation(
+        &self,
+        op: BinOp,
+        left: syn::Expr,
+        right: syn::Expr,
+    ) -> Result<syn::Expr> {
         match op {
             BinOp::BitAnd => Ok(parse_quote! {
                 #left.intersection(&#right).cloned().collect()
