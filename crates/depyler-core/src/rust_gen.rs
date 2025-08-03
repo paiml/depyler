@@ -566,12 +566,24 @@ impl RustCodeGen for HirFunction {
             });
         }
 
-        Ok(quote! {
-            #(#attrs)*
-            pub fn #name #generic_params(#(#params),*) #return_type #where_clause {
-                #(#body_stmts)*
+        // Add async keyword if function is async
+        let func_tokens = if self.properties.is_async {
+            quote! {
+                #(#attrs)*
+                pub async fn #name #generic_params(#(#params),*) #return_type #where_clause {
+                    #(#body_stmts)*
+                }
             }
-        })
+        } else {
+            quote! {
+                #(#attrs)*
+                pub fn #name #generic_params(#(#params),*) #return_type #where_clause {
+                    #(#body_stmts)*
+                }
+            }
+        };
+
+        Ok(func_tokens)
     }
 }
 
@@ -1853,6 +1865,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn is_len_call(&self, expr: &HirExpr) -> bool {
         matches!(expr, HirExpr::Call { func, args } if func == "len" && args.len() == 1)
     }
+
+    fn convert_await(&mut self, value: &HirExpr) -> Result<syn::Expr> {
+        let value_expr = value.to_rust_expr(self.ctx)?;
+        Ok(parse_quote! { #value_expr.await })
+    }
 }
 
 impl ToRustExpr for HirExpr {
@@ -1909,6 +1926,7 @@ impl ToRustExpr for HirExpr {
                 iter,
                 condition,
             } => converter.convert_set_comp(element, target, iter, condition),
+            HirExpr::Await { value } => converter.convert_await(value),
         }
     }
 }

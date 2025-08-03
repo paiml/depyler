@@ -451,6 +451,10 @@ impl BorrowingContext {
 
                 self.context_stack.pop();
             }
+            HirExpr::Await { value } => {
+                // Await expressions don't change parameter usage patterns
+                self.analyze_expression(value, borrow_depth);
+            }
         }
     }
 

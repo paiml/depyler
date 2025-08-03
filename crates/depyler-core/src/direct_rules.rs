@@ -1105,6 +1105,7 @@ impl<'a> ExprConverter<'a> {
                 condition,
             } => self.convert_set_comp(element, target, iter, condition),
             HirExpr::Attribute { value, attr } => self.convert_attribute(value, attr),
+            HirExpr::Await { value } => self.convert_await(value),
             _ => bail!("Expression type not yet supported: {:?}", expr),
         }
     }
@@ -1782,6 +1783,11 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
+    fn convert_await(&self, value: &HirExpr) -> Result<syn::Expr> {
+        let value_expr = self.convert(value)?;
+        Ok(parse_quote! { #value_expr.await })
+    }
+
     fn convert_attribute(&self, value: &HirExpr, attr: &str) -> Result<syn::Expr> {
         let value_expr = self.convert(value)?;
         let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
@@ -2215,6 +2221,7 @@ mod tests {
                 max_stack_depth: Some(1),
                 can_fail: false,
                 error_types: vec![],
+                is_async: false,
             },
             annotations: TranspilationAnnotations::default(),
             docstring: None,

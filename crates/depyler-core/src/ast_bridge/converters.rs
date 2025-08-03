@@ -175,6 +175,7 @@ impl ExprConverter {
             ast::Expr::Lambda(l) => Self::convert_lambda(l),
             ast::Expr::Set(s) => Self::convert_set(s),
             ast::Expr::Attribute(a) => Self::convert_attribute(a),
+            ast::Expr::Await(a) => Self::convert_await(a),
             _ => bail!("Expression type not yet supported"),
         }
     }
@@ -425,5 +426,10 @@ impl ExprConverter {
         let value = Box::new(Self::convert(*a.value)?);
         let attr = a.attr.to_string();
         Ok(HirExpr::Attribute { value, attr })
+    }
+
+    fn convert_await(a: ast::ExprAwait) -> Result<HirExpr> {
+        let value = Box::new(Self::convert(*a.value)?);
+        Ok(HirExpr::Await { value })
     }
 }
