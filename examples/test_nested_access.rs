@@ -1,0 +1,12 @@
+use std::collections::HashMap;
+    #[doc = "Test reading nested dictionary values"] #[doc = " Depyler: proven to terminate"] pub fn test_nested_access()  -> Result<serde_json::Value, IndexError>{
+    let mut d = {
+    let mut map = HashMap::new();
+    map.insert("outer", {
+    let mut map = HashMap::new();
+    map.insert("inner", "value");
+    map });
+    map };
+    let mut val = d.get("outer" as usize).copied().unwrap_or_default().get("inner" as usize).copied().unwrap_or_default();
+    return Ok(val)
+}

@@ -227,6 +227,10 @@ fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
                 }
             }
         }
+        Type::Set(inner) => {
+            let inner_type = type_to_rust_type(inner);
+            quote! { HashSet<#inner_type> }
+        }
     }
 }
 
@@ -243,16 +247,28 @@ fn stmt_to_rust_tokens_with_scope(
 ) -> Result<proc_macro2::TokenStream> {
     match stmt {
         HirStmt::Assign { target, value } => {
-            let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
             let value_tokens = expr_to_rust_tokens(value)?;
 
-            if scope_tracker.is_declared(target) {
-                // Variable already exists, just assign
-                Ok(quote! { #target_ident = #value_tokens; })
-            } else {
-                // First declaration, use let mut
-                scope_tracker.declare_var(target);
-                Ok(quote! { let mut #target_ident = #value_tokens; })
+            match target {
+                AssignTarget::Symbol(symbol) => {
+                    let target_ident = syn::Ident::new(symbol, proc_macro2::Span::call_site());
+                    if scope_tracker.is_declared(symbol) {
+                        // Variable already exists, just assign
+                        Ok(quote! { #target_ident = #value_tokens; })
+                    } else {
+                        // First declaration, use let mut
+                        scope_tracker.declare_var(symbol);
+                        Ok(quote! { let mut #target_ident = #value_tokens; })
+                    }
+                }
+                AssignTarget::Index { base, index } => {
+                    let base_tokens = expr_to_rust_tokens(base)?;
+                    let index_tokens = expr_to_rust_tokens(index)?;
+                    Ok(quote! { #base_tokens.insert(#index_tokens, #value_tokens); })
+                }
+                AssignTarget::Attribute { .. } => {
+                    anyhow::bail!("Attribute assignment not yet implemented")
+                }
             }
         }
         HirStmt::Return(expr_opt) => {
@@ -342,6 +358,28 @@ fn stmt_to_rust_tokens_with_scope(
                 Ok(quote! { panic!("Exception: {}", #exc_tokens); })
             } else {
                 Ok(quote! { panic!("Exception raised"); })
+            }
+        }
+        HirStmt::Break { label } => {
+            if let Some(label_name) = label {
+                let label_ident = syn::Lifetime::new(
+                    &format!("'{}", label_name),
+                    proc_macro2::Span::call_site(),
+                );
+                Ok(quote! { break #label_ident; })
+            } else {
+                Ok(quote! { break; })
+            }
+        }
+        HirStmt::Continue { label } => {
+            if let Some(label_name) = label {
+                let label_ident = syn::Lifetime::new(
+                    &format!("'{}", label_name),
+                    proc_macro2::Span::call_site(),
+                );
+                Ok(quote! { continue #label_ident; })
+            } else {
+                Ok(quote! { continue; })
             }
         }
     }
@@ -521,15 +559,71 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
                 .iter()
                 .map(|p| quote::format_ident!("{}", p))
                 .collect();
-            
+
             // Convert body
             let body_tokens = expr_to_rust_tokens(body)?;
-            
+
             // Generate closure
             if params.is_empty() {
                 Ok(quote! { || #body_tokens })
             } else {
                 Ok(quote! { |#(#param_idents),*| #body_tokens })
+            }
+        }
+        HirExpr::Set(items) => {
+            let item_tokens: Vec<_> = items
+                .iter()
+                .map(expr_to_rust_tokens)
+                .collect::<Result<Vec<_>>>()?;
+            Ok(quote! {
+                {
+                    let mut set = HashSet::new();
+                    #(set.insert(#item_tokens);)*
+                    set
+                }
+            })
+        }
+        HirExpr::FrozenSet(items) => {
+            let item_tokens: Vec<_> = items
+                .iter()
+                .map(expr_to_rust_tokens)
+                .collect::<Result<Vec<_>>>()?;
+            Ok(quote! {
+                {
+                    let mut set = HashSet::new();
+                    #(set.insert(#item_tokens);)*
+                    std::sync::Arc::new(set)
+                }
+            })
+        }
+        HirExpr::SetComp {
+            element,
+            target,
+            iter,
+            condition,
+        } => {
+            let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+            let iter_tokens = expr_to_rust_tokens(iter)?;
+            let element_tokens = expr_to_rust_tokens(element)?;
+
+            if let Some(cond) = condition {
+                // With condition: iter().filter().map().collect()
+                let cond_tokens = expr_to_rust_tokens(cond)?;
+                Ok(quote! {
+                    #iter_tokens
+                        .into_iter()
+                        .filter(|#target_ident| #cond_tokens)
+                        .map(|#target_ident| #element_tokens)
+                        .collect::<HashSet<_>>()
+                })
+            } else {
+                // Without condition: iter().map().collect()
+                Ok(quote! {
+                    #iter_tokens
+                        .into_iter()
+                        .map(|#target_ident| #element_tokens)
+                        .collect::<HashSet<_>>()
+                })
             }
         }
     }
@@ -746,7 +840,7 @@ mod tests {
     #[test]
     fn test_assignment_generation() {
         let assign = HirStmt::Assign {
-            target: "x".to_string(),
+            target: AssignTarget::Symbol("x".to_string()),
             value: HirExpr::Literal(Literal::Int(42)),
         };
 

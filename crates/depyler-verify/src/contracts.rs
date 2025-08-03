@@ -436,6 +436,7 @@ fn type_to_rust_string(ty: &Type) -> String {
                 }
             }
         }
+        Type::Set(inner) => format!("HashSet<{}>", type_to_rust_string(inner)),
     }
 }
 
@@ -768,7 +769,7 @@ mod tests {
     #[test]
     fn test_check_contract_violations_with_index() {
         let body = vec![HirStmt::Assign {
-            target: "result".to_string(),
+            target: depyler_core::hir::AssignTarget::Symbol("result".to_string()),
             value: HirExpr::Index {
                 base: Box::new(HirExpr::Var("arr".to_string())),
                 index: Box::new(HirExpr::Literal(Literal::Int(0))),
@@ -823,7 +824,7 @@ mod tests {
     #[test]
     fn test_check_contract_violations_with_control_flow() {
         let then_body = vec![HirStmt::Assign {
-            target: "x".to_string(),
+            target: depyler_core::hir::AssignTarget::Symbol("x".to_string()),
             value: HirExpr::Index {
                 base: Box::new(HirExpr::Var("data".to_string())),
                 index: Box::new(HirExpr::Literal(Literal::Int(0))),
@@ -854,7 +855,7 @@ mod tests {
     fn test_check_contract_violations_no_violations() {
         let body = vec![
             HirStmt::Assign {
-                target: "result".to_string(),
+                target: depyler_core::hir::AssignTarget::Symbol("result".to_string()),
                 value: HirExpr::Literal(Literal::Int(42)),
             },
             HirStmt::Return(Some(HirExpr::Var("result".to_string()))),

@@ -33,6 +33,7 @@ pub enum RustType {
     },
     Vec(Box<RustType>),
     HashMap(Box<RustType>, Box<RustType>),
+    HashSet(Box<RustType>),
     Option(Box<RustType>),
     Result(Box<RustType>, Box<RustType>),
     Reference {
@@ -206,6 +207,7 @@ impl TypeMapper {
                 element_type: Box::new(self.map_type(element_type)),
                 size: self.map_const_generic(size),
             },
+            PythonType::Set(inner) => RustType::HashSet(Box::new(self.map_type(inner))),
         }
     }
 
@@ -219,7 +221,7 @@ impl TypeMapper {
     pub fn needs_reference(&self, rust_type: &RustType) -> bool {
         match rust_type {
             RustType::String => false, // V1: Always owned
-            RustType::Vec(_) | RustType::HashMap(_, _) => true,
+            RustType::Vec(_) | RustType::HashMap(_, _) | RustType::HashSet(_) => true,
             RustType::Primitive(_) => false,
             RustType::Array { .. } => true, // Arrays need references for large sizes
             _ => false,
@@ -269,6 +271,7 @@ impl RustType {
             RustType::HashMap(k, v) => {
                 format!("HashMap<{}, {}>", k.to_rust_string(), v.to_rust_string())
             }
+            RustType::HashSet(inner) => format!("HashSet<{}>", inner.to_rust_string()),
             RustType::Option(inner) => format!("Option<{}>", inner.to_rust_string()),
             RustType::Result(ok, err) => {
                 format!("Result<{}, {}>", ok.to_rust_string(), err.to_rust_string())
@@ -591,5 +594,32 @@ mod tests {
         } else {
             panic!("Expected unsupported function type");
         }
+    }
+
+    #[test]
+    fn test_set_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        // Set[int]
+        let set_type = PythonType::Set(Box::new(PythonType::Int));
+        assert_eq!(
+            mapper.map_type(&set_type),
+            RustType::HashSet(Box::new(RustType::Primitive(PrimitiveType::I32)))
+        );
+
+        // Set[str]
+        let set_str_type = PythonType::Set(Box::new(PythonType::String));
+        assert_eq!(
+            mapper.map_type(&set_str_type),
+            RustType::HashSet(Box::new(RustType::String))
+        );
+
+        assert_eq!(
+            RustType::HashSet(Box::new(RustType::Primitive(PrimitiveType::I32))).to_rust_string(),
+            "HashSet<i32>"
+        );
+
+        // Sets need references
+        assert!(mapper.needs_reference(&RustType::HashSet(Box::new(RustType::String))));
     }
 }

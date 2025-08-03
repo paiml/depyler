@@ -1,6 +1,6 @@
 use crate::{PropertyStatus, TestCase, VerificationMethod, VerificationResult};
 use depyler_annotations::TranspilationAnnotations;
-use depyler_core::hir::{HirExpr, HirFunction, HirStmt, Type};
+use depyler_core::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Type};
 use std::collections::{HashMap, HashSet};
 
 /// Memory safety analyzer for HIR functions
@@ -116,8 +116,12 @@ impl MemorySafetyAnalyzer {
                     return Some(violation);
                 }
 
-                // Register new variable or update existing
-                self.register_variable(target, &self.infer_type(value), true);
+                // Handle different assignment targets
+                if let AssignTarget::Symbol(var_name) = target {
+                    // Register new variable or update existing
+                    self.register_variable(var_name, &self.infer_type(value), true);
+                }
+                // TODO: Handle subscript and attribute assignments
 
                 // Handle moves for non-copy types
                 self.handle_expr_moves(value, annotations);
@@ -320,11 +324,15 @@ impl MemorySafetyAnalyzer {
         match stmt {
             HirStmt::Assign { target, .. } => {
                 // Check if target is shared and mutable without synchronization
-                if self.is_shared_mutable(target) {
-                    Some(MemorySafetyViolation::DataRace {
-                        variable: target.clone(),
-                        location: "assignment".to_string(),
-                    })
+                if let AssignTarget::Symbol(var_name) = target {
+                    if self.is_shared_mutable(var_name) {
+                        Some(MemorySafetyViolation::DataRace {
+                            variable: var_name.clone(),
+                            location: "assignment".to_string(),
+                        })
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
@@ -425,7 +433,7 @@ mod tests {
         };
 
         let stmt = HirStmt::Assign {
-            target: "x".to_string(),
+            target: depyler_core::hir::AssignTarget::Symbol("x".to_string()),
             value: HirExpr::Literal(Literal::Int(42)),
         };
 

@@ -4,7 +4,7 @@
 //! idiomatic Rust code with proper borrowing and ownership patterns.
 
 use crate::borrowing_context::{BorrowingContext, BorrowingStrategy};
-use crate::hir::{HirExpr, HirFunction, HirStmt};
+use crate::hir::{AssignTarget, HirExpr, HirFunction, HirStmt};
 use crate::type_mapper::RustType;
 use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
@@ -245,8 +245,10 @@ impl LifetimeInference {
             HirStmt::Expr(expr) => self.analyze_expr_for_param(param, expr, usage, in_loop, false),
             HirStmt::Assign { target, value } => {
                 // Check if we're assigning to the parameter
-                if target == param {
-                    usage.is_mutated = true;
+                if let AssignTarget::Symbol(symbol) = target {
+                    if symbol == param {
+                        usage.is_mutated = true;
+                    }
                 }
                 self.analyze_expr_for_param(param, value, usage, in_loop, false);
             }
@@ -289,6 +291,9 @@ impl LifetimeInference {
                 if let Some(c) = cause {
                     self.analyze_expr_for_param(param, c, usage, in_loop, false);
                 }
+            }
+            HirStmt::Break { .. } | HirStmt::Continue { .. } => {
+                // Break and continue don't contain expressions to analyze
             }
         }
     }
@@ -411,6 +416,30 @@ impl LifetimeInference {
                 // Lambda functions can capture parameters by reference
                 // Analyze the body for parameter usage
                 self.analyze_expr_for_param(param, body, usage, in_loop, in_return);
+            }
+            HirExpr::Set(elements) | HirExpr::FrozenSet(elements) => {
+                for elem in elements {
+                    self.analyze_expr_for_param(param, elem, usage, in_loop, in_return);
+                }
+            }
+            HirExpr::SetComp {
+                element,
+                target,
+                iter,
+                condition,
+            } => {
+                // Set comprehensions create a new scope, so the target variable
+                // shadows any outer variable with the same name
+                if target != param {
+                    // Only analyze if the comprehension target doesn't shadow our parameter
+                    self.analyze_expr_for_param(param, iter, usage, true, false);
+                    self.analyze_expr_for_param(param, element, usage, true, in_return);
+                    if let Some(cond) = condition {
+                        self.analyze_expr_for_param(param, cond, usage, true, false);
+                    }
+                }
+                // If target shadows param, we don't analyze element/condition
+                // since they would refer to the comprehension variable, not the parameter
             }
         }
     }
@@ -718,7 +747,7 @@ mod tests {
             params: smallvec![("s".to_string(), PythonType::String)],
             ret_type: PythonType::None,
             body: vec![HirStmt::Assign {
-                target: "s".to_string(),
+                target: AssignTarget::Symbol("s".to_string()),
                 value: HirExpr::Binary {
                     op: crate::hir::BinOp::Add,
                     left: Box::new(HirExpr::Var("s".to_string())),

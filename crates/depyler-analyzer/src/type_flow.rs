@@ -1,5 +1,5 @@
 use anyhow::Result;
-use depyler_core::hir::{HirExpr, HirFunction, HirStmt, Type};
+use depyler_core::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Type};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -116,7 +116,10 @@ impl TypeInferencer {
         match stmt {
             HirStmt::Assign { target, value } => {
                 let value_type = self.infer_expr(value)?;
-                self.env.set_var_type(target.clone(), value_type);
+                if let AssignTarget::Symbol(symbol) = target {
+                    self.env.set_var_type(symbol.clone(), value_type);
+                }
+                // TODO: Handle subscript and attribute assignments
             }
             HirStmt::If {
                 condition,
@@ -154,6 +157,9 @@ impl TypeInferencer {
                 if let Some(c) = cause {
                     self.infer_expr(c)?;
                 }
+            }
+            HirStmt::Break { .. } | HirStmt::Continue { .. } => {
+                // Break and continue don't affect type inference
             }
         }
         Ok(())

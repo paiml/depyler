@@ -274,7 +274,7 @@ mod tests {
     fn test_count_statements() {
         let body = vec![
             HirStmt::Assign {
-                target: "x".to_string(),
+                target: depyler_core::hir::AssignTarget::Symbol("x".to_string()),
                 value: HirExpr::Literal(Literal::Int(1)),
             },
             HirStmt::If {

@@ -3,7 +3,7 @@
 //! This module provides comprehensive analysis of parameter usage patterns
 //! to determine optimal borrowing strategies for function parameters.
 
-use crate::hir::{HirExpr, HirFunction, HirStmt, Type as PythonType};
+use crate::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Type as PythonType};
 use crate::type_mapper::{RustType, TypeMapper};
 use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
@@ -176,14 +176,16 @@ impl BorrowingContext {
                 // Check if assigning to a parameter (mutation)
                 let in_loop = self.is_in_loop();
                 let in_conditional = self.is_in_conditional();
-                if let Some(usage) = self.param_usage.get_mut(target) {
-                    usage.is_mutated = true;
-                    usage.usage_sites.push(UsageSite {
-                        usage_type: UsageType::Write,
-                        in_loop,
-                        in_conditional,
-                        borrow_depth: 0,
-                    });
+                if let AssignTarget::Symbol(symbol) = target {
+                    if let Some(usage) = self.param_usage.get_mut(symbol) {
+                        usage.is_mutated = true;
+                        usage.usage_sites.push(UsageSite {
+                            usage_type: UsageType::Write,
+                            in_loop,
+                            in_conditional,
+                            borrow_depth: 0,
+                        });
+                    }
                 }
                 self.analyze_expression(value, 0);
             }
@@ -239,6 +241,9 @@ impl BorrowingContext {
                 if let Some(c) = cause {
                     self.analyze_expression(c, 0);
                 }
+            }
+            HirStmt::Break { .. } | HirStmt::Continue { .. } => {
+                // Break and continue don't analyze any expressions
             }
         }
     }
@@ -399,6 +404,36 @@ impl BorrowingContext {
                 // Lambda functions capture variables by reference
                 // For now, treat lambda bodies like any other expression
                 self.analyze_expression(body, borrow_depth);
+            }
+            HirExpr::Set(elements) | HirExpr::FrozenSet(elements) => {
+                for elem in elements {
+                    self.analyze_expression(elem, borrow_depth);
+                }
+            }
+            HirExpr::SetComp {
+                element,
+                target: _,
+                iter,
+                condition,
+            } => {
+                // Set comprehensions create a new scope
+                self.context_stack.push(AnalysisContext::Loop);
+                
+                // Analyze the iterator
+                self.analyze_expression(iter, borrow_depth);
+                
+                // The target variable is local to the comprehension
+                // We don't track it as a parameter usage
+                
+                // Analyze the element expression
+                self.analyze_expression(element, borrow_depth);
+                
+                // Analyze the condition if present
+                if let Some(cond) = condition {
+                    self.analyze_expression(cond, borrow_depth);
+                }
+                
+                self.context_stack.pop();
             }
         }
     }

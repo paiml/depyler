@@ -1,4 +1,6 @@
 use crate::hir::{BinOp, HirExpr, HirFunction, HirStmt};
+#[cfg(test)]
+use crate::hir::AssignTarget;
 use depyler_annotations::{OptimizationLevel, PerformanceHint};
 
 /// Performance optimizer that applies transformations based on annotations
@@ -393,7 +395,7 @@ mod tests {
             body: vec![
                 HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42)))),
                 HirStmt::Assign {
-                    target: "unreachable".to_string(),
+                    target: AssignTarget::Symbol("unreachable".to_string()),
                     value: HirExpr::Literal(Literal::Int(0)),
                 },
             ],
