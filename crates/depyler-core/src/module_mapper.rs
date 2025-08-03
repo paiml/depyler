@@ -183,6 +183,139 @@ impl ModuleMapper {
             },
         );
 
+        module_map.insert(
+            "itertools".to_string(),
+            ModuleMapping {
+                rust_path: "itertools".to_string(),
+                is_external: true,
+                version: Some("0.11".to_string()),
+                item_map: HashMap::from([
+                    ("chain".to_string(), "chain".to_string()),
+                    ("combinations".to_string(), "combinations".to_string()),
+                    ("permutations".to_string(), "permutations".to_string()),
+                    ("product".to_string(), "iproduct".to_string()),
+                    ("groupby".to_string(), "group_by".to_string()),
+                    ("accumulate".to_string(), "scan".to_string()),
+                    ("takewhile".to_string(), "take_while".to_string()),
+                    ("dropwhile".to_string(), "drop_while".to_string()),
+                    ("cycle".to_string(), "cycle".to_string()),
+                    ("repeat".to_string(), "repeat_n".to_string()),
+                ]),
+            },
+        );
+
+        module_map.insert(
+            "functools".to_string(),
+            ModuleMapping {
+                rust_path: "std".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("reduce".to_string(), "iter::Iterator::fold".to_string()),
+                    ("partial".to_string(), "".to_string()), // Closures in Rust
+                    ("lru_cache".to_string(), "".to_string()), // Would need external crate
+                    ("wraps".to_string(), "".to_string()),   // Not applicable in Rust
+                ]),
+            },
+        );
+
+        module_map.insert(
+            "hashlib".to_string(),
+            ModuleMapping {
+                rust_path: "sha2".to_string(),
+                is_external: true,
+                version: Some("0.10".to_string()),
+                item_map: HashMap::from([
+                    ("sha256".to_string(), "Sha256".to_string()),
+                    ("sha512".to_string(), "Sha512".to_string()),
+                    ("sha1".to_string(), "Sha1".to_string()),
+                    ("md5".to_string(), "Md5".to_string()),
+                ]),
+            },
+        );
+
+        module_map.insert(
+            "base64".to_string(),
+            ModuleMapping {
+                rust_path: "base64".to_string(),
+                is_external: true,
+                version: Some("0.21".to_string()),
+                item_map: HashMap::from([
+                    ("b64encode".to_string(), "encode".to_string()),
+                    ("b64decode".to_string(), "decode".to_string()),
+                    ("urlsafe_b64encode".to_string(), "encode_config".to_string()),
+                    ("urlsafe_b64decode".to_string(), "decode_config".to_string()),
+                ]),
+            },
+        );
+
+        module_map.insert(
+            "urllib.parse".to_string(),
+            ModuleMapping {
+                rust_path: "url".to_string(),
+                is_external: true,
+                version: Some("2.5".to_string()),
+                item_map: HashMap::from([
+                    ("urlparse".to_string(), "Url::parse".to_string()),
+                    ("urljoin".to_string(), "Url::join".to_string()),
+                    (
+                        "quote".to_string(),
+                        "percent_encoding::percent_encode".to_string(),
+                    ),
+                    (
+                        "unquote".to_string(),
+                        "percent_encoding::percent_decode".to_string(),
+                    ),
+                ]),
+            },
+        );
+
+        module_map.insert(
+            "pathlib".to_string(),
+            ModuleMapping {
+                rust_path: "std::path".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("Path".to_string(), "PathBuf".to_string()),
+                    ("PurePath".to_string(), "Path".to_string()),
+                ]),
+            },
+        );
+
+        module_map.insert(
+            "tempfile".to_string(),
+            ModuleMapping {
+                rust_path: "tempfile".to_string(),
+                is_external: true,
+                version: Some("3.0".to_string()),
+                item_map: HashMap::from([
+                    (
+                        "NamedTemporaryFile".to_string(),
+                        "NamedTempFile".to_string(),
+                    ),
+                    ("TemporaryDirectory".to_string(), "TempDir".to_string()),
+                    ("mkstemp".to_string(), "tempfile".to_string()),
+                    ("mkdtemp".to_string(), "tempdir".to_string()),
+                ]),
+            },
+        );
+
+        module_map.insert(
+            "csv".to_string(),
+            ModuleMapping {
+                rust_path: "csv".to_string(),
+                is_external: true,
+                version: Some("1.0".to_string()),
+                item_map: HashMap::from([
+                    ("reader".to_string(), "Reader".to_string()),
+                    ("writer".to_string(), "Writer".to_string()),
+                    ("DictReader".to_string(), "Reader".to_string()),
+                    ("DictWriter".to_string(), "Writer".to_string()),
+                ]),
+            },
+        );
+
         Self { module_map }
     }
 
