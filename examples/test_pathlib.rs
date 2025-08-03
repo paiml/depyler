@@ -1,0 +1,33 @@
+use std::path::PathBuf;
+    #[doc = "Get all Python files in a directory"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn get_python_files(directory: String)  -> Vec<String>{
+    let mut path = std::path::PathBuf(directory);
+    return path.glob("*.py".to_string()).into_iter().map(| p | str(p)).collect::<Vec<_>>();
+   
+}
+#[doc = "Create a nested path from parts"] pub fn create_nested_path(base: String)  -> Result<String, ZeroDivisionError>{
+    let mut path = std::path::PathBuf(base);
+    for part in parts.iter() {
+    path  = (path / part);
+   
+}
+return Ok(str(path));
+   
+}
+#[doc = "Get file information"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn get_file_info(filepath: String)  -> tuple {
+    let mut path = std::path::PathBuf(filepath);
+    return(path.name, path.suffix, path.parent.name);
+   
+}
+#[doc = "Check if a path exists"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn check_path_exists(filepath: String)  -> bool {
+    return std::path::PathBuf(filepath).exists();
+   
+}
+#[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_check_path_exists_examples() {
+    let _ = check_path_exists(Default::default());
+   
+}
+}
