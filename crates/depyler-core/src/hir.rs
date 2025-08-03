@@ -77,6 +77,7 @@ pub struct HirMethod {
     pub is_static: bool,
     pub is_classmethod: bool,
     pub is_property: bool,
+    pub is_async: bool,
     pub docstring: Option<String>,
 }
 
@@ -107,6 +108,7 @@ pub struct FunctionProperties {
     pub panic_free: bool,
     pub can_fail: bool,
     pub error_types: Vec<String>,
+    pub is_async: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -226,6 +228,10 @@ pub enum HirExpr {
     Lambda {
         params: Vec<Symbol>,
         body: Box<HirExpr>,
+    },
+    // Await expression
+    Await {
+        value: Box<HirExpr>,
     },
 }
 

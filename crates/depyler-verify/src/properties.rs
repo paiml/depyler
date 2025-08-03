@@ -290,6 +290,7 @@ mod tests {
             max_stack_depth: None,
             can_fail: false,
             error_types: vec![],
+            is_async: false,
         };
 
         let func = create_test_function(
@@ -442,6 +443,7 @@ mod tests {
             max_stack_depth: Some(10),
             can_fail: false,
             error_types: vec![],
+            is_async: false,
         };
 
         let func = create_test_function(
