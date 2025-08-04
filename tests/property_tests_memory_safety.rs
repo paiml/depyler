@@ -7,14 +7,14 @@ fn prop_no_use_after_free(var_name: String, operations: Vec<u8>) -> TestResult {
     if var_name.is_empty() || !var_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
         return TestResult::discard();
     }
-    
+
     if operations.len() > 5 {
         return TestResult::discard();
     }
 
     // Create a sequence of operations that might cause use-after-free in unsafe languages
     let mut python_code = format!("def test_func() -> int:\n    {} = [1, 2, 3]\n", var_name);
-    
+
     for &op in &operations {
         match op % 4 {
             0 => python_code.push_str(&format!("    {}.append(42)\n", var_name)),
@@ -23,19 +23,19 @@ fn prop_no_use_after_free(var_name: String, operations: Vec<u8>) -> TestResult {
             _ => python_code.push_str(&format!("    {} = []\n", var_name)),
         }
     }
-    
+
     python_code.push_str(&format!("    return len({})", var_name));
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.transpile(&python_code) {
         Ok(rust_code) => {
             // Generated Rust should not contain unsafe operations
             TestResult::from_bool(
-                !rust_code.contains("unsafe") &&
-                !rust_code.contains("transmute") &&
-                !rust_code.contains("from_raw") &&
-                rust_code.contains("fn test_func")
+                !rust_code.contains("unsafe")
+                    && !rust_code.contains("transmute")
+                    && !rust_code.contains("from_raw")
+                    && rust_code.contains("fn test_func"),
             )
         }
         Err(_) => TestResult::discard(),
@@ -50,7 +50,7 @@ fn prop_string_safety(operations: Vec<u8>) -> TestResult {
     }
 
     let mut python_code = "def test_func() -> str:\n    s = \"hello\"\n".to_string();
-    
+
     for &op in &operations {
         match op % 4 {
             0 => python_code.push_str("    s = s + \"world\"\n"),
@@ -59,19 +59,19 @@ fn prop_string_safety(operations: Vec<u8>) -> TestResult {
             _ => python_code.push_str("    s = s.replace(\"l\", \"x\")\n"),
         }
     }
-    
+
     python_code.push_str("    return s");
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.transpile(&python_code) {
         Ok(rust_code) => {
             // Should generate safe string operations
             TestResult::from_bool(
-                rust_code.contains("String") &&
-                !rust_code.contains("unsafe") &&
-                !rust_code.contains("get_unchecked") &&
-                rust_code.contains("fn test_func")
+                rust_code.contains("String")
+                    && !rust_code.contains("unsafe")
+                    && !rust_code.contains("get_unchecked")
+                    && rust_code.contains("fn test_func"),
             )
         }
         Err(_) => TestResult::discard(),
@@ -86,28 +86,28 @@ fn prop_reference_counting_safety(share_count: u8) -> TestResult {
     }
 
     let mut python_code = "def test_func() -> int:\n    original = [1, 2, 3]\n".to_string();
-    
+
     // Create multiple references to the same data
     for i in 0..share_count {
         python_code.push_str(&format!("    ref{} = original\n", i));
     }
-    
+
     // Use all references
     for i in 0..share_count {
         python_code.push_str(&format!("    len(ref{})\n", i));
     }
-    
+
     python_code.push_str("    return len(original)");
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.transpile(&python_code) {
         Ok(rust_code) => {
             // Should handle shared references safely (might use Rc/Arc or cloning)
             TestResult::from_bool(
-                rust_code.contains("fn test_func") &&
-                !rust_code.contains("dangling") &&
-                !rust_code.contains("use after free")
+                rust_code.contains("fn test_func")
+                    && !rust_code.contains("dangling")
+                    && !rust_code.contains("use after free"),
             )
         }
         Err(_) => TestResult::discard(),
@@ -136,14 +136,14 @@ fn prop_iterator_safety(modify_during_iteration: bool) -> TestResult {
     };
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.transpile(python_code) {
         Ok(rust_code) => {
             // Should either prevent modification during iteration or handle it safely
             TestResult::from_bool(
-                rust_code.contains("fn test_func") &&
-                (rust_code.contains("for") || rust_code.contains("iter")) &&
-                !rust_code.contains("undefined behavior")
+                rust_code.contains("fn test_func")
+                    && (rust_code.contains("for") || rust_code.contains("iter"))
+                    && !rust_code.contains("undefined behavior"),
             )
         }
         Err(_) => TestResult::discard(),
@@ -158,12 +158,12 @@ fn prop_no_memory_leaks(allocation_count: u8) -> TestResult {
     }
 
     let mut python_code = "def test_func() -> int:\n".to_string();
-    
+
     // Create multiple allocations
     for i in 0..allocation_count {
         python_code.push_str(&format!("    data{} = list(range({}))\n", i, i + 1));
     }
-    
+
     // Use the data and return
     python_code.push_str("    total = 0\n");
     for i in 0..allocation_count {
@@ -172,15 +172,15 @@ fn prop_no_memory_leaks(allocation_count: u8) -> TestResult {
     python_code.push_str("    return total");
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.transpile(&python_code) {
         Ok(rust_code) => {
             // Rust's ownership system should prevent leaks
             TestResult::from_bool(
-                rust_code.contains("fn test_func") &&
-                !rust_code.contains("Box::leak") &&
-                !rust_code.contains("mem::forget") &&
-                !rust_code.contains("ManuallyDrop")
+                rust_code.contains("fn test_func")
+                    && !rust_code.contains("Box::leak")
+                    && !rust_code.contains("mem::forget")
+                    && !rust_code.contains("ManuallyDrop"),
             )
         }
         Err(_) => TestResult::discard(),
@@ -205,17 +205,17 @@ fn prop_bounds_checking(index: usize, list_size: u8) -> TestResult {
     );
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.transpile(&python_code) {
         Ok(rust_code) => {
             // Should generate bounds-checked access or proper error handling
             TestResult::from_bool(
-                rust_code.contains("fn test_func") &&
-                (rust_code.contains("get(") || 
-                 rust_code.contains("bounds") ||
-                 rust_code.contains("Result") ||
-                 rust_code.contains("Option") ||
-                 !rust_code.contains("get_unchecked"))
+                rust_code.contains("fn test_func")
+                    && (rust_code.contains("get(")
+                        || rust_code.contains("bounds")
+                        || rust_code.contains("Result")
+                        || rust_code.contains("Option")
+                        || !rust_code.contains("get_unchecked")),
             )
         }
         Err(_) => TestResult::discard(),
@@ -239,14 +239,14 @@ fn prop_concurrent_safety(operations: Vec<u8>) -> TestResult {
     return result"#;
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.transpile(python_code) {
         Ok(rust_code) => {
             // Should generate code that doesn't have obvious race conditions
             TestResult::from_bool(
-                rust_code.contains("fn test_func") &&
-                !rust_code.contains("UnsafeCell") &&
-                !rust_code.contains("raw pointer")
+                rust_code.contains("fn test_func")
+                    && !rust_code.contains("UnsafeCell")
+                    && !rust_code.contains("raw pointer"),
             )
         }
         Err(_) => TestResult::discard(),

@@ -8,7 +8,7 @@ mod edge_case_tests {
     fn test_empty_python_file() {
         let pipeline = DepylerPipeline::new();
         let empty_source = "";
-        
+
         let result = pipeline.transpile(empty_source);
         // Should handle empty input gracefully
         assert!(result.is_ok() || result.is_err());
@@ -18,7 +18,7 @@ mod edge_case_tests {
     fn test_whitespace_only_file() {
         let pipeline = DepylerPipeline::new();
         let whitespace_source = "   \n\t  \n   ";
-        
+
         let result = pipeline.transpile(whitespace_source);
         // Should handle whitespace-only input
         assert!(result.is_ok() || result.is_err());
@@ -33,7 +33,7 @@ mod edge_case_tests {
     # Indented comment
         # More comments
 "#;
-        
+
         let result = pipeline.transpile(comments_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -51,7 +51,7 @@ def level1(x: int) -> int:
         return level3(y) + 1
     return level2(x) + 1
 "#;
-        
+
         let result = pipeline.transpile(nested_source);
         // Should handle or fail gracefully on deep nesting
         assert!(result.is_ok() || result.is_err());
@@ -61,11 +61,14 @@ def level1(x: int) -> int:
     fn test_very_long_function_name() {
         let pipeline = DepylerPipeline::new();
         let long_name = "a".repeat(1000);
-        let long_name_source = format!(r#"
+        let long_name_source = format!(
+            r#"
 def {}(x: int) -> int:
     return x + 1
-"#, long_name);
-        
+"#,
+            long_name
+        );
+
         let result = pipeline.transpile(&long_name_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -75,17 +78,21 @@ def {}(x: int) -> int:
         let pipeline = DepylerPipeline::new();
         let mut params = Vec::new();
         let mut args = Vec::new();
-        
+
         for i in 0..50 {
             params.push(format!("param{}: int", i));
             args.push(format!("param{}", i));
         }
-        
-        let many_params_source = format!(r#"
+
+        let many_params_source = format!(
+            r#"
 def many_params({}) -> int:
     return {}
-"#, params.join(", "), args.join(" + "));
-        
+"#,
+            params.join(", "),
+            args.join(" + ")
+        );
+
         let result = pipeline.transpile(&many_params_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -96,7 +103,7 @@ def many_params({}) -> int:
         let simple_source = r#"
 def f(): pass
 "#;
-        
+
         let result = pipeline.transpile(simple_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -108,7 +115,7 @@ def f(): pass
 def get_five() -> int:
     return 5
 "#;
-        
+
         let result = pipeline.transpile(return_only_source);
         assert!(result.is_ok());
     }
@@ -123,7 +130,7 @@ def функция(x: int) -> int:
 def 関数(y: int) -> int:
     return y + 1
 "#;
-        
+
         let result = pipeline.transpile(unicode_source);
         // Should handle or reject unicode identifiers appropriately
         assert!(result.is_ok() || result.is_err());
@@ -139,7 +146,7 @@ def greet() -> str:
 def emoji_func() -> str:
     return "🚀💯✨"
 "#;
-        
+
         let result = pipeline.transpile(unicode_strings_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -153,7 +160,7 @@ def big_numbers() -> int:
     y = -9223372036854775808
     return x + y
 "#;
-        
+
         let result = pipeline.transpile(max_int_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -167,7 +174,7 @@ def empty_collections():
     empty_dict = {}
     return len(empty_list) + len(empty_dict)
 "#;
-        
+
         let result = pipeline.transpile(empty_collections_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -182,7 +189,7 @@ def single_chars(a: int, b: int, c: int) -> int:
     z = c
     return x + y + z
 "#;
-        
+
         let result = pipeline.transpile(single_char_source);
         assert!(result.is_ok());
     }
@@ -191,11 +198,14 @@ def single_chars(a: int, b: int, c: int) -> int:
     fn test_very_long_string_literal() {
         let pipeline = DepylerPipeline::new();
         let long_string = "x".repeat(10000);
-        let long_string_source = format!(r#"
+        let long_string_source = format!(
+            r#"
 def long_string() -> str:
     return "{}"
-"#, long_string);
-        
+"#,
+            long_string
+        );
+
         let result = pipeline.transpile(&long_string_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -217,7 +227,7 @@ def nested_control(n: int) -> int:
                             break
     return result
 "#;
-        
+
         let result = pipeline.transpile(nested_control_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -249,7 +259,7 @@ def all_operators(a: int, b: int) -> bool:
     
     return eq or ne or lt or le or gt or ge
 "#;
-        
+
         let result = pipeline.transpile(all_operators_source);
         assert!(result.is_ok() || result.is_err());
     }

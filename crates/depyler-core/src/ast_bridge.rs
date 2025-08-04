@@ -31,7 +31,7 @@ pub use type_extraction::TypeExtractor;
 ///
 /// // Parse Python code to AST
 /// let ast = parse(python_code, Mode::Module, "<test>").unwrap();
-/// 
+///
 /// // Convert to HIR
 /// let bridge = AstBridge::new();
 /// let hir = bridge.python_to_hir(ast).unwrap();
@@ -49,14 +49,14 @@ pub use type_extraction::TypeExtractor;
 ///
 /// let python_code = r#"
 /// def greet(name: str) -> str:
-///     return f"Hello, {name}!"
+///     return "Hello, " + name + "!"
 /// "#;
 ///
 /// let ast = parse(python_code, Mode::Module, "<example>").unwrap();
-/// 
+///
 /// let bridge = AstBridge::new()
 ///     .with_source(python_code.to_string());
-/// 
+///
 /// let hir = bridge.python_to_hir(ast).unwrap();
 /// assert_eq!(hir.functions[0].name, "greet");
 /// ```

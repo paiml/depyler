@@ -12,7 +12,7 @@ mod coverage_analysis_tests {
 def add_numbers(a: int, b: int) -> int:
     return a + b
 "#;
-        
+
         let result = pipeline.transpile(simple_function);
         assert!(result.is_ok(), "Basic transpilation should work");
     }
@@ -28,25 +28,31 @@ def factorial(n: int) -> int:
     else:
         return n * factorial(n - 1)
 "#;
-        
+
         let hir_result = pipeline.parse_to_hir(function_with_control_flow);
-        assert!(hir_result.is_ok(), "HIR parsing should work for valid Python");
-        
+        assert!(
+            hir_result.is_ok(),
+            "HIR parsing should work for valid Python"
+        );
+
         let hir = hir_result.unwrap();
         assert_eq!(hir.functions.len(), 1, "Should parse one function");
-        assert_eq!(hir.functions[0].name, "factorial", "Function name should be preserved");
+        assert_eq!(
+            hir.functions[0].name, "factorial",
+            "Function name should be preserved"
+        );
     }
 
     /// Test error handling in various pipeline stages
     #[test]
     fn test_error_handling_coverage() {
         let pipeline = DepylerPipeline::new();
-        
+
         // Test invalid Python syntax
         let invalid_python = "def invalid_func(\n    return 42";
         let result = pipeline.transpile(invalid_python);
         assert!(result.is_err(), "Invalid Python should cause error");
-        
+
         // Test empty input
         let empty_input = "";
         let empty_result = pipeline.transpile(empty_input);
@@ -58,7 +64,7 @@ def factorial(n: int) -> int:
     #[test]
     fn test_python_construct_coverage() {
         let pipeline = DepylerPipeline::new();
-        
+
         let constructs = vec![
             // Basic function
             r#"
@@ -94,7 +100,7 @@ def with_variables() -> int:
     return z
 "#,
         ];
-        
+
         for (i, construct) in constructs.iter().enumerate() {
             let result = pipeline.transpile(construct);
             assert!(
@@ -109,14 +115,14 @@ def with_variables() -> int:
     #[test]
     fn test_type_annotation_coverage() {
         let pipeline = DepylerPipeline::new();
-        
+
         let type_examples = vec![
             "def int_func(x: int) -> int: return x",
             "def str_func(x: str) -> str: return x",
             "def bool_func(x: bool) -> bool: return x",
             "def float_func(x: float) -> float: return x",
         ];
-        
+
         for type_example in type_examples {
             let result = pipeline.transpile(type_example);
             assert!(
@@ -134,19 +140,25 @@ def with_variables() -> int:
         let default_pipeline = DepylerPipeline::new();
         let test_code = "def test() -> int: return 42";
         let result = default_pipeline.transpile(test_code);
-        assert!(result.is_ok() || result.is_err(), "Default pipeline should handle basic code");
-        
+        assert!(
+            result.is_ok() || result.is_err(),
+            "Default pipeline should handle basic code"
+        );
+
         // Test pipeline with verification
         let verified_pipeline = DepylerPipeline::new().with_verification();
         let result2 = verified_pipeline.transpile(test_code);
-        assert!(result2.is_ok() || result2.is_err(), "Verified pipeline should handle basic code");
+        assert!(
+            result2.is_ok() || result2.is_err(),
+            "Verified pipeline should handle basic code"
+        );
     }
 
     /// Test memory safety and string handling patterns
     #[test]
     fn test_memory_safety_patterns_coverage() {
         let pipeline = DepylerPipeline::new();
-        
+
         let memory_patterns = vec![
             // String concatenation
             r#"
@@ -167,7 +179,7 @@ def reassignment() -> int:
     return x
 "#,
         ];
-        
+
         for pattern in memory_patterns {
             let result = pipeline.transpile(pattern);
             assert!(
@@ -182,7 +194,7 @@ def reassignment() -> int:
     #[test]
     fn test_uncovered_edge_cases() {
         let pipeline = DepylerPipeline::new();
-        
+
         // Function with docstring
         let with_docstring = r#"
 def documented_func() -> int:
@@ -191,7 +203,7 @@ def documented_func() -> int:
 "#;
         let result = pipeline.transpile(with_docstring);
         assert!(result.is_ok() || result.is_err());
-        
+
         // Function with multiple returns
         let multiple_returns = r#"
 def multiple_returns(x: int) -> int:
@@ -203,7 +215,7 @@ def multiple_returns(x: int) -> int:
 "#;
         let result2 = pipeline.transpile(multiple_returns);
         assert!(result2.is_ok() || result2.is_err());
-        
+
         // Nested function calls
         let nested_calls = r#"
 def outer(x: int) -> int:

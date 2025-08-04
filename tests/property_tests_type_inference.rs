@@ -1,4 +1,4 @@
-use depyler_core::{DepylerPipeline, hir::Type};
+use depyler_core::{hir::Type, DepylerPipeline};
 use quickcheck::TestResult;
 
 /// Property: Type inference should be sound (never produce invalid types)
@@ -8,7 +8,10 @@ fn prop_type_inference_soundness(literal_type: u8, value: i32) -> TestResult {
     let (python_type, python_value) = match literal_type % 4 {
         0 => ("int", value.to_string()),
         1 => ("str", format!("\"{}\"", value.abs())),
-        2 => ("bool", if value % 2 == 0 { "True" } else { "False" }.to_string()),
+        2 => (
+            "bool",
+            if value % 2 == 0 { "True" } else { "False" }.to_string(),
+        ),
         _ => ("float", format!("{}.0", value)),
     };
 
@@ -18,7 +21,7 @@ fn prop_type_inference_soundness(literal_type: u8, value: i32) -> TestResult {
     );
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.parse_to_hir(&python_source) {
         Ok(hir) => {
             if let Some(func) = hir.functions.first() {
@@ -54,7 +57,7 @@ fn prop_generic_type_handling(container_type: u8) -> TestResult {
     );
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.parse_to_hir(&python_source) {
         Ok(hir) => {
             if let Some(_func) = hir.functions.first() {
@@ -73,10 +76,10 @@ fn prop_generic_type_handling(container_type: u8) -> TestResult {
 fn prop_optional_type_handling(has_none: bool, base_type: u8) -> TestResult {
     let base_type_str = match base_type % 3 {
         0 => "int",
-        1 => "str", 
+        1 => "str",
         _ => "bool",
     };
-    
+
     let return_value = if has_none {
         "None".to_string()
     } else {
@@ -85,7 +88,8 @@ fn prop_optional_type_handling(has_none: bool, base_type: u8) -> TestResult {
             "str" => "\"hello\"",
             "bool" => "True",
             _ => "None",
-        }.to_string()
+        }
+        .to_string()
     };
 
     let python_source = format!(
@@ -94,7 +98,7 @@ fn prop_optional_type_handling(has_none: bool, base_type: u8) -> TestResult {
     );
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.parse_to_hir(&python_source) {
         Ok(hir) => {
             if let Some(func) = hir.functions.first() {
@@ -115,7 +119,10 @@ fn prop_function_call_type_consistency(arg_type: u8, arg_value: i32) -> TestResu
     let (python_type, python_arg) = match arg_type % 3 {
         0 => ("int", arg_value.to_string()),
         1 => ("str", format!("\"{}\"", arg_value.abs())),
-        _ => ("bool", if arg_value % 2 == 0 { "True" } else { "False" }.to_string()),
+        _ => (
+            "bool",
+            if arg_value % 2 == 0 { "True" } else { "False" }.to_string(),
+        ),
     };
 
     let python_source = format!(
@@ -128,18 +135,18 @@ def test_func() -> {}:
     );
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.parse_to_hir(&python_source) {
         Ok(hir) => {
             if hir.functions.len() >= 2 {
                 let helper_ret = &hir.functions[0].ret_type;
                 let test_ret = &hir.functions[1].ret_type;
-                
+
                 // Both functions should have consistent return types
                 TestResult::from_bool(
-                    std::mem::discriminant(helper_ret) == std::mem::discriminant(test_ret) ||
-                    matches!(helper_ret, Type::Unknown) ||
-                    matches!(test_ret, Type::Unknown)
+                    std::mem::discriminant(helper_ret) == std::mem::discriminant(test_ret)
+                        || matches!(helper_ret, Type::Unknown)
+                        || matches!(test_ret, Type::Unknown),
                 )
             } else {
                 TestResult::discard()
@@ -154,7 +161,7 @@ def test_func() -> {}:
 fn prop_binary_operation_type_inference(op: u8, left_val: i32, right_val: i32) -> TestResult {
     let operator = match op % 6 {
         0 => "+",
-        1 => "-", 
+        1 => "-",
         2 => "*",
         3 => "//",
         4 => "==",
@@ -172,7 +179,7 @@ fn prop_binary_operation_type_inference(op: u8, left_val: i32, right_val: i32) -
     );
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.parse_to_hir(&python_source) {
         Ok(hir) => {
             if let Some(func) = hir.functions.first() {
@@ -209,21 +216,19 @@ fn prop_method_call_type_preservation(method: u8) -> TestResult {
     };
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.parse_to_hir(&python_source) {
         Ok(hir) => {
             if let Some(func) = hir.functions.first() {
                 // Method calls should be represented in HIR
-                let has_method_call = func.body.iter().any(|stmt| {
-                    match stmt {
-                        depyler_core::hir::HirStmt::Expr(expr) => {
-                            matches!(expr, depyler_core::hir::HirExpr::MethodCall { .. })
-                        }
-                        depyler_core::hir::HirStmt::Return(Some(expr)) => {
-                            matches!(expr, depyler_core::hir::HirExpr::MethodCall { .. })
-                        }
-                        _ => false,
+                let has_method_call = func.body.iter().any(|stmt| match stmt {
+                    depyler_core::hir::HirStmt::Expr(expr) => {
+                        matches!(expr, depyler_core::hir::HirExpr::MethodCall { .. })
                     }
+                    depyler_core::hir::HirStmt::Return(Some(expr)) => {
+                        matches!(expr, depyler_core::hir::HirExpr::MethodCall { .. })
+                    }
+                    _ => false,
                 });
                 TestResult::from_bool(has_method_call || true) // Accept for now
             } else {
