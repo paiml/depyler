@@ -423,14 +423,34 @@ impl Optimizer {
         }
     }
 
-    /// Inline small functions
+    /// Inline small functions using sophisticated heuristics
     fn inline_functions_program(&self, program: HirProgram) -> HirProgram {
-        // TODO: Implement function inlining
-        // This is complex and requires careful handling of:
-        // - Recursive functions
-        // - Functions with side effects
-        // - Functions with multiple return points
-        program
+        use crate::inlining::{InliningAnalyzer, InliningConfig};
+        
+        // Configure inlining based on optimizer settings
+        let config = InliningConfig {
+            max_inline_size: self.config.inline_threshold,
+            max_inline_depth: 3,
+            inline_single_use: true,
+            inline_trivial: true,
+            cost_threshold: 1.5,
+            inline_loops: false,
+        };
+        
+        // Analyze the program for inlining opportunities
+        let mut analyzer = InliningAnalyzer::new(config);
+        let decisions = analyzer.analyze_program(&program);
+        
+        // Report inlining decisions if verbose
+        for (func_name, decision) in &decisions {
+            if decision.should_inline {
+                eprintln!("Inlining function '{}': {:?} (cost-benefit: {:.2})", 
+                    func_name, decision.reason, decision.cost_benefit);
+            }
+        }
+        
+        // Apply the inlining transformations
+        analyzer.apply_inlining(program, &decisions)
     }
 
     /// Eliminate common subexpressions
