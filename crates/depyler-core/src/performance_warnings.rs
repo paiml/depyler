@@ -172,7 +172,7 @@ impl PerformanceAnalyzer {
                 self.current_loop_depth += 1;
                 
                 // Check for nested loops
-                if self.current_loop_depth >= self.config.max_loop_depth {
+                if self.current_loop_depth > self.config.max_loop_depth {
                     self.add_warning(PerformanceWarning {
                         category: WarningCategory::AlgorithmComplexity,
                         severity: WarningSeverity::High,
