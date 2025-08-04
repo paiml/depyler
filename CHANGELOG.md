@@ -8,7 +8,7 @@ and this project adheres to
 
 ## [Unreleased]
 
-## [2.0.0] - 2025-01-XX
+## [2.0.0] - 2025-01-04
 
 ### 🎌 Quality Metrics
 - SATD Count: 0 (Toyota Way: Zero Defects)
@@ -42,12 +42,32 @@ and this project adheres to
   - Configurable size and depth thresholds
   - Safety checks for recursion and side effects
   - Call graph analysis for optimization opportunities
+- **Migration Suggestions**: Python-to-Rust idiom guidance
+  - Detects common Python patterns and suggests Rust equivalents
+  - Iterator methods instead of accumulator patterns
+  - Result<T, E> instead of None for errors
+  - Pattern matching for Option handling
+  - Ownership patterns for mutable parameters
+- **Performance Warnings**: Identifies inefficient patterns
+  - String concatenation in loops (O(n²) complexity)
+  - Deeply nested loops with complexity analysis
+  - Repeated expensive computations
+  - Inefficient collection operations
+  - Large value copying vs references
+- **Common Subexpression Elimination**: Reduces redundant computations
+  - Identifies repeated complex expressions
+  - Creates temporary variables for reuse
+  - Handles pure function calls
+  - Scope-aware optimization in branches
 
 ### 🔧 Internal Architecture
 - New `Optimizer` struct with configurable passes
 - Enhanced error reporting system with `EnhancedError`
 - Type inference system with `TypeHintProvider`
 - Function inlining with `InliningAnalyzer`
+- Migration suggestions with `MigrationAnalyzer`
+- Performance warnings with `PerformanceAnalyzer`
+- CSE implementation with expression hashing
 - Better integration of optimization pipeline
 - Comprehensive test coverage for all optimization passes
 
@@ -55,11 +75,17 @@ and this project adheres to
 - Added `test_optimization.py` demonstrating optimization capabilities
 - Added `type_inference_demo.py` showcasing type inference
 - Added `test_inlining.py` demonstrating function inlining
+- Added `simple_migration_demo.py` showing migration suggestions
+- Added `test_performance_warnings.py` showing performance analysis
+- Added `test_cse.py` demonstrating common subexpression elimination
 - Constants are propagated: `x = 5; y = x + 3` → `y = 8`
 - Dead code is eliminated: unused variables are removed
 - Arithmetic is pre-computed: `3.14 * 2.0` → `6.28`
 - Types are inferred: `text.upper()` → `text: &str`
 - Functions are inlined: `add_one(x)` → `x + 1`
+- Common subexpressions eliminated: `(a+b)*c` computed once
+- Migration suggestions guide idiomatic Rust patterns
+- Performance warnings catch O(n²) algorithms
 
 ## [1.6.0] - 2025-01-XX
 
