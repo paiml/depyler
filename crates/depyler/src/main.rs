@@ -1,9 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
 use depyler::{
-    analyze_command, check_command, inspect_command, interactive_command, lambda_analyze_command,
-    lambda_build_command, lambda_convert_command, lambda_deploy_command, lambda_test_command,
-    quality_check_command, transpile_command, Cli, Commands, LambdaCommands,
+    analyze_command, check_command, debug_command, inspect_command, interactive_command, 
+    lambda_analyze_command, lambda_build_command, lambda_convert_command, lambda_deploy_command, 
+    lambda_test_command, lsp_command, quality_check_command, transpile_command, Cli, Commands, 
+    LambdaCommands,
 };
 
 fn main() -> Result<()> {
@@ -19,8 +20,10 @@ fn main() -> Result<()> {
             output,
             verify,
             gen_tests,
+            debug,
+            source_map,
         } => {
-            transpile_command(input, output, verify, gen_tests)?;
+            transpile_command(input, output, verify, gen_tests, debug, source_map)?;
         }
         Commands::Analyze { input, format } => {
             analyze_command(input, format)?;
@@ -99,6 +102,12 @@ fn main() -> Result<()> {
                 lambda_deploy_command(input, region, function_name, role, dry_run)?;
             }
         },
+        Commands::Lsp { port, verbose: lsp_verbose } => {
+            lsp_command(port, lsp_verbose)?;
+        }
+        Commands::Debug { tips, gen_script, debugger, source, output } => {
+            debug_command(tips, gen_script, debugger, source, output)?;
+        }
     }
 
     Ok(())

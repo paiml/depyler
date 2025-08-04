@@ -3,12 +3,14 @@ pub mod ast_bridge;
 pub mod borrowing;
 pub mod borrowing_context;
 pub mod codegen;
+pub mod debug;
 pub mod const_generic_inference;
 pub mod direct_rules;
 pub mod error;
 pub mod error_reporting;
 pub mod generic_inference;
 pub mod hir;
+pub mod ide;
 pub mod inlining;
 pub mod lambda_codegen;
 pub mod lambda_errors;
@@ -17,6 +19,7 @@ pub mod lambda_optimizer;
 pub mod lambda_testing;
 pub mod lambda_types;
 pub mod lifetime_analysis;
+pub mod lsp;
 pub mod migration_suggestions;
 pub mod module_mapper;
 pub mod optimization;
@@ -41,6 +44,8 @@ pub struct DepylerPipeline {
     #[serde(skip)]
     #[allow(dead_code)]
     mcp_client: LazyMcpClient,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    debug_config: Option<debug::DebugConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,6 +105,7 @@ impl DepylerPipeline {
             },
             verifier: None,
             mcp_client: LazyMcpClient::default(),
+            debug_config: None,
         }
     }
 
@@ -108,6 +114,11 @@ impl DepylerPipeline {
             enable_quickcheck: true,
             enable_contracts: true,
         });
+        self
+    }
+
+    pub fn with_debug(mut self, debug_config: debug::DebugConfig) -> Self {
+        self.debug_config = Some(debug_config);
         self
     }
 

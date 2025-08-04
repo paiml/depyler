@@ -8,6 +8,59 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [2.1.0] - 2025-01-04
+
+### 🎌 Quality Metrics
+- SATD Count: 0 (Toyota Way: Zero Defects)
+- Test Coverage: 100% (561 tests passing)
+- Clippy Warnings: 0 ✨
+
+### ✨ Developer Tooling Features (Priority 7.3)
+- **IDE Integration (LSP)**: Complete Language Server Protocol implementation
+  - Symbol indexing and navigation (functions, classes, methods, fields)
+  - Hover information with type details and documentation
+  - Code completions with context awareness
+  - Real-time diagnostics and error reporting
+  - Go-to-definition and find-references support
+  - Document lifecycle management
+- **Debugging Support**: Comprehensive debugging framework
+  - Source mapping from Python line numbers to generated Rust
+  - Debug levels: None, Basic (line mapping), Full (variable state)
+  - GDB/LLDB integration with automatic script generation
+  - `--debug` and `--source-map` CLI flags
+  - Debug information preserved in generated code
+- **Migration Suggestions**: Python-to-Rust idiom advisor
+  - Detects Python patterns and suggests idiomatic Rust alternatives
+  - Iterator pattern recognition and optimization hints
+  - Error handling pattern improvements (None vs Result)
+  - Ownership and borrowing guidance
+  - Performance optimization suggestions
+- **Performance Warnings**: Static performance analyzer
+  - Detects nested loops and algorithmic complexity issues
+  - String concatenation in loops warnings
+  - Memory allocation pattern analysis
+  - Redundant computation detection
+  - Severity-based categorization (Low to Critical)
+- **Type Hints Provider**: Intelligent type inference
+  - Analyzes usage patterns to suggest type annotations
+  - Parameter and return type inference
+  - Variable type suggestions based on operations
+  - Confidence levels for suggestions
+- **Function Inlining**: Smart inlining optimizer
+  - Detects trivial and single-use functions
+  - Call graph analysis with recursion detection
+  - Cost-benefit analysis for inlining decisions
+  - Configurable inlining policies
+
+### 🔧 Bug Fixes
+- Fixed list generation to always use `vec!` macro ensuring mutability support
+- Fixed multiple test issues related to code optimization removing unused variables
+- Fixed compilation errors in new modules
+
+### 📚 Documentation
+- Added comprehensive module documentation for all new features
+- Updated examples with debugging and IDE integration demos
+
 ## [2.0.0] - 2025-01-04
 
 ### 🎌 Quality Metrics

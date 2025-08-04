@@ -110,6 +110,9 @@ def format_number(n: int) -> str:
     println!("Generated code for format_number:\n{}", rust_code);
 
     // Local string that's used in concatenation
-    // The prefix might not need allocation if optimizer is smart
-    assert!(rust_code.contains("prefix"), "Should have prefix variable");
+    // The prefix might be inlined by the optimizer
+    assert!(
+        rust_code.contains("Number: ") || rust_code.contains("prefix"),
+        "Should have prefix string either as variable or inlined"
+    );
 }

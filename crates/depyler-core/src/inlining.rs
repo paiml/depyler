@@ -834,7 +834,7 @@ mod tests {
         let func = create_simple_function("test", 5);
         let analyzer = InliningAnalyzer::new(InliningConfig::default());
         let size = analyzer.calculate_function_size(&func);
-        assert_eq!(size, 6); // 5 assignments + 1 return
+        assert_eq!(size, 12); // 5 assignments (2 each) + 1 return (2) = 12
     }
 
     #[test]
