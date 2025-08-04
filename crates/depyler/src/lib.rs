@@ -16,6 +16,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
 
+pub mod debug_cmd;
 pub mod interactive;
 
 #[derive(Parser)]
@@ -47,6 +48,14 @@ pub enum Commands {
         /// Generate property tests
         #[arg(long)]
         gen_tests: bool,
+
+        /// Enable debug mode
+        #[arg(long)]
+        debug: bool,
+
+        /// Generate source map
+        #[arg(long)]
+        source_map: bool,
     },
 
     /// Analyze Python code complexity and metrics
@@ -122,6 +131,40 @@ pub enum Commands {
     /// Lambda-specific commands for AWS Lambda development
     #[command(subcommand)]
     Lambda(LambdaCommands),
+
+    /// Start Language Server Protocol (LSP) server for IDE integration
+    Lsp {
+        /// Port to listen on
+        #[arg(short, long, default_value = "2087")]
+        port: u16,
+
+        /// Enable verbose logging
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
+    /// Debug-related commands
+    Debug {
+        /// Show debugging tips
+        #[arg(long)]
+        tips: bool,
+
+        /// Generate debugger script
+        #[arg(long)]
+        gen_script: Option<PathBuf>,
+
+        /// Debugger type (gdb, lldb, rust-gdb)
+        #[arg(long, default_value = "gdb")]
+        debugger: String,
+
+        /// Python source file
+        #[arg(long)]
+        source: Option<PathBuf>,
+
+        /// Output script path
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -226,6 +269,8 @@ pub fn transpile_command(
     output: Option<PathBuf>,
     verify: bool,
     gen_tests: bool,
+    debug: bool,
+    source_map: bool,
 ) -> Result<()> {
     let start = Instant::now();
 
@@ -247,6 +292,20 @@ pub fn transpile_command(
     let mut pipeline = DepylerPipeline::new();
     if verify {
         pipeline = pipeline.with_verification();
+    }
+    if debug || source_map {
+        let debug_config = depyler_core::debug::DebugConfig {
+            debug_level: if debug {
+                depyler_core::debug::DebugLevel::Full
+            } else {
+                depyler_core::debug::DebugLevel::Basic
+            },
+            generate_source_map: source_map,
+            preserve_symbols: true,
+            debug_prints: debug,
+            breakpoints: debug,
+        };
+        pipeline = pipeline.with_debug(debug_config);
     }
     pb.inc(1);
 
@@ -707,6 +766,82 @@ pub fn check_clippy_clean(python_file: &std::path::Path) -> Result<bool> {
     Ok(output.status.success())
 }
 
+// Debug command implementation
+
+pub fn debug_command(
+    tips: bool,
+    gen_script: Option<PathBuf>,
+    debugger: String,
+    source: Option<PathBuf>,
+    output: Option<PathBuf>,
+) -> Result<()> {
+    if tips {
+        debug_cmd::print_debugging_tips();
+        return Ok(());
+    }
+
+    if let Some(rust_file) = gen_script {
+        let source_file = source.ok_or_else(|| {
+            anyhow::anyhow!("--source is required when using --gen-script")
+        })?;
+        
+        debug_cmd::generate_debugger_script(
+            &source_file,
+            &rust_file,
+            &debugger,
+            output.as_deref(),
+        )?;
+    } else {
+        println!("Use --tips for debugging guide or --gen-script to generate debugger scripts");
+    }
+
+    Ok(())
+}
+
+// LSP command implementation
+
+pub fn lsp_command(port: u16, verbose: bool) -> Result<()> {
+    use depyler_core::lsp::LspServer;
+    use std::io::{self, BufRead, Write};
+    
+    
+    println!("🚀 Starting Depyler Language Server on port {}...", port);
+    
+    // For now, implement a simple stdio-based LSP server
+    // In a full implementation, this would handle TCP connections
+    
+    let _server = LspServer::new();
+    let stdin = io::stdin();
+    let mut stdout = io::stdout();
+    
+    println!("📡 Language Server ready. Waiting for client connections...");
+    println!("   Use with your IDE's LSP client configuration:");
+    println!("   - Command: depyler lsp");
+    println!("   - Port: {}", port);
+    println!("   - Language: Python");
+    
+    // Simple message loop (in practice, would use full JSON-RPC)
+    for line in stdin.lock().lines() {
+        let line = line?;
+        
+        if verbose {
+            eprintln!("Received: {}", line);
+        }
+        
+        // Handle shutdown
+        if line.contains("shutdown") {
+            println!("👋 Language Server shutting down...");
+            break;
+        }
+        
+        // Echo back for now (real implementation would parse JSON-RPC)
+        writeln!(stdout, "{{\"jsonrpc\":\"2.0\",\"result\":null,\"id\":1}}")?;
+        stdout.flush()?;
+    }
+    
+    Ok(())
+}
+
 // Lambda-specific command implementations
 
 pub fn lambda_analyze_command(input: PathBuf, format: String, confidence: f64) -> Result<()> {
@@ -1159,7 +1294,7 @@ mod tests {
     fn test_transpile_command_basic() {
         let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
 
-        let result = transpile_command(input_path, None, false, false);
+        let result = transpile_command(input_path, None, false, false, false, false);
         assert!(result.is_ok());
     }
 
@@ -1168,7 +1303,7 @@ mod tests {
         let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
         let output_path = input_path.with_extension("rs");
 
-        let result = transpile_command(input_path, Some(output_path.clone()), false, false);
+        let result = transpile_command(input_path, Some(output_path.clone()), false, false, false, false);
         assert!(result.is_ok());
         assert!(output_path.exists());
     }

@@ -1,6 +1,7 @@
 use std::borrow::Cow;
     #[doc = "Generate a number in range(simplified without random)."] #[doc = " Depyler: proven to terminate"] pub fn generate_number(min_val: i32, max_val: i32)  -> Result<i32, ZeroDivisionError>{
-    return Ok({ let a  = (min_val + max_val);
+    let mut _cse_temp_0 = {
+    let a  = (min_val + max_val);
     let b = 2;
     let q = a / b;
     let r = a % b;
@@ -10,16 +11,19 @@ use std::borrow::Cow;
 else {
     q
 }
-});
+};
+    return Ok(_cse_temp_0);
    
 }
 #[doc = "Provide a hint based on the guess."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn get_hint(guess: i32, target: i32)  -> String {
-    if(50<target) {
+    let mut _cse_temp_0  = (50<target);
+    if _cse_temp_0 {
     return "Marco!(Too low)".to_string();
    
 }
 else {
-    if(50>target) {
+    let mut _cse_temp_1  = (50>target);
+    if _cse_temp_1 {
     return "Marco!(Too high)".to_string();
    
 }
@@ -30,14 +34,17 @@ else {
 }
 }
 #[doc = "Calculate final score."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn calculate_score(attempts: i32, rounds: i32)  -> i32 {
-    if(rounds == 0) {
+    let mut _cse_temp_0  = (rounds == 0);
+    if _cse_temp_0 {
     return 0;
    
 }
-let mut base_score  = (100 * rounds);
+let mut _cse_temp_1  = (100 * rounds);
+    let mut base_score = _cse_temp_1;
     let mut penalty = 0;
     let mut score  = (base_score - penalty);
-    if(score<0) {
+    let mut _cse_temp_2  = (score<0);
+    if _cse_temp_2 {
     return 0;
    
 }
@@ -45,17 +52,20 @@ return score;
    
 }
 #[doc = "Get difficulty name from level."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn get_difficulty_name(level: i32)  -> & 'a str {
-    if(level == 1) {
+    let mut _cse_temp_0  = (level == 1);
+    if _cse_temp_0 {
     return "Easy".to_string();
    
 }
 else {
-    if(level == 2) {
+    let mut _cse_temp_1  = (level == 2);
+    if _cse_temp_1 {
     return "Medium".to_string();
    
 }
 else {
-    if(level == 3) {
+    let mut _cse_temp_2  = (level == 3);
+    if _cse_temp_2 {
     return "Hard".to_string();
    
 }
@@ -66,24 +76,36 @@ else {
 }
 }
 } #[doc = "Calculate average with safety check."] #[doc = " Depyler: proven to terminate"] pub fn calculate_average(total: i32, count: i32)  -> Result<f64, ZeroDivisionError>{
-    if(count == 0) {
+    let mut _cse_temp_0  = (count == 0);
+    if _cse_temp_0 {
     return Ok(0);
    
 }
-return Ok((total / count));
+let mut _cse_temp_1  = (total / count);
+    return Ok(_cse_temp_1);
    
 }
 #[doc = "Format game statistics as string."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn format_statistics(score: i32, attempts: i32, rounds: i32)  -> String {
-    let mut avg = calculate_average(0, rounds);
+    let mut _inline_total = 0;
+    let mut _inline_count = rounds;
+    let mut _cse_temp_0  = (_inline_count == 0);
+    if _cse_temp_0 {
+    return 0;
+   
+}
+let mut _cse_temp_1  = (_inline_total / _inline_count);
+    let mut avg = _cse_temp_1;
     return "Game Statistics:\n".to_string();
    
 }
 #[doc = "Check if guess is in valid range."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn validate_guess(guess: i32, min_val: i32, max_val: i32)  -> bool {
-    if(50<min_val) {
+    let mut _cse_temp_0  = (50<min_val);
+    if _cse_temp_0 {
     return false;
    
 }
-if(50>max_val) {
+let mut _cse_temp_1  = (50>max_val);
+    if _cse_temp_1 {
     return false;
    
 }

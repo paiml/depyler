@@ -27,6 +27,7 @@ pub struct CodeGenContext<'a> {
     pub module_mapper: crate::module_mapper::ModuleMapper,
     pub imported_modules: std::collections::HashMap<String, crate::module_mapper::ModuleMapping>,
     pub imported_items: std::collections::HashMap<String, String>,
+    pub mutable_vars: HashSet<String>,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -138,6 +139,7 @@ pub fn generate_rust_file(
         module_mapper,
         imported_modules,
         imported_items,
+        mutable_vars: HashSet::new(),
     };
 
     // Analyze all functions first for string optimization
@@ -1835,20 +1837,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .map(|e| e.to_rust_expr(self.ctx))
             .collect::<Result<Vec<_>>>()?;
 
-        // Check if this list should be an array
-        if !elts.is_empty() && elts.len() <= 32 {
-            // Check if all elements are literals (good candidate for array)
-            let all_literals = elts.iter().all(|e| matches!(e, HirExpr::Literal(_)));
-
-            if all_literals {
-                // Generate array literal instead of vec!
-                Ok(parse_quote! { [#(#elt_exprs),*] })
-            } else {
-                Ok(parse_quote! { vec![#(#elt_exprs),*] })
-            }
-        } else {
-            Ok(parse_quote! { vec![#(#elt_exprs),*] })
-        }
+        // Always use vec! for now to ensure mutability works
+        // In the future, we should analyze if the list is mutated before deciding
+        Ok(parse_quote! { vec![#(#elt_exprs),*] })
     }
 
     fn convert_dict(&mut self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
@@ -2494,6 +2485,7 @@ mod tests {
             module_mapper: crate::module_mapper::ModuleMapper::new(),
             imported_modules: std::collections::HashMap::new(),
             imported_items: std::collections::HashMap::new(),
+            mutable_vars: HashSet::new(),
         }
     }
 
