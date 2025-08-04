@@ -8,6 +8,34 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [2.2.1] - 2025-01-05
+
+### 🐛 Bug Fixes & Improvements
+
+#### **Code Quality Enhancements**
+- Fixed all clippy warnings across the entire test suite
+- Added `Default` implementations for all test structs
+- Replaced `vec!` macros with arrays where appropriate for better performance
+- Improved error handling patterns with idiomatic Rust
+- Fixed unused variables and imports
+- Enhanced length comparisons with clearer patterns (`is_empty()` instead of `len() > 0`)
+
+#### **Test Infrastructure Fixes**
+- Fixed semantic equivalence test module imports
+- Corrected rust_executor module references
+- Improved manual `ok()` patterns with direct method calls
+- Fixed expect with formatted strings
+
+#### **Documentation Updates**
+- Updated property tests and doctests documentation to reflect v2.2.0 achievements
+- Documented 107% test coverage achievement
+- Added comprehensive status tracking for testing phases
+
+### 📊 Quality Metrics
+- All CI/CD workflows now pass with strict clippy enforcement
+- Zero clippy warnings with `-D warnings` flag
+- Improved code maintainability and readability
+
 ## [2.2.0] - 2025-01-05
 
 ### 🚀 Major Feature: Advanced Testing Infrastructure
