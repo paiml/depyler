@@ -1,0 +1,9 @@
+Test Name,Duration (s),Result
+Property Test Benchmarks,.243678409,PASS
+Integration Benchmarks,.272949196,FAIL
+Example Validation,.156095849,PASS
+Coverage Analysis,8.350969830,PASS
+All Property Tests,39.884205206,PASS
+Edge Case Coverage,8.370439051,PASS
+Error Path Coverage,9.765202850,PASS
+Boundary Value Tests,10.769096726,PASS

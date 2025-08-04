@@ -1,6 +1,8 @@
 # Contract-Based Verification in Depyler
 
-Depyler supports Design by Contract (DbC) through Python-style annotations in docstrings. This allows you to specify preconditions, postconditions, and invariants that can be verified statically and enforced at runtime.
+Depyler supports Design by Contract (DbC) through Python-style annotations in
+docstrings. This allows you to specify preconditions, postconditions, and
+invariants that can be verified statically and enforced at runtime.
 
 ## Contract Annotations
 
@@ -54,21 +56,25 @@ def list_sum(numbers: list[float]) -> float:
 The contract system supports a rich predicate language:
 
 ### Comparison Operators
+
 - `==`, `!=`, `<`, `<=`, `>`, `>=`
 - `in`, `not in`
 - `is`, `is not`
 
 ### Logical Operators
+
 - `and`, `or`, `not`
 - `implies` (logical implication)
 
 ### Quantifiers
+
 - `all(predicate for var in collection)`
 - `any(predicate for var in collection)`
 - `forall var in domain: predicate`
 - `exists var in domain: predicate`
 
 ### Special Functions
+
 - `old(expr)` - refers to the value at function entry
 - `result` - refers to the return value
 - `len(collection)` - length of a collection
@@ -113,6 +119,7 @@ Depyler supports three verification levels:
 3. **Strict**: All contracts with runtime checks
 
 Enable verification with:
+
 ```bash
 depyler transpile input.py --verify standard
 ```
@@ -155,6 +162,7 @@ The contract system consists of several components:
 ## Examples
 
 ### Example 1: Array Bounds Checking
+
 ```python
 def get_element(arr: list[int], index: int) -> int:
     """
@@ -166,6 +174,7 @@ def get_element(arr: list[int], index: int) -> int:
 ```
 
 ### Example 2: State Modification
+
 ```python
 def increment_all(numbers: list[int]) -> None:
     """
@@ -178,6 +187,7 @@ def increment_all(numbers: list[int]) -> None:
 ```
 
 ### Example 3: Complex Invariant
+
 ```python
 def maintain_sorted(items: list[int], value: int) -> None:
     """

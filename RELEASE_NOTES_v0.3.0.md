@@ -357,5 +357,5 @@ worldwide can instantly see the energy savings of their transpiled code. Every
 function converted from Python to Rust contributes to a more sustainable future.
 Join thousands of developers already saving energy with every line of code.
 
-**✨ Experience the future of energy-efficient computing**: Try the
-Depyler Playground by running `depyler playground` today!
+**✨ Experience the future of energy-efficient computing**: Try the Depyler
+Playground by running `depyler playground` today!

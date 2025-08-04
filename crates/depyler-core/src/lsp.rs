@@ -2,11 +2,11 @@
 //!
 //! Provides LSP server functionality for IDE integration.
 
-use crate::ide::{IdeIntegration, DiagnosticSeverity};
-use crate::{DepylerPipeline, hir};
+use crate::ide::{DiagnosticSeverity, IdeIntegration};
+use crate::{hir, DepylerPipeline};
+use rustpython_parser::text_size::TextSize;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use rustpython_parser::text_size::TextSize;
 
 /// LSP server state
 pub struct LspServer {
@@ -16,9 +16,9 @@ pub struct LspServer {
 
 struct DocumentState {
     content: String,
-    version: i64,
+    _version: i64,
     ide_integration: IdeIntegration,
-    hir: Option<hir::HirModule>,
+    _hir: Option<hir::HirModule>,
 }
 
 impl LspServer {
@@ -32,25 +32,31 @@ impl LspServer {
     /// Handle document open
     pub fn did_open(&mut self, uri: String, text: String, version: i64) {
         let mut ide = IdeIntegration::new();
-        
+
         // Try to parse and analyze the document
         if let Ok(hir_module) = self.pipeline.parse_to_hir(&text) {
             ide.index_symbols(&hir_module, &text);
-            
-            self.documents.insert(uri.clone(), DocumentState {
-                content: text,
-                version,
-                ide_integration: ide,
-                hir: Some(hir_module),
-            });
+
+            self.documents.insert(
+                uri.clone(),
+                DocumentState {
+                    content: text,
+                    _version: version,
+                    ide_integration: ide,
+                    _hir: Some(hir_module),
+                },
+            );
         } else {
             // Document has parse errors
-            self.documents.insert(uri, DocumentState {
-                content: text,
-                version,
-                ide_integration: ide,
-                hir: None,
-            });
+            self.documents.insert(
+                uri,
+                DocumentState {
+                    content: text,
+                    _version: version,
+                    ide_integration: ide,
+                    _hir: None,
+                },
+            );
         }
     }
 
@@ -69,8 +75,9 @@ impl LspServer {
         if let Some(doc) = self.documents.get(uri) {
             let offset = self.position_to_offset(&doc.content, position);
             let prefix = self.get_prefix_at_position(&doc.content, offset);
-            
-            let items = doc.ide_integration
+
+            let items = doc
+                .ide_integration
                 .completions_at_position(offset, &prefix)
                 .into_iter()
                 .map(|item| CompletionItemLsp {
@@ -87,7 +94,7 @@ impl LspServer {
                     documentation: item.documentation,
                 })
                 .collect();
-            
+
             CompletionResponse { items }
         } else {
             CompletionResponse { items: vec![] }
@@ -98,7 +105,7 @@ impl LspServer {
     pub fn hover(&self, uri: &str, position: Position) -> Option<HoverResponse> {
         if let Some(doc) = self.documents.get(uri) {
             let offset = self.position_to_offset(&doc.content, position);
-            
+
             if let Some(symbol) = doc.ide_integration.symbol_at_position(offset) {
                 let contents = crate::ide::generate_hover_info(symbol);
                 return Some(HoverResponse {
@@ -121,7 +128,7 @@ impl LspServer {
                 .map(|diag| {
                     let start = self.offset_to_position(&doc.content, diag.range.start());
                     let end = self.offset_to_position(&doc.content, diag.range.end());
-                    
+
                     DiagnosticLsp {
                         range: Range { start, end },
                         severity: Some(match diag.severity {
@@ -145,14 +152,14 @@ impl LspServer {
     pub fn goto_definition(&self, uri: &str, position: Position) -> Option<LocationResponse> {
         if let Some(doc) = self.documents.get(uri) {
             let offset = self.position_to_offset(&doc.content, position);
-            
+
             // Find symbol at position
             if let Some(symbol) = doc.ide_integration.symbol_at_position(offset) {
                 // For now, return the symbol's own location
                 // In a full implementation, this would resolve imports, etc.
                 let start = self.offset_to_position(&doc.content, symbol.range.start());
                 let end = self.offset_to_position(&doc.content, symbol.range.end());
-                
+
                 return Some(LocationResponse {
                     uri: uri.to_string(),
                     range: Range { start, end },
@@ -166,15 +173,16 @@ impl LspServer {
     pub fn find_references(&self, uri: &str, position: Position) -> Vec<LocationResponse> {
         if let Some(doc) = self.documents.get(uri) {
             let offset = self.position_to_offset(&doc.content, position);
-            
+
             if let Some(symbol) = doc.ide_integration.symbol_at_position(offset) {
                 let refs = doc.ide_integration.find_references(&symbol.name);
-                
-                return refs.into_iter()
+
+                return refs
+                    .into_iter()
                     .map(|sym| {
                         let start = self.offset_to_position(&doc.content, sym.range.start());
                         let end = self.offset_to_position(&doc.content, sym.range.end());
-                        
+
                         LocationResponse {
                             uri: uri.to_string(),
                             range: Range { start, end },
@@ -191,12 +199,12 @@ impl LspServer {
         let mut line = 0;
         let mut col = 0;
         let mut offset = 0;
-        
+
         for ch in text.chars() {
             if line == position.line && col == position.character {
                 return TextSize::from(offset as u32);
             }
-            
+
             if ch == '\n' {
                 line += 1;
                 col = 0;
@@ -205,7 +213,7 @@ impl LspServer {
             }
             offset += ch.len_utf8();
         }
-        
+
         TextSize::from(offset as u32)
     }
 
@@ -213,13 +221,13 @@ impl LspServer {
         let mut line = 0;
         let mut col = 0;
         let mut current_offset = 0;
-        
+
         for ch in text.chars() {
             let offset_usize: usize = offset.into();
             if current_offset >= offset_usize {
                 break;
             }
-            
+
             if ch == '\n' {
                 line += 1;
                 col = 0;
@@ -228,7 +236,7 @@ impl LspServer {
             }
             current_offset += ch.len_utf8();
         }
-        
+
         Position {
             line,
             character: col,
@@ -241,8 +249,14 @@ impl LspServer {
             .rfind(|c: char| !c.is_alphanumeric() && c != '_')
             .map(|i| i + 1)
             .unwrap_or(0);
-        
+
         text[start..offset_usize].to_string()
+    }
+}
+
+impl Default for LspServer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -313,7 +327,7 @@ mod tests {
         let mut server = LspServer::new();
         let uri = "test.py".to_string();
         let text = "def test(): pass".to_string();
-        
+
         server.did_open(uri.clone(), text, 1);
         assert!(server.documents.contains_key(&uri));
     }
@@ -322,12 +336,15 @@ mod tests {
     fn test_position_conversion() {
         let server = LspServer::new();
         let text = "line1\nline2\nline3";
-        
+
         // Test position to offset
-        let pos = Position { line: 1, character: 2 };
+        let pos = Position {
+            line: 1,
+            character: 2,
+        };
         let offset = server.position_to_offset(text, pos);
         assert_eq!(offset, TextSize::from(8)); // "line1\nli"
-        
+
         // Test offset to position
         let pos2 = server.offset_to_position(text, offset);
         assert_eq!(pos2.line, 1);
@@ -338,7 +355,7 @@ mod tests {
     fn test_prefix_extraction() {
         let server = LspServer::new();
         let text = "def test_function(): pass";
-        
+
         let offset = TextSize::from(10); // After "test_f"
         let prefix = server.get_prefix_at_position(text, offset);
         assert_eq!(prefix, "test_f");

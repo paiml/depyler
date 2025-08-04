@@ -153,8 +153,121 @@ test-fixtures: ## Test all Python fixture transpilation
 	$(CARGO) test --test transpilation_tests $(TEST_FLAGS)
 
 test-property: ## Run property-based tests
-	@echo "Running property-based semantic tests..."
+	@echo "Running property-based tests..."
+	$(CARGO) test --test property_tests $(TEST_FLAGS)
 	$(CARGO) test --test semantic_equivalence $(TEST_FLAGS)
+	$(CARGO) test --test property_tests_ast_roundtrip $(TEST_FLAGS)
+	$(CARGO) test --test property_tests_type_inference $(TEST_FLAGS)
+	$(CARGO) test --test property_tests_memory_safety $(TEST_FLAGS)
+
+##@ Advanced Testing Infrastructure (Phases 8-10)
+
+test-property-basic: ## Run basic property tests (Phases 1-3)
+	@echo "Running basic property tests..."
+	$(CARGO) test --test property_tests $(TEST_FLAGS)
+	$(CARGO) test --test semantic_equivalence $(TEST_FLAGS)
+	$(CARGO) test --test property_tests_ast_roundtrip $(TEST_FLAGS)
+	$(CARGO) test --test property_tests_type_inference $(TEST_FLAGS)
+	$(CARGO) test --test property_tests_memory_safety $(TEST_FLAGS)
+
+test-property-advanced: ## Run advanced property tests (Phase 8)
+	@echo "Running advanced property tests..."
+	$(CARGO) test --test advanced_property_generators $(TEST_FLAGS)
+	$(CARGO) test --test mutation_testing $(TEST_FLAGS)
+	$(CARGO) test --test fuzzing_tests $(TEST_FLAGS)
+
+test-doctests: ## Run all documentation tests
+	@echo "Running doctests..."
+	$(CARGO) test --doc $(TEST_FLAGS)
+	$(CARGO) test --test interactive_doctests $(TEST_FLAGS)
+
+test-examples: ## Run example validation tests  
+	@echo "Running example validation..."
+	$(CARGO) test --test example_validation $(TEST_FLAGS)
+	$(CARGO) test --test comprehensive_examples $(TEST_FLAGS)
+
+test-coverage: ## Run coverage analysis tests
+	@echo "Running coverage analysis..."
+	$(CARGO) test --test coverage_analysis $(TEST_FLAGS)
+	$(CARGO) test --test edge_case_coverage $(TEST_FLAGS)
+	$(CARGO) test --test error_path_coverage $(TEST_FLAGS)
+	$(CARGO) test --test boundary_value_tests $(TEST_FLAGS)
+
+test-integration: ## Run integration tests
+	@echo "Running integration tests..."
+	$(CARGO) test --test integration_benchmarks $(TEST_FLAGS)
+	$(CARGO) test --test multi_version_compatibility $(TEST_FLAGS)
+	$(CARGO) test --test large_codebase_tests $(TEST_FLAGS)
+
+test-quality: ## Run quality assurance automation
+	@echo "Running quality assurance..."
+	$(CARGO) test --test quality_assurance_automation $(TEST_FLAGS)
+	$(CARGO) test --test specialized_coverage_testing $(TEST_FLAGS)
+
+test-all: ## Complete test suite execution
+	@echo "Running complete test suite..."
+	$(MAKE) test-property-basic
+	$(MAKE) test-property-advanced
+	$(MAKE) test-doctests
+	$(MAKE) test-examples
+	$(MAKE) test-coverage
+	$(MAKE) test-integration
+	$(MAKE) test-quality
+
+test-fast: ## Quick feedback loop for development
+	@echo "Running fast development tests..."
+	$(CARGO) test --lib $(TEST_FLAGS) --quiet
+	$(CARGO) test --test property_tests $(TEST_FLAGS) --quiet
+
+test-ci: ## CI/CD optimized test execution
+	@echo "Running CI/CD tests..."
+	$(MAKE) test-property-basic
+	$(MAKE) test-coverage
+	$(MAKE) test-integration
+
+##@ Performance Testing
+
+test-benchmark: ## Performance regression testing
+	@echo "Running performance benchmarks..."
+	$(CARGO) test --test property_test_benchmarks $(TEST_FLAGS)
+	$(CARGO) test --test integration_benchmarks $(TEST_FLAGS)
+	$(CARGO) bench
+
+test-profile: ## Performance profiling and analysis
+	@echo "Running performance profiling..."
+	$(CARGO) test --test performance_profiling $(TEST_FLAGS)
+	./scripts/run_performance_suite.sh
+
+test-memory: ## Memory usage validation
+	@echo "Running memory tests..."
+	$(CARGO) test --test memory_safety_tests $(TEST_FLAGS)
+	$(CARGO) test --test resource_exhaustion $(TEST_FLAGS)
+
+test-concurrency: ## Thread safety and parallel execution
+	@echo "Running concurrency tests..."
+	$(CARGO) test --test concurrent_execution $(TEST_FLAGS)
+	$(CARGO) test --test thread_safety $(TEST_FLAGS)
+
+##@ Development Workflows
+
+test-watch: ## Continuous testing during development
+	@echo "Starting test watch mode..."
+	$(CARGO) watch -x "test --lib" -x "test --test property_tests"
+
+test-debug: ## Enhanced debugging and error reporting
+	@echo "Running debug tests..."
+	RUST_BACKTRACE=1 $(CARGO) test $(TEST_FLAGS) -- --nocapture
+
+test-generate: ## Automatic test generation and updates
+	@echo "Running test generation..."
+	$(CARGO) test --test automated_test_generation $(TEST_FLAGS)
+	./scripts/generate_test_cases.sh
+
+test-report: ## Comprehensive quality reporting
+	@echo "Generating test reports..."
+	./scripts/run_performance_suite.sh
+	$(MAKE) coverage
+	$(MAKE) quality-report
 
 test-compilation: ## Validate generated Rust compiles
 	@echo "Validating Rust compilation..."

@@ -47,9 +47,12 @@ insta.workspace = true
 tempfile.workspace = true
 quickcheck.workspace = true
 quickcheck_macros.workspace = true
+proptest.workspace = true
 tokio.workspace = true
 quote.workspace = true
 smallvec.workspace = true
+rand.workspace = true
+md5.workspace = true
 
 [[test]]
 name = "functional_tests"
@@ -90,3 +93,72 @@ path = "../../tests/lambda_integration_test.rs"
 [[test]]
 name = "dict_assignment_test"
 path = "../../tests/dict_assignment_test.rs"
+
+[[test]]
+name = "semantic_equivalence"
+path = "../../tests/integration/semantic_equivalence.rs"
+
+[[test]]
+name = "property_tests_ast_roundtrip"
+path = "../../tests/property_tests_ast_roundtrip.rs"
+
+[[test]]
+name = "property_tests_type_inference"
+path = "../../tests/property_tests_type_inference.rs"
+
+[[test]]
+name = "property_tests_memory_safety"
+path = "../../tests/property_tests_memory_safety.rs"
+
+[[test]]
+name = "edge_case_coverage"
+path = "../../tests/edge_case_coverage.rs"
+
+[[test]]
+name = "error_path_coverage"
+path = "../../tests/error_path_coverage.rs"
+
+[[test]]
+name = "boundary_value_tests"
+path = "../../tests/boundary_value_tests.rs"
+
+[[test]]
+name = "coverage_analysis"
+path = "../../tests/coverage_analysis.rs"
+
+[[test]]
+name = "property_test_benchmarks"
+path = "../../tests/property_test_benchmarks.rs"
+
+[[test]]
+name = "example_validation"
+path = "../../tests/example_validation.rs"
+
+[[test]]
+name = "integration_benchmarks"
+path = "../../tests/integration_benchmarks.rs"
+
+# Phase 8: Advanced Testing Infrastructure
+[[test]]
+name = "advanced_property_generators"
+path = "../../tests/advanced_property_generators.rs"
+
+[[test]]
+name = "mutation_testing" 
+path = "../../tests/mutation_testing.rs"
+
+[[test]]
+name = "fuzzing_tests"
+path = "../../tests/fuzzing_tests.rs"
+
+[[test]]
+name = "interactive_doctests"
+path = "../../tests/interactive_doctests.rs"
+
+[[test]]
+name = "specialized_coverage_testing"
+path = "../../tests/specialized_coverage_testing.rs"
+
+[[test]]
+name = "quality_assurance_automation"
+path = "../../tests/quality_assurance_automation.rs"

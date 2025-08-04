@@ -1,10 +1,12 @@
 # Depyler Release Process - Toyota Way
 
-This document describes the zero-defect release process for Depyler, following Toyota Way principles and matching the quality standards of PMAT.
+This document describes the zero-defect release process for Depyler, following
+Toyota Way principles and matching the quality standards of PMAT.
 
 ## 🎌 Toyota Way Principles
 
 ### 自働化 (Jidoka) - Build Quality In
+
 - **ZERO** Self-Admitted Technical Debt (SATD)
 - **ZERO** incomplete implementations
 - **ZERO** functions exceeding complexity 20
@@ -12,12 +14,14 @@ This document describes the zero-defect release process for Depyler, following T
 - **ZERO** lint warnings
 
 ### 現地現物 (Genchi Genbutsu) - Go and See
+
 - Run actual transpilation tests
 - Verify generated Rust compiles
 - Test on real Python codebases
 - Profile performance metrics
 
 ### 改善 (Kaizen) - Continuous Improvement
+
 - Each release must improve metrics
 - Document lessons learned
 - Update quality gates based on findings
@@ -91,21 +95,26 @@ Create/update `CHANGELOG.md`:
 ## [X.Y.Z] - YYYY-MM-DD
 
 ### 🎌 Quality Metrics
+
 - SATD Count: 0 (Toyota Way: Zero Defects)
 - Max Complexity: <20
 - Test Coverage: >90%
 - Clippy Warnings: 0
 
 ### ✨ Features
+
 - Feature description implementing Priority N
 
 ### 🐛 Bug Fixes
+
 - Fix description with zero new debt
 
 ### 📚 Documentation
+
 - Documentation improvements
 
 ### 🔧 Internal
+
 - Zero-defect refactoring
 ```
 
@@ -147,6 +156,7 @@ git push origin v$VERSION
 ### Step 6: Monitor Automated Release
 
 GitHub Actions will:
+
 1. Run quality gate checks
 2. Block release if ANY issues found
 3. Publish to crates.io in order
@@ -179,17 +189,18 @@ done
 
 ### Mandatory Checks (Automated)
 
-| Check | Requirement | Enforcement |
-|-------|------------|-------------|
-| SATD | ZERO TODO/FIXME/HACK | Release blocked |
-| Complexity | All functions <20 | Release blocked |
-| Tests | 100% passing | Release blocked |
-| Clippy | Zero warnings | Release blocked |
-| Incomplete | Zero todo!() | Release blocked |
+| Check      | Requirement          | Enforcement     |
+| ---------- | -------------------- | --------------- |
+| SATD       | ZERO TODO/FIXME/HACK | Release blocked |
+| Complexity | All functions <20    | Release blocked |
+| Tests      | 100% passing         | Release blocked |
+| Clippy     | Zero warnings        | Release blocked |
+| Incomplete | Zero todo!()         | Release blocked |
 
 ### Manual Review
 
 Before pushing tag:
+
 - [ ] Review generated Rust code quality
 - [ ] Test on 3+ real Python projects
 - [ ] Benchmark performance vs previous
@@ -230,13 +241,13 @@ git checkout -b hotfix/vX.Y.Z+1 vX.Y.Z
 
 Following systematic priority implementation:
 
-| Priority | Version | Timeline | Focus |
-|----------|---------|----------|-------|
-| 1 | 1.0.X | Immediate | Critical fixes |
-| 2 | 1.1.X | 2-4 weeks | Core features |
-| 3 | 1.2.X | 4-6 weeks | Type system |
-| 4 | 1.3.X | 4 weeks | Verification |
-| 5 | 2.0.0 | 8 weeks | Advanced features |
+| Priority | Version | Timeline  | Focus             |
+| -------- | ------- | --------- | ----------------- |
+| 1        | 1.0.X   | Immediate | Critical fixes    |
+| 2        | 1.1.X   | 2-4 weeks | Core features     |
+| 3        | 1.2.X   | 4-6 weeks | Type system       |
+| 4        | 1.3.X   | 4 weeks   | Verification      |
+| 5        | 2.0.0   | 8 weeks   | Advanced features |
 
 ## Continuous Improvement
 
@@ -251,6 +262,7 @@ After each release:
 ## Zero Compromise Policy
 
 **NEVER** release with:
+
 - Any SATD markers
 - Any incomplete code
 - Any failing tests
@@ -261,4 +273,4 @@ Quality over speed. Every time.
 
 ---
 
-*"The right process will produce the right results"* - Toyota Way
+_"The right process will produce the right results"_ - Toyota Way

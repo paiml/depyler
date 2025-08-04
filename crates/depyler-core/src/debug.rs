@@ -78,7 +78,12 @@ impl DebugInfoGenerator {
     }
 
     /// Add a source mapping
-    pub fn add_mapping(&mut self, python_line: usize, python_column: usize, symbol: Option<String>) {
+    pub fn add_mapping(
+        &mut self,
+        python_line: usize,
+        python_column: usize,
+        symbol: Option<String>,
+    ) {
         if self.debug_level == DebugLevel::None {
             return;
         }
@@ -104,7 +109,7 @@ impl DebugInfoGenerator {
             FunctionMapping {
                 python_name: func.name.clone(),
                 rust_name: func.name.clone(), // Could be mangled
-                python_start_line: 0, // Would need source location
+                python_start_line: 0,         // Would need source location
                 python_end_line: 0,
                 rust_start_line: rust_start,
                 rust_end_line: rust_end,
@@ -142,19 +147,17 @@ impl DebugInfoGenerator {
     pub fn generate_debug_print(&self, var_name: &str, var_type: &Type) -> String {
         match self.debug_level {
             DebugLevel::None => String::new(),
-            DebugLevel::Basic | DebugLevel::Full => {
-                match var_type {
-                    Type::Int | Type::Float | Type::Bool => {
-                        format!("eprintln!(\"DEBUG: {} = {{}}\", {});", var_name, var_name)
-                    }
-                    Type::String => {
-                        format!("eprintln!(\"DEBUG: {} = {{}}\", {});", var_name, var_name)
-                    }
-                    _ => {
-                        format!("eprintln!(\"DEBUG: {} = {{:?}}\", {});", var_name, var_name)
-                    }
+            DebugLevel::Basic | DebugLevel::Full => match var_type {
+                Type::Int | Type::Float | Type::Bool => {
+                    format!("eprintln!(\"DEBUG: {} = {{}}\", {});", var_name, var_name)
                 }
-            }
+                Type::String => {
+                    format!("eprintln!(\"DEBUG: {} = {{}}\", {});", var_name, var_name)
+                }
+                _ => {
+                    format!("eprintln!(\"DEBUG: {} = {{:?}}\", {});", var_name, var_name)
+                }
+            },
         }
     }
 }
@@ -199,12 +202,8 @@ impl DebuggerIntegration {
     /// Generate debugger initialization script
     pub fn generate_init_script(&self, source_map: &SourceMap) -> String {
         match self.debugger_type {
-            DebuggerType::Gdb | DebuggerType::RustGdb => {
-                self.generate_gdb_script(source_map)
-            }
-            DebuggerType::Lldb => {
-                self.generate_lldb_script(source_map)
-            }
+            DebuggerType::Gdb | DebuggerType::RustGdb => self.generate_gdb_script(source_map),
+            DebuggerType::Lldb => self.generate_lldb_script(source_map),
         }
     }
 
@@ -217,9 +216,9 @@ impl DebuggerIntegration {
 
         // Add source path
         script.push_str("directory .\n");
-        
+
         // Add function breakpoints
-        for (_name, mapping) in &source_map.function_map {
+        for mapping in source_map.function_map.values() {
             script.push_str(&format!("break {}\n", mapping.rust_name));
         }
 
@@ -243,9 +242,9 @@ impl DebuggerIntegration {
 
         // Add source mapping
         script.push_str("settings set target.source-map . .\n");
-        
+
         // Add function breakpoints
-        for (_name, mapping) in &source_map.function_map {
+        for mapping in source_map.function_map.values() {
             script.push_str(&format!("breakpoint set --name {}\n", mapping.rust_name));
         }
 
@@ -298,7 +297,8 @@ macro_rules! depyler_trace {
         eprintln!("[TRACE] {} at {}:{}", $msg, file!(), line!());
     };
 }
-"#.to_string()
+"#
+    .to_string()
 }
 
 #[cfg(test)]
@@ -345,16 +345,19 @@ mod tests {
             source_file: PathBuf::from("test.py"),
             target_file: PathBuf::from("test.rs"),
             mappings: vec![],
-            function_map: vec![
-                ("test_func".to_string(), FunctionMapping {
+            function_map: vec![(
+                "test_func".to_string(),
+                FunctionMapping {
                     python_name: "test_func".to_string(),
                     rust_name: "test_func".to_string(),
                     python_start_line: 1,
                     python_end_line: 5,
                     rust_start_line: 10,
                     rust_end_line: 20,
-                })
-            ].into_iter().collect(),
+                },
+            )]
+            .into_iter()
+            .collect(),
         };
 
         let gdb_integration = DebuggerIntegration::new(DebuggerType::Gdb);

@@ -30,7 +30,8 @@ pub fn generate_debugger_script(
     let integration = DebuggerIntegration::new(debugger_type);
     let script = integration.generate_init_script(&source_map);
 
-    let default_output = PathBuf::from(format!("{}.{}", 
+    let default_output = PathBuf::from(format!(
+        "{}.{}",
         rust_file.file_stem().unwrap().to_string_lossy(),
         match debugger_type {
             DebuggerType::Gdb | DebuggerType::RustGdb => "gdb",

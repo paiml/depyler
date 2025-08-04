@@ -2,14 +2,15 @@
 
 ## 🚀 Initial crates.io Publication
 
-This release marks the first publication of Depyler to crates.io, making it available for the broader Rust community.
+This release marks the first publication of Depyler to crates.io, making it
+available for the broader Rust community.
 
 ### 📦 Published Crates
 
 All 8 workspace crates are now available on crates.io:
 
 - **`depyler`** - Main binary with CLI interface
-- **`depyler-core`** - Core transpilation engine  
+- **`depyler-core`** - Core transpilation engine
 - **`depyler-analyzer`** - Static analysis and optimization
 - **`depyler-verify`** - Property verification and formal methods
 - **`depyler-quality`** - Quality gates and metrics
@@ -50,6 +51,7 @@ cargo add depyler
 ### 🎯 What's Next
 
 This initial publication enables:
+
 - Community adoption and feedback
 - External contributions
 - Integration with other Rust projects
@@ -57,5 +59,4 @@ This initial publication enables:
 
 ---
 
-Built with ❤️ following Rust ecosystem best practices.
-EOF < /dev/null
+Built with ❤️ following Rust ecosystem best practices. EOF < /dev/null
