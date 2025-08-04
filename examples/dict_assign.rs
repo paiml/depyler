@@ -1,13 +1,10 @@
 use std::collections::HashMap;
-    #[doc = "Test dictionary subscript assignment"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_dict_assignment()  -> serde_json::Value {
+    #[doc = "Test dictionary subscript assignment"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_dict_assignment()  -> DynamicType {
     let mut d = {
     let mut map = HashMap::new();
     map };
     d.insert("key".to_string(), "value");
     d.insert(42, "number key");
-    let mut nested = {
-    let mut map = HashMap::new();
-    map };
     nested.insert("outer".to_string(), {
     let mut map = HashMap::new();
     map });

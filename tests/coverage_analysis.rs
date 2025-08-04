@@ -65,7 +65,7 @@ def factorial(n: int) -> int:
     fn test_python_construct_coverage() {
         let pipeline = DepylerPipeline::new();
 
-        let constructs = vec![
+        let constructs = [
             // Basic function
             r#"
 def simple() -> int:

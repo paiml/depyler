@@ -52,12 +52,18 @@ pub struct MutationTester {
     mutations_cache: HashMap<String, Vec<Mutation>>,
 }
 
-impl MutationTester {
-    pub fn new() -> Self {
+impl Default for MutationTester {
+    fn default() -> Self {
         Self {
             pipeline: DepylerPipeline::new(),
             mutations_cache: HashMap::new(),
         }
+    }
+}
+
+impl MutationTester {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Generate all possible mutations for a given code snippet
@@ -666,7 +672,8 @@ def comprehensive_test(x: int, y: int, flag: bool) -> int:
             // Should handle edge cases gracefully
             if !code.trim().is_empty() && code.contains("def ") {
                 // Non-empty functions should generate some mutations
-                assert!(mutations.len() >= 0, "Should handle mutations gracefully");
+                // mutations.len() is always >= 0, this is just documentation
+                let _ = mutations.len(); // Should handle mutations gracefully
             }
 
             // Test a few mutations if any exist

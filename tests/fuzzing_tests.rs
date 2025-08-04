@@ -42,10 +42,17 @@ pub enum FuzzingOutcome {
 
 /// Fuzzing test engine
 pub struct FuzzingEngine {
+    #[allow(dead_code)]
     pipeline: DepylerPipeline,
     timeout_ms: u64,
     max_input_size: usize,
     results_cache: HashMap<String, FuzzingResult>,
+}
+
+impl Default for FuzzingEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FuzzingEngine {
@@ -112,7 +119,7 @@ impl FuzzingEngine {
     /// Run comprehensive fuzzing campaign
     pub fn run_fuzzing_campaign(&mut self, iterations: usize) -> FuzzingCampaignResults {
         let mut results = Vec::new();
-        let strategies = vec![
+        let strategies = [
             FuzzingStrategy::RandomBytes,
             FuzzingStrategy::StructuredPython,
             FuzzingStrategy::MalformedSyntax,
@@ -259,7 +266,7 @@ impl FuzzingEngine {
     }
 
     fn generate_malformed_syntax(&self, target_size: usize) -> String {
-        let malformed_patterns = vec![
+        let malformed_patterns = [
             "def broken_function(\n    return 42",
             "if condition\n    print('missing colon')",
             "def func(: pass",
@@ -291,7 +298,7 @@ impl FuzzingEngine {
     }
 
     fn generate_security_input(&self, target_size: usize) -> String {
-        let security_patterns = vec![
+        let security_patterns = &[
             "__import__('os').system('echo test')",
             "eval('print(1337)')",
             "exec('import sys')",
@@ -322,7 +329,7 @@ impl FuzzingEngine {
     }
 
     fn generate_unicode_exploit(&self, target_size: usize) -> String {
-        let unicode_patterns = vec![
+        let unicode_patterns = &[
             "def 函数(): return '测试'",
             "def функция(): return 'тест'",
             "def פונקציה(): return 'בדיקה'",
@@ -481,7 +488,7 @@ mod tests {
         println!("=== Fuzzing Input Generation Test ===");
 
         let engine = FuzzingEngine::new();
-        let strategies = vec![
+        let strategies = [
             FuzzingStrategy::RandomBytes,
             FuzzingStrategy::StructuredPython,
             FuzzingStrategy::MalformedSyntax,
@@ -635,7 +642,7 @@ mod tests {
 
         // Should have some variety in error types
         if !error_dist.is_empty() {
-            assert!(error_dist.len() >= 1, "Should categorize error types");
+            assert!(!error_dist.is_empty(), "Should categorize error types");
         }
 
         // Performance check
@@ -706,7 +713,7 @@ mod tests {
         let mut engine = FuzzingEngine::new().with_timeout(1000).with_max_size(10000);
 
         // Generate inputs designed to test memory safety
-        let memory_test_inputs = vec![
+        let memory_test_inputs = [
             engine.generate_fuzz_input(&FuzzingStrategy::LargeInput, 5000),
             engine.generate_fuzz_input(&FuzzingStrategy::DeepNesting, 50),
             "x = 'A' * 10000\ndef func(): return x * 100".to_string(),

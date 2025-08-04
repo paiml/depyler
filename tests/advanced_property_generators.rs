@@ -66,6 +66,12 @@ pub struct OptimizedGenerator {
     miss_count: usize,
 }
 
+impl Default for OptimizedGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OptimizedGenerator {
     pub fn new() -> Self {
         Self {

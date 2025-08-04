@@ -14,6 +14,12 @@ pub struct InteractiveDoctest {
     performance_metrics: HashMap<String, u128>,
 }
 
+impl Default for InteractiveDoctest {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InteractiveDoctest {
     /// Creates a new interactive doctest session
     ///
@@ -150,6 +156,12 @@ pub struct PerformanceBenchmarkDoctest {
     benchmarks: HashMap<String, Vec<u128>>,
 }
 
+impl Default for PerformanceBenchmarkDoctest {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformanceBenchmarkDoctest {
     /// Creates a new performance benchmark session
     ///
@@ -208,7 +220,7 @@ impl PerformanceBenchmarkDoctest {
         // Store benchmark result
         self.benchmarks
             .entry(benchmark_name.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(duration);
 
         duration
@@ -285,6 +297,12 @@ pub struct ErrorConditionDoctest {
     error_catalog: HashMap<String, Vec<String>>,
 }
 
+impl Default for ErrorConditionDoctest {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ErrorConditionDoctest {
     /// Creates a new error condition documentation session
     ///
@@ -357,7 +375,7 @@ impl ErrorConditionDoctest {
         if let Err(ref error_msg) = result {
             self.error_catalog
                 .entry(error_category.to_string())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(error_msg.clone());
         }
 
@@ -433,6 +451,12 @@ pub struct ErrorValidationResults {
 pub struct WorkflowDoctest {
     pipeline: DepylerPipeline,
     workflow_steps: Vec<(String, String, Result<String, String>)>,
+}
+
+impl Default for WorkflowDoctest {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl WorkflowDoctest {
@@ -530,7 +554,7 @@ impl WorkflowDoctest {
                     name.clone(),
                     code.clone(),
                     result.is_ok(),
-                    result.as_ref().err().map(|e| e.clone()),
+                    result.as_ref().err().cloned(),
                 )
             })
             .collect();
@@ -681,7 +705,7 @@ def fibonacci(n: int) -> int:
         // Check error catalog
         let catalog = error_doc.get_error_catalog();
         println!("Error catalog size: {}", catalog.len());
-        assert!(catalog.len() > 0); // Should have captured some errors
+        assert!(!catalog.is_empty()); // Should have captured some errors
 
         // Test error validation
         let validation_cases = vec![
