@@ -819,7 +819,7 @@ mod tests {
         // Should have high confidence about literal assignments
         // Note: variable_types might not be exposed, so we'll check the provider directly
         // or trust that the hints are returned correctly
-        assert!(true); // Simplified for now - the actual test would need to check hints
+        // TODO: Implement actual test to check hints when variable_types is exposed
     }
 
     #[test]

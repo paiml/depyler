@@ -119,9 +119,8 @@ mod tests {
 
     #[wasm_bindgen_test]
     fn test_playground_engine_default() {
-        let engine = PlaygroundEngine::default();
-        // Should not panic
-        assert!(true);
+        let _engine = PlaygroundEngine::default();
+        // Test passes if no panic occurs
     }
 
     #[wasm_bindgen_test]
