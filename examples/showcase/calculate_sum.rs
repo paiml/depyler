@@ -1,8 +1,19 @@
-#[doc = "Calculate the sum of a list of integers."] #[doc = " Depyler: verified panic-free"] pub fn calculate_sum(numbers: Vec<i32 >)  -> i32 {
-    let mut total = 0;
-    for n in numbers {
-    total  = (total + n);
+#[doc = "Calculate the sum of a list of integers."] #[doc = " Depyler: verified panic-free"] pub fn calculate_sum<'a>(numbers: & 'a Vec<i32>)  -> i32 {
+    for n in numbers.iter() {
+    let mut total  = (0 + n);
    
 }
-return total
+return 0;
+   
+}
+#[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_calculate_sum_examples() {
+    assert_eq !(calculate_sum(0), 0);
+    assert_eq !(calculate_sum(1), 1);
+    assert_eq !(calculate_sum(- 1), - 1);
+   
+}
 }

@@ -59,6 +59,12 @@ pub enum ExpectedOutcome {
     PerformanceWarning,
 }
 
+impl Default for AutomatedTestGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AutomatedTestGenerator {
     /// Creates a new automated test generator
     ///
@@ -386,6 +392,12 @@ pub struct QualityThresholds {
     pub min_performance_score: f64,
     pub max_error_rate: f64,
     pub min_code_quality: f64,
+}
+
+impl Default for QualityMetricsDashboard {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl QualityMetricsDashboard {
@@ -976,8 +988,8 @@ mod tests {
 
         // Validate integration results
         assert!(total_tests > 0);
-        assert!(coverage >= 0.0 && coverage <= 1.0);
-        assert!(error_rate >= 0.0 && error_rate <= 1.0);
+        assert!((0.0..=1.0).contains(&coverage));
+        assert!((0.0..=1.0).contains(&error_rate));
         assert!(report.latest_snapshot.is_some());
 
         // Quality should be reasonable for generated tests
@@ -998,7 +1010,7 @@ mod tests {
         let mut dashboard = QualityMetricsDashboard::new();
 
         // Simulate QA pipeline over time
-        let time_periods = vec![1000, 2000, 3000, 4000, 5000];
+        let time_periods = [1000, 2000, 3000, 4000, 5000];
 
         for (i, timestamp) in time_periods.iter().enumerate() {
             println!(

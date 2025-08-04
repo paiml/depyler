@@ -1,6 +1,31 @@
 use depyler_core::DepylerPipeline;
 use std::time::{Duration, Instant};
 
+// Helper functions for simulated test execution
+fn run_simulated_property_tests() {
+    let pipeline = DepylerPipeline::new();
+    let _result = pipeline.transpile("def prop_test(x: int) -> int: return x");
+    std::thread::sleep(Duration::from_millis(100)); // Simulate property test time
+}
+
+fn run_simulated_integration_tests() {
+    let pipeline = DepylerPipeline::new();
+    let _result = pipeline.transpile("def integration_test() -> int: return 42");
+    std::thread::sleep(Duration::from_millis(150)); // Simulate integration test time
+}
+
+fn run_simulated_edge_case_tests() {
+    let pipeline = DepylerPipeline::new();
+    let _result = pipeline.transpile("def edge_case_test(): pass");
+    std::thread::sleep(Duration::from_millis(75)); // Simulate edge case test time
+}
+
+fn run_simulated_example_tests() {
+    let pipeline = DepylerPipeline::new();
+    let _result = pipeline.transpile("def example_test(x: int) -> int: return x + 1");
+    std::thread::sleep(Duration::from_millis(125)); // Simulate example test time
+}
+
 #[cfg(test)]
 mod integration_benchmarks {
     use super::*;
@@ -208,7 +233,7 @@ def sample_function(x: int, y: int) -> int:
 
         for (function_count, code) in complexity_tests {
             let start = Instant::now();
-            let result = pipeline.transpile(&code);
+            let result = pipeline.transpile(code);
             let duration = start.elapsed();
 
             println!(
@@ -325,29 +350,4 @@ def sample_function(x: int, y: int) -> int:
             );
         }
     }
-}
-
-// Helper functions for simulated test execution
-fn run_simulated_property_tests() {
-    let pipeline = DepylerPipeline::new();
-    let _result = pipeline.transpile("def prop_test(x: int) -> int: return x");
-    std::thread::sleep(Duration::from_millis(100)); // Simulate property test time
-}
-
-fn run_simulated_integration_tests() {
-    let pipeline = DepylerPipeline::new();
-    let _result = pipeline.transpile("def integration_test() -> int: return 42");
-    std::thread::sleep(Duration::from_millis(150)); // Simulate integration test time
-}
-
-fn run_simulated_edge_case_tests() {
-    let pipeline = DepylerPipeline::new();
-    let _result = pipeline.transpile("def edge_case_test(): pass");
-    std::thread::sleep(Duration::from_millis(75)); // Simulate edge case test time
-}
-
-fn run_simulated_example_tests() {
-    let pipeline = DepylerPipeline::new();
-    let _result = pipeline.transpile("def example_test(x: int) -> int: return x + 1");
-    std::thread::sleep(Duration::from_millis(125)); // Simulate example test time
 }

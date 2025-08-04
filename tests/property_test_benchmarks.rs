@@ -11,7 +11,7 @@ mod property_test_benchmarks {
         let pipeline = DepylerPipeline::new();
 
         // Test simple transpilation performance
-        let simple_test_cases = vec![
+        let simple_test_cases = [
             "def add(a: int, b: int) -> int: return a + b",
             "def multiply(x: int, y: int) -> int: return x * y",
             "def factorial(n: int) -> int: return 1 if n <= 1 else n * factorial(n - 1)",
@@ -46,7 +46,7 @@ mod property_test_benchmarks {
     fn benchmark_hir_parsing_performance() {
         let pipeline = DepylerPipeline::new();
 
-        let parsing_test_cases = vec![
+        let parsing_test_cases = [
             // Simple function
             "def simple() -> int: return 42",
             // Function with control flow
