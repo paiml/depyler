@@ -36,21 +36,30 @@ and this project adheres to
   - Automatic application of high-confidence hints
   - Visual display of inference reasoning
   - Supports string, numeric, list, and boolean type inference
+- **Function Inlining**: Sophisticated inlining heuristics
+  - Automatic inlining of trivial and single-use functions
+  - Cost-benefit analysis for inlining decisions
+  - Configurable size and depth thresholds
+  - Safety checks for recursion and side effects
+  - Call graph analysis for optimization opportunities
 
 ### 🔧 Internal Architecture
 - New `Optimizer` struct with configurable passes
 - Enhanced error reporting system with `EnhancedError`
 - Type inference system with `TypeHintProvider`
+- Function inlining with `InliningAnalyzer`
 - Better integration of optimization pipeline
 - Comprehensive test coverage for all optimization passes
 
 ### 📈 Examples
 - Added `test_optimization.py` demonstrating optimization capabilities
 - Added `type_inference_demo.py` showcasing type inference
+- Added `test_inlining.py` demonstrating function inlining
 - Constants are propagated: `x = 5; y = x + 3` → `y = 8`
 - Dead code is eliminated: unused variables are removed
 - Arithmetic is pre-computed: `3.14 * 2.0` → `6.28`
 - Types are inferred: `text.upper()` → `text: &str`
+- Functions are inlined: `add_one(x)` → `x + 1`
 
 ## [1.6.0] - 2025-01-XX
 

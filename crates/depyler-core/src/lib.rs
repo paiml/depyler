@@ -9,6 +9,7 @@ pub mod error;
 pub mod error_reporting;
 pub mod generic_inference;
 pub mod hir;
+pub mod inlining;
 pub mod lambda_codegen;
 pub mod lambda_errors;
 pub mod lambda_inference;
