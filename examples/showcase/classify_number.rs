@@ -1,16 +1,18 @@
-# [doc = " Depyler: verified panic-free"] # [doc = " Depyler: proven to terminate"] pub fn classify_number (n : i32) -> String {
-    "Classify a number as zero, positive, or negative." . to_string ();
-    if (n == 0) {
-    return "zero" . to_string ();
+use std::borrow::Cow;
+    #[doc = "Classify a number as zero, positive, or negative."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn classify_number(n: i32)  -> String {
+    let mut _cse_temp_0  = (n == 0);
+    if _cse_temp_0 {
+    return "zero".to_string();
    
 }
 else {
-    if (n > 0) {
-    return "positive" . to_string ();
+    let mut _cse_temp_1  = (n>0);
+    if _cse_temp_1 {
+    return "positive".to_string();
    
 }
 else {
-    return "negative" . to_string ();
+    return "negative".to_string();
    
 }
 } }

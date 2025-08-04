@@ -140,7 +140,7 @@ fn prop_variable_assignment_preservation(var_name: String, value: i32) -> TestRe
                     .body
                     .iter()
                     .any(|stmt| matches!(stmt, depyler_core::hir::HirStmt::Assign { .. }));
-                TestResult::from_bool(has_assignment || func.body.len() >= 1) // May be optimized
+                TestResult::from_bool(has_assignment || !func.body.is_empty()) // May be optimized
             } else {
                 TestResult::failed()
             }

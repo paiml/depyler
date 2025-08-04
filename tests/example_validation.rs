@@ -128,7 +128,7 @@ def main_func(y: int) -> int:
     fn validate_annotation_preservation() {
         let pipeline = DepylerPipeline::new();
 
-        let annotated_examples = vec![
+        let annotated_examples = [
             r#"
 # @depyler: optimization_level = "aggressive"
 def optimized_func(x: int) -> int:
@@ -277,7 +277,7 @@ def string_func(s: str) -> str:
     fn validate_documentation_generation() {
         let pipeline = DepylerPipeline::new();
 
-        let documented_examples = vec![
+        let documented_examples = [
             r#"
 def documented_function(x: int) -> int:
     """This function doubles the input value."""

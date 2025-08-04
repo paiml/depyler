@@ -101,7 +101,7 @@ fn prop_optional_type_handling(has_none: bool, base_type: u8) -> TestResult {
 
     match pipeline.parse_to_hir(&python_source) {
         Ok(hir) => {
-            if let Some(func) = hir.functions.first() {
+            if let Some(_func) = hir.functions.first() {
                 // Should handle Optional types (may be mapped to Unknown for now)
                 TestResult::from_bool(true) // Accept any result for now
             } else {
@@ -182,9 +182,9 @@ fn prop_binary_operation_type_inference(op: u8, left_val: i32, right_val: i32) -
 
     match pipeline.parse_to_hir(&python_source) {
         Ok(hir) => {
-            if let Some(func) = hir.functions.first() {
+            if let Some(_func) = hir.functions.first() {
                 // Should have some return type
-                TestResult::from_bool(!matches!(func.ret_type, Type::Unknown) || true)
+                TestResult::from_bool(true) // Accept any return type for now
             } else {
                 TestResult::failed()
             }
@@ -221,7 +221,7 @@ fn prop_method_call_type_preservation(method: u8) -> TestResult {
         Ok(hir) => {
             if let Some(func) = hir.functions.first() {
                 // Method calls should be represented in HIR
-                let has_method_call = func.body.iter().any(|stmt| match stmt {
+                let _has_method_call = func.body.iter().any(|stmt| match stmt {
                     depyler_core::hir::HirStmt::Expr(expr) => {
                         matches!(expr, depyler_core::hir::HirExpr::MethodCall { .. })
                     }
@@ -230,7 +230,7 @@ fn prop_method_call_type_preservation(method: u8) -> TestResult {
                     }
                     _ => false,
                 });
-                TestResult::from_bool(has_method_call || true) // Accept for now
+                TestResult::from_bool(true) // Accept any result for now
             } else {
                 TestResult::failed()
             }

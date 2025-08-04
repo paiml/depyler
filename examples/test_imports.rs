@@ -19,7 +19,7 @@
 return result;
    
 }
-#[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn find_pattern<'b, 'a>(text: & 'a str, pattern: & 'b str)  -> Vec<String>{
+#[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn find_pattern<'a, 'b>(text: & 'a str, pattern: & 'b str)  -> Vec<String>{
     let mut regex = regex::Regex::new(pattern).unwrap();
     return regex.find_iter(text).map(| m | m.as_str().to_string()).collect::<Vec<String>>()
 }

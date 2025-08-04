@@ -31,6 +31,12 @@ pub struct BranchCoverageData {
     pub branch_conditions: HashMap<String, Vec<String>>,
 }
 
+impl Default for CodePathCoverageAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CodePathCoverageAnalyzer {
     /// Creates a new code path coverage analyzer
     ///
@@ -279,6 +285,12 @@ pub struct MutationCoverageResult {
     pub fault_detection_rate: f64,
 }
 
+impl Default for MutationCoverageIntegration {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MutationCoverageIntegration {
     /// Creates a new mutation coverage integration analyzer
     ///
@@ -450,6 +462,12 @@ pub struct ConcurrencyTestResult {
     pub thread_safety_validated: bool,
 }
 
+impl Default for ConcurrencyTester {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConcurrencyTester {
     /// Creates a new concurrency tester
     ///
@@ -619,6 +637,12 @@ pub struct ResourceExhaustionResult {
     pub failure_threshold: Option<usize>,
     pub graceful_degradation: bool,
     pub recovery_successful: bool,
+}
+
+impl Default for ResourceExhaustionTester {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ResourceExhaustionTester {
