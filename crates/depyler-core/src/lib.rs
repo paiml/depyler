@@ -17,9 +17,11 @@ pub mod lambda_optimizer;
 pub mod lambda_testing;
 pub mod lambda_types;
 pub mod lifetime_analysis;
+pub mod migration_suggestions;
 pub mod module_mapper;
 pub mod optimization;
 pub mod optimizer;
+pub mod performance_warnings;
 pub mod rust_gen;
 pub mod string_optimization;
 pub mod test_generation;
@@ -185,7 +187,29 @@ impl DepylerPipeline {
 
         // Apply the new general-purpose optimizer
         let mut optimizer = optimizer::Optimizer::new(optimizer::OptimizerConfig::default());
-        let optimized_program = optimizer.optimize_program(hir_program);
+        let optimized_program = optimizer.optimize_program(hir_program.clone());
+
+        // Run migration suggestions analysis
+        if self.analyzer.metrics_enabled {
+            let mut migration_analyzer = migration_suggestions::MigrationAnalyzer::new(
+                migration_suggestions::MigrationConfig::default()
+            );
+            let suggestions = migration_analyzer.analyze_program(&hir_program);
+            if !suggestions.is_empty() {
+                eprintln!("{}", migration_analyzer.format_suggestions(&suggestions));
+            }
+        }
+
+        // Run performance warnings analysis
+        if self.analyzer.metrics_enabled {
+            let mut perf_analyzer = performance_warnings::PerformanceAnalyzer::new(
+                performance_warnings::PerformanceConfig::default()
+            );
+            let warnings = perf_analyzer.analyze_program(&hir_program);
+            if !warnings.is_empty() {
+                eprintln!("{}", perf_analyzer.format_warnings(&warnings));
+            }
+        }
 
         // Convert back to HirModule
         let optimized_hir = hir::HirModule {
