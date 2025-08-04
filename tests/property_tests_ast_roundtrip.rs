@@ -10,7 +10,7 @@ fn prop_ast_hir_roundtrip(python_source: String) -> TestResult {
     }
 
     let pipeline = DepylerPipeline::new();
-    
+
     // Use the public API to parse to HIR
     match pipeline.parse_to_hir(&python_source) {
         Ok(_hir) => {
@@ -28,25 +28,22 @@ fn prop_function_name_preservation(func_name: String, params: Vec<String>) -> Te
     if func_name.is_empty() || !func_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
         return TestResult::discard();
     }
-    
+
     if params.len() > 3 {
         return TestResult::discard();
     }
-    
+
     // Create a simple function
     let param_list = if params.is_empty() {
         String::new()
     } else {
         params.join(": int, ") + ": int"
     };
-    
-    let python_source = format!(
-        "def {}({}) -> int:\n    return 42",
-        func_name, param_list
-    );
+
+    let python_source = format!("def {}({}) -> int:\n    return 42", func_name, param_list);
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.parse_to_hir(&python_source) {
         Ok(hir) => {
             if let Some(func) = hir.functions.first() {
@@ -80,7 +77,7 @@ fn prop_type_annotation_preservation(return_type: String) -> TestResult {
     );
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.parse_to_hir(&python_source) {
         Ok(hir) => {
             if let Some(func) = hir.functions.first() {
@@ -103,14 +100,15 @@ fn prop_control_flow_preservation(condition: i32, then_val: i32, else_val: i32) 
     );
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.parse_to_hir(&python_source) {
         Ok(hir) => {
             if let Some(func) = hir.functions.first() {
                 // Should have an If statement in the body
-                let has_if = func.body.iter().any(|stmt| {
-                    matches!(stmt, depyler_core::hir::HirStmt::If { .. })
-                });
+                let has_if = func
+                    .body
+                    .iter()
+                    .any(|stmt| matches!(stmt, depyler_core::hir::HirStmt::If { .. }));
                 TestResult::from_bool(has_if)
             } else {
                 TestResult::failed()
@@ -133,14 +131,15 @@ fn prop_variable_assignment_preservation(var_name: String, value: i32) -> TestRe
     );
 
     let pipeline = DepylerPipeline::new();
-    
+
     match pipeline.parse_to_hir(&python_source) {
         Ok(hir) => {
             if let Some(func) = hir.functions.first() {
                 // Should have an assignment statement
-                let has_assignment = func.body.iter().any(|stmt| {
-                    matches!(stmt, depyler_core::hir::HirStmt::Assign { .. })
-                });
+                let has_assignment = func
+                    .body
+                    .iter()
+                    .any(|stmt| matches!(stmt, depyler_core::hir::HirStmt::Assign { .. }));
                 TestResult::from_bool(has_assignment || func.body.len() >= 1) // May be optimized
             } else {
                 TestResult::failed()
