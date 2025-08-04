@@ -1,10 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
 use depyler::{
-    analyze_command, check_command, debug_command, inspect_command, interactive_command, 
-    lambda_analyze_command, lambda_build_command, lambda_convert_command, lambda_deploy_command, 
-    lambda_test_command, lsp_command, quality_check_command, transpile_command, Cli, Commands, 
-    LambdaCommands,
+    analyze_command, check_command, debug_command, docs_cmd::handle_docs_command, inspect_command,
+    interactive_command, lambda_analyze_command, lambda_build_command, lambda_convert_command,
+    lambda_deploy_command, lambda_test_command, lsp_command, profile_cmd::handle_profile_command,
+    quality_check_command, transpile_command, Cli, Commands, LambdaCommands,
 };
 
 fn main() -> Result<()> {
@@ -102,11 +102,70 @@ fn main() -> Result<()> {
                 lambda_deploy_command(input, region, function_name, role, dry_run)?;
             }
         },
-        Commands::Lsp { port, verbose: lsp_verbose } => {
+        Commands::Lsp {
+            port,
+            verbose: lsp_verbose,
+        } => {
             lsp_command(port, lsp_verbose)?;
         }
-        Commands::Debug { tips, gen_script, debugger, source, output } => {
+        Commands::Debug {
+            tips,
+            gen_script,
+            debugger,
+            source,
+            output,
+        } => {
             debug_command(tips, gen_script, debugger, source, output)?;
+        }
+        Commands::Docs {
+            input,
+            output,
+            format,
+            include_source,
+            examples,
+            migration_notes,
+            performance_notes,
+            api_reference,
+            usage_guide,
+            index,
+        } => {
+            let args = depyler::docs_cmd::DocsArgs {
+                input,
+                output,
+                format,
+                include_source,
+                examples,
+                migration_notes,
+                performance_notes,
+                api_reference,
+                usage_guide,
+                index,
+            };
+            handle_docs_command(args)?;
+        }
+        Commands::Profile {
+            file,
+            count_instructions,
+            track_allocations,
+            detect_hot_paths,
+            hot_path_threshold,
+            flamegraph,
+            hints,
+            flamegraph_output,
+            perf_output,
+        } => {
+            let args = depyler::profile_cmd::ProfileArgs {
+                file,
+                count_instructions,
+                track_allocations,
+                detect_hot_paths,
+                hot_path_threshold,
+                flamegraph,
+                hints,
+                flamegraph_output,
+                perf_output,
+            };
+            handle_profile_command(args)?;
         }
     }
 

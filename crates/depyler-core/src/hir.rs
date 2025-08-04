@@ -13,6 +13,42 @@ macro_rules! params {
     };
 }
 
+/// High-level Intermediate Representation of a Python module
+///
+/// `HirModule` represents a complete Python module after semantic analysis and type inference.
+/// It contains all the declarations (functions, classes, imports, etc.) in a form that's
+/// optimized for transpilation to Rust.
+///
+/// # Examples
+///
+/// Creating a HIR module manually:
+///
+/// ```rust
+/// use depyler_core::hir::{HirModule, HirFunction, Type, FunctionProperties};
+/// use depyler_annotations::TranspilationAnnotations;
+/// use smallvec::smallvec;
+///
+/// let function = HirFunction {
+///     name: "example".to_string(),
+///     params: smallvec![("x".to_string(), Type::Int)],
+///     ret_type: Type::Int,
+///     body: vec![],
+///     properties: FunctionProperties::default(),
+///     annotations: TranspilationAnnotations::default(),
+///     docstring: Some("Example function".to_string()),
+/// };
+///
+/// let module = HirModule {
+///     functions: vec![function],
+///     imports: vec![],
+///     type_aliases: vec![],
+///     protocols: vec![],
+///     classes: vec![],
+/// };
+///
+/// assert_eq!(module.functions.len(), 1);
+/// assert_eq!(module.functions[0].name, "example");
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HirModule {
     pub functions: Vec<HirFunction>,
@@ -23,6 +59,35 @@ pub struct HirModule {
 }
 
 /// Simplified program representation for optimization passes
+///
+/// `HirProgram` is a streamlined version of `HirModule` used during optimization passes.
+/// It focuses on the core elements needed for analysis and transformation.
+///
+/// # Examples
+///
+/// ```rust
+/// use depyler_core::hir::{HirProgram, HirFunction, Type, FunctionProperties};
+/// use depyler_annotations::TranspilationAnnotations;
+/// use smallvec::smallvec;
+///
+/// let program = HirProgram {
+///     functions: vec![
+///         HirFunction {
+///             name: "main".to_string(),
+///             params: smallvec![],
+///             ret_type: Type::None,
+///             body: vec![],
+///             properties: FunctionProperties::default(),
+///             annotations: TranspilationAnnotations::default(),
+///             docstring: None,
+///         }
+///     ],
+///     classes: vec![],
+///     imports: vec![],
+/// };
+///
+/// assert_eq!(program.functions.len(), 1);
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HirProgram {
     pub functions: Vec<HirFunction>,

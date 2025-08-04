@@ -11,6 +11,55 @@ pub use converters::{ExprConverter, StmtConverter};
 pub use properties::FunctionAnalyzer;
 pub use type_extraction::TypeExtractor;
 
+/// Bridge between Python AST and Depyler HIR
+///
+/// The `AstBridge` converts Python AST nodes to Depyler's High-level Intermediate Representation (HIR).
+/// This is a critical component that handles the semantic analysis and type inference during transpilation.
+///
+/// # Examples
+///
+/// Basic usage with a simple function:
+///
+/// ```rust
+/// use depyler_core::ast_bridge::AstBridge;
+/// use rustpython_parser::{parse, Mode};
+///
+/// let python_code = r#"
+/// def add(a: int, b: int) -> int:
+///     return a + b
+/// "#;
+///
+/// // Parse Python code to AST
+/// let ast = parse(python_code, Mode::Module, "<test>").unwrap();
+/// 
+/// // Convert to HIR
+/// let bridge = AstBridge::new();
+/// let hir = bridge.python_to_hir(ast).unwrap();
+///
+/// assert_eq!(hir.functions.len(), 1);
+/// assert_eq!(hir.functions[0].name, "add");
+/// assert_eq!(hir.functions[0].params.len(), 2);
+/// ```
+///
+/// With source tracking for better error reporting:
+///
+/// ```rust
+/// use depyler_core::ast_bridge::AstBridge;
+/// use rustpython_parser::{parse, Mode};
+///
+/// let python_code = r#"
+/// def greet(name: str) -> str:
+///     return f"Hello, {name}!"
+/// "#;
+///
+/// let ast = parse(python_code, Mode::Module, "<example>").unwrap();
+/// 
+/// let bridge = AstBridge::new()
+///     .with_source(python_code.to_string());
+/// 
+/// let hir = bridge.python_to_hir(ast).unwrap();
+/// assert_eq!(hir.functions[0].name, "greet");
+/// ```
 pub struct AstBridge {
     source_code: Option<String>,
     annotation_extractor: AnnotationExtractor,
@@ -24,6 +73,16 @@ impl Default for AstBridge {
 }
 
 impl AstBridge {
+    /// Creates a new AST bridge with default configuration
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use depyler_core::ast_bridge::AstBridge;
+    ///
+    /// let bridge = AstBridge::new();
+    /// // Ready to convert Python AST to HIR
+    /// ```
     pub fn new() -> Self {
         Self {
             source_code: None,
@@ -32,11 +91,68 @@ impl AstBridge {
         }
     }
 
+    /// Sets the source code for better error reporting and debugging
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The original Python source code
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use depyler_core::ast_bridge::AstBridge;
+    ///
+    /// let python_code = "def hello(): return 'world'";
+    /// let bridge = AstBridge::new()
+    ///     .with_source(python_code.to_string());
+    /// ```
     pub fn with_source(mut self, source: String) -> Self {
         self.source_code = Some(source);
         self
     }
 
+    /// Converts a Python AST module to Depyler HIR
+    ///
+    /// This is the main entry point for AST to HIR conversion. It handles semantic analysis,
+    /// type inference, and creates the intermediate representation used by the transpiler.
+    ///
+    /// # Arguments
+    ///
+    /// * `module` - The Python AST module to convert
+    ///
+    /// # Returns
+    ///
+    /// Returns a `HirModule` containing functions, classes, and other declarations,
+    /// or an error if the conversion fails.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use depyler_core::ast_bridge::AstBridge;
+    /// use rustpython_parser::{parse, Mode};
+    ///
+    /// let python_code = r#"
+    /// def fibonacci(n: int) -> int:
+    ///     if n <= 1:
+    ///         return n
+    ///     return fibonacci(n - 1) + fibonacci(n - 2)
+    /// "#;
+    ///
+    /// let ast = parse(python_code, Mode::Module, "<test>").unwrap();
+    /// let bridge = AstBridge::new();
+    /// let hir = bridge.python_to_hir(ast).unwrap();
+    ///
+    /// assert_eq!(hir.functions.len(), 1);
+    /// assert_eq!(hir.functions[0].name, "fibonacci");
+    /// assert!(hir.functions[0].body.len() > 0);
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The AST contains unsupported Python constructs
+    /// - Type annotations are malformed
+    /// - Function signatures are invalid
     pub fn python_to_hir(&self, module: ast::Mod) -> Result<HirModule> {
         match module {
             ast::Mod::Module(m) => self.convert_module(m),
@@ -866,6 +982,28 @@ impl AstBridge {
 }
 
 // Keep the old function for backwards compatibility
+/// Convenience function to convert Python AST to HIR with default settings
+///
+/// This is a shorthand for `AstBridge::new().python_to_hir(module)`.
+/// Use this when you don't need custom configuration or source code tracking.
+///
+/// # Arguments
+///
+/// * `module` - The Python AST module to convert
+///
+/// # Examples
+///
+/// ```rust
+/// use depyler_core::ast_bridge::python_to_hir;
+/// use rustpython_parser::{parse, Mode};
+///
+/// let python_code = "def simple(): return 42";
+/// let ast = parse(python_code, Mode::Module, "<test>").unwrap();
+/// let hir = python_to_hir(ast).unwrap();
+///
+/// assert_eq!(hir.functions.len(), 1);
+/// assert_eq!(hir.functions[0].name, "simple");
+/// ```
 pub fn python_to_hir(module: ast::Mod) -> Result<HirModule> {
     AstBridge::new().python_to_hir(module)
 }

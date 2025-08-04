@@ -1,8 +1,8 @@
-use crate::hir::{HirExpr, HirFunction, HirStmt, Type};
 use crate::error_reporting::EnhancedError;
+use crate::hir::{HirExpr, HirFunction, HirStmt, Type};
 use anyhow::Result;
-use std::collections::HashMap;
 use colored::Colorize;
+use std::collections::HashMap;
 
 /// Type inference hints provider
 pub struct TypeHintProvider {
@@ -55,9 +55,19 @@ enum TypeConstraint {
     /// Variable must be compatible with type
     Compatible { var: String, ty: Type },
     /// Variable used in operation requiring specific type
-    OperatorConstraint { var: String, op: String, required: Type },
+    #[allow(dead_code)]
+    OperatorConstraint {
+        var: String,
+        op: String,
+        required: Type,
+    },
     /// Variable passed to function expecting type
-    ArgumentConstraint { var: String, func: String, param_idx: usize, expected: Type },
+    ArgumentConstraint {
+        _var: String,
+        _func: String,
+        _param_idx: usize,
+        _expected: Type,
+    },
     /// Variable returned from function
     ReturnConstraint { var: String, ty: Type },
 }
@@ -73,7 +83,14 @@ enum UsagePattern {
     /// Used as container
     Container,
     /// Used as callable
+    #[allow(dead_code)]
     Callable,
+}
+
+impl Default for TypeHintProvider {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TypeHintProvider {
@@ -166,7 +183,7 @@ impl TypeHintProvider {
     /// Format type hints for display
     pub fn format_hints(&self, hints: &[TypeHint]) -> String {
         let mut output = String::new();
-        
+
         for hint in hints {
             let confidence_color = match hint.confidence {
                 Confidence::Certain => "green",
@@ -180,11 +197,12 @@ impl TypeHintProvider {
                 HintTarget::Return => "return type".to_string(),
                 HintTarget::Variable(name) => format!("variable '{}'", name),
             };
-            
+
             output.push_str(&format!(
                 "{} {} for {} {} ({})\n",
                 "Hint:".bright_blue(),
-                self.type_to_annotation(&hint.suggested_type).color(confidence_color),
+                self.type_to_annotation(&hint.suggested_type)
+                    .color(confidence_color),
                 target_str,
                 format!("[{:?}]", hint.confidence).dimmed(),
                 hint.reason.italic()
@@ -212,15 +230,21 @@ impl TypeHintProvider {
 
     fn analyze_stmt(&mut self, stmt: &HirStmt) -> Result<()> {
         match stmt {
-            HirStmt::Assign { target, value } => {
-                if let crate::hir::AssignTarget::Symbol(var_name) = target {
-                    self.analyze_assignment(var_name, value)?;
-                }
+            HirStmt::Assign {
+                target: crate::hir::AssignTarget::Symbol(var_name),
+                value,
+            } => {
+                self.analyze_assignment(var_name, value)?;
             }
+            HirStmt::Assign { .. } => {}
             HirStmt::Return(Some(expr)) => {
                 self.analyze_return(expr)?;
             }
-            HirStmt::If { condition, then_body, else_body } => {
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
                 self.analyze_expr(condition)?;
                 self.analyze_body(then_body)?;
                 if let Some(else_stmts) = else_body {
@@ -251,7 +275,11 @@ impl TypeHintProvider {
             HirExpr::Call { func, args } => {
                 self.analyze_call(func, args)?;
             }
-            HirExpr::MethodCall { object, method, args } => {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+            } => {
                 self.analyze_method_call(object, method, args)?;
             }
             HirExpr::Index { base, index } => {
@@ -307,10 +335,12 @@ impl TypeHintProvider {
     fn analyze_return(&mut self, expr: &HirExpr) -> Result<()> {
         let return_type = self.infer_expr_type(expr);
         if let Some(func_name) = &self.context.current_function {
-            self.context.constraints.push(TypeConstraint::ReturnConstraint {
-                var: func_name.clone(),
-                ty: return_type,
-            });
+            self.context
+                .constraints
+                .push(TypeConstraint::ReturnConstraint {
+                    var: func_name.clone(),
+                    ty: return_type,
+                });
         }
         self.analyze_expr(expr)?;
         Ok(())
@@ -343,7 +373,12 @@ impl TypeHintProvider {
         Ok(())
     }
 
-    fn analyze_binary_op(&mut self, left: &HirExpr, right: &HirExpr, op: crate::hir::BinOp) -> Result<()> {
+    fn analyze_binary_op(
+        &mut self,
+        left: &HirExpr,
+        right: &HirExpr,
+        op: crate::hir::BinOp,
+    ) -> Result<()> {
         use crate::hir::BinOp;
 
         // Record numeric usage patterns
@@ -382,12 +417,14 @@ impl TypeHintProvider {
                         "bool" => Type::Bool,
                         _ => Type::Unknown,
                     };
-                    self.context.constraints.push(TypeConstraint::ArgumentConstraint {
-                        var: var.to_string(),
-                        func: func.to_string(),
-                        param_idx: 0,
-                        expected: target_type,
-                    });
+                    self.context
+                        .constraints
+                        .push(TypeConstraint::ArgumentConstraint {
+                            _var: var.to_string(),
+                            _func: func.to_string(),
+                            _param_idx: 0,
+                            _expected: target_type,
+                        });
                 }
             }
             _ => {}
@@ -399,10 +436,25 @@ impl TypeHintProvider {
         Ok(())
     }
 
-    fn analyze_method_call(&mut self, object: &HirExpr, method: &str, args: &[HirExpr]) -> Result<()> {
+    fn analyze_method_call(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<()> {
         if let HirExpr::Var(var) = object {
             // String methods
-            if ["upper", "lower", "strip", "split", "replace", "startswith", "endswith"].contains(&method) {
+            if [
+                "upper",
+                "lower",
+                "strip",
+                "split",
+                "replace",
+                "startswith",
+                "endswith",
+            ]
+            .contains(&method)
+            {
                 self.record_usage_pattern(var, UsagePattern::StringLike);
                 self.context.constraints.push(TypeConstraint::Compatible {
                     var: var.to_string(),
@@ -433,7 +485,8 @@ impl TypeHintProvider {
     }
 
     fn record_usage_pattern(&mut self, var: &str, pattern: UsagePattern) {
-        self.context.usage_patterns
+        self.context
+            .usage_patterns
             .entry(var.to_string())
             .or_default()
             .push(pattern);
@@ -474,7 +527,9 @@ impl TypeHintProvider {
                         reasons.push("string methods".to_string());
                     }
                     UsagePattern::Iterator => {
-                        let (count, reasons) = type_votes.entry(Type::List(Box::new(Type::Unknown))).or_default();
+                        let (count, reasons) = type_votes
+                            .entry(Type::List(Box::new(Type::Unknown)))
+                            .or_default();
                         *count += 1;
                         reasons.push("used as iterator".to_string());
                     }
@@ -484,7 +539,8 @@ impl TypeHintProvider {
         }
 
         // Pick the type with most evidence
-        let (suggested_type, (score, reasons)) = type_votes.into_iter()
+        let (suggested_type, (score, reasons)) = type_votes
+            .into_iter()
             .max_by_key(|(_, (count, _))| *count)?;
 
         let confidence = match score {
@@ -509,19 +565,25 @@ impl TypeHintProvider {
         for constraint in &self.context.constraints {
             if let TypeConstraint::ReturnConstraint { var, ty } = constraint {
                 if var == func_name && !matches!(ty, Type::Unknown) {
-                    return_types.entry(ty.clone())
+                    return_types
+                        .entry(ty.clone())
                         .or_default()
                         .push("explicit return".to_string());
                 }
             }
         }
 
-        let (suggested_type, reasons) = return_types.into_iter()
+        let (suggested_type, reasons) = return_types
+            .into_iter()
             .max_by_key(|(_, reasons)| reasons.len())?;
 
         Some(TypeHint {
             suggested_type,
-            confidence: if reasons.len() > 1 { Confidence::High } else { Confidence::Medium },
+            confidence: if reasons.len() > 1 {
+                Confidence::High
+            } else {
+                Confidence::Medium
+            },
             reason: reasons.join(", "),
             source_location: None,
             target: HintTarget::Return,
@@ -536,18 +598,25 @@ impl TypeHintProvider {
             match pattern {
                 UsagePattern::Numeric => *type_score.entry(Type::Int).or_insert(0) += 1,
                 UsagePattern::StringLike => *type_score.entry(Type::String).or_insert(0) += 2,
-                UsagePattern::Container => *type_score.entry(Type::List(Box::new(Type::Unknown))).or_insert(0) += 1,
+                UsagePattern::Container => {
+                    *type_score
+                        .entry(Type::List(Box::new(Type::Unknown)))
+                        .or_insert(0) += 1
+                }
                 _ => {}
             }
         }
 
-        let (suggested_type, score) = type_score.into_iter()
-            .max_by_key(|(_, score)| *score)?;
+        let (suggested_type, score) = type_score.into_iter().max_by_key(|(_, score)| *score)?;
 
         Some(TypeHint {
             suggested_type,
-            confidence: if score > 2 { Confidence::High } else { Confidence::Medium },
-            reason: format!("usage patterns suggest this type"),
+            confidence: if score > 2 {
+                Confidence::High
+            } else {
+                Confidence::Medium
+            },
+            reason: "usage patterns suggest this type".to_string(),
             source_location: None,
             target: HintTarget::Variable(_var_name.to_string()),
         })
@@ -604,25 +673,31 @@ impl TypeHintProvider {
     }
 
     fn type_to_annotation(&self, ty: &Type) -> String {
-        match ty {
-            Type::Int => "int".to_string(),
-            Type::Float => "float".to_string(),
-            Type::String => "str".to_string(),
-            Type::Bool => "bool".to_string(),
-            Type::None => "None".to_string(),
-            Type::List(elem) => format!("list[{}]", self.type_to_annotation(elem)),
-            Type::Dict(k, v) => format!("dict[{}, {}]", self.type_to_annotation(k), self.type_to_annotation(v)),
-            Type::Optional(inner) => format!("Optional[{}]", self.type_to_annotation(inner)),
-            Type::Tuple(types) => {
-                let type_strs: Vec<String> = types.iter()
-                    .map(|t| self.type_to_annotation(t))
-                    .collect();
-                format!("tuple[{}]", type_strs.join(", "))
-            }
-            Type::Custom(name) => name.clone(),
-            Type::Unknown => "Any".to_string(),
-            _ => "Any".to_string(),
+        type_to_annotation_inner(ty)
+    }
+}
+
+fn type_to_annotation_inner(ty: &Type) -> String {
+    match ty {
+        Type::Int => "int".to_string(),
+        Type::Float => "float".to_string(),
+        Type::String => "str".to_string(),
+        Type::Bool => "bool".to_string(),
+        Type::None => "None".to_string(),
+        Type::List(elem) => format!("list[{}]", type_to_annotation_inner(elem)),
+        Type::Dict(k, v) => format!(
+            "dict[{}, {}]",
+            type_to_annotation_inner(k),
+            type_to_annotation_inner(v)
+        ),
+        Type::Optional(inner) => format!("Optional[{}]", type_to_annotation_inner(inner)),
+        Type::Tuple(types) => {
+            let type_strs: Vec<String> = types.iter().map(type_to_annotation_inner).collect();
+            format!("tuple[{}]", type_strs.join(", "))
         }
+        Type::Custom(name) => name.clone(),
+        Type::Unknown => "Any".to_string(),
+        _ => "Any".to_string(),
     }
 }
 
@@ -669,13 +744,11 @@ mod tests {
                 ("b".to_string(), Type::Unknown),
             ],
             ret_type: Type::Unknown,
-            body: vec![
-                HirStmt::Return(Some(HirExpr::Binary {
-                    op: BinOp::Add,
-                    left: Box::new(HirExpr::Var("a".to_string())),
-                    right: Box::new(HirExpr::Var("b".to_string())),
-                })),
-            ],
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("a".to_string())),
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }))],
             properties: FunctionProperties::default(),
             annotations: Default::default(),
             docstring: None,
@@ -686,7 +759,9 @@ mod tests {
 
         // Should suggest numeric types for parameters used in addition
         let param_hints = provider.parameter_hints.get("add_numbers").unwrap();
-        assert!(param_hints.iter().any(|h| matches!(h.suggested_type, Type::Int)));
+        assert!(param_hints
+            .iter()
+            .any(|h| matches!(h.suggested_type, Type::Int)));
     }
 
     #[test]
@@ -697,13 +772,11 @@ mod tests {
             name: "process_text".to_string(),
             params: smallvec![("text".to_string(), Type::Unknown)],
             ret_type: Type::Unknown,
-            body: vec![
-                HirStmt::Expr(HirExpr::MethodCall {
-                    object: Box::new(HirExpr::Var("text".to_string())),
-                    method: "upper".to_string(),
-                    args: vec![],
-                }),
-            ],
+            body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("text".to_string())),
+                method: "upper".to_string(),
+                args: vec![],
+            })],
             properties: FunctionProperties::default(),
             annotations: Default::default(),
             docstring: None,
@@ -713,7 +786,9 @@ mod tests {
 
         // Should infer string type from method usage
         let param_hints = provider.parameter_hints.get("process_text").unwrap();
-        assert!(param_hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
+        assert!(param_hints
+            .iter()
+            .any(|h| matches!(h.suggested_type, Type::String)));
     }
 
     #[test]
@@ -740,7 +815,7 @@ mod tests {
         };
 
         let _hints = provider.analyze_function(&func).unwrap();
-        
+
         // Should have high confidence about literal assignments
         // Note: variable_types might not be exposed, so we'll check the provider directly
         // or trust that the hints are returned correctly
@@ -750,7 +825,7 @@ mod tests {
     #[test]
     fn test_format_hints() {
         let provider = TypeHintProvider::new();
-        
+
         let hints = vec![
             TypeHint {
                 suggested_type: Type::Int,
@@ -780,10 +855,7 @@ mod tests {
             extract_variable_from_error("undefined variable 'test_var'"),
             Some("test_var".to_string())
         );
-        
-        assert_eq!(
-            extract_variable_from_error("no variable here"),
-            None
-        );
+
+        assert_eq!(extract_variable_from_error("no variable here"), None);
     }
 }

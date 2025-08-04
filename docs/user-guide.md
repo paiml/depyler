@@ -128,6 +128,98 @@ depyler validate <output.rs>
 --docstrings            # Convert docstrings to Rust docs
 ```
 
+## Developer Tools Integration
+
+### Language Server Protocol (LSP)
+
+Depyler provides full IDE integration through LSP:
+
+```bash
+# Start the language server
+depyler lsp
+
+# Or configure your IDE to use it automatically
+# VSCode: Install the Depyler extension
+# Neovim: Add to your LSP config
+# IntelliJ: Use the Depyler plugin
+```
+
+Features:
+
+- **Symbol Navigation**: Go-to-definition, find references
+- **Hover Information**: Type details and documentation on hover
+- **Code Completions**: Context-aware completions
+- **Real-time Diagnostics**: Instant error detection
+- **Code Actions**: Quick fixes and refactoring suggestions
+
+### Debugging Support
+
+Depyler generates debug information for easier troubleshooting:
+
+```bash
+# Transpile with debug information
+depyler transpile main.py --debug --source-map
+
+# View debugging tips
+depyler debug --tips
+
+# Generate debugger scripts
+depyler debug --generate-scripts main.rs
+```
+
+Debug levels:
+
+- **None**: No debug information (production)
+- **Basic**: Line number mapping from Python to Rust
+- **Full**: Complete variable state tracking
+
+### Performance Profiling
+
+Analyze performance characteristics of your Python code:
+
+```bash
+# Basic profiling
+depyler profile main.py
+
+# Generate flamegraph
+depyler profile main.py --flamegraph
+
+# Compare Python vs Rust performance
+depyler profile main.py --compare
+
+# Export profiling data
+depyler profile main.py --export profile.json
+```
+
+Profiling features:
+
+- **Hot Path Detection**: Identify performance bottlenecks
+- **Memory Analysis**: Track allocations and usage
+- **Execution Time**: Function-level timing
+- **Performance Predictions**: Estimate Rust performance gains
+
+### Documentation Generation
+
+Automatically generate documentation from Python code:
+
+```bash
+# Generate API documentation
+depyler docs main.py --output ./docs
+
+# Generate full documentation suite
+depyler docs main.py --level full --format html
+
+# Include usage examples
+depyler docs main.py --include-examples
+```
+
+Documentation options:
+
+- **API Reference**: Function signatures and docstrings
+- **Usage Guide**: How to use the transpiled code
+- **Migration Notes**: Python to Rust transition guide
+- **Module Overview**: Dependency analysis and structure
+
 ## Language Support Matrix
 
 ### Supported Python Features ✅
@@ -482,9 +574,10 @@ pub fn process_data(data: Vec<HashMap<String, f64>>) -> HashMap<String, f64> {
 
 ## Running the Interactive Playground (🧪 EXPERIMENTAL - UNSTABLE)
 
-> ⚠️ **WARNING**: The Interactive Playground is currently **EXPERIMENTAL** and **UNSTABLE**. 
-> It is not recommended for production use. Features may change or break without notice.
-> Use `DEPYLER_EXPERIMENTAL=true depyler playground` to acknowledge this status.
+> ⚠️ **WARNING**: The Interactive Playground is currently **EXPERIMENTAL** and
+> **UNSTABLE**. It is not recommended for production use. Features may change or
+> break without notice. Use `DEPYLER_EXPERIMENTAL=true depyler playground` to
+> acknowledge this status.
 
 The Depyler Interactive Playground provides a zero-configuration, browser-based
 environment for exploring Python-to-Rust transpilation. It's the fastest way to
@@ -804,5 +897,4 @@ For full features, use the Depyler CLI tool.
 ---
 
 This guide will continue to evolve as Depyler develops. For the latest
-information, see our [documentation](../) and
-[release notes](../CHANGELOG.md).
+information, see our [documentation](../) and [release notes](../CHANGELOG.md).

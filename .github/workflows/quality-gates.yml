@@ -1,0 +1,230 @@
+name: Quality Gates
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  # Quality thresholds
+  MIN_TEST_COVERAGE: 70
+  MIN_MUTATION_SCORE: 60
+  MAX_ERROR_RATE: 15
+  MIN_DOC_COVERAGE: 80
+
+jobs:
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      
+      - name: Run clippy with strict lints
+        run: |
+          cargo clippy --workspace --all-features -- \
+            -D warnings \
+            -D clippy::all \
+            -D clippy::pedantic \
+            -D clippy::nursery \
+            -A clippy::missing_const_for_fn \
+            -A clippy::module_name_repetitions \
+            -A clippy::must_use_candidate
+      
+      - name: Check for unsafe code
+        run: |
+          if grep -r "unsafe" --include="*.rs" src/; then
+            echo "::warning::Found unsafe code blocks"
+          fi
+      
+      - name: Check documentation
+        run: |
+          cargo doc --workspace --no-deps --all-features
+          cargo test --doc --workspace
+
+  test-coverage-gate:
+    name: Test Coverage Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust and tarpaulin
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+      
+      - name: Generate coverage report
+        run: |
+          cargo tarpaulin --workspace --out Xml --output-dir coverage \
+            --exclude-files "**/tests/*" \
+            --ignore-panics \
+            --timeout 300
+      
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(grep -oP 'line-rate="\K[0-9.]+' coverage/cobertura.xml | head -1)
+          COVERAGE_PCT=$(echo "$COVERAGE * 100" | bc)
+          
+          echo "Test coverage: $COVERAGE_PCT%"
+          echo "coverage=$COVERAGE_PCT" >> $GITHUB_OUTPUT
+          
+          if (( $(echo "$COVERAGE_PCT < $MIN_TEST_COVERAGE" | bc -l) )); then
+            echo "::error::Test coverage $COVERAGE_PCT% is below threshold of $MIN_TEST_COVERAGE%"
+            exit 1
+          fi
+      
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage/cobertura.xml
+          fail_ci_if_error: false
+
+  mutation-testing-gate:
+    name: Mutation Testing Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Run mutation tests
+        run: |
+          cargo test --test mutation_testing -- --nocapture | tee mutation-results.txt
+      
+      - name: Check mutation score
+        run: |
+          # Extract mutation score from results
+          MUTATION_SCORE=$(grep -oP 'Overall mutation score: \K[0-9.]+' mutation-results.txt || echo "0.0")
+          MUTATION_PCT=$(echo "$MUTATION_SCORE * 100" | bc)
+          
+          echo "Mutation score: $MUTATION_PCT%"
+          echo "mutation_score=$MUTATION_PCT" >> $GITHUB_OUTPUT
+          
+          if (( $(echo "$MUTATION_PCT < $MIN_MUTATION_SCORE" | bc -l) )); then
+            echo "::warning::Mutation score $MUTATION_PCT% is below recommended threshold of $MIN_MUTATION_SCORE%"
+          fi
+
+  quality-metrics-gate:
+    name: Quality Metrics Gate
+    runs-on: ubuntu-latest
+    needs: [code-quality, test-coverage-gate, mutation-testing-gate]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Run quality assurance automation
+        run: |
+          cargo test --test quality_assurance_automation -- --nocapture | tee qa-results.txt
+      
+      - name: Extract quality metrics
+        id: metrics
+        run: |
+          # Extract metrics from QA results
+          ERROR_RATE=$(grep -oP 'Error Rate: \K[0-9.]+' qa-results.txt | head -1 || echo "0")
+          QUALITY_STATUS=$(grep -oP 'Quality Status: \K\w+' qa-results.txt | head -1 || echo "Unknown")
+          OVERALL_SCORE=$(grep -oP 'Overall Score: \K[0-9.]+' qa-results.txt | head -1 || echo "0")
+          
+          echo "error_rate=$ERROR_RATE" >> $GITHUB_OUTPUT
+          echo "quality_status=$QUALITY_STATUS" >> $GITHUB_OUTPUT
+          echo "overall_score=$OVERALL_SCORE" >> $GITHUB_OUTPUT
+          
+          # Check error rate threshold
+          if (( $(echo "$ERROR_RATE > $MAX_ERROR_RATE" | bc -l) )); then
+            echo "::error::Error rate ${ERROR_RATE}% exceeds threshold of ${MAX_ERROR_RATE}%"
+            exit 1
+          fi
+          
+          # Check overall quality
+          if [[ "$QUALITY_STATUS" == "Poor" ]] || [[ "$QUALITY_STATUS" == "Critical" ]]; then
+            echo "::error::Quality status is $QUALITY_STATUS - improvements required"
+            exit 1
+          fi
+
+  security-gate:
+    name: Security Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Security audit
+        uses: actions-rust-lang/audit@v1
+      
+      - name: Check for security advisories
+        run: |
+          cargo install cargo-audit
+          cargo audit --deny warnings
+
+  documentation-gate:
+    name: Documentation Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Check documentation coverage
+        run: |
+          # Build docs and check for warnings
+          cargo doc --workspace --no-deps --all-features 2>&1 | tee doc-output.txt
+          
+          if grep -q "warning:" doc-output.txt; then
+            echo "::warning::Documentation warnings found"
+            grep "warning:" doc-output.txt
+          fi
+      
+      - name: Verify examples compile
+        run: |
+          # Test that all doc examples compile
+          cargo test --doc --workspace --all-features
+
+  final-gate:
+    name: Final Quality Gate
+    runs-on: ubuntu-latest
+    needs: [quality-metrics-gate, security-gate, documentation-gate]
+    if: always()
+    steps:
+      - name: Generate quality report
+        run: |
+          echo "# Quality Gate Report" > quality-report.md
+          echo "" >> quality-report.md
+          echo "## Summary" >> quality-report.md
+          echo "- Code Quality: ${{ needs.code-quality.result }}" >> quality-report.md
+          echo "- Test Coverage: ${{ needs.test-coverage-gate.result }}" >> quality-report.md
+          echo "- Mutation Testing: ${{ needs.mutation-testing-gate.result }}" >> quality-report.md
+          echo "- Quality Metrics: ${{ needs.quality-metrics-gate.result }}" >> quality-report.md
+          echo "- Security: ${{ needs.security-gate.result }}" >> quality-report.md
+          echo "- Documentation: ${{ needs.documentation-gate.result }}" >> quality-report.md
+          
+          # Determine overall status
+          if [[ "${{ needs.code-quality.result }}" == "failure" ]] || \
+             [[ "${{ needs.test-coverage-gate.result }}" == "failure" ]] || \
+             [[ "${{ needs.quality-metrics-gate.result }}" == "failure" ]] || \
+             [[ "${{ needs.security-gate.result }}" == "failure" ]]; then
+            echo "" >> quality-report.md
+            echo "❌ **Quality gates FAILED**" >> quality-report.md
+            exit 1
+          else
+            echo "" >> quality-report.md
+            echo "✅ **All quality gates PASSED**" >> quality-report.md
+          fi
+      
+      - name: Upload quality report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-gate-report
+          path: quality-report.md

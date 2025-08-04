@@ -64,18 +64,17 @@ impl EnhancedError {
     pub fn from_ast_node<T: Ranged>(error: ErrorKind, node: &T, source: &str) -> Self {
         let range = node.range();
         let (line, column) = get_line_column(source, range.start().into());
-        
-        let mut enhanced = Self::new(error)
-            .with_location("<input>", line, column);
-        
+
+        let mut enhanced = Self::new(error).with_location("<input>", line, column);
+
         // Extract the source line
         if let Some(line_text) = get_source_line(source, line) {
             enhanced = enhanced.with_source_line(&line_text);
         }
-        
+
         // Add automatic suggestions based on error type
         enhanced = add_automatic_suggestions(enhanced);
-        
+
         enhanced
     }
 }
@@ -84,33 +83,42 @@ impl fmt::Display for EnhancedError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Error header
         writeln!(f, "{}: {}", "error".red().bold(), self.error)?;
-        
+
         // Location info
         if let (Some(file), Some(line), Some(column)) = (&self.file_path, self.line, self.column) {
             writeln!(f, "  {} {}:{}:{}", "-->".blue().bold(), file, line, column)?;
         }
-        
+
         // Source context
-        if let (Some(line_text), Some(line_num), Some(col)) = (&self.source_line, self.line, self.column) {
+        if let (Some(line_text), Some(line_num), Some(col)) =
+            (&self.source_line, self.line, self.column)
+        {
             writeln!(f, "   {} |", format!("{:4}", " ").dimmed())?;
-            writeln!(f, "   {} | {}", format!("{:4}", line_num).blue().bold(), line_text)?;
-            writeln!(f, "   {} | {}{}", 
+            writeln!(
+                f,
+                "   {} | {}",
+                format!("{:4}", line_num).blue().bold(),
+                line_text
+            )?;
+            writeln!(
+                f,
+                "   {} | {}{}",
                 format!("{:4}", " ").dimmed(),
                 " ".repeat(col.saturating_sub(1)),
                 "^".red().bold()
             )?;
         }
-        
+
         // Suggestion
         if let Some(suggestion) = &self.suggestion {
             writeln!(f, "\n{}: {}", "suggestion".green().bold(), suggestion)?;
         }
-        
+
         // Notes
         for note in &self.notes {
             writeln!(f, "  {} {}", "note:".yellow(), note)?;
         }
-        
+
         Ok(())
     }
 }
@@ -120,7 +128,7 @@ fn get_line_column(source: &str, offset: u32) -> (usize, usize) {
     let mut line = 1;
     let mut column = 1;
     let offset = offset as usize;
-    
+
     for (i, ch) in source.chars().enumerate() {
         if i >= offset {
             break;
@@ -132,13 +140,16 @@ fn get_line_column(source: &str, offset: u32) -> (usize, usize) {
             column += 1;
         }
     }
-    
+
     (line, column)
 }
 
 /// Extract a specific line from source
 fn get_source_line(source: &str, line_num: usize) -> Option<String> {
-    source.lines().nth(line_num.saturating_sub(1)).map(String::from)
+    source
+        .lines()
+        .nth(line_num.saturating_sub(1))
+        .map(String::from)
 }
 
 /// Add automatic suggestions based on error type
@@ -149,48 +160,61 @@ fn add_automatic_suggestions(mut error: EnhancedError) -> EnhancedError {
                 "This Python feature '{}' is not yet supported. Consider using a simpler construct.",
                 feature
             );
-            
+
             // Add specific suggestions for common features
             match feature.as_str() {
-                "yield" => {
-                    Some(("Generator functions are not supported. Consider returning a list instead.".to_string(),
-                          vec!["Example: Instead of 'yield x', collect values and 'return values'".to_string()]))
-                }
-                "async for" => {
-                    Some(("Async iteration is not supported. Use regular iteration with async/await.".to_string(), vec![]))
-                }
-                "match" => {
-                    Some(("Pattern matching is not supported. Use if/elif/else chains instead.".to_string(), vec![]))
-                }
-                _ => Some((base_suggestion, vec![]))
+                "yield" => Some((
+                    "Generator functions are not supported. Consider returning a list instead."
+                        .to_string(),
+                    vec![
+                        "Example: Instead of 'yield x', collect values and 'return values'"
+                            .to_string(),
+                    ],
+                )),
+                "async for" => Some((
+                    "Async iteration is not supported. Use regular iteration with async/await."
+                        .to_string(),
+                    vec![],
+                )),
+                "match" => Some((
+                    "Pattern matching is not supported. Use if/elif/else chains instead."
+                        .to_string(),
+                    vec![],
+                )),
+                _ => Some((base_suggestion, vec![])),
             }
         }
         ErrorKind::TypeInferenceError(msg) => {
             if msg.contains("incompatible types") {
-                Some(("Check that all type annotations are correct and consistent.".to_string(),
-                      vec!["Rust has stricter type checking than Python".to_string()]))
+                Some((
+                    "Check that all type annotations are correct and consistent.".to_string(),
+                    vec!["Rust has stricter type checking than Python".to_string()],
+                ))
             } else {
                 None
             }
         }
         ErrorKind::InvalidTypeAnnotation(msg) => {
             if msg.contains("borrow") {
-                Some(("Consider using .clone() or restructuring to avoid multiple borrows.".to_string(),
-                      vec!["Rust's borrow checker ensures memory safety".to_string()]))
+                Some((
+                    "Consider using .clone() or restructuring to avoid multiple borrows."
+                        .to_string(),
+                    vec!["Rust's borrow checker ensures memory safety".to_string()],
+                ))
             } else {
                 None
             }
         }
-        _ => None
+        _ => None,
     };
-    
+
     if let Some((suggestion_text, notes)) = suggestion {
         error = error.with_suggestion(&suggestion_text);
         for note in notes {
             error = error.add_note(&note);
         }
     }
-    
+
     error
 }
 
@@ -216,8 +240,11 @@ impl ErrorReporter {
     }
 
     pub fn report_error_at<T: Ranged>(&mut self, error: ErrorKind, node: &T) {
-        let enhanced = EnhancedError::from_ast_node(error, node, &self.source)
-            .with_location(&self.file_path, 0, 0); // Will be overridden by from_ast_node
+        let enhanced = EnhancedError::from_ast_node(error, node, &self.source).with_location(
+            &self.file_path,
+            0,
+            0,
+        ); // Will be overridden by from_ast_node
         self.errors.push(enhanced);
     }
 
@@ -232,9 +259,13 @@ impl ErrorReporter {
             }
             println!("{}", error);
         }
-        
+
         if self.errors.len() > 1 {
-            println!("\n{}: Found {} errors", "summary".red().bold(), self.errors.len());
+            println!(
+                "\n{}: Found {} errors",
+                "summary".red().bold(),
+                self.errors.len()
+            );
         }
     }
 
@@ -259,7 +290,7 @@ mod tests {
             .with_source_line("    yield x")
             .with_suggestion("Use return with a list instead")
             .add_note("Generators are not supported");
-        
+
         let display = format!("{}", error);
         assert!(display.contains("yield"));
         assert!(display.contains("test.py:5:10"));
@@ -279,7 +310,7 @@ mod tests {
     fn test_automatic_suggestions() {
         let error = EnhancedError::new(ErrorKind::UnsupportedFeature("yield".to_string()));
         let enhanced = add_automatic_suggestions(error);
-        
+
         assert!(enhanced.suggestion.is_some());
         assert!(enhanced.suggestion.unwrap().contains("Generator"));
     }

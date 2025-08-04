@@ -17,7 +17,9 @@ use std::process::Command;
 use std::time::Instant;
 
 pub mod debug_cmd;
+pub mod docs_cmd;
 pub mod interactive;
+pub mod profile_cmd;
 
 #[derive(Parser)]
 #[command(name = "depyler")]
@@ -164,6 +166,86 @@ pub enum Commands {
         /// Output script path
         #[arg(short, long)]
         output: Option<PathBuf>,
+    },
+
+    /// Generate documentation from Python code
+    Docs {
+        /// Input Python file or directory
+        input: PathBuf,
+
+        /// Output directory for documentation
+        #[arg(short, long, default_value = "./docs")]
+        output: PathBuf,
+
+        /// Documentation format (markdown, html)
+        #[arg(short, long, default_value = "markdown")]
+        format: String,
+
+        /// Include Python source in documentation
+        #[arg(long, default_value = "true")]
+        include_source: bool,
+
+        /// Generate usage examples
+        #[arg(long, default_value = "true")]
+        examples: bool,
+
+        /// Include migration notes
+        #[arg(long, default_value = "true")]
+        migration_notes: bool,
+
+        /// Include performance notes
+        #[arg(long)]
+        performance_notes: bool,
+
+        /// Generate API reference
+        #[arg(long, default_value = "true")]
+        api_reference: bool,
+
+        /// Generate usage guide
+        #[arg(long, default_value = "true")]
+        usage_guide: bool,
+
+        /// Generate index file
+        #[arg(long, default_value = "true")]
+        index: bool,
+    },
+
+    /// Profile Python code for performance analysis
+    Profile {
+        /// Input Python file
+        file: PathBuf,
+
+        /// Enable instruction counting
+        #[arg(long, default_value = "true")]
+        count_instructions: bool,
+
+        /// Enable memory allocation tracking
+        #[arg(long, default_value = "true")]
+        track_allocations: bool,
+
+        /// Enable hot path detection
+        #[arg(long, default_value = "true")]
+        detect_hot_paths: bool,
+
+        /// Minimum samples for hot path detection
+        #[arg(long, default_value = "100")]
+        hot_path_threshold: usize,
+
+        /// Generate flame graph data
+        #[arg(long)]
+        flamegraph: bool,
+
+        /// Include performance hints
+        #[arg(long, default_value = "true")]
+        hints: bool,
+
+        /// Output flamegraph data to file
+        #[arg(long)]
+        flamegraph_output: Option<PathBuf>,
+
+        /// Output perf annotations to file
+        #[arg(long)]
+        perf_output: Option<PathBuf>,
     },
 }
 
@@ -781,10 +863,9 @@ pub fn debug_command(
     }
 
     if let Some(rust_file) = gen_script {
-        let source_file = source.ok_or_else(|| {
-            anyhow::anyhow!("--source is required when using --gen-script")
-        })?;
-        
+        let source_file = source
+            .ok_or_else(|| anyhow::anyhow!("--source is required when using --gen-script"))?;
+
         debug_cmd::generate_debugger_script(
             &source_file,
             &rust_file,
@@ -803,42 +884,41 @@ pub fn debug_command(
 pub fn lsp_command(port: u16, verbose: bool) -> Result<()> {
     use depyler_core::lsp::LspServer;
     use std::io::{self, BufRead, Write};
-    
-    
+
     println!("🚀 Starting Depyler Language Server on port {}...", port);
-    
+
     // For now, implement a simple stdio-based LSP server
     // In a full implementation, this would handle TCP connections
-    
+
     let _server = LspServer::new();
     let stdin = io::stdin();
     let mut stdout = io::stdout();
-    
+
     println!("📡 Language Server ready. Waiting for client connections...");
     println!("   Use with your IDE's LSP client configuration:");
     println!("   - Command: depyler lsp");
     println!("   - Port: {}", port);
     println!("   - Language: Python");
-    
+
     // Simple message loop (in practice, would use full JSON-RPC)
     for line in stdin.lock().lines() {
         let line = line?;
-        
+
         if verbose {
             eprintln!("Received: {}", line);
         }
-        
+
         // Handle shutdown
         if line.contains("shutdown") {
             println!("👋 Language Server shutting down...");
             break;
         }
-        
+
         // Echo back for now (real implementation would parse JSON-RPC)
         writeln!(stdout, "{{\"jsonrpc\":\"2.0\",\"result\":null,\"id\":1}}")?;
         stdout.flush()?;
     }
-    
+
     Ok(())
 }
 
@@ -1303,7 +1383,14 @@ mod tests {
         let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
         let output_path = input_path.with_extension("rs");
 
-        let result = transpile_command(input_path, Some(output_path.clone()), false, false, false, false);
+        let result = transpile_command(
+            input_path,
+            Some(output_path.clone()),
+            false,
+            false,
+            false,
+            false,
+        );
         assert!(result.is_ok());
         assert!(output_path.exists());
     }

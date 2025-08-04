@@ -1,0 +1,213 @@
+name: Performance Regression Detection
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run weekly performance tests
+    - cron: '0 3 * * 0'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache cargo and benchmark data
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+            benchmark-data
+          key: ${{ runner.os }}-benchmark-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Install criterion
+        run: cargo install cargo-criterion
+      
+      - name: Run benchmarks
+        run: |
+          # Create benchmarks if they don't exist
+          mkdir -p benches
+          
+          # Run existing benchmarks
+          cargo bench --workspace -- --output-format bencher | tee output.txt
+          
+          # Run property test benchmarks
+          cargo test --test property_test_benchmarks --release -- --nocapture | tee -a output.txt
+          
+          # Run integration benchmarks
+          cargo test --test integration_benchmarks --release -- --nocapture | tee -a output.txt
+      
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Rust Benchmark
+          tool: 'cargo'
+          output-file-path: output.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '150%'
+          comment-on-alert: true
+          fail-on-alert: true
+          alert-comment-cc-users: '@maintainers'
+
+  memory-profile:
+    name: Memory Usage Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust and tools
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install valgrind
+        run: sudo apt-get update && sudo apt-get install -y valgrind
+      
+      - name: Build for profiling
+        run: cargo build --release --workspace
+      
+      - name: Profile memory usage
+        run: |
+          # Run transpilation on example files and measure memory
+          for file in examples/showcase/*.py; do
+            echo "Profiling: $file"
+            
+            # Use time command to measure memory
+            /usr/bin/time -v ./target/release/depyler transpile "$file" -o /tmp/output.rs 2>&1 | \
+              grep -E "(Maximum resident set size|User time|System time)" | \
+              tee -a memory-profile.txt
+          done
+      
+      - name: Check memory regression
+        run: |
+          # Extract max memory usage
+          MAX_MEM=$(grep "Maximum resident set size" memory-profile.txt | \
+                    awk '{print $6}' | sort -n | tail -1)
+          
+          echo "Maximum memory usage: ${MAX_MEM} KB"
+          
+          # Fail if memory usage exceeds 100MB
+          if [ "$MAX_MEM" -gt 102400 ]; then
+            echo "::error::Memory usage ${MAX_MEM}KB exceeds threshold of 100MB"
+            exit 1
+          fi
+      
+      - name: Upload memory profile
+        uses: actions/upload-artifact@v4
+        with:
+          name: memory-profile
+          path: memory-profile.txt
+
+  transpilation-speed:
+    name: Transpilation Speed Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Build release binary
+        run: cargo build --release --bin depyler
+      
+      - name: Benchmark transpilation speed
+        run: |
+          mkdir -p benchmark-results
+          
+          # Test different file sizes
+          echo "# Transpilation Speed Benchmarks" > benchmark-results/speed.md
+          echo "" >> benchmark-results/speed.md
+          
+          for file in examples/showcase/*.py; do
+            filename=$(basename "$file")
+            filesize=$(wc -c < "$file")
+            
+            echo "Testing: $filename (${filesize} bytes)"
+            
+            # Run 5 times and calculate average
+            total_time=0
+            for i in {1..5}; do
+              start=$(date +%s.%N)
+              ./target/release/depyler transpile "$file" -o /tmp/output.rs 2>/dev/null
+              end=$(date +%s.%N)
+              
+              elapsed=$(echo "$end - $start" | bc)
+              total_time=$(echo "$total_time + $elapsed" | bc)
+            done
+            
+            avg_time=$(echo "scale=3; $total_time / 5" | bc)
+            throughput=$(echo "scale=2; $filesize / $avg_time" | bc)
+            
+            echo "| $filename | $filesize | ${avg_time}s | ${throughput} bytes/s |" >> benchmark-results/speed.md
+          done
+      
+      - name: Check performance thresholds
+        run: |
+          # Ensure transpilation is reasonably fast
+          # TODO: Add specific threshold checks based on file size
+          echo "::notice::Transpilation speed tests completed"
+      
+      - name: Upload speed benchmarks
+        uses: actions/upload-artifact@v4
+        with:
+          name: speed-benchmarks
+          path: benchmark-results/
+
+  performance-dashboard:
+    name: Performance Dashboard
+    runs-on: ubuntu-latest
+    needs: [benchmark, memory-profile, transpilation-speed]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Generate performance report
+        run: |
+          mkdir -p reports
+          
+          echo "# Performance Report" > reports/performance.md
+          echo "Date: $(date -u)" >> reports/performance.md
+          echo "Commit: ${{ github.sha }}" >> reports/performance.md
+          echo "" >> reports/performance.md
+          
+          if [ -f artifacts/memory-profile/memory-profile.txt ]; then
+            echo "## Memory Usage" >> reports/performance.md
+            cat artifacts/memory-profile/memory-profile.txt >> reports/performance.md
+            echo "" >> reports/performance.md
+          fi
+          
+          if [ -f artifacts/speed-benchmarks/speed.md ]; then
+            echo "## Transpilation Speed" >> reports/performance.md
+            cat artifacts/speed-benchmarks/speed.md >> reports/performance.md
+          fi
+      
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('reports/performance.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });

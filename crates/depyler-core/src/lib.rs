@@ -3,9 +3,10 @@ pub mod ast_bridge;
 pub mod borrowing;
 pub mod borrowing_context;
 pub mod codegen;
-pub mod debug;
 pub mod const_generic_inference;
+pub mod debug;
 pub mod direct_rules;
+pub mod documentation;
 pub mod error;
 pub mod error_reporting;
 pub mod generic_inference;
@@ -25,6 +26,7 @@ pub mod module_mapper;
 pub mod optimization;
 pub mod optimizer;
 pub mod performance_warnings;
+pub mod profiling;
 pub mod rust_gen;
 pub mod string_optimization;
 pub mod test_generation;
@@ -35,6 +37,69 @@ pub mod union_enum_gen;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+/// The main transpilation pipeline for converting Python code to Rust
+///
+/// `DepylerPipeline` coordinates the entire transpilation process, from parsing Python
+/// source code to generating equivalent Rust code. It provides a high-level API for
+/// transpilation with configurable analysis, optimization, and verification stages.
+///
+/// # Features
+///
+/// - **Semantic Analysis**: Converts Python AST to type-aware HIR
+/// - **Type Inference**: Infers and validates type information
+/// - **Optimization**: Applies performance optimizations
+/// - **Verification**: Optional property verification for correctness
+/// - **Code Generation**: Produces idiomatic Rust code
+///
+/// # Examples
+///
+/// Basic transpilation:
+///
+/// ```rust
+/// use depyler_core::DepylerPipeline;
+///
+/// let pipeline = DepylerPipeline::new();
+/// let python_code = r#"
+/// def add(a: int, b: int) -> int:
+///     return a + b
+/// "#;
+///
+/// let rust_code = pipeline.transpile(python_code).unwrap();
+/// assert!(rust_code.contains("pub fn add"));
+/// assert!(rust_code.contains("i32"));
+/// ```
+///
+/// With verification enabled:
+///
+/// ```rust
+/// use depyler_core::DepylerPipeline;
+///
+/// let pipeline = DepylerPipeline::new()
+///     .with_verification();
+///
+/// let python_code = r#"
+/// def factorial(n: int) -> int:
+///     if n <= 1:
+///         return 1
+///     return n * factorial(n - 1)
+/// "#;
+///
+/// let rust_code = pipeline.transpile(python_code).unwrap();
+/// assert!(rust_code.contains("factorial"));
+/// ```
+///
+/// Parsing to HIR for analysis:
+///
+/// ```rust
+/// use depyler_core::DepylerPipeline;
+///
+/// let pipeline = DepylerPipeline::new();
+/// let python_code = "def hello(): return 'world'";
+///
+/// let hir = pipeline.parse_to_hir(python_code).unwrap();
+/// assert_eq!(hir.functions.len(), 1);
+/// assert_eq!(hir.functions[0].name, "hello");
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DepylerPipeline {
     analyzer: CoreAnalyzer,
@@ -94,6 +159,22 @@ impl Default for DepylerPipeline {
 }
 
 impl DepylerPipeline {
+    /// Creates a new transpilation pipeline with default configuration
+    ///
+    /// The default pipeline includes:
+    /// - Core semantic analysis and type inference
+    /// - Standard optimizations
+    /// - No property verification (use `with_verification()` to enable)
+    /// - No debug output
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use depyler_core::DepylerPipeline;
+    ///
+    /// let pipeline = DepylerPipeline::new();
+    /// // Pipeline is ready for transpilation
+    /// ```
     pub fn new() -> Self {
         Self {
             analyzer: CoreAnalyzer {
@@ -122,6 +203,64 @@ impl DepylerPipeline {
         self
     }
 
+    /// Transpiles Python source code to equivalent Rust code
+    ///
+    /// This is the main entry point for transpilation. It performs the complete
+    /// pipeline: parsing, semantic analysis, type inference, optimization, and
+    /// code generation.
+    ///
+    /// # Arguments
+    ///
+    /// * `python_source` - The Python source code to transpile
+    ///
+    /// # Returns
+    ///
+    /// Returns the generated Rust code as a string, or an error if transpilation fails.
+    ///
+    /// # Examples
+    ///
+    /// Basic function transpilation:
+    ///
+    /// ```rust
+    /// use depyler_core::DepylerPipeline;
+    ///
+    /// let pipeline = DepylerPipeline::new();
+    /// let python_code = r#"
+    /// def multiply(x: int, y: int) -> int:
+    ///     return x * y
+    /// "#;
+    ///
+    /// let rust_code = pipeline.transpile(python_code).unwrap();
+    /// assert!(rust_code.contains("pub fn multiply"));
+    /// assert!(rust_code.contains("-> i32"));
+    /// ```
+    ///
+    /// Complex function with control flow:
+    ///
+    /// ```rust
+    /// use depyler_core::DepylerPipeline;
+    ///
+    /// let pipeline = DepylerPipeline::new();
+    /// let python_code = r#"
+    /// def is_even(n: int) -> bool:
+    ///     if n % 2 == 0:
+    ///         return True
+    ///     else:
+    ///         return False
+    /// "#;
+    ///
+    /// let rust_code = pipeline.transpile(python_code).unwrap();
+    /// assert!(rust_code.contains("pub fn is_even"));
+    /// assert!(rust_code.contains("-> bool"));
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The Python source contains syntax errors
+    /// - Unsupported Python constructs are used
+    /// - Type inference fails
+    /// - Verification fails (if enabled)
     pub fn transpile(&self, python_source: &str) -> Result<String> {
         // Parse Python source
         let ast = self.parse_python(python_source)?;
@@ -138,45 +277,57 @@ impl DepylerPipeline {
         // Apply type inference hints
         if self.analyzer.type_inference_enabled {
             let mut type_hint_provider = type_hints::TypeHintProvider::new();
-            
+
             // Analyze all functions and collect hints
             let mut function_hints = Vec::new();
             for (idx, func) in hir.functions.iter().enumerate() {
                 if let Ok(hints) = type_hint_provider.analyze_function(func) {
                     if !hints.is_empty() {
-                        eprintln!("{}", "Type inference hints:".to_string());
+                        eprintln!("Type inference hints:");
                         eprintln!("{}", type_hint_provider.format_hints(&hints));
                         function_hints.push((idx, hints));
                     }
                 }
             }
-            
+
             // Apply high-confidence hints to the HIR
             for (func_idx, hints) in function_hints {
                 let func = &mut hir.functions[func_idx];
-                
+
                 // Apply parameter type hints
                 for (param_name, param_type) in &mut func.params {
                     if matches!(param_type, hir::Type::Unknown) {
                         // Find hint for this parameter
                         for hint in &hints {
                             if let type_hints::HintTarget::Parameter(hint_param) = &hint.target {
-                                if hint_param == param_name 
-                                    && matches!(hint.confidence, type_hints::Confidence::High | type_hints::Confidence::Certain) {
+                                if hint_param == param_name
+                                    && matches!(
+                                        hint.confidence,
+                                        type_hints::Confidence::High
+                                            | type_hints::Confidence::Certain
+                                    )
+                                {
                                     *param_type = hint.suggested_type.clone();
-                                    eprintln!("Applied type hint: {} -> {:?}", param_name, param_type);
+                                    eprintln!(
+                                        "Applied type hint: {} -> {:?}",
+                                        param_name, param_type
+                                    );
                                     break;
                                 }
                             }
                         }
                     }
                 }
-                
+
                 // Apply return type hints
                 if matches!(func.ret_type, hir::Type::Unknown) {
                     for hint in &hints {
                         if matches!(hint.target, type_hints::HintTarget::Return)
-                            && matches!(hint.confidence, type_hints::Confidence::High | type_hints::Confidence::Certain) {
+                            && matches!(
+                                hint.confidence,
+                                type_hints::Confidence::High | type_hints::Confidence::Certain
+                            )
+                        {
                             func.ret_type = hint.suggested_type.clone();
                             eprintln!("Applied return type hint: {:?}", func.ret_type);
                             break;
@@ -203,7 +354,7 @@ impl DepylerPipeline {
         // Run migration suggestions analysis
         if self.analyzer.metrics_enabled {
             let mut migration_analyzer = migration_suggestions::MigrationAnalyzer::new(
-                migration_suggestions::MigrationConfig::default()
+                migration_suggestions::MigrationConfig::default(),
             );
             let suggestions = migration_analyzer.analyze_program(&hir_program);
             if !suggestions.is_empty() {
@@ -214,11 +365,20 @@ impl DepylerPipeline {
         // Run performance warnings analysis
         if self.analyzer.metrics_enabled {
             let mut perf_analyzer = performance_warnings::PerformanceAnalyzer::new(
-                performance_warnings::PerformanceConfig::default()
+                performance_warnings::PerformanceConfig::default(),
             );
             let warnings = perf_analyzer.analyze_program(&hir_program);
             if !warnings.is_empty() {
                 eprintln!("{}", perf_analyzer.format_warnings(&warnings));
+            }
+        }
+
+        // Run profiling analysis if enabled
+        if self.analyzer.metrics_enabled {
+            let mut profiler = profiling::Profiler::new(profiling::ProfileConfig::default());
+            let profile_report = profiler.analyze_program(&hir_program);
+            if !profile_report.metrics.is_empty() {
+                eprintln!("{}", profile_report.format_report());
             }
         }
 

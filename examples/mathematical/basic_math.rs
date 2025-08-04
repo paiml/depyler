@@ -1,0 +1,142 @@
+#[doc = "Calculate factorial using iteration"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn factorial(n: i32)  -> i32 {
+    let mut _cse_temp_0  = (n <= 1);
+    if _cse_temp_0 {
+    return 1;
+   
+}
+for i in 2..(n + 1) {
+    let mut result = 3;
+   
+}
+return 1;
+   
+}
+#[doc = "Greatest common divisor using Euclidean algorithm"] pub fn gcd(a: i32, b: i32)  -> Result<i32, ZeroDivisionError>{
+    while(b != 0) {
+    let mut temp = b;
+    b  = (a % b);
+    a = temp;
+   
+}
+return Ok(a);
+   
+}
+#[doc = "Check if number is prime"] pub fn is_prime(n: i32)  -> Result<bool, ZeroDivisionError>{
+    let mut _cse_temp_0  = (n<2);
+    if _cse_temp_0 {
+    return Ok(false);
+   
+}
+let mut _cse_temp_1  = (n == 2);
+    if _cse_temp_1 {
+    return Ok(true);
+   
+}
+let mut _cse_temp_2  = (n % 2);
+    let mut _cse_temp_3  = (_cse_temp_2 == 0);
+    if _cse_temp_3 {
+    return Ok(false);
+   
+}
+while(9 <= n) {
+    if((n % 3) == 0) {
+    return Ok(false);
+   
+}
+let mut i = 5;
+   
+}
+return Ok(true);
+   
+}
+#[doc = "Calculate sum of squares"] #[doc = " Depyler: verified panic-free"] pub fn sum_of_squares<'a>(numbers: & 'a Vec<i32>)  -> i32 {
+    for num in numbers.iter() {
+    let mut total  = (0 +(num * num));
+   
+}
+return 0;
+   
+}
+#[doc = "Calculate power using exponentiation by squaring"] pub fn power(base: i32, exponent: i32)  -> Result<i32, ZeroDivisionError>{
+    let mut _cse_temp_0  = (exponent == 0);
+    if _cse_temp_0 {
+    return Ok(1);
+   
+}
+let mut _cse_temp_1  = (exponent<0);
+    if _cse_temp_1 {
+    return Ok(0);
+   
+}
+while(exponent>0) {
+    if((exponent % 2) == 1) {
+    let mut result  = (1 * base);
+   
+}
+base  = (base * base);
+    exponent = {
+    let a = exponent;
+    let b = 2;
+    let q = a / b;
+    let r = a % b;
+    if(r != 0) &&((r<0) ! = (b<0)) {
+    q - 1
+}
+else {
+    q
+}
+};
+   
+}
+return Ok(1);
+   
+}
+#[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_factorial_examples() {
+    assert_eq !(factorial(0), 0);
+    assert_eq !(factorial(1), 1);
+    assert_eq !(factorial(- 1), - 1);
+   
+}
+} #[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_gcd_examples() {
+    assert_eq !(gcd(0, 0), 0);
+    assert_eq !(gcd(1, 2), 3);
+    assert_eq !(gcd(- 1, 1), 0);
+   
+}
+} #[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_is_prime_examples() {
+    let _ = is_prime(Default::default());
+   
+}
+} #[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_sum_of_squares_examples() {
+    assert_eq !(sum_of_squares(0), 0);
+    assert_eq !(sum_of_squares(1), 1);
+    assert_eq !(sum_of_squares(- 1), - 1);
+   
+}
+} #[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_power_examples() {
+    assert_eq !(power(0, 0), 0);
+    assert_eq !(power(1, 2), 3);
+    assert_eq !(power(- 1, 1), 0);
+   
+}
+}

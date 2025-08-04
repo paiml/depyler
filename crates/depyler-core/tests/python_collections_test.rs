@@ -32,7 +32,10 @@ def work_with_lists():
         println!("Generated list code:\n{}", rust_code);
 
         // Check for Vec usage
-        assert!(rust_code.contains("vec!") || rust_code.contains("vec !"), "Should use Vec for Python lists");
+        assert!(
+            rust_code.contains("vec!") || rust_code.contains("vec !"),
+            "Should use Vec for Python lists"
+        );
 
         // Check for common collection methods
         // Note: These might not all be implemented yet

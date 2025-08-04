@@ -56,9 +56,9 @@ struct FunctionMetrics {
     /// Number of HIR nodes in the function
     size: usize,
     /// Number of parameters
-    param_count: usize,
+    _param_count: usize,
     /// Number of return statements
-    return_count: usize,
+    _return_count: usize,
     /// Contains loops
     has_loops: bool,
     /// Contains I/O or other side effects
@@ -114,13 +114,13 @@ impl InliningAnalyzer {
     pub fn analyze_program(&mut self, program: &HirProgram) -> HashMap<String, InliningDecision> {
         // Step 1: Build call graph
         self.build_call_graph(program);
-        
+
         // Step 2: Detect recursive functions
         self.detect_recursion();
-        
+
         // Step 3: Calculate function metrics
         self.calculate_metrics(program);
-        
+
         // Step 4: Make inlining decisions
         self.make_decisions()
     }
@@ -152,7 +152,11 @@ impl InliningAnalyzer {
                         modified_body.extend(inlined_stmts);
                         // Track which functions were inlined
                         if let HirStmt::Expr(HirExpr::Call { func: callee, .. }) = stmt {
-                            if decisions.get(callee).map(|d| d.should_inline).unwrap_or(false) {
+                            if decisions
+                                .get(callee)
+                                .map(|d| d.should_inline)
+                                .unwrap_or(false)
+                            {
                                 inlined_functions.insert(callee.clone());
                             }
                         }
@@ -167,8 +171,12 @@ impl InliningAnalyzer {
         // Remove functions that were fully inlined (called only once)
         if self.config.inline_single_use {
             program.functions.retain(|f| {
-                !inlined_functions.contains(&f.name) ||
-                self.function_metrics.get(&f.name).map(|m| m.call_count > 1).unwrap_or(true)
+                !inlined_functions.contains(&f.name)
+                    || self
+                        .function_metrics
+                        .get(&f.name)
+                        .map(|m| m.call_count > 1)
+                        .unwrap_or(true)
             });
         }
 
@@ -178,9 +186,11 @@ impl InliningAnalyzer {
     fn build_call_graph(&mut self, program: &HirProgram) {
         for func in &program.functions {
             let calls = self.extract_calls_from_function(func);
-            
-            self.call_graph.calls.insert(func.name.clone(), calls.clone());
-            
+
+            self.call_graph
+                .calls
+                .insert(func.name.clone(), calls.clone());
+
             for callee in calls {
                 self.call_graph
                     .called_by
@@ -193,11 +203,11 @@ impl InliningAnalyzer {
 
     fn extract_calls_from_function(&self, func: &HirFunction) -> HashSet<String> {
         let mut calls = HashSet::new();
-        
+
         for stmt in &func.body {
             self.extract_calls_from_stmt(stmt, &mut calls);
         }
-        
+
         calls
     }
 
@@ -206,7 +216,11 @@ impl InliningAnalyzer {
             HirStmt::Expr(expr) => self.extract_calls_from_expr(expr, calls),
             HirStmt::Assign { value, .. } => self.extract_calls_from_expr(value, calls),
             HirStmt::Return(Some(expr)) => self.extract_calls_from_expr(expr, calls),
-            HirStmt::If { condition, then_body, else_body } => {
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
                 self.extract_calls_from_expr(condition, calls);
                 for s in then_body {
                     self.extract_calls_from_stmt(s, calls);
@@ -217,7 +231,12 @@ impl InliningAnalyzer {
                     }
                 }
             }
-            HirStmt::While { condition, body } | HirStmt::For { iter: condition, body, .. } => {
+            HirStmt::While { condition, body }
+            | HirStmt::For {
+                iter: condition,
+                body,
+                ..
+            } => {
                 self.extract_calls_from_expr(condition, calls);
                 for s in body {
                     self.extract_calls_from_stmt(s, calls);
@@ -228,50 +247,56 @@ impl InliningAnalyzer {
     }
 
     fn extract_calls_from_expr(&self, expr: &HirExpr, calls: &mut HashSet<String>) {
-        match expr {
-            HirExpr::Call { func, args } => {
-                calls.insert(func.clone());
-                for arg in args {
-                    self.extract_calls_from_expr(arg, calls);
-                }
-            }
-            HirExpr::Binary { left, right, .. } => {
-                self.extract_calls_from_expr(left, calls);
-                self.extract_calls_from_expr(right, calls);
-            }
-            HirExpr::Unary { operand, .. } => {
-                self.extract_calls_from_expr(operand, calls);
-            }
-            HirExpr::List(items) | HirExpr::Tuple(items) => {
-                for item in items {
-                    self.extract_calls_from_expr(item, calls);
-                }
-            }
-            HirExpr::Dict(pairs) => {
-                for (k, v) in pairs {
-                    self.extract_calls_from_expr(k, calls);
-                    self.extract_calls_from_expr(v, calls);
-                }
-            }
-            HirExpr::MethodCall { object, args, .. } => {
-                self.extract_calls_from_expr(object, calls);
-                for arg in args {
-                    self.extract_calls_from_expr(arg, calls);
-                }
-            }
-            HirExpr::Lambda { body, .. } => {
-                self.extract_calls_from_expr(body, calls);
-            }
-            _ => {}
-        }
+        extract_calls_from_expr_inner(expr, calls);
     }
+}
 
+fn extract_calls_from_expr_inner(expr: &HirExpr, calls: &mut HashSet<String>) {
+    match expr {
+        HirExpr::Call { func, args } => {
+            calls.insert(func.clone());
+            for arg in args {
+                extract_calls_from_expr_inner(arg, calls);
+            }
+        }
+        HirExpr::Binary { left, right, .. } => {
+            extract_calls_from_expr_inner(left, calls);
+            extract_calls_from_expr_inner(right, calls);
+        }
+        HirExpr::Unary { operand, .. } => {
+            extract_calls_from_expr_inner(operand, calls);
+        }
+        HirExpr::List(items) | HirExpr::Tuple(items) => {
+            for item in items {
+                extract_calls_from_expr_inner(item, calls);
+            }
+        }
+        HirExpr::Dict(pairs) => {
+            for (k, v) in pairs {
+                extract_calls_from_expr_inner(k, calls);
+                extract_calls_from_expr_inner(v, calls);
+            }
+        }
+        HirExpr::MethodCall { object, args, .. } => {
+            extract_calls_from_expr_inner(object, calls);
+            for arg in args {
+                extract_calls_from_expr_inner(arg, calls);
+            }
+        }
+        HirExpr::Lambda { body, .. } => {
+            extract_calls_from_expr_inner(body, calls);
+        }
+        _ => {}
+    }
+}
+
+impl InliningAnalyzer {
     fn detect_recursion(&mut self) {
         // Use DFS to detect cycles in the call graph
         for func_name in self.call_graph.calls.keys() {
             let mut visited = HashSet::new();
             let mut stack = HashSet::new();
-            
+
             if self.is_recursive_dfs(func_name, &mut visited, &mut stack) {
                 self.call_graph.recursive.insert(func_name.clone());
             }
@@ -292,7 +317,7 @@ impl InliningAnalyzer {
                 if stack.contains(callee) {
                     return true; // Found cycle
                 }
-                
+
                 if !visited.contains(callee) && self.is_recursive_dfs(callee, visited, stack) {
                     return true;
                 }
@@ -310,28 +335,29 @@ impl InliningAnalyzer {
             let has_side_effects = self.has_side_effects(func);
             let is_trivial = self.is_trivial_function(func);
             let return_count = self.count_returns(&func.body);
-            
+
             // Calculate call count
-            let call_count = self.call_graph
+            let call_count = self
+                .call_graph
                 .called_by
                 .get(&func.name)
                 .map(|callers| callers.len())
                 .unwrap_or(0);
-            
+
             // Estimate execution cost
             let cost = self.estimate_cost(func, size, has_loops, has_side_effects);
-            
+
             let metrics = FunctionMetrics {
                 size,
-                param_count: func.params.len(),
-                return_count,
+                _param_count: func.params.len(),
+                _return_count: return_count,
                 has_loops,
                 has_side_effects,
                 is_trivial,
                 call_count,
                 cost,
             };
-            
+
             self.function_metrics.insert(func.name.clone(), metrics);
         }
     }
@@ -350,7 +376,11 @@ impl InliningAnalyzer {
             HirStmt::Assign { value, .. } => 1 + self.calculate_expr_size(value),
             HirStmt::Return(Some(expr)) => 1 + self.calculate_expr_size(expr),
             HirStmt::Return(None) => 1,
-            HirStmt::If { condition, then_body, else_body } => {
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
                 let mut size = 1 + self.calculate_expr_size(condition);
                 for s in then_body {
                     size += self.calculate_stmt_size(s);
@@ -362,7 +392,12 @@ impl InliningAnalyzer {
                 }
                 size
             }
-            HirStmt::While { condition, body } | HirStmt::For { iter: condition, body, .. } => {
+            HirStmt::While { condition, body }
+            | HirStmt::For {
+                iter: condition,
+                body,
+                ..
+            } => {
                 let mut size = 1 + self.calculate_expr_size(condition);
                 for s in body {
                     size += self.calculate_stmt_size(s);
@@ -374,45 +409,11 @@ impl InliningAnalyzer {
     }
 
     fn calculate_expr_size(&self, expr: &HirExpr) -> usize {
-        match expr {
-            HirExpr::Literal(_) | HirExpr::Var(_) => 1,
-            HirExpr::Binary { left, right, .. } => {
-                1 + self.calculate_expr_size(left) + self.calculate_expr_size(right)
-            }
-            HirExpr::Unary { operand, .. } => 1 + self.calculate_expr_size(operand),
-            HirExpr::Call { args, .. } => {
-                1 + args.iter().map(|a| self.calculate_expr_size(a)).sum::<usize>()
-            }
-            HirExpr::List(items) | HirExpr::Tuple(items) => {
-                1 + items.iter().map(|i| self.calculate_expr_size(i)).sum::<usize>()
-            }
-            HirExpr::Dict(pairs) => {
-                1 + pairs.iter().map(|(k, v)| {
-                    self.calculate_expr_size(k) + self.calculate_expr_size(v)
-                }).sum::<usize>()
-            }
-            _ => 1,
-        }
+        calculate_expr_size_inner(expr)
     }
 
     fn contains_loops(&self, body: &[HirStmt]) -> bool {
-        for stmt in body {
-            match stmt {
-                HirStmt::While { .. } | HirStmt::For { .. } => return true,
-                HirStmt::If { then_body, else_body, .. } => {
-                    if self.contains_loops(then_body) {
-                        return true;
-                    }
-                    if let Some(else_stmts) = else_body {
-                        if self.contains_loops(else_stmts) {
-                            return true;
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-        false
+        contains_loops_inner(body)
     }
 
     fn has_side_effects(&self, func: &HirFunction) -> bool {
@@ -421,14 +422,14 @@ impl InliningAnalyzer {
         if !func.properties.is_pure {
             return true;
         }
-        
+
         // Check for I/O operations, mutations, etc.
         for stmt in &func.body {
             if self.stmt_has_side_effects(stmt) {
                 return true;
             }
         }
-        
+
         false
     }
 
@@ -437,14 +438,26 @@ impl InliningAnalyzer {
             HirStmt::Expr(expr) => self.expr_has_side_effects(expr),
             HirStmt::Assign { value, .. } => self.expr_has_side_effects(value),
             HirStmt::Return(Some(expr)) => self.expr_has_side_effects(expr),
-            HirStmt::If { condition, then_body, else_body } => {
-                self.expr_has_side_effects(condition) ||
-                then_body.iter().any(|s| self.stmt_has_side_effects(s)) ||
-                else_body.as_ref().map(|stmts| stmts.iter().any(|s| self.stmt_has_side_effects(s))).unwrap_or(false)
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
+                self.expr_has_side_effects(condition)
+                    || then_body.iter().any(|s| self.stmt_has_side_effects(s))
+                    || else_body
+                        .as_ref()
+                        .map(|stmts| stmts.iter().any(|s| self.stmt_has_side_effects(s)))
+                        .unwrap_or(false)
             }
-            HirStmt::While { condition, body } | HirStmt::For { iter: condition, body, .. } => {
-                self.expr_has_side_effects(condition) ||
-                body.iter().any(|s| self.stmt_has_side_effects(s))
+            HirStmt::While { condition, body }
+            | HirStmt::For {
+                iter: condition,
+                body,
+                ..
+            } => {
+                self.expr_has_side_effects(condition)
+                    || body.iter().any(|s| self.stmt_has_side_effects(s))
             }
             HirStmt::Raise { .. } => true, // Exceptions are side effects
             _ => false,
@@ -452,32 +465,7 @@ impl InliningAnalyzer {
     }
 
     fn expr_has_side_effects(&self, expr: &HirExpr) -> bool {
-        match expr {
-            HirExpr::Call { func, args } => {
-                // Known side-effect-free functions
-                let pure_functions = ["len", "abs", "min", "max", "sum", "str", "int", "float"];
-                !pure_functions.contains(&func.as_str()) ||
-                args.iter().any(|a| self.expr_has_side_effects(a))
-            }
-            HirExpr::MethodCall { method, .. } => {
-                // Methods that mutate are side effects
-                let mutating_methods = ["append", "extend", "remove", "pop", "clear", "sort", "reverse"];
-                mutating_methods.contains(&method.as_str())
-            }
-            HirExpr::Binary { left, right, .. } => {
-                self.expr_has_side_effects(left) || self.expr_has_side_effects(right)
-            }
-            HirExpr::Unary { operand, .. } => self.expr_has_side_effects(operand),
-            HirExpr::List(items) | HirExpr::Tuple(items) => {
-                items.iter().any(|i| self.expr_has_side_effects(i))
-            }
-            HirExpr::Dict(pairs) => {
-                pairs.iter().any(|(k, v)| {
-                    self.expr_has_side_effects(k) || self.expr_has_side_effects(v)
-                })
-            }
-            _ => false,
-        }
+        expr_has_side_effects_inner(expr)
     }
 
     fn is_trivial_function(&self, func: &HirFunction) -> bool {
@@ -490,58 +478,48 @@ impl InliningAnalyzer {
     }
 
     fn count_returns(&self, body: &[HirStmt]) -> usize {
-        let mut count = 0;
-        for stmt in body {
-            match stmt {
-                HirStmt::Return(_) => count += 1,
-                HirStmt::If { then_body, else_body, .. } => {
-                    count += self.count_returns(then_body);
-                    if let Some(else_stmts) = else_body {
-                        count += self.count_returns(else_stmts);
-                    }
-                }
-                HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
-                    count += self.count_returns(body);
-                }
-                _ => {}
-            }
-        }
-        count
+        count_returns_inner(body)
     }
 
-    fn estimate_cost(&self, func: &HirFunction, size: usize, has_loops: bool, has_side_effects: bool) -> f64 {
+    fn estimate_cost(
+        &self,
+        func: &HirFunction,
+        size: usize,
+        has_loops: bool,
+        has_side_effects: bool,
+    ) -> f64 {
         let mut cost = size as f64;
-        
+
         // Loops significantly increase cost
         if has_loops {
             cost *= 10.0;
         }
-        
+
         // Side effects add cost
         if has_side_effects {
             cost *= 2.0;
         }
-        
+
         // Multiple returns add complexity
-        let return_count = self.count_returns(&func.body);
+        let return_count = count_returns_inner(&func.body);
         if return_count > 1 {
             cost *= 1.0 + (return_count as f64 * 0.2);
         }
-        
+
         // Parameters add overhead
         cost += func.params.len() as f64 * 0.5;
-        
+
         cost
     }
 
     fn make_decisions(&self) -> HashMap<String, InliningDecision> {
         let mut decisions = HashMap::new();
-        
+
         for (func_name, metrics) in &self.function_metrics {
             let decision = self.decide_inlining(func_name, metrics);
             decisions.insert(func_name.clone(), decision);
         }
-        
+
         decisions
     }
 
@@ -554,7 +532,7 @@ impl InliningAnalyzer {
                 cost_benefit: 0.0,
             };
         }
-        
+
         // Check for trivial functions
         if self.config.inline_trivial && metrics.is_trivial {
             return InliningDecision {
@@ -563,7 +541,7 @@ impl InliningAnalyzer {
                 cost_benefit: 10.0, // High benefit for trivial functions
             };
         }
-        
+
         // Check for single-use functions
         if self.config.inline_single_use && metrics.call_count == 1 && !metrics.has_side_effects {
             return InliningDecision {
@@ -572,7 +550,7 @@ impl InliningAnalyzer {
                 cost_benefit: 5.0,
             };
         }
-        
+
         // Check size constraints
         if metrics.size > self.config.max_inline_size {
             return InliningDecision {
@@ -581,7 +559,7 @@ impl InliningAnalyzer {
                 cost_benefit: 0.0,
             };
         }
-        
+
         // Check for loops
         if metrics.has_loops && !self.config.inline_loops {
             return InliningDecision {
@@ -590,7 +568,7 @@ impl InliningAnalyzer {
                 cost_benefit: 0.0,
             };
         }
-        
+
         // Check for side effects
         if metrics.has_side_effects {
             return InliningDecision {
@@ -599,12 +577,12 @@ impl InliningAnalyzer {
                 cost_benefit: 0.0,
             };
         }
-        
+
         // Calculate cost-benefit ratio
         let call_overhead = 1.0; // Base cost of a function call
         let benefit = (call_overhead * metrics.call_count as f64) - metrics.cost;
         let cost_benefit = benefit / metrics.cost;
-        
+
         if cost_benefit >= self.config.cost_threshold {
             InliningDecision {
                 should_inline: true,
@@ -637,7 +615,13 @@ impl InliningAnalyzer {
                 if let Some(decision) = decisions.get(func) {
                     if decision.should_inline {
                         if let Some(target_func) = function_map.get(func) {
-                            return Some(self.inline_function_call(target_func, args, function_map, decisions, depth));
+                            return Some(self.inline_function_call(
+                                target_func,
+                                args,
+                                function_map,
+                                decisions,
+                                depth,
+                            ));
                         }
                     }
                 }
@@ -648,7 +632,13 @@ impl InliningAnalyzer {
                     if let Some(decision) = decisions.get(func) {
                         if decision.should_inline {
                             if let Some(target_func) = function_map.get(func) {
-                                let inlined = self.inline_function_call(target_func, args, function_map, decisions, depth);
+                                let inlined = self.inline_function_call(
+                                    target_func,
+                                    args,
+                                    function_map,
+                                    decisions,
+                                    depth,
+                                );
                                 // Modify the last statement to assign to the target
                                 if !inlined.is_empty() {
                                     let mut result = inlined;
@@ -681,7 +671,7 @@ impl InliningAnalyzer {
         depth: usize,
     ) -> Vec<HirStmt> {
         let mut inlined_body = Vec::new();
-        
+
         // Create parameter bindings
         for (i, (param_name, _)) in func.params.iter().enumerate() {
             if let Some(arg) = args.get(i) {
@@ -691,19 +681,21 @@ impl InliningAnalyzer {
                 });
             }
         }
-        
+
         // Copy and transform the function body
         for stmt in &func.body {
             let transformed = self.transform_stmt_for_inlining(stmt, &func.params, depth + 1);
-            
+
             // Recursively try to inline nested calls
-            if let Some(inlined) = self.try_inline_stmt(&transformed, function_map, decisions, depth + 1) {
+            if let Some(inlined) =
+                self.try_inline_stmt(&transformed, function_map, decisions, depth + 1)
+            {
                 inlined_body.extend(inlined);
             } else {
                 inlined_body.push(transformed);
             }
         }
-        
+
         inlined_body
     }
 
@@ -714,19 +706,27 @@ impl InliningAnalyzer {
         _depth: usize,
     ) -> HirStmt {
         match stmt {
-            HirStmt::Expr(expr) => HirStmt::Expr(self.transform_expr_for_inlining(expr, params)),
+            HirStmt::Expr(expr) => HirStmt::Expr(transform_expr_for_inlining_inner(expr, params)),
             HirStmt::Assign { target, value } => HirStmt::Assign {
                 target: self.transform_assign_target_for_inlining(target, params),
-                value: self.transform_expr_for_inlining(value, params),
+                value: transform_expr_for_inlining_inner(value, params),
             },
-            HirStmt::Return(Some(expr)) => HirStmt::Return(Some(self.transform_expr_for_inlining(expr, params))),
-            HirStmt::If { condition, then_body, else_body } => HirStmt::If {
-                condition: self.transform_expr_for_inlining(condition, params),
-                then_body: then_body.iter()
+            HirStmt::Return(Some(expr)) => {
+                HirStmt::Return(Some(transform_expr_for_inlining_inner(expr, params)))
+            }
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => HirStmt::If {
+                condition: transform_expr_for_inlining_inner(condition, params),
+                then_body: then_body
+                    .iter()
                     .map(|s| self.transform_stmt_for_inlining(s, params, _depth))
                     .collect(),
                 else_body: else_body.as_ref().map(|stmts| {
-                    stmts.iter()
+                    stmts
+                        .iter()
                         .map(|s| self.transform_stmt_for_inlining(s, params, _depth))
                         .collect()
                 }),
@@ -735,37 +735,13 @@ impl InliningAnalyzer {
         }
     }
 
+    #[allow(dead_code)]
     fn transform_expr_for_inlining(
         &self,
         expr: &HirExpr,
         params: &[(String, crate::hir::Type)],
     ) -> HirExpr {
-        match expr {
-            HirExpr::Var(name) => {
-                // Replace parameter references with inlined versions
-                if params.iter().any(|(p, _)| p == name) {
-                    HirExpr::Var(format!("_inline_{}", name))
-                } else {
-                    expr.clone()
-                }
-            }
-            HirExpr::Binary { left, right, op } => HirExpr::Binary {
-                left: Box::new(self.transform_expr_for_inlining(left, params)),
-                right: Box::new(self.transform_expr_for_inlining(right, params)),
-                op: *op,
-            },
-            HirExpr::Unary { operand, op } => HirExpr::Unary {
-                operand: Box::new(self.transform_expr_for_inlining(operand, params)),
-                op: *op,
-            },
-            HirExpr::Call { func, args } => HirExpr::Call {
-                func: func.clone(),
-                args: args.iter()
-                    .map(|a| self.transform_expr_for_inlining(a, params))
-                    .collect(),
-            },
-            _ => expr.clone(),
-        }
+        transform_expr_for_inlining_inner(expr, params)
     }
 
     fn transform_assign_target_for_inlining(
@@ -783,6 +759,136 @@ impl InliningAnalyzer {
             }
             _ => target.clone(),
         }
+    }
+}
+
+fn calculate_expr_size_inner(expr: &HirExpr) -> usize {
+    match expr {
+        HirExpr::Literal(_) | HirExpr::Var(_) => 1,
+        HirExpr::Binary { left, right, .. } => {
+            1 + calculate_expr_size_inner(left) + calculate_expr_size_inner(right)
+        }
+        HirExpr::Unary { operand, .. } => 1 + calculate_expr_size_inner(operand),
+        HirExpr::Call { args, .. } => 1 + args.iter().map(calculate_expr_size_inner).sum::<usize>(),
+        HirExpr::List(items) | HirExpr::Tuple(items) => {
+            1 + items.iter().map(calculate_expr_size_inner).sum::<usize>()
+        }
+        HirExpr::Dict(pairs) => {
+            1 + pairs
+                .iter()
+                .map(|(k, v)| calculate_expr_size_inner(k) + calculate_expr_size_inner(v))
+                .sum::<usize>()
+        }
+        _ => 1,
+    }
+}
+
+fn contains_loops_inner(body: &[HirStmt]) -> bool {
+    for stmt in body {
+        match stmt {
+            HirStmt::While { .. } | HirStmt::For { .. } => return true,
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                if contains_loops_inner(then_body) {
+                    return true;
+                }
+                if let Some(else_stmts) = else_body {
+                    if contains_loops_inner(else_stmts) {
+                        return true;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+fn expr_has_side_effects_inner(expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::Call { func, args } => {
+            // Known side-effect-free functions
+            let pure_functions = ["len", "abs", "min", "max", "sum", "str", "int", "float"];
+            !pure_functions.contains(&func.as_str()) || args.iter().any(expr_has_side_effects_inner)
+        }
+        HirExpr::MethodCall { method, .. } => {
+            // Methods that mutate are side effects
+            let mutating_methods = [
+                "append", "extend", "remove", "pop", "clear", "sort", "reverse",
+            ];
+            mutating_methods.contains(&method.as_str())
+        }
+        HirExpr::Binary { left, right, .. } => {
+            expr_has_side_effects_inner(left) || expr_has_side_effects_inner(right)
+        }
+        HirExpr::Unary { operand, .. } => expr_has_side_effects_inner(operand),
+        HirExpr::List(items) | HirExpr::Tuple(items) => {
+            items.iter().any(expr_has_side_effects_inner)
+        }
+        HirExpr::Dict(pairs) => pairs
+            .iter()
+            .any(|(k, v)| expr_has_side_effects_inner(k) || expr_has_side_effects_inner(v)),
+        _ => false,
+    }
+}
+
+fn count_returns_inner(body: &[HirStmt]) -> usize {
+    let mut count = 0;
+    for stmt in body {
+        match stmt {
+            HirStmt::Return(_) => count += 1,
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                count += count_returns_inner(then_body);
+                if let Some(else_stmts) = else_body {
+                    count += count_returns_inner(else_stmts);
+                }
+            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                count += count_returns_inner(body);
+            }
+            _ => {}
+        }
+    }
+    count
+}
+
+fn transform_expr_for_inlining_inner(
+    expr: &HirExpr,
+    params: &[(String, crate::hir::Type)],
+) -> HirExpr {
+    match expr {
+        HirExpr::Var(name) => {
+            // Replace parameter references with inlined versions
+            if params.iter().any(|(p, _)| p == name) {
+                HirExpr::Var(format!("_inline_{}", name))
+            } else {
+                expr.clone()
+            }
+        }
+        HirExpr::Binary { left, right, op } => HirExpr::Binary {
+            left: Box::new(transform_expr_for_inlining_inner(left, params)),
+            right: Box::new(transform_expr_for_inlining_inner(right, params)),
+            op: *op,
+        },
+        HirExpr::Unary { operand, op } => HirExpr::Unary {
+            operand: Box::new(transform_expr_for_inlining_inner(operand, params)),
+            op: *op,
+        },
+        HirExpr::Call { func, args } => HirExpr::Call {
+            func: func.clone(),
+            args: args
+                .iter()
+                .map(|a| transform_expr_for_inlining_inner(a, params))
+                .collect(),
+        },
+        _ => expr.clone(),
     }
 }
 
@@ -839,15 +945,13 @@ mod tests {
 
     #[test]
     fn test_loop_detection() {
-        let body = vec![
-            HirStmt::While {
-                condition: HirExpr::Literal(Literal::Bool(true)),
-                body: vec![HirStmt::Break { label: None }],
-            },
-        ];
+        let body = vec![HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Break { label: None }],
+        }];
 
-        let analyzer = InliningAnalyzer::new(InliningConfig::default());
-        assert!(analyzer.contains_loops(&body));
+        let _analyzer = InliningAnalyzer::new(InliningConfig::default());
+        assert!(contains_loops_inner(&body));
     }
 
     #[test]
@@ -858,8 +962,8 @@ mod tests {
             args: vec![HirExpr::Literal(Literal::Int(42))],
         };
 
-        let analyzer = InliningAnalyzer::new(InliningConfig::default());
-        assert!(analyzer.expr_has_side_effects(&expr));
+        let _analyzer = InliningAnalyzer::new(InliningConfig::default());
+        assert!(expr_has_side_effects_inner(&expr));
     }
 
     #[test]
