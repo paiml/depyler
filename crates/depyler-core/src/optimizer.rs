@@ -4,6 +4,7 @@ use crate::hir::{
     AssignTarget, BinOp, HirExpr, HirFunction, HirProgram, HirStmt, Literal, UnaryOp,
 };
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 
 /// Main optimizer that runs various optimization passes
 pub struct Optimizer {
@@ -454,13 +455,214 @@ impl Optimizer {
     }
 
     /// Eliminate common subexpressions
-    fn eliminate_common_subexpressions_program(&self, program: HirProgram) -> HirProgram {
-        // TODO: Implement CSE
-        // This requires:
-        // - Expression hashing/comparison
-        // - Temporary variable generation
-        // - Side effect analysis
+    fn eliminate_common_subexpressions_program(&self, mut program: HirProgram) -> HirProgram {
+        
+        for func in &mut program.functions {
+            let mut cse_map: HashMap<u64, (HirExpr, String)> = HashMap::new();
+            let mut temp_counter = 0;
+            
+            func.body = self.eliminate_cse_in_body(&func.body, &mut cse_map, &mut temp_counter);
+        }
+        
         program
+    }
+    
+    fn eliminate_cse_in_body(
+        &self,
+        body: &[HirStmt],
+        cse_map: &mut HashMap<u64, (HirExpr, String)>,
+        temp_counter: &mut usize,
+    ) -> Vec<HirStmt> {
+        let mut new_body = Vec::new();
+        
+        for stmt in body {
+            match stmt {
+                HirStmt::Assign { target, value } => {
+                    let (new_value, extra_stmts) = self.process_expr_for_cse(value, cse_map, temp_counter);
+                    new_body.extend(extra_stmts);
+                    new_body.push(HirStmt::Assign {
+                        target: target.clone(),
+                        value: new_value,
+                    });
+                }
+                HirStmt::Return(Some(expr)) => {
+                    let (new_expr, extra_stmts) = self.process_expr_for_cse(expr, cse_map, temp_counter);
+                    new_body.extend(extra_stmts);
+                    new_body.push(HirStmt::Return(Some(new_expr)));
+                }
+                HirStmt::If { condition, then_body, else_body } => {
+                    let (new_condition, extra_stmts) = self.process_expr_for_cse(condition, cse_map, temp_counter);
+                    new_body.extend(extra_stmts);
+                    
+                    // CSE within branches (with separate scopes)
+                    let mut then_cse = cse_map.clone();
+                    let new_then = self.eliminate_cse_in_body(then_body, &mut then_cse, temp_counter);
+                    
+                    let new_else = else_body.as_ref().map(|else_stmts| {
+                        let mut else_cse = cse_map.clone();
+                        self.eliminate_cse_in_body(else_stmts, &mut else_cse, temp_counter)
+                    });
+                    
+                    new_body.push(HirStmt::If {
+                        condition: new_condition,
+                        then_body: new_then,
+                        else_body: new_else,
+                    });
+                }
+                _ => new_body.push(stmt.clone()),
+            }
+        }
+        
+        new_body
+    }
+    
+    fn process_expr_for_cse(
+        &self,
+        expr: &HirExpr,
+        cse_map: &mut HashMap<u64, (HirExpr, String)>,
+        temp_counter: &mut usize,
+    ) -> (HirExpr, Vec<HirStmt>) {
+        let mut extra_stmts = Vec::new();
+        
+        // Only process complex expressions
+        match expr {
+            HirExpr::Binary { left, right, op } => {
+                // Recursively process operands
+                let (new_left, left_stmts) = self.process_expr_for_cse(left, cse_map, temp_counter);
+                let (new_right, right_stmts) = self.process_expr_for_cse(right, cse_map, temp_counter);
+                extra_stmts.extend(left_stmts);
+                extra_stmts.extend(right_stmts);
+                
+                let new_expr = HirExpr::Binary {
+                    op: *op,
+                    left: Box::new(new_left),
+                    right: Box::new(new_right),
+                };
+                
+                // Check if this expression is worth caching (not trivial)
+                if self.is_complex_expr(&new_expr) {
+                    let hash = self.hash_expr(&new_expr);
+                    
+                    if let Some((_, var_name)) = cse_map.get(&hash) {
+                        // Reuse existing computation
+                        (HirExpr::Var(var_name.clone()), extra_stmts)
+                    } else {
+                        // Create new temporary
+                        let temp_name = format!("_cse_temp_{}", temp_counter);
+                        *temp_counter += 1;
+                        
+                        extra_stmts.push(HirStmt::Assign {
+                            target: AssignTarget::Symbol(temp_name.clone()),
+                            value: new_expr.clone(),
+                        });
+                        
+                        cse_map.insert(hash, (new_expr, temp_name.clone()));
+                        (HirExpr::Var(temp_name), extra_stmts)
+                    }
+                } else {
+                    (new_expr, extra_stmts)
+                }
+            }
+            HirExpr::Call { func, args } if self.is_pure_function(func) => {
+                // Process arguments
+                let mut new_args = Vec::new();
+                for arg in args {
+                    let (new_arg, arg_stmts) = self.process_expr_for_cse(arg, cse_map, temp_counter);
+                    extra_stmts.extend(arg_stmts);
+                    new_args.push(new_arg);
+                }
+                
+                let new_expr = HirExpr::Call {
+                    func: func.clone(),
+                    args: new_args,
+                };
+                
+                let hash = self.hash_expr(&new_expr);
+                
+                if let Some((_, var_name)) = cse_map.get(&hash) {
+                    (HirExpr::Var(var_name.clone()), extra_stmts)
+                } else {
+                    let temp_name = format!("_cse_temp_{}", temp_counter);
+                    *temp_counter += 1;
+                    
+                    extra_stmts.push(HirStmt::Assign {
+                        target: AssignTarget::Symbol(temp_name.clone()),
+                        value: new_expr.clone(),
+                    });
+                    
+                    cse_map.insert(hash, (new_expr, temp_name.clone()));
+                    (HirExpr::Var(temp_name), extra_stmts)
+                }
+            }
+            _ => (expr.clone(), extra_stmts),
+        }
+    }
+    
+    fn is_complex_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Binary { op, left, right } => {
+                // Consider non-trivial operations or non-literal operands
+                !matches!(op, BinOp::Add | BinOp::Sub) ||
+                !matches!(left.as_ref(), HirExpr::Var(_) | HirExpr::Literal(_)) ||
+                !matches!(right.as_ref(), HirExpr::Var(_) | HirExpr::Literal(_))
+            }
+            HirExpr::Call { .. } => true,
+            _ => false,
+        }
+    }
+    
+    fn is_pure_function(&self, func: &str) -> bool {
+        // List of known pure functions
+        let pure_functions = [
+            "abs", "len", "min", "max", "sum",
+            "str", "int", "float", "bool",
+            "round", "pow", "sqrt",
+        ];
+        pure_functions.contains(&func)
+    }
+    
+    fn hash_expr(&self, expr: &HirExpr) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        
+        let mut hasher = DefaultHasher::new();
+        self.hash_expr_recursive(expr, &mut hasher);
+        hasher.finish()
+    }
+    
+    fn hash_expr_recursive<H: Hasher>(&self, expr: &HirExpr, hasher: &mut H) {
+        match expr {
+            HirExpr::Literal(lit) => {
+                "literal".hash(hasher);
+                match lit {
+                    Literal::Int(n) => n.hash(hasher),
+                    Literal::Float(f) => f.to_bits().hash(hasher),
+                    Literal::String(s) => s.hash(hasher),
+                    Literal::Bool(b) => b.hash(hasher),
+                    Literal::None => "none".hash(hasher),
+                }
+            }
+            HirExpr::Var(name) => {
+                "var".hash(hasher);
+                name.hash(hasher);
+            }
+            HirExpr::Binary { op, left, right } => {
+                "binary".hash(hasher);
+                format!("{:?}", op).hash(hasher);
+                self.hash_expr_recursive(left, hasher);
+                self.hash_expr_recursive(right, hasher);
+            }
+            HirExpr::Call { func, args } => {
+                "call".hash(hasher);
+                func.hash(hasher);
+                for arg in args {
+                    self.hash_expr_recursive(arg, hasher);
+                }
+            }
+            _ => {
+                // For other expressions, use a simple discriminant
+                format!("{:?}", std::mem::discriminant(expr)).hash(hasher);
+            }
+        }
     }
 }
 
