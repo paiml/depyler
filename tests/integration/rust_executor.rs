@@ -1,7 +1,7 @@
+use anyhow::{Context, Result};
 use std::fs;
 use std::process::Command;
 use tempfile::NamedTempFile;
-use anyhow::{Result, Context};
 
 /// Execute Rust code and return the result
 pub fn execute_rust_code(rust_code: &str, function_name: &str, args: &[i32]) -> Result<i32> {
@@ -119,7 +119,7 @@ pub fn add(a: i32, b: i32) -> i32 {
     a + b
 }
 "#;
-        
+
         let result = execute_rust_code(code, "add", &[2, 3]).unwrap();
         assert_eq!(result, 5);
     }
@@ -130,7 +130,7 @@ pub fn add(a: i32, b: i32) -> i32 {
 def add(a: int, b: int) -> int:
     return a + b
 "#;
-        
+
         let result = execute_python_code(code, "add", &[2, 3]).unwrap();
         assert_eq!(result, 5);
     }

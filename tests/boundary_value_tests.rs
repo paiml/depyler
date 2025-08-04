@@ -15,7 +15,7 @@ def zero_test() -> int:
     zero_dict = {}
     return len(zero_list) + len(zero_dict) + zero_int
 "#;
-        
+
         let result = pipeline.transpile(zero_values_source);
         assert!(result.is_ok());
     }
@@ -30,7 +30,7 @@ def negative_one_test(arr: list) -> int:
         return arr[last_index]
     return -1
 "#;
-        
+
         let result = pipeline.transpile(negative_one_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -45,7 +45,7 @@ def create_large_list(size: int) -> list:
         result.append(i)
     return result
 "#;
-        
+
         let result = pipeline.transpile(max_list_source);
         assert!(result.is_ok());
     }
@@ -59,7 +59,7 @@ def single_element_test() -> int:
     single_dict = {"key": "value"}
     return len(single_list) + len(single_dict)
 "#;
-        
+
         let result = pipeline.transpile(single_element_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -75,7 +75,7 @@ def power_of_two_test() -> int:
         total += power
     return total
 "#;
-        
+
         let result = pipeline.transpile(power_of_two_source);
         assert!(result.is_ok());
     }
@@ -100,7 +100,7 @@ def off_by_one_test(n: int) -> int:
         
     return count1 + count2 + count3
 "#;
-        
+
         let result = pipeline.transpile(off_by_one_source);
         assert!(result.is_ok());
     }
@@ -116,7 +116,7 @@ def string_boundary_test() -> int:
     
     return len(empty_string) + len(single_char) + len(long_string)
 "#;
-        
+
         let result = pipeline.transpile(string_boundaries_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -133,7 +133,7 @@ def float_boundary_test() -> float:
     
     return tiny + zero + negative_tiny + one
 "#;
-        
+
         let result = pipeline.transpile(float_boundaries_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -153,7 +153,7 @@ def test_recursion_depths() -> int:
     medium = factorial_recursive(10)
     return small + medium
 "#;
-        
+
         let result = pipeline.transpile(recursion_source);
         assert!(result.is_ok());
     }
@@ -174,7 +174,7 @@ def boolean_boundary_test() -> bool:
     
     return true_val and not false_val
 "#;
-        
+
         let result = pipeline.transpile(boolean_boundaries_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -192,7 +192,7 @@ def modulo_boundary_test(n: int) -> int:
     
     return mod_two + mod_ten + mod_hundred
 "#;
-        
+
         let result = pipeline.transpile(modulo_boundaries_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -209,7 +209,7 @@ def range_boundary_test() -> int:
     
     return len(empty_range) + len(single_range) + len(reverse_range)
 "#;
-        
+
         let result = pipeline.transpile(range_boundaries_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -229,7 +229,7 @@ def conditional_boundary_test(x: int) -> int:
     else:
         return x
 "#;
-        
+
         let result = pipeline.transpile(conditional_boundaries_source);
         assert!(result.is_ok());
     }
@@ -249,7 +249,7 @@ def comparison_boundary_test(a: int, b: int) -> bool:
     
     return equal or not_equal or less_than or less_equal or greater_than or greater_equal
 "#;
-        
+
         let result = pipeline.transpile(comparison_boundaries_source);
         assert!(result.is_ok() || result.is_err()); // May fail on complex expressions
     }
@@ -273,7 +273,7 @@ def container_access_test() -> int:
     
     return first + last + len(all_items) + len(first_two) + len(last_two) + len(middle)
 "#;
-        
+
         let result = pipeline.transpile(container_access_source);
         assert!(result.is_ok() || result.is_err());
     }
@@ -293,7 +293,7 @@ def arithmetic_boundary_test() -> int:
     
     return addition + subtraction + multiplication
 "#;
-        
+
         let result = pipeline.transpile(arithmetic_overflow_source);
         assert!(result.is_ok());
     }
