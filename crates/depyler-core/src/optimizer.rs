@@ -97,13 +97,15 @@ impl Optimizer {
 
     fn collect_constants_stmt(&self, stmt: &HirStmt, constants: &mut HashMap<String, HirExpr>) {
         match stmt {
-            HirStmt::Assign { target, value } => {
-                if let AssignTarget::Symbol(name) = target {
-                    if self.is_constant_expr(value) {
-                        constants.insert(name.clone(), value.clone());
-                    }
+            HirStmt::Assign {
+                target: AssignTarget::Symbol(name),
+                value,
+            } => {
+                if self.is_constant_expr(value) {
+                    constants.insert(name.clone(), value.clone());
                 }
             }
+            HirStmt::Assign { .. } => {}
             HirStmt::If {
                 then_body,
                 else_body,
@@ -128,14 +130,7 @@ impl Optimizer {
     }
 
     fn is_constant_expr(&self, expr: &HirExpr) -> bool {
-        match expr {
-            HirExpr::Literal(_) => true,
-            HirExpr::Unary { operand, .. } => self.is_constant_expr(operand),
-            HirExpr::Binary { left, right, .. } => {
-                self.is_constant_expr(left) && self.is_constant_expr(right)
-            }
-            _ => false,
-        }
+        is_constant_expr_inner(expr)
     }
 
     fn propagate_constants_function(
@@ -384,50 +379,13 @@ impl Optimizer {
     }
 
     fn collect_used_vars_expr(&self, expr: &HirExpr, used: &mut HashMap<String, bool>) {
-        match expr {
-            HirExpr::Var(name) => {
-                used.insert(name.clone(), true);
-            }
-            HirExpr::Binary { left, right, .. } => {
-                self.collect_used_vars_expr(left, used);
-                self.collect_used_vars_expr(right, used);
-            }
-            HirExpr::Unary { operand, .. } => {
-                self.collect_used_vars_expr(operand, used);
-            }
-            HirExpr::List(items) => {
-                for item in items {
-                    self.collect_used_vars_expr(item, used);
-                }
-            }
-            HirExpr::Dict(pairs) => {
-                for (k, v) in pairs {
-                    self.collect_used_vars_expr(k, used);
-                    self.collect_used_vars_expr(v, used);
-                }
-            }
-            HirExpr::Call { args, .. } => {
-                for arg in args {
-                    self.collect_used_vars_expr(arg, used);
-                }
-            }
-            HirExpr::MethodCall { object, args, .. } => {
-                self.collect_used_vars_expr(object, used);
-                for arg in args {
-                    self.collect_used_vars_expr(arg, used);
-                }
-            }
-            HirExpr::Lambda { body, .. } => {
-                self.collect_used_vars_expr(body, used);
-            }
-            _ => {}
-        }
+        collect_used_vars_expr_inner(expr, used);
     }
 
     /// Inline small functions using sophisticated heuristics
     fn inline_functions_program(&self, program: HirProgram) -> HirProgram {
         use crate::inlining::{InliningAnalyzer, InliningConfig};
-        
+
         // Configure inlining based on optimizer settings
         let config = InliningConfig {
             max_inline_size: self.config.inline_threshold,
@@ -437,36 +395,37 @@ impl Optimizer {
             cost_threshold: 1.5,
             inline_loops: false,
         };
-        
+
         // Analyze the program for inlining opportunities
         let mut analyzer = InliningAnalyzer::new(config);
         let decisions = analyzer.analyze_program(&program);
-        
+
         // Report inlining decisions if verbose
         for (func_name, decision) in &decisions {
             if decision.should_inline {
-                eprintln!("Inlining function '{}': {:?} (cost-benefit: {:.2})", 
-                    func_name, decision.reason, decision.cost_benefit);
+                eprintln!(
+                    "Inlining function '{}': {:?} (cost-benefit: {:.2})",
+                    func_name, decision.reason, decision.cost_benefit
+                );
             }
         }
-        
+
         // Apply the inlining transformations
         analyzer.apply_inlining(program, &decisions)
     }
 
     /// Eliminate common subexpressions
     fn eliminate_common_subexpressions_program(&self, mut program: HirProgram) -> HirProgram {
-        
         for func in &mut program.functions {
             let mut cse_map: HashMap<u64, (HirExpr, String)> = HashMap::new();
             let mut temp_counter = 0;
-            
+
             func.body = self.eliminate_cse_in_body(&func.body, &mut cse_map, &mut temp_counter);
         }
-        
+
         program
     }
-    
+
     fn eliminate_cse_in_body(
         &self,
         body: &[HirStmt],
@@ -474,11 +433,12 @@ impl Optimizer {
         temp_counter: &mut usize,
     ) -> Vec<HirStmt> {
         let mut new_body = Vec::new();
-        
+
         for stmt in body {
             match stmt {
                 HirStmt::Assign { target, value } => {
-                    let (new_value, extra_stmts) = self.process_expr_for_cse(value, cse_map, temp_counter);
+                    let (new_value, extra_stmts) =
+                        self.process_expr_for_cse(value, cse_map, temp_counter);
                     new_body.extend(extra_stmts);
                     new_body.push(HirStmt::Assign {
                         target: target.clone(),
@@ -486,23 +446,30 @@ impl Optimizer {
                     });
                 }
                 HirStmt::Return(Some(expr)) => {
-                    let (new_expr, extra_stmts) = self.process_expr_for_cse(expr, cse_map, temp_counter);
+                    let (new_expr, extra_stmts) =
+                        self.process_expr_for_cse(expr, cse_map, temp_counter);
                     new_body.extend(extra_stmts);
                     new_body.push(HirStmt::Return(Some(new_expr)));
                 }
-                HirStmt::If { condition, then_body, else_body } => {
-                    let (new_condition, extra_stmts) = self.process_expr_for_cse(condition, cse_map, temp_counter);
+                HirStmt::If {
+                    condition,
+                    then_body,
+                    else_body,
+                } => {
+                    let (new_condition, extra_stmts) =
+                        self.process_expr_for_cse(condition, cse_map, temp_counter);
                     new_body.extend(extra_stmts);
-                    
+
                     // CSE within branches (with separate scopes)
                     let mut then_cse = cse_map.clone();
-                    let new_then = self.eliminate_cse_in_body(then_body, &mut then_cse, temp_counter);
-                    
+                    let new_then =
+                        self.eliminate_cse_in_body(then_body, &mut then_cse, temp_counter);
+
                     let new_else = else_body.as_ref().map(|else_stmts| {
                         let mut else_cse = cse_map.clone();
                         self.eliminate_cse_in_body(else_stmts, &mut else_cse, temp_counter)
                     });
-                    
+
                     new_body.push(HirStmt::If {
                         condition: new_condition,
                         then_body: new_then,
@@ -512,10 +479,10 @@ impl Optimizer {
                 _ => new_body.push(stmt.clone()),
             }
         }
-        
+
         new_body
     }
-    
+
     fn process_expr_for_cse(
         &self,
         expr: &HirExpr,
@@ -523,26 +490,27 @@ impl Optimizer {
         temp_counter: &mut usize,
     ) -> (HirExpr, Vec<HirStmt>) {
         let mut extra_stmts = Vec::new();
-        
+
         // Only process complex expressions
         match expr {
             HirExpr::Binary { left, right, op } => {
                 // Recursively process operands
                 let (new_left, left_stmts) = self.process_expr_for_cse(left, cse_map, temp_counter);
-                let (new_right, right_stmts) = self.process_expr_for_cse(right, cse_map, temp_counter);
+                let (new_right, right_stmts) =
+                    self.process_expr_for_cse(right, cse_map, temp_counter);
                 extra_stmts.extend(left_stmts);
                 extra_stmts.extend(right_stmts);
-                
+
                 let new_expr = HirExpr::Binary {
                     op: *op,
                     left: Box::new(new_left),
                     right: Box::new(new_right),
                 };
-                
+
                 // Check if this expression is worth caching (not trivial)
                 if self.is_complex_expr(&new_expr) {
                     let hash = self.hash_expr(&new_expr);
-                    
+
                     if let Some((_, var_name)) = cse_map.get(&hash) {
                         // Reuse existing computation
                         (HirExpr::Var(var_name.clone()), extra_stmts)
@@ -550,12 +518,12 @@ impl Optimizer {
                         // Create new temporary
                         let temp_name = format!("_cse_temp_{}", temp_counter);
                         *temp_counter += 1;
-                        
+
                         extra_stmts.push(HirStmt::Assign {
                             target: AssignTarget::Symbol(temp_name.clone()),
                             value: new_expr.clone(),
                         });
-                        
+
                         cse_map.insert(hash, (new_expr, temp_name.clone()));
                         (HirExpr::Var(temp_name), extra_stmts)
                     }
@@ -567,29 +535,30 @@ impl Optimizer {
                 // Process arguments
                 let mut new_args = Vec::new();
                 for arg in args {
-                    let (new_arg, arg_stmts) = self.process_expr_for_cse(arg, cse_map, temp_counter);
+                    let (new_arg, arg_stmts) =
+                        self.process_expr_for_cse(arg, cse_map, temp_counter);
                     extra_stmts.extend(arg_stmts);
                     new_args.push(new_arg);
                 }
-                
+
                 let new_expr = HirExpr::Call {
                     func: func.clone(),
                     args: new_args,
                 };
-                
+
                 let hash = self.hash_expr(&new_expr);
-                
+
                 if let Some((_, var_name)) = cse_map.get(&hash) {
                     (HirExpr::Var(var_name.clone()), extra_stmts)
                 } else {
                     let temp_name = format!("_cse_temp_{}", temp_counter);
                     *temp_counter += 1;
-                    
+
                     extra_stmts.push(HirStmt::Assign {
                         target: AssignTarget::Symbol(temp_name.clone()),
                         value: new_expr.clone(),
                     });
-                    
+
                     cse_map.insert(hash, (new_expr, temp_name.clone()));
                     (HirExpr::Var(temp_name), extra_stmts)
                 }
@@ -597,72 +566,127 @@ impl Optimizer {
             _ => (expr.clone(), extra_stmts),
         }
     }
-    
+
     fn is_complex_expr(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Binary { op, left, right } => {
                 // Consider non-trivial operations or non-literal operands
-                !matches!(op, BinOp::Add | BinOp::Sub) ||
-                !matches!(left.as_ref(), HirExpr::Var(_) | HirExpr::Literal(_)) ||
-                !matches!(right.as_ref(), HirExpr::Var(_) | HirExpr::Literal(_))
+                !matches!(op, BinOp::Add | BinOp::Sub)
+                    || !matches!(left.as_ref(), HirExpr::Var(_) | HirExpr::Literal(_))
+                    || !matches!(right.as_ref(), HirExpr::Var(_) | HirExpr::Literal(_))
             }
             HirExpr::Call { .. } => true,
             _ => false,
         }
     }
-    
+
     fn is_pure_function(&self, func: &str) -> bool {
         // List of known pure functions
         let pure_functions = [
-            "abs", "len", "min", "max", "sum",
-            "str", "int", "float", "bool",
-            "round", "pow", "sqrt",
+            "abs", "len", "min", "max", "sum", "str", "int", "float", "bool", "round", "pow",
+            "sqrt",
         ];
         pure_functions.contains(&func)
     }
-    
+
     fn hash_expr(&self, expr: &HirExpr) -> u64 {
         use std::collections::hash_map::DefaultHasher;
-        
+
         let mut hasher = DefaultHasher::new();
         self.hash_expr_recursive(expr, &mut hasher);
         hasher.finish()
     }
-    
+
     fn hash_expr_recursive<H: Hasher>(&self, expr: &HirExpr, hasher: &mut H) {
-        match expr {
-            HirExpr::Literal(lit) => {
-                "literal".hash(hasher);
-                match lit {
-                    Literal::Int(n) => n.hash(hasher),
-                    Literal::Float(f) => f.to_bits().hash(hasher),
-                    Literal::String(s) => s.hash(hasher),
-                    Literal::Bool(b) => b.hash(hasher),
-                    Literal::None => "none".hash(hasher),
-                }
-            }
-            HirExpr::Var(name) => {
-                "var".hash(hasher);
-                name.hash(hasher);
-            }
-            HirExpr::Binary { op, left, right } => {
-                "binary".hash(hasher);
-                format!("{:?}", op).hash(hasher);
-                self.hash_expr_recursive(left, hasher);
-                self.hash_expr_recursive(right, hasher);
-            }
-            HirExpr::Call { func, args } => {
-                "call".hash(hasher);
-                func.hash(hasher);
-                for arg in args {
-                    self.hash_expr_recursive(arg, hasher);
-                }
-            }
-            _ => {
-                // For other expressions, use a simple discriminant
-                format!("{:?}", std::mem::discriminant(expr)).hash(hasher);
+        hash_expr_recursive_inner(expr, hasher);
+    }
+}
+
+fn hash_expr_recursive_inner<H: Hasher>(expr: &HirExpr, hasher: &mut H) {
+    match expr {
+        HirExpr::Literal(lit) => {
+            "literal".hash(hasher);
+            match lit {
+                Literal::Int(n) => n.hash(hasher),
+                Literal::Float(f) => f.to_bits().hash(hasher),
+                Literal::String(s) => s.hash(hasher),
+                Literal::Bool(b) => b.hash(hasher),
+                Literal::None => "none".hash(hasher),
             }
         }
+        HirExpr::Var(name) => {
+            "var".hash(hasher);
+            name.hash(hasher);
+        }
+        HirExpr::Binary { op, left, right } => {
+            "binary".hash(hasher);
+            format!("{:?}", op).hash(hasher);
+            hash_expr_recursive_inner(left, hasher);
+            hash_expr_recursive_inner(right, hasher);
+        }
+        HirExpr::Call { func, args } => {
+            "call".hash(hasher);
+            func.hash(hasher);
+            for arg in args {
+                hash_expr_recursive_inner(arg, hasher);
+            }
+        }
+        _ => {
+            // For other expressions, use a simple discriminant
+            format!("{:?}", std::mem::discriminant(expr)).hash(hasher);
+        }
+    }
+}
+
+fn is_constant_expr_inner(expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::Literal(_) => true,
+        HirExpr::Unary { operand, .. } => is_constant_expr_inner(operand),
+        HirExpr::Binary { left, right, .. } => {
+            is_constant_expr_inner(left) && is_constant_expr_inner(right)
+        }
+        _ => false,
+    }
+}
+
+fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>) {
+    match expr {
+        HirExpr::Var(name) => {
+            used.insert(name.clone(), true);
+        }
+        HirExpr::Binary { left, right, .. } => {
+            collect_used_vars_expr_inner(left, used);
+            collect_used_vars_expr_inner(right, used);
+        }
+        HirExpr::Unary { operand, .. } => {
+            collect_used_vars_expr_inner(operand, used);
+        }
+        HirExpr::List(items) => {
+            for item in items {
+                collect_used_vars_expr_inner(item, used);
+            }
+        }
+        HirExpr::Dict(pairs) => {
+            for (k, v) in pairs {
+                collect_used_vars_expr_inner(k, used);
+                collect_used_vars_expr_inner(v, used);
+            }
+        }
+        HirExpr::Call { args, .. } => {
+            for arg in args {
+                collect_used_vars_expr_inner(arg, used);
+            }
+        }
+        HirExpr::MethodCall { object, args, .. } => {
+            collect_used_vars_expr_inner(object, used);
+            for arg in args {
+                collect_used_vars_expr_inner(arg, used);
+            }
+        }
+        HirExpr::Lambda { body, .. } => {
+            collect_used_vars_expr_inner(body, used);
+        }
+        _ => {}
     }
 }
 
@@ -670,7 +694,8 @@ impl Optimizer {
 mod tests {
     use super::*;
     use crate::hir::{
-        AssignTarget, BinOp, FunctionProperties, HirExpr, HirFunction, HirProgram, HirStmt, Literal, Type,
+        AssignTarget, BinOp, FunctionProperties, HirExpr, HirFunction, HirProgram, HirStmt,
+        Literal, Type,
     };
     use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
@@ -751,9 +776,17 @@ mod tests {
         let func = &optimized.functions[0];
         // After constant propagation and dead code elimination, we should only have the return statement
         // Both assignments should be eliminated since the value 10 is propagated directly to the return
-        assert_eq!(func.body.len(), 1, "Expected 1 statement after optimization, got: {:?}", func.body);
-        
+        assert_eq!(
+            func.body.len(),
+            1,
+            "Expected 1 statement after optimization, got: {:?}",
+            func.body
+        );
+
         // The return should directly contain the literal value
-        assert!(matches!(&func.body[0], HirStmt::Return(Some(HirExpr::Literal(Literal::Int(10))))));
+        assert!(matches!(
+            &func.body[0],
+            HirStmt::Return(Some(HirExpr::Literal(Literal::Int(10))))
+        ));
     }
 }

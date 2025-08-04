@@ -111,14 +111,14 @@ impl MigrationAnalyzer {
 
         // Sort suggestions by severity
         self.suggestions.sort_by(|a, b| b.severity.cmp(&a.severity));
-        
+
         self.suggestions.clone()
     }
 
     fn analyze_function(&mut self, func: &HirFunction) {
         // Check function-level patterns
         self.check_function_patterns(func);
-        
+
         // Analyze function body
         for (idx, stmt) in func.body.iter().enumerate() {
             self.analyze_stmt(stmt, func, idx);
@@ -157,18 +157,23 @@ for item in items:
             self.add_suggestion(MigrationSuggestion {
                 category: SuggestionCategory::ErrorHandling,
                 severity: Severity::Important,
-                title: format!("Use Result<T, E> instead of Option<T> for errors in '{}'", func.name),
+                title: format!(
+                    "Use Result<T, E> instead of Option<T> for errors in '{}'",
+                    func.name
+                ),
                 description: "Returning None for errors loses error information".to_string(),
                 python_example: r#"def process(data):
     if not valid(data):
         return None
-    return result"#.to_string(),
+    return result"#
+                    .to_string(),
                 rust_suggestion: r#"fn process(data: &Data) -> Result<T, ProcessError> {
     if !valid(data) {
         return Err(ProcessError::InvalidData);
     }
     Ok(result)
-}"#.to_string(),
+}"#
+                .to_string(),
                 notes: vec![
                     "Result provides rich error information".to_string(),
                     "Errors can be propagated with the ? operator".to_string(),
@@ -185,11 +190,15 @@ for item in items:
             self.add_suggestion(MigrationSuggestion {
                 category: SuggestionCategory::Ownership,
                 severity: Severity::Important,
-                title: format!("Consider ownership transfer or mutable reference in '{}'", func.name),
+                title: format!(
+                    "Consider ownership transfer or mutable reference in '{}'",
+                    func.name
+                ),
                 description: "This function appears to modify its parameters".to_string(),
                 python_example: r#"def modify_list(lst):
     lst.append(42)
-    return lst"#.to_string(),
+    return lst"#
+                    .to_string(),
                 rust_suggestion: r#"// Option 1: Take mutable reference
 fn modify_list(lst: &mut Vec<i32>) {
     lst.push(42);
@@ -199,7 +208,8 @@ fn modify_list(lst: &mut Vec<i32>) {
 fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
     lst.push(42);
     lst
-}"#.to_string(),
+}"#
+                .to_string(),
                 notes: vec![
                     "Rust's ownership system requires explicit mutability".to_string(),
                     "Choose based on whether callers need the original".to_string(),
@@ -220,7 +230,11 @@ fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
             HirStmt::While { condition, body } => {
                 self.analyze_while_loop(condition, body, func, line);
             }
-            HirStmt::If { condition, then_body, else_body } => {
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
                 self.analyze_if_statement(condition, then_body, else_body, func, line);
             }
             HirStmt::Assign { target, value } => {
@@ -230,7 +244,14 @@ fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
         }
     }
 
-    fn analyze_for_loop(&mut self, _target: &str, iter: &HirExpr, body: &[HirStmt], func: &HirFunction, line: usize) {
+    fn analyze_for_loop(
+        &mut self,
+        _target: &str,
+        iter: &HirExpr,
+        body: &[HirStmt],
+        func: &HirFunction,
+        line: usize,
+    ) {
         // Check for enumerate pattern
         if let HirExpr::Call { func: fname, args } = iter {
             if fname == "enumerate" && !args.is_empty() {
@@ -238,7 +259,8 @@ fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
                     category: SuggestionCategory::Iterator,
                     severity: Severity::Info,
                     title: "Use .enumerate() iterator method".to_string(),
-                    description: "Rust's enumerate() is an iterator method, not a function".to_string(),
+                    description: "Rust's enumerate() is an iterator method, not a function"
+                        .to_string(),
                     python_example: "for i, item in enumerate(items):".to_string(),
                     rust_suggestion: "for (i, item) in items.iter().enumerate() {".to_string(),
                     notes: vec!["Iterator methods are more idiomatic in Rust".to_string()],
@@ -256,11 +278,13 @@ fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
                 category: SuggestionCategory::Iterator,
                 severity: Severity::Warning,
                 title: "Consider filter_map() for conditional transformation".to_string(),
-                description: "Combining filter and map operations can be more efficient".to_string(),
+                description: "Combining filter and map operations can be more efficient"
+                    .to_string(),
                 python_example: r#"result = []
 for item in items:
     if condition(item):
-        result.append(transform(item))"#.to_string(),
+        result.append(transform(item))"#
+                    .to_string(),
                 rust_suggestion: r#"let result: Vec<_> = items.iter()
     .filter_map(|item| {
         if condition(item) {
@@ -269,7 +293,8 @@ for item in items:
             None
         }
     })
-    .collect();"#.to_string(),
+    .collect();"#
+                    .to_string(),
                 notes: vec!["filter_map avoids intermediate Option wrapping".to_string()],
                 location: Some(SourceLocation {
                     function: func.name.clone(),
@@ -279,7 +304,13 @@ for item in items:
         }
     }
 
-    fn analyze_while_loop(&mut self, condition: &HirExpr, _body: &[HirStmt], func: &HirFunction, line: usize) {
+    fn analyze_while_loop(
+        &mut self,
+        condition: &HirExpr,
+        _body: &[HirStmt],
+        func: &HirFunction,
+        line: usize,
+    ) {
         // Check for while True pattern
         if let HirExpr::Literal(crate::hir::Literal::Bool(true)) = condition {
             self.add_suggestion(MigrationSuggestion {
@@ -301,18 +332,27 @@ for item in items:
         }
     }
 
-    fn analyze_if_statement(&mut self, condition: &HirExpr, _then_body: &[HirStmt], else_body: &Option<Vec<HirStmt>>, func: &HirFunction, line: usize) {
+    fn analyze_if_statement(
+        &mut self,
+        condition: &HirExpr,
+        _then_body: &[HirStmt],
+        else_body: &Option<Vec<HirStmt>>,
+        func: &HirFunction,
+        line: usize,
+    ) {
         // Check for type checking patterns
         if self.is_type_check(condition) {
             self.add_suggestion(MigrationSuggestion {
                 category: SuggestionCategory::TypeSystem,
                 severity: Severity::Important,
                 title: "Use Rust's type system instead of runtime type checks".to_string(),
-                description: "Rust's static typing eliminates the need for runtime type checks".to_string(),
+                description: "Rust's static typing eliminates the need for runtime type checks"
+                    .to_string(),
                 python_example: r#"if isinstance(value, str):
     process_string(value)
 elif isinstance(value, int):
-    process_number(value)"#.to_string(),
+    process_number(value)"#
+                    .to_string(),
                 rust_suggestion: r#"// Use enums for sum types
 enum Value {
     String(String),
@@ -322,7 +362,8 @@ enum Value {
 match value {
     Value::String(s) => process_string(s),
     Value::Number(n) => process_number(n),
-}"#.to_string(),
+}"#
+                .to_string(),
                 notes: vec![
                     "Enums provide compile-time guarantees".to_string(),
                     "Pattern matching ensures exhaustive handling".to_string(),
@@ -344,7 +385,8 @@ match value {
                 python_example: r#"if value is not None:
     process(value)
 else:
-    handle_none()"#.to_string(),
+    handle_none()"#
+                    .to_string(),
                 rust_suggestion: r#"// Option 1: if let
 if let Some(v) = value {
     process(v);
@@ -356,7 +398,8 @@ if let Some(v) = value {
 match value {
     Some(v) => process(v),
     None => handle_none(),
-}"#.to_string(),
+}"#
+                .to_string(),
                 notes: vec!["Pattern matching is more idiomatic and safer".to_string()],
                 location: Some(SourceLocation {
                     function: func.name.clone(),
@@ -366,7 +409,13 @@ match value {
         }
     }
 
-    fn analyze_assignment(&mut self, _target: &crate::hir::AssignTarget, value: &HirExpr, func: &HirFunction, line: usize) {
+    fn analyze_assignment(
+        &mut self,
+        _target: &crate::hir::AssignTarget,
+        value: &HirExpr,
+        func: &HirFunction,
+        line: usize,
+    ) {
         // Check for list/dict comprehension patterns
         if let HirExpr::Call { func: fname, .. } = value {
             if fname == "list" || fname == "dict" {
@@ -374,7 +423,8 @@ match value {
                     category: SuggestionCategory::Performance,
                     severity: Severity::Info,
                     title: "Consider using collect() for building collections".to_string(),
-                    description: "Rust's collect() is more efficient than repeated push operations".to_string(),
+                    description: "Rust's collect() is more efficient than repeated push operations"
+                        .to_string(),
                     python_example: "[x * 2 for x in range(10)]".to_string(),
                     rust_suggestion: "(0..10).map(|x| x * 2).collect::<Vec<_>>()".to_string(),
                     notes: vec!["collect() can optimize capacity allocation".to_string()],
@@ -395,7 +445,8 @@ match value {
                 description: "String concatenation with + is inefficient in Rust".to_string(),
                 python_example: r#"result = ""
 for item in items:
-    result = result + str(item)"#.to_string(),
+    result = result + str(item)"#
+                    .to_string(),
                 rust_suggestion: r#"// Option 1: format!
 let result = format!("{}{}{}", a, b, c);
 
@@ -403,7 +454,8 @@ let result = format!("{}{}{}", a, b, c);
 let mut result = String::new();
 for item in items {
     result.push_str(&item.to_string());
-}"#.to_string(),
+}"#
+                .to_string(),
                 notes: vec![
                     "String concatenation creates new allocations".to_string(),
                     "Use String::with_capacity() if size is known".to_string(),
@@ -469,7 +521,8 @@ for item in items {
                 if let HirExpr::Var(var) = object.as_ref() {
                     // Check if var is a parameter and method is mutating
                     if func.params.iter().any(|(p, _)| p == var) {
-                        let mutating_methods = ["append", "extend", "push", "insert", "remove", "clear"];
+                        let mutating_methods =
+                            ["append", "extend", "push", "insert", "remove", "clear"];
                         if mutating_methods.contains(&method.as_str()) {
                             return true;
                         }
@@ -520,9 +573,15 @@ for item in items {
 
     fn is_string_concatenation(&self, expr: &HirExpr) -> bool {
         // Check for string + operations
-        if let HirExpr::Binary { op: crate::hir::BinOp::Add, left, right } = expr {
+        if let HirExpr::Binary {
+            op: crate::hir::BinOp::Add,
+            left,
+            right,
+        } = expr
+        {
             // Simplified check - would need type info for accuracy
-            return matches!(left.as_ref(), HirExpr::Var(_)) || matches!(right.as_ref(), HirExpr::Var(_));
+            return matches!(left.as_ref(), HirExpr::Var(_))
+                || matches!(right.as_ref(), HirExpr::Var(_));
         }
         false
     }
@@ -536,7 +595,11 @@ for item in items {
         let mut output = String::new();
 
         if suggestions.is_empty() {
-            output.push_str(&"✨ No migration suggestions found - code is already idiomatic!\n".green().to_string());
+            output.push_str(
+                &"✨ No migration suggestions found - code is already idiomatic!\n"
+                    .green()
+                    .to_string(),
+            );
             return output;
         }
 
@@ -605,13 +668,19 @@ for item in items {
                 }
             }
 
-            output.push_str("\n");
+            output.push('\n');
         }
 
         // Summary
-        let critical_count = suggestions.iter().filter(|s| s.severity == Severity::Critical).count();
-        let important_count = suggestions.iter().filter(|s| s.severity == Severity::Important).count();
-        
+        let critical_count = suggestions
+            .iter()
+            .filter(|s| s.severity == Severity::Critical)
+            .count();
+        let important_count = suggestions
+            .iter()
+            .filter(|s| s.severity == Severity::Important)
+            .count();
+
         output.push_str(&format!(
             "{} {} suggestions ({} critical, {} important)\n",
             "Summary:".bold(),
@@ -669,22 +738,23 @@ mod tests {
             HirStmt::For {
                 target: "item".to_string(),
                 iter: HirExpr::Var("items".to_string()),
-                body: vec![
-                    HirStmt::Expr(HirExpr::MethodCall {
-                        object: Box::new(HirExpr::Var("result".to_string())),
-                        method: "append".to_string(),
-                        args: vec![HirExpr::Var("item".to_string())],
-                    }),
-                ],
+                body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                    object: Box::new(HirExpr::Var("result".to_string())),
+                    method: "append".to_string(),
+                    args: vec![HirExpr::Var("item".to_string())],
+                })],
             },
         ];
 
         let func = create_test_function("test", body);
         let mut analyzer = MigrationAnalyzer::new(MigrationConfig::default());
-        
+
         analyzer.analyze_function(&func);
         assert!(!analyzer.suggestions.is_empty());
-        assert_eq!(analyzer.suggestions[0].category, SuggestionCategory::Iterator);
+        assert_eq!(
+            analyzer.suggestions[0].category,
+            SuggestionCategory::Iterator
+        );
     }
 
     #[test]
@@ -693,9 +763,7 @@ mod tests {
         let body = vec![
             HirStmt::If {
                 condition: HirExpr::Var("error".to_string()),
-                then_body: vec![
-                    HirStmt::Return(Some(HirExpr::Literal(Literal::None))),
-                ],
+                then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::None)))],
                 else_body: None,
             },
             HirStmt::Return(Some(HirExpr::Var("result".to_string()))),
@@ -713,23 +781,27 @@ mod tests {
 
         let mut analyzer = MigrationAnalyzer::new(MigrationConfig::default());
         analyzer.analyze_function(&func);
-        
-        assert!(analyzer.suggestions.iter().any(|s| s.category == SuggestionCategory::ErrorHandling));
+
+        assert!(analyzer
+            .suggestions
+            .iter()
+            .any(|s| s.category == SuggestionCategory::ErrorHandling));
     }
 
     #[test]
     fn test_while_true_detection() {
-        let body = vec![
-            HirStmt::While {
-                condition: HirExpr::Literal(Literal::Bool(true)),
-                body: vec![HirStmt::Break { label: None }],
-            },
-        ];
+        let body = vec![HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Break { label: None }],
+        }];
 
         let func = create_test_function("test", body);
         let mut analyzer = MigrationAnalyzer::new(MigrationConfig::default());
-        
+
         analyzer.analyze_function(&func);
-        assert!(analyzer.suggestions.iter().any(|s| s.title.contains("loop")));
+        assert!(analyzer
+            .suggestions
+            .iter()
+            .any(|s| s.title.contains("loop")));
     }
 }

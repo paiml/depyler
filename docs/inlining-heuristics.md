@@ -2,7 +2,10 @@
 
 ## Overview
 
-Depyler v2.0.0 implements sophisticated function inlining heuristics to optimize generated Rust code by replacing function calls with their bodies when beneficial. This reduces function call overhead and enables further optimizations.
+Depyler v2.0.0 implements sophisticated function inlining heuristics to optimize
+generated Rust code by replacing function calls with their bodies when
+beneficial. This reduces function call overhead and enables further
+optimizations.
 
 ## Inlining Decisions
 
@@ -11,14 +14,18 @@ The inlining analyzer makes decisions based on multiple factors:
 ### 1. Function Characteristics
 
 #### Trivial Functions
+
 Functions with a single return statement are always inlined:
+
 ```python
 def square(x: int) -> int:
     return x * x  # Trivial - will be inlined
 ```
 
 #### Single-Use Functions
+
 Functions called only once are inlined to eliminate overhead:
+
 ```python
 def process_once(x: int) -> int:
     temp = x * 2
@@ -28,7 +35,9 @@ result = process_once(5)  # Only call - will be inlined
 ```
 
 #### Size Constraints
+
 Functions exceeding the size threshold (default: 20 HIR nodes) are not inlined:
+
 ```python
 def large_function(x, y, z):
     # Many operations...
@@ -38,6 +47,7 @@ def large_function(x, y, z):
 ### 2. Cost-Benefit Analysis
 
 The analyzer calculates a cost-benefit ratio considering:
+
 - **Call frequency**: More calls = higher benefit
 - **Function size**: Larger functions = higher cost
 - **Loops**: 10x cost multiplier
@@ -47,6 +57,7 @@ The analyzer calculates a cost-benefit ratio considering:
 ### 3. Safety Constraints
 
 Functions are NOT inlined if they:
+
 - Are recursive (prevents infinite expansion)
 - Have side effects (unless pure)
 - Contain loops (configurable)
@@ -55,13 +66,17 @@ Functions are NOT inlined if they:
 ## Inlining Process
 
 ### 1. Call Graph Analysis
+
 Build a complete call graph to:
+
 - Detect recursive functions
 - Track call frequencies
 - Identify dependencies
 
 ### 2. Metrics Collection
+
 For each function, calculate:
+
 - Size in HIR nodes
 - Parameter count
 - Return statement count
@@ -69,13 +84,17 @@ For each function, calculate:
 - Side effect analysis
 
 ### 3. Decision Making
+
 Apply heuristics to determine:
+
 - Should inline (yes/no)
 - Reason (trivial, single-use, cost-effective)
 - Cost-benefit ratio
 
 ### 4. Transformation
+
 When inlining:
+
 - Replace parameters with arguments
 - Rename local variables to avoid conflicts
 - Convert returns to assignments
@@ -97,6 +116,7 @@ pub struct InliningConfig {
 ## Example Results
 
 Input Python:
+
 ```python
 def add_one(n: int) -> int:
     return n + 1
@@ -108,6 +128,7 @@ def compute(x: int) -> int:
 ```
 
 Output Rust (with inlining):
+
 ```rust
 pub fn compute(x: i32) -> i32 {
     let _inline_n = x;
@@ -121,7 +142,8 @@ pub fn compute(x: i32) -> i32 {
 ## Benefits
 
 1. **Performance**: Eliminates function call overhead
-2. **Optimization**: Enables further constant propagation and dead code elimination
+2. **Optimization**: Enables further constant propagation and dead code
+   elimination
 3. **Code Size**: Can reduce size by eliminating single-use functions
 4. **Cache Efficiency**: Better instruction cache utilization
 

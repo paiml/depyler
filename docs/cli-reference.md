@@ -283,6 +283,211 @@ depyler inspect broken.py --repr python-ast --format debug
 - Analyzing function properties (pure, terminates, panic-free)
 - Optimizing code based on HIR analysis
 
+### `lsp` - Language Server Protocol
+
+Start the Language Server Protocol server for IDE integration.
+
+```bash
+depyler lsp [OPTIONS]
+
+Options:
+  --port <PORT>         Port to listen on [default: 6008]
+  --stdio               Use stdio instead of TCP (for IDE integration)
+  --log-file <FILE>     Log to file instead of stderr
+  --trace               Enable trace-level logging
+```
+
+#### Examples
+
+```bash
+# Start LSP server on default port
+depyler lsp
+
+# Use stdio for VSCode integration
+depyler lsp --stdio
+
+# Start with custom port and logging
+depyler lsp --port 9999 --log-file ~/.depyler/lsp.log
+```
+
+#### IDE Configuration
+
+**VSCode** (settings.json):
+
+```json
+{
+  "depyler.lsp.path": "depyler",
+  "depyler.lsp.args": ["lsp", "--stdio"]
+}
+```
+
+**Neovim** (init.lua):
+
+```lua
+vim.lsp.start({
+  name = 'depyler',
+  cmd = {'depyler', 'lsp', '--stdio'},
+  root_dir = vim.fs.dirname(vim.fs.find({'.git', 'pyproject.toml'}, { upward = true })[1]),
+})
+```
+
+### `profile` - Performance Profiling
+
+Profile Python code to analyze performance characteristics and predict Rust
+performance.
+
+```bash
+depyler profile [OPTIONS] <INPUT>
+
+Arguments:
+  <INPUT>               Python source file
+
+Options:
+  --flamegraph          Generate flamegraph visualization
+  --compare             Compare Python vs Rust performance
+  --export <FILE>       Export profiling data to file
+  --functions           Show per-function metrics
+  --hot-paths           Identify performance hot paths
+  --memory              Include memory allocation analysis
+  --iterations <N>      Number of profiling iterations [default: 100]
+```
+
+#### Examples
+
+```bash
+# Basic profiling
+depyler profile compute.py
+
+# Generate flamegraph
+depyler profile algorithm.py --flamegraph
+
+# Compare Python vs Rust performance
+depyler profile benchmark.py --compare
+
+# Detailed function analysis
+depyler profile complex.py --functions --hot-paths --memory
+
+# Export profiling data
+depyler profile app.py --export profile_results.json
+```
+
+#### Output Format
+
+```
+🔥 Performance Profile: compute.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Hot Paths:
+  1. compute_matrix (45.2%) - Called 1000 times
+  2. inner_loop (32.1%) - Called 1000000 times
+  3. validate_input (8.7%) - Called 1000 times
+
+Performance Predictions:
+  Python execution time: 2.34s
+  Rust execution time (estimated): 0.18s
+  Speedup: 13x
+  Memory reduction: 78%
+
+Optimization Suggestions:
+  ⚡ Use Iterator::fold instead of manual accumulation
+  ⚡ Consider SIMD operations for vector math
+  ⚡ Pre-allocate collections with known sizes
+```
+
+### `docs` - Documentation Generation
+
+Generate documentation from Python source code.
+
+```bash
+depyler docs [OPTIONS] <INPUT>
+
+Arguments:
+  <INPUT>               Python source file or directory
+
+Options:
+  -o, --output <DIR>    Output directory [default: ./docs]
+  --format <FORMAT>     Documentation format [default: markdown]
+                        [possible values: markdown, html, json]
+  --level <LEVEL>       Documentation detail level [default: api]
+                        [possible values: api, usage, full]
+  --include-examples    Include usage examples from docstrings
+  --include-tests       Generate test documentation
+  --theme <THEME>       HTML theme (for HTML format)
+                        [possible values: light, dark, auto]
+```
+
+#### Examples
+
+```bash
+# Generate API documentation
+depyler docs mymodule.py
+
+# Generate full documentation suite in HTML
+depyler docs src/ --format html --level full --output ./api-docs
+
+# Include examples and tests
+depyler docs library.py --include-examples --include-tests
+
+# Generate JSON for custom processing
+depyler docs api.py --format json --output api.json
+```
+
+#### Documentation Levels
+
+- **api**: Function signatures, parameters, return types
+- **usage**: API + usage examples and patterns
+- **full**: Complete documentation including internals
+
+### `debug` - Debugging Support
+
+Generate debugging information and helper scripts.
+
+```bash
+depyler debug [OPTIONS] <SUBCOMMAND>
+
+Subcommands:
+  tips              Show debugging tips and best practices
+  generate-scripts  Generate debugger scripts for transpiled code
+  source-map        Generate source mapping information
+
+Options (for generate-scripts):
+  <INPUT>           Transpiled Rust file
+  --debugger <TYPE> Debugger type [default: gdb]
+                    [possible values: gdb, lldb, rr]
+  --output <FILE>   Output script file
+```
+
+#### Examples
+
+```bash
+# Show debugging tips
+depyler debug tips
+
+# Generate GDB script
+depyler debug generate-scripts output.rs
+
+# Generate LLDB script
+depyler debug generate-scripts output.rs --debugger lldb
+
+# Generate source mapping
+depyler debug source-map input.py output.rs
+```
+
+#### Debug Levels in Transpilation
+
+When transpiling with debug support:
+
+```bash
+# Enable debug information
+depyler transpile input.py --debug
+
+# Generate source mapping
+depyler transpile input.py --debug --source-map
+
+# Full debug mode
+depyler transpile input.py --debug --source-map --verify-level none
+```
+
 ## Configuration
 
 ### Project Configuration File
@@ -592,6 +797,6 @@ When reporting issues, include:
 
 ---
 
-_Generated: 2025-01-06_\
-_Version: 0.1.0_\
+_Generated: 2025-01-04_\
+_Version: 2.1.0_\
 _For issues and contributions: https://github.com/paiml/depyler_

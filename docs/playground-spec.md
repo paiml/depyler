@@ -1,10 +1,13 @@
 # Depyler Interactive Environment: Technical Specification v3
 
 > ⚠️ **EXPERIMENTAL FEATURE - UNSTABLE**
-> 
-> This Interactive Playground is currently under active development and is marked as:
+>
+> This Interactive Playground is currently under active development and is
+> marked as:
+>
 > - **🧪 EXPERIMENTAL**: Features and APIs may change without notice
-> - **⚡ UNSTABLE**: May contain bugs, performance issues, or incomplete features  
+> - **⚡ UNSTABLE**: May contain bugs, performance issues, or incomplete
+>   features
 > - **🚧 NOT FOR PRODUCTION**: Use only for testing and evaluation purposes
 >
 > To use the playground, you must acknowledge this status by setting:

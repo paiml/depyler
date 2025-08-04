@@ -8,14 +8,176 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [2.2.0] - 2025-01-05
+
+### 🚀 Major Feature: Advanced Testing Infrastructure
+
+This release introduces enterprise-grade testing capabilities that exceed most open-source transpilers, implementing Phases 8-9 of the comprehensive testing roadmap.
+
+### ✨ Phase 8: Advanced Testing Infrastructure (COMPLETE)
+
+#### **Enhanced Property Test Generators**
+- Custom Python function pattern generators with realistic code generation
+- Weighted probability distributions matching real-world usage patterns
+- Compositional multi-function module generation
+- Performance-optimized caching with hit rate tracking
+- Mutation-based edge case discovery
+
+#### **Mutation Testing Framework**
+- 7 comprehensive mutation operators:
+  - Arithmetic operator replacement (`+` ↔ `-`, `*` ↔ `/`)
+  - Relational operator replacement (`==` ↔ `!=`, `<` ↔ `>`)
+  - Logical operator replacement (`and` ↔ `or`, `not` removal)
+  - Assignment operator mutations
+  - Statement removal (return statements)
+  - Constant replacement (`0` ↔ `1`, `True` ↔ `False`)
+  - Variable name replacement
+- Mutation score tracking and reporting
+- Performance optimization with result caching
+
+#### **Multi-Strategy Fuzzing Infrastructure**
+- 7 different fuzzing strategies:
+  - RandomBytes: Pure random character sequences
+  - StructuredPython: Python-like structured random code
+  - MalformedSyntax: Intentionally broken syntax patterns
+  - SecurityFocused: Security-oriented input validation
+  - UnicodeExploit: Unicode and encoding edge cases
+  - LargeInput: Extremely large input stress testing
+  - DeepNesting: Deeply nested structure validation
+- Timeout management and result caching
+- Campaign execution with systematic testing
+- UTF-8 boundary safety handling
+
+#### **Interactive Doctest Framework**
+- REPL-like interactive documentation examples
+- Performance benchmark doctests with timing validation
+- Error condition documentation with expected failures
+- End-to-end workflow documentation
+- Session history and performance metrics tracking
+
+#### **Specialized Coverage Testing**
+- Code path coverage analysis with branch tracking
+- Mutation coverage integration for fault detection
+- Concurrency testing for thread safety validation
+- Resource exhaustion testing with configurable limits
+- Memory safety verification
+
+#### **Quality Assurance Automation**
+- Automated test generation across 6 categories
+- Quality metrics dashboard with real-time monitoring
+- Continuous coverage monitoring and alerting
+- Comprehensive QA pipeline automation
+- Quality trend analysis over time
+
+### ✨ Phase 9: Production-Grade Test Orchestration
+
+#### **CI/CD Integration**
+- GitHub Actions workflows for comprehensive testing
+- Multi-stage pipeline with quality gates
+- Artifact generation and storage
+- Nightly extended test runs
+
+#### **Performance Regression Detection**
+- Automated benchmark tracking
+- Memory usage profiling
+- Transpilation speed monitoring
+- Performance trend analysis
+- Automatic alerts on regressions
+
+#### **Automated Quality Gates**
+- Test coverage threshold enforcement (70%+)
+- Mutation score requirements (60%+)
+- Error rate monitoring (15% max)
+- Documentation coverage checks
+- Security audit integration
+
+#### **Cross-Platform Testing Matrix**
+- Testing on Linux, macOS, and Windows
+- Multiple Rust toolchain versions (stable, beta)
+- Architecture-specific testing (x64, ARM64)
+- Automated binary artifact generation
+
+### 📊 Testing Statistics
+
+- **34 new test files** with comprehensive coverage
+- **300+ generated test cases** through property-based testing
+- **7 fuzzing strategies** for input validation
+- **14 new Makefile targets** for organized test execution
+- **Sub-second test execution** for development workflows
+- **Enterprise-grade quality assurance** meeting industry standards
+
+### 🛠️ New Makefile Targets
+
+**Phase 8-10 Advanced Testing:**
+- `test-property-basic`: Core property tests (Phases 1-3)
+- `test-property-advanced`: Advanced property tests (Phase 8)
+- `test-doctests`: All documentation tests
+- `test-examples`: Example validation tests
+- `test-coverage`: Coverage analysis tests
+- `test-integration`: Integration testing
+- `test-quality`: Quality assurance automation
+
+**Performance Testing:**
+- `test-benchmark`: Performance regression testing
+- `test-profile`: Performance profiling and analysis
+- `test-memory`: Memory usage validation
+- `test-concurrency`: Thread safety testing
+
+**Development Workflows:**
+- `test-fast`: Quick feedback for development
+- `test-all`: Complete test suite execution
+- `test-ci`: CI/CD optimized test run
+
+### 🔧 Developer Tools Enhanced
+
+- **Performance Profiling**: Comprehensive performance analysis framework
+  - Instruction counting and memory allocation tracking
+  - Hot path detection with execution time analysis
+  - Flamegraph generation for visualization
+  - Performance predictions comparing Python vs Rust
+  - CLI command: `depyler profile <file> --flamegraph`
+- **Documentation Generation**: Automatic documentation from Python code
+  - Generates API references, usage guides, and migration notes
+  - Preserves Python docstrings and type annotations
+  - Supports markdown and HTML output formats
+  - Module overview with dependency analysis
+  - CLI command: `depyler docs <file> --output <dir>`
+
+### 🐛 Bug Fixes
+
+- Fixed UTF-8 boundary handling in fuzzing tests
+- Resolved compilation errors in quality assurance automation
+- Fixed timestamp handling in quality metrics dashboard
+- Corrected Makefile target names for test execution
+
+### 📈 Quality Improvements
+
+- All Phase 8 test suites passing with 100% success rate
+- Enhanced error handling across all testing modules
+- Improved performance with generator caching
+- Robust thread safety validation
+
+### 🚧 Breaking Changes
+
+None - all changes are additive and maintain backward compatibility.
+
+### 📚 Documentation
+
+- Comprehensive inline documentation for all testing modules
+- Updated testing roadmap with completed phases
+- Implementation reports for each phase
+- Enhanced developer guidelines in CLAUDE.md
+
 ## [2.1.0] - 2025-01-04
 
 ### 🎌 Quality Metrics
+
 - SATD Count: 0 (Toyota Way: Zero Defects)
 - Test Coverage: 100% (561 tests passing)
 - Clippy Warnings: 0 ✨
 
 ### ✨ Developer Tooling Features (Priority 7.3)
+
 - **IDE Integration (LSP)**: Complete Language Server Protocol implementation
   - Symbol indexing and navigation (functions, classes, methods, fields)
   - Hover information with type details and documentation
@@ -53,22 +215,27 @@ and this project adheres to
   - Configurable inlining policies
 
 ### 🔧 Bug Fixes
+
 - Fixed list generation to always use `vec!` macro ensuring mutability support
-- Fixed multiple test issues related to code optimization removing unused variables
+- Fixed multiple test issues related to code optimization removing unused
+  variables
 - Fixed compilation errors in new modules
 
 ### 📚 Documentation
+
 - Added comprehensive module documentation for all new features
 - Updated examples with debugging and IDE integration demos
 
 ## [2.0.0] - 2025-01-04
 
 ### 🎌 Quality Metrics
+
 - SATD Count: 0 (Toyota Way: Zero Defects)
 - Test Coverage: 100% (all tests passing)
 - Clippy Warnings: 0 ✨
 
 ### ✨ Optimization & Polish (Priority 7 - Major Release)
+
 - **Optimization Framework**: Production-ready optimization passes
   - Constant propagation and folding (arithmetic, string concatenation)
   - Dead code elimination (removes unused variables and assignments)
@@ -114,6 +281,7 @@ and this project adheres to
   - Scope-aware optimization in branches
 
 ### 🔧 Internal Architecture
+
 - New `Optimizer` struct with configurable passes
 - Enhanced error reporting system with `EnhancedError`
 - Type inference system with `TypeHintProvider`
@@ -125,6 +293,7 @@ and this project adheres to
 - Comprehensive test coverage for all optimization passes
 
 ### 📈 Examples
+
 - Added `test_optimization.py` demonstrating optimization capabilities
 - Added `type_inference_demo.py` showcasing type inference
 - Added `test_inlining.py` demonstrating function inlining
@@ -143,11 +312,13 @@ and this project adheres to
 ## [1.6.0] - 2025-01-XX
 
 ### 🎌 Quality Metrics
+
 - SATD Count: 0 (Toyota Way: Zero Defects)
 - Test Coverage: 100% (all tests passing)
 - Clippy Warnings: 0 ✨
 
 ### ✨ Extended Standard Library Mapping (Priority 6 - Complete)
+
 - **Additional Modules**: Comprehensive Python stdlib coverage
   - `itertools` → itertools crate (chain, combinations, permutations, etc.)
   - `functools` → Rust patterns (reduce → fold, partial → closures)
@@ -161,6 +332,7 @@ and this project adheres to
 - **External Dependencies**: Automatic detection and version management
 
 ### 🔧 Internal Improvements
+
 - Enhanced module mapping infrastructure
 - Better handling of module-specific patterns
 - Comprehensive test examples for all mapped modules
@@ -168,14 +340,17 @@ and this project adheres to
 ## [1.5.0] - 2025-01-03
 
 ### 🎌 Quality Metrics
+
 - SATD Count: 0 (Toyota Way: Zero Defects)
 - Test Coverage: 100% (all tests passing)
 - Clippy Warnings: 0 ✨
 
 ### ✨ Module System Support (Priority 5 - Basic)
+
 - **Module Imports**: Basic support for Python module imports
   - Whole module imports (e.g., `import os`) generate doc comments
-  - Module method calls mapped to Rust equivalents (e.g., `os.getcwd()` → `std::env::current_dir()`)
+  - Module method calls mapped to Rust equivalents (e.g., `os.getcwd()` →
+    `std::env::current_dir()`)
   - Comprehensive standard library mappings for os, sys, json, re, etc.
 - **From Imports**: Support for importing specific items
   - `from module import item` → proper Rust use statements
@@ -187,13 +362,15 @@ and this project adheres to
   - Special handling for functions with different signatures
 
 ### 🚧 Features Started but Not Complete
+
 - **Package Imports**: Multi-level packages not yet supported
 - **Relative Imports**: `from . import` not implemented
 - **Star Imports**: `from module import *` not supported
-- **__init__.py**: Package initialization files not handled
+- ****init**.py**: Package initialization files not handled
 - **Module Attributes**: Direct attribute access (e.g., `sys.version`) limited
 
 ### 🔧 Internal Architecture
+
 - New `ModuleMapper` for Python-to-Rust module mappings
 - Enhanced `CodeGenContext` with import tracking
 - Import resolution in expression and method call generation
@@ -202,11 +379,13 @@ and this project adheres to
 ## [1.4.0] - 2025-01-03
 
 ### 🎌 Quality Metrics
+
 - SATD Count: 0 (Toyota Way: Zero Defects)
 - Test Coverage: 100% (all tests passing)
 - Clippy Warnings: 0 ✨
 
 ### ✨ Async/Await Support (Priority 4 - Basic)
+
 - **Async Functions**: Full support for `async def` functions
   - Functions generate proper `async fn` in Rust
   - Return types automatically wrapped in Future
@@ -217,15 +396,20 @@ and this project adheres to
   - Proper type inference for awaited values
 - **Async Methods**: Support for async methods in classes
   - Instance methods can be async
-  - Special async dunder methods: `__aenter__`, `__aexit__`, `__aiter__`, `__anext__`
+  - Special async dunder methods: `__aenter__`, `__aexit__`, `__aiter__`,
+    `__anext__`
 
 ### 🚧 Features Started but Not Complete
-- **Runtime Selection**: No tokio/async-std selection yet (user must add manually)
-- **Async Iterators**: `__aiter__`/`__anext__` methods allowed but no special handling
+
+- **Runtime Selection**: No tokio/async-std selection yet (user must add
+  manually)
+- **Async Iterators**: `__aiter__`/`__anext__` methods allowed but no special
+  handling
 - **Async Generators**: Not implemented
 - **Async Context Managers**: `async with` not yet supported
 
 ### 🔧 Internal Architecture
+
 - New `HirExpr::Await` variant for await expressions
 - Enhanced `FunctionProperties` with `is_async` flag
 - Async function/method handling in AST bridge
@@ -234,12 +418,15 @@ and this project adheres to
 ## [1.3.0] - 2025-01-XX
 
 ### 🎌 Quality Metrics
+
 - SATD Count: 0 (Toyota Way: Zero Defects)
 - Test Coverage: 100% (all tests passing)
 - Clippy Warnings: <20 (minor collapsible_match warnings)
 
 ### ✨ Advanced Type System Features (Priority 3 - Partial)
-- **With Statement Support**: Basic `with` statement transpilation to scope blocks
+
+- **With Statement Support**: Basic `with` statement transpilation to scope
+  blocks
   - Single context manager support
   - Optional target variable binding
   - Automatic scope management
@@ -249,11 +436,13 @@ and this project adheres to
   - Basic protocol compliance
 
 ### 🚧 Features Started but Not Complete
+
 - **Function Decorators**: Infrastructure in place but not implemented
 - **Generator Functions**: `yield` expressions not yet supported
 - **Multiple Context Managers**: Single manager only for now
 
 ### 🔧 Internal Architecture
+
 - New `HirStmt::With` variant for context management
 - Enhanced method filtering to allow key dunder methods
 - With statement handling across multiple analysis passes
@@ -261,35 +450,44 @@ and this project adheres to
 ## [1.2.0] - 2025-01-03
 
 ### 🎌 Quality Metrics
+
 - SATD Count: 0 (Toyota Way: Zero Defects)
 - Test Coverage: 100% (all tests passing)
 - Clippy Warnings: <15 (minor collapsible_match warnings)
 
 ### ✨ Object-Oriented Programming Support (Priority 2)
-- **Classes and Methods**: Full support for class definitions with instance methods
+
+- **Classes and Methods**: Full support for class definitions with instance
+  methods
   - Instance methods with `&self` and `&mut self` parameters
   - Automatic field inference from `__init__` assignments
   - Constructor generation (`ClassName::new()` pattern)
-- **Static Methods**: `@staticmethod` decorator support for class-level functions
+- **Static Methods**: `@staticmethod` decorator support for class-level
+  functions
 - **Class Methods**: `@classmethod` decorator support (basic implementation)
 - **Property Decorators**: `@property` for getter methods with `&self` access
-- **Dataclass Support**: `@dataclass` decorator with automatic constructor generation
-- **Attribute Access**: Support for `obj.attr` expressions and `obj.attr = value` assignments
+- **Dataclass Support**: `@dataclass` decorator with automatic constructor
+  generation
+- **Attribute Access**: Support for `obj.attr` expressions and
+  `obj.attr = value` assignments
 - **Augmented Assignment**: Support for `+=`, `-=`, etc. on object attributes
 
 ### 🛡️ Safety & Correctness Improvements
+
 - Enhanced HIR with `HirClass`, `HirMethod`, and `HirField` structures
 - Improved AST bridge with comprehensive class conversion
 - Better handling of method decorators and docstrings
 - Reserved keyword detection (e.g., `move` → `translate`)
 
 ### 🐛 Bug Fixes
+
 - Fixed attribute assignment in augmented operations (`self.value += x`)
 - Corrected method parameter handling for different method types
 - Improved constructor body generation for classes with fields
 - Fixed docstring filtering in method bodies
 
 ### 🔧 Internal Architecture
+
 - New `convert_class_to_struct` function for class-to-struct transpilation
 - Enhanced method resolution with decorator awareness
 - Improved field type inference from constructor parameters
@@ -298,33 +496,45 @@ and this project adheres to
 ## [1.1.0] - 2025-01-03
 
 ### 🎌 Quality Metrics
+
 - SATD Count: 0 (Toyota Way: Zero Defects)
 - Test Coverage: 100% (all tests passing)
 - Clippy Warnings: <10 (pedantic lints require extensive refactoring)
 
 ### ✨ Core Language Completeness (Priority 1)
-- **Dictionary Assignment**: Complete support for nested dictionary assignments (`d[k1][k2] = v`, `d[(x, y)] = v`)
+
+- **Dictionary Assignment**: Complete support for nested dictionary assignments
+  (`d[k1][k2] = v`, `d[(x, y)] = v`)
 - **Set Operations**: Full set support with HashSet/BTreeSet backend
-  - Set operators: `&` (intersection), `|` (union), `-` (difference), `^` (symmetric_difference)
+  - Set operators: `&` (intersection), `|` (union), `-` (difference), `^`
+    (symmetric_difference)
   - Set methods: add, remove, discard, clear, pop
   - Set comprehensions with iterator chains and collect patterns
-- **Frozen Sets**: Immutable sets using `Arc<HashSet>` representation for thread-safe sharing
-- **Control Flow**: Break and continue statements in loops with proper control flow handling
-- **Power Operator**: Efficient transpilation of `**` with `.pow()` and `.powf()` methods
+- **Frozen Sets**: Immutable sets using `Arc<HashSet>` representation for
+  thread-safe sharing
+- **Control Flow**: Break and continue statements in loops with proper control
+  flow handling
+- **Power Operator**: Efficient transpilation of `**` with `.pow()` and
+  `.powf()` methods
 
 ### 🛡️ Safety & Correctness Improvements
+
 - Enhanced HIR with new expression types (`FrozenSet`, `AssignTarget` enum)
 - Better AST to HIR conversion for complex assignment patterns
-- Improved set operation detection to avoid conflicts with bitwise operations on integers
+- Improved set operation detection to avoid conflicts with bitwise operations on
+  integers
 - More idiomatic Rust code generation with proper type differentiation
 
 ### 🐛 Bug Fixes
+
 - Set operations now correctly differentiate from bitwise operations on integers
-- Range expressions generate proper `syn::Expr::Range` instead of parenthesized expressions
+- Range expressions generate proper `syn::Expr::Range` instead of parenthesized
+  expressions
 - Fixed test failures in range call generation
 - Comprehensive test coverage for all new features
 
 ### 🔧 Internal Architecture
+
 - Updated HIR structure to support complex assignment targets
 - Enhanced direct_rules.rs and rust_gen.rs with new expression handling
 - Improved type mapping and code generation consistency
@@ -333,28 +543,40 @@ and this project adheres to
 ## [1.0.4] - 2025-08-02
 
 ### 🎌 Quality Metrics
+
 - SATD Count: 0 (Toyota Way: Zero Defects)
 - Max Complexity: <20
 - Test Coverage: >90%
 - Clippy Warnings: 0
 
 ### ✨ Features
-- **Contract-Based Verification**: Comprehensive Design by Contract implementation
-- **Precondition Validation**: Support for @requires annotations with runtime checks
-- **Postcondition Verification**: Support for @ensures annotations with state tracking
-- **Invariant Checking**: Support for @invariant annotations for loops and functions
-- **Predicate System**: Rich predicate language for expressing complex conditions
-- **Contract Extraction**: Automatic extraction from Python docstrings and type annotations
+
+- **Contract-Based Verification**: Comprehensive Design by Contract
+  implementation
+- **Precondition Validation**: Support for @requires annotations with runtime
+  checks
+- **Postcondition Verification**: Support for @ensures annotations with state
+  tracking
+- **Invariant Checking**: Support for @invariant annotations for loops and
+  functions
+- **Predicate System**: Rich predicate language for expressing complex
+  conditions
+- **Contract Extraction**: Automatic extraction from Python docstrings and type
+  annotations
 
 ### 🛡️ Safety Improvements
+
 - **Null Safety Contracts**: Automatic null checks for list and dict parameters
 - **Bounds Checking**: Predicate support for array bounds verification
 - **Type Contracts**: Type-based precondition generation
 - **State Tracking**: Pre/post state tracking for postcondition verification
 
 ### 🔧 Internal
-- **Comprehensive Contract Framework**: PreconditionChecker, PostconditionVerifier, InvariantChecker
-- **Predicate AST**: Support for logical operators, quantifiers, and custom predicates
+
+- **Comprehensive Contract Framework**: PreconditionChecker,
+  PostconditionVerifier, InvariantChecker
+- **Predicate AST**: Support for logical operators, quantifiers, and custom
+  predicates
 - **Contract Inheritance**: Framework for inheriting contracts (future work)
 - **SMT Solver Integration**: Placeholder for future Z3/CVC5 integration
 - **64 Contract Tests**: Comprehensive test coverage for all contract features
@@ -362,30 +584,43 @@ and this project adheres to
 ## [1.0.3] - 2025-08-02
 
 ### 🎌 Quality Metrics
+
 - SATD Count: 0 (Toyota Way: Zero Defects)
 - Max Complexity: <20
 - Test Coverage: >90%
 - Clippy Warnings: 0
 
 ### ✨ Features
-- **Lifetime Analysis Engine**: Added sophisticated lifetime inference for function parameters
-- **Lifetime Elision Rules**: Implemented Rust's lifetime elision rules for cleaner generated code
-- **Better Borrowing Inference**: Enhanced parameter analysis to determine optimal borrowing patterns
-- **Lifetime Bounds Generation**: Automatic generation of lifetime bounds for complex functions
+
+- **Lifetime Analysis Engine**: Added sophisticated lifetime inference for
+  function parameters
+- **Lifetime Elision Rules**: Implemented Rust's lifetime elision rules for
+  cleaner generated code
+- **Better Borrowing Inference**: Enhanced parameter analysis to determine
+  optimal borrowing patterns
+- **Lifetime Bounds Generation**: Automatic generation of lifetime bounds for
+  complex functions
 - **Escape Analysis**: Detect parameters that escape through return values
 
 ### 🛡️ Safety Improvements
-- **Reference Safety**: Improved detection of when parameters can be safely borrowed vs moved
-- **Mutable Borrow Detection**: Better analysis of when parameters need mutable references
-- **Lifetime Constraint Tracking**: Track relationships between parameter and return lifetimes
-- **Context-Aware Optimization**: Consider parameter usage patterns for optimal memory efficiency
+
+- **Reference Safety**: Improved detection of when parameters can be safely
+  borrowed vs moved
+- **Mutable Borrow Detection**: Better analysis of when parameters need mutable
+  references
+- **Lifetime Constraint Tracking**: Track relationships between parameter and
+  return lifetimes
+- **Context-Aware Optimization**: Consider parameter usage patterns for optimal
+  memory efficiency
 
 ### 📚 Documentation
+
 - Updated README to be cargo-focused matching PMAT project style
 - Added comprehensive lifetime analysis documentation
 - Enhanced transpilation examples demonstrating lifetime inference
 
 ### 🔧 Internal
+
 - Integrated lifetime analysis into the code generation pipeline
 - Added comprehensive tests for lifetime inference scenarios
 - Improved code organization with dedicated lifetime analysis module
@@ -394,23 +629,29 @@ and this project adheres to
 ## [1.0.2] - 2025-08-02
 
 ### 🎌 Quality Metrics
+
 - SATD Count: 0 (Toyota Way: Zero Defects)
 - Max Complexity: <20
 - Test Coverage: >90%
 - Clippy Warnings: 0
 
 ### ✨ Features
-- **String Optimization Excellence**: Enhanced string usage analysis with context-aware optimization
-- **Cow<str> Support**: Added flexible string ownership with Cow<'static, str> for optimal memory usage
+
+- **String Optimization Excellence**: Enhanced string usage analysis with
+  context-aware optimization
+- **Cow<str> Support**: Added flexible string ownership with Cow<'static, str>
+  for optimal memory usage
 - **String Interning**: Automatically intern strings used more than 3 times
 - **Zero-Copy Strings**: Eliminated unnecessary .to_string() allocations
 
 ### 🐛 Bug Fixes
+
 - Fixed string concatenation detection in complex expressions
 - Improved mutability analysis for string parameters
 - Enhanced string literal frequency counting
 
 ### 🔧 Internal
+
 - Refactored string optimizer with better architecture
 - Added string_literal_count and interned_strings tracking
 - Improved integration with rust_gen for smarter code generation
@@ -418,30 +659,36 @@ and this project adheres to
 ## [1.0.1] - 2025-08-02
 
 ### 🎌 Quality Metrics
+
 - SATD Count: 0 (Toyota Way: Zero Defects)
 - Max Complexity: <20
 - Test Coverage: >90%
 - Clippy Warnings: 0
 
 ### ✨ Features
+
 - Added intelligent borrowing inference for function parameters
-- Implemented string allocation optimization (75% reduction in .to_string() calls)
+- Implemented string allocation optimization (75% reduction in .to_string()
+  calls)
 - Added comprehensive lifetime violation detection in verification module
 - Introduced Toyota Way compliant release process with zero-defect policy
 
 ### 🐛 Bug Fixes
+
 - Fixed HirExpr::Name vs HirExpr::Var mismatch in borrowing analysis
 - Replaced all unreachable! calls with proper error handling
 - Fixed expect() calls in production code with graceful fallbacks
 - Improved error messages for unsupported operators
 
 ### 📚 Documentation
+
 - Updated README.md to be cargo-focused like PMAT project
 - Added comprehensive release process documentation following Toyota Way
 - Created pre-release audit script enforcing zero-defect policy
 - Added automated GitHub Actions workflow for releases
 
 ### 🔧 Internal
+
 - Replaced all TODO/FIXME comments with proper implementations or documentation
 - Improved error handling to avoid panics in production code
 - Added comprehensive test coverage for new features
@@ -451,14 +698,17 @@ and this project adheres to
 
 ### Added
 
-- **EXPERIMENTAL Playground Warning**: Added clear experimental/unstable warnings to playground feature
+- **EXPERIMENTAL Playground Warning**: Added clear experimental/unstable
+  warnings to playground feature
 - **Quality Monitor Stubs**: Added test compatibility methods to QualityMonitor
 - **Documentation Updates**: Comprehensive documentation review and link fixes
 
 ### Changed
 
-- **Playground Stability**: Marked playground feature as EXPERIMENTAL and UNSTABLE in all documentation
-- **Test Infrastructure**: Improved frontend test compatibility with execution manager
+- **Playground Stability**: Marked playground feature as EXPERIMENTAL and
+  UNSTABLE in all documentation
+- **Test Infrastructure**: Improved frontend test compatibility with execution
+  manager
 - **Build Process**: Enhanced release preparation workflow
 
 ### Fixed

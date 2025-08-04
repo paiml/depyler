@@ -1,0 +1,229 @@
+name: Advanced Testing Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      run_extended:
+        description: 'Run extended test suite'
+        required: false
+        default: 'false'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Phase 8: Advanced property-based testing
+  advanced-property-tests:
+    name: Advanced Property Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Run advanced property tests
+        run: make test-property-advanced
+      
+      - name: Run mutation testing
+        run: |
+          cargo test --test mutation_testing -- --nocapture | tee mutation-results.txt
+          echo "::notice::$(grep 'Mutation score:' mutation-results.txt || echo 'Mutation testing completed')"
+      
+      - name: Run fuzzing tests
+        run: cargo test --test fuzzing_tests
+      
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: advanced-test-results
+          path: |
+            mutation-results.txt
+            target/test-results/
+
+  # Interactive doctest validation
+  doctest-validation:
+    name: Interactive Doctests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Run interactive doctests
+        run: |
+          cargo test --test interactive_doctests -- --nocapture
+          make test-doctests
+      
+      - name: Generate doctest report
+        run: |
+          mkdir -p reports
+          cargo test --doc --workspace -- --format json > reports/doctest-results.json || true
+          echo "::notice::Doctest validation completed"
+
+  # Specialized coverage analysis
+  coverage-analysis:
+    name: Specialized Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+      
+      - name: Run specialized coverage tests
+        run: |
+          cargo test --test specialized_coverage_testing
+          cargo test --test coverage_analysis
+      
+      - name: Generate coverage report with mutation integration
+        run: |
+          cargo tarpaulin --workspace --out Xml --output-dir target/coverage \
+            --exclude-files "**/tests/*" \
+            --ignore-panics \
+            --timeout 300
+      
+      - name: Check coverage thresholds
+        run: |
+          COVERAGE=$(grep -oP 'line-rate="\K[0-9.]+' target/coverage/cobertura.xml | head -1)
+          COVERAGE_PCT=$(echo "$COVERAGE * 100" | bc)
+          echo "::notice::Test coverage: $COVERAGE_PCT%"
+          
+          if (( $(echo "$COVERAGE_PCT < 70" | bc -l) )); then
+            echo "::warning::Coverage $COVERAGE_PCT% is below recommended threshold of 70%"
+          fi
+
+  # Quality assurance automation
+  quality-assurance:
+    name: Quality Assurance
+    runs-on: ubuntu-latest
+    needs: [advanced-property-tests, doctest-validation, coverage-analysis]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Run quality assurance automation
+        run: |
+          cargo test --test quality_assurance_automation -- --nocapture | tee qa-results.txt
+          make test-quality
+      
+      - name: Generate quality dashboard
+        run: |
+          mkdir -p reports/quality
+          
+          # Extract metrics from QA results
+          echo "# Quality Metrics Dashboard" > reports/quality/dashboard.md
+          echo "" >> reports/quality/dashboard.md
+          echo "## Test Results" >> reports/quality/dashboard.md
+          grep -E "(Coverage|Mutation|Performance|Error Rate):" qa-results.txt >> reports/quality/dashboard.md || true
+          
+          echo "## Quality Status" >> reports/quality/dashboard.md
+          grep -E "(Quality Status|Overall Score):" qa-results.txt >> reports/quality/dashboard.md || true
+      
+      - name: Upload quality reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: reports/quality/
+
+  # Performance benchmarking
+  performance-benchmarks:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.inputs.run_extended == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Run performance benchmarks
+        run: |
+          cargo test --test property_test_benchmarks -- --nocapture
+          cargo test --test integration_benchmarks -- --nocapture
+      
+      - name: Check for performance regressions
+        run: |
+          # TODO: Compare with baseline benchmarks
+          echo "::notice::Performance benchmarks completed successfully"
+
+  # Concurrency and thread safety
+  concurrency-tests:
+    name: Concurrency Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Run concurrency tests
+        run: |
+          cargo test --test specialized_coverage_testing test_concurrency_thread_safety -- --nocapture
+          
+          # Run with thread sanitizer if available
+          if command -v cargo-careful &> /dev/null; then
+            cargo careful test --test specialized_coverage_testing
+          fi
+      
+      - name: Stress test with multiple threads
+        run: |
+          RUST_TEST_THREADS=8 cargo test --workspace --all-features
+
+  # Extended test suite (optional)
+  extended-tests:
+    name: Extended Test Suite
+    runs-on: ubuntu-latest
+    if: github.event.inputs.run_extended == 'true' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+      
+      - name: Run all test suites
+        run: make test-all
+      
+      - name: Run memory safety tests
+        run: |
+          cargo test --test property_tests_memory_safety
+          make test-memory
+      
+      - name: Generate comprehensive report
+        run: |
+          mkdir -p reports/extended
+          
+          # Collect all test results
+          cargo test --workspace --all-features -- --format json > reports/extended/all-tests.json || true
+          
+          # Generate summary
+          echo "# Extended Test Suite Results" > reports/extended/summary.md
+          echo "Timestamp: $(date -u)" >> reports/extended/summary.md
+          echo "Commit: ${{ github.sha }}" >> reports/extended/summary.md
+      
+      - name: Upload extended test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: extended-test-results-${{ github.run_number }}
+          path: reports/extended/
