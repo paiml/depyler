@@ -3,7 +3,6 @@
 use depyler::debug_cmd::generate_debugger_script;
 use proptest::prelude::*;
 use std::fs;
-use std::path::PathBuf;
 use tempfile::TempDir;
 
 proptest! {

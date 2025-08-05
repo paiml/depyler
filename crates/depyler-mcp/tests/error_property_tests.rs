@@ -39,7 +39,7 @@ proptest! {
         ];
         
         for err in errors {
-            let original_msg = err.to_string();
+            let _original_msg = err.to_string();
             let mcp_err: McpError = err.into();
             
             match mcp_err {
@@ -93,7 +93,7 @@ proptest! {
             assert!(!display.is_empty());
             // Verify key information is preserved in display
             match &err {
-                DepylerMcpError::TypeInferenceError(msg) => {
+                DepylerMcpError::TypeInferenceError(_msg) => {
                     assert!(display.contains("Type inference failed"));
                 }
                 DepylerMcpError::UnsafePatternError { pattern, location } => {
