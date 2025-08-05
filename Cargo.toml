@@ -41,8 +41,8 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Python parsing
-rustpython-parser = "0.3"
-rustpython-ast = "0.3"
+rustpython-parser = "0.4"
+rustpython-ast = "0.4"
 
 # Code generation
 syn = { version = "2.0", features = ["full", "extra-traits", "visit-mut"] }

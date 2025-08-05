@@ -1,0 +1,10 @@
+# Cargo audit configuration
+
+[advisories]
+# Ignore paste vulnerability - it's an unmaintained crate but not a security risk
+# It's a build-time proc macro, not runtime code
+# Tracking issue: https://github.com/RustPython/RustPython/issues/5836
+ignore = ["RUSTSEC-2024-0436"]
+
+# Note: We should monitor RustPython project for updates that remove
+# the dependency on malachite-bigint/paste crate

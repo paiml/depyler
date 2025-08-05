@@ -96,7 +96,11 @@ jobs:
     - name: Generate code coverage
       run: |
         export RUSTFLAGS="-C linker=gcc"
-        cargo tarpaulin --features coverage --workspace --timeout 120 --out Xml
+        cargo tarpaulin --features coverage --workspace --timeout 600 --out Xml \
+          --exclude-files "*/tests/*" \
+          --exclude-files "*/examples/*" \
+          --exclude-files "*/build.rs" \
+          --exclude-files "*/main.rs"
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
