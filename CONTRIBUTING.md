@@ -123,12 +123,22 @@ wasm-pack build --target web --out-dir ../../playground/public/wasm
 
 ## Testing Guidelines
 
+### Testing Philosophy
+
+Every module in Depyler follows a comprehensive testing approach with four types of tests:
+
+1. **Unit Tests** - Core functionality testing with specific scenarios
+2. **Property Tests** - Randomized testing for edge cases and invariants  
+3. **Doctests** - Documentation examples that serve as tests
+4. **Example Files** - Full working examples demonstrating module usage
+
 ### Test Requirements
 
 - All new features must have tests
-- Maintain or improve code coverage
-- Include both unit and integration tests
-- Test edge cases and error conditions
+- Target 80% line coverage (current: 69.55%)
+- Include unit, property, doctests, and examples
+- Test both happy paths and error conditions
+- Test edge cases and boundary conditions
 
 ### Running Tests
 
@@ -139,14 +149,47 @@ cargo test --workspace
 # Run specific crate tests
 cargo test -p depyler-core
 
-# Run with coverage
-cargo tarpaulin --out Html
+# Run only unit tests
+cargo test --lib
 
-# Run benchmarks
-cargo bench
+# Run only doctests
+cargo test --doc
+
+# Run property tests (longer runtime)
+cargo test --features proptest-tests
+
+# Run examples
+cargo test --examples
+
+# Run with coverage
+cargo tarpaulin --out Html --workspace
+
+# Run specific test types
+make test-unit
+make test-property-basic
+make test-doctests
+make test-examples
+
+# Quick development cycle
+make test-fast
+
+# Full test suite
+make test-all
 ```
 
-### Test Structure
+### Test Organization
+
+```
+src/
+├── module.rs                    # Main implementation with doctests
+├── module_tests.rs             # Unit tests (or #[cfg(test)] mod tests in module.rs)
+tests/
+├── module_property_tests.rs    # Property-based tests
+examples/
+└── module_demo.rs             # Working example demonstrating usage
+```
+
+### Writing Unit Tests
 
 ```rust
 #[cfg(test)]
@@ -169,8 +212,179 @@ mod tests {
     fn test_feature_error_case() {
         // Test error handling
         let invalid_input = create_invalid_input();
-        assert!(function_under_test(invalid_input).is_err());
+        let err = function_under_test(invalid_input).unwrap_err();
+        assert!(err.to_string().contains("expected error message"));
     }
+
+    #[test]
+    fn test_edge_cases() {
+        // Empty input
+        assert!(function_under_test("").is_err());
+        
+        // Maximum size input
+        let large_input = "x".repeat(1000);
+        assert!(function_under_test(&large_input).is_ok());
+    }
+}
+```
+
+### Writing Property Tests
+
+```rust
+// In tests/module_property_tests.rs
+use proptest::prelude::*;
+use depyler_core::module::*;
+
+proptest! {
+    #[test]
+    fn test_property_never_panics(input in any::<String>()) {
+        // Property: function should never panic
+        let _ = function_under_test(&input);
+    }
+
+    #[test]
+    fn test_property_preserves_invariant(
+        input in valid_input_strategy()
+    ) {
+        let result = function_under_test(&input).unwrap();
+        // Property: output should maintain some invariant
+        prop_assert!(result.len() >= input.len());
+    }
+}
+
+// Custom strategies for domain-specific inputs
+fn valid_input_strategy() -> impl Strategy<Value = String> {
+    "[a-zA-Z_][a-zA-Z0-9_]*".prop_map(|s| s.to_string())
+}
+```
+
+### Writing Doctests
+
+```rust
+/// Transpiles a Python function to Rust.
+///
+/// # Examples
+///
+/// Basic usage:
+/// ```
+/// use depyler_core::transpile_function;
+///
+/// let python = "def add(a: int, b: int) -> int: return a + b";
+/// let rust = transpile_function(python).unwrap();
+/// assert!(rust.contains("fn add"));
+/// assert!(rust.contains("i64"));
+/// ```
+///
+/// Error handling:
+/// ```
+/// use depyler_core::transpile_function;
+///
+/// let invalid = "def incomplete(";
+/// assert!(transpile_function(invalid).is_err());
+/// ```
+pub fn transpile_function(code: &str) -> Result<String, Error> {
+    // Implementation
+}
+```
+
+### Writing Example Files
+
+```rust
+// In examples/transpile_demo.rs
+use depyler_core::{transpile, TranspileOptions};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Example: Basic function transpilation
+    let python_code = r#"
+def calculate_fibonacci(n: int) -> int:
+    if n <= 1:
+        return n
+    return calculate_fibonacci(n - 1) + calculate_fibonacci(n - 2)
+"#;
+
+    let options = TranspileOptions::default()
+        .with_optimization_level(2)
+        .with_verify_level("strict");
+
+    let rust_code = transpile(python_code, options)?;
+    println!("Generated Rust code:\n{}", rust_code);
+
+    // Example: Class transpilation
+    let class_code = r#"
+@dataclass
+class Point:
+    x: float
+    y: float
+    
+    def distance(self, other: 'Point') -> float:
+        return ((self.x - other.x)**2 + (self.y - other.y)**2)**0.5
+"#;
+
+    let rust_class = transpile(class_code, options)?;
+    println!("\nGenerated struct:\n{}", rust_class);
+
+    Ok(())
+}
+```
+
+### Test Coverage Guidelines
+
+- **Critical Path**: 100% coverage required
+  - Parser error handling
+  - Type inference
+  - Code generation
+  - Safety verification
+
+- **Core Features**: 90%+ coverage target
+  - AST conversion
+  - HIR transformations
+  - Optimization passes
+  - Module mapping
+
+- **Support Features**: 80%+ coverage target
+  - CLI commands
+  - LSP implementation
+  - Performance analysis
+  - Migration suggestions
+
+### Special Testing Considerations
+
+#### Interactive Tests
+```rust
+#[test]
+#[ignore = "Requires terminal interaction"]
+fn test_interactive_mode() {
+    // Tests that require user input should be marked as ignored
+    // Run manually with: cargo test -- --ignored
+}
+```
+
+#### WASM Tests
+```rust
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen_test]
+fn test_wasm_functionality() {
+    // WASM-specific tests
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn test_native_functionality() {
+    // Native platform tests
+}
+```
+
+#### Performance Tests
+```rust
+#[test]
+fn test_performance_baseline() {
+    let large_input = generate_large_input();
+    let start = std::time::Instant::now();
+    
+    let result = function_under_test(&large_input).unwrap();
+    
+    let duration = start.elapsed();
+    assert!(duration.as_millis() < 100, "Performance regression detected");
 }
 ```
 
