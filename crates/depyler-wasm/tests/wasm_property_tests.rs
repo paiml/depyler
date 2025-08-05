@@ -11,16 +11,16 @@ proptest! {
         target_version in "[0-9]+\\.[0-9]+",
     ) {
         let mut options = WasmTranspileOptions::new();
-        
+
         options.set_verify(verify);
         assert_eq!(options.verify(), verify);
-        
+
         options.set_optimize(optimize);
         assert_eq!(options.optimize(), optimize);
-        
+
         options.set_emit_docs(emit_docs);
         assert_eq!(options.emit_docs(), emit_docs);
-        
+
         options.set_target_version(target_version.clone());
         assert_eq!(options.target_version(), target_version);
     }
@@ -36,18 +36,18 @@ proptest! {
         _optimize2 in any::<bool>(),
     ) {
         let mut options = WasmTranspileOptions::new();
-        
+
         // Set initial values
         options.set_verify(verify1);
         options.set_optimize(optimize1);
-        
+
         // Verify initial values
         prop_assert_eq!(options.verify(), verify1);
         prop_assert_eq!(options.optimize(), optimize1);
-        
+
         // Change one value
         options.set_verify(verify2);
-        
+
         // Verify only the changed value is different
         prop_assert_eq!(options.verify(), verify2);
         prop_assert_eq!(options.optimize(), optimize1); // Should remain unchanged
@@ -64,13 +64,13 @@ proptest! {
     ) {
         let engine = DepylerWasm::new();
         let options = WasmTranspileOptions::new();
-        
+
         // Generate valid Python code
         let python_code = format!(
             "def {}({}: int) -> int:\n    return {} + {}",
             func_name, param_name, param_name, value
         );
-        
+
         // Transpilation should not panic, even if it fails
         let _result = engine.transpile(&python_code, &options);
     }
@@ -85,14 +85,14 @@ proptest! {
     ) {
         let engine = DepylerWasm::new();
         let options = WasmTranspileOptions::new();
-        
+
         let python_code = format!(
             "def {}(x: int) -> int:\n    return x * 2",
             func_name
         );
-        
+
         let mut results = Vec::new();
-        
+
         for _ in 0..iterations {
             match engine.transpile(&python_code, &options) {
                 Ok(result) => {
@@ -103,7 +103,7 @@ proptest! {
                 Err(_) => {}
             }
         }
-        
+
         // All successful results should be identical
         if results.len() > 1 {
             for i in 1..results.len() {
@@ -120,10 +120,10 @@ proptest! {
         code_content in "[a-zA-Z0-9\n ]{10,100}",
     ) {
         let engine = DepylerWasm::new();
-        
+
         // Wrap content in a function to make it valid Python
         let python_code = format!("def test():\n    pass\n    # {}", code_content);
-        
+
         match engine.analyze_code(&python_code) {
             Ok(_result) => {
                 // Should be valid JSON (JsValue)
@@ -145,9 +145,9 @@ proptest! {
         iterations in 1u32..10,
     ) {
         let engine = DepylerWasm::new();
-        
+
         let python_code = "def identity(x: int) -> int: return x";
-        
+
         match engine.benchmark(python_code, iterations) {
             Ok(_result) => {
                 // Benchmark succeeded - structure is valid
@@ -169,7 +169,7 @@ proptest! {
     ) {
         let engine = DepylerWasm::new();
         let options = WasmTranspileOptions::new();
-        
+
         // Generate Python code with variable complexity
         let mut python_code = String::from("def complex_func(x: int) -> int:\n");
         python_code.push_str("    result = 0\n");
@@ -177,21 +177,21 @@ proptest! {
             python_code.push_str(&format!("    if x > {}: result += {}\n", i, i));
         }
         python_code.push_str("    return result");
-        
+
         match engine.transpile(&python_code, &options) {
             Ok(result) => {
                 if result.success() {
                     // Time should be non-negative
                     prop_assert!(result.transpile_time_ms() >= 0.0);
-                    
+
                     // Memory usage should be non-negative
                     prop_assert!(result.memory_usage_mb() >= 0.0);
-                    
+
                     // Energy metrics should be valid
                     let energy = result.energy_estimate();
                     prop_assert!(energy.joules() >= 0.0);
                     prop_assert!(energy.confidence() >= 0.0 && energy.confidence() <= 1.0);
-                    
+
                     // Quality metrics should be in valid ranges
                     let quality = result.quality_metrics();
                     prop_assert!(quality.pmat_score() >= 0.0 && quality.pmat_score() <= 1.0);
@@ -219,7 +219,7 @@ proptest! {
     ) {
         let engine = DepylerWasm::new();
         let options = WasmTranspileOptions::new();
-        
+
         // Should not panic on empty/whitespace code
         let _result = engine.transpile(&whitespace, &options);
         let _analysis = engine.analyze_code(&whitespace);

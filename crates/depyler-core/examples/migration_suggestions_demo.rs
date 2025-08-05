@@ -1,7 +1,7 @@
 //! Example demonstrating migration suggestions from Python to Rust idioms
 
-use depyler_core::migration_suggestions::{MigrationAnalyzer, MigrationConfig};
 use depyler_core::hir::*;
+use depyler_core::migration_suggestions::{MigrationAnalyzer, MigrationConfig};
 use smallvec::smallvec;
 
 fn main() {
@@ -13,15 +13,15 @@ fn main() {
         suggest_performance: true,
         verbosity: 2, // Show detailed suggestions
     };
-    
+
     let mut analyzer = MigrationAnalyzer::new(config);
-    
+
     // Create a sample program with various Python patterns
     let program = create_sample_program();
-    
+
     // Analyze and get suggestions
     let suggestions = analyzer.analyze_program(&program);
-    
+
     // Format and display suggestions
     let output = analyzer.format_suggestions(&suggestions);
     println!("{}", output);
@@ -74,10 +74,10 @@ fn create_accumulator_function() -> HirFunction {
                                 object: Box::new(HirExpr::Var("result".to_string())),
                                 method: "append".to_string(),
                                 args: vec![HirExpr::Var("num".to_string())],
-                            })
+                            }),
                         ],
                         else_body: None,
-                    }
+                    },
                 ],
             },
             // return result
@@ -111,7 +111,7 @@ fn create_type_check_function() -> HirFunction {
                         object: Box::new(HirExpr::Var("value".to_string())),
                         method: "upper".to_string(),
                         args: vec![],
-                    }))
+                    })),
                 ],
                 else_body: Some(vec![
                     // elif isinstance(value, int):
@@ -129,10 +129,10 @@ fn create_type_check_function() -> HirFunction {
                                 op: BinOp::Mul,
                                 left: Box::new(HirExpr::Var("value".to_string())),
                                 right: Box::new(HirExpr::Literal(Literal::Int(2))),
-                            }))
+                            })),
                         ],
                         else_body: None,
-                    }
+                    },
                 ]),
             },
             // return None
@@ -163,7 +163,7 @@ fn create_while_true_function() -> HirFunction {
                         },
                         then_body: vec![
                             // break
-                            HirStmt::Break { label: None }
+                            HirStmt::Break { label: None },
                         ],
                         else_body: None,
                     },

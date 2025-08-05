@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::lsp::*;
     use crate::ide::{CompletionItem, CompletionKind, Diagnostic, DiagnosticSeverity};
+    use crate::lsp::*;
     use rustpython_parser::text_size::{TextRange, TextSize};
 
     #[test]
@@ -43,15 +43,15 @@ mod tests {
     fn test_document_change() {
         let mut server = LspServer::new();
         let uri = "test.py".to_string();
-        
+
         // Open document
         server.did_open(uri.clone(), "def test(): pass".to_string(), 1);
         assert!(server.documents.contains_key(&uri));
-        
+
         // Change document
         server.did_change(uri.clone(), "def test2(): return 42".to_string(), 2);
         assert!(server.documents.contains_key(&uri));
-        
+
         // Content should be updated
         let doc = server.documents.get(&uri).unwrap();
         assert_eq!(doc.content, "def test2(): return 42");
@@ -61,10 +61,10 @@ mod tests {
     fn test_document_close() {
         let mut server = LspServer::new();
         let uri = "test.py".to_string();
-        
+
         server.did_open(uri.clone(), "def test(): pass".to_string(), 1);
         assert!(server.documents.contains_key(&uri));
-        
+
         server.did_close(uri.clone());
         assert!(!server.documents.contains_key(&uri));
     }
@@ -75,22 +75,34 @@ mod tests {
         let text = "line1\nline2\nline3";
 
         // Beginning of document
-        let pos = Position { line: 0, character: 0 };
+        let pos = Position {
+            line: 0,
+            character: 0,
+        };
         let offset = server.position_to_offset(text, pos);
         assert_eq!(offset, TextSize::from(0));
 
         // Middle of first line
-        let pos = Position { line: 0, character: 3 };
+        let pos = Position {
+            line: 0,
+            character: 3,
+        };
         let offset = server.position_to_offset(text, pos);
         assert_eq!(offset, TextSize::from(3));
 
         // Beginning of second line
-        let pos = Position { line: 1, character: 0 };
+        let pos = Position {
+            line: 1,
+            character: 0,
+        };
         let offset = server.position_to_offset(text, pos);
         assert_eq!(offset, TextSize::from(6)); // "line1\n"
 
         // Middle of second line
-        let pos = Position { line: 1, character: 2 };
+        let pos = Position {
+            line: 1,
+            character: 2,
+        };
         let offset = server.position_to_offset(text, pos);
         assert_eq!(offset, TextSize::from(8)); // "line1\nli"
     }
@@ -127,10 +139,22 @@ mod tests {
         let text = "def test():\n    return 42\n";
 
         let positions = vec![
-            Position { line: 0, character: 0 },
-            Position { line: 0, character: 4 },
-            Position { line: 1, character: 4 },
-            Position { line: 1, character: 11 },
+            Position {
+                line: 0,
+                character: 0,
+            },
+            Position {
+                line: 0,
+                character: 4,
+            },
+            Position {
+                line: 1,
+                character: 4,
+            },
+            Position {
+                line: 1,
+                character: 11,
+            },
         ];
 
         for pos in positions {
@@ -173,8 +197,11 @@ mod tests {
     fn test_completion_empty_document() {
         let server = LspServer::new();
         let uri = "test.py";
-        let pos = Position { line: 0, character: 0 };
-        
+        let pos = Position {
+            line: 0,
+            character: 0,
+        };
+
         let response = server.completion(uri, pos);
         assert!(response.items.is_empty());
     }
@@ -184,12 +211,15 @@ mod tests {
         let mut server = LspServer::new();
         let uri = "test.py".to_string();
         let text = "def test(): pass\nx = 42".to_string();
-        
+
         server.did_open(uri.clone(), text, 1);
-        
-        let pos = Position { line: 1, character: 0 };
+
+        let pos = Position {
+            line: 1,
+            character: 0,
+        };
         let response = server.completion(&uri, pos);
-        
+
         // Should return some completions (depends on IDE integration)
         // For now, just check it doesn't panic
         assert!(response.items.is_empty() || !response.items.is_empty());
@@ -199,8 +229,11 @@ mod tests {
     fn test_hover_no_document() {
         let server = LspServer::new();
         let uri = "test.py";
-        let pos = Position { line: 0, character: 0 };
-        
+        let pos = Position {
+            line: 0,
+            character: 0,
+        };
+
         let response = server.hover(uri, pos);
         assert!(response.is_none());
     }
@@ -210,12 +243,15 @@ mod tests {
         let mut server = LspServer::new();
         let uri = "test.py".to_string();
         let text = "def test(): pass".to_string();
-        
+
         server.did_open(uri.clone(), text, 1);
-        
-        let pos = Position { line: 0, character: 4 }; // On "test"
+
+        let pos = Position {
+            line: 0,
+            character: 4,
+        }; // On "test"
         let response = server.hover(&uri, pos);
-        
+
         // May or may not return hover info depending on IDE integration
         match response {
             Some(hover) => {
@@ -233,7 +269,7 @@ mod tests {
     fn test_diagnostics_no_document() {
         let server = LspServer::new();
         let uri = "test.py";
-        
+
         let diagnostics = server.diagnostics(uri);
         assert!(diagnostics.is_empty());
     }
@@ -243,9 +279,9 @@ mod tests {
         let mut server = LspServer::new();
         let uri = "test.py".to_string();
         let text = "def test(): pass".to_string();
-        
+
         server.did_open(uri.clone(), text, 1);
-        
+
         let diagnostics = server.diagnostics(&uri);
         // Should be empty for valid code or contain parse errors
         assert!(diagnostics.is_empty() || !diagnostics.is_empty());
@@ -255,8 +291,11 @@ mod tests {
     fn test_goto_definition_no_document() {
         let server = LspServer::new();
         let uri = "test.py";
-        let pos = Position { line: 0, character: 0 };
-        
+        let pos = Position {
+            line: 0,
+            character: 0,
+        };
+
         let response = server.goto_definition(uri, pos);
         assert!(response.is_none());
     }
@@ -266,12 +305,15 @@ mod tests {
         let mut server = LspServer::new();
         let uri = "test.py".to_string();
         let text = "def test(): pass\ntest()".to_string();
-        
+
         server.did_open(uri.clone(), text, 1);
-        
-        let pos = Position { line: 1, character: 0 }; // On "test" call
+
+        let pos = Position {
+            line: 1,
+            character: 0,
+        }; // On "test" call
         let response = server.goto_definition(&uri, pos);
-        
+
         // May or may not find definition depending on IDE integration
         match response {
             Some(location) => {
@@ -289,8 +331,11 @@ mod tests {
     fn test_find_references_no_document() {
         let server = LspServer::new();
         let uri = "test.py";
-        let pos = Position { line: 0, character: 0 };
-        
+        let pos = Position {
+            line: 0,
+            character: 0,
+        };
+
         let references = server.find_references(uri, pos);
         assert!(references.is_empty());
     }
@@ -300,12 +345,15 @@ mod tests {
         let mut server = LspServer::new();
         let uri = "test.py".to_string();
         let text = "x = 42\ny = x + 1\nprint(x)".to_string();
-        
+
         server.did_open(uri.clone(), text, 1);
-        
-        let pos = Position { line: 0, character: 0 }; // On first "x"
+
+        let pos = Position {
+            line: 0,
+            character: 0,
+        }; // On first "x"
         let references = server.find_references(&uri, pos);
-        
+
         // Should find references to x (or be empty if not implemented)
         assert!(references.is_empty() || references.len() >= 1);
     }
@@ -318,7 +366,7 @@ mod tests {
             detail: Some("def test_function() -> None".to_string()),
             documentation: Some("Test function documentation".to_string()),
         };
-        
+
         assert_eq!(item.label, "test_function");
         assert_eq!(item.kind, Some(3));
         assert!(item.detail.is_some());
@@ -329,15 +377,21 @@ mod tests {
     fn test_diagnostic_lsp_conversion() {
         let diagnostic = DiagnosticLsp {
             range: Range {
-                start: Position { line: 0, character: 0 },
-                end: Position { line: 0, character: 5 },
+                start: Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: Position {
+                    line: 0,
+                    character: 5,
+                },
             },
             severity: Some(1), // Error
             code: Some("E001".to_string()),
             source: Some("depyler".to_string()),
             message: "Test error".to_string(),
         };
-        
+
         assert_eq!(diagnostic.severity, Some(1));
         assert_eq!(diagnostic.message, "Test error");
         assert_eq!(diagnostic.code, Some("E001".to_string()));
@@ -347,14 +401,20 @@ mod tests {
     #[test]
     fn test_range_serialization() {
         let range = Range {
-            start: Position { line: 0, character: 0 },
-            end: Position { line: 1, character: 10 },
+            start: Position {
+                line: 0,
+                character: 0,
+            },
+            end: Position {
+                line: 1,
+                character: 10,
+            },
         };
-        
+
         let json = serde_json::to_string(&range).unwrap();
         assert!(json.contains("\"line\":0"));
         assert!(json.contains("\"character\":0"));
-        
+
         let deserialized: Range = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.start.line, range.start.line);
         assert_eq!(deserialized.end.character, range.end.character);
@@ -366,7 +426,7 @@ mod tests {
             kind: "markdown".to_string(),
             value: "# Test\n\nThis is a test".to_string(),
         };
-        
+
         assert_eq!(content.kind, "markdown");
         assert!(content.value.contains("Test"));
     }
@@ -376,11 +436,17 @@ mod tests {
         let location = LocationResponse {
             uri: "file:///test.py".to_string(),
             range: Range {
-                start: Position { line: 5, character: 10 },
-                end: Position { line: 5, character: 20 },
+                start: Position {
+                    line: 5,
+                    character: 10,
+                },
+                end: Position {
+                    line: 5,
+                    character: 20,
+                },
             },
         };
-        
+
         assert_eq!(location.uri, "file:///test.py");
         assert_eq!(location.range.start.line, 5);
         assert_eq!(location.range.end.character, 20);
@@ -390,14 +456,20 @@ mod tests {
     fn test_edge_case_empty_text() {
         let server = LspServer::new();
         let text = "";
-        
-        let offset = server.position_to_offset(text, Position { line: 0, character: 0 });
+
+        let offset = server.position_to_offset(
+            text,
+            Position {
+                line: 0,
+                character: 0,
+            },
+        );
         assert_eq!(offset, TextSize::from(0));
-        
+
         let pos = server.offset_to_position(text, TextSize::from(0));
         assert_eq!(pos.line, 0);
         assert_eq!(pos.character, 0);
-        
+
         let prefix = server.get_prefix_at_position(text, TextSize::from(0));
         assert_eq!(prefix, "");
     }
@@ -406,11 +478,14 @@ mod tests {
     fn test_edge_case_unicode_text() {
         let server = LspServer::new();
         let text = "café = '☕'";
-        
+
         // Position after 'café'
-        let pos = Position { line: 0, character: 4 };
+        let pos = Position {
+            line: 0,
+            character: 4,
+        };
         let offset = server.position_to_offset(text, pos);
-        
+
         // Convert back
         let pos2 = server.offset_to_position(text, offset);
         assert_eq!(pos2.line, 0);
@@ -428,7 +503,7 @@ mod tests {
             (CompletionKind::Field, 5),
             (CompletionKind::Module, 9),
         ];
-        
+
         for (kind, expected_lsp_kind) in kinds {
             let item = CompletionItem {
                 label: "test".to_string(),
@@ -436,7 +511,7 @@ mod tests {
                 detail: None,
                 documentation: None,
             };
-            
+
             // This matches the conversion logic in completion()
             let lsp_kind = match item.kind {
                 CompletionKind::Function => 3,
@@ -446,7 +521,7 @@ mod tests {
                 CompletionKind::Field => 5,
                 CompletionKind::Module => 9,
             };
-            
+
             assert_eq!(lsp_kind, expected_lsp_kind);
         }
     }
@@ -460,7 +535,7 @@ mod tests {
             (DiagnosticSeverity::Information, 3),
             (DiagnosticSeverity::Hint, 4),
         ];
-        
+
         for (severity, expected_lsp_severity) in severities {
             let diag = Diagnostic {
                 range: TextRange::new(TextSize::from(0), TextSize::from(5)),
@@ -469,7 +544,7 @@ mod tests {
                 source: "test".to_string(),
                 message: "test message".to_string(),
             };
-            
+
             // This matches the conversion logic in diagnostics()
             let lsp_severity = match diag.severity {
                 DiagnosticSeverity::Error => 1,
@@ -477,7 +552,7 @@ mod tests {
                 DiagnosticSeverity::Information => 3,
                 DiagnosticSeverity::Hint => 4,
             };
-            
+
             assert_eq!(lsp_severity, expected_lsp_severity);
         }
     }
