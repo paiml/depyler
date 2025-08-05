@@ -6,7 +6,22 @@ use crate::hir::*;
 use anyhow::{bail, Result};
 use rustpython_ast::{self as ast};
 
+#[cfg(test)]
+#[path = "converters_tests.rs"]
+mod tests;
+
 /// Statement converter to reduce complexity
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use depyler_core::ast_bridge::converters::StmtConverter;
+/// use rustpython_parser::Parse;
+///
+/// let stmt = rustpython_parser::parse("x = 42", rustpython_parser::Mode::Module, "<test>").unwrap();
+/// // Convert the first statement
+/// let hir_stmt = StmtConverter::convert(stmt).unwrap();
+/// ```
 pub struct StmtConverter;
 
 impl StmtConverter {
@@ -155,6 +170,17 @@ impl StmtConverter {
 }
 
 /// Expression converter to reduce complexity
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use depyler_core::ast_bridge::converters::ExprConverter;
+/// use rustpython_parser::Parse;
+/// use rustpython_ast::Expr;
+///
+/// let expr = Expr::parse("42", "<test>").unwrap();
+/// let hir_expr = ExprConverter::convert(expr).unwrap();
+/// ```
 pub struct ExprConverter;
 
 impl ExprConverter {

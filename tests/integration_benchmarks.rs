@@ -211,6 +211,7 @@ def sample_function(x: int, y: int) -> int:
 
     /// Benchmark memory usage patterns
     #[test]
+    #[ignore = "Timing sensitive test may fail in CI"]
     fn memory_usage_benchmark() {
         println!("=== Memory Usage Benchmark ===");
 

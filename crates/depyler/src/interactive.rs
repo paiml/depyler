@@ -7,6 +7,10 @@ use dialoguer::{theme::ColorfulTheme, Confirm, MultiSelect};
 use rustpython_parser::{parse, Mode};
 use std::fs;
 
+#[cfg(test)]
+#[path = "interactive_tests.rs"]
+mod tests;
+
 pub struct InteractiveSession {
     pipeline: DepylerPipeline,
     #[allow(dead_code)]
@@ -16,6 +20,25 @@ pub struct InteractiveSession {
     quality_analyzer: QualityAnalyzer,
 }
 
+/// Represents a suggested annotation for improving transpilation
+///
+/// # Examples
+///
+/// ```rust
+/// use depyler::interactive::{AnnotationSuggestion, SuggestionType, ImpactLevel};
+///
+/// let suggestion = AnnotationSuggestion {
+///     line: 10,
+///     function_name: "process_data".to_string(),
+///     suggestion_type: SuggestionType::Performance,
+///     annotation: "# @depyler: optimize = \"aggressive\"".to_string(),
+///     reason: "Nested loops detected".to_string(),
+///     impact: ImpactLevel::High,
+/// };
+///
+/// assert_eq!(suggestion.line, 10);
+/// assert_eq!(suggestion.impact, ImpactLevel::High);
+/// ```
 #[derive(Debug, Clone)]
 pub struct AnnotationSuggestion {
     pub line: usize,
@@ -26,6 +49,23 @@ pub struct AnnotationSuggestion {
     pub impact: ImpactLevel,
 }
 
+/// Types of annotation suggestions
+///
+/// # Examples
+///
+/// ```rust
+/// use depyler::interactive::SuggestionType;
+///
+/// let perf = SuggestionType::Performance;
+/// let safety = SuggestionType::Safety;
+///
+/// // Pattern matching on suggestion types
+/// match perf {
+///     SuggestionType::Performance => println!("Optimize for speed"),
+///     SuggestionType::Memory => println!("Optimize for memory"),
+///     _ => println!("Other optimization"),
+/// }
+/// ```
 #[derive(Debug, Clone)]
 pub enum SuggestionType {
     Performance,
@@ -36,6 +76,22 @@ pub enum SuggestionType {
     Memory,
 }
 
+/// Impact level of an annotation suggestion
+///
+/// Ordered from Low to High for easy sorting and filtering.
+///
+/// # Examples
+///
+/// ```rust
+/// use depyler::interactive::ImpactLevel;
+///
+/// assert!(ImpactLevel::Low < ImpactLevel::Medium);
+/// assert!(ImpactLevel::Medium < ImpactLevel::High);
+///
+/// let mut impacts = vec![ImpactLevel::Medium, ImpactLevel::High, ImpactLevel::Low];
+/// impacts.sort();
+/// assert_eq!(impacts, vec![ImpactLevel::Low, ImpactLevel::Medium, ImpactLevel::High]);
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ImpactLevel {
     Low,
@@ -50,6 +106,16 @@ impl Default for InteractiveSession {
 }
 
 impl InteractiveSession {
+    /// Create a new interactive transpilation session
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use depyler::interactive::InteractiveSession;
+    ///
+    /// let session = InteractiveSession::new();
+    /// // Session is ready for interactive transpilation
+    /// ```
     pub fn new() -> Self {
         Self {
             pipeline: DepylerPipeline::new(),
@@ -59,6 +125,28 @@ impl InteractiveSession {
         }
     }
 
+    /// Run an interactive transpilation session
+    ///
+    /// Attempts to transpile the given Python file, providing interactive
+    /// feedback and annotation suggestions when transpilation fails.
+    ///
+    /// # Arguments
+    ///
+    /// * `input_file` - Path to the Python source file
+    /// * `annotate_mode` - Whether to suggest annotations for optimization
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use depyler::interactive::InteractiveSession;
+    ///
+    /// let mut session = InteractiveSession::new();
+    /// // Run without annotation suggestions
+    /// session.run("example.py", false).unwrap();
+    /// 
+    /// // Run with annotation suggestions
+    /// session.run("complex.py", true).unwrap();
+    /// ```
     pub fn run(&mut self, input_file: &str, annotate_mode: bool) -> Result<()> {
         let python_source = fs::read_to_string(input_file)?;
 
@@ -728,6 +816,31 @@ impl InteractiveSession {
     }
 }
 
+/// Run an interactive transpilation session with a new session instance
+///
+/// This is a convenience function that creates a new `InteractiveSession`
+/// and runs it with the specified parameters.
+///
+/// # Arguments
+///
+/// * `input_file` - Path to the Python source file to transpile
+/// * `annotate_mode` - Whether to provide annotation suggestions
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use depyler::interactive::run_interactive_session;
+///
+/// // Run interactive session on a Python file
+/// run_interactive_session("script.py", true).unwrap();
+/// ```
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The input file cannot be read
+/// - The Python code cannot be parsed
+/// - User interaction fails (e.g., no terminal available)
 pub fn run_interactive_session(input_file: &str, annotate_mode: bool) -> Result<()> {
     let mut session = InteractiveSession::new();
     session.run(input_file, annotate_mode)

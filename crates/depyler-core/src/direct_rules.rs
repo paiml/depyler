@@ -30,6 +30,59 @@ fn extract_nested_indices(
     }
 }
 
+/// Apply direct transformation rules to convert HIR to Rust AST
+/// 
+/// This function transforms a HIR module into a Rust syn::File AST,
+/// converting Python-like constructs into idiomatic Rust code.
+/// 
+/// # Arguments
+/// 
+/// * `module` - The HIR module to convert
+/// * `type_mapper` - Type mapper for resolving Python types to Rust types
+/// 
+/// # Returns
+/// 
+/// * `Result<syn::File>` - The generated Rust AST file
+/// 
+/// # Example
+/// 
+/// ```
+/// use depyler_core::hir::*;
+/// use depyler_core::direct_rules::apply_rules;
+/// use depyler_core::type_mapper::TypeMapper;
+/// use smallvec::smallvec;
+/// 
+/// let module = HirModule {
+///     imports: vec![],
+///     functions: vec![
+///         HirFunction {
+///             name: "add".to_string(),
+///             params: smallvec![
+///                 ("a".to_string(), Type::Int),
+///                 ("b".to_string(), Type::Int)
+///             ],
+///             ret_type: Type::Int,
+///             body: vec![
+///                 HirStmt::Return(Some(HirExpr::Binary {
+///                     op: BinOp::Add,
+///                     left: Box::new(HirExpr::Var("a".to_string())),
+///                     right: Box::new(HirExpr::Var("b".to_string())),
+///                 }))
+///             ],
+///             properties: FunctionProperties::default(),
+///             annotations: Default::default(),
+///             docstring: None,
+///         }
+///     ],
+///     classes: vec![],
+///     type_aliases: vec![],
+///     protocols: vec![],
+/// };
+/// 
+/// let type_mapper = TypeMapper::new();
+/// let rust_file = apply_rules(&module, &type_mapper).unwrap();
+/// assert!(rust_file.items.len() > 0); // Should have at least std imports + function
+/// ```
 pub fn apply_rules(module: &HirModule, type_mapper: &TypeMapper) -> Result<syn::File> {
     let mut items = Vec::new();
 
@@ -148,6 +201,54 @@ fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> R
     }))
 }
 
+/// Convert a HIR class to Rust struct and impl blocks
+/// 
+/// This function transforms a Python-like class in HIR representation
+/// into a Rust struct with associated impl blocks for methods.
+/// 
+/// # Arguments
+/// 
+/// * `class` - The HIR class to convert
+/// * `type_mapper` - Type mapper for resolving Python types to Rust types
+/// 
+/// # Returns
+/// 
+/// * `Result<Vec<syn::Item>>` - Vector of Rust items (struct + impl blocks)
+/// 
+/// # Example
+/// 
+/// ```
+/// use depyler_core::hir::*;
+/// use depyler_core::direct_rules::convert_class_to_struct;
+/// use depyler_core::type_mapper::TypeMapper;
+/// use smallvec::smallvec;
+/// 
+/// let class = HirClass {
+///     name: "Point".to_string(),
+///     base_classes: vec![],
+///     fields: vec![
+///         HirField {
+///             name: "x".to_string(),
+///             field_type: Type::Float,
+///             default_value: None,
+///             is_class_var: false,
+///         },
+///         HirField {
+///             name: "y".to_string(),
+///             field_type: Type::Float,
+///             default_value: None,
+///             is_class_var: false,
+///         }
+///     ],
+///     methods: vec![],
+///     is_dataclass: true,
+///     docstring: Some("A 2D point".to_string()),
+/// };
+/// 
+/// let type_mapper = TypeMapper::new();
+/// let items = convert_class_to_struct(&class, &type_mapper).unwrap();
+/// assert!(!items.is_empty()); // Should have at least the struct definition
+/// ```
 pub fn convert_class_to_struct(
     class: &HirClass,
     type_mapper: &TypeMapper,

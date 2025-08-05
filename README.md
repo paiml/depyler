@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/depyler.svg)](https://crates.io/crates/depyler)
 [![Documentation](https://docs.rs/depyler/badge.svg)](https://docs.rs/depyler)
 [![CI](https://github.com/paiml/depyler/actions/workflows/ci.yml/badge.svg)](https://github.com/paiml/depyler/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-85%25+-brightgreen.svg)](https://codecov.io/gh/paiml/depyler)
+[![Coverage](https://img.shields.io/badge/coverage-70%25-yellow.svg)](https://codecov.io/gh/paiml/depyler)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Apache License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Rust 1.83+](https://img.shields.io/badge/rust-1.83+-orange.svg)](https://www.rust-lang.org)
@@ -15,11 +15,12 @@ capabilities. Transform Python code into safe, performant Rust while reducing
 energy consumption by 75-85%. Built with zero tolerance for technical debt and
 extreme quality standards following the Toyota Way.
 
-> **Enterprise Testing Excellence**: v2.2.0 delivers enterprise-grade testing
-> infrastructure with 300+ tests across property-based, mutation, fuzzing, and
+> **Enterprise Testing Excellence**: v2.2.1 delivers enterprise-grade testing
+> infrastructure with 350+ tests across property-based, mutation, fuzzing, and
 > coverage testing frameworks. Features comprehensive CI/CD integration,
 > automated quality gates, and cross-platform testing matrix. Maintains zero
 > defects policy with formal verification readiness and ownership inference.
+> Line coverage: 70% | Function coverage: 74%
 
 ## 🚀 Installation
 
@@ -85,7 +86,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-depyler = "2.2.0"
+depyler = "2.2.1"
 ```
 
 Basic usage:
@@ -340,7 +341,7 @@ cargo test -p depyler-mcp         # MCP integration
 
 ## Recent Updates
 
-### 🧪 v2.2.0 - Enterprise Testing Infrastructure
+### 🧪 v2.2.1 - Enhanced Test Coverage & Quality
 
 - **Advanced Testing Frameworks**: 300+ tests across multiple paradigms
   - Property-based testing with custom generators

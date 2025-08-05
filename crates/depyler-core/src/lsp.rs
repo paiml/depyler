@@ -22,6 +22,16 @@ struct DocumentState {
 }
 
 impl LspServer {
+    /// Create a new LSP server instance
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use depyler_core::lsp::LspServer;
+    ///
+    /// let server = LspServer::new();
+    /// assert!(server.documents.is_empty());
+    /// ```
     pub fn new() -> Self {
         Self {
             documents: HashMap::new(),
@@ -30,6 +40,16 @@ impl LspServer {
     }
 
     /// Handle document open
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use depyler_core::lsp::LspServer;
+    ///
+    /// let mut server = LspServer::new();
+    /// server.did_open("file.py".to_string(), "def test(): pass".to_string(), 1);
+    /// assert!(server.documents.contains_key("file.py"));
+    /// ```
     pub fn did_open(&mut self, uri: String, text: String, version: i64) {
         let mut ide = IdeIntegration::new();
 
@@ -313,51 +333,5 @@ pub struct LocationResponse {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_lsp_server_creation() {
-        let server = LspServer::new();
-        assert!(server.documents.is_empty());
-    }
-
-    #[test]
-    fn test_document_open() {
-        let mut server = LspServer::new();
-        let uri = "test.py".to_string();
-        let text = "def test(): pass".to_string();
-
-        server.did_open(uri.clone(), text, 1);
-        assert!(server.documents.contains_key(&uri));
-    }
-
-    #[test]
-    fn test_position_conversion() {
-        let server = LspServer::new();
-        let text = "line1\nline2\nline3";
-
-        // Test position to offset
-        let pos = Position {
-            line: 1,
-            character: 2,
-        };
-        let offset = server.position_to_offset(text, pos);
-        assert_eq!(offset, TextSize::from(8)); // "line1\nli"
-
-        // Test offset to position
-        let pos2 = server.offset_to_position(text, offset);
-        assert_eq!(pos2.line, 1);
-        assert_eq!(pos2.character, 2);
-    }
-
-    #[test]
-    fn test_prefix_extraction() {
-        let server = LspServer::new();
-        let text = "def test_function(): pass";
-
-        let offset = TextSize::from(10); // After "test_f"
-        let prefix = server.get_prefix_at_position(text, offset);
-        assert_eq!(prefix, "test_f");
-    }
-}
+#[path = "lsp_tests.rs"]
+mod tests;

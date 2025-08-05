@@ -234,3 +234,189 @@ impl PropertyVerifier {
         Ok(test_code)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use depyler_annotations::{TranspilationAnnotations, ThreadSafety, OwnershipModel, InteriorMutability};
+    use depyler_core::hir::{HirExpr, HirStmt, Type};
+    
+    /// Helper function to create a test function
+    fn create_test_function(name: &str, is_pure: bool, thread_safe: bool) -> HirFunction {
+        use smallvec::smallvec;
+        
+        HirFunction {
+            name: name.to_string(),
+            params: smallvec![("x".to_string(), Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+            properties: depyler_core::hir::FunctionProperties {
+                is_pure,
+                always_terminates: true,
+                panic_free: true,
+                max_stack_depth: None,
+                can_fail: false,
+                error_types: vec![],
+                is_async: false,
+            },
+            annotations: TranspilationAnnotations {
+                thread_safety: if thread_safe {
+                    ThreadSafety::Required
+                } else {
+                    ThreadSafety::NotRequired
+                },
+                ownership_model: OwnershipModel::Owned,
+                interior_mutability: InteriorMutability::None,
+                ..Default::default()
+            },
+            docstring: None,
+        }
+    }
+    
+    #[test]
+    fn test_property_verifier_creation() {
+        let verifier = PropertyVerifier::new();
+        assert!(verifier.enable_quickcheck);
+        assert!(verifier.enable_contracts);
+        assert_eq!(verifier.test_iterations, 1000);
+    }
+    
+    #[test]
+    fn test_with_iterations() {
+        let verifier = PropertyVerifier::new().with_iterations(5000);
+        assert_eq!(verifier.test_iterations, 5000);
+    }
+    
+    #[test]
+    fn test_verify_pure_function() {
+        let verifier = PropertyVerifier::new();
+        let func = create_test_function("pure_func", true, false);
+        
+        let results = verifier.verify_function(&func);
+        
+        // Should have multiple verification results
+        assert!(!results.is_empty());
+        
+        // Find the purity result
+        let purity_result = results.iter().find(|r| r.property == "pure");
+        assert!(purity_result.is_some());
+        
+        let result = purity_result.unwrap();
+        assert!(matches!(result.status, PropertyStatus::HighConfidence));
+        assert!(result.confidence >= 0.9);
+    }
+    
+    #[test]
+    fn test_verify_thread_safe_function() {
+        let verifier = PropertyVerifier::new();
+        let func = create_test_function("thread_safe_func", false, true);
+        
+        let results = verifier.verify_function(&func);
+        
+        // Should include thread safety verification
+        let thread_safety_result = results.iter().find(|r| r.property == "thread_safety");
+        assert!(thread_safety_result.is_some());
+    }
+    
+    #[test]
+    fn test_type_preservation_verification() {
+        let verifier = PropertyVerifier::new();
+        let mut func = create_test_function("typed_func", false, false);
+        
+        // Test with fully typed function
+        let results = verifier.verify_function(&func);
+        let type_result = results.iter().find(|r| r.property == "type_preservation").unwrap();
+        assert!(matches!(type_result.status, PropertyStatus::Proven));
+        
+        // Test with unknown types
+        func.ret_type = Type::Unknown;
+        let results = verifier.verify_function(&func);
+        let type_result = results.iter().find(|r| r.property == "type_preservation").unwrap();
+        assert!(matches!(type_result.status, PropertyStatus::Unknown));
+    }
+    
+    #[test]
+    fn test_memory_safety_verification() {
+        let verifier = PropertyVerifier::new();
+        let func = create_test_function("memory_safe_func", false, false);
+        
+        let results = verifier.verify_function(&func);
+        
+        // Should include memory safety checks
+        let memory_result = results.iter().find(|r| r.property == "memory_safety");
+        assert!(memory_result.is_some());
+        
+        let null_result = results.iter().find(|r| r.property == "null_safety");
+        assert!(null_result.is_some());
+        assert!(matches!(null_result.unwrap().status, PropertyStatus::Proven));
+    }
+    
+    #[test]
+    fn test_property_status_serialization() {
+        use serde_json;
+        
+        let statuses = vec![
+            PropertyStatus::Proven,
+            PropertyStatus::HighConfidence,
+            PropertyStatus::Likely,
+            PropertyStatus::Unknown,
+            PropertyStatus::Violated("test violation".to_string()),
+        ];
+        
+        for status in statuses {
+            let serialized = serde_json::to_string(&status).unwrap();
+            let deserialized: PropertyStatus = serde_json::from_str(&serialized).unwrap();
+            
+            match (&status, &deserialized) {
+                (PropertyStatus::Violated(s1), PropertyStatus::Violated(s2)) => assert_eq!(s1, s2),
+                _ => assert_eq!(
+                    std::mem::discriminant(&status),
+                    std::mem::discriminant(&deserialized)
+                ),
+            }
+        }
+    }
+    
+    #[test]
+    fn test_verification_result_creation() {
+        let result = VerificationResult {
+            property: "test_property".to_string(),
+            status: PropertyStatus::Proven,
+            confidence: 1.0,
+            method: VerificationMethod::Exhaustive,
+            counterexamples: vec![],
+        };
+        
+        assert_eq!(result.property, "test_property");
+        assert!(matches!(result.status, PropertyStatus::Proven));
+        assert_eq!(result.confidence, 1.0);
+        assert!(result.counterexamples.is_empty());
+    }
+}
+
+/// Doctests for public API
+/// 
+/// # Example
+/// ```
+/// use depyler_verify::{PropertyVerifier, PropertyStatus};
+/// use depyler_core::hir::{HirFunction, Type};
+/// use smallvec::smallvec;
+/// 
+/// let verifier = PropertyVerifier::new()
+///     .with_iterations(100);
+/// 
+/// // Create a simple function to verify
+/// let func = HirFunction {
+///     name: "add".to_string(),
+///     params: smallvec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)],
+///     ret_type: Type::Int,
+///     body: vec![],
+///     properties: Default::default(),
+///     annotations: Default::default(),
+///     docstring: None,
+/// };
+/// 
+/// let results = verifier.verify_function(&func);
+/// assert!(!results.is_empty());
+/// ```
+pub mod examples {}
