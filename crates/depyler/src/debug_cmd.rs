@@ -73,3 +73,93 @@ pub fn print_debugging_tips() {
     println!("   - Python variables retain their names");
     println!("   - Use 'info locals' (gdb) or 'frame variable' (lldb)");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    /// Test debugger script generation for different debuggers
+    #[test]
+    fn test_generate_debugger_script() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_file = temp_dir.path().join("test.py");
+        let rust_file = temp_dir.path().join("test.rs");
+        
+        // Create dummy files
+        fs::write(&source_file, "def test(): pass").unwrap();
+        fs::write(&rust_file, "fn test() {}").unwrap();
+        
+        // Test GDB script generation
+        let gdb_output = temp_dir.path().join("test.gdb");
+        let result = generate_debugger_script(&source_file, &rust_file, "gdb", Some(&gdb_output));
+        assert!(result.is_ok());
+        assert!(gdb_output.exists());
+        
+        // Test LLDB script generation
+        let lldb_output = temp_dir.path().join("test.lldb");
+        let result = generate_debugger_script(&source_file, &rust_file, "lldb", Some(&lldb_output));
+        assert!(result.is_ok());
+        assert!(lldb_output.exists());
+        
+        // Test rust-gdb
+        let result = generate_debugger_script(&source_file, &rust_file, "rust-gdb", None);
+        assert!(result.is_ok());
+    }
+    
+    /// Test error handling for unknown debuggers
+    #[test]
+    fn test_unknown_debugger_error() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_file = temp_dir.path().join("test.py");
+        let rust_file = temp_dir.path().join("test.rs");
+        
+        let result = generate_debugger_script(&source_file, &rust_file, "unknown-debugger", None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Unknown debugger"));
+    }
+    
+    /// Test default output path generation
+    #[test]
+    fn test_default_output_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_file = temp_dir.path().join("my_script.py");
+        let rust_file = temp_dir.path().join("my_script.rs");
+        
+        fs::write(&source_file, "def test(): pass").unwrap();
+        fs::write(&rust_file, "fn test() {}").unwrap();
+        
+        // Without specifying output, should create default file
+        let result = generate_debugger_script(&source_file, &rust_file, "gdb", None);
+        assert!(result.is_ok());
+        
+        // Check default file exists
+        let default_gdb = temp_dir.path().join("my_script.gdb");
+        assert!(default_gdb.exists() || PathBuf::from("my_script.gdb").exists());
+    }
+    
+    /// Test debugger tips printing (just ensure it doesn't panic)
+    #[test]
+    fn test_print_debugging_tips() {
+        // Just ensure the function runs without panicking
+        print_debugging_tips();
+    }
+}
+
+/// Doctests for public API
+///
+/// # Example
+/// ```no_run
+/// use depyler::debug_cmd::{generate_debugger_script, print_debugging_tips};
+/// use std::path::Path;
+/// 
+/// // Generate a GDB script for debugging
+/// let source = Path::new("my_script.py");
+/// let rust = Path::new("my_script.rs");
+/// generate_debugger_script(source, rust, "gdb", None).unwrap();
+/// 
+/// // Print debugging tips
+/// print_debugging_tips();
+/// ```
+pub mod examples {}

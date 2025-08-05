@@ -3,6 +3,10 @@
 use crate::hir::{Import, ImportItem};
 use std::collections::HashMap;
 
+#[cfg(test)]
+#[path = "module_mapper_tests.rs"]
+mod tests;
+
 /// Maps Python modules/packages to their Rust equivalents
 pub struct ModuleMapper {
     /// Mapping from Python module names to Rust crate/module paths
@@ -22,6 +26,17 @@ pub struct ModuleMapping {
 }
 
 impl ModuleMapper {
+    /// Create a new module mapper with default Python to Rust mappings
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use depyler_core::module_mapper::ModuleMapper;
+    ///
+    /// let mapper = ModuleMapper::new();
+    /// assert!(mapper.get_mapping("os").is_some());
+    /// assert!(mapper.get_mapping("json").is_some());
+    /// ```
     pub fn new() -> Self {
         let mut module_map = HashMap::new();
 
@@ -320,6 +335,23 @@ impl ModuleMapper {
     }
 
     /// Map a Python import to Rust use statements
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use depyler_core::module_mapper::{ModuleMapper, RustImport};
+    /// use depyler_core::hir::{Import, ImportItem};
+    ///
+    /// let mapper = ModuleMapper::new();
+    /// let import = Import {
+    ///     module: "json".to_string(),
+    ///     items: vec![ImportItem::Named("loads".to_string())],
+    /// };
+    ///
+    /// let rust_imports = mapper.map_import(&import);
+    /// assert_eq!(rust_imports[0].path, "serde_json::from_str");
+    /// assert!(rust_imports[0].is_external);
+    /// ```
     pub fn map_import(&self, import: &Import) -> Vec<RustImport> {
         let mut rust_imports = Vec::new();
 
@@ -384,6 +416,29 @@ impl ModuleMapper {
     }
 
     /// Get all external dependencies needed
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use depyler_core::module_mapper::ModuleMapper;
+    /// use depyler_core::hir::{Import, ImportItem};
+    ///
+    /// let mapper = ModuleMapper::new();
+    /// let imports = vec![
+    ///     Import {
+    ///         module: "json".to_string(),
+    ///         items: vec![ImportItem::Named("loads".to_string())],
+    ///     },
+    ///     Import {
+    ///         module: "os".to_string(),
+    ///         items: vec![ImportItem::Named("getcwd".to_string())],
+    ///     },
+    /// ];
+    ///
+    /// let deps = mapper.get_dependencies(&imports);
+    /// assert_eq!(deps.len(), 1); // Only json is external
+    /// assert_eq!(deps[0], ("serde_json".to_string(), "1.0".to_string()));
+    /// ```
     pub fn get_dependencies(&self, imports: &[Import]) -> Vec<(String, String)> {
         let mut deps = Vec::new();
         let mut seen = std::collections::HashSet::new();
@@ -403,6 +458,20 @@ impl ModuleMapper {
     }
 
     /// Get module mapping for a given module name
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use depyler_core::module_mapper::ModuleMapper;
+    ///
+    /// let mapper = ModuleMapper::new();
+    /// 
+    /// if let Some(mapping) = mapper.get_mapping("json") {
+    ///     assert_eq!(mapping.rust_path, "serde_json");
+    ///     assert!(mapping.is_external);
+    ///     assert_eq!(mapping.version.as_ref().unwrap(), "1.0");
+    /// }
+    /// ```
     pub fn get_mapping(&self, module_name: &str) -> Option<&ModuleMapping> {
         self.module_map.get(module_name)
     }
