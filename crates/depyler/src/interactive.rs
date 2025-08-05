@@ -143,7 +143,7 @@ impl InteractiveSession {
     /// let mut session = InteractiveSession::new();
     /// // Run without annotation suggestions
     /// session.run("example.py", false).unwrap();
-    /// 
+    ///
     /// // Run with annotation suggestions
     /// session.run("complex.py", true).unwrap();
     /// ```

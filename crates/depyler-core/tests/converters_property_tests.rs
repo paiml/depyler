@@ -156,7 +156,7 @@ proptest! {
             ctx: ast::ExprContext::Load,
             range: Default::default(),
         });
-        
+
         match ExprConverter::convert(expr).unwrap() {
             HirExpr::Var(var_name) => prop_assert_eq!(var_name, name),
             _ => panic!("Expected variable"),
@@ -172,7 +172,7 @@ proptest! {
             ctx: ast::ExprContext::Load,
             range: Default::default(),
         });
-        
+
         match ExprConverter::convert(list_expr) {
             Ok(HirExpr::List(hir_elements)) => {
                 prop_assert_eq!(hir_elements.len(), elements.len());
@@ -190,7 +190,7 @@ proptest! {
             ctx: ast::ExprContext::Load,
             range: Default::default(),
         });
-        
+
         match ExprConverter::convert(tuple_expr) {
             Ok(HirExpr::Tuple(hir_elements)) => {
                 prop_assert_eq!(hir_elements.len(), elements.len());
@@ -212,14 +212,14 @@ proptest! {
             3 => ast::Operator::Div,
             _ => ast::Operator::Mod,
         };
-        
+
         let binop_expr = ast::Expr::BinOp(ast::ExprBinOp {
             left: Box::new(left),
             op,
             right: Box::new(right),
             range: Default::default(),
         });
-        
+
         match ExprConverter::convert(binop_expr) {
             Ok(HirExpr::Binary { op: _, left: _, right: _ }) => {
                 // Successfully converted to binary operation
@@ -239,13 +239,13 @@ proptest! {
             1 => ast::UnaryOp::USub,
             _ => ast::UnaryOp::Not,
         };
-        
+
         let unary_expr = ast::Expr::UnaryOp(ast::ExprUnaryOp {
             op,
             operand: Box::new(operand),
             range: Default::default(),
         });
-        
+
         match ExprConverter::convert(unary_expr) {
             Ok(HirExpr::Unary { op: _, operand: _ }) => {
                 prop_assert!(true);
@@ -269,7 +269,7 @@ proptest! {
             keywords: vec![],
             range: Default::default(),
         });
-        
+
         match ExprConverter::convert(call_expr) {
             Ok(HirExpr::Call { func, args: hir_args }) => {
                 prop_assert_eq!(func, func_name);
@@ -289,10 +289,10 @@ fn test_conversion_determinism() {
         kind: None,
         range: Default::default(),
     });
-    
+
     let result1 = ExprConverter::convert(expr.clone()).unwrap();
     let result2 = ExprConverter::convert(expr).unwrap();
-    
+
     // Can't directly compare HirExpr with Eq, but we can pattern match
     match (&result1, &result2) {
         (HirExpr::Literal(Literal::Int(n1)), HirExpr::Literal(Literal::Int(n2))) => {
@@ -321,13 +321,13 @@ fn test_nested_structure_preservation() {
         ctx: ast::ExprContext::Load,
         range: Default::default(),
     });
-    
+
     let outer_list = ast::Expr::List(ast::ExprList {
         elts: vec![inner_list],
         ctx: ast::ExprContext::Load,
         range: Default::default(),
     });
-    
+
     match ExprConverter::convert(outer_list).unwrap() {
         HirExpr::List(outer_elems) => {
             assert_eq!(outer_elems.len(), 1);

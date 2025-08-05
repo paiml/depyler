@@ -2,15 +2,15 @@ use pmcp::error::Error as McpError;
 use thiserror::Error;
 
 /// Error types for the Depyler MCP server
-/// 
+///
 /// # Example
 /// ```
 /// use depyler_mcp::error::DepylerMcpError;
-/// 
+///
 /// // Create a type inference error
 /// let err = DepylerMcpError::TypeInferenceError("unknown type".into());
 /// println!("Error: {}", err);
-/// 
+///
 /// // Convert to MCP error for protocol compatibility
 /// let mcp_err: pmcp::error::Error = err.into();
 /// ```
@@ -70,11 +70,11 @@ impl From<DepylerMcpError> for McpError {
 
 impl DepylerMcpError {
     /// Creates a type inference error
-    /// 
+    ///
     /// # Example
     /// ```
     /// use depyler_mcp::error::DepylerMcpError;
-    /// 
+    ///
     /// let err = DepylerMcpError::type_inference("cannot infer type");
     /// assert!(err.to_string().contains("Type inference failed"));
     /// ```
@@ -83,11 +83,11 @@ impl DepylerMcpError {
     }
 
     /// Creates an unsafe pattern error
-    /// 
+    ///
     /// # Example
     /// ```
     /// use depyler_mcp::error::DepylerMcpError;
-    /// 
+    ///
     /// let err = DepylerMcpError::unsafe_pattern("eval", "main.py:42");
     /// assert!(err.to_string().contains("eval"));
     /// assert!(err.to_string().contains("main.py:42"));
@@ -108,7 +108,10 @@ mod tests {
     #[test]
     fn test_type_inference_error() {
         let err = DepylerMcpError::TypeInferenceError("unable to infer type for variable x".into());
-        assert_eq!(err.to_string(), "Type inference failed: unable to infer type for variable x");
+        assert_eq!(
+            err.to_string(),
+            "Type inference failed: unable to infer type for variable x"
+        );
     }
 
     #[test]
@@ -117,13 +120,19 @@ mod tests {
             pattern: "eval()".into(),
             location: "line 42, column 10".into(),
         };
-        assert_eq!(err.to_string(), "Unsafe pattern detected: eval() at line 42, column 10");
+        assert_eq!(
+            err.to_string(),
+            "Unsafe pattern detected: eval() at line 42, column 10"
+        );
     }
 
     #[test]
     fn test_unsupported_dynamic_feature() {
         let err = DepylerMcpError::UnsupportedDynamicFeature("metaclass manipulation".into());
-        assert_eq!(err.to_string(), "Dynamic feature not supported: metaclass manipulation");
+        assert_eq!(
+            err.to_string(),
+            "Dynamic feature not supported: metaclass manipulation"
+        );
     }
 
     #[test]
@@ -135,7 +144,10 @@ mod tests {
     #[test]
     fn test_invalid_input() {
         let err = DepylerMcpError::InvalidInput("expected Python source code".into());
-        assert_eq!(err.to_string(), "Invalid input: expected Python source code");
+        assert_eq!(
+            err.to_string(),
+            "Invalid input: expected Python source code"
+        );
     }
 
     #[test]
@@ -191,7 +203,7 @@ mod tests {
     fn test_helper_methods() {
         let err1 = DepylerMcpError::type_inference("test message");
         assert!(matches!(err1, DepylerMcpError::TypeInferenceError(_)));
-        
+
         let err2 = DepylerMcpError::unsafe_pattern("eval", "file.py:10");
         assert!(matches!(err2, DepylerMcpError::UnsafePatternError { .. }));
     }

@@ -465,7 +465,7 @@ impl ModuleMapper {
     /// use depyler_core::module_mapper::ModuleMapper;
     ///
     /// let mapper = ModuleMapper::new();
-    /// 
+    ///
     /// if let Some(mapping) = mapper.get_mapping("json") {
     ///     assert_eq!(mapping.rust_path, "serde_json");
     ///     assert!(mapping.is_external);

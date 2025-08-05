@@ -2,8 +2,8 @@
 mod tests {
     use crate::ast_bridge::type_extraction::TypeExtractor;
     use crate::hir::Type;
-    use rustpython_parser::Parse;
     use rustpython_ast::Expr;
+    use rustpython_parser::Parse;
 
     #[test]
     fn test_extract_simple_types() {
@@ -51,7 +51,7 @@ mod tests {
     fn test_extract_type_variables() {
         // Single uppercase letters are type variables
         let cases = vec!["T", "U", "V", "K"];
-        
+
         for type_var in cases {
             let result = TypeExtractor::extract_simple_type(type_var).unwrap();
             assert_eq!(result, Type::TypeVar(type_var.to_string()));
@@ -154,7 +154,10 @@ mod tests {
         let ty2 = TypeExtractor::extract_type(&expr2).unwrap();
         assert_eq!(
             ty2,
-            Type::Dict(Box::new(Type::String), Box::new(Type::List(Box::new(Type::Int))))
+            Type::Dict(
+                Box::new(Type::String),
+                Box::new(Type::List(Box::new(Type::Int)))
+            )
         );
 
         // Optional Dict
@@ -215,7 +218,10 @@ mod tests {
         let expr = Expr::parse("1 + 2", "<test>").unwrap();
         let result = TypeExtractor::extract_type(&expr);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Unsupported type annotation"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Unsupported type annotation"));
     }
 
     #[test]
@@ -230,21 +236,14 @@ mod tests {
     #[test]
     fn test_complex_nested_generics() {
         // List[Optional[Dict[str, Union[int, float]]]]
-        let expr = Expr::parse(
-            "List[Optional[Dict[str, Union[int, float]]]]",
-            "<test>"
-        ).unwrap();
+        let expr = Expr::parse("List[Optional[Dict[str, Union[int, float]]]]", "<test>").unwrap();
         let ty = TypeExtractor::extract_type(&expr).unwrap();
-        
-        let expected = Type::List(Box::new(
-            Type::Optional(Box::new(
-                Type::Dict(
-                    Box::new(Type::String),
-                    Box::new(Type::Union(vec![Type::Int, Type::Float]))
-                )
-            ))
-        ));
-        
+
+        let expected = Type::List(Box::new(Type::Optional(Box::new(Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Union(vec![Type::Int, Type::Float])),
+        )))));
+
         assert_eq!(ty, expected);
     }
 
@@ -254,5 +253,4 @@ mod tests {
         let ty = TypeExtractor::extract_type(&expr).unwrap();
         assert_eq!(ty, Type::Int);
     }
-
 }

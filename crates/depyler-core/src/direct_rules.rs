@@ -31,27 +31,27 @@ fn extract_nested_indices(
 }
 
 /// Apply direct transformation rules to convert HIR to Rust AST
-/// 
+///
 /// This function transforms a HIR module into a Rust syn::File AST,
 /// converting Python-like constructs into idiomatic Rust code.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `module` - The HIR module to convert
 /// * `type_mapper` - Type mapper for resolving Python types to Rust types
-/// 
+///
 /// # Returns
-/// 
+///
 /// * `Result<syn::File>` - The generated Rust AST file
-/// 
+///
 /// # Example
-/// 
+///
 /// ```
 /// use depyler_core::hir::*;
 /// use depyler_core::direct_rules::apply_rules;
 /// use depyler_core::type_mapper::TypeMapper;
 /// use smallvec::smallvec;
-/// 
+///
 /// let module = HirModule {
 ///     imports: vec![],
 ///     functions: vec![
@@ -78,7 +78,7 @@ fn extract_nested_indices(
 ///     type_aliases: vec![],
 ///     protocols: vec![],
 /// };
-/// 
+///
 /// let type_mapper = TypeMapper::new();
 /// let rust_file = apply_rules(&module, &type_mapper).unwrap();
 /// assert!(rust_file.items.len() > 0); // Should have at least std imports + function
@@ -202,27 +202,27 @@ fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> R
 }
 
 /// Convert a HIR class to Rust struct and impl blocks
-/// 
+///
 /// This function transforms a Python-like class in HIR representation
 /// into a Rust struct with associated impl blocks for methods.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `class` - The HIR class to convert
 /// * `type_mapper` - Type mapper for resolving Python types to Rust types
-/// 
+///
 /// # Returns
-/// 
+///
 /// * `Result<Vec<syn::Item>>` - Vector of Rust items (struct + impl blocks)
-/// 
+///
 /// # Example
-/// 
+///
 /// ```
 /// use depyler_core::hir::*;
 /// use depyler_core::direct_rules::convert_class_to_struct;
 /// use depyler_core::type_mapper::TypeMapper;
 /// use smallvec::smallvec;
-/// 
+///
 /// let class = HirClass {
 ///     name: "Point".to_string(),
 ///     base_classes: vec![],
@@ -244,7 +244,7 @@ fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> R
 ///     is_dataclass: true,
 ///     docstring: Some("A 2D point".to_string()),
 /// };
-/// 
+///
 /// let type_mapper = TypeMapper::new();
 /// let items = convert_class_to_struct(&class, &type_mapper).unwrap();
 /// assert!(!items.is_empty()); // Should have at least the struct definition
