@@ -15,7 +15,7 @@ capabilities. Transform Python code into safe, performant Rust while reducing
 energy consumption by 75-85%. Built with zero tolerance for technical debt and
 extreme quality standards following the Toyota Way.
 
-> **Enterprise Testing Excellence**: v2.2.1 delivers enterprise-grade testing
+> **Enterprise Testing Excellence**: v2.2.2 delivers enterprise-grade testing
 > infrastructure with 350+ tests across property-based, mutation, fuzzing, and
 > coverage testing frameworks. Features comprehensive CI/CD integration,
 > automated quality gates, and cross-platform testing matrix. Maintains zero
@@ -86,7 +86,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-depyler = "2.2.1"
+depyler = "2.2.2"
 ```
 
 Basic usage:
@@ -341,9 +341,14 @@ cargo test -p depyler-mcp         # MCP integration
 
 ## Recent Updates
 
-### 🧪 v2.2.1 - Enhanced Test Coverage & Quality
+### 🧪 v2.2.2 - Enhanced Test Coverage & Quality
 
-- **Advanced Testing Frameworks**: 300+ tests across multiple paradigms
+- **Improved Test Coverage**: Achieved 70% line coverage with 350+ tests
+  - Added comprehensive property-based tests for core modules
+  - Added unit tests for migration_suggestions, direct_rules, lsp, module_mapper
+  - Added doctests for all public APIs
+  - Fixed interactive tests to be non-blocking in CI
+- **Advanced Testing Frameworks**: Multiple testing paradigms
   - Property-based testing with custom generators
   - Mutation testing for code robustness
   - Multi-strategy fuzzing (security, unicode, performance)
