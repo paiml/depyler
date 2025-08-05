@@ -1,3 +1,5 @@
+#![allow(clippy::missing_errors_doc)] // Parse methods have obvious error conditions
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -13,7 +15,8 @@ pub enum AnnotationError {
     InvalidValue { key: String, value: String },
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)] // Configuration struct requires multiple boolean flags
 pub struct TranspilationAnnotations {
     pub type_strategy: TypeStrategy,
     pub ownership_model: OwnershipModel,
@@ -69,7 +72,8 @@ impl Default for TranspilationAnnotations {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)] // Lambda configuration requires many boolean flags
 pub struct LambdaAnnotations {
     pub runtime: LambdaRuntime,
     pub event_type: Option<LambdaEventType>,
@@ -102,7 +106,7 @@ impl Default for LambdaAnnotations {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LambdaRuntime {
     ProvidedAl2,
     ProvidedAl2023,
@@ -124,13 +128,13 @@ pub enum LambdaEventType {
     Custom(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Architecture {
     X86_64,
     Arm64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TypeStrategy {
     Conservative,
     Aggressive,
@@ -138,20 +142,20 @@ pub enum TypeStrategy {
     AlwaysOwned,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OwnershipModel {
     Owned,
     Borrowed,
     Shared,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SafetyLevel {
     Safe,
     UnsafeAllowed,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PerformanceHint {
     Vectorize,
     UnrollLoops(u32),
@@ -160,34 +164,34 @@ pub enum PerformanceHint {
     PerformanceCritical,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FallbackStrategy {
     Mcp,
     Manual,
     Error,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BoundsChecking {
     Explicit,
     Implicit,
     Disabled,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OptimizationLevel {
     Standard,
     Aggressive,
     Conservative,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ThreadSafety {
     Required,
     NotRequired,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum InteriorMutability {
     None,
     ArcMutex,
@@ -195,63 +199,63 @@ pub enum InteriorMutability {
     Cell,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StringStrategy {
     Conservative,
     AlwaysOwned,
     ZeroCopy,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HashStrategy {
     Standard,
     Fnv,
     AHash,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PanicBehavior {
     Propagate,
     ReturnError,
     Abort,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ErrorStrategy {
     Panic,
     ResultType,
     OptionType,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GlobalStrategy {
     None,
     LazyStatic,
     OnceCell,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Termination {
     Unknown,
     Proven,
     BoundedLoop(u32),
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ServiceType {
     WebApi,
     Cli,
     Library,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MigrationStrategy {
     Incremental,
     BigBang,
     Hybrid,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CompatibilityLayer {
     PyO3,
     CTypes,
@@ -266,10 +270,16 @@ pub struct AnnotationParser {
 pub struct AnnotationValidator;
 
 impl AnnotationValidator {
+    /// Creates a new annotation validator.
     pub fn new() -> Self {
         Self
     }
 
+    /// Validates the consistency of annotation settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns a vector of error messages if any validation rules are violated.
     pub fn validate(&self, annotations: &TranspilationAnnotations) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
 
@@ -358,10 +368,16 @@ impl Default for AnnotationExtractor {
 }
 
 impl AnnotationExtractor {
+    /// Creates a new annotation extractor with pre-compiled regex patterns.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Extracts annotations for a specific function from source code.
+    ///
+    /// # Panics
+    ///
+    /// Panics if regex patterns fail to match (should not happen with valid regex).
     pub fn extract_function_annotations(
         &self,
         source: &str,
@@ -376,7 +392,7 @@ impl AnnotationExtractor {
                     let mut annotations = Vec::new();
                     let mut j = i.saturating_sub(1);
 
-                    while j < i && (lines[j].trim().starts_with("#") || lines[j].trim().is_empty())
+                    while j < i && (lines[j].trim().starts_with('#') || lines[j].trim().is_empty())
                     {
                         if lines[j].contains("@depyler:") {
                             annotations.push(lines[j]);
@@ -397,6 +413,11 @@ impl AnnotationExtractor {
         None
     }
 
+    /// Extracts annotations for a specific class from source code.
+    ///
+    /// # Panics
+    ///
+    /// Panics if regex patterns fail to match (should not happen with valid regex).
     pub fn extract_class_annotations(&self, source: &str, class_name: &str) -> Option<String> {
         let lines: Vec<&str> = source.lines().collect();
 
@@ -407,7 +428,7 @@ impl AnnotationExtractor {
                     let mut annotations = Vec::new();
                     let mut j = i.saturating_sub(1);
 
-                    while j < i && (lines[j].trim().starts_with("#") || lines[j].trim().is_empty())
+                    while j < i && (lines[j].trim().starts_with('#') || lines[j].trim().is_empty())
                     {
                         if lines[j].contains("@depyler:") {
                             annotations.push(lines[j]);
@@ -436,14 +457,28 @@ impl Default for AnnotationParser {
 }
 
 impl AnnotationParser {
+    /// Creates a new annotation parser.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal regex pattern fails to compile (should never happen).
     pub fn new() -> Self {
         let pattern =
             // This regex is statically known to be valid
             Regex::new(r"#\s*@depyler:\s*(\w+)\s*=\s*(.+)")
-                .unwrap_or_else(|e| panic!("Failed to compile annotation regex: {}", e));
+                .unwrap_or_else(|e| panic!("Failed to compile annotation regex: {e}"));
         Self { pattern }
     }
 
+    /// Parses annotations from source code comments.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AnnotationError` if unknown keys or invalid values are encountered.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the regex fails to capture groups (should not happen with valid regex).
     pub fn parse_annotations(
         &self,
         source: &str,
@@ -463,6 +498,11 @@ impl AnnotationParser {
         Ok(annotations)
     }
 
+    /// Parses annotations from function-specific source code.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AnnotationError` if parsing fails.
     pub fn parse_function_annotations(
         &self,
         function_source: &str,
@@ -470,6 +510,7 @@ impl AnnotationParser {
         self.parse_annotations(function_source)
     }
 
+    #[allow(clippy::too_many_lines)]
     fn apply_annotations(
         &self,
         annotations: &mut TranspilationAnnotations,
