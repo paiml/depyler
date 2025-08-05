@@ -1,5 +1,5 @@
-use depyler_core::migration_suggestions::*;
 use depyler_core::hir::*;
+use depyler_core::migration_suggestions::*;
 use proptest::prelude::*;
 use smallvec::smallvec;
 
@@ -116,10 +116,10 @@ proptest! {
     ) {
         let mut analyzer1 = MigrationAnalyzer::new(config.clone());
         let mut analyzer2 = MigrationAnalyzer::new(config);
-        
+
         let suggestions1 = analyzer1.analyze_program(&program);
         let suggestions2 = analyzer2.analyze_program(&program);
-        
+
         // Same input should produce same number of suggestions
         prop_assert_eq!(suggestions1.len(), suggestions2.len());
     }
@@ -131,7 +131,7 @@ proptest! {
     ) {
         let mut analyzer = MigrationAnalyzer::new(config);
         let suggestions = analyzer.analyze_program(&program);
-        
+
         // Formatting should never panic
         let _ = analyzer.format_suggestions(&suggestions);
     }
@@ -146,7 +146,7 @@ proptest! {
             functions: vec![],
             classes: vec![],
         };
-        
+
         let suggestions = analyzer.analyze_program(&program);
         prop_assert!(suggestions.is_empty());
     }
@@ -158,7 +158,7 @@ proptest! {
     ) {
         let mut analyzer = MigrationAnalyzer::new(config);
         let suggestions = analyzer.analyze_program(&program);
-        
+
         // Verify suggestions are sorted by severity
         for window in suggestions.windows(2) {
             prop_assert!(window[0].severity >= window[1].severity);
@@ -171,7 +171,7 @@ proptest! {
         func_name in arb_func_name()
     ) {
         let mut analyzer = MigrationAnalyzer::new(config);
-        
+
         let func = HirFunction {
             name: func_name,
             params: smallvec![],
@@ -186,15 +186,15 @@ proptest! {
             annotations: Default::default(),
             docstring: None,
         };
-        
+
         let program = HirProgram {
             imports: vec![],
             functions: vec![func],
             classes: vec![],
         };
-        
+
         let suggestions = analyzer.analyze_program(&program);
-        
+
         // Should always detect while True pattern
         prop_assert!(suggestions.iter().any(|s| s.title.contains("loop")));
     }
@@ -207,7 +207,7 @@ proptest! {
         type_name in arb_var_name()
     ) {
         let mut analyzer = MigrationAnalyzer::new(config);
-        
+
         let func = HirFunction {
             name: func_name,
             params: smallvec![],
@@ -229,17 +229,17 @@ proptest! {
             annotations: Default::default(),
             docstring: None,
         };
-        
+
         let program = HirProgram {
             imports: vec![],
             functions: vec![func],
             classes: vec![],
         };
-        
+
         let suggestions = analyzer.analyze_program(&program);
-        
+
         // Should always detect isinstance pattern
-        prop_assert!(suggestions.iter().any(|s| 
+        prop_assert!(suggestions.iter().any(|s|
             s.category == SuggestionCategory::TypeSystem &&
             s.title.contains("type system")
         ));
@@ -253,7 +253,7 @@ proptest! {
         items in arb_var_name()
     ) {
         let mut analyzer = MigrationAnalyzer::new(config);
-        
+
         let func = HirFunction {
             name: func_name,
             params: smallvec![],
@@ -272,17 +272,17 @@ proptest! {
             annotations: Default::default(),
             docstring: None,
         };
-        
+
         let program = HirProgram {
             imports: vec![],
             functions: vec![func],
             classes: vec![],
         };
-        
+
         let suggestions = analyzer.analyze_program(&program);
-        
+
         // Should always detect enumerate pattern
-        prop_assert!(suggestions.iter().any(|s| 
+        prop_assert!(suggestions.iter().any(|s|
             s.category == SuggestionCategory::Iterator &&
             s.title.contains("enumerate()")
         ));
@@ -296,7 +296,7 @@ proptest! {
         let mut analyzer = MigrationAnalyzer::new(config);
         let suggestions = analyzer.analyze_program(&program);
         let output = analyzer.format_suggestions(&suggestions);
-        
+
         if suggestions.is_empty() {
             prop_assert!(output.contains("No migration suggestions"));
         } else {

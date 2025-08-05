@@ -14,7 +14,7 @@ proptest! {
             DepylerMcpError::InvalidInput(msg.clone()),
             DepylerMcpError::Internal(msg.clone()),
         ];
-        
+
         for err in errors {
             let _ = err.to_string();
         }
@@ -30,18 +30,18 @@ proptest! {
     ) {
         let errors = vec![
             DepylerMcpError::TypeInferenceError(msg.clone()),
-            DepylerMcpError::UnsafePatternError { 
-                pattern: pattern.clone(), 
-                location: location.clone() 
+            DepylerMcpError::UnsafePatternError {
+                pattern: pattern.clone(),
+                location: location.clone()
             },
             DepylerMcpError::TranspilationTimeout(timeout),
             DepylerMcpError::InvalidInput(msg.clone()),
         ];
-        
+
         for err in errors {
             let _original_msg = err.to_string();
             let mcp_err: McpError = err.into();
-            
+
             match mcp_err {
                 McpError::Internal(mcp_msg) => {
                     // The MCP message should contain key parts of the original
@@ -62,7 +62,7 @@ proptest! {
         let err1 = DepylerMcpError::type_inference(&msg);
         assert!(matches!(err1, DepylerMcpError::TypeInferenceError(_)));
         assert!(err1.to_string().contains("Type inference failed"));
-        
+
         let err2 = DepylerMcpError::unsafe_pattern(&pattern, &location);
         assert!(matches!(err2, DepylerMcpError::UnsafePatternError { .. }));
         assert!(err2.to_string().contains(&pattern));
@@ -87,7 +87,7 @@ proptest! {
             DepylerMcpError::InvalidInput(s1.clone()),
             DepylerMcpError::Internal(s2.clone()),
         ];
-        
+
         for err in errors {
             let display = err.to_string();
             assert!(!display.is_empty());

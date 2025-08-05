@@ -238,13 +238,15 @@ impl PropertyVerifier {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use depyler_annotations::{TranspilationAnnotations, ThreadSafety, OwnershipModel, InteriorMutability};
+    use depyler_annotations::{
+        InteriorMutability, OwnershipModel, ThreadSafety, TranspilationAnnotations,
+    };
     use depyler_core::hir::{HirExpr, HirStmt, Type};
-    
+
     /// Helper function to create a test function
     fn create_test_function(name: &str, is_pure: bool, thread_safe: bool) -> HirFunction {
         use smallvec::smallvec;
-        
+
         HirFunction {
             name: name.to_string(),
             params: smallvec![("x".to_string(), Type::Int)],
@@ -272,7 +274,7 @@ mod tests {
             docstring: None,
         }
     }
-    
+
     #[test]
     fn test_property_verifier_creation() {
         let verifier = PropertyVerifier::new();
@@ -280,81 +282,90 @@ mod tests {
         assert!(verifier.enable_contracts);
         assert_eq!(verifier.test_iterations, 1000);
     }
-    
+
     #[test]
     fn test_with_iterations() {
         let verifier = PropertyVerifier::new().with_iterations(5000);
         assert_eq!(verifier.test_iterations, 5000);
     }
-    
+
     #[test]
     fn test_verify_pure_function() {
         let verifier = PropertyVerifier::new();
         let func = create_test_function("pure_func", true, false);
-        
+
         let results = verifier.verify_function(&func);
-        
+
         // Should have multiple verification results
         assert!(!results.is_empty());
-        
+
         // Find the purity result
         let purity_result = results.iter().find(|r| r.property == "pure");
         assert!(purity_result.is_some());
-        
+
         let result = purity_result.unwrap();
         assert!(matches!(result.status, PropertyStatus::HighConfidence));
         assert!(result.confidence >= 0.9);
     }
-    
+
     #[test]
     fn test_verify_thread_safe_function() {
         let verifier = PropertyVerifier::new();
         let func = create_test_function("thread_safe_func", false, true);
-        
+
         let results = verifier.verify_function(&func);
-        
+
         // Should include thread safety verification
         let thread_safety_result = results.iter().find(|r| r.property == "thread_safety");
         assert!(thread_safety_result.is_some());
     }
-    
+
     #[test]
     fn test_type_preservation_verification() {
         let verifier = PropertyVerifier::new();
         let mut func = create_test_function("typed_func", false, false);
-        
+
         // Test with fully typed function
         let results = verifier.verify_function(&func);
-        let type_result = results.iter().find(|r| r.property == "type_preservation").unwrap();
+        let type_result = results
+            .iter()
+            .find(|r| r.property == "type_preservation")
+            .unwrap();
         assert!(matches!(type_result.status, PropertyStatus::Proven));
-        
+
         // Test with unknown types
         func.ret_type = Type::Unknown;
         let results = verifier.verify_function(&func);
-        let type_result = results.iter().find(|r| r.property == "type_preservation").unwrap();
+        let type_result = results
+            .iter()
+            .find(|r| r.property == "type_preservation")
+            .unwrap();
         assert!(matches!(type_result.status, PropertyStatus::Unknown));
     }
-    
+
     #[test]
     fn test_memory_safety_verification() {
         let verifier = PropertyVerifier::new();
         let func = create_test_function("memory_safe_func", false, false);
-        
+
         let results = verifier.verify_function(&func);
-        
+
         // Should include memory safety checks
         let memory_result = results.iter().find(|r| r.property == "memory_safety");
         assert!(memory_result.is_some());
-        
+
         let null_result = results.iter().find(|r| r.property == "null_safety");
         assert!(null_result.is_some());
-        assert!(matches!(null_result.unwrap().status, PropertyStatus::Proven));
+        assert!(matches!(
+            null_result.unwrap().status,
+            PropertyStatus::Proven
+        ));
     }
-    
+
     #[test]
     fn test_property_status_serialization() {
         use serde_json;
-        
+
         let statuses = vec![
             PropertyStatus::Proven,
             PropertyStatus::HighConfidence,
@@ -362,11 +373,11 @@ mod tests {
             PropertyStatus::Unknown,
             PropertyStatus::Violated("test violation".to_string()),
         ];
-        
+
         for status in statuses {
             let serialized = serde_json::to_string(&status).unwrap();
             let deserialized: PropertyStatus = serde_json::from_str(&serialized).unwrap();
-            
+
             match (&status, &deserialized) {
                 (PropertyStatus::Violated(s1), PropertyStatus::Violated(s2)) => assert_eq!(s1, s2),
                 _ => assert_eq!(
@@ -376,7 +387,7 @@ mod tests {
             }
         }
     }
-    
+
     #[test]
     fn test_verification_result_creation() {
         let result = VerificationResult {
@@ -386,7 +397,7 @@ mod tests {
             method: VerificationMethod::Exhaustive,
             counterexamples: vec![],
         };
-        
+
         assert_eq!(result.property, "test_property");
         assert!(matches!(result.status, PropertyStatus::Proven));
         assert_eq!(result.confidence, 1.0);
@@ -395,16 +406,16 @@ mod tests {
 }
 
 /// Doctests for public API
-/// 
+///
 /// # Example
 /// ```
 /// use depyler_verify::{PropertyVerifier, PropertyStatus};
 /// use depyler_core::hir::{HirFunction, Type};
 /// use smallvec::smallvec;
-/// 
+///
 /// let verifier = PropertyVerifier::new()
 ///     .with_iterations(100);
-/// 
+///
 /// // Create a simple function to verify
 /// let func = HirFunction {
 ///     name: "add".to_string(),
@@ -415,7 +426,7 @@ mod tests {
 ///     annotations: Default::default(),
 ///     docstring: None,
 /// };
-/// 
+///
 /// let results = verifier.verify_function(&func);
 /// assert!(!results.is_empty());
 /// ```

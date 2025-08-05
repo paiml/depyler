@@ -21,7 +21,7 @@ mod tests {
             SuggestionType::Concurrency,
             SuggestionType::Memory,
         ];
-        
+
         // Ensure all variants are covered
         assert_eq!(types.len(), 6);
     }
@@ -46,7 +46,10 @@ mod tests {
 
         assert_eq!(suggestion.line, 5);
         assert_eq!(suggestion.function_name, "test_func");
-        assert!(matches!(suggestion.suggestion_type, SuggestionType::Performance));
+        assert!(matches!(
+            suggestion.suggestion_type,
+            SuggestionType::Performance
+        ));
         assert_eq!(suggestion.impact, ImpactLevel::High);
     }
 
@@ -54,7 +57,7 @@ mod tests {
     fn test_attempt_transpilation_simple() {
         let session = InteractiveSession::new();
         let python_code = "def add(a: int, b: int) -> int:\n    return a + b";
-        
+
         match session.attempt_transpilation(python_code) {
             Ok((rust_code, warnings)) => {
                 assert!(!rust_code.is_empty());
@@ -71,33 +74,28 @@ mod tests {
     #[test]
     fn test_attempt_transpilation_with_unsafe() {
         let _session = InteractiveSession::new();
-        
+
         // This would need a more complex example that generates unsafe code
         // For now, we test the warning detection logic separately
         let rust_code = "unsafe { std::ptr::null() }";
         let _warnings: Vec<String> = vec![];
-        
+
         // The method checks for "unsafe" in generated code
         assert!(rust_code.contains("unsafe"));
     }
-
-
-
-
-
 
     #[test]
     #[ignore = "Requires terminal interaction"]
     fn test_run_with_temp_file() {
         let mut session = InteractiveSession::new();
-        
+
         // Create a temporary file with Python code
         let mut temp_file = NamedTempFile::new().unwrap();
         writeln!(temp_file, "def simple():\n    return 42").unwrap();
-        
+
         // Run interactive session (will fail due to no terminal in test)
         let result = session.run(temp_file.path().to_str().unwrap(), false);
-        
+
         // In test environment, this will likely fail due to terminal interaction
         // We just ensure it doesn't panic unexpectedly
         match result {
@@ -110,9 +108,10 @@ mod tests {
     #[ignore = "Requires terminal interaction"]
     fn test_suggest_improvements() {
         let session = InteractiveSession::new();
-        let python_code = "def compute(data):\n    for i in data:\n        for j in data:\n            pass";
+        let python_code =
+            "def compute(data):\n    for i in data:\n        for j in data:\n            pass";
         let rust_code = "fn compute(data: Vec<i32>) {}";
-        
+
         // This involves terminal interaction, so will fail in test
         let result = session.suggest_improvements(python_code, rust_code);
         match result {
@@ -121,12 +120,11 @@ mod tests {
         }
     }
 
-
     #[test]
     fn test_default_trait() {
         let session1 = InteractiveSession::new();
         let session2 = InteractiveSession::default();
-        
+
         // Both should create valid sessions
         let _ = session1;
         let _ = session2;

@@ -899,7 +899,7 @@ fn extract_function_name(line: &str) -> Option<String> {
 #[cfg(test)]
 mod unit_tests {
     use super::*;
-    
+
     #[test]
     fn test_wasm_transpile_options_default() {
         let options = WasmTranspileOptions::default();
@@ -908,112 +908,127 @@ mod unit_tests {
         assert!(!options.emit_docs);
         assert_eq!(options.target_version, "1.83");
     }
-    
+
     #[test]
     fn test_wasm_transpile_options_new() {
         let options = WasmTranspileOptions::new();
         assert_eq!(options.verify, WasmTranspileOptions::default().verify);
     }
-    
+
     #[test]
     fn test_wasm_transpile_options_getters_setters() {
         let mut options = WasmTranspileOptions::new();
-        
+
         // Test verify
         assert!(options.verify());
         options.set_verify(false);
         assert!(!options.verify());
-        
+
         // Test optimize
         assert!(options.optimize());
         options.set_optimize(false);
         assert!(!options.optimize());
-        
+
         // Test emit_docs
         assert!(!options.emit_docs());
         options.set_emit_docs(true);
         assert!(options.emit_docs());
-        
+
         // Test target_version
         assert_eq!(options.target_version(), "1.83");
         options.set_target_version("1.84".to_string());
         assert_eq!(options.target_version(), "1.84");
     }
-    
+
     #[test]
     fn test_extract_function_name() {
         assert_eq!(extract_function_name("def foo():"), Some("foo".to_string()));
-        assert_eq!(extract_function_name("def bar(a, b):"), Some("bar".to_string()));
-        assert_eq!(extract_function_name("  def baz(x: int) -> int:"), Some("baz".to_string()));
+        assert_eq!(
+            extract_function_name("def bar(a, b):"),
+            Some("bar".to_string())
+        );
+        assert_eq!(
+            extract_function_name("  def baz(x: int) -> int:"),
+            Some("baz".to_string())
+        );
         assert_eq!(extract_function_name("class Foo:"), None);
         // The function finds "def" anywhere in the line, including comments
-        assert_eq!(extract_function_name("# def commented():"), Some("commented".to_string()));
+        assert_eq!(
+            extract_function_name("# def commented():"),
+            Some("commented".to_string())
+        );
     }
-    
+
     #[test]
     fn test_calculate_code_complexity() {
         let simple = "def foo(): return 42";
         assert_eq!(calculate_code_complexity(simple), 1);
-        
+
         let with_if = "def foo():\n    if x > 0:\n        return x";
         assert_eq!(calculate_code_complexity(with_if), 2);
-        
+
         let complex = "def foo():\n    if a:\n        pass\n    elif b:\n        pass\n    while c:\n        pass";
         assert_eq!(calculate_code_complexity(complex), 4);
     }
-    
+
     #[test]
     fn test_calculate_cyclomatic_complexity() {
         let simple = "def foo(): return 42";
         assert_eq!(calculate_cyclomatic_complexity(simple), 1);
-        
+
         let with_logic = "if a and b or c: pass";
         // This counts as: 1 (base) + 1 (if) + 1 (and) + 1 (or) = 4, but our implementation
         // only counts it as 2 because "and" and "or" are on the same line as "if"
         assert_eq!(calculate_cyclomatic_complexity(with_logic), 2);
-        
+
         let nested = "if a:\n    if b:\n        pass\n    elif c:\n        pass";
         assert!(calculate_cyclomatic_complexity(nested) >= 3);
     }
-    
+
     #[test]
     fn test_calculate_productivity_score() {
         assert_eq!(calculate_productivity_score(10, 10), 0.9); // 1:1 ratio
-        assert_eq!(calculate_productivity_score(10, 5), 0.7); // 2:1 ratio  
+        assert_eq!(calculate_productivity_score(10, 5), 0.7); // 2:1 ratio
         assert_eq!(calculate_productivity_score(10, 30), 0.5); // 1:3 ratio
         assert_eq!(calculate_productivity_score(10, 0), 0.0); // Division by zero
     }
-    
+
     #[test]
     fn test_calculate_maintainability_score() {
         let basic = "fn foo() {}";
         assert!(calculate_maintainability_score(basic) >= 0.8);
-        
+
         let with_docs = "/// Documentation\nfn foo() {}";
-        assert!(calculate_maintainability_score(with_docs) > calculate_maintainability_score(basic));
-        
+        assert!(
+            calculate_maintainability_score(with_docs) > calculate_maintainability_score(basic)
+        );
+
         let with_tests = "#[test]\nfn test_foo() {}";
-        assert!(calculate_maintainability_score(with_tests) > calculate_maintainability_score(basic));
-        
+        assert!(
+            calculate_maintainability_score(with_tests) > calculate_maintainability_score(basic)
+        );
+
         let with_result = "fn foo() -> Result<i32, Error> {}";
-        assert!(calculate_maintainability_score(with_result) > calculate_maintainability_score(basic));
+        assert!(
+            calculate_maintainability_score(with_result) > calculate_maintainability_score(basic)
+        );
     }
-    
+
     #[test]
     fn test_calculate_testability_score() {
         let private = "fn foo() {}";
         assert!(calculate_testability_score(private) >= 0.7);
-        
+
         let public = "pub fn foo() {}";
         assert!(calculate_testability_score(public) > calculate_testability_score(private));
-        
+
         let with_impl = "impl Foo { pub fn bar() {} }";
         assert!(calculate_testability_score(with_impl) > calculate_testability_score(private));
-        
+
         let with_test_mod = "#[cfg(test)]\nmod tests {}";
         assert!(calculate_testability_score(with_test_mod) > calculate_testability_score(private));
     }
-    
+
     #[test]
     fn test_energy_estimate_calculation() {
         let estimate = calculate_energy_estimate(100.0, 10.0);
@@ -1021,13 +1036,13 @@ mod unit_tests {
         assert!(estimate.watts_average > 0.0);
         assert!(estimate.co2_grams > 0.0);
         assert!(estimate.confidence >= 0.0 && estimate.confidence <= 1.0);
-        
+
         // Test edge cases
         let zero_estimate = calculate_energy_estimate(0.0, 0.0);
         assert_eq!(zero_estimate.joules, 0.0);
         assert_eq!(zero_estimate.confidence, 0.0);
     }
-    
+
     #[test]
     fn test_static_analysis() {
         let code = r#"
@@ -1037,9 +1052,9 @@ def test_func(x, y):
     for i in range(len(items)):
         pass
 "#;
-        
+
         let analysis = perform_static_analysis(code);
-        
+
         assert_eq!(analysis.functions.len(), 1);
         assert_eq!(analysis.functions[0].name, "test_func");
         assert_eq!(analysis.imports.len(), 1);
@@ -1079,4 +1094,3 @@ fn calculate_avg_complexity(hir: &depyler_core::hir::HirModule) -> f64 {
 
     total_complexity as f64 / hir.functions.len() as f64
 }
-

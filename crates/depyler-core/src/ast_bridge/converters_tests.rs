@@ -13,7 +13,8 @@ mod tests {
 
     // Helper function to parse Python statements
     fn parse_stmt(code: &str) -> ast::Stmt {
-        let module = rustpython_parser::parse(code, rustpython_parser::Mode::Module, "<test>").unwrap();
+        let module =
+            rustpython_parser::parse(code, rustpython_parser::Mode::Module, "<test>").unwrap();
         match module {
             rustpython_parser::ast::Mod::Module(m) => m.body.into_iter().next().unwrap(),
             _ => panic!("Expected Module"),
@@ -141,7 +142,11 @@ mod tests {
         let expr = parse_expr("obj.method(1, 2)");
         let result = ExprConverter::convert(expr).unwrap();
         match result {
-            HirExpr::MethodCall { object, method, args } => {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+            } => {
                 assert!(matches!(*object, HirExpr::Var(ref name) if name == "obj"));
                 assert_eq!(method, "method");
                 assert_eq!(args.len(), 2);
@@ -192,7 +197,9 @@ mod tests {
             HirExpr::Tuple(elems) => {
                 assert_eq!(elems.len(), 3);
                 assert!(matches!(elems[0], HirExpr::Literal(Literal::Int(1))));
-                assert!(matches!(elems[1], HirExpr::Literal(Literal::String(ref s)) if s == "hello"));
+                assert!(
+                    matches!(elems[1], HirExpr::Literal(Literal::String(ref s)) if s == "hello")
+                );
                 assert!(matches!(elems[2], HirExpr::Literal(Literal::Bool(true))));
             }
             _ => panic!("Expected tuple"),
@@ -229,10 +236,19 @@ mod tests {
         let expr = parse_expr("arr[1:5]");
         let result = ExprConverter::convert(expr).unwrap();
         match result {
-            HirExpr::Slice { base, start, stop, step } => {
+            HirExpr::Slice {
+                base,
+                start,
+                stop,
+                step,
+            } => {
                 assert!(matches!(*base, HirExpr::Var(ref name) if name == "arr"));
-                assert!(matches!(start, Some(ref s) if matches!(**s, HirExpr::Literal(Literal::Int(1)))));
-                assert!(matches!(stop, Some(ref s) if matches!(**s, HirExpr::Literal(Literal::Int(5)))));
+                assert!(
+                    matches!(start, Some(ref s) if matches!(**s, HirExpr::Literal(Literal::Int(1))))
+                );
+                assert!(
+                    matches!(stop, Some(ref s) if matches!(**s, HirExpr::Literal(Literal::Int(5))))
+                );
                 assert!(step.is_none());
             }
             _ => panic!("Expected slice operation"),
@@ -258,7 +274,12 @@ mod tests {
         let expr = parse_expr("[x * 2 for x in range(10)]");
         let result = ExprConverter::convert(expr).unwrap();
         match result {
-            HirExpr::ListComp { element, target, iter: _, condition } => {
+            HirExpr::ListComp {
+                element,
+                target,
+                iter: _,
+                condition,
+            } => {
                 assert_eq!(target, "x");
                 assert!(condition.is_none());
                 // element should be x * 2
@@ -276,7 +297,9 @@ mod tests {
         let expr = parse_expr("[x for x in range(10) if x % 2 == 0]");
         let result = ExprConverter::convert(expr).unwrap();
         match result {
-            HirExpr::ListComp { target, condition, .. } => {
+            HirExpr::ListComp {
+                target, condition, ..
+            } => {
                 assert_eq!(target, "x");
                 assert!(condition.is_some());
             }
@@ -373,7 +396,11 @@ mod tests {
         let stmt = parse_stmt("if x > 0:\n    print('positive')");
         let result = StmtConverter::convert(stmt).unwrap();
         match result {
-            HirStmt::If { condition, then_body, else_body } => {
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
                 assert!(matches!(condition, HirExpr::Binary { op: BinOp::Gt, .. }));
                 assert_eq!(then_body.len(), 1);
                 assert!(else_body.is_none());
@@ -466,7 +493,11 @@ mod tests {
         let stmt = parse_stmt("with open('file') as f:\n    data = f.read()");
         let result = StmtConverter::convert(stmt).unwrap();
         match result {
-            HirStmt::With { context, target, body } => {
+            HirStmt::With {
+                context,
+                target,
+                body,
+            } => {
                 assert!(matches!(context, HirExpr::Call { .. }));
                 assert_eq!(target, Some("f".to_string()));
                 assert_eq!(body.len(), 1);
@@ -493,7 +524,12 @@ mod tests {
         let expr = parse_expr("{x * 2 for x in range(10)}");
         let result = ExprConverter::convert(expr).unwrap();
         match result {
-            HirExpr::SetComp { element, target, iter: _, condition } => {
+            HirExpr::SetComp {
+                element,
+                target,
+                iter: _,
+                condition,
+            } => {
                 assert_eq!(target, "x");
                 assert!(condition.is_none());
                 match element.as_ref() {
