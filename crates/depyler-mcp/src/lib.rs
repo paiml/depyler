@@ -1,4 +1,4 @@
-mod error;
+pub mod error;
 mod server;
 mod tools;
 pub mod transport;

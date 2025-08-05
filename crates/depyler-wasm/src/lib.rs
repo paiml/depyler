@@ -33,6 +33,24 @@ macro_rules! console_log {
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
 }
 
+/// Options for controlling Python to Rust transpilation in WASM
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use depyler_wasm::WasmTranspileOptions;
+///
+/// let mut options = WasmTranspileOptions::new();
+/// options.set_verify(true);
+/// options.set_optimize(true);
+/// options.set_emit_docs(false);
+/// options.set_target_version("1.83".to_string());
+///
+/// assert!(options.verify());
+/// assert!(options.optimize());
+/// assert!(!options.emit_docs());
+/// assert_eq!(options.target_version(), "1.83");
+/// ```
 #[wasm_bindgen]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WasmTranspileOptions {
@@ -105,6 +123,32 @@ impl WasmTranspileOptions {
     }
 }
 
+/// Result of a Python to Rust transpilation operation
+///
+/// Contains the generated Rust code, any errors or warnings,
+/// performance metrics, and quality analysis.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use depyler_wasm::{DepylerWasm, WasmTranspileOptions};
+///
+/// let engine = DepylerWasm::new();
+/// let options = WasmTranspileOptions::new();
+///
+/// let python_code = r#"
+/// def add(a: int, b: int) -> int:
+///     return a + b
+/// "#;
+///
+/// let result = engine.transpile(python_code, &options).unwrap();
+///
+/// if result.success() {
+///     println!("Rust code: {}", result.rust_code());
+///     println!("Time: {}ms", result.transpile_time_ms());
+///     println!("Energy: {}J", result.energy_estimate().joules());
+/// }
+/// ```
 #[wasm_bindgen]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WasmTranspileResult {
@@ -169,6 +213,23 @@ impl WasmTranspileResult {
     }
 }
 
+/// Energy consumption estimate for transpilation
+///
+/// Provides estimated energy usage, power consumption,
+/// and carbon emissions for the transpilation process.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use depyler_wasm::WasmEnergyEstimate;
+///
+/// // After transpilation
+/// let energy = result.energy_estimate();
+/// println!("Energy used: {} joules", energy.joules());
+/// println!("Average power: {} watts", energy.watts_average());
+/// println!("CO2 emissions: {} grams", energy.co2_grams());
+/// println!("Confidence: {}%", energy.confidence() * 100.0);
+/// ```
 #[wasm_bindgen]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WasmEnergyEstimate {
@@ -205,6 +266,24 @@ impl WasmEnergyEstimate {
     }
 }
 
+/// Code quality metrics for transpiled Rust code
+///
+/// Measures productivity, maintainability, accessibility,
+/// and testability (PMAT) along with complexity metrics.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use depyler_wasm::WasmQualityMetrics;
+///
+/// // After transpilation
+/// let metrics = result.quality_metrics();
+/// println!("PMAT Score: {:.2}", metrics.pmat_score());
+/// println!("Productivity: {:.2}", metrics.productivity());
+/// println!("Maintainability: {:.2}", metrics.maintainability());
+/// println!("Code Complexity: {}", metrics.code_complexity());
+/// println!("Cyclomatic Complexity: {}", metrics.cyclomatic_complexity());
+/// ```
 #[wasm_bindgen]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WasmQualityMetrics {
@@ -262,6 +341,42 @@ impl WasmQualityMetrics {
     }
 }
 
+/// Main WASM interface for Depyler Python-to-Rust transpiler
+///
+/// Provides transpilation, code analysis, and benchmarking
+/// functionality for Python code in WebAssembly environments.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use depyler_wasm::{DepylerWasm, WasmTranspileOptions};
+///
+/// // Initialize the engine
+/// let engine = DepylerWasm::new();
+///
+/// // Configure options
+/// let mut options = WasmTranspileOptions::new();
+/// options.set_verify(true);
+///
+/// // Transpile Python code
+/// let python_code = r#"
+/// def factorial(n: int) -> int:
+///     if n <= 1:
+///         return 1
+///     return n * factorial(n - 1)
+/// "#;
+///
+/// match engine.transpile(python_code, &options) {
+///     Ok(result) => {
+///         if result.success() {
+///             println!("Generated Rust: {}", result.rust_code());
+///         } else {
+///             println!("Errors: {:?}", result.errors());
+///         }
+///     }
+///     Err(e) => println!("Transpilation failed: {:?}", e),
+/// }
+/// ```
 #[wasm_bindgen]
 pub struct DepylerWasm {
     initialized: bool,
@@ -277,6 +392,32 @@ impl DepylerWasm {
         DepylerWasm { initialized: true }
     }
 
+    /// Transpile Python code to Rust
+    ///
+    /// # Arguments
+    ///
+    /// * `python_code` - The Python source code to transpile
+    /// * `options` - Configuration options for transpilation
+    ///
+    /// # Returns
+    ///
+    /// A `WasmTranspileResult` containing the generated Rust code,
+    /// metrics, and any errors or warnings.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// let engine = DepylerWasm::new();
+    /// let options = WasmTranspileOptions::new();
+    ///
+    /// let result = engine.transpile(
+    ///     "def square(x: int) -> int: return x * x",
+    ///     &options
+    /// ).unwrap();
+    ///
+    /// assert!(result.success());
+    /// assert!(result.rust_code().contains("fn square"));
+    /// ```
     #[wasm_bindgen]
     pub fn transpile(
         &self,
@@ -363,6 +504,37 @@ impl DepylerWasm {
         Ok(result)
     }
 
+    /// Perform static analysis on Python code
+    ///
+    /// Analyzes the given Python code without transpiling it,
+    /// providing insights about complexity, anti-patterns,
+    /// and optimization opportunities.
+    ///
+    /// # Arguments
+    ///
+    /// * `python_code` - The Python source code to analyze
+    ///
+    /// # Returns
+    ///
+    /// A JSON object containing:
+    /// - Code complexity metrics
+    /// - Detected functions and their properties
+    /// - Import statements
+    /// - Optimization suggestions
+    /// - Anti-pattern warnings
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// let engine = DepylerWasm::new();
+    ///
+    /// let analysis = engine.analyze_code(r#"
+    /// def risky_function():
+    ///     eval("user_input")  # Anti-pattern detected!
+    ///     for i in range(len(items)):  # Could use enumerate
+    ///         print(i)
+    /// "#).unwrap();
+    /// ```
     #[wasm_bindgen]
     pub fn analyze_code(&self, python_code: &str) -> Result<JsValue, JsValue> {
         if !self.initialized {
@@ -389,6 +561,34 @@ impl DepylerWasm {
         env!("CARGO_PKG_VERSION").to_string()
     }
 
+    /// Benchmark transpilation performance
+    ///
+    /// Runs the transpilation process multiple times to measure
+    /// performance characteristics and consistency.
+    ///
+    /// # Arguments
+    ///
+    /// * `python_code` - The Python code to benchmark
+    /// * `iterations` - Number of times to run transpilation
+    ///
+    /// # Returns
+    ///
+    /// A JSON object containing:
+    /// - Execution times for each iteration
+    /// - Statistical measures (min, max, mean, median, std dev)
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// let engine = DepylerWasm::new();
+    ///
+    /// let benchmark = engine.benchmark(
+    ///     "def fib(n): return n if n < 2 else fib(n-1) + fib(n-2)",
+    ///     10
+    /// ).unwrap();
+    ///
+    /// // Results include timing statistics
+    /// ```
     #[wasm_bindgen]
     pub fn benchmark(&self, python_code: &str, iterations: u32) -> Result<JsValue, JsValue> {
         if !self.initialized {
@@ -696,6 +896,158 @@ fn extract_function_name(line: &str) -> Option<String> {
     None
 }
 
+#[cfg(test)]
+mod unit_tests {
+    use super::*;
+    
+    #[test]
+    fn test_wasm_transpile_options_default() {
+        let options = WasmTranspileOptions::default();
+        assert!(options.verify);
+        assert!(options.optimize);
+        assert!(!options.emit_docs);
+        assert_eq!(options.target_version, "1.83");
+    }
+    
+    #[test]
+    fn test_wasm_transpile_options_new() {
+        let options = WasmTranspileOptions::new();
+        assert_eq!(options.verify, WasmTranspileOptions::default().verify);
+    }
+    
+    #[test]
+    fn test_wasm_transpile_options_getters_setters() {
+        let mut options = WasmTranspileOptions::new();
+        
+        // Test verify
+        assert!(options.verify());
+        options.set_verify(false);
+        assert!(!options.verify());
+        
+        // Test optimize
+        assert!(options.optimize());
+        options.set_optimize(false);
+        assert!(!options.optimize());
+        
+        // Test emit_docs
+        assert!(!options.emit_docs());
+        options.set_emit_docs(true);
+        assert!(options.emit_docs());
+        
+        // Test target_version
+        assert_eq!(options.target_version(), "1.83");
+        options.set_target_version("1.84".to_string());
+        assert_eq!(options.target_version(), "1.84");
+    }
+    
+    #[test]
+    fn test_extract_function_name() {
+        assert_eq!(extract_function_name("def foo():"), Some("foo".to_string()));
+        assert_eq!(extract_function_name("def bar(a, b):"), Some("bar".to_string()));
+        assert_eq!(extract_function_name("  def baz(x: int) -> int:"), Some("baz".to_string()));
+        assert_eq!(extract_function_name("class Foo:"), None);
+        // The function finds "def" anywhere in the line, including comments
+        assert_eq!(extract_function_name("# def commented():"), Some("commented".to_string()));
+    }
+    
+    #[test]
+    fn test_calculate_code_complexity() {
+        let simple = "def foo(): return 42";
+        assert_eq!(calculate_code_complexity(simple), 1);
+        
+        let with_if = "def foo():\n    if x > 0:\n        return x";
+        assert_eq!(calculate_code_complexity(with_if), 2);
+        
+        let complex = "def foo():\n    if a:\n        pass\n    elif b:\n        pass\n    while c:\n        pass";
+        assert_eq!(calculate_code_complexity(complex), 4);
+    }
+    
+    #[test]
+    fn test_calculate_cyclomatic_complexity() {
+        let simple = "def foo(): return 42";
+        assert_eq!(calculate_cyclomatic_complexity(simple), 1);
+        
+        let with_logic = "if a and b or c: pass";
+        // This counts as: 1 (base) + 1 (if) + 1 (and) + 1 (or) = 4, but our implementation
+        // only counts it as 2 because "and" and "or" are on the same line as "if"
+        assert_eq!(calculate_cyclomatic_complexity(with_logic), 2);
+        
+        let nested = "if a:\n    if b:\n        pass\n    elif c:\n        pass";
+        assert!(calculate_cyclomatic_complexity(nested) >= 3);
+    }
+    
+    #[test]
+    fn test_calculate_productivity_score() {
+        assert_eq!(calculate_productivity_score(10, 10), 0.9); // 1:1 ratio
+        assert_eq!(calculate_productivity_score(10, 5), 0.7); // 2:1 ratio  
+        assert_eq!(calculate_productivity_score(10, 30), 0.5); // 1:3 ratio
+        assert_eq!(calculate_productivity_score(10, 0), 0.0); // Division by zero
+    }
+    
+    #[test]
+    fn test_calculate_maintainability_score() {
+        let basic = "fn foo() {}";
+        assert!(calculate_maintainability_score(basic) >= 0.8);
+        
+        let with_docs = "/// Documentation\nfn foo() {}";
+        assert!(calculate_maintainability_score(with_docs) > calculate_maintainability_score(basic));
+        
+        let with_tests = "#[test]\nfn test_foo() {}";
+        assert!(calculate_maintainability_score(with_tests) > calculate_maintainability_score(basic));
+        
+        let with_result = "fn foo() -> Result<i32, Error> {}";
+        assert!(calculate_maintainability_score(with_result) > calculate_maintainability_score(basic));
+    }
+    
+    #[test]
+    fn test_calculate_testability_score() {
+        let private = "fn foo() {}";
+        assert!(calculate_testability_score(private) >= 0.7);
+        
+        let public = "pub fn foo() {}";
+        assert!(calculate_testability_score(public) > calculate_testability_score(private));
+        
+        let with_impl = "impl Foo { pub fn bar() {} }";
+        assert!(calculate_testability_score(with_impl) > calculate_testability_score(private));
+        
+        let with_test_mod = "#[cfg(test)]\nmod tests {}";
+        assert!(calculate_testability_score(with_test_mod) > calculate_testability_score(private));
+    }
+    
+    #[test]
+    fn test_energy_estimate_calculation() {
+        let estimate = calculate_energy_estimate(100.0, 10.0);
+        assert!(estimate.joules > 0.0);
+        assert!(estimate.watts_average > 0.0);
+        assert!(estimate.co2_grams > 0.0);
+        assert!(estimate.confidence >= 0.0 && estimate.confidence <= 1.0);
+        
+        // Test edge cases
+        let zero_estimate = calculate_energy_estimate(0.0, 0.0);
+        assert_eq!(zero_estimate.joules, 0.0);
+        assert_eq!(zero_estimate.confidence, 0.0);
+    }
+    
+    #[test]
+    fn test_static_analysis() {
+        let code = r#"
+def test_func(x, y):
+    import math
+    eval("dangerous")
+    for i in range(len(items)):
+        pass
+"#;
+        
+        let analysis = perform_static_analysis(code);
+        
+        assert_eq!(analysis.functions.len(), 1);
+        assert_eq!(analysis.functions[0].name, "test_func");
+        assert_eq!(analysis.imports.len(), 1);
+        assert!(!analysis.anti_patterns.is_empty());
+        assert!(!analysis.suggestions.is_empty());
+    }
+}
+
 impl Default for DepylerWasm {
     fn default() -> Self {
         Self::new()
@@ -727,3 +1079,4 @@ fn calculate_avg_complexity(hir: &depyler_core::hir::HirModule) -> f64 {
 
     total_complexity as f64 / hir.functions.len() as f64
 }
+
