@@ -33,7 +33,7 @@ proptest! {
         verify1 in any::<bool>(),
         verify2 in any::<bool>(),
         optimize1 in any::<bool>(),
-        optimize2 in any::<bool>(),
+        _optimize2 in any::<bool>(),
     ) {
         let mut options = WasmTranspileOptions::new();
         
@@ -125,7 +125,7 @@ proptest! {
         let python_code = format!("def test():\n    pass\n    # {}", code_content);
         
         match engine.analyze_code(&python_code) {
-            Ok(result) => {
+            Ok(_result) => {
                 // Should be valid JSON (JsValue)
                 // The fact that it returns Ok means it's valid
                 prop_assert!(true);
