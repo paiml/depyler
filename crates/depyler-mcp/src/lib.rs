@@ -1,4 +1,5 @@
 pub mod error;
+pub mod pmat_integration;
 mod server;
 mod tools;
 pub mod transport;
@@ -8,13 +9,14 @@ pub mod validator;
 mod tests;
 
 pub use error::DepylerMcpError;
+pub use pmat_integration::{PmatIntegration, PmatQualityReport};
 pub use server::DepylerMcpServer;
 pub use tools::{AnalyzeRequest, TranspileRequest, VerifyRequest};
 pub use transport::TransportFactory;
 
 // Re-export pmcp types for convenience
 pub use pmcp::{
-    Client, Error as McpError, RequestHandlerExtra, Server, StdioTransport, ToolHandler, Transport,
+    Error as McpError, RequestHandlerExtra, Server, ServerBuilder, ToolHandler, Transport,
 };
 
 use anyhow::Result;
@@ -89,7 +91,7 @@ impl McpClient {
     }
 
     pub async fn with_stdio() -> Result<Self> {
-        // For now, create a disabled client since the API has changed significantly
+        // Initialize with stdio transport when needed
         Ok(Self { client: None })
     }
 
