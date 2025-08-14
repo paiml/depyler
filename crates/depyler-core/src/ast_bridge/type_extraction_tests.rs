@@ -1,4 +1,3 @@
-
 use crate::ast_bridge::type_extraction::TypeExtractor;
 use crate::hir::Type;
 use rustpython_ast::Expr;

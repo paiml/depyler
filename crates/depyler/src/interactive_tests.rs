@@ -1,4 +1,3 @@
-
 use crate::interactive::*;
 use std::io::Write;
 use tempfile::NamedTempFile;
