@@ -1,4 +1,3 @@
-
 use crate::ide::{CompletionItem, CompletionKind, Diagnostic, DiagnosticSeverity};
 use crate::lsp::*;
 use rustpython_parser::text_size::{TextRange, TextSize};
