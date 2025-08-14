@@ -21,7 +21,7 @@ proptest! {
         fs::write(&rust_file, "fn test() {}").unwrap();
 
         // Should not panic
-        let _ = generate_debugger_script(&source_file, &rust_file, &debugger, None);
+        let _ = generate_debugger_script(&source_file, &rust_file, debugger, None);
     }
 
     /// Property: Generated script files have correct extensions
@@ -38,7 +38,7 @@ proptest! {
         fs::write(&source_file, "def test(): pass").unwrap();
         fs::write(&rust_file, "fn test() {}").unwrap();
 
-        if let Ok(()) = generate_debugger_script(&source_file, &rust_file, &debugger, Some(&output_file)) {
+        if let Ok(()) = generate_debugger_script(&source_file, &rust_file, debugger, Some(&output_file)) {
             assert!(output_file.exists());
 
             // Verify file was created

@@ -1,5 +1,3 @@
-#[cfg(test)]
-mod tests {
     use crate::ast_bridge::type_extraction::TypeExtractor;
     use crate::hir::Type;
     use rustpython_ast::Expr;
@@ -253,4 +251,4 @@ mod tests {
         let ty = TypeExtractor::extract_type(&expr).unwrap();
         assert_eq!(ty, Type::Int);
     }
-}
+
