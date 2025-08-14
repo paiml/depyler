@@ -164,7 +164,7 @@ impl PmatIntegration {
             let task = TodoTask {
                 id: format!("quality_check_{}", idx),
                 title: format!("Quality check for {}", file),
-                description: format!("Verify transpiled Rust code meets pmat standards"),
+                description: "Verify transpiled Rust code meets pmat standards".to_string(),
                 status: TaskStatus::Pending,
                 priority: 2,
                 tags: vec!["quality".to_string(), "pmat".to_string()],
@@ -360,7 +360,7 @@ impl PmatIntegration {
         score += metrics.documentation_coverage * 0.05;
         score += metrics.type_safety_score * 0.1;
 
-        score.max(0.0).min(100.0)
+        score.clamp(0.0, 100.0)
     }
 
     fn generate_suggestions(
