@@ -11,7 +11,7 @@ mod tests;
 /// # Examples
 ///
 /// ```rust
-/// use depyler_core::ast_bridge::type_extraction::TypeExtractor;
+/// use depyler_core::ast_bridge::TypeExtractor;
 /// use depyler_core::hir::Type;
 ///
 /// // Extract simple types
