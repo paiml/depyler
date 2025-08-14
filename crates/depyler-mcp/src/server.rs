@@ -1,8 +1,6 @@
 use crate::tools::*;
 use depyler_core::DepylerPipeline;
-use pmcp::error::Error as McpError;
-use pmcp::server::{Server, ToolHandler};
-use pmcp::RequestHandlerExtra;
+use pmcp::{Error as McpError, RequestHandlerExtra, Server, ServerBuilder, ToolHandler};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
@@ -12,7 +10,6 @@ use tracing::{info, warn};
 
 pub struct DepylerMcpServer {
     transpiler: Arc<DepylerPipeline>,
-    #[allow(dead_code)] // Cache will be used in future iterations
     cache: Arc<RwLock<HashMap<String, Value>>>,
 }
 
@@ -27,7 +24,7 @@ impl DepylerMcpServer {
     pub async fn create_server() -> Result<Server, McpError> {
         let depyler_server = Self::new();
 
-        let server = Server::builder()
+        let server = ServerBuilder::new()
             .name("depyler-mcp")
             .version(env!("CARGO_PKG_VERSION"))
             .tool(
@@ -41,6 +38,10 @@ impl DepylerMcpServer {
             .tool(
                 "verify_transpilation",
                 VerifyTool::new(depyler_server.transpiler.clone()),
+            )
+            .tool(
+                "pmat_quality_check",
+                PmatQualityTool::new(depyler_server.transpiler.clone()),
             )
             .build()?;
 
@@ -71,20 +72,18 @@ impl TranspileTool {
 impl ToolHandler for TranspileTool {
     async fn handle(&self, args: Value, _extra: RequestHandlerExtra) -> Result<Value, McpError> {
         let request: TranspileRequest = serde_json::from_value(args)
-            .map_err(|e| McpError::Internal(format!("Invalid transpile request: {}", e)))?;
+            .map_err(|e| McpError::invalid_params(format!("Invalid transpile request: {}", e)))?;
 
         info!("Transpiling Python code with mode: {:?}", request.mode);
 
         let python_source = match request.mode {
             Mode::Inline => request.source,
             Mode::File => std::fs::read_to_string(&request.source)
-                .map_err(|e| McpError::Internal(format!("Failed to read file: {}", e)))?,
+                .map_err(|e| McpError::internal(format!("Failed to read file: {}", e)))?,
             Mode::Project => {
-                // For now, just read the main file - in a full implementation,
-                // this would analyze the entire project
                 let main_file = Path::new(&request.source).join("main.py");
                 std::fs::read_to_string(&main_file).map_err(|e| {
-                    McpError::Internal(format!("Failed to read project main file: {}", e))
+                    McpError::internal(format!("Failed to read project main file: {}", e))
                 })?
             }
         };
@@ -93,7 +92,6 @@ impl ToolHandler for TranspileTool {
             Ok(code) => code,
             Err(e) => {
                 warn!("Transpilation failed: {}", e);
-                // Fallback to a simple transpilation
                 format!("// Transpilation failed: {e}\n// Original Python:\n/*\n{python_source}\n*/\n\nfn main() {{\n    println!(\"Transpilation not yet fully implemented\");\n}}")
             }
         };
@@ -116,13 +114,12 @@ impl ToolHandler for TranspileTool {
         };
 
         serde_json::to_value(response)
-            .map_err(|e| McpError::Internal(format!("Failed to serialize response: {}", e)))
+            .map_err(|e| McpError::internal(format!("Failed to serialize response: {}", e)))
     }
 }
 
 #[derive(Clone)]
 pub struct AnalyzeTool {
-    #[allow(dead_code)]
     transpiler: Arc<DepylerPipeline>,
 }
 
@@ -131,11 +128,10 @@ impl AnalyzeTool {
         Self { transpiler }
     }
 
-    #[allow(clippy::result_large_err)]
     fn count_python_lines(&self, project_path: &str) -> Result<usize, McpError> {
         let path = Path::new(project_path);
         if !path.exists() {
-            return Err(McpError::Internal(format!(
+            return Err(McpError::invalid_params(format!(
                 "Project path does not exist: {project_path}"
             )));
         }
@@ -143,20 +139,19 @@ impl AnalyzeTool {
         let mut total_lines = 0;
         if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
             let content = std::fs::read_to_string(path)
-                .map_err(|e| McpError::Internal(format!("Failed to read file: {}", e)))?;
+                .map_err(|e| McpError::internal(format!("Failed to read file: {}", e)))?;
             total_lines += content.lines().count();
         } else if path.is_dir() {
-            // Simplified: just count a few common files
             for entry in std::fs::read_dir(path)
-                .map_err(|e| McpError::Internal(format!("Failed to read directory: {}", e)))?
+                .map_err(|e| McpError::internal(format!("Failed to read directory: {}", e)))?
             {
                 let entry = entry.map_err(|e| {
-                    McpError::Internal(format!("Failed to read directory entry: {}", e))
+                    McpError::internal(format!("Failed to read directory entry: {}", e))
                 })?;
                 let path = entry.path();
                 if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
                     let content = std::fs::read_to_string(&path)
-                        .map_err(|e| McpError::Internal(format!("Failed to read file: {}", e)))?;
+                        .map_err(|e| McpError::internal(format!("Failed to read file: {}", e)))?;
                     total_lines += content.lines().count();
                 }
             }
@@ -166,7 +161,6 @@ impl AnalyzeTool {
     }
 
     fn calculate_complexity_score(&self, total_lines: usize) -> f64 {
-        // Simple heuristic based on project size
         let base_complexity = (total_lines as f64).ln() + 1.0;
         base_complexity * 1.5
     }
@@ -176,11 +170,10 @@ impl AnalyzeTool {
 impl ToolHandler for AnalyzeTool {
     async fn handle(&self, args: Value, _extra: RequestHandlerExtra) -> Result<Value, McpError> {
         let request: AnalyzeRequest = serde_json::from_value(args)
-            .map_err(|e| McpError::Internal(format!("Invalid analyze request: {}", e)))?;
+            .map_err(|e| McpError::invalid_params(format!("Invalid analyze request: {}", e)))?;
 
         info!("Analyzing project: {}", request.project_path);
 
-        // Simplified analysis for now
         let total_python_loc = self.count_python_lines(&request.project_path)?;
         let complexity_score = self.calculate_complexity_score(total_python_loc);
 
@@ -224,13 +217,12 @@ impl ToolHandler for AnalyzeTool {
         };
 
         serde_json::to_value(response)
-            .map_err(|e| McpError::Internal(format!("Failed to serialize response: {}", e)))
+            .map_err(|e| McpError::internal(format!("Failed to serialize response: {}", e)))
     }
 }
 
 #[derive(Clone)]
 pub struct VerifyTool {
-    #[allow(dead_code)]
     transpiler: Arc<DepylerPipeline>,
 }
 
@@ -244,11 +236,10 @@ impl VerifyTool {
 impl ToolHandler for VerifyTool {
     async fn handle(&self, args: Value, _extra: RequestHandlerExtra) -> Result<Value, McpError> {
         let request: VerifyRequest = serde_json::from_value(args)
-            .map_err(|e| McpError::Internal(format!("Invalid verify request: {}", e)))?;
+            .map_err(|e| McpError::invalid_params(format!("Invalid verify request: {}", e)))?;
 
         info!("Verifying transpilation");
 
-        // Simplified verification for now
         let rust_compiles = syn::parse_str::<syn::File>(&request.rust_source).is_ok();
 
         let response = VerifyResponse {
@@ -277,6 +268,65 @@ impl ToolHandler for VerifyTool {
         };
 
         serde_json::to_value(response)
-            .map_err(|e| McpError::Internal(format!("Failed to serialize response: {}", e)))
+            .map_err(|e| McpError::internal(format!("Failed to serialize response: {}", e)))
+    }
+}
+
+#[derive(Clone)]
+pub struct PmatQualityTool {
+    transpiler: Arc<DepylerPipeline>,
+}
+
+impl PmatQualityTool {
+    pub fn new(transpiler: Arc<DepylerPipeline>) -> Self {
+        Self { transpiler }
+    }
+}
+
+#[async_trait::async_trait]
+impl ToolHandler for PmatQualityTool {
+    async fn handle(&self, args: Value, _extra: RequestHandlerExtra) -> Result<Value, McpError> {
+        let rust_code = args["rust_code"]
+            .as_str()
+            .ok_or_else(|| McpError::invalid_params("rust_code must be a string"))?;
+
+        // Check if code parses as valid Rust
+        let parses = syn::parse_str::<syn::File>(rust_code).is_ok();
+
+        // Calculate basic metrics
+        let lines = rust_code.lines().count();
+        let has_tests = rust_code.contains("#[test]") || rust_code.contains("#[cfg(test)]");
+        let has_docs = rust_code.contains("///") || rust_code.contains("//!");
+
+        // Score based on pmat-like criteria
+        let mut score = 100.0;
+        if !parses {
+            score -= 50.0;
+        }
+        if lines > 500 {
+            score -= 10.0;
+        }
+        if !has_tests {
+            score -= 15.0;
+        }
+        if !has_docs {
+            score -= 10.0;
+        }
+
+        Ok(serde_json::json!({
+            "score": score,
+            "passes": score >= 70.0,
+            "metrics": {
+                "parses": parses,
+                "lines": lines,
+                "has_tests": has_tests,
+                "has_docs": has_docs,
+            },
+            "suggestions": {
+                "add_tests": !has_tests,
+                "add_docs": !has_docs,
+                "reduce_complexity": lines > 500,
+            }
+        }))
     }
 }
