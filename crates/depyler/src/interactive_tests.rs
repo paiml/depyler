@@ -1,5 +1,3 @@
-#[cfg(test)]
-mod tests {
     use crate::interactive::*;
     use std::io::Write;
     use tempfile::NamedTempFile;
@@ -13,14 +11,12 @@ mod tests {
 
     #[test]
     fn test_suggestion_type_variants() {
-        let types = vec![
-            SuggestionType::Performance,
+        let types = [SuggestionType::Performance,
             SuggestionType::Safety,
             SuggestionType::TypeStrategy,
             SuggestionType::ErrorHandling,
             SuggestionType::Concurrency,
-            SuggestionType::Memory,
-        ];
+            SuggestionType::Memory];
 
         // Ensure all variants are covered
         assert_eq!(types.len(), 6);
@@ -66,7 +62,7 @@ mod tests {
             }
             Err(_) => {
                 // Transpilation might fail in test environment
-                assert!(true);
+                // Transpilation might fail in test environment
             }
         }
     }
@@ -98,10 +94,7 @@ mod tests {
 
         // In test environment, this will likely fail due to terminal interaction
         // We just ensure it doesn't panic unexpectedly
-        match result {
-            Ok(_) => assert!(true),
-            Err(_) => assert!(true),
-        }
+        if result.is_ok() {}
     }
 
     #[test]
@@ -114,10 +107,7 @@ mod tests {
 
         // This involves terminal interaction, so will fail in test
         let result = session.suggest_improvements(python_code, rust_code);
-        match result {
-            Ok(_) => assert!(true),
-            Err(_) => assert!(true),
-        }
+        if result.is_ok() {}
     }
 
     #[test]
@@ -129,4 +119,4 @@ mod tests {
         let _ = session1;
         let _ = session2;
     }
-}
+

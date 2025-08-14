@@ -94,13 +94,10 @@ proptest! {
         let mut results = Vec::new();
 
         for _ in 0..iterations {
-            match engine.transpile(&python_code, &options) {
-                Ok(result) => {
-                    if result.success() {
-                        results.push(result.rust_code());
-                    }
+            if let Ok(result) = engine.transpile(&python_code, &options) {
+                if result.success() {
+                    results.push(result.rust_code());
                 }
-                Err(_) => {}
             }
         }
 

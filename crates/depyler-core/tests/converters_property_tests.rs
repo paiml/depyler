@@ -38,7 +38,7 @@ prop_compose! {
                 range: Default::default(),
             }),
             2 => Expr::Constant(ExprConstant {
-                value: Constant::Str(str_val.into()),
+                value: Constant::Str(str_val),
                 kind: None,
                 range: Default::default(),
             }),
@@ -128,7 +128,7 @@ proptest! {
 
         // Test string
         let str_expr = Expr::Constant(ExprConstant {
-            value: Constant::Str(str_val.clone().into()),
+            value: Constant::Str(str_val.clone()),
             kind: None,
             range: Default::default(),
         });

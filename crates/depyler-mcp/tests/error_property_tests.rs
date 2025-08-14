@@ -42,13 +42,11 @@ proptest! {
             let _original_msg = err.to_string();
             let mcp_err: McpError = err.into();
 
-            match mcp_err {
-                McpError::Internal(mcp_msg) => {
-                    // The MCP message should contain key parts of the original
-                    assert!(!mcp_msg.is_empty());
-                }
-                _ => {} // MCP passthrough is also valid
+            if let McpError::Internal(mcp_msg) = mcp_err {
+                // The MCP message should contain key parts of the original
+                assert!(!mcp_msg.is_empty());
             }
+            // MCP passthrough is also valid
         }
     }
 
