@@ -341,6 +341,15 @@ cargo test -p depyler-mcp         # MCP integration
 
 ## Recent Updates
 
+### 🚀 v2.3.0 - MCP and Quality Enhancements
+
+- **Updated MCP Integration**: Upgraded pmcp SDK from 0.6.3 to 1.2.1
+- **PMAT Quality Integration**: Added automatic quality validation for transpiled code
+  - Quality scoring system (0-100) with pass/fail thresholds
+  - Automated suggestions for improving code quality
+  - Todo task management for multi-file projects
+- **New MCP Tools**: Added `pmat_quality_check` tool for validating Rust code quality
+
 ### 🧪 v2.2.2 - Enhanced Test Coverage & Quality
 
 - **Improved Test Coverage**: Achieved 70% line coverage with 350+ tests

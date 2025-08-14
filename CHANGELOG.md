@@ -8,6 +8,52 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [2.3.0] - 2025-01-14
+
+### 🎯 Major MCP and Quality Enhancements
+
+This release introduces significant improvements to the Model Context Protocol (MCP) integration and adds comprehensive quality validation through pmat integration.
+
+### ✨ New Features
+
+#### **MCP Improvements**
+- **Updated pmcp SDK**: Upgraded from 0.6.3 to 1.2.1 for latest MCP capabilities
+- **New pmat Integration**: Added pmat 2.3.0 for quality validation of transpiled code
+- **Quality Proxy via MCP**: Transpiled Rust code now automatically checked against pmat standards
+- **Todo Task Management**: Integrated pmat's todo task capabilities for tracking transpilation progress
+
+#### **Quality Validation**
+- **Automatic Quality Checks**: All transpiled code validated for:
+  - Syntax correctness
+  - Test coverage
+  - Documentation coverage
+  - Cyclomatic complexity
+  - Type safety score
+- **Quality Scoring**: Comprehensive scoring system (0-100) with pass/fail thresholds
+- **Actionable Suggestions**: Automated suggestions for improving transpiled code quality
+
+#### **New MCP Tools**
+- `pmat_quality_check`: Validates transpiled Rust code against quality standards
+- Enhanced transpilation tool with integrated quality reporting
+- Task management tools for tracking multi-file transpilation projects
+
+### 🔧 Technical Improvements
+
+#### **API Updates**
+- Migrated to pmcp 1.2.1 API with simplified ServerBuilder pattern
+- Updated error handling to use new pmcp error methods
+- Improved tool handler implementations with better type safety
+
+#### **Code Quality**
+- Applied cargo fmt across all modified files
+- Fixed all clippy warnings in MCP module
+- Added comprehensive tests for pmat integration
+- Improved module organization and exports
+
+### 📦 Dependencies
+- pmcp: 0.6.3 → 1.2.1
+- pmat: Added 2.3.0 with rust-ast and syn features
+
 ## [2.2.2] - 2025-01-05
 
 ### 🚀 Major Test Coverage Improvement
