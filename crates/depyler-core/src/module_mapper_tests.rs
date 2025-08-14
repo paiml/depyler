@@ -1,5 +1,3 @@
-#[cfg(test)]
-mod tests {
     use crate::hir::{Import, ImportItem};
     use crate::module_mapper::{ModuleMapper, ModuleMapping, RustImport};
     use std::collections::HashMap;
@@ -341,4 +339,4 @@ mod tests {
         let deps = mapper.get_dependencies(&imports);
         assert!(deps.is_empty());
     }
-}
+

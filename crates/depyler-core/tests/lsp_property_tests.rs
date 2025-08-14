@@ -181,23 +181,23 @@ proptest! {
         let count = uris.len().min(texts.len());
 
         // Open all documents
-        for i in 0..count {
-            server.did_open(uris[i].clone(), texts[i].clone(), version + i as i64);
+        for (i, (uri, text)) in uris.iter().zip(texts.iter()).take(count).enumerate() {
+            server.did_open(uri.clone(), text.clone(), version + i as i64);
         }
 
         // Try to use features on all documents (should work)
-        for i in 0..count {
-            let _ = server.diagnostics(&uris[i]);
+        for uri in uris.iter().take(count) {
+            let _ = server.diagnostics(uri);
         }
 
         // Close all documents
-        for i in 0..count {
-            server.did_close(uris[i].clone());
+        for uri in uris.iter().take(count) {
+            server.did_close(uri.clone());
         }
 
         // Try to use features after close (should handle gracefully)
-        for i in 0..count {
-            let diagnostics = server.diagnostics(&uris[i]);
+        for uri in uris.iter().take(count) {
+            let diagnostics = server.diagnostics(uri);
             prop_assert!(diagnostics.is_empty());
         }
     }

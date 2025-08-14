@@ -91,7 +91,7 @@ proptest! {
     ) {
         let mapper = ModuleMapper::new();
 
-        if let Some(mapping) = mapper.get_mapping(&module_name) {
+        if let Some(mapping) = mapper.get_mapping(module_name) {
             // All mappings should have non-empty rust_path (except typing which maps to "")
             if module_name != "typing" {
                 prop_assert!(!mapping.rust_path.is_empty());

@@ -1,5 +1,3 @@
-#[cfg(test)]
-mod tests {
     use crate::ast_bridge::converters::{ExprConverter, StmtConverter};
     use crate::hir::*;
     use rustpython_ast::bigint::BigInt;
@@ -35,12 +33,12 @@ mod tests {
     #[test]
     fn test_convert_constant_float() {
         let expr = ExprConstant {
-            value: Constant::Float(3.14),
+            value: Constant::Float(3.5),
             kind: None,
             range: Default::default(),
         };
         let result = ExprConverter::convert(Expr::Constant(expr)).unwrap();
-        assert!(matches!(result, HirExpr::Literal(Literal::Float(f)) if (f - 3.14).abs() < 0.001));
+        assert!(matches!(result, HirExpr::Literal(Literal::Float(f)) if (f - 3.5).abs() < 0.001));
     }
 
     #[test]
@@ -562,4 +560,4 @@ mod tests {
         let result = StmtConverter::convert(stmt);
         assert!(result.is_err());
     }
-}
+
