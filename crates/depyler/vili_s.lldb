@@ -1,0 +1,4 @@
+# LLDB initialization script for Depyler debugging
+# Source: /tmp/.tmpv43Ahu/vili_s.py
+
+settings set target.source-map . .
