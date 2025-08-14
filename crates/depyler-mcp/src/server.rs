@@ -10,6 +10,7 @@ use tracing::{info, warn};
 
 pub struct DepylerMcpServer {
     transpiler: Arc<DepylerPipeline>,
+    #[allow(dead_code)]
     cache: Arc<RwLock<HashMap<String, Value>>>,
 }
 
@@ -120,6 +121,7 @@ impl ToolHandler for TranspileTool {
 
 #[derive(Clone)]
 pub struct AnalyzeTool {
+    #[allow(dead_code)]
     transpiler: Arc<DepylerPipeline>,
 }
 
@@ -128,6 +130,7 @@ impl AnalyzeTool {
         Self { transpiler }
     }
 
+    #[allow(clippy::result_large_err)]
     fn count_python_lines(&self, project_path: &str) -> Result<usize, McpError> {
         let path = Path::new(project_path);
         if !path.exists() {
@@ -223,6 +226,7 @@ impl ToolHandler for AnalyzeTool {
 
 #[derive(Clone)]
 pub struct VerifyTool {
+    #[allow(dead_code)]
     transpiler: Arc<DepylerPipeline>,
 }
 
@@ -274,6 +278,7 @@ impl ToolHandler for VerifyTool {
 
 #[derive(Clone)]
 pub struct PmatQualityTool {
+    #[allow(dead_code)]
     transpiler: Arc<DepylerPipeline>,
 }
 
