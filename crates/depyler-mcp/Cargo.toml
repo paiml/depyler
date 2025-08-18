@@ -13,7 +13,7 @@ categories.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-depyler-core = { version = "2.1.0", path = "../depyler-core" }
+depyler-core = { version = "3.0.0", path = "../depyler-core" }
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true

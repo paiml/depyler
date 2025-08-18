@@ -1,0 +1,58 @@
+[package]
+name = "depyler-ruchy"
+version = "3.0.0"
+edition = "2021"
+authors = ["Depyler Contributors"]
+description = "Ruchy script format backend for Depyler Python-to-Rust transpiler"
+repository = "https://github.com/depyler-lang/depyler"
+license = "MIT OR Apache-2.0"
+keywords = ["python", "rust", "transpiler", "ruchy", "script"]
+categories = ["development-tools", "compilers"]
+
+[dependencies]
+# Core dependencies
+anyhow = "1.0"
+thiserror = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Ruchy language integration (disabled due to compilation issues)
+# ruchy = { path = "../../../ruchy", optional = true }
+
+# AST and code generation
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full", "visit", "extra-traits"] }
+
+# Python parsing (from rustpython)
+rustpython-parser = { version = "0.4", features = ["full-lexer"] }
+rustpython-ast = { version = "0.4" }
+
+# Internal dependencies
+depyler-core = { path = "../depyler-core", version = "3.0.0" }
+
+# Logging and diagnostics
+tracing = "0.1"
+colored = "2.0"
+
+[dev-dependencies]
+pretty_assertions = "1.4"
+proptest = "1.0"
+quickcheck = "1.0"
+criterion = "0.5"
+tempfile = "3.3"
+insta = { version = "1.40", features = ["yaml"] }
+
+[features]
+default = []
+validation = []
+dataframe = []
+actor = []
+
+[[bench]]
+name = "ruchy_transpilation"
+harness = false
+
+[lib]
+name = "depyler_ruchy"
+path = "src/lib.rs"
