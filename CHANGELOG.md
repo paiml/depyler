@@ -8,6 +8,38 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [3.0.0] - 2025-01-18
+
+### 🚀 Major Feature: Ruchy Script Format Support
+
+This major release introduces support for transpiling Python to Ruchy script format, providing an alternative functional programming target with pipeline operators and actor-based concurrency.
+
+### ✨ New Features
+
+#### **Ruchy Backend**
+- **New Transpilation Target**: Added complete Ruchy script format backend (`--target=ruchy`)
+- **Pipeline Operators**: Automatic transformation of list comprehensions to functional pipelines
+- **String Interpolation**: Python f-strings converted to Ruchy's native interpolation
+- **Pattern Matching**: isinstance() checks transformed to match expressions
+- **Actor System**: async/await mapped to Ruchy's actor-based concurrency model
+- **DataFrame Support**: NumPy/Pandas operations mapped to Ruchy's DataFrame API
+
+#### **Architecture Improvements**
+- **Backend Trait System**: Extensible TranspilationBackend trait for multiple targets
+- **Simplified HIR**: Bridge layer between complex HIR and backend implementations
+- **Optimization Pipeline**: Target-specific optimizations (constant folding, pipeline fusion, CSE, DCE)
+
+#### **Quality Gates**
+- **Property-Based Testing**: Comprehensive proptest and quickcheck coverage
+- **Performance Benchmarks**: Criterion benchmarks for transpilation speed
+- **Validation Framework**: Optional Ruchy parser integration for output validation
+
+### 🔧 Technical Details
+- Created new `depyler-ruchy` crate with complete backend implementation
+- Added TranspilationBackend trait to depyler-core for extensibility
+- Implemented pattern transformations for Pythonic to functional style
+- Added comprehensive test suite with property-based tests
+
 ## [2.3.0] - 2025-01-14
 
 ### 🎯 Major MCP and Quality Enhancements

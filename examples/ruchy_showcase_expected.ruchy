@@ -1,0 +1,116 @@
+// Expected Ruchy output after transpilation from ruchy_showcase.py
+// This demonstrates the functional style and pipeline operators
+
+fun fibonacci(n: i64) -> i64 {
+    if n <= 1 {
+        n
+    } else {
+        fibonacci(n - 1) + fibonacci(n - 2)
+    }
+}
+
+fun quicksort(arr: Vec<i64>) -> Vec<i64> {
+    if arr.len() <= 1 {
+        arr
+    } else {
+        let pivot = arr[0]
+        let less = arr[1..]
+            |> filter(|x| x < pivot)
+            |> collect()
+        let greater = arr[1..]
+            |> filter(|x| x >= pivot)
+            |> collect()
+        
+        quicksort(less) + [pivot] + quicksort(greater)
+    }
+}
+
+fun process_data(numbers: Vec<i64>) -> Vec<i64> {
+    numbers
+        |> filter(|x| x > 0)
+        |> map(|x| x * 2)
+        |> collect()
+}
+
+fun greet(name: String, title: String?) -> String {
+    if let Some(t) = title {
+        f"Hello, {t} {name}!"
+    } else {
+        f"Hello, {name}!"
+    }
+}
+
+struct DataProcessor {
+    threshold: i64,
+}
+
+impl DataProcessor {
+    fun new(threshold: i64) -> DataProcessor {
+        DataProcessor { threshold }
+    }
+    
+    fun filter_data(&self, data: Vec<i64>) -> Vec<i64> {
+        data
+            |> filter(|x| x > self.threshold)
+            |> collect()
+    }
+    
+    fun transform_data(&self, data: Vec<i64>) -> Vec<i64> {
+        data
+            |> map(|x| x * 2 + 1)
+            |> collect()
+    }
+}
+
+async fun fetch_and_process(url: String) -> String {
+    let data = fetch_data(url).await
+    process_text(data)
+}
+
+async fun fetch_data(url: String) -> String {
+    f"Data from {url}"
+}
+
+fun process_text(text: String) -> String {
+    text.to_uppercase()
+}
+
+fun pattern_matching_example(value: dyn Any) -> String {
+    match value {
+        i: i64 => f"Integer: {i}",
+        s: String => f"String: {s}",
+        l: Vec<_> => f"List with {l.len()} items",
+        _ => "Unknown type",
+    }
+}
+
+fun main() {
+    // Test fibonacci
+    println!(f"Fibonacci(10) = {fibonacci(10)}")
+    
+    // Test quicksort
+    let arr = [64, 34, 25, 12, 22, 11, 90]
+    let sorted_arr = quicksort(arr)
+    println!(f"Sorted array: {sorted_arr}")
+    
+    // Test data processing
+    let numbers = [1, -2, 3, -4, 5]
+    let processed = process_data(numbers)
+    println!(f"Processed: {processed}")
+    
+    // Test greeting
+    println!(greet("Alice", None))
+    println!(greet("Bob", Some("Dr.")))
+    
+    // Test class
+    let processor = DataProcessor::new(10)
+    let data = [5, 10, 15, 20, 25]
+    let filtered = processor.filter_data(data)
+    let transformed = processor.transform_data(filtered)
+    println!(f"Filtered and transformed: {transformed}")
+    
+    // Test pattern matching
+    println!(pattern_matching_example(42))
+    println!(pattern_matching_example("hello"))
+    println!(pattern_matching_example([1, 2, 3]))
+}
