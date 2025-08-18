@@ -1,5 +1,6 @@
 pub mod annotation_aware_type_mapper;
 pub mod ast_bridge;
+pub mod backend;
 pub mod borrowing;
 pub mod borrowing_context;
 pub mod codegen;
@@ -28,6 +29,7 @@ pub mod optimizer;
 pub mod performance_warnings;
 pub mod profiling;
 pub mod rust_gen;
+pub mod simplified_hir;
 pub mod string_optimization;
 pub mod test_generation;
 pub mod type_hints;
@@ -36,6 +38,13 @@ pub mod union_enum_gen;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+
+// Re-export backend traits and types
+pub use backend::{TranspilationBackend, TranspilationTarget, ValidationError};
+pub use simplified_hir::{
+    Hir, HirBinaryOp, HirExpr, HirLiteral, HirParam, HirStatement, HirType, HirUnaryOp,
+};
+pub use error::TranspileError;
 
 /// The main transpilation pipeline for converting Python code to Rust
 ///

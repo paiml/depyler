@@ -1,4 +1,0 @@
-# LLDB initialization script for Depyler debugging
-# Source: /tmp/.tmp9lJdIw/kyJ.py
-
-settings set target.source-map . .
