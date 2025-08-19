@@ -12,6 +12,7 @@ pub struct TypeMapper {
     inference_engine: TypeInferenceEngine,
     
     /// Configuration
+    #[allow(dead_code)]
     config: TypeMapperConfig,
 }
 
@@ -425,6 +426,7 @@ impl TypeInferenceEngine {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum TypeConstraint {
     Numeric,
     FloatingPoint,
@@ -437,6 +439,7 @@ enum TypeConstraint {
 
 /// Configuration for type mapping
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct TypeMapperConfig {
     /// Use 32-bit integers by default
     use_i32_default: bool,

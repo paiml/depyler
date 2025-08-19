@@ -1,7 +1,7 @@
 //! Pattern-based transformations for Pythonic to functional style
 
 use crate::ast::{
-    BinaryOp, Literal, Param, PipelineStage, RuchyExpr, StringPart,
+    Literal, Param, PipelineStage, RuchyExpr, StringPart,
 };
 use anyhow::{anyhow, Result};
 
@@ -14,6 +14,7 @@ pub struct PatternTransformer {
     enable_string_interpolation: bool,
     
     /// Enable async/await to actor transformation
+    #[allow(dead_code)]
     enable_actor_transform: bool,
     
     /// Enable DataFrame optimizations
@@ -474,6 +475,7 @@ impl Default for PatternTransformer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::BinaryOp;
     
     #[test]
     fn test_pipeline_transformation() {
