@@ -26,9 +26,9 @@ ruchy = ["depyler-ruchy"]
 depyler-core = { version = "3.0.0", path = "../depyler-core" }
 depyler-analyzer = { version = "3.0.0", path = "../depyler-analyzer" }
 depyler-verify = { version = "3.0.0", path = "../depyler-verify" }
-depyler-mcp = { version = "2.1.0", path = "../depyler-mcp" }
+depyler-mcp = { version = "3.0.0", path = "../depyler-mcp" }
 depyler-annotations = { version = "3.0.0", path = "../depyler-annotations" }
-depyler-quality = { version = "2.1.0", path = "../depyler-quality" }
+depyler-quality = { version = "3.0.0", path = "../depyler-quality" }
 depyler-ruchy = { version = "3.0.0", path = "../depyler-ruchy", optional = true }
 
 anyhow.workspace = true
