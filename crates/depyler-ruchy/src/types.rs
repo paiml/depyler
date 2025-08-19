@@ -131,15 +131,14 @@ impl TypeMapper {
     /// Creates a union type as an enum
     fn create_union_type(&mut self, types: &[PythonType]) -> Result<RuchyType> {
         // Special case: Optional[T] = Union[T, None]
-        if types.len() == 2 {
-            if types.iter().any(|t| matches!(t, PythonType::Named(n) if n == "None")) {
-                let other_type = types.iter()
-                    .find(|t| !matches!(t, PythonType::Named(n) if n == "None"))
-                    .ok_or_else(|| anyhow!("Invalid Optional type"))?;
-                
-                let inner = self.map_type(other_type)?;
-                return Ok(RuchyType::Option(Box::new(inner)));
-            }
+        if types.len() == 2
+            && types.iter().any(|t| matches!(t, PythonType::Named(n) if n == "None")) {
+            let other_type = types.iter()
+                .find(|t| !matches!(t, PythonType::Named(n) if n == "None"))
+                .ok_or_else(|| anyhow!("Invalid Optional type"))?;
+            
+            let inner = self.map_type(other_type)?;
+            return Ok(RuchyType::Option(Box::new(inner)));
         }
         
         // General union: create enum
@@ -166,7 +165,7 @@ impl TypeMapper {
             }
             
             "Dict" | "dict" => {
-                let key = args.get(0)
+                let key = args.first()
                     .map(|t| self.map_type(t))
                     .transpose()?
                     .unwrap_or(RuchyType::Dynamic);
