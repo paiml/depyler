@@ -135,7 +135,7 @@ pub enum RuchyExpr {
         expr: Box<RuchyExpr>,
     },
     
-    /// DataFrame literal
+    /// `DataFrame` literal
     DataFrame {
         columns: Vec<DataFrameColumn>,
     },
@@ -293,6 +293,7 @@ pub enum RuchyType {
 
 /// Ruchy AST builder
 pub struct RuchyAstBuilder {
+    #[allow(dead_code)]
     type_cache: HashMap<String, RuchyType>,
 }
 
