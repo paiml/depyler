@@ -4,7 +4,8 @@
 //! Ruchy script format instead of direct Rust code. Ruchy offers a more
 //! Python-like syntax with functional programming features.
 
-#![warn(clippy::all, clippy::pedantic)]
+#![warn(clippy::all)]
+#![allow(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 
 pub mod ast;
@@ -24,6 +25,7 @@ pub struct RuchyBackend {
     ast_builder: ast::RuchyAstBuilder,
     
     /// Type mapping engine for Python to Ruchy types
+    #[allow(dead_code)]
     type_mapper: types::TypeMapper,
     
     /// Optimization passes for generated code

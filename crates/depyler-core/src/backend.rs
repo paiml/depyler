@@ -66,22 +66,25 @@ impl fmt::Display for TranspilationTarget {
 }
 
 impl TranspilationTarget {
-    /// Parse target from string
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "rust" | "rs" => Some(Self::Rust),
-            #[cfg(feature = "ruchy")]
-            "ruchy" | "ruc" => Some(Self::Ruchy),
-            _ => None,
-        }
-    }
-    
     /// Get file extension for target
     pub fn file_extension(&self) -> &str {
         match self {
             Self::Rust => "rs",
             #[cfg(feature = "ruchy")]
             Self::Ruchy => "ruchy",
+        }
+    }
+}
+
+impl std::str::FromStr for TranspilationTarget {
+    type Err = String;
+    
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "rust" | "rs" => Ok(Self::Rust),
+            #[cfg(feature = "ruchy")]
+            "ruchy" | "ruc" => Ok(Self::Ruchy),
+            _ => Err(format!("Unknown transpilation target: {}", s)),
         }
     }
 }
