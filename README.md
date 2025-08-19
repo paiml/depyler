@@ -52,8 +52,11 @@ Install `depyler` using one of the following methods:
 ### Quick Start
 
 ```bash
-# Transpile a Python file
+# Transpile a Python file to Rust (default)
 depyler transpile example.py
+
+# Transpile to Ruchy script format (v3.0.0+)
+depyler transpile example.py --target=ruchy
 
 # Transpile with verification
 depyler transpile example.py --verify
@@ -86,7 +89,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-depyler = "2.2.2"
+depyler = "3.0.0"
 ```
 
 Basic usage:
@@ -104,6 +107,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     Ok(())
 }
+```
+
+## 🆕 Multi-Target Support (v3.0.0+)
+
+### Ruchy Script Format
+
+Depyler now supports transpiling Python to Ruchy script format, a functional programming language with pipeline operators and actor-based concurrency:
+
+```bash
+# Transpile to Ruchy format
+depyler transpile example.py --target=ruchy
+
+# Output will have .ruchy extension
+depyler transpile example.py --target=ruchy -o example.ruchy
+```
+
+**Ruchy Features:**
+- **Pipeline Operators** - List comprehensions → functional pipelines (`|>`)
+- **String Interpolation** - f-strings → native interpolation
+- **Pattern Matching** - isinstance() → match expressions
+- **Actor Concurrency** - async/await → actor-based model
+- **DataFrame Support** - NumPy/Pandas → native DataFrame API
+
+**Example Transformation:**
+```python
+# Python
+result = [x * 2 for x in range(10) if x > 5]
+```
+
+```ruchy
+# Ruchy
+result = range(10) |> filter(x => x > 5) |> map(x => x * 2)
 ```
 
 ## Key Features
