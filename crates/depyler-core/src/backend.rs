@@ -1,4 +1,35 @@
 //! Backend trait definitions for multiple transpilation targets
+//! 
+//! This module provides the extensible backend system introduced in v3.0.0,
+//! allowing Depyler to target multiple output languages beyond Rust.
+//! 
+//! # Example Implementation
+//! 
+//! ```rust,ignore
+//! use depyler_core::{TranspilationBackend, HirModule, TranspileError, ValidationError};
+//! 
+//! struct MyCustomBackend;
+//! 
+//! impl TranspilationBackend for MyCustomBackend {
+//!     fn transpile(&self, hir: &HirModule) -> Result<String, TranspileError> {
+//!         // Transform HIR to your target language
+//!         Ok("// Generated code".to_string())
+//!     }
+//!     
+//!     fn validate_output(&self, code: &str) -> Result<(), ValidationError> {
+//!         // Validate generated code
+//!         Ok(())
+//!     }
+//!     
+//!     fn target_name(&self) -> &str {
+//!         "custom"
+//!     }
+//!     
+//!     fn file_extension(&self) -> &str {
+//!         "custom"
+//!     }
+//! }
+//! ```
 
 use crate::error::TranspileError;
 use crate::hir::HirModule;

@@ -46,7 +46,25 @@ pub use simplified_hir::{
 };
 pub use error::TranspileError;
 
-/// The main transpilation pipeline for converting Python code to Rust
+/// The main transpilation pipeline for converting Python code to multiple targets
+///
+/// ## Version 3.0.0 - Multi-Target Support
+/// 
+/// Depyler now supports multiple transpilation targets through the `TranspilationBackend` trait:
+/// - **Rust** (default): Generates idiomatic, safe Rust code
+/// - **Ruchy**: Generates functional Ruchy script format with pipeline operators
+/// 
+/// ### Example Usage
+/// 
+/// ```rust
+/// use depyler_core::{TranspilationTarget, transpile_with_target};
+/// 
+/// // Transpile to Rust (default)
+/// let rust_code = transpile_with_target(python_code, TranspilationTarget::Rust)?;
+/// 
+/// // Transpile to Ruchy
+/// let ruchy_code = transpile_with_target(python_code, TranspilationTarget::Ruchy)?;
+/// ```
 ///
 /// `DepylerPipeline` coordinates the entire transpilation process, from parsing Python
 /// source code to generating equivalent Rust code. It provides a high-level API for
