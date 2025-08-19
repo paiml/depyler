@@ -69,7 +69,7 @@ impl PatternTransformer {
             
             // Transform filter + map patterns to single pipeline
             RuchyExpr::Call { func, args } if self.is_filter_map_pattern(&func, &args) => {
-                self.transform_filter_map(func, args)
+                self.transform_filter_map(*func, args)
             }
             
             // Recursively transform nested expressions
@@ -217,13 +217,13 @@ impl PatternTransformer {
     }
     
     /// Check if a call is string formatting
-    fn is_string_format(&self, func: &Box<RuchyExpr>, _args: &[RuchyExpr]) -> bool {
+    fn is_string_format(&self, func: &RuchyExpr, _args: &[RuchyExpr]) -> bool {
         if !self.enable_string_interpolation {
             return false;
         }
         
         matches!(
-            **func,
+            func,
             RuchyExpr::FieldAccess {
                 field: ref method,
                 ..
@@ -278,7 +278,7 @@ impl PatternTransformer {
                     
                     // Find closing brace
                     let mut placeholder = String::new();
-                    while let Some(ch) = chars.next() {
+                    for ch in chars.by_ref() {
                         if ch == '}' {
                             break;
                         }
@@ -312,14 +312,14 @@ impl PatternTransformer {
     }
     
     /// Check if expression matches filter + map pattern
-    fn is_filter_map_pattern(&self, func: &Box<RuchyExpr>, args: &[RuchyExpr]) -> bool {
+    fn is_filter_map_pattern(&self, func: &RuchyExpr, args: &[RuchyExpr]) -> bool {
         if !self.enable_pipeline_transform {
             return false;
         }
         
         // Check for map(filter(...)) pattern
         matches!(
-            **func,
+            func,
             RuchyExpr::Identifier(ref name) if name == "map"
         ) && args.len() == 2
             && matches!(
@@ -332,7 +332,7 @@ impl PatternTransformer {
     }
     
     /// Transform filter + map to single pipeline
-    fn transform_filter_map(&self, _func: Box<RuchyExpr>, args: Vec<RuchyExpr>) -> Result<RuchyExpr> {
+    fn transform_filter_map(&self, _func: RuchyExpr, args: Vec<RuchyExpr>) -> Result<RuchyExpr> {
         if args.len() != 2 {
             return Ok(RuchyExpr::Call {
                 func: Box::new(RuchyExpr::Identifier("map".to_string())),
@@ -374,13 +374,14 @@ impl PatternTransformer {
     ) -> Result<RuchyExpr> {
         // Check if body contains DataFrame-like operations
         if self.is_dataframe_operation(&body) {
-            self.transform_to_dataframe(var, iter, body)
+            self.transform_to_dataframe(var, *iter, *body)
         } else {
             Ok(RuchyExpr::For { var, iter, body })
         }
     }
     
     /// Check if expression is a DataFrame-like operation
+    #[allow(clippy::only_used_in_recursion)]
     fn is_dataframe_operation(&self, expr: &RuchyExpr) -> bool {
         match expr {
             RuchyExpr::Block(exprs) => exprs.iter().any(|e| self.is_dataframe_operation(e)),
@@ -403,8 +404,8 @@ impl PatternTransformer {
     fn transform_to_dataframe(
         &self,
         _var: String,
-        iter: Box<RuchyExpr>,
-        body: Box<RuchyExpr>,
+        iter: RuchyExpr,
+        body: RuchyExpr,
     ) -> Result<RuchyExpr> {
         // Extract operations from body
         let operations = self.extract_dataframe_ops(&body)?;
@@ -415,7 +416,7 @@ impl PatternTransformer {
             args: vec![
                 RuchyExpr::Call {
                     func: Box::new(RuchyExpr::Identifier("from_iter".to_string())),
-                    args: vec![*iter],
+                    args: vec![iter],
                 },
             ],
         };
@@ -434,6 +435,7 @@ impl PatternTransformer {
     }
     
     /// Extract DataFrame operations from expression
+    #[allow(clippy::only_used_in_recursion)]
     fn extract_dataframe_ops(&self, expr: &RuchyExpr) -> Result<Vec<DataFrameOp>> {
         let mut ops = Vec::new();
         

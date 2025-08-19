@@ -233,6 +233,7 @@ impl RuchyOptimizer {
     }
     
     /// Substitute a variable in an expression
+    #[allow(clippy::only_used_in_recursion)]
     fn substitute_var(&self, var: &str, replacement: &RuchyExpr, expr: &RuchyExpr) -> RuchyExpr {
         match expr {
             RuchyExpr::Identifier(name) if name == var => replacement.clone(),
@@ -318,6 +319,7 @@ impl RuchyOptimizer {
     }
     
     /// Check if expression is pure (no side effects)
+    #[allow(clippy::only_used_in_recursion)]
     fn is_pure_expr(&self, expr: &RuchyExpr) -> bool {
         match expr {
             RuchyExpr::Literal(_) | RuchyExpr::Identifier(_) => true,
@@ -331,11 +333,7 @@ impl RuchyOptimizer {
     
     /// Check if expression is complex enough to CSE
     fn is_complex_expr(&self, expr: &RuchyExpr) -> bool {
-        match expr {
-            RuchyExpr::Binary { .. } => true,
-            RuchyExpr::Call { .. } => true,
-            _ => false,
-        }
+        matches!(expr, RuchyExpr::Binary { .. } | RuchyExpr::Call { .. })
     }
     
     /// Inline simple functions
@@ -377,6 +375,7 @@ impl RuchyOptimizer {
     }
     
     /// Calculate expression size for inlining heuristic
+    #[allow(clippy::only_used_in_recursion)]
     fn expr_size(&self, expr: &RuchyExpr) -> usize {
         match expr {
             RuchyExpr::Literal(_) | RuchyExpr::Identifier(_) => 1,
@@ -417,6 +416,7 @@ impl RuchyOptimizer {
     }
     
     /// Collect used variables
+    #[allow(clippy::only_used_in_recursion)]
     fn collect_used_vars(&self, expr: &RuchyExpr, used: &mut HashSet<String>) {
         match expr {
             RuchyExpr::Identifier(name) => {

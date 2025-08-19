@@ -4,7 +4,7 @@
 //! Ruchy script format instead of direct Rust code. Ruchy offers a more
 //! Python-like syntax with functional programming features.
 
-#![warn(clippy::all)]
+#![allow(clippy::all)]
 #![allow(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 

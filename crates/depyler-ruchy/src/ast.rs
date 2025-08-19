@@ -541,6 +541,7 @@ impl RuchyAstBuilder {
     }
     
     /// Converts HIR type to Ruchy type
+    #[allow(clippy::only_used_in_recursion)]
     fn convert_type(&self, typ: &HirType) -> Result<RuchyType> {
         Ok(match typ {
             HirType::Int => RuchyType::I64,
