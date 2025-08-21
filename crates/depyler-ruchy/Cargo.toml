@@ -1,6 +1,6 @@
 [package]
 name = "depyler-ruchy"
-version = "3.0.0"
+version = "3.1.0"
 edition = "2021"
 authors = ["Depyler Contributors"]
 description = "Ruchy script format backend for Depyler Python-to-Rust transpiler"
@@ -16,8 +16,11 @@ thiserror = "2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
-# Ruchy language integration (disabled due to compilation issues)
-# ruchy = { path = "../../../ruchy", optional = true }
+# Ruchy language integration - updated to v0.9.1
+ruchy = { version = "0.9.1", optional = true }
+pmcp = { version = "1.2.2", optional = true }
+tokio = { version = "1.46", features = ["full"], optional = true }
+polars = { version = "0.35", optional = true }
 
 # AST and code generation
 proc-macro2 = "1.0"
@@ -29,7 +32,7 @@ rustpython-parser = { version = "0.4", features = ["full-lexer"] }
 rustpython-ast = { version = "0.4" }
 
 # Internal dependencies
-depyler-core = { path = "../depyler-core", version = "3.0.0" }
+depyler-core = { path = "../depyler-core", version = "3.1.0" }
 
 # Logging and diagnostics
 tracing = "0.1"
@@ -44,10 +47,11 @@ tempfile = "3.3"
 insta = { version = "1.40", features = ["yaml"] }
 
 [features]
-default = []
+default = ["interpreter"]
+interpreter = ["ruchy", "pmcp", "tokio"]
 validation = []
-dataframe = []
-actor = []
+dataframe = ["polars"]
+actor = ["tokio"]
 
 [[bench]]
 name = "ruchy_transpilation"
