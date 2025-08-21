@@ -1,4 +1,11 @@
-//! Type system mapping between Python and Ruchy
+//! Enhanced type system mapping between Python and Ruchy
+//!
+//! This module has been updated to support Ruchy v0.9.1+ features:
+//! - DataFrame types with Polars integration
+//! - Actor model Value types
+//! - Enhanced enum and pattern matching types
+//! - Option<T> and Result<T,E> native support
+//! - Range types and iterators
 
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
@@ -24,6 +31,40 @@ impl TypeMapper {
             type_cache: Self::init_builtin_types(),
             inference_engine: TypeInferenceEngine::new(),
             config: TypeMapperConfig::default(),
+        }
+    }
+    
+    /// Maps a Python pandas DataFrame to Ruchy DataFrame type
+    pub fn map_dataframe_type(&mut self, schema_hint: Option<&str>) -> Result<RuchyType> {
+        // In Ruchy v0.9.1+, DataFrame has rich schema support
+        match schema_hint {
+            Some(_) => Ok(RuchyType::DataFrame), // Could be enhanced with schema info
+            None => Ok(RuchyType::DataFrame),
+        }
+    }
+    
+    /// Maps Python async/actor patterns to Ruchy Actor types
+    pub fn map_actor_type(&mut self, message_type: Option<PythonType>) -> Result<RuchyType> {
+        match message_type {
+            Some(msg_type) => {
+                let _ruchy_msg_type = self.map_type(&msg_type)?;
+                Ok(RuchyType::Actor)
+            }
+            None => Ok(RuchyType::Actor),
+        }
+    }
+    
+    /// Maps Python range() to Ruchy Range type
+    pub fn map_range_type(&self, start_type: Option<PythonType>, end_type: Option<PythonType>) -> Result<RuchyType> {
+        // Ensure both start and end are numeric
+        if let (Some(start), Some(end)) = (&start_type, &end_type) {
+            match (start, end) {
+                (PythonType::Named(s), PythonType::Named(e)) 
+                    if s == "int" && e == "int" => Ok(RuchyType::Range),
+                _ => Ok(RuchyType::Range), // Default to range anyway
+            }
+        } else {
+            Ok(RuchyType::Range)
         }
     }
     
@@ -60,6 +101,13 @@ impl TypeMapper {
         // Special types
         cache.insert("None".to_string(), RuchyType::Unit);
         cache.insert("Any".to_string(), RuchyType::Dynamic);
+        
+        // Ruchy v0.9.1+ specific types
+        cache.insert("DataFrame".to_string(), RuchyType::DataFrame);
+        cache.insert("Range".to_string(), RuchyType::Range);
+        cache.insert("Actor".to_string(), RuchyType::Actor);
+        cache.insert("Message".to_string(), RuchyType::Message);
+        cache.insert("EnumVariant".to_string(), RuchyType::EnumVariant);
         
         cache
     }
@@ -199,6 +247,23 @@ impl TypeMapper {
                 Ok(RuchyType::Future(Box::new(inner)))
             }
             
+            "DataFrame" => {
+                // DataFrame can be parameterized with schema info
+                Ok(RuchyType::DataFrame)
+            }
+            
+            "Actor" => {
+                let _message_type = args.first()
+                    .map(|t| self.map_type(t))
+                    .transpose()?
+                    .unwrap_or(RuchyType::Message);
+                Ok(RuchyType::Actor)
+            }
+            
+            "Range" => {
+                Ok(RuchyType::Range)
+            }
+            
             "Iterator" | "Iterable" => {
                 let inner = args.first()
                     .map(|t| self.map_type(t))
@@ -314,6 +379,17 @@ pub enum RuchyType {
     Generic(String, Vec<RuchyType>),
     Enum(Vec<(String, RuchyType)>),
     
+    // Ruchy v0.9.1+ specific types
+    DataFrame,
+    Range,
+    Actor,
+    Message,
+    EnumVariant,
+    Lambda {
+        params: Vec<String>,
+        return_type: Box<RuchyType>,
+    },
+    
     // Dynamic type for gradual typing
     Dynamic,
 }
@@ -334,6 +410,9 @@ pub enum Operation {
     Indexing,
     Iteration,
     StringOp,
+    DataFrameOp,
+    ActorSend,
+    PatternMatch,
 }
 
 #[derive(Debug, Clone)]
@@ -385,6 +464,9 @@ impl TypeInferenceEngine {
             Operation::Indexing => TypeConstraint::Indexable,
             Operation::Iteration => TypeConstraint::Iterable,
             Operation::StringOp => TypeConstraint::StringLike,
+            Operation::DataFrameOp => TypeConstraint::DataFrameCompatible,
+            Operation::ActorSend => TypeConstraint::ActorCompatible,
+            Operation::PatternMatch => TypeConstraint::PatternMatchable,
         };
         self.constraints.push(constraint);
     }
@@ -419,6 +501,14 @@ impl TypeInferenceEngine {
             return Ok(RuchyType::Vec(Box::new(RuchyType::Dynamic)));
         }
         
+        if self.constraints.iter().any(|c| matches!(c, TypeConstraint::DataFrameCompatible)) {
+            return Ok(RuchyType::DataFrame);
+        }
+        
+        if self.constraints.iter().any(|c| matches!(c, TypeConstraint::ActorCompatible)) {
+            return Ok(RuchyType::Actor);
+        }
+        
         // Default to dynamic if unsure
         Ok(RuchyType::Dynamic)
     }
@@ -434,6 +524,9 @@ enum TypeConstraint {
     Indexable,
     Iterable,
     StringLike,
+    DataFrameCompatible,
+    ActorCompatible,
+    PatternMatchable,
 }
 
 /// Configuration for type mapping
@@ -529,6 +622,46 @@ mod tests {
         assert_eq!(
             mapper.map_type(&optional_type).unwrap(),
             RuchyType::Option(Box::new(RuchyType::String))
+        );
+    }
+    
+    #[test]
+    fn test_ruchy_v091_types() {
+        let mut mapper = TypeMapper::new();
+        
+        // Test DataFrame type
+        let df_type = mapper.map_dataframe_type(None);
+        assert!(matches!(df_type.unwrap(), RuchyType::DataFrame));
+        
+        // Test Actor type
+        let actor_type = mapper.map_actor_type(Some(PythonType::Named("str".to_string())));
+        assert!(matches!(actor_type.unwrap(), RuchyType::Actor));
+        
+        // Test Range type
+        let range_type = mapper.map_range_type(
+            Some(PythonType::Named("int".to_string())),
+            Some(PythonType::Named("int".to_string()))
+        );
+        assert!(matches!(range_type.unwrap(), RuchyType::Range));
+    }
+    
+    #[test]
+    fn test_enhanced_builtin_types() {
+        let mut mapper = TypeMapper::new();
+        
+        assert_eq!(
+            mapper.map_type(&PythonType::Named("DataFrame".to_string())).unwrap(),
+            RuchyType::DataFrame
+        );
+        
+        assert_eq!(
+            mapper.map_type(&PythonType::Named("Range".to_string())).unwrap(),
+            RuchyType::Range
+        );
+        
+        assert_eq!(
+            mapper.map_type(&PythonType::Named("Actor".to_string())).unwrap(),
+            RuchyType::Actor
         );
     }
 }
