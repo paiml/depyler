@@ -25,7 +25,7 @@ quote.workspace = true
 proc-macro2.workspace = true
 indexmap.workspace = true
 smallvec.workspace = true
-depyler-annotations = { version = "3.0.0", path = "../depyler-annotations" }
+depyler-annotations = { version = "3.1.0", path = "../depyler-annotations" }
 colored.workspace = true
 
 [features]
