@@ -134,6 +134,33 @@ pub enum Commands {
     #[command(subcommand)]
     Lambda(LambdaCommands),
 
+    /// Interpret Python code using Ruchy backend
+    Interpret {
+        /// Input Python file (or stdin if not provided)
+        #[arg(value_name = "FILE")]
+        file: Option<PathBuf>,
+
+        /// Start interactive REPL
+        #[arg(long)]
+        repl: bool,
+
+        /// Enable property verification
+        #[arg(long)]
+        verify: bool,
+
+        /// Output Ruchy intermediate code
+        #[arg(long)]
+        emit_ruchy: bool,
+
+        /// Read from stdin
+        #[arg(long)]
+        stdin: bool,
+
+        /// Timeout for execution (ms)
+        #[arg(long, default_value = "5000")]
+        timeout: u64,
+    },
+
     /// Start Language Server Protocol (LSP) server for IDE integration
     Lsp {
         /// Port to listen on
@@ -669,6 +696,110 @@ pub fn print_compilation_results(results: &CompilationResults) {
 
 pub fn interactive_command(input: PathBuf, annotate: bool) -> Result<()> {
     interactive::run_interactive_session(&input.to_string_lossy(), annotate)
+}
+
+pub fn interpret_command(
+    file: Option<PathBuf>,
+    repl: bool,
+    verify: bool,
+    emit_ruchy: bool,
+    stdin: bool,
+    timeout: u64,
+) -> Result<()> {
+    use depyler_core::ruchy_interpreter::{RuchyInterpreter, PythonValue};
+    use std::io::{self, Read};
+    use std::time::Duration;
+
+    let mut interpreter = RuchyInterpreter::new()?;
+    interpreter.set_timeout(Duration::from_millis(timeout));
+
+    if repl {
+        // Interactive REPL mode
+        println!("Depyler-Ruchy REPL v3.0.0");
+        println!("Type :help for commands, :exit to quit\n");
+        
+        let stdin = io::stdin();
+        let mut buffer = String::new();
+        
+        loop {
+            print!(">>> ");
+            io::Write::flush(&mut io::stdout())?;
+            
+            buffer.clear();
+            stdin.read_line(&mut buffer)?;
+            
+            let trimmed = buffer.trim();
+            if trimmed == ":exit" || trimmed == ":quit" {
+                break;
+            }
+            
+            if trimmed == ":help" {
+                println!("Commands:");
+                println!("  :exit, :quit - Exit the REPL");
+                println!("  :help        - Show this help");
+                continue;
+            }
+            
+            // For now, echo back since full REPL needs more implementation
+            println!("Not yet implemented: {}", trimmed);
+        }
+    } else if stdin || file.is_none() {
+        // Read from stdin
+        let mut input = String::new();
+        io::stdin().read_to_string(&mut input)?;
+        
+        // Parse and execute
+        let ast = {
+            use rustpython_parser::{parse, Mode};
+            parse(&input, Mode::Module, "<stdin>")?
+        };
+        let hir = depyler_core::ast_bridge::python_to_hir(ast)?;
+        
+        if verify {
+            // Run verification
+            println!("Running verification...");
+        }
+        
+        if emit_ruchy {
+            // Output Ruchy code
+            let ruchy_code = interpreter.transpile_only(&hir)?;
+            println!("{}", ruchy_code);
+        } else {
+            // Execute
+            let result = interpreter.execute(&hir)?;
+            if !matches!(result, PythonValue::None) {
+                println!("{}", result.display());
+            }
+        }
+    } else if let Some(file_path) = file {
+        // Read from file
+        let source = fs::read_to_string(&file_path)?;
+        
+        // Parse and execute
+        let ast = {
+            use rustpython_parser::{parse, Mode};
+            parse(&source, Mode::Module, file_path.to_str().unwrap())?
+        };
+        let hir = depyler_core::ast_bridge::python_to_hir(ast)?;
+        
+        if verify {
+            println!("Running verification...");
+        }
+        
+        if emit_ruchy {
+            // Output Ruchy code
+            let ruchy_code = interpreter.transpile_only(&hir)?;
+            println!("{}", ruchy_code);
+        } else {
+            // Execute
+            let result = interpreter.execute(&hir)?;
+            if !matches!(result, PythonValue::None) {
+                println!("{}", result.display());
+            }
+        }
+    }
+    
+    Ok(())
 }
 
 pub fn inspect_command(

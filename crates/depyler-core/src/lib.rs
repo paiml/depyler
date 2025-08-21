@@ -28,6 +28,8 @@ pub mod optimization;
 pub mod optimizer;
 pub mod performance_warnings;
 pub mod profiling;
+pub mod ruchy_interpreter;
+pub mod ruchy_transpiler;
 pub mod rust_gen;
 pub mod simplified_hir;
 pub mod string_optimization;

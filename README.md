@@ -58,6 +58,15 @@ depyler transpile example.py
 # Transpile to Ruchy script format (v3.0.0+)
 depyler transpile example.py --target=ruchy
 
+# Interpret Python code using Ruchy backend (v3.0.0+)
+depyler interpret example.py
+
+# Start interactive REPL with Ruchy interpreter
+depyler interpret --repl
+
+# Output Ruchy intermediate code
+depyler interpret example.py --emit-ruchy
+
 # Transpile with verification
 depyler transpile example.py --verify
 

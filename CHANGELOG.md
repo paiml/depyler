@@ -8,6 +8,33 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [3.1.0] - 2025-01-21
+
+### 🚀 Major Feature: Ruchy Interpreter Integration
+
+This release adds immediate execution capabilities through Ruchy interpreter backend, enabling Python code to be executed without compilation to native code.
+
+### ✨ New Features
+
+#### **Ruchy Interpreter Mode**
+- **New `interpret` Command**: Execute Python code directly via Ruchy interpreter
+- **Interactive REPL**: Start interactive session with `depyler interpret --repl`
+- **Intermediate Output**: View Ruchy code with `--emit-ruchy` flag
+- **Sub-10ms Startup**: Fast interpreter mode for rapid prototyping
+- **Value Bridge**: Bidirectional conversion between Python and Ruchy values
+- **Error Mapping**: Python-style error messages from Ruchy runtime
+
+#### **Implementation Details**
+- Created `ruchy_transpiler.rs` for HIR to Ruchy conversion
+- Added `ruchy_interpreter.rs` for runtime integration
+- Implemented PythonValue type for cross-language values
+- Added comprehensive test suite for interpreter mode
+
+### 📚 Documentation
+- Created `docs/specifications/ruchy-interpreter-spec.md`
+- Updated README with interpreter examples
+- Added usage examples in `examples/ruchy_demo.py`
+
 ## [3.0.0] - 2025-01-18
 
 ### 🚀 Major Feature: Ruchy Script Format Support

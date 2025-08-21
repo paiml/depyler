@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 use depyler::{
     analyze_command, check_command, debug_command, docs_cmd::handle_docs_command, inspect_command,
-    interactive_command, lambda_analyze_command, lambda_build_command, lambda_convert_command,
+    interactive_command, interpret_command, lambda_analyze_command, lambda_build_command, lambda_convert_command,
     lambda_deploy_command, lambda_test_command, lsp_command, profile_cmd::handle_profile_command,
     quality_check_command, transpile_command, Cli, Commands, LambdaCommands,
 };
@@ -102,6 +102,16 @@ fn main() -> Result<()> {
                 lambda_deploy_command(input, region, function_name, role, dry_run)?;
             }
         },
+        Commands::Interpret {
+            file,
+            repl,
+            verify,
+            emit_ruchy,
+            stdin,
+            timeout,
+        } => {
+            interpret_command(file, repl, verify, emit_ruchy, stdin, timeout)?;
+        }
         Commands::Lsp {
             port,
             verbose: lsp_verbose,
