@@ -16,6 +16,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
 
+pub mod agent;
 pub mod debug_cmd;
 pub mod docs_cmd;
 pub mod interactive;
@@ -246,6 +247,87 @@ pub enum Commands {
         /// Output perf annotations to file
         #[arg(long)]
         perf_output: Option<PathBuf>,
+    },
+
+    /// Background agent mode with MCP integration
+    #[command(subcommand)]
+    Agent(AgentCommands),
+}
+
+#[derive(Subcommand)]
+pub enum AgentCommands {
+    /// Start the background agent daemon
+    Start {
+        /// MCP server port
+        #[arg(long, default_value = "3000")]
+        port: u16,
+
+        /// Enable debug mode
+        #[arg(long)]
+        debug: bool,
+
+        /// Configuration file path
+        #[arg(long)]
+        config: Option<PathBuf>,
+
+        /// Run in foreground (don't daemonize)
+        #[arg(long)]
+        foreground: bool,
+    },
+
+    /// Stop the background agent daemon
+    Stop,
+
+    /// Check agent daemon status
+    Status,
+
+    /// Restart the background agent daemon
+    Restart {
+        /// MCP server port
+        #[arg(long, default_value = "3000")]
+        port: u16,
+
+        /// Enable debug mode
+        #[arg(long)]
+        debug: bool,
+
+        /// Configuration file path
+        #[arg(long)]
+        config: Option<PathBuf>,
+    },
+
+    /// Add project to monitoring
+    AddProject {
+        /// Project path to monitor
+        path: PathBuf,
+
+        /// Project identifier
+        #[arg(long)]
+        id: Option<String>,
+
+        /// File patterns to watch
+        #[arg(long, default_value = "**/*.py")]
+        patterns: Vec<String>,
+    },
+
+    /// Remove project from monitoring
+    RemoveProject {
+        /// Project identifier or path
+        project: String,
+    },
+
+    /// List monitored projects
+    ListProjects,
+
+    /// View agent logs
+    Logs {
+        /// Number of lines to show
+        #[arg(short, long, default_value = "50")]
+        lines: usize,
+
+        /// Follow log output
+        #[arg(short, long)]
+        follow: bool,
     },
 }
 
@@ -1353,6 +1435,82 @@ pub fn lambda_deploy_command(
 
     std::env::set_current_dir(current_dir)?;
     Ok(())
+}
+
+pub async fn agent_start_command(
+    port: u16,
+    debug: bool,
+    config: Option<PathBuf>,
+    foreground: bool,
+) -> Result<()> {
+    use crate::agent::daemon::{AgentDaemon, DaemonConfig};
+
+    let config = if let Some(config_path) = config {
+        DaemonConfig::from_file(&config_path)?
+    } else {
+        DaemonConfig::default()
+    };
+
+    let mut config = config;
+    config.mcp_port = port;
+    config.debug = debug;
+
+    let mut daemon = AgentDaemon::new(config);
+
+    if foreground {
+        println!("🚀 Starting Depyler agent in foreground mode on port {port}...");
+        daemon.run().await
+    } else {
+        println!("🚀 Starting Depyler agent daemon on port {port}...");
+        daemon.start_daemon().await
+    }
+}
+
+pub fn agent_stop_command() -> Result<()> {
+    use crate::agent::daemon::AgentDaemon;
+    
+    println!("🛑 Stopping Depyler agent daemon...");
+    AgentDaemon::stop_daemon()
+}
+
+pub fn agent_status_command() -> Result<()> {
+    use crate::agent::daemon::AgentDaemon;
+    
+    match AgentDaemon::daemon_status()? {
+        Some(pid) => {
+            println!("✅ Depyler agent daemon is running (PID: {pid})");
+        }
+        None => {
+            println!("❌ Depyler agent daemon is not running");
+        }
+    }
+    
+    Ok(())
+}
+
+pub async fn agent_restart_command(
+    port: u16,
+    debug: bool,
+    config: Option<PathBuf>,
+) -> Result<()> {
+    println!("🔄 Restarting Depyler agent daemon...");
+    
+    let _ = agent_stop_command();
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+    
+    agent_start_command(port, debug, config, false).await
+}
+
+pub fn agent_logs_command(lines: usize, follow: bool) -> Result<()> {
+    use crate::agent::daemon::AgentDaemon;
+    
+    if follow {
+        println!("📜 Following Depyler agent logs (Ctrl+C to stop)...");
+        AgentDaemon::tail_logs()
+    } else {
+        println!("📜 Last {lines} lines of Depyler agent logs:");
+        AgentDaemon::show_logs(lines)
+    }
 }
 
 // Note: parse_python method is now available in DepylerPipeline

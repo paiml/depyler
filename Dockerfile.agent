@@ -1,0 +1,103 @@
+# Dockerfile for Depyler Agent Mode
+# Optimized for running as a background service with MCP support
+
+# Stage 1: Builder
+FROM rust:1.83-slim AS builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /build
+
+# Copy dependency files for caching
+COPY Cargo.toml Cargo.lock ./
+COPY crates/ ./crates/
+
+# Build dependencies first (cached layer)
+RUN cargo build --release --workspace || true
+
+# Copy all source code
+COPY . .
+
+# Build the agent with full features
+RUN cargo build --release --bin depyler --features "full"
+
+# Stage 2: Runtime
+FROM debian:bookworm-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy binary from builder
+COPY --from=builder /build/target/release/depyler /usr/local/bin/depyler
+
+# Create non-root user with home directory
+RUN useradd -m -u 1000 -s /bin/bash depyler && \
+    mkdir -p /home/depyler/.depyler /home/depyler/projects && \
+    chown -R depyler:depyler /home/depyler
+
+# Copy default agent configuration
+COPY --chown=depyler:depyler <<EOF /home/depyler/.depyler/agent.json
+{
+  "agent": {
+    "port": 3000,
+    "host": "0.0.0.0",
+    "auto_transpile": true,
+    "pid_file": "/tmp/depyler_agent.pid",
+    "log_level": "info"
+  },
+  "transpilation_monitor": {
+    "debounce_interval": 500,
+    "max_batch_size": 20,
+    "exclude_patterns": ["**/venv/**", "**/__pycache__/**", "**/node_modules/**"]
+  },
+  "mcp": {
+    "enabled": true,
+    "max_message_size": 10485760,
+    "timeout": 30000
+  },
+  "verification": {
+    "default_level": "basic",
+    "auto_verify": true
+  }
+}
+EOF
+
+# Switch to non-root user
+USER depyler
+WORKDIR /home/depyler
+
+# Environment variables
+ENV RUST_LOG=info
+ENV DEPYLER_CONFIG_DIR=/home/depyler/.depyler
+ENV DEPYLER_PROJECTS_DIR=/home/depyler/projects
+
+# Expose MCP server port
+EXPOSE 3000
+
+# Volume for projects
+VOLUME ["/home/depyler/projects", "/home/depyler/.depyler"]
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD depyler agent status || exit 1
+
+# Default command: run agent in foreground mode
+ENTRYPOINT ["depyler"]
+CMD ["agent", "start", "--foreground", "--port", "3000", "--host", "0.0.0.0"]
+
+# Labels
+LABEL org.opencontainers.image.title="Depyler Agent"
+LABEL org.opencontainers.image.description="Background agent for Python-to-Rust transpilation with MCP support"
+LABEL org.opencontainers.image.version="3.1.0"
+LABEL org.opencontainers.image.authors="Depyler Contributors"
+LABEL org.opencontainers.image.source="https://github.com/paiml/depyler"
+LABEL org.opencontainers.image.licenses="MIT OR Apache-2.0"

@@ -2,12 +2,12 @@
 
 ## Overview
 
-This roadmap outlines the integration of significant Ruchy v0.9.1+ interpreter improvements into Depyler v3.1.0, providing enhanced Python-to-Ruchy transpilation capabilities.
+This roadmap outlines the integration of significant Ruchy v1.5.0+ interpreter improvements into Depyler v3.1.0, providing enhanced Python-to-Ruchy transpilation capabilities with SELF-HOSTING compiler support.
 
 ## Completed (v3.1.0) ✅
 
 ### Core Integration
-- **Ruchy v0.9.1 dependency**: Updated to latest stable version with 76% complexity reduction
+- **Ruchy v1.5.0 dependency**: Updated to latest stable version with SELF-HOSTING capability and 76% complexity reduction
 - **Interpreter module**: New `depyler-ruchy/src/interpreter.rs` with direct execution capabilities
 - **Enhanced validation**: Real-time syntax validation using Ruchy's parser
 - **Performance optimization**: Leveraging 50MB/s parsing throughput and <15ms REPL response time
@@ -125,7 +125,7 @@ graph TD
     A[Python Source] --> B[Python AST]
     B --> C[Depyler HIR]
     C --> D[Ruchy AST]
-    D --> E[Ruchy Interpreter v0.9.1+]
+    D --> E[Ruchy Interpreter v1.5.0+]
     E --> F[Execution/Validation]
     
     C --> G[Type Inference]

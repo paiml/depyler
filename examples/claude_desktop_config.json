@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "depyler": {
+      "command": "depyler",
+      "args": ["agent", "start", "--foreground", "--port", "3000"],
+      "env": {
+        "RUST_LOG": "info",
+        "DEPYLER_DEBUG": "false"
+      },
+      "metadata": {
+        "name": "Depyler Python-to-Rust Transpiler",
+        "version": "3.1.0",
+        "description": "Provides Python to Rust transpilation capabilities",
+        "author": "Depyler Contributors",
+        "capabilities": [
+          "transpile_python_file",
+          "transpile_python_directory", 
+          "monitor_python_project",
+          "get_transpilation_status",
+          "verify_rust_code",
+          "analyze_python_compatibility"
+        ]
+      }
+    }
+  },
+  "defaultModelId": "claude-3-opus-20240229",
+  "modelConfigs": {
+    "claude-3-opus-20240229": {
+      "contextWindow": 200000,
+      "maxTokens": 4096,
+      "temperature": 0.7,
+      "systemPrompt": "You have access to Depyler, a Python-to-Rust transpiler. You can help users convert Python code to Rust, monitor projects for automatic transpilation, and verify the generated Rust code. Use the available tools to provide efficient code migration assistance."
+    }
+  }
+}
