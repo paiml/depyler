@@ -47,6 +47,23 @@ Install `depyler` using one of the following methods:
 - **Rust:** 1.83.0 or later
 - **Python:** 3.8+ (for test validation)
 
+## 🎯 New in v3.1.0: Background Agent Mode
+
+**Continuous transpilation with Claude Code integration!** Depyler now includes a background agent that provides real-time Python-to-Rust transpilation through the Model Context Protocol (MCP).
+
+```bash
+# Start the agent for Claude Code
+depyler agent start --foreground
+
+# Monitor a Python project
+depyler agent add-project /path/to/project
+
+# Check agent status
+depyler agent status
+```
+
+See [AGENT.md](AGENT.md) for complete agent documentation and Claude Code setup instructions.
+
 ## 🚀 Getting Started
 
 ### Quick Start
@@ -453,12 +470,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## 📚 Documentation
 
-- **[API Documentation](https://docs.rs/depyler)** - Complete Rust API reference
-- **[User Guide](docs/user-guide.md)** - Getting started tutorial
-- **[Migration Guide](docs/migration-guide.md)** - Python to Rust transition
-- **[Python-Rust Spec](docs/python-to-rust-spec.md)** - Language mapping
-- **[Safety Guarantees](docs/safety-guarantees.md)** - Memory safety analysis
-- **[MCP Integration](docs/mcp-integration.md)** - AI assistant integration
+- **[Agent Mode Guide](./AGENT.md)** - Background agent with MCP integration ✨
+- **[API Documentation](./API.md)** - Complete API reference
+- **[Docker Guide](./DOCKER.md)** - Container deployment
+- **[Troubleshooting](./TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Release Checklist](./RELEASE_CHECKLIST.md)** - Release process guide
+- **[Architecture](./ARCHITECTURE.md)** - System architecture
+- **[Changelog](./CHANGELOG.md)** - Version history
+- **[Contributing](./CONTRIBUTING.md)** - Development guide
 
 ## 🚦 Roadmap
 

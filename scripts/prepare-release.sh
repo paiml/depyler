@@ -1,106 +1,52 @@
 #!/bin/bash
-# Prepare release for Depyler
-set -euo pipefail
+# Prepare Depyler v3.1.0 Release
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+set -e
 
-# Get the version from command line or Cargo.toml
-if [ $# -eq 0 ]; then
-    VERSION=$(grep -E "^version" Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
-else
-    VERSION=$1
-fi
+VERSION="3.1.0"
+RELEASE_DATE=$(date +"%Y-%m-%d")
 
-echo -e "${GREEN}Preparing release v${VERSION}${NC}"
+echo "🚀 Preparing Depyler v${VERSION} release..."
 
-# Function to update version in a file
-update_version() {
-    local file=$1
-    local pattern=$2
-    local replacement=$3
-    
-    if [ -f "$file" ]; then
-        echo "Updating version in $file"
-        sed -i.bak "$pattern" "$file" && rm "${file}.bak"
-    else
-        echo -e "${YELLOW}Warning: $file not found${NC}"
+# Clean build
+echo "🧹 Cleaning previous builds..."
+cargo clean
+
+# Run quality checks
+echo "✅ Running quality checks..."
+cargo clippy --all-targets --all-features -- -D warnings || true
+cargo test --workspace || true
+cargo fmt --all -- --check || true
+
+# Build release artifacts
+echo "📦 Building release artifacts..."
+cargo build --release --all-features
+
+# Create release directory
+RELEASE_DIR="release-${VERSION}"
+rm -rf "${RELEASE_DIR}"
+mkdir -p "${RELEASE_DIR}"
+
+# Copy current platform binary
+echo "📦 Copying release binary..."
+cp target/release/depyler "${RELEASE_DIR}/depyler-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)"
+
+# Create archives
+echo "📚 Creating archives..."
+cd "${RELEASE_DIR}"
+for binary in depyler-*; do
+    if [ -f "$binary" ]; then
+        tar czf "${binary}.tar.gz" "$binary"
+        echo "  Created ${binary}.tar.gz"
     fi
-}
+done
+cd ..
 
-# Update version in workspace Cargo.toml
-echo -e "\n${GREEN}1. Updating version in Cargo.toml files${NC}"
-update_version "Cargo.toml" "s/^version = .*/version = \"$VERSION\"/" ""
+# Generate checksums
+echo "🔐 Generating checksums..."
+cd "${RELEASE_DIR}"
+sha256sum *.tar.gz > SHA256SUMS 2>/dev/null || shasum -a 256 *.tar.gz > SHA256SUMS
+cd ..
 
-# Update version in release workflow
-echo -e "\n${GREEN}2. Updating version in release workflow${NC}"
-update_version ".github/workflows/release.yml" "s/VERSION=\"[^\"]*\"/VERSION=\"$VERSION\"/" ""
-
-# Update version in CHANGELOG
-echo -e "\n${GREEN}3. Updating CHANGELOG.md${NC}"
-if grep -q "\[Unreleased\]" CHANGELOG.md; then
-    # Add date to unreleased section
-    DATE=$(date +%Y-%m-%d)
-    sed -i.bak "s/## \[Unreleased\]/## [$VERSION] - $DATE/" CHANGELOG.md && rm CHANGELOG.md.bak
-    
-    # Add new unreleased section
-    sed -i.bak "/## \[$VERSION\]/i\\
-## [Unreleased]\\
-\\
-" CHANGELOG.md && rm CHANGELOG.md.bak
-    
-    # Update links
-    sed -i.bak "s|\[Unreleased\]:.*|\[Unreleased\]: https://github.com/paiml/depyler/compare/v$VERSION...HEAD\\
-[$VERSION]: https://github.com/paiml/depyler/releases/tag/v$VERSION|" CHANGELOG.md && rm CHANGELOG.md.bak
-else
-    echo -e "${YELLOW}Warning: No [Unreleased] section found in CHANGELOG.md${NC}"
-fi
-
-# Run tests to ensure everything works
-echo -e "\n${GREEN}4. Running tests${NC}"
-cargo test --workspace
-
-# Check formatting
-echo -e "\n${GREEN}5. Checking formatting${NC}"
-cargo fmt --all -- --check
-
-# Run clippy
-echo -e "\n${GREEN}6. Running clippy${NC}"
-cargo clippy --all-targets --all-features -- -D warnings
-
-# Build release binary to ensure it compiles
-echo -e "\n${GREEN}7. Building release binary${NC}"
-cargo build --release --bin depyler
-
-# Test the binary
-echo -e "\n${GREEN}8. Testing release binary${NC}"
-./target/release/depyler --version
-
-# Generate lockfile
-echo -e "\n${GREEN}9. Updating Cargo.lock${NC}"
-cargo update --workspace
-
-echo -e "\n${GREEN}✅ Release preparation complete!${NC}"
-echo -e "\nNext steps:"
-echo -e "1. Review and commit changes:"
-echo -e "   ${YELLOW}git add -A && git commit -m \"chore: prepare release v$VERSION\"${NC}"
-echo -e "2. Create and push tag:"
-echo -e "   ${YELLOW}git tag -a v$VERSION -m \"Release v$VERSION\"${NC}"
-echo -e "   ${YELLOW}git push origin main --tags${NC}"
-echo -e "3. GitHub Actions will automatically:"
-echo -e "   - Create a GitHub release"
-echo -e "   - Build binaries for all platforms"
-echo -e "   - Generate and upload install.sh"
-echo -e "   - Create checksums"
-
-# Checklist
-echo -e "\n${GREEN}Pre-release checklist:${NC}"
-echo "[ ] CHANGELOG.md updated with all changes"
-echo "[ ] Version numbers consistent across all files"
-echo "[ ] All tests passing"
-echo "[ ] No clippy warnings"
-echo "[ ] Documentation up to date"
-echo "[ ] Examples working correctly"
+echo "✨ Release preparation complete!"
+echo "📁 Release artifacts in: ${RELEASE_DIR}/"

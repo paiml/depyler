@@ -1,0 +1,49 @@
+#[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_power(x: i32)  -> i32 {
+    let mut _cse_temp_0 = {
+    if 2>= 0 && 2 <= u32::MAX as i64 {
+    x.checked_pow(2 as u32).expect("Power operation overflowed")
+}
+else {
+   (x as f64).powf(2 as f64) as i64
+}
+};
+    return _cse_temp_0;
+   
+}
+#[doc = " Depyler: proven to terminate"] pub fn test_floor_div(x: i32, y: i32)  -> Result<i32, ZeroDivisionError>{
+    let mut _cse_temp_0 = {
+    let a = x;
+    let b = y;
+    let q = a / b;
+    let r = a % b;
+    if(r != 0) &&((r<0) ! = (b<0)) {
+    q - 1
+}
+else {
+    q
+}
+};
+    return Ok(_cse_temp_0);
+   
+}
+#[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_test_power_examples() {
+    assert_eq !(test_power(0), 0);
+    assert_eq !(test_power(1), 1);
+    assert_eq !(test_power(- 1), - 1);
+   
+}
+} #[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_test_floor_div_examples() {
+    assert_eq !(test_floor_div(0, 0), 0);
+    assert_eq !(test_floor_div(1, 2), 3);
+    assert_eq !(test_floor_div(- 1, 1), 0);
+   
+}
+}

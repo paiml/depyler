@@ -130,8 +130,8 @@ fn test_all_arithmetic_operators() {
         (BinOp::Mul, "*"),
         (BinOp::Div, "/"),
         (BinOp::Mod, "%"),
-        // FloorDiv is not yet implemented
-        // (BinOp::FloorDiv, "/"), // TODO: Should be different from Div
+        (BinOp::FloorDiv, "//"),
+        (BinOp::Pow, "**")
     ];
 
     for (op, expected) in test_cases {
@@ -159,10 +159,26 @@ fn test_all_arithmetic_operators() {
         let result = apply_rules(&module, &type_mapper).unwrap();
         let code = quote::quote! { #result }.to_string();
 
-        assert!(
-            code.contains(&format!("a {expected} b")),
-            "Expected operator {expected} in code: {code}"
-        );
+        // Special handling for complex operators
+        match op {
+            BinOp::FloorDiv => {
+                // Floor division generates complex Python-compatible logic
+                assert!(code.contains("let q = a / b"), "Expected floor division logic in code: {code}");
+                assert!(code.contains("let r = a % b"), "Expected modulo in floor division logic: {code}");
+                assert!(code.contains("if (r != 0) && ((r < 0) != (b < 0))"), "Expected floor division condition: {code}");
+            }
+            BinOp::Pow => {
+                // Power operation generates type-specific handling
+                assert!(code.contains("checked_pow") || code.contains("powf"), "Expected power operation in code: {code}");
+            }
+            _ => {
+                // Simple operators should have the expected pattern
+                assert!(
+                    code.contains(&format!("a {expected} b")),
+                    "Expected operator {expected} in code: {code}"
+                );
+            }
+        }
     }
 }
 
@@ -318,6 +334,42 @@ fn test_power_operator() {
     assert!(rust_code.contains("if b >= 0"));
     assert!(rust_code.contains("checked_pow"));
     assert!(rust_code.contains("powf"));
+}
+
+#[test]
+fn test_floor_division_operator() {
+    let module = HirModule {
+        functions: vec![HirFunction {
+            name: "test_floor_div".to_string(),
+            params: vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)].into(),
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: BinOp::FloorDiv,
+                left: Box::new(HirExpr::Var("a".to_string())),
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }))],
+            properties: Default::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        }],
+        imports: vec![],
+        type_aliases: vec![],
+        protocols: vec![],
+        classes: vec![],
+    };
+
+    // Floor division should now be supported
+    let type_mapper = TypeMapper::default();
+    let rust_module = apply_rules(&module, &type_mapper).unwrap();
+    let rust_code = rust_module.to_token_stream().to_string();
+
+    // Should generate Python floor division semantics
+    assert!(rust_code.contains("let a ="));
+    assert!(rust_code.contains("let b ="));
+    assert!(rust_code.contains("let q = a / b"));
+    assert!(rust_code.contains("let r = a % b"));
+    assert!(rust_code.contains("if (r != 0) && ((r < 0) != (b < 0))"));
+    assert!(rust_code.contains("{ q - 1 } else { q }"));
 }
 
 #[test]

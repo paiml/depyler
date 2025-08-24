@@ -1,7 +1,7 @@
 //! Ruchy interpreter integration module
 //!
-//! This module provides integration with the Ruchy v0.9.1+ interpreter,
-//! leveraging the significant performance and reliability improvements.
+//! This module provides integration with the Ruchy v1.5.0+ interpreter,
+//! leveraging the SELF-HOSTING capability and significant performance improvements.
 
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;

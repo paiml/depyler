@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  depyler-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    image: depyler/agent:3.1.0
+    container_name: depyler-agent
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount project directories
+      - ./examples:/home/depyler/projects/examples:ro
+      - depyler-config:/home/depyler/.depyler
+      # Optional: Mount your Python projects
+      # - /path/to/your/python/project:/home/depyler/projects/myproject:ro
+    environment:
+      - RUST_LOG=info
+      - DEPYLER_AUTO_TRANSPILE=true
+      - DEPYLER_VERIFICATION_LEVEL=basic
+    healthcheck:
+      test: ["CMD", "depyler", "agent", "status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - depyler-network
+    labels:
+      - "com.depyler.service=agent"
+      - "com.depyler.version=3.1.0"
+
+  # Optional: Claude Code bridge container
+  claude-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    image: depyler/agent:3.1.0
+    container_name: claude-bridge
+    restart: unless-stopped
+    command: ["agent", "start", "--foreground", "--port", "3001", "--mcp-only"]
+    ports:
+      - "3001:3001"
+    volumes:
+      - depyler-config:/home/depyler/.depyler
+    environment:
+      - RUST_LOG=debug
+      - DEPYLER_MCP_MODE=true
+    depends_on:
+      - depyler-agent
+    networks:
+      - depyler-network
+    labels:
+      - "com.depyler.service=mcp-bridge"
+      - "com.depyler.version=3.1.0"
+
+volumes:
+  depyler-config:
+    driver: local
+
+networks:
+  depyler-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

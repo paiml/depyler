@@ -702,3 +702,133 @@ tag-release: ## Create and push release tag
 	@echo "Creating release tag v$(VERSION)..."
 	git tag -a v$(VERSION) -m "Release v$(VERSION)"
 	@echo "Tag created. To push: git push origin v$(VERSION)"
+
+##@ Multi-Platform Distribution
+
+deploy-all: deploy-check deploy-cargo deploy-docker deploy-github ## Deploy to all distribution channels
+	@echo "✅ Deployed to all platforms successfully!"
+
+deploy-check: ## Check deployment prerequisites
+	@echo "Checking deployment prerequisites..."
+	@command -v cargo > /dev/null || (echo "❌ cargo not found" && exit 1)
+	@command -v docker > /dev/null || (echo "❌ docker not found" && exit 1)
+	@command -v gh > /dev/null || (echo "❌ GitHub CLI not found" && exit 1)
+	@echo "✅ All deployment tools available"
+
+deploy-cargo: ## Deploy to crates.io
+	@echo "📦 Publishing to crates.io..."
+	$(CARGO) publish --dry-run
+	@echo "Dry run successful. To publish: cargo publish"
+
+deploy-pypi: ## Build and deploy Python package to PyPI
+	@echo "🐍 Building Python package..."
+	@if [ -d "python" ]; then \
+		cd python && \
+		pip install --upgrade build twine && \
+		python -m build && \
+		echo "Package built. To upload: twine upload dist/*"; \
+	else \
+		echo "Python package not yet configured"; \
+	fi
+
+deploy-npm: ## Deploy to npm registry
+	@echo "📦 Publishing to npm..."
+	@if [ -f "npm-package/package.json" ]; then \
+		cd npm-package && \
+		npm pack && \
+		echo "Package created. To publish: npm publish"; \
+	else \
+		echo "Creating npm package structure..."; \
+		mkdir -p npm-package; \
+		./scripts/create-npm-package.sh; \
+	fi
+
+deploy-docker: ## Build and push Docker images
+	@echo "🐳 Building Docker images..."
+	docker build -t depyler/depyler:latest .
+	docker build -t depyler/depyler:$(shell grep version Cargo.toml | head -1 | cut -d'"' -f2) .
+	@echo "Images built. To push: docker push depyler/depyler:latest"
+
+deploy-homebrew: ## Prepare Homebrew formula
+	@echo "🍺 Preparing Homebrew formula..."
+	@mkdir -p homebrew
+	@./scripts/generate-homebrew-formula.sh > homebrew/depyler.rb
+	@echo "Formula generated at homebrew/depyler.rb"
+
+deploy-aur: ## Prepare AUR package
+	@echo "📦 Preparing AUR package..."
+	@mkdir -p aur
+	@./scripts/generate-pkgbuild.sh > aur/PKGBUILD
+	@echo "PKGBUILD generated at aur/PKGBUILD"
+
+deploy-deb: ## Build Debian/Ubuntu package
+	@echo "📦 Building .deb package..."
+	@mkdir -p debian/usr/bin
+	@cp target/release/depyler debian/usr/bin/
+	@dpkg-deb --build debian depyler_$(shell grep version Cargo.toml | head -1 | cut -d'"' -f2)_amd64.deb
+	@echo "Debian package built"
+
+deploy-chocolatey: ## Prepare Chocolatey package
+	@echo "🍫 Preparing Chocolatey package..."
+	@mkdir -p chocolatey
+	@./scripts/generate-nuspec.sh > chocolatey/depyler.nuspec
+	@echo "NuSpec generated at chocolatey/depyler.nuspec"
+
+deploy-wasm: ## Build and deploy WASM package
+	@echo "🌐 Building WASM package..."
+	cd crates/depyler-wasm && wasm-pack build --target web --out-dir pkg
+	cd crates/depyler-wasm && wasm-pack pack
+	@echo "WASM package built. To publish: wasm-pack publish"
+
+deploy-github: ## Create GitHub release with binaries
+	@echo "📦 Creating GitHub release..."
+	@VERSION=$$(grep version Cargo.toml | head -1 | cut -d'"' -f2); \
+	echo "Building release binaries for v$$VERSION..."; \
+	./scripts/build-all-targets.sh; \
+	echo "Creating GitHub release..."; \
+	gh release create v$$VERSION \
+		--title "Depyler v$$VERSION" \
+		--notes-file CHANGELOG.md \
+		--draft \
+		target/releases/*.tar.gz
+
+build-all-platforms: ## Build for all supported platforms
+	@echo "🔨 Building for all platforms..."
+	@mkdir -p target/releases
+	# Linux x86_64
+	cargo build --release --target x86_64-unknown-linux-gnu
+	tar czf target/releases/depyler-x86_64-linux.tar.gz -C target/x86_64-unknown-linux-gnu/release depyler
+	# macOS x86_64
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		cargo build --release --target x86_64-apple-darwin; \
+		tar czf target/releases/depyler-x86_64-darwin.tar.gz -C target/x86_64-apple-darwin/release depyler; \
+	fi
+	# Windows
+	@if command -v cross > /dev/null; then \
+		cross build --release --target x86_64-pc-windows-gnu; \
+		zip target/releases/depyler-x86_64-windows.zip target/x86_64-pc-windows-gnu/release/depyler.exe; \
+	fi
+	@echo "✅ All platform builds complete"
+
+verify-deployment: ## Verify deployment readiness
+	@echo "🔍 Verifying deployment readiness..."
+	@echo "Checking version consistency..."
+	@./scripts/check-versions.sh
+	@echo "Running tests..."
+	$(MAKE) test-fast
+	@echo "Checking documentation..."
+	@test -f README.md || (echo "❌ README.md missing" && exit 1)
+	@test -f CHANGELOG.md || (echo "❌ CHANGELOG.md missing" && exit 1)
+	@test -f LICENSE || (echo "❌ LICENSE missing" && exit 1)
+	@echo "✅ Ready for deployment"
+
+deploy-status: ## Show deployment status for all platforms
+	@echo "📊 Deployment Status"
+	@echo "==================="
+	@echo "✅ crates.io:    $$(cargo search depyler | head -1 | awk '{print $$3}')"
+	@echo "⏳ PyPI:         Not yet published"
+	@echo "⏳ npm:          Not yet published"
+	@echo "⏳ Docker Hub:   Not yet published"
+	@echo "⏳ Homebrew:     Not yet submitted"
+	@echo "⏳ AUR:          Not yet submitted"
+	@echo "✅ GitHub:       https://github.com/paiml/depyler"

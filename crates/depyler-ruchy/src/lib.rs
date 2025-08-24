@@ -6,7 +6,10 @@
 //!
 //! # New in v3.1.0
 //!
-//! - Integration with Ruchy v0.9.1 interpreter improvements
+//! - Integration with Ruchy v1.5.0 interpreter with SELF-HOSTING capabilities
+//! - Complete parser AST support for both lambda syntaxes: `|x| x + 1` and `x => x + 1`
+//! - Enhanced Algorithm W type inference with constraint-based unification
+//! - Direct minimal codegen with `--minimal` flag support
 //! - 76% complexity reduction in core functions
 //! - 50MB/s parsing throughput
 //! - Enhanced Value type system with DataFrame support
