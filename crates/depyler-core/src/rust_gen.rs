@@ -2211,12 +2211,11 @@ fn convert_binop(op: BinOp) -> Result<syn::BinOp> {
         Div => Ok(parse_quote! { / }),
         Mod => Ok(parse_quote! { % }),
 
-        // Special arithmetic cases
+        // Special arithmetic cases handled by convert_binary
         FloorDiv => {
-            // Floor division needs explicit conversion for negative values
-            bail!("Floor division requires custom implementation for Python semantics")
+            bail!("Floor division handled by convert_binary with Python semantics")
         }
-        Pow => bail!("Power operator not directly supported in Rust"),
+        Pow => bail!("Power operator handled by convert_binary with type-specific logic"),
 
         // Comparison operators
         Eq => Ok(parse_quote! { == }),

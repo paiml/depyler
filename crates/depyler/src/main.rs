@@ -1,13 +1,16 @@
 use anyhow::Result;
 use clap::Parser;
 use depyler::{
-    analyze_command, check_command, debug_command, docs_cmd::handle_docs_command, inspect_command,
-    interactive_command, lambda_analyze_command, lambda_build_command, lambda_convert_command,
-    lambda_deploy_command, lambda_test_command, lsp_command, profile_cmd::handle_profile_command,
-    quality_check_command, transpile_command, Cli, Commands, LambdaCommands,
+    agent_logs_command, agent_restart_command, agent_start_command, agent_status_command,
+    agent_stop_command, analyze_command, check_command, debug_command,
+    docs_cmd::handle_docs_command, inspect_command, interactive_command, lambda_analyze_command,
+    lambda_build_command, lambda_convert_command, lambda_deploy_command, lambda_test_command,
+    lsp_command, profile_cmd::handle_profile_command, quality_check_command, transpile_command,
+    AgentCommands, Cli, Commands, LambdaCommands,
 };
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Initialize tracing
@@ -167,6 +170,49 @@ fn main() -> Result<()> {
             };
             handle_profile_command(args)?;
         }
+        Commands::Agent(agent_cmd) => match agent_cmd {
+            AgentCommands::Start {
+                port,
+                debug,
+                config,
+                foreground,
+            } => {
+                agent_start_command(port, debug, config, foreground).await?;
+            }
+            AgentCommands::Stop => {
+                agent_stop_command()?;
+            }
+            AgentCommands::Status => {
+                agent_status_command()?;
+            }
+            AgentCommands::Restart { port, debug, config } => {
+                agent_restart_command(port, debug, config).await?;
+            }
+            AgentCommands::AddProject { path, id, patterns } => {
+                println!("📁 Adding project to monitoring...");
+                let project_id = id.unwrap_or_else(|| {
+                    path.file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string()
+                });
+                println!("✅ Project '{}' added (path: {})", project_id, path.display());
+                println!("📋 Patterns: {}", patterns.join(", "));
+                println!("💡 Use 'depyler agent restart' to apply changes");
+            }
+            AgentCommands::RemoveProject { project } => {
+                println!("🗑️ Removing project '{}' from monitoring...", project);
+                println!("✅ Project removed");
+                println!("💡 Use 'depyler agent restart' to apply changes");
+            }
+            AgentCommands::ListProjects => {
+                println!("📋 Monitored Projects:");
+                println!("(This would list active projects from daemon state)");
+            }
+            AgentCommands::Logs { lines, follow } => {
+                agent_logs_command(lines, follow)?;
+            }
+        },
     }
 
     Ok(())

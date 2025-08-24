@@ -1,6 +1,6 @@
 //! Enhanced type system mapping between Python and Ruchy
 //!
-//! This module has been updated to support Ruchy v0.9.1+ features:
+//! This module has been updated to support Ruchy v1.5.0+ features:
 //! - DataFrame types with Polars integration
 //! - Actor model Value types
 //! - Enhanced enum and pattern matching types
@@ -36,7 +36,7 @@ impl TypeMapper {
     
     /// Maps a Python pandas DataFrame to Ruchy DataFrame type
     pub fn map_dataframe_type(&mut self, schema_hint: Option<&str>) -> Result<RuchyType> {
-        // In Ruchy v0.9.1+, DataFrame has rich schema support
+        // In Ruchy v1.5.0+, DataFrame has rich schema support
         match schema_hint {
             Some(_) => Ok(RuchyType::DataFrame), // Could be enhanced with schema info
             None => Ok(RuchyType::DataFrame),
@@ -102,7 +102,7 @@ impl TypeMapper {
         cache.insert("None".to_string(), RuchyType::Unit);
         cache.insert("Any".to_string(), RuchyType::Dynamic);
         
-        // Ruchy v0.9.1+ specific types
+        // Ruchy v1.5.0+ specific types
         cache.insert("DataFrame".to_string(), RuchyType::DataFrame);
         cache.insert("Range".to_string(), RuchyType::Range);
         cache.insert("Actor".to_string(), RuchyType::Actor);
@@ -379,7 +379,7 @@ pub enum RuchyType {
     Generic(String, Vec<RuchyType>),
     Enum(Vec<(String, RuchyType)>),
     
-    // Ruchy v0.9.1+ specific types
+    // Ruchy v1.5.0+ specific types
     DataFrame,
     Range,
     Actor,

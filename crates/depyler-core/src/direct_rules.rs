@@ -1965,10 +1965,10 @@ fn convert_arithmetic_op(op: BinOp) -> Result<syn::BinOp> {
         Mod => Ok(parse_quote! { % }),
         FloorDiv => {
             // Floor division requires special handling - it's not implemented as an operator
-            // but handled in convert_expr for proper type-based conversion
-            bail!("Floor division handled in convert_expr, not as simple operator")
+            // but handled in convert_binary for proper Python semantics
+            bail!("Floor division handled in convert_binary with Python semantics")
         }
-        Pow => bail!("Power operator not directly supported in Rust"),
+        Pow => bail!("Power operator handled in convert_binary with type-specific logic"),
         _ => bail!("Invalid operator {:?} for arithmetic conversion", op),
     }
 }

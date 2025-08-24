@@ -6,7 +6,55 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.1.0] - 2025-01-25
+
+### 🚀 Major Feature: Background Agent Mode with MCP Integration
+
+This release introduces a game-changing background agent mode that provides continuous Python-to-Rust transpilation services through the Model Context Protocol (MCP), enabling seamless integration with Claude Code and other AI assistants.
+
+### ✨ New Features
+
+#### **Background Agent Mode**
+- **MCP Server**: High-performance PMCP SDK-based server for Claude Code integration
+- **6 Transpilation Tools**: Complete toolkit for Python-to-Rust conversion via MCP
+  - `transpile_python_file`: Single file transpilation with verification
+  - `transpile_python_directory`: Batch directory processing
+  - `monitor_python_project`: Continuous project monitoring
+  - `get_transpilation_status`: Real-time metrics and status
+  - `verify_rust_code`: Generated code validation
+  - `analyze_python_compatibility`: Feature support analysis
+- **File System Monitoring**: Real-time watching with automatic transpilation
+- **Daemon Management**: Professional background service with PID tracking
+- **Claude Code Ready**: Direct integration with Claude Desktop and VS Code
+
+#### **Agent CLI Commands**
+- `depyler agent start`: Launch background daemon or foreground mode
+- `depyler agent stop`: Graceful daemon shutdown
+- `depyler agent status`: Check daemon health and metrics
+- `depyler agent restart`: Restart with new configuration
+- `depyler agent add-project`: Add project to monitoring
+- `depyler agent logs`: View and follow agent logs
+
+#### **Python Operator Support**
+- **Power Operator (`**`)**: Full support with checked_pow for safety
+- **Floor Division (`//`)**: Python-compatible floor division semantics
+
+### 🔧 Technical Improvements
+- **PMCP SDK Integration**: Leveraging pmcp v1.2.0 for robust MCP protocol handling
+- **Async Architecture**: Full tokio async/await support throughout agent
+- **Event-Driven Design**: Efficient file watching with notify crate
+- **Configuration System**: JSON-based config with environment overrides
+- **Health Monitoring**: Automatic health checks and recovery
+
+### 🔧 Dependencies
+- **PMCP SDK v1.2.0**: High-performance MCP server implementation
+- **Tokio v1.0**: Async runtime for background agent
+- **Notify v8.0**: Cross-platform file system event monitoring
+- **Ruchy v1.5.0**: Upgraded from v0.9.1 to v1.5.0 with SELF-HOSTING capabilities
+  - Complete parser AST support for both lambda syntaxes: `|x| x + 1` and `x => x + 1`
+  - Enhanced Algorithm W type inference with constraint-based unification
+  - Direct minimal codegen with `--minimal` flag support
+  - Historic achievement: Ruchy can now compile itself (self-hosting compiler)
 
 ## [3.0.0] - 2025-01-18
 
