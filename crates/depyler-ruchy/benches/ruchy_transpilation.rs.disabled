@@ -2,11 +2,11 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
 use depyler_ruchy::{RuchyBackend, RuchyConfig};
-use depyler_core::{Hir, HirExpr, HirLiteral, HirBinaryOp, HirParam, TranspilationBackend};
+use depyler_core::{hir::HirModule, HirExpr, HirLiteral, HirBinaryOp, HirParam, TranspilationBackend, HirFunction, HirStmt};
 
-fn create_simple_function() -> Hir {
-    Hir {
-        root: HirExpr::Function {
+fn create_simple_function() -> HirModule {
+    HirModule {
+        functions: vec![HirFunction {
             name: "fibonacci".to_string(),
             params: vec![
                 HirParam {
@@ -15,7 +15,7 @@ fn create_simple_function() -> Hir {
                     default: None,
                 },
             ],
-            body: Box::new(HirExpr::If {
+            body: vec![HirStmt::Return(Some(HirExpr::If {
                 condition: Box::new(HirExpr::Binary {
                     left: Box::new(HirExpr::Identifier("n".to_string())),
                     op: HirBinaryOp::LessEqual,
@@ -41,11 +41,12 @@ fn create_simple_function() -> Hir {
                         }],
                     }),
                 })),
-            }),
-            is_async: false,
+            }))],
             return_type: Some(depyler_core::HirType::Int),
-        },
-        metadata: Default::default(),
+            properties: Default::default(),
+        }],
+        classes: vec![],
+        imports: vec![],
     }
 }
 

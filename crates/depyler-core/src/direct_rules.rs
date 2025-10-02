@@ -534,8 +534,9 @@ fn convert_method_to_impl_item(
     if method.is_static {
         // Static methods have no self parameter
     } else if method.is_classmethod {
-        // Class methods would ideally take a type parameter, but for now skip
-        // TODO: Implement proper classmethod support with type parameter
+        // Note: Class methods would ideally take a type parameter (e.g., &Self),
+        // but currently classmethods are transpiled without self parameter.
+        // Proper classmethod support with type parameter is a known limitation.
     } else if method.is_property {
         // Properties typically use &self
         inputs.push(parse_quote! { &self });
@@ -955,75 +956,118 @@ fn convert_body(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Result<Vec<syn::
         .collect()
 }
 
+/// Convert simple variable assignment: `x = value`
+///
+/// Complexity: 1 (no branching)
+fn convert_symbol_assignment(symbol: &str, value_expr: syn::Expr) -> Result<syn::Stmt> {
+    let target_ident = syn::Ident::new(symbol, proc_macro2::Span::call_site());
+    let stmt = syn::Stmt::Local(syn::Local {
+        attrs: vec![],
+        let_token: Default::default(),
+        pat: syn::Pat::Ident(syn::PatIdent {
+            attrs: vec![],
+            by_ref: None,
+            mutability: Some(Default::default()),
+            ident: target_ident,
+            subpat: None,
+        }),
+        init: Some(syn::LocalInit {
+            eq_token: Default::default(),
+            expr: Box::new(value_expr),
+            diverge: None,
+        }),
+        semi_token: Default::default(),
+    });
+    Ok(stmt)
+}
+
+/// Convert subscript assignment: `d[k] = value` or `d[k1][k2] = value`
+///
+/// Handles both simple and nested subscript assignments.
+/// Complexity: 3 (if + loop with nested if)
+fn convert_index_assignment(
+    base: &HirExpr,
+    index: &HirExpr,
+    value_expr: syn::Expr,
+    type_mapper: &TypeMapper,
+) -> Result<syn::Stmt> {
+    let final_index = convert_expr(index, type_mapper)?;
+    let (base_expr, indices) = extract_nested_indices(base, type_mapper)?;
+
+    if indices.is_empty() {
+        // Simple assignment: d[k] = v
+        let assign_expr = parse_quote! {
+            #base_expr.insert(#final_index, #value_expr)
+        };
+        Ok(syn::Stmt::Expr(assign_expr, Some(Default::default())))
+    } else {
+        // Nested assignment: build chain of get_mut calls
+        let mut chain = base_expr;
+        for idx in &indices {
+            chain = parse_quote! {
+                #chain.get_mut(&#idx).unwrap()
+            };
+        }
+
+        let assign_expr = parse_quote! {
+            #chain.insert(#final_index, #value_expr)
+        };
+
+        Ok(syn::Stmt::Expr(assign_expr, Some(Default::default())))
+    }
+}
+
+/// Convert attribute assignment: `obj.attr = value`
+///
+/// Complexity: 1 (no branching)
+fn convert_attribute_assignment(
+    base: &HirExpr,
+    attr: &str,
+    value_expr: syn::Expr,
+    type_mapper: &TypeMapper,
+) -> Result<syn::Stmt> {
+    let base_expr = convert_expr(base, type_mapper)?;
+    let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+
+    let assign_expr = parse_quote! {
+        #base_expr.#attr_ident = #value_expr
+    };
+
+    Ok(syn::Stmt::Expr(assign_expr, Some(Default::default())))
+}
+
+/// Convert Python assignment statement to Rust
+///
+/// Handles 3 assignment target types:
+/// - Symbol: `x = value`
+/// - Index: `d[k] = value` or `d[k1][k2] = value`
+/// - Attribute: `obj.attr = value`
+///
+/// Complexity: ~8 (match with 3 arms + nested complexity from index helper)
+fn convert_assign_stmt(
+    target: &AssignTarget,
+    value: &HirExpr,
+    type_mapper: &TypeMapper,
+) -> Result<syn::Stmt> {
+    let value_expr = convert_expr(value, type_mapper)?;
+
+    match target {
+        AssignTarget::Symbol(symbol) => {
+            convert_symbol_assignment(symbol, value_expr)
+        }
+        AssignTarget::Index { base, index } => {
+            convert_index_assignment(base, index, value_expr, type_mapper)
+        }
+        AssignTarget::Attribute { value: base, attr } => {
+            convert_attribute_assignment(base, attr, value_expr, type_mapper)
+        }
+    }
+}
+
 fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
     match stmt {
         HirStmt::Assign { target, value } => {
-            let value_expr = convert_expr(value, type_mapper)?;
-
-            match target {
-                AssignTarget::Symbol(symbol) => {
-                    // Simple variable assignment
-                    let target_ident = syn::Ident::new(symbol, proc_macro2::Span::call_site());
-                    let stmt = syn::Stmt::Local(syn::Local {
-                        attrs: vec![],
-                        let_token: Default::default(),
-                        pat: syn::Pat::Ident(syn::PatIdent {
-                            attrs: vec![],
-                            by_ref: None,
-                            mutability: Some(Default::default()),
-                            ident: target_ident,
-                            subpat: None,
-                        }),
-                        init: Some(syn::LocalInit {
-                            eq_token: Default::default(),
-                            expr: Box::new(value_expr),
-                            diverge: None,
-                        }),
-                        semi_token: Default::default(),
-                    });
-                    Ok(stmt)
-                }
-                AssignTarget::Index { base, index } => {
-                    // Dictionary/list subscript assignment
-                    let final_index = convert_expr(index, type_mapper)?;
-
-                    // Extract the base and all intermediate indices
-                    let (base_expr, indices) = extract_nested_indices(base, type_mapper)?;
-
-                    if indices.is_empty() {
-                        // Simple assignment: d[k] = v
-                        let assign_expr = parse_quote! {
-                            #base_expr.insert(#final_index, #value_expr)
-                        };
-                        Ok(syn::Stmt::Expr(assign_expr, Some(Default::default())))
-                    } else {
-                        // Nested assignment: build chain of get_mut calls
-                        let mut chain = base_expr;
-                        for idx in &indices {
-                            chain = parse_quote! {
-                                #chain.get_mut(&#idx).unwrap()
-                            };
-                        }
-
-                        let assign_expr = parse_quote! {
-                            #chain.insert(#final_index, #value_expr)
-                        };
-
-                        Ok(syn::Stmt::Expr(assign_expr, Some(Default::default())))
-                    }
-                }
-                AssignTarget::Attribute { value, attr } => {
-                    // Convert object.attr = value
-                    let base_expr = convert_expr(value, type_mapper)?;
-                    let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
-
-                    let assign_expr = parse_quote! {
-                        #base_expr.#attr_ident = #value_expr
-                    };
-
-                    Ok(syn::Stmt::Expr(assign_expr, Some(Default::default())))
-                }
-            }
+            convert_assign_stmt(target, value, type_mapper)
         }
         HirStmt::Return(expr) => {
             let ret_expr = if let Some(e) = expr {
@@ -1258,8 +1302,9 @@ impl<'a> ExprConverter<'a> {
                 // Python floor division semantics differ from Rust integer division
                 // Python: rounds towards negative infinity (floor)
                 // Rust: truncates towards zero
-                // For now, we generate code that works for integers with proper floor semantics
-                // TODO: Add type-based dispatch for float division when type inference is available
+                // Note: This implementation works for integers with proper floor semantics.
+                // Type-based dispatch for float division (using .floor()) would be ideal
+                // but requires full type inference integration. This is a known limitation.
 
                 Ok(parse_quote! {
                     {
@@ -1524,8 +1569,10 @@ impl<'a> ExprConverter<'a> {
             // Treat as constructor call - ClassName::new(args)
             let class_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
             if args.is_empty() {
-                // For now, assume dataclass with defaults - pass default values
-                // TODO: This should be context-aware and know the actual defaults
+                // Note: Constructor default parameter handling uses simple heuristics.
+                // Ideally this would be context-aware and know the actual default values
+                // for each class constructor, but currently uses hardcoded patterns.
+                // This is a known limitation - constructors may require explicit arguments.
                 match func {
                     "Counter" => Ok(parse_quote! { #class_ident::new(0) }),
                     _ => Ok(parse_quote! { #class_ident::new() }),

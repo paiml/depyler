@@ -79,33 +79,20 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    
-    - name: Install build dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential gcc g++
-    
+
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
-    
+
     - name: Install cargo-tarpaulin
-      run: |
-        export RUSTFLAGS="-C linker=gcc"
-        cargo install cargo-tarpaulin
-    
-    - name: Generate code coverage
-      run: |
-        export RUSTFLAGS="-C linker=gcc"
-        cargo tarpaulin --features coverage --workspace --timeout 600 --out Xml \
-          --exclude-files "*/tests/*" \
-          --exclude-files "*/examples/*" \
-          --exclude-files "*/build.rs" \
-          --exclude-files "*/main.rs"
-    
+      run: cargo install cargo-tarpaulin
+
+    - name: Generate coverage
+      run: cargo tarpaulin --out Xml --all-features --workspace
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
-        file: cobertura.xml
+        files: ./cobertura.xml
         fail_ci_if_error: false
 
   security:

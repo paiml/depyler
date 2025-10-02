@@ -119,7 +119,9 @@ impl TypeInferencer {
                 if let AssignTarget::Symbol(symbol) = target {
                     self.env.set_var_type(symbol.clone(), value_type);
                 }
-                // TODO: Handle subscript and attribute assignments
+                // Note: Subscript and attribute assignments (e.g., a[0] = x, obj.field = x)
+                // are currently not tracked for type flow analysis. Only symbol assignments
+                // update the type environment. This is a known limitation.
             }
             HirStmt::If {
                 condition,

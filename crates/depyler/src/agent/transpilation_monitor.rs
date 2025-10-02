@@ -363,11 +363,10 @@ impl TranspilationMonitorEngine {
     fn matches_patterns(path: &Path, patterns: &[String]) -> bool {
         // Simple implementation - in practice would use glob patterns
         for pattern in patterns {
-            if pattern == "**/*.py" {
-                if path.extension().and_then(|s| s.to_str()) == Some("py") {
+            if pattern == "**/*.py"
+                && path.extension().and_then(|s| s.to_str()) == Some("py") {
                     return true;
                 }
-            }
         }
         false
     }

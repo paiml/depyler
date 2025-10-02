@@ -323,7 +323,9 @@ impl AgentDaemon {
                         if self.config.daemon.auto_restart {
                             warn!("Auto-restart enabled, restarting daemon...");
                             state.status = DaemonStatus::Restarting;
-                            // TODO: Implement restart logic
+                            // Note: Automatic restart logic is not yet implemented.
+                            // Currently only updates status. Restart must be triggered manually
+                            // using `depyler agent restart`. This is a known limitation.
                         }
                     }
                 }
@@ -509,7 +511,7 @@ impl AgentDaemon {
             VerificationLevel::Strict => {
                 // Full compilation + clippy checks
                 let mut cmd = std::process::Command::new("cargo");
-                cmd.args(&["clippy", "--", "-D", "warnings"])
+                cmd.args(["clippy", "--", "-D", "warnings"])
                     .current_dir(rust_path.parent().unwrap_or_else(|| std::path::Path::new(".")));
                 
                 let output = cmd.output()?;

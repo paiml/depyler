@@ -1,5 +1,8 @@
 # CLAUDE.md - Depyler Compiler Implementation Protocol
 
+## IMPORTANT: Auto-Generated Files
+**NEVER EDIT `deep_context.md`** - This file is auto-generated and will be overwritten. Any changes should be made to the source files instead.
+
 ## Prime Directive
 
 **Generate correct Rust code that compiles on first attempt. Quality is built-in, not bolted-on.**
@@ -9,6 +12,120 @@
 Depyler is a Python-to-Rust transpiler focusing on energy-efficient, safe code
 generation with progressive verification. The system must produce idiomatic Rust
 code with formal correctness guarantees for a practical Python subset.
+
+## 🚨 CRITICAL: A+ Code Standard (From paiml-mcp-agent-toolkit)
+
+**ABSOLUTE REQUIREMENT**: All NEW code MUST achieve A+ quality standards:
+- **Maximum Cyclomatic Complexity**: ≤10 (not 20, not 15, TEN!)
+- **Maximum Cognitive Complexity**: ≤10 (simple, readable, maintainable)
+- **Function Size**: ≤30 lines (if longer, decompose it)
+- **Single Responsibility**: Each function does ONE thing well
+- **Zero SATD**: No TODO, FIXME, HACK, or "temporary" solutions
+- **TDD Mandatory**: Write test FIRST, then implementation
+- **Test Coverage**: 80% minimum (enforced via cargo-llvm-cov)
+
+**Enforcement Example**:
+```rust
+// ❌ BAD: Complexity 15+
+fn process_ast(items: Vec<AstNode>) -> Result<HirNode> {
+    let mut results = Vec::new();
+    for item in items {
+        if item.valid {
+            if item.node_type == NodeType::Expr {
+                // ... 20 more lines of nested logic
+            }
+        }
+    }
+    // ... more complexity
+}
+
+// ✅ GOOD: Complexity ≤10
+fn process_ast(items: Vec<AstNode>) -> Result<HirNode> {
+    items.into_iter()
+        .filter(|item| item.valid)
+        .map(process_single_node)
+        .collect()
+}
+
+fn process_single_node(item: AstNode) -> Result<HirNode> {
+    match item.node_type {
+        NodeType::Expr => process_expr(item),
+        NodeType::Stmt => process_stmt(item),
+    }
+}
+```
+
+## EXTREME TDD Protocol (CRITICAL RESPONSE TO TRANSPILER FAILURES)
+
+**ANY TRANSPILER OR CODE GENERATION BUG REQUIRES IMMEDIATE EXTREME TDD RESPONSE:**
+
+### Critical Bug Response (MANDATORY):
+1. **HALT ALL OTHER WORK**: Stop everything when transpiler/codegen bugs found
+2. **EXTREME TEST COVERAGE**: Create comprehensive test suites immediately:
+   - Unit tests for every transpilation rule
+   - Integration tests for complete programs
+   - Property tests with random inputs (10,000+ iterations)
+   - Fuzz tests for edge cases
+   - Doctests in every public function
+   - `cargo run --example` MUST pass 100%
+3. **REGRESSION PREVENTION**: Add failing test BEFORE fixing bug
+4. **COMPREHENSIVE VALIDATION**: Test all language features after any fix
+
+### Test Coverage Requirements (MANDATORY):
+- **Transpiler Tests**: Every Python AST → Rust HIR mapping
+- **Codegen Tests**: Every HIR → Rust code generation pattern
+- **Integration Tests**: Full transpile → compile → execute pipeline
+- **Property Tests**: Automated generation of valid/invalid programs (80% target)
+- **Fuzz Tests**: Random input stress testing (AFL, cargo-fuzz)
+- **Examples Tests**: All examples/ must transpile and compile
+
+## Scientific Method Protocol
+
+**WE DON'T GUESS, WE PROVE VIA QUANTITATIVE METHODS AND TESTING.**
+
+### Evidence-Based Development Rules:
+1. **NO ASSUMPTIONS**: Every claim must be backed by concrete evidence
+2. **MEASURE EVERYTHING**: Use tests, benchmarks, and metrics to validate behavior
+3. **REPRODUCE ISSUES**: Create minimal test cases that demonstrate problems
+4. **QUANTIFY IMPROVEMENTS**: Before/after metrics prove effectiveness
+5. **DOCUMENT EVIDENCE**: All findings must be recorded with reproducible steps
+
+### Investigation Protocol:
+1. **Hypothesis**: State what you believe is happening
+2. **Test**: Create specific tests that prove/disprove the hypothesis
+3. **Measure**: Collect concrete data (test results, timings, coverage)
+4. **Analyze**: Draw conclusions only from the evidence
+5. **Document**: Record findings and next steps
+
+## QDD (Quality-Driven Development) Protocol
+
+**QUALITY IS THE DRIVER, NOT AN AFTERTHOUGHT - BASED ON PMAT BOOK CH14**
+
+### QDD Core Principles:
+1. **Quality Metrics First**: Define quality metrics BEFORE writing code
+2. **Continuous Monitoring**: Real-time quality tracking during development
+3. **Automated Enforcement**: Quality gates that cannot be bypassed
+4. **Data-Driven Decisions**: Let metrics guide development priorities
+5. **Preventive Maintenance**: Fix quality issues before they become technical debt
+
+### QDD Implementation with PMAT:
+```bash
+# BEFORE starting any task - establish quality baseline
+pmat tdg . --min-grade A- --format=json > quality_baseline.json
+pmat analyze complexity --format=csv > complexity_baseline.csv
+
+# DURING development - continuous quality monitoring
+pmat tdg dashboard --port 8080 --update-interval 5 &  # Real-time monitoring
+watch -n 5 'pmat quality-gate --quiet || echo "QUALITY DEGRADATION DETECTED"'
+
+# AFTER each function/module - verify quality maintained
+pmat tdg <file> --compare-baseline quality_baseline.json
+pmat analyze complexity <file> --max-cyclomatic 10 --max-cognitive 10
+
+# BEFORE commit - comprehensive quality validation
+pmat tdg . --min-grade A- --fail-on-violation
+pmat quality-gate --fail-on-violation --format=detailed
+```
 
 ## Development Principles
 
@@ -96,52 +213,213 @@ cargo test -p depyler-verify
 cargo test -p depyler-mcp
 ```
 
+## PMAT TDG Quality Enforcement (MANDATORY - BLOCKING)
+
+**CRITICAL**: PMAT TDG (Technical Debt Grading) quality gates are MANDATORY and BLOCKING. NO EXCEPTIONS.
+
+### TDG Quality Standards (Zero Tolerance):
+- **Overall Grade**: Must maintain A- or higher (≥85 points) - HARD LIMIT
+- **Structural Complexity**: ≤10 per function (enforced via TDG)
+- **Semantic Complexity**: Cognitive complexity ≤10 (enforced via TDG)
+- **Code Duplication**: <10% code duplication (measured via TDG)
+- **Documentation Coverage**: >70% for public APIs (tracked via TDG)
+- **Technical Debt**: Zero SATD comments (zero-tolerance via TDG)
+- **Test Coverage**: ≥80% via cargo-llvm-cov (not tarpaulin)
+
+### MANDATORY TDG Commands (All Development):
+
+#### Before ANY Code Changes:
+```bash
+# MANDATORY: TDG baseline check with comprehensive analysis
+pmat tdg . --min-grade A- --fail-on-violation
+pmat quality-gate --fail-on-violation --format=summary
+```
+
+#### During Development (After Each Function/Module):
+```bash
+# MANDATORY: File-level TDG analysis
+pmat tdg <file.rs> --include-components --min-grade B+
+
+# MANDATORY: Traditional complexity verification (backup)
+pmat analyze complexity --max-cyclomatic 10 --max-cognitive 10 --fail-on-violation
+
+# MANDATORY: SATD detection (zero tolerance)
+pmat analyze satd --format=summary --fail-on-violation
+```
+
+#### Before Commit (MANDATORY - BLOCKS COMMITS):
+```bash
+# MANDATORY: Comprehensive TDG quality gate
+pmat tdg . --min-grade A- --fail-on-violation
+pmat quality-gate --fail-on-violation --format=detailed
+
+# MANDATORY: Coverage enforcement (cargo-llvm-cov)
+cargo llvm-cov --all-features --workspace --summary-only | grep -q "80" || {
+    echo "❌ BLOCKED: Coverage below 80%"
+    exit 1
+}
+```
+
+## MANDATORY: Roadmap and Ticket Tracking
+
+**CRITICAL**: ALL development work MUST follow roadmap-driven development:
+
+1. **ALWAYS Use Ticket Numbers**: Every commit, PR, and task MUST reference a ticket ID from docs/execution/roadmap.md
+2. **Roadmap-First Development**: No work begins without a corresponding roadmap entry
+3. **Ticket Format**: Use format "DEPYLER-XXX" per roadmap
+4. **Traceability**: Every change must be traceable back to requirements via ticket system
+5. **Sprint Planning**: Work is organized by sprint with clear task dependencies and priorities
+
+### Commit Message Format (MANDATORY with TDG Tracking)
+```
+[TICKET-ID] Brief description
+
+Detailed explanation of changes
+- Specific improvements made
+- Test coverage added
+- Performance impact
+- Breaking changes (if any)
+
+TDG Score Changes (MANDATORY):
+- src/file1.rs: 85.3→87.1 (B+→A-) [+1.8 improvement]
+- src/file2.rs: 72.5→72.5 (B-→B-) [stable]
+
+PMAT Verification:
+- Complexity: All functions ≤10
+- SATD: 0 violations maintained
+- Coverage: 80.5% → 82.1% (+1.6%)
+
+Closes: TICKET-ID
+```
+
 ## MANDATORY Quality Gates (BLOCKING - Not Advisory)
 
 **CRITICAL**: Quality gates are now BLOCKING and ENFORCED. No commit shall pass without meeting all gates.
 
+### SACRED RULE: NEVER BYPASS QUALITY GATES
+
+**ABSOLUTELY FORBIDDEN**:
+- `git commit --no-verify` - NEVER use this - NO EXCEPTIONS EVER
+- Skipping tests "temporarily" - NO exceptions
+- Ignoring failing quality checks - Must fix EVERY defect
+- Dismissing warnings as "unrelated" - All defects matter
+
+**Toyota Way Principle**: Stop the line for ANY defect. No defect is too small. No shortcut is acceptable.
+
 ### Pre-commit Hooks (MANDATORY)
 ```bash
 #!/bin/bash
-# .git/hooks/pre-commit - BLOCKS commits that violate quality
+# scripts/pre-commit - BLOCKS commits that violate quality
 set -e
 
-echo "🔒 MANDATORY Quality Gates for Depyler..."
+echo "🔍 Depyler Quality Gates - Checking documentation synchronization..."
 
-# GATE 1: Core transpilation must work
-echo 'print("Hello")' | cargo run --quiet -- transpile --stdin || {
-    echo "❌ FATAL: Basic transpilation broken"
-    echo "Fix core transpiler before ANY commits"
-    exit 1
-}
+# Documentation files that MUST be updated with code changes
+REQUIRED_DOCS=(
+    "docs/execution/roadmap.md"
+    "CHANGELOG.md"
+)
 
-# GATE 2: Complexity enforcement
-cargo clippy --all-targets --all-features -- -D clippy::cognitive_complexity || {
-    echo "❌ BLOCKED: Complexity exceeds limits"
-    echo "Refactor before committing"
-    exit 1
-}
+# Check if any Rust/source files are being committed
+if git diff --cached --name-only | grep -qE '\.(rs)$'; then
+    echo "📝 Source changes detected - verifying documentation updates..."
 
-# GATE 3: Zero SATD policy
-! grep -r "TODO\|FIXME\|HACK\|XXX" crates/ --include="*.rs" || {
-    echo "❌ BLOCKED: Technical debt comments found"
-    echo "Fix issues or file GitHub issues, don't commit debt"
-    exit 1
-}
+    # Ensure at least one documentation file is updated
+    DOC_UPDATED=false
+    for doc in "${REQUIRED_DOCS[@]}"; do
+        if git diff --cached --name-only | grep -q "$doc"; then
+            DOC_UPDATED=true
+            break
+        fi
+    done
 
-# GATE 4: Lint zero tolerance
+    if [ "$DOC_UPDATED" = false ]; then
+        echo "❌ ERROR: Code changes require documentation updates!"
+        echo "📋 Must update at least one of:"
+        for doc in "${REQUIRED_DOCS[@]}"; do
+            echo "   - $doc"
+        done
+        echo ""
+        echo "💡 Quick fix:"
+        echo "   1. Update docs/execution/roadmap.md with task status"
+        echo "   2. Update CHANGELOG.md with feature/fix"
+        exit 1
+    fi
+fi
+
+# Verify roadmap.md structure
+if git diff --cached --name-only | grep -q "docs/execution/roadmap.md"; then
+    ROADMAP=$(git show :docs/execution/roadmap.md 2>/dev/null || cat docs/execution/roadmap.md)
+
+    # Ensure task ID format (DEPYLER-XXXX)
+    if ! echo "$ROADMAP" | grep -qE 'DEPYLER-[0-9]{4}'; then
+        echo "⚠️  Warning: roadmap.md should use DEPYLER-XXXX task ID format"
+    fi
+
+    # Check for status markers
+    if ! echo "$ROADMAP" | grep -qE '\[[ x]\]'; then
+        echo "⚠️  Warning: roadmap.md should include [x] completion markers"
+    fi
+fi
+
+echo "🔧 Running PMAT quality analysis..."
+
+for file in $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.rs$'); do
+    echo "  Checking $file..."
+
+    # Skip target directory
+    if [[ "$file" == target/* ]]; then
+        continue
+    fi
+
+    # Complexity check
+    if command -v pmat &> /dev/null; then
+        pmat analyze complexity "$file" \
+            --max-cyclomatic 10 \
+            --max-cognitive 10 \
+            --fail-on-violation || {
+            echo "❌ Complexity violation in $file"
+            echo "Run: pmat refactor auto --file $file"
+            exit 1
+        }
+
+        # SATD check (zero tolerance)
+        pmat analyze satd "$file" --fail-on-violation || {
+            echo "❌ SATD violation in $file"
+            echo "Remove all TODO/FIXME/HACK comments"
+            exit 1
+        }
+    fi
+done
+
+# TDG Grade Check
+if command -v pmat &> /dev/null; then
+    echo "📊 Running TDG grade check..."
+    pmat tdg . --min-grade A- --fail-on-violation || {
+        echo "❌ BLOCKED: TDG grade below A- threshold"
+        echo "Run: pmat tdg . --include-components --top-files 5"
+        exit 1
+    }
+fi
+
+# Coverage check (cargo-llvm-cov)
+if command -v cargo-llvm-cov &> /dev/null; then
+    echo "📊 Running coverage check..."
+    COVERAGE=$(cargo llvm-cov --all-features --workspace --summary-only 2>/dev/null | grep -oP '\d+\.\d+%' | head -1 | sed 's/%//')
+    if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+        echo "❌ BLOCKED: Coverage $COVERAGE% below 80% threshold"
+        exit 1
+    fi
+fi
+
+# Clippy check
+echo "🔧 Running clippy..."
 cargo clippy --all-targets --all-features -- -D warnings || {
-    echo "❌ BLOCKED: Lint warnings found" 
+    echo "❌ BLOCKED: Clippy warnings found"
     exit 1
 }
 
-# GATE 5: Test coverage threshold
-cargo tarpaulin --min 70 --fail-under || {
-    echo "❌ BLOCKED: Coverage below 70%"
-    exit 1
-}
-
-echo "✅ All quality gates passed"
+echo "✅ All quality gates passed!"
 ```
 
 ### CI/CD Pipeline Enforcement
@@ -156,32 +434,39 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        
-      - name: Install tarpaulin
-        run: cargo install cargo-tarpaulin
-          
-      - name: GATE 1 - Basic Transpilation Function
+
+      - name: Install Quality Tools
         run: |
-          echo 'print("CI Test")' | timeout 10s cargo run --quiet -- transpile --stdin
-          
-      - name: GATE 2 - Complexity Check  
+          cargo install pmat --locked
+          cargo install cargo-llvm-cov --locked
+
+      - name: GATE 1 - TDG Grade Check
         run: |
-          cargo clippy --all-targets --all-features -- -D clippy::cognitive_complexity
-          
+          pmat tdg . --min-grade A- --fail-on-violation
+
+      - name: GATE 2 - Complexity Enforcement
+        run: |
+          pmat analyze complexity --max-cyclomatic 10 --max-cognitive 10 --fail-on-violation
+
       - name: GATE 3 - Zero SATD
         run: |
-          ! grep -r "TODO\|FIXME\|HACK" crates/ --include="*.rs"
-          
+          pmat analyze satd --fail-on-violation
+
       - name: GATE 4 - Lint Zero Tolerance
         run: |
           cargo clippy --all-targets --all-features -- -D warnings
-          
-      - name: GATE 5 - Coverage Gate
+
+      - name: GATE 5 - Coverage Gate (80% minimum)
         run: |
-          cargo tarpaulin --min 70 --fail-under
+          cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+          cargo llvm-cov report --fail-under-lines 80
+
+      - name: GATE 6 - All Tests Pass
+        run: |
+          cargo test --all-features --workspace
 ```
 
 ## The Make Lint Contract (Zero Warnings Allowed)
@@ -358,15 +643,47 @@ git status --ignored
 git push origin main
 ```
 
-## The Development Flow
+## The Development Flow (PMAT-Enforced)
 
+### MANDATORY: PMAT Quality at Every Step
 ```
-1. IDENTIFY Python feature to support
-2. WRITE property test first
-3. IMPLEMENT with <10 cognitive complexity
-4. VERIFY generated Rust compiles
-5. VALIDATE performance invariants
-6. COMMIT with quality gates passed
+1. BASELINE CHECK: Run `pmat quality-gate --fail-on-violation`
+2. LOCATE task in docs/execution/roadmap.md with ticket number
+3. VERIFY dependencies complete via roadmap
+4. WRITE property test FIRST (TDD mandatory)
+5. IMPLEMENT with <10 complexity (verified by `pmat analyze complexity`)
+6. VERIFY generated Rust compiles and runs correctly
+7. VALIDATE: Run `pmat quality-gate` before ANY commit
+8. COVERAGE: Ensure 80%+ via `cargo llvm-cov`
+9. COMMIT with ticket reference (only if ALL gates pass)
+```
+
+### MANDATORY TDD Protocol:
+```bash
+# STEP 1: Pre-development baseline
+pmat tdg . --min-grade A- --format=table
+pmat quality-gate --fail-on-violation --format=summary
+
+# STEP 2: Write failing test FIRST
+cargo test <new_test_name> -- --nocapture  # Should fail
+
+# STEP 3: Implement minimal code to pass
+# ... write code ...
+
+# STEP 4: Verify test passes
+cargo test <new_test_name> -- --nocapture  # Should pass
+
+# STEP 5: File-level verification
+pmat tdg <modified-file.rs> --include-components --min-grade B+
+pmat analyze complexity <modified-file.rs> --max-cyclomatic 10
+
+# STEP 6: Coverage verification
+cargo llvm-cov --html --open  # Verify new code is covered
+
+# STEP 7: Pre-commit validation (MANDATORY - BLOCKS COMMITS)
+pmat tdg . --min-grade A- --fail-on-violation
+pmat quality-gate --fail-on-violation --format=detailed
+cargo llvm-cov report --fail-under-lines 80
 ```
 
 ## Architecture Patterns

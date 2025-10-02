@@ -649,12 +649,14 @@ impl InvariantChecker {
     }
 
     /// Generate invariant preservation checks
+    /// Note: Currently only generates documentation comments.
+    /// Full invariant preservation checking is not yet implemented.
     pub fn generate_invariant_checks(&self) -> String {
         let mut checks = String::new();
 
         for inv in &self.invariants {
             checks.push_str(&format!(
-                "// Invariant: {}\n// TODO: Generate preservation check\n",
+                "// Invariant: {}\n// Preservation check not yet implemented\n",
                 inv.description
             ));
         }

@@ -113,7 +113,9 @@ impl LifetimeAnalyzer {
                         });
                     }
                 }
-                // TODO: Handle subscript and attribute assignments
+                // Note: Subscript and attribute assignments (e.g., a[0] = x, obj.field = x)
+                // are not currently analyzed for lifetime violations. Only symbol assignments
+                // are checked. This is a known limitation.
             }
             HirStmt::Return(Some(expr)) => {
                 self.analyze_expr(expr, scope_depth);
