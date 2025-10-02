@@ -14,13 +14,15 @@ use crate::RuchyConfig;
 /// Wrapper around the Ruchy interpreter with enhanced capabilities
 pub struct RuchyInterpreter {
     /// Configuration for interpreter behavior
+    #[allow(dead_code)]
     config: RuchyConfig,
-    
+
     /// Runtime context for variable bindings
     context: HashMap<String, String>,
-    
+
     /// Whether MCP integration is enabled
     #[cfg(feature = "interpreter")]
+    #[allow(dead_code)]
     mcp_enabled: bool,
 }
 

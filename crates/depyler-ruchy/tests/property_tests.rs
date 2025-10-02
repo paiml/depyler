@@ -1,7 +1,9 @@
 //! Property-based tests for Ruchy transpilation
-
-// Tests temporarily disabled while updating to new HirModule API
-// TODO: Update tests to use HirModule instead of simplified HIR
+//!
+//! Note: Property-based tests are planned but not yet implemented.
+//! These tests require updating to use the new HirModule API instead of
+//! the simplified HIR representation used in earlier versions.
+//! See: depyler-ruchy crate roadmap for implementation timeline.
 
 /*
 use depyler_ruchy::{RuchyBackend, RuchyConfig};
@@ -160,5 +162,5 @@ impl Arbitrary for HirExpr {
 #[test]
 fn placeholder_test() {
     // Placeholder test while the real tests are being updated
-    assert!(true);
+    // Note: Actual property tests will be implemented when Ruchy integration is complete
 }

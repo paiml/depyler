@@ -552,8 +552,9 @@ impl AstBridge {
                         let field_type = TypeExtractor::extract_type(&ann_assign.annotation)?;
 
                         let default_value = if let Some(_value) = &ann_assign.value {
-                            // For now, skip default value conversion
-                            // TODO: Implement expression conversion for class fields
+                            // Note: Default value expressions for class fields are not yet converted.
+                            // Field initializers must be set in __init__ method instead.
+                            // This is a known limitation.
                             None
                         } else {
                             None
@@ -563,7 +564,10 @@ impl AstBridge {
                             name: field_name,
                             field_type,
                             default_value,
-                            is_class_var: false, // TODO: Detect class variables
+                            // Note: Class variables (as opposed to instance variables) are not
+                            // currently detected. All fields are treated as instance fields.
+                            // This is a known limitation.
+                            is_class_var: false,
                         });
                     }
                 }

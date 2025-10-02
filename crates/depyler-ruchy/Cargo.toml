@@ -18,7 +18,7 @@ serde_json = "1.0"
 
 # Ruchy language integration - updated to v1.5.0 (self-hosting!)
 ruchy = { version = "1.5.0", optional = true }
-pmcp = { version = "1.2.2", optional = true }
+pmcp = { version = "1.6.0", optional = true }
 tokio = { version = "1.46", features = ["full"], optional = true }
 polars = { version = "0.35", optional = true }
 
@@ -53,9 +53,10 @@ validation = []
 dataframe = ["polars"]
 actor = ["tokio"]
 
-[[bench]]
-name = "ruchy_transpilation"
-harness = false
+# Note: Benchmark disabled temporarily - needs update for new HirModule API (v3.2.0)
+# [[bench]]
+# name = "ruchy_transpilation"
+# harness = false
 
 [lib]
 name = "depyler_ruchy"

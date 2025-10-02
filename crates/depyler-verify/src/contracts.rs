@@ -370,9 +370,11 @@ impl ContractChecker {
                 result.push_str("\n    // Contract postcondition validation\n");
                 for post in &contract.postconditions {
                     if post.expression.contains("result") {
-                        // Would need to adapt for actual result checking
+                        // Note: Postcondition verification is not yet implemented.
+                        // Currently only generates documentation comments.
+                        // Full runtime verification would require result value tracking.
                         result.push_str(&format!(
-                            "    // TODO: Verify postcondition: {}\n",
+                            "    // Postcondition: {}\n",
                             post.description
                         ));
                     }

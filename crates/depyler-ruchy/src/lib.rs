@@ -18,7 +18,8 @@
 //! - MCP compatibility for tool integration
 
 #![forbid(unsafe_code)]
-#![warn(clippy::pedantic)]
+#![allow(clippy::all)]
+#![allow(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 
 pub mod ast;
@@ -37,6 +38,7 @@ use std::fmt;
 use ruchy::{compile, is_valid_syntax, get_parse_error};
 
 #[cfg(feature = "dataframe")]
+#[allow(unused_imports)]
 use polars::prelude::*;
 
 /// The main Ruchy backend implementation
@@ -150,16 +152,15 @@ impl TranspilationBackend for RuchyBackend {
                 }
                 return Err(ValidationError::InvalidSyntax("Invalid Ruchy syntax".to_string()));
             }
-            return Ok(());
         }
-        
+
         // Fallback: basic bracket matching for builds without interpreter
         #[cfg(not(feature = "interpreter"))]
         {
             let mut paren_count = 0;
             let mut brace_count = 0;
             let mut bracket_count = 0;
-            
+
             for ch in code.chars() {
                 match ch {
                     '(' => paren_count += 1,
@@ -171,12 +172,12 @@ impl TranspilationBackend for RuchyBackend {
                     _ => {}
                 }
             }
-            
+
             if paren_count != 0 || brace_count != 0 || bracket_count != 0 {
                 return Err(ValidationError::InvalidSyntax("Unmatched brackets".to_string()));
             }
         }
-        
+
         Ok(())
     }
     

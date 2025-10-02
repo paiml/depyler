@@ -1,0 +1,162 @@
+#!/bin/bash
+# Depyler Pre-commit Quality Gates
+# Based on ruchy and paiml-mcp-agent-toolkit standards
+
+set -e
+
+echo "🔍 Depyler Quality Gates - Checking documentation synchronization..."
+
+# Documentation files that MUST be updated with code changes
+REQUIRED_DOCS=(
+    "docs/execution/roadmap.md"
+    "CHANGELOG.md"
+)
+
+# Check if any Rust/source files are being committed
+if git diff --cached --name-only | grep -qE '\.(rs)$'; then
+    echo "📝 Source changes detected - verifying documentation updates..."
+
+    # Ensure at least one documentation file is updated
+    DOC_UPDATED=false
+    for doc in "${REQUIRED_DOCS[@]}"; do
+        if git diff --cached --name-only | grep -q "$doc"; then
+            DOC_UPDATED=true
+            echo "✓ Found documentation update: $doc"
+            break
+        fi
+    done
+
+    if [ "$DOC_UPDATED" = false ]; then
+        echo "❌ ERROR: Code changes require documentation updates!"
+        echo "📋 Must update at least one of:"
+        for doc in "${REQUIRED_DOCS[@]}"; do
+            echo "   - $doc"
+        done
+        echo ""
+        echo "💡 Quick fix:"
+        echo "   1. Update docs/execution/roadmap.md with task status"
+        echo "   2. Update CHANGELOG.md with feature/fix"
+        echo ""
+        echo "🎯 Toyota Way: Documentation synchronization ensures quality at source"
+        exit 1
+    fi
+fi
+
+# Verify roadmap.md structure
+if git diff --cached --name-only | grep -q "docs/execution/roadmap.md"; then
+    # Check for task IDs and completion markers
+    ROADMAP=$(git show :docs/execution/roadmap.md 2>/dev/null || cat docs/execution/roadmap.md)
+
+    # Ensure task ID format (DEPYLER-XXXX)
+    if ! echo "$ROADMAP" | grep -qE 'DEPYLER-[0-9]{4}'; then
+        echo "⚠️  Warning: roadmap.md should use DEPYLER-XXXX task ID format"
+    fi
+
+    # Check for status markers
+    if ! echo "$ROADMAP" | grep -qE '\[[ x]\]'; then
+        echo "⚠️  Warning: roadmap.md should include [x] completion markers"
+    fi
+
+    echo "✓ Roadmap.md structure validated"
+fi
+
+# Run PMAT quality checks on staged files (Toyota Way Jidoka)
+echo "🔧 Running PMAT quality analysis (Toyota Way Jidoka)..."
+
+QUALITY_VIOLATIONS=0
+
+for file in $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.rs$'); do
+    echo "  Checking $file..."
+
+    # Skip target directory and test files (production code only)
+    if [[ "$file" == target/* ]] || [[ "$file" == **/tests/* ]] || [[ "$file" == *_test.rs ]]; then
+        echo "    ⊘ Skipped (target/test file)"
+        continue
+    fi
+
+    # Complexity check using PMAT
+    if command -v pmat &> /dev/null; then
+        echo "    Running complexity analysis..."
+        if ! pmat analyze complexity "$file" --max-cyclomatic 10 --max-cognitive 10 --fail-on-violation &>/dev/null; then
+            echo "    ❌ Complexity violation in $file (exceeds Toyota Way standards: ≤10)"
+            echo "    🔧 Fix: pmat refactor auto --file $file"
+            QUALITY_VIOLATIONS=$((QUALITY_VIOLATIONS + 1))
+        else
+            echo "    ✓ Complexity check passed (≤10)"
+        fi
+
+        # SATD check (zero tolerance)
+        echo "    Running SATD analysis..."
+        if ! pmat analyze satd "$file" --fail-on-violation &>/dev/null; then
+            echo "    ❌ SATD violation in $file (zero tolerance policy)"
+            echo "    🔧 Fix: Remove all TODO/FIXME/HACK comments"
+            QUALITY_VIOLATIONS=$((QUALITY_VIOLATIONS + 1))
+        else
+            echo "    ✓ SATD check passed (zero debt)"
+        fi
+    else
+        echo "    ⚠️  PMAT binary not found, skipping quality checks"
+        echo "    💡 Install: cargo install pmat"
+    fi
+done
+
+# TDG Grade Check (if PMAT available)
+if command -v pmat &> /dev/null; then
+    echo "📊 Running TDG grade check..."
+    if pmat tdg . --min-grade A- --fail-on-violation &>/dev/null; then
+        echo "  ✓ TDG grade A- or higher achieved"
+    else
+        echo "  ❌ BLOCKED: TDG grade below A- threshold (85 points)"
+        echo "  🔧 Fix: pmat tdg . --include-components --top-files 5"
+        QUALITY_VIOLATIONS=$((QUALITY_VIOLATIONS + 1))
+    fi
+fi
+
+# Check for Rust linting if we have Rust files
+if git diff --cached --name-only | grep -qE '\.rs$'; then
+    echo "🔧 Running Rust linting..."
+    if cargo clippy --quiet --all-targets --all-features -- -D warnings &>/dev/null; then
+        echo "  ✓ Clippy checks passed (zero warnings)"
+    else
+        echo "  ❌ Clippy violations found"
+        echo "  🔧 Fix: cargo clippy --fix && cargo fmt"
+        QUALITY_VIOLATIONS=$((QUALITY_VIOLATIONS + 1))
+    fi
+fi
+
+# Coverage check (cargo-llvm-cov) - only if available
+if command -v cargo-llvm-cov &> /dev/null; then
+    echo "📊 Running coverage check..."
+    COVERAGE=$(cargo llvm-cov --all-features --workspace --summary-only 2>/dev/null | grep -oP '\d+\.\d+%' | head -1 | sed 's/%//' || echo "0")
+    if (( $(echo "$COVERAGE >= 80" | bc -l 2>/dev/null || echo "0") )); then
+        echo "  ✓ Coverage check passed ($COVERAGE% ≥ 80%)"
+    else
+        echo "  ⚠️  Coverage $COVERAGE% below 80% threshold"
+        echo "  💡 This is a warning - add tests to improve coverage"
+        # Not blocking for now, but logged as warning
+    fi
+else
+    echo "  ⚠️  cargo-llvm-cov not found, skipping coverage check"
+    echo "  💡 Install: cargo install cargo-llvm-cov"
+fi
+
+# Summary
+if [ $QUALITY_VIOLATIONS -gt 0 ]; then
+    echo ""
+    echo "❌ Pre-commit quality gates FAILED!"
+    echo "   Found $QUALITY_VIOLATIONS quality violations"
+    echo "   🎯 Toyota Way: Stop the line, fix quality at source"
+    echo ""
+    echo "🔧 Quick fixes:"
+    echo "   cargo fmt              # Auto-format code"
+    echo "   cargo clippy --fix     # Auto-fix simple issues"
+    echo "   pmat quality-gate      # Run comprehensive quality analysis"
+    exit 1
+fi
+
+echo ""
+echo "✅ All pre-commit quality gates passed!"
+echo "   🎯 Toyota Way: Quality built-in, documentation synchronized"
+echo "   📝 Documentation updates verified"
+echo "   🔧 Code quality standards maintained (≤10 complexity, zero SATD)"
+echo "   ✓ Ready for commit"

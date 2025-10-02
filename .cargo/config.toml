@@ -31,3 +31,21 @@ panic = "abort"
 [env]
 # Disable colored output in CI environments
 CARGO_TERM_COLOR = { value = "always", force = true }
+
+# Cargo aliases for common tasks
+[alias]
+# Two-phase coverage workflow (production pattern)
+cov = "llvm-cov --no-report nextest"
+cov-test = "llvm-cov --no-report test --workspace --all-features"
+cov-report = "llvm-cov report --html --open"
+cov-lcov = "llvm-cov report --lcov --output-path lcov.info"
+cov-summary = "llvm-cov report --summary-only"
+cov-clean = "llvm-cov clean --workspace"
+
+# Combined workflow (for quick local dev)
+cov-all = "llvm-cov nextest --all-features --html --open"
+
+# Quality shortcuts
+q = "clippy --all-targets --all-features -- -D warnings"
+qf = "fmt --all -- --check"
+qt = "test --workspace --all-features"

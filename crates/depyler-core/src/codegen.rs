@@ -424,6 +424,268 @@ fn stmt_to_rust_tokens_with_scope(
     }
 }
 
+/// Convert binary expression to Rust tokens with special operator handling
+/// Complexity: ~6-7 (within ≤10 target)
+fn binary_expr_to_rust_tokens(
+    op: &BinOp,
+    left: &HirExpr,
+    right: &HirExpr,
+) -> Result<proc_macro2::TokenStream> {
+    let left_tokens = expr_to_rust_tokens(left)?;
+    let right_tokens = expr_to_rust_tokens(right)?;
+
+    // Special handling for specific operators
+    match op {
+        BinOp::Sub if is_len_call(left) => {
+            // Use saturating_sub to prevent underflow when subtracting from array length
+            Ok(quote! { #left_tokens.saturating_sub(#right_tokens) })
+        }
+        BinOp::FloorDiv => {
+            // Python floor division semantics
+            // For now, assume numeric types and use the integer floor division formula
+            Ok(quote! {
+                {
+                    let a = #left_tokens;
+                    let b = #right_tokens;
+                    let q = a / b;
+                    let r = a % b;
+                    if (r != 0) && ((r < 0) != (b < 0)) { q - 1 } else { q }
+                }
+            })
+        }
+        _ => {
+            let op_tokens = binop_to_rust_tokens(op);
+            Ok(quote! { (#left_tokens #op_tokens #right_tokens) })
+        }
+    }
+}
+
+/// Convert function call expression to Rust tokens
+/// Complexity: 1 (within ≤10 target)
+fn call_expr_to_rust_tokens(func: &str, args: &[HirExpr]) -> Result<proc_macro2::TokenStream> {
+    let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+    let arg_tokens: Vec<_> = args
+        .iter()
+        .map(expr_to_rust_tokens)
+        .collect::<Result<Vec<_>>>()?;
+    Ok(quote! { #func_ident(#(#arg_tokens),*) })
+}
+
+/// Convert list literal to Rust vec! macro
+/// Complexity: 1 (within ≤10 target)
+fn list_literal_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStream> {
+    let item_tokens: Vec<_> = items
+        .iter()
+        .map(expr_to_rust_tokens)
+        .collect::<Result<Vec<_>>>()?;
+    Ok(quote! { vec![#(#item_tokens),*] })
+}
+
+/// Convert dict literal to Rust HashMap
+/// Complexity: 2 (within ≤10 target)
+fn dict_literal_to_rust_tokens(items: &[(HirExpr, HirExpr)]) -> Result<proc_macro2::TokenStream> {
+    let mut entries = Vec::new();
+    for (key, value) in items {
+        let key_tokens = expr_to_rust_tokens(key)?;
+        let value_tokens = expr_to_rust_tokens(value)?;
+        entries.push(quote! { (#key_tokens, #value_tokens) });
+    }
+    Ok(quote! {
+        {
+            let mut map = HashMap::new();
+            #(map.insert #entries;)*
+            map
+        }
+    })
+}
+
+/// Convert tuple literal to Rust tuple
+/// Complexity: 1 (within ≤10 target)
+fn tuple_literal_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStream> {
+    let item_tokens: Vec<_> = items
+        .iter()
+        .map(expr_to_rust_tokens)
+        .collect::<Result<Vec<_>>>()?;
+    Ok(quote! { (#(#item_tokens),*) })
+}
+
+/// Convert borrow expression to Rust reference
+/// Complexity: 2 (if-else, within ≤10 target)
+fn borrow_expr_to_rust_tokens(expr: &HirExpr, mutable: bool) -> Result<proc_macro2::TokenStream> {
+    let expr_tokens = expr_to_rust_tokens(expr)?;
+    if mutable {
+        Ok(quote! { &mut #expr_tokens })
+    } else {
+        Ok(quote! { &#expr_tokens })
+    }
+}
+
+/// Convert method call expression to Rust method call
+/// Complexity: 1 (within ≤10 target)
+fn method_call_to_rust_tokens(
+    object: &HirExpr,
+    method: &str,
+    args: &[HirExpr],
+) -> Result<proc_macro2::TokenStream> {
+    let obj_tokens = expr_to_rust_tokens(object)?;
+    let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+    let arg_tokens: Vec<_> = args
+        .iter()
+        .map(expr_to_rust_tokens)
+        .collect::<Result<Vec<_>>>()?;
+    Ok(quote! { #obj_tokens.#method_ident(#(#arg_tokens),*) })
+}
+
+/// Convert slice expression to Rust slice notation
+/// Complexity: 5 (match arms, within ≤10 target)
+fn slice_expr_to_rust_tokens(
+    base: &HirExpr,
+    start: &Option<Box<HirExpr>>,
+    stop: &Option<Box<HirExpr>>,
+    step: &Option<Box<HirExpr>>,
+) -> Result<proc_macro2::TokenStream> {
+    let base_tokens = expr_to_rust_tokens(base)?;
+    // Simple codegen - just use slice notation where possible
+    match (start, stop, step) {
+        (None, None, None) => Ok(quote! { #base_tokens.clone() }),
+        (Some(start), Some(stop), None) => {
+            let start_tokens = expr_to_rust_tokens(start)?;
+            let stop_tokens = expr_to_rust_tokens(stop)?;
+            Ok(quote! { #base_tokens[#start_tokens..#stop_tokens].to_vec() })
+        }
+        (Some(start), None, None) => {
+            let start_tokens = expr_to_rust_tokens(start)?;
+            Ok(quote! { #base_tokens[#start_tokens..].to_vec() })
+        }
+        (None, Some(stop), None) => {
+            let stop_tokens = expr_to_rust_tokens(stop)?;
+            Ok(quote! { #base_tokens[..#stop_tokens].to_vec() })
+        }
+        _ => {
+            // For complex cases with step, fall back to method call
+            Ok(quote! { slice_complex(#base_tokens) })
+        }
+    }
+}
+
+/// Convert list comprehension to Rust iterator chain
+/// Complexity: 2 (if-else for condition, within ≤10 target)
+fn list_comp_to_rust_tokens(
+    element: &HirExpr,
+    target: &str,
+    iter: &HirExpr,
+    condition: &Option<Box<HirExpr>>,
+) -> Result<proc_macro2::TokenStream> {
+    let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+    let iter_tokens = expr_to_rust_tokens(iter)?;
+    let element_tokens = expr_to_rust_tokens(element)?;
+
+    if let Some(cond) = condition {
+        // With condition: iter().filter().map().collect()
+        let cond_tokens = expr_to_rust_tokens(cond)?;
+        Ok(quote! {
+            #iter_tokens
+                .into_iter()
+                .filter(|#target_ident| #cond_tokens)
+                .map(|#target_ident| #element_tokens)
+                .collect::<Vec<_>>()
+        })
+    } else {
+        // Without condition: iter().map().collect()
+        Ok(quote! {
+            #iter_tokens
+                .into_iter()
+                .map(|#target_ident| #element_tokens)
+                .collect::<Vec<_>>()
+        })
+    }
+}
+
+/// Convert lambda expression to Rust closure
+/// Complexity: 2 (if-else for params, within ≤10 target)
+fn lambda_to_rust_tokens(params: &[String], body: &HirExpr) -> Result<proc_macro2::TokenStream> {
+    // Convert parameters to identifiers
+    let param_idents: Vec<proc_macro2::Ident> = params
+        .iter()
+        .map(|p| quote::format_ident!("{}", p))
+        .collect();
+
+    // Convert body
+    let body_tokens = expr_to_rust_tokens(body)?;
+
+    // Generate closure
+    if params.is_empty() {
+        Ok(quote! { || #body_tokens })
+    } else {
+        Ok(quote! { |#(#param_idents),*| #body_tokens })
+    }
+}
+
+/// Convert set literal to Rust HashSet
+/// Complexity: 1 (within ≤10 target)
+fn set_literal_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStream> {
+    let item_tokens: Vec<_> = items
+        .iter()
+        .map(expr_to_rust_tokens)
+        .collect::<Result<Vec<_>>>()?;
+    Ok(quote! {
+        {
+            let mut set = HashSet::new();
+            #(set.insert(#item_tokens);)*
+            set
+        }
+    })
+}
+
+/// Convert frozenset literal to Rust Arc<HashSet>
+/// Complexity: 1 (within ≤10 target)
+fn frozen_set_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStream> {
+    let item_tokens: Vec<_> = items
+        .iter()
+        .map(expr_to_rust_tokens)
+        .collect::<Result<Vec<_>>>()?;
+    Ok(quote! {
+        {
+            let mut set = HashSet::new();
+            #(set.insert(#item_tokens);)*
+            std::sync::Arc::new(set)
+        }
+    })
+}
+
+/// Convert set comprehension to Rust iterator chain
+/// Complexity: 2 (if-else for condition, within ≤10 target)
+fn set_comp_to_rust_tokens(
+    element: &HirExpr,
+    target: &str,
+    iter: &HirExpr,
+    condition: &Option<Box<HirExpr>>,
+) -> Result<proc_macro2::TokenStream> {
+    let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+    let iter_tokens = expr_to_rust_tokens(iter)?;
+    let element_tokens = expr_to_rust_tokens(element)?;
+
+    if let Some(cond) = condition {
+        // With condition: iter().filter().map().collect()
+        let cond_tokens = expr_to_rust_tokens(cond)?;
+        Ok(quote! {
+            #iter_tokens
+                .into_iter()
+                .filter(|#target_ident| #cond_tokens)
+                .map(|#target_ident| #element_tokens)
+                .collect::<HashSet<_>>()
+        })
+    } else {
+        // Without condition: iter().map().collect()
+        Ok(quote! {
+            #iter_tokens
+                .into_iter()
+                .map(|#target_ident| #element_tokens)
+                .collect::<HashSet<_>>()
+        })
+    }
+}
+
 fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
     match expr {
         HirExpr::Literal(lit) => literal_to_rust_tokens(lit),
@@ -431,240 +693,41 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
             Ok(quote! { #ident })
         }
-        HirExpr::Binary { op, left, right } => {
-            let left_tokens = expr_to_rust_tokens(left)?;
-            let right_tokens = expr_to_rust_tokens(right)?;
-
-            // Special handling for specific operators
-            match op {
-                BinOp::Sub if is_len_call(left) => {
-                    // Use saturating_sub to prevent underflow when subtracting from array length
-                    Ok(quote! { #left_tokens.saturating_sub(#right_tokens) })
-                }
-                BinOp::FloorDiv => {
-                    // Python floor division semantics
-                    // For now, assume numeric types and use the integer floor division formula
-                    Ok(quote! {
-                        {
-                            let a = #left_tokens;
-                            let b = #right_tokens;
-                            let q = a / b;
-                            let r = a % b;
-                            if (r != 0) && ((r < 0) != (b < 0)) { q - 1 } else { q }
-                        }
-                    })
-                }
-                _ => {
-                    let op_tokens = binop_to_rust_tokens(op);
-                    Ok(quote! { (#left_tokens #op_tokens #right_tokens) })
-                }
-            }
-        }
-        HirExpr::Unary { op, operand } => {
+        HirExpr::Binary { op, left, right } => binary_expr_to_rust_tokens(op, left, right),
+        HirExpr::Unary { op, operand} => {
             let operand_tokens = expr_to_rust_tokens(operand)?;
             let op_tokens = unaryop_to_rust_tokens(op);
             Ok(quote! { (#op_tokens #operand_tokens) })
         }
-        HirExpr::Call { func, args } => {
-            let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
-            let arg_tokens: Vec<_> = args
-                .iter()
-                .map(expr_to_rust_tokens)
-                .collect::<Result<Vec<_>>>()?;
-            Ok(quote! { #func_ident(#(#arg_tokens),*) })
-        }
+        HirExpr::Call { func, args } => call_expr_to_rust_tokens(func, args),
         HirExpr::Index { base, index } => {
             let base_tokens = expr_to_rust_tokens(base)?;
             let index_tokens = expr_to_rust_tokens(index)?;
             Ok(quote! { #base_tokens[#index_tokens] })
         }
-        HirExpr::List(items) => {
-            let item_tokens: Vec<_> = items
-                .iter()
-                .map(expr_to_rust_tokens)
-                .collect::<Result<Vec<_>>>()?;
-            Ok(quote! { vec![#(#item_tokens),*] })
-        }
-        HirExpr::Dict(items) => {
-            let mut entries = Vec::new();
-            for (key, value) in items {
-                let key_tokens = expr_to_rust_tokens(key)?;
-                let value_tokens = expr_to_rust_tokens(value)?;
-                entries.push(quote! { (#key_tokens, #value_tokens) });
-            }
-            Ok(quote! {
-                {
-                    let mut map = HashMap::new();
-                    #(map.insert #entries;)*
-                    map
-                }
-            })
-        }
-        HirExpr::Tuple(items) => {
-            let item_tokens: Vec<_> = items
-                .iter()
-                .map(expr_to_rust_tokens)
-                .collect::<Result<Vec<_>>>()?;
-            Ok(quote! { (#(#item_tokens),*) })
-        }
+        HirExpr::List(items) => list_literal_to_rust_tokens(items),
+        HirExpr::Dict(items) => dict_literal_to_rust_tokens(items),
+        HirExpr::Tuple(items) => tuple_literal_to_rust_tokens(items),
         HirExpr::Attribute { value, attr } => {
             let value_tokens = expr_to_rust_tokens(value)?;
             let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
             Ok(quote! { #value_tokens.#attr_ident })
         }
-        HirExpr::Borrow { expr, mutable } => {
-            let expr_tokens = expr_to_rust_tokens(expr)?;
-            if *mutable {
-                Ok(quote! { &mut #expr_tokens })
-            } else {
-                Ok(quote! { &#expr_tokens })
-            }
-        }
-        HirExpr::MethodCall {
-            object,
-            method,
-            args,
-        } => {
-            let obj_tokens = expr_to_rust_tokens(object)?;
-            let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
-            let arg_tokens: Vec<_> = args
-                .iter()
-                .map(expr_to_rust_tokens)
-                .collect::<Result<Vec<_>>>()?;
-            Ok(quote! { #obj_tokens.#method_ident(#(#arg_tokens),*) })
-        }
-        HirExpr::Slice {
-            base,
-            start,
-            stop,
-            step,
-        } => {
-            let base_tokens = expr_to_rust_tokens(base)?;
-            // Simple codegen - just use slice notation where possible
-            match (start, stop, step) {
-                (None, None, None) => Ok(quote! { #base_tokens.clone() }),
-                (Some(start), Some(stop), None) => {
-                    let start_tokens = expr_to_rust_tokens(start)?;
-                    let stop_tokens = expr_to_rust_tokens(stop)?;
-                    Ok(quote! { #base_tokens[#start_tokens..#stop_tokens].to_vec() })
-                }
-                (Some(start), None, None) => {
-                    let start_tokens = expr_to_rust_tokens(start)?;
-                    Ok(quote! { #base_tokens[#start_tokens..].to_vec() })
-                }
-                (None, Some(stop), None) => {
-                    let stop_tokens = expr_to_rust_tokens(stop)?;
-                    Ok(quote! { #base_tokens[..#stop_tokens].to_vec() })
-                }
-                _ => {
-                    // For complex cases with step, fall back to method call
-                    Ok(quote! { slice_complex(#base_tokens) })
-                }
-            }
-        }
-        HirExpr::ListComp {
-            element,
-            target,
-            iter,
-            condition,
-        } => {
-            let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
-            let iter_tokens = expr_to_rust_tokens(iter)?;
-            let element_tokens = expr_to_rust_tokens(element)?;
-
-            if let Some(cond) = condition {
-                // With condition: iter().filter().map().collect()
-                let cond_tokens = expr_to_rust_tokens(cond)?;
-                Ok(quote! {
-                    #iter_tokens
-                        .into_iter()
-                        .filter(|#target_ident| #cond_tokens)
-                        .map(|#target_ident| #element_tokens)
-                        .collect::<Vec<_>>()
-                })
-            } else {
-                // Without condition: iter().map().collect()
-                Ok(quote! {
-                    #iter_tokens
-                        .into_iter()
-                        .map(|#target_ident| #element_tokens)
-                        .collect::<Vec<_>>()
-                })
-            }
-        }
-        HirExpr::Lambda { params, body } => {
-            // Convert parameters to identifiers
-            let param_idents: Vec<proc_macro2::Ident> = params
-                .iter()
-                .map(|p| quote::format_ident!("{}", p))
-                .collect();
-
-            // Convert body
-            let body_tokens = expr_to_rust_tokens(body)?;
-
-            // Generate closure
-            if params.is_empty() {
-                Ok(quote! { || #body_tokens })
-            } else {
-                Ok(quote! { |#(#param_idents),*| #body_tokens })
-            }
-        }
-        HirExpr::Set(items) => {
-            let item_tokens: Vec<_> = items
-                .iter()
-                .map(expr_to_rust_tokens)
-                .collect::<Result<Vec<_>>>()?;
-            Ok(quote! {
-                {
-                    let mut set = HashSet::new();
-                    #(set.insert(#item_tokens);)*
-                    set
-                }
-            })
-        }
-        HirExpr::FrozenSet(items) => {
-            let item_tokens: Vec<_> = items
-                .iter()
-                .map(expr_to_rust_tokens)
-                .collect::<Result<Vec<_>>>()?;
-            Ok(quote! {
-                {
-                    let mut set = HashSet::new();
-                    #(set.insert(#item_tokens);)*
-                    std::sync::Arc::new(set)
-                }
-            })
-        }
-        HirExpr::SetComp {
-            element,
-            target,
-            iter,
-            condition,
-        } => {
-            let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
-            let iter_tokens = expr_to_rust_tokens(iter)?;
-            let element_tokens = expr_to_rust_tokens(element)?;
-
-            if let Some(cond) = condition {
-                // With condition: iter().filter().map().collect()
-                let cond_tokens = expr_to_rust_tokens(cond)?;
-                Ok(quote! {
-                    #iter_tokens
-                        .into_iter()
-                        .filter(|#target_ident| #cond_tokens)
-                        .map(|#target_ident| #element_tokens)
-                        .collect::<HashSet<_>>()
-                })
-            } else {
-                // Without condition: iter().map().collect()
-                Ok(quote! {
-                    #iter_tokens
-                        .into_iter()
-                        .map(|#target_ident| #element_tokens)
-                        .collect::<HashSet<_>>()
-                })
-            }
-        }
+        HirExpr::Borrow { expr, mutable } => borrow_expr_to_rust_tokens(expr, *mutable),
+        HirExpr::MethodCall { object, method, args } =>
+            method_call_to_rust_tokens(object, method, args),
+        HirExpr::Slice { base, start, stop, step } =>
+            slice_expr_to_rust_tokens(base, start, stop, step),
+        HirExpr::ListComp { element, target, iter, condition } =>
+            list_comp_to_rust_tokens(element, target, iter, condition),
+        HirExpr::Lambda { params, body } =>
+            lambda_to_rust_tokens(params, body),
+        HirExpr::Set(items) =>
+            set_literal_to_rust_tokens(items),
+        HirExpr::FrozenSet(items) =>
+            frozen_set_to_rust_tokens(items),
+        HirExpr::SetComp { element, target, iter, condition } =>
+            set_comp_to_rust_tokens(element, target, iter, condition),
         HirExpr::Await { value } => {
             let value_tokens = expr_to_rust_tokens(value)?;
             Ok(quote! { #value_tokens.await })
