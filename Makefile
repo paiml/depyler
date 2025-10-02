@@ -67,12 +67,14 @@ playground-fast: ## Start playground quickly (skip builds if possible)
 	cd playground && npm run preview
 
 # Main test target - fast tests with coverage report
-test: ## Run Rust tests with coverage
+test: ## Run Rust tests with coverage (two-phase pattern)
 	@echo "Running Rust tests with coverage..."
-	$(CARGO) llvm-cov --workspace --lib --summary-only --fail-under-functions $(COVERAGE_THRESHOLD) || true
+	@$(CARGO) llvm-cov clean --workspace
+	@$(CARGO) llvm-cov --no-report test --workspace --lib --all-features
 	@echo ""
 	@echo "=== Coverage Summary ==="
-	$(CARGO) llvm-cov --workspace --lib --summary-only
+	@$(CARGO) llvm-cov report --summary-only
+	@$(CARGO) llvm-cov report --summary-only --fail-under-functions $(COVERAGE_THRESHOLD) || true
 
 test-full: test test-frontend ## Run all tests (Rust + frontend)
 
@@ -438,30 +440,59 @@ security-audit: ## Run security audit
 
 ##@ Coverage
 
-coverage: ## Generate coverage report
-	@echo "Generating coverage report..."
-	$(CARGO) llvm-cov --workspace --lcov --output-path lcov.info
-	$(CARGO) llvm-cov --workspace --html
-	$(CARGO) llvm-cov --workspace --summary-only
+coverage: ## Generate coverage report (pforge pattern)
+	@echo "📊 Running comprehensive test coverage analysis..."
+	@echo "🔍 Checking for cargo-llvm-cov and cargo-nextest..."
+	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
+	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
+	@echo "🧹 Cleaning old coverage data..."
+	@$(CARGO) llvm-cov clean --workspace
+	@mkdir -p target/coverage
+	@echo "⚙️  Temporarily disabling global cargo config (linker may break coverage)..."
+	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
+	@echo "🧪 Phase 1: Running tests with instrumentation (no report)..."
+	@$(CARGO) llvm-cov --no-report nextest --no-tests=warn --all-features --workspace
+	@echo "📊 Phase 2: Generating coverage reports..."
+	@$(CARGO) llvm-cov report --html --output-dir target/coverage/html
+	@$(CARGO) llvm-cov report --lcov --output-path target/coverage/lcov.info
+	@echo "⚙️  Restoring global cargo config..."
+	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
+	@echo ""
+	@echo "📊 Coverage Summary:"
+	@echo "=================="
+	@$(CARGO) llvm-cov report --summary-only
+	@echo ""
+	@echo "💡 COVERAGE INSIGHTS:"
+	@echo "- HTML report: target/coverage/html/index.html"
+	@echo "- LCOV file: target/coverage/lcov.info"
 
-coverage-check: ## Check coverage threshold
+coverage-summary: ## Display coverage summary (run 'make coverage' first)
+	@echo "📊 Coverage Summary:"
+	@echo "=================="
+	@$(CARGO) llvm-cov report --summary-only || echo "⚠️  Run 'make coverage' first to generate coverage data"
+
+coverage-open: ## Open HTML coverage report in browser (run 'make coverage' first)
+	@echo "🌐 Opening coverage report in browser..."
+	@if [ ! -f target/coverage/html/index.html ]; then \
+		echo "⚠️  Coverage report not found. Run 'make coverage' first."; \
+		exit 1; \
+	fi
+	@if command -v xdg-open > /dev/null; then \
+		xdg-open target/coverage/html/index.html; \
+	elif command -v open > /dev/null; then \
+		open target/coverage/html/index.html; \
+	else \
+		echo "💡 Cannot auto-open. View report at: target/coverage/html/index.html"; \
+	fi
+
+coverage-check: ## Check coverage threshold (assumes coverage already collected)
 	@echo "Checking coverage threshold..."
-	@COVERAGE=$$($(CARGO) llvm-cov --workspace --summary-only | grep "TOTAL" | awk '{print $$4}' | sed 's/%//'); \
+	@COVERAGE=$$($(CARGO) llvm-cov report --summary-only | grep "TOTAL" | awk '{print $$4}' | sed 's/%//'); \
 	if [ "$$COVERAGE" -lt "$(COVERAGE_THRESHOLD)" ]; then \
 		echo "❌ Coverage $$COVERAGE% below threshold $(COVERAGE_THRESHOLD)%"; \
 		exit 1; \
 	else \
 		echo "✅ Coverage $$COVERAGE% meets threshold $(COVERAGE_THRESHOLD)%"; \
-	fi
-
-coverage-open: coverage ## Generate and open coverage report
-	@echo "Opening coverage report..."
-	@if command -v xdg-open > /dev/null; then \
-		xdg-open target/llvm-cov/html/index.html; \
-	elif command -v open > /dev/null; then \
-		open target/llvm-cov/html/index.html; \
-	else \
-		echo "Coverage report generated at: target/llvm-cov/html/index.html"; \
 	fi
 
 ##@ Test Data Management
@@ -536,7 +567,7 @@ quality-report: ## Generate comprehensive quality report
 	$(CARGO) test $(TEST_FLAGS) 2>&1 | tee -a quality_report.txt
 	@echo "" >> quality_report.txt
 	@echo "=== Coverage ===" >> quality_report.txt
-	$(CARGO) llvm-cov --workspace --summary-only 2>&1 | tee -a quality_report.txt
+	$(CARGO) llvm-cov report --summary-only 2>&1 | tee -a quality_report.txt
 	@echo "" >> quality_report.txt
 	@echo "=== Clippy Results ===" >> quality_report.txt
 	$(CARGO) clippy $(TEST_FLAGS) 2>&1 | tee -a quality_report.txt

@@ -19,7 +19,7 @@ max_cyclomatic_complexity = 15
 required_documentation_coverage = 100.0
 
 [workspace.package]
-version = "3.1.0"
+version = "3.2.0"
 edition = "2021"
 authors = ["Depyler Contributors"]
 license = "MIT OR Apache-2.0"
@@ -77,7 +77,7 @@ tokio-util = "0.7"
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
 
 # MCP SDK
-pmcp = { version = "1.2.1", features = ["validation", "websocket", "http"] }
+pmcp = { version = "1.6.0", features = ["validation", "websocket", "http"] }
 pmat = { version = "2.3.0", features = ["rust-ast", "syn"] }
 async-trait = "0.1"
 url = "2.5"

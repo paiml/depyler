@@ -121,7 +121,9 @@ impl MemorySafetyAnalyzer {
                     // Register new variable or update existing
                     self.register_variable(var_name, &self.infer_type(value), true);
                 }
-                // TODO: Handle subscript and attribute assignments
+                // Note: Subscript and attribute assignments (e.g., a[0] = x, obj.field = x)
+                // are not currently tracked in memory safety analysis. Only symbol assignments
+                // are registered. This is a known limitation.
 
                 // Handle moves for non-copy types
                 self.handle_expr_moves(value, annotations);

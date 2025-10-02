@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use pmcp::{Error, RequestHandlerExtra, Result, Server, ServerCapabilities, ToolCapabilities, ToolHandler};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
@@ -25,7 +25,7 @@ pub struct DepylerMcpServer {
 
 /// Server state for tracking transpilation projects and statistics
 #[derive(Debug)]
-struct ServerState {
+pub struct ServerState {
     /// Active transpilation projects
     projects: std::collections::HashMap<String, ProjectInfo>,
     
@@ -629,6 +629,12 @@ impl ToolHandler for GetTranspilationStatusTool {
 /// Tool for verifying generated Rust code
 pub struct VerifyRustCodeTool;
 
+impl Default for VerifyRustCodeTool {
+    fn default() -> Self {
+        Self
+    }
+}
+
 impl VerifyRustCodeTool {
     pub fn new() -> Self {
         Self
@@ -686,6 +692,12 @@ impl ToolHandler for VerifyRustCodeTool {
 
 /// Tool for analyzing Python code compatibility with Depyler
 pub struct AnalyzePythonCompatibilityTool;
+
+impl Default for AnalyzePythonCompatibilityTool {
+    fn default() -> Self {
+        Self
+    }
+}
 
 impl AnalyzePythonCompatibilityTool {
     pub fn new() -> Self {
@@ -746,6 +758,7 @@ impl ToolHandler for AnalyzePythonCompatibilityTool {
 // Helper functions
 
 /// Find all Python files in a directory
+#[allow(clippy::result_large_err)]
 fn find_python_files(dir: &PathBuf, recursive: bool, files: &mut Vec<PathBuf>) -> Result<()> {
     let entries = std::fs::read_dir(dir)
         .map_err(|e| Error::internal(format!("Failed to read directory: {}", e)))?;
@@ -765,7 +778,7 @@ fn find_python_files(dir: &PathBuf, recursive: bool, files: &mut Vec<PathBuf>) -
 }
 
 /// Verify Rust code with different levels
-async fn verify_rust_code(rust_file: &PathBuf, level: &str) -> Result<Value> {
+async fn verify_rust_code(rust_file: &Path, level: &str) -> Result<Value> {
     let start_time = std::time::Instant::now();
     let mut messages = Vec::new();
     let mut success = true;
@@ -774,7 +787,7 @@ async fn verify_rust_code(rust_file: &PathBuf, level: &str) -> Result<Value> {
         "basic" => {
             // Basic syntax check
             let output = std::process::Command::new("rustc")
-                .args(&["--parse-only", &rust_file.to_string_lossy()])
+                .args(["--parse-only", &rust_file.to_string_lossy()])
                 .output()
                 .map_err(|e| Error::internal(format!("Failed to run rustc: {}", e)))?;
             
@@ -786,7 +799,7 @@ async fn verify_rust_code(rust_file: &PathBuf, level: &str) -> Result<Value> {
         "full" => {
             // Full compilation check
             let output = std::process::Command::new("rustc")
-                .args(&["--check", &rust_file.to_string_lossy()])
+                .args(["--check", &rust_file.to_string_lossy()])
                 .output()
                 .map_err(|e| Error::internal(format!("Failed to run rustc: {}", e)))?;
             
@@ -798,7 +811,7 @@ async fn verify_rust_code(rust_file: &PathBuf, level: &str) -> Result<Value> {
         "strict" => {
             // Clippy checks
             let output = std::process::Command::new("cargo")
-                .args(&["clippy", "--", "-D", "warnings"])
+                .args(["clippy", "--", "-D", "warnings"])
                 .current_dir(rust_file.parent().unwrap_or_else(|| std::path::Path::new(".")))
                 .output()
                 .map_err(|e| Error::internal(format!("Failed to run clippy: {}", e)))?;
@@ -851,7 +864,7 @@ async fn analyze_python_compatibility(source: &str) -> Result<Value> {
         warnings.push("System imports may need manual handling");
     }
     
-    let compatibility_score = if lines.len() > 0 {
+    let compatibility_score = if !lines.is_empty() {
         ((supported_features.len() as f64) / (supported_features.len() + unsupported_features.len()) as f64) * 100.0
     } else {
         100.0

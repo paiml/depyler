@@ -23,6 +23,7 @@ async fn test_transpile_tool_handler() {
     let extra = RequestHandlerExtra {
         session_id: Some("test-session".to_string()),
         auth_info: None,
+        auth_context: None,
         request_id: "test".to_string(),
         cancellation_token: tokio_util::sync::CancellationToken::new(),
     };
@@ -54,6 +55,7 @@ async fn test_analyze_tool_handler() {
     let extra = RequestHandlerExtra {
         session_id: Some("test-session".to_string()),
         auth_info: None,
+        auth_context: None,
         request_id: "test".to_string(),
         cancellation_token: tokio_util::sync::CancellationToken::new(),
     };
@@ -83,6 +85,7 @@ async fn test_verify_tool_handler() {
     let extra = RequestHandlerExtra {
         session_id: Some("test-session".to_string()),
         auth_info: None,
+        auth_context: None,
         request_id: "test".to_string(),
         cancellation_token: tokio_util::sync::CancellationToken::new(),
     };
@@ -109,6 +112,7 @@ async fn test_transpile_tool_invalid_args() {
     let extra = RequestHandlerExtra {
         session_id: Some("test-session".to_string()),
         auth_info: None,
+        auth_context: None,
         request_id: "test".to_string(),
         cancellation_token: tokio_util::sync::CancellationToken::new(),
     };
