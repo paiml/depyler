@@ -557,3 +557,58 @@ fn test_error_on_multiple_assign_targets() {
     let result = StmtConverter::convert(stmt);
     assert!(result.is_err());
 }
+
+// DEPYLER-0101: Tests for 'is None' / 'is not None' operator support
+#[test]
+fn test_is_none_converts_to_method_call() {
+    let expr = parse_expr("x is None");
+    let result = ExprConverter::convert(expr).unwrap();
+
+    match result {
+        HirExpr::MethodCall { object, method, args } => {
+            assert_eq!(method, "is_none");
+            assert!(args.is_empty());
+            // Object should be the variable 'x'
+            assert!(matches!(*object, HirExpr::Var(_)));
+        }
+        _ => panic!("Expected MethodCall, got {:?}", result),
+    }
+}
+
+#[test]
+fn test_is_not_none_converts_to_is_some() {
+    let expr = parse_expr("x is not None");
+    let result = ExprConverter::convert(expr).unwrap();
+
+    match result {
+        HirExpr::MethodCall { object, method, args } => {
+            assert_eq!(method, "is_some");
+            assert!(args.is_empty());
+            assert!(matches!(*object, HirExpr::Var(_)));
+        }
+        _ => panic!("Expected MethodCall, got {:?}", result),
+    }
+}
+
+#[test]
+fn test_is_with_non_none_fails() {
+    // 'is' operator with non-None values should fail (not supported)
+    let expr = parse_expr("x is y");
+    let result = ExprConverter::convert(expr);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("is"));
+}
+
+#[test]
+fn test_complex_expr_is_none() {
+    // Test 'is None' with more complex expression
+    let expr = parse_expr("func() is None");
+    let result = ExprConverter::convert(expr).unwrap();
+
+    match result {
+        HirExpr::MethodCall { method, .. } => {
+            assert_eq!(method, "is_none");
+        }
+        _ => panic!("Expected MethodCall"),
+    }
+}
