@@ -344,9 +344,33 @@ impl ExprConverter {
         if c.ops.len() != 1 || c.comparators.len() != 1 {
             bail!("Chained comparisons not yet supported");
         }
+
+        // Special handling for 'is None' and 'is not None' patterns
+        let comparator = c.comparators.into_iter().next().unwrap();
+        if matches!(c.ops[0], ast::CmpOp::Is | ast::CmpOp::IsNot) {
+            // Check if comparing with None
+            let is_none_comparison = matches!(comparator, ast::Expr::Constant(ref cons)
+                if matches!(cons.value, ast::Constant::None));
+
+            if is_none_comparison {
+                // Convert 'x is None' to x.is_none(), 'x is not None' to x.is_some()
+                let object = Box::new(Self::convert(*c.left)?);
+                let method = if matches!(c.ops[0], ast::CmpOp::Is) {
+                    "is_none".to_string()
+                } else {
+                    "is_some".to_string()
+                };
+                return Ok(HirExpr::MethodCall {
+                    object,
+                    method,
+                    args: vec![],
+                });
+            }
+        }
+
         let op = convert_cmpop(&c.ops[0])?;
         let left = Box::new(Self::convert(*c.left)?);
-        let right = Box::new(Self::convert(c.comparators.into_iter().next().unwrap())?);
+        let right = Box::new(Self::convert(comparator)?);
         Ok(HirExpr::Binary { op, left, right })
     }
 

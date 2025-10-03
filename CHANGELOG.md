@@ -8,6 +8,45 @@ and this project adheres to
 
 ## [Unreleased]
 
+### 🚀 Sprint 6: Core Transpilation Implementation (In Progress)
+
+#### **DEPYLER-0101: Basic Python→Rust Transpilation** 🚧 (Partial - 2025-10-03)
+- **Status**: Partial completion - 'is None' / 'is not None' operator support added
+- **Time**: ~1h
+- **Tests**: 366 passing (+4 new)
+
+**Achievement**: Implemented special handling for Python's `is None` and `is not None` patterns by converting them to Rust Option method calls.
+
+**Implementation Details**:
+- `x is None` → `x.is_none()` (Option method call)
+- `x is not None` → `x.is_some()` (Option method call)
+- Improved error messages for unsupported `is` / `is not` operators
+- Special-case detection in compare expression converter
+
+**Tests Added** (4 new comprehensive tests):
+1. `test_is_none_converts_to_method_call` - Verifies 'is None' → .is_none()
+2. `test_is_not_none_converts_to_is_some` - Verifies 'is not None' → .is_some()
+3. `test_is_with_non_none_fails` - Ensures 'is' with non-None values fails gracefully
+4. `test_complex_expr_is_none` - Tests 'is None' with complex expressions (function calls)
+
+**Files Modified**:
+- `crates/depyler-core/src/ast_bridge.rs`: Better error messages (+2 lines)
+- `crates/depyler-core/src/ast_bridge/converters.rs`: Special handling for is None patterns (+33 lines)
+- `crates/depyler-core/src/ast_bridge/converters_tests.rs`: 4 comprehensive tests (+56 lines)
+
+**DEPYLER-0101 Progress**:
+- ✅ Function definitions with type annotations
+- ✅ Basic expressions (arithmetic, boolean)
+- ✅ Comparison operators (==, !=, <, >, <=, >=, in, not in)
+- ✅ `is None` / `is not None` patterns (NEW)
+- ✅ Variable assignments
+- ✅ Return statements
+- ⏸ Tuple assignment (blocked: "a, b = 0, 1" not yet supported)
+
+**Pending Work**:
+- Tuple assignment/unpacking support
+- Full transpilation of fibonacci.py example
+
 ### 🚀 Sprint 5: Mutation Testing Implementation
 
 #### **DEPYLER-0020: Mutation Testing Infrastructure Setup** ✅
