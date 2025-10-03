@@ -1,0 +1,70 @@
+# pyproject.toml
+[project]
+name = "depyler-tdd-book"
+version = "0.1.0"
+description = "Test-driven Python standard library reference for Depyler transpiler validation"
+requires-python = ">=3.12"
+authors = [
+    {name = "Depyler Team"}
+]
+readme = "README.md"
+
+dependencies = [
+    "pytest>=8.3.0",
+    "pytest-cov>=5.0.0",
+    "pytest-xdist>=3.6.0",
+    "hypothesis>=6.100.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=24.0.0",
+    "ruff>=0.5.0",
+    "mypy>=1.11.0",
+]
+
+docs = [
+    "mkdocs-material>=9.5.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --strict-markers --cov=tests --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["tests"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+    "raise NotImplementedError",
+]
+fail_under = 80
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = []

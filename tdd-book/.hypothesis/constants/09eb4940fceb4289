@@ -1,0 +1,4 @@
+# file: /usr/lib/python3/dist-packages/iniconfig/__init__.py
+# hypothesis_version: 6.140.2
+
+['#;', '%s\n%s', '%s:%s: %s', ':', '=', 'IniConfig', 'ParseError', '[', ']', 'duplicate name %r', 'duplicate section %r', 'empty section name', 'unexpected line: %r']

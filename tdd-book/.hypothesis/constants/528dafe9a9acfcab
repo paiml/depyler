@@ -1,0 +1,4 @@
+# file: /usr/lib/python3/dist-packages/pygments/lexers/__init__.py
+# hypothesis_version: 6.140.2
+
+[0.0, 0.5, 1.0, '*', 'CustomLexer', 'Python3Lexer', 'PythonLexer', 'PythonTracebackLexer', '__all__', 'cannot read %s: %s', 'encoding', 'find_lexer_class', 'get_lexer_by_name', 'guess_lexer', 'inencoding', 'load_lexer_from_file', 'rb', 'utf8']
