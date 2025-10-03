@@ -49,11 +49,16 @@ and this project adheres to
 - All 15 tests passing in <0.02s
 - Expected impact: 35% → 46% kill rate (+~11%)
 
+**Phase 4: Return Value Tests** ✅ (2025-10-03)
+- Created: `ast_bridge_return_value_tests.rs` (16 tests)
+- Target: 19 return value mutations (bool, Option, Result defaults)
+- All 16 tests passing in <0.02s
+- Expected impact: 46% → 60% kill rate (+~14%)
+
 **Test Quality Discovery**: 596 tests pass but only 18.7% mutation kill rate reveals tests validate "doesn't crash" not "is correct"
 
 **Next Steps**:
-- Phase 4: Return value tests (~10 mutations)
-- Phase 5: Remaining mutations (~60 mutations)
+- Phase 5: Remaining mutations (~60 mutations, target 90%+ kill rate)
 - Target: 90%+ mutation kill rate
 
 #### **DEPYLER-0023: Mutation Testing Documentation** ✅
