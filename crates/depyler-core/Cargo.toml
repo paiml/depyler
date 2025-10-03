@@ -41,3 +41,4 @@ optional = true
 [dev-dependencies]
 insta.workspace = true
 proptest.workspace = true
+quickcheck.workspace = true
