@@ -33,7 +33,7 @@ fn assert_field_type_inference(python_code: &str, expected_field_name: &str, exp
     // Find the field with the expected name
     let field = class.fields.iter()
         .find(|f| f.name == expected_field_name)
-        .expect(&format!("Field '{}' not found in class", expected_field_name));
+        .unwrap_or_else(|| panic!("Field '{}' not found in class", expected_field_name));
 
     assert_eq!(
         field.field_type, expected_type,
@@ -295,7 +295,7 @@ class Config:
     for (expected_name, expected_type) in field_types {
         let field = class.fields.iter()
             .find(|f| f.name == expected_name)
-            .expect(&format!("Field '{}' not found", expected_name));
+            .unwrap_or_else(|| panic!("Field '{}' not found", expected_name));
 
         assert_eq!(
             field.field_type, expected_type,
