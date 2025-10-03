@@ -581,9 +581,44 @@ Based on paiml-mcp-agent-toolkit and ruchy best practices:
 - ✅ Tuple unpacking for iterative algorithms
 
 **Remaining Work**:
-- [ ] Default parameter values (runtime initialization)
+- [ ] DEPYLER-0104: Default parameter values (see below - requires architectural changes)
 - [ ] Dict/HashMap literal initialization improvements
 - [ ] Additional edge case testing
+
+#### **DEPYLER-0104**: Default Parameter Values Support
+**Status**: DEFERRED - Requires architectural refactoring
+**Priority**: Medium (Enhancement)
+**Estimated Time**: 6-8 hours
+**Complexity**: High (Core HIR schema change)
+
+**Problem**:
+Python functions with default parameters like `def func(x, memo: Dict[int, int] = None)` currently transpile but generate incorrect Rust code. The HIR schema stores `params: SmallVec<[(Symbol, Type); 4]>` which has no field for default values.
+
+**Required Changes**:
+1. **HIR Schema** (hir.rs):
+   - Create `HirParam { name, ty, default: Option<HirExpr> }`
+   - Update `HirFunction`, `HirMethod`, `ProtocolMethod` to use `SmallVec<[HirParam; 4]>`
+
+2. **AST Bridge** (ast_bridge.rs ~5 locations):
+   - Extract default values from Python AST
+   - Map Python `None` defaults to Rust `Option<T>` wrapper
+
+3. **Code Generation** (rust_gen.rs, codegen.rs, direct_rules.rs):
+   - Generate `Option<T>` for parameters with `None` defaults
+   - Insert initialization code: `let x = x.unwrap_or_else(|| HashMap::new());`
+
+4. **Borrowing/Lifetime Analysis** (~3 files):
+   - Update pattern matching from `(name, ty)` tuples to `HirParam` struct access
+
+5. **All Tests** (~20+ test files):
+   - Update all code constructing `HirFunction` to use new schema
+
+**Current Workaround**:
+Users can explicitly use `Option<T>` in type hints: `def func(x, memo: Option[Dict[int, int]])`
+
+**Ticket Dependencies**: None
+**Blocked By**: None
+**Blocks**: Idiomatic Python→Rust transpilation for common patterns
 
 #### **DEPYLER-0102**: Control Flow Transpilation ✅ **COMPLETE**
 **Status**: All control flow features already implemented and working
