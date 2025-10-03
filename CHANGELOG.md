@@ -43,11 +43,17 @@ and this project adheres to
 - All 12 tests passing
 - Expected impact: 25.4% → 35% kill rate (+~10%)
 
+**Phase 3: Comparison Operator Tests** ✅ (2025-10-03)
+- Created: `ast_bridge_comparison_tests.rs` (15 tests)
+- Target: 15 comparison operator mutations (>, <, ==, !=, >=, <=)
+- All 15 tests passing in <0.02s
+- Expected impact: 35% → 46% kill rate (+~11%)
+
 **Test Quality Discovery**: 596 tests pass but only 18.7% mutation kill rate reveals tests validate "doesn't crash" not "is correct"
 
 **Next Steps**:
-- Phase 3: Comparison operator tests (~15 mutations)
 - Phase 4: Return value tests (~10 mutations)
+- Phase 5: Remaining mutations (~60 mutations)
 - Target: 90%+ mutation kill rate
 
 #### **DEPYLER-0023: Mutation Testing Documentation** ✅
