@@ -1,0 +1,10 @@
+Error: parse toml from /home/noah/src/depyler/.cargo/mutants.toml
+
+Caused by:
+    0: parse toml
+    1: TOML parse error at line 20, column 16
+          |
+       20 | test_package = true
+          |                ^^^^
+       invalid type: boolean `true`, expected a sequence
+       

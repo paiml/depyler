@@ -57,13 +57,16 @@ pub use error::TranspileError;
 /// ### Example Usage
 /// 
 /// ```rust
-/// use depyler_core::{TranspilationTarget, transpile_with_target};
-/// 
-/// // Transpile to Rust (default)
-/// let rust_code = transpile_with_target(python_code, TranspilationTarget::Rust)?;
-/// 
-/// // Transpile to Ruchy
-/// let ruchy_code = transpile_with_target(python_code, TranspilationTarget::Ruchy)?;
+/// use depyler_core::DepylerPipeline;
+/// # use anyhow::Result;
+/// # fn example() -> Result<()> {
+/// # let python_code = "def hello(): pass";
+///
+/// // Create pipeline and transpile to Rust (default)
+/// let pipeline = DepylerPipeline::new();
+/// let rust_code = pipeline.transpile(python_code)?;
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// `DepylerPipeline` coordinates the entire transpilation process, from parsing Python
