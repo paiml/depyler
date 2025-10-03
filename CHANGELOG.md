@@ -48,6 +48,38 @@ and this project adheres to
 
 **File Modified**:
 - `crates/depyler-analyzer/src/type_flow.rs`: +590 lines of mutation tests
+
+#### **DEPYLER-0012: Refactor stmt_to_rust_tokens_with_scope** ✅ (2025-10-03)
+- **Complexity Reduction**: 25 → 10 cyclomatic (60% reduction)
+- **Method**: EXTREME TDD with 20 comprehensive tests FIRST
+- **Tests**: 35 total (20 new + 15 existing), all passing in <0.01s
+
+**Refactoring Strategy**:
+- Extracted 5 helper functions from complex match arms
+- Each helper: cyclomatic ≤5, cognitive ≤7
+- Zero SATD, full test coverage maintained
+
+**Helper Functions Created**:
+1. `handle_assign_target` - Cyclomatic: 5, Cognitive: 7
+2. `handle_if_stmt` - Cyclomatic: 5, Cognitive: 5
+3. `handle_while_stmt` - Cyclomatic: 3, Cognitive: 2
+4. `handle_for_stmt` - Cyclomatic: 3, Cognitive: 2
+5. `handle_with_stmt` - Cyclomatic: 4, Cognitive: 3
+
+**Test Coverage** (20 new tests):
+- 4 Assign statement tests (Symbol first/reassign, Index, Attribute error)
+- 2 Return statement tests (with/without expression)
+- 2 If statement tests (with/without else, scope tracking)
+- 2 Loop tests (While, For with scope tracking)
+- 1 Expr statement test
+- 2 Raise statement tests (with/without exception)
+- 2 Break statement tests (with/without label)
+- 2 Continue statement tests (with/without label)
+- 2 With statement tests (with/without target)
+- 1 Nested scope tracking test
+
+**File Modified**:
+- `crates/depyler-core/src/codegen.rs`: +365 lines (tests + helpers), complexity 25→10
 - All 90 tests passing in <0.01s
 - Applied EXTREME TDD methodology from DEPYLER-0021
 

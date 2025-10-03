@@ -252,6 +252,141 @@ fn stmt_to_rust_tokens(stmt: &HirStmt) -> Result<proc_macro2::TokenStream> {
     stmt_to_rust_tokens_with_scope(stmt, &mut scope_tracker)
 }
 
+// DEPYLER-0012: Helper functions to reduce complexity (extracted from stmt_to_rust_tokens_with_scope)
+fn handle_assign_target(
+    target: &AssignTarget,
+    value_tokens: proc_macro2::TokenStream,
+    scope_tracker: &mut ScopeTracker,
+) -> Result<proc_macro2::TokenStream> {
+    match target {
+        AssignTarget::Symbol(symbol) => {
+            let target_ident = syn::Ident::new(symbol, proc_macro2::Span::call_site());
+            if scope_tracker.is_declared(symbol) {
+                Ok(quote! { #target_ident = #value_tokens; })
+            } else {
+                scope_tracker.declare_var(symbol);
+                Ok(quote! { let mut #target_ident = #value_tokens; })
+            }
+        }
+        AssignTarget::Index { base, index } => {
+            let base_tokens = expr_to_rust_tokens(base)?;
+            let index_tokens = expr_to_rust_tokens(index)?;
+            Ok(quote! { #base_tokens.insert(#index_tokens, #value_tokens); })
+        }
+        AssignTarget::Attribute { .. } => {
+            anyhow::bail!("Attribute assignment not yet implemented")
+        }
+    }
+}
+
+fn handle_if_stmt(
+    condition: &HirExpr,
+    then_body: &[HirStmt],
+    else_body: &Option<Vec<HirStmt>>,
+    scope_tracker: &mut ScopeTracker,
+) -> Result<proc_macro2::TokenStream> {
+    let cond_tokens = expr_to_rust_tokens(condition)?;
+
+    scope_tracker.enter_scope();
+    let then_stmts: Vec<_> = then_body
+        .iter()
+        .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, scope_tracker))
+        .collect::<Result<Vec<_>>>()?;
+    scope_tracker.exit_scope();
+
+    if let Some(else_stmts) = else_body {
+        scope_tracker.enter_scope();
+        let else_tokens: Vec<_> = else_stmts
+            .iter()
+            .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, scope_tracker))
+            .collect::<Result<Vec<_>>>()?;
+        scope_tracker.exit_scope();
+        Ok(quote! {
+            if #cond_tokens {
+                #(#then_stmts)*
+            } else {
+                #(#else_tokens)*
+            }
+        })
+    } else {
+        Ok(quote! {
+            if #cond_tokens {
+                #(#then_stmts)*
+            }
+        })
+    }
+}
+
+fn handle_while_stmt(
+    condition: &HirExpr,
+    body: &[HirStmt],
+    scope_tracker: &mut ScopeTracker,
+) -> Result<proc_macro2::TokenStream> {
+    let cond_tokens = expr_to_rust_tokens(condition)?;
+    scope_tracker.enter_scope();
+    let body_stmts: Vec<_> = body
+        .iter()
+        .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, scope_tracker))
+        .collect::<Result<Vec<_>>>()?;
+    scope_tracker.exit_scope();
+    Ok(quote! {
+        while #cond_tokens {
+            #(#body_stmts)*
+        }
+    })
+}
+
+fn handle_for_stmt(
+    target: &str,
+    iter: &HirExpr,
+    body: &[HirStmt],
+    scope_tracker: &mut ScopeTracker,
+) -> Result<proc_macro2::TokenStream> {
+    let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+    let iter_tokens = expr_to_rust_tokens(iter)?;
+    scope_tracker.enter_scope();
+    scope_tracker.declare_var(target);
+    let body_stmts: Vec<_> = body
+        .iter()
+        .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, scope_tracker))
+        .collect::<Result<Vec<_>>>()?;
+    scope_tracker.exit_scope();
+    Ok(quote! {
+        for #target_ident in #iter_tokens {
+            #(#body_stmts)*
+        }
+    })
+}
+
+fn handle_with_stmt(
+    context: &HirExpr,
+    target: &Option<String>,
+    body: &[HirStmt],
+) -> Result<proc_macro2::TokenStream> {
+    let context_tokens = expr_to_rust_tokens(context)?;
+    let body_tokens: Vec<_> = body
+        .iter()
+        .map(stmt_to_rust_tokens)
+        .collect::<Result<_>>()?;
+
+    if let Some(var_name) = target {
+        let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+        Ok(quote! {
+            {
+                let mut #var_ident = #context_tokens;
+                #(#body_tokens)*
+            }
+        })
+    } else {
+        Ok(quote! {
+            {
+                let _context = #context_tokens;
+                #(#body_tokens)*
+            }
+        })
+    }
+}
+
 fn stmt_to_rust_tokens_with_scope(
     stmt: &HirStmt,
     scope_tracker: &mut ScopeTracker,
@@ -259,28 +394,7 @@ fn stmt_to_rust_tokens_with_scope(
     match stmt {
         HirStmt::Assign { target, value } => {
             let value_tokens = expr_to_rust_tokens(value)?;
-
-            match target {
-                AssignTarget::Symbol(symbol) => {
-                    let target_ident = syn::Ident::new(symbol, proc_macro2::Span::call_site());
-                    if scope_tracker.is_declared(symbol) {
-                        // Variable already exists, just assign
-                        Ok(quote! { #target_ident = #value_tokens; })
-                    } else {
-                        // First declaration, use let mut
-                        scope_tracker.declare_var(symbol);
-                        Ok(quote! { let mut #target_ident = #value_tokens; })
-                    }
-                }
-                AssignTarget::Index { base, index } => {
-                    let base_tokens = expr_to_rust_tokens(base)?;
-                    let index_tokens = expr_to_rust_tokens(index)?;
-                    Ok(quote! { #base_tokens.insert(#index_tokens, #value_tokens); })
-                }
-                AssignTarget::Attribute { .. } => {
-                    anyhow::bail!("Attribute assignment not yet implemented")
-                }
-            }
+            handle_assign_target(target, value_tokens, scope_tracker)
         }
         HirStmt::Return(expr_opt) => {
             if let Some(expr) = expr_opt {
@@ -294,67 +408,9 @@ fn stmt_to_rust_tokens_with_scope(
             condition,
             then_body,
             else_body,
-        } => {
-            let cond_tokens = expr_to_rust_tokens(condition)?;
-            scope_tracker.enter_scope();
-            let then_stmts: Vec<_> = then_body
-                .iter()
-                .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, scope_tracker))
-                .collect::<Result<Vec<_>>>()?;
-            scope_tracker.exit_scope();
-
-            if let Some(else_stmts) = else_body {
-                scope_tracker.enter_scope();
-                let else_tokens: Vec<_> = else_stmts
-                    .iter()
-                    .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, scope_tracker))
-                    .collect::<Result<Vec<_>>>()?;
-                scope_tracker.exit_scope();
-                Ok(quote! {
-                    if #cond_tokens {
-                        #(#then_stmts)*
-                    } else {
-                        #(#else_tokens)*
-                    }
-                })
-            } else {
-                Ok(quote! {
-                    if #cond_tokens {
-                        #(#then_stmts)*
-                    }
-                })
-            }
-        }
-        HirStmt::While { condition, body } => {
-            let cond_tokens = expr_to_rust_tokens(condition)?;
-            scope_tracker.enter_scope();
-            let body_stmts: Vec<_> = body
-                .iter()
-                .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, scope_tracker))
-                .collect::<Result<Vec<_>>>()?;
-            scope_tracker.exit_scope();
-            Ok(quote! {
-                while #cond_tokens {
-                    #(#body_stmts)*
-                }
-            })
-        }
-        HirStmt::For { target, iter, body } => {
-            let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
-            let iter_tokens = expr_to_rust_tokens(iter)?;
-            scope_tracker.enter_scope();
-            scope_tracker.declare_var(target); // for loop variable is declared in the loop scope
-            let body_stmts: Vec<_> = body
-                .iter()
-                .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, scope_tracker))
-                .collect::<Result<Vec<_>>>()?;
-            scope_tracker.exit_scope();
-            Ok(quote! {
-                for #target_ident in #iter_tokens {
-                    #(#body_stmts)*
-                }
-            })
-        }
+        } => handle_if_stmt(condition, then_body, else_body, scope_tracker),
+        HirStmt::While { condition, body } => handle_while_stmt(condition, body, scope_tracker),
+        HirStmt::For { target, iter, body } => handle_for_stmt(target, iter, body, scope_tracker),
         HirStmt::Expr(expr) => {
             let expr_tokens = expr_to_rust_tokens(expr)?;
             Ok(quote! { #expr_tokens; })
@@ -393,34 +449,7 @@ fn stmt_to_rust_tokens_with_scope(
             context,
             target,
             body,
-        } => {
-            // Convert context expression
-            let context_tokens = expr_to_rust_tokens(context)?;
-
-            // Convert body statements
-            let body_tokens: Vec<_> = body
-                .iter()
-                .map(stmt_to_rust_tokens)
-                .collect::<Result<_>>()?;
-
-            // Generate scoped block with optional variable binding
-            if let Some(var_name) = target {
-                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
-                Ok(quote! {
-                    {
-                        let mut #var_ident = #context_tokens;
-                        #(#body_tokens)*
-                    }
-                })
-            } else {
-                Ok(quote! {
-                    {
-                        let _context = #context_tokens;
-                        #(#body_tokens)*
-                    }
-                })
-            }
-        }
+        } => handle_with_stmt(context, target, body),
     }
 }
 
@@ -1011,5 +1040,368 @@ mod tests {
         let tokens = expr_to_rust_tokens(&neg_floor_div).unwrap();
         let code = tokens.to_string();
         assert!(code.contains("if (r != 0) && ((r < 0) != (b < 0))"));
+    }
+
+    // DEPYLER-0012: Comprehensive tests for stmt_to_rust_tokens_with_scope
+    // Target: Reduce complexity from 25 to ≤10
+    // Coverage: All 10 statement types with scope tracking
+
+    // 1. ASSIGN STATEMENTS (Symbol target - first declaration)
+    #[test]
+    fn test_assign_symbol_first_declaration() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+        };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("let mut x"));
+        assert!(code.contains("42i64"));
+        assert!(scope.is_declared("x"));
+    }
+
+    // 2. ASSIGN STATEMENTS (Symbol target - reassignment)
+    #[test]
+    fn test_assign_symbol_reassignment() {
+        let mut scope = ScopeTracker::new();
+        scope.declare_var("x");
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(99)),
+        };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(!code.contains("let mut"));
+        assert!(code.contains("x ="));
+        assert!(code.contains("99i64"));
+    }
+
+    // 3. ASSIGN STATEMENTS (Index target)
+    #[test]
+    fn test_assign_index_target() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Index {
+                base: Box::new(HirExpr::Var("dict".to_string())),
+                index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
+            },
+            value: HirExpr::Literal(Literal::Int(100)),
+        };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("insert"));
+        assert!(code.contains("dict"));
+        assert!(code.contains("key"));
+    }
+
+    // 4. ASSIGN STATEMENTS (Attribute target - should error)
+    #[test]
+    fn test_assign_attribute_not_implemented() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Attribute {
+                value: Box::new(HirExpr::Var("obj".to_string())),
+                attr: "field".to_string(),
+            },
+            value: HirExpr::Literal(Literal::Int(1)),
+        };
+        let result = stmt_to_rust_tokens_with_scope(&stmt, &mut scope);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Attribute assignment not yet implemented"));
+    }
+
+    // 5. RETURN STATEMENTS (with expression)
+    #[test]
+    fn test_return_with_expression() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::Return(Some(HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Var("a".to_string())),
+            right: Box::new(HirExpr::Var("b".to_string())),
+        }));
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("return"));
+        assert!(code.contains("a + b"));
+    }
+
+    // 6. RETURN STATEMENTS (without expression)
+    #[test]
+    fn test_return_without_expression() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::Return(None);
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert_eq!(code.trim(), "return ;");
+    }
+
+    // 7. IF STATEMENTS (with else)
+    #[test]
+    fn test_if_with_else_scope_tracking() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::If {
+            condition: HirExpr::Binary {
+                op: BinOp::Gt,
+                left: Box::new(HirExpr::Var("x".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Int(0))),
+            },
+            then_body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("y".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+            }],
+            else_body: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("z".to_string()),
+                value: HirExpr::Literal(Literal::Int(-1)),
+            }]),
+        };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("if"));
+        assert!(code.contains("x >"));
+        assert!(code.contains("0i64"));
+        assert!(code.contains("let mut y"));
+        assert!(code.contains("else"));
+        assert!(code.contains("let mut z"));
+        // Variables declared in if/else scopes should not leak
+        assert!(!scope.is_declared("y"));
+        assert!(!scope.is_declared("z"));
+    }
+
+    // 8. IF STATEMENTS (without else)
+    #[test]
+    fn test_if_without_else() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::If {
+            condition: HirExpr::Var("flag".to_string()),
+            then_body: vec![HirStmt::Expr(HirExpr::Call {
+                func: "print".to_string(),
+                args: vec![HirExpr::Literal(Literal::String("yes".to_string()))],
+            })],
+            else_body: None,
+        };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("if flag"));
+        assert!(!code.contains("else"));
+    }
+
+    // 9. WHILE STATEMENTS
+    #[test]
+    fn test_while_loop_scope_tracking() {
+        let mut scope = ScopeTracker::new();
+        scope.declare_var("count");
+        let stmt = HirStmt::While {
+            condition: HirExpr::Binary {
+                op: BinOp::Lt,
+                left: Box::new(HirExpr::Var("count".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Int(10))),
+            },
+            body: vec![
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("temp".to_string()),
+                    value: HirExpr::Literal(Literal::Int(0)),
+                },
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("count".to_string()),
+                    value: HirExpr::Binary {
+                        op: BinOp::Add,
+                        left: Box::new(HirExpr::Var("count".to_string())),
+                        right: Box::new(HirExpr::Literal(Literal::Int(1))),
+                    },
+                },
+            ],
+        };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("while"));
+        assert!(code.contains("count <"));
+        assert!(code.contains("10i64"));
+        assert!(code.contains("let mut temp"));
+        assert!(code.contains("count ="));
+        // temp declared in while scope should not leak
+        assert!(!scope.is_declared("temp"));
+        assert!(scope.is_declared("count"));
+    }
+
+    // 10. FOR STATEMENTS
+    #[test]
+    fn test_for_loop_scope_tracking() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::For {
+            target: "i".to_string(),
+            iter: HirExpr::Call {
+                func: "range".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(5))],
+            },
+            body: vec![HirStmt::Expr(HirExpr::Var("i".to_string()))],
+        };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("for i in range"));
+        assert!(code.contains("5i64"));
+        // Loop variable should not leak to outer scope
+        assert!(!scope.is_declared("i"));
+    }
+
+    // 11. EXPR STATEMENTS
+    #[test]
+    fn test_expr_statement() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::Expr(HirExpr::Call {
+            func: "println".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("hello".to_string()))],
+        });
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("println"));
+        assert!(code.contains("hello"));
+        assert!(code.ends_with(';') || code.trim().ends_with(';'));
+    }
+
+    // 12. RAISE STATEMENTS (with exception)
+    #[test]
+    fn test_raise_with_exception() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::Raise {
+            exception: Some(HirExpr::Literal(Literal::String("Error!".to_string()))),
+            cause: None,
+        };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("panic"));
+        assert!(code.contains("Exception"));
+        assert!(code.contains("Error!"));
+    }
+
+    // 13. RAISE STATEMENTS (without exception)
+    #[test]
+    fn test_raise_without_exception() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::Raise {
+            exception: None,
+            cause: None,
+        };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("panic"));
+        assert!(code.contains("Exception raised"));
+    }
+
+    // 14. BREAK STATEMENTS (with label)
+    #[test]
+    fn test_break_with_label() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::Break {
+            label: Some("outer".to_string()),
+        };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("break"));
+        assert!(code.contains("'outer"));
+    }
+
+    // 15. BREAK STATEMENTS (without label)
+    #[test]
+    fn test_break_without_label() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::Break { label: None };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert_eq!(code.trim(), "break ;");
+    }
+
+    // 16. CONTINUE STATEMENTS (with label)
+    #[test]
+    fn test_continue_with_label() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::Continue {
+            label: Some("outer".to_string()),
+        };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("continue"));
+        assert!(code.contains("'outer"));
+    }
+
+    // 17. CONTINUE STATEMENTS (without label)
+    #[test]
+    fn test_continue_without_label() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::Continue { label: None };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert_eq!(code.trim(), "continue ;");
+    }
+
+    // 18. WITH STATEMENTS (with target)
+    #[test]
+    fn test_with_statement_with_target() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::With {
+            context: HirExpr::Call {
+                func: "open".to_string(),
+                args: vec![HirExpr::Literal(Literal::String("file.txt".to_string()))],
+            },
+            target: Some("f".to_string()),
+            body: vec![HirStmt::Expr(HirExpr::Call {
+                func: "read".to_string(),
+                args: vec![HirExpr::Var("f".to_string())],
+            })],
+        };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("let mut f"));
+        assert!(code.contains("open"));
+        assert!(code.contains("file.txt"));
+        assert!(code.contains("read"));
+    }
+
+    // 19. WITH STATEMENTS (without target)
+    #[test]
+    fn test_with_statement_without_target() {
+        let mut scope = ScopeTracker::new();
+        let stmt = HirStmt::With {
+            context: HirExpr::Call {
+                func: "lock".to_string(),
+                args: vec![],
+            },
+            target: None,
+            body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String("critical".to_string())))],
+        };
+        let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("let _context"));
+        assert!(code.contains("lock"));
+        assert!(code.contains("critical"));
+    }
+
+    // 20. SCOPE TRACKING - Nested scopes
+    #[test]
+    fn test_nested_scope_tracking() {
+        let mut scope = ScopeTracker::new();
+
+        // Declare x in outer scope
+        scope.declare_var("x");
+        assert!(scope.is_declared("x"));
+
+        // Enter inner scope
+        scope.enter_scope();
+
+        // x should still be visible
+        assert!(scope.is_declared("x"));
+
+        // Declare y in inner scope
+        scope.declare_var("y");
+        assert!(scope.is_declared("y"));
+
+        // Exit inner scope
+        scope.exit_scope();
+
+        // x should still be visible
+        assert!(scope.is_declared("x"));
+
+        // y should no longer be visible
+        assert!(!scope.is_declared("y"));
     }
 }
