@@ -1,0 +1,4 @@
+# file: /usr/lib/python3/dist-packages/pygments/console.py
+# hypothesis_version: 6.140.2
+
+['\x1b[', '%im', '*', '+', '01m', '02m', '03m', '04m', '05m', '06m', '39;49;00m', '_', 'black', 'blink', 'blue', 'bold', 'brightblack', 'brightblue', 'brightcyan', 'brightgreen', 'brightmagenta', 'brightred', 'brightyellow', 'cyan', 'faint', 'gray', 'green', 'magenta', 'overline', 'red', 'reset', 'standout', 'underline', 'white', 'yellow']

@@ -1,0 +1,4 @@
+# file: /usr/lib/python3/dist-packages/pygments/__init__.py
+# hypothesis_version: 6.140.2
+
+['2.11.2', 'encoding', 'format', 'highlight', 'lex', 'restructuredtext']

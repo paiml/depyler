@@ -129,9 +129,9 @@ See `CHANGELOG.md` for complete release notes.
 
 ---
 
-## 🚀 **SPRINT 5 - Mutation Testing Implementation** (PLANNED)
+## 🚀 **SPRINT 5 - Mutation Testing Implementation** (IN PROGRESS)
 
-**Status**: 📋 **PLANNED**
+**Status**: 🏃 **IN PROGRESS**
 **Focus**: Implement comprehensive mutation testing with ≥90% kill rate target
 **Priority**: High (Quality validation)
 **Estimated Time**: 2-3 weeks
@@ -280,6 +280,49 @@ See `CHANGELOG.md` for complete release notes.
 **Deliverable**: `docs/MUTATION-TESTING-GUIDE.md`
 
 **Impact**: Complete knowledge capture for team enablement
+
+### **DEPYLER-0025**: TDD Book Infrastructure & Initial Modules ✅
+**Complexity**: Medium-High
+**Time**: ~4h actual
+**Status**: ✅ **COMPLETED** (2025-10-03)
+
+**Phase 1: Infrastructure** (✅ Complete)
+- [x] Create tdd-book/ project structure
+- [x] Create pyproject.toml with dependencies (pytest, hypothesis, etc.)
+- [x] Create Makefile with quality gates
+- [x] Create extract_examples.py documentation generator script
+- [x] Create README.md and INTEGRATION.md
+
+**Phase 2: Module Implementation** (✅ Complete)
+- [x] os.path module tests (12 tests, 89% coverage)
+- [x] sys module tests (26 tests, 100% coverage)
+- [x] json module tests (27 tests, 99% coverage)
+- [x] datetime module tests (35 tests, 100% coverage)
+- [x] collections module tests (32 tests, 99% coverage)
+
+**Achievement**: Complete TDD book with 5 Python stdlib modules fully tested
+**Tests**: 132 tests passing (98.6% coverage, 100% pass rate)
+**Modules**: 5/200 (2.5% complete)
+**Edge Cases**: 31 discovered and documented
+**Documentation**: 5 auto-generated markdown files
+
+**Files Created**:
+- `tdd-book/tests/test_os/test_path_operations.py` (88 lines)
+- `tdd-book/tests/test_sys/test_system_info.py` (193 lines)
+- `tdd-book/tests/test_json/test_serialization.py` (219 lines)
+- `tdd-book/tests/test_datetime/test_date_time.py` (259 lines)
+- `tdd-book/tests/test_collections/test_data_structures.py` (261 lines)
+- `tdd-book/scripts/extract_examples.py` (127 lines)
+- `tdd-book/pyproject.toml`
+- `tdd-book/Makefile`
+- `tdd-book/README.md`
+- `tdd-book/INTEGRATION.md`
+- `tdd-book/requirements.txt`
+
+**Purpose**: Create comprehensive TDD examples for Python stdlib to validate Depyler transpiler correctness
+
+**Documentation**: See `docs/specifications/depyler-tdd-book-examples.md` for full spec
+**Metrics**: See `tdd-book/INTEGRATION.md` for detailed progress tracking
 
 ---
 

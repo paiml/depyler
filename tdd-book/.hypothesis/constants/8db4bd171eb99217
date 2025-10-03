@@ -1,0 +1,4 @@
+# file: /usr/lib/python3/dist-packages/sortedcontainers/sorteddict.py
+# hypothesis_version: 6.140.2
+
+[50331648, ', ', '<not-given>', 'items', 'iteritems', 'iterkeys', 'itervalues', 'keys', 'values', 'viewitems', 'viewkeys', 'viewvalues', '{0!r}, ', '{0!r}: {1!r}', '{0}({1}{{{2}}})']

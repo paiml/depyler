@@ -1,0 +1,4 @@
+# file: /usr/lib/python3/dist-packages/sortedcontainers/__init__.py
+# hypothesis_version: 6.140.2
+
+[131328, '2.1.0', 'Apache 2.0', 'Grant Jenks', 'SortedDict', 'SortedItemsView', 'SortedKeyList', 'SortedKeysView', 'SortedList', 'SortedListWithKey', 'SortedSet', 'SortedValuesView', 'sortedcontainers']

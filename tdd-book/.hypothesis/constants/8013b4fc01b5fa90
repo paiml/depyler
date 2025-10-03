@@ -1,0 +1,4 @@
+# file: /usr/lib/python3/dist-packages/pygments/lexer.py
+# hypothesis_version: 6.140.2
+
+[b'\x00\x00\xfe\xff', b'\xef\xbb\xbf', b'\xfe\xff', b'\xff\xfe', b'\xff\xfe\x00\x00', 0.0, 110, 1000, 1024, '#', '#pop', '#pop:', '#push', '-', '<pygments.lexers.%s>', '=', 'DelegatingLexer', 'ExtendedRegexLexer', 'Lexer', 'LexerContext', 'No such group', 'RegexLexer', '\\', '\\\\', '_tmp_%d', '_tokens', 'analyse_text', 'bygroups', 'chardet', 'default', 'encoding', 'ensurenl', 'filters', 'guess', 'include', 'inencoding', 'inherit', 'regex', 'replace', 'root', 'stack', 'state', 'stripall', 'stripnl', 'tabsize', 'this', 'token_variants', 'tokens', "u'", 'unknown new state ', 'unknown new state %r', 'using', 'utf-16', 'utf-16be', 'utf-32', 'utf-32be', 'utf-8', 'words', 'wrong rule def %r', 'wrong state def: %r', 'wrong state name %r', '\ufeff']

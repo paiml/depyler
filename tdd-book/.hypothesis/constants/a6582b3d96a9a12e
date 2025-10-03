@@ -1,0 +1,4 @@
+# file: /usr/lib/python3/dist-packages/sortedcontainers/sortedlist.py
+# hypothesis_version: 6.140.2
+
+[1000, 50331648, '!=', '...', '<', '<=', '==', '>', '>=', '__{0}__', 'equal to', 'greater than', 'index', 'keys', 'len', 'len_index', 'len_keys', 'len_lists', 'len_maxes', 'less than', 'lists', 'load', 'maxes', 'not equal to', 'offset', '{0!r} is not in list', '{0!r} not in list', '{0}({1!r})']
