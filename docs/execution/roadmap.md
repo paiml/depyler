@@ -283,7 +283,7 @@ See `CHANGELOG.md` for complete release notes.
 
 ### **DEPYLER-0025**: TDD Book Infrastructure & Initial Modules ✅
 **Complexity**: Medium-High
-**Time**: ~8h actual
+**Time**: ~9h actual
 **Status**: ✅ **COMPLETED** (2025-10-03)
 
 **Phase 1: Infrastructure** (✅ Complete)
@@ -293,7 +293,7 @@ See `CHANGELOG.md` for complete release notes.
 - [x] Create extract_examples.py documentation generator script
 - [x] Create README.md and INTEGRATION.md
 
-**Phase 2: Module Implementation** (✅ Complete - 10 modules)
+**Phase 2: Module Implementation** (✅ Complete - 11 modules)
 - [x] os.path module tests (12 tests, 89% coverage)
 - [x] sys module tests (26 tests, 100% coverage)
 - [x] json module tests (27 tests, 99% coverage)
@@ -304,12 +304,13 @@ See `CHANGELOG.md` for complete release notes.
 - [x] pathlib module tests (46 tests, 95% coverage)
 - [x] io module tests (49 tests, 98% coverage)
 - [x] time module tests (45 tests, 99% coverage)
+- [x] calendar module tests (44 tests, 99% coverage)
 
-**Achievement**: Complete TDD book with 10 Python stdlib modules fully tested (Phase 1: 83% complete)
-**Tests**: 342 tests passing (98.0% coverage, 100% pass rate)
-**Modules**: 10/200 (5.0% complete)
-**Edge Cases**: 63 discovered and documented
-**Documentation**: 10 auto-generated markdown files
+**Achievement**: Complete TDD book with 11 Python stdlib modules fully tested (Phase 1: 92% complete)
+**Tests**: 386 tests passing (98.0% coverage, 100% pass rate)
+**Modules**: 11/200 (5.5% complete)
+**Edge Cases**: 70 discovered and documented
+**Documentation**: 11 auto-generated markdown files
 
 **Files Created**:
 - `tdd-book/tests/test_os/test_path_operations.py` (88 lines)
@@ -322,6 +323,7 @@ See `CHANGELOG.md` for complete release notes.
 - `tdd-book/tests/test_pathlib/test_pathlib_operations.py` (239 lines)
 - `tdd-book/tests/test_io/test_streams.py` (290 lines)
 - `tdd-book/tests/test_time/test_time_operations.py` (286 lines)
+- `tdd-book/tests/test_calendar/test_calendar_operations.py` (284 lines)
 - `tdd-book/scripts/extract_examples.py` (127 lines)
 - `tdd-book/pyproject.toml`
 - `tdd-book/Makefile`
