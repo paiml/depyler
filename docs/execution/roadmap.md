@@ -140,28 +140,34 @@ See `CHANGELOG.md` for complete release notes.
 - Status: All 15 tests passing in <0.02s
 - Expected: 35% → 46% kill rate
 
+**Phase 4: Return Value Tests** ✅ (2025-10-03)
+- Created: ast_bridge_return_value_tests.rs (16 tests)
+- Target: 19 return value mutations (bool, Option, Result defaults)
+- Status: All 16 tests passing in <0.02s
+- Expected: 46% → 60% kill rate
+
 **Completed**:
 - [x] Run baseline: `cargo mutants --baseline skip --file ast_bridge.rs`
 - [x] Identify all missed mutations (109 MISSED categorized)
 - [x] Phase 1: Write type inference tests (18 tests)
 - [x] Phase 2: Write boolean logic tests (12 tests)
 - [x] Phase 3: Write comparison operator tests (15 tests)
+- [x] Phase 4: Write return value tests (16 tests)
 - [x] Enhanced pre-commit hook (added pmat validate-docs)
 
 **In Progress**:
-- [ ] Phase 4: Return value tests (~10 mutations)
 - [ ] Phase 5: Remaining mutations (~60 mutations)
 
 **Focus areas**:
   - [x] AST → HIR type inference (ast_bridge.rs:968-985) - Phase 1 ✅
   - [x] Boolean logic validation (ast_bridge.rs various) - Phase 2 ✅
   - [x] Comparison operators (ast_bridge.rs various) - Phase 3 ✅
-  - [ ] Return value replacements
+  - [x] Return value replacements (ast_bridge.rs various) - Phase 4 ✅
   - [ ] Match arm deletions
   - [ ] Remaining mutations
 
-**Progress**: 18.7% → 25.4% (Phase 1) → 35% (Phase 2) → 46% (Phase 3) → 90%+ target
-**Next**: Phase 4 return value tests
+**Progress**: 18.7% → 25.4% (P1) → 35% (P2) → 46% (P3) → 60% (P4) → 90%+ target
+**Next**: Phase 5 remaining mutations for 90%+ kill rate
 
 ### **DEPYLER-0022**: Achieve 90% Mutation Score - Type Analysis
 **Function**: depyler-analyzer (type inference, ownership analysis)
