@@ -110,6 +110,16 @@ if command -v pmat &> /dev/null; then
         echo "  🔧 Fix: pmat tdg . --include-components --top-files 5"
         QUALITY_VIOLATIONS=$((QUALITY_VIOLATIONS + 1))
     fi
+
+    # Documentation validation check
+    echo "📚 Running documentation validation..."
+    if pmat validate-docs &>/dev/null; then
+        echo "  ✓ Documentation validation passed"
+    else
+        echo "  ❌ Documentation validation failed"
+        echo "  🔧 Fix: Ensure all docs are properly formatted and complete"
+        QUALITY_VIOLATIONS=$((QUALITY_VIOLATIONS + 1))
+    fi
 fi
 
 # Check for Rust linting if we have Rust files
@@ -158,5 +168,6 @@ echo ""
 echo "✅ All pre-commit quality gates passed!"
 echo "   🎯 Toyota Way: Quality built-in, documentation synchronized"
 echo "   📝 Documentation updates verified"
+echo "   📚 Documentation validation passed (pmat validate-docs)"
 echo "   🔧 Code quality standards maintained (≤10 complexity, zero SATD)"
 echo "   ✓ Ready for commit"
