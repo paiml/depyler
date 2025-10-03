@@ -80,8 +80,27 @@ and this project adheres to
 
 **File Modified**:
 - `crates/depyler-core/src/codegen.rs`: +365 lines (tests + helpers), complexity 25→10
-- All 90 tests passing in <0.01s
+- All 35 tests passing in <0.01s
 - Applied EXTREME TDD methodology from DEPYLER-0021
+
+#### **DEPYLER-0024: Refactor shrink_value complexity reduction** ✅ (2025-10-03)
+- **Complexity Reduction**: 11 → 4 cyclomatic (64% reduction)
+- **Method**: Extract helper functions (no new tests needed - 13 existing tests sufficient)
+- **Tests**: 23 total (13 existing for shrink_value + 10 other), all passing in <0.01s
+
+**Refactoring Strategy**:
+- Extracted 4 helper functions for each value type
+- Each helper: cyclomatic ≤3, cognitive ≤4
+- Zero SATD, full test coverage maintained
+
+**Helper Functions Created**:
+1. `shrink_integer()` - Cyclomatic: 3, Cognitive: 4
+2. `shrink_float()` - Cyclomatic: 2, Cognitive: 1
+3. `shrink_string()` - Cyclomatic: 3, Cognitive: 4
+4. `shrink_array()` - Cyclomatic: 3, Cognitive: 4
+
+**File Modified**:
+- `crates/depyler-verify/src/quickcheck.rs`: +54 lines (helpers), complexity 11→4
 
 #### **DEPYLER-0021: Mutation Testing Baseline & Phase 1-2** 🚧
 - **Baseline Complete**: 18.7% kill rate (25/134 viable caught, 109 MISSED)

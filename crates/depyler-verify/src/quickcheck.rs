@@ -83,54 +83,74 @@ impl TypedValue {
     }
 }
 
+// DEPYLER-0024: Helper functions to reduce complexity (extracted from shrink_value)
+fn shrink_integer(i: i64) -> Vec<serde_json::Value> {
+    if i == 0 {
+        return vec![];
+    }
+
+    let mut shrunk = vec![serde_json::json!(0), serde_json::json!(i / 2)];
+
+    if i > 0 {
+        shrunk.push(serde_json::json!(i - 1));
+    } else {
+        shrunk.push(serde_json::json!(i + 1));
+    }
+
+    shrunk
+}
+
+fn shrink_float(f: f64) -> Vec<serde_json::Value> {
+    if f == 0.0 {
+        vec![]
+    } else {
+        vec![serde_json::json!(0.0), serde_json::json!(f / 2.0)]
+    }
+}
+
+fn shrink_string(s: &str) -> Vec<serde_json::Value> {
+    if s.is_empty() {
+        return vec![];
+    }
+
+    let mut shrunk = vec![serde_json::json!("")];
+
+    if s.len() > 1 {
+        shrunk.push(serde_json::json!(&s[..s.len() / 2]));
+        shrunk.push(serde_json::json!(&s[1..]));
+    }
+
+    shrunk
+}
+
+fn shrink_array(arr: &[serde_json::Value]) -> Vec<serde_json::Value> {
+    if arr.is_empty() {
+        return vec![];
+    }
+
+    let mut shrunk = vec![serde_json::json!([])];
+
+    if arr.len() > 1 {
+        shrunk.push(serde_json::Value::Array(arr[..arr.len() / 2].to_vec()));
+        shrunk.push(serde_json::Value::Array(arr[1..].to_vec()));
+    }
+
+    shrunk
+}
+
 pub fn shrink_value(value: &serde_json::Value) -> Vec<serde_json::Value> {
     match value {
         serde_json::Value::Number(n) => {
             if let Some(i) = n.as_i64() {
-                let mut shrunk = vec![];
-                if i != 0 {
-                    shrunk.push(serde_json::json!(0));
-                    shrunk.push(serde_json::json!(i / 2));
-                    if i > 0 {
-                        shrunk.push(serde_json::json!(i - 1));
-                    } else {
-                        shrunk.push(serde_json::json!(i + 1));
-                    }
-                }
-                shrunk
+                shrink_integer(i)
             } else if let Some(f) = n.as_f64() {
-                let mut shrunk = vec![];
-                if f != 0.0 {
-                    shrunk.push(serde_json::json!(0.0));
-                    shrunk.push(serde_json::json!(f / 2.0));
-                }
-                shrunk
+                shrink_float(f)
             } else {
                 vec![]
             }
         }
-        serde_json::Value::String(s) => {
-            let mut shrunk = vec![];
-            if !s.is_empty() {
-                shrunk.push(serde_json::json!(""));
-                if s.len() > 1 {
-                    shrunk.push(serde_json::json!(&s[..s.len() / 2]));
-                    shrunk.push(serde_json::json!(&s[1..]));
-                }
-            }
-            shrunk
-        }
-        serde_json::Value::Array(arr) => {
-            let mut shrunk = vec![];
-            if !arr.is_empty() {
-                shrunk.push(serde_json::json!([]));
-                if arr.len() > 1 {
-                    shrunk.push(serde_json::Value::Array(arr[..arr.len() / 2].to_vec()));
-                    shrunk.push(serde_json::Value::Array(arr[1..].to_vec()));
-                }
-            }
-            shrunk
-        }
+        serde_json::Value::String(s) => shrink_string(s),
+        serde_json::Value::Array(arr) => shrink_array(arr),
         _ => vec![],
     }
 }
