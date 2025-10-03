@@ -6,15 +6,18 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 use depyler_analyzer::Analyzer;
 use depyler_core::{
-    lambda_codegen::LambdaCodeGenerator, lambda_inference::LambdaTypeInferencer,
-    lambda_optimizer::LambdaOptimizer, lambda_testing::LambdaTestHarness, DepylerPipeline,
+    lambda_codegen::{LambdaCodeGenerator, LambdaProject},
+    lambda_inference::{AnalysisReport, LambdaTypeInferencer},
+    lambda_optimizer::LambdaOptimizer,
+    lambda_testing::LambdaTestHarness,
+    DepylerPipeline,
 };
 use depyler_quality::QualityAnalyzer;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub mod agent;
 pub mod debug_cmd;
@@ -1060,6 +1063,189 @@ pub fn lambda_analyze_command(input: PathBuf, format: String, confidence: f64) -
     Ok(())
 }
 
+/// Maps EventType from depyler_core to LambdaEventType from depyler_annotations
+///
+/// This helper converts between the two enum types used in different crates.
+/// Complexity: 7 (one match with 7 arms)
+fn infer_and_map_event_type(
+    inferred_type: depyler_core::lambda_inference::EventType,
+) -> depyler_annotations::LambdaEventType {
+    match inferred_type {
+        depyler_core::lambda_inference::EventType::S3Event => {
+            depyler_annotations::LambdaEventType::S3Event
+        }
+        depyler_core::lambda_inference::EventType::ApiGatewayV2Http => {
+            depyler_annotations::LambdaEventType::ApiGatewayV2HttpRequest
+        }
+        depyler_core::lambda_inference::EventType::SnsEvent => {
+            depyler_annotations::LambdaEventType::SnsEvent
+        }
+        depyler_core::lambda_inference::EventType::SqsEvent => {
+            depyler_annotations::LambdaEventType::SqsEvent
+        }
+        depyler_core::lambda_inference::EventType::DynamodbEvent => {
+            depyler_annotations::LambdaEventType::DynamodbEvent
+        }
+        depyler_core::lambda_inference::EventType::EventBridge => {
+            depyler_annotations::LambdaEventType::EventBridgeEvent(None)
+        }
+        _ => depyler_annotations::LambdaEventType::Auto,
+    }
+}
+
+/// Creates a LambdaGenerationContext from annotations and transpiled Rust code
+///
+/// This helper builds the context structure needed for Lambda code generation.
+/// Complexity: 1 (simple struct construction)
+fn create_lambda_generation_context(
+    lambda_annotations: &depyler_annotations::LambdaAnnotations,
+    rust_code: String,
+    input: &Path,
+) -> depyler_core::lambda_codegen::LambdaGenerationContext {
+    depyler_core::lambda_codegen::LambdaGenerationContext {
+        event_type: lambda_annotations.event_type.clone(),
+        response_type: "serde_json::Value".to_string(), // Could be inferred better
+        handler_body: rust_code,
+        imports: vec![],
+        dependencies: vec![],
+        annotations: lambda_annotations.clone(),
+        function_name: "handler".to_string(),
+        module_name: input.file_stem().unwrap().to_string_lossy().to_string(),
+    }
+}
+
+/// Configures LambdaCodeGenerator with optimization profile if requested
+///
+/// Complexity: 3 (optimize check + nested if + optimization setup)
+fn setup_lambda_generator(
+    optimize: bool,
+    lambda_annotations: &depyler_annotations::LambdaAnnotations,
+) -> Result<LambdaCodeGenerator> {
+    let mut generator = LambdaCodeGenerator::new();
+    if optimize {
+        let optimizer = LambdaOptimizer::new().enable_aggressive_mode();
+        let _optimization_plan = optimizer.generate_optimization_plan(lambda_annotations)?;
+        let optimized_profile = depyler_core::lambda_codegen::OptimizationProfile {
+            lto: true,
+            panic_abort: true,
+            codegen_units: 1,
+            opt_level: "z".to_string(),
+            strip: true,
+            mimalloc: true,
+        };
+        generator = generator.with_optimization_profile(optimized_profile);
+    }
+    Ok(generator)
+}
+
+/// Writes core Lambda project files (main.rs, Cargo.toml, build.sh, README.md)
+///
+/// Complexity: 2 (Unix permission check)
+fn write_lambda_project_files(output_dir: &Path, project: &LambdaProject) -> Result<()> {
+    fs::create_dir_all(output_dir)?;
+    fs::create_dir_all(output_dir.join("src"))?;
+
+    // Write main files
+    fs::write(output_dir.join("src/main.rs"), &project.handler_code)?;
+    fs::write(output_dir.join("Cargo.toml"), &project.cargo_toml)?;
+    fs::write(output_dir.join("build.sh"), &project.build_script)?;
+    fs::write(output_dir.join("README.md"), &project.readme)?;
+
+    // Make build script executable
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(output_dir.join("build.sh"))?.permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(output_dir.join("build.sh"), perms)?;
+    }
+
+    Ok(())
+}
+
+/// Writes deployment templates (SAM/CDK) if deploy flag is set
+///
+/// Complexity: 3 (deploy check + 2 optional template writes)
+fn write_deployment_templates(
+    output_dir: &Path,
+    project: &LambdaProject,
+    deploy: bool,
+) -> Result<()> {
+    if deploy {
+        if let Some(ref sam_template) = project.sam_template {
+            fs::write(output_dir.join("template.yaml"), sam_template)?;
+        }
+        if let Some(ref cdk_construct) = project.cdk_construct {
+            fs::write(output_dir.join("lambda-construct.ts"), cdk_construct)?;
+        }
+    }
+    Ok(())
+}
+
+/// Generates and writes test suite files if tests flag is set
+///
+/// Complexity: 3 (tests check + Unix permission check)
+fn generate_and_write_tests(
+    output_dir: &Path,
+    lambda_annotations: &depyler_annotations::LambdaAnnotations,
+    tests: bool,
+) -> Result<()> {
+    if tests {
+        let test_harness = LambdaTestHarness::new();
+        let test_suite = test_harness.generate_test_suite(lambda_annotations)?;
+        fs::write(output_dir.join("src/lib.rs"), &test_suite)?;
+
+        let test_script = test_harness.generate_cargo_lambda_test_script(lambda_annotations)?;
+        fs::write(output_dir.join("test.sh"), &test_script)?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(output_dir.join("test.sh"))?.permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(output_dir.join("test.sh"), perms)?;
+        }
+    }
+    Ok(())
+}
+
+/// Prints completion summary and next steps
+///
+/// Complexity: 3 (optimize/tests/deploy conditionals in output)
+#[allow(clippy::too_many_arguments)]
+fn print_lambda_summary(
+    input: &Path,
+    output_dir: &Path,
+    analysis: &AnalysisReport,
+    optimize: bool,
+    tests: bool,
+    deploy: bool,
+    total_time: Duration,
+) {
+    println!("🎉 Lambda conversion completed!");
+    println!("📄 Input: {}", input.display());
+    println!("📁 Output: {}", output_dir.display());
+    println!("🎯 Event Type: {:?}", analysis.inferred_event_type);
+    println!(
+        "⚡ Optimizations: {}",
+        if optimize { "Enabled" } else { "Standard" }
+    );
+    println!("🧪 Tests: {}", if tests { "Generated" } else { "Skipped" });
+    println!(
+        "🚀 Deploy Templates: {}",
+        if deploy { "Generated" } else { "Skipped" }
+    );
+    println!("⏱️  Total Time: {:.2}ms", total_time.as_millis());
+
+    println!("\n📋 Next Steps:");
+    println!("   cd {}", output_dir.display());
+    println!("   ./build.sh                    # Build the Lambda");
+    if tests {
+        println!("   ./test.sh                     # Run tests");
+    }
+    println!("   cargo lambda deploy           # Deploy to AWS");
+}
+
 pub fn lambda_convert_command(
     input: PathBuf,
     output: Option<PathBuf>,
@@ -1099,27 +1285,7 @@ pub fn lambda_convert_command(
         annotations
             .lambda_annotations
             .unwrap_or_else(|| depyler_annotations::LambdaAnnotations {
-                event_type: Some(match analysis.inferred_event_type {
-                    depyler_core::lambda_inference::EventType::S3Event => {
-                        depyler_annotations::LambdaEventType::S3Event
-                    }
-                    depyler_core::lambda_inference::EventType::ApiGatewayV2Http => {
-                        depyler_annotations::LambdaEventType::ApiGatewayV2HttpRequest
-                    }
-                    depyler_core::lambda_inference::EventType::SnsEvent => {
-                        depyler_annotations::LambdaEventType::SnsEvent
-                    }
-                    depyler_core::lambda_inference::EventType::SqsEvent => {
-                        depyler_annotations::LambdaEventType::SqsEvent
-                    }
-                    depyler_core::lambda_inference::EventType::DynamodbEvent => {
-                        depyler_annotations::LambdaEventType::DynamodbEvent
-                    }
-                    depyler_core::lambda_inference::EventType::EventBridge => {
-                        depyler_annotations::LambdaEventType::EventBridgeEvent(None)
-                    }
-                    _ => depyler_annotations::LambdaEventType::Auto,
-                }),
+                event_type: Some(infer_and_map_event_type(analysis.inferred_event_type.clone())),
                 ..Default::default()
             });
     pb.inc(1);
@@ -1128,39 +1294,12 @@ pub fn lambda_convert_command(
     pb.set_message("🦀 Transpiling to Rust...");
     let rust_code = pipeline.transpile(&python_source)?;
 
-    let generation_context = depyler_core::lambda_codegen::LambdaGenerationContext {
-        event_type: lambda_annotations.event_type.clone(),
-        response_type: "serde_json::Value".to_string(), // Could be inferred better
-        handler_body: rust_code,
-        imports: vec![],
-        dependencies: vec![],
-        annotations: lambda_annotations.clone(),
-        function_name: "handler".to_string(),
-        module_name: input.file_stem().unwrap().to_string_lossy().to_string(),
-    };
+    let generation_context = create_lambda_generation_context(&lambda_annotations, rust_code, &input);
     pb.inc(1);
 
     // Step 4: Generate optimized Lambda project
     pb.set_message("⚡ Generating optimized project...");
-    let mut generator = LambdaCodeGenerator::new();
-    if optimize {
-        let optimizer = if optimize {
-            LambdaOptimizer::new().enable_aggressive_mode()
-        } else {
-            LambdaOptimizer::new()
-        };
-        let _optimization_plan = optimizer.generate_optimization_plan(&lambda_annotations)?;
-        let optimized_profile = depyler_core::lambda_codegen::OptimizationProfile {
-            lto: true,
-            panic_abort: true,
-            codegen_units: 1,
-            opt_level: "z".to_string(),
-            strip: true,
-            mimalloc: true,
-        };
-        generator = generator.with_optimization_profile(optimized_profile);
-    }
-
+    let generator = setup_lambda_generator(optimize, &lambda_annotations)?;
     let project = generator.generate_lambda_project(&generation_context)?;
     pb.inc(1);
 
@@ -1173,81 +1312,20 @@ pub fn lambda_convert_command(
         ))
     });
 
-    fs::create_dir_all(&output_dir)?;
-    fs::create_dir_all(output_dir.join("src"))?;
-
-    // Write main files
-    fs::write(output_dir.join("src/main.rs"), &project.handler_code)?;
-    fs::write(output_dir.join("Cargo.toml"), &project.cargo_toml)?;
-    fs::write(output_dir.join("build.sh"), &project.build_script)?;
-    fs::write(output_dir.join("README.md"), &project.readme)?;
-
-    // Make build script executable
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(output_dir.join("build.sh"))?.permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(output_dir.join("build.sh"), perms)?;
-    }
-
-    if deploy {
-        if let Some(ref sam_template) = project.sam_template {
-            fs::write(output_dir.join("template.yaml"), sam_template)?;
-        }
-        if let Some(ref cdk_construct) = project.cdk_construct {
-            fs::write(output_dir.join("lambda-construct.ts"), cdk_construct)?;
-        }
-    }
+    write_lambda_project_files(&output_dir, &project)?;
+    write_deployment_templates(&output_dir, &project, deploy)?;
     pb.inc(1);
 
     // Step 6: Generate tests if requested
-    if tests {
-        pb.set_message("🧪 Generating test suite...");
-        let test_harness = LambdaTestHarness::new();
-        let test_suite = test_harness.generate_test_suite(&lambda_annotations)?;
-        fs::write(output_dir.join("src/lib.rs"), &test_suite)?;
-
-        let test_script = test_harness.generate_cargo_lambda_test_script(&lambda_annotations)?;
-        fs::write(output_dir.join("test.sh"), &test_script)?;
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(output_dir.join("test.sh"))?.permissions();
-            perms.set_mode(0o755);
-            fs::set_permissions(output_dir.join("test.sh"), perms)?;
-        }
-    }
+    pb.set_message("🧪 Generating test suite...");
+    generate_and_write_tests(&output_dir, &lambda_annotations, tests)?;
     pb.inc(1);
 
     pb.finish_and_clear();
 
     // Print summary
     let total_time = start.elapsed();
-    println!("🎉 Lambda conversion completed!");
-    println!("📄 Input: {}", input.display());
-    println!("📁 Output: {}", output_dir.display());
-    println!("🎯 Event Type: {:?}", analysis.inferred_event_type);
-    println!(
-        "⚡ Optimizations: {}",
-        if optimize { "Enabled" } else { "Standard" }
-    );
-    println!("🧪 Tests: {}", if tests { "Generated" } else { "Skipped" });
-    println!(
-        "🚀 Deploy Templates: {}",
-        if deploy { "Generated" } else { "Skipped" }
-    );
-    println!("⏱️  Total Time: {:.2}ms", total_time.as_millis());
-
-    // Show next steps
-    println!("\n📋 Next Steps:");
-    println!("   cd {}", output_dir.display());
-    println!("   ./build.sh                    # Build the Lambda");
-    if tests {
-        println!("   ./test.sh                     # Run tests");
-    }
-    println!("   cargo lambda deploy           # Deploy to AWS");
+    print_lambda_summary(&input, &output_dir, &analysis, optimize, tests, deploy, total_time);
 
     Ok(())
 }
