@@ -8,7 +8,27 @@ and this project adheres to
 
 ## [Unreleased]
 
-### 🚀 Sprint 4: Quality Gate Refinement (In Progress)
+### 🚀 Sprint 5: Mutation Testing Implementation (Planned)
+
+#### **DEPYLER-0020: Mutation Testing Infrastructure Setup** ✅
+- **Achievement**: Comprehensive specification created (23KB, 950 lines)
+- **Time**: ~4h (research + documentation)
+- **Deliverable**: `docs/specifications/mutant.md`
+- **Impact**: Roadmap for implementing ≥90% mutation kill rate
+- **Source**: Adapted from pforge's proven mutation testing methodology
+
+**Specification Highlights**:
+- Depyler-specific mutation strategies for transpilation correctness
+- 5 mutation operators with kill strategies
+- Complete cargo-mutants configuration
+- CI/CD integration with GitHub Actions
+- EXTREME TDD workflow integration
+- Performance optimization for 596+ test suite
+- 4 implementation tickets defined (DEPYLER-0020 through DEPYLER-0023)
+
+**Next Steps**: Install cargo-mutants, run baseline, strengthen tests
+
+### 🚀 Sprint 4: Quality Gate Refinement (Completed)
 
 #### **DEPYLER-0011: lambda_convert_command Refactoring** ✅
 - **Achievement**: 68% complexity reduction (31→10)

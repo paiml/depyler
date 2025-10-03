@@ -84,6 +84,81 @@ See `CHANGELOG.md` for complete release notes.
 
 ---
 
+## 🚀 **SPRINT 5 - Mutation Testing Implementation** (PLANNED)
+
+**Status**: 📋 **PLANNED**
+**Focus**: Implement comprehensive mutation testing with ≥90% kill rate target
+**Priority**: High (Quality validation)
+**Estimated Time**: 2-3 weeks
+
+### **DEPYLER-0020**: Mutation Testing Infrastructure Setup ✅
+**Complexity**: Medium
+**Time**: 2-4h
+**Status**: ✅ **COMPLETED** (2025-10-03)
+
+- [x] Research pforge mutation testing approach
+- [x] Create comprehensive specification (docs/specifications/mutant.md)
+- [x] Document depyler-specific mutation strategies
+- [x] Design CI/CD integration approach
+- [x] Plan roadmap tickets for implementation
+
+**Achievement**: 23KB specification created, 4 implementation tickets defined
+
+**Next Steps**:
+- [ ] Install cargo-mutants tooling
+- [ ] Configure .cargo/mutants.toml
+- [ ] Set up GitHub Actions workflow
+- [ ] Integrate with existing quality gates
+
+### **DEPYLER-0021**: Achieve 90% Mutation Score - Core Transpilation
+**Function**: depyler-core (AST→HIR conversion, code generation)
+**Target**: ≥90% mutation kill rate
+**Status**: ⏳ **PENDING**
+**Dependencies**: DEPYLER-0020
+**Time**: 16-24h (EXTREME TDD)
+
+- [ ] Run baseline: `cargo mutants -p depyler-core`
+- [ ] Identify all missed mutations
+- [ ] Write tests FIRST to kill missed mutations (EXTREME TDD)
+- [ ] Focus areas:
+  - [ ] AST → HIR conversion (ast_bridge.rs)
+  - [ ] Code generation (codegen.rs)
+  - [ ] Expression conversion (direct_rules.rs)
+  - [ ] Type handling (rust_gen.rs)
+- [ ] Achieve ≥90% kill rate on depyler-core
+- [ ] Document acceptable mutations (logging, perf optimizations)
+
+### **DEPYLER-0022**: Achieve 90% Mutation Score - Type Analysis
+**Function**: depyler-analyzer (type inference, ownership analysis)
+**Target**: ≥90% mutation kill rate
+**Status**: ⏳ **PENDING**
+**Dependencies**: DEPYLER-0020
+**Time**: 8-12h (EXTREME TDD)
+
+- [ ] Run baseline: `cargo mutants -p depyler-analyzer`
+- [ ] Identify all missed mutations
+- [ ] Write tests FIRST to kill missed mutations
+- [ ] Focus areas:
+  - [ ] Type inference (type_flow.rs)
+  - [ ] Ownership analysis
+  - [ ] Lifetime tracking
+- [ ] Achieve ≥90% kill rate on depyler-analyzer
+
+### **DEPYLER-0023**: Mutation Testing Documentation & Integration
+**Complexity**: Low
+**Time**: 2-4h
+**Status**: ⏳ **PENDING**
+**Dependencies**: DEPYLER-0021, DEPYLER-0022
+
+- [ ] Update developer guide with mutation testing workflow
+- [ ] Document acceptable mutation patterns
+- [ ] Create mutation testing troubleshooting guide
+- [ ] Add mutation metrics to quality dashboard
+- [ ] Update CLAUDE.md with mutation testing protocol
+- [ ] Update pre-commit hooks for critical files
+
+---
+
 ## 🚨 **COMPLETED QUALITY PRIORITIES - v3.2.0**
 
 ### 🔴 **Priority 0: Quality Infrastructure Setup** (BLOCKING)
