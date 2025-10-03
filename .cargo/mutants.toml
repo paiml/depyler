@@ -21,4 +21,5 @@ test_package = true
 
 # Additional test arguments
 # Note: --release removed due to disk space constraints (builds are ~5x larger)
-additional_cargo_test_args = ["--lib"]
+# Note: --lib and --tests to skip doctests (many doctests fail on generated code)
+additional_cargo_test_args = ["--lib", "--tests"]
