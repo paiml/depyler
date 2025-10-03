@@ -1052,6 +1052,14 @@ pub(crate) fn extract_assign_target(expr: &ast::Expr) -> Result<AssignTarget> {
                 attr: a.attr.to_string(),
             })
         }
+        ast::Expr::Tuple(t) => {
+            let targets = t
+                .elts
+                .iter()
+                .map(extract_assign_target)
+                .collect::<Result<Vec<_>>>()?;
+            Ok(AssignTarget::Tuple(targets))
+        }
         _ => bail!("Unsupported assignment target"),
     }
 }

@@ -552,10 +552,19 @@ fn test_error_on_chained_comparison() {
 }
 
 #[test]
-fn test_error_on_multiple_assign_targets() {
+fn test_multiple_assign_targets_now_supported() {
+    // Updated: tuple assignment is now supported (DEPYLER-0101)
     let stmt = parse_stmt("a, b = 1, 2");
     let result = StmtConverter::convert(stmt);
-    assert!(result.is_err());
+    assert!(result.is_ok());
+
+    // Verify it's a tuple assignment
+    match result.unwrap() {
+        HirStmt::Assign { target, .. } => {
+            assert!(matches!(target, AssignTarget::Tuple(_)));
+        }
+        _ => panic!("Expected Assign statement"),
+    }
 }
 
 // DEPYLER-0101: Tests for 'is None' / 'is not None' operator support
@@ -610,5 +619,101 @@ fn test_complex_expr_is_none() {
             assert_eq!(method, "is_none");
         }
         _ => panic!("Expected MethodCall"),
+    }
+}
+
+// DEPYLER-0101: Tests for tuple assignment/unpacking support
+#[test]
+fn test_tuple_assignment_simple() {
+    let stmt = parse_stmt("a, b = 0, 1");
+    let result = StmtConverter::convert(stmt).unwrap();
+
+    match result {
+        HirStmt::Assign { target, value } => {
+            // Check target is tuple of two symbols
+            match target {
+                AssignTarget::Tuple(targets) => {
+                    assert_eq!(targets.len(), 2);
+                    assert!(matches!(targets[0], AssignTarget::Symbol(ref s) if s == "a"));
+                    assert!(matches!(targets[1], AssignTarget::Symbol(ref s) if s == "b"));
+                }
+                _ => panic!("Expected Tuple target, got {:?}", target),
+            }
+            // Check value is tuple of two literals
+            assert!(matches!(value, HirExpr::Tuple(_)));
+        }
+        _ => panic!("Expected Assign statement"),
+    }
+}
+
+#[test]
+fn test_tuple_assignment_three_vars() {
+    let stmt = parse_stmt("x, y, z = 1, 2, 3");
+    let result = StmtConverter::convert(stmt).unwrap();
+
+    match result {
+        HirStmt::Assign { target, .. } => {
+            match target {
+                AssignTarget::Tuple(targets) => {
+                    assert_eq!(targets.len(), 3);
+                    assert!(matches!(targets[0], AssignTarget::Symbol(ref s) if s == "x"));
+                    assert!(matches!(targets[1], AssignTarget::Symbol(ref s) if s == "y"));
+                    assert!(matches!(targets[2], AssignTarget::Symbol(ref s) if s == "z"));
+                }
+                _ => panic!("Expected Tuple target"),
+            }
+        }
+        _ => panic!("Expected Assign statement"),
+    }
+}
+
+#[test]
+fn test_tuple_assignment_from_function() {
+    let stmt = parse_stmt("a, b = get_pair()");
+    let result = StmtConverter::convert(stmt).unwrap();
+
+    match result {
+        HirStmt::Assign { target, value } => {
+            // Check target is tuple
+            match target {
+                AssignTarget::Tuple(targets) => {
+                    assert_eq!(targets.len(), 2);
+                }
+                _ => panic!("Expected Tuple target"),
+            }
+            // Check value is function call
+            assert!(matches!(value, HirExpr::Call { .. }));
+        }
+        _ => panic!("Expected Assign statement"),
+    }
+}
+
+#[test]
+fn test_tuple_assignment_swap() {
+    // Classic Python swap: a, b = b, a
+    let stmt = parse_stmt("a, b = b, a");
+    let result = StmtConverter::convert(stmt).unwrap();
+
+    match result {
+        HirStmt::Assign { target, value } => {
+            match target {
+                AssignTarget::Tuple(targets) => {
+                    assert_eq!(targets.len(), 2);
+                    assert!(matches!(targets[0], AssignTarget::Symbol(ref s) if s == "a"));
+                    assert!(matches!(targets[1], AssignTarget::Symbol(ref s) if s == "b"));
+                }
+                _ => panic!("Expected Tuple target"),
+            }
+            // Value should be tuple of (b, a)
+            match value {
+                HirExpr::Tuple(elts) => {
+                    assert_eq!(elts.len(), 2);
+                    assert!(matches!(elts[0], HirExpr::Var(ref s) if s == "b"));
+                    assert!(matches!(elts[1], HirExpr::Var(ref s) if s == "a"));
+                }
+                _ => panic!("Expected Tuple value"),
+            }
+        }
+        _ => panic!("Expected Assign statement"),
     }
 }

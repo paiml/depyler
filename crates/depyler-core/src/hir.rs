@@ -195,6 +195,8 @@ pub enum AssignTarget {
     },
     /// Attribute assignment: x.attr = value (for future use)
     Attribute { value: Box<HirExpr>, attr: Symbol },
+    /// Tuple unpacking: (a, b) = value or a, b = value
+    Tuple(Vec<AssignTarget>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

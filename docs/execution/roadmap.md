@@ -520,12 +520,30 @@ Based on paiml-mcp-agent-toolkit and ruchy best practices:
 
 ### ✅ **Priority 1: Core Transpilation** (FOUNDATION)
 
-#### **DEPYLER-0101**: Basic Python→Rust Transpilation
-- [ ] Function definitions with type annotations
-- [ ] Basic expressions (arithmetic, boolean, comparison)
-- [ ] Variable assignments and type inference
-- [ ] Return statements
-- [ ] Property tests for all basic constructs
+#### **DEPYLER-0101**: Basic Python→Rust Transpilation 🚧 **IN PROGRESS**
+**Status**: Major progress (2025-10-03) - fibonacci.py transpiles successfully!
+**Time**: ~2.5h total
+**Tests**: 370 passing (+9 new, 1 updated)
+
+**Completed**:
+- [x] Function definitions with type annotations
+- [x] Basic expressions (arithmetic, boolean, comparison)
+- [x] Variable assignments and type inference
+- [x] Return statements
+- [x] `is None` / `is not None` pattern support (→ Option.is_none()/is_some())
+- [x] Tuple assignment/unpacking (a, b = 0, 1)
+- [x] Property tests for all basic constructs
+
+**Milestone Achieved**:
+- ✅ fibonacci.py transpiles without errors
+- ✅ Demonstrates recursive, memoized, and iterative patterns
+- ✅ Option type handling working
+- ✅ Tuple unpacking for iterative algorithms
+
+**Remaining Work**:
+- [ ] Default parameter values (runtime initialization)
+- [ ] Dict/HashMap literal initialization improvements
+- [ ] Additional edge case testing
 
 #### **DEPYLER-0102**: Control Flow Transpilation
 - [ ] If/elif/else statements
