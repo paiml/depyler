@@ -547,12 +547,24 @@ Based on paiml-mcp-agent-toolkit and ruchy best practices:
 - [ ] Dict/HashMap literal initialization improvements
 - [ ] Additional edge case testing
 
-#### **DEPYLER-0102**: Control Flow Transpilation
-- [ ] If/elif/else statements
-- [ ] While loops with termination verification
-- [ ] For loops with iterators
-- [ ] Break/continue statements
+#### **DEPYLER-0102**: Control Flow Transpilation ✅ **COMPLETE**
+**Status**: All control flow features already implemented and working
+**Evidence**: fibonacci.py successfully transpiles with if/else, for loops
+
+**Completed**:
+- [x] If/elif/else statements (working in fibonacci.py)
+- [x] While loops (HirStmt::While implemented)
+- [x] For loops with iterators (working in fibonacci_iterative)
+- [x] Break/continue statements (HirStmt::Break, HirStmt::Continue)
+- [x] Scope management for nested blocks
+
+**Implementation**: All control flow constructs are fully implemented in:
+- `rust_gen.rs`: HirStmt::If (line 903), HirStmt::While (line 938), HirStmt::For (line 952), HirStmt::Break/Continue (lines 997, 1008)
+- Full scope tracking and variable declaration handling
+
+**Remaining**:
 - [ ] Property tests for control flow correctness
+- [ ] Termination verification for while loops (future enhancement)
 
 #### **DEPYLER-0103**: Type System Implementation
 - [ ] Type inference for Python types → Rust types
