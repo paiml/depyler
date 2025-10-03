@@ -28,6 +28,63 @@ and this project adheres to
 
 **Next Steps**: Install cargo-mutants, run baseline, strengthen tests
 
+#### **DEPYLER-0021: Mutation Testing Baseline Complete** ✅
+- **Status**: BASELINE ESTABLISHED - 164/164 mutations tested
+- **Time**: ~5h (configuration + breakthrough + complete baseline)
+- **Kill Rate**: 18.7% (25/134 viable mutations caught)
+- **Deliverables**:
+  - Fixed `.cargo/mutants.toml` configuration syntax (test_package array format)
+  - Fixed failing doctest in `lib.rs:59` (DepylerPipeline example)
+  - Discovered `--baseline skip` workaround for baseline validation issues
+  - **Complete mutation baseline**: 164 mutations tested in 15 minutes on ast_bridge.rs
+
+**Results**:
+- CAUGHT: 25 mutations (18.7% kill rate)
+- MISSED: 109 mutations (81.3% - critical gaps identified)
+- UNVIABLE: 30 mutations (don't compile)
+- Test time: 15 minutes with 4 parallel jobs
+
+**Critical Findings**:
+1. Tests catch some logic (25 mutations), but have significant gaps
+2. Type inference validation: Missing (match arm deletions not caught)
+3. Boolean logic validation: Weak (operator swaps mostly missed)
+4. Comparison operators: Weak (>, ==, != swaps mostly missed)
+5. Return value correctness: Weak (replacements mostly missed)
+
+**Technical Breakthrough**:
+- `--baseline skip` flag successfully bypasses doctest tmp directory issues
+- Complete 164-mutation baseline achieved (vs. initial 44 partial results)
+- Identified 109 specific mutations to target with EXTREME TDD
+
+**Impact**: Establishes 18.7% baseline kill rate with clear path to 90%+ target
+
+**Next Action**: Write tests to kill all 109 MISSED mutations (EXTREME TDD Sprint 5)
+
+#### **DEPYLER-0021: Phase 1 - Type Inference Tests** 🚧
+- **Status**: IN PROGRESS - EXTREME TDD response to mutation findings
+- **Time**: ~2h (test writing + pre-commit hook update)
+- **Tests Added**: 18 comprehensive type inference tests
+- **Deliverables**:
+  - Created `ast_bridge_type_inference_tests.rs` (347 lines, 18 tests)
+  - Updated pre-commit hook with `pmat validate-docs` validation
+  - Documented test improvement session progress
+
+**Type Inference Tests Coverage**:
+- Target: 9 MISSED mutations in `infer_type_from_expr` (lines 968-985)
+- Tests: Int (2), Float (2), String (3), Bool (2), None (1), List (2), Dict (2), Set (2), Comprehensive (2)
+- All 18 tests passing ✅
+- Test execution time: 0.02s (fast feedback loop)
+
+**Pre-commit Hook Enhancement**:
+- Added `pmat validate-docs` to quality gates
+- Now enforces: documentation sync, complexity ≤10, zero SATD, TDG A-, docs validation, clippy, coverage
+
+**Expected Impact**:
+- Type inference mutation kill rate: 0% → ~100% (9 mutations)
+- Overall kill rate improvement: 18.7% → ~25.4% (+6.7 percentage points)
+
+**Next Phase**: Boolean logic tests (~20 mutations), comparison operators (~15 mutations), return values (~10 mutations)
+
 ### 🚀 Sprint 4: Quality Gate Refinement (Completed)
 
 #### **DEPYLER-0011: lambda_convert_command Refactoring** ✅
