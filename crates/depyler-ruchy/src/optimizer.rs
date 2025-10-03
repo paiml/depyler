@@ -289,8 +289,8 @@ impl RuchyOptimizer {
                     op,
                     right: Box::new(right_transformed),
                 };
-                
-                // If this is a complex expression, create a temporary
+
+                // Create temporary variable for complex expressions to enable common subexpression elimination
                 if self.is_complex_expr(&new_expr) {
                     let temp_var = format!("_cse_{}", next_id);
                     *next_id += 1;
