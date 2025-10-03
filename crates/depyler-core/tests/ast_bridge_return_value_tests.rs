@@ -129,7 +129,7 @@ class User:
     let class = &hir.classes[0];
 
     // Should infer 2 fields from __init__ parameters
-    assert!(class.fields.len() >= 2 || class.methods.len() >= 1,
+    assert!(class.fields.len() >= 2 || !class.methods.is_empty(),
             "Should have fields or __init__ method");
 
     // If mutated to Ok(vec![]): would return empty fields (WRONG!)
@@ -287,7 +287,7 @@ class Protocol:
     let hir = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should convert the class
-    assert!(hir.classes.len() >= 1, "Should have classes");
+    assert!(!hir.classes.is_empty(), "Should have classes");
 
     // If mutated to Ok(None): would skip all conversions (WRONG!)
 }
