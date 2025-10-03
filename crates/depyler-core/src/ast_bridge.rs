@@ -1109,7 +1109,8 @@ pub(crate) fn convert_cmpop(op: &ast::CmpOp) -> Result<BinOp> {
         ast::CmpOp::GtE => BinOp::GtEq,
         ast::CmpOp::In => BinOp::In,
         ast::CmpOp::NotIn => BinOp::NotIn,
-        _ => bail!("Unsupported comparison operator"),
+        ast::CmpOp::Is => bail!("'is' operator not yet supported (use == for value comparison)"),
+        ast::CmpOp::IsNot => bail!("'is not' operator not yet supported (use != for value comparison)"),
     })
 }
 
