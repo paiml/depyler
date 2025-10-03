@@ -1061,6 +1061,55 @@ fn convert_assign_stmt(
         AssignTarget::Attribute { value: base, attr } => {
             convert_attribute_assignment(base, attr, value_expr, type_mapper)
         }
+        AssignTarget::Tuple(targets) => {
+            // Tuple unpacking - simplified version
+            let all_symbols: Option<Vec<&str>> = targets
+                .iter()
+                .map(|t| match t {
+                    AssignTarget::Symbol(s) => Some(s.as_str()),
+                    _ => None,
+                })
+                .collect();
+
+            match all_symbols {
+                Some(symbols) => {
+                    let idents: Vec<_> = symbols
+                        .iter()
+                        .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
+                        .collect();
+                    let pat = syn::Pat::Tuple(syn::PatTuple {
+                        attrs: vec![],
+                        paren_token: syn::token::Paren::default(),
+                        elems: idents
+                            .iter()
+                            .map(|ident| {
+                                syn::Pat::Ident(syn::PatIdent {
+                                    attrs: vec![],
+                                    by_ref: None,
+                                    mutability: Some(syn::token::Mut::default()),
+                                    ident: ident.clone(),
+                                    subpat: None,
+                                })
+                            })
+                            .collect(),
+                    });
+                    Ok(syn::Stmt::Local(syn::Local {
+                        attrs: vec![],
+                        let_token: syn::token::Let::default(),
+                        pat,
+                        init: Some(syn::LocalInit {
+                            eq_token: syn::token::Eq::default(),
+                            expr: Box::new(value_expr),
+                            diverge: None,
+                        }),
+                        semi_token: syn::token::Semi::default(),
+                    }))
+                }
+                None => {
+                    bail!("Complex tuple unpacking not yet supported")
+                }
+            }
+        }
     }
 }
 

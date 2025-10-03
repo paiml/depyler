@@ -276,6 +276,40 @@ fn handle_assign_target(
         AssignTarget::Attribute { .. } => {
             anyhow::bail!("Attribute assignment not yet implemented")
         }
+        AssignTarget::Tuple(targets) => {
+            // Tuple unpacking
+            let all_symbols: Option<Vec<&str>> = targets
+                .iter()
+                .map(|t| match t {
+                    AssignTarget::Symbol(s) => Some(s.as_str()),
+                    _ => None,
+                })
+                .collect();
+
+            match all_symbols {
+                Some(symbols) => {
+                    let all_declared = symbols.iter().all(|s| scope_tracker.is_declared(s));
+
+                    if all_declared {
+                        let idents: Vec<_> = symbols
+                            .iter()
+                            .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
+                            .collect();
+                        Ok(quote! { (#(#idents),*) = #value_tokens; })
+                    } else {
+                        symbols.iter().for_each(|s| scope_tracker.declare_var(s));
+                        let idents: Vec<_> = symbols
+                            .iter()
+                            .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
+                            .collect();
+                        Ok(quote! { let (mut #(#idents),*) = #value_tokens; })
+                    }
+                }
+                None => {
+                    anyhow::bail!("Complex tuple unpacking not yet supported")
+                }
+            }
+        }
     }
 }
 

@@ -10,42 +10,62 @@ and this project adheres to
 
 ### 🚀 Sprint 6: Core Transpilation Implementation (In Progress)
 
-#### **DEPYLER-0101: Basic Python→Rust Transpilation** 🚧 (Partial - 2025-10-03)
-- **Status**: Partial completion - 'is None' / 'is not None' operator support added
-- **Time**: ~1h
-- **Tests**: 366 passing (+4 new)
+#### **DEPYLER-0101: Basic Python→Rust Transpilation** 🚧 (2025-10-03)
+- **Status**: Major progress - 'is None' and tuple assignment support added
+- **Time**: ~2.5h total
+- **Tests**: 370 passing (+9 new, 1 updated)
 
-**Achievement**: Implemented special handling for Python's `is None` and `is not None` patterns by converting them to Rust Option method calls.
+**Achievement**: Implemented two critical Python patterns for Rust transpilation, enabling fibonacci.py to transpile successfully.
 
-**Implementation Details**:
+**Part 1: 'is None' / 'is not None' Support** (~1h):
 - `x is None` → `x.is_none()` (Option method call)
 - `x is not None` → `x.is_some()` (Option method call)
 - Improved error messages for unsupported `is` / `is not` operators
-- Special-case detection in compare expression converter
 
-**Tests Added** (4 new comprehensive tests):
+**Part 2: Tuple Assignment/Unpacking Support** (~1.5h):
+- `a, b = 0, 1` → `let (mut a, mut b) = (0, 1);` (first declaration)
+- `a, b = b, a` → `(a, b) = (b, a);` (reassignment/swap)
+- Supports arbitrary tuple sizes and function call unpacking
+- Smart detection of declared vs undeclared variables
+
+**Tests Added** (9 new comprehensive tests):
 1. `test_is_none_converts_to_method_call` - Verifies 'is None' → .is_none()
 2. `test_is_not_none_converts_to_is_some` - Verifies 'is not None' → .is_some()
-3. `test_is_with_non_none_fails` - Ensures 'is' with non-None values fails gracefully
-4. `test_complex_expr_is_none` - Tests 'is None' with complex expressions (function calls)
+3. `test_is_with_non_none_fails` - Ensures 'is' with non-None values fails
+4. `test_complex_expr_is_none` - Tests 'is None' with function calls
+5. `test_tuple_assignment_simple` - Basic tuple unpacking (a, b = 0, 1)
+6. `test_tuple_assignment_three_vars` - Three-variable unpacking
+7. `test_tuple_assignment_from_function` - Unpacking function returns
+8. `test_tuple_assignment_swap` - Classic Python swap (a, b = b, a)
+9. `test_multiple_assign_targets_now_supported` - Updated to verify tuple support
 
 **Files Modified**:
-- `crates/depyler-core/src/ast_bridge.rs`: Better error messages (+2 lines)
-- `crates/depyler-core/src/ast_bridge/converters.rs`: Special handling for is None patterns (+33 lines)
-- `crates/depyler-core/src/ast_bridge/converters_tests.rs`: 4 comprehensive tests (+56 lines)
+- `crates/depyler-core/src/hir.rs`: Added Tuple variant to AssignTarget (+2 lines)
+- `crates/depyler-core/src/ast_bridge.rs`: Tuple target handling (+9 lines)
+- `crates/depyler-core/src/ast_bridge/converters.rs`: is None handling (+33 lines)
+- `crates/depyler-core/src/rust_gen.rs`: Tuple codegen (+37 lines)
+- `crates/depyler-core/src/codegen.rs`: Tuple codegen (+35 lines)
+- `crates/depyler-core/src/direct_rules.rs`: Tuple syn generation (+50 lines)
+- `crates/depyler-core/src/ast_bridge/converters_tests.rs`: 9 tests (+110 lines)
 
 **DEPYLER-0101 Progress**:
 - ✅ Function definitions with type annotations
 - ✅ Basic expressions (arithmetic, boolean)
 - ✅ Comparison operators (==, !=, <, >, <=, >=, in, not in)
 - ✅ `is None` / `is not None` patterns (NEW)
+- ✅ Tuple assignment/unpacking (NEW - a, b = 0, 1)
 - ✅ Variable assignments
 - ✅ Return statements
-- ⏸ Tuple assignment (blocked: "a, b = 0, 1" not yet supported)
+- ✅ **fibonacci.py transpiles successfully!** 🎉
 
-**Pending Work**:
-- Tuple assignment/unpacking support
-- Full transpilation of fibonacci.py example
+**Milestone**: fibonacci.py example now transpiles without errors, demonstrating working Python→Rust conversion with:
+- Recursive functions
+- Memoization patterns
+- Iterative loops with tuple unpacking
+- Option type handling
+
+**Known Limitation**:
+- Default parameter values (`memo: Dict[int, int] = None`) transpiled but need runtime initialization fix
 
 ### 🚀 Sprint 5: Mutation Testing Implementation
 

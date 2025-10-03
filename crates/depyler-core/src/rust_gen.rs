@@ -847,6 +847,43 @@ impl RustCodeGen for HirStmt {
                     AssignTarget::Attribute { .. } => {
                         bail!("Attribute assignment not yet implemented")
                     }
+                    AssignTarget::Tuple(targets) => {
+                        // Tuple unpacking: a, b = value
+                        // Check if all targets are simple symbols
+                        let all_symbols: Option<Vec<&str>> = targets
+                            .iter()
+                            .map(|t| match t {
+                                AssignTarget::Symbol(s) => Some(s.as_str()),
+                                _ => None,
+                            })
+                            .collect();
+
+                        match all_symbols {
+                            Some(symbols) => {
+                                let all_declared = symbols.iter().all(|s| ctx.is_declared(s));
+
+                                if all_declared {
+                                    // All variables exist, do reassignment
+                                    let idents: Vec<_> = symbols
+                                        .iter()
+                                        .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
+                                        .collect();
+                                    Ok(quote! { (#(#idents),*) = #value_expr; })
+                                } else {
+                                    // First declaration
+                                    symbols.iter().for_each(|s| ctx.declare_var(s));
+                                    let idents: Vec<_> = symbols
+                                        .iter()
+                                        .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
+                                        .collect();
+                                    Ok(quote! { let (mut #(#idents),*) = #value_expr; })
+                                }
+                            }
+                            None => {
+                                bail!("Complex tuple unpacking not yet supported")
+                            }
+                        }
+                    }
                 }
             }
             HirStmt::Return(expr) => {
