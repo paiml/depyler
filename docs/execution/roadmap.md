@@ -26,6 +26,53 @@ See `CHANGELOG.md` for complete release notes.
 
 ---
 
+## 🚀 **SPRINT 4 - Quality Gate Refinement** (IN PROGRESS)
+
+**Status**: 🟡 **IN PROGRESS**
+**Start Date**: 2025-10-02
+**Focus**: Remaining complexity hotspots and SATD removal
+
+### **DEPYLER-0011**: lambda_convert_command Refactoring ✅
+**Function**: `lambda_convert_command` (lib.rs:1063-1253)
+**Complexity**: 31 → 10 (68% reduction)
+**Status**: ✅ **COMPLETED** (2025-10-02)
+
+- [x] Write 22 comprehensive tests FIRST (EXTREME TDD)
+- [x] Extract 7 helper functions
+- [x] Verify all tests pass (zero regressions)
+- [x] Confirm TDG A+ maintained (99.1/100)
+- [x] Verify clippy clean (0 warnings)
+
+**Achievement**: 68% complexity reduction (31→10) in ~3h vs. 10-13h estimated
+**Tests**: 22 new comprehensive tests (all passing):
+- Happy Path (5 tests)
+- Event Types (6 tests)
+- File System (4 tests)
+- Error Paths (5 tests)
+- Integration (2 tests)
+
+**Helpers Extracted** (all ≤7 complexity):
+1. `infer_and_map_event_type()` - Event type mapping (7)
+2. `create_lambda_generation_context()` - Context builder (1)
+3. `setup_lambda_generator()` - Optimizer config (3)
+4. `write_lambda_project_files()` - File writer (2)
+5. `write_deployment_templates()` - Template writer (3)
+6. `generate_and_write_tests()` - Test generator (3)
+7. `print_lambda_summary()` - Summary printer (3)
+
+### **DEPYLER-0012**: stmt_to_rust_tokens_with_scope Refactoring
+**Function**: `stmt_to_rust_tokens_with_scope` (codegen.rs:500)
+**Complexity**: 25 → ≤10 (target)
+**Status**: ⏳ **PENDING**
+
+### **DEPYLER-0015**: SATD Removal
+**Files**: optimizer.rs:293, lambda_optimizer.rs:330
+**Current**: 2 low-severity SATD violations
+**Target**: 0 (zero tolerance)
+**Status**: ⏳ **PENDING**
+
+---
+
 ## 🚨 **COMPLETED QUALITY PRIORITIES - v3.2.0**
 
 ### 🔴 **Priority 0: Quality Infrastructure Setup** (BLOCKING)
