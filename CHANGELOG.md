@@ -8,7 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
-### 🚀 Sprint 6: Core Transpilation Implementation (In Progress)
+## [3.3.0] - 2025-10-03
+
+### 🚀 Sprint 6: Core Transpilation & Type System Validation
+
+**Release Highlights**:
+- ✅ Type system validation with comprehensive property tests (DEPYLER-0103)
+- ✅ Control flow transpilation confirmed complete (DEPYLER-0102)
+- ✅ Critical Python patterns: 'is None', tuple assignment (DEPYLER-0101)
+- ✅ Default parameters documented for future implementation (DEPYLER-0104)
+- ✅ 12 new property tests, all passing
+- ✅ Type system infrastructure validated (~95% complete)
 
 #### **DEPYLER-0101: Basic Python→Rust Transpilation** 🚧 (2025-10-03)
 - **Status**: Major progress - 'is None' and tuple assignment support added
