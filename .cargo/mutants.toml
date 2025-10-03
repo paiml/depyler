@@ -1,0 +1,24 @@
+# Depyler Mutation Testing Configuration
+# Spec: docs/specifications/mutant.md
+# Target: ≥90% mutation kill rate
+
+# Timeout multiplier (default baseline test time * 5)
+timeout_multiplier = 5.0
+
+# Minimum timeout per mutant (2 minutes)
+minimum_test_timeout = 120
+
+# Exclude patterns
+exclude_globs = [
+    "**/tests/**",           # Don't mutate test code
+    "**/*_test.rs",          # Don't mutate test helpers
+    "**/examples/**",        # Don't mutate examples
+]
+
+# Test only the specific package being mutated (not whole workspace)
+# This avoids timeout issues with ruchy integration tests
+test_package = true
+
+# Additional test arguments
+# Note: --release removed due to disk space constraints (builds are ~5x larger)
+additional_cargo_test_args = ["--lib"]
