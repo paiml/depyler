@@ -134,28 +134,34 @@ See `CHANGELOG.md` for complete release notes.
 - Status: All 12 tests passing
 - Expected: 25.4% → 35% kill rate
 
+**Phase 3: Comparison Operator Tests** ✅ (2025-10-03)
+- Created: ast_bridge_comparison_tests.rs (15 tests)
+- Target: 15 comparison operator mutations (>, <, ==, !=, >=, <=)
+- Status: All 15 tests passing in <0.02s
+- Expected: 35% → 46% kill rate
+
 **Completed**:
 - [x] Run baseline: `cargo mutants --baseline skip --file ast_bridge.rs`
 - [x] Identify all missed mutations (109 MISSED categorized)
 - [x] Phase 1: Write type inference tests (18 tests)
 - [x] Phase 2: Write boolean logic tests (12 tests)
+- [x] Phase 3: Write comparison operator tests (15 tests)
 - [x] Enhanced pre-commit hook (added pmat validate-docs)
 
 **In Progress**:
-- [ ] Phase 3: Comparison operator tests (~15 mutations)
 - [ ] Phase 4: Return value tests (~10 mutations)
 - [ ] Phase 5: Remaining mutations (~60 mutations)
 
 **Focus areas**:
   - [x] AST → HIR type inference (ast_bridge.rs:968-985) - Phase 1 ✅
   - [x] Boolean logic validation (ast_bridge.rs various) - Phase 2 ✅
-  - [ ] Comparison operators (ast_bridge.rs various)
-  - [ ] Code generation (codegen.rs)
-  - [ ] Expression conversion (direct_rules.rs)
-  - [ ] Type handling (rust_gen.rs)
+  - [x] Comparison operators (ast_bridge.rs various) - Phase 3 ✅
+  - [ ] Return value replacements
+  - [ ] Match arm deletions
+  - [ ] Remaining mutations
 
-**Progress**: 18.7% → ~25.4% (Phase 1) → ~35% (Phase 2) → 90%+ target
-**Next**: Phase 3 comparison operator tests
+**Progress**: 18.7% → 25.4% (Phase 1) → 35% (Phase 2) → 46% (Phase 3) → 90%+ target
+**Next**: Phase 4 return value tests
 
 ### **DEPYLER-0022**: Achieve 90% Mutation Score - Type Analysis
 **Function**: depyler-analyzer (type inference, ownership analysis)
