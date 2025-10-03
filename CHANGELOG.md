@@ -26,35 +26,29 @@ and this project adheres to
 - Performance optimization for 596+ test suite
 - 4 implementation tickets defined (DEPYLER-0020 through DEPYLER-0023)
 
-**Next Steps**: Install cargo-mutants, run baseline, strengthen tests
+#### **DEPYLER-0021: Mutation Testing Baseline & Phase 1-2** 🚧
+- **Baseline Complete**: 18.7% kill rate (25/134 viable caught, 109 MISSED)
+- **Time**: ~10h total (7h baseline + 3h Phase 1-2)
+- **Breakthrough**: Discovered `--baseline skip` workaround for doctest issues
 
-#### **DEPYLER-0021: Mutation Testing Baseline Complete** ✅
-- **Status**: BASELINE ESTABLISHED - 164/164 mutations tested
-- **Time**: ~5h (configuration + breakthrough + complete baseline)
-- **Kill Rate**: 18.7% (25/134 viable mutations caught)
-- **Deliverables**:
-  - Fixed `.cargo/mutants.toml` configuration syntax (test_package array format)
-  - Fixed failing doctest in `lib.rs:59` (DepylerPipeline example)
-  - Discovered `--baseline skip` workaround for baseline validation issues
-  - **Complete mutation baseline**: 164 mutations tested in 15 minutes on ast_bridge.rs
+**Phase 1: Type Inference Tests** ✅ (2025-10-03)
+- Created: `ast_bridge_type_inference_tests.rs` (18 tests)
+- Target: 9 type inference mutations (lines 968-985)
+- All 18 tests passing
+- Expected impact: 18.7% → 25.4% kill rate
 
-**Results**:
-- CAUGHT: 25 mutations (18.7% kill rate)
-- MISSED: 109 mutations (81.3% - critical gaps identified)
-- UNVIABLE: 30 mutations (don't compile)
-- Test time: 15 minutes with 4 parallel jobs
+**Phase 2: Boolean Logic Tests** ✅ (2025-10-03)
+- Created: `ast_bridge_boolean_logic_tests.rs` (12 tests)
+- Target: 13 boolean operator mutations (`&&` ↔ `||`)
+- All 12 tests passing
+- Expected impact: 25.4% → 35% kill rate (+~10%)
 
-**Critical Findings**:
-1. Tests catch some logic (25 mutations), but have significant gaps
-2. Type inference validation: Missing (match arm deletions not caught)
-3. Boolean logic validation: Weak (operator swaps mostly missed)
-4. Comparison operators: Weak (>, ==, != swaps mostly missed)
-5. Return value correctness: Weak (replacements mostly missed)
+**Test Quality Discovery**: 596 tests pass but only 18.7% mutation kill rate reveals tests validate "doesn't crash" not "is correct"
 
-**Technical Breakthrough**:
-- `--baseline skip` flag successfully bypasses doctest tmp directory issues
-- Complete 164-mutation baseline achieved (vs. initial 44 partial results)
-- Identified 109 specific mutations to target with EXTREME TDD
+**Next Steps**:
+- Phase 3: Comparison operator tests (~15 mutations)
+- Phase 4: Return value tests (~10 mutations)
+- Target: 90%+ mutation kill rate
 
 **Impact**: Establishes 18.7% baseline kill rate with clear path to 90%+ target
 
