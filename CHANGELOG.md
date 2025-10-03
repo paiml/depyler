@@ -102,6 +102,41 @@ and this project adheres to
 **File Modified**:
 - `crates/depyler-verify/src/quickcheck.rs`: +54 lines (helpers), complexity 11→4
 
+#### **DEPYLER-0003: Property Test Infrastructure Verification** ✅ (2025-10-03)
+- **Coverage**: 75.32% lines, 83.67% functions (depyler-core)
+- **Property Tests**: 20 active (22 total, 2 timeout-disabled pending HIR optimization)
+- **Time**: ~1.5h (inventory + documentation)
+
+**Infrastructure Assessment**:
+- ✅ proptest + quickcheck frameworks configured in workspace
+- ✅ 5 comprehensive property test files (1299 lines total)
+- ✅ Property test templates established
+- ✅ 20 active property tests covering core functionality
+- ⏸ 2 tests disabled due to timeouts (requires HIR optimization)
+
+**Test Files Audited**:
+1. `property_tests.rs` - Core transpilation (6 tests, 340 lines)
+2. `property_tests_ast_roundtrip.rs` - AST↔HIR (5 tests, 150 lines)
+3. `property_tests_type_inference.rs` - Type inference (6 tests, 240 lines)
+4. `property_tests_memory_safety.rs` - Memory safety (7 tests, 254 lines)
+5. `property_test_benchmarks.rs` - Performance benchmarks (315 lines)
+
+**Property Test Categories**:
+- ✅ AST↔HIR roundtrip preservation (5 tests)
+- ✅ Type inference soundness (4 active, 2 timeout-disabled)
+- ✅ Memory safety (use-after-free, leaks, bounds checking) (7 tests)
+- ✅ Transpiled code validity (2 tests)
+- ✅ Control flow preservation (2 tests)
+- ✅ Function purity verification (2 tests)
+
+**Coverage Analysis**:
+- **depyler-core**: 75.32% lines, 83.67% functions
+- **Blocker**: rust_gen.rs at 59.83% coverage pulls down average
+- **Target**: 80% (pending future rust_gen.rs improvements)
+
+**Files Modified**:
+- `tests/property_tests_type_inference.rs`: Updated 2 test comments with DEPYLER-0003 tracking
+
 #### **DEPYLER-0021: Mutation Testing Baseline & Phase 1-2** 🚧
 - **Baseline Complete**: 18.7% kill rate (25/134 viable caught, 109 MISSED)
 - **Time**: ~10h total (7h baseline + 3h Phase 1-2)

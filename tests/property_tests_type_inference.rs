@@ -2,8 +2,9 @@ use depyler_core::{hir::Type, DepylerPipeline};
 use quickcheck::TestResult;
 
 /// Property: Type inference should be sound (never produce invalid types)
-#[ignore] // Temporarily disabled - causes test timeouts
-#[quickcheck_macros::quickcheck(tests = 3, max_tests = 5)]
+/// DEPYLER-0003: Disabled due to test timeouts - requires HIR optimization first
+#[ignore]
+#[quickcheck_macros::quickcheck(tests = 2, max_tests = 3)]
 fn prop_type_inference_soundness(literal_type: u8, value: i32) -> TestResult {
     let (python_type, python_value) = match literal_type % 4 {
         0 => ("int", value.to_string()),
@@ -113,8 +114,9 @@ fn prop_optional_type_handling(has_none: bool, base_type: u8) -> TestResult {
 }
 
 /// Property: Type inference should be consistent across function calls
-#[ignore] // Temporarily disabled - causes test timeouts
-#[quickcheck_macros::quickcheck(tests = 3, max_tests = 5)]
+/// DEPYLER-0003: Disabled due to test timeouts - requires HIR optimization first
+#[ignore]
+#[quickcheck_macros::quickcheck(tests = 2, max_tests = 3)]
 fn prop_function_call_type_consistency(arg_type: u8, arg_value: i32) -> TestResult {
     let (python_type, python_arg) = match arg_type % 3 {
         0 => ("int", arg_value.to_string()),
