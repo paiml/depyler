@@ -218,7 +218,7 @@ Names = dict[str, str]
     let hir = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should handle subscript type expressions
-    assert!(hir.type_aliases.len() >= 1, "Should have type aliases with subscripts");
+    assert!(!hir.type_aliases.is_empty(), "Should have type aliases with subscripts");
 
     // If match arm deleted: subscript types would fail
 }
@@ -252,7 +252,7 @@ Container = list[int]
     let hir = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should handle subscript in annotated type alias
-    assert!(hir.type_aliases.len() >= 1, "Should have annotated type alias");
+    assert!(!hir.type_aliases.is_empty(), "Should have annotated type alias");
 }
 
 #[test]
@@ -438,7 +438,7 @@ class Container:
     let hir = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should handle tuple expressions in generic params
-    assert!(hir.classes.len() >= 1 || hir.type_aliases.len() >= 1,
+    assert!(!hir.classes.is_empty() || !hir.type_aliases.is_empty(),
             "Should process generic types");
 }
 
@@ -481,7 +481,7 @@ class Protocol:
     let hir = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should handle Protocol classes with correct negation logic
-    assert!(hir.classes.len() >= 1, "Should have classes");
+    assert!(!hir.classes.is_empty(), "Should have classes");
 }
 
 // ============================================================================
@@ -519,7 +519,7 @@ class Container:
     let hir = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should extract real type params, not empty/fake vectors
-    assert!(hir.classes.len() >= 1 || hir.type_aliases.len() >= 1,
+    assert!(!hir.classes.is_empty() || !hir.type_aliases.is_empty(),
             "Should process generic types");
 
     // If mutated to vec![]: would lose type params

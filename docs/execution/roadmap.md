@@ -62,10 +62,35 @@ See `CHANGELOG.md` for complete release notes.
 6. `generate_and_write_tests()` - Test generator (3)
 7. `print_lambda_summary()` - Summary printer (3)
 
-### **DEPYLER-0012**: stmt_to_rust_tokens_with_scope Refactoring
-**Function**: `stmt_to_rust_tokens_with_scope` (codegen.rs:500)
-**Complexity**: 25 → ≤10 (target)
-**Status**: ⏳ **PENDING**
+### **DEPYLER-0012**: stmt_to_rust_tokens_with_scope Refactoring ✅
+**Function**: `stmt_to_rust_tokens_with_scope` (codegen.rs:390)
+**Complexity**: 25 → 10 (60% reduction)
+**Status**: ✅ **COMPLETED** (2025-10-03)
+
+- [x] Write 20 comprehensive tests FIRST (EXTREME TDD)
+- [x] Extract 5 helper functions from complex match arms
+- [x] Verify all 35 tests pass (zero regressions)
+- [x] Confirm cyclomatic complexity ≤10
+
+**Achievement**: 60% complexity reduction (25→10) in ~2h
+**Tests**: 20 new comprehensive tests (all passing in <0.01s):
+- 4 Assign statement tests (Symbol first/reassign, Index, Attribute error)
+- 2 Return statement tests (with/without expression)
+- 2 If statement tests (with/without else, scope tracking)
+- 2 Loop tests (While, For with scope tracking)
+- 1 Expr statement test
+- 2 Raise statement tests (with/without exception)
+- 2 Break statement tests (with/without label)
+- 2 Continue statement tests (with/without label)
+- 2 With statement tests (with/without target)
+- 1 Nested scope tracking test
+
+**Helpers Extracted** (all cyclomatic ≤5, cognitive ≤7):
+1. `handle_assign_target()` - Cyclomatic: 5, Cognitive: 7
+2. `handle_if_stmt()` - Cyclomatic: 5, Cognitive: 5
+3. `handle_while_stmt()` - Cyclomatic: 3, Cognitive: 2
+4. `handle_for_stmt()` - Cyclomatic: 3, Cognitive: 2
+5. `handle_with_stmt()` - Cyclomatic: 4, Cognitive: 3
 
 ### **DEPYLER-0015**: SATD Removal ✅
 **Files**: optimizer.rs:293, lambda_optimizer.rs:330

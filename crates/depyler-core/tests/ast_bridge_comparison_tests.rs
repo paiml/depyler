@@ -134,7 +134,7 @@ Container = list[T]
 
     // Should process TypeVar correctly
     // The == comparison validates type_params match the pattern
-    assert!(hir.type_aliases.len() >= 1, "Should have type aliases");
+    assert!(!hir.type_aliases.is_empty(), "Should have type aliases");
 }
 
 #[test]
@@ -190,7 +190,7 @@ class Container:
 
     // Should handle generic classes
     // type_params.len() should be > 0 for generics
-    assert!(hir.classes.len() >= 1);
+    assert!(!hir.classes.is_empty());
 }
 
 // ============================================================================
@@ -246,7 +246,7 @@ class Service:
     let hir = bridge.python_to_hir(ast).expect("conversion failed");
 
     assert_eq!(hir.classes.len(), 1);
-    assert!(hir.classes[0].methods.len() >= 1);
+    assert!(!hir.classes[0].methods.is_empty());
 
     // Async method with only self parameter
     // The == 0 check (after removing self) validates this
@@ -265,7 +265,7 @@ class Service:
     let hir = bridge.python_to_hir(ast).expect("conversion failed");
 
     assert_eq!(hir.classes.len(), 1);
-    assert!(hir.classes[0].methods.len() >= 1);
+    assert!(!hir.classes[0].methods.is_empty());
 
     // Async method with parameters besides self
     // The != 0 condition would apply here
@@ -311,7 +311,7 @@ class Config:
     let hir = bridge.python_to_hir(ast).expect("conversion failed");
 
     assert_eq!(hir.classes.len(), 1);
-    assert!(hir.classes[0].methods.len() >= 1);
+    assert!(!hir.classes[0].methods.is_empty());
 
     // @cached is not @property
     // The == "property" check correctly excludes it
