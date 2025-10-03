@@ -327,7 +327,7 @@ static INIT: extern "C" fn() = {{
 "#
         .to_string();
 
-        // Optimize for latency over throughput
+        // Configure opt-level=3 for latency-sensitive Lambda workloads (prioritizes response time)
         plan.profile_overrides
             .insert("opt-level".to_string(), "3".to_string());
 
