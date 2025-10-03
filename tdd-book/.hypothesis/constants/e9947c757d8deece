@@ -1,0 +1,4 @@
+# file: /usr/lib/python3/dist-packages/pygments/formatter.py
+# hypothesis_version: 6.140.2
+
+['Formatter', 'chardet', 'default', 'encoding', 'full', 'guess', 'outencoding', 'style', 'title', 'utf-8']

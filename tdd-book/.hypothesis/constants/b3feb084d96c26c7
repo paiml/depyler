@@ -1,0 +1,4 @@
+# file: /usr/lib/python3/dist-packages/pygments/util.py
+# hypothesis_version: 6.140.2
+
+[0.0, 1.0, 1000, 1023, 55232, 56320, ' = (', '"', '#!', ')', ',', ', ', '-', '0', '1', '[/\\\\ ]', '\\s*<\\?xml[^>]*\\?>', 'encoding', 'false', 'html', 'latin1', 'no', 'off', 'on', 'true', 'utf-8', 'yes']

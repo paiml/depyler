@@ -1,0 +1,4 @@
+# file: /usr/lib/python3/dist-packages/pygments/formatters/terminal.py
+# hypothesis_version: 6.140.2
+
+['%s%04d: ', '**', '*brightmagenta*', '*magenta*', 'Terminal', 'TerminalFormatter', '_brightcyan_', '_brightgreen_', '_brightred_', '_cyan_', '_green_', 'bg', 'blue', 'brightblack', 'brightblue', 'brightcyan', 'brightgreen', 'brightmagenta', 'brightred', 'colorscheme', 'console', 'cyan', 'dark', 'gray', 'green', 'light', 'linenos', 'magenta', 'red', 'terminal', 'yellow']

@@ -1,0 +1,4 @@
+# file: /usr/lib/python3/dist-packages/pygments/unistring.py
+# hypothesis_version: 6.140.2
+
+[56320, 1114112, '\x00-\x1f\x7f-\x9f', ' \xa0\u1680\u2000-\u200a\u202f\u205f\u3000', '%s = %a\n\n', '%s-%s', 'Cc', 'Cc =', 'Cf', 'Cn', 'Co', 'Cs', 'Ll', 'Lm', 'Lo', 'Lt', 'Lu', 'Mc', 'Me', 'Mn', 'Nd', 'Nl', 'No', 'Pc', 'Pd', 'Pe', 'Pf', 'Pi', 'Po', 'Ps', 'Sc', 'Sk', 'Sm', 'So', 'Zl', 'Zp', 'Zs', '\\', '__main__', '_‿-⁀⁔︳-︴﹍-﹏＿', 'a', 'cats = %r\n\n', 'def combine(', 'w', 'xid_continue', 'xid_start', '«‘‛-“‟‹⸂⸄⸉⸌⸜⸠', '»’”›⸃⸅⸊⸍⸝⸡', 'ǅǈǋǲᾈ-ᾏᾘ-ᾟᾨ-ᾯᾼῌῼ', '҈-҉᪾⃝-⃠⃢-⃤꙰-꙲', '\ud800-\udbff\\\udc00\udc01-\udfff', '\ue000-\uf8ff\U000f0000-\U000ffffd\U00100000-\U0010fffd']
