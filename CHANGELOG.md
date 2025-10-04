@@ -8,6 +8,38 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [3.4.1] - 2025-10-04
+
+### 🔒 Security & Infrastructure
+
+**Security Fixes**:
+- **Critical**: Fixed form-data vulnerability (CVE GHSA-fjxv-7rqg-78g4)
+  - Updated jsdom dependency to resolve form-data 4.0.3 → 4.0.4
+  - Issue: Unsafe random function for boundary generation in multipart/form-data
+  - Impact: Playground development dependencies
+- **Moderate**: Fixed esbuild vulnerability (CVE GHSA-67mh-4wv8-2f99)
+  - Updated vite to 7.1.9, which includes esbuild 0.25.10
+  - Issue: Development server could accept unauthorized requests
+  - Impact: Playground development environment
+
+**Infrastructure Improvements**:
+- **MCP Registry Publishing**: Added automated CI/CD publishing workflow
+  - Created comprehensive technical specification: `docs/specifications/mcp-registry-publishing.md`
+  - Documented version synchronization requirements (Cargo.toml, server.json, git tag)
+  - Published server at `io.github.noahgift/depyler-mcp` v3.4.0
+  - Server live at: https://registry.modelcontextprotocol.io/?search=depyler
+  - Updated README with registry links and published status
+
+**Files Modified**:
+- `playground/package.json`: vite ^5.2.0 → 7.1.9
+- `playground/package-lock.json`: 1492 insertions, 311 deletions
+- `docs/specifications/mcp-registry-publishing.md`: 193 lines (new)
+- `README.md`: Added MCP registry links and published status
+
+**GitHub Issues Addressed**:
+- Resolves Dependabot alert for form-data (critical severity)
+- Resolves Dependabot alert for esbuild (moderate severity)
+
 ## [3.4.0] - 2025-10-04
 
 ### 🎉 TDD Book Phase 2 Complete - Data Processing Modules

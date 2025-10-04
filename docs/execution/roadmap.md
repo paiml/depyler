@@ -4,8 +4,8 @@
 
 **Last Active**: 2025-10-04
 **Current Version**: v3.4.0 (Released)
-**Status**: 🟢 **TDD Book Phase 2 COMPLETE - v3.4.0 Released**
-**Achievement**: 1350 tests passing (99.46% coverage), TDG A+ maintained, professional documentation, zero quality issues
+**Status**: 🟢 **Security Hardened - All Vulnerabilities Fixed**
+**Achievement**: 1350 tests passing (99.46% coverage), TDG A+ maintained, zero critical vulnerabilities, MCP registry published
 
 ## 🎉 **v3.4.0 RELEASE - TDD Book Phase 2 Complete**
 
@@ -20,6 +20,8 @@
 - **Quality**: TDG A+ (99.1/100) maintained, zero SATD
 - **Documentation**: Professional README rewrite, comprehensive module docs
 - **MCP Integration**: Enhanced documentation with quickstart guide
+- **MCP Registry**: Published at io.github.noahgift/depyler-mcp v3.4.0
+- **Security**: Critical vulnerabilities fixed (form-data, esbuild)
 - **Bug Fixes**: HirParam compilation errors, test race condition fixed
 
 ### Key Metrics
@@ -50,6 +52,63 @@ See `CHANGELOG.md` for complete release notes.
 - **Clippy**: 0 warnings
 
 See `CHANGELOG.md` for complete release notes.
+
+---
+
+## 🔒 **POST-RELEASE: Security & Infrastructure Hardening** (COMPLETED)
+
+**Status**: ✅ **COMPLETED** (2025-10-04)
+**Duration**: ~2 hours
+**Focus**: MCP registry publishing automation & critical security vulnerability remediation
+
+### **DEPYLER-0027**: MCP Registry Publishing Automation ✅
+**Complexity**: Medium
+**Time**: ~1.5h actual
+**Status**: ✅ **COMPLETED** (2025-10-04)
+
+**Completed**:
+- [x] Created comprehensive technical specification (docs/specifications/mcp-registry-publishing.md)
+- [x] Documented automated CI/CD publishing workflow via GitHub Actions
+- [x] Added version synchronization requirements (Cargo.toml, server.json, git tag)
+- [x] Updated README.md to link specification and display published server status
+- [x] Successfully published server at io.github.noahgift/depyler-mcp v3.4.0
+- [x] Verified server is live and discoverable in MCP registry
+
+**Deliverables**:
+- `docs/specifications/mcp-registry-publishing.md` (193 lines)
+- Updated `README.md` with registry links and published status
+- Server live at: https://registry.modelcontextprotocol.io/?search=depyler
+
+**Achievement**: Fully automated MCP registry publishing on version tags with comprehensive documentation
+
+### **DEPYLER-0028**: Critical Security Vulnerability Remediation ✅
+**Severity**: Critical + Moderate
+**Time**: ~0.5h actual
+**Status**: ✅ **COMPLETED** (2025-10-04)
+
+**Vulnerabilities Fixed**:
+1. **Critical: form-data** (GHSA-fjxv-7rqg-78g4)
+   - Issue: Unsafe random function for boundary generation
+   - Version: 4.0.3 → 4.0.4 (via jsdom update)
+   - Impact: Playground dependencies
+
+2. **Moderate: esbuild** (GHSA-67mh-4wv8-2f99)
+   - Issue: Dev server request vulnerability
+   - Version: 0.21.5 → 0.25.10 (via vite 7.1.9 update)
+   - Impact: Playground development environment
+
+**Completed**:
+- [x] Identified vulnerabilities via GitHub Dependabot alerts
+- [x] Updated jsdom to fix form-data critical vulnerability
+- [x] Updated vite to 7.1.9 to fix esbuild moderate vulnerability
+- [x] Verified fixes via npm audit (0 critical vulnerabilities)
+- [x] Committed and pushed security fixes
+
+**Files Modified**:
+- `playground/package.json` (vite: ^5.2.0 → 7.1.9)
+- `playground/package-lock.json` (1492 insertions, 311 deletions)
+
+**Achievement**: Zero critical vulnerabilities, hardened development environment
 
 ---
 
