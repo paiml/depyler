@@ -144,11 +144,14 @@ Add to your Claude Desktop config (`~/.config/Claude/claude_desktop_config.json`
 ### Documentation
 
 - [MCP Quickstart Guide](docs/MCP_QUICKSTART.md) - Getting started with the MCP server
-- [MCP Registry Publishing](docs/mcp-registry-publish.md) - For maintainers
+- [MCP Registry Publishing](docs/mcp-registry-publish.md) - Publishing guide for maintainers
+- [MCP Registry Specification](docs/specifications/mcp-registry-publishing.md) - Technical specification and automation
 
 ### Registry
 
 View Depyler in the [MCP Registry](https://registry.modelcontextprotocol.io/?search=depyler)
+
+**Published:** `io.github.noahgift/depyler-mcp` v3.4.0
 
 ## Architecture
 
