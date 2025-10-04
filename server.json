@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
-  "name": "io.github.paiml/depyler",
-  "displayName": "Depyler Transpiler",
-  "description": "Energy-efficient Python-to-Rust transpiler with MCP support for analysis and verification",
+  "name": "io.github.noahgift/depyler-mcp",
+  "displayName": "Depyler MCP Server",
+  "description": "MCP server for Depyler: Python-to-Rust transpiler with analysis and verification tools",
   "version": "3.4.0",
   "homepage": "https://github.com/paiml/depyler",
-  "sourceUrl": "https://github.com/paiml/depyler",
+  "sourceUrl": "https://github.com/paiml/depyler/tree/main",
   "author": {
-    "name": "Pragmatic AI Labs",
-    "email": "hello@paiml.com",
+    "name": "PAIML Team",
+    "email": "team@paiml.com",
     "url": "https://github.com/paiml"
   },
-  "license": "MIT OR Apache-2.0",
+  "license": "MIT",
   "readme": "https://raw.githubusercontent.com/paiml/depyler/main/README.md",
   "categories": ["development-tools", "compilers"],
   "tags": ["python", "rust", "transpiler", "compiler", "verification", "energy-efficient"],
@@ -20,7 +20,8 @@
     "package": {
       "type": "cargo",
       "name": "depyler",
-      "binaryName": "depyler"
+      "binaryName": "depyler",
+      "features": []
     }
   }
 }
