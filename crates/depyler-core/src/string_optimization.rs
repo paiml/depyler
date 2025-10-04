@@ -39,9 +39,9 @@ impl StringOptimizer {
     /// Analyze a function to determine optimal string types
     pub fn analyze_function(&mut self, func: &HirFunction) {
         // Track string parameters
-        for (param_name, param_type) in &func.params {
-            if matches!(param_type, Type::String) {
-                self.immutable_params.insert(param_name.clone());
+        for param in &func.params {
+            if matches!(param.ty, Type::String) {
+                self.immutable_params.insert(param.name.clone());
             }
         }
 
@@ -424,7 +424,7 @@ mod tests {
 
         let func = HirFunction {
             name: "test".to_string(),
-            params: vec![("s".to_string(), Type::String)].into(),
+            params: vec![HirParam::new("s".to_string(), Type::String)].into(),
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Call {
                 func: "len".to_string(),

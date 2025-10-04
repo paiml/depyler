@@ -13,6 +13,36 @@ Depyler is a Python-to-Rust transpiler focusing on energy-efficient, safe code
 generation with progressive verification. The system must produce idiomatic Rust
 code with formal correctness guarantees for a practical Python subset.
 
+## Python Packaging Protocol
+
+**MANDATORY: Use `uv` for ALL Python operations**
+
+- **Package Management**: Use `uv` instead of pip, pip3, or virtualenv
+- **Running Tests**: `uv run pytest` instead of `python -m pytest`
+- **Installing Packages**: `uv add <package>` or `uv pip install <package>`
+- **Creating Environments**: `uv venv` (automatic with `uv run`)
+- **Running Scripts**: `uv run <script.py>`
+
+**Examples**:
+```bash
+# ❌ BAD: Using pip or python directly
+pip install pytest
+python -m pytest tests/
+python3 script.py
+
+# ✅ GOOD: Using uv
+uv add pytest
+uv run pytest tests/
+uv run script.py
+```
+
+**Why uv?**
+- 10-100x faster than pip
+- Better dependency resolution
+- Automatic virtual environment management
+- Consistent, reproducible builds
+- No manual venv activation needed
+
 ## 🚨 CRITICAL: A+ Code Standard (From paiml-mcp-agent-toolkit)
 
 **ABSOLUTE REQUIREMENT**: All NEW code MUST achieve A+ quality standards:

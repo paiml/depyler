@@ -49,7 +49,7 @@ fn create_sample_module() -> HirModule {
 fn create_add_function() -> HirFunction {
     HirFunction {
         name: "add".to_string(),
-        params: smallvec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)],
+        params: smallvec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)],
         ret_type: Type::Int,
         body: vec![HirStmt::Return(Some(HirExpr::Binary {
             op: BinOp::Add,
@@ -65,7 +65,7 @@ fn create_add_function() -> HirFunction {
 fn create_factorial_function() -> HirFunction {
     HirFunction {
         name: "factorial".to_string(),
-        params: smallvec![("n".to_string(), Type::Int)],
+        params: smallvec![HirParam::new("n".to_string(), Type::Int)],
         ret_type: Type::Int,
         body: vec![HirStmt::If {
             condition: HirExpr::Binary {
@@ -96,7 +96,7 @@ fn create_factorial_function() -> HirFunction {
 fn create_fibonacci_function() -> HirFunction {
     HirFunction {
         name: "fibonacci".to_string(),
-        params: smallvec![("n".to_string(), Type::Int)],
+        params: smallvec![HirParam::new("n".to_string(), Type::Int)],
         ret_type: Type::Int,
         body: vec![
             // a = 0
@@ -164,7 +164,7 @@ fn create_calculator_class() -> HirClass {
             // Method: __init__
             HirMethod {
                 name: "__init__".to_string(),
-                params: smallvec![("self".to_string(), Type::Unknown)],
+                params: smallvec![HirParam::new("self".to_string(), Type::Unknown)],
                 ret_type: Type::None,
                 body: vec![HirStmt::Assign {
                     target: AssignTarget::Attribute {
@@ -183,8 +183,8 @@ fn create_calculator_class() -> HirClass {
             HirMethod {
                 name: "add".to_string(),
                 params: smallvec![
-                    ("self".to_string(), Type::Unknown),
-                    ("value".to_string(), Type::Float)
+                    HirParam::new("self".to_string(), Type::Unknown),
+                    HirParam::new("value".to_string(), Type::Float)
                 ],
                 ret_type: Type::None,
                 body: vec![HirStmt::Assign {
@@ -210,7 +210,7 @@ fn create_calculator_class() -> HirClass {
             // Method: get_result (property)
             HirMethod {
                 name: "get_result".to_string(),
-                params: smallvec![("self".to_string(), Type::Unknown)],
+                params: smallvec![HirParam::new("self".to_string(), Type::Unknown)],
                 ret_type: Type::Float,
                 body: vec![HirStmt::Return(Some(HirExpr::Attribute {
                     value: Box::new(HirExpr::Var("self".to_string())),

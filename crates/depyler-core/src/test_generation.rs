@@ -102,13 +102,13 @@ impl TestGenerator {
         let param_types: Vec<_> = func
             .params
             .iter()
-            .map(|(_, ty)| self.type_to_quickcheck_type(ty))
+            .map(|param| self.type_to_quickcheck_type(&param.ty))
             .collect();
 
         let param_names: Vec<_> = func
             .params
             .iter()
-            .map(|(name, _)| syn::Ident::new(name, proc_macro2::Span::call_site()))
+            .map(|param| syn::Ident::new(&param.name, proc_macro2::Span::call_site()))
             .collect();
 
         let property_checks: Vec<_> = properties
@@ -196,7 +196,7 @@ impl TestGenerator {
         // Simple case: function with one parameter that returns it unchanged
         if func.params.len() == 1 && func.body.len() == 1 {
             if let HirStmt::Return(Some(HirExpr::Var(name))) = &func.body[0] {
-                return name == &func.params[0].0;
+                return name == &func.params[0].name;
             }
         }
         false
@@ -210,8 +210,8 @@ impl TestGenerator {
                 matches!(
                     op,
                     BinOp::Add | BinOp::Mul | BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor
-                ) && self.is_simple_param_reference(left, &func.params[0].0)
-                    && self.is_simple_param_reference(right, &func.params[1].0)
+                ) && self.is_simple_param_reference(left, &func.params[0].name)
+                    && self.is_simple_param_reference(right, &func.params[1].name)
             } else {
                 false
             }
@@ -242,7 +242,7 @@ impl TestGenerator {
     fn preserves_length(&self, func: &HirFunction) -> bool {
         // Check if input and output are both lists/arrays
         if func.params.len() == 1 {
-            if let (Type::List(_), Type::List(_)) = (&func.params[0].1, &func.ret_type) {
+            if let (Type::List(_), Type::List(_)) = (&func.params[0].ty, &func.ret_type) {
                 // Simple heuristic: sorting and mapping functions preserve length
                 return func.name.contains("sort") || func.name.contains("map");
             }
@@ -389,8 +389,8 @@ impl TestGenerator {
                 }
             }
             (Type::Int, 2)
-                if matches!(&func.params[0].1, Type::Int)
-                    && matches!(&func.params[1].1, Type::Int) =>
+                if matches!(&func.params[0].ty, Type::Int)
+                    && matches!(&func.params[1].ty, Type::Int) =>
             {
                 // Two integer parameters - test basic cases
                 cases.push(quote! {
@@ -410,7 +410,7 @@ impl TestGenerator {
             }
             (Type::List(_), _) => {
                 // Test with empty and single-element lists
-                if func.params.len() == 1 && matches!(&func.params[0].1, Type::List(_)) {
+                if func.params.len() == 1 && matches!(&func.params[0].ty, Type::List(_)) {
                     cases.push(quote! {
                         assert_eq!(#func_name(vec![]), vec![]);
                         assert_eq!(#func_name(vec![1]), vec![1]);

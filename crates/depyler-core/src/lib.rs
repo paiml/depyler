@@ -1,3 +1,50 @@
+//! # Depyler Core - Transpilation Engine
+//!
+//! Core transpilation engine for converting Python code to Rust and other targets.
+//!
+//! ## Overview
+//!
+//! This crate provides the fundamental transpilation pipeline that converts Python
+//! source code into target languages (Rust, Ruchy) while preserving semantics and
+//! ensuring memory safety.
+//!
+//! ## Example
+//!
+//! ```rust
+//! use depyler_core::DepylerPipeline;
+//!
+//! let pipeline = DepylerPipeline::new();
+//! let python = r#"
+//! def factorial(n: int) -> int:
+//!     if n <= 1:
+//!         return 1
+//!     return n * factorial(n - 1)
+//! "#;
+//!
+//! match pipeline.transpile(python) {
+//!     Ok(rust_code) => println!("Generated:\n{}", rust_code),
+//!     Err(e) => eprintln!("Error: {}", e),
+//! }
+//! ```
+//!
+//! ## Architecture
+//!
+//! The transpilation pipeline consists of several stages:
+//!
+//! 1. **Parsing** ([`ast_bridge`]) - Convert Python source to AST
+//! 2. **HIR** ([`hir`]) - Transform AST to High-level Intermediate Representation
+//! 3. **Type Analysis** ([`generic_inference`], [`const_generic_inference`]) - Infer types and generics
+//! 4. **Ownership Analysis** ([`borrowing`], [`lifetime_analysis`]) - Determine ownership patterns
+//! 5. **Optimization** ([`optimization`], [`string_optimization`]) - Apply optimizations
+//! 6. **Code Generation** ([`codegen`], [`rust_gen`]) - Generate target code
+//!
+//! ## Key Types
+//!
+//! - [`DepylerPipeline`] - Main entry point for transpilation
+//! - [`TranspileOptions`] - Configuration options
+//! - [`Hir`] - High-level intermediate representation
+//! - [`TranspilationBackend`] - Backend trait for target languages
+
 pub mod annotation_aware_type_mapper;
 pub mod ast_bridge;
 pub mod backend;
@@ -325,22 +372,22 @@ impl DepylerPipeline {
                 let func = &mut hir.functions[func_idx];
 
                 // Apply parameter type hints
-                for (param_name, param_type) in &mut func.params {
-                    if matches!(param_type, hir::Type::Unknown) {
+                for param in &mut func.params {
+                    if matches!(param.ty, hir::Type::Unknown) {
                         // Find hint for this parameter
                         for hint in &hints {
                             if let type_hints::HintTarget::Parameter(hint_param) = &hint.target {
-                                if hint_param == param_name
+                                if hint_param == &param.name
                                     && matches!(
                                         hint.confidence,
                                         type_hints::Confidence::High
                                             | type_hints::Confidence::Certain
                                     )
                                 {
-                                    *param_type = hint.suggested_type.clone();
+                                    param.ty = hint.suggested_type.clone();
                                     eprintln!(
                                         "Applied type hint: {} -> {:?}",
-                                        param_name, param_type
+                                        param.name, param.ty
                                     );
                                     break;
                                 }
@@ -543,8 +590,8 @@ def test_func(x: int) -> str:
         let hir = pipeline.parse_to_hir(python_code).unwrap();
         assert_eq!(hir.functions.len(), 1);
         assert_eq!(hir.functions[0].name, "test_func");
-        assert_eq!(hir.functions[0].params[0].0, "x");
-        assert_eq!(hir.functions[0].params[0].1, hir::Type::Int);
+        assert_eq!(hir.functions[0].params[0].name, "x");
+        assert_eq!(hir.functions[0].params[0].ty, hir::Type::Int);
         assert_eq!(hir.functions[0].ret_type, hir::Type::String);
     }
 
@@ -636,7 +683,7 @@ def process_list(items: List[str]) -> Optional[str]:
         assert_eq!(hir.functions.len(), 1);
         let func = &hir.functions[0];
         assert_eq!(
-            func.params[0].1,
+            func.params[0].ty,
             hir::Type::List(Box::new(hir::Type::String))
         );
         assert_eq!(

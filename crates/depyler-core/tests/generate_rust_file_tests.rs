@@ -204,7 +204,7 @@ mod function_with_params_tests {
         let mut module = create_empty_module();
 
         let mut func = create_simple_function("add_one");
-        func.params = SmallVec::from_vec(vec![("x".to_string(), Type::Int)]);
+        func.params = SmallVec::from_vec(vec![HirParam { name: Symbol::from("x"), ty: Type::Int, default: None }]);
         func.ret_type = Type::Int;
 
         module.functions = vec![func];
@@ -226,8 +226,8 @@ mod function_with_params_tests {
 
         let mut func = create_simple_function("add");
         func.params = SmallVec::from_vec(vec![
-            ("a".to_string(), Type::Int),
-            ("b".to_string(), Type::Int),
+            HirParam { name: Symbol::from("a"), ty: Type::Int, default: None },
+            HirParam { name: Symbol::from("b"), ty: Type::Int, default: None },
         ]);
         func.ret_type = Type::Int;
 
@@ -295,7 +295,7 @@ mod regression_tests {
             {
                 let mut m = create_empty_module();
                 let mut func = create_simple_function("f");
-                func.params = SmallVec::from_vec(vec![("p".to_string(), Type::Int)]);
+                func.params = SmallVec::from_vec(vec![HirParam { name: Symbol::from("p"), ty: Type::Int, default: None }]);
                 m.functions = vec![func];
                 m
             },

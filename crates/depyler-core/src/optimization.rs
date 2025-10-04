@@ -310,7 +310,7 @@ pub fn optimize_module(module: &mut crate::hir::HirModule) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::{HirModule, Literal, Type};
+    use crate::hir::{HirModule, HirParam, Literal, Type};
     use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
 
@@ -351,7 +351,7 @@ mod tests {
 
         let mut func = HirFunction {
             name: "test".to_string(),
-            params: smallvec![("x".to_string(), Type::Int)],
+            params: smallvec![HirParam::new("x".to_string(), Type::Int)],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Mul,

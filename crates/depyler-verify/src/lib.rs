@@ -176,7 +176,7 @@ impl PropertyVerifier {
         let all_typed = func
             .params
             .iter()
-            .all(|(_, ty)| !matches!(ty, depyler_core::hir::Type::Unknown));
+            .all(|param| !matches!(param.ty, depyler_core::hir::Type::Unknown));
 
         if all_typed && !matches!(func.ret_type, depyler_core::hir::Type::Unknown) {
             Some(VerificationResult {
@@ -249,7 +249,7 @@ mod tests {
 
         HirFunction {
             name: name.to_string(),
-            params: smallvec![("x".to_string(), Type::Int)],
+            params: smallvec![depyler_core::hir::HirParam::new("x".to_string(), Type::Int)],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
             properties: depyler_core::hir::FunctionProperties {

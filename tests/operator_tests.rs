@@ -1,18 +1,19 @@
 use depyler_annotations::TranspilationAnnotations;
 use depyler_core::direct_rules::apply_rules;
 use depyler_core::hir::{
-    AssignTarget, BinOp, HirExpr, HirFunction, HirModule, HirStmt, Literal, Type,
+    AssignTarget, BinOp, HirExpr, HirFunction, HirModule, HirParam, HirStmt, Literal, Type,
 };
 use depyler_core::rust_gen::generate_rust_file;
 use depyler_core::type_mapper::TypeMapper;
 use quote::ToTokens;
+use smallvec::smallvec;
 
 #[test]
 fn test_augmented_assignment() {
     let module = HirModule {
         functions: vec![HirFunction {
             name: "test_aug_assign".to_string(),
-            params: vec![("x".to_string(), Type::Int)].into(),
+            params: smallvec![HirParam::new("x".to_string(), Type::Int)],
             ret_type: Type::Int,
             body: vec![
                 HirStmt::Assign {
@@ -53,7 +54,7 @@ fn test_in_operator() {
     let module = HirModule {
         functions: vec![HirFunction {
             name: "test_in".to_string(),
-            params: vec![].into(),
+            params: smallvec![],
             ret_type: Type::Bool,
             body: vec![
                 HirStmt::Assign {
@@ -92,7 +93,7 @@ fn test_not_in_operator() {
     let module = HirModule {
         functions: vec![HirFunction {
             name: "test_not_in".to_string(),
-            params: vec![].into(),
+            params: smallvec![],
             ret_type: Type::Bool,
             body: vec![
                 HirStmt::Assign {
@@ -138,7 +139,7 @@ fn test_all_arithmetic_operators() {
         let module = HirModule {
             functions: vec![HirFunction {
                 name: format!("test_{op:?}").to_lowercase(),
-                params: vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)].into(),
+                params: smallvec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)],
                 ret_type: Type::Int,
                 body: vec![HirStmt::Return(Some(HirExpr::Binary {
                     op,
@@ -197,7 +198,7 @@ fn test_comparison_operators() {
         let module = HirModule {
             functions: vec![HirFunction {
                 name: format!("test_{op:?}").to_lowercase(),
-                params: vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)].into(),
+                params: smallvec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)],
                 ret_type: Type::Bool,
                 body: vec![HirStmt::Return(Some(HirExpr::Binary {
                     op,
@@ -233,7 +234,7 @@ fn test_logical_operators() {
         let module = HirModule {
             functions: vec![HirFunction {
                 name: format!("test_{op:?}").to_lowercase(),
-                params: vec![("a".to_string(), Type::Bool), ("b".to_string(), Type::Bool)].into(),
+                params: smallvec![HirParam::new("a".to_string(), Type::Bool), HirParam::new("b".to_string(), Type::Bool)],
                 ret_type: Type::Bool,
                 body: vec![HirStmt::Return(Some(HirExpr::Binary {
                     op,
@@ -275,7 +276,7 @@ fn test_bitwise_operators() {
         let module = HirModule {
             functions: vec![HirFunction {
                 name: format!("test_{op:?}").to_lowercase(),
-                params: vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)].into(),
+                params: smallvec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)],
                 ret_type: Type::Int,
                 body: vec![HirStmt::Return(Some(HirExpr::Binary {
                     op,
@@ -308,7 +309,7 @@ fn test_power_operator() {
     let module = HirModule {
         functions: vec![HirFunction {
             name: "test_pow".to_string(),
-            params: vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)].into(),
+            params: smallvec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Pow,
@@ -341,7 +342,7 @@ fn test_floor_division_operator() {
     let module = HirModule {
         functions: vec![HirFunction {
             name: "test_floor_div".to_string(),
-            params: vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)].into(),
+            params: smallvec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::FloorDiv,
@@ -378,7 +379,7 @@ fn test_array_length_subtraction_safety() {
     let module = HirModule {
         functions: vec![HirFunction {
             name: "safe_last_index".to_string(),
-            params: vec![("arr".to_string(), Type::List(Box::new(Type::Int)))].into(),
+            params: smallvec![HirParam::new("arr".to_string(), Type::List(Box::new(Type::Int)))],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Sub,
@@ -415,7 +416,7 @@ fn test_regular_subtraction_unchanged() {
     let module = HirModule {
         functions: vec![HirFunction {
             name: "regular_sub".to_string(),
-            params: vec![("x".to_string(), Type::Int), ("y".to_string(), Type::Int)].into(),
+            params: smallvec![HirParam::new("x".to_string(), Type::Int), HirParam::new("y".to_string(), Type::Int)],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Sub,
@@ -449,11 +450,10 @@ fn test_len_variable_subtraction_safety() {
     let module = HirModule {
         functions: vec![HirFunction {
             name: "complex_len_sub".to_string(),
-            params: vec![
-                ("items".to_string(), Type::List(Box::new(Type::String))),
-                ("offset".to_string(), Type::Int),
-            ]
-            .into(),
+            params: smallvec![
+                HirParam::new("items".to_string(), Type::List(Box::new(Type::String))),
+                HirParam::new("offset".to_string(), Type::Int),
+            ],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Sub,

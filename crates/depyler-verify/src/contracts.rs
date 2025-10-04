@@ -38,13 +38,13 @@ impl ContractChecker {
         }
 
         // Extract implicit preconditions from parameter types
-        for (param_name, param_type) in &func.params {
-            match param_type {
+        for param in &func.params {
+            match &param.ty {
                 Type::List(_) => {
                     contract.preconditions.push(Condition {
-                        name: format!("{param_name}_not_null"),
-                        expression: format!("{param_name} is not None"),
-                        description: format!("Parameter {param_name} must not be null"),
+                        name: format!("{}_not_null", param.name),
+                        expression: format!("{} is not None", param.name),
+                        description: format!("Parameter {} must not be null", param.name),
                     });
                 }
                 Type::Int => {
@@ -323,7 +323,7 @@ impl ContractChecker {
         let params: Vec<String> = func
             .params
             .iter()
-            .map(|(name, ty)| format!("{}: {}", name, type_to_rust_string(ty)))
+            .map(|param| format!("{}: {}", param.name, type_to_rust_string(&param.ty)))
             .collect();
         result.push_str(&params.join(", "));
         result.push(')');
@@ -524,7 +524,7 @@ mod tests {
 
     fn create_test_function(
         name: &str,
-        params: Vec<(String, Type)>,
+        params: Vec<depyler_core::hir::HirParam>,
         ret_type: Type,
         body: Vec<HirStmt>,
         properties: FunctionProperties,
@@ -583,7 +583,7 @@ mod tests {
     fn test_extract_contracts_with_list_param() {
         let func = create_test_function(
             "process_list",
-            vec![("items".to_string(), Type::List(Box::new(Type::Int)))],
+            vec![depyler_core::hir::HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))],
             Type::Int,
             vec![],
             FunctionProperties::default(),
@@ -602,7 +602,7 @@ mod tests {
     fn test_extract_contracts_with_int_param() {
         let func = create_test_function(
             "calculate",
-            vec![("num".to_string(), Type::Int)],
+            vec![depyler_core::hir::HirParam::new("num".to_string(), Type::Int)],
             Type::Int,
             vec![],
             FunctionProperties::default(),
@@ -716,7 +716,7 @@ mod tests {
 
         let func = create_test_function(
             "perfect_function",
-            vec![("data".to_string(), Type::List(Box::new(Type::Int)))],
+            vec![depyler_core::hir::HirParam::new("data".to_string(), Type::List(Box::new(Type::Int)))],
             Type::List(Box::new(Type::Int)),
             vec![],
             properties,
@@ -940,8 +940,8 @@ mod tests {
         let func = create_test_function(
             "safe_divide",
             vec![
-                ("numerator".to_string(), Type::Float),
-                ("denominator".to_string(), Type::Float),
+                depyler_core::hir::HirParam::new("numerator".to_string(), Type::Float),
+                depyler_core::hir::HirParam::new("denominator".to_string(), Type::Float),
             ],
             Type::Float,
             vec![],
@@ -980,8 +980,8 @@ mod tests {
         let func = create_test_function(
             "get_item",
             vec![
-                ("items".to_string(), Type::List(Box::new(Type::Int))),
-                ("index".to_string(), Type::Int),
+                depyler_core::hir::HirParam::new("items".to_string(), Type::List(Box::new(Type::Int))),
+                depyler_core::hir::HirParam::new("index".to_string(), Type::Int),
             ],
             Type::Optional(Box::new(Type::Int)),
             vec![],
@@ -998,7 +998,7 @@ mod tests {
     fn test_contract_with_function_annotations() {
         let mut func = create_test_function(
             "annotated_func",
-            vec![("x".to_string(), Type::Int)],
+            vec![depyler_core::hir::HirParam::new("x".to_string(), Type::Int)],
             Type::Int,
             vec![],
             FunctionProperties {
@@ -1028,7 +1028,7 @@ mod tests {
     fn test_generate_function_with_contracts() {
         let func = create_test_function(
             "safe_add",
-            vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)],
+            vec![depyler_core::hir::HirParam::new("a".to_string(), Type::Int), depyler_core::hir::HirParam::new("b".to_string(), Type::Int)],
             Type::Int,
             vec![],
             FunctionProperties::default(),
@@ -1048,8 +1048,8 @@ mod tests {
         let mut func = create_test_function(
             "checked_divide",
             vec![
-                ("num".to_string(), Type::Float),
-                ("denom".to_string(), Type::Float),
+                depyler_core::hir::HirParam::new("num".to_string(), Type::Float),
+                depyler_core::hir::HirParam::new("denom".to_string(), Type::Float),
             ],
             Type::Float,
             vec![],

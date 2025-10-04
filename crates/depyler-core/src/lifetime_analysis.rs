@@ -151,14 +151,14 @@ impl LifetimeInference {
         let mut param_lifetimes = IndexMap::new();
         let mut lifetime_params = HashSet::new();
 
-        for (param_name, param_type) in &func.params {
+        for param in &func.params {
             let strategy = borrowing_result
                 .param_strategies
-                .get(param_name)
+                .get(&param.name)
                 .cloned()
                 .unwrap_or(BorrowingStrategy::TakeOwnership);
 
-            let rust_type = type_mapper.map_type(param_type);
+            let rust_type = type_mapper.map_type(&param.ty);
 
             let (should_borrow, needs_mut, lifetime) = match strategy {
                 BorrowingStrategy::BorrowImmutable { lifetime } => {
@@ -181,18 +181,18 @@ impl LifetimeInference {
 
             if let Some(ref lt) = lifetime {
                 self.variable_lifetimes.insert(
-                    param_name.clone(),
+                    param.name.clone(),
                     LifetimeInfo {
                         name: lt.clone(),
                         is_static: lt == "'static",
                         outlives: HashSet::new(),
-                        source: LifetimeSource::Parameter(param_name.clone()),
+                        source: LifetimeSource::Parameter(param.name.clone()),
                     },
                 );
             }
 
             param_lifetimes.insert(
-                param_name.clone(),
+                param.name.clone(),
                 InferredParam {
                     should_borrow,
                     needs_mut,
@@ -223,12 +223,12 @@ impl LifetimeInference {
     /// Analyze how parameters are used in the function body
     #[allow(dead_code)]
     fn analyze_parameter_usage(&mut self, func: &HirFunction) {
-        for (param_name, _param_type) in &func.params {
+        for param in &func.params {
             let mut usage = ParamUsage::default();
             for stmt in &func.body {
-                self.analyze_stmt_for_param(param_name, stmt, &mut usage, false);
+                self.analyze_stmt_for_param(&param.name, stmt, &mut usage, false);
             }
-            self.param_analysis.insert(param_name.clone(), usage);
+            self.param_analysis.insert(param.name.clone(), usage);
         }
     }
 
@@ -470,13 +470,13 @@ impl LifetimeInference {
     ) -> IndexMap<String, InferredParam> {
         let mut result = IndexMap::new();
 
-        for (param_name, param_type) in &func.params {
+        for param in &func.params {
             let usage = self
                 .param_analysis
-                .get(param_name)
+                .get(&param.name)
                 .cloned()
                 .unwrap_or_default();
-            let rust_type = type_mapper.map_type(param_type);
+            let rust_type = type_mapper.map_type(&param.ty);
 
             // Determine if we should borrow or take ownership
             // If parameter escapes (returned) and it's the same type as return, it should be moved
@@ -491,12 +491,12 @@ impl LifetimeInference {
 
                 // Add lifetime to our tracking
                 self.variable_lifetimes.insert(
-                    param_name.clone(),
+                    param.name.clone(),
                     LifetimeInfo {
                         name: lt.clone(),
                         is_static: false,
                         outlives: HashSet::new(),
-                        source: LifetimeSource::Parameter(param_name.clone()),
+                        source: LifetimeSource::Parameter(param.name.clone()),
                     },
                 );
 
@@ -511,7 +511,7 @@ impl LifetimeInference {
             };
 
             result.insert(
-                param_name.clone(),
+                param.name.clone(),
                 InferredParam {
                     should_borrow,
                     needs_mut,
@@ -663,7 +663,7 @@ impl Default for LifetimeInference {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::{FunctionProperties, HirFunction, Literal, Type as PythonType};
+    use crate::hir::{FunctionProperties, HirFunction, HirParam, Literal, Type as PythonType};
     use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
 
@@ -684,7 +684,7 @@ mod tests {
         // Create a simple function that reads a parameter
         let func = HirFunction {
             name: "test".to_string(),
-            params: smallvec![("x".to_string(), PythonType::String)],
+            params: smallvec![HirParam::new("x".to_string(), PythonType::String)],
             ret_type: PythonType::String,
             body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
             properties: FunctionProperties::default(),
@@ -706,7 +706,7 @@ mod tests {
 
         let func = HirFunction {
             name: "get_len".to_string(),
-            params: smallvec![("s".to_string(), PythonType::String)],
+            params: smallvec![HirParam::new("s".to_string(), PythonType::String)],
             ret_type: PythonType::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Attribute {
                 value: Box::new(HirExpr::Var("s".to_string())),
@@ -734,7 +734,7 @@ mod tests {
         // Function with single reference parameter
         let func = HirFunction {
             name: "identity".to_string(),
-            params: smallvec![("x".to_string(), PythonType::String)],
+            params: smallvec![HirParam::new("x".to_string(), PythonType::String)],
             ret_type: PythonType::String,
             body: vec![],
             properties: FunctionProperties::default(),
@@ -761,7 +761,7 @@ mod tests {
         // Function that mutates a parameter
         let func = HirFunction {
             name: "append_bang".to_string(),
-            params: smallvec![("s".to_string(), PythonType::String)],
+            params: smallvec![HirParam::new("s".to_string(), PythonType::String)],
             ret_type: PythonType::None,
             body: vec![HirStmt::Assign {
                 target: AssignTarget::Symbol("s".to_string()),

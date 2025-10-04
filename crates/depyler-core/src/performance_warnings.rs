@@ -142,12 +142,12 @@ impl PerformanceAnalyzer {
 
     fn check_function_level_issues(&mut self, func: &HirFunction) {
         // Check for large parameter passing
-        for (param_name, param_type) in &func.params {
-            if self.is_large_type(param_type) && !self.is_reference_type(param_type) {
+        for param in &func.params {
+            if self.is_large_type(&param.ty) && !self.is_reference_type(&param.ty) {
                 self.add_warning(PerformanceWarning {
                     category: WarningCategory::MemoryAllocation,
                     severity: WarningSeverity::Medium,
-                    message: format!("Large value '{}' passed by copy", param_name),
+                    message: format!("Large value '{}' passed by copy", param.name),
                     explanation: "Passing large values by copy is inefficient".to_string(),
                     suggestion:
                         "Consider passing by reference (&) or using Box/Arc for large types"

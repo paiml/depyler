@@ -143,8 +143,8 @@ impl DocGenerator {
         // Parameters
         if !func.params.is_empty() {
             doc.push_str("**Parameters:**\n");
-            for (name, ty) in &func.params {
-                writeln!(doc, "- `{}`: {}", name, self.format_type(ty)).unwrap();
+            for param in &func.params {
+                writeln!(doc, "- `{}`: {}", param.name, self.format_type(&param.ty)).unwrap();
             }
             doc.push('\n');
         }
@@ -260,7 +260,7 @@ impl DocGenerator {
             if func
                 .params
                 .iter()
-                .any(|(_, ty)| matches!(ty, Type::List(_)))
+                .any(|param| matches!(param.ty, Type::List(_)))
             {
                 writeln!(
                     doc,
@@ -287,7 +287,7 @@ impl DocGenerator {
         let args: Vec<String> = func
             .params
             .iter()
-            .map(|(name, ty)| self.example_value_for_type(name, ty))
+            .map(|param| self.example_value_for_type(&param.name, &param.ty))
             .collect();
 
         if matches!(func.ret_type, Type::None) {
@@ -306,7 +306,7 @@ impl DocGenerator {
             doc.push_str("- May have deep recursion, consider iterative implementation\n");
         }
 
-        if func.params.iter().any(|(_, ty)| matches!(ty, Type::String)) {
+        if func.params.iter().any(|param| matches!(param.ty, Type::String)) {
             doc.push_str("- String parameters use `&str` for zero-copy performance\n");
         }
 
@@ -317,7 +317,7 @@ impl DocGenerator {
         let params: Vec<String> = func
             .params
             .iter()
-            .map(|(name, ty)| format!("{}: {}", name, self.format_type(ty)))
+            .map(|param| format!("{}: {}", param.name, self.format_type(&param.ty)))
             .collect();
 
         if matches!(func.ret_type, Type::None) {
@@ -338,7 +338,7 @@ impl DocGenerator {
         let params: Vec<String> = method
             .params
             .iter()
-            .map(|(name, ty)| format!("{}: {}", name, self.format_type(ty)))
+            .map(|param| format!("{}: {}", param.name, self.format_type(&param.ty)))
             .collect();
 
         let all_params = if params.is_empty() {
@@ -476,7 +476,7 @@ impl DocGenerator {
             let args: Vec<String> = func
                 .params
                 .iter()
-                .map(|(name, ty)| self.example_value_for_type(name, ty))
+                .map(|param| self.example_value_for_type(&param.name, &param.ty))
                 .collect();
 
             writeln!(doc, "// Using {}", func.name).unwrap();
@@ -499,7 +499,7 @@ mod tests {
     fn create_test_function(name: &str) -> HirFunction {
         HirFunction {
             name: name.to_string(),
-            params: smallvec![("x".to_string(), Type::Int), ("y".to_string(), Type::Int),],
+            params: smallvec![HirParam::new("x".to_string(), Type::Int), HirParam::new("y".to_string(), Type::Int),],
             ret_type: Type::Int,
             body: vec![],
             properties: FunctionProperties::default(),
@@ -662,7 +662,7 @@ mod tests {
 
         let func = HirFunction {
             name: "process_list".to_string(),
-            params: smallvec![("items".to_string(), Type::List(Box::new(Type::Int))),],
+            params: smallvec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int))),],
             ret_type: Type::Optional(Box::new(Type::Int)),
             body: vec![],
             properties: FunctionProperties::default(),

@@ -77,8 +77,8 @@ impl TypeVarRegistry {
         let mut collector = TypeVarCollector::new();
 
         // Collect type variables from parameters
-        for (_, param_type) in &func.params {
-            collector.collect_from_type(param_type);
+        for param in &func.params {
+            collector.collect_from_type(&param.ty);
         }
 
         // Collect from return type
@@ -358,17 +358,17 @@ impl TypeInference {
 
     fn analyze_function(&mut self, func: &HirFunction) -> Result<()> {
         // Analyze parameter usage to infer constraints
-        for (param_name, param_type) in &func.params {
-            match param_type {
+        for param in &func.params {
+            match &param.ty {
                 Type::Custom(type_var)
                     if type_var.len() == 1 && type_var.chars().next().unwrap().is_uppercase() =>
                 {
                     // This is a type variable, analyze its usage
-                    self.analyze_param_usage(param_name, type_var, &func.body)?;
+                    self.analyze_param_usage(&param.name, type_var, &func.body)?;
                 }
                 Type::TypeVar(type_var) => {
                     // This is explicitly a type variable
-                    self.analyze_param_usage(param_name, type_var, &func.body)?;
+                    self.analyze_param_usage(&param.name, type_var, &func.body)?;
                 }
                 _ => {}
             }
@@ -539,7 +539,7 @@ mod tests {
 
         let func = HirFunction {
             name: "identity".to_string(),
-            params: smallvec::smallvec![("x".to_string(), Type::Custom("T".to_string()))],
+            params: smallvec::smallvec![HirParam::new("x".to_string(), Type::Custom("T".to_string()))],
             ret_type: Type::Custom("T".to_string()),
             body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
             properties: FunctionProperties::default(),

@@ -44,7 +44,7 @@ fn create_sample_program() -> HirProgram {
 fn create_accumulator_function() -> HirFunction {
     HirFunction {
         name: "filter_even_numbers".to_string(),
-        params: smallvec![("numbers".to_string(), Type::List(Box::new(Type::Int)))],
+        params: smallvec![HirParam::new("numbers".to_string(), Type::List(Box::new(Type::Int)))],
         ret_type: Type::List(Box::new(Type::Int)),
         body: vec![
             // result = []
@@ -93,7 +93,7 @@ fn create_accumulator_function() -> HirFunction {
 fn create_type_check_function() -> HirFunction {
     HirFunction {
         name: "process_value".to_string(),
-        params: smallvec![("value".to_string(), Type::Unknown)],
+        params: smallvec![HirParam::new("value".to_string(), Type::Unknown)],
         ret_type: Type::Unknown,
         body: vec![
             // if isinstance(value, str):
@@ -186,8 +186,8 @@ fn create_mutable_param_function() -> HirFunction {
     HirFunction {
         name: "add_to_list".to_string(),
         params: smallvec![
-            ("items".to_string(), Type::List(Box::new(Type::Unknown))),
-            ("new_item".to_string(), Type::Unknown)
+            HirParam::new("items".to_string(), Type::List(Box::new(Type::Unknown))),
+            HirParam::new("new_item".to_string(), Type::Unknown)
         ],
         ret_type: Type::Unknown,
         body: vec![
