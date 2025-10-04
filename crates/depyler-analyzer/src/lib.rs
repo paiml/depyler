@@ -90,7 +90,7 @@ impl Analyzer {
         let has_type_annotations = func
             .params
             .iter()
-            .all(|(_, ty)| !matches!(ty, depyler_core::hir::Type::Unknown));
+            .all(|param| !matches!(param.ty, depyler_core::hir::Type::Unknown));
         let return_type_annotated = !matches!(func.ret_type, depyler_core::hir::Type::Unknown);
 
         Ok(FunctionMetrics {
@@ -161,7 +161,7 @@ impl Analyzer {
             annotated_parameters += func
                 .params
                 .iter()
-                .filter(|(_, ty)| !matches!(ty, depyler_core::hir::Type::Unknown))
+                .filter(|param| !matches!(param.ty, depyler_core::hir::Type::Unknown))
                 .count();
 
             if !matches!(func.ret_type, depyler_core::hir::Type::Unknown) {
@@ -203,8 +203,8 @@ mod tests {
         HirFunction {
             name: "test_func".to_string(),
             params: smallvec![
-                ("x".to_string(), Type::Int),
-                ("y".to_string(), Type::String)
+                HirParam { name: Symbol::from("x"), ty: Type::Int, default: None },
+                HirParam { name: Symbol::from("y"), ty: Type::String, default: None }
             ],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
@@ -270,7 +270,7 @@ mod tests {
         use smallvec::smallvec;
         let func_with_types = HirFunction {
             name: "typed_func".to_string(),
-            params: smallvec![("x".to_string(), Type::Int)],
+            params: smallvec![HirParam { name: Symbol::from("x"), ty: Type::Int, default: None }],
             ret_type: Type::String,
             body: vec![],
             properties: FunctionProperties::default(),
@@ -280,7 +280,7 @@ mod tests {
 
         let func_without_types = HirFunction {
             name: "untyped_func".to_string(),
-            params: smallvec![("y".to_string(), Type::Unknown)],
+            params: smallvec![HirParam { name: Symbol::from("y"), ty: Type::Unknown, default: None }],
             ret_type: Type::Unknown,
             body: vec![],
             properties: FunctionProperties::default(),

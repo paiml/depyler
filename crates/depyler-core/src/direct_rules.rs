@@ -440,9 +440,9 @@ fn convert_init_to_new(
     // Convert parameters
     let mut inputs = syn::punctuated::Punctuated::new();
 
-    for (param_name, param_type) in &init_method.params {
-        let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
-        let rust_type = type_mapper.map_type(param_type);
+    for param in &init_method.params {
+        let param_ident = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
+        let rust_type = type_mapper.map_type(&param.ty);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
 
         inputs.push(syn::FnArg::Typed(syn::PatType {
@@ -469,7 +469,7 @@ fn convert_init_to_new(
         if init_method
             .params
             .iter()
-            .any(|(param_name, _)| param_name == &field.name)
+            .any(|param| param.name == field.name)
         {
             // Initialize from parameter
             field_inits.push(quote! { #field_ident });
@@ -546,9 +546,9 @@ fn convert_method_to_impl_item(
     }
 
     // Add other parameters
-    for (param_name, param_type) in &method.params {
-        let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
-        let rust_type = type_mapper.map_type(param_type);
+    for param in &method.params {
+        let param_ident = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
+        let rust_type = type_mapper.map_type(&param.ty);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
 
         inputs.push(syn::FnArg::Typed(syn::PatType {
@@ -616,7 +616,7 @@ fn convert_protocol_method_to_trait_method(
     let mut inputs = syn::punctuated::Punctuated::new();
 
     // Add self parameter for methods (skip first param if it's 'self')
-    let method_params = if !method.params.is_empty() && method.params[0].0 == "self" {
+    let method_params = if !method.params.is_empty() && method.params[0].name == "self" {
         // Add &self receiver
         inputs.push(syn::FnArg::Receiver(syn::Receiver {
             attrs: vec![],
@@ -632,9 +632,9 @@ fn convert_protocol_method_to_trait_method(
     };
 
     // Add remaining parameters
-    for (param_name, param_type) in method_params {
-        let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
-        let rust_type = type_mapper.map_type(param_type);
+    for param in method_params {
+        let param_ident = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
+        let rust_type = type_mapper.map_type(&param.ty);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
 
         inputs.push(syn::FnArg::Typed(syn::PatType {
@@ -822,14 +822,14 @@ fn convert_function(func: &HirFunction, type_mapper: &TypeMapper) -> Result<syn:
 
     // Convert parameters
     let mut inputs = Vec::new();
-    for (param_name, param_type) in &func.params {
-        let rust_type = type_mapper.map_type(param_type);
+    for param in &func.params {
+        let rust_type = type_mapper.map_type(&param.ty);
         let ty = rust_type_to_syn(&rust_type)?;
         let pat = syn::Pat::Ident(syn::PatIdent {
             attrs: vec![],
             by_ref: None,
             mutability: None,
-            ident: syn::Ident::new(param_name, proc_macro2::Span::call_site()),
+            ident: syn::Ident::new(&param.name, proc_macro2::Span::call_site()),
             subpat: None,
         });
 
@@ -2408,7 +2408,7 @@ mod tests {
 
         let func = HirFunction {
             name: "test_func".to_string(),
-            params: vec![("x".to_string(), Type::Int)].into(),
+            params: vec![HirParam::new("x".to_string(), Type::Int)].into(),
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
             properties: FunctionProperties {
@@ -2438,7 +2438,7 @@ mod tests {
         let module = HirModule {
             functions: vec![HirFunction {
                 name: "add".to_string(),
-                params: vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)].into(),
+                params: vec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)].into(),
                 ret_type: Type::Int,
                 body: vec![HirStmt::Return(Some(HirExpr::Binary {
                     op: BinOp::Add,

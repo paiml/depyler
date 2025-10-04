@@ -3,7 +3,7 @@
 use depyler_annotations::TranspilationAnnotations;
 use depyler_core::borrowing_context::{BorrowingContext, BorrowingStrategy};
 use depyler_core::hir::{
-    BinOp, FunctionProperties, HirExpr, HirFunction, HirStmt, Literal, Type as PythonType,
+    BinOp, FunctionProperties, HirExpr, HirFunction, HirParam, HirStmt, Literal, Type as PythonType,
 };
 use depyler_core::type_mapper::TypeMapper;
 use smallvec::smallvec;
@@ -16,7 +16,7 @@ fn test_read_only_string_borrowed() {
     // Function that only reads a string parameter
     let func = HirFunction {
         name: "get_length".to_string(),
-        params: smallvec![("text".to_string(), PythonType::String)],
+        params: smallvec![HirParam::new("text".to_string(), PythonType::String)],
         ret_type: PythonType::Int,
         body: vec![HirStmt::Return(Some(HirExpr::Call {
             func: "len".to_string(),
@@ -45,7 +45,7 @@ fn test_list_append_takes_ownership() {
     // Function that appends to a list
     let func = HirFunction {
         name: "add_item".to_string(),
-        params: smallvec![(
+        params: smallvec![HirParam::new(
             "items".to_string(),
             PythonType::List(Box::new(PythonType::Int))
         )],
@@ -77,7 +77,7 @@ fn test_escaping_parameter_takes_ownership() {
     // Function that returns its parameter
     let func = HirFunction {
         name: "identity".to_string(),
-        params: smallvec![("value".to_string(), PythonType::String)],
+        params: smallvec![HirParam::new("value".to_string(), PythonType::String)],
         ret_type: PythonType::String,
         body: vec![HirStmt::Return(Some(HirExpr::Var("value".to_string())))],
         properties: FunctionProperties::default(),
@@ -106,7 +106,7 @@ fn test_string_concatenation_uses_cow() {
     // Function that returns a modified string
     let func = HirFunction {
         name: "add_suffix".to_string(),
-        params: smallvec![("prefix".to_string(), PythonType::String)],
+        params: smallvec![HirParam::new("prefix".to_string(), PythonType::String)],
         ret_type: PythonType::String,
         body: vec![HirStmt::Return(Some(HirExpr::Binary {
             op: BinOp::Add,
@@ -138,7 +138,7 @@ fn test_copy_type_takes_value() {
     // Function with integer parameter
     let func = HirFunction {
         name: "double".to_string(),
-        params: smallvec![("n".to_string(), PythonType::Int)],
+        params: smallvec![HirParam::new("n".to_string(), PythonType::Int)],
         ret_type: PythonType::Int,
         body: vec![HirStmt::Return(Some(HirExpr::Binary {
             op: BinOp::Mul,
@@ -173,7 +173,7 @@ fn test_unnecessary_move_detection() {
     // Function that passes string to a function that could borrow
     let func = HirFunction {
         name: "print_message".to_string(),
-        params: smallvec![("msg".to_string(), PythonType::String)],
+        params: smallvec![HirParam::new("msg".to_string(), PythonType::String)],
         ret_type: PythonType::None,
         body: vec![HirStmt::Expr(HirExpr::Call {
             func: "unknown_function".to_string(), // Conservative: assumes ownership
@@ -204,8 +204,8 @@ fn test_loop_usage_affects_borrowing() {
     let func = HirFunction {
         name: "count_occurrences".to_string(),
         params: smallvec![
-            ("haystack".to_string(), PythonType::String),
-            ("needle".to_string(), PythonType::String)
+            HirParam::new("haystack".to_string(), PythonType::String),
+            HirParam::new("needle".to_string(), PythonType::String)
         ],
         ret_type: PythonType::Int,
         body: vec![

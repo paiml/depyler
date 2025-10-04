@@ -1,5 +1,5 @@
 use depyler_annotations::TranspilationAnnotations;
-use depyler_core::hir::{HirExpr, Literal, Type};
+use depyler_core::hir::{HirExpr, HirParam, Literal, Symbol, Type};
 use depyler_core::hir::{HirFunction, HirStmt};
 
 use depyler_core::direct_rules::apply_rules;
@@ -151,8 +151,12 @@ impl Arbitrary for ArbitraryFunction {
     fn arbitrary(g: &mut Gen) -> Self {
         let name = format!("func_{}", u32::arbitrary(g) % 100); // Reduce range
         let num_params = std::cmp::min(g.size() % 3, 2); // Limit to max 2 params
-        let params: Vec<(String, Type)> = (0..num_params)
-            .map(|i| (format!("param_{i}"), arbitrary_simple_type(g)))
+        let params: Vec<HirParam> = (0..num_params)
+            .map(|i| HirParam {
+                name: Symbol::from(format!("param_{i}")),
+                ty: arbitrary_simple_type(g),
+                default: None,
+            })
             .collect();
 
         let ret_type = arbitrary_simple_type(g);

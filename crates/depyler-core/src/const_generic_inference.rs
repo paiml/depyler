@@ -47,8 +47,8 @@ impl ConstGenericInferencer {
     /// Collect const values from function parameters and literals
     fn collect_const_values(&mut self, function: &HirFunction) -> Result<()> {
         // Look for patterns like: def process_array(arr: List[int], size: int = 10)
-        for (_param_name, param_type) in &function.params {
-            if let Type::Int = param_type {
+        for param in &function.params {
+            if let Type::Int = param.ty {
                 // If this parameter has a literal default, it might be a const
                 // For now, we'll detect const usage in the function body
             }
@@ -159,19 +159,19 @@ impl ConstGenericInferencer {
     fn transform_function_types(&mut self, function: &mut HirFunction) -> Result<()> {
         // First, collect information about parameter sizes
         let mut param_sizes = HashMap::new();
-        for (param_name, param_type) in &function.params {
-            if let Type::List(_) = param_type {
-                if let Some(size) = self.infer_const_size_for_param(param_name, function) {
-                    param_sizes.insert(param_name.clone(), size);
+        for param in &function.params {
+            if let Type::List(_) = param.ty {
+                if let Some(size) = self.infer_const_size_for_param(&param.name, function) {
+                    param_sizes.insert(param.name.clone(), size);
                 }
             }
         }
 
         // Then transform parameter types
-        for (param_name, param_type) in &mut function.params {
-            if let Type::List(element_type) = param_type {
-                if let Some(size) = param_sizes.get(param_name) {
-                    *param_type = Type::Array {
+        for param in &mut function.params {
+            if let Type::List(element_type) = &param.ty {
+                if let Some(size) = param_sizes.get(&param.name) {
+                    param.ty = Type::Array {
                         element_type: element_type.clone(),
                         size: ConstGeneric::Literal(*size),
                     };
@@ -469,7 +469,7 @@ impl Default for ConstGenericInferencer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::{BinOp, FunctionProperties, HirExpr, HirFunction, HirStmt};
+    use crate::hir::{BinOp, FunctionProperties, HirExpr, HirFunction, HirParam, HirStmt};
     use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
 
@@ -520,7 +520,7 @@ mod tests {
 
         let mut function = HirFunction {
             name: "process_array".to_string(),
-            params: smallvec![("arr".to_string(), Type::List(Box::new(Type::Int)))],
+            params: smallvec![HirParam::new("arr".to_string(), Type::List(Box::new(Type::Int)))],
             ret_type: Type::List(Box::new(Type::Int)),
             body: vec![
                 HirStmt::Assign {

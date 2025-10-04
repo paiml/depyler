@@ -6,7 +6,7 @@ use smallvec::smallvec;
 fn create_simple_function() -> HirFunction {
     HirFunction {
         name: "simple".to_string(),
-        params: smallvec![("x".to_string(), Type::Int)],
+        params: smallvec![HirParam { name: Symbol::from("x"), ty: Type::Int, default: None }],
         ret_type: Type::Int,
         body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
         properties: FunctionProperties::default(),
@@ -19,9 +19,9 @@ fn create_complex_function() -> HirFunction {
     HirFunction {
         name: "complex".to_string(),
         params: smallvec![
-            ("a".to_string(), Type::Int),
-            ("b".to_string(), Type::Int),
-            ("c".to_string(), Type::Int)
+            HirParam { name: Symbol::from("a"), ty: Type::Int, default: None },
+            HirParam { name: Symbol::from("b"), ty: Type::Int, default: None },
+            HirParam { name: Symbol::from("c"), ty: Type::Int, default: None }
         ],
         ret_type: Type::Int,
         body: vec![HirStmt::If {

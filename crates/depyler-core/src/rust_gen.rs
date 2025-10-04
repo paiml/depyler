@@ -444,19 +444,19 @@ impl RustCodeGen for HirFunction {
         let params: Vec<_> = self
             .params
             .iter()
-            .map(|(param_name, param_type)| {
-                let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
+            .map(|param| {
+                let param_ident = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
 
                 // Check if parameter is mutated
                 let is_param_mutated = matches!(
-                    lifetime_result.borrowing_strategies.get(param_name),
+                    lifetime_result.borrowing_strategies.get(&param.name),
                     Some(crate::borrowing_context::BorrowingStrategy::TakeOwnership)
                 ) && self.body.iter().any(
-                    |stmt| matches!(stmt, HirStmt::Assign { target: AssignTarget::Symbol(s), .. } if s == param_name),
+                    |stmt| matches!(stmt, HirStmt::Assign { target: AssignTarget::Symbol(s), .. } if s == &param.name),
                 );
 
                 // Get the inferred parameter info
-                if let Some(inferred) = lifetime_result.param_lifetimes.get(param_name) {
+                if let Some(inferred) = lifetime_result.param_lifetimes.get(&param.name) {
                     let rust_type = &inferred.rust_type;
 
                     // Check if this is a placeholder Union enum that needs proper generation
@@ -465,7 +465,7 @@ impl RustCodeGen for HirFunction {
                         {
                             if name == "UnionType" {
                                 // Generate a proper enum name and definition from the original Union type
-                                if let Type::Union(types) = param_type {
+                                if let Type::Union(types) = &param.ty {
                                     let enum_name = ctx.process_union_type(types);
                                     crate::type_mapper::RustType::Custom(enum_name)
                                 } else {
@@ -482,7 +482,7 @@ impl RustCodeGen for HirFunction {
                     let mut ty = rust_type_to_syn(&actual_rust_type)?;
 
                     // Check if we're dealing with a string that should use Cow
-                    if let Some(strategy) = lifetime_result.borrowing_strategies.get(param_name) {
+                    if let Some(strategy) = lifetime_result.borrowing_strategies.get(&param.name) {
                         match strategy {
                             crate::borrowing_context::BorrowingStrategy::UseCow { lifetime } => {
                                 ctx.needs_cow = true;
@@ -589,7 +589,7 @@ impl RustCodeGen for HirFunction {
                     // Fallback to original mapping
                     let rust_type = ctx
                         .annotation_aware_mapper
-                        .map_type_with_annotations(param_type, &self.annotations);
+                        .map_type_with_annotations(&param.ty, &self.annotations);
                     update_import_needs(ctx, &rust_type);
                     let ty = rust_type_to_syn(&rust_type)?;
                     if is_param_mutated {
@@ -653,13 +653,13 @@ impl RustCodeGen for HirFunction {
 
             // Check if any parameter escapes through return and uses Cow
             let mut uses_cow_return = false;
-            for (param_name, _) in &self.params {
-                if let Some(strategy) = lifetime_result.borrowing_strategies.get(param_name) {
+            for param in &self.params {
+                if let Some(strategy) = lifetime_result.borrowing_strategies.get(&param.name) {
                     if matches!(
                         strategy,
                         crate::borrowing_context::BorrowingStrategy::UseCow { .. }
                     ) {
-                        if let Some(_usage) = lifetime_result.param_lifetimes.get(param_name) {
+                        if let Some(_usage) = lifetime_result.param_lifetimes.get(&param.name) {
                             // If a Cow parameter escapes, return type should also be Cow
                             if matches!(self.ret_type, crate::hir::Type::String) {
                                 uses_cow_return = true;
@@ -720,8 +720,8 @@ impl RustCodeGen for HirFunction {
         ctx.enter_scope();
         ctx.current_function_can_fail = can_fail;
         ctx.current_return_type = Some(self.ret_type.clone());
-        for (param_name, _) in &self.params {
-            ctx.declare_var(param_name);
+        for param in &self.params {
+            ctx.declare_var(&param.name);
         }
 
         // Convert body
@@ -2648,7 +2648,7 @@ mod tests {
     fn test_simple_function_generation() {
         let func = HirFunction {
             name: "add".to_string(),
-            params: vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)].into(),
+            params: vec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)].into(),
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Add,

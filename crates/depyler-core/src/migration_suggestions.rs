@@ -535,7 +535,7 @@ for item in items {
             if let HirStmt::Expr(HirExpr::MethodCall { object, method, .. }) = stmt {
                 if let HirExpr::Var(var) = object.as_ref() {
                     // Check if var is a parameter and method is mutating
-                    if func.params.iter().any(|(p, _)| p == var) {
+                    if func.params.iter().any(|p| &p.name == var) {
                         let mutating_methods =
                             ["append", "extend", "push", "insert", "remove", "clear"];
                         if mutating_methods.contains(&method.as_str()) {
@@ -906,7 +906,7 @@ mod tests {
     fn test_mutable_parameter_pattern() {
         let func = HirFunction {
             name: "modify_list".to_string(),
-            params: smallvec![("lst".to_string(), Type::List(Box::new(Type::Int)))],
+            params: smallvec![HirParam::new("lst".to_string(), Type::List(Box::new(Type::Int)))],
             ret_type: Type::Unknown,
             body: vec![HirStmt::Expr(HirExpr::MethodCall {
                 object: Box::new(HirExpr::Var("lst".to_string())),

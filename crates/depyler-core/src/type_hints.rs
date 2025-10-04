@@ -116,9 +116,9 @@ impl TypeHintProvider {
         let mut hints = Vec::new();
 
         // Parameter hints
-        for (param_name, param_type) in &func.params {
-            if matches!(param_type, Type::Unknown) {
-                if let Some(hint) = self.infer_parameter_type(param_name) {
+        for param in &func.params {
+            if matches!(param.ty, Type::Unknown) {
+                if let Some(hint) = self.infer_parameter_type(&param.name) {
                     hints.push(hint.clone());
                     self.parameter_hints
                         .entry(func.name.clone())
@@ -740,8 +740,8 @@ mod tests {
         let func = HirFunction {
             name: "add_numbers".to_string(),
             params: smallvec![
-                ("a".to_string(), Type::Unknown),
-                ("b".to_string(), Type::Unknown),
+                HirParam::new("a".to_string(), Type::Unknown),
+                HirParam::new("b".to_string(), Type::Unknown),
             ],
             ret_type: Type::Unknown,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
@@ -770,7 +770,7 @@ mod tests {
 
         let func = HirFunction {
             name: "process_text".to_string(),
-            params: smallvec![("text".to_string(), Type::Unknown)],
+            params: smallvec![HirParam::new("text".to_string(), Type::Unknown)],
             ret_type: Type::Unknown,
             body: vec![HirStmt::Expr(HirExpr::MethodCall {
                 object: Box::new(HirExpr::Var("text".to_string())),

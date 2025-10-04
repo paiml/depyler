@@ -65,8 +65,8 @@ impl MemorySafetyAnalyzer {
         let mut violations = Vec::new();
 
         // Initialize parameters
-        for (param_name, param_type) in &func.params {
-            self.register_variable(param_name, param_type, false);
+        for param in &func.params {
+            self.register_variable(&param.name, &param.ty, false);
         }
 
         // Analyze function body
@@ -473,7 +473,7 @@ mod tests {
 
         let func = HirFunction {
             name: "safe_func".to_string(),
-            params: smallvec![("x".to_string(), Type::Int)],
+            params: smallvec![depyler_core::hir::HirParam::new("x".to_string(), Type::Int)],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Add,

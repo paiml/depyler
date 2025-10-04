@@ -155,9 +155,9 @@ impl BorrowingContext {
         type_mapper: &TypeMapper,
     ) -> BorrowingAnalysisResult {
         // Initialize parameter tracking
-        for (param_name, _) in &func.params {
+        for param in &func.params {
             self.param_usage
-                .insert(param_name.clone(), ParameterUsagePattern::default());
+                .insert(param.name.clone(), ParameterUsagePattern::default());
         }
 
         // Analyze function body
@@ -543,23 +543,23 @@ impl BorrowingContext {
         let mut strategies = IndexMap::new();
         let mut insights = Vec::new();
 
-        for (param_name, param_type) in &func.params {
+        for param in &func.params {
             let usage = self
                 .param_usage
-                .get(param_name)
+                .get(&param.name)
                 .cloned()
                 .unwrap_or_default();
-            let rust_type = type_mapper.map_type(param_type);
+            let rust_type = type_mapper.map_type(&param.ty);
 
             let strategy = self.determine_parameter_strategy(
-                param_name,
+                &param.name,
                 &usage,
                 &rust_type,
-                param_type,
+                &param.ty,
                 &mut insights,
             );
 
-            strategies.insert(param_name.clone(), strategy);
+            strategies.insert(param.name.clone(), strategy);
         }
 
         BorrowingAnalysisResult {
@@ -688,7 +688,7 @@ impl BorrowingContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::{FunctionProperties, Literal};
+    use crate::hir::{FunctionProperties, HirParam, Literal};
     use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
 
@@ -699,7 +699,7 @@ mod tests {
 
         let func = HirFunction {
             name: "add_one".to_string(),
-            params: smallvec![("x".to_string(), PythonType::Int)],
+            params: smallvec![HirParam::new("x".to_string(), PythonType::Int)],
             ret_type: PythonType::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: crate::hir::BinOp::Add,
@@ -725,7 +725,7 @@ mod tests {
 
         let func = HirFunction {
             name: "string_len".to_string(),
-            params: smallvec![("s".to_string(), PythonType::String)],
+            params: smallvec![HirParam::new("s".to_string(), PythonType::String)],
             ret_type: PythonType::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Call {
                 func: "len".to_string(),
@@ -753,7 +753,7 @@ mod tests {
 
         let func = HirFunction {
             name: "mutate_list".to_string(),
-            params: smallvec![(
+            params: smallvec![HirParam::new(
                 "lst".to_string(),
                 PythonType::List(Box::new(PythonType::Int))
             )],

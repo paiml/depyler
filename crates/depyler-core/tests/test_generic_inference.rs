@@ -98,7 +98,7 @@ def process_value(x: Union[int, str]) -> str:
     assert_eq!(hir.functions.len(), 1);
 
     let func = &hir.functions[0];
-    match &func.params[0].1 {
+    match &func.params[0].ty {
         Type::Union(types) => {
             assert_eq!(types.len(), 2);
             assert!(types.contains(&Type::Int));

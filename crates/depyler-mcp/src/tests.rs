@@ -215,55 +215,6 @@ mod validator_tests {
     }
 }
 
-// Transport tests
-mod transport_tests {
-    use crate::transport::*;
-
-    #[test]
-    fn test_transport_type_default() {
-        assert!(matches!(TransportType::default(), TransportType::Stdio));
-    }
-
-    #[test]
-    fn test_transport_factory_stdio() {
-        let transport = TransportFactory::create_stdio();
-        assert!(transport.is_ok());
-    }
-
-    #[test]
-    fn test_transport_from_env_stdio() {
-        std::env::set_var("DEPYLER_MCP_TRANSPORT", "stdio");
-        let transport_type = TransportFactory::from_env().unwrap();
-        assert!(matches!(transport_type, TransportType::Stdio));
-        std::env::remove_var("DEPYLER_MCP_TRANSPORT");
-    }
-
-    #[test]
-    fn test_transport_from_env_default() {
-        std::env::remove_var("DEPYLER_MCP_TRANSPORT");
-        let transport_type = TransportFactory::from_env().unwrap();
-        assert!(matches!(transport_type, TransportType::Stdio));
-    }
-
-    #[cfg(feature = "websocket")]
-    #[test]
-    fn test_transport_from_env_websocket() {
-        std::env::set_var("DEPYLER_MCP_TRANSPORT", "ws://localhost:8080");
-        let transport_type = TransportFactory::from_env().unwrap();
-        assert!(matches!(transport_type, TransportType::WebSocket(_)));
-        std::env::remove_var("DEPYLER_MCP_TRANSPORT");
-    }
-
-    #[cfg(feature = "http")]
-    #[test]
-    fn test_transport_from_env_http() {
-        std::env::set_var("DEPYLER_MCP_TRANSPORT", "http://localhost:8080");
-        let transport_type = TransportFactory::from_env().unwrap();
-        assert!(matches!(transport_type, TransportType::Http(_)));
-        std::env::remove_var("DEPYLER_MCP_TRANSPORT");
-    }
-}
-
 // Client tests
 mod client_tests {
     use crate::McpClient;

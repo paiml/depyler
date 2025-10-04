@@ -673,10 +673,10 @@ impl InliningAnalyzer {
         let mut inlined_body = Vec::new();
 
         // Create parameter bindings
-        for (i, (param_name, _)) in func.params.iter().enumerate() {
+        for (i, param) in func.params.iter().enumerate() {
             if let Some(arg) = args.get(i) {
                 inlined_body.push(HirStmt::Assign {
-                    target: crate::hir::AssignTarget::Symbol(format!("_inline_{}", param_name)),
+                    target: crate::hir::AssignTarget::Symbol(format!("_inline_{}", param.name)),
                     value: arg.clone(),
                 });
             }
@@ -702,7 +702,7 @@ impl InliningAnalyzer {
     fn transform_stmt_for_inlining(
         &self,
         stmt: &HirStmt,
-        params: &[(String, crate::hir::Type)],
+        params: &[crate::hir::HirParam],
         _depth: usize,
     ) -> HirStmt {
         match stmt {
@@ -739,7 +739,7 @@ impl InliningAnalyzer {
     fn transform_expr_for_inlining(
         &self,
         expr: &HirExpr,
-        params: &[(String, crate::hir::Type)],
+        params: &[crate::hir::HirParam],
     ) -> HirExpr {
         transform_expr_for_inlining_inner(expr, params)
     }
@@ -747,11 +747,11 @@ impl InliningAnalyzer {
     fn transform_assign_target_for_inlining(
         &self,
         target: &crate::hir::AssignTarget,
-        params: &[(String, crate::hir::Type)],
+        params: &[crate::hir::HirParam],
     ) -> crate::hir::AssignTarget {
         match target {
             crate::hir::AssignTarget::Symbol(name) => {
-                if params.iter().any(|(p, _)| p == name) {
+                if params.iter().any(|p| &p.name == name) {
                     crate::hir::AssignTarget::Symbol(format!("_inline_{}", name))
                 } else {
                     target.clone()
@@ -861,12 +861,12 @@ fn count_returns_inner(body: &[HirStmt]) -> usize {
 
 fn transform_expr_for_inlining_inner(
     expr: &HirExpr,
-    params: &[(String, crate::hir::Type)],
+    params: &[crate::hir::HirParam],
 ) -> HirExpr {
     match expr {
         HirExpr::Var(name) => {
             // Replace parameter references with inlined versions
-            if params.iter().any(|(p, _)| p == name) {
+            if params.iter().any(|p| &p.name == name) {
                 HirExpr::Var(format!("_inline_{}", name))
             } else {
                 expr.clone()
@@ -923,7 +923,7 @@ mod tests {
     fn test_trivial_function_detection() {
         let func = HirFunction {
             name: "identity".to_string(),
-            params: smallvec![("x".to_string(), Type::Int)],
+            params: smallvec![HirParam::new("x".to_string(), Type::Int)],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
             properties: FunctionProperties::default(),

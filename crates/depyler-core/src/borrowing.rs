@@ -33,8 +33,8 @@ impl BorrowingContext {
     /// Analyze a function to determine parameter borrowing patterns
     pub fn analyze_function(&mut self, func: &HirFunction) {
         // First pass: identify all parameters
-        for (param_name, _) in &func.params {
-            self.read_only_params.insert(param_name.clone());
+        for param in &func.params {
+            self.read_only_params.insert(param.name.clone());
         }
 
         // Analyze function body
@@ -267,7 +267,7 @@ impl BorrowingContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::{BinOp, FunctionProperties, Literal};
+    use crate::hir::{BinOp, FunctionProperties, HirParam, Literal};
     use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
 
@@ -277,7 +277,7 @@ mod tests {
 
         let func = HirFunction {
             name: "test".to_string(),
-            params: smallvec![("x".to_string(), Type::String)],
+            params: smallvec![HirParam::new("x".to_string(), Type::String)],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Call {
                 func: "len".to_string(),
@@ -301,7 +301,7 @@ mod tests {
 
         let func = HirFunction {
             name: "test".to_string(),
-            params: smallvec![("x".to_string(), Type::List(Box::new(Type::Int)))],
+            params: smallvec![HirParam::new("x".to_string(), Type::List(Box::new(Type::Int)))],
             ret_type: Type::None,
             body: vec![HirStmt::Expr(HirExpr::Call {
                 func: "append".to_string(),
@@ -326,7 +326,7 @@ mod tests {
 
         let func = HirFunction {
             name: "test".to_string(),
-            params: smallvec![("x".to_string(), Type::String)],
+            params: smallvec![HirParam::new("x".to_string(), Type::String)],
             ret_type: Type::String,
             body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
             properties: FunctionProperties::default(),
@@ -344,7 +344,7 @@ mod tests {
 
         let func = HirFunction {
             name: "test".to_string(),
-            params: smallvec![("x".to_string(), Type::Int)],
+            params: smallvec![HirParam::new("x".to_string(), Type::Int)],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Add,

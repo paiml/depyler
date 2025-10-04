@@ -8,8 +8,31 @@ pub type Symbol = String;
 #[cfg(test)]
 #[macro_export]
 macro_rules! params {
+    // Empty params
+    () => {
+        smallvec::smallvec![]
+    };
+    // Params with HirParam structs
     ($($param:expr),* $(,)?) => {
         smallvec::smallvec![$($param),*]
+    };
+}
+
+/// Helper for creating a required parameter (no default)
+#[cfg(test)]
+#[macro_export]
+macro_rules! param {
+    ($name:expr, $ty:expr) => {
+        $crate::hir::HirParam::new($name.to_string(), $ty)
+    };
+}
+
+/// Helper for creating a parameter with a default value
+#[cfg(test)]
+#[macro_export]
+macro_rules! param_with_default {
+    ($name:expr, $ty:expr, $default:expr) => {
+        $crate::hir::HirParam::with_default($name.to_string(), $ty, $default)
     };
 }
 
@@ -30,7 +53,7 @@ macro_rules! params {
 ///
 /// let function = HirFunction {
 ///     name: "example".to_string(),
-///     params: smallvec![("x".to_string(), Type::Int)],
+///     params: smallvec![HirParam::new("x".to_string(), Type::Int)],
 ///     ret_type: Type::Int,
 ///     body: vec![],
 ///     properties: FunctionProperties::default(),
@@ -125,7 +148,7 @@ pub struct Protocol {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProtocolMethod {
     pub name: String,
-    pub params: SmallVec<[(Symbol, Type); 4]>,
+    pub params: SmallVec<[HirParam; 4]>,
     pub ret_type: Type,
     pub is_optional: bool,
     pub has_default: bool,
@@ -144,7 +167,7 @@ pub struct HirClass {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HirMethod {
     pub name: String,
-    pub params: SmallVec<[(Symbol, Type); 4]>,
+    pub params: SmallVec<[HirParam; 4]>,
     pub ret_type: Type,
     pub body: Vec<HirStmt>,
     pub is_static: bool,
@@ -162,10 +185,59 @@ pub struct HirField {
     pub is_class_var: bool,
 }
 
+/// Function parameter with optional default value
+///
+/// Represents a single parameter in a function signature, including its name,
+/// type, and an optional default value expression.
+///
+/// # Examples
+///
+/// ```rust
+/// use depyler_core::hir::{HirParam, Type, HirExpr, Literal};
+///
+/// // Required parameter (no default)
+/// let param = HirParam::new("x".to_string(), Type::Int);
+/// assert_eq!(param.default, None);
+///
+/// // Parameter with default value
+/// let param_with_default = HirParam::with_default(
+///     "count".to_string(),
+///     Type::Int,
+///     HirExpr::Literal(Literal::Int(0)),
+/// );
+/// assert!(param_with_default.default.is_some());
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HirParam {
+    pub name: Symbol,
+    pub ty: Type,
+    pub default: Option<HirExpr>,
+}
+
+impl HirParam {
+    /// Create a required parameter (no default value)
+    pub fn new(name: Symbol, ty: Type) -> Self {
+        Self {
+            name,
+            ty,
+            default: None,
+        }
+    }
+
+    /// Create a parameter with a default value
+    pub fn with_default(name: Symbol, ty: Type, default: HirExpr) -> Self {
+        Self {
+            name,
+            ty,
+            default: Some(default),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HirFunction {
     pub name: Symbol,
-    pub params: SmallVec<[(Symbol, Type); 4]>, // Most functions have < 4 params
+    pub params: SmallVec<[HirParam; 4]>, // Most functions have < 4 params
     pub ret_type: Type,
     pub body: Vec<HirStmt>,
     pub properties: FunctionProperties,
