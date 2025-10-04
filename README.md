@@ -103,33 +103,52 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 See [documentation](https://docs.rs/depyler) for complete feature list.
 
-## MCP Integration
+## MCP Server
 
-Depyler provides an MCP (Model Context Protocol) server for integration with AI assistants like Claude Code.
+Depyler is available as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server for AI assistants like Claude Code.
 
-### Setup
+### Installation
 
-Add to Claude Desktop config (`~/.config/Claude/claude_desktop_config.json`):
+Install via the [MCP Registry](https://registry.modelcontextprotocol.io):
+
+```bash
+# Install the server
+cargo install depyler
+
+# Verify installation
+depyler --version
+```
+
+### Claude Desktop Setup
+
+Add to your Claude Desktop config (`~/.config/Claude/claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "depyler": {
       "command": "depyler",
-      "args": ["agent", "start", "--foreground", "--port", "3000"]
+      "args": ["agent", "start", "--foreground"]
     }
   }
 }
 ```
 
-### Available Tools
+### Available MCP Tools
 
-- `transpile_python` - Convert Python code to Rust
-- `analyze_migration_complexity` - Analyze migration effort
-- `verify_transpilation` - Verify semantic equivalence
-- `pmat_quality_check` - Code quality analysis
+- **transpile_python** - Convert Python code to Rust
+- **analyze_migration_complexity** - Analyze migration effort and complexity
+- **verify_transpilation** - Verify semantic equivalence between Python and Rust
+- **pmat_quality_check** - Run code quality analysis
 
-See [docs/MCP_QUICKSTART.md](docs/MCP_QUICKSTART.md) for detailed usage.
+### Documentation
+
+- [MCP Quickstart Guide](docs/MCP_QUICKSTART.md) - Getting started with the MCP server
+- [MCP Registry Publishing](docs/mcp-registry-publish.md) - For maintainers
+
+### Registry
+
+View Depyler in the [MCP Registry](https://registry.modelcontextprotocol.io/?search=depyler)
 
 ## Architecture
 
