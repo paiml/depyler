@@ -1,6 +1,6 @@
 use depyler_annotations::TranspilationAnnotations;
 use depyler_core::hir::{
-    BinOp, FunctionProperties, HirExpr, HirFunction, HirModule, HirStmt, Literal, Type,
+    BinOp, FunctionProperties, HirExpr, HirFunction, HirModule, HirParam, HirStmt, Literal, Type,
 };
 use depyler_core::lifetime_analysis::LifetimeInference;
 use depyler_core::rust_gen::generate_rust_file;
@@ -12,7 +12,7 @@ fn test_lifetime_inference_for_string_parameter() {
     // Create a function that takes a string and returns its length
     let func = HirFunction {
         name: "get_length".to_string(),
-        params: smallvec![("s".to_string(), Type::String)],
+        params: smallvec![HirParam::new("s".to_string(), Type::String)],
         ret_type: Type::Int,
         body: vec![HirStmt::Return(Some(HirExpr::Attribute {
             value: Box::new(HirExpr::Var("s".to_string())),
@@ -53,7 +53,7 @@ fn test_lifetime_inference_for_mutable_parameter() {
     // Create a function that mutates a variable
     let func = HirFunction {
         name: "append_bang".to_string(),
-        params: smallvec![("s".to_string(), Type::String)],
+        params: smallvec![HirParam::new("s".to_string(), Type::String)],
         ret_type: Type::None,
         body: vec![HirStmt::Assign {
             target: depyler_core::hir::AssignTarget::Symbol("s".to_string()),
@@ -84,8 +84,8 @@ fn test_lifetime_inference_with_multiple_parameters() {
     let func = HirFunction {
         name: "concat_strings".to_string(),
         params: smallvec![
-            ("s1".to_string(), Type::String),
-            ("s2".to_string(), Type::String)
+            HirParam::new("s1".to_string(), Type::String),
+            HirParam::new("s2".to_string(), Type::String)
         ],
         ret_type: Type::String,
         body: vec![HirStmt::Return(Some(HirExpr::Binary {
@@ -126,7 +126,7 @@ fn test_lifetime_inference_escaping_parameter() {
     // Create a function that returns one of its parameters
     let func = HirFunction {
         name: "identity".to_string(),
-        params: smallvec![("x".to_string(), Type::String)],
+        params: smallvec![HirParam::new("x".to_string(), Type::String)],
         ret_type: Type::String,
         body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
         properties: FunctionProperties::default(),
@@ -152,8 +152,8 @@ fn test_lifetime_bounds_generation() {
     let func = HirFunction {
         name: "select_first".to_string(),
         params: smallvec![
-            ("a".to_string(), Type::String),
-            ("b".to_string(), Type::String)
+            HirParam::new("a".to_string(), Type::String),
+            HirParam::new("b".to_string(), Type::String)
         ],
         ret_type: Type::String,
         body: vec![HirStmt::Return(Some(HirExpr::Var("a".to_string())))],

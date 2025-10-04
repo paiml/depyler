@@ -1,5 +1,57 @@
-// Library interface for depyler main functionality
-// This allows us to test main.rs functions by moving them to lib.rs
+//! # Depyler - Python to Rust Transpiler
+//!
+//! Depyler is a transpiler that converts Python code with type annotations into idiomatic Rust.
+//! It performs semantic verification and memory safety analysis to ensure correctness.
+//!
+//! ## Usage
+//!
+//! ### As a Library
+//!
+//! ```rust,no_run
+//! use depyler_core::{DepylerPipeline, TranspileOptions};
+//!
+//! let pipeline = DepylerPipeline::new();
+//! let python_code = r#"
+//! def add(a: int, b: int) -> int:
+//!     return a + b
+//! "#;
+//!
+//! match pipeline.transpile(python_code) {
+//!     Ok(rust_code) => println!("{}", rust_code),
+//!     Err(e) => eprintln!("Transpilation failed: {}", e),
+//! }
+//! ```
+//!
+//! ### As a CLI Tool
+//!
+//! ```bash
+//! # Transpile a Python file
+//! depyler transpile example.py
+//!
+//! # Transpile with verification
+//! depyler transpile example.py --verify
+//!
+//! # Analyze migration complexity
+//! depyler analyze example.py
+//! ```
+//!
+//! ## Architecture
+//!
+//! Depyler uses a multi-stage pipeline:
+//!
+//! 1. **Parsing**: Python code → AST (via RustPython)
+//! 2. **HIR**: AST → High-level Intermediate Representation
+//! 3. **Type Inference**: Infer ownership and borrowing
+//! 4. **Code Generation**: HIR → Rust code (via syn/quote)
+//! 5. **Verification**: Property-based testing for equivalence
+//!
+//! ## Features
+//!
+//! - Type-directed transpilation using Python annotations
+//! - Memory safety analysis and ownership inference
+//! - Semantic verification via property testing
+//! - MCP server for AI assistant integration
+//! - Quality analysis (TDG scoring, complexity metrics)
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -879,7 +931,7 @@ pub fn format_hir_pretty(hir: &depyler_core::hir::HirModule) -> String {
             "   Parameters: {} -> {:?}\n",
             func.params
                 .iter()
-                .map(|(name, ty)| format!("{name}: {ty:?}"))
+                .map(|param| format!("{}: {:?}", param.name, param.ty))
                 .collect::<Vec<_>>()
                 .join(", "),
             func.ret_type

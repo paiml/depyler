@@ -303,16 +303,16 @@ impl PreconditionChecker {
         };
 
         // Check each parameter's preconditions
-        for (param_name, param_type) in &func.params {
+        for param in &func.params {
             // Check implicit preconditions from types
-            if let Some(violation) = self.check_type_precondition(param_name, param_type) {
+            if let Some(violation) = self.check_type_precondition(&param.name, &param.ty) {
                 result.violations.push(violation);
                 result.success = false;
             }
 
             // Check explicit preconditions from rules
             for rule in self.rules.values() {
-                if rule.params.contains(param_name) {
+                if rule.params.contains(&param.name) {
                     match self.verify_predicate(&rule.predicate, func) {
                         PredicateResult::Proven => {
                             result.proven_conditions.push(rule.name.clone());
@@ -321,7 +321,7 @@ impl PreconditionChecker {
                             result.violations.push(ContractViolation {
                                 kind: ViolationKind::PreconditionFailed,
                                 condition: rule.description.clone(),
-                                location: format!("parameter '{}'", param_name),
+                                location: format!("parameter '{}'", param.name),
                                 counterexample: Some(counterexample),
                                 suggestion: self.suggest_fix(&rule.predicate),
                             });
@@ -331,7 +331,7 @@ impl PreconditionChecker {
                             result.unproven_conditions.push(rule.name.clone());
                             result.warnings.push(format!(
                                 "Could not prove precondition '{}' for parameter '{}'",
-                                rule.description, param_name
+                                rule.description, param.name
                             ));
                         }
                     }
@@ -539,12 +539,12 @@ impl PostconditionVerifier {
 
     /// Capture pre-state before function execution
     pub fn capture_pre_state(&mut self, func: &HirFunction) {
-        for (param_name, param_type) in &func.params {
+        for param in &func.params {
             self.pre_state.insert(
-                param_name.clone(),
+                param.name.clone(),
                 VarState {
-                    name: param_name.clone(),
-                    ty: param_type.clone(),
+                    name: param.name.clone(),
+                    ty: param.ty.clone(),
                     constraints: Vec::new(),
                     is_initialized: true,
                     is_mutable: false,

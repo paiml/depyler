@@ -95,8 +95,8 @@ impl TypeInferencer {
 
     pub fn infer_function(&mut self, func: &HirFunction) -> Result<HashMap<String, Type>> {
         // Initialize environment with parameter types
-        for (name, ty) in &func.params {
-            self.env.set_var_type(name.clone(), ty.clone());
+        for param in &func.params {
+            self.env.set_var_type(param.name.clone(), param.ty.clone());
         }
 
         // Infer types in function body
@@ -353,7 +353,7 @@ impl TypeInferencer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use depyler_core::hir::{BinOp, Literal, UnaryOp};
+    use depyler_core::hir::{BinOp, HirParam, Literal, UnaryOp};
 
     #[test]
     fn test_type_environment_new() {
@@ -1251,7 +1251,7 @@ mod tests {
         let mut inferencer = TypeInferencer::new();
         let func = HirFunction {
             name: "test_func".to_string(),
-            params: SmallVec::from_vec(vec![("x".to_string(), Type::Int)]),
+            params: SmallVec::from_vec(vec![HirParam { name: "x".to_string(), ty: Type::Int, default: None }]),
             ret_type: Type::Int,
             body: vec![HirStmt::Assign {
                 target: AssignTarget::Symbol("y".to_string()),

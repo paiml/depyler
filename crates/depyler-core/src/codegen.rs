@@ -35,7 +35,7 @@ pub fn hir_to_rust(hir: &HirModule) -> Result<String> {
 
 fn needs_std_collections(hir: &HirModule) -> bool {
     hir.functions.iter().any(|f| {
-        f.params.iter().any(|(_, ty)| uses_hashmap(ty))
+        f.params.iter().any(|param| uses_hashmap(&param.ty))
             || uses_hashmap(&f.ret_type)
             || function_body_uses_hashmap(&f.body)
     })
@@ -132,9 +132,9 @@ fn convert_function_to_rust(func: &HirFunction) -> Result<proc_macro2::TokenStre
     let params: Vec<_> = func
         .params
         .iter()
-        .map(|(param_name, param_type)| {
-            let param_ident = syn::Ident::new(param_name, proc_macro2::Span::call_site());
-            let rust_type = type_to_rust_type(param_type);
+        .map(|param| {
+            let param_ident = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
+            let rust_type = type_to_rust_type(&param.ty);
             quote! { #param_ident: #rust_type }
         })
         .collect();
@@ -146,8 +146,8 @@ fn convert_function_to_rust(func: &HirFunction) -> Result<proc_macro2::TokenStre
     let mut scope_tracker = ScopeTracker::new();
 
     // Declare function parameters in the scope
-    for (param_name, _) in &func.params {
-        scope_tracker.declare_var(param_name);
+    for param in &func.params {
+        scope_tracker.declare_var(&param.name);
     }
 
     let body_stmts: Vec<_> = func
@@ -888,7 +888,7 @@ mod tests {
     fn test_simple_function_generation() {
         let func = HirFunction {
             name: "add".to_string(),
-            params: vec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)].into(),
+            params: vec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)].into(),
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Add,
@@ -968,7 +968,7 @@ mod tests {
         let module_with_dict = HirModule {
             functions: vec![HirFunction {
                 name: "test".to_string(),
-                params: vec![(
+                params: vec![HirParam::new(
                     "data".to_string(),
                     Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
                 )]
@@ -990,7 +990,7 @@ mod tests {
         let module_without_dict = HirModule {
             functions: vec![HirFunction {
                 name: "test".to_string(),
-                params: vec![("x".to_string(), Type::Int)].into(),
+                params: vec![HirParam::new("x".to_string(), Type::Int)].into(),
                 ret_type: Type::Int,
                 body: vec![],
                 properties: FunctionProperties::default(),

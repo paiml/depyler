@@ -79,8 +79,8 @@ impl IdeIntegration {
         let range = TextRange::new(TextSize::from(0), TextSize::from(100));
 
         let mut params = Vec::new();
-        for (name, ty) in &func.params {
-            params.push(format!("{}: {:?}", name, ty));
+        for param in &func.params {
+            params.push(format!("{}: {:?}", param.name, param.ty));
         }
         let detail = format!(
             "fn {}({}) -> {:?}",
@@ -146,8 +146,8 @@ impl IdeIntegration {
         let range = TextRange::new(TextSize::from(0), TextSize::from(100));
 
         let mut params = Vec::new();
-        for (name, ty) in &method.params {
-            params.push(format!("{}: {:?}", name, ty));
+        for param in &method.params {
+            params.push(format!("{}: {:?}", param.name, param.ty));
         }
         let detail = format!(
             "{}::{}({}) -> {:?}",
@@ -310,7 +310,7 @@ pub fn create_ide_integration(module: &HirModule, source: &str) -> IdeIntegratio
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::{FunctionProperties, Type};
+    use crate::hir::{FunctionProperties, HirParam, Type};
     use smallvec::smallvec;
 
     #[test]
@@ -319,7 +319,7 @@ mod tests {
 
         let func = HirFunction {
             name: "test_func".to_string(),
-            params: smallvec![("x".to_string(), Type::Int)],
+            params: smallvec![HirParam::new("x".to_string(), Type::Int)],
             ret_type: Type::Int,
             body: vec![],
             annotations: depyler_annotations::TranspilationAnnotations::default(),

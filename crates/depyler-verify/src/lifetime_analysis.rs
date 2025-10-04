@@ -80,8 +80,8 @@ impl LifetimeAnalyzer {
         });
 
         // Analyze parameters
-        for (param_name, param_type) in &func.params {
-            self.register_variable(param_name, param_type, 0);
+        for param in &func.params {
+            self.register_variable(&param.name, &param.ty, 0);
         }
 
         // Analyze function body
@@ -504,7 +504,7 @@ mod tests {
 
         let func = HirFunction {
             name: "test".to_string(),
-            params: vec![("items".to_string(), Type::List(Box::new(Type::Int)))].into(),
+            params: vec![depyler_core::hir::HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))].into(),
             ret_type: Type::None,
             body: vec![HirStmt::For {
                 target: "item".to_string(),

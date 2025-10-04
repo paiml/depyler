@@ -136,7 +136,7 @@ impl DebugInfoGenerator {
                 format!(
                     "// Function: {} (Python source)\n// Parameters: {:?}\n// Returns: {:?}\n",
                     func.name,
-                    func.params.iter().map(|(n, _)| n).collect::<Vec<_>>(),
+                    func.params.iter().map(|p| &p.name).collect::<Vec<_>>(),
                     func.ret_type
                 )
             }

@@ -666,7 +666,11 @@ impl AstBridge {
             } else {
                 Type::Unknown
             };
-            params.push((param_name, param_type));
+            params.push(HirParam {
+                name: param_name,
+                ty: param_type,
+                default: None, // TODO: Extract method defaults
+            });
         }
 
         // Convert return type
@@ -780,7 +784,11 @@ impl AstBridge {
             } else {
                 Type::Unknown
             };
-            params.push((param_name, param_type));
+            params.push(HirParam {
+                name: param_name,
+                ty: param_type,
+                default: None, // TODO: Extract method defaults
+            });
         }
 
         // Convert return type
@@ -1012,17 +1020,37 @@ pub fn python_to_hir(module: ast::Mod) -> Result<HirModule> {
     AstBridge::new().python_to_hir(module)
 }
 
-fn convert_parameters(args: &ast::Arguments) -> Result<Vec<(Symbol, Type)>> {
+fn convert_parameters(args: &ast::Arguments) -> Result<Vec<HirParam>> {
+    use crate::ast_bridge::converters::ExprConverter;
     let mut params = Vec::new();
 
-    for arg in args.args.iter() {
+    // Calculate number of args without defaults
+    let num_args = args.args.len();
+    let defaults_vec: Vec<_> = args.defaults().collect();
+    let num_defaults = defaults_vec.len();
+    let first_default_idx = num_args.saturating_sub(num_defaults);
+
+    for (i, arg) in args.args.iter().enumerate() {
         let name = arg.def.arg.to_string();
         let ty = if let Some(annotation) = &arg.def.annotation {
             TypeExtractor::extract_type(annotation)?
         } else {
             Type::Unknown
         };
-        params.push((name, ty));
+
+        // Check if this parameter has a default value
+        let default = if i >= first_default_idx {
+            let default_idx = i - first_default_idx;
+            if let Some(default_expr) = defaults_vec.get(default_idx) {
+                Some(ExprConverter::convert((*default_expr).clone())?)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        params.push(HirParam { name, ty, default });
     }
 
     Ok(params)
@@ -1216,8 +1244,8 @@ mod tests {
         let func = &hir.functions[0];
         assert_eq!(func.name, "add");
         assert_eq!(func.params.len(), 2);
-        assert_eq!(func.params[0].0, "a");
-        assert_eq!(func.params[0].1, Type::Int);
+        assert_eq!(func.params[0].name, "a");
+        assert_eq!(func.params[0].ty, Type::Int);
         assert_eq!(func.ret_type, Type::Int);
     }
 
@@ -1227,7 +1255,7 @@ mod tests {
         let hir = parse_python_to_hir(source);
 
         let func = &hir.functions[0];
-        assert_eq!(func.params[0].1, Type::List(Box::new(Type::String)));
+        assert_eq!(func.params[0].ty, Type::List(Box::new(Type::String)));
         assert_eq!(func.ret_type, Type::Optional(Box::new(Type::Int)));
     }
 
