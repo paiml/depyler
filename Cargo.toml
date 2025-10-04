@@ -78,7 +78,7 @@ reqwest = { version = "0.11", default-features = false, features = ["json", "rus
 
 # MCP SDK
 pmcp = { version = "1.6.0", features = ["validation", "websocket", "http"] }
-pmat = { version = "2.3.0", features = ["rust-ast", "syn"] }
+pmat = { version = "2.121", features = ["rust-ast"] }
 async-trait = "0.1"
 url = "2.5"
 
