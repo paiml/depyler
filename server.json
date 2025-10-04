@@ -1,0 +1,23 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.paiml/depyler",
+  "description": "Energy-efficient Python-to-Rust transpiler with MCP support for analysis and verification",
+  "repository": {
+    "url": "https://github.com/paiml/depyler",
+    "source": "github"
+  },
+  "version": "3.3.0",
+  "websiteUrl": "https://github.com/paiml/depyler",
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "depyler",
+      "version": "3.3.0",
+      "transport": {
+        "type": "stdio",
+        "command": "depyler",
+        "args": ["agent", "start", "--foreground"]
+      }
+    }
+  ]
+}

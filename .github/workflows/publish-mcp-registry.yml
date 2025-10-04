@@ -1,0 +1,71 @@
+name: Publish to MCP Registry
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish-to-crates:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run tests
+        run: cargo test --workspace --all-features
+
+      - name: Publish to crates.io
+        run: |
+          cargo publish -p depyler-core --token ${{ secrets.CARGO_TOKEN }}
+          sleep 30
+          cargo publish -p depyler-analyzer --token ${{ secrets.CARGO_TOKEN }}
+          sleep 30
+          cargo publish -p depyler-verify --token ${{ secrets.CARGO_TOKEN }}
+          sleep 30
+          cargo publish -p depyler-mcp --token ${{ secrets.CARGO_TOKEN }}
+          sleep 30
+          cargo publish -p depyler-annotations --token ${{ secrets.CARGO_TOKEN }}
+          sleep 30
+          cargo publish -p depyler-quality --token ${{ secrets.CARGO_TOKEN }}
+          sleep 30
+          cargo publish -p depyler-ruchy --token ${{ secrets.CARGO_TOKEN }}
+          sleep 30
+          cargo publish -p depyler-wasm --token ${{ secrets.CARGO_TOKEN }}
+          sleep 30
+          cargo publish -p depyler --token ${{ secrets.CARGO_TOKEN }}
+
+  publish-to-mcp-registry:
+    name: Publish to MCP Registry
+    needs: publish-to-crates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download MCP Publisher
+        run: |
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/modelcontextprotocol/registry/releases/latest | jq -r '.tag_name')
+          VERSION=${LATEST_VERSION#v}
+          curl -sL "https://github.com/modelcontextprotocol/registry/releases/download/${LATEST_VERSION}/mcp-publisher_${VERSION}_linux_amd64.tar.gz" | tar xz
+          chmod +x mcp-publisher
+          ./mcp-publisher --version
+
+      - name: Login to MCP Registry (GitHub OIDC)
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish
+
+      - name: Verify publication
+        run: |
+          sleep 10
+          curl "https://registry.modelcontextprotocol.io/v0/servers?search=depyler" | jq .
