@@ -6,13 +6,13 @@
     "url": "https://github.com/paiml/depyler",
     "source": "github"
   },
-  "version": "3.3.0",
+  "version": "3.4.0",
   "websiteUrl": "https://github.com/paiml/depyler",
   "packages": [
     {
       "registryType": "mcpb",
       "identifier": "depyler",
-      "version": "3.3.0",
+      "version": "3.4.0",
       "transport": {
         "type": "stdio",
         "command": "depyler",
