@@ -47,19 +47,23 @@ jobs:
     name: Publish to MCP Registry
     needs: publish-to-crates
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download MCP Publisher
+      - name: Wait for crates.io availability
         run: |
-          LATEST_VERSION=$(curl -s https://api.github.com/repos/modelcontextprotocol/registry/releases/latest | jq -r '.tag_name')
-          VERSION=${LATEST_VERSION#v}
-          curl -sL "https://github.com/modelcontextprotocol/registry/releases/download/${LATEST_VERSION}/mcp-publisher_${VERSION}_linux_amd64.tar.gz" | tar xz
-          chmod +x mcp-publisher
-          ./mcp-publisher --version
+          echo "Waiting 60 seconds for crates.io to index the package..."
+          sleep 60
 
-      - name: Login to MCP Registry (GitHub OIDC)
+      - name: Install MCP Publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/download/v1.2.3/mcp-publisher_1.2.3_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz
+
+      - name: Login to MCP Registry
         run: ./mcp-publisher login github-oidc
 
       - name: Publish to MCP Registry
