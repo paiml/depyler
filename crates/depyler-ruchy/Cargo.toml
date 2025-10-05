@@ -1,10 +1,10 @@
 [package]
 name = "depyler-ruchy"
-version = "3.2.0"
+version = "3.4.1"
 edition = "2021"
 authors = ["Depyler Contributors"]
 description = "Ruchy script format backend for Depyler Python-to-Rust transpiler"
-repository = "https://github.com/depyler-lang/depyler"
+repository = "https://github.com/paiml/depyler"
 license = "MIT OR Apache-2.0"
 keywords = ["python", "rust", "transpiler", "ruchy", "script"]
 categories = ["development-tools", "compilers"]
@@ -32,7 +32,7 @@ rustpython-parser = { version = "0.4", features = ["full-lexer"] }
 rustpython-ast = { version = "0.4" }
 
 # Internal dependencies
-depyler-core = { path = "../depyler-core", version = "3.2.0" }
+depyler-core = { path = "../depyler-core", version = "3.4.1" }
 
 # Logging and diagnostics
 tracing = "0.1"
