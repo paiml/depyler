@@ -146,22 +146,17 @@ impl Default for DaemonSettings {
 }
 
 /// Verification level for transpiled code
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
 pub enum VerificationLevel {
     /// No verification
     None,
     /// Basic syntax and type checking
+    #[default]
     Basic,
     /// Full verification with property checking
     Full,
     /// Strict verification with formal proofs
     Strict,
-}
-
-impl Default for VerificationLevel {
-    fn default() -> Self {
-        Self::Basic
-    }
 }
 
 /// Current state of the daemon

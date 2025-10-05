@@ -30,7 +30,17 @@ and this project adheres to
 **Files Modified**:
 - `tdd-book/pyproject.toml`: Added pymdown-extensions dependency
 
-## [3.4.1] - 2025-10-04
+## [3.4.1] - 2025-10-05
+
+### 📚 Documentation
+
+**Docs.rs Build Configuration**:
+- Added `package.metadata.docs.rs` configuration to Cargo.toml
+- Enabled `all-features` flag for comprehensive documentation
+- Added `docsrs` rustdoc args for proper docs.rs rendering
+- Ensures documentation builds successfully on docs.rs platform
+
+## [3.4.0] - 2025-10-04
 
 ### 🔒 Security & Infrastructure
 

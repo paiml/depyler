@@ -13,6 +13,10 @@ categories.workspace = true
 readme.workspace = true
 rust-version.workspace = true
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [[bin]]
 name = "depyler"
 path = "src/main.rs"
