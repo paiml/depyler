@@ -89,8 +89,8 @@ nav:
       - string: modules/string.md
       - struct: modules/struct.md
       - sys: modules/sys.md
+      - textwrap: modules/textwrap.md
       - time: modules/time.md
-      - unittest: modules/unittest.md
   - Edge Cases:
       - Overview: edge-cases/index.md
 
