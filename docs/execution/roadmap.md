@@ -55,6 +55,42 @@ See `CHANGELOG.md` for complete release notes.
 
 ---
 
+## 📚 **DOCUMENTATION: TDD Book GitHub Pages** (IN PROGRESS)
+
+**Status**: 🟡 **IN PROGRESS** (2025-10-05)
+**Duration**: ~1 hour
+**Focus**: Publishing TDD Book documentation to GitHub Pages for easy reference
+
+### **DEPYLER-0029**: TDD Book GitHub Pages Setup 🟡
+**Complexity**: Low-Medium
+**Time**: ~1h estimated
+**Status**: 🟡 **IN PROGRESS** (2025-10-05)
+
+**Goal**: Create professional documentation site for TDD Book using MkDocs Material and deploy to GitHub Pages
+
+**Tasks**:
+- [x] Create mkdocs.yml configuration with Material theme
+- [x] Create comprehensive index page with overview and quick start
+- [x] Create integration status page with metrics and roadmap
+- [x] Create edge cases documentation page
+- [x] Configure navigation for 27 completed modules
+- [x] Create GitHub Actions workflow for Pages deployment
+- [x] Update pyproject.toml with docs dependencies
+- [ ] Enable GitHub Pages in repository settings
+- [ ] Verify deployment and site accessibility
+- [ ] Update README with documentation link
+
+**Deliverables**:
+- `tdd-book/mkdocs.yml` (116 lines)
+- `tdd-book/docs/index.md` (162 lines)
+- `tdd-book/docs/integration.md` (234 lines)
+- `tdd-book/docs/edge-cases/index.md` (155 lines)
+- `.github/workflows/tdd-book-pages.yml` (52 lines)
+
+**Documentation URL**: https://paiml.github.io/depyler/
+
+---
+
 ## 🔒 **POST-RELEASE: Security & Infrastructure Hardening** (COMPLETED)
 
 **Status**: ✅ **COMPLETED** (2025-10-04)

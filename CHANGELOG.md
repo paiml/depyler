@@ -8,6 +8,28 @@ and this project adheres to
 
 ## [Unreleased]
 
+### 📚 Documentation
+
+**DEPYLER-0029: TDD Book GitHub Pages Setup**:
+- Created comprehensive MkDocs configuration for TDD book documentation
+- Added GitHub Actions workflow for automated Pages deployment
+- Created index page with overview, quick start, and quality standards
+- Added integration status page with detailed metrics and roadmap
+- Created edge cases documentation page with testing methodology
+- Configured Material theme with dark/light mode support
+- Added navigation structure for 27 completed modules
+- Deployed to GitHub Pages at `https://paiml.github.io/depyler/`
+
+**Files Added**:
+- `tdd-book/mkdocs.yml`: MkDocs configuration (116 lines)
+- `tdd-book/docs/index.md`: Main documentation index (162 lines)
+- `tdd-book/docs/integration.md`: Integration status page (234 lines)
+- `tdd-book/docs/edge-cases/index.md`: Edge cases documentation (155 lines)
+- `.github/workflows/tdd-book-pages.yml`: Pages deployment workflow (52 lines)
+
+**Files Modified**:
+- `tdd-book/pyproject.toml`: Added pymdown-extensions dependency
+
 ## [3.4.1] - 2025-10-04
 
 ### 🔒 Security & Infrastructure

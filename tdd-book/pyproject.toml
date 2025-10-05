@@ -25,6 +25,7 @@ dev = [
 
 docs = [
     "mkdocs-material>=9.5.0",
+    "pymdown-extensions>=10.0.0",
 ]
 
 [build-system]

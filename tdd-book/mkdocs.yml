@@ -1,0 +1,116 @@
+site_name: Depyler TDD Book
+site_description: Test-driven Python standard library reference for validating the Depyler transpiler
+site_author: Depyler Team
+repo_url: https://github.com/paiml/depyler
+repo_name: paiml/depyler
+edit_uri: edit/main/tdd-book/docs/
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - admonition
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - tags
+
+nav:
+  - Home: index.md
+  - Integration Status: integration.md
+  - Modules:
+      - array: modules/array.md
+      - base64: modules/base64.md
+      - calendar: modules/calendar.md
+      - collections: modules/collections.md
+      - copy: modules/copy.md
+      - csv: modules/csv.md
+      - datetime: modules/datetime.md
+      - decimal: modules/decimal.md
+      - fractions: modules/fractions.md
+      - functools: modules/functools.md
+      - hashlib: modules/hashlib.md
+      - io: modules/io.md
+      - itertools: modules/itertools.md
+      - json: modules/json.md
+      - math: modules/math.md
+      - memoryview: modules/memoryview.md
+      - os: modules/os.md
+      - pathlib: modules/pathlib.md
+      - random: modules/random.md
+      - re: modules/re.md
+      - secrets: modules/secrets.md
+      - statistics: modules/statistics.md
+      - string: modules/string.md
+      - struct: modules/struct.md
+      - sys: modules/sys.md
+      - time: modules/time.md
+      - unittest: modules/unittest.md
+  - Edge Cases:
+      - Overview: edge-cases/index.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/paiml/depyler
+  analytics:
+    feedback:
+      title: Was this page helpful?
+      ratings:
+        - icon: material/emoticon-happy-outline
+          name: This page was helpful
+          data: 1
+          note: >-
+            Thanks for your feedback!
+        - icon: material/emoticon-sad-outline
+          name: This page could be improved
+          data: 0
+          note: >-
+            Thanks for your feedback! Help us improve by opening an issue.
+
+copyright: Copyright &copy; 2025 Depyler Team
