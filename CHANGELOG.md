@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed
+- **[DEPYLER-0095]** Removed excessive parentheses from transpiled binary operations (2025-10-07)
+  - Modified `rust_gen.rs` to generate idiomatic Rust without unnecessary parentheses
+  - Fixed: `let x = (n == 0)` → `let x = n == 0`
+  - Fixed: `let a = (0 + right)` → `let a = 0 + right`
+  - Impact: 54/55 examples re-transpiled, 44/56 now passing validation (78%)
+- **[DEPYLER-0095]** Improved control flow spacing in generated code (2025-10-07)
+  - Fixed: `if(condition)` → `if condition`
+  - Fixed: `while(condition)` → `while condition`
+  - Enhanced `prettify_rust_code()` in `codegen.rs` with better operator handling
+
 ### 🚀 Sprint 6: Example Validation & Quality Gates (IN PROGRESS)
 
 **Status**: 🏃 **IN PROGRESS** (Started 2025-10-07)
