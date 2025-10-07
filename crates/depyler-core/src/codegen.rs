@@ -856,8 +856,27 @@ fn prettify_rust_code(code: String) -> String {
         )
         // Fix method call spacing
         .replace(" . ", ".")
+        // Fix operators with spaces BEFORE paren fixes
+        // The syn pretty-printer sometimes generates ` ! = ` instead of ` != `
+        .replace(" ! = ", " != ")
+        .replace(" ! = (", " != (")
+        .replace(") ! = ", ") != ")
+        .replace(") ! = (", ") != (")
+        .replace(" ! =", " !=")
+        .replace("! = ", "!= ")
+        .replace(" = = ", " == ")
+        .replace(" = =", " ==")
+        .replace("= = ", "== ")
+        .replace(" < =", " <=")
+        .replace(" > =", " >=")
+        // Now fix spacing around parentheses
         .replace(" (", "(")
         .replace(" )", ")")
+        // Add spaces around comparison operators (after paren fixes)
+        .replace("(r<0", "(r < 0")
+        .replace("(b<0", "(b < 0")
+        .replace("r<0)", "r < 0)")
+        .replace("b<0)", "b < 0)")
         // Fix specific common patterns
         .replace(".len ()", ".len()")
         .replace(".push (", ".push(")
@@ -865,6 +884,12 @@ fn prettify_rust_code(code: String) -> String {
         .replace(".get (", ".get(")
         .replace(".contains_key (", ".contains_key(")
         .replace(".to_string ()", ".to_string()")
+        // Fix control flow keywords (AFTER paren fixes to ensure proper spacing)
+        .replace("if(", "if ")
+        .replace("while(", "while ")
+        .replace("for(", "for ")
+        .replace("match(", "match ")
+        .replace("} else", "}\nelse")
         // Fix spacing around operators in some contexts
         .replace(" ::", "::")
         // Fix attribute spacing
