@@ -18,6 +18,16 @@ and this project adheres to
   - Fixed: `if(condition)` → `if condition`
   - Fixed: `while(condition)` → `while condition`
   - Enhanced `prettify_rust_code()` in `codegen.rs` with better operator handling
+- **[DEPYLER-0095]** Implemented intelligent variable mutability analysis (2025-10-07)
+  - Added `analyze_mutable_vars()` function to detect which variables are actually reassigned
+  - Fixed: `let mut x = 1;` → `let x = 1;` (when x is never reassigned)
+  - Fixed tuple unpacking to correctly mark only mutated variables: `let (mut a, mut b)` only when needed
+  - Impact: Eliminated "variable does not need to be mutable" warnings
+- **[DEPYLER-0095]** Added automatic error type generation (2025-10-07)
+  - Implemented detection and generation of `ZeroDivisionError` and `IndexError` types
+  - Error types now automatically generated when functions use `Result<T, ZeroDivisionError>`
+  - Full `std::error::Error` trait implementation with Display formatting
+  - Impact: Eliminated "cannot find type" errors for Python exception types
 
 ### 🚀 Sprint 6: Example Validation & Quality Gates (IN PROGRESS)
 

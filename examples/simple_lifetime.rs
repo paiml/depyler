@@ -2,8 +2,7 @@
 // Source: ./examples/simple_lifetime.py
 // Command: depyler transpile ./examples/simple_lifetime.py
 
-use std::borrow::Cow;
-    #[doc = "Get string length"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn get_len<'a>(s: & 'a str)  -> i32 {
+#[doc = "Get string length"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn get_len<'a>(s: & 'a str)  -> i32 {
     let mut _cse_temp_0 = s.len();
     return _cse_temp_0;
    

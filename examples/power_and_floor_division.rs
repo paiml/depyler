@@ -8,7 +8,9 @@
     let b = 5;
     let q = a / b;
     let r = a % b;
-    let needs_adjustment = r != 0 &&(r<0) ! = (b<0);
+    let r_negative = r<0;
+    let b_negative = b<0;
+    let needs_adjustment = r != 0 && r_negative != b_negative;
     if needs_adjustment {
     q - 1
 }
@@ -21,7 +23,9 @@ else {
     let b = 5;
     let q = a / b;
     let r = a % b;
-    let needs_adjustment = r != 0 &&(r<0) ! = (b<0);
+    let r_negative = r<0;
+    let b_negative = b<0;
+    let needs_adjustment = r != 0 && r_negative != b_negative;
     if needs_adjustment {
     q - 1
 }
@@ -34,7 +38,9 @@ else {
     let b = - 5;
     let q = a / b;
     let r = a % b;
-    let needs_adjustment = r != 0 &&(r<0) ! = (b<0);
+    let r_negative = r<0;
+    let b_negative = b<0;
+    let needs_adjustment = r != 0 && r_negative != b_negative;
     if needs_adjustment {
     q - 1
 }
@@ -52,7 +58,9 @@ else {
     let b = divisor;
     let q = a / b;
     let r = a % b;
-    let needs_adjustment = r != 0 &&(r<0) ! = (b<0);
+    let r_negative = r<0;
+    let b_negative = b<0;
+    let needs_adjustment = r != 0 && r_negative != b_negative;
     if needs_adjustment {
     q - 1
 }
@@ -66,7 +74,9 @@ else {
     let b = 5;
     let q = a / b;
     let r = a % b;
-    let needs_adjustment = r != 0 &&(r<0) ! = (b<0);
+    let r_negative = r<0;
+    let b_negative = b<0;
+    let needs_adjustment = r != 0 && r_negative != b_negative;
     if needs_adjustment {
     q - 1
 }
@@ -79,7 +89,9 @@ else {
     let b = 5;
     let q = a / b;
     let r = a % b;
-    let needs_adjustment = r != 0 &&(r<0) ! = (b<0);
+    let r_negative = r<0;
+    let b_negative = b<0;
+    let needs_adjustment = r != 0 && r_negative != b_negative;
     if needs_adjustment {
     q - 1
 }
@@ -92,7 +104,9 @@ else {
     let b = - 5;
     let q = a / b;
     let r = a % b;
-    let needs_adjustment = r != 0 &&(r<0) ! = (b<0);
+    let r_negative = r<0;
+    let b_negative = b<0;
+    let needs_adjustment = r != 0 && r_negative != b_negative;
     if needs_adjustment {
     q - 1
 }
@@ -106,7 +120,9 @@ else {
     let b = - 5;
     let q = a / b;
     let r = a % b;
-    let needs_adjustment = r != 0 &&(r<0) ! = (b<0);
+    let r_negative = r<0;
+    let b_negative = b<0;
+    let needs_adjustment = r != 0 && r_negative != b_negative;
     if needs_adjustment {
     q - 1
 }
@@ -133,7 +149,9 @@ else {
     let b = b;
     let q = a / b;
     let r = a % b;
-    let needs_adjustment = r != 0 &&(r<0) ! = (b<0);
+    let r_negative = r<0;
+    let b_negative = b<0;
+    let needs_adjustment = r != 0 && r_negative != b_negative;
     if needs_adjustment {
     q - 1
 }
@@ -147,7 +165,9 @@ else {
     let b = 5;
     let q = a / b;
     let r = a % b;
-    let needs_adjustment = r != 0 &&(r<0) ! = (b<0);
+    let r_negative = r<0;
+    let b_negative = b<0;
+    let needs_adjustment = r != 0 && r_negative != b_negative;
     if needs_adjustment {
     q - 1
 }
@@ -160,7 +180,9 @@ else {
     let b = 5;
     let q = a / b;
     let r = a % b;
-    let needs_adjustment = r != 0 &&(r<0) ! = (b<0);
+    let r_negative = r<0;
+    let b_negative = b<0;
+    let needs_adjustment = r != 0 && r_negative != b_negative;
     if needs_adjustment {
     q - 1
 }
@@ -179,7 +201,9 @@ else {
     let b = 1;
     let q = a / b;
     let r = a % b;
-    let needs_adjustment = r != 0 &&(r<0) ! = (b<0);
+    let r_negative = r<0;
+    let b_negative = b<0;
+    let needs_adjustment = r != 0 && r_negative != b_negative;
     if needs_adjustment {
     q - 1
 }

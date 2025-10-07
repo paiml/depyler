@@ -28,6 +28,8 @@ pub struct CodeGenContext<'a> {
     pub imported_modules: std::collections::HashMap<String, crate::module_mapper::ModuleMapping>,
     pub imported_items: std::collections::HashMap<String, String>,
     pub mutable_vars: HashSet<String>,
+    pub needs_zerodivisionerror: bool,
+    pub needs_indexerror: bool,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -163,6 +165,67 @@ fn analyze_string_optimization(ctx: &mut CodeGenContext, functions: &[HirFunctio
     }
 }
 
+/// Analyze which variables are reassigned (mutated) in a list of statements
+///
+/// Populates ctx.mutable_vars with variables that are reassigned after declaration.
+/// Complexity: 4 (loop + match + if)
+fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
+    let mut declared = HashSet::new();
+
+    fn analyze_stmt(stmt: &HirStmt, declared: &mut HashSet<String>, mutable: &mut HashSet<String>) {
+        match stmt {
+            HirStmt::Assign { target, .. } => {
+                match target {
+                    AssignTarget::Symbol(name) => {
+                        if declared.contains(name) {
+                            // Variable is being reassigned - mark as mutable
+                            mutable.insert(name.clone());
+                        } else {
+                            // First declaration
+                            declared.insert(name.clone());
+                        }
+                    }
+                    AssignTarget::Tuple(targets) => {
+                        // Tuple assignment - analyze each element
+                        for t in targets {
+                            if let AssignTarget::Symbol(name) = t {
+                                if declared.contains(name) {
+                                    // Variable is being reassigned - mark as mutable
+                                    mutable.insert(name.clone());
+                                } else {
+                                    // First declaration
+                                    declared.insert(name.clone());
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            HirStmt::If { then_body, else_body, .. } => {
+                for stmt in then_body {
+                    analyze_stmt(stmt, declared, mutable);
+                }
+                if let Some(else_stmts) = else_body {
+                    for stmt in else_stmts {
+                        analyze_stmt(stmt, declared, mutable);
+                    }
+                }
+            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                for stmt in body {
+                    analyze_stmt(stmt, declared, mutable);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    for stmt in stmts {
+        analyze_stmt(stmt, &mut declared, &mut ctx.mutable_vars);
+    }
+}
+
 /// Convert Python classes to Rust structs
 ///
 /// Processes all classes and generates token streams.
@@ -211,7 +274,8 @@ fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenS
         (ctx.needs_ahash_hashmap, quote! { use ahash::AHashMap; }),
         (ctx.needs_arc, quote! { use std::sync::Arc; }),
         (ctx.needs_rc, quote! { use std::rc::Rc; }),
-        (ctx.needs_cow, quote! { use std::borrow::Cow; }),
+        // Cow import disabled - type detection has false positives
+        (false, quote! { use std::borrow::Cow; }),
     ];
 
     // Add imports where needed
@@ -222,6 +286,62 @@ fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenS
     }
 
     imports
+}
+
+/// Generate error type definitions if needed
+///
+/// Generates struct definitions for Python error types like ZeroDivisionError and IndexError.
+/// Complexity: 2 (simple conditionals)
+fn generate_error_type_definitions(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenStream> {
+    let mut definitions = Vec::new();
+
+    if ctx.needs_zerodivisionerror {
+        definitions.push(quote! {
+            #[derive(Debug, Clone)]
+            pub struct ZeroDivisionError {
+                message: String,
+            }
+
+            impl std::fmt::Display for ZeroDivisionError {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "division by zero: {}", self.message)
+                }
+            }
+
+            impl std::error::Error for ZeroDivisionError {}
+
+            impl ZeroDivisionError {
+                pub fn new(message: impl Into<String>) -> Self {
+                    Self { message: message.into() }
+                }
+            }
+        });
+    }
+
+    if ctx.needs_indexerror {
+        definitions.push(quote! {
+            #[derive(Debug, Clone)]
+            pub struct IndexError {
+                message: String,
+            }
+
+            impl std::fmt::Display for IndexError {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "index out of range: {}", self.message)
+                }
+            }
+
+            impl std::error::Error for IndexError {}
+
+            impl IndexError {
+                pub fn new(message: impl Into<String>) -> Self {
+                    Self { message: message.into() }
+                }
+            }
+        });
+    }
+
+    definitions
 }
 
 /// Generate import token streams from Python imports
@@ -324,6 +444,8 @@ pub fn generate_rust_file(
         imported_modules,
         imported_items,
         mutable_vars: HashSet::new(),
+        needs_zerodivisionerror: false,
+        needs_indexerror: false,
     };
 
     // Analyze all functions first for string optimization
@@ -347,6 +469,9 @@ pub fn generate_rust_file(
 
     // Add collection imports if needed
     items.extend(generate_conditional_imports(&ctx));
+
+    // Add error type definitions if needed
+    items.extend(generate_error_type_definitions(&ctx));
 
     // Add generated union enums
     items.extend(ctx.generated_enums.clone());
@@ -640,6 +765,14 @@ impl RustCodeGen for HirFunction {
             "Box<dyn std::error::Error>".to_string()
         };
 
+        // Mark error types as needed for type generation
+        if error_type_str.contains("ZeroDivisionError") {
+            ctx.needs_zerodivisionerror = true;
+        }
+        if error_type_str.contains("IndexError") {
+            ctx.needs_indexerror = true;
+        }
+
         let return_type = if matches!(rust_ret_type, crate::type_mapper::RustType::Unit) {
             if can_fail {
                 let error_type: syn::Type = syn::parse_str(&error_type_str)
@@ -723,6 +856,9 @@ impl RustCodeGen for HirFunction {
         for param in &self.params {
             ctx.declare_var(&param.name);
         }
+
+        // Analyze which variables are mutated in the function body
+        analyze_mutable_vars(&self.body, ctx);
 
         // Convert body
         let body_stmts: Vec<_> = self
@@ -817,9 +953,13 @@ impl RustCodeGen for HirStmt {
                             // Variable already exists, just assign
                             Ok(quote! { #target_ident = #value_expr; })
                         } else {
-                            // First declaration, use let mut
+                            // First declaration - check if variable needs mut
                             ctx.declare_var(symbol);
-                            Ok(quote! { let mut #target_ident = #value_expr; })
+                            if ctx.mutable_vars.contains(symbol) {
+                                Ok(quote! { let mut #target_ident = #value_expr; })
+                            } else {
+                                Ok(quote! { let #target_ident = #value_expr; })
+                            }
                         }
                     }
                     AssignTarget::Index { base, index } => {
@@ -870,13 +1010,20 @@ impl RustCodeGen for HirStmt {
                                         .collect();
                                     Ok(quote! { (#(#idents),*) = #value_expr; })
                                 } else {
-                                    // First declaration
+                                    // First declaration - mark each variable individually
                                     symbols.iter().for_each(|s| ctx.declare_var(s));
-                                    let idents: Vec<_> = symbols
+                                    let idents_with_mut: Vec<_> = symbols
                                         .iter()
-                                        .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
+                                        .map(|s| {
+                                            let ident = syn::Ident::new(s, proc_macro2::Span::call_site());
+                                            if ctx.mutable_vars.contains(*s) {
+                                                quote! { mut #ident }
+                                            } else {
+                                                quote! { #ident }
+                                            }
+                                        })
                                         .collect();
-                                    Ok(quote! { let (mut #(#idents),*) = #value_expr; })
+                                    Ok(quote! { let (#(#idents_with_mut),*) = #value_expr; })
                                 }
                             }
                             None => {
@@ -1115,7 +1262,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         let b = #right_expr;
                         let q = a / b;
                         let r = a % b;
-                        let needs_adjustment = r != 0 && (r < 0) != (b < 0);
+                        // Avoid != in boolean expression due to formatting issues
+                        let r_negative = r < 0;
+                        let b_negative = b < 0;
+                        let needs_adjustment = r != 0 && r_negative != b_negative;
                         if needs_adjustment { q - 1 } else { q }
                     }
                 })
@@ -2642,6 +2792,8 @@ mod tests {
             imported_modules: std::collections::HashMap::new(),
             imported_items: std::collections::HashMap::new(),
             mutable_vars: HashSet::new(),
+            needs_zerodivisionerror: false,
+            needs_indexerror: false,
         }
     }
 
