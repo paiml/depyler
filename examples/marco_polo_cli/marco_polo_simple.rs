@@ -2,14 +2,15 @@
 // Source: ./examples/marco_polo_cli/marco_polo_simple.py
 // Command: depyler transpile ./examples/marco_polo_cli/marco_polo_simple.py
 
-use std::borrow::Cow;
-    #[doc = "Generate a number in range(simplified without random)."] #[doc = " Depyler: proven to terminate"] pub fn generate_number(min_val: i32, max_val: i32)  -> Result<i32, ZeroDivisionError>{
+#[doc = "Generate a number in range(simplified without random)."] #[doc = " Depyler: proven to terminate"] pub fn generate_number(min_val: i32, max_val: i32)  -> Result<i32, ZeroDivisionError>{
     let mut _cse_temp_0 = {
     let a = min_val + max_val;
     let b = 2;
     let q = a / b;
     let r = a % b;
-    let needs_adjustment = r != 0 &&(r<0) ! = (b<0);
+    let r_negative = r<0;
+    let b_negative = b<0;
+    let needs_adjustment = r != 0 && r_negative != b_negative;
     if needs_adjustment {
     q - 1
 }

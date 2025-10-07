@@ -2,8 +2,7 @@
 // Source: ./examples/showcase/classify_number.py
 // Command: depyler transpile ./examples/showcase/classify_number.py
 
-use std::borrow::Cow;
-    #[doc = "Classify a number as zero, positive, or negative."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn classify_number(n: i32)  -> String {
+#[doc = "Classify a number as zero, positive, or negative."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn classify_number(n: i32)  -> String {
     let mut _cse_temp_0 = n == 0;
     if _cse_temp_0 {
     return "zero".to_string();
