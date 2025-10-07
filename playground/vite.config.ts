@@ -1,6 +1,6 @@
-import { defineConfig } from "npm:vite@^5.2.0";
-import react from "npm:@vitejs/plugin-react@^4.2.1";
-import wasm from "npm:vite-plugin-wasm@^3.3.0";
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import wasm from "vite-plugin-wasm";
 
 export default defineConfig({
   plugins: [react(), wasm()],
