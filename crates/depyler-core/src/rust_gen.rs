@@ -1101,7 +1101,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else {
                     // Regular arithmetic addition or unknown types
                     let rust_op = convert_binop(op)?;
-                    Ok(parse_quote! { (#left_expr #rust_op #right_expr) })
+                    Ok(parse_quote! { #left_expr #rust_op #right_expr })
                 }
             }
             BinOp::FloorDiv => {
@@ -1115,7 +1115,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         let b = #right_expr;
                         let q = a / b;
                         let r = a % b;
-                        if (r != 0) && ((r < 0) != (b < 0)) { q - 1 } else { q }
+                        let needs_adjustment = r != 0 && (r < 0) != (b < 0);
+                        if needs_adjustment { q - 1 } else { q }
                     }
                 })
             }
@@ -1136,7 +1137,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(parse_quote! { #left_expr.saturating_sub(#right_expr) })
                 } else {
                     let rust_op = convert_binop(op)?;
-                    Ok(parse_quote! { (#left_expr #rust_op #right_expr) })
+                    Ok(parse_quote! { #left_expr #rust_op #right_expr })
                 }
             }
             BinOp::Mul => {
@@ -1163,7 +1164,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Default multiplication
                     _ => {
                         let rust_op = convert_binop(op)?;
-                        Ok(parse_quote! { (#left_expr #rust_op #right_expr) })
+                        Ok(parse_quote! { #left_expr #rust_op #right_expr })
                     }
                 }
             }
@@ -1220,7 +1221,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             _ => {
                 let rust_op = convert_binop(op)?;
-                Ok(parse_quote! { (#left_expr #rust_op #right_expr) })
+                Ok(parse_quote! { #left_expr #rust_op #right_expr })
             }
         }
     }
