@@ -433,10 +433,19 @@ make validate-example FILE=examples/showcase/binary_search.rs
 8. [ ] Document quality gate requirements in examples/README.md
 
 ### **DEPYLER-0095**: 🛑 Fix Depyler Code Generation Quality Issues
-**Status**: 🛑 **STOP THE LINE** (2025-10-07)
+**Status**: 🔄 **IN PROGRESS** (2025-10-07) - Major Improvements Made
 **Priority**: P0 (CRITICAL - Blocks Production Readiness)
 **Dependencies**: DEPYLER-0027 ✅
 **Type**: Transpiler Bug (Upstream)
+
+**UPDATE (2025-10-07 - Later)**: **MAJOR PROGRESS** ✅
+- ✅ **Fixed**: Excessive parentheses in binary operations (rust_gen.rs:1104, 1139, 1166, 1223)
+- ✅ **Fixed**: Control flow spacing (`if(` → `if `, `while(` → `while `)
+- ✅ **Tests**: All transpiler tests passing (370/370)
+- ✅ **Re-transpiled**: 54/55 examples successfully regenerated
+- ⚠️ **Remaining**: Floor division `!=` operator formatting bug (affects 3 files)
+- ⚠️ **Remaining**: Unused imports (std::borrow::Cow) in some files
+- 📊 **Result**: 44/56 passing (78%), 36 warnings (improvement from baseline)
 
 **Discovery**: During validation, we found cargo clippy does NOT check examples/ directory. Direct rustc compilation revealed code generation issues.
 

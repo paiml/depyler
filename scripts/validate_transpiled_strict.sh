@@ -47,9 +47,10 @@ for rs_file in examples/**/*.rs examples/*.rs; do
     # Compile with rustc (library crate) WITHOUT --deny warnings so we can count them
     rustc --crate-type lib "$rs_file" -o "/tmp/depyler_check_$$" 2>"/tmp/depyler_err_$$" || true
     
-    # Count warnings
-    warning_count=$(grep -c "^warning:" "/tmp/depyler_err_$$" 2>/dev/null || echo "0")
-    
+    # Count warnings - use grep with wc to avoid multiple line output
+    warning_count=$(grep "^warning:" "/tmp/depyler_err_$$" 2>/dev/null | wc -l | tr -d ' ')
+    [ -z "$warning_count" ] && warning_count=0
+
     if [ "$warning_count" -eq 0 ]; then
         echo -e "${GREEN}✅ PASS${NC}"
         PASSED=$((PASSED + 1))
