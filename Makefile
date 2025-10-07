@@ -323,6 +323,36 @@ validate: quality-gate test-comprehensive coverage ## Full validation pipeline
 quick-validate: lint test-fast ## Quick validation for development
 	@echo "Quick validation passed ✅"
 
+validate-examples: ## Validate all examples against quality gates (DEPYLER-0027)
+	@echo "=========================================="
+	@echo "🔍 Depyler Example Validation"
+	@echo "Ticket: DEPYLER-0027"
+	@echo "=========================================="
+	@echo ""
+	@./scripts/validate_examples.sh
+	@echo ""
+	@echo "=========================================="
+	@echo "📊 See examples_validation_report.md for details"
+	@echo "=========================================="
+
+validate-example: ## Validate specific example (Usage: make validate-example FILE=path/to/file.rs)
+	@if [ -z "$(FILE)" ]; then \
+		echo "❌ Error: FILE not specified"; \
+		echo "Usage: make validate-example FILE=examples/showcase/fibonacci.rs"; \
+		exit 1; \
+	fi
+	@echo "Validating $(FILE)..."
+	@./scripts/validate_examples.sh $(FILE)
+
+validate-transpiled-strict: ## 🛑 STRICT: Validate transpiled examples with rustc (DEPYLER-0095)
+	@echo "=========================================="
+	@echo "🛑 STRICT Transpiled Example Validation"
+	@echo "Ticket: DEPYLER-0095"
+	@echo "Method: Direct rustc (cargo clippy skips these!)"
+	@echo "=========================================="
+	@echo ""
+	@./scripts/validate_transpiled_strict.sh
+
 ##@ Quality Assurance
 
 quality-gate: lint clippy complexity-check ## Run quality checks
