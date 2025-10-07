@@ -3,7 +3,6 @@
 // Command: depyler transpile ./examples/string_processing/string_utils.py
 
 const STR_EMPTY: &'static str = "";
-    use std::borrow::Cow;
     #[doc = "Reverse a string"] #[doc = " Depyler: proven to terminate"] pub fn reverse_string<'a>(s: & 'a str)  -> Result<String, IndexError>{
     for i in {
     let step  = (- 1).abs() as usize;
@@ -46,7 +45,9 @@ return Ok(STR_EMPTY);
     let b = 2;
     let q = a / b;
     let r = a % b;
-    let needs_adjustment = r != 0 &&(r<0) ! = (b<0);
+    let r_negative = r<0;
+    let b_negative = b<0;
+    let needs_adjustment = r != 0 && r_negative != b_negative;
     if needs_adjustment {
     q - 1
 }
