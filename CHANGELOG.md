@@ -42,6 +42,20 @@ and this project adheres to
   - To: `let r_nonzero = r != 0; let signs_differ = r_negative != b_negative; let needs_adjustment = r_nonzero && signs_differ;`
   - Impact: Zero `! =` formatting bugs in all 76 successfully transpiled examples
   - Re-transpiled 76/130 examples (58% success rate, failures due to unsupported features)
+- **[DEPYLER-0095]** Partially fixed dict access bug - type-aware index discrimination (2025-10-08)
+  - **Root Cause**: convert_index() treated ALL index operations as array access (as usize cast)
+  - **Fix**: Discriminate based on index type (string literal → HashMap, numeric → Vec)
+  - **Implementation**: Match on HirExpr::Literal(Literal::String) for dict detection
+  - **What Works**:
+    - ✅ `d["key"]` → `d.get("key").cloned().unwrap_or_default()` (HashMap)
+    - ✅ `lst[0]` → `lst.get(0 as usize).copied().unwrap_or_default()` (Vec)
+    - ✅ No more `"key" as usize` type errors
+    - ✅ Correct `.cloned()` vs `.copied()` usage
+  - **Test Results**:
+    - ✅ All 370 core tests passing
+    - ✅ Dict[str, int] and List[int] test compiles cleanly
+  - **Remaining Issues**: contains_key extra &, Optional return types, None vs ()
+  - **Location**: rust_gen.rs:1917-1937 (convert_index function)
 - **[DEPYLER-0095]** Fixed CRITICAL optimizer bug breaking accumulator patterns (2025-10-08)
   - **Root Cause**: Constant propagation treated ALL variables with constant initial values as immutable
   - **Impact**: Functions like `calculate_sum` returned 0 instead of computing sums
