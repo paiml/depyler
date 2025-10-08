@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.6.0] - 2025-10-08
+
+### Added
+- Type annotation preservation from Python to Rust (DEPYLER-0098 Phase 2)
+- Automatic type conversions in generated code (e.g., usize → i32)
+
+### Changed
+- Massive complexity refactoring: 45 functions reduced to ≤10 complexity
+  - optimization.rs: cognitive 16→8
+  - memory_safety.rs: cyclomatic 22→10, cognitive 27→10
+  - performance_warnings.rs: cyclomatic 21→7, cognitive 28→9
+  - profiling.rs: cyclomatic 21→10, cognitive 22→10
+  - type_hints.rs: cyclomatic 20→10, cognitive 32→10 (15 functions)
+  - contracts.rs: cyclomatic 25→7, cognitive 61→10 (12 functions)
+- Extracted ~65+ helper methods following Extract Method pattern
+
+### Quality
+- Max complexity reduced from 61 to 10 (Toyota Way Jidoka)
+- Zero clippy warnings maintained
+- All 370+ tests passing
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
