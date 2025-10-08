@@ -20,7 +20,8 @@ pub fn create_with_value(val: i32) {
 }
 } #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_counter()  -> DynamicType {
     let c = Counter::new(0);
-    c.increment();
-    c.increment();
-    return(val, c2.value)
-}
+    c.i📄 Source: examples/test_basic_class.py (758 bytes)
+📝 Output: examples/test_basic_class.rs (636 bytes)
+⏱️  Parse time: 8ms
+📊 Throughput: 91.7 KB/s
+⏱️  Total time: 8ms

@@ -14,6 +14,10 @@ All notable changes to this project will be documented in this file.
   - Now: `data[key]` generates `data.get(key)` - correct HashMap access
   - Added heuristic-based type inference for index expressions
   - All examples with dict access now transpile correctly
+- Re-transpiled 76 examples with dict access fix
+  - Transpilation success rate: 80/130 (61.5%), up from 76/130 (58.5%)
+  - 4 additional examples now transpile correctly
+  - All generated code maintains zero clippy warnings
 
 ### Changed
 - Massive complexity refactoring: 45 functions reduced to ≤10 complexity

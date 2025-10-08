@@ -63,10 +63,8 @@ let mut max_val = values.get(0 as usize).copied().unwrap_or_default();
     use super::*;
     use quickcheck::{
     quickcheck, TestResult };
-    #[test] fn test_find_max_examples() {
-    assert_eq !(find_max(0), 0);
-    assert_eq !(find_max(1), 1);
-    assert_eq !(find_max(- 1), - 1);
-   
-}
-}
+    #[test] fn test_find📄 Source: examples/test_debugging_simple.py (682 bytes)
+📝 Output: examples/test_debugging_simple.rs (1924 bytes)
+⏱️  Parse time: 11ms
+📊 Throughput: 56.8 KB/s
+⏱️  Total time: 11ms

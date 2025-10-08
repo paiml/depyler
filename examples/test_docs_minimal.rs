@@ -27,17 +27,12 @@ impl Calculator {
     #[test] fn quickcheck_add() {
     fn prop(x: i32, y: i32)  -> TestResult {
     let result1 = add(x.clone(), y.clone());
-    let result2 = add(y.clone(), x.clone());
-    if result1 != result2 {
-    return TestResult::failed();
-   
-}
-TestResult::passed()
-}
-quickcheck(prop as fn(i32, i32)  -> TestResult);
-   
-}
-#[test] fn test_add_examples() {
+    let📄 Source: examples/test_docs_minimal.py (934 bytes)
+📝 Output: examples/test_docs_minimal.rs (1702 bytes)
+⏱️  Parse time: 8ms
+📊 Throughput: 112.2 KB/s
+⏱️  Total time: 8ms
+st] fn test_add_examples() {
     assert_eq !(add(0, 0), 0);
     assert_eq !(add(1, 2), 3);
     assert_eq !(add(- 1, 1), 0);

@@ -39,12 +39,12 @@ use std::collections::HashSet;
     s.remove(pos)
 }
 else {
-    panic !("ValueError: list.remove(x): x not in list") };
-    s.remove(& 5);
-    return s;
-   
-}
-#[doc = "Test set comprehension"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_set_comprehension()  -> HashSet<i32>{
+    panic !("ValueError:📄 Source: examples/set_operations.py (1144 bytes)
+📝 Output: examples/set_operations.rs (1606 bytes)
+⏱️  Parse time: 11ms
+📊 Throughput: 99.8 KB/s
+⏱️  Total time: 11ms
+inate"] pub fn test_set_comprehension()  -> HashSet<i32>{
     let even_squares = 0..10.into_iter().filter(| x | x % 2 == 0).map(| x | x * x).collect::<HashSet<_>>();
     return even_squares
 }

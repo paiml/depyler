@@ -40,7 +40,12 @@ pub fn is_prime(n: i32)  -> bool {
     return true;
    
 }
-} #[doc = "Calculate the nth Fibonacci number.\n    \n    Uses recursion with memoization for efficiency.\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn calculate_fibonacci(n: i32)  -> i32 {
+} #[doc = "Calcul📄 Source: examples/test_ide_integration.py (1380 bytes)
+📝 Output: examples/test_ide_integration.rs (2100 bytes)
+⏱️  Parse time: 11ms
+📊 Throughput: 117.2 KB/s
+⏱️  Total time: 11ms
+fibonacci(n: i32)  -> i32 {
     let _cse_temp_0 = n <= 1;
     if _cse_temp_0 {
     return n;
@@ -60,7 +65,7 @@ let _cse_temp_1 = calculate_fibonacci(n - 1) + calculate_fibonacci(n - 2);
     map };
     for item in items.iter() {
     if utils.is_prime(item) {
-    stats.insert("primes", stats.get("primes" as usize).copied().unwrap_or_default() + 1);
+    stats.insert("primes", stats.get("primes").cloned().unwrap_or_default() + 1);
    
 }
 } return Ok(stats);
