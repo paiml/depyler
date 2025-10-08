@@ -309,6 +309,7 @@ pub enum HirStmt {
         target: Option<Symbol>,
         body: Vec<HirStmt>,
     },
+    Pass,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -242,8 +242,8 @@ impl BorrowingContext {
                     self.analyze_expression(c, 0);
                 }
             }
-            HirStmt::Break { .. } | HirStmt::Continue { .. } => {
-                // Break and continue don't analyze any expressions
+            HirStmt::Break { .. } | HirStmt::Continue { .. } | HirStmt::Pass => {
+                // Break, continue, and pass don't analyze any expressions
             }
             HirStmt::With {
                 context,

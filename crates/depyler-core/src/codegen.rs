@@ -484,6 +484,10 @@ fn stmt_to_rust_tokens_with_scope(
             target,
             body,
         } => handle_with_stmt(context, target, body),
+        HirStmt::Pass => {
+            // Pass statement generates no code
+            Ok(quote! {})
+        }
     }
 }
 
@@ -757,7 +761,7 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             Ok(quote! { #ident })
         }
         HirExpr::Binary { op, left, right } => binary_expr_to_rust_tokens(op, left, right),
-        HirExpr::Unary { op, operand} => {
+        HirExpr::Unary { op, operand } => {
             let operand_tokens = expr_to_rust_tokens(operand)?;
             let op_tokens = unaryop_to_rust_tokens(op);
             Ok(quote! { (#op_tokens #operand_tokens) })
@@ -777,20 +781,32 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             Ok(quote! { #value_tokens.#attr_ident })
         }
         HirExpr::Borrow { expr, mutable } => borrow_expr_to_rust_tokens(expr, *mutable),
-        HirExpr::MethodCall { object, method, args } =>
-            method_call_to_rust_tokens(object, method, args),
-        HirExpr::Slice { base, start, stop, step } =>
-            slice_expr_to_rust_tokens(base, start, stop, step),
-        HirExpr::ListComp { element, target, iter, condition } =>
-            list_comp_to_rust_tokens(element, target, iter, condition),
-        HirExpr::Lambda { params, body } =>
-            lambda_to_rust_tokens(params, body),
-        HirExpr::Set(items) =>
-            set_literal_to_rust_tokens(items),
-        HirExpr::FrozenSet(items) =>
-            frozen_set_to_rust_tokens(items),
-        HirExpr::SetComp { element, target, iter, condition } =>
-            set_comp_to_rust_tokens(element, target, iter, condition),
+        HirExpr::MethodCall {
+            object,
+            method,
+            args,
+        } => method_call_to_rust_tokens(object, method, args),
+        HirExpr::Slice {
+            base,
+            start,
+            stop,
+            step,
+        } => slice_expr_to_rust_tokens(base, start, stop, step),
+        HirExpr::ListComp {
+            element,
+            target,
+            iter,
+            condition,
+        } => list_comp_to_rust_tokens(element, target, iter, condition),
+        HirExpr::Lambda { params, body } => lambda_to_rust_tokens(params, body),
+        HirExpr::Set(items) => set_literal_to_rust_tokens(items),
+        HirExpr::FrozenSet(items) => frozen_set_to_rust_tokens(items),
+        HirExpr::SetComp {
+            element,
+            target,
+            iter,
+            condition,
+        } => set_comp_to_rust_tokens(element, target, iter, condition),
         HirExpr::Await { value } => {
             let value_tokens = expr_to_rust_tokens(value)?;
             Ok(quote! { #value_tokens.await })
@@ -949,7 +965,11 @@ mod tests {
     fn test_simple_function_generation() {
         let func = HirFunction {
             name: "add".to_string(),
-            params: vec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)].into(),
+            params: vec![
+                HirParam::new("a".to_string(), Type::Int),
+                HirParam::new("b".to_string(), Type::Int),
+            ]
+            .into(),
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Add,
@@ -1203,7 +1223,10 @@ mod tests {
         };
         let result = stmt_to_rust_tokens_with_scope(&stmt, &mut scope);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Attribute assignment not yet implemented"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Attribute assignment not yet implemented"));
     }
 
     // 5. RETURN STATEMENTS (with expression)
@@ -1462,7 +1485,9 @@ mod tests {
                 args: vec![],
             },
             target: None,
-            body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String("critical".to_string())))],
+            body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String(
+                "critical".to_string(),
+            )))],
         };
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
         let code = tokens.to_string();
