@@ -61,7 +61,7 @@ return result.trim().to_string();
     let results = vec ! [];
     for key in keys.iter() {
     if data.contains_key(& key) {
-    results.push(data.get(key as usize).copied().unwrap_or_default());
+    results.push(data.get(key).cloned().unwrap_or_default());
    
 }
 else {
