@@ -3,7 +3,7 @@
 use crate::hir::{
     AssignTarget, BinOp, HirExpr, HirFunction, HirProgram, HirStmt, Literal, UnaryOp,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
 /// Main optimizer that runs various optimization passes
@@ -72,12 +72,18 @@ impl Optimizer {
     fn propagate_constants_program(&self, mut program: HirProgram) -> HirProgram {
         let mut constants = HashMap::new();
 
-        // First pass: collect constants
+        // First pass: find which variables are mutated (assigned more than once)
+        let mut mutated_vars = HashSet::new();
         for func in &program.functions {
-            self.collect_constants_function(func, &mut constants);
+            self.collect_mutated_vars_function(func, &mut mutated_vars);
         }
 
-        // Second pass: propagate constants
+        // Second pass: collect constants (but skip mutated variables)
+        for func in &program.functions {
+            self.collect_constants_function(func, &mut constants, &mutated_vars);
+        }
+
+        // Third pass: propagate constants
         for func in &mut program.functions {
             self.propagate_constants_function(func, &constants);
         }
@@ -85,23 +91,57 @@ impl Optimizer {
         program
     }
 
+    fn collect_mutated_vars_function(&self, func: &HirFunction, mutated_vars: &mut HashSet<String>) {
+        let mut assignments = HashMap::new();
+        self.count_assignments_stmt(&func.body, &mut assignments);
+
+        // Any variable assigned more than once is mutated
+        for (var, count) in assignments {
+            if count > 1 {
+                mutated_vars.insert(var);
+            }
+        }
+    }
+
+    fn count_assignments_stmt(&self, stmts: &[HirStmt], assignments: &mut HashMap<String, usize>) {
+        for stmt in stmts {
+            match stmt {
+                HirStmt::Assign { target: AssignTarget::Symbol(name), .. } => {
+                    *assignments.entry(name.clone()).or_insert(0) += 1;
+                }
+                HirStmt::If { then_body, else_body, .. } => {
+                    self.count_assignments_stmt(then_body, assignments);
+                    if let Some(else_stmts) = else_body {
+                        self.count_assignments_stmt(else_stmts, assignments);
+                    }
+                }
+                HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                    self.count_assignments_stmt(body, assignments);
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn collect_constants_function(
         &self,
         func: &HirFunction,
         constants: &mut HashMap<String, HirExpr>,
+        mutated_vars: &HashSet<String>,
     ) {
         for stmt in &func.body {
-            self.collect_constants_stmt(stmt, constants);
+            self.collect_constants_stmt(stmt, constants, mutated_vars);
         }
     }
 
-    fn collect_constants_stmt(&self, stmt: &HirStmt, constants: &mut HashMap<String, HirExpr>) {
+    fn collect_constants_stmt(&self, stmt: &HirStmt, constants: &mut HashMap<String, HirExpr>, mutated_vars: &HashSet<String>) {
         match stmt {
             HirStmt::Assign {
                 target: AssignTarget::Symbol(name),
                 value,
             } => {
-                if self.is_constant_expr(value) {
+                // Only treat as constant if variable is never mutated AND value is constant
+                if !mutated_vars.contains(name) && self.is_constant_expr(value) {
                     constants.insert(name.clone(), value.clone());
                 }
             }
@@ -112,17 +152,17 @@ impl Optimizer {
                 ..
             } => {
                 for s in then_body {
-                    self.collect_constants_stmt(s, constants);
+                    self.collect_constants_stmt(s, constants, mutated_vars);
                 }
                 if let Some(else_stmts) = else_body {
                     for s in else_stmts {
-                        self.collect_constants_stmt(s, constants);
+                        self.collect_constants_stmt(s, constants, mutated_vars);
                     }
                 }
             }
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
                 for s in body {
-                    self.collect_constants_stmt(s, constants);
+                    self.collect_constants_stmt(s, constants, mutated_vars);
                 }
             }
             _ => {}

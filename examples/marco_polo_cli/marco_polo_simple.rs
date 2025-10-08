@@ -37,13 +37,13 @@ else {
    
 }
 #[doc = "Provide a hint based on the guess."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn get_hint(guess: i32, target: i32)  -> String {
-    let _cse_temp_0 = 50<target;
+    let _cse_temp_0 = guess<target;
     if _cse_temp_0 {
     return "Marco!(Too low)".to_string();
    
 }
 else {
-    let _cse_temp_1 = 50>target;
+    let _cse_temp_1 = guess>target;
     if _cse_temp_1 {
     return "Marco!(Too high)".to_string();
    
@@ -62,10 +62,11 @@ else {
 }
 let _cse_temp_1 = 100 * rounds;
     let base_score = _cse_temp_1;
-    let penalty = 0;
+    let _cse_temp_2 = attempts * 5;
+    let penalty = _cse_temp_2;
     let score = base_score - penalty;
-    let _cse_temp_2 = score<0;
-    if _cse_temp_2 {
+    let _cse_temp_3 = score<0;
+    if _cse_temp_3 {
     return 0;
    
 }
@@ -107,7 +108,7 @@ let _cse_temp_1 = total / count;
    
 }
 #[doc = "Format game statistics as string."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn format_statistics(score: i32, attempts: i32, rounds: i32)  -> String {
-    let _inline_total = 0;
+    let _inline_total = attempts;
     let _inline_count = rounds;
     let _cse_temp_0 = _inline_count == 0;
     if _cse_temp_0 {
@@ -116,16 +117,26 @@ let _cse_temp_1 = total / count;
 }
 let _cse_temp_1 = _inline_total / _inline_count;
     let avg = _cse_temp_1;
-    return "Game Statistics:\n".to_string();
+    let mut result = "Game Statistics:\n";
+    let _cse_temp_2 = str(score);
+    let _cse_temp_3 = format !("{}{}", result, "Score: ") + _cse_temp_2;
+    result = format !("{}{}", _cse_temp_3, "\n");
+    let _cse_temp_4 = str(attempts);
+    let _cse_temp_5 = format !("{}{}", result, "Attempts: ") + _cse_temp_4;
+    result = format !("{}{}", _cse_temp_5, "\n");
+    let _cse_temp_6 = str(avg);
+    let _cse_temp_7 = format !("{}{}", result, "Average: ") + _cse_temp_6;
+    result = format !("{}{}", _cse_temp_7, "\n");
+    return result;
    
 }
 #[doc = "Check if guess is in valid range."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn validate_guess(guess: i32, min_val: i32, max_val: i32)  -> bool {
-    let _cse_temp_0 = 50<min_val;
+    let _cse_temp_0 = guess<min_val;
     if _cse_temp_0 {
     return false;
    
 }
-let _cse_temp_1 = 50>max_val;
+let _cse_temp_1 = guess>max_val;
     if _cse_temp_1 {
     return false;
    
@@ -134,24 +145,26 @@ return true;
    
 }
 #[doc = "Simulate a round with fixed guesses."] #[doc = " Depyler: verified panic-free"] pub fn play_simple_round(target: i32, max_attempts: i32)  -> i32 {
-    while 0<max_attempts {
-    let attempts = 1;
-    if 50 == target {
-    return 0;
+    let mut attempts = 0;
+    let mut guess = 50;
+    while attempts<max_attempts {
+    attempts = attempts + 1;
+    if guess == target {
+    return attempts;
    
 }
 else {
-    if 50<target {
-    let mut guess = 60;
+    if guess<target {
+    guess = guess + 10;
    
 }
 else {
-    let mut guess = 45;
+    guess = guess - 5;
    
 }
 }
 }
-return 0;
+return attempts;
    
 }
 #[cfg(test)] mod tests {
