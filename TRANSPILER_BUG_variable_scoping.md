@@ -56,16 +56,26 @@ pub fn calculate_sum(numbers: &Vec<i32>) -> i32 {
 **Test Results**: Tests likely fail or are incorrect
 **Severity**: CRITICAL - This is a logic bug, not a style issue
 
-## Root Cause Analysis
+## Root Cause Analysis (CONFIRMED)
+
+**ROOT CAUSE FOUND**: The bug is in the **Optimizer**, not in code generation!
 
 The transpiler correctly handles:
-- ✅ Annotated assignments (`AnnAssign -> Assign`)
-- ✅ Augmented assignments (`total += n -> total = total + n`)
-- ✅ For loop conversion
+- ✅ AST → HIR conversion (`AnnAssign -> Assign`, `AugAssign -> Assign + Binary`)
+- ✅ HIR structure is correct (verified via `depyler inspect --repr hir`)
+- ✅ Code generation logic in `rust_gen.rs` is correct
 
-But somewhere in the pipeline, statements are being reordered or scoped incorrectly.
+**The Problem**: `crates/depyler-core/src/optimizer.rs`
+- The optimizer runs 4 passes: constant propagation, dead code elimination, function inlining, CSE
+- ALL are enabled by default (see `OptimizerConfig::default()`)
+- One or more of these passes is incorrectly transforming loop variable assignments
+- The optimization runs BEFORE code generation (line 429 in lib.rs)
 
-**Suspected Component**: Code generation or HIR transformation phase
+**Evidence**:
+1. HIR inspection shows CORRECT structure before optimization
+2. Generated Rust code shows INCORRECT structure after optimization
+3. Pipeline: `AST → HIR → OPTIMIZER → rust_gen → Rust`
+4. Bug occurs between HIR and rust_gen, which is where optimizer runs
 
 ## Expected HIR
 
