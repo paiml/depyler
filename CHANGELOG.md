@@ -8,7 +8,11 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+- [DEPYLER-0097] Type annotation test suite (TDD approach)
+
 ### Fixed
+- [DEPYLER-0097] Support None constant in type annotations (fixes `-> None` return type transpilation)
 - **[DEPYLER-0095]** Removed excessive parentheses from transpiled binary operations (2025-10-07)
   - Modified `rust_gen.rs` to generate idiomatic Rust without unnecessary parentheses
   - Fixed: `let x = (n == 0)` → `let x = n == 0`
