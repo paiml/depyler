@@ -134,19 +134,12 @@ else {
     let r_nonzero = r != 0;
     let signs_differ = r_negative != b_negative;
     let needs_adjustment = r_nonzero && signs_differ;
-    if needs_adjustment {
-    q - 1
-}
-else {
-    q
-}
-};
-    let _cse_temp_4 = _cse_temp_1 + _cse_temp_2 + _cse_temp_3;
-    let _cse_temp_5 = {
-    let a = - 17;
-    let b = - 5;
-    let q = a / b;
-    let r = a % b;
+ 📄 Source: examples/power_and_floor_division.py (1726 bytes)
+📝 Output: examples/power_and_floor_division.rs (7209 bytes)
+⏱️  Parse time: 12ms
+📊 Throughput: 132.5 KB/s
+⏱️  Total time: 12ms
+r = a % b;
     let r_negative = r<0;
     let b_negative = b<0;
     let r_nonzero = r != 0;

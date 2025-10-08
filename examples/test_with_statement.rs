@@ -22,13 +22,12 @@ pub fn write(& mut self, data: String) {
 }
 } #[doc = "Test basic with statement"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_simple_with()  -> DynamicType {
     { let mut fm = FileManager::new("test.txt".to_string());
-    let result = fm.write("Hello, World!".to_string());
-   
-}
-return result;
-   
-}
-#[doc = "Test with built-in open"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_with_builtin ()  -> DynamicType {
+    let result = fm.write("Hello, World!".to_string()📄 Source: examples/test_with_statement.py (988 bytes)
+📝 Output: examples/test_with_statement.rs (1098 bytes)
+⏱️  Parse time: 12ms
+📊 Throughput: 78.6 KB/s
+⏱️  Total time: 12ms
+
     { let mut f = open("test.txt".to_string(), "w".to_string());
     f.write("Hello, World!".to_string());
    

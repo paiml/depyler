@@ -34,11 +34,8 @@ quickcheck(prop as fn(i32, i32)  -> TestResult);
 } #[cfg(test)] mod tests {
     use super::*;
     use quickcheck::{
-    quickcheck, TestResult };
-    #[test] fn test_multiply_examples() {
-    assert_eq !(multiply(0, 0), 0);
-    assert_eq !(multiply(1, 2), 3);
-    assert_eq !(multiply(- 1, 1), 0);
-   
-}
-}
+📄 Source: examples/test_interactive_simple.py (249 bytes)
+📝 Output: examples/test_interactive_simple.rs (1275 bytes)
+⏱️  Parse time: 12ms
+📊 Throughput: 19.8 KB/s
+⏱️  Total time: 12ms

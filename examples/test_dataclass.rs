@@ -21,12 +21,12 @@ pub fn origin () {
     return Point::new(0, 0);
    
 }
-pub fn from_tuple(coords :(i32, i32)) {
-    return cls(coords [0 as usize], coords [1 as usize]);
-   
-}
-pub fn magnitude(& self)  -> f64 {
-    return(self.x * self.x + self.y * self.y as f64).powf(0.5);
+pub fn from_tuple(📄 Source: examples/test_dataclass.py (1258 bytes)
+📝 Output: examples/test_dataclass.rs (996 bytes)
+⏱️  Parse time: 10ms
+📊 Throughput: 111.8 KB/s
+⏱️  Total time: 11ms
+;
    
 }
 } #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_point()  -> DynamicType {

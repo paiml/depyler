@@ -69,6 +69,8 @@ return total;
    
 }
 let with_result = result;
-    let iter_result = demo_iterator();
-    return with_result + iter_result
-}
+    let iter_result = demo_iterator📄 Source: examples/v1_3_0_features_demo.py (1842 bytes)
+📝 Output: examples/v1_3_0_features_demo.rs (1899 bytes)
+⏱️  Parse time: 11ms
+📊 Throughput: 163.3 KB/s
+⏱️  Total time: 11ms
