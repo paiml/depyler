@@ -42,6 +42,21 @@ and this project adheres to
   - To: `let r_nonzero = r != 0; let signs_differ = r_negative != b_negative; let needs_adjustment = r_nonzero && signs_differ;`
   - Impact: Zero `! =` formatting bugs in all 76 successfully transpiled examples
   - Re-transpiled 76/130 examples (58% success rate, failures due to unsupported features)
+- **[DEPYLER-0095]** Fixed CRITICAL optimizer bug breaking accumulator patterns (2025-10-08)
+  - **Root Cause**: Constant propagation treated ALL variables with constant initial values as immutable
+  - **Impact**: Functions like `calculate_sum` returned 0 instead of computing sums
+  - **Fix**: Added mutation tracking with three-pass approach:
+    - Pass 1: Count assignments per variable
+    - Pass 2: Collect constants, skip mutated variables
+    - Pass 3: Propagate constants
+  - **Implementation**: Added `collect_mutated_vars_function()` and `count_assignments_stmt()` to `optimizer.rs`
+  - **Test Results**:
+    - ✅ All 370 core tests passing (100%)
+    - ✅ Minimal test cases: CORRECT output
+    - ✅ calculate_sum.py: Now computes sum correctly
+    - ✅ 76/130 examples re-transpiled successfully
+  - **Verification**: Created comprehensive bug report in `TRANSPILER_BUG_variable_scoping.md`
+  - **Breaking Fix**: Accumulator patterns (loops with `total += n`) now work correctly
 
 ### 🚀 Sprint 6: Example Validation & Quality Gates (IN PROGRESS)
 

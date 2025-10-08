@@ -1,5 +1,4 @@
-const STR_EMPTY: &'static str = "";
-    #[derive(Debug, Clone)] pub struct IndexError {
+#[derive(Debug, Clone)] pub struct IndexError {
     message: String ,
 }
 impl std::fmt::Display for IndexError {
@@ -17,6 +16,7 @@ impl IndexError {
 }
 }
 #[doc = "Reverse a string"] #[doc = " Depyler: proven to terminate"] pub fn reverse_string<'a>(s: & 'a str)  -> Result<String, IndexError>{
+    let mut result = "".to_string();
     for i in {
     let step  = (- 1).abs() as usize;
     if step == 0 {
@@ -30,28 +30,30 @@ else {
    (- 1..s.len().saturating_sub(1)).rev().step_by(step)
 }
 } {
-    let result = format !("{}{}", STR_EMPTY, s.get(i as usize).copied().unwrap_or_default());
+    result = result + s.get(i as usize).copied().unwrap_or_default();
    
 }
-return Ok(STR_EMPTY);
+return Ok(result);
    
 }
 #[doc = "Count vowels in string"] #[doc = " Depyler: verified panic-free"] pub fn count_vowels<'a>(s: & 'a str)  -> i32 {
+    let mut count = 0;
     for char in s.iter() {
     if "aeiouAEIOU".contains_key(& char) {
-    let count = 1;
+    count = count + 1;
    
 }
-} return 0;
+} return count;
    
 }
 #[doc = "Check if string is palindrome"] pub fn is_palindrome_simple<'a>(s: & 'a str)  -> Result<bool, Box<dyn std::error::Error>>{
+    let mut cleaned = std::borrow::Cow::Borrowed("");
     for char in s.iter() {
     if char.isalpha() {
-    let cleaned = format !("{}{}", STR_EMPTY, char.to_lowercase());
+    cleaned = cleaned + char.to_lowercase();
    
 }
-} let _cse_temp_0 = STR_EMPTY.len();
+} let _cse_temp_0 = cleaned.len();
     let length = _cse_temp_0;
     for i in 0..{
     let a = length;
@@ -89,7 +91,7 @@ let words = text.split_whitespace().map(| s | s.to_string()).collect::<Vec<Strin
 }
 #[doc = "Capitalize first letter of each word"] #[doc = " Depyler: verified panic-free"] pub fn capitalize_words<'a>(text: & 'a str)  -> String {
     if ! text {
-    return STR_EMPTY;
+    return "".to_string();
    
 }
 let words = text.split_whitespace().map(| s | s.to_string()).collect::<Vec<String>>();
