@@ -92,37 +92,54 @@ impl PerformanceOptimizer {
     /// Constant folding optimization
     fn constant_folding(&mut self, stmts: &mut Vec<HirStmt>) {
         for stmt in stmts {
-            match stmt {
-                HirStmt::Assign { value, .. } => {
-                    self.fold_constants_expr(value);
-                }
-                HirStmt::Return(Some(expr)) => {
-                    self.fold_constants_expr(expr);
-                }
-                HirStmt::If {
-                    condition,
-                    then_body,
-                    else_body,
-                } => {
-                    self.fold_constants_expr(condition);
-                    self.constant_folding(then_body);
-                    if let Some(else_stmts) = else_body {
-                        self.constant_folding(else_stmts);
-                    }
-                }
-                HirStmt::While { condition, body } => {
-                    self.fold_constants_expr(condition);
-                    self.constant_folding(body);
-                }
-                HirStmt::For { body, .. } => {
-                    self.constant_folding(body);
-                }
-                _ => {}
-            }
+            self.fold_constants_in_stmt(stmt);
         }
 
         self.optimizations_applied
             .push("constant_folding".to_string());
+    }
+
+    fn fold_constants_in_stmt(&mut self, stmt: &mut HirStmt) {
+        match stmt {
+            HirStmt::Assign { value, .. } => {
+                self.fold_constants_expr(value);
+            }
+            HirStmt::Return(Some(expr)) => {
+                self.fold_constants_expr(expr);
+            }
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
+                self.fold_constants_in_if(condition, then_body, else_body);
+            }
+            HirStmt::While { condition, body } => {
+                self.fold_constants_in_while(condition, body);
+            }
+            HirStmt::For { body, .. } => {
+                self.constant_folding(body);
+            }
+            _ => {}
+        }
+    }
+
+    fn fold_constants_in_if(
+        &mut self,
+        condition: &mut HirExpr,
+        then_body: &mut Vec<HirStmt>,
+        else_body: &mut Option<Vec<HirStmt>>,
+    ) {
+        self.fold_constants_expr(condition);
+        self.constant_folding(then_body);
+        if let Some(else_stmts) = else_body {
+            self.constant_folding(else_stmts);
+        }
+    }
+
+    fn fold_constants_in_while(&mut self, condition: &mut HirExpr, body: &mut Vec<HirStmt>) {
+        self.fold_constants_expr(condition);
+        self.constant_folding(body);
     }
 
     fn fold_constants_expr(&self, expr: &mut HirExpr) {
@@ -397,6 +414,7 @@ mod tests {
                 HirStmt::Assign {
                     target: AssignTarget::Symbol("unreachable".to_string()),
                     value: HirExpr::Literal(Literal::Int(0)),
+                    type_annotation: None,
                 },
             ],
             properties: Default::default(),

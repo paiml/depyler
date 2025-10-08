@@ -426,7 +426,7 @@ fn stmt_to_rust_tokens_with_scope(
     scope_tracker: &mut ScopeTracker,
 ) -> Result<proc_macro2::TokenStream> {
     match stmt {
-        HirStmt::Assign { target, value } => {
+        HirStmt::Assign { target, value, .. } => {
             let value_tokens = expr_to_rust_tokens(value)?;
             handle_assign_target(target, value_tokens, scope_tracker)
         }
@@ -1092,6 +1092,7 @@ mod tests {
         let assign = HirStmt::Assign {
             target: AssignTarget::Symbol("x".to_string()),
             value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
         };
 
         let tokens = stmt_to_rust_tokens(&assign).unwrap();
@@ -1168,6 +1169,7 @@ mod tests {
         let stmt = HirStmt::Assign {
             target: AssignTarget::Symbol("x".to_string()),
             value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
         };
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
         let code = tokens.to_string();
@@ -1184,6 +1186,7 @@ mod tests {
         let stmt = HirStmt::Assign {
             target: AssignTarget::Symbol("x".to_string()),
             value: HirExpr::Literal(Literal::Int(99)),
+            type_annotation: None,
         };
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
         let code = tokens.to_string();
@@ -1202,6 +1205,7 @@ mod tests {
                 index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
             },
             value: HirExpr::Literal(Literal::Int(100)),
+            type_annotation: None,
         };
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
         let code = tokens.to_string();
@@ -1220,6 +1224,7 @@ mod tests {
                 attr: "field".to_string(),
             },
             value: HirExpr::Literal(Literal::Int(1)),
+            type_annotation: None,
         };
         let result = stmt_to_rust_tokens_with_scope(&stmt, &mut scope);
         assert!(result.is_err());
@@ -1267,10 +1272,12 @@ mod tests {
             then_body: vec![HirStmt::Assign {
                 target: AssignTarget::Symbol("y".to_string()),
                 value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
             }],
             else_body: Some(vec![HirStmt::Assign {
                 target: AssignTarget::Symbol("z".to_string()),
                 value: HirExpr::Literal(Literal::Int(-1)),
+                type_annotation: None,
             }]),
         };
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
@@ -1319,6 +1326,7 @@ mod tests {
                 HirStmt::Assign {
                     target: AssignTarget::Symbol("temp".to_string()),
                     value: HirExpr::Literal(Literal::Int(0)),
+                    type_annotation: None,
                 },
                 HirStmt::Assign {
                     target: AssignTarget::Symbol("count".to_string()),
@@ -1327,6 +1335,7 @@ mod tests {
                         left: Box::new(HirExpr::Var("count".to_string())),
                         right: Box::new(HirExpr::Literal(Literal::Int(1))),
                     },
+                    type_annotation: None,
                 },
             ],
         };

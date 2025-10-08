@@ -103,11 +103,13 @@ fn create_fibonacci_function() -> HirFunction {
             HirStmt::Assign {
                 target: AssignTarget::Symbol("a".to_string()),
                 value: HirExpr::Literal(Literal::Int(0)),
+                type_annotation: None,
             },
             // b = 1
             HirStmt::Assign {
                 target: AssignTarget::Symbol("b".to_string()),
                 value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
             },
             // for _ in range(n):
             HirStmt::For {
@@ -121,6 +123,7 @@ fn create_fibonacci_function() -> HirFunction {
                     HirStmt::Assign {
                         target: AssignTarget::Symbol("temp".to_string()),
                         value: HirExpr::Var("b".to_string()),
+                        type_annotation: None,
                     },
                     // b = a + b
                     HirStmt::Assign {
@@ -130,11 +133,13 @@ fn create_fibonacci_function() -> HirFunction {
                             left: Box::new(HirExpr::Var("a".to_string())),
                             right: Box::new(HirExpr::Var("b".to_string())),
                         },
+                        type_annotation: None,
                     },
                     // a = temp
                     HirStmt::Assign {
                         target: AssignTarget::Symbol("a".to_string()),
                         value: HirExpr::Var("temp".to_string()),
+                        type_annotation: None,
                     },
                 ],
             },
@@ -172,6 +177,7 @@ fn create_calculator_class() -> HirClass {
                         attr: "result".to_string(),
                     },
                     value: HirExpr::Literal(Literal::Float(0.0)),
+                    type_annotation: None,
                 }],
                 is_static: false,
                 is_classmethod: false,
@@ -200,6 +206,7 @@ fn create_calculator_class() -> HirClass {
                         }),
                         right: Box::new(HirExpr::Var("value".to_string())),
                     },
+                    type_annotation: None,
                 }],
                 is_static: false,
                 is_classmethod: false,

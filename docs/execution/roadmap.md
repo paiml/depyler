@@ -3,14 +3,15 @@
 ## 📝 **SESSION CONTEXT FOR RESUMPTION**
 
 **Last Active**: 2025-10-08
-**Current Version**: v3.5.0 (Ready for Release) + 13 commits pushed to main
-**Status**: ✅ **READY FOR RELEASE** - Major Transpiler Fixes Complete
-**Achievement**: ✅✅✅ CRITICAL bugs FIXED - Optimizer + Dict access + Optional types all working
-**Commits Pushed**: 13 commits (77d98d4...6d39db3) - 5 major bug fixes, all tests passing
-**Next Focus**: Release v3.5.0, then continue with type annotations + remaining improvements
+**Current Version**: v3.5.0 + Type Annotation Support (Ready for v3.6.0)
+**Status**: ✅ **TYPE ANNOTATIONS COMPLETE** - Full preservation and conversion working
+**Achievement**: ✅✅✅ Type annotations now preserved from Python → Rust with automatic conversions
+**Latest Work**: Type Annotation Preservation (Phase 2 complete) - 4/4 tests passing, 370/370 core tests passing
+**Next Focus**: Continue with remaining transpiler improvements and quality gates
 
 **✅ Security**: All vulnerabilities resolved (DEPYLER-0097) - 0 npm audit issues
-**✅ Major Fixes**: Optimizer bug, Dict/HashMap support, Optional types, Pass statements
+**✅ Major Fixes**: Optimizer bug, Dict/HashMap support, Optional types, Pass statements, Type annotations
+**✅ Type System**: Python type hints → Rust type annotations + automatic conversions (usize→i32)
 **📊 Test Results**: 370/370 core tests passing (100%), zero regressions
 
 ## 🎉 **v3.5.0 RELEASE - Critical Transpiler Fixes**
@@ -721,6 +722,94 @@ process_config.rs:     0 warnings ✅
 - ✅ Zero npm audit vulnerabilities
 
 **Time**: ~15 minutes (audit + fix + test)
+
+---
+
+### **DEPYLER-0098**: Type Annotation Preservation System
+**Status**: ✅ **COMPLETED** (2025-10-08)
+**Priority**: P1 (HIGH - Correctness)
+**Dependencies**: None
+**Type**: Feature / Transpiler Enhancement
+
+**Problem**: Python type annotations (e.g., `x: int = 42`) were not being preserved in generated Rust code, and type mismatches (usize vs i32) were causing compilation issues.
+
+**Solution Implemented**:
+
+**Phase 1: TDD Test Suite** ✅
+- Created comprehensive test suite with 4 tests in `type_annotation_test.rs`
+- Tests cover: usize→i32 conversion, simple int annotations, str annotations, inference without annotations
+- All tests initially failed (TDD red phase)
+
+**Phase 2: Full Implementation** ✅
+1. **HIR Enhancement**:
+   - Added `type_annotation: Option<Type>` field to `HirStmt::Assign` (hir.rs:275-280)
+   - Preserves type information through compilation pipeline
+
+2. **AST Bridge Updates**:
+   - Modified `convert_ann_assign()` to extract type annotations from Python AST (converters.rs:60-76)
+   - Uses `TypeExtractor::extract_type(&a.annotation)` to parse Python type hints
+
+3. **Pattern Match Updates** (50+ locations):
+   - Updated all `HirStmt::Assign` pattern matches across 25 files
+   - Added `..` to patterns or explicit `type_annotation` field handling
+   - Files: borrowing.rs, codegen.rs, optimizer.rs, inlining.rs, and 21 others
+
+4. **Code Generation**:
+   - Added `needs_type_conversion()` helper to detect when conversions are needed (rust_gen.rs:948-957)
+   - Added `apply_type_conversion()` to insert `as i32` casts (rust_gen.rs:959-975)
+   - Code generator now emits: `let x: i32 = (expr) as i32` for Int annotations
+   - Works correctly even after optimizer transformations (CSE, constant propagation)
+
+**Examples**:
+```python
+# Input:
+def test() -> int:
+    arr = [1, 2, 3]
+    right: int = len(arr) - 1
+    return right
+```
+
+```rust
+// Output:
+pub fn test() -> i32 {
+    let arr = vec![1, 2, 3];
+    let _cse_temp_0 = arr.len();
+    let right: i32 = (_cse_temp_0 - 1) as i32;  // ✅ Type annotation + conversion
+    return right;
+}
+```
+
+**Test Results**:
+- ✅ 4/4 type annotation tests passing
+- ✅ 370/370 core tests passing (100%)
+- ✅ Zero regressions
+- ✅ Type conversions work correctly with all optimizer passes
+
+**Impact**:
+- Python type hints now fully preserved in Rust output
+- Automatic type conversions prevent usize/i32 mismatches
+- Improved type safety and code clarity
+- Foundation for future type system enhancements
+
+**Files Modified**:
+- `crates/depyler-core/src/hir.rs`: Added type_annotation field
+- `crates/depyler-core/src/ast_bridge/converters.rs`: Extract annotations
+- `crates/depyler-core/src/rust_gen.rs`: Generate type annotations + conversions
+- 25 files: Pattern match and constructor updates
+- `crates/depyler-core/tests/type_annotation_test.rs`: 4 comprehensive tests
+
+**PMAT Verification**:
+- Complexity: All functions ≤10 (2 new helpers at complexity 2)
+- SATD: 0 violations maintained
+- Coverage: 370/370 tests passing (100%)
+
+**Time**: ~3 hours (investigation + implementation + testing + documentation)
+
+**Result**:
+- ✅ Type annotation preservation fully working
+- ✅ Automatic type conversions (usize→i32) functional
+- ✅ All tests passing with zero regressions
+- ✅ Foundation for advanced type system features
 
 ---
 

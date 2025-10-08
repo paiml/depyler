@@ -143,6 +143,7 @@ impl Optimizer {
             HirStmt::Assign {
                 target: AssignTarget::Symbol(name),
                 value,
+                ..
             } => {
                 // Only treat as constant if variable is never mutated AND value is constant
                 if !mutated_vars.contains(name) && self.is_constant_expr(value) {
@@ -480,13 +481,14 @@ impl Optimizer {
 
         for stmt in body {
             match stmt {
-                HirStmt::Assign { target, value } => {
+                HirStmt::Assign { target, value, type_annotation } => {
                     let (new_value, extra_stmts) =
                         self.process_expr_for_cse(value, cse_map, temp_counter);
                     new_body.extend(extra_stmts);
                     new_body.push(HirStmt::Assign {
                         target: target.clone(),
                         value: new_value,
+                        type_annotation: type_annotation.clone(),
                     });
                 }
                 HirStmt::Return(Some(expr)) => {
@@ -566,6 +568,7 @@ impl Optimizer {
                         extra_stmts.push(HirStmt::Assign {
                             target: AssignTarget::Symbol(temp_name.clone()),
                             value: new_expr.clone(),
+                            type_annotation: None,
                         });
 
                         cse_map.insert(hash, (new_expr, temp_name.clone()));
@@ -601,6 +604,7 @@ impl Optimizer {
                     extra_stmts.push(HirStmt::Assign {
                         target: AssignTarget::Symbol(temp_name.clone()),
                         value: new_expr.clone(),
+                        type_annotation: None,
                     });
 
                     cse_map.insert(hash, (new_expr, temp_name.clone()));
@@ -757,6 +761,7 @@ mod tests {
                     HirStmt::Assign {
                         target: AssignTarget::Symbol("x".to_string()),
                         value: HirExpr::Literal(Literal::Int(5)),
+                        type_annotation: None,
                     },
                     HirStmt::Assign {
                         target: AssignTarget::Symbol("y".to_string()),
@@ -765,6 +770,7 @@ mod tests {
                             op: BinOp::Add,
                             right: Box::new(HirExpr::Literal(Literal::Int(3))),
                         },
+                        type_annotation: None,
                     },
                     HirStmt::Return(Some(HirExpr::Var("y".to_string()))),
                 ],
@@ -799,10 +805,12 @@ mod tests {
                     HirStmt::Assign {
                         target: AssignTarget::Symbol("unused".to_string()),
                         value: HirExpr::Literal(Literal::Int(42)),
+                        type_annotation: None,
                     },
                     HirStmt::Assign {
                         target: AssignTarget::Symbol("used".to_string()),
                         value: HirExpr::Literal(Literal::Int(10)),
+                        type_annotation: None,
                     },
                     HirStmt::Return(Some(HirExpr::Var("used".to_string()))),
                 ],

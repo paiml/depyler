@@ -82,101 +82,112 @@ impl BorrowingContext {
 
     fn analyze_stmt(&mut self, stmt: &HirStmt) {
         match stmt {
-            HirStmt::Assign { target, value } => {
-                // Check if target is a simple symbol that's a parameter
-                if let AssignTarget::Symbol(symbol) = target {
-                    if self.read_only_params.contains(symbol) {
-                        self.mutated_params.insert(symbol.clone());
-                    }
-                }
-                // Check if we're assigning a parameter (escaping)
-                self.check_escaping_expr(value);
-                self.analyze_expr(value);
-            }
-            HirStmt::Return(Some(expr)) => {
-                // Parameters in return statements are escaping
-                self.check_escaping_expr(expr);
-                self.analyze_expr(expr);
-            }
-            HirStmt::Expr(expr) => {
-                self.analyze_expr(expr);
-            }
+            HirStmt::Assign { target, value, .. } => self.analyze_assign(target, value),
+            HirStmt::Return(Some(expr)) => self.analyze_return(expr),
+            HirStmt::Expr(expr) => self.analyze_expr(expr),
             HirStmt::If {
                 condition,
                 then_body,
                 else_body,
-            } => {
-                self.analyze_expr(condition);
-                for stmt in then_body {
-                    self.analyze_stmt(stmt);
-                }
-                if let Some(else_stmts) = else_body {
-                    for stmt in else_stmts {
-                        self.analyze_stmt(stmt);
-                    }
-                }
-            }
-            HirStmt::While { condition, body } => {
-                self.analyze_expr(condition);
-                // Mark parameters used in loops
-                self.mark_loop_params(body);
-                for stmt in body {
-                    self.analyze_stmt(stmt);
-                }
-            }
+            } => self.analyze_if(condition, then_body, else_body),
+            HirStmt::While { condition, body } => self.analyze_while(condition, body),
             HirStmt::For {
                 target: _,
                 iter,
                 body,
-            } => {
-                self.analyze_expr(iter);
-                // Mark parameters used in loops
-                self.mark_loop_params(body);
-                for stmt in body {
-                    self.analyze_stmt(stmt);
-                }
-            }
+            } => self.analyze_for(iter, body),
             _ => {}
+        }
+    }
+
+    fn analyze_assign(&mut self, target: &AssignTarget, value: &HirExpr) {
+        if let AssignTarget::Symbol(symbol) = target {
+            if self.read_only_params.contains(symbol) {
+                self.mutated_params.insert(symbol.clone());
+            }
+        }
+        self.check_escaping_expr(value);
+        self.analyze_expr(value);
+    }
+
+    fn analyze_return(&mut self, expr: &HirExpr) {
+        self.check_escaping_expr(expr);
+        self.analyze_expr(expr);
+    }
+
+    fn analyze_if(
+        &mut self,
+        condition: &HirExpr,
+        then_body: &[HirStmt],
+        else_body: &Option<Vec<HirStmt>>,
+    ) {
+        self.analyze_expr(condition);
+        for stmt in then_body {
+            self.analyze_stmt(stmt);
+        }
+        if let Some(else_stmts) = else_body {
+            for stmt in else_stmts {
+                self.analyze_stmt(stmt);
+            }
+        }
+    }
+
+    fn analyze_while(&mut self, condition: &HirExpr, body: &[HirStmt]) {
+        self.analyze_expr(condition);
+        self.mark_loop_params(body);
+        for stmt in body {
+            self.analyze_stmt(stmt);
+        }
+    }
+
+    fn analyze_for(&mut self, iter: &HirExpr, body: &[HirStmt]) {
+        self.analyze_expr(iter);
+        self.mark_loop_params(body);
+        for stmt in body {
+            self.analyze_stmt(stmt);
         }
     }
 
     #[allow(clippy::only_used_in_recursion)]
     fn analyze_expr(&mut self, expr: &HirExpr) {
         match expr {
-            HirExpr::Binary { op: _, left, right } => {
-                self.analyze_expr(left);
-                self.analyze_expr(right);
-            }
-            HirExpr::Unary { op: _, operand } => {
-                self.analyze_expr(operand);
-            }
-            HirExpr::Call { func: _, args } => {
-                for arg in args {
-                    self.analyze_expr(arg);
-                }
-            }
-            HirExpr::List(elts) => {
-                for elt in elts {
-                    self.analyze_expr(elt);
-                }
-            }
-            HirExpr::Dict(items) => {
-                for (k, v) in items {
-                    self.analyze_expr(k);
-                    self.analyze_expr(v);
-                }
-            }
-            HirExpr::Tuple(elts) => {
-                for elt in elts {
-                    self.analyze_expr(elt);
-                }
-            }
-            HirExpr::Index { base, index } => {
-                self.analyze_expr(base);
-                self.analyze_expr(index);
-            }
+            HirExpr::Binary { op: _, left, right } => self.analyze_binary(left, right),
+            HirExpr::Unary { op: _, operand } => self.analyze_expr(operand),
+            HirExpr::Call { func: _, args } => self.analyze_call(args),
+            HirExpr::List(elts) | HirExpr::Tuple(elts) => self.analyze_collection(elts),
+            HirExpr::Dict(items) => self.analyze_dict(items),
+            HirExpr::Index { base, index } => self.analyze_index(base, index),
             _ => {}
         }
+    }
+
+    fn analyze_binary(&mut self, left: &HirExpr, right: &HirExpr) {
+        self.analyze_expr(left);
+        self.analyze_expr(right);
+    }
+
+    fn analyze_call(&mut self, args: &[HirExpr]) {
+        for arg in args {
+            self.analyze_expr(arg);
+        }
+    }
+
+    fn analyze_collection(&mut self, elts: &[HirExpr]) {
+        for elt in elts {
+            self.analyze_expr(elt);
+        }
+    }
+
+    fn analyze_dict(&mut self, items: &[(HirExpr, HirExpr)]) {
+        for (k, v) in items {
+            self.analyze_expr(k);
+            self.analyze_expr(v);
+        }
+    }
+
+    fn analyze_index(&mut self, base: &HirExpr, index: &HirExpr) {
+        self.analyze_expr(base);
+        self.analyze_expr(index);
     }
 
     fn check_escaping_expr(&mut self, expr: &HirExpr) {
@@ -229,38 +240,74 @@ impl BorrowingContext {
     #[allow(clippy::only_used_in_recursion)]
     fn type_to_rust_string(&self, ty: &Type) -> String {
         match ty {
+            Type::Unknown | Type::Int | Type::Float | Type::String | Type::Bool | Type::None => {
+                self.primitive_type_to_rust(ty)
+            }
+            Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Array { .. } => {
+                self.collection_type_to_rust(ty)
+            }
+            Type::Tuple(types) => self.tuple_type_to_rust(types),
+            Type::Optional(inner) => self.optional_type_to_rust(inner),
+            Type::Custom(name) | Type::TypeVar(name) => name.clone(),
+            Type::Generic { base, .. } => base.clone(),
+            Type::Function { .. } => "/* function */".to_string(),
+            Type::Union(_) => "Union".to_string(),
+        }
+    }
+
+    fn primitive_type_to_rust(&self, ty: &Type) -> String {
+        match ty {
             Type::Unknown => "serde_json::Value".to_string(),
             Type::Int => "i32".to_string(),
             Type::Float => "f64".to_string(),
             Type::String => "String".to_string(),
             Type::Bool => "bool".to_string(),
             Type::None => "()".to_string(),
-            Type::List(inner) => format!("Vec<{}>", self.type_to_rust_string(inner)),
-            Type::Dict(k, v) => format!(
-                "HashMap<{}, {}>",
-                self.type_to_rust_string(k),
-                self.type_to_rust_string(v)
-            ),
-            Type::Tuple(types) => {
-                if types.is_empty() {
-                    "()".to_string()
-                } else {
-                    let type_strs: Vec<String> =
-                        types.iter().map(|t| self.type_to_rust_string(t)).collect();
-                    format!("({})", type_strs.join(", "))
-                }
-            }
-            Type::Optional(inner) => format!("Option<{}>", self.type_to_rust_string(inner)),
-            Type::Function { .. } => "/* function */".to_string(),
-            Type::Custom(name) => name.clone(),
-            Type::TypeVar(name) => name.clone(),
-            Type::Generic { base, .. } => base.clone(),
-            Type::Union(_) => "Union".to_string(),
-            Type::Array { element_type, .. } => {
-                format!("Array<{}>", self.type_to_rust_string(element_type))
-            }
-            Type::Set(element) => format!("HashSet<{}>", self.type_to_rust_string(element)),
+            _ => unreachable!("primitive_type_to_rust called with non-primitive type"),
         }
+    }
+
+    fn collection_type_to_rust(&self, ty: &Type) -> String {
+        match ty {
+            Type::List(inner) => self.list_type_to_rust(inner),
+            Type::Dict(k, v) => self.dict_type_to_rust(k, v),
+            Type::Set(element) => self.set_type_to_rust(element),
+            Type::Array { element_type, .. } => self.array_type_to_rust(element_type),
+            _ => unreachable!("collection_type_to_rust called with non-collection type"),
+        }
+    }
+
+    fn list_type_to_rust(&self, inner: &Type) -> String {
+        format!("Vec<{}>", self.type_to_rust_string(inner))
+    }
+
+    fn set_type_to_rust(&self, element: &Type) -> String {
+        format!("HashSet<{}>", self.type_to_rust_string(element))
+    }
+
+    fn array_type_to_rust(&self, element_type: &Type) -> String {
+        format!("Array<{}>", self.type_to_rust_string(element_type))
+    }
+
+    fn dict_type_to_rust(&self, k: &Type, v: &Type) -> String {
+        format!(
+            "HashMap<{}, {}>",
+            self.type_to_rust_string(k),
+            self.type_to_rust_string(v)
+        )
+    }
+
+    fn tuple_type_to_rust(&self, types: &[Type]) -> String {
+        if types.is_empty() {
+            "()".to_string()
+        } else {
+            let type_strs: Vec<String> = types.iter().map(|t| self.type_to_rust_string(t)).collect();
+            format!("({})", type_strs.join(", "))
+        }
+    }
+
+    fn optional_type_to_rust(&self, inner: &Type) -> String {
+        format!("Option<{}>", self.type_to_rust_string(inner))
     }
 }
 

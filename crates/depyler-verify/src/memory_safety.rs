@@ -110,148 +110,172 @@ impl MemorySafetyAnalyzer {
         annotations: &TranspilationAnnotations,
     ) -> Option<MemorySafetyViolation> {
         match stmt {
-            HirStmt::Assign { target, value } => {
-                // Check if value uses moved variables
-                if let Some(violation) = self.check_expr_moves(value, "assignment") {
-                    return Some(violation);
-                }
-
-                // Handle different assignment targets
-                if let AssignTarget::Symbol(var_name) = target {
-                    // Register new variable or update existing
-                    self.register_variable(var_name, &self.infer_type(value), true);
-                }
-                // Note: Subscript and attribute assignments (e.g., a[0] = x, obj.field = x)
-                // are not currently tracked in memory safety analysis. Only symbol assignments
-                // are registered. This is a known limitation.
-
-                // Handle moves for non-copy types
-                self.handle_expr_moves(value, annotations);
-
-                None
-            }
-
+            HirStmt::Assign { target, value, .. } => self.analyze_assign(target, value, annotations),
             HirStmt::Return(Some(expr)) => self.check_expr_moves(expr, "return statement"),
-
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
-                if let Some(violation) = self.check_expr_moves(condition, "if condition") {
-                    return Some(violation);
-                }
-
-                self.scope_depth += 1;
-                for stmt in then_body {
-                    if let Some(violation) = self.analyze_statement(stmt, annotations) {
-                        return Some(violation);
-                    }
-                }
-                self.scope_depth -= 1;
-                self.cleanup_scope();
-
-                if let Some(else_stmts) = else_body {
-                    self.scope_depth += 1;
-                    for stmt in else_stmts {
-                        if let Some(violation) = self.analyze_statement(stmt, annotations) {
-                            return Some(violation);
-                        }
-                    }
-                    self.scope_depth -= 1;
-                    self.cleanup_scope();
-                }
-
-                None
+            HirStmt::If { condition, then_body, else_body } => {
+                self.analyze_if(condition, then_body, else_body, annotations)
             }
-
-            HirStmt::While { condition, body } => {
-                if let Some(violation) = self.check_expr_moves(condition, "while condition") {
-                    return Some(violation);
-                }
-
-                self.scope_depth += 1;
-                for stmt in body {
-                    if let Some(violation) = self.analyze_statement(stmt, annotations) {
-                        return Some(violation);
-                    }
-                }
-                self.scope_depth -= 1;
-                self.cleanup_scope();
-
-                None
-            }
-
-            HirStmt::For { target, iter, body } => {
-                if let Some(violation) = self.check_expr_moves(iter, "for iterator") {
-                    return Some(violation);
-                }
-
-                self.scope_depth += 1;
-                self.register_variable(target, &Type::Unknown, false); // Iterator item type
-
-                for stmt in body {
-                    if let Some(violation) = self.analyze_statement(stmt, annotations) {
-                        return Some(violation);
-                    }
-                }
-
-                self.scope_depth -= 1;
-                self.cleanup_scope();
-
-                None
-            }
-
+            HirStmt::While { condition, body } => self.analyze_while(condition, body, annotations),
+            HirStmt::For { target, iter, body } => self.analyze_for(target, iter, body, annotations),
             _ => None,
         }
     }
 
+    fn analyze_assign(
+        &mut self,
+        target: &AssignTarget,
+        value: &HirExpr,
+        annotations: &TranspilationAnnotations,
+    ) -> Option<MemorySafetyViolation> {
+        if let Some(violation) = self.check_expr_moves(value, "assignment") {
+            return Some(violation);
+        }
+
+        if let AssignTarget::Symbol(var_name) = target {
+            self.register_variable(var_name, &self.infer_type(value), true);
+        }
+
+        self.handle_expr_moves(value, annotations);
+        None
+    }
+
+    fn analyze_if(
+        &mut self,
+        condition: &HirExpr,
+        then_body: &[HirStmt],
+        else_body: &Option<Vec<HirStmt>>,
+        annotations: &TranspilationAnnotations,
+    ) -> Option<MemorySafetyViolation> {
+        if let Some(violation) = self.check_expr_moves(condition, "if condition") {
+            return Some(violation);
+        }
+
+        if let Some(violation) = self.analyze_scoped_body(then_body, annotations) {
+            return Some(violation);
+        }
+
+        if let Some(else_stmts) = else_body {
+            return self.analyze_scoped_body(else_stmts, annotations);
+        }
+
+        None
+    }
+
+    fn analyze_while(
+        &mut self,
+        condition: &HirExpr,
+        body: &[HirStmt],
+        annotations: &TranspilationAnnotations,
+    ) -> Option<MemorySafetyViolation> {
+        if let Some(violation) = self.check_expr_moves(condition, "while condition") {
+            return Some(violation);
+        }
+
+        self.analyze_scoped_body(body, annotations)
+    }
+
+    fn analyze_for(
+        &mut self,
+        target: &str,
+        iter: &HirExpr,
+        body: &[HirStmt],
+        annotations: &TranspilationAnnotations,
+    ) -> Option<MemorySafetyViolation> {
+        if let Some(violation) = self.check_expr_moves(iter, "for iterator") {
+            return Some(violation);
+        }
+
+        self.scope_depth += 1;
+        self.register_variable(target, &Type::Unknown, false);
+
+        for stmt in body {
+            if let Some(violation) = self.analyze_statement(stmt, annotations) {
+                self.scope_depth -= 1;
+                self.cleanup_scope();
+                return Some(violation);
+            }
+        }
+
+        self.scope_depth -= 1;
+        self.cleanup_scope();
+        None
+    }
+
+    fn analyze_scoped_body(
+        &mut self,
+        body: &[HirStmt],
+        annotations: &TranspilationAnnotations,
+    ) -> Option<MemorySafetyViolation> {
+        self.scope_depth += 1;
+
+        for stmt in body {
+            if let Some(violation) = self.analyze_statement(stmt, annotations) {
+                self.scope_depth -= 1;
+                self.cleanup_scope();
+                return Some(violation);
+            }
+        }
+
+        self.scope_depth -= 1;
+        self.cleanup_scope();
+        None
+    }
+
     fn check_expr_moves(&self, expr: &HirExpr, location: &str) -> Option<MemorySafetyViolation> {
         match expr {
-            HirExpr::Var(name) => {
-                if self.moved_values.contains(name) {
-                    Some(MemorySafetyViolation::UseAfterMove {
-                        variable: name.clone(),
-                        location: location.to_string(),
-                    })
-                } else {
-                    None
-                }
-            }
-
-            HirExpr::Binary { left, right, .. } => self
-                .check_expr_moves(left, location)
-                .or_else(|| self.check_expr_moves(right, location)),
-
+            HirExpr::Var(name) => self.check_var_move(name, location),
+            HirExpr::Binary { left, right, .. } => self.check_binary_moves(left, right, location),
             HirExpr::Unary { operand, .. } => self.check_expr_moves(operand, location),
-
-            HirExpr::Call { args, .. } => {
-                for arg in args {
-                    if let Some(violation) = self.check_expr_moves(arg, location) {
-                        return Some(violation);
-                    }
-                }
-                None
-            }
-
-            HirExpr::Index { base, index } => {
-                // Check for potential buffer overflow
-                if self.is_unsafe_index(base, index) {
-                    Some(MemorySafetyViolation::BufferOverflow {
-                        location: format!("{location} - array indexing"),
-                    })
-                } else {
-                    self.check_expr_moves(base, location)
-                        .or_else(|| self.check_expr_moves(index, location))
-                }
-            }
-
-            HirExpr::Attribute { value, .. } => {
-                // Check for moves in the base value expression
-                self.check_expr_moves(value, location)
-            }
-
+            HirExpr::Call { args, .. } => self.check_call_moves(args, location),
+            HirExpr::Index { base, index } => self.check_index_moves(base, index, location),
+            HirExpr::Attribute { value, .. } => self.check_expr_moves(value, location),
             _ => None,
+        }
+    }
+
+    fn check_var_move(&self, name: &str, location: &str) -> Option<MemorySafetyViolation> {
+        if self.moved_values.contains(name) {
+            Some(MemorySafetyViolation::UseAfterMove {
+                variable: name.to_string(),
+                location: location.to_string(),
+            })
+        } else {
+            None
+        }
+    }
+
+    fn check_binary_moves(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        location: &str,
+    ) -> Option<MemorySafetyViolation> {
+        self.check_expr_moves(left, location)
+            .or_else(|| self.check_expr_moves(right, location))
+    }
+
+    fn check_call_moves(&self, args: &[HirExpr], location: &str) -> Option<MemorySafetyViolation> {
+        for arg in args {
+            if let Some(violation) = self.check_expr_moves(arg, location) {
+                return Some(violation);
+            }
+        }
+        None
+    }
+
+    fn check_index_moves(
+        &self,
+        base: &HirExpr,
+        index: &HirExpr,
+        location: &str,
+    ) -> Option<MemorySafetyViolation> {
+        if self.is_unsafe_index(base, index) {
+            Some(MemorySafetyViolation::BufferOverflow {
+                location: format!("{location} - array indexing"),
+            })
+        } else {
+            self.check_expr_moves(base, location)
+                .or_else(|| self.check_expr_moves(index, location))
         }
     }
 
@@ -447,6 +471,7 @@ mod tests {
         let stmt = HirStmt::Assign {
             target: depyler_core::hir::AssignTarget::Symbol("x".to_string()),
             value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
         };
 
         let violation = analyzer.analyze_statement(&stmt, &annotations);

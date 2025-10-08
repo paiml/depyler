@@ -46,6 +46,7 @@ fn test_assign_symbol_simple() {
         vec![HirStmt::Assign {
             target: AssignTarget::Symbol("x".to_string()),
             value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
         }],
     ));
 
@@ -67,6 +68,7 @@ fn test_assign_symbol_complex_expr() {
                 left: Box::new(HirExpr::Literal(Literal::Int(1))),
                 right: Box::new(HirExpr::Literal(Literal::Int(2))),
             },
+            type_annotation: None,
         }],
     ));
 
@@ -84,6 +86,7 @@ fn test_assign_symbol_string() {
         vec![HirStmt::Assign {
             target: AssignTarget::Symbol("name".to_string()),
             value: HirExpr::Literal(Literal::String("hello".to_string())),
+            type_annotation: None,
         }],
     ));
 
@@ -109,6 +112,7 @@ fn test_assign_index_simple() {
                 index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
             },
             value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
         }],
     ));
 
@@ -133,6 +137,7 @@ fn test_assign_index_nested() {
                 index: Box::new(HirExpr::Literal(Literal::String("k2".to_string()))),
             },
             value: HirExpr::Literal(Literal::Int(99)),
+            type_annotation: None,
         }],
     ));
 
@@ -157,6 +162,7 @@ fn test_assign_index_complex_value() {
                 left: Box::new(HirExpr::Literal(Literal::Int(10))),
                 right: Box::new(HirExpr::Literal(Literal::Int(20))),
             },
+            type_annotation: None,
         }],
     ));
 
@@ -182,6 +188,7 @@ fn test_assign_attribute_simple() {
                 attr: "field".to_string(),
             },
             value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
         }],
     ));
 
@@ -206,6 +213,7 @@ fn test_assign_attribute_nested() {
                 attr: "field".to_string(),
             },
             value: HirExpr::Literal(Literal::String("data".to_string())),
+            type_annotation: None,
         }],
     ));
 
@@ -381,6 +389,7 @@ fn test_while_complex_condition() {
                         left: Box::new(HirExpr::Var("i".to_string())),
                         right: Box::new(HirExpr::Literal(Literal::Int(1))),
                     },
+                    type_annotation: None,
                 },
             ],
         }],
@@ -429,6 +438,7 @@ fn test_for_with_assignment() {
                     left: Box::new(HirExpr::Var("sum".to_string())),
                     right: Box::new(HirExpr::Var("x".to_string())),
                 },
+                type_annotation: None,
             }],
         }],
     ));
@@ -645,10 +655,12 @@ fn test_multiple_statements() {
             HirStmt::Assign {
                 target: AssignTarget::Symbol("x".to_string()),
                 value: HirExpr::Literal(Literal::Int(10)),
+                type_annotation: None,
             },
             HirStmt::Assign {
                 target: AssignTarget::Symbol("y".to_string()),
                 value: HirExpr::Literal(Literal::Int(20)),
+                type_annotation: None,
             },
             HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Add,
@@ -695,6 +707,7 @@ fn test_complex_assignment_sequence() {
             HirStmt::Assign {
                 target: AssignTarget::Symbol("data".to_string()),
                 value: HirExpr::Literal(Literal::Int(100)),
+                type_annotation: None,
             },
             // Index assignment
             HirStmt::Assign {
@@ -703,6 +716,7 @@ fn test_complex_assignment_sequence() {
                     index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
                 },
                 value: HirExpr::Var("data".to_string()),
+                type_annotation: None,
             },
             // Attribute assignment
             HirStmt::Assign {
@@ -711,6 +725,7 @@ fn test_complex_assignment_sequence() {
                     attr: "value".to_string(),
                 },
                 value: HirExpr::Var("data".to_string()),
+                type_annotation: None,
             },
         ],
     ));
@@ -731,6 +746,7 @@ fn test_all_statement_types() {
             HirStmt::Assign {
                 target: AssignTarget::Symbol("x".to_string()),
                 value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
             },
             // If
             HirStmt::If {
