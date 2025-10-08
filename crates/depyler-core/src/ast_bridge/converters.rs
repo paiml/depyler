@@ -39,6 +39,7 @@ impl StmtConverter {
             ast::Stmt::Break(b) => Self::convert_break(b),
             ast::Stmt::Continue(c) => Self::convert_continue(c),
             ast::Stmt::With(w) => Self::convert_with(w),
+            ast::Stmt::Pass(_) => Self::convert_pass(),
             _ => bail!("Statement type not yet supported"),
         }
     }
@@ -166,6 +167,10 @@ impl StmtConverter {
             target,
             body,
         })
+    }
+
+    fn convert_pass() -> Result<HirStmt> {
+        Ok(HirStmt::Pass)
     }
 }
 

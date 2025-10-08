@@ -160,8 +160,8 @@ impl TypeInferencer {
                     self.infer_expr(c)?;
                 }
             }
-            HirStmt::Break { .. } | HirStmt::Continue { .. } => {
-                // Break and continue don't affect type inference
+            HirStmt::Break { .. } | HirStmt::Continue { .. } | HirStmt::Pass => {
+                // Break, continue, and pass don't affect type inference
             }
             HirStmt::With {
                 context,
@@ -780,7 +780,10 @@ mod tests {
         // Target: Line 190 - delete match arm HirExpr::Call{func, args}
         let mut inferencer = TypeInferencer::new();
         let result = inferencer
-            .infer_call("len", &[HirExpr::Literal(Literal::String("test".to_string()))])
+            .infer_call(
+                "len",
+                &[HirExpr::Literal(Literal::String("test".to_string()))],
+            )
             .unwrap();
         assert_eq!(result, Type::Int);
         // If match arm deleted: would return Type::Unknown
@@ -885,10 +888,8 @@ mod tests {
     fn test_get_element_type_dict_arm_kill_mutation() {
         // Target: Line 346 - delete match arm Type::Dict(_, val)
         let inferencer = TypeInferencer::new();
-        let result = inferencer.get_element_type(&Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int),
-        ));
+        let result =
+            inferencer.get_element_type(&Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
         assert_eq!(result, Type::Int);
         // If match arm deleted: would return Type::Unknown
     }
@@ -1150,7 +1151,10 @@ mod tests {
         // Target: Line 240 - replace infer_call -> Result<Type> with Ok(Default::default())
         let mut inferencer = TypeInferencer::new();
         let result = inferencer
-            .infer_call("len", &[HirExpr::Literal(Literal::String("test".to_string()))])
+            .infer_call(
+                "len",
+                &[HirExpr::Literal(Literal::String("test".to_string()))],
+            )
             .unwrap();
         assert_eq!(result, Type::Int);
         // If mutated to Ok(Default::default()): would return Type::Unknown
@@ -1204,10 +1208,7 @@ mod tests {
         // Target: Line 234 - replace infer_unary -> Result<Type> with Ok(Default::default())
         let mut inferencer = TypeInferencer::new();
         let result = inferencer
-            .infer_unary(
-                &UnaryOp::Neg,
-                &HirExpr::Literal(Literal::Int(42)),
-            )
+            .infer_unary(&UnaryOp::Neg, &HirExpr::Literal(Literal::Int(42)))
             .unwrap();
         assert_eq!(result, Type::Int);
         // If mutated to Ok(Default::default()): would return Type::Unknown
@@ -1251,7 +1252,11 @@ mod tests {
         let mut inferencer = TypeInferencer::new();
         let func = HirFunction {
             name: "test_func".to_string(),
-            params: SmallVec::from_vec(vec![HirParam { name: "x".to_string(), ty: Type::Int, default: None }]),
+            params: SmallVec::from_vec(vec![HirParam {
+                name: "x".to_string(),
+                ty: Type::Int,
+                default: None,
+            }]),
             ret_type: Type::Int,
             body: vec![HirStmt::Assign {
                 target: AssignTarget::Symbol("y".to_string()),

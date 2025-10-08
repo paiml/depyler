@@ -28,6 +28,13 @@ and this project adheres to
   - Error types now automatically generated when functions use `Result<T, ZeroDivisionError>`
   - Full `std::error::Error` trait implementation with Display formatting
   - Impact: Eliminated "cannot find type" errors for Python exception types
+- **[DEPYLER-0096]** Added Pass statement support (2025-10-07)
+  - Added `Pass` variant to `HirStmt` enum for Python `pass` statements
+  - Implemented Pass statement conversion in `ast_bridge/converters.rs`
+  - Added Pass code generation (generates no-op/empty code)
+  - Updated all statement pattern matches across 5 files to handle Pass
+  - Impact: **100% transpilation success rate** - 52/52 examples now transpile (up from 52/53)
+  - Enables class support with `__init__` methods containing `pass` statements
 
 ### 🚀 Sprint 6: Example Validation & Quality Gates (IN PROGRESS)
 

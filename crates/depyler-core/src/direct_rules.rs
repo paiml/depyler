@@ -1052,9 +1052,7 @@ fn convert_assign_stmt(
     let value_expr = convert_expr(value, type_mapper)?;
 
     match target {
-        AssignTarget::Symbol(symbol) => {
-            convert_symbol_assignment(symbol, value_expr)
-        }
+        AssignTarget::Symbol(symbol) => convert_symbol_assignment(symbol, value_expr),
         AssignTarget::Index { base, index } => {
             convert_index_assignment(base, index, value_expr, type_mapper)
         }
@@ -1115,9 +1113,7 @@ fn convert_assign_stmt(
 
 fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
     match stmt {
-        HirStmt::Assign { target, value } => {
-            convert_assign_stmt(target, value, type_mapper)
-        }
+        HirStmt::Assign { target, value } => convert_assign_stmt(target, value, type_mapper),
         HirStmt::Return(expr) => {
             let ret_expr = if let Some(e) = expr {
                 convert_expr(e, type_mapper)?
@@ -1238,6 +1234,10 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
             };
 
             Ok(syn::Stmt::Expr(block_expr, None))
+        }
+        HirStmt::Pass => {
+            // Pass statement generates empty statement
+            Ok(syn::Stmt::Expr(parse_quote! { {} }, None))
         }
     }
 }
@@ -2438,7 +2438,11 @@ mod tests {
         let module = HirModule {
             functions: vec![HirFunction {
                 name: "add".to_string(),
-                params: vec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)].into(),
+                params: vec![
+                    HirParam::new("a".to_string(), Type::Int),
+                    HirParam::new("b".to_string(), Type::Int),
+                ]
+                .into(),
                 ret_type: Type::Int,
                 body: vec![HirStmt::Return(Some(HirExpr::Binary {
                     op: BinOp::Add,
