@@ -1916,11 +1916,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     fn convert_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
         let base_expr = base.to_rust_expr(self.ctx)?;
-        let index_expr = index.to_rust_expr(self.ctx)?;
-        // V1: Safe indexing with bounds checking
-        Ok(parse_quote! {
-            #base_expr.get(#index_expr as usize).copied().unwrap_or_default()
-        })
+
+        // Discriminate between HashMap and Vec access based on index type
+        match index {
+            HirExpr::Literal(Literal::String(s)) => {
+                // String index → HashMap/Dict access
+                // Use cloned() for String values (not Copy)
+                Ok(parse_quote! {
+                    #base_expr.get(#s).cloned().unwrap_or_default()
+                })
+            }
+            _ => {
+                // Numeric/other index → Vec/List access with usize cast
+                let index_expr = index.to_rust_expr(self.ctx)?;
+                Ok(parse_quote! {
+                    #base_expr.get(#index_expr as usize).copied().unwrap_or_default()
+                })
+            }
+        }
     }
 
     fn convert_slice(
