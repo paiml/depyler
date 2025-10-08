@@ -202,7 +202,11 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
                     _ => {}
                 }
             }
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 for stmt in then_body {
                     analyze_stmt(stmt, declared, mutable);
                 }
@@ -422,7 +426,8 @@ pub fn generate_rust_file(
     let module_mapper = crate::module_mapper::ModuleMapper::new();
 
     // Process imports to populate the context
-    let (imported_modules, imported_items) = process_module_imports(&module.imports, &module_mapper);
+    let (imported_modules, imported_items) =
+        process_module_imports(&module.imports, &module_mapper);
 
     let mut ctx = CodeGenContext {
         type_mapper,
@@ -1015,7 +1020,8 @@ impl RustCodeGen for HirStmt {
                                     let idents_with_mut: Vec<_> = symbols
                                         .iter()
                                         .map(|s| {
-                                            let ident = syn::Ident::new(s, proc_macro2::Span::call_site());
+                                            let ident =
+                                                syn::Ident::new(s, proc_macro2::Span::call_site());
                                             if ctx.mutable_vars.contains(*s) {
                                                 quote! { mut #ident }
                                             } else {
@@ -1197,6 +1203,10 @@ impl RustCodeGen for HirStmt {
                         }
                     })
                 }
+            }
+            HirStmt::Pass => {
+                // Pass statement generates no code - it's a no-op
+                Ok(quote! {})
             }
         }
     }
@@ -2801,7 +2811,11 @@ mod tests {
     fn test_simple_function_generation() {
         let func = HirFunction {
             name: "add".to_string(),
-            params: vec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)].into(),
+            params: vec![
+                HirParam::new("a".to_string(), Type::Int),
+                HirParam::new("b".to_string(), Type::Int),
+            ]
+            .into(),
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Add,
