@@ -2003,24 +2003,109 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn convert_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
         let base_expr = base.to_rust_expr(self.ctx)?;
 
-        // Discriminate between HashMap and Vec access based on index type
-        match index {
-            HirExpr::Literal(Literal::String(s)) => {
-                // String index → HashMap/Dict access
-                // Use cloned() for String values (not Copy)
-                Ok(parse_quote! {
-                    #base_expr.get(#s).cloned().unwrap_or_default()
-                })
+        // Discriminate between HashMap and Vec access based on base type or index type
+        let is_string_key = self.is_string_index(base, index)?;
+
+        if is_string_key {
+            // HashMap/Dict access with string keys
+            match index {
+                HirExpr::Literal(Literal::String(s)) => {
+                    // String literal - use it directly without .to_string()
+                    Ok(parse_quote! {
+                        #base_expr.get(#s).cloned().unwrap_or_default()
+                    })
+                }
+                _ => {
+                    // String variable - needs proper referencing
+                    let index_expr = index.to_rust_expr(self.ctx)?;
+                    Ok(parse_quote! {
+                        #base_expr.get(#index_expr).cloned().unwrap_or_default()
+                    })
+                }
             }
-            _ => {
-                // Numeric/other index → Vec/List access with usize cast
-                let index_expr = index.to_rust_expr(self.ctx)?;
-                Ok(parse_quote! {
-                    #base_expr.get(#index_expr as usize).copied().unwrap_or_default()
-                })
-            }
+        } else {
+            // Vec/List access with numeric index
+            let index_expr = index.to_rust_expr(self.ctx)?;
+            Ok(parse_quote! {
+                #base_expr.get(#index_expr as usize).copied().unwrap_or_default()
+            })
         }
     }
+
+    /// Check if the index expression is a string key (for HashMap access)
+    /// Returns true if: index is string literal, OR base is Dict/HashMap type
+    fn is_string_index(&self, base: &HirExpr, index: &HirExpr) -> Result<bool> {
+        // Check 1: Is index a string literal?
+        if matches!(index, HirExpr::Literal(Literal::String(_))) {
+            return Ok(true);
+        }
+
+        // Check 2: Is base expression a Dict/HashMap type?
+        // We need to look at the base's inferred type
+        if let HirExpr::Var(sym) = base {
+            // Try to find the variable's type in the current function context
+            // For parameters, we can check the function signature
+            // For local variables, this is harder without full type inference
+            //
+            // Heuristic: If the symbol name contains "dict" or "data" or "map"
+            // and index doesn't look numeric, assume HashMap
+            let name = sym.as_str();
+            if (name.contains("dict") || name.contains("data") || name.contains("map"))
+                && !self.is_numeric_index(index)
+            {
+                return Ok(true);
+            }
+        }
+
+        // Check 3: Does the index expression look like a string variable?
+        if self.is_string_variable(index) {
+            return Ok(true);
+        }
+
+        // Default: assume numeric index (Vec/List access)
+        Ok(false)
+    }
+
+    /// Check if expression is likely a string variable (heuristic)
+    fn is_string_variable(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Var(sym) => {
+                let name = sym.as_str();
+                // Heuristic: variable names like "key", "name", "id", "word", etc.
+                name == "key"
+                    || name == "name"
+                    || name == "id"
+                    || name == "word"
+                    || name == "text"
+                    || name.ends_with("_key")
+                    || name.ends_with("_name")
+            }
+            _ => false,
+        }
+    }
+
+    /// Check if expression is likely numeric (heuristic)
+    fn is_numeric_index(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Literal(Literal::Int(_)) => true,
+            HirExpr::Var(sym) => {
+                let name = sym.as_str();
+                // Common numeric index names
+                name == "i"
+                    || name == "j"
+                    || name == "k"
+                    || name == "idx"
+                    || name == "index"
+                    || name.starts_with("idx_")
+                    || name.ends_with("_idx")
+                    || name.ends_with("_index")
+            }
+            HirExpr::Binary { .. } => true, // Arithmetic expressions are numeric
+            HirExpr::Call { .. } => false,  // Could be anything
+            _ => false,
+        }
+    }
+
 
     fn convert_slice(
         &mut self,
