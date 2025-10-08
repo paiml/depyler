@@ -1042,13 +1042,40 @@ impl RustCodeGen for HirStmt {
             HirStmt::Return(expr) => {
                 if let Some(e) = expr {
                     let expr_tokens = e.to_rust_expr(ctx)?;
+
+                    // Check if return type is Optional and wrap value in Some()
+                    let is_optional_return = matches!(
+                        ctx.current_return_type.as_ref(),
+                        Some(Type::Optional(_))
+                    );
+
+                    // Check if the expression is None literal
+                    let is_none_literal = matches!(e, HirExpr::Literal(Literal::None));
+
                     if ctx.current_function_can_fail {
-                        Ok(quote! { return Ok(#expr_tokens); })
+                        if is_optional_return && !is_none_literal {
+                            // Wrap value in Some() for Optional return types
+                            Ok(quote! { return Ok(Some(#expr_tokens)); })
+                        } else {
+                            Ok(quote! { return Ok(#expr_tokens); })
+                        }
+                    } else if is_optional_return && !is_none_literal {
+                        // Wrap value in Some() for Optional return types
+                        Ok(quote! { return Some(#expr_tokens); })
                     } else {
                         Ok(quote! { return #expr_tokens; })
                     }
                 } else if ctx.current_function_can_fail {
-                    Ok(quote! { return Ok(()); })
+                    // No expression - check if return type is Optional
+                    let is_optional_return = matches!(
+                        ctx.current_return_type.as_ref(),
+                        Some(Type::Optional(_))
+                    );
+                    if is_optional_return {
+                        Ok(quote! { return Ok(None); })
+                    } else {
+                        Ok(quote! { return Ok(()); })
+                    }
                 } else {
                     Ok(quote! { return; })
                 }
@@ -1238,13 +1265,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         match op {
             BinOp::In => {
-                // Convert "x in dict" to "dict.contains_key(&x)" for dicts
-                // For now, assume it's a dict/hashmap
-                Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                // Convert "x in dict" to "dict.contains_key(x)" or "dict.contains_key(&x)"
+                // String literals are already &str, so don't add extra &
+                if matches!(left, HirExpr::Literal(Literal::String(_))) {
+                    Ok(parse_quote! { #right_expr.contains_key(#left_expr) })
+                } else {
+                    Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                }
             }
             BinOp::NotIn => {
-                // Convert "x not in dict" to "!dict.contains_key(&x)"
-                Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+                // Convert "x not in dict" to "!dict.contains_key(x)" or "!dict.contains_key(&x)"
+                // String literals are already &str, so don't add extra &
+                if matches!(left, HirExpr::Literal(Literal::String(_))) {
+                    Ok(parse_quote! { !#right_expr.contains_key(#left_expr) })
+                } else {
+                    Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+                }
             }
             BinOp::Add => {
                 // Special handling for string concatenation
@@ -2495,7 +2531,7 @@ fn literal_to_rust_expr(
             let lit = syn::LitBool::new(*b, proc_macro2::Span::call_site());
             parse_quote! { #lit }
         }
-        Literal::None => parse_quote! { () },
+        Literal::None => parse_quote! { None },
     }
 }
 
