@@ -578,6 +578,448 @@ process_config.rs:     0 warnings ✅
 ├─ Issue discovered: 16 warnings in 3/4 showcase examples
 ├─ Ticket created: DEPYLER-0095
 ├─ Analysis complete: /tmp/depyler_issues_analysis.md
+
+## 🚨 **CRITICAL FEATURE GAPS - SURFACED FROM 50 FAILED EXAMPLES**
+
+**Analysis Date**: 2025-10-08
+**Total Failed Examples**: 50/130 (38.5%)
+**Total Missing Features**: 11 major gaps identified
+**Methodology**: AST analysis + error categorization of ALL 50 failures
+
+---
+
+### **DEPYLER-0110**: 🔥 F-String Support (Format Strings)
+**Status**: 🔴 **BLOCKED** - Not Started
+**Priority**: P0 (CRITICAL - Blocks 29/50 failures = 58%)
+**Dependencies**: None
+**Type**: Language Feature (Core Python)
+**Estimated Time**: 1-2 days
+
+**Impact**: 29 examples blocked by missing f-strings
+- `f"Hello {name}"` → Needs Rust `format!()` conversion
+- `f"{value:.2f}"` → Format specifiers mapping
+- `f"{x=}"` → Debug format support
+
+**Examples Blocked**:
+- examples/ast_converters_demo.py
+- examples/basic_class_test.py
+- examples/debugging_workflow.py
+- +26 more (58% of all failures)
+
+**Implementation Plan (EXTREME TDD)**:
+1. **Phase 1**: Simple variable interpolation
+   - TDD: Write 10 tests for `f"{var}"` patterns
+   - Parse f-string into JoinedStr AST nodes
+   - Generate `format!("{}", var)` in Rust
+2. **Phase 2**: Format specifiers
+   - TDD: 20 tests for `.2f`, `:0>8`, etc.
+   - Map Python format specs to Rust format specs
+3. **Phase 3**: Expressions in f-strings
+   - TDD: 15 tests for `f"{x + 1}"`, `f"{obj.method()}"`
+   - Generate `format!("{}", x + 1)`
+4. **Quality Gates**: 
+   - Mutation testing: 80% mutation score
+   - Property testing: 1000 random f-strings
+   - Coverage: 95%+ via cargo-llvm-cov
+   - Complexity: All functions ≤10
+
+---
+
+### **DEPYLER-0111**: 🔥 Class Support (OOP Foundation)
+**Status**: 🔴 **BLOCKED** - Not Started
+**Priority**: P0 (CRITICAL - Blocks 23/50 failures = 46%)
+**Dependencies**: None
+**Type**: Language Feature (Core Python)
+**Estimated Time**: 3-5 days
+
+**Impact**: 23 examples blocked by missing class support
+- `class Calculator:` → Needs Rust `struct` + `impl` blocks
+- `__init__` → Constructor mapping
+- `self.value` → Field access
+- Instance methods → `impl` methods
+
+**Examples Blocked**:
+- examples/test_class_methods.py
+- examples/basic_class_test.py
+- examples/data_structures/queue.py
+- +20 more (46% of all failures)
+
+**Implementation Plan (EXTREME TDD)**:
+1. **Phase 1**: Simple classes with `__init__`
+   - TDD: 15 tests for basic classes
+   - Parse ClassDef AST → Generate Rust struct
+   - Map `__init__` to constructor pattern
+2. **Phase 2**: Instance methods
+   - TDD: 20 tests for `self` methods
+   - Generate `impl StructName { fn method(&self) }`
+3. **Phase 3**: Class attributes/fields
+   - TDD: 15 tests for `self.field` access
+   - Generate struct fields with proper types
+4. **Phase 4**: Multiple classes with composition
+   - TDD: 10 tests for class interactions
+5. **Quality Gates**:
+   - Mutation testing: 85% mutation score
+   - Property testing: 500 random class definitions
+   - Coverage: 95%+ via cargo-llvm-cov
+   - Complexity: All functions ≤10
+
+---
+
+### **DEPYLER-0112**: Decorator Support (@staticmethod, @property, etc.)
+**Status**: 🔴 **BLOCKED** - Not Started
+**Priority**: P1 (HIGH - Blocks 8/50 failures = 16%)
+**Dependencies**: DEPYLER-0111 (Classes)
+**Type**: Language Feature
+**Estimated Time**: 2-3 days
+
+**Impact**: 8 examples blocked
+- `@staticmethod` → Associated function
+- `@classmethod` → Constructor pattern
+- `@property` → Getter methods
+- `@<custom>` → Custom decorators (harder)
+
+**Examples Blocked**:
+- examples/test_class_methods.py
+- examples/test_function_decorators.py
+- +6 more
+
+**Implementation Plan (EXTREME TDD)**:
+1. **Phase 1**: @staticmethod
+   - TDD: 10 tests
+   - Generate `impl` without &self
+2. **Phase 2**: @classmethod
+   - TDD: 10 tests
+   - Generate constructors returning Self
+3. **Phase 3**: @property
+   - TDD: 15 tests
+   - Generate getter methods
+4. **Quality Gates**:
+   - Mutation testing: 80%
+   - Property testing: 300 random decorators
+   - Coverage: 90%+
+   - Complexity: ≤10
+
+---
+
+### **DEPYLER-0113**: Lambda Expressions in Collections
+**Status**: 🔴 **BLOCKED** - Not Started
+**Priority**: P1 (HIGH - Blocks 8/50 failures = 16%)
+**Dependencies**: None
+**Type**: Language Feature
+**Estimated Time**: 1-2 days
+
+**Impact**: 8 examples blocked
+- `lambda x: x * 2` → Rust closures
+- `map(lambda x: x+1, items)` → Iterator chains
+- `filter(lambda x: x > 0, items)` → filter adapters
+
+**Examples Blocked**:
+- examples/lambda_test.py
+- examples/lambda_advanced_test.py
+- +6 more
+
+**Implementation Plan (EXTREME TDD)**:
+1. **Phase 1**: Simple lambdas
+   - TDD: 15 tests for `lambda x: expr`
+   - Generate Rust `|x| expr`
+2. **Phase 2**: Lambdas with map/filter
+   - TDD: 20 tests for iterator chains
+   - Generate `.map(|x| expr).collect()`
+3. **Phase 3**: Multi-argument lambdas
+   - TDD: 10 tests for `lambda x, y: x + y`
+4. **Quality Gates**:
+   - Mutation testing: 80%
+   - Property testing: 500 random lambdas
+   - Coverage: 90%+
+   - Complexity: ≤10
+
+---
+
+### **DEPYLER-0114**: Try/Except Error Handling
+**Status**: 🔴 **BLOCKED** - Not Started
+**Priority**: P1 (HIGH - Blocks 7/50 failures = 14%)
+**Dependencies**: None
+**Type**: Language Feature
+**Estimated Time**: 2-3 days
+
+**Impact**: 7 examples blocked
+- `try:` → Rust Result<T, E> or match
+- `except Exception:` → Error type mapping
+- `raise ValueError()` → Rust panic! or Result::Err
+
+**Examples Blocked**:
+- examples/file_processing/csv_parser.py
+- examples/networking/http_client.py
+- +5 more
+
+**Implementation Plan (EXTREME TDD)**:
+1. **Phase 1**: Simple try/except
+   - TDD: 15 tests for basic error handling
+   - Generate match or if let Err pattern
+2. **Phase 2**: Multiple except clauses
+   - TDD: 20 tests for different exception types
+   - Generate match with multiple arms
+3. **Phase 3**: Finally clause
+   - TDD: 10 tests for cleanup
+   - Generate Drop or defer pattern
+4. **Quality Gates**:
+   - Mutation testing: 80%
+   - Property testing: 300 error scenarios
+   - Coverage: 90%+
+   - Complexity: ≤10
+
+---
+
+### **DEPYLER-0115**: Generator Functions (yield)
+**Status**: 🔴 **BLOCKED** - Not Started
+**Priority**: P2 (MEDIUM - Blocks 6/50 failures = 12%)
+**Dependencies**: None
+**Type**: Language Feature
+**Estimated Time**: 2-3 days
+
+**Impact**: 6 examples blocked
+- `yield value` → Rust Iterator trait
+- Generator expressions → Custom iterator structs
+
+**Examples Blocked**:
+- examples/test_generator.py
+- examples/test_project/data_processor.py
+- +4 more
+
+**Implementation Plan (EXTREME TDD)**:
+1. **Phase 1**: Simple yield
+   - TDD: 15 tests for basic generators
+   - Generate struct implementing Iterator
+2. **Phase 2**: Generator state management
+   - TDD: 20 tests for stateful generators
+3. **Quality Gates**:
+   - Mutation testing: 75%
+   - Property testing: 200 generators
+   - Coverage: 85%+
+   - Complexity: ≤10
+
+---
+
+### **DEPYLER-0116**: Complex List/Dict/Set Comprehensions
+**Status**: 🔴 **BLOCKED** - Not Started
+**Priority**: P2 (MEDIUM - Blocks 4/50 failures = 8%)
+**Dependencies**: None
+**Type**: Language Feature
+**Estimated Time**: 1-2 days
+
+**Impact**: 4 examples blocked
+- Nested comprehensions
+- Multiple for clauses
+- Complex if conditions
+
+**Examples Blocked**:
+- examples/interactive_annotation.py
+- examples/test_project/data_processor.py
+- +2 more
+
+**Implementation Plan (EXTREME TDD)**:
+1. **Phase 1**: Nested comprehensions
+   - TDD: 15 tests
+   - Generate nested iterator chains
+2. **Phase 2**: Multiple generators
+   - TDD: 10 tests for `[x+y for x in a for y in b]`
+3. **Quality Gates**:
+   - Mutation testing: 75%
+   - Property testing: 300 comprehensions
+   - Coverage: 85%+
+   - Complexity: ≤10
+
+---
+
+### **DEPYLER-0117**: Async/Await Support
+**Status**: 🔴 **BLOCKED** - Not Started
+**Priority**: P2 (MEDIUM - Blocks 4/50 failures = 8%)
+**Dependencies**: None
+**Type**: Language Feature
+**Estimated Time**: 2-3 days
+
+**Impact**: 4 examples blocked
+- `async def` → `async fn`
+- `await` → `.await`
+- AsyncIO runtime mapping
+
+**Examples Blocked**:
+- examples/test_async_function.py
+- examples/mcp_usage.py
+- +2 more
+
+**Implementation Plan (EXTREME TDD)**:
+1. **Phase 1**: Async functions
+   - TDD: 15 tests
+   - Generate `async fn`
+2. **Phase 2**: Await expressions
+   - TDD: 15 tests
+   - Generate `.await`
+3. **Quality Gates**:
+   - Mutation testing: 75%
+   - Property testing: 200 async patterns
+   - Coverage: 85%+
+   - Complexity: ≤10
+
+---
+
+### **DEPYLER-0118**: With Statement (Context Managers)
+**Status**: 🔴 **BLOCKED** - Not Started
+**Priority**: P2 (MEDIUM - Blocks 3/50 failures = 6%)
+**Dependencies**: None
+**Type**: Language Feature
+**Estimated Time**: 1-2 days
+
+**Impact**: 3 examples blocked
+- `with open() as f:` → RAII or scope guards
+
+**Examples Blocked**:
+- examples/lsp_demo.py
+- examples/module_mapping_demo.py
+- +1 more
+
+**Implementation Plan (EXTREME TDD)**:
+1. **Phase 1**: Simple with statements
+   - TDD: 15 tests
+   - Generate RAII pattern
+2. **Quality Gates**:
+   - Mutation testing: 75%
+   - Coverage: 85%+
+   - Complexity: ≤10
+
+---
+
+### **DEPYLER-0119**: Raise/Assert Statements
+**Status**: 🔴 **BLOCKED** - Not Started
+**Priority**: P3 (LOW - Blocks 3/50 failures = 6%)
+**Dependencies**: DEPYLER-0114 (Try/Except)
+**Type**: Language Feature
+**Estimated Time**: 1 day
+
+**Impact**: 3 examples blocked
+- `raise Exception()` → `panic!()` or Result::Err
+- `assert condition` → `assert!()`
+
+**Examples Blocked**:
+- examples/basic_class_test.py
+- examples/ast_converters_demo.py
+- +1 more
+
+**Implementation Plan (EXTREME TDD)**:
+1. **Phase 1**: Assert statements
+   - TDD: 10 tests
+   - Generate `assert!()`
+2. **Phase 2**: Raise statements
+   - TDD: 10 tests
+   - Generate panic! or return Err
+3. **Quality Gates**:
+   - Mutation testing: 75%
+   - Coverage: 85%+
+   - Complexity: ≤10
+
+---
+
+### **DEPYLER-0120**: Tuple Unpacking in Assignments
+**Status**: 🔴 **BLOCKED** - Not Started
+**Priority**: P3 (LOW - Blocks 2/50 failures = 4%)
+**Dependencies**: None
+**Type**: Language Feature
+**Estimated Time**: 1 day
+
+**Impact**: 2 examples blocked
+- `a, b = b, a` → Swap pattern
+- `x, y = get_coords()` → Destructuring
+
+**Examples Blocked**:
+- examples/algorithms/quicksort.py
+- +1 more
+
+**Implementation Plan (EXTREME TDD)**:
+1. **Phase 1**: Simple tuple unpacking
+   - TDD: 15 tests
+   - Generate `let (a, b) = ...`
+2. **Phase 2**: Swap patterns
+   - TDD: 10 tests
+   - Generate `std::mem::swap` or tuple destructure
+3. **Quality Gates**:
+   - Mutation testing: 75%
+   - Coverage: 85%+
+   - Complexity: ≤10
+
+---
+
+### **DEPYLER-0121**: Dict Item Augmented Assignment
+**Status**: 🔴 **BLOCKED** - Not Started
+**Priority**: P3 (LOW - Blocks 1/50 failures = 2%)
+**Dependencies**: None
+**Type**: Language Feature
+**Estimated Time**: 4 hours
+
+**Impact**: 1 example blocked
+- `dict[key] += 1` → HashMap entry API
+
+**Examples Blocked**:
+- examples/showcase/annotated_example.py
+
+**Implementation Plan (EXTREME TDD)**:
+1. **Phase 1**: Dict augmented assignment
+   - TDD: 15 tests for `+=`, `-=`, etc.
+   - Generate `.entry(key).and_modify(...).or_insert(...)`
+2. **Quality Gates**:
+   - Mutation testing: 75%
+   - Coverage: 85%+
+   - Complexity: ≤10
+
+---
+
+## 📊 **FEATURE PRIORITY MATRIX**
+
+| Ticket | Feature | Examples Blocked | Impact % | Est. Days | Priority |
+|--------|---------|------------------|----------|-----------|----------|
+| DEPYLER-0110 | F-Strings | 29 | 58% | 1-2 | P0 CRITICAL |
+| DEPYLER-0111 | Classes/OOP | 23 | 46% | 3-5 | P0 CRITICAL |
+| DEPYLER-0112 | Decorators | 8 | 16% | 2-3 | P1 HIGH |
+| DEPYLER-0113 | Lambda Collections | 8 | 16% | 1-2 | P1 HIGH |
+| DEPYLER-0114 | Try/Except | 7 | 14% | 2-3 | P1 HIGH |
+| DEPYLER-0115 | Generators | 6 | 12% | 2-3 | P2 MEDIUM |
+| DEPYLER-0116 | Complex Comprehensions | 4 | 8% | 1-2 | P2 MEDIUM |
+| DEPYLER-0117 | Async/Await | 4 | 8% | 2-3 | P2 MEDIUM |
+| DEPYLER-0118 | With Statement | 3 | 6% | 1-2 | P2 MEDIUM |
+| DEPYLER-0119 | Raise/Assert | 3 | 6% | 1 | P3 LOW |
+| DEPYLER-0120 | Tuple Unpacking | 2 | 4% | 1 | P3 LOW |
+| DEPYLER-0121 | Dict Augmented Assign | 1 | 2% | 0.5 | P3 LOW |
+
+**Total Estimated Time**: 18-28 days for ALL features
+**Immediate Focus**: DEPYLER-0110 (F-Strings) + DEPYLER-0111 (Classes) = 81% of failures
+
+---
+
+## 🎯 **EXECUTION STRATEGY**
+
+### **Phase 1: CRITICAL FEATURES (Days 1-7)**
+1. **Day 1-2**: DEPYLER-0110 F-Strings (EXTREME TDD)
+   - 50 comprehensive tests
+   - Mutation testing 80%+
+   - Property testing 1000 cases
+2. **Day 3-7**: DEPYLER-0111 Classes (EXTREME TDD)
+   - 60 comprehensive tests
+   - Mutation testing 85%+
+   - Property testing 500 cases
+3. **Re-transpile ALL 130 examples**: Expect 80→105+ working (81% coverage)
+
+### **Phase 2: HIGH PRIORITY (Days 8-14)**
+4. **Day 8-9**: DEPYLER-0113 Lambda Collections
+5. **Day 10-12**: DEPYLER-0112 Decorators
+6. **Day 13-15**: DEPYLER-0114 Try/Except
+7. **Re-transpile**: Expect 105→120+ working (92% coverage)
+
+### **Phase 3: MEDIUM/LOW PRIORITY (Days 16-28)**
+8. Implement remaining 6 features
+9. **Final Re-transpile**: Expect 120→128+ working (98%+ coverage)
+
+---
+
+├─ Analysis complete: /tmp/depyler_issues_analysis.md
 ├─ Next: Fix transpiler (not output)
 └─ Resume: After fixes verified and all examples re-transpiled
 ```
