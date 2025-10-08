@@ -1275,7 +1275,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // Avoid != in boolean expression due to formatting issues
                         let r_negative = r < 0;
                         let b_negative = b < 0;
-                        let needs_adjustment = r != 0 && r_negative != b_negative;
+                        let r_nonzero = r != 0;
+                        let signs_differ = r_negative != b_negative;
+                        let needs_adjustment = r_nonzero && signs_differ;
                         if needs_adjustment { q - 1 } else { q }
                     }
                 })

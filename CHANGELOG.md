@@ -35,6 +35,13 @@ and this project adheres to
   - Updated all statement pattern matches across 5 files to handle Pass
   - Impact: **100% transpilation success rate** - 52/52 examples now transpile (up from 52/53)
   - Enables class support with `__init__` methods containing `pass` statements
+- **[DEPYLER-0095]** Fixed floor division != operator formatting bug (2025-10-08)
+  - Fixed syn pretty-printer generating `! =` instead of `!=` in floor division code
+  - Split complex boolean expression into simpler statements to avoid formatting issues
+  - Changed: `let needs_adjustment = r != 0 && r_negative != b_negative;`
+  - To: `let r_nonzero = r != 0; let signs_differ = r_negative != b_negative; let needs_adjustment = r_nonzero && signs_differ;`
+  - Impact: Zero `! =` formatting bugs in all 76 successfully transpiled examples
+  - Re-transpiled 76/130 examples (58% success rate, failures due to unsupported features)
 
 ### 🚀 Sprint 6: Example Validation & Quality Gates (IN PROGRESS)
 
