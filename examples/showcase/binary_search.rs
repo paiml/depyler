@@ -1,9 +1,10 @@
 #[doc = "Find target in sorted array, return -1 if not found."] pub fn binary_search<'a>(arr: & 'a Vec<i32>, target: i32)  -> Result<i32, Box<dyn std::error::Error>>{
+    let mut left = 0;
     let _cse_temp_0 = arr.len();
     let mut right = _cse_temp_0 - 1;
-    while 0 <= right {
+    while left <= right {
     let mid = {
-    let a = 0 + right;
+    let a = left + right;
     let b = 2;
     let q = a / b;
     let r = a % b;
@@ -25,7 +26,7 @@ else {
 }
 else {
     if arr.get(mid as usize).copied().unwrap_or_default()<target {
-    let left = mid + 1;
+    left = mid + 1;
    
 }
 else {

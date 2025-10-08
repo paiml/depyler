@@ -26,11 +26,12 @@ let _cse_temp_1 = fibonacci(n - 1) + fibonacci(n - 2);
    
 }
 #[doc = "Calculate factorial iteratively"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn factorial(n: i32)  -> i32 {
+    let mut result = 1;
     for i in 1..n + 1 {
-    let result = 1 * i;
+    result = result * i;
    
 }
-return 1;
+return result;
    
 }
 #[doc = "Check if a number is prime"] #[doc = " Depyler: proven to terminate"] pub fn is_prime(n: i32)  -> Result<bool, ZeroDivisionError>{
@@ -48,11 +49,12 @@ for i in 2..n {
    
 }
 #[doc = "Sum all numbers in a list"] #[doc = " Depyler: verified panic-free"] pub fn process_list<'a>(numbers: & 'a Vec<i32>)  -> i32 {
+    let mut total = 0;
     for num in numbers.iter() {
-    let total = 0 + num;
+    total = total + num;
    
 }
-return 0;
+return total;
    
 }
 #[cfg(test)] mod tests {
