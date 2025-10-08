@@ -50,11 +50,12 @@ pub fn is_square(& mut self)  -> bool {
     let rect = Rectangle::new(10, 20);
     let area = rect.area();
     let perim = rect.perimeter();
-    let sq = Rectangle::new(5, 5);
-    return area + perim;
-   
-}
-#[doc = "Test static methods"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_static()  -> DynamicType {
+    let sq = Rectangle::ne📄 Source: examples/v1_2_0_basic_oop.py (1916 bytes)
+📝 Output: examples/v1_2_0_basic_oop.rs (2006 bytes)
+⏱️  Parse time: 11ms
+📊 Throughput: 158.3 KB/s
+⏱️  Total time: 11ms
+e {
     let zero = Point.origin ();
     return zero;
    

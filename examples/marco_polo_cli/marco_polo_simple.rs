@@ -107,9 +107,12 @@ let _cse_temp_1 = total / count;
     return Ok(_cse_temp_1);
    
 }
-#[doc = "Format game statistics as string."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn format_statistics(score: i32, attempts: i32, rounds: i32)  -> String {
-    let _inline_total = attempts;
-    let _inline_count = rounds;
+#[doc = "Format game statistics as string📄 Source: examples/marco_polo_cli/marco_polo_simple.py (2875 bytes)
+📝 Output: examples/marco_polo_cli/marco_polo_simple.rs (5473 bytes)
+⏱️  Parse time: 15ms
+📊 Throughput: 177.2 KB/s
+⏱️  Total time: 16ms
+= rounds;
     let _cse_temp_0 = _inline_count == 0;
     if _cse_temp_0 {
     return 0;

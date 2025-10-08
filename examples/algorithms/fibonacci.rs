@@ -59,18 +59,12 @@ memo.insert(n, result);
    
 }
 let(mut a, mut b)  = (0, 1);
-    for _ in 2..n + 1 {
-   (a, b)  = (b, a + b);
-   
-}
-return b;
-   
-}
-#[cfg(test)] mod tests {
-    use super::*;
-    use quickcheck::{
-    quickcheck, TestResult };
-    #[test] fn test_fibonacci_recursive_examples() {
+    f📄 Source: examples/algorithms/fibonacci.py (937 bytes)
+📝 Output: examples/algorithms/fibonacci.rs (2445 bytes)
+⏱️  Parse time: 10ms
+📊 Throughput: 86.9 KB/s
+⏱️  Total time: 10ms
+ursive_examples() {
     assert_eq !(fibonacci_recursive(0), 0);
     assert_eq !(fibonacci_recursive(1), 1);
     assert_eq !(fibonacci_recursive(- 1), - 1);

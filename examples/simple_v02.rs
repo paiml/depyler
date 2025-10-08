@@ -25,4 +25,8 @@ quickcheck(prop as fn(i32, i32)  -> TestResult);
     assert_eq !(add_numbers(- 1, 1), 0);
    
 }
-}
+}📄 Source: examples/simple_v02.py (186 bytes)
+📝 Output: examples/simple_v02.rs (804 bytes)
+⏱️  Parse time: 9ms
+📊 Throughput: 18.5 KB/s
+⏱️  Total time: 9ms

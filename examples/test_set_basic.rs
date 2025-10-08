@@ -21,6 +21,8 @@ use std::collections::HashSet;
     set.insert(3);
     set.insert(3);
     set.insert(4);
-    set };
-    return s
-}
+   📄 Source: examples/test_set_basic.py (367 bytes)
+📝 Output: examples/test_set_basic.rs (678 bytes)
+⏱️  Parse time: 8ms
+📊 Throughput: 39.9 KB/s
+⏱️  Total time: 9ms
