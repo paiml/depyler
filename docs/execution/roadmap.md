@@ -2,12 +2,12 @@
 
 ## 📝 **SESSION CONTEXT FOR RESUMPTION**
 
-**Last Active**: 2025-10-07
-**Current Version**: v3.4.0 (Released) + 6 commits pushed to main
-**Status**: 🛑 **STOP THE LINE** - Transpiler Quality Issues Found (DEPYLER-0095)
-**Achievement**: Sprint 6 complete, discovered critical transpiler code generation issues (86 warnings in 8/56 files), applied Jidoka principle, created validation tooling, fixed security vulnerabilities
-**Commits Pushed**: 6 commits (77d98d4...cc30105) - Stop the Line + Security Fixes + TDD Book Phase 3-4
-**Next Focus**: Fix transpiler code generation (DEPYLER-0095), then resume TDD Book Phase 4
+**Last Active**: 2025-10-08
+**Current Version**: v3.4.0 (Released) + 9 commits pushed to main
+**Status**: 🔧 **IN PROGRESS** - Transpiler Quality Improvements (DEPYLER-0095, DEPYLER-0096)
+**Achievement**: Pass statement support complete, floor division fix complete, critical scoping bug documented
+**Commits Pushed**: 9 commits (77d98d4...25cdee8) - Pass support + Floor div fix + Bug documentation
+**Next Focus**: Investigate and fix variable scoping bug, continue DEPYLER-0095 improvements
 
 **✅ Security**: All vulnerabilities resolved (DEPYLER-0097) - 0 npm audit issues
 **🛑 Blocking Issue**: DEPYLER-0095 (Transpiler generates non-idiomatic Rust with 86 warnings)
@@ -438,14 +438,22 @@ make validate-example FILE=examples/showcase/binary_search.rs
 **Dependencies**: DEPYLER-0027 ✅
 **Type**: Transpiler Bug (Upstream)
 
-**UPDATE (2025-10-07 - Later)**: **MAJOR PROGRESS** ✅
+**UPDATE (2025-10-08)**: **CONTINUED PROGRESS** ✅
 - ✅ **Fixed**: Excessive parentheses in binary operations (rust_gen.rs:1104, 1139, 1166, 1223)
 - ✅ **Fixed**: Control flow spacing (`if(` → `if `, `while(` → `while `)
+- ✅ **Fixed**: Floor division `!=` operator formatting bug (rust_gen.rs:1278)
+  - Split complex boolean: `r != 0 && r_negative != b_negative`
+  - Into: `let r_nonzero = r != 0; let signs_differ = r_negative != b_negative;`
+  - Impact: Zero `! =` formatting bugs in all 76 transpiled examples
 - ✅ **Tests**: All transpiler tests passing (370/370)
-- ✅ **Re-transpiled**: 54/55 examples successfully regenerated
-- ⚠️ **Remaining**: Floor division `!=` operator formatting bug (affects 3 files)
-- ⚠️ **Remaining**: Unused imports (std::borrow::Cow) in some files
-- 📊 **Result**: 44/56 passing (78%), 36 warnings (improvement from baseline)
+- ✅ **Re-transpiled**: 76/130 examples (58% success, 54 fail on unsupported features)
+- 🛑 **CRITICAL**: Variable scoping bug discovered (see TRANSPILER_BUG_variable_scoping.md)
+  - Variables declared before loops incorrectly moved inside loops
+  - Causes re-initialization on each iteration
+  - Returns wrong values (e.g., calculate_sum returns 0 instead of sum)
+  - Affects accumulator patterns
+- ⚠️ **Remaining**: Variable mutability over-conservative in some cases
+- 📊 **Result**: 76/130 transpile (58%), variable scoping bug blocks correctness
 
 **Discovery**: During validation, we found cargo clippy does NOT check examples/ directory. Direct rustc compilation revealed code generation issues.
 
