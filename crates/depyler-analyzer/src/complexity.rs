@@ -277,6 +277,7 @@ mod tests {
             HirStmt::Assign {
                 target: depyler_core::hir::AssignTarget::Symbol("x".to_string()),
                 value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
             },
             HirStmt::If {
                 condition: HirExpr::Literal(Literal::Bool(true)),

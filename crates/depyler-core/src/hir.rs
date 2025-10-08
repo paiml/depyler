@@ -276,6 +276,7 @@ pub enum HirStmt {
     Assign {
         target: AssignTarget,
         value: HirExpr,
+        type_annotation: Option<Type>,
     },
     Return(Option<HirExpr>),
     If {

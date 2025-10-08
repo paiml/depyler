@@ -50,7 +50,11 @@ impl StmtConverter {
         }
         let target = extract_assign_target(&a.targets[0])?;
         let value = super::convert_expr(*a.value)?;
-        Ok(HirStmt::Assign { target, value })
+        Ok(HirStmt::Assign {
+            target,
+            value,
+            type_annotation: None,
+        })
     }
 
     fn convert_ann_assign(a: ast::StmtAnnAssign) -> Result<HirStmt> {
@@ -60,7 +64,15 @@ impl StmtConverter {
         } else {
             bail!("Annotated assignment without value not supported")
         };
-        Ok(HirStmt::Assign { target, value })
+
+        // Extract type annotation
+        let type_annotation = Some(super::type_extraction::TypeExtractor::extract_type(&a.annotation)?);
+
+        Ok(HirStmt::Assign {
+            target,
+            value,
+            type_annotation,
+        })
     }
 
     fn convert_return(r: ast::StmtReturn) -> Result<HirStmt> {
@@ -117,7 +129,11 @@ impl StmtConverter {
 
         let right = Box::new(super::convert_expr(*a.value)?);
         let value = HirExpr::Binary { op, left, right };
-        Ok(HirStmt::Assign { target, value })
+        Ok(HirStmt::Assign {
+            target,
+            value,
+            type_annotation: None,
+        })
     }
 
     fn convert_raise(r: ast::StmtRaise) -> Result<HirStmt> {

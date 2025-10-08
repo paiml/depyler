@@ -29,33 +29,40 @@ impl ContractChecker {
             invariants: vec![],
         };
 
-        // Extract contracts from docstring annotations
-        if let Some(docstring) = &func.docstring {
-            let extracted = Self::extract_docstring_contracts(docstring);
+        Self::extract_docstring_into_contract(&mut contract, &func.docstring);
+        Self::extract_param_preconditions(&mut contract, &func.params);
+        Self::extract_return_postconditions(&mut contract, &func.ret_type);
+        Self::extract_property_invariants(&mut contract, &func.properties);
+
+        contract
+    }
+
+    fn extract_docstring_into_contract(contract: &mut Contract, docstring: &Option<String>) {
+        if let Some(doc) = docstring {
+            let extracted = Self::extract_docstring_contracts(doc);
             contract.preconditions.extend(extracted.preconditions);
             contract.postconditions.extend(extracted.postconditions);
             contract.invariants.extend(extracted.invariants);
         }
+    }
 
-        // Extract implicit preconditions from parameter types
-        for param in &func.params {
-            match &param.ty {
-                Type::List(_) => {
-                    contract.preconditions.push(Condition {
-                        name: format!("{}_not_null", param.name),
-                        expression: format!("{} is not None", param.name),
-                        description: format!("Parameter {} must not be null", param.name),
-                    });
-                }
-                Type::Int => {
-                    // Could add range constraints if needed
-                }
-                _ => {}
+    fn extract_param_preconditions(
+        contract: &mut Contract,
+        params: &[depyler_core::hir::HirParam],
+    ) {
+        for param in params {
+            if let Type::List(_) = &param.ty {
+                contract.preconditions.push(Condition {
+                    name: format!("{}_not_null", param.name),
+                    expression: format!("{} is not None", param.name),
+                    description: format!("Parameter {} must not be null", param.name),
+                });
             }
         }
+    }
 
-        // Extract implicit postconditions from return type
-        match &func.ret_type {
+    fn extract_return_postconditions(contract: &mut Contract, ret_type: &Type) {
+        match ret_type {
             Type::Optional(_) => {
                 contract.postconditions.push(Condition {
                     name: "result_valid".to_string(),
@@ -72,9 +79,13 @@ impl ContractChecker {
             }
             _ => {}
         }
+    }
 
-        // Extract invariants from function properties
-        if func.properties.panic_free {
+    fn extract_property_invariants(
+        contract: &mut Contract,
+        properties: &depyler_core::hir::FunctionProperties,
+    ) {
+        if properties.panic_free {
             contract.invariants.push(Condition {
                 name: "no_panics".to_string(),
                 expression: "all array accesses are bounds-checked".to_string(),
@@ -82,77 +93,96 @@ impl ContractChecker {
             });
         }
 
-        if func.properties.always_terminates {
+        if properties.always_terminates {
             contract.invariants.push(Condition {
                 name: "termination".to_string(),
                 expression: "loop variants decrease monotonically".to_string(),
                 description: "Function must terminate for all inputs".to_string(),
             });
         }
-
-        contract
     }
 
     pub fn generate_contract_checks(contract: &Contract, func_name: &str) -> String {
         let mut checks = String::new();
 
-        // Generate precondition checks
         if !contract.preconditions.is_empty() {
-            checks.push_str(&format!("fn check_{func_name}_preconditions("));
-            checks.push_str("/* params */) -> Result<(), &'static str> {\n");
-
-            for pre in &contract.preconditions {
-                checks.push_str(&format!("    // {}\n", pre.description));
-                // Generate actual precondition check using verification framework
-                if pre.expression.contains("is not None") {
-                    let var_name = pre.expression.split_whitespace().next().unwrap_or("");
-                    checks.push_str(&format!(
-                        "    if {}.is_none() {{ return Err(\"Precondition failed: {}\"); }}\n",
-                        var_name, pre.description
-                    ));
-                } else {
-                    // For other conditions, use debug_assert for now
-                    let check_expr = pre.expression.replace("self.", "");
-                    checks.push_str(&format!(
-                        "    debug_assert!({}, \"Precondition failed: {}\");\n",
-                        check_expr, pre.description
-                    ));
-                }
-            }
-
-            checks.push_str("    Ok(())\n");
-            checks.push_str("}\n\n");
+            checks.push_str(&Self::generate_precondition_function(
+                &contract.preconditions,
+                func_name,
+            ));
         }
 
-        // Generate postcondition checks
         if !contract.postconditions.is_empty() {
-            checks.push_str(&format!("fn check_{func_name}_postconditions("));
-            checks.push_str("/* result */) -> Result<(), &'static str> {\n");
-
-            for post in &contract.postconditions {
-                checks.push_str(&format!("    // {}\n", post.description));
-                // Generate actual postcondition check using verification framework
-                if post.expression.contains("result") {
-                    let check_expr = post.expression.replace("self.", "");
-                    checks.push_str(&format!(
-                        "    if !({}) {{ return Err(\"Postcondition failed: {}\"); }}\n",
-                        check_expr, post.description
-                    ));
-                } else {
-                    // For other conditions, use debug_assert
-                    let check_expr = post.expression.replace("self.", "");
-                    checks.push_str(&format!(
-                        "    debug_assert!({}, \"Postcondition failed: {}\");\n",
-                        check_expr, post.description
-                    ));
-                }
-            }
-
-            checks.push_str("    Ok(())\n");
-            checks.push_str("}\n\n");
+            checks.push_str(&Self::generate_postcondition_function(
+                &contract.postconditions,
+                func_name,
+            ));
         }
 
         checks
+    }
+
+    fn generate_precondition_function(preconditions: &[Condition], func_name: &str) -> String {
+        let mut result = format!("fn check_{func_name}_preconditions(");
+        result.push_str("/* params */) -> Result<(), &'static str> {\n");
+
+        for pre in preconditions {
+            result.push_str(&format!("    // {}\n", pre.description));
+            result.push_str(&Self::generate_precondition_check(pre));
+        }
+
+        result.push_str("    Ok(())\n");
+        result.push_str("}\n\n");
+        result
+    }
+
+    fn generate_precondition_check(condition: &Condition) -> String {
+        if condition.expression.contains("is not None") {
+            let var_name = condition
+                .expression
+                .split_whitespace()
+                .next()
+                .unwrap_or("");
+            format!(
+                "    if {}.is_none() {{ return Err(\"Precondition failed: {}\"); }}\n",
+                var_name, condition.description
+            )
+        } else {
+            let check_expr = condition.expression.replace("self.", "");
+            format!(
+                "    debug_assert!({}, \"Precondition failed: {}\");\n",
+                check_expr, condition.description
+            )
+        }
+    }
+
+    fn generate_postcondition_function(postconditions: &[Condition], func_name: &str) -> String {
+        let mut result = format!("fn check_{func_name}_postconditions(");
+        result.push_str("/* result */) -> Result<(), &'static str> {\n");
+
+        for post in postconditions {
+            result.push_str(&format!("    // {}\n", post.description));
+            result.push_str(&Self::generate_postcondition_check(post));
+        }
+
+        result.push_str("    Ok(())\n");
+        result.push_str("}\n\n");
+        result
+    }
+
+    fn generate_postcondition_check(condition: &Condition) -> String {
+        let check_expr = condition.expression.replace("self.", "");
+        if condition.expression.contains("result") {
+            format!(
+                "    if !({}) {{ return Err(\"Postcondition failed: {}\"); }}\n",
+                check_expr, condition.description
+            )
+        } else {
+            format!(
+                "    debug_assert!({}, \"Postcondition failed: {}\");\n",
+                check_expr, condition.description
+            )
+        }
     }
 
     pub fn check_contract_violations(func: &HirFunction) -> Vec<String> {
@@ -174,49 +204,58 @@ impl ContractChecker {
             invariants: vec![],
         };
 
-        let _precondition_checker = PreconditionChecker::new();
-        let _postcondition_verifier = PostconditionVerifier::new();
-
         for line in docstring.lines() {
             let trimmed = line.trim();
-
-            if trimmed.starts_with("@requires") {
-                // Parse precondition
-                if let Some(annotation) = trimmed.strip_prefix("@requires").map(str::trim) {
-                    if !annotation.is_empty() {
-                        contract.preconditions.push(Condition {
-                            name: format!("requires_{}", contract.preconditions.len()),
-                            expression: annotation.to_string(),
-                            description: format!("Requires: {}", annotation),
-                        });
-                    }
-                }
-            } else if trimmed.starts_with("@ensures") {
-                // Parse postcondition
-                if let Some(annotation) = trimmed.strip_prefix("@ensures").map(str::trim) {
-                    if !annotation.is_empty() {
-                        contract.postconditions.push(Condition {
-                            name: format!("ensures_{}", contract.postconditions.len()),
-                            expression: annotation.to_string(),
-                            description: format!("Ensures: {}", annotation),
-                        });
-                    }
-                }
-            } else if trimmed.starts_with("@invariant") {
-                // Parse invariant
-                if let Some(annotation) = trimmed.strip_prefix("@invariant").map(str::trim) {
-                    if !annotation.is_empty() {
-                        contract.invariants.push(Condition {
-                            name: format!("invariant_{}", contract.invariants.len()),
-                            expression: annotation.to_string(),
-                            description: format!("Invariant: {}", annotation),
-                        });
-                    }
-                }
-            }
+            Self::parse_docstring_line(trimmed, &mut contract);
         }
 
         contract
+    }
+
+    fn parse_docstring_line(line: &str, contract: &mut Contract) {
+        if line.starts_with("@requires") {
+            Self::parse_requires_line(line, contract);
+        } else if line.starts_with("@ensures") {
+            Self::parse_ensures_line(line, contract);
+        } else if line.starts_with("@invariant") {
+            Self::parse_invariant_line(line, contract);
+        }
+    }
+
+    fn parse_requires_line(line: &str, contract: &mut Contract) {
+        if let Some(annotation) = line.strip_prefix("@requires").map(str::trim) {
+            if !annotation.is_empty() {
+                contract.preconditions.push(Condition {
+                    name: format!("requires_{}", contract.preconditions.len()),
+                    expression: annotation.to_string(),
+                    description: format!("Requires: {}", annotation),
+                });
+            }
+        }
+    }
+
+    fn parse_ensures_line(line: &str, contract: &mut Contract) {
+        if let Some(annotation) = line.strip_prefix("@ensures").map(str::trim) {
+            if !annotation.is_empty() {
+                contract.postconditions.push(Condition {
+                    name: format!("ensures_{}", contract.postconditions.len()),
+                    expression: annotation.to_string(),
+                    description: format!("Ensures: {}", annotation),
+                });
+            }
+        }
+    }
+
+    fn parse_invariant_line(line: &str, contract: &mut Contract) {
+        if let Some(annotation) = line.strip_prefix("@invariant").map(str::trim) {
+            if !annotation.is_empty() {
+                contract.invariants.push(Condition {
+                    name: format!("invariant_{}", contract.invariants.len()),
+                    expression: annotation.to_string(),
+                    description: format!("Invariant: {}", annotation),
+                });
+            }
+        }
     }
 
     /// Verify contracts using the advanced verification framework
@@ -298,28 +337,49 @@ impl ContractChecker {
         let contract = Self::extract_contracts(func);
         let mut result = String::new();
 
-        // Add contract documentation
-        if !contract.preconditions.is_empty()
-            || !contract.postconditions.is_empty()
-            || !contract.invariants.is_empty()
-        {
-            result.push_str("/// Contract specifications:\n");
-            for pre in &contract.preconditions {
-                result.push_str(&format!("/// @requires {}\n", pre.expression));
-            }
-            for post in &contract.postconditions {
-                result.push_str(&format!("/// @ensures {}\n", post.expression));
-            }
-            for inv in &contract.invariants {
-                result.push_str(&format!("/// @invariant {}\n", inv.expression));
-            }
+        Self::append_contract_documentation(&mut result, &contract);
+        Self::append_function_signature(&mut result, func);
+        result.push_str(" {\n");
+
+        if include_runtime_checks {
+            Self::append_precondition_checks(&mut result, &contract);
+            Self::append_old_value_storage(&mut result, &contract);
         }
 
-        // Generate function signature
-        result.push_str(&format!("pub fn {}", func.name));
+        result.push_str(body_code);
 
-        // Add parameters
+        if include_runtime_checks {
+            Self::append_postcondition_checks(&mut result, &contract);
+        }
+
+        result.push_str("}\n");
+        result
+    }
+
+    fn append_contract_documentation(result: &mut String, contract: &Contract) {
+        if contract.preconditions.is_empty()
+            && contract.postconditions.is_empty()
+            && contract.invariants.is_empty()
+        {
+            return;
+        }
+
+        result.push_str("/// Contract specifications:\n");
+        for pre in &contract.preconditions {
+            result.push_str(&format!("/// @requires {}\n", pre.expression));
+        }
+        for post in &contract.postconditions {
+            result.push_str(&format!("/// @ensures {}\n", post.expression));
+        }
+        for inv in &contract.invariants {
+            result.push_str(&format!("/// @invariant {}\n", inv.expression));
+        }
+    }
+
+    fn append_function_signature(result: &mut String, func: &HirFunction) {
+        result.push_str(&format!("pub fn {}", func.name));
         result.push('(');
+
         let params: Vec<String> = func
             .params
             .iter()
@@ -328,163 +388,188 @@ impl ContractChecker {
         result.push_str(&params.join(", "));
         result.push(')');
 
-        // Add return type
         if !matches!(func.ret_type, Type::None) {
             result.push_str(&format!(" -> {}", type_to_rust_string(&func.ret_type)));
         }
+    }
 
-        result.push_str(" {\n");
-
-        if include_runtime_checks {
-            // Add precondition checks at function start
-            if !contract.preconditions.is_empty() {
-                result.push_str("    // Contract precondition validation\n");
-                for pre in &contract.preconditions {
-                    result.push_str(&format!(
-                        "    assert!({}, \"Precondition violated: {}\");\n",
-                        pre.expression.replace("is not None", "is_some()"),
-                        pre.description
-                    ));
-                }
-                result.push('\n');
-            }
-
-            // Store old values for postcondition checks
-            if contract
-                .postconditions
-                .iter()
-                .any(|p| p.expression.contains("old("))
-            {
-                result.push_str("    // Store old values for postcondition checks\n");
-                // Would generate old value storage here
-                result.push('\n');
-            }
+    fn append_precondition_checks(result: &mut String, contract: &Contract) {
+        if contract.preconditions.is_empty() {
+            return;
         }
 
-        // Add the function body
-        result.push_str(body_code);
+        result.push_str("    // Contract precondition validation\n");
+        for pre in &contract.preconditions {
+            result.push_str(&format!(
+                "    assert!({}, \"Precondition violated: {}\");\n",
+                pre.expression.replace("is not None", "is_some()"),
+                pre.description
+            ));
+        }
+        result.push('\n');
+    }
 
-        if include_runtime_checks {
-            // Add postcondition checks before return
-            if !contract.postconditions.is_empty() {
-                result.push_str("\n    // Contract postcondition validation\n");
-                for post in &contract.postconditions {
-                    if post.expression.contains("result") {
-                        // Note: Postcondition verification is not yet implemented.
-                        // Currently only generates documentation comments.
-                        // Full runtime verification would require result value tracking.
-                        result.push_str(&format!(
-                            "    // Postcondition: {}\n",
-                            post.description
-                        ));
-                    }
-                }
-            }
+    fn append_old_value_storage(result: &mut String, contract: &Contract) {
+        if contract
+            .postconditions
+            .iter()
+            .any(|p| p.expression.contains("old("))
+        {
+            result.push_str("    // Store old values for postcondition checks\n");
+            result.push('\n');
+        }
+    }
+
+    fn append_postcondition_checks(result: &mut String, contract: &Contract) {
+        if contract.postconditions.is_empty() {
+            return;
         }
 
-        result.push_str("}\n");
-        result
+        result.push_str("\n    // Contract postcondition validation\n");
+        for post in &contract.postconditions {
+            if post.expression.contains("result") {
+                result.push_str(&format!("    // Postcondition: {}\n", post.description));
+            }
+        }
     }
 }
 
 /// Convert HIR type to Rust type string
 fn type_to_rust_string(ty: &Type) -> String {
+    if let Some(simple) = convert_simple_type(ty) {
+        return simple;
+    }
+    if let Some(container) = convert_container_type(ty) {
+        return container;
+    }
+    format_complex_type(ty)
+}
+
+fn convert_simple_type(ty: &Type) -> Option<String> {
     match ty {
-        Type::Int => "i32".to_string(),
-        Type::Float => "f64".to_string(),
-        Type::String => "String".to_string(),
-        Type::Bool => "bool".to_string(),
-        Type::None => "()".to_string(),
-        Type::List(inner) => format!("Vec<{}>", type_to_rust_string(inner)),
-        Type::Dict(k, v) => format!(
-            "HashMap<{}, {}>",
-            type_to_rust_string(k),
-            type_to_rust_string(v)
-        ),
-        Type::Tuple(types) => {
-            let type_strs: Vec<String> = types.iter().map(type_to_rust_string).collect();
-            format!("({})", type_strs.join(", "))
-        }
-        Type::Optional(inner) => format!("Option<{}>", type_to_rust_string(inner)),
-        Type::Unknown => "_".to_string(),
-        Type::Custom(name) => name.clone(),
-        Type::Function { params, ret } => {
-            let param_strs: Vec<String> = params.iter().map(type_to_rust_string).collect();
-            format!(
-                "fn({}) -> {}",
-                param_strs.join(", "),
-                type_to_rust_string(ret)
-            )
-        }
-        Type::TypeVar(name) => name.clone(),
-        Type::Generic { base, params } => {
-            let param_strs: Vec<String> = params.iter().map(type_to_rust_string).collect();
-            format!("{}<{}>", base, param_strs.join(", "))
-        }
-        Type::Union(types) => {
-            // For Union types, we'll use an enum placeholder
-            let type_strs: Vec<String> = types.iter().map(type_to_rust_string).collect();
-            format!("Union<{}>", type_strs.join(", "))
-        }
-        Type::Array { element_type, size } => {
-            let element_str = type_to_rust_string(element_type);
-            match size {
-                depyler_core::hir::ConstGeneric::Literal(n) => format!("[{}; {}]", element_str, n),
-                depyler_core::hir::ConstGeneric::Parameter(name) => {
-                    format!("[{}; {}]", element_str, name)
-                }
-                depyler_core::hir::ConstGeneric::Expression(expr) => {
-                    format!("[{}; {}]", element_str, expr)
-                }
-            }
-        }
-        Type::Set(inner) => format!("HashSet<{}>", type_to_rust_string(inner)),
+        Type::Int => Some("i32".to_string()),
+        Type::Float => Some("f64".to_string()),
+        Type::String => Some("String".to_string()),
+        Type::Bool => Some("bool".to_string()),
+        Type::None => Some("()".to_string()),
+        Type::Unknown => Some("_".to_string()),
+        Type::Custom(name) | Type::TypeVar(name) => Some(name.clone()),
+        _ => None,
     }
 }
 
-fn check_stmt_contracts(stmt: &HirStmt) -> Vec<String> {
-    let mut violations = Vec::new();
+fn convert_container_type(ty: &Type) -> Option<String> {
+    match ty {
+        Type::List(inner) => Some(format_container_type("Vec", inner)),
+        Type::Set(inner) => Some(format_container_type("HashSet", inner)),
+        Type::Optional(inner) => Some(format_container_type("Option", inner)),
+        _ => None,
+    }
+}
 
+fn format_complex_type(ty: &Type) -> String {
+    match ty {
+        Type::Dict(k, v) => format_dict_type(k, v),
+        Type::Tuple(types) => format_tuple_type(types),
+        Type::Function { params, ret } => format_function_type(params, ret),
+        Type::Generic { base, params } => format_generic_type(base, params),
+        Type::Union(types) => format_union_type(types),
+        Type::Array { element_type, size } => format_array_type(element_type, size),
+        _ => "_".to_string(),
+    }
+}
+
+fn format_container_type(container: &str, inner: &Type) -> String {
+    format!("{}<{}>", container, type_to_rust_string(inner))
+}
+
+fn format_dict_type(key: &Type, value: &Type) -> String {
+    format!(
+        "HashMap<{}, {}>",
+        type_to_rust_string(key),
+        type_to_rust_string(value)
+    )
+}
+
+fn format_tuple_type(types: &[Type]) -> String {
+    let type_strs: Vec<String> = types.iter().map(type_to_rust_string).collect();
+    format!("({})", type_strs.join(", "))
+}
+
+fn format_function_type(params: &[Type], ret: &Type) -> String {
+    let param_strs: Vec<String> = params.iter().map(type_to_rust_string).collect();
+    format!("fn({}) -> {}", param_strs.join(", "), type_to_rust_string(ret))
+}
+
+fn format_generic_type(base: &str, params: &[Type]) -> String {
+    let param_strs: Vec<String> = params.iter().map(type_to_rust_string).collect();
+    format!("{}<{}>", base, param_strs.join(", "))
+}
+
+fn format_union_type(types: &[Type]) -> String {
+    let type_strs: Vec<String> = types.iter().map(type_to_rust_string).collect();
+    format!("Union<{}>", type_strs.join(", "))
+}
+
+fn format_array_type(element_type: &Type, size: &depyler_core::hir::ConstGeneric) -> String {
+    let element_str = type_to_rust_string(element_type);
+    let size_str = match size {
+        depyler_core::hir::ConstGeneric::Literal(n) => n.to_string(),
+        depyler_core::hir::ConstGeneric::Parameter(name) => name.clone(),
+        depyler_core::hir::ConstGeneric::Expression(expr) => expr.clone(),
+    };
+    format!("[{}; {}]", element_str, size_str)
+}
+
+fn check_stmt_contracts(stmt: &HirStmt) -> Vec<String> {
     match stmt {
-        HirStmt::Assign { value, .. } => {
-            violations.extend(check_expr_contracts(value));
-        }
-        HirStmt::Return(Some(expr)) => {
-            violations.extend(check_expr_contracts(expr));
-        }
+        HirStmt::Assign { value, .. } => check_expr_contracts(value),
+        HirStmt::Return(Some(expr)) => check_expr_contracts(expr),
         HirStmt::If {
             condition,
             then_body,
             else_body,
-        } => {
-            violations.extend(check_expr_contracts(condition));
-            for s in then_body {
-                violations.extend(check_stmt_contracts(s));
-            }
-            if let Some(else_stmts) = else_body {
-                for s in else_stmts {
-                    violations.extend(check_stmt_contracts(s));
-                }
-            }
-        }
-        HirStmt::While { condition, body } => {
-            violations.extend(check_expr_contracts(condition));
-            for s in body {
-                violations.extend(check_stmt_contracts(s));
-            }
-        }
-        HirStmt::For { iter, body, .. } => {
-            violations.extend(check_expr_contracts(iter));
-            for s in body {
-                violations.extend(check_stmt_contracts(s));
-            }
-        }
-        HirStmt::Expr(expr) => {
-            violations.extend(check_expr_contracts(expr));
-        }
-        _ => {}
+        } => check_if_contracts(condition, then_body, else_body),
+        HirStmt::While { condition, body } => check_while_contracts(condition, body),
+        HirStmt::For { iter, body, .. } => check_for_contracts(iter, body),
+        HirStmt::Expr(expr) => check_expr_contracts(expr),
+        _ => vec![],
+    }
+}
+
+fn check_if_contracts(
+    condition: &HirExpr,
+    then_body: &[HirStmt],
+    else_body: &Option<Vec<HirStmt>>,
+) -> Vec<String> {
+    let mut violations = check_expr_contracts(condition);
+
+    for stmt in then_body {
+        violations.extend(check_stmt_contracts(stmt));
     }
 
+    if let Some(else_stmts) = else_body {
+        for stmt in else_stmts {
+            violations.extend(check_stmt_contracts(stmt));
+        }
+    }
+
+    violations
+}
+
+fn check_while_contracts(condition: &HirExpr, body: &[HirStmt]) -> Vec<String> {
+    let mut violations = check_expr_contracts(condition);
+    for stmt in body {
+        violations.extend(check_stmt_contracts(stmt));
+    }
+    violations
+}
+
+fn check_for_contracts(iter: &HirExpr, body: &[HirStmt]) -> Vec<String> {
+    let mut violations = check_expr_contracts(iter);
+    for stmt in body {
+        violations.extend(check_stmt_contracts(stmt));
+    }
     violations
 }
 
@@ -783,6 +868,7 @@ mod tests {
                 base: Box::new(HirExpr::Var("arr".to_string())),
                 index: Box::new(HirExpr::Literal(Literal::Int(0))),
             },
+            type_annotation: None,
         }];
 
         let func = create_test_function(
@@ -838,6 +924,7 @@ mod tests {
                 base: Box::new(HirExpr::Var("data".to_string())),
                 index: Box::new(HirExpr::Literal(Literal::Int(0))),
             },
+            type_annotation: None,
         }];
 
         let body = vec![HirStmt::If {
@@ -866,6 +953,7 @@ mod tests {
             HirStmt::Assign {
                 target: depyler_core::hir::AssignTarget::Symbol("result".to_string()),
                 value: HirExpr::Literal(Literal::Int(42)),
+                type_annotation: None,
             },
             HirStmt::Return(Some(HirExpr::Var("result".to_string()))),
         ];

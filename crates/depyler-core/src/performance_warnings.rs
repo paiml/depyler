@@ -170,206 +170,216 @@ impl PerformanceAnalyzer {
 
     fn analyze_stmt(&mut self, stmt: &HirStmt, func: &HirFunction, line: usize) {
         match stmt {
-            HirStmt::For {
-                target: _,
-                iter,
-                body,
-            } => {
-                self.current_loop_depth += 1;
-
-                // Check for nested loops
-                if self.current_loop_depth > self.config.max_loop_depth {
-                    self.add_warning(PerformanceWarning {
-                        category: WarningCategory::AlgorithmComplexity,
-                        severity: WarningSeverity::High,
-                        message: format!("Deeply nested loops (depth: {})", self.current_loop_depth),
-                        explanation: "Deeply nested loops can lead to exponential time complexity".to_string(),
-                        suggestion: "Consider refactoring to reduce nesting or use more efficient algorithms".to_string(),
-                        impact: PerformanceImpact {
-                            complexity: format!("O(n^{})", self.current_loop_depth),
-                            scales_with_input: true,
-                            in_hot_path: true,
-                        },
-                        location: Some(Location {
-                            function: func.name.clone(),
-                            line,
-                            in_loop: true,
-                            loop_depth: self.current_loop_depth,
-                        }),
-                    });
-                }
-
-                // Check for inefficient iteration patterns
-                self.check_iteration_pattern(iter, func, line);
-
-                // Analyze loop body
-                for inner_stmt in body {
-                    self.analyze_stmt(inner_stmt, func, line);
-                }
-
-                self.current_loop_depth -= 1;
+            HirStmt::For { target: _, iter, body } => {
+                self.analyze_for_loop(iter, body, func, line);
             }
-
             HirStmt::While { condition: _, body } => {
-                self.current_loop_depth += 1;
-
-                for inner_stmt in body {
-                    self.analyze_stmt(inner_stmt, func, line);
-                }
-
-                self.current_loop_depth -= 1;
+                self.analyze_while_loop(body, func, line);
             }
-
-            HirStmt::Assign { target: _, value } => {
-                self.analyze_expr(value, func, line);
-
-                // Check for string concatenation in loops
-                if self.current_loop_depth > 0 && self.is_string_concatenation(value) {
-                    self.add_warning(PerformanceWarning {
-                        category: WarningCategory::StringPerformance,
-                        severity: WarningSeverity::High,
-                        message: "String concatenation in loop".to_string(),
-                        explanation:
-                            "String concatenation in loops creates many intermediate strings"
-                                .to_string(),
-                        suggestion:
-                            "Use String::with_capacity() and push_str(), or collect into a String"
-                                .to_string(),
-                        impact: PerformanceImpact {
-                            complexity: "O(n²)".to_string(),
-                            scales_with_input: true,
-                            in_hot_path: true,
-                        },
-                        location: Some(Location {
-                            function: func.name.clone(),
-                            line,
-                            in_loop: true,
-                            loop_depth: self.current_loop_depth,
-                        }),
-                    });
-                }
+            HirStmt::Assign { target: _, value, .. } => {
+                self.analyze_assignment(value, func, line);
             }
-
             HirStmt::Expr(expr) => {
                 self.analyze_expr(expr, func, line);
             }
-
             _ => {}
         }
+    }
+
+    fn analyze_for_loop(&mut self, iter: &HirExpr, body: &[HirStmt], func: &HirFunction, line: usize) {
+        self.current_loop_depth += 1;
+
+        self.check_loop_depth_violation(func, line);
+        self.check_iteration_pattern(iter, func, line);
+
+        for inner_stmt in body {
+            self.analyze_stmt(inner_stmt, func, line);
+        }
+
+        self.current_loop_depth -= 1;
+    }
+
+    fn analyze_while_loop(&mut self, body: &[HirStmt], func: &HirFunction, line: usize) {
+        self.current_loop_depth += 1;
+
+        for inner_stmt in body {
+            self.analyze_stmt(inner_stmt, func, line);
+        }
+
+        self.current_loop_depth -= 1;
+    }
+
+    fn analyze_assignment(&mut self, value: &HirExpr, func: &HirFunction, line: usize) {
+        self.analyze_expr(value, func, line);
+
+        if self.current_loop_depth > 0 && self.is_string_concatenation(value) {
+            self.warn_string_concat_in_loop(func, line);
+        }
+    }
+
+    fn check_loop_depth_violation(&mut self, func: &HirFunction, line: usize) {
+        if self.current_loop_depth > self.config.max_loop_depth {
+            self.add_warning(PerformanceWarning {
+                category: WarningCategory::AlgorithmComplexity,
+                severity: WarningSeverity::High,
+                message: format!("Deeply nested loops (depth: {})", self.current_loop_depth),
+                explanation: "Deeply nested loops can lead to exponential time complexity".to_string(),
+                suggestion: "Consider refactoring to reduce nesting or use more efficient algorithms".to_string(),
+                impact: PerformanceImpact {
+                    complexity: format!("O(n^{})", self.current_loop_depth),
+                    scales_with_input: true,
+                    in_hot_path: true,
+                },
+                location: Some(Location {
+                    function: func.name.clone(),
+                    line,
+                    in_loop: true,
+                    loop_depth: self.current_loop_depth,
+                }),
+            });
+        }
+    }
+
+    fn warn_string_concat_in_loop(&mut self, func: &HirFunction, line: usize) {
+        self.add_warning(PerformanceWarning {
+            category: WarningCategory::StringPerformance,
+            severity: WarningSeverity::High,
+            message: "String concatenation in loop".to_string(),
+            explanation: "String concatenation in loops creates many intermediate strings".to_string(),
+            suggestion: "Use String::with_capacity() and push_str(), or collect into a String".to_string(),
+            impact: PerformanceImpact {
+                complexity: "O(n²)".to_string(),
+                scales_with_input: true,
+                in_hot_path: true,
+            },
+            location: Some(Location {
+                function: func.name.clone(),
+                line,
+                in_loop: true,
+                loop_depth: self.current_loop_depth,
+            }),
+        });
     }
 
     fn analyze_expr(&mut self, expr: &HirExpr, func: &HirFunction, line: usize) {
         match expr {
             HirExpr::Binary { left, right, op } => {
-                self.analyze_expr(left, func, line);
-                self.analyze_expr(right, func, line);
-
-                // Check for expensive operations
-                if matches!(op, BinOp::Pow) && self.current_loop_depth > 0 {
-                    self.add_warning(PerformanceWarning {
-                        category: WarningCategory::RedundantComputation,
-                        severity: WarningSeverity::Medium,
-                        message: "Power operation in loop".to_string(),
-                        explanation: "Power operations are computationally expensive".to_string(),
-                        suggestion: "Consider caching the result if the value doesn't change"
-                            .to_string(),
-                        impact: PerformanceImpact {
-                            complexity: "O(log n) per operation".to_string(),
-                            scales_with_input: false,
-                            in_hot_path: true,
-                        },
-                        location: Some(Location {
-                            function: func.name.clone(),
-                            line,
-                            in_loop: true,
-                            loop_depth: self.current_loop_depth,
-                        }),
-                    });
-                }
+                self.analyze_binary_expr(left, right, op, func, line);
             }
-
             HirExpr::Call { func: fname, args } => {
-                // Check for repeated expensive function calls
-                if self.current_loop_depth > 0 && self.is_expensive_function(fname) {
-                    self.add_warning(PerformanceWarning {
-                        category: WarningCategory::RedundantComputation,
-                        severity: WarningSeverity::Medium,
-                        message: format!("Expensive function '{}' called in loop", fname),
-                        explanation:
-                            "Calling expensive functions repeatedly can impact performance"
-                                .to_string(),
-                        suggestion: "Cache the result if the inputs don't change".to_string(),
-                        impact: PerformanceImpact {
-                            complexity: "Depends on function".to_string(),
-                            scales_with_input: true,
-                            in_hot_path: true,
-                        },
-                        location: Some(Location {
-                            function: func.name.clone(),
-                            line,
-                            in_loop: true,
-                            loop_depth: self.current_loop_depth,
-                        }),
-                    });
-                }
-
-                // Check for inefficient patterns
-                self.check_function_call_patterns(fname, args, func, line);
-
-                for arg in args {
-                    self.analyze_expr(arg, func, line);
-                }
+                self.analyze_function_call(fname, args, func, line);
             }
-
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-            } => {
-                self.analyze_expr(object, func, line);
-
-                // Check for inefficient method patterns
-                self.check_method_patterns(object, method, args, func, line);
-
-                for arg in args {
-                    self.analyze_expr(arg, func, line);
-                }
+            HirExpr::MethodCall { object, method, args } => {
+                self.analyze_method_call(object, method, args, func, line);
             }
-
             HirExpr::List(items) => {
-                // Check for large list literals in loops
-                if self.current_loop_depth > 0 && items.len() > 10 {
-                    self.add_warning(PerformanceWarning {
-                        category: WarningCategory::MemoryAllocation,
-                        severity: WarningSeverity::Medium,
-                        message: "Large list created in loop".to_string(),
-                        explanation:
-                            "Creating large collections in loops causes repeated allocations"
-                                .to_string(),
-                        suggestion:
-                            "Move the list creation outside the loop or use a pre-allocated buffer"
-                                .to_string(),
-                        impact: PerformanceImpact {
-                            complexity: "O(n) allocations".to_string(),
-                            scales_with_input: true,
-                            in_hot_path: true,
-                        },
-                        location: Some(Location {
-                            function: func.name.clone(),
-                            line,
-                            in_loop: true,
-                            loop_depth: self.current_loop_depth,
-                        }),
-                    });
-                }
-
-                for item in items {
-                    self.analyze_expr(item, func, line);
-                }
+                self.analyze_list_expr(items, func, line);
             }
-
             _ => {}
         }
+    }
+
+    fn analyze_binary_expr(&mut self, left: &HirExpr, right: &HirExpr, op: &BinOp, func: &HirFunction, line: usize) {
+        self.analyze_expr(left, func, line);
+        self.analyze_expr(right, func, line);
+
+        if matches!(op, BinOp::Pow) && self.current_loop_depth > 0 {
+            self.warn_power_in_loop(func, line);
+        }
+    }
+
+    fn analyze_function_call(&mut self, fname: &str, args: &[HirExpr], func: &HirFunction, line: usize) {
+        if self.current_loop_depth > 0 && self.is_expensive_function(fname) {
+            self.warn_expensive_function_in_loop(fname, func, line);
+        }
+
+        self.check_function_call_patterns(fname, args, func, line);
+
+        for arg in args {
+            self.analyze_expr(arg, func, line);
+        }
+    }
+
+    fn analyze_method_call(&mut self, object: &HirExpr, method: &str, args: &[HirExpr], func: &HirFunction, line: usize) {
+        self.analyze_expr(object, func, line);
+        self.check_method_patterns(object, method, args, func, line);
+
+        for arg in args {
+            self.analyze_expr(arg, func, line);
+        }
+    }
+
+    fn analyze_list_expr(&mut self, items: &[HirExpr], func: &HirFunction, line: usize) {
+        if self.current_loop_depth > 0 && items.len() > 10 {
+            self.warn_large_list_in_loop(func, line);
+        }
+
+        for item in items {
+            self.analyze_expr(item, func, line);
+        }
+    }
+
+    fn warn_power_in_loop(&mut self, func: &HirFunction, line: usize) {
+        self.add_warning(PerformanceWarning {
+            category: WarningCategory::RedundantComputation,
+            severity: WarningSeverity::Medium,
+            message: "Power operation in loop".to_string(),
+            explanation: "Power operations are computationally expensive".to_string(),
+            suggestion: "Consider caching the result if the value doesn't change".to_string(),
+            impact: PerformanceImpact {
+                complexity: "O(log n) per operation".to_string(),
+                scales_with_input: false,
+                in_hot_path: true,
+            },
+            location: Some(Location {
+                function: func.name.clone(),
+                line,
+                in_loop: true,
+                loop_depth: self.current_loop_depth,
+            }),
+        });
+    }
+
+    fn warn_expensive_function_in_loop(&mut self, fname: &str, func: &HirFunction, line: usize) {
+        self.add_warning(PerformanceWarning {
+            category: WarningCategory::RedundantComputation,
+            severity: WarningSeverity::Medium,
+            message: format!("Expensive function '{}' called in loop", fname),
+            explanation: "Calling expensive functions repeatedly can impact performance".to_string(),
+            suggestion: "Cache the result if the inputs don't change".to_string(),
+            impact: PerformanceImpact {
+                complexity: "Depends on function".to_string(),
+                scales_with_input: true,
+                in_hot_path: true,
+            },
+            location: Some(Location {
+                function: func.name.clone(),
+                line,
+                in_loop: true,
+                loop_depth: self.current_loop_depth,
+            }),
+        });
+    }
+
+    fn warn_large_list_in_loop(&mut self, func: &HirFunction, line: usize) {
+        self.add_warning(PerformanceWarning {
+            category: WarningCategory::MemoryAllocation,
+            severity: WarningSeverity::Medium,
+            message: "Large list created in loop".to_string(),
+            explanation: "Creating large collections in loops causes repeated allocations".to_string(),
+            suggestion: "Move the list creation outside the loop or use a pre-allocated buffer".to_string(),
+            impact: PerformanceImpact {
+                complexity: "O(n) allocations".to_string(),
+                scales_with_input: true,
+                in_hot_path: true,
+            },
+            location: Some(Location {
+                function: func.name.clone(),
+                line,
+                in_loop: true,
+                loop_depth: self.current_loop_depth,
+            }),
+        });
     }
 
     fn check_iteration_pattern(&mut self, iter: &HirExpr, func: &HirFunction, line: usize) {
@@ -471,82 +481,79 @@ impl PerformanceAnalyzer {
         func: &HirFunction,
         line: usize,
     ) {
-        // Check for repeated list operations that could be batched
-        if self.current_loop_depth > 0 {
-            match method {
-                "append" => {
-                    // Multiple appends could be extend
-                    self.add_warning(PerformanceWarning {
-                        category: WarningCategory::CollectionUsage,
-                        severity: WarningSeverity::Low,
-                        message: "Multiple append calls in loop".to_string(),
-                        explanation: "Multiple append operations can be less efficient than extend"
-                            .to_string(),
-                        suggestion: "Consider collecting items and using extend() once".to_string(),
-                        impact: PerformanceImpact {
-                            complexity: "O(1) amortized, but more calls".to_string(),
-                            scales_with_input: true,
-                            in_hot_path: true,
-                        },
-                        location: Some(Location {
-                            function: func.name.clone(),
-                            line,
-                            in_loop: true,
-                            loop_depth: self.current_loop_depth,
-                        }),
-                    });
-                }
-
-                "remove" if self.current_loop_depth > 1 => {
-                    // O(n) remove in nested loop is O(n²) or worse
-                    self.add_warning(PerformanceWarning {
-                        category: WarningCategory::AlgorithmComplexity,
-                        severity: WarningSeverity::Critical,
-                        message: "List remove() in nested loop".to_string(),
-                        explanation: "remove() is O(n) and in nested loops becomes O(n²) or worse"
-                            .to_string(),
-                        suggestion: "Use a set for O(1) removal or filter to create a new list"
-                            .to_string(),
-                        impact: PerformanceImpact {
-                            complexity: format!("O(n^{})", self.current_loop_depth + 1),
-                            scales_with_input: true,
-                            in_hot_path: true,
-                        },
-                        location: Some(Location {
-                            function: func.name.clone(),
-                            line,
-                            in_loop: true,
-                            loop_depth: self.current_loop_depth,
-                        }),
-                    });
-                }
-
-                "index" | "count" if self.current_loop_depth > 0 => {
-                    // O(n) search operations
-                    self.add_warning(PerformanceWarning {
-                        category: WarningCategory::AlgorithmComplexity,
-                        severity: WarningSeverity::Medium,
-                        message: format!("Linear search method '{}' in loop", method),
-                        explanation: "Linear search in loops can lead to quadratic complexity"
-                            .to_string(),
-                        suggestion: "Consider using a HashMap/HashSet for O(1) lookups".to_string(),
-                        impact: PerformanceImpact {
-                            complexity: "O(n²)".to_string(),
-                            scales_with_input: true,
-                            in_hot_path: true,
-                        },
-                        location: Some(Location {
-                            function: func.name.clone(),
-                            line,
-                            in_loop: true,
-                            loop_depth: self.current_loop_depth,
-                        }),
-                    });
-                }
-
-                _ => {}
-            }
+        if self.current_loop_depth == 0 {
+            return;
         }
+
+        match method {
+            "append" => self.warn_append_in_loop(func, line),
+            "remove" if self.current_loop_depth > 1 => self.warn_remove_in_nested_loop(func, line),
+            "index" | "count" => self.warn_linear_search_in_loop(method, func, line),
+            _ => {}
+        }
+    }
+
+    fn warn_append_in_loop(&mut self, func: &HirFunction, line: usize) {
+        self.add_warning(PerformanceWarning {
+            category: WarningCategory::CollectionUsage,
+            severity: WarningSeverity::Low,
+            message: "Multiple append calls in loop".to_string(),
+            explanation: "Multiple append operations can be less efficient than extend".to_string(),
+            suggestion: "Consider collecting items and using extend() once".to_string(),
+            impact: PerformanceImpact {
+                complexity: "O(1) amortized, but more calls".to_string(),
+                scales_with_input: true,
+                in_hot_path: true,
+            },
+            location: Some(Location {
+                function: func.name.clone(),
+                line,
+                in_loop: true,
+                loop_depth: self.current_loop_depth,
+            }),
+        });
+    }
+
+    fn warn_remove_in_nested_loop(&mut self, func: &HirFunction, line: usize) {
+        self.add_warning(PerformanceWarning {
+            category: WarningCategory::AlgorithmComplexity,
+            severity: WarningSeverity::Critical,
+            message: "List remove() in nested loop".to_string(),
+            explanation: "remove() is O(n) and in nested loops becomes O(n²) or worse".to_string(),
+            suggestion: "Use a set for O(1) removal or filter to create a new list".to_string(),
+            impact: PerformanceImpact {
+                complexity: format!("O(n^{})", self.current_loop_depth + 1),
+                scales_with_input: true,
+                in_hot_path: true,
+            },
+            location: Some(Location {
+                function: func.name.clone(),
+                line,
+                in_loop: true,
+                loop_depth: self.current_loop_depth,
+            }),
+        });
+    }
+
+    fn warn_linear_search_in_loop(&mut self, method: &str, func: &HirFunction, line: usize) {
+        self.add_warning(PerformanceWarning {
+            category: WarningCategory::AlgorithmComplexity,
+            severity: WarningSeverity::Medium,
+            message: format!("Linear search method '{}' in loop", method),
+            explanation: "Linear search in loops can lead to quadratic complexity".to_string(),
+            suggestion: "Consider using a HashMap/HashSet for O(1) lookups".to_string(),
+            impact: PerformanceImpact {
+                complexity: "O(n²)".to_string(),
+                scales_with_input: true,
+                in_hot_path: true,
+            },
+            location: Some(Location {
+                function: func.name.clone(),
+                line,
+                in_loop: true,
+                loop_depth: self.current_loop_depth,
+            }),
+        });
     }
 
     // Helper methods
@@ -597,92 +604,86 @@ impl PerformanceAnalyzer {
 
     /// Format warnings for display
     pub fn format_warnings(&self, warnings: &[PerformanceWarning]) -> String {
-        let mut output = String::new();
-
         if warnings.is_empty() {
-            output.push_str(&"✅ No performance warnings found!\n".green().to_string());
-            return output;
+            return "✅ No performance warnings found!\n".green().to_string();
         }
 
+        let mut output = String::new();
+        self.append_header(&mut output);
+        self.append_warning_details(&mut output, warnings);
+        self.append_summary(&mut output, warnings);
+        output
+    }
+
+    fn append_header(&self, output: &mut String) {
         output.push_str(&format!("\n{}\n", "Performance Warnings".bold().yellow()));
         output.push_str(&format!("{}\n\n", "═".repeat(50)));
+    }
 
+    fn append_warning_details(&self, output: &mut String, warnings: &[PerformanceWarning]) {
         for (idx, warning) in warnings.iter().enumerate() {
-            let severity_color = match warning.severity {
-                WarningSeverity::Critical => "red",
-                WarningSeverity::High => "bright red",
-                WarningSeverity::Medium => "yellow",
-                WarningSeverity::Low => "bright yellow",
-            };
-
-            // Header
-            output.push_str(&format!(
-                "{} {} {}\n",
-                format!("[{}]", idx + 1).dimmed(),
-                format!("[{:?}]", warning.severity)
-                    .color(severity_color)
-                    .bold(),
-                warning.message.bold()
-            ));
-
-            // Location
-            if let Some(loc) = &warning.location {
-                let loop_info = if loc.in_loop {
-                    format!(" (in loop, depth: {})", loc.loop_depth)
-                        .red()
-                        .to_string()
-                } else {
-                    String::new()
-                };
-
-                output.push_str(&format!(
-                    "   {} {}, line {}{}\n",
-                    "Location:".dimmed(),
-                    loc.function,
-                    loc.line,
-                    loop_info
-                ));
-            }
-
-            // Impact
-            output.push_str(&format!(
-                "   {} Complexity: {}, Scales: {}, Hot path: {}\n",
-                "Impact:".dimmed(),
-                warning.impact.complexity.yellow(),
-                if warning.impact.scales_with_input {
-                    "Yes".red()
-                } else {
-                    "No".green()
-                },
-                if warning.impact.in_hot_path {
-                    "Yes".red()
-                } else {
-                    "No".green()
-                }
-            ));
-
-            // Explanation
-            output.push_str(&format!("   {} {}\n", "Why:".dimmed(), warning.explanation));
-
-            // Suggestion
-            output.push_str(&format!(
-                "   {} {}\n",
-                "Fix:".green(),
-                warning.suggestion.green()
-            ));
-
-            output.push('\n');
+            self.append_single_warning(output, idx, warning);
         }
+    }
 
-        // Summary
-        let critical = warnings
-            .iter()
-            .filter(|w| w.severity == WarningSeverity::Critical)
-            .count();
-        let high = warnings
-            .iter()
-            .filter(|w| w.severity == WarningSeverity::High)
-            .count();
+    fn append_single_warning(&self, output: &mut String, idx: usize, warning: &PerformanceWarning) {
+        self.append_warning_header(output, idx, warning);
+        self.append_warning_location(output, warning);
+        self.append_warning_impact(output, warning);
+        self.append_warning_explanation(output, warning);
+        self.append_warning_suggestion(output, warning);
+        output.push('\n');
+    }
+
+    fn append_warning_header(&self, output: &mut String, idx: usize, warning: &PerformanceWarning) {
+        let severity_color = self.get_severity_color(warning.severity);
+        output.push_str(&format!(
+            "{} {} {}\n",
+            format!("[{}]", idx + 1).dimmed(),
+            format!("[{:?}]", warning.severity)
+                .color(severity_color)
+                .bold(),
+            warning.message.bold()
+        ));
+    }
+
+    fn append_warning_location(&self, output: &mut String, warning: &PerformanceWarning) {
+        if let Some(loc) = &warning.location {
+            let loop_info = self.format_loop_info(loc);
+            output.push_str(&format!(
+                "   {} {}, line {}{}\n",
+                "Location:".dimmed(),
+                loc.function,
+                loc.line,
+                loop_info
+            ));
+        }
+    }
+
+    fn append_warning_impact(&self, output: &mut String, warning: &PerformanceWarning) {
+        output.push_str(&format!(
+            "   {} Complexity: {}, Scales: {}, Hot path: {}\n",
+            "Impact:".dimmed(),
+            warning.impact.complexity.yellow(),
+            self.format_yes_no(warning.impact.scales_with_input),
+            self.format_yes_no(warning.impact.in_hot_path)
+        ));
+    }
+
+    fn append_warning_explanation(&self, output: &mut String, warning: &PerformanceWarning) {
+        output.push_str(&format!("   {} {}\n", "Why:".dimmed(), warning.explanation));
+    }
+
+    fn append_warning_suggestion(&self, output: &mut String, warning: &PerformanceWarning) {
+        output.push_str(&format!(
+            "   {} {}\n",
+            "Fix:".green(),
+            warning.suggestion.green()
+        ));
+    }
+
+    fn append_summary(&self, output: &mut String, warnings: &[PerformanceWarning]) {
+        let (critical, high) = self.count_severity_levels(warnings);
 
         output.push_str(&format!(
             "{} Found {} warnings ({} critical, {} high severity)\n",
@@ -693,14 +694,55 @@ impl PerformanceAnalyzer {
         ));
 
         if critical > 0 || high > 0 {
-            output.push_str(
-                &"⚠️  Address critical and high severity warnings for better performance\n"
-                    .red()
-                    .to_string(),
-            );
+            self.append_critical_warning_notice(output);
         }
+    }
 
-        output
+    fn get_severity_color(&self, severity: WarningSeverity) -> &'static str {
+        match severity {
+            WarningSeverity::Critical => "red",
+            WarningSeverity::High => "bright red",
+            WarningSeverity::Medium => "yellow",
+            WarningSeverity::Low => "bright yellow",
+        }
+    }
+
+    fn format_loop_info(&self, loc: &Location) -> String {
+        if loc.in_loop {
+            format!(" (in loop, depth: {})", loc.loop_depth)
+                .red()
+                .to_string()
+        } else {
+            String::new()
+        }
+    }
+
+    fn format_yes_no(&self, value: bool) -> colored::ColoredString {
+        if value {
+            "Yes".red()
+        } else {
+            "No".green()
+        }
+    }
+
+    fn count_severity_levels(&self, warnings: &[PerformanceWarning]) -> (usize, usize) {
+        let critical = warnings
+            .iter()
+            .filter(|w| w.severity == WarningSeverity::Critical)
+            .count();
+        let high = warnings
+            .iter()
+            .filter(|w| w.severity == WarningSeverity::High)
+            .count();
+        (critical, high)
+    }
+
+    fn append_critical_warning_notice(&self, output: &mut String) {
+        output.push_str(
+            &"⚠️  Address critical and high severity warnings for better performance\n"
+                .red()
+                .to_string(),
+        );
     }
 }
 
@@ -752,6 +794,7 @@ mod tests {
                     left: Box::new(HirExpr::Var("s".to_string())),
                     right: Box::new(HirExpr::Var("i".to_string())),
                 },
+                type_annotation: None,
             }],
         }];
 
@@ -812,6 +855,7 @@ mod tests {
                     func: "sorted".to_string(),
                     args: vec![HirExpr::Var("data".to_string())],
                 },
+                type_annotation: None,
             }],
         }];
 

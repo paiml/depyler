@@ -214,84 +214,105 @@ impl Profiler {
 
     fn analyze_stmt(&self, stmt: &HirStmt, loop_depth: usize) -> (usize, usize, f64) {
         match stmt {
-            HirStmt::Assign { value, .. } => {
-                let (inst, alloc) = self.analyze_expr(value);
-                (inst + 1, alloc, 1.0)
-            }
-            HirStmt::Expr(expr) => {
-                let (inst, alloc) = self.analyze_expr(expr);
-                (inst, alloc, 1.0)
-            }
-            HirStmt::Return(Some(expr)) => {
-                let (inst, alloc) = self.analyze_expr(expr);
-                (inst + 1, alloc, 1.0)
-            }
+            HirStmt::Assign { value, .. } => self.analyze_assign(value),
+            HirStmt::Expr(expr) => self.analyze_expr_stmt(expr),
+            HirStmt::Return(Some(expr)) => self.analyze_return_with_value(expr),
             HirStmt::Return(None) => (1, 0, 1.0),
             HirStmt::If {
                 condition,
                 then_body,
                 else_body,
-            } => {
-                let (cond_inst, cond_alloc) = self.analyze_expr(condition);
-                let mut total_inst = cond_inst + 1;
-                let mut total_alloc = cond_alloc;
-
-                for stmt in then_body {
-                    let (inst, alloc, _) = self.analyze_stmt(stmt, loop_depth);
-                    total_inst += inst;
-                    total_alloc += alloc;
-                }
-
-                if let Some(else_stmts) = else_body {
-                    for stmt in else_stmts {
-                        let (inst, alloc, _) = self.analyze_stmt(stmt, loop_depth);
-                        total_inst += inst / 2; // Assume 50% probability
-                        total_alloc += alloc / 2;
-                    }
-                }
-
-                (total_inst, total_alloc, 1.0)
-            }
-            HirStmt::While { condition, body } => {
-                let (cond_inst, cond_alloc) = self.analyze_expr(condition);
-                let mut body_inst = 0;
-                let mut body_alloc = 0;
-
-                for stmt in body {
-                    let (inst, alloc, _) = self.analyze_stmt(stmt, loop_depth + 1);
-                    body_inst += inst;
-                    body_alloc += alloc;
-                }
-
-                // Assume loops run 10 times on average
-                let loop_factor = 10.0_f64.powi(loop_depth as i32);
-                (
-                    cond_inst + (body_inst * 10),
-                    cond_alloc + (body_alloc * 10),
-                    loop_factor,
-                )
-            }
-            HirStmt::For { iter, body, .. } => {
-                let (iter_inst, iter_alloc) = self.analyze_expr(iter);
-                let mut body_inst = 0;
-                let mut body_alloc = 0;
-
-                for stmt in body {
-                    let (inst, alloc, _) = self.analyze_stmt(stmt, loop_depth + 1);
-                    body_inst += inst;
-                    body_alloc += alloc;
-                }
-
-                // Assume loops run 10 times on average
-                let loop_factor = 10.0_f64.powi(loop_depth as i32);
-                (
-                    iter_inst + (body_inst * 10),
-                    iter_alloc + (body_alloc * 10),
-                    loop_factor,
-                )
-            }
+            } => self.analyze_if(condition, then_body, else_body.as_deref(), loop_depth),
+            HirStmt::While { condition, body } => self.analyze_while(condition, body, loop_depth),
+            HirStmt::For { iter, body, .. } => self.analyze_for(iter, body, loop_depth),
             _ => (1, 0, 1.0),
         }
+    }
+
+    fn analyze_assign(&self, value: &HirExpr) -> (usize, usize, f64) {
+        let (inst, alloc) = self.analyze_expr(value);
+        (inst + 1, alloc, 1.0)
+    }
+
+    fn analyze_expr_stmt(&self, expr: &HirExpr) -> (usize, usize, f64) {
+        let (inst, alloc) = self.analyze_expr(expr);
+        (inst, alloc, 1.0)
+    }
+
+    fn analyze_return_with_value(&self, expr: &HirExpr) -> (usize, usize, f64) {
+        let (inst, alloc) = self.analyze_expr(expr);
+        (inst + 1, alloc, 1.0)
+    }
+
+    fn analyze_if(
+        &self,
+        condition: &HirExpr,
+        then_body: &[HirStmt],
+        else_body: Option<&[HirStmt]>,
+        loop_depth: usize,
+    ) -> (usize, usize, f64) {
+        let (cond_inst, cond_alloc) = self.analyze_expr(condition);
+        let mut total_inst = cond_inst + 1;
+        let mut total_alloc = cond_alloc;
+
+        for stmt in then_body {
+            let (inst, alloc, _) = self.analyze_stmt(stmt, loop_depth);
+            total_inst += inst;
+            total_alloc += alloc;
+        }
+
+        if let Some(else_stmts) = else_body {
+            for stmt in else_stmts {
+                let (inst, alloc, _) = self.analyze_stmt(stmt, loop_depth);
+                total_inst += inst / 2;
+                total_alloc += alloc / 2;
+            }
+        }
+
+        (total_inst, total_alloc, 1.0)
+    }
+
+    fn analyze_while(
+        &self,
+        condition: &HirExpr,
+        body: &[HirStmt],
+        loop_depth: usize,
+    ) -> (usize, usize, f64) {
+        let (cond_inst, cond_alloc) = self.analyze_expr(condition);
+        let (body_inst, body_alloc) = self.analyze_body(body, loop_depth + 1);
+        let loop_factor = 10.0_f64.powi(loop_depth as i32);
+        (
+            cond_inst + (body_inst * 10),
+            cond_alloc + (body_alloc * 10),
+            loop_factor,
+        )
+    }
+
+    fn analyze_for(
+        &self,
+        iter: &HirExpr,
+        body: &[HirStmt],
+        loop_depth: usize,
+    ) -> (usize, usize, f64) {
+        let (iter_inst, iter_alloc) = self.analyze_expr(iter);
+        let (body_inst, body_alloc) = self.analyze_body(body, loop_depth + 1);
+        let loop_factor = 10.0_f64.powi(loop_depth as i32);
+        (
+            iter_inst + (body_inst * 10),
+            iter_alloc + (body_alloc * 10),
+            loop_factor,
+        )
+    }
+
+    fn analyze_body(&self, body: &[HirStmt], loop_depth: usize) -> (usize, usize) {
+        let mut body_inst = 0;
+        let mut body_alloc = 0;
+        for stmt in body {
+            let (inst, alloc, _) = self.analyze_stmt(stmt, loop_depth);
+            body_inst += inst;
+            body_alloc += alloc;
+        }
+        (body_inst, body_alloc)
     }
 
     fn analyze_expr(&self, expr: &HirExpr) -> (usize, usize) {
@@ -463,11 +484,21 @@ impl ProfilingReport {
     /// Format the report for display
     pub fn format_report(&self) -> String {
         let mut output = String::new();
+        self.format_header(&mut output);
+        self.format_summary(&mut output);
+        self.format_hot_paths(&mut output);
+        self.format_function_metrics(&mut output);
+        self.format_predictions(&mut output);
+        self.format_overall_speedup(&mut output);
+        output
+    }
 
+    fn format_header(&self, output: &mut String) {
         output.push_str(&format!("\n{}\n", "Profiling Report".bold().blue()));
         output.push_str(&format!("{}\n\n", "═".repeat(50)));
+    }
 
-        // Summary
+    fn format_summary(&self, output: &mut String) {
         output.push_str(&format!("{}\n", "Summary".bold()));
         output.push_str(&format!(
             "  Total estimated instructions: {}\n",
@@ -481,22 +512,25 @@ impl ProfilingReport {
             "  Functions analyzed: {}\n\n",
             self.metrics.len().to_string().yellow()
         ));
+    }
 
-        // Hot functions
-        if !self.hot_paths.is_empty() {
-            output.push_str(&format!("{}\n", "Hot Paths".bold().red()));
-            for (idx, path) in self.hot_paths.iter().enumerate() {
-                output.push_str(&format!(
-                    "  [{}] {} ({:.1}% of execution time)\n",
-                    idx + 1,
-                    path.call_chain.join(" → "),
-                    path.time_percentage
-                ));
-            }
-            output.push('\n');
+    fn format_hot_paths(&self, output: &mut String) {
+        if self.hot_paths.is_empty() {
+            return;
         }
+        output.push_str(&format!("{}\n", "Hot Paths".bold().red()));
+        for (idx, path) in self.hot_paths.iter().enumerate() {
+            output.push_str(&format!(
+                "  [{}] {} ({:.1}% of execution time)\n",
+                idx + 1,
+                path.call_chain.join(" → "),
+                path.time_percentage
+            ));
+        }
+        output.push('\n');
+    }
 
-        // Function metrics
+    fn format_function_metrics(&self, output: &mut String) {
         output.push_str(&format!("{}\n", "Function Metrics".bold()));
         let mut sorted_metrics: Vec<_> = self.metrics.values().collect();
         sorted_metrics.sort_by(|a, b| b.time_percentage.partial_cmp(&a.time_percentage).unwrap());
@@ -513,24 +547,26 @@ impl ProfilingReport {
             ));
         }
         output.push('\n');
+    }
 
-        // Performance predictions
-        if !self.predictions.is_empty() {
-            output.push_str(&format!("{}\n", "Performance Predictions".bold().green()));
-            for pred in &self.predictions {
-                output.push_str(&format!(
-                    "  • {} ({}x speedup, {:.0}% confidence)\n",
-                    pred.explanation,
-                    format!("{:.1}", pred.speedup_factor).green(),
-                    pred.confidence * 100.0
-                ));
-            }
-            output.push('\n');
+    fn format_predictions(&self, output: &mut String) {
+        if self.predictions.is_empty() {
+            return;
         }
+        output.push_str(&format!("{}\n", "Performance Predictions".bold().green()));
+        for pred in &self.predictions {
+            output.push_str(&format!(
+                "  • {} ({}x speedup, {:.0}% confidence)\n",
+                pred.explanation,
+                format!("{:.1}", pred.speedup_factor).green(),
+                pred.confidence * 100.0
+            ));
+        }
+        output.push('\n');
+    }
 
-        // Overall prediction
+    fn format_overall_speedup(&self, output: &mut String) {
         let total_speedup: f64 = self.predictions.iter().map(|p| p.speedup_factor).product();
-
         if total_speedup > 1.0 {
             output.push_str(&format!(
                 "{} Estimated overall speedup: {}x\n",
@@ -538,8 +574,6 @@ impl ProfilingReport {
                 format!("{:.1}", total_speedup).bold().green()
             ));
         }
-
-        output
     }
 
     /// Generate flame graph data in collapsed format
@@ -559,32 +593,41 @@ impl ProfilingReport {
 
     /// Generate perf-compatible annotations
     pub fn generate_perf_annotations(&self) -> String {
-        let mut annotations = Vec::new();
+        let annotations: Vec<String> = self
+            .annotations
+            .iter()
+            .map(|annotation| self.format_annotation(annotation))
+            .collect();
+        annotations.join("\n")
+    }
 
-        for annotation in &self.annotations {
-            match annotation.kind {
-                AnnotationKind::TimingProbe => {
-                    annotations.push(format!("# @probe {}: timing probe", annotation.target));
-                }
-                AnnotationKind::AllocationCounter => {
-                    annotations.push(format!(
-                        "# @probe {}: allocation counter = {}",
-                        annotation.target, annotation.value
-                    ));
-                }
-                AnnotationKind::HotPathMarker => {
-                    annotations.push(format!("# @hot {}: hot path marker", annotation.target));
-                }
-                AnnotationKind::PerformanceHint => {
-                    annotations.push(format!(
-                        "# @hint {}: {}",
-                        annotation.target, annotation.value
-                    ));
-                }
+    fn format_annotation(&self, annotation: &ProfilingAnnotation) -> String {
+        match annotation.kind {
+            AnnotationKind::TimingProbe => self.format_timing_probe(&annotation.target),
+            AnnotationKind::AllocationCounter => {
+                self.format_allocation_counter(&annotation.target, &annotation.value)
+            }
+            AnnotationKind::HotPathMarker => self.format_hot_path_marker(&annotation.target),
+            AnnotationKind::PerformanceHint => {
+                self.format_performance_hint(&annotation.target, &annotation.value)
             }
         }
+    }
 
-        annotations.join("\n")
+    fn format_timing_probe(&self, target: &str) -> String {
+        format!("# @probe {}: timing probe", target)
+    }
+
+    fn format_allocation_counter(&self, target: &str, value: &str) -> String {
+        format!("# @probe {}: allocation counter = {}", target, value)
+    }
+
+    fn format_hot_path_marker(&self, target: &str) -> String {
+        format!("# @hot {}: hot path marker", target)
+    }
+
+    fn format_performance_hint(&self, target: &str, value: &str) -> String {
+        format!("# @hint {}: {}", target, value)
     }
 }
 
@@ -592,48 +635,50 @@ fn analyze_expr_inner(expr: &HirExpr) -> (usize, usize) {
     match expr {
         HirExpr::Literal(_) => (1, 0),
         HirExpr::Var(_) => (1, 0),
-        HirExpr::Binary { left, right, .. } => {
-            let (l_inst, l_alloc) = analyze_expr_inner(left);
-            let (r_inst, r_alloc) = analyze_expr_inner(right);
-            (l_inst + r_inst + 1, l_alloc + r_alloc)
-        }
-        HirExpr::Call { args, .. } => {
-            let mut total_inst = 10; // Base cost for function call
-            let mut total_alloc = 0;
-
-            for arg in args {
-                let (inst, alloc) = analyze_expr_inner(arg);
-                total_inst += inst;
-                total_alloc += alloc;
-            }
-
-            (total_inst, total_alloc)
-        }
-        HirExpr::List(items) => {
-            let mut total_inst = 1;
-            let total_alloc = 1; // List allocation
-
-            for item in items {
-                let (inst, _) = analyze_expr_inner(item);
-                total_inst += inst;
-            }
-
-            (total_inst, total_alloc)
-        }
-        HirExpr::Dict(pairs) => {
-            let mut total_inst = 1;
-            let total_alloc = 1; // Dict allocation
-
-            for (k, v) in pairs {
-                let (k_inst, _) = analyze_expr_inner(k);
-                let (v_inst, _) = analyze_expr_inner(v);
-                total_inst += k_inst + v_inst + 2; // Insert cost
-            }
-
-            (total_inst, total_alloc)
-        }
+        HirExpr::Binary { left, right, .. } => analyze_binary_expr(left, right),
+        HirExpr::Call { args, .. } => analyze_call_expr(args),
+        HirExpr::List(items) => analyze_list_expr(items),
+        HirExpr::Dict(pairs) => analyze_dict_expr(pairs),
         _ => (1, 0),
     }
+}
+
+fn analyze_binary_expr(left: &HirExpr, right: &HirExpr) -> (usize, usize) {
+    let (l_inst, l_alloc) = analyze_expr_inner(left);
+    let (r_inst, r_alloc) = analyze_expr_inner(right);
+    (l_inst + r_inst + 1, l_alloc + r_alloc)
+}
+
+fn analyze_call_expr(args: &[HirExpr]) -> (usize, usize) {
+    let mut total_inst = 10;
+    let mut total_alloc = 0;
+    for arg in args {
+        let (inst, alloc) = analyze_expr_inner(arg);
+        total_inst += inst;
+        total_alloc += alloc;
+    }
+    (total_inst, total_alloc)
+}
+
+fn analyze_list_expr(items: &[HirExpr]) -> (usize, usize) {
+    let mut total_inst = 1;
+    let total_alloc = 1;
+    for item in items {
+        let (inst, _) = analyze_expr_inner(item);
+        total_inst += inst;
+    }
+    (total_inst, total_alloc)
+}
+
+fn analyze_dict_expr(pairs: &[(HirExpr, HirExpr)]) -> (usize, usize) {
+    let mut total_inst = 1;
+    let total_alloc = 1;
+    for (k, v) in pairs {
+        let (k_inst, _) = analyze_expr_inner(k);
+        let (v_inst, _) = analyze_expr_inner(v);
+        total_inst += k_inst + v_inst + 2;
+    }
+    (total_inst, total_alloc)
 }
 
 #[cfg(test)]
@@ -672,6 +717,7 @@ mod tests {
                 HirStmt::Assign {
                     target: AssignTarget::Symbol("x".to_string()),
                     value: HirExpr::Literal(Literal::Int(42)),
+                    type_annotation: None,
                 },
                 HirStmt::Return(Some(HirExpr::Var("x".to_string()))),
             ],
