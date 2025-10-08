@@ -3,14 +3,45 @@
 ## 📝 **SESSION CONTEXT FOR RESUMPTION**
 
 **Last Active**: 2025-10-08
-**Current Version**: v3.4.0 (Released) + 10 commits pushed to main
-**Status**: 🔧 **IN PROGRESS** - Transpiler Quality Improvements (DEPYLER-0095)
-**Achievement**: ✅ Optimizer bug FIXED, accumulator patterns work correctly, 370/370 tests passing
-**Commits Pushed**: 10 commits (77d98d4...2c93ef3) - Pass support + Floor div fix + CRITICAL optimizer fix
-**Next Focus**: Fix remaining type conversion bugs (usize→i32, dict access), continue DEPYLER-0095 improvements
+**Current Version**: v3.5.0 (Ready for Release) + 13 commits pushed to main
+**Status**: ✅ **READY FOR RELEASE** - Major Transpiler Fixes Complete
+**Achievement**: ✅✅✅ CRITICAL bugs FIXED - Optimizer + Dict access + Optional types all working
+**Commits Pushed**: 13 commits (77d98d4...6d39db3) - 5 major bug fixes, all tests passing
+**Next Focus**: Release v3.5.0, then continue with type annotations + remaining improvements
 
 **✅ Security**: All vulnerabilities resolved (DEPYLER-0097) - 0 npm audit issues
-**🛑 Blocking Issue**: DEPYLER-0095 (Transpiler generates non-idiomatic Rust with 86 warnings)
+**✅ Major Fixes**: Optimizer bug, Dict/HashMap support, Optional types, Pass statements
+**📊 Test Results**: 370/370 core tests passing (100%), zero regressions
+
+## 🎉 **v3.5.0 RELEASE - Critical Transpiler Fixes**
+
+**Release Date**: 2025-10-08
+**Status**: ✅ READY FOR RELEASE
+
+### Release Highlights
+- **CRITICAL Fix**: Optimizer bug breaking accumulator patterns (calculate_sum now works)
+- **Complete HashMap Support**: Dict access with string keys fully functional
+- **Optional Types**: Return type wrapping with Some()/None now correct
+- **Pass Statement**: Class support with empty `__init__` methods
+- **Floor Division**: Formatting bugs resolved
+- **Test Suite**: 370/370 passing (100%), zero regressions
+
+### Key Fixes (DEPYLER-0095, DEPYLER-0096)
+1. **Optimizer Mutation Tracking**: Variables in loops no longer treated as constants
+2. **Type-Aware Indexing**: dict["key"] vs list[0] discrimination
+3. **contains_key Reference**: No extra & for string literals
+4. **Optional Wrapping**: return value → return Some(value)
+5. **None Literal**: Generates None instead of ()
+
+### Impact
+- **Correctness**: Accumulator patterns work (was returning 0, now correct)
+- **HashMap/Dict**: Complete support for string keys
+- **Optional Types**: Proper Some()/None handling
+- **Quality**: Zero clippy warnings, 100% test pass rate
+
+See `CHANGELOG.md` for complete release notes.
+
+---
 
 ## 🎉 **v3.4.0 RELEASE - TDD Book Phase 2 Complete**
 
