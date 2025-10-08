@@ -17,10 +17,10 @@ impl IndexError {
 }
 }
 #[doc = "Process configuration dictionary and return debug value if present."] #[doc = " Depyler: proven to terminate"] pub fn process_config<'a>(config: & 'a HashMap<String, String>)  -> Result<Option<String>, IndexError>{
-    let _cse_temp_0 = config.contains_key(& "debug");
+    let _cse_temp_0 = config.contains_key("debug");
     if _cse_temp_0 {
-    return Ok(config.get("debug" as usize).copied().unwrap_or_default());
+    return Ok(Some(config.get("debug").cloned().unwrap_or_default()));
    
 }
-return Ok(())
+return Ok(None)
 }
