@@ -8,6 +8,13 @@ All notable changes to this project will be documented in this file.
 - Type annotation preservation from Python to Rust (DEPYLER-0098 Phase 2)
 - Automatic type conversions in generated code (e.g., usize → i32)
 
+### Fixed
+- Dict access with string variable keys (DEPYLER-0095)
+  - Previously: `data[key]` generated `data.get(key as usize)` - incorrect cast
+  - Now: `data[key]` generates `data.get(key)` - correct HashMap access
+  - Added heuristic-based type inference for index expressions
+  - All examples with dict access now transpile correctly
+
 ### Changed
 - Massive complexity refactoring: 45 functions reduced to ≤10 complexity
   - optimization.rs: cognitive 16→8
