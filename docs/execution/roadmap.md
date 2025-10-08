@@ -3,11 +3,11 @@
 ## 📝 **SESSION CONTEXT FOR RESUMPTION**
 
 **Last Active**: 2025-10-08
-**Current Version**: v3.4.0 (Released) + 9 commits pushed to main
-**Status**: 🔧 **IN PROGRESS** - Transpiler Quality Improvements (DEPYLER-0095, DEPYLER-0096)
-**Achievement**: Pass statement support complete, floor division fix complete, critical scoping bug documented
-**Commits Pushed**: 9 commits (77d98d4...25cdee8) - Pass support + Floor div fix + Bug documentation
-**Next Focus**: Investigate and fix variable scoping bug, continue DEPYLER-0095 improvements
+**Current Version**: v3.4.0 (Released) + 10 commits pushed to main
+**Status**: 🔧 **IN PROGRESS** - Transpiler Quality Improvements (DEPYLER-0095)
+**Achievement**: ✅ Optimizer bug FIXED, accumulator patterns work correctly, 370/370 tests passing
+**Commits Pushed**: 10 commits (77d98d4...2c93ef3) - Pass support + Floor div fix + CRITICAL optimizer fix
+**Next Focus**: Fix remaining type conversion bugs (usize→i32, dict access), continue DEPYLER-0095 improvements
 
 **✅ Security**: All vulnerabilities resolved (DEPYLER-0097) - 0 npm audit issues
 **🛑 Blocking Issue**: DEPYLER-0095 (Transpiler generates non-idiomatic Rust with 86 warnings)
@@ -438,22 +438,27 @@ make validate-example FILE=examples/showcase/binary_search.rs
 **Dependencies**: DEPYLER-0027 ✅
 **Type**: Transpiler Bug (Upstream)
 
-**UPDATE (2025-10-08)**: **CONTINUED PROGRESS** ✅
+**UPDATE (2025-10-08)**: **MAJOR PROGRESS** ✅✅✅
 - ✅ **Fixed**: Excessive parentheses in binary operations (rust_gen.rs:1104, 1139, 1166, 1223)
 - ✅ **Fixed**: Control flow spacing (`if(` → `if `, `while(` → `while `)
 - ✅ **Fixed**: Floor division `!=` operator formatting bug (rust_gen.rs:1278)
   - Split complex boolean: `r != 0 && r_negative != b_negative`
   - Into: `let r_nonzero = r != 0; let signs_differ = r_negative != b_negative;`
   - Impact: Zero `! =` formatting bugs in all 76 transpiled examples
+- ✅ **FIXED**: **CRITICAL optimizer bug** (optimizer.rs) ⭐⭐⭐
+  - **Root Cause**: Constant propagation treated ALL variables with constant initial values as immutable
+  - **Impact**: Accumulator patterns broken (calculate_sum returned 0 instead of sum)
+  - **Fix**: Added mutation tracking with three-pass approach
+  - **Implementation**: collect_mutated_vars_function(), count_assignments_stmt()
+  - **Quality**: All new functions ≤10 complexity (cyclomatic 2-7, cognitive 1-6)
+  - **Tests**: 370/370 passing (100%), calculate_sum now CORRECT
+  - **Documentation**: TRANSPILER_BUG_variable_scoping.md fully documented
+  - **Commit**: 2c93ef3 [DEPYLER-0095] Fix CRITICAL optimizer bug
 - ✅ **Tests**: All transpiler tests passing (370/370)
 - ✅ **Re-transpiled**: 76/130 examples (58% success, 54 fail on unsupported features)
-- 🛑 **CRITICAL**: Variable scoping bug discovered (see TRANSPILER_BUG_variable_scoping.md)
-  - Variables declared before loops incorrectly moved inside loops
-  - Causes re-initialization on each iteration
-  - Returns wrong values (e.g., calculate_sum returns 0 instead of sum)
-  - Affects accumulator patterns
+- ⚠️ **Remaining**: Type conversion bugs (usize→i32 in binary_search, dict access string keys)
 - ⚠️ **Remaining**: Variable mutability over-conservative in some cases
-- 📊 **Result**: 76/130 transpile (58%), variable scoping bug blocks correctness
+- 📊 **Result**: 76/130 transpile (58%), major correctness bug FIXED, type conversion bugs remain
 
 **Discovery**: During validation, we found cargo clippy does NOT check examples/ directory. Direct rustc compilation revealed code generation issues.
 

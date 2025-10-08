@@ -105,21 +105,25 @@ impl Optimizer {
 
     fn count_assignments_stmt(&self, stmts: &[HirStmt], assignments: &mut HashMap<String, usize>) {
         for stmt in stmts {
-            match stmt {
-                HirStmt::Assign { target: AssignTarget::Symbol(name), .. } => {
-                    *assignments.entry(name.clone()).or_insert(0) += 1;
-                }
-                HirStmt::If { then_body, else_body, .. } => {
-                    self.count_assignments_stmt(then_body, assignments);
-                    if let Some(else_stmts) = else_body {
-                        self.count_assignments_stmt(else_stmts, assignments);
-                    }
-                }
-                HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
-                    self.count_assignments_stmt(body, assignments);
-                }
-                _ => {}
+            self.count_assignments_in_single_stmt(stmt, assignments);
+        }
+    }
+
+    fn count_assignments_in_single_stmt(&self, stmt: &HirStmt, assignments: &mut HashMap<String, usize>) {
+        match stmt {
+            HirStmt::Assign { target: AssignTarget::Symbol(name), .. } => {
+                *assignments.entry(name.clone()).or_insert(0) += 1;
             }
+            HirStmt::If { then_body, else_body, .. } => {
+                self.count_assignments_stmt(then_body, assignments);
+                if let Some(else_stmts) = else_body {
+                    self.count_assignments_stmt(else_stmts, assignments);
+                }
+            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                self.count_assignments_stmt(body, assignments);
+            }
+            _ => {}
         }
     }
 
