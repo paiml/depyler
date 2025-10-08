@@ -41,57 +41,89 @@ impl TypeExtractor {
         match expr {
             ast::Expr::Name(n) => Self::extract_simple_type(n.id.as_str()),
             ast::Expr::Subscript(s) => Self::extract_generic_type(s),
+            // Handle None constant (used in -> None return annotations)
+            ast::Expr::Constant(c) if matches!(c.value, ast::Constant::None) => {
+                Ok(Type::None)
+            }
             _ => bail!("Unsupported type annotation"),
         }
     }
 
     pub fn extract_simple_type(name: &str) -> Result<Type> {
-        Ok(match name {
+        // Try builtin types first (complexity 5)
+        if let Some(ty) = Self::try_extract_builtin_type(name) {
+            return Ok(ty);
+        }
+
+        // Check for type variables (single uppercase letter)
+        if name.len() == 1 && name.chars().next().is_some_and(|c| c.is_uppercase()) {
+            return Ok(Type::TypeVar(name.to_string()));
+        }
+
+        // Default to custom type
+        Ok(Type::Custom(name.to_string()))
+    }
+
+    fn try_extract_builtin_type(name: &str) -> Option<Type> {
+        // Try primitive types first (complexity 5)
+        if let Some(ty) = Self::try_extract_primitive_type(name) {
+            return Some(ty);
+        }
+
+        // Try collection types (complexity 4)
+        Self::try_extract_collection_type(name)
+    }
+
+    fn try_extract_primitive_type(name: &str) -> Option<Type> {
+        Some(match name {
             "int" => Type::Int,
             "float" => Type::Float,
             "str" => Type::String,
             "bool" => Type::Bool,
             "None" => Type::None,
-            // Handle plain 'list' as a generic list (List[Unknown])
+            _ => return None,
+        })
+    }
+
+    fn try_extract_collection_type(name: &str) -> Option<Type> {
+        Some(match name {
             "list" => Type::List(Box::new(Type::Unknown)),
-            // Handle plain 'dict' as a generic dict
             "dict" => Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)),
-            // Handle plain 'set' as a generic set
             "set" => Type::Set(Box::new(Type::Unknown)),
-            // Single uppercase letters are type variables
-            name if name.len() == 1 && name.chars().next().is_some_and(|c| c.is_uppercase()) => {
-                Type::TypeVar(name.to_string())
-            }
-            name => Type::Custom(name.to_string()),
+            _ => return None,
         })
     }
 
     fn extract_generic_type(s: &ast::ExprSubscript) -> Result<Type> {
         if let ast::Expr::Name(n) = s.value.as_ref() {
-            match n.id.as_str() {
-                "List" => Self::extract_list_type(s),
-                "Dict" => Self::extract_dict_type(s),
-                "Set" => Self::extract_set_type(s),
-                "Optional" => Self::extract_optional_type(s),
-                "Union" => Self::extract_union_type(s),
-                "Generic" => Self::extract_parameterized_generic(s),
-                "tuple" => Self::extract_tuple_type(s),
-                // Check if it's a generic class with type parameters
-                base_name => {
-                    // Extract type parameters for custom generics
-                    let params = Self::extract_type_params(s)?;
-                    if params.is_empty() {
-                        Ok(Type::Custom(base_name.to_string()))
-                    } else {
-                        Ok(Type::Generic {
-                            base: base_name.to_string(),
-                            params,
-                        })
-                    }
-                }
-            }
+            Self::extract_named_generic_type(n.id.as_str(), s)
         } else {
             bail!("Complex type annotations not yet supported")
+        }
+    }
+
+    fn extract_named_generic_type(name: &str, s: &ast::ExprSubscript) -> Result<Type> {
+        match name {
+            "List" => Self::extract_list_type(s),
+            "Dict" => Self::extract_dict_type(s),
+            "Set" => Self::extract_set_type(s),
+            "Optional" => Self::extract_optional_type(s),
+            "Union" => Self::extract_union_type(s),
+            "Generic" => Self::extract_parameterized_generic(s),
+            "tuple" => Self::extract_tuple_type(s),
+            base_name => Self::extract_custom_generic(base_name, s),
+        }
+    }
+
+    fn extract_custom_generic(base_name: &str, s: &ast::ExprSubscript) -> Result<Type> {
+        let params = Self::extract_type_params(s)?;
+        if params.is_empty() {
+            Ok(Type::Custom(base_name.to_string()))
+        } else {
+            Ok(Type::Generic {
+                base: base_name.to_string(),
+                params,
+            })
         }
     }
 
@@ -169,36 +201,33 @@ impl TypeExtractor {
     }
 
     fn extract_parameterized_generic(s: &ast::ExprSubscript) -> Result<Type> {
-        // For Generic[T] syntax in Python, we extract T as a type variable
         match s.slice.as_ref() {
-            ast::Expr::Name(n)
-                if n.id.as_str().len() == 1
-                    && n.id
-                        .as_str()
-                        .chars()
-                        .next()
-                        .is_some_and(|c| c.is_uppercase()) =>
-            {
-                Ok(Type::TypeVar(n.id.to_string()))
-            }
-            ast::Expr::Tuple(t) => {
-                // Multiple type vars in Generic[T, U, V]
-                if t.elts.len() == 1 {
-                    if let ast::Expr::Name(n) = &t.elts[0] {
-                        if n.id.as_str().len() == 1
-                            && n.id
-                                .as_str()
-                                .chars()
-                                .next()
-                                .is_some_and(|c| c.is_uppercase())
-                        {
-                            return Ok(Type::TypeVar(n.id.to_string()));
-                        }
-                    }
-                }
-                bail!("Complex Generic parameters not supported")
-            }
+            ast::Expr::Name(n) => Self::try_extract_type_var_name(n.id.as_str()),
+            ast::Expr::Tuple(t) => Self::try_extract_single_type_var_tuple(t),
             _ => bail!("Invalid Generic type annotation"),
         }
+    }
+
+    fn try_extract_type_var_name(name: &str) -> Result<Type> {
+        if Self::is_type_var_name(name) {
+            Ok(Type::TypeVar(name.to_string()))
+        } else {
+            bail!("Invalid Generic type annotation")
+        }
+    }
+
+    fn try_extract_single_type_var_tuple(t: &ast::ExprTuple) -> Result<Type> {
+        if t.elts.len() == 1 {
+            if let ast::Expr::Name(n) = &t.elts[0] {
+                if Self::is_type_var_name(n.id.as_str()) {
+                    return Ok(Type::TypeVar(n.id.to_string()));
+                }
+            }
+        }
+        bail!("Complex Generic parameters not supported")
+    }
+
+    fn is_type_var_name(name: &str) -> bool {
+        name.len() == 1 && name.chars().next().is_some_and(|c| c.is_uppercase())
     }
 }
