@@ -51,6 +51,7 @@ fn create_accumulator_function() -> HirFunction {
             HirStmt::Assign {
                 target: AssignTarget::Symbol("result".to_string()),
                 value: HirExpr::List(vec![]),
+                type_annotation: None,
             },
             // for num in numbers:
             HirStmt::For {

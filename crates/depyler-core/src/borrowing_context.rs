@@ -172,7 +172,7 @@ impl BorrowingContext {
     /// Analyze a statement for parameter usage
     fn analyze_statement(&mut self, stmt: &HirStmt) {
         match stmt {
-            HirStmt::Assign { target, value } => {
+            HirStmt::Assign { target, value, .. } => {
                 // Check if assigning to a parameter (mutation)
                 let in_loop = self.is_in_loop();
                 let in_conditional = self.is_in_conditional();

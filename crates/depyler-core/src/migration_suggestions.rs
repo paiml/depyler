@@ -252,7 +252,7 @@ fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
             } => {
                 self.analyze_if_statement(condition, then_body, else_body, func, line);
             }
-            HirStmt::Assign { target, value } => {
+            HirStmt::Assign { target, value, .. } => {
                 self.analyze_assignment(target, value, func, line);
             }
             _ => {}
@@ -486,31 +486,40 @@ for item in items {
     // Helper methods for pattern detection
 
     fn has_accumulator_pattern(&self, body: &[HirStmt]) -> bool {
-        // Look for pattern: empty list/vec creation followed by append in loop
-        let mut has_empty_list = false;
-        let mut has_append_in_loop = false;
-
-        for stmt in body {
-            match stmt {
-                HirStmt::Assign { value, .. } => {
-                    if matches!(value, HirExpr::List(v) if v.is_empty()) {
-                        has_empty_list = true;
-                    }
-                }
-                HirStmt::For { body, .. } => {
-                    for inner in body {
-                        if let HirStmt::Expr(HirExpr::MethodCall { method, .. }) = inner {
-                            if method == "append" {
-                                has_append_in_loop = true;
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-
+        let has_empty_list = self.has_empty_list_initialization(body);
+        let has_append_in_loop = self.has_append_in_for_loop(body);
         has_empty_list && has_append_in_loop
+    }
+
+    fn has_empty_list_initialization(&self, body: &[HirStmt]) -> bool {
+        body.iter().any(|stmt| {
+            matches!(
+                stmt,
+                HirStmt::Assign {
+                    value: HirExpr::List(v),
+                    ..
+                } if v.is_empty()
+            )
+        })
+    }
+
+    fn has_append_in_for_loop(&self, body: &[HirStmt]) -> bool {
+        body.iter().any(|stmt| {
+            if let HirStmt::For { body, .. } = stmt {
+                self.contains_append_call(body)
+            } else {
+                false
+            }
+        })
+    }
+
+    fn contains_append_call(&self, body: &[HirStmt]) -> bool {
+        body.iter().any(|stmt| {
+            matches!(
+                stmt,
+                HirStmt::Expr(HirExpr::MethodCall { method, .. }) if method == "append"
+            )
+        })
     }
 
     fn uses_none_as_error(&self, body: &[HirStmt], ret_type: &Type) -> bool {
@@ -530,39 +539,35 @@ for item in items {
     }
 
     fn has_mutable_parameter_pattern(&self, func: &HirFunction) -> bool {
-        // Check if function modifies its parameters (simplified)
-        for stmt in &func.body {
-            if let HirStmt::Expr(HirExpr::MethodCall { object, method, .. }) = stmt {
-                if let HirExpr::Var(var) = object.as_ref() {
-                    // Check if var is a parameter and method is mutating
-                    if func.params.iter().any(|p| &p.name == var) {
-                        let mutating_methods =
-                            ["append", "extend", "push", "insert", "remove", "clear"];
-                        if mutating_methods.contains(&method.as_str()) {
-                            return true;
-                        }
-                    }
-                }
+        func.body
+            .iter()
+            .any(|stmt| self.is_mutating_method_on_param(stmt, func))
+    }
+
+    fn is_mutating_method_on_param(&self, stmt: &HirStmt, func: &HirFunction) -> bool {
+        if let HirStmt::Expr(HirExpr::MethodCall { object, method, .. }) = stmt {
+            if let HirExpr::Var(var) = object.as_ref() {
+                return self.is_param_mutated(var, method, func);
             }
         }
         false
     }
 
+    fn is_param_mutated(&self, var: &str, method: &str, func: &HirFunction) -> bool {
+        let is_parameter = func.params.iter().any(|p| &p.name == var);
+        let mutating_methods = ["append", "extend", "push", "insert", "remove", "clear"];
+        let is_mutating = mutating_methods.contains(&method);
+        is_parameter && is_mutating
+    }
+
     fn has_filter_map_pattern(&self, body: &[HirStmt]) -> bool {
-        // Check for if-condition with append inside
-        for stmt in body {
+        body.iter().any(|stmt| {
             if let HirStmt::If { then_body, .. } = stmt {
-                // Check if the then_body contains an append
-                for inner_stmt in then_body {
-                    if let HirStmt::Expr(HirExpr::MethodCall { method, .. }) = inner_stmt {
-                        if method == "append" {
-                            return true;
-                        }
-                    }
-                }
+                self.contains_append_call(then_body)
+            } else {
+                false
             }
-        }
-        false
+        })
     }
 
     fn is_type_check(&self, expr: &HirExpr) -> bool {
@@ -616,86 +621,124 @@ for item in items {
     /// assert!(output.contains("No migration suggestions"));
     /// ```
     pub fn format_suggestions(&self, suggestions: &[MigrationSuggestion]) -> String {
-        let mut output = String::new();
-
         if suggestions.is_empty() {
-            output.push_str(
-                &"✨ No migration suggestions found - code is already idiomatic!\n"
-                    .green()
-                    .to_string(),
-            );
-            return output;
+            return self.format_empty_suggestions();
         }
 
-        output.push_str(&format!("\n{}\n", "Migration Suggestions".bold().blue()));
-        output.push_str(&format!("{}\n\n", "═".repeat(50)));
+        let mut output = self.format_header();
 
         for (idx, suggestion) in suggestions.iter().enumerate() {
-            // Title with severity
-            let severity_color = match suggestion.severity {
-                Severity::Critical => "red",
-                Severity::Important => "yellow",
-                Severity::Warning => "bright yellow",
-                Severity::Info => "bright blue",
-            };
-
-            output.push_str(&format!(
-                "{} {} {}\n",
-                format!("[{}]", idx + 1).dimmed(),
-                format!("[{:?}]", suggestion.severity).color(severity_color),
-                suggestion.title.bold()
-            ));
-
-            // Category
-            output.push_str(&format!(
-                "   {} {:?}\n",
-                "Category:".dimmed(),
-                suggestion.category
-            ));
-
-            // Description
-            output.push_str(&format!(
-                "   {} {}\n",
-                "Why:".dimmed(),
-                suggestion.description
-            ));
-
-            // Location
-            if let Some(loc) = &suggestion.location {
-                output.push_str(&format!(
-                    "   {} {} line {}\n",
-                    "Location:".dimmed(),
-                    loc.function,
-                    loc.line
-                ));
-            }
-
-            // Python example
-            if self.config.verbosity > 0 {
-                output.push_str(&format!("\n   {}:\n", "Python pattern".yellow()));
-                for line in suggestion.python_example.lines() {
-                    output.push_str(&format!("   │ {}\n", line));
-                }
-
-                // Rust suggestion
-                output.push_str(&format!("\n   {}:\n", "Rust idiom".green()));
-                for line in suggestion.rust_suggestion.lines() {
-                    output.push_str(&format!("   │ {}\n", line));
-                }
-            }
-
-            // Notes
-            if !suggestion.notes.is_empty() && self.config.verbosity > 1 {
-                output.push_str(&format!("\n   {}:\n", "Notes".dimmed()));
-                for note in &suggestion.notes {
-                    output.push_str(&format!("   • {}\n", note.dimmed()));
-                }
-            }
-
-            output.push('\n');
+            output.push_str(&self.format_single_suggestion(suggestion, idx));
         }
 
-        // Summary
+        output.push_str(&self.format_summary(suggestions));
+        output
+    }
+
+    fn format_empty_suggestions(&self) -> String {
+        "✨ No migration suggestions found - code is already idiomatic!\n"
+            .green()
+            .to_string()
+    }
+
+    fn format_header(&self) -> String {
+        format!(
+            "\n{}\n{}\n\n",
+            "Migration Suggestions".bold().blue(),
+            "═".repeat(50)
+        )
+    }
+
+    fn format_single_suggestion(&self, suggestion: &MigrationSuggestion, idx: usize) -> String {
+        let mut output = String::new();
+
+        output.push_str(&self.format_suggestion_title(suggestion, idx));
+        output.push_str(&self.format_suggestion_metadata(suggestion));
+        output.push_str(&self.format_suggestion_examples(suggestion));
+        output.push_str(&self.format_suggestion_notes(suggestion));
+        output.push('\n');
+
+        output
+    }
+
+    fn format_suggestion_title(&self, suggestion: &MigrationSuggestion, idx: usize) -> String {
+        let severity_color = Self::get_severity_color(suggestion.severity);
+        format!(
+            "{} {} {}\n",
+            format!("[{}]", idx + 1).dimmed(),
+            format!("[{:?}]", suggestion.severity).color(severity_color),
+            suggestion.title.bold()
+        )
+    }
+
+    fn get_severity_color(severity: Severity) -> &'static str {
+        match severity {
+            Severity::Critical => "red",
+            Severity::Important => "yellow",
+            Severity::Warning => "bright yellow",
+            Severity::Info => "bright blue",
+        }
+    }
+
+    fn format_suggestion_metadata(&self, suggestion: &MigrationSuggestion) -> String {
+        let mut output = format!(
+            "   {} {:?}\n",
+            "Category:".dimmed(),
+            suggestion.category
+        );
+
+        output.push_str(&format!(
+            "   {} {}\n",
+            "Why:".dimmed(),
+            suggestion.description
+        ));
+
+        if let Some(loc) = &suggestion.location {
+            output.push_str(&format!(
+                "   {} {} line {}\n",
+                "Location:".dimmed(),
+                loc.function,
+                loc.line
+            ));
+        }
+
+        output
+    }
+
+    fn format_suggestion_examples(&self, suggestion: &MigrationSuggestion) -> String {
+        if self.config.verbosity == 0 {
+            return String::new();
+        }
+
+        let mut output = String::new();
+
+        output.push_str(&format!("\n   {}:\n", "Python pattern".yellow()));
+        for line in suggestion.python_example.lines() {
+            output.push_str(&format!("   │ {}\n", line));
+        }
+
+        output.push_str(&format!("\n   {}:\n", "Rust idiom".green()));
+        for line in suggestion.rust_suggestion.lines() {
+            output.push_str(&format!("   │ {}\n", line));
+        }
+
+        output
+    }
+
+    fn format_suggestion_notes(&self, suggestion: &MigrationSuggestion) -> String {
+        if suggestion.notes.is_empty() || self.config.verbosity <= 1 {
+            return String::new();
+        }
+
+        let mut output = format!("\n   {}:\n", "Notes".dimmed());
+        for note in &suggestion.notes {
+            output.push_str(&format!("   • {}\n", note.dimmed()));
+        }
+
+        output
+    }
+
+    fn format_summary(&self, suggestions: &[MigrationSuggestion]) -> String {
         let critical_count = suggestions
             .iter()
             .filter(|s| s.severity == Severity::Critical)
@@ -705,15 +748,13 @@ for item in items {
             .filter(|s| s.severity == Severity::Important)
             .count();
 
-        output.push_str(&format!(
+        format!(
             "{} {} suggestions ({} critical, {} important)\n",
             "Summary:".bold(),
             suggestions.len(),
             critical_count,
             important_count
-        ));
-
-        output
+        )
     }
 }
 
@@ -886,6 +927,7 @@ mod tests {
                 left: Box::new(HirExpr::Var("str1".to_string())),
                 right: Box::new(HirExpr::Var("str2".to_string())),
             },
+            type_annotation: None,
         }];
 
         let func = create_test_function("test_concat", body);
@@ -1094,6 +1136,7 @@ mod tests {
                 func: "list".to_string(),
                 args: vec![HirExpr::List(vec![])],
             },
+            type_annotation: None,
         }];
 
         let func = create_test_function("test_list", body);
@@ -1197,6 +1240,7 @@ mod tests {
             HirStmt::Assign {
                 target: AssignTarget::Symbol("result".to_string()),
                 value: HirExpr::List(vec![]),
+                type_annotation: None,
             },
             HirStmt::For {
                 target: "item".to_string(),

@@ -315,6 +315,7 @@ mod tests {
                             right: Box::new(HirExpr::Literal(Literal::Int(2))),
                         }),
                     },
+                    type_annotation: None,
                 },
                 HirStmt::Return(Some(HirExpr::Call {
                     func: "f".to_string(),

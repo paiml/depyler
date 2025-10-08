@@ -62,6 +62,7 @@ fn test_lifetime_inference_for_mutable_parameter() {
                 left: Box::new(HirExpr::Var("s".to_string())),
                 right: Box::new(HirExpr::Literal(Literal::String("!".to_string()))),
             },
+            type_annotation: None,
         }],
         properties: FunctionProperties::default(),
         annotations: TranspilationAnnotations::default(),

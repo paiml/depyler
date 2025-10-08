@@ -1113,7 +1113,7 @@ fn convert_assign_stmt(
 
 fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
     match stmt {
-        HirStmt::Assign { target, value } => convert_assign_stmt(target, value, type_mapper),
+        HirStmt::Assign { target, value, .. } => convert_assign_stmt(target, value, type_mapper),
         HirStmt::Return(expr) => {
             let ret_expr = if let Some(e) = expr {
                 convert_expr(e, type_mapper)?

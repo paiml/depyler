@@ -9,9 +9,26 @@ and this project adheres to
 ## [Unreleased]
 
 ### Added
-- [DEPYLER-0097] Type annotation test suite (TDD approach)
+- **[DEPYLER-0097]** Complete type annotation preservation system (2025-10-08)
+  - Phase 1: TDD test suite with 4 comprehensive tests
+  - Phase 2: Full implementation with HIR support, AST extraction, and code generation
+  - Added `type_annotation: Option<Type>` field to `HirStmt::Assign` in HIR
+  - Implemented automatic type conversions (e.g., `usize` → `i32` with `as` cast)
+  - Test Results: ✅ 4/4 type annotation tests passing, 370/370 core tests passing
+  - Impact: Python type hints now preserved and enforced in generated Rust code
 
 ### Fixed
+- **[DEPYLER-0097]** Type annotation preservation and conversion (2025-10-08)
+  - Fixed: Annotated assignments now generate explicit Rust type annotations
+  - Fixed: `right: int = len(arr) - 1` → `let right: i32 = (arr.len() - 1) as i32`
+  - Fixed: `x: int = 42` → `let x: i32 = 42 as i32`
+  - Fixed: Type conversions work correctly even after optimizer transformations (CSE, constant propagation)
+  - Implementation changes:
+    - Updated `HirStmt::Assign` with `type_annotation` field (hir.rs:275-280)
+    - Modified `convert_ann_assign()` to extract annotations (ast_bridge/converters.rs:60-76)
+    - Updated 50+ pattern matches and constructors across 25 files
+    - Added `needs_type_conversion()` and `apply_type_conversion()` helpers (rust_gen.rs:948-975)
+    - Code generator now emits `let x: i32 = (expr) as i32` for Int annotations
 - [DEPYLER-0097] Support None constant in type annotations (fixes `-> None` return type transpilation)
 - **[DEPYLER-0095]** Removed excessive parentheses from transpiled binary operations (2025-10-07)
   - Modified `rust_gen.rs` to generate idiomatic Rust without unnecessary parentheses

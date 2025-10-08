@@ -114,7 +114,7 @@ impl TypeInferencer {
 
     fn infer_stmt(&mut self, stmt: &HirStmt) -> Result<()> {
         match stmt {
-            HirStmt::Assign { target, value } => {
+            HirStmt::Assign { target, value, .. } => {
                 let value_type = self.infer_expr(value)?;
                 if let AssignTarget::Symbol(symbol) = target {
                     self.env.set_var_type(symbol.clone(), value_type);
@@ -1261,6 +1261,7 @@ mod tests {
             body: vec![HirStmt::Assign {
                 target: AssignTarget::Symbol("y".to_string()),
                 value: HirExpr::Literal(Literal::Int(42)),
+                type_annotation: None,
             }],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
@@ -1287,10 +1288,12 @@ mod tests {
             HirStmt::Assign {
                 target: AssignTarget::Symbol("x".to_string()),
                 value: HirExpr::Literal(Literal::Int(42)),
+                type_annotation: None,
             },
             HirStmt::Assign {
                 target: AssignTarget::Symbol("y".to_string()),
                 value: HirExpr::Var("x".to_string()),
+                type_annotation: None,
             },
         ];
 
@@ -1311,6 +1314,7 @@ mod tests {
         let stmt = HirStmt::Assign {
             target: AssignTarget::Symbol("z".to_string()),
             value: HirExpr::Literal(Literal::String("test".to_string())),
+            type_annotation: None,
         };
 
         inferencer.infer_stmt(&stmt).unwrap();

@@ -212,6 +212,7 @@ fn test_loop_usage_affects_borrowing() {
             HirStmt::Assign {
                 target: depyler_core::hir::AssignTarget::Symbol("count".to_string()),
                 value: HirExpr::Literal(Literal::Int(0)),
+                type_annotation: None,
             },
             HirStmt::While {
                 condition: HirExpr::Literal(Literal::Bool(true)),
@@ -230,6 +231,7 @@ fn test_loop_usage_affects_borrowing() {
                             left: Box::new(HirExpr::Var("count".to_string())),
                             right: Box::new(HirExpr::Literal(Literal::Int(1))),
                         },
+                        type_annotation: None,
                     }],
                     else_body: None,
                 }],

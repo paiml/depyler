@@ -945,11 +945,55 @@ fn extract_nested_indices_tokens(
     }
 }
 
+/// Check if a type annotation requires explicit conversion
+///
+/// For numeric types like Int, we always apply conversion to ensure correctness
+/// even after optimizations like CSE transform the expression.
+/// Complexity: 2 (simple match)
+fn needs_type_conversion(target_type: &Type) -> bool {
+    // For Int annotations, always apply conversion to handle cases where
+    // the value might be usize (from len(), range, etc.)
+    matches!(target_type, Type::Int)
+}
+
+/// Apply type conversion to value expression
+///
+/// Wraps the expression with appropriate conversion (e.g., `as i32`)
+/// Complexity: 2 (simple match)
+fn apply_type_conversion(
+    value_expr: syn::Expr,
+    target_type: &Type,
+) -> syn::Expr {
+    match target_type {
+        Type::Int => {
+            // Convert to i32 using 'as' cast
+            // This handles usize->i32 conversions and is a no-op if already i32
+            parse_quote! { (#value_expr) as i32 }
+        }
+        _ => value_expr,
+    }
+}
+
 impl RustCodeGen for HirStmt {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         match self {
-            HirStmt::Assign { target, value } => {
-                let value_expr = value.to_rust_expr(ctx)?;
+            HirStmt::Assign { target, value, type_annotation } => {
+                let mut value_expr = value.to_rust_expr(ctx)?;
+
+                // If there's a type annotation, handle type conversions
+                let type_annotation_tokens = if let Some(target_type) = type_annotation {
+                    let target_rust_type = ctx.type_mapper.map_type(target_type);
+                    let target_syn_type = rust_type_to_syn(&target_rust_type)?;
+
+                    // Check if we need type conversion (e.g., usize to i32)
+                    if needs_type_conversion(target_type) {
+                        value_expr = apply_type_conversion(value_expr, target_type);
+                    }
+
+                    Some(quote! { : #target_syn_type })
+                } else {
+                    None
+                };
 
                 match target {
                     AssignTarget::Symbol(symbol) => {
@@ -961,7 +1005,13 @@ impl RustCodeGen for HirStmt {
                             // First declaration - check if variable needs mut
                             ctx.declare_var(symbol);
                             if ctx.mutable_vars.contains(symbol) {
-                                Ok(quote! { let mut #target_ident = #value_expr; })
+                                if let Some(type_ann) = type_annotation_tokens {
+                                    Ok(quote! { let mut #target_ident #type_ann = #value_expr; })
+                                } else {
+                                    Ok(quote! { let mut #target_ident = #value_expr; })
+                                }
+                            } else if let Some(type_ann) = type_annotation_tokens {
+                                Ok(quote! { let #target_ident #type_ann = #value_expr; })
                             } else {
                                 Ok(quote! { let #target_ident = #value_expr; })
                             }

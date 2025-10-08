@@ -243,7 +243,7 @@ impl LifetimeInference {
     ) {
         match stmt {
             HirStmt::Expr(expr) => self.analyze_expr_for_param(param, expr, usage, in_loop, false),
-            HirStmt::Assign { target, value } => {
+            HirStmt::Assign { target, value, .. } => {
                 // Check if we're assigning to the parameter
                 if let AssignTarget::Symbol(symbol) = target {
                     if symbol == param {
@@ -770,6 +770,7 @@ mod tests {
                     left: Box::new(HirExpr::Var("s".to_string())),
                     right: Box::new(HirExpr::Literal(Literal::String("!".to_string()))),
                 },
+                type_annotation: None,
             }],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
