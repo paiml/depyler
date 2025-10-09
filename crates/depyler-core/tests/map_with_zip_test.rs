@@ -183,7 +183,6 @@ def conditional_combine(list1: list, list2: list) -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Requires nested iterator handling
 fn test_nested_map_with_zip() {
     let python = r#"
 def nested_combine(matrix1: list, matrix2: list) -> list:
