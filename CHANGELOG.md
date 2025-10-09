@@ -73,6 +73,16 @@ All notable changes to this project will be documented in this file.
   - Total: 30/30 decorator tests passing (staticmethod + classmethod + property)
   - **Impact**: Complete Python decorator support - DEPYLER-0112 ticket COMPLETE ✅
 
+- **Lambda Expressions in Collections** (DEPYLER-0113 - Core Support)
+  - Python lambda expressions now transpile to Rust closures
+  - `map(lambda x: x * 2, list)` → `.map(|x| x * 2)`
+  - `filter(lambda x: x > 0, list)` → `.filter(|x| x > 0)`
+  - Supports: simple lambdas, multi-parameter lambdas, closures capturing variables
+  - Supports: nested lambda expressions, complex expressions in lambda body
+  - Core functionality: 6/10 tests passing (60% immediate functionality)
+  - Future work: sorted() key parameter, lambda variables, zip+map, ternary expressions
+  - **Impact**: Core lambda/closure support enables functional programming patterns
+
 ## [3.6.0] - 2025-10-08
 
 ### Added
