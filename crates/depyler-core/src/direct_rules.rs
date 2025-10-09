@@ -521,6 +521,36 @@ fn convert_init_to_new(
     })
 }
 
+/// Check if a method mutates self (requires &mut self)
+/// Scans the method body for assignments to self attributes
+fn method_mutates_self(method: &HirMethod) -> bool {
+    for stmt in &method.body {
+        if stmt_mutates_self(stmt) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Check if a statement mutates self
+fn stmt_mutates_self(stmt: &HirStmt) -> bool {
+    match stmt {
+        HirStmt::Assign { target, .. } => {
+            // Check if target is self.field assignment
+            matches!(target, AssignTarget::Attribute { value, .. }
+                if matches!(value.as_ref(), HirExpr::Var(sym) if sym.as_str() == "self"))
+        }
+        HirStmt::If { then_body, else_body, .. } => {
+            then_body.iter().any(stmt_mutates_self) ||
+            else_body.as_ref().map_or(false, |body| body.iter().any(stmt_mutates_self))
+        }
+        HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+            body.iter().any(stmt_mutates_self)
+        }
+        _ => false,
+    }
+}
+
 fn convert_method_to_impl_item(
     method: &HirMethod,
     type_mapper: &TypeMapper,
@@ -541,8 +571,12 @@ fn convert_method_to_impl_item(
         // Properties typically use &self
         inputs.push(parse_quote! { &self });
     } else {
-        // Regular instance methods use &mut self by default (can be refined later)
-        inputs.push(parse_quote! { &mut self });
+        // Regular instance methods: use &mut self if method mutates self, otherwise &self
+        if method_mutates_self(method) {
+            inputs.push(parse_quote! { &mut self });
+        } else {
+            inputs.push(parse_quote! { &self });
+        }
     }
 
     // Add other parameters
