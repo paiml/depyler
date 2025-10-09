@@ -32,7 +32,7 @@ rustpython-parser = { version = "0.4", features = ["full-lexer"] }
 rustpython-ast = { version = "0.4" }
 
 # Internal dependencies
-depyler-core = { path = "../depyler-core", version = "3.9.0" }
+depyler-core = { path = "../depyler-core", version = "3.10.0" }
 
 # Logging and diagnostics
 tracing = "0.1"
