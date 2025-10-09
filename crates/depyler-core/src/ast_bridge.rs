@@ -546,28 +546,27 @@ impl AstBridge {
                     }
                 }
                 ast::Stmt::AnnAssign(ann_assign) => {
-                    // Handle annotated fields
+                    // Handle annotated fields (class attributes)
                     if let ast::Expr::Name(target) = ann_assign.target.as_ref() {
                         let field_name = target.id.to_string();
                         let field_type = TypeExtractor::extract_type(&ann_assign.annotation)?;
 
-                        let default_value = if let Some(_value) = &ann_assign.value {
-                            // Note: Default value expressions for class fields are not yet converted.
-                            // Field initializers must be set in __init__ method instead.
-                            // This is a known limitation.
-                            None
+                        // If there's a default value, it's a class attribute (constant/static)
+                        // If there's no value, it's an instance attribute declaration
+                        let (is_class_var, default_value) = if let Some(value) = &ann_assign.value {
+                            // Convert the default value expression
+                            let converted_value = ExprConverter::convert(value.as_ref().clone())?;
+                            (true, Some(converted_value))
                         } else {
-                            None
+                            // Instance attribute - no default value
+                            (false, None)
                         };
 
                         fields.push(HirField {
                             name: field_name,
                             field_type,
                             default_value,
-                            // Note: Class variables (as opposed to instance variables) are not
-                            // currently detected. All fields are treated as instance fields.
-                            // This is a known limitation.
-                            is_class_var: false,
+                            is_class_var,
                         });
                     }
                 }
@@ -577,10 +576,15 @@ impl AstBridge {
             }
         }
 
-        // Infer fields from __init__ if no explicit fields are defined
-        if fields.is_empty() && !is_dataclass {
+        // Infer instance fields from __init__ if no explicit instance fields are defined
+        // Check if we have any instance fields (non-class-var fields)
+        let has_instance_fields = fields.iter().any(|f| !f.is_class_var);
+
+        if !has_instance_fields && !is_dataclass {
             if let Some(init) = init_method {
-                fields = self.infer_fields_from_init(init)?;
+                // Infer instance fields and add them to the existing fields (which may contain class vars)
+                let inferred_fields = self.infer_fields_from_init(init)?;
+                fields.extend(inferred_fields);
             }
         }
 

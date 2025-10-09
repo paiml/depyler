@@ -256,9 +256,13 @@ pub fn convert_class_to_struct(
     let mut items = Vec::new();
     let struct_name = syn::Ident::new(&class.name, proc_macro2::Span::call_site());
 
-    // Generate struct fields
+    // Separate instance fields from class fields (constants/statics)
+    let (instance_fields, class_fields): (Vec<_>, Vec<_>) =
+        class.fields.iter().partition(|f| !f.is_class_var);
+
+    // Generate struct fields (only instance fields)
     let mut fields = Vec::new();
-    for field in &class.fields {
+    for field in instance_fields {
         let field_name = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
         let rust_type = type_mapper.map_type(&field.field_type);
         let field_type = rust_type_to_syn_type(&rust_type)?;
@@ -294,6 +298,21 @@ pub fn convert_class_to_struct(
 
     // Generate impl block with methods
     let mut impl_items = Vec::new();
+
+    // Add class constants first
+    for class_field in &class_fields {
+        if let Some(default_value) = &class_field.default_value {
+            let const_name = syn::Ident::new(&class_field.name, proc_macro2::Span::call_site());
+            let rust_type = type_mapper.map_type(&class_field.field_type);
+            let const_type = rust_type_to_syn_type(&rust_type)?;
+            let value_expr = convert_expr(default_value, type_mapper)?;
+
+            // Generate: pub const NAME: Type = value;
+            impl_items.push(parse_quote! {
+                pub const #const_name: #const_type = #value_expr;
+            });
+        }
+    }
 
     // Check if class has explicit __init__
     let has_init = class.methods.iter().any(|m| m.name == "__init__");
@@ -352,12 +371,12 @@ fn generate_dataclass_new(
     _struct_name: &syn::Ident,
     type_mapper: &TypeMapper,
 ) -> Result<syn::ImplItemFn> {
-    // Generate parameters from fields (skip fields with defaults)
+    // Generate parameters from fields (skip fields with defaults and class variables)
     let mut inputs = syn::punctuated::Punctuated::new();
     let fields_without_defaults: Vec<_> = class
         .fields
         .iter()
-        .filter(|f| f.default_value.is_none())
+        .filter(|f| !f.is_class_var && f.default_value.is_none())
         .collect();
 
     for field in &fields_without_defaults {
@@ -379,10 +398,11 @@ fn generate_dataclass_new(
         }));
     }
 
-    // Generate body that initializes struct fields
+    // Generate body that initializes struct fields (skip class variables)
     let field_inits = class
         .fields
         .iter()
+        .filter(|f| !f.is_class_var)  // Skip class constants
         .map(|field| {
             let field_ident = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
             if field.default_value.is_some() {
@@ -460,9 +480,15 @@ fn convert_init_to_new(
     }
 
     // Generate field initializers based on class fields and parameters
+    // Skip class variables (constants) - only initialize instance fields
     let mut field_inits = Vec::new();
 
     for field in &class.fields {
+        // Skip class variables (constants/statics)
+        if field.is_class_var {
+            continue;
+        }
+
         let field_ident = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
 
         // Check if this field matches a parameter name
@@ -542,7 +568,7 @@ fn stmt_mutates_self(stmt: &HirStmt) -> bool {
         }
         HirStmt::If { then_body, else_body, .. } => {
             then_body.iter().any(stmt_mutates_self) ||
-            else_body.as_ref().map_or(false, |body| body.iter().any(stmt_mutates_self))
+            else_body.as_ref().is_some_and(|body| body.iter().any(stmt_mutates_self))
         }
         HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
             body.iter().any(stmt_mutates_self)
