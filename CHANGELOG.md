@@ -143,6 +143,24 @@ All notable changes to this project will be documented in this file.
   - **Impact**: Complete Python exception handling - DEPYLER-0114 COMPLETE ✅
   - **Total**: 43/45 tests passing across all 3 phases (95% coverage)
 
+### Prepared for Future Implementation
+
+- **Generator Functions (yield)** (DEPYLER-0115 - Test Suite Ready)
+  - Comprehensive TDD test suite created with 15 tests
+  - Test coverage prepared for:
+    - Simple yield single/multiple values
+    - Generators with loops, ranges, conditionals
+    - Generators with parameters and local variables
+    - Generators yielding expressions and computations
+    - Generator usage in for loops and list conversion
+    - Generators with return (StopIteration)
+    - Complex generator logic
+  - All 15 tests marked as #[ignore] for future implementation
+  - **Implementation complexity**: Requires Iterator trait, state management, struct generation
+  - **Estimated effort**: 2-3 days (HIR + AST + codegen for state machines)
+  - **Impact**: Would unblock 6 examples (12% of failures)
+  - **Status**: Deferred - test suite ready, awaiting implementation resources
+
 ## [3.6.0] - 2025-10-08
 
 ### Added
