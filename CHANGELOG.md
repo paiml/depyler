@@ -20,6 +20,14 @@ All notable changes to this project will be documented in this file.
   - All 14/14 class TDD tests passing (including field mutation test)
   - **Impact**: Completes Phase 1 of class support (simple classes with __init__)
 
+- **Smart Self Parameter Inference** (DEPYLER-0111 Phase 2 - Instance Methods)
+  - Instance methods now correctly use `&self` vs `&mut self`
+  - Read-only methods (no field mutation): `def get_value(self)` → `fn get_value(&self)`
+  - Mutating methods (modify fields): `def increment(self)` → `fn increment(&mut self)`
+  - Automatically analyzes method body to detect self.field assignments
+  - All 12/12 instance method TDD tests passing
+  - **Impact**: Improves code quality and enables proper borrowing semantics
+
 ## [3.6.0] - 2025-10-08
 
 ### Added
