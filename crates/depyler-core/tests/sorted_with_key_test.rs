@@ -118,7 +118,6 @@ def simple_sort(nums: list) -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Requires attribute access on lambda parameter
 fn test_sorted_key_with_attribute() {
     let python = r#"
 def sort_by_name(people: list) -> list:
@@ -139,7 +138,6 @@ def sort_by_name(people: list) -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Requires reverse parameter support
 fn test_sorted_key_with_reverse() {
     let python = r#"
 def sort_descending(nums: list) -> list:
@@ -156,7 +154,7 @@ def sort_descending(nums: list) -> list:
     assert!(rust_code.contains("sort"), "Should have sort.\nGot:\n{}", rust_code);
 
     // Should have reverse logic
-    let has_reverse = rust_code.contains(".rev()") || rust_code.contains("Reverse");
+    let has_reverse = rust_code.contains(".rev()") || rust_code.contains("Reverse") || rust_code.contains(".reverse()");
     assert!(has_reverse, "Should handle reverse.\nGot:\n{}", rust_code);
 }
 

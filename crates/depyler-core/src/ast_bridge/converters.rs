@@ -316,38 +316,61 @@ impl ExprConverter {
         // Special handling for sorted() with key parameter
         if let ast::Expr::Name(n) = &*c.func {
             if n.id.as_str() == "sorted" && !c.keywords.is_empty() {
-                // Check for key parameter
+                // Extract key and reverse parameters
+                let mut key_lambda = None;
+                let mut reverse = false;
+
                 for keyword in &c.keywords {
                     if let Some(arg_name) = &keyword.arg {
-                        if arg_name.as_str() == "key" {
-                            // Extract the lambda from the key parameter
-                            if let ast::Expr::Lambda(lambda) = &keyword.value {
-                                // Convert the iterable (first positional arg)
-                                if c.args.is_empty() {
-                                    bail!("sorted() requires at least one argument");
+                        match arg_name.as_str() {
+                            "key" => {
+                                if let ast::Expr::Lambda(lambda) = &keyword.value {
+                                    key_lambda = Some(lambda.clone());
+                                } else {
+                                    bail!("sorted() key parameter must be a lambda");
                                 }
-                                let iterable = Box::new(Self::convert(c.args[0].clone())?);
-
-                                // Extract lambda parameters and body
-                                let key_params: Vec<String> = lambda
-                                    .args
-                                    .args
-                                    .iter()
-                                    .map(|arg| arg.def.arg.to_string())
-                                    .collect();
-
-                                let key_body = Box::new(Self::convert(*lambda.body.clone())?);
-
-                                return Ok(HirExpr::SortByKey {
-                                    iterable,
-                                    key_params,
-                                    key_body,
-                                });
-                            } else {
-                                bail!("sorted() key parameter must be a lambda");
                             }
+                            "reverse" => {
+                                // Extract boolean value from reverse parameter
+                                if let ast::Expr::Constant(c) = &keyword.value {
+                                    if let ast::Constant::Bool(b) = &c.value {
+                                        reverse = *b;
+                                    } else {
+                                        bail!("sorted() reverse parameter must be a boolean");
+                                    }
+                                } else {
+                                    bail!("sorted() reverse parameter must be a constant boolean");
+                                }
+                            }
+                            _ => {} // Ignore other parameters
                         }
                     }
+                }
+
+                // If we found a key lambda, create SortByKey
+                if let Some(lambda) = key_lambda {
+                    // Convert the iterable (first positional arg)
+                    if c.args.is_empty() {
+                        bail!("sorted() requires at least one argument");
+                    }
+                    let iterable = Box::new(Self::convert(c.args[0].clone())?);
+
+                    // Extract lambda parameters and body
+                    let key_params: Vec<String> = lambda
+                        .args
+                        .args
+                        .iter()
+                        .map(|arg| arg.def.arg.to_string())
+                        .collect();
+
+                    let key_body = Box::new(Self::convert(*lambda.body.clone())?);
+
+                    return Ok(HirExpr::SortByKey {
+                        iterable,
+                        key_params,
+                        key_body,
+                        reverse,
+                    });
                 }
             }
         }
