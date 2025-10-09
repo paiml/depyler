@@ -83,6 +83,21 @@ All notable changes to this project will be documented in this file.
   - Future work: sorted() key parameter, lambda variables, zip+map, ternary expressions
   - **Impact**: Core lambda/closure support enables functional programming patterns
 
+- **Try/Except Error Handling** (DEPYLER-0114 Phase 1 - Simple try/except)
+  - Python try/except blocks now transpile to Rust error handling patterns
+  - `try: ... except: ...` → closure-based Result<T, E> with match pattern
+  - Generated code uses Result<(), Box<dyn std::error::Error>> for error propagation
+  - Supports: simple try/except, exception binding, nested try/except, pass in except
+  - Supports: multiple statements in try/except blocks, return statements in both branches
+  - All 15/15 Phase 1 TDD tests passing
+  - Implementation:
+    - Added Try variant to HIR with ExceptHandler support
+    - Added AST converter for Python try/except statements
+    - Added codegen for all statement conversion paths (rust_gen.rs, codegen.rs, direct_rules.rs)
+    - Added analysis support (borrowing_context.rs, lifetime_analysis.rs)
+  - Future work: Phase 2 (multiple except clauses), Phase 3 (finally clause)
+  - **Impact**: Basic error handling support enables 7 blocked examples (14% of failures)
+
 ## [3.6.0] - 2025-10-08
 
 ### Added

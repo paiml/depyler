@@ -1316,6 +1316,36 @@ fn convert_stmt_with_context(stmt: &HirStmt, type_mapper: &TypeMapper, is_classm
 
             Ok(syn::Stmt::Expr(block_expr, None))
         }
+        HirStmt::Try {
+            body,
+            handlers,
+            orelse: _,
+            finalbody: _,
+        } => {
+            // Convert try body
+            let try_stmts = convert_block_with_context(body, type_mapper, is_classmethod)?;
+
+            // Convert except handlers (use first handler for simplicity)
+            if let Some(handler) = handlers.first() {
+                let handler_block = convert_block_with_context(&handler.body, type_mapper, is_classmethod)?;
+
+                let block_expr = parse_quote! {
+                    {
+                        let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                            #try_stmts
+                            Ok(())
+                        })();
+                        if let Err(_e) = _result {
+                            #handler_block
+                        }
+                    }
+                };
+                Ok(syn::Stmt::Expr(block_expr, None))
+            } else {
+                // No handlers - just execute try body
+                Ok(syn::Stmt::Expr(parse_quote! { #try_stmts }, None))
+            }
+        }
         HirStmt::Pass => {
             // Pass statement generates empty statement
             Ok(syn::Stmt::Expr(parse_quote! { {} }, None))
