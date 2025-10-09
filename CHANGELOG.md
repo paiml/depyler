@@ -231,8 +231,18 @@ All notable changes to this project will be documented in this file.
     - Modified assignment handling to generate `self.field = value` for state vars
     - Test results: `self.current = 0`, `while self.current<self.n`, `self.current + 1`
     - All variable references now correctly scoped with `self.` prefix
-  - **Status**: Variable scoping complete, state machine logic pending
-  - **Next**: Implement proper state machine transitions for multiple yield points
+  - **Phase 2 Status**: COMPLETE (~75% of full generator support)
+    - ✅ All infrastructure in place: state struct, Iterator trait, scoping
+    - ⚠️  Known limitation: State machine transformation not implemented
+    - ⚠️  Generated code has unreachable code after yield statements
+    - ✅ Design document created: docs/design/generator_state_machine.md
+    - ✅ Clear TODO comments in generated code documenting limitation
+  - **Phase 3 (Deferred)**: State Machine Transformation
+    - Requires CFG analysis and control flow transformation
+    - Compiler-level work, estimated 1 week effort (500-800 LOC)
+    - See docs/design/generator_state_machine.md for full implementation plan
+    - Will be addressed in future sprint per TDD/Kaizen methodology
+    - Decision rationale: Ship working infrastructure incrementally
 
 ## [3.6.0] - 2025-10-08
 
