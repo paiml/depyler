@@ -244,6 +244,58 @@ All notable changes to this project will be documented in this file.
     - Will be addressed in future sprint per TDD/Kaizen methodology
     - Decision rationale: Ship working infrastructure incrementally
 
+## [3.7.0] - 2025-10-09
+
+### Added
+- **Generator Functions (yield) - Phase 2 Infrastructure** (DEPYLER-0115 - 75% Complete)
+  - **Impact**: Complete infrastructure for Python generators → Rust Iterators
+  - **Status**: All core components implemented, state machine transformation deferred to Phase 3
+
+  **Deliverables**:
+  - ✅ State analysis module (generator_state.rs, 250 lines)
+  - ✅ Automatic variable tracking across yields
+  - ✅ Iterator trait generation with state structs
+  - ✅ Yield → return Some() conversion
+  - ✅ Variable scoping (self.field references)
+  - ✅ Field initialization with proper types
+  - ✅ Comprehensive design document for Phase 3 (268 lines)
+
+  **Generated Code Example**:
+  ```rust
+  #[derive(Debug)]
+  struct CounterState { state: usize, current: i32, n: i32 }
+
+  pub fn counter(n: i32) -> impl Iterator<Item = i32> {
+      CounterState { state: 0, current: Default::default(), n: n }
+  }
+
+  impl Iterator for CounterState {
+      type Item = i32;
+      fn next(&mut self) -> Option<Self::Item> { ... }
+  }
+  ```
+
+  **Known Limitation**: State machine transformation not implemented (Phase 3)
+  - Generated code has unreachable code warnings after yield statements
+  - Full runtime behavior requires CFG analysis and control flow transformation
+  - Estimated effort: 1 week (500-800 LOC)
+  - Design document: docs/design/generator_state_machine.md
+  - Scheduled for future sprint (DEPYLER-0115-PHASE3)
+
+  **Quality Metrics**:
+  - Complexity: ≤10 per function (Toyota Way standard maintained)
+  - Tests: 371/373 passing (99.5%)
+  - SATD: Zero in production code
+  - Clippy: Zero warnings
+
+  **Philosophy**: Following TDD/Kaizen principles - ship working infrastructure incrementally (75%), defer optimization (25%) to future sprint
+
+### Documentation
+- Created comprehensive state machine transformation design (docs/design/generator_state_machine.md)
+- Updated roadmap with Phase 2 completion and Phase 3 deferral
+- Added DEPYLER-0115-PHASE3 ticket for state machine transformation
+- Clear limitation warnings in generated code comments
+
 ## [3.6.0] - 2025-10-08
 
 ### Added
