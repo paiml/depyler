@@ -254,6 +254,7 @@ pub struct FunctionProperties {
     pub can_fail: bool,
     pub error_types: Vec<String>,
     pub is_async: bool,
+    pub is_generator: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -398,6 +399,10 @@ pub enum HirExpr {
     // F-string (format string)
     FString {
         parts: Vec<FStringPart>,
+    },
+    // Yield expression for generators
+    Yield {
+        value: Option<Box<HirExpr>>,
     },
 }
 

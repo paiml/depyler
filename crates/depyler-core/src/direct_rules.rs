@@ -402,7 +402,7 @@ fn generate_dataclass_new(
     let field_inits = class
         .fields
         .iter()
-        .filter(|f| !f.is_class_var)  // Skip class constants
+        .filter(|f| !f.is_class_var) // Skip class constants
         .map(|field| {
             let field_ident = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
             if field.default_value.is_some() {
@@ -566,9 +566,15 @@ fn stmt_mutates_self(stmt: &HirStmt) -> bool {
             matches!(target, AssignTarget::Attribute { value, .. }
                 if matches!(value.as_ref(), HirExpr::Var(sym) if sym.as_str() == "self"))
         }
-        HirStmt::If { then_body, else_body, .. } => {
-            then_body.iter().any(stmt_mutates_self) ||
-            else_body.as_ref().is_some_and(|body| body.iter().any(stmt_mutates_self))
+        HirStmt::If {
+            then_body,
+            else_body,
+            ..
+        } => {
+            then_body.iter().any(stmt_mutates_self)
+                || else_body
+                    .as_ref()
+                    .is_some_and(|body| body.iter().any(stmt_mutates_self))
         }
         HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
             body.iter().any(stmt_mutates_self)
@@ -1013,7 +1019,11 @@ fn convert_body(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Result<Vec<syn::
     convert_body_with_context(stmts, type_mapper, false)
 }
 
-fn convert_body_with_context(stmts: &[HirStmt], type_mapper: &TypeMapper, is_classmethod: bool) -> Result<Vec<syn::Stmt>> {
+fn convert_body_with_context(
+    stmts: &[HirStmt],
+    type_mapper: &TypeMapper,
+    is_classmethod: bool,
+) -> Result<Vec<syn::Stmt>> {
     stmts
         .iter()
         .map(|stmt| convert_stmt_with_context(stmt, type_mapper, is_classmethod))
@@ -1188,7 +1198,11 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
     convert_stmt_with_context(stmt, type_mapper, false)
 }
 
-fn convert_stmt_with_context(stmt: &HirStmt, type_mapper: &TypeMapper, is_classmethod: bool) -> Result<syn::Stmt> {
+fn convert_stmt_with_context(
+    stmt: &HirStmt,
+    type_mapper: &TypeMapper,
+    is_classmethod: bool,
+) -> Result<syn::Stmt> {
     match stmt {
         HirStmt::Assign { target, value, .. } => {
             // For assignments, we need to convert the value expression with classmethod context
@@ -1215,7 +1229,8 @@ fn convert_stmt_with_context(stmt: &HirStmt, type_mapper: &TypeMapper, is_classm
             let then_block = convert_block_with_context(then_body, type_mapper, is_classmethod)?;
 
             let if_expr = if let Some(else_stmts) = else_body {
-                let else_block = convert_block_with_context(else_stmts, type_mapper, is_classmethod)?;
+                let else_block =
+                    convert_block_with_context(else_stmts, type_mapper, is_classmethod)?;
                 parse_quote! {
                     if #cond #then_block else #else_block
                 }
@@ -1333,7 +1348,8 @@ fn convert_stmt_with_context(stmt: &HirStmt, type_mapper: &TypeMapper, is_classm
 
             // Convert except handlers (use first handler for simplicity)
             if let Some(handler) = handlers.first() {
-                let handler_block = convert_block_with_context(&handler.body, type_mapper, is_classmethod)?;
+                let handler_block =
+                    convert_block_with_context(&handler.body, type_mapper, is_classmethod)?;
 
                 let block_expr = if let Some(finally_stmts) = finally_block {
                     parse_quote! {
@@ -1389,7 +1405,11 @@ fn convert_block(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Result<syn::Blo
     convert_block_with_context(stmts, type_mapper, false)
 }
 
-fn convert_block_with_context(stmts: &[HirStmt], type_mapper: &TypeMapper, is_classmethod: bool) -> Result<syn::Block> {
+fn convert_block_with_context(
+    stmts: &[HirStmt],
+    type_mapper: &TypeMapper,
+    is_classmethod: bool,
+) -> Result<syn::Block> {
     let rust_stmts = convert_body_with_context(stmts, type_mapper, is_classmethod)?;
     Ok(syn::Block {
         brace_token: Default::default(),
@@ -1404,7 +1424,11 @@ fn convert_expr(expr: &HirExpr, type_mapper: &TypeMapper) -> Result<syn::Expr> {
 }
 
 /// Convert HIR expressions with classmethod context
-fn convert_expr_with_context(expr: &HirExpr, type_mapper: &TypeMapper, is_classmethod: bool) -> Result<syn::Expr> {
+fn convert_expr_with_context(
+    expr: &HirExpr,
+    type_mapper: &TypeMapper,
+    is_classmethod: bool,
+) -> Result<syn::Expr> {
     let converter = ExprConverter::with_classmethod(type_mapper, is_classmethod);
     converter.convert(expr)
 }
@@ -2613,6 +2637,7 @@ mod tests {
                 can_fail: false,
                 error_types: vec![],
                 is_async: false,
+                is_generator: false,
             },
             annotations: TranspilationAnnotations::default(),
             docstring: None,
