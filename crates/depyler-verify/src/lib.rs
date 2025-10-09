@@ -260,6 +260,7 @@ mod tests {
                 can_fail: false,
                 error_types: vec![],
                 is_async: false,
+                is_generator: false,
             },
             annotations: TranspilationAnnotations {
                 thread_safety: if thread_safe {

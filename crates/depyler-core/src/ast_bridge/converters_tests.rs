@@ -266,7 +266,6 @@ fn test_convert_compare() {
     }
 }
 #[allow(clippy::cognitive_complexity)]
-
 #[test]
 fn test_convert_list_comp() {
     let expr = parse_expr("[x * 2 for x in range(10)]");
@@ -517,7 +516,6 @@ fn test_convert_ann_assign() {
     }
 }
 #[allow(clippy::cognitive_complexity)]
-
 #[test]
 fn test_convert_set_comp() {
     let expr = parse_expr("{x * 2 for x in range(10)}");
@@ -541,11 +539,19 @@ fn test_convert_set_comp() {
 }
 
 #[test]
-fn test_error_on_unsupported_expr() {
-    // Try to convert a yield expression (not supported)
+fn test_yield_expression_supported() {
+    // Yield expressions are now supported (DEPYLER-0115 Phase 1)
     let expr = parse_expr("(yield 42)");
     let result = ExprConverter::convert(expr);
-    assert!(result.is_err());
+    assert!(result.is_ok());
+
+    // Verify it's a Yield expression
+    match result.unwrap() {
+        HirExpr::Yield { value } => {
+            assert!(value.is_some());
+        }
+        _ => panic!("Expected Yield expression"),
+    }
 }
 
 #[test]
@@ -578,7 +584,11 @@ fn test_is_none_converts_to_method_call() {
     let result = ExprConverter::convert(expr).unwrap();
 
     match result {
-        HirExpr::MethodCall { object, method, args } => {
+        HirExpr::MethodCall {
+            object,
+            method,
+            args,
+        } => {
             assert_eq!(method, "is_none");
             assert!(args.is_empty());
             // Object should be the variable 'x'
@@ -594,7 +604,11 @@ fn test_is_not_none_converts_to_is_some() {
     let result = ExprConverter::convert(expr).unwrap();
 
     match result {
-        HirExpr::MethodCall { object, method, args } => {
+        HirExpr::MethodCall {
+            object,
+            method,
+            args,
+        } => {
             assert_eq!(method, "is_some");
             assert!(args.is_empty());
             assert!(matches!(*object, HirExpr::Var(_)));
@@ -651,24 +665,21 @@ fn test_tuple_assignment_simple() {
     }
 }
 #[allow(clippy::cognitive_complexity)]
-
 #[test]
 fn test_tuple_assignment_three_vars() {
     let stmt = parse_stmt("x, y, z = 1, 2, 3");
     let result = StmtConverter::convert(stmt).unwrap();
 
     match result {
-        HirStmt::Assign { target, .. } => {
-            match target {
-                AssignTarget::Tuple(targets) => {
-                    assert_eq!(targets.len(), 3);
-                    assert!(matches!(targets[0], AssignTarget::Symbol(ref s) if s == "x"));
-                    assert!(matches!(targets[1], AssignTarget::Symbol(ref s) if s == "y"));
-                    assert!(matches!(targets[2], AssignTarget::Symbol(ref s) if s == "z"));
-                }
-                _ => panic!("Expected Tuple target"),
+        HirStmt::Assign { target, .. } => match target {
+            AssignTarget::Tuple(targets) => {
+                assert_eq!(targets.len(), 3);
+                assert!(matches!(targets[0], AssignTarget::Symbol(ref s) if s == "x"));
+                assert!(matches!(targets[1], AssignTarget::Symbol(ref s) if s == "y"));
+                assert!(matches!(targets[2], AssignTarget::Symbol(ref s) if s == "z"));
             }
-        }
+            _ => panic!("Expected Tuple target"),
+        },
         _ => panic!("Expected Assign statement"),
     }
 }

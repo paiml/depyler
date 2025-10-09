@@ -512,7 +512,8 @@ fn stmt_to_rust_tokens_with_scope(
 
             // Generate handler statements (just use first handler for simplicity)
             if let Some(handler) = handlers.first() {
-                let handler_stmts: Vec<_> = handler.body
+                let handler_stmts: Vec<_> = handler
+                    .body
                     .iter()
                     .map(|s| stmt_to_rust_tokens_with_scope(s, scope_tracker))
                     .collect::<Result<Vec<_>>>()?;
@@ -883,6 +884,14 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
         HirExpr::Await { value } => {
             let value_tokens = expr_to_rust_tokens(value)?;
             Ok(quote! { #value_tokens.await })
+        }
+        HirExpr::Yield { value } => {
+            if let Some(v) = value {
+                let value_tokens = expr_to_rust_tokens(v)?;
+                Ok(quote! { yield #value_tokens })
+            } else {
+                Ok(quote! { yield })
+            }
         }
         HirExpr::FString { .. } => {
             anyhow::bail!("FString not yet implemented in codegen")

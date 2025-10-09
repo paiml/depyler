@@ -899,8 +899,18 @@ impl RustCodeGen for HirFunction {
             });
         }
 
-        // Add async keyword if function is async
-        let func_tokens = if self.properties.is_async {
+        // Check if function is a generator (contains yield)
+        let func_tokens = if self.properties.is_generator {
+            // For now, generators are not fully supported - generate a placeholder
+            // TODO: Implement full Iterator trait generation with state machine
+            quote! {
+                #(#attrs)*
+                #[doc = " GENERATOR: Full Iterator implementation pending"]
+                pub fn #name #generic_params(#(#params),*) #return_type #where_clause {
+                    unimplemented!("Generator support not yet complete")
+                }
+            }
+        } else if self.properties.is_async {
             quote! {
                 #(#attrs)*
                 pub async fn #name #generic_params(#(#params),*) #return_type #where_clause {
@@ -962,10 +972,7 @@ fn needs_type_conversion(target_type: &Type) -> bool {
 ///
 /// Wraps the expression with appropriate conversion (e.g., `as i32`)
 /// Complexity: 2 (simple match)
-fn apply_type_conversion(
-    value_expr: syn::Expr,
-    target_type: &Type,
-) -> syn::Expr {
+fn apply_type_conversion(value_expr: syn::Expr, target_type: &Type) -> syn::Expr {
     match target_type {
         Type::Int => {
             // Convert to i32 using 'as' cast
@@ -979,7 +986,11 @@ fn apply_type_conversion(
 impl RustCodeGen for HirStmt {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         match self {
-            HirStmt::Assign { target, value, type_annotation } => {
+            HirStmt::Assign {
+                target,
+                value,
+                type_annotation,
+            } => {
                 let mut value_expr = value.to_rust_expr(ctx)?;
 
                 // If there's a type annotation, handle type conversions
@@ -1044,7 +1055,8 @@ impl RustCodeGen for HirStmt {
                     AssignTarget::Attribute { value, attr } => {
                         // Struct field assignment: obj.field = value
                         let base_expr = value.to_rust_expr(ctx)?;
-                        let attr_ident = syn::Ident::new(attr.as_str(), proc_macro2::Span::call_site());
+                        let attr_ident =
+                            syn::Ident::new(attr.as_str(), proc_macro2::Span::call_site());
                         Ok(quote! { #base_expr.#attr_ident = #value_expr; })
                     }
                     AssignTarget::Tuple(targets) => {
@@ -1099,10 +1111,8 @@ impl RustCodeGen for HirStmt {
                     let expr_tokens = e.to_rust_expr(ctx)?;
 
                     // Check if return type is Optional and wrap value in Some()
-                    let is_optional_return = matches!(
-                        ctx.current_return_type.as_ref(),
-                        Some(Type::Optional(_))
-                    );
+                    let is_optional_return =
+                        matches!(ctx.current_return_type.as_ref(), Some(Type::Optional(_)));
 
                     // Check if the expression is None literal
                     let is_none_literal = matches!(e, HirExpr::Literal(Literal::None));
@@ -1122,10 +1132,8 @@ impl RustCodeGen for HirStmt {
                     }
                 } else if ctx.current_function_can_fail {
                     // No expression - check if return type is Optional
-                    let is_optional_return = matches!(
-                        ctx.current_return_type.as_ref(),
-                        Some(Type::Optional(_))
-                    );
+                    let is_optional_return =
+                        matches!(ctx.current_return_type.as_ref(), Some(Type::Optional(_)));
                     if is_optional_return {
                         Ok(quote! { return Ok(None); })
                     } else {
@@ -1310,7 +1318,8 @@ impl RustCodeGen for HirStmt {
                         ctx.declare_var(var_name);
                     }
 
-                    let handler_stmts: Vec<_> = handler.body
+                    let handler_stmts: Vec<_> = handler
+                        .body
                         .iter()
                         .map(|s| s.to_rust_tokens(ctx))
                         .collect::<Result<Vec<_>>>()?;
@@ -2248,7 +2257,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-
     fn convert_slice(
         &mut self,
         base: &HirExpr,
@@ -2701,6 +2709,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { #value_expr.await })
     }
 
+    fn convert_yield(&mut self, value: &Option<Box<HirExpr>>) -> Result<syn::Expr> {
+        if let Some(v) = value {
+            let value_expr = v.to_rust_expr(self.ctx)?;
+            Ok(parse_quote! { yield #value_expr })
+        } else {
+            Ok(parse_quote! { yield })
+        }
+    }
+
     fn convert_fstring(&mut self, parts: &[FStringPart]) -> Result<syn::Expr> {
         // Handle empty f-strings
         if parts.is_empty() {
@@ -2804,7 +2821,8 @@ impl ToRustExpr for HirExpr {
                 condition,
             } => converter.convert_set_comp(element, target, iter, condition),
             HirExpr::Await { value } => converter.convert_await(value),
-            HirExpr::FString { parts } => converter.convert_fstring(parts)
+            HirExpr::Yield { value } => converter.convert_yield(value),
+            HirExpr::FString { parts } => converter.convert_fstring(parts),
         }
     }
 }

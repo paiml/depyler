@@ -13,6 +13,7 @@ impl FunctionAnalyzer {
             can_fail,
             error_types,
             is_async: false, // Set by AST bridge when needed
+            is_generator: Self::check_is_generator(body),
         }
     }
 
@@ -279,5 +280,132 @@ impl FunctionAnalyzer {
             };
             max_depth.max(stmt_depth)
         })
+    }
+
+    fn check_is_generator(body: &[HirStmt]) -> bool {
+        body.iter().any(Self::stmt_has_yield)
+    }
+
+    fn stmt_has_yield(stmt: &HirStmt) -> bool {
+        match stmt {
+            HirStmt::Expr(expr)
+            | HirStmt::Assign { value: expr, .. }
+            | HirStmt::Return(Some(expr)) => Self::expr_has_yield(expr),
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => Self::check_if_for_yield(condition, then_body, else_body),
+            HirStmt::While { condition, body }
+            | HirStmt::For {
+                iter: condition,
+                body,
+                ..
+            } => Self::check_loop_for_yield(condition, body),
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => Self::check_try_for_yield(body, handlers, orelse, finalbody),
+            _ => false,
+        }
+    }
+
+    fn check_if_for_yield(
+        condition: &HirExpr,
+        then_body: &[HirStmt],
+        else_body: &Option<Vec<HirStmt>>,
+    ) -> bool {
+        Self::expr_has_yield(condition)
+            || then_body.iter().any(Self::stmt_has_yield)
+            || else_body
+                .as_ref()
+                .is_some_and(|b| b.iter().any(Self::stmt_has_yield))
+    }
+
+    fn check_loop_for_yield(condition: &HirExpr, body: &[HirStmt]) -> bool {
+        Self::expr_has_yield(condition) || body.iter().any(Self::stmt_has_yield)
+    }
+
+    fn check_try_for_yield(
+        body: &[HirStmt],
+        handlers: &[crate::hir::ExceptHandler],
+        orelse: &Option<Vec<HirStmt>>,
+        finalbody: &Option<Vec<HirStmt>>,
+    ) -> bool {
+        body.iter().any(Self::stmt_has_yield)
+            || handlers
+                .iter()
+                .any(|h| h.body.iter().any(Self::stmt_has_yield))
+            || orelse
+                .as_ref()
+                .is_some_and(|b| b.iter().any(Self::stmt_has_yield))
+            || finalbody
+                .as_ref()
+                .is_some_and(|b| b.iter().any(Self::stmt_has_yield))
+    }
+
+    fn expr_has_yield(expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Yield { .. } => true,
+            HirExpr::Binary { left, right, .. }
+            | HirExpr::Index {
+                base: left,
+                index: right,
+            } => Self::check_two_exprs_for_yield(left, right),
+            HirExpr::Unary { operand, .. }
+            | HirExpr::Attribute { value: operand, .. }
+            | HirExpr::Await { value: operand }
+            | HirExpr::Borrow { expr: operand, .. }
+            | HirExpr::Lambda { body: operand, .. } => Self::expr_has_yield(operand),
+            HirExpr::Call { args, .. }
+            | HirExpr::List(args)
+            | HirExpr::Tuple(args)
+            | HirExpr::Set(args) => Self::check_exprs_for_yield(args),
+            HirExpr::MethodCall { object, args, .. } => Self::check_method_for_yield(object, args),
+            HirExpr::Dict(pairs) => Self::check_pairs_for_yield(pairs),
+            HirExpr::ListComp {
+                element,
+                iter,
+                condition,
+                ..
+            }
+            | HirExpr::SetComp {
+                element,
+                iter,
+                condition,
+                ..
+            } => Self::check_comp_for_yield(element, iter, condition),
+            _ => false,
+        }
+    }
+
+    fn check_method_for_yield(object: &HirExpr, args: &[HirExpr]) -> bool {
+        Self::expr_has_yield(object) || Self::check_exprs_for_yield(args)
+    }
+
+    fn check_two_exprs_for_yield(left: &HirExpr, right: &HirExpr) -> bool {
+        Self::expr_has_yield(left) || Self::expr_has_yield(right)
+    }
+
+    fn check_exprs_for_yield(exprs: &[HirExpr]) -> bool {
+        exprs.iter().any(Self::expr_has_yield)
+    }
+
+    fn check_pairs_for_yield(pairs: &[(HirExpr, HirExpr)]) -> bool {
+        pairs
+            .iter()
+            .any(|(k, v)| Self::expr_has_yield(k) || Self::expr_has_yield(v))
+    }
+
+    fn check_comp_for_yield(
+        element: &HirExpr,
+        iter: &HirExpr,
+        condition: &Option<Box<HirExpr>>,
+    ) -> bool {
+        Self::expr_has_yield(element)
+            || Self::expr_has_yield(iter)
+            || condition.as_ref().is_some_and(|c| Self::expr_has_yield(c))
     }
 }
