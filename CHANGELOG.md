@@ -167,6 +167,35 @@ All notable changes to this project will be documented in this file.
   - **Impact**: Foundation complete, deferred full Iterator codegen due to complexity
   - **Status**: Phase 1 complete - HIR ready, codegen placeholder
 
+- **Generator Functions (yield) - Phase 2** (DEPYLER-0115 - Stateful Generators IN PROGRESS)
+  - 🔄 TDD test suite created (20 tests for stateful generators)
+  - Test Coverage (20 tests):
+    - Counter state maintenance
+    - Multiple state variables (fibonacci, dual counters)
+    - State preservation across yields
+    - Conditional state updates
+    - Nested loop state tracking
+    - Accumulator patterns
+    - Iteration count tracking
+    - Early termination with state
+    - State-dependent yields (alternating, state machines)
+    - State initialization from parameters
+    - Collecting state across iterations
+    - State transitions
+    - Range-like generators
+    - Filtering with state
+    - Windowed iteration
+    - Pairwise iteration
+    - Complex multi-state patterns
+  - Implementation Plan:
+    - 🔄 Create comprehensive stateful generator test suite (20 tests) - COMPLETE
+    - ⏳ Generate Iterator trait implementation with state struct
+    - ⏳ Implement state machine for resumable execution
+    - ⏳ Implement Iterator::next() with state transitions
+    - ⏳ Handle yield point resumption
+  - **Status**: Test suite complete, implementation pending
+  - **Next**: Implement state struct generation and Iterator trait
+
 ## [3.6.0] - 2025-10-08
 
 ### Added
