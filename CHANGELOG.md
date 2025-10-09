@@ -201,17 +201,23 @@ All notable changes to this project will be documented in this file.
     - ✅ Implement state analysis module - COMPLETE
     - ✅ Export module from lib.rs - COMPLETE
     - ✅ Integrate state analysis with rust_gen.rs - COMPLETE
-    - ⏳ Generate Iterator trait implementation with state struct
+    - ✅ Generate Iterator trait implementation with state struct - COMPLETE
     - ⏳ Implement state machine for resumable execution
-    - ⏳ Implement Iterator::next() with state transitions
-    - ⏳ Handle yield point resumption
+    - ⏳ Handle yield statements in Iterator::next()
+    - ⏳ Support multiple yield points with state transitions
   - State Analysis Integration (COMPLETE):
     - rust_gen.rs now calls GeneratorStateInfo::analyze()
     - Generated code includes documentation of state requirements
     - Test confirms: "State variables: current", "Captured parameters: n", "1 yield point(s)"
     - Foundation ready for full Iterator codegen
-  - **Status**: State analysis integrated with codegen, Iterator impl pending
-  - **Next**: Generate state struct and Iterator trait implementation
+  - Iterator Generation (COMPLETE):
+    - State struct with fields for state variables and captured params
+    - Proper field initialization: `state: 0, current: Default::default(), n: n`
+    - Iterator trait implementation with Item type
+    - Iterator::next() method with state machine structure
+    - Generated code: `CounterState` struct, `impl Iterator for CounterState`
+  - **Status**: State struct and Iterator skeleton complete, yield handling pending
+  - **Next**: Convert yield statements to Option<T> returns in Iterator::next()
 
 ## [3.6.0] - 2025-10-08
 
