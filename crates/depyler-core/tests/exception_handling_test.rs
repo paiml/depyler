@@ -34,10 +34,13 @@ def safe_divide(a: int, b: int) -> float:
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Try-except result: {:?}", result);
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
-    // This will fail as try-except isn't implemented
-    assert!(result.is_err());
+    let rust_code = result.unwrap();
+
+    // Verify exception handling is present
+    assert!(rust_code.contains("safe_divide"), "Should have safe_divide function");
+    assert!(rust_code.contains("Result") || rust_code.contains("_result"), "Should have error handling");
 }
 
 #[test]
@@ -118,8 +121,11 @@ def with_cleanup():
 "#;
 
     let result = pipeline.transpile(python_code);
-    println!("Finally block result: {:?}", result);
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
 
-    // Try-finally isn't supported
-    assert!(result.is_err());
+    let rust_code = result.unwrap();
+
+    // Verify finally block cleanup is present
+    assert!(rust_code.contains("with_cleanup"), "Should have with_cleanup function");
+    assert!(rust_code.contains("Cleanup"), "Should have cleanup code");
 }
