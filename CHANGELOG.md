@@ -11,6 +11,10 @@ All notable changes to this project will be documented in this file.
 - **Cow import generation**: Fixed missing `use std::borrow::Cow;` import when Cow types are used
   - Root cause: Import was hardcoded to disabled despite needs_cow flag being set
   - Generated code now compiles without manual import additions
+- **Nested map with zip test enabled**: Removed #[ignore] from `test_nested_map_with_zip`
+  - Nested iterator handling (map within map with zip) was already implemented
+  - Pattern: `list(map(lambda row1, row2: list(map(lambda x, y: x + y, row1, row2)), matrix1, matrix2))`
+  - Generates correct nested zip+map pattern in Rust
 
 ---
 
