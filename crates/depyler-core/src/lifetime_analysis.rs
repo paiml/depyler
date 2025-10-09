@@ -499,6 +499,21 @@ impl LifetimeInference {
             HirExpr::FString { .. } => {
                 // FString support not yet implemented for lifetime analysis
             }
+            HirExpr::IfExpr { test, body, orelse } => {
+                // Analyze all branches of the ternary expression
+                self.analyze_expr_for_param(param, test, usage, in_loop, in_return);
+                self.analyze_expr_for_param(param, body, usage, in_loop, in_return);
+                self.analyze_expr_for_param(param, orelse, usage, in_loop, in_return);
+            }
+            HirExpr::SortByKey {
+                iterable,
+                key_body,
+                ..
+            } => {
+                // Analyze the iterable and key lambda body
+                self.analyze_expr_for_param(param, iterable, usage, in_loop, in_return);
+                self.analyze_expr_for_param(param, key_body, usage, in_loop, in_return);
+            }
         }
     }
 

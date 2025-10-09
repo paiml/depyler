@@ -1,5 +1,5 @@
 use crate::hir::*;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use quote::{quote, ToTokens};
 use std::collections::HashSet;
 use syn;
@@ -895,6 +895,33 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
         }
         HirExpr::FString { .. } => {
             anyhow::bail!("FString not yet implemented in codegen")
+        }
+        HirExpr::IfExpr { test, body, orelse } => {
+            let test_tokens = expr_to_rust_tokens(test)?;
+            let body_tokens = expr_to_rust_tokens(body)?;
+            let orelse_tokens = expr_to_rust_tokens(orelse)?;
+            Ok(quote! { if #test_tokens { #body_tokens } else { #orelse_tokens } })
+        }
+        HirExpr::SortByKey {
+            iterable,
+            key_params,
+            key_body,
+        } => {
+            let iter_tokens = expr_to_rust_tokens(iterable)?;
+            let body_tokens = expr_to_rust_tokens(key_body)?;
+
+            if key_params.len() != 1 {
+                bail!("sorted() key lambda must have exactly one parameter");
+            }
+
+            let param = syn::Ident::new(&key_params[0], proc_macro2::Span::call_site());
+            Ok(quote! {
+                {
+                    let mut __sorted_result = #iter_tokens.clone();
+                    __sorted_result.sort_by_key(|#param| #body_tokens);
+                    __sorted_result
+                }
+            })
         }
     }
 }

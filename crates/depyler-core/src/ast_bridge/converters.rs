@@ -273,6 +273,7 @@ impl ExprConverter {
             ast::Expr::Await(a) => Self::convert_await(a),
             ast::Expr::Yield(y) => Self::convert_yield(y),
             ast::Expr::JoinedStr(js) => Self::convert_fstring(js),
+            ast::Expr::IfExp(i) => Self::convert_ifexp(i),
             _ => bail!("Expression type not yet supported"),
         }
     }
@@ -311,13 +312,52 @@ impl ExprConverter {
     }
 
     fn convert_call(c: ast::ExprCall) -> Result<HirExpr> {
+        // Special handling for sorted() with key parameter
+        if let ast::Expr::Name(n) = &*c.func {
+            if n.id.as_str() == "sorted" && !c.keywords.is_empty() {
+                // Check for key parameter
+                for keyword in &c.keywords {
+                    if let Some(arg_name) = &keyword.arg {
+                        if arg_name.as_str() == "key" {
+                            // Extract the lambda from the key parameter
+                            if let ast::Expr::Lambda(lambda) = &keyword.value {
+                                // Convert the iterable (first positional arg)
+                                if c.args.is_empty() {
+                                    bail!("sorted() requires at least one argument");
+                                }
+                                let iterable = Box::new(Self::convert(c.args[0].clone())?);
+
+                                // Extract lambda parameters and body
+                                let key_params: Vec<String> = lambda
+                                    .args
+                                    .args
+                                    .iter()
+                                    .map(|arg| arg.def.arg.to_string())
+                                    .collect();
+
+                                let key_body = Box::new(Self::convert(*lambda.body.clone())?);
+
+                                return Ok(HirExpr::SortByKey {
+                                    iterable,
+                                    key_params,
+                                    key_body,
+                                });
+                            } else {
+                                bail!("sorted() key parameter must be a lambda");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let args = c
             .args
             .into_iter()
             .map(Self::convert)
             .collect::<Result<Vec<_>>>()?;
 
-        match c.func.as_ref() {
+        match &*c.func {
             ast::Expr::Name(n) => {
                 // Simple function call
                 let func = n.id.to_string();
@@ -588,5 +628,12 @@ impl ExprConverter {
         }
 
         Ok(HirExpr::FString { parts })
+    }
+
+    fn convert_ifexp(i: ast::ExprIfExp) -> Result<HirExpr> {
+        let test = Box::new(Self::convert(*i.test)?);
+        let body = Box::new(Self::convert(*i.body)?);
+        let orelse = Box::new(Self::convert(*i.orelse)?);
+        Ok(HirExpr::IfExpr { test, body, orelse })
     }
 }
