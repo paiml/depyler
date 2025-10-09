@@ -811,6 +811,9 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             let value_tokens = expr_to_rust_tokens(value)?;
             Ok(quote! { #value_tokens.await })
         }
+        HirExpr::FString { .. } => {
+            anyhow::bail!("FString not yet implemented in codegen")
+        }
     }
 }
 
