@@ -1290,11 +1290,8 @@ impl RustCodeGen for HirStmt {
                 body,
                 handlers,
                 orelse: _,
-                finalbody: _,
+                finalbody,
             } => {
-                // For Phase 1: Simple try/except with basic error handling
-                // Generate a match expression wrapping the try body
-
                 // Convert try body to statements
                 ctx.enter_scope();
                 let try_stmts: Vec<_> = body
@@ -1322,34 +1319,87 @@ impl RustCodeGen for HirStmt {
                     handler_tokens.push(quote! { #(#handler_stmts)* });
                 }
 
-                // For now, generate a simple block with try/except logic
-                // We'll use a closure that returns Result and match on it
-                if handlers.len() == 1 {
-                    let handler_code = &handler_tokens[0];
-                    Ok(quote! {
-                        {
-                            let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                                #(#try_stmts)*
-                                Ok(())
-                            })();
-                            if let Err(_e) = _result {
-                                #handler_code
-                            }
-                        }
-                    })
+                // Generate finally clause if present
+                let finally_stmts = if let Some(finally_body) = finalbody {
+                    let stmts: Vec<_> = finally_body
+                        .iter()
+                        .map(|s| s.to_rust_tokens(ctx))
+                        .collect::<Result<Vec<_>>>()?;
+                    Some(quote! { #(#stmts)* })
                 } else {
-                    // Multiple handlers - generate match with multiple arms
-                    Ok(quote! {
-                        {
-                            let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                    None
+                };
+
+                // Generate try/except/finally pattern
+                if handlers.is_empty() {
+                    // Try/finally without except
+                    if let Some(finally_code) = finally_stmts {
+                        Ok(quote! {
+                            {
                                 #(#try_stmts)*
-                                Ok(())
-                            })();
-                            if let Err(_e) = _result {
-                                #(#handler_tokens)*
+                                #finally_code
                             }
-                        }
-                    })
+                        })
+                    } else {
+                        // Just try block
+                        Ok(quote! { #(#try_stmts)* })
+                    }
+                } else if handlers.len() == 1 {
+                    let handler_code = &handler_tokens[0];
+                    if let Some(finally_code) = finally_stmts {
+                        Ok(quote! {
+                            {
+                                let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                                    #(#try_stmts)*
+                                    Ok(())
+                                })();
+                                if let Err(_e) = _result {
+                                    #handler_code
+                                }
+                                #finally_code
+                            }
+                        })
+                    } else {
+                        Ok(quote! {
+                            {
+                                let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                                    #(#try_stmts)*
+                                    Ok(())
+                                })();
+                                if let Err(_e) = _result {
+                                    #handler_code
+                                }
+                            }
+                        })
+                    }
+                } else {
+                    // Multiple handlers
+                    if let Some(finally_code) = finally_stmts {
+                        Ok(quote! {
+                            {
+                                let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                                    #(#try_stmts)*
+                                    Ok(())
+                                })();
+                                if let Err(_e) = _result {
+                                    #(#handler_tokens)*
+                                }
+                                #finally_code
+                            }
+                        })
+                    } else {
+                        Ok(quote! {
+                            {
+                                let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                                    #(#try_stmts)*
+                                    Ok(())
+                                })();
+                                if let Err(_e) = _result {
+                                    #(#handler_tokens)*
+                                }
+                            }
+                        })
+                    }
                 }
             }
             HirStmt::Pass => {
