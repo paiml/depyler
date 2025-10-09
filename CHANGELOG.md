@@ -37,6 +37,15 @@ All notable changes to this project will be documented in this file.
   - All 10/10 class attribute TDD tests passing
   - **Impact**: Complete Python class attribute support with proper Rust semantics
 
+- **Multiple Classes Support** (DEPYLER-0111 Phase 4 - COMPLETE)
+  - Multiple class definitions in the same module now fully supported
+  - Each class generates separate struct and impl blocks
+  - Classes can reference each other in methods and composition
+  - Supports: independent classes, composition, factory patterns, cross-references
+  - All 10/10 multiple class TDD tests passing
+  - Total: 46/46 class-related tests passing (Phase 1-4)
+  - **Impact**: Complete Python class/OOP support - DEPYLER-0111 ticket COMPLETE ✅
+
 ## [3.6.0] - 2025-10-08
 
 ### Added
