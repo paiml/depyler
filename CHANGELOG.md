@@ -12,6 +12,14 @@ All notable changes to this project will be documented in this file.
   - 10 comprehensive TDD tests, all passing
   - **Impact**: Unblocks 29/50 failed examples (58% of all failures)
 
+### Fixed
+- **Struct Field Mutation** (DEPYLER-0111 Phase 1 - Class Support Completion)
+  - Attribute assignment now works: `obj.field = value` → `obj.field = value;`
+  - Previously: `AssignTarget::Attribute` raised "not yet implemented" error
+  - Now: Full support for struct field mutation in both codegen.rs and rust_gen.rs
+  - All 14/14 class TDD tests passing (including field mutation test)
+  - **Impact**: Completes Phase 1 of class support (simple classes with __init__)
+
 ## [3.6.0] - 2025-10-08
 
 ### Added
