@@ -223,6 +223,7 @@ impl ExprConverter {
             ast::Expr::Set(s) => Self::convert_set(s),
             ast::Expr::Attribute(a) => Self::convert_attribute(a),
             ast::Expr::Await(a) => Self::convert_await(a),
+            ast::Expr::JoinedStr(js) => Self::convert_fstring(js),
             _ => bail!("Expression type not yet supported"),
         }
     }
@@ -502,5 +503,32 @@ impl ExprConverter {
     fn convert_await(a: ast::ExprAwait) -> Result<HirExpr> {
         let value = Box::new(Self::convert(*a.value)?);
         Ok(HirExpr::Await { value })
+    }
+
+    fn convert_fstring(js: ast::ExprJoinedStr) -> Result<HirExpr> {
+        let mut parts = Vec::new();
+
+        for value in js.values {
+            match value {
+                // Literal string parts
+                ast::Expr::Constant(c) => {
+                    if let ast::Constant::Str(s) = c.value {
+                        parts.push(FStringPart::Literal(s.to_string()));
+                    }
+                }
+                // Formatted values (expressions to interpolate)
+                ast::Expr::FormattedValue(fv) => {
+                    let expr = Self::convert(*fv.value)?;
+                    parts.push(FStringPart::Expr(Box::new(expr)));
+                }
+                _ => {
+                    // Other expression types in f-strings (rare)
+                    let expr = Self::convert(value)?;
+                    parts.push(FStringPart::Expr(Box::new(expr)));
+                }
+            }
+        }
+
+        Ok(HirExpr::FString { parts })
     }
 }

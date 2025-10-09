@@ -416,6 +416,9 @@ impl BorrowingContext {
 
                 self.context_stack.pop();
             }
+            HirExpr::FString { .. } => {
+                // FString support not yet implemented for borrowing analysis
+            }
             HirExpr::Lambda { params: _, body } => {
                 // Lambda functions capture variables by reference
                 // For now, treat lambda bodies like any other expression

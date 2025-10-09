@@ -2550,6 +2550,53 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let value_expr = value.to_rust_expr(self.ctx)?;
         Ok(parse_quote! { #value_expr.await })
     }
+
+    fn convert_fstring(&mut self, parts: &[FStringPart]) -> Result<syn::Expr> {
+        // Handle empty f-strings
+        if parts.is_empty() {
+            return Ok(parse_quote! { "".to_string() });
+        }
+
+        // Check if it's just a plain string (no expressions)
+        let has_expressions = parts.iter().any(|p| matches!(p, FStringPart::Expr(_)));
+
+        if !has_expressions {
+            // Just literal parts - concatenate them
+            let mut result = String::new();
+            for part in parts {
+                if let FStringPart::Literal(s) = part {
+                    result.push_str(s);
+                }
+            }
+            return Ok(parse_quote! { #result.to_string() });
+        }
+
+        // Build format string template and collect arguments
+        let mut template = String::new();
+        let mut args = Vec::new();
+
+        for part in parts {
+            match part {
+                FStringPart::Literal(s) => {
+                    template.push_str(s);
+                }
+                FStringPart::Expr(expr) => {
+                    template.push_str("{}");
+                    let arg_expr = expr.to_rust_expr(self.ctx)?;
+                    args.push(arg_expr);
+                }
+            }
+        }
+
+        // Generate format!() macro call
+        if args.is_empty() {
+            // No arguments (shouldn't happen but be safe)
+            Ok(parse_quote! { #template.to_string() })
+        } else {
+            // Build the format! call with template and arguments
+            Ok(parse_quote! { format!(#template, #(#args),*) })
+        }
+    }
 }
 
 impl ToRustExpr for HirExpr {
@@ -2607,6 +2654,7 @@ impl ToRustExpr for HirExpr {
                 condition,
             } => converter.convert_set_comp(element, target, iter, condition),
             HirExpr::Await { value } => converter.convert_await(value),
+            HirExpr::FString { parts } => converter.convert_fstring(parts)
         }
     }
 }
