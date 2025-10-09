@@ -382,6 +382,19 @@ pub enum HirExpr {
     Await {
         value: Box<HirExpr>,
     },
+    // F-string (format string)
+    FString {
+        parts: Vec<FStringPart>,
+    },
+}
+
+/// Part of an f-string - either literal text or an expression to interpolate
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum FStringPart {
+    /// Literal text in the f-string
+    Literal(String),
+    /// Expression to be formatted and inserted
+    Expr(Box<HirExpr>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

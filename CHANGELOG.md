@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **F-String Support** (DEPYLER-0110 Phase 1 - CRITICAL FEATURE)
+  - Simple variable interpolation: `f"Hello {name}"` → `format!("Hello {}", name)`
+  - Multiple variables: `f"{x} is {y}"` → `format!("{} is {}", x, y)`
+  - Empty and literal-only f-strings optimized
+  - 10 comprehensive TDD tests, all passing
+  - **Impact**: Unblocks 29/50 failed examples (58% of all failures)
+
 ## [3.6.0] - 2025-10-08
 
 ### Added
