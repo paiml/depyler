@@ -1,4 +1,5 @@
 use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
+use crate::generator_state::GeneratorStateInfo;
 use crate::hir::*;
 use crate::lifetime_analysis::LifetimeInference;
 use crate::string_optimization::{StringContext, StringOptimizer};
@@ -901,13 +902,36 @@ impl RustCodeGen for HirFunction {
 
         // Check if function is a generator (contains yield)
         let func_tokens = if self.properties.is_generator {
-            // For now, generators are not fully supported - generate a placeholder
-            // TODO: Implement full Iterator trait generation with state machine
+            // Analyze generator state requirements
+            let state_info = GeneratorStateInfo::analyze(self);
+
+            // Document state analysis results
+            let state_var_names: Vec<String> = state_info.state_variables.iter()
+                .map(|v| v.name.clone())
+                .collect();
+            let captured_param_names = state_info.captured_params.join(", ");
+            let state_doc = if state_var_names.is_empty() {
+                "No local state variables".to_string()
+            } else {
+                format!("State variables: {}", state_var_names.join(", "))
+            };
+            let param_doc = if captured_param_names.is_empty() {
+                "No captured parameters".to_string()
+            } else {
+                format!("Captured parameters: {}", captured_param_names)
+            };
+            let yield_doc = format!("{} yield point(s)", state_info.yield_count);
+
+            // Generate enhanced documentation showing state analysis
             quote! {
                 #(#attrs)*
-                #[doc = " GENERATOR: Full Iterator implementation pending"]
+                #[doc = " GENERATOR: State analysis complete"]
+                #[doc = #state_doc]
+                #[doc = #param_doc]
+                #[doc = #yield_doc]
+                #[doc = " Full Iterator implementation pending (Phase 2 in progress)"]
                 pub fn #name #generic_params(#(#params),*) #return_type #where_clause {
-                    unimplemented!("Generator support not yet complete")
+                    unimplemented!("Generator state machine codegen in progress")
                 }
             }
         } else if self.properties.is_async {
