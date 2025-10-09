@@ -1070,14 +1070,19 @@ impl RustCodeGen for HirFunction {
                     type Item = #item_type;
 
                     fn next(&mut self) -> Option<Self::Item> {
-                        // Simplified: Single yield point implementation
-                        // Full state machine with multiple yields pending
+                        // NOTE: State machine transformation not yet implemented
+                        // Current limitation: yield statements become immediate returns,
+                        // causing loops to exit early. Proper implementation requires
+                        // transforming control flow into resumable state machine.
+                        //
+                        // See DEPYLER-0115 Phase 3 for full state machine transformation
                         match self.state {
                             0 => {
                                 self.state = 1;
-                                // Execute generator body with yield → return Some() conversion
+                                // KNOWN ISSUE: Direct body execution causes unreachable code
+                                // after yield/return statements. Needs state splitting.
                                 #(#generator_body_stmts)*
-                                None // Placeholder: actual yield value extraction pending
+                                None
                             }
                             _ => None
                         }
