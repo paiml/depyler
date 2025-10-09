@@ -23,29 +23,29 @@ impl Stack {
     Self {
    
 }
-} pub fn push(& mut self, item: i32) {
+} pub fn push(& self, item: i32) {
     self._items.push(item);
    
 }
-pub fn pop(& mut self)  -> Option<i32>{
+pub fn pop(& self)  -> Option<i32>{
     if self.is_empty() {
     return()
 };
     return self._items.pop().unwrap_or_default();
    
 }
-pub fn peek(& mut self)  -> Option<i32>{
+pub fn peek(& self)  -> Option<i32>{
     if self.is_empty() {
     return()
 };
     return self._items [- 1 as usize];
    
 }
-pub fn is_empty(& mut self)  -> bool {
+pub fn is_empty(& self)  -> bool {
     return self._items.len() == 0;
    
 }
-pub fn size(& mut self)  -> i32 {
+pub fn size(& self)  -> i32 {
     return self._items.len();
    
 }
@@ -59,12 +59,16 @@ pub fn size(& mut self)  -> i32 {
 else {
     if ")}]".contains_key(& char) {
     if stack.is_empty() {
-    return Ok(false);📄 Source: examples/data_structures/stack.py (1613 bytes)
-📝 Output: examples/data_structures/stack.rs (1867 bytes)
-⏱️  Parse time: 11ms
-📊 Throughput: 140.2 KB/s
-⏱️  Total time: 11ms
-) != expected {
+    return Ok(false);
+   
+}
+let last = stack.pop().unwrap_or_default();
+    if last.is_none() {
+    return Ok(false);
+   
+}
+let expected = ord(pairs.get(chr(last) as usize).copied().unwrap_or_default());
+    if ord(char) != expected {
     return Ok(false);
    
 }

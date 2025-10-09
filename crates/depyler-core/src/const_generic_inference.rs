@@ -68,40 +68,42 @@ impl ConstGenericInferencer {
             HirStmt::Assign {
                 target: AssignTarget::Symbol(symbol),
                 value,
-            } => {
-                // Look for assignments like: arr = [0] * 10
-                if let Some(size) = self.detect_fixed_size_pattern(value) {
-                    self.const_values.insert(symbol.clone(), size);
-                }
-            }
-            HirStmt::Assign { .. } => {
-                // Non-symbol assignment targets
-            }
+                ..
+            } => self.scan_assign_for_const(symbol, value),
             HirStmt::If {
-                condition: _,
                 then_body,
                 else_body,
-            } => {
-                for s in then_body {
-                    self.scan_statement_for_consts(s)?;
-                }
-                if let Some(else_stmts) = else_body {
-                    for s in else_stmts {
-                        self.scan_statement_for_consts(s)?;
-                    }
-                }
+                ..
+            } => self.scan_if_branches(then_body, else_body),
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                self.scan_stmt_block(body)
             }
-            HirStmt::While { body, .. } => {
-                for s in body {
-                    self.scan_statement_for_consts(s)?;
-                }
-            }
-            HirStmt::For { body, .. } => {
-                for s in body {
-                    self.scan_statement_for_consts(s)?;
-                }
-            }
-            _ => {}
+            _ => Ok(()),
+        }
+    }
+
+    fn scan_assign_for_const(&mut self, symbol: &str, value: &HirExpr) -> Result<()> {
+        if let Some(size) = self.detect_fixed_size_pattern(value) {
+            self.const_values.insert(symbol.to_string(), size);
+        }
+        Ok(())
+    }
+
+    fn scan_if_branches(
+        &mut self,
+        then_body: &[HirStmt],
+        else_body: &Option<Vec<HirStmt>>,
+    ) -> Result<()> {
+        self.scan_stmt_block(then_body)?;
+        if let Some(else_stmts) = else_body {
+            self.scan_stmt_block(else_stmts)?;
+        }
+        Ok(())
+    }
+
+    fn scan_stmt_block(&mut self, stmts: &[HirStmt]) -> Result<()> {
+        for stmt in stmts {
+            self.scan_statement_for_consts(stmt)?;
         }
         Ok(())
     }
@@ -109,50 +111,53 @@ impl ConstGenericInferencer {
     /// Detect patterns that indicate fixed-size arrays
     fn detect_fixed_size_pattern(&self, expr: &HirExpr) -> Option<usize> {
         match expr {
-            // Pattern: [value] * size or [value, value, ...]
             HirExpr::Binary {
                 op: crate::hir::BinOp::Mul,
                 left,
                 right,
-            } => {
-                // Check for [x] * n pattern
-                if let (HirExpr::List(elements), HirExpr::Literal(Literal::Int(size))) =
-                    (left.as_ref(), right.as_ref())
-                {
-                    if elements.len() == 1 && *size > 0 {
-                        return Some(*size as usize);
-                    }
-                }
-                // Check for n * [x] pattern
-                if let (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elements)) =
-                    (left.as_ref(), right.as_ref())
-                {
-                    if elements.len() == 1 && *size > 0 {
-                        return Some(*size as usize);
-                    }
-                }
+            } => self.detect_multiply_pattern(left, right),
+            HirExpr::List(elements) => self.detect_literal_list_size(elements),
+            HirExpr::Call { func, args } => self.detect_array_func_call(func, args),
+            _ => None,
+        }
+    }
+
+    fn detect_multiply_pattern(&self, left: &HirExpr, right: &HirExpr) -> Option<usize> {
+        self.check_list_times_int(left, right)
+            .or_else(|| self.check_list_times_int(right, left))
+    }
+
+    fn check_list_times_int(&self, list_side: &HirExpr, int_side: &HirExpr) -> Option<usize> {
+        if let (HirExpr::List(elements), HirExpr::Literal(Literal::Int(size))) =
+            (list_side, int_side)
+        {
+            if elements.len() == 1 && *size > 0 {
+                return Some(*size as usize);
             }
-            // Pattern: [a, b, c, ...] (literal list with known size)
-            HirExpr::List(elements) => {
-                // Only convert to array if size is reasonable (< 1000) and not empty
-                if !elements.is_empty() && elements.len() < 1000 {
-                    return Some(elements.len());
-                }
-            }
-            // Pattern: function calls like zeros(10) or ones(5, 5)
-            HirExpr::Call { func, args } => match func.as_str() {
-                "zeros" | "ones" | "full" => {
-                    if let Some(HirExpr::Literal(Literal::Int(size))) = args.first() {
-                        if *size > 0 && *size < 1000 {
-                            return Some(*size as usize);
-                        }
-                    }
-                }
-                _ => {}
-            },
-            _ => {}
         }
         None
+    }
+
+    fn detect_literal_list_size(&self, elements: &[HirExpr]) -> Option<usize> {
+        if !elements.is_empty() && elements.len() < 1000 {
+            Some(elements.len())
+        } else {
+            None
+        }
+    }
+
+    fn detect_array_func_call(&self, func: &str, args: &[HirExpr]) -> Option<usize> {
+        match func {
+            "zeros" | "ones" | "full" => {
+                if let Some(HirExpr::Literal(Literal::Int(size))) = args.first() {
+                    if *size > 0 && *size < 1000 {
+                        return Some(*size as usize);
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
     }
 
     /// Transform function types to use const generics where appropriate
@@ -216,6 +221,7 @@ impl ConstGenericInferencer {
             if let HirStmt::Assign {
                 target: AssignTarget::Symbol(symbol),
                 value,
+                ..
             } = stmt
             {
                 if let Some(size) = self.detect_fixed_size_pattern(value) {
@@ -274,49 +280,60 @@ impl ConstGenericInferencer {
     /// Find const usage patterns in expressions
     fn find_const_usage_in_expr(&self, param_name: &str, expr: &HirExpr) -> Option<usize> {
         match expr {
-            // Pattern: len(param) == N
             HirExpr::Binary {
                 op: crate::hir::BinOp::Eq,
                 left,
                 right,
-            } => {
-                if let (HirExpr::Call { func, args }, HirExpr::Literal(Literal::Int(size))) =
-                    (left.as_ref(), right.as_ref())
-                {
-                    if func == "len" && args.len() == 1 {
-                        if let HirExpr::Var(var_name) = &args[0] {
-                            if var_name == param_name && *size > 0 {
-                                return Some(*size as usize);
-                            }
-                        }
-                    }
-                }
-                // Check reverse: N == len(param)
-                if let (HirExpr::Literal(Literal::Int(size)), HirExpr::Call { func, args }) =
-                    (left.as_ref(), right.as_ref())
-                {
-                    if func == "len" && args.len() == 1 {
-                        if let HirExpr::Var(var_name) = &args[0] {
-                            if var_name == param_name && *size > 0 {
-                                return Some(*size as usize);
-                            }
-                        }
-                    }
-                }
-            }
-            // Pattern: param[index] where index is in range [0, N)
-            HirExpr::Index { base, index } => {
-                if let HirExpr::Var(var_name) = base.as_ref() {
-                    if var_name == param_name {
-                        if let HirExpr::Literal(Literal::Int(idx)) = index.as_ref() {
-                            if *idx >= 0 {
-                                return Some((*idx + 1) as usize);
-                            }
-                        }
+            } => self.find_len_equality_pattern(param_name, left, right),
+            HirExpr::Index { base, index } => self.find_index_pattern(param_name, base, index),
+            _ => None,
+        }
+    }
+
+    fn find_len_equality_pattern(
+        &self,
+        param_name: &str,
+        left: &HirExpr,
+        right: &HirExpr,
+    ) -> Option<usize> {
+        self.check_len_eq_side(param_name, left, right)
+            .or_else(|| self.check_len_eq_side(param_name, right, left))
+    }
+
+    fn check_len_eq_side(
+        &self,
+        param_name: &str,
+        call_side: &HirExpr,
+        size_side: &HirExpr,
+    ) -> Option<usize> {
+        if let (HirExpr::Call { func, args }, HirExpr::Literal(Literal::Int(size))) =
+            (call_side, size_side)
+        {
+            if func == "len" && args.len() == 1 {
+                if let HirExpr::Var(var_name) = &args[0] {
+                    if var_name == param_name && *size > 0 {
+                        return Some(*size as usize);
                     }
                 }
             }
-            _ => {}
+        }
+        None
+    }
+
+    fn find_index_pattern(
+        &self,
+        param_name: &str,
+        base: &HirExpr,
+        index: &HirExpr,
+    ) -> Option<usize> {
+        if let HirExpr::Var(var_name) = base {
+            if var_name == param_name {
+                if let HirExpr::Literal(Literal::Int(idx)) = index {
+                    if *idx >= 0 {
+                        return Some((*idx + 1) as usize);
+                    }
+                }
+            }
         }
         None
     }
@@ -324,40 +341,46 @@ impl ConstGenericInferencer {
     /// Transform statements to use array operations
     fn transform_statement(&mut self, stmt: &mut HirStmt) -> Result<()> {
         match stmt {
-            HirStmt::Assign { value, .. } => {
-                self.transform_expression(value)?;
-            }
-            HirStmt::Return(Some(expr)) => {
-                self.transform_expression(expr)?;
-            }
+            HirStmt::Assign { value, .. } => self.transform_expression(value),
+            HirStmt::Return(Some(expr)) => self.transform_expression(expr),
             HirStmt::If {
                 condition,
                 then_body,
                 else_body,
-            } => {
-                self.transform_expression(condition)?;
-                for s in then_body {
-                    self.transform_statement(s)?;
-                }
-                if let Some(else_stmts) = else_body {
-                    for s in else_stmts {
-                        self.transform_statement(s)?;
-                    }
-                }
-            }
-            HirStmt::While { condition, body } => {
-                self.transform_expression(condition)?;
-                for s in body {
-                    self.transform_statement(s)?;
-                }
-            }
-            HirStmt::For { iter, body, .. } => {
-                self.transform_expression(iter)?;
-                for s in body {
-                    self.transform_statement(s)?;
-                }
-            }
-            _ => {}
+            } => self.transform_if_stmt(condition, then_body, else_body),
+            HirStmt::While { condition, body } => self.transform_while_stmt(condition, body),
+            HirStmt::For { iter, body, .. } => self.transform_for_stmt(iter, body),
+            _ => Ok(()),
+        }
+    }
+
+    fn transform_if_stmt(
+        &mut self,
+        condition: &mut HirExpr,
+        then_body: &mut [HirStmt],
+        else_body: &mut Option<Vec<HirStmt>>,
+    ) -> Result<()> {
+        self.transform_expression(condition)?;
+        self.transform_stmt_block(then_body)?;
+        if let Some(else_stmts) = else_body {
+            self.transform_stmt_block(else_stmts)?;
+        }
+        Ok(())
+    }
+
+    fn transform_while_stmt(&mut self, condition: &mut HirExpr, body: &mut [HirStmt]) -> Result<()> {
+        self.transform_expression(condition)?;
+        self.transform_stmt_block(body)
+    }
+
+    fn transform_for_stmt(&mut self, iter: &mut HirExpr, body: &mut [HirStmt]) -> Result<()> {
+        self.transform_expression(iter)?;
+        self.transform_stmt_block(body)
+    }
+
+    fn transform_stmt_block(&mut self, stmts: &mut [HirStmt]) -> Result<()> {
+        for stmt in stmts {
+            self.transform_statement(stmt)?;
         }
         Ok(())
     }
@@ -366,83 +389,111 @@ impl ConstGenericInferencer {
     #[allow(clippy::only_used_in_recursion)]
     fn transform_expression(&mut self, expr: &mut HirExpr) -> Result<()> {
         match expr {
-            HirExpr::List(elements) => {
-                // Transform nested expressions
-                for elem in &mut *elements {
-                    self.transform_expression(elem)?;
-                }
-                // Convert to array if size is known and reasonable
-                if !elements.is_empty() && elements.len() < 100 {
-                    // For now, keep as List but mark for potential array conversion
-                    // The actual conversion happens in the code generation phase
-                }
-            }
-            HirExpr::Binary { left, right, .. } => {
-                self.transform_expression(left)?;
-                self.transform_expression(right)?;
-            }
-            HirExpr::Unary { operand, .. } => {
-                self.transform_expression(operand)?;
-            }
-            HirExpr::Call { args, .. } => {
-                for arg in args {
-                    self.transform_expression(arg)?;
-                }
-            }
+            HirExpr::List(elements) => self.transform_list_expr(elements),
+            HirExpr::Binary { left, right, .. } => self.transform_binary_expr(left, right),
+            HirExpr::Unary { operand, .. } => self.transform_expression(operand),
+            HirExpr::Call { args, .. } => self.transform_call_args(args),
             HirExpr::MethodCall { object, args, .. } => {
-                self.transform_expression(object)?;
-                for arg in args {
-                    self.transform_expression(arg)?;
-                }
+                self.transform_method_call(object, args)
             }
-            HirExpr::Index { base, index } => {
-                self.transform_expression(base)?;
-                self.transform_expression(index)?;
-            }
+            HirExpr::Index { base, index } => self.transform_index_expr(base, index),
             HirExpr::Slice {
                 base,
                 start,
                 stop,
                 step,
-            } => {
-                self.transform_expression(base)?;
-                if let Some(start_expr) = start {
-                    self.transform_expression(start_expr)?;
-                }
-                if let Some(stop_expr) = stop {
-                    self.transform_expression(stop_expr)?;
-                }
-                if let Some(step_expr) = step {
-                    self.transform_expression(step_expr)?;
-                }
-            }
-            HirExpr::Dict(pairs) => {
-                for (k, v) in pairs {
-                    self.transform_expression(k)?;
-                    self.transform_expression(v)?;
-                }
-            }
-            HirExpr::Tuple(elements) => {
-                for elem in elements {
-                    self.transform_expression(elem)?;
-                }
-            }
-            HirExpr::Borrow { expr, .. } => {
-                self.transform_expression(expr)?;
-            }
+            } => self.transform_slice_expr(base, start, stop, step),
+            HirExpr::Dict(pairs) => self.transform_dict_expr(pairs),
+            HirExpr::Tuple(elements) => self.transform_tuple_expr(elements),
+            HirExpr::Borrow { expr, .. } => self.transform_expression(expr),
             HirExpr::ListComp {
                 element,
                 iter,
                 condition,
                 ..
-            } => {
-                self.transform_expression(element)?;
-                self.transform_expression(iter)?;
-                if let Some(condition) = condition {
-                    self.transform_expression(condition)?;
-                }
-            }
-            _ => {}
+            } => self.transform_list_comp(element, iter, condition),
+            _ => Ok(()),
+        }
+    }
+
+    fn transform_list_expr(&mut self, elements: &mut [HirExpr]) -> Result<()> {
+        for elem in elements {
+            self.transform_expression(elem)?;
+        }
+        Ok(())
+    }
+
+    fn transform_binary_expr(&mut self, left: &mut HirExpr, right: &mut HirExpr) -> Result<()> {
+        self.transform_expression(left)?;
+        self.transform_expression(right)
+    }
+
+    fn transform_call_args(&mut self, args: &mut [HirExpr]) -> Result<()> {
+        for arg in args {
+            self.transform_expression(arg)?;
+        }
+        Ok(())
+    }
+
+    fn transform_method_call(
+        &mut self,
+        object: &mut HirExpr,
+        args: &mut [HirExpr],
+    ) -> Result<()> {
+        self.transform_expression(object)?;
+        self.transform_call_args(args)
+    }
+
+    fn transform_index_expr(&mut self, base: &mut HirExpr, index: &mut HirExpr) -> Result<()> {
+        self.transform_expression(base)?;
+        self.transform_expression(index)
+    }
+
+    fn transform_slice_expr(
+        &mut self,
+        base: &mut HirExpr,
+        start: &mut Option<Box<HirExpr>>,
+        stop: &mut Option<Box<HirExpr>>,
+        step: &mut Option<Box<HirExpr>>,
+    ) -> Result<()> {
+        self.transform_expression(base)?;
+        if let Some(start_expr) = start {
+            self.transform_expression(start_expr)?;
+        }
+        if let Some(stop_expr) = stop {
+            self.transform_expression(stop_expr)?;
+        }
+        if let Some(step_expr) = step {
+            self.transform_expression(step_expr)?;
+        }
+        Ok(())
+    }
+
+    fn transform_dict_expr(&mut self, pairs: &mut [(HirExpr, HirExpr)]) -> Result<()> {
+        for (k, v) in pairs {
+            self.transform_expression(k)?;
+            self.transform_expression(v)?;
+        }
+        Ok(())
+    }
+
+    fn transform_tuple_expr(&mut self, elements: &mut [HirExpr]) -> Result<()> {
+        for elem in elements {
+            self.transform_expression(elem)?;
+        }
+        Ok(())
+    }
+
+    fn transform_list_comp(
+        &mut self,
+        element: &mut HirExpr,
+        iter: &mut HirExpr,
+        condition: &mut Option<Box<HirExpr>>,
+    ) -> Result<()> {
+        self.transform_expression(element)?;
+        self.transform_expression(iter)?;
+        if let Some(cond) = condition {
+            self.transform_expression(cond)?;
         }
         Ok(())
     }
@@ -530,6 +581,7 @@ mod tests {
                         HirExpr::Literal(Literal::Int(1)),
                         HirExpr::Literal(Literal::Int(2)),
                     ]),
+                    type_annotation: None,
                 },
                 HirStmt::Return(Some(HirExpr::Var("result".to_string()))),
             ],

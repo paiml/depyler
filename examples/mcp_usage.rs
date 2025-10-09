@@ -1,1 +1,1 @@
-Error: Expression type not yet supported
+Error: Only simple name targets supported for loops

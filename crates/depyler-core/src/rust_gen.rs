@@ -30,6 +30,7 @@ pub struct CodeGenContext<'a> {
     pub mutable_vars: HashSet<String>,
     pub needs_zerodivisionerror: bool,
     pub needs_indexerror: bool,
+    pub is_classmethod: bool,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -451,6 +452,7 @@ pub fn generate_rust_file(
         mutable_vars: HashSet::new(),
         needs_zerodivisionerror: false,
         needs_indexerror: false,
+        is_classmethod: false,
     };
 
     // Analyze all functions first for string optimization
@@ -1488,6 +1490,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_call(&mut self, func: &str, args: &[HirExpr]) -> Result<syn::Expr> {
+        // Handle classmethod cls(args) → Self::new(args)
+        if func == "cls" && self.ctx.is_classmethod {
+            let arg_exprs: Vec<syn::Expr> = args
+                .iter()
+                .map(|arg| arg.to_rust_expr(self.ctx))
+                .collect::<Result<Vec<_>>>()?;
+            return Ok(parse_quote! { Self::new(#(#arg_exprs),*) });
+        }
+
         let arg_exprs: Vec<syn::Expr> = args
             .iter()
             .map(|arg| arg.to_rust_expr(self.ctx))
@@ -1729,6 +1740,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<syn::Expr> {
+        // Handle classmethod cls.method() → Self::method()
+        if let HirExpr::Var(var_name) = object {
+            if var_name == "cls" && self.ctx.is_classmethod {
+                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| arg.to_rust_expr(self.ctx))
+                    .collect::<Result<Vec<_>>>()?;
+                return Ok(parse_quote! { Self::#method_ident(#(#arg_exprs),*) });
+            }
+        }
+
         // Check if this is a module method call (e.g., os.getcwd())
         if let HirExpr::Var(module_name) = object {
             let rust_name_opt = self
@@ -2374,6 +2397,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_attribute(&mut self, value: &HirExpr, attr: &str) -> Result<syn::Expr> {
+        // Handle classmethod cls.ATTR → Self::ATTR
+        if let HirExpr::Var(var_name) = value {
+            if var_name == "cls" && self.ctx.is_classmethod {
+                let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+                return Ok(parse_quote! { Self::#attr_ident });
+            }
+        }
+
         // Check if this is a module attribute access
         if let HirExpr::Var(module_name) = value {
             let rust_name_opt = self
@@ -3041,6 +3072,7 @@ mod tests {
             mutable_vars: HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,
+            is_classmethod: false,
         }
     }
 

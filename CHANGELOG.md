@@ -46,6 +46,23 @@ All notable changes to this project will be documented in this file.
   - Total: 46/46 class-related tests passing (Phase 1-4)
   - **Impact**: Complete Python class/OOP support - DEPYLER-0111 ticket COMPLETE ✅
 
+- **@staticmethod Decorator Support** (DEPYLER-0112 Phase 1)
+  - Python @staticmethod now transpiles correctly (no self parameter in Rust)
+  - `@staticmethod def method()` → `pub fn method()` (no &self)
+  - Works for utility functions, class-level operations
+  - Implementation already complete via existing HIR is_static flag
+  - All 10/10 @staticmethod TDD tests passing
+  - **Impact**: Full Python staticmethod semantics preserved in Rust
+
+- **@classmethod Decorator Support** (DEPYLER-0112 Phase 2 - Factory Pattern)
+  - Python @classmethod now transpiles correctly with Self references
+  - `cls("args")` → `Self::new("args")` (constructor calls)
+  - `cls.method()` → `Self::method()` (static method calls)
+  - `cls.CONSTANT` → `Self::CONSTANT` (class constant access)
+  - Proper classmethod context tracking through expression conversion
+  - All 10/10 @classmethod TDD tests passing
+  - **Impact**: Factory pattern and alternative constructors now fully supported
+
 ## [3.6.0] - 2025-10-08
 
 ### Added

@@ -21,8 +21,8 @@ use std::collections::HashSet;
     let fruits = {
     let mut set = HashSet::new();
     set.insert("apple".to_string());
-    se📄 Source: examples/test_simple_set_typed.py (280 bytes)
-📝 Output: examples/test_simple_set_typed.rs (807 bytes)
-⏱️  Parse time: 11ms
-📊 Throughput: 24.7 KB/s
-⏱️  Total time: 11ms
+    set.insert("banana".to_string());
+    set };
+    fruits.insert("cherry".to_string());
+    return fruits
+}

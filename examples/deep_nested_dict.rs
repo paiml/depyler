@@ -9,8 +9,6 @@ use std::collections::HashMap;
     d.get_mut(& "level1".to_string()).unwrap().insert("level2".to_string(), {
     let mut map = HashMap::new();
     map });
-📄 Source: examples/deep_nested_dict.py (349 bytes)
-📝 Output: examples/deep_nested_dict.rs (728 bytes)
-⏱️  Parse time: 7ms
-📊 Throughput: 44.8 KB/s
-⏱️  Total time: 7ms
+    d.get_mut(& "level1".to_string()).unwrap().get_mut(& "level2".to_string()).unwrap().insert("level3".to_string(), "deep value");
+    return d
+}

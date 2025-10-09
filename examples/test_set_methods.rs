@@ -45,12 +45,15 @@ else {
     let mut set = HashSet::new();
     set.insert(1);
     set.insert(2);
-    set.i📄 Source: examples/test_set_methods.py (707 bytes)
-📝 Output: examples/test_set_methods.rs (1945 bytes)
-⏱️  Parse time: 9ms
-📊 Throughput: 73.2 KB/s
-⏱️  Total time: 9ms
-= " Depyler: proven to terminate"] pub fn test_set_pop()  -> i32 {
+    set.insert(3);
+    set };
+    s.clear();
+    let _cse_temp_0 = s.len();
+    let _cse_temp_1 = _cse_temp_0 == 0;
+    return _cse_temp_1;
+   
+}
+#[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_set_pop()  -> i32 {
     let s = {
     let mut set = HashSet::new();
     set.insert(42);

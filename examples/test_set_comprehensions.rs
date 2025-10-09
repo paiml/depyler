@@ -16,8 +16,5 @@ use std::collections::HashSet;
    
 }
 #[doc = "Set comprehension with expression"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_set_comp_with_expression()  -> HashSet<i32>{
-    return 0..5.into_iter().filter(| x📄 Source: examples/test_set_comprehensions.py (788 bytes)
-📝 Output: examples/test_set_comprehensions.rs (1381 bytes)
-⏱️  Parse time: 9ms
-📊 Throughput: 78.7 KB/s
-⏱️  Total time: 9ms
+    return 0..5.into_iter().filter(| x | x>0).map(| x | x * x).collect::<HashSet<_>>()
+}

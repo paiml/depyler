@@ -17,12 +17,8 @@ use std::collections::HashMap;
     return d;
    
 }
-#[doc = "Test nested dictionary(but not nested assignm📄 Source: examples/dict_assign_typed.py (668 bytes)
-📝 Output: examples/dict_assign_typed.rs (1189 bytes)
-⏱️  Parse time: 8ms
-📊 Throughput: 74.2 KB/s
-⏱️  Total time: 8ms
-ring, HashMap<String, String>>= {
+#[doc = "Test nested dictionary(but not nested assignment yet)"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_nested_dict()  -> HashMap<String, HashMap<String, String>>{
+    let d: HashMap<String, HashMap<String, String>>= {
     let mut map = HashMap::new();
     map };
     d.insert("outer".to_string(), {

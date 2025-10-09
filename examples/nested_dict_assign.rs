@@ -7,8 +7,6 @@ use std::collections::HashMap;
     let mut map = HashMap::new();
     map });
     d.get_mut(& "outer".to_string()).unwrap().insert("inner".to_string(), "value");
-    d.get_mut(& "outer".to_string()).unwrap().insert("another".to_string(), "value📄 Source: examples/nested_dict_assign.py (356 bytes)
-📝 Output: examples/nested_dict_assign.rs (607 bytes)
-⏱️  Parse time: 9ms
-📊 Throughput: 37.1 KB/s
-⏱️  Total time: 9ms
+    d.get_mut(& "outer".to_string()).unwrap().insert("another".to_string(), "value2");
+    return d
+}

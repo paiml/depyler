@@ -27,12 +27,14 @@ else {
     return _cse_temp_0;
    
 }
-#[doc = " Depyler: proven to terminate"] pub fn test_floor_div(📄 Source: examples/simple_power_floor.py (110 bytes)
-📝 Output: examples/simple_power_floor.rs (1776 bytes)
-⏱️  Parse time: 7ms
-📊 Throughput: 14.1 KB/s
-⏱️  Total time: 7ms
- = b<0;
+#[doc = " Depyler: proven to terminate"] pub fn test_floor_div(x: i32, y: i32)  -> Result<i32, ZeroDivisionError>{
+    let _cse_temp_0 = {
+    let a = x;
+    let b = y;
+    let q = a / b;
+    let r = a % b;
+    let r_negative = r<0;
+    let b_negative = b<0;
     let r_nonzero = r != 0;
     let signs_differ = r_negative != b_negative;
     let needs_adjustment = r_nonzero && signs_differ;

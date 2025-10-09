@@ -1,1 +1,1 @@
-Error: Expression type not yet supported
+Error: Statement type not yet supported

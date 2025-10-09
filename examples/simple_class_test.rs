@@ -1,9 +1,12 @@
-📄 Source: examples/simple_class_test.py (588 bytes)
-📝 Output: examples/simple_class_test.rs (452 bytes)
-⏱️  Parse time: 9ms
-📊 Throughput: 63.6 KB/s
-⏱️  Total time: 9ms
-2 {
+#[derive(Debug, Clone)] pub struct Point {
+    pub x: i32, pub y: i32
+}
+impl Point {
+    pub fn new(x: i32, y: i32)  -> Self {
+    Self {
+    x, y
+}
+} pub fn distance(& self)  -> i32 {
     return 0;
    
 }
@@ -15,7 +18,7 @@ impl Rectangle {
     Self {
     width, height
 }
-} pub fn area(& mut self)  -> i32 {
+} pub fn area(& self)  -> i32 {
     return 0;
    
 }
