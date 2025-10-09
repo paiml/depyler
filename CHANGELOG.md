@@ -4,8 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+#### **Lambda Variable Assignment** (DEPYLER-0123) - Lambda Collections 10/10 (100%) ✅
+- **Pattern**: `transform = lambda x: x * 2; result = transform(5)` now fully supported
+- **In list comprehensions**: `[transform(item) for item in items]` correctly preserves lambda variables
+- **Root cause**: Dead code elimination was removing lambda assignments because Call expressions didn't mark function names as used
+- **Fix**: Updated optimizer to mark function names in Call expressions as used variables
+- **Fix**: Added ListComp/SetComp traversal to variable usage analysis
+- **Impact**: Lambda collections improved from 9/10 (90%) → 10/10 (100%)
+- **Test results**: All 10 lambda collection tests passing, 371/371 core tests passing (zero regressions)
+- **Files**: optimizer.rs (collect_used_vars_expr_inner)
+
 ### Added
-- Nothing yet - see v3.9.0 for latest features
+- Nothing yet
 
 ---
 

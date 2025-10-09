@@ -128,7 +128,6 @@ def add_pairs(pairs: list) -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Lambda variables (assignment and calling) needs implementation
 fn test_lambda_in_list_comprehension() {
     let python = r#"
 def process_items(items: list) -> list:
