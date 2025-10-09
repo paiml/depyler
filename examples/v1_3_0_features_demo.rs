@@ -16,7 +16,7 @@ pub fn __exit__(& mut self, exc_type: DynamicType, exc_val: DynamicType, exc_tb:
     return false;
    
 }
-pub fn use_resource(& mut self)  -> i32 {
+pub fn use_resource(& self)  -> i32 {
     if self.is_open {
     return 42
 };
@@ -31,7 +31,7 @@ impl Counter {
     Self {
     max_count, count: 0
 }
-} pub fn __iter__(& mut self) {
+} pub fn __iter__(& self) {
     return self;
    
 }
@@ -69,8 +69,6 @@ return total;
    
 }
 let with_result = result;
-    let iter_result = demo_iterator📄 Source: examples/v1_3_0_features_demo.py (1842 bytes)
-📝 Output: examples/v1_3_0_features_demo.rs (1899 bytes)
-⏱️  Parse time: 11ms
-📊 Throughput: 163.3 KB/s
-⏱️  Total time: 11ms
+    let iter_result = demo_iterator();
+    return with_result + iter_result
+}

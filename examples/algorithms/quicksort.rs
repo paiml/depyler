@@ -1,11 +1,11 @@
 Type inference hints:
-Hint: int for variable 'middle' [Medium] (usage patterns suggest this type)
 Hint: list[Any] for variable 'arr' [High] (usage patterns suggest this type)
+Hint: int for variable 'middle' [Medium] (usage patterns suggest this type)
 
 Type inference hints:
 Hint: int for variable 'i' [Medium] (usage patterns suggest this type)
-Hint: int for variable 'low' [Medium] (usage patterns suggest this type)
 Hint: list[Any] for variable 'arr' [Medium] (usage patterns suggest this type)
+Hint: int for variable 'low' [Medium] (usage patterns suggest this type)
 
 Type inference hints:
 Hint: int for variable 'pi' [Medium] (usage patterns suggest this type)

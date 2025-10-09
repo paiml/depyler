@@ -51,12 +51,16 @@ impl ZeroDivisionError {
     return _cse_temp_0 + _cse_temp_1;
    
 }
-#[doc = "Break and continue in loops"] #[doc = " Depyler: proven to terminate"] pub fn te📄 Source: examples/v1_1_0_features.py (1041 bytes)
-📝 Output: examples/v1_1_0_features.rs (2146 bytes)
-⏱️  Parse time: 20ms
-📊 Throughput: 48.5 KB/s
-⏱️  Total time: 21ms
-ontinue;
+#[doc = "Break and continue in loops"] #[doc = " Depyler: proven to terminate"] pub fn test_break_continue()  -> Result<DynamicType, ZeroDivisionError>{
+    for i in 0..10 {
+    if i == 5 {
+    break;
+   
+}
+} let mut count = 0;
+    for i in 0..10 {
+    if i % 2 == 0 {
+    continue;
    
 }
 count = count + 1;

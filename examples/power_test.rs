@@ -43,12 +43,11 @@ impl ZeroDivisionError {
 #[cfg(test)] mod tests {
     use super::*;
     use quickcheck::{
-    quickcheck📄 Source: examples/power_test.py (1185 bytes)
-📝 Output: examples/power_test.rs (1783 bytes)
-⏱️  Parse time: 10ms
-📊 Throughput: 110.9 KB/s
-⏱️  Total time: 10ms
- 1, 1), 0);
+    quickcheck, TestResult };
+    #[test] fn test_compute_power_examples() {
+    assert_eq !(compute_power(0, 0), 0);
+    assert_eq !(compute_power(1, 2), 3);
+    assert_eq !(compute_power(- 1, 1), 0);
    
 }
 }

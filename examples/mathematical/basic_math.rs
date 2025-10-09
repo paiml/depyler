@@ -137,12 +137,15 @@ return Ok(result);
     assert_eq !(gcd(- 1, 1), 0);
    
 }
-} #[cfg(📄 Source: examples/mathematical/basic_math.py (1360 bytes)
-📝 Output: examples/mathematical/basic_math.rs (3685 bytes)
-⏱️  Parse time: 11ms
-📊 Throughput: 118.0 KB/s
-⏱️  Total time: 11ms
-s {
+} #[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_is_prime_examples() {
+    let _ = is_prime(Default::default());
+   
+}
+} #[cfg(test)] mod tests {
     use super::*;
     use quickcheck::{
     quickcheck, TestResult };

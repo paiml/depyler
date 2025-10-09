@@ -19,6 +19,7 @@ fn test_augmented_assignment() {
                 HirStmt::Assign {
                     target: AssignTarget::Symbol("total".to_string()),
                     value: HirExpr::Literal(Literal::Int(0)),
+                    type_annotation: None,
                 },
                 // total += x (converted to total = total + x)
                 HirStmt::Assign {
@@ -28,6 +29,7 @@ fn test_augmented_assignment() {
                         left: Box::new(HirExpr::Var("total".to_string())),
                         right: Box::new(HirExpr::Var("x".to_string())),
                     },
+                    type_annotation: None,
                 },
                 HirStmt::Return(Some(HirExpr::Var("total".to_string()))),
             ],
@@ -63,6 +65,7 @@ fn test_in_operator() {
                         HirExpr::Literal(Literal::String("key".to_string())),
                         HirExpr::Literal(Literal::String("value".to_string())),
                     )]),
+                    type_annotation: None,
                 },
                 HirStmt::Return(Some(HirExpr::Binary {
                     op: BinOp::In,
@@ -99,6 +102,7 @@ fn test_not_in_operator() {
                 HirStmt::Assign {
                     target: AssignTarget::Symbol("dict".to_string()),
                     value: HirExpr::Dict(vec![]),
+                    type_annotation: None,
                 },
                 HirStmt::Return(Some(HirExpr::Binary {
                     op: BinOp::NotIn,
@@ -124,6 +128,7 @@ fn test_not_in_operator() {
 }
 
 #[test]
+#[allow(clippy::cognitive_complexity)]
 fn test_all_arithmetic_operators() {
     let test_cases = vec![
         (BinOp::Add, "+"),
