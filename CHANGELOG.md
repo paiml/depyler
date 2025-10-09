@@ -203,7 +203,7 @@ All notable changes to this project will be documented in this file.
     - ✅ Integrate state analysis with rust_gen.rs - COMPLETE
     - ✅ Generate Iterator trait implementation with state struct - COMPLETE
     - ✅ Handle yield statements in Iterator::next() - COMPLETE
-    - ⏳ Fix variable scoping (use self.field in state struct)
+    - ✅ Fix variable scoping (use self.field in state struct) - COMPLETE
     - ⏳ Implement state machine for resumable execution
     - ⏳ Support multiple yield points with state transitions
   - State Analysis Integration (COMPLETE):
@@ -224,8 +224,15 @@ All notable changes to this project will be documented in this file.
     - Outside generators: keeps placeholder `yield` syntax for future work
     - Generated code verified: `return Some(current);` instead of `yield current;`
     - Transpilation test confirms correct conversion
-  - **Status**: Yield conversion working, variable scoping and state machine logic pending
-  - **Next**: Fix variable scoping (use self.field instead of bare names)
+  - Variable Scoping (COMPLETE):
+    - Added `generator_state_vars: HashSet<String>` to CodeGenContext
+    - Populated from GeneratorStateInfo (state variables + captured params)
+    - Modified `convert_variable()` to generate `self.field` for state vars
+    - Modified assignment handling to generate `self.field = value` for state vars
+    - Test results: `self.current = 0`, `while self.current<self.n`, `self.current + 1`
+    - All variable references now correctly scoped with `self.` prefix
+  - **Status**: Variable scoping complete, state machine logic pending
+  - **Next**: Implement proper state machine transitions for multiple yield points
 
 ## [3.6.0] - 2025-10-08
 

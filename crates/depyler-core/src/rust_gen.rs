@@ -33,6 +33,7 @@ pub struct CodeGenContext<'a> {
     pub needs_indexerror: bool,
     pub is_classmethod: bool,
     pub in_generator: bool,
+    pub generator_state_vars: HashSet<String>,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -456,6 +457,7 @@ pub fn generate_rust_file(
         in_generator: false,
         needs_indexerror: false,
         is_classmethod: false,
+        generator_state_vars: HashSet::new(),
     };
 
     // Analyze all functions first for string optimization
@@ -1027,6 +1029,15 @@ impl RustCodeGen for HirFunction {
             // Extract yield value type from return type
             let item_type = extract_generator_item_type(&rust_ret_type_for_generator)?;
 
+            // Populate generator state variables for scoping
+            ctx.generator_state_vars.clear();
+            for var in &state_info.state_variables {
+                ctx.generator_state_vars.insert(var.name.clone());
+            }
+            for param in &state_info.captured_params {
+                ctx.generator_state_vars.insert(param.clone());
+            }
+
             // Generate body statements with in_generator flag set
             ctx.in_generator = true;
             let generator_body_stmts: Vec<_> = self
@@ -1035,6 +1046,7 @@ impl RustCodeGen for HirFunction {
                 .map(|stmt| stmt.to_rust_tokens(ctx))
                 .collect::<Result<Vec<_>>>()?;
             ctx.in_generator = false;
+            ctx.generator_state_vars.clear();
 
             // Generate the complete generator implementation
             quote! {
@@ -1173,7 +1185,12 @@ impl RustCodeGen for HirStmt {
                 match target {
                     AssignTarget::Symbol(symbol) => {
                         let target_ident = syn::Ident::new(symbol, proc_macro2::Span::call_site());
-                        if ctx.is_declared(symbol) {
+
+                        // Inside generators, check if variable is a state variable
+                        if ctx.in_generator && ctx.generator_state_vars.contains(symbol) {
+                            // State variable assignment: self.field = value
+                            Ok(quote! { self.#target_ident = #value_expr; })
+                        } else if ctx.is_declared(symbol) {
                             // Variable already exists, just assign
                             Ok(quote! { #target_ident = #value_expr; })
                         } else {
@@ -1597,8 +1614,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
-        let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-        Ok(parse_quote! { #ident })
+        // Inside generators, check if variable is a state variable
+        if self.ctx.in_generator && self.ctx.generator_state_vars.contains(name) {
+            // Generate self.field for state variables
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            Ok(parse_quote! { self.#ident })
+        } else {
+            // Regular variable
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            Ok(parse_quote! { #ident })
+        }
     }
 
     fn convert_binary(&mut self, op: BinOp, left: &HirExpr, right: &HirExpr) -> Result<syn::Expr> {
@@ -3381,6 +3406,7 @@ mod tests {
             needs_indexerror: false,
             is_classmethod: false,
             in_generator: false,
+            generator_state_vars: HashSet::new(),
         }
     }
 
