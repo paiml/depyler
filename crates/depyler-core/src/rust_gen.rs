@@ -282,8 +282,7 @@ fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenS
         (ctx.needs_ahash_hashmap, quote! { use ahash::AHashMap; }),
         (ctx.needs_arc, quote! { use std::sync::Arc; }),
         (ctx.needs_rc, quote! { use std::rc::Rc; }),
-        // Cow import disabled - type detection has false positives
-        (false, quote! { use std::borrow::Cow; }),
+        (ctx.needs_cow, quote! { use std::borrow::Cow; }),
     ];
 
     // Add imports where needed

@@ -4,8 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Added
-- Nothing yet
+### Fixed
+- **Test expectations updated**: Fixed 2 outdated exception handling tests that expected failure but features are now implemented
+  - `test_try_except_block`: Exception handling now works correctly
+  - `test_finally_block`: Finally blocks now work correctly
+- **Cow import generation**: Fixed missing `use std::borrow::Cow;` import when Cow types are used
+  - Root cause: Import was hardcoded to disabled despite needs_cow flag being set
+  - Generated code now compiles without manual import additions
 
 ---
 
