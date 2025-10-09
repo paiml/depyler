@@ -634,8 +634,8 @@ fn convert_method_to_impl_item(
         // Empty body - just return default
         parse_quote! { {} }
     } else {
-        // Convert the method body statements
-        convert_block(&method.body, type_mapper)?
+        // Convert the method body statements with classmethod context
+        convert_block_with_context(&method.body, type_mapper, method.is_classmethod)?
     };
 
     Ok(syn::ImplItemFn {
@@ -1010,9 +1010,13 @@ fn rust_type_to_syn(rust_type: &RustType) -> Result<syn::Type> {
 }
 
 fn convert_body(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Result<Vec<syn::Stmt>> {
+    convert_body_with_context(stmts, type_mapper, false)
+}
+
+fn convert_body_with_context(stmts: &[HirStmt], type_mapper: &TypeMapper, is_classmethod: bool) -> Result<Vec<syn::Stmt>> {
     stmts
         .iter()
-        .map(|stmt| convert_stmt(stmt, type_mapper))
+        .map(|stmt| convert_stmt_with_context(stmt, type_mapper, is_classmethod))
         .collect()
 }
 
@@ -1104,13 +1108,21 @@ fn convert_attribute_assignment(
 /// - Attribute: `obj.attr = value`
 ///
 /// Complexity: ~8 (match with 3 arms + nested complexity from index helper)
+#[allow(dead_code)]
 fn convert_assign_stmt(
     target: &AssignTarget,
     value: &HirExpr,
     type_mapper: &TypeMapper,
 ) -> Result<syn::Stmt> {
     let value_expr = convert_expr(value, type_mapper)?;
+    convert_assign_stmt_with_expr(target, value_expr, type_mapper)
+}
 
+fn convert_assign_stmt_with_expr(
+    target: &AssignTarget,
+    value_expr: syn::Expr,
+    type_mapper: &TypeMapper,
+) -> Result<syn::Stmt> {
     match target {
         AssignTarget::Symbol(symbol) => convert_symbol_assignment(symbol, value_expr),
         AssignTarget::Index { base, index } => {
@@ -1171,12 +1183,21 @@ fn convert_assign_stmt(
     }
 }
 
+#[allow(dead_code)]
 fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
+    convert_stmt_with_context(stmt, type_mapper, false)
+}
+
+fn convert_stmt_with_context(stmt: &HirStmt, type_mapper: &TypeMapper, is_classmethod: bool) -> Result<syn::Stmt> {
     match stmt {
-        HirStmt::Assign { target, value, .. } => convert_assign_stmt(target, value, type_mapper),
+        HirStmt::Assign { target, value, .. } => {
+            // For assignments, we need to convert the value expression with classmethod context
+            let value_expr = convert_expr_with_context(value, type_mapper, is_classmethod)?;
+            convert_assign_stmt_with_expr(target, value_expr, type_mapper)
+        }
         HirStmt::Return(expr) => {
             let ret_expr = if let Some(e) = expr {
-                convert_expr(e, type_mapper)?
+                convert_expr_with_context(e, type_mapper, is_classmethod)?
             } else {
                 parse_quote! { () }
             };
@@ -1190,11 +1211,11 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
             then_body,
             else_body,
         } => {
-            let cond = convert_expr(condition, type_mapper)?;
-            let then_block = convert_block(then_body, type_mapper)?;
+            let cond = convert_expr_with_context(condition, type_mapper, is_classmethod)?;
+            let then_block = convert_block_with_context(then_body, type_mapper, is_classmethod)?;
 
             let if_expr = if let Some(else_stmts) = else_body {
-                let else_block = convert_block(else_stmts, type_mapper)?;
+                let else_block = convert_block_with_context(else_stmts, type_mapper, is_classmethod)?;
                 parse_quote! {
                     if #cond #then_block else #else_block
                 }
@@ -1207,8 +1228,8 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
             Ok(syn::Stmt::Expr(if_expr, Some(Default::default())))
         }
         HirStmt::While { condition, body } => {
-            let cond = convert_expr(condition, type_mapper)?;
-            let body_block = convert_block(body, type_mapper)?;
+            let cond = convert_expr_with_context(condition, type_mapper, is_classmethod)?;
+            let body_block = convert_block_with_context(body, type_mapper, is_classmethod)?;
 
             let while_expr = parse_quote! {
                 while #cond #body_block
@@ -1218,8 +1239,8 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
         }
         HirStmt::For { target, iter, body } => {
             let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
-            let iter_expr = convert_expr(iter, type_mapper)?;
-            let body_block = convert_block(body, type_mapper)?;
+            let iter_expr = convert_expr_with_context(iter, type_mapper, is_classmethod)?;
+            let body_block = convert_block_with_context(body, type_mapper, is_classmethod)?;
 
             let for_expr = parse_quote! {
                 for #target_ident in #iter_expr #body_block
@@ -1228,7 +1249,7 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
             Ok(syn::Stmt::Expr(for_expr, Some(Default::default())))
         }
         HirStmt::Expr(expr) => {
-            let rust_expr = convert_expr(expr, type_mapper)?;
+            let rust_expr = convert_expr_with_context(expr, type_mapper, is_classmethod)?;
             Ok(syn::Stmt::Expr(rust_expr, Some(Default::default())))
         }
         HirStmt::Raise {
@@ -1237,7 +1258,7 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
         } => {
             // Convert to Rust panic for direct rules
             let panic_expr = if let Some(exc) = exception {
-                let exc_expr = convert_expr(exc, type_mapper)?;
+                let exc_expr = convert_expr_with_context(exc, type_mapper, is_classmethod)?;
                 parse_quote! { panic!("Exception: {}", #exc_expr) }
             } else {
                 parse_quote! { panic!("Exception raised") }
@@ -1270,10 +1291,10 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
             body,
         } => {
             // Convert context expression
-            let context_expr = convert_expr(context, type_mapper)?;
+            let context_expr = convert_expr_with_context(context, type_mapper, is_classmethod)?;
 
             // Convert body to a block
-            let body_block = convert_block(body, type_mapper)?;
+            let body_block = convert_block_with_context(body, type_mapper, is_classmethod)?;
 
             // Generate a scope block with optional variable binding
             let block_expr = if let Some(var_name) = target {
@@ -1302,8 +1323,13 @@ fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
     }
 }
 
+#[allow(dead_code)]
 fn convert_block(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Result<syn::Block> {
-    let rust_stmts = convert_body(stmts, type_mapper)?;
+    convert_block_with_context(stmts, type_mapper, false)
+}
+
+fn convert_block_with_context(stmts: &[HirStmt], type_mapper: &TypeMapper, is_classmethod: bool) -> Result<syn::Block> {
+    let rust_stmts = convert_body_with_context(stmts, type_mapper, is_classmethod)?;
     Ok(syn::Block {
         brace_token: Default::default(),
         stmts: rust_stmts,
@@ -1311,8 +1337,14 @@ fn convert_block(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Result<syn::Blo
 }
 
 /// Convert HIR expressions to Rust expressions using strategy pattern
+#[allow(dead_code)]
 fn convert_expr(expr: &HirExpr, type_mapper: &TypeMapper) -> Result<syn::Expr> {
-    let converter = ExprConverter::new(type_mapper);
+    convert_expr_with_context(expr, type_mapper, false)
+}
+
+/// Convert HIR expressions with classmethod context
+fn convert_expr_with_context(expr: &HirExpr, type_mapper: &TypeMapper, is_classmethod: bool) -> Result<syn::Expr> {
+    let converter = ExprConverter::with_classmethod(type_mapper, is_classmethod);
     converter.convert(expr)
 }
 
@@ -1320,11 +1352,23 @@ fn convert_expr(expr: &HirExpr, type_mapper: &TypeMapper) -> Result<syn::Expr> {
 struct ExprConverter<'a> {
     #[allow(dead_code)]
     type_mapper: &'a TypeMapper,
+    is_classmethod: bool,
 }
 
 impl<'a> ExprConverter<'a> {
+    #[allow(dead_code)]
     fn new(type_mapper: &'a TypeMapper) -> Self {
-        Self { type_mapper }
+        Self {
+            type_mapper,
+            is_classmethod: false,
+        }
+    }
+
+    fn with_classmethod(type_mapper: &'a TypeMapper, is_classmethod: bool) -> Self {
+        Self {
+            type_mapper,
+            is_classmethod,
+        }
     }
 
     fn convert(&self, expr: &HirExpr) -> Result<syn::Expr> {
@@ -1522,6 +1566,15 @@ impl<'a> ExprConverter<'a> {
     }
 
     fn convert_call(&self, func: &str, args: &[HirExpr]) -> Result<syn::Expr> {
+        // Handle classmethod cls(args) → Self::new(args)
+        if func == "cls" && self.is_classmethod {
+            let arg_exprs: Vec<syn::Expr> = args
+                .iter()
+                .map(|arg| self.convert(arg))
+                .collect::<Result<Vec<_>>>()?;
+            return Ok(parse_quote! { Self::new(#(#arg_exprs),*) });
+        }
+
         let arg_exprs: Vec<syn::Expr> = args
             .iter()
             .map(|arg| self.convert(arg))
@@ -1837,6 +1890,18 @@ impl<'a> ExprConverter<'a> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<syn::Expr> {
+        // Handle classmethod cls.method() → Self::method()
+        if let HirExpr::Var(var_name) = object {
+            if var_name == "cls" && self.is_classmethod {
+                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| self.convert(arg))
+                    .collect::<Result<Vec<_>>>()?;
+                return Ok(parse_quote! { Self::#method_ident(#(#arg_exprs),*) });
+            }
+        }
+
         // Check if this is a static method call on a class (e.g., Counter.create_with_value)
         if let HirExpr::Var(class_name) = object {
             if class_name
@@ -2046,6 +2111,14 @@ impl<'a> ExprConverter<'a> {
     }
 
     fn convert_attribute(&self, value: &HirExpr, attr: &str) -> Result<syn::Expr> {
+        // Handle classmethod cls.ATTR → Self::ATTR
+        if let HirExpr::Var(var_name) = value {
+            if var_name == "cls" && self.is_classmethod {
+                let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+                return Ok(parse_quote! { Self::#attr_ident });
+            }
+        }
+
         let value_expr = self.convert(value)?;
         let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
         Ok(parse_quote! { #value_expr.#attr_ident })

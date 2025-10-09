@@ -18,8 +18,5 @@ impl IndexError {
 #[doc = " Depyler: proven to terminate"] pub fn test_arrays()  -> Result<DynamicType, IndexError>{
     let _cse_temp_0 = arr1.get(0 as usize).copied().unwrap_or_default() + arr1.get(1 as usize).copied().unwrap_or_default();
     let sum_val = _cse_temp_0;
-    return Ok(s📄 Source: examples/simple_array_test.py (286 bytes)
-📝 Output: examples/simple_array_test.rs (689 bytes)
-⏱️  Parse time: 8ms
-📊 Throughput: 32.7 KB/s
-⏱️  Total time: 8ms
+    return Ok(sum_val)
+}

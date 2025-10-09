@@ -118,6 +118,7 @@ fn test_convert_unaryop_neg() {
 }
 
 #[test]
+#[allow(clippy::cognitive_complexity)]
 fn test_convert_call_simple() {
     let expr = parse_expr("print('hello')");
     let result = ExprConverter::convert(expr).unwrap();
@@ -168,6 +169,7 @@ fn test_convert_list() {
 }
 
 #[test]
+#[allow(clippy::cognitive_complexity)]
 fn test_convert_dict() {
     let expr = parse_expr("{'a': 1, 'b': 2}");
     let result = ExprConverter::convert(expr).unwrap();
@@ -263,6 +265,7 @@ fn test_convert_compare() {
         _ => panic!("Expected comparison"),
     }
 }
+#[allow(clippy::cognitive_complexity)]
 
 #[test]
 fn test_convert_list_comp() {
@@ -346,7 +349,7 @@ fn test_convert_assign() {
     let stmt = parse_stmt("x = 42");
     let result = StmtConverter::convert(stmt).unwrap();
     match result {
-        HirStmt::Assign { target, value } => {
+        HirStmt::Assign { target, value, .. } => {
             assert!(matches!(target, AssignTarget::Symbol(ref s) if s == "x"));
             assert!(matches!(value, HirExpr::Literal(Literal::Int(42))));
         }
@@ -359,7 +362,7 @@ fn test_convert_aug_assign() {
     let stmt = parse_stmt("x += 1");
     let result = StmtConverter::convert(stmt).unwrap();
     match result {
-        HirStmt::Assign { target, value } => {
+        HirStmt::Assign { target, value, .. } => {
             assert!(matches!(target, AssignTarget::Symbol(ref s) if s == "x"));
             assert!(matches!(value, HirExpr::Binary { op: BinOp::Add, .. }));
         }
@@ -506,13 +509,14 @@ fn test_convert_ann_assign() {
     let stmt = parse_stmt("x: int = 42");
     let result = StmtConverter::convert(stmt).unwrap();
     match result {
-        HirStmt::Assign { target, value } => {
+        HirStmt::Assign { target, value, .. } => {
             assert!(matches!(target, AssignTarget::Symbol(ref s) if s == "x"));
             assert!(matches!(value, HirExpr::Literal(Literal::Int(42))));
         }
         _ => panic!("Expected annotated assignment"),
     }
 }
+#[allow(clippy::cognitive_complexity)]
 
 #[test]
 fn test_convert_set_comp() {
@@ -622,6 +626,7 @@ fn test_complex_expr_is_none() {
     }
 }
 
+#[allow(clippy::cognitive_complexity)]
 // DEPYLER-0101: Tests for tuple assignment/unpacking support
 #[test]
 fn test_tuple_assignment_simple() {
@@ -629,7 +634,7 @@ fn test_tuple_assignment_simple() {
     let result = StmtConverter::convert(stmt).unwrap();
 
     match result {
-        HirStmt::Assign { target, value } => {
+        HirStmt::Assign { target, value, .. } => {
             // Check target is tuple of two symbols
             match target {
                 AssignTarget::Tuple(targets) => {
@@ -645,6 +650,7 @@ fn test_tuple_assignment_simple() {
         _ => panic!("Expected Assign statement"),
     }
 }
+#[allow(clippy::cognitive_complexity)]
 
 #[test]
 fn test_tuple_assignment_three_vars() {
@@ -668,12 +674,13 @@ fn test_tuple_assignment_three_vars() {
 }
 
 #[test]
+#[allow(clippy::cognitive_complexity)]
 fn test_tuple_assignment_from_function() {
     let stmt = parse_stmt("a, b = get_pair()");
     let result = StmtConverter::convert(stmt).unwrap();
 
     match result {
-        HirStmt::Assign { target, value } => {
+        HirStmt::Assign { target, value, .. } => {
             // Check target is tuple
             match target {
                 AssignTarget::Tuple(targets) => {
@@ -695,7 +702,7 @@ fn test_tuple_assignment_swap() {
     let result = StmtConverter::convert(stmt).unwrap();
 
     match result {
-        HirStmt::Assign { target, value } => {
+        HirStmt::Assign { target, value, .. } => {
             match target {
                 AssignTarget::Tuple(targets) => {
                     assert_eq!(targets.len(), 2);

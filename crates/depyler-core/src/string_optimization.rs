@@ -88,14 +88,8 @@ impl StringOptimizer {
 
     fn analyze_stmt(&mut self, stmt: &HirStmt) {
         match stmt {
-            HirStmt::Assign { target, value } => {
-                // Track mutations for simple symbol assignments
-                if let AssignTarget::Symbol(symbol) = target {
-                    if self.immutable_params.contains(symbol) {
-                        self.immutable_params.remove(symbol);
-                    }
-                }
-                self.analyze_expr(value, false);
+            HirStmt::Assign { target, value, .. } => {
+                self.analyze_assign_stmt(target, value);
             }
             HirStmt::Return(Some(expr)) => {
                 self.analyze_expr(expr, true);
@@ -105,27 +99,13 @@ impl StringOptimizer {
                 then_body,
                 else_body,
             } => {
-                self.analyze_expr(condition, false);
-                for stmt in then_body {
-                    self.analyze_stmt(stmt);
-                }
-                if let Some(else_stmts) = else_body {
-                    for stmt in else_stmts {
-                        self.analyze_stmt(stmt);
-                    }
-                }
+                self.analyze_if_stmt(condition, then_body, else_body);
             }
             HirStmt::While { condition, body } => {
-                self.analyze_expr(condition, false);
-                for stmt in body {
-                    self.analyze_stmt(stmt);
-                }
+                self.analyze_while_stmt(condition, body);
             }
             HirStmt::For { iter, body, .. } => {
-                self.analyze_expr(iter, false);
-                for stmt in body {
-                    self.analyze_stmt(stmt);
-                }
+                self.analyze_for_stmt(iter, body);
             }
             HirStmt::Expr(expr) => {
                 self.analyze_expr(expr, false);
@@ -134,65 +114,116 @@ impl StringOptimizer {
         }
     }
 
+    fn analyze_assign_stmt(&mut self, target: &AssignTarget, value: &HirExpr) {
+        if let AssignTarget::Symbol(symbol) = target {
+            if self.immutable_params.contains(symbol) {
+                self.immutable_params.remove(symbol);
+            }
+        }
+        self.analyze_expr(value, false);
+    }
+
+    fn analyze_if_stmt(&mut self, condition: &HirExpr, then_body: &[HirStmt], else_body: &Option<Vec<HirStmt>>) {
+        self.analyze_expr(condition, false);
+        for stmt in then_body {
+            self.analyze_stmt(stmt);
+        }
+        if let Some(else_stmts) = else_body {
+            for stmt in else_stmts {
+                self.analyze_stmt(stmt);
+            }
+        }
+    }
+
+    fn analyze_while_stmt(&mut self, condition: &HirExpr, body: &[HirStmt]) {
+        self.analyze_expr(condition, false);
+        for stmt in body {
+            self.analyze_stmt(stmt);
+        }
+    }
+
+    fn analyze_for_stmt(&mut self, iter: &HirExpr, body: &[HirStmt]) {
+        self.analyze_expr(iter, false);
+        for stmt in body {
+            self.analyze_stmt(stmt);
+        }
+    }
+
     fn analyze_expr(&mut self, expr: &HirExpr, is_returned: bool) {
         match expr {
             HirExpr::Literal(Literal::String(s)) => {
-                // Count string literal occurrences
-                *self.string_literal_count.entry(s.clone()).or_insert(0) += 1;
-
-                // Check if this string should be interned (used more than 3 times)
-                if self.string_literal_count.get(s).copied().unwrap_or(0) > 3 {
-                    self.interned_strings.insert(s.clone());
-                }
-
-                if is_returned {
-                    self.returned_strings.insert(s.clone());
-                } else {
-                    self.read_only_strings.insert(s.clone());
-                }
+                self.analyze_string_literal(s, is_returned);
             }
             HirExpr::Var(name) => {
-                if is_returned && self.immutable_params.contains(name) {
-                    // Parameter is returned, might need Cow
-                    self.mixed_usage_strings.insert(name.clone());
-                }
+                self.analyze_var_usage(name, is_returned);
             }
             HirExpr::Binary { op, left, right } => {
-                // String concatenation needs owned strings
-                if matches!(op, crate::hir::BinOp::Add) {
-                    // Check if either side is a string
-                    if self.is_string_expr(left) || self.is_string_expr(right) {
-                        // Mark both sides as needing ownership for concatenation
-                        self.mark_as_owned(left);
-                        self.mark_as_owned(right);
-                    }
-                }
-                self.analyze_expr(left, false);
-                self.analyze_expr(right, false);
+                self.analyze_binary_expr(op, left, right);
             }
             HirExpr::Call { func, args } => {
-                // Analyze method calls that might mutate strings
-                if self.is_mutating_method(func) && !args.is_empty() {
-                    if let HirExpr::Var(name) = &args[0] {
-                        self.immutable_params.remove(name);
-                    }
-                }
-                for arg in args {
-                    self.analyze_expr(arg, false);
-                }
+                self.analyze_call_expr(func, args);
             }
             HirExpr::List(elts) | HirExpr::Tuple(elts) => {
-                for elt in elts {
-                    self.analyze_expr(elt, is_returned);
-                }
+                self.analyze_collection_expr(elts, is_returned);
             }
             HirExpr::Dict(items) => {
-                for (k, v) in items {
-                    self.analyze_expr(k, false);
-                    self.analyze_expr(v, is_returned);
-                }
+                self.analyze_dict_expr(items, is_returned);
             }
             _ => {}
+        }
+    }
+
+    fn analyze_string_literal(&mut self, s: &str, is_returned: bool) {
+        *self.string_literal_count.entry(s.to_string()).or_insert(0) += 1;
+
+        if self.string_literal_count.get(s).copied().unwrap_or(0) > 3 {
+            self.interned_strings.insert(s.to_string());
+        }
+
+        if is_returned {
+            self.returned_strings.insert(s.to_string());
+        } else {
+            self.read_only_strings.insert(s.to_string());
+        }
+    }
+
+    fn analyze_var_usage(&mut self, name: &str, is_returned: bool) {
+        if is_returned && self.immutable_params.contains(name) {
+            self.mixed_usage_strings.insert(name.to_string());
+        }
+    }
+
+    fn analyze_binary_expr(&mut self, op: &crate::hir::BinOp, left: &HirExpr, right: &HirExpr) {
+        if matches!(op, crate::hir::BinOp::Add)
+            && (self.is_string_expr(left) || self.is_string_expr(right)) {
+                self.mark_as_owned(left);
+                self.mark_as_owned(right);
+            }
+        self.analyze_expr(left, false);
+        self.analyze_expr(right, false);
+    }
+
+    fn analyze_call_expr(&mut self, func: &str, args: &[HirExpr]) {
+        if self.is_mutating_method(func) && !args.is_empty() {
+            if let HirExpr::Var(name) = &args[0] {
+                self.immutable_params.remove(name);
+            }
+        }
+        for arg in args {
+            self.analyze_expr(arg, false);
+        }
+    }
+
+    fn analyze_collection_expr(&mut self, elts: &[HirExpr], is_returned: bool) {
+        for elt in elts {
+            self.analyze_expr(elt, is_returned);
+        }
+    }
+
+    fn analyze_dict_expr(&mut self, items: &[(HirExpr, HirExpr)], is_returned: bool) {
+        for (k, v) in items {
+            self.analyze_expr(k, false);
+            self.analyze_expr(v, is_returned);
         }
     }
 
@@ -306,59 +337,58 @@ impl std::fmt::Display for StringContext {
 /// Generates optimized string code based on usage
 pub fn generate_optimized_string(optimizer: &StringOptimizer, context: &StringContext) -> String {
     match optimizer.get_optimal_type(context) {
-        OptimalStringType::StaticStr => {
-            // For static strings, we don't need .to_string()
-            match context {
-                StringContext::Literal(s) => format!("\"{}\"", escape_string(s)),
-                _ => {
-                    // Fallback to owned string for non-literal contexts
-                    format!("{}.to_string()", context)
-                }
-            }
-        }
-        OptimalStringType::BorrowedStr { .. } => {
-            // Parameters should be borrowed
-            match context {
-                StringContext::Parameter(name) => name.clone(), // Already &str in function signature
-                StringContext::Literal(s) => format!("\"{}\"", escape_string(s)), // Literals can be &'static str
-                _ => {
-                    format!("{}.as_str()", context)
-                }
-            }
-        }
-        OptimalStringType::OwnedString => {
-            // Need full String ownership
-            match context {
-                StringContext::Literal(s) => format!("\"{}\".to_string()", escape_string(s)),
-                StringContext::Parameter(name) => format!("{}.to_string()", name),
-                StringContext::Concatenation => "String::new()".to_string(),
-                _ => "String::new()".to_string(),
-            }
-        }
-        OptimalStringType::CowStr => {
-            // Use Cow for flexible ownership
-            match context {
-                StringContext::Literal(s) => format!("Cow::Borrowed(\"{}\")", escape_string(s)),
-                StringContext::Parameter(name) => format!("Cow::Borrowed({})", name),
-                StringContext::Concatenation => "Cow::Owned(String::new())".to_string(),
-                _ => "Cow::Owned(String::new())".to_string(),
-            }
-        }
+        OptimalStringType::StaticStr => generate_static_str(context),
+        OptimalStringType::BorrowedStr { .. } => generate_borrowed_str(context),
+        OptimalStringType::OwnedString => generate_owned_string(context),
+        OptimalStringType::CowStr => generate_cow_str(context),
+    }
+}
+
+fn generate_static_str(context: &StringContext) -> String {
+    match context {
+        StringContext::Literal(s) => format!("\"{}\"", escape_string(s)),
+        _ => format!("{}.to_string()", context),
+    }
+}
+
+fn generate_borrowed_str(context: &StringContext) -> String {
+    match context {
+        StringContext::Parameter(name) => name.clone(),
+        StringContext::Literal(s) => format!("\"{}\"", escape_string(s)),
+        _ => format!("{}.as_str()", context),
+    }
+}
+
+fn generate_owned_string(context: &StringContext) -> String {
+    match context {
+        StringContext::Literal(s) => format!("\"{}\".to_string()", escape_string(s)),
+        StringContext::Parameter(name) => format!("{}.to_string()", name),
+        StringContext::Concatenation | StringContext::Return => "String::new()".to_string(),
+    }
+}
+
+fn generate_cow_str(context: &StringContext) -> String {
+    match context {
+        StringContext::Literal(s) => format!("Cow::Borrowed(\"{}\")", escape_string(s)),
+        StringContext::Parameter(name) => format!("Cow::Borrowed({})", name),
+        StringContext::Concatenation | StringContext::Return => "Cow::Owned(String::new())".to_string(),
     }
 }
 
 /// Escape a string for use in Rust string literals
 fn escape_string(s: &str) -> String {
-    s.chars()
-        .flat_map(|c| match c {
-            '"' => vec!['\\', '"'],
-            '\\' => vec!['\\', '\\'],
-            '\n' => vec!['\\', 'n'],
-            '\r' => vec!['\\', 'r'],
-            '\t' => vec!['\\', 't'],
-            c => vec![c],
-        })
-        .collect()
+    s.chars().flat_map(escape_char).collect()
+}
+
+fn escape_char(c: char) -> Vec<char> {
+    match c {
+        '"' => vec!['\\', '"'],
+        '\\' => vec!['\\', '\\'],
+        '\n' => vec!['\\', 'n'],
+        '\r' => vec!['\\', 'r'],
+        '\t' => vec!['\\', 't'],
+        c => vec![c],
+    }
 }
 
 #[cfg(test)]

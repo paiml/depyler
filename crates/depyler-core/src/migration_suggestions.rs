@@ -554,7 +554,7 @@ for item in items {
     }
 
     fn is_param_mutated(&self, var: &str, method: &str, func: &HirFunction) -> bool {
-        let is_parameter = func.params.iter().any(|p| &p.name == var);
+        let is_parameter = func.params.iter().any(|p| p.name == var);
         let mutating_methods = ["append", "extend", "push", "insert", "remove", "clear"];
         let is_mutating = mutating_methods.contains(&method);
         is_parameter && is_mutating

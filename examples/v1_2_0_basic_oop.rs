@@ -11,7 +11,7 @@ impl Point {
     self.y = self.y + dy;
    
 }
-pub fn distance_squared(& mut self)  -> i32 {
+pub fn distance_squared(& self)  -> i32 {
     return self.x * self.x + self.y * self.y;
    
 }
@@ -27,15 +27,15 @@ impl Rectangle {
     Self {
     width, height
 }
-} pub fn area(& mut self)  -> i32 {
+} pub fn area(& self)  -> i32 {
     return self.width * self.height;
    
 }
-pub fn perimeter(& mut self)  -> i32 {
+pub fn perimeter(& self)  -> i32 {
     return 2 * self.width + self.height;
    
 }
-pub fn is_square(& mut self)  -> bool {
+pub fn is_square(& self)  -> bool {
     return self.width == self.height;
    
 }
@@ -50,12 +50,11 @@ pub fn is_square(& mut self)  -> bool {
     let rect = Rectangle::new(10, 20);
     let area = rect.area();
     let perim = rect.perimeter();
-    let sq = Rectangle::ne📄 Source: examples/v1_2_0_basic_oop.py (1916 bytes)
-📝 Output: examples/v1_2_0_basic_oop.rs (2006 bytes)
-⏱️  Parse time: 11ms
-📊 Throughput: 158.3 KB/s
-⏱️  Total time: 11ms
-e {
+    let sq = Rectangle::new(5, 5);
+    return area + perim;
+   
+}
+#[doc = "Test static methods"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn test_static()  -> DynamicType {
     let zero = Point.origin ();
     return zero;
    

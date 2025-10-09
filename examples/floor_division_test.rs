@@ -44,12 +44,14 @@ else {
     let q = a / b;
     let r = a % b;
     let r_negative = r<0;
-    l📄 Source: examples/floor_division_test.py (1053 bytes)
-📝 Output: examples/floor_division_test.rs (3866 bytes)
-⏱️  Parse time: 11ms
-📊 Throughput: 90.2 KB/s
-⏱️  Total time: 11ms
-e {
+    let b_negative = b<0;
+    let r_nonzero = r != 0;
+    let signs_differ = r_negative != b_negative;
+    let needs_adjustment = r_nonzero && signs_differ;
+    if needs_adjustment {
+    q - 1
+}
+else {
     q
 }
 };

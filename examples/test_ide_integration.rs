@@ -24,7 +24,7 @@ impl MathUtils {
     Self {
     precision: 0
 }
-} pub fn round_number(& mut self, value: f64)  -> f64 {
+} pub fn round_number(& self, value: f64)  -> f64 {
     return round(value, self.precision);
    
 }
@@ -40,12 +40,7 @@ pub fn is_prime(n: i32)  -> bool {
     return true;
    
 }
-} #[doc = "Calcul📄 Source: examples/test_ide_integration.py (1380 bytes)
-📝 Output: examples/test_ide_integration.rs (2100 bytes)
-⏱️  Parse time: 11ms
-📊 Throughput: 117.2 KB/s
-⏱️  Total time: 11ms
-fibonacci(n: i32)  -> i32 {
+} #[doc = "Calculate the nth Fibonacci number.\n    \n    Uses recursion with memoization for efficiency.\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn calculate_fibonacci(n: i32)  -> i32 {
     let _cse_temp_0 = n <= 1;
     if _cse_temp_0 {
     return n;

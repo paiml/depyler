@@ -18,12 +18,14 @@ use std::collections::HashSet;
 }
 . intersection(& {
     let mut set = HashSet::new();
-📄 Source: examples/test_set_summary.py (528 bytes)
-📝 Output: examples/test_set_summary.rs (1571 bytes)
-⏱️  Parse time: 10ms
-📊 Throughput: 48.3 KB/s
-⏱️  Total time: 10ms
-set.insert(1);
+    set.insert(2);
+    set.insert(3);
+    set.insert(4);
+    set }).cloned().collect();
+    let intersection = _cse_temp_1;
+    let _cse_temp_2 = {
+    let mut set = HashSet::new();
+    set.insert(1);
     set.insert(2);
     set.insert(3);
     set.insert(4);

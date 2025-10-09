@@ -90,8 +90,9 @@ return total;
     use quickcheck::{
     quickcheck, TestResult };
     #[test] fn test_process_list_examples() {
-    asser📄 Source: examples/demo.py (704 bytes)
-📝 Output: examples/demo.rs (2520 bytes)
-⏱️  Parse time: 11ms
-📊 Throughput: 58.9 KB/s
-⏱️  Total time: 11ms
+    assert_eq !(process_list(0), 0);
+    assert_eq !(process_list(1), 1);
+    assert_eq !(process_list(- 1), - 1);
+   
+}
+}

@@ -97,221 +97,203 @@ impl LifetimeAnalyzer {
 
     fn analyze_stmt(&mut self, stmt: &HirStmt, scope_depth: usize) {
         match stmt {
-            HirStmt::Assign { target, value } => {
-                // Check if value can be assigned
-                self.analyze_expr(value, scope_depth);
-
-                // Handle different assignment target types
-                if let AssignTarget::Symbol(var_name) = target {
-                    // Check for move semantics
-                    if self.is_moved(var_name) {
-                        self.violations.push(LifetimeViolation {
-                            kind: ViolationKind::UseAfterMove,
-                            variable: var_name.clone(),
-                            location: format!("assignment to {}", var_name),
-                            suggestion: "Consider borrowing instead of moving".to_string(),
-                        });
-                    }
-                }
-                // Note: Subscript and attribute assignments (e.g., a[0] = x, obj.field = x)
-                // are not currently analyzed for lifetime violations. Only symbol assignments
-                // are checked. This is a known limitation.
+            HirStmt::Assign { target, value, .. } => self.analyze_assign_stmt(target, value, scope_depth),
+            HirStmt::Return(Some(expr)) => self.analyze_return_stmt(expr, scope_depth),
+            HirStmt::If { condition, then_body, else_body } => {
+                self.analyze_if_stmt(condition, then_body, else_body, scope_depth)
             }
-            HirStmt::Return(Some(expr)) => {
-                self.analyze_expr(expr, scope_depth);
-                // Check for returning references to local variables
-                self.check_return_lifetime(expr, scope_depth);
-            }
-            HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
-                self.analyze_expr(condition, scope_depth);
-
-                // Enter new scope for then branch
-                self.enter_scope(scope_depth + 1);
-                for stmt in then_body {
-                    self.analyze_stmt(stmt, scope_depth + 1);
-                }
-                self.exit_scope();
-
-                // Enter new scope for else branch
-                if let Some(else_stmts) = else_body {
-                    self.enter_scope(scope_depth + 1);
-                    for stmt in else_stmts {
-                        self.analyze_stmt(stmt, scope_depth + 1);
-                    }
-                    self.exit_scope();
-                }
-            }
-            HirStmt::While { condition, body } => {
-                self.analyze_expr(condition, scope_depth);
-
-                // Check for iterator invalidation
-                self.check_loop_borrows(body, scope_depth);
-
-                self.enter_scope(scope_depth + 1);
-                for stmt in body {
-                    self.analyze_stmt(stmt, scope_depth + 1);
-                }
-                self.exit_scope();
-            }
-            HirStmt::For { target, iter, body } => {
-                self.analyze_expr(iter, scope_depth);
-
-                // Check for collection modification during iteration
-                self.check_iterator_invalidation(iter, body);
-
-                self.enter_scope(scope_depth + 1);
-                self.register_variable(target, &Type::Unknown, scope_depth + 1);
-                for stmt in body {
-                    self.analyze_stmt(stmt, scope_depth + 1);
-                }
-                self.exit_scope();
-            }
+            HirStmt::While { condition, body } => self.analyze_while_stmt(condition, body, scope_depth),
+            HirStmt::For { target, iter, body } => self.analyze_for_stmt(target, iter, body, scope_depth),
             _ => {}
         }
+    }
+
+    fn analyze_assign_stmt(&mut self, target: &AssignTarget, value: &HirExpr, scope_depth: usize) {
+        self.analyze_expr(value, scope_depth);
+
+        if let AssignTarget::Symbol(var_name) = target {
+            if self.is_moved(var_name) {
+                self.violations.push(LifetimeViolation {
+                    kind: ViolationKind::UseAfterMove,
+                    variable: var_name.clone(),
+                    location: format!("assignment to {}", var_name),
+                    suggestion: "Consider borrowing instead of moving".to_string(),
+                });
+            }
+        }
+    }
+
+    fn analyze_return_stmt(&mut self, expr: &HirExpr, scope_depth: usize) {
+        self.analyze_expr(expr, scope_depth);
+        self.check_return_lifetime(expr, scope_depth);
+    }
+
+    fn analyze_if_stmt(
+        &mut self,
+        condition: &HirExpr,
+        then_body: &[HirStmt],
+        else_body: &Option<Vec<HirStmt>>,
+        scope_depth: usize,
+    ) {
+        self.analyze_expr(condition, scope_depth);
+        self.analyze_scoped_body(then_body, scope_depth);
+
+        if let Some(else_stmts) = else_body {
+            self.analyze_scoped_body(else_stmts, scope_depth);
+        }
+    }
+
+    fn analyze_while_stmt(&mut self, condition: &HirExpr, body: &[HirStmt], scope_depth: usize) {
+        self.analyze_expr(condition, scope_depth);
+        self.check_loop_borrows(body, scope_depth);
+        self.analyze_scoped_body(body, scope_depth);
+    }
+
+    fn analyze_for_stmt(&mut self, target: &str, iter: &HirExpr, body: &[HirStmt], scope_depth: usize) {
+        self.analyze_expr(iter, scope_depth);
+        self.check_iterator_invalidation(iter, body);
+
+        self.enter_scope(scope_depth + 1);
+        self.register_variable(target, &Type::Unknown, scope_depth + 1);
+        for stmt in body {
+            self.analyze_stmt(stmt, scope_depth + 1);
+        }
+        self.exit_scope();
+    }
+
+    fn analyze_scoped_body(&mut self, body: &[HirStmt], scope_depth: usize) {
+        self.enter_scope(scope_depth + 1);
+        for stmt in body {
+            self.analyze_stmt(stmt, scope_depth + 1);
+        }
+        self.exit_scope();
     }
 
     #[allow(clippy::only_used_in_recursion)]
     fn analyze_expr(&mut self, expr: &HirExpr, scope_depth: usize) {
         match expr {
-            HirExpr::Var(name) => {
-                // Check if variable is borrowed elsewhere
-                if let Some(borrow_set) = self.active_borrows.last() {
-                    if let Some(borrow_kind) = borrow_set.borrowed.get(name) {
-                        if *borrow_kind == BorrowKind::Mutable {
-                            self.violations.push(LifetimeViolation {
-                                kind: ViolationKind::ConflictingBorrows,
-                                variable: name.clone(),
-                                location: "variable access".to_string(),
-                                suggestion: "Cannot access variable while mutably borrowed"
-                                    .to_string(),
-                            });
-                        }
-                    }
-                }
+            HirExpr::Var(name) => self.check_var_borrow(name),
+            HirExpr::Borrow { expr, mutable } => self.check_borrow_expr(expr, *mutable, scope_depth),
+            HirExpr::Binary { left, right, .. } => self.analyze_binary_expr(left, right, scope_depth),
+            HirExpr::Call { func, args } => self.analyze_call_expr(func, args, scope_depth),
+            HirExpr::Index { base, index } => self.analyze_index_expr(base, index, scope_depth),
+            HirExpr::MethodCall { object, method, args } => {
+                self.analyze_method_call_expr(object, method, args, scope_depth)
             }
-            HirExpr::Borrow { expr, mutable } => {
-                if let HirExpr::Var(name) = expr.as_ref() {
-                    let borrow_kind = if *mutable {
-                        BorrowKind::Mutable
-                    } else {
-                        BorrowKind::Shared
-                    };
-
-                    // Check for conflicting borrows
-                    if !self.can_borrow(name, &borrow_kind) {
-                        self.violations.push(LifetimeViolation {
-                            kind: ViolationKind::ConflictingBorrows,
-                            variable: name.clone(),
-                            location: "borrow expression".to_string(),
-                            suggestion: "Variable is already borrowed".to_string(),
-                        });
-                    } else {
-                        self.add_borrow(name, borrow_kind);
-                    }
-                }
-
-                self.analyze_expr(expr, scope_depth);
-            }
-            HirExpr::Binary { left, right, .. } => {
-                self.analyze_expr(left, scope_depth);
-                self.analyze_expr(right, scope_depth);
-            }
-            HirExpr::Call { func, args } => {
-                // Check if this is a method that might invalidate borrows
-                if matches!(func.as_str(), "push" | "append" | "insert" | "extend") {
-                    // These methods often require mutable access to the first argument
-                    if let Some(HirExpr::Var(obj)) = args.first() {
-                        if !self.can_borrow(obj, &BorrowKind::Mutable) {
-                            self.violations.push(LifetimeViolation {
-                                kind: ViolationKind::ConflictingBorrows,
-                                variable: obj.clone(),
-                                location: format!("method call: {}", func),
-                                suggestion: "Cannot mutate while borrowed".to_string(),
-                            });
-                        }
-                    }
-                }
-
-                for arg in args {
-                    self.analyze_expr(arg, scope_depth);
-                    // Track potential moves through function calls
-                    if let HirExpr::Var(name) = arg {
-                        if !self.is_copy_type(name) && func != "len" && func != "print" {
-                            self.escaping_vars.insert(name.clone());
-                        }
-                    }
-                }
-            }
-            HirExpr::Index { base, index } => {
-                self.analyze_expr(base, scope_depth);
-                self.analyze_expr(index, scope_depth);
-
-                // Check for iterator invalidation
-                if let HirExpr::Var(name) = base.as_ref() {
-                    if self
-                        .active_borrows
-                        .iter()
-                        .any(|bs| bs.borrowed.contains_key(name))
-                    {
-                        self.violations.push(LifetimeViolation {
-                            kind: ViolationKind::ConflictingBorrows,
-                            variable: name.clone(),
-                            location: "indexing operation".to_string(),
-                            suggestion: "Cannot index while collection is borrowed".to_string(),
-                        });
-                    }
-                }
-            }
-            HirExpr::MethodCall {
-                object,
-                method,
-                args,
-            } => {
-                self.analyze_expr(object, scope_depth);
-
-                // Check if method requires mutable access
-                let requires_mut = matches!(
-                    method.as_str(),
-                    "push"
-                        | "pop"
-                        | "insert"
-                        | "remove"
-                        | "clear"
-                        | "append"
-                        | "extend"
-                        | "push_str"
-                        | "truncate"
-                        | "drain"
-                        | "retain"
-                );
-
-                if requires_mut {
-                    if let HirExpr::Var(name) = object.as_ref() {
-                        if !self.can_borrow(name, &BorrowKind::Mutable) {
-                            self.violations.push(LifetimeViolation {
-                                kind: ViolationKind::ConflictingBorrows,
-                                variable: name.clone(),
-                                location: format!("method call: {}", method),
-                                suggestion: "Cannot call mutable method while borrowed".to_string(),
-                            });
-                        }
-                    }
-                }
-
-                for arg in args {
-                    self.analyze_expr(arg, scope_depth);
-                }
-            }
-            HirExpr::Attribute { value, .. } => {
-                // Analyze the base value expression for lifetime issues
-                self.analyze_expr(value, scope_depth);
-            }
+            HirExpr::Attribute { value, .. } => self.analyze_expr(value, scope_depth),
             _ => {}
         }
+    }
+
+    fn check_var_borrow(&mut self, name: &str) {
+        if let Some(borrow_set) = self.active_borrows.last() {
+            if let Some(borrow_kind) = borrow_set.borrowed.get(name) {
+                if *borrow_kind == BorrowKind::Mutable {
+                    self.violations.push(LifetimeViolation {
+                        kind: ViolationKind::ConflictingBorrows,
+                        variable: name.to_string(),
+                        location: "variable access".to_string(),
+                        suggestion: "Cannot access variable while mutably borrowed".to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    fn check_borrow_expr(&mut self, expr: &HirExpr, mutable: bool, scope_depth: usize) {
+        if let HirExpr::Var(name) = expr {
+            let borrow_kind = if mutable { BorrowKind::Mutable } else { BorrowKind::Shared };
+
+            if !self.can_borrow(name, &borrow_kind) {
+                self.violations.push(LifetimeViolation {
+                    kind: ViolationKind::ConflictingBorrows,
+                    variable: name.clone(),
+                    location: "borrow expression".to_string(),
+                    suggestion: "Variable is already borrowed".to_string(),
+                });
+            } else {
+                self.add_borrow(name, borrow_kind);
+            }
+        }
+        self.analyze_expr(expr, scope_depth);
+    }
+
+    fn analyze_binary_expr(&mut self, left: &HirExpr, right: &HirExpr, scope_depth: usize) {
+        self.analyze_expr(left, scope_depth);
+        self.analyze_expr(right, scope_depth);
+    }
+
+    fn analyze_call_expr(&mut self, func: &str, args: &[HirExpr], scope_depth: usize) {
+        if matches!(func, "push" | "append" | "insert" | "extend") {
+            self.check_mutating_call(func, args);
+        }
+
+        for arg in args {
+            self.analyze_expr(arg, scope_depth);
+            if let HirExpr::Var(name) = arg {
+                if !self.is_copy_type(name) && !matches!(func, "len" | "print") {
+                    self.escaping_vars.insert(name.clone());
+                }
+            }
+        }
+    }
+
+    fn check_mutating_call(&mut self, func: &str, args: &[HirExpr]) {
+        if let Some(HirExpr::Var(obj)) = args.first() {
+            if !self.can_borrow(obj, &BorrowKind::Mutable) {
+                self.violations.push(LifetimeViolation {
+                    kind: ViolationKind::ConflictingBorrows,
+                    variable: obj.clone(),
+                    location: format!("method call: {}", func),
+                    suggestion: "Cannot mutate while borrowed".to_string(),
+                });
+            }
+        }
+    }
+
+    fn analyze_index_expr(&mut self, base: &HirExpr, index: &HirExpr, scope_depth: usize) {
+        self.analyze_expr(base, scope_depth);
+        self.analyze_expr(index, scope_depth);
+
+        if let HirExpr::Var(name) = base {
+            if self.active_borrows.iter().any(|bs| bs.borrowed.contains_key(name)) {
+                self.violations.push(LifetimeViolation {
+                    kind: ViolationKind::ConflictingBorrows,
+                    variable: name.clone(),
+                    location: "indexing operation".to_string(),
+                    suggestion: "Cannot index while collection is borrowed".to_string(),
+                });
+            }
+        }
+    }
+
+    fn analyze_method_call_expr(&mut self, object: &HirExpr, method: &str, args: &[HirExpr], scope_depth: usize) {
+        self.analyze_expr(object, scope_depth);
+
+        if self.is_mutating_method(method) {
+            if let HirExpr::Var(name) = object {
+                if !self.can_borrow(name, &BorrowKind::Mutable) {
+                    self.violations.push(LifetimeViolation {
+                        kind: ViolationKind::ConflictingBorrows,
+                        variable: name.clone(),
+                        location: format!("method call: {}", method),
+                        suggestion: "Cannot call mutable method while borrowed".to_string(),
+                    });
+                }
+            }
+        }
+
+        for arg in args {
+            self.analyze_expr(arg, scope_depth);
+        }
+    }
+
+    fn is_mutating_method(&self, method: &str) -> bool {
+        matches!(
+            method,
+            "push" | "pop" | "insert" | "remove" | "clear" | "append" | "extend"
+            | "push_str" | "truncate" | "drain" | "retain"
+        )
     }
 
     fn enter_scope(&mut self, depth: usize) {
@@ -482,6 +464,7 @@ mod tests {
                 HirStmt::Assign {
                     target: depyler_core::hir::AssignTarget::Symbol("local".to_string()),
                     value: HirExpr::Literal(Literal::String("temp".to_string())),
+                    type_annotation: None,
                 },
                 HirStmt::Return(Some(HirExpr::Borrow {
                     expr: Box::new(HirExpr::Var("local".to_string())),

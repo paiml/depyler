@@ -17,8 +17,5 @@ impl IndexError {
 }
 #[doc = "Test reading nested dictionary values"] #[doc = " Depyler: proven to terminate"] pub fn test_nested_access()  -> Result<DynamicType, IndexError>{
     let val = d.get("outer").cloned().unwrap_or_default().get("inner").cloned().unwrap_or_default();
-    return Ok(val)📄 Source: examples/test_nested_access.py (180 bytes)
-📝 Output: examples/test_nested_access.rs (686 bytes)
-⏱️  Parse time: 7ms
-📊 Throughput: 22.0 KB/s
-⏱️  Total time: 8ms
+    return Ok(val)
+}
