@@ -1039,8 +1039,11 @@ impl RustCodeGen for HirStmt {
                             Ok(quote! { #chain.insert(#final_index, #value_expr); })
                         }
                     }
-                    AssignTarget::Attribute { .. } => {
-                        bail!("Attribute assignment not yet implemented")
+                    AssignTarget::Attribute { value, attr } => {
+                        // Struct field assignment: obj.field = value
+                        let base_expr = value.to_rust_expr(ctx)?;
+                        let attr_ident = syn::Ident::new(attr.as_str(), proc_macro2::Span::call_site());
+                        Ok(quote! { #base_expr.#attr_ident = #value_expr; })
                     }
                     AssignTarget::Tuple(targets) => {
                         // Tuple unpacking: a, b = value
