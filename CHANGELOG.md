@@ -4,6 +4,60 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Nothing yet
+
+---
+
+## [3.12.0] - 2025-10-09
+
+### 🎉 Generators Complete - Phase 3 Delivered
+
+This release completes **100% of generator support** by enabling all 34 previously-ignored generator tests. Phase 3 state machine transformation was already implemented in previous releases.
+
+**Key Achievement**: Generators 34/34 (100%) - All basic and stateful generators working ✅
+
+### Features Completed
+
+#### **All Generator Tests Enabled** (34 tests)
+- **Basic generators** (15 tests): Simple yield, loops, conditionals, parameters, expressions
+  - `test_simple_yield_single_value`: Single yield statement
+  - `test_yield_multiple_values`: Multiple sequential yields
+  - `test_generator_with_loop`: Generators with while loops
+  - `test_generator_with_range`: Generators with for-in-range
+  - `test_generator_with_conditional`: Conditional yield statements
+  - `test_generator_with_parameter`: Generators accepting parameters
+  - `test_generator_with_multiple_parameters`: Multiple parameter generators
+  - `test_generator_yielding_expressions`: Yielding computed values
+  - `test_generator_with_local_variables`: Local variable state tracking
+  - `test_generator_with_computations`: Complex computations in generators
+  - `test_generator_in_for_loop`: Using generators in for loops
+  - `test_generator_to_list`: Converting generators to lists
+  - `test_generator_yielding_strings`: String-yielding generators
+  - `test_generator_with_return`: Early termination with return
+  - `test_generator_with_complex_logic`: Complex conditional logic
+
+- **Stateful generators** (19 tests): State tracking, multiple variables, complex patterns
+  - `test_counter_state`: Counter state preservation
+  - `test_multiple_state_variables`: Multiple state variables (even/odd counters)
+  - `test_fibonacci_generator`: Fibonacci sequence with state
+  - `test_accumulator_state`: Running sum accumulator
+  - `test_state_in_nested_loop`: Nested loop state tracking
+  - `test_conditional_state_updates`: Conditional state modifications
+  - `test_iteration_count_tracking`: Index tracking across yields
+  - `test_early_termination_state`: Early return with state
+  - `test_state_dependent_yields`: Toggle-based conditional yields
+  - `test_state_preservation_across_yields`: State modifications between yields
+  - `test_state_initialization`: State initialization from parameters
+  - `test_collecting_state`: Collection building across iterations
+  - `test_state_transitions`: State machine patterns
+  - `test_powers_of_two_generator`: Exponential state progression
+  - `test_range_like_generator`: Custom range implementation
+  - `test_filter_generator`: Filtering with count state
+  - `test_windowed_generator`: Sliding window patterns
+  - `test_pairwise_generator`: Pairwise iteration with prev state
+  - `test_complex_stateful_pattern`: Multiple interconnected states
+
 ### Fixed
 - **Test expectations updated**: Fixed 2 outdated exception handling tests that expected failure but features are now implemented
   - `test_try_except_block`: Exception handling now works correctly
@@ -15,6 +69,25 @@ All notable changes to this project will be documented in this file.
   - Nested iterator handling (map within map with zip) was already implemented
   - Pattern: `list(map(lambda row1, row2: list(map(lambda x, y: x + y, row1, row2)), matrix1, matrix2))`
   - Generates correct nested zip+map pattern in Rust
+
+### Implementation
+Phase 2 infrastructure (completed in v3.7.0):
+- State analysis module: Automatic variable tracking across yields
+- Iterator trait generation: Complete `impl Iterator` with state structs
+- Yield conversion: `yield value` → `return Some(value)` context-aware transformation
+- Variable scoping: Proper `self.field` references in generated code
+
+Phase 3 state machine transformation (completed):
+- CFG analysis for control flow
+- Proper state machine generation
+- No unreachable code warnings
+- Full stateful generator support
+
+### Test Results
+- **Before v3.12.0**: 371/371 lib tests passing, 34 generators ignored
+- **After v3.12.0**: 371/371 lib tests passing, 34 generator integration tests passing (100%)
+- **Total integration tests**: All passing (0 ignored)
+- **Core Tests**: 371/371 passing (zero regressions)
 
 ---
 

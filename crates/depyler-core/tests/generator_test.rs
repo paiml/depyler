@@ -23,7 +23,6 @@
 use depyler_core::DepylerPipeline;
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_simple_yield_single_value() {
     let python = r#"
 def simple_generator():
@@ -48,7 +47,6 @@ def simple_generator():
 }
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_yield_multiple_values() {
     let python = r#"
 def count_to_three():
@@ -71,7 +69,6 @@ def count_to_three():
 }
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_generator_with_loop() {
     let python = r#"
 def count_up(n: int):
@@ -95,7 +92,6 @@ def count_up(n: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_generator_with_range() {
     let python = r#"
 def range_generator(n: int):
@@ -117,7 +113,6 @@ def range_generator(n: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_generator_with_conditional() {
     let python = r#"
 def even_numbers(n: int):
@@ -140,7 +135,6 @@ def even_numbers(n: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_generator_with_parameter() {
     let python = r#"
 def repeat_value(value: int, times: int):
@@ -162,7 +156,6 @@ def repeat_value(value: int, times: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_generator_with_multiple_parameters() {
     let python = r#"
 def add_sequence(start: int, end: int, step: int):
@@ -186,7 +179,6 @@ def add_sequence(start: int, end: int, step: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_generator_yielding_expressions() {
     let python = r#"
 def squares(n: int):
@@ -208,7 +200,6 @@ def squares(n: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_generator_with_local_variables() {
     let python = r#"
 def fibonacci(n: int):
@@ -235,7 +226,6 @@ def fibonacci(n: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_generator_with_computations() {
     let python = r#"
 def powers_of_two(n: int):
@@ -259,7 +249,6 @@ def powers_of_two(n: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_generator_in_for_loop() {
     let python = r#"
 def simple_range(n: int):
@@ -287,7 +276,6 @@ def use_generator():
 }
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_generator_to_list() {
     let python = r#"
 def numbers(n: int):
@@ -312,7 +300,6 @@ def get_list():
 }
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_generator_yielding_strings() {
     let python = r#"
 def string_generator():
@@ -335,7 +322,6 @@ def string_generator():
 }
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_generator_with_return() {
     let python = r#"
 def limited_generator(n: int):
@@ -359,7 +345,6 @@ def limited_generator(n: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Yield not yet implemented
 fn test_generator_with_complex_logic() {
     let python = r#"
 def complex_generator(start: int, end: int):
