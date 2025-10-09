@@ -510,6 +510,93 @@ pub fn generate_rust_file(
     Ok(format_rust_code(file.to_string()))
 }
 
+/// Generate struct fields for generator state variables
+fn generate_state_fields(
+    state_info: &crate::generator_state::GeneratorStateInfo,
+    ctx: &mut CodeGenContext,
+) -> Result<Vec<proc_macro2::TokenStream>> {
+    state_info
+        .state_variables
+        .iter()
+        .map(|var| {
+            let field_name = syn::Ident::new(&var.name, proc_macro2::Span::call_site());
+            let rust_type = ctx.type_mapper.map_type(&var.ty);
+            let field_type = rust_type_to_syn(&rust_type)?;
+            Ok(quote! { #field_name: #field_type })
+        })
+        .collect()
+}
+
+/// Generate struct fields for captured parameters
+fn generate_param_fields(
+    func: &HirFunction,
+    state_info: &crate::generator_state::GeneratorStateInfo,
+    ctx: &mut CodeGenContext,
+) -> Result<Vec<proc_macro2::TokenStream>> {
+    func.params
+        .iter()
+        .filter(|p| state_info.captured_params.contains(&p.name))
+        .map(|param| {
+            let field_name = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
+            let rust_type = ctx.type_mapper.map_type(&param.ty);
+            let field_type = rust_type_to_syn(&rust_type)?;
+            Ok(quote! { #field_name: #field_type })
+        })
+        .collect()
+}
+
+/// Extract the Item type for the Iterator from generator return type
+fn extract_generator_item_type(
+    rust_ret_type: &crate::type_mapper::RustType,
+) -> Result<syn::Type> {
+    // For now, use the return type directly as Item type
+    // TODO: Handle more complex cases (Generator<Yield=T>)
+    rust_type_to_syn(rust_ret_type)
+}
+
+/// Generate field initializers for state variables (with default values)
+fn generate_state_initializers(
+    state_info: &crate::generator_state::GeneratorStateInfo,
+) -> Vec<proc_macro2::TokenStream> {
+    state_info
+        .state_variables
+        .iter()
+        .map(|var| {
+            let field_name = syn::Ident::new(&var.name, proc_macro2::Span::call_site());
+            // Initialize with type-appropriate default (0 for int, false for bool, etc.)
+            let default_value = get_default_value_for_type(&var.ty);
+            quote! { #field_name: #default_value }
+        })
+        .collect()
+}
+
+/// Generate field initializers for captured parameters
+fn generate_param_initializers(
+    func: &HirFunction,
+    state_info: &crate::generator_state::GeneratorStateInfo,
+) -> Vec<proc_macro2::TokenStream> {
+    func.params
+        .iter()
+        .filter(|p| state_info.captured_params.contains(&p.name))
+        .map(|param| {
+            let field_name = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
+            // Initialize with parameter value (n: n)
+            quote! { #field_name: #field_name }
+        })
+        .collect()
+}
+
+/// Get default value expression for a type
+fn get_default_value_for_type(ty: &Type) -> proc_macro2::TokenStream {
+    match ty {
+        Type::Int => quote! { 0 },
+        Type::Float => quote! { 0.0 },
+        Type::Bool => quote! { false },
+        Type::String => quote! { String::new() },
+        _ => quote! { Default::default() },
+    }
+}
+
 impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         let name = syn::Ident::new(&self.name, proc_macro2::Span::call_site());
@@ -760,6 +847,9 @@ impl RustCodeGen for HirFunction {
         // Update import needs based on return type
         update_import_needs(ctx, &rust_ret_type);
 
+        // Clone rust_ret_type for generator use (before any partial moves)
+        let rust_ret_type_for_generator = rust_ret_type.clone();
+
         // Check if function can fail and needs Result wrapper
         let can_fail = self.properties.can_fail;
         let error_type_str = if can_fail && !self.properties.error_types.is_empty() {
@@ -905,33 +995,70 @@ impl RustCodeGen for HirFunction {
             // Analyze generator state requirements
             let state_info = GeneratorStateInfo::analyze(self);
 
-            // Document state analysis results
-            let state_var_names: Vec<String> = state_info.state_variables.iter()
-                .map(|v| v.name.clone())
-                .collect();
-            let captured_param_names = state_info.captured_params.join(", ");
-            let state_doc = if state_var_names.is_empty() {
-                "No local state variables".to_string()
-            } else {
-                format!("State variables: {}", state_var_names.join(", "))
-            };
-            let param_doc = if captured_param_names.is_empty() {
-                "No captured parameters".to_string()
-            } else {
-                format!("Captured parameters: {}", captured_param_names)
-            };
-            let yield_doc = format!("{} yield point(s)", state_info.yield_count);
+            // Generate state struct name (capitalize function name)
+            let state_struct_name = format!(
+                "{}State",
+                name.to_string()
+                    .chars()
+                    .next()
+                    .map(|c| c.to_uppercase().to_string())
+                    .unwrap_or_default()
+                    + &name.to_string()[1..]
+            );
+            let state_ident = syn::Ident::new(&state_struct_name, name.span());
 
-            // Generate enhanced documentation showing state analysis
+            // Build state struct fields from analysis (for struct definition)
+            let state_fields = generate_state_fields(&state_info, ctx)?;
+            let param_fields = generate_param_fields(self, &state_info, ctx)?;
+            let all_fields = [state_fields, param_fields].concat();
+
+            // Build field initializers (for struct construction)
+            let state_inits = generate_state_initializers(&state_info);
+            let param_inits = generate_param_initializers(self, &state_info);
+            let all_inits = [state_inits, param_inits].concat();
+
+            // Generate state machine field (tracks which yield point we're at)
+            let state_machine_field = quote! {
+                state: usize
+            };
+
+            // Extract yield value type from return type
+            let item_type = extract_generator_item_type(&rust_ret_type_for_generator)?;
+
+            // Generate the complete generator implementation
             quote! {
                 #(#attrs)*
-                #[doc = " GENERATOR: State analysis complete"]
-                #[doc = #state_doc]
-                #[doc = #param_doc]
-                #[doc = #yield_doc]
-                #[doc = " Full Iterator implementation pending (Phase 2 in progress)"]
-                pub fn #name #generic_params(#(#params),*) #return_type #where_clause {
-                    unimplemented!("Generator state machine codegen in progress")
+                #[doc = " Generator state struct"]
+                #[derive(Debug)]
+                struct #state_ident {
+                    #state_machine_field,
+                    #(#all_fields),*
+                }
+
+                #[doc = " Generator function - returns Iterator"]
+                pub fn #name #generic_params(#(#params),*) -> impl Iterator<Item = #item_type> #where_clause {
+                    #state_ident {
+                        state: 0,
+                        #(#all_inits),*
+                    }
+                }
+
+                impl Iterator for #state_ident {
+                    type Item = #item_type;
+
+                    fn next(&mut self) -> Option<Self::Item> {
+                        // Simplified: Single yield point implementation
+                        // Full state machine with multiple yields pending
+                        match self.state {
+                            0 => {
+                                self.state = 1;
+                                // Execute generator body and yield first value
+                                #(#body_stmts)*
+                                None // Placeholder: actual yield value extraction pending
+                            }
+                            _ => None
+                        }
+                    }
                 }
             }
         } else if self.properties.is_async {
