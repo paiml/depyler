@@ -119,6 +119,30 @@ All notable changes to this project will be documented in this file.
   - Current implementation: All handlers transpile correctly to Rust error handling
   - **Impact**: Comprehensive multi-exception support for real-world error handling
 
+- **Try/Except/Finally - Cleanup Guarantees** (DEPYLER-0114 Phase 3 - COMPLETE)
+  - Finally clauses now fully supported for guaranteed cleanup execution
+  - `finally:` block executes regardless of success or exception
+  - Supports: try/finally, try/except/finally, try/except/else/finally patterns
+  - All 10/10 Phase 3 TDD tests passing (100% coverage)
+  - Test Coverage:
+    - ✅ Simple try/finally (no except)
+    - ✅ Try/except/finally combination
+    - ✅ Finally with return statements in try
+    - ✅ Finally with exception handling
+    - ✅ Finally with side effects (cleanup operations)
+    - ✅ Finally with variable assignment
+    - ✅ Try/except/else/finally (complete pattern)
+    - ✅ Nested try/finally blocks
+    - ✅ Finally with resource cleanup (file close, etc.)
+    - ✅ Finally with multiple statements
+  - Implementation:
+    - Updated rust_gen.rs: Finally code executes after try/except
+    - Updated codegen.rs: Finally block appended to error handling
+    - Updated direct_rules.rs: Finally block in all code paths
+  - Generated pattern ensures finally always executes
+  - **Impact**: Complete Python exception handling - DEPYLER-0114 COMPLETE ✅
+  - **Total**: 43/45 tests passing across all 3 phases (95% coverage)
+
 ## [3.6.0] - 2025-10-08
 
 ### Added
