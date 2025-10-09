@@ -63,6 +63,16 @@ All notable changes to this project will be documented in this file.
   - All 10/10 @classmethod TDD tests passing
   - **Impact**: Factory pattern and alternative constructors now fully supported
 
+- **@property Decorator Support** (DEPYLER-0112 Phase 3 - COMPLETE)
+  - Python @property now transpiles correctly to getter methods
+  - `@property def method(self)` → `pub fn method(&self)` (getter with &self)
+  - Properties can access instance fields, class constants, call other methods
+  - Supports computed properties, conditional logic, multiple properties
+  - Implementation already complete via existing HIR is_property flag
+  - All 10/10 @property TDD tests passing
+  - Total: 30/30 decorator tests passing (staticmethod + classmethod + property)
+  - **Impact**: Complete Python decorator support - DEPYLER-0112 ticket COMPLETE ✅
+
 ## [3.6.0] - 2025-10-08
 
 ### Added
