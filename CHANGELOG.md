@@ -28,6 +28,15 @@ All notable changes to this project will be documented in this file.
   - All 12/12 instance method TDD tests passing
   - **Impact**: Improves code quality and enables proper borrowing semantics
 
+- **Class Attributes/Constants** (DEPYLER-0111 Phase 3 - Class-Level Variables)
+  - Python class attributes now generate Rust constants in impl blocks
+  - `MAX_SIZE: int = 100` → `pub const MAX_SIZE: i32 = 100;` in impl block
+  - Instance fields properly separated from class constants during struct generation
+  - Supports all Python primitive types as class constants (int, float, str, bool)
+  - Field inference from `__init__` now works correctly with class attributes
+  - All 10/10 class attribute TDD tests passing
+  - **Impact**: Complete Python class attribute support with proper Rust semantics
+
 ## [3.6.0] - 2025-10-08
 
 ### Added
