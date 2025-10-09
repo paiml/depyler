@@ -720,7 +720,9 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
                 collect_used_vars_expr_inner(v, used);
             }
         }
-        HirExpr::Call { args, .. } => {
+        HirExpr::Call { func, args } => {
+            // Mark the function name as used (important for lambda variables)
+            used.insert(func.clone(), true);
             for arg in args {
                 collect_used_vars_expr_inner(arg, used);
             }
@@ -733,6 +735,30 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
         }
         HirExpr::Lambda { body, .. } => {
             collect_used_vars_expr_inner(body, used);
+        }
+        HirExpr::ListComp {
+            element,
+            iter,
+            condition,
+            ..
+        } => {
+            collect_used_vars_expr_inner(element, used);
+            collect_used_vars_expr_inner(iter, used);
+            if let Some(cond) = condition {
+                collect_used_vars_expr_inner(cond, used);
+            }
+        }
+        HirExpr::SetComp {
+            element,
+            iter,
+            condition,
+            ..
+        } => {
+            collect_used_vars_expr_inner(element, used);
+            collect_used_vars_expr_inner(iter, used);
+            if let Some(cond) = condition {
+                collect_used_vars_expr_inner(cond, used);
+            }
         }
         _ => {}
     }
