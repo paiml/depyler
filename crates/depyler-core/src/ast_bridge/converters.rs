@@ -39,6 +39,7 @@ impl StmtConverter {
             ast::Stmt::Break(b) => Self::convert_break(b),
             ast::Stmt::Continue(c) => Self::convert_continue(c),
             ast::Stmt::With(w) => Self::convert_with(w),
+            ast::Stmt::Try(t) => Self::convert_try(t),
             ast::Stmt::Pass(_) => Self::convert_pass(),
             _ => bail!("Statement type not yet supported"),
         }
@@ -182,6 +183,51 @@ impl StmtConverter {
             context,
             target,
             body,
+        })
+    }
+
+    fn convert_try(t: ast::StmtTry) -> Result<HirStmt> {
+        let body = convert_body(t.body)?;
+
+        let mut handlers = Vec::new();
+        for handler in t.handlers {
+            // Extract the ExceptHandlerExceptHandler from the enum
+            let ast::ExceptHandler::ExceptHandler(h) = handler;
+
+            let exception_type = h.type_.as_ref().map(|t| {
+                match t.as_ref() {
+                    ast::Expr::Name(n) => n.id.to_string(),
+                    _ => "Exception".to_string(), // Default to generic exception
+                }
+            });
+
+            let name = h.name.as_ref().map(|id| id.to_string());
+            let handler_body = convert_body(h.body)?;
+
+            handlers.push(crate::hir::ExceptHandler {
+                exception_type,
+                name,
+                body: handler_body,
+            });
+        }
+
+        let orelse = if t.orelse.is_empty() {
+            None
+        } else {
+            Some(convert_body(t.orelse)?)
+        };
+
+        let finalbody = if t.finalbody.is_empty() {
+            None
+        } else {
+            Some(convert_body(t.finalbody)?)
+        };
+
+        Ok(HirStmt::Try {
+            body,
+            handlers,
+            orelse,
+            finalbody,
         })
     }
 

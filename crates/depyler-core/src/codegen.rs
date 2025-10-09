@@ -487,6 +487,42 @@ fn stmt_to_rust_tokens_with_scope(
             target,
             body,
         } => handle_with_stmt(context, target, body),
+        HirStmt::Try {
+            body,
+            handlers,
+            orelse: _,
+            finalbody: _,
+        } => {
+            // Simple try/except codegen for Phase 1
+            // Generate try body statements
+            let try_stmts: Vec<_> = body
+                .iter()
+                .map(|s| stmt_to_rust_tokens_with_scope(s, scope_tracker))
+                .collect::<Result<Vec<_>>>()?;
+
+            // Generate handler statements (just use first handler for simplicity)
+            if let Some(handler) = handlers.first() {
+                let handler_stmts: Vec<_> = handler.body
+                    .iter()
+                    .map(|s| stmt_to_rust_tokens_with_scope(s, scope_tracker))
+                    .collect::<Result<Vec<_>>>()?;
+
+                Ok(quote! {
+                    {
+                        let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                            #(#try_stmts)*
+                            Ok(())
+                        })();
+                        if let Err(_e) = _result {
+                            #(#handler_stmts)*
+                        }
+                    }
+                })
+            } else {
+                // No handlers - just execute try body
+                Ok(quote! { #(#try_stmts)* })
+            }
+        }
         HirStmt::Pass => {
             // Pass statement generates no code
             Ok(quote! {})

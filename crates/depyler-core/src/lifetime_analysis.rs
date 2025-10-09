@@ -308,6 +308,38 @@ impl LifetimeInference {
                     self.analyze_stmt_for_param(param, stmt, usage, in_loop);
                 }
             }
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
+                // Analyze try body
+                for stmt in body {
+                    self.analyze_stmt_for_param(param, stmt, usage, in_loop);
+                }
+
+                // Analyze except handlers
+                for handler in handlers {
+                    for stmt in &handler.body {
+                        self.analyze_stmt_for_param(param, stmt, usage, in_loop);
+                    }
+                }
+
+                // Analyze else clause
+                if let Some(else_stmts) = orelse {
+                    for stmt in else_stmts {
+                        self.analyze_stmt_for_param(param, stmt, usage, in_loop);
+                    }
+                }
+
+                // Analyze finally clause
+                if let Some(finally_stmts) = finalbody {
+                    for stmt in finally_stmts {
+                        self.analyze_stmt_for_param(param, stmt, usage, in_loop);
+                    }
+                }
+            }
         }
     }
 
