@@ -273,8 +273,11 @@ fn handle_assign_target(
             let index_tokens = expr_to_rust_tokens(index)?;
             Ok(quote! { #base_tokens.insert(#index_tokens, #value_tokens); })
         }
-        AssignTarget::Attribute { .. } => {
-            anyhow::bail!("Attribute assignment not yet implemented")
+        AssignTarget::Attribute { value, attr } => {
+            // Struct field assignment: obj.field = value
+            let base_tokens = expr_to_rust_tokens(value)?;
+            let attr_ident = syn::Ident::new(attr.as_str(), proc_macro2::Span::call_site());
+            Ok(quote! { #base_tokens.#attr_ident = #value_tokens; })
         }
         AssignTarget::Tuple(targets) => {
             // Tuple unpacking
@@ -1217,9 +1220,9 @@ mod tests {
         assert!(code.contains("key"));
     }
 
-    // 4. ASSIGN STATEMENTS (Attribute target - should error)
+    // 4. ASSIGN STATEMENTS (Attribute target - struct field assignment)
     #[test]
-    fn test_assign_attribute_not_implemented() {
+    fn test_assign_attribute() {
         let mut scope = ScopeTracker::new();
         let stmt = HirStmt::Assign {
             target: AssignTarget::Attribute {
@@ -1230,11 +1233,11 @@ mod tests {
             type_annotation: None,
         };
         let result = stmt_to_rust_tokens_with_scope(&stmt, &mut scope);
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Attribute assignment not yet implemented"));
+        assert!(result.is_ok());
+        let code = result.unwrap().to_string();
+        assert!(code.contains("obj"));
+        assert!(code.contains("field"));
+        assert!(code.contains("1"));
     }
 
     // 5. RETURN STATEMENTS (with expression)
