@@ -202,8 +202,9 @@ All notable changes to this project will be documented in this file.
     - ✅ Export module from lib.rs - COMPLETE
     - ✅ Integrate state analysis with rust_gen.rs - COMPLETE
     - ✅ Generate Iterator trait implementation with state struct - COMPLETE
+    - ✅ Handle yield statements in Iterator::next() - COMPLETE
+    - ⏳ Fix variable scoping (use self.field in state struct)
     - ⏳ Implement state machine for resumable execution
-    - ⏳ Handle yield statements in Iterator::next()
     - ⏳ Support multiple yield points with state transitions
   - State Analysis Integration (COMPLETE):
     - rust_gen.rs now calls GeneratorStateInfo::analyze()
@@ -216,8 +217,15 @@ All notable changes to this project will be documented in this file.
     - Iterator trait implementation with Item type
     - Iterator::next() method with state machine structure
     - Generated code: `CounterState` struct, `impl Iterator for CounterState`
-  - **Status**: State struct and Iterator skeleton complete, yield handling pending
-  - **Next**: Convert yield statements to Option<T> returns in Iterator::next()
+  - Yield Statement Conversion (COMPLETE):
+    - Added `in_generator` flag to CodeGenContext
+    - Modified `convert_yield()` to check context and generate correct code
+    - Inside Iterator::next(): `yield value` → `return Some(value)`
+    - Outside generators: keeps placeholder `yield` syntax for future work
+    - Generated code verified: `return Some(current);` instead of `yield current;`
+    - Transpilation test confirms correct conversion
+  - **Status**: Yield conversion working, variable scoping and state machine logic pending
+  - **Next**: Fix variable scoping (use self.field instead of bare names)
 
 ## [3.6.0] - 2025-10-08
 

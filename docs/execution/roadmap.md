@@ -771,7 +771,7 @@ process_config.rs:     0 warnings ✅
 ---
 
 ### **DEPYLER-0115**: Generator Functions (yield)
-**Status**: 🟡 **IN PROGRESS** - Phase 2 State Analysis Complete
+**Status**: 🟡 **IN PROGRESS** - Phase 2 Yield Conversion Complete
 **Priority**: P2 (MEDIUM - Blocks 6/50 failures = 12%)
 **Dependencies**: None
 **Type**: Language Feature
@@ -794,7 +794,9 @@ process_config.rs:     0 warnings ✅
 2. **Phase 2**: Generator state management - 🟡 IN PROGRESS
    - TDD: 20 tests for stateful generators ✅
    - State analysis module (generator_state.rs) ✅
-   - Iterator trait with state struct - ⏳ PENDING
+   - Iterator trait with state struct ✅
+   - Yield statement conversion (yield → return Some) ✅
+   - Variable scoping (use self.field) - ⏳ PENDING
    - State machine codegen - ⏳ PENDING
 3. **Quality Gates**:
    - Mutation testing: 75%
