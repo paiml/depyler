@@ -98,6 +98,27 @@ All notable changes to this project will be documented in this file.
   - Future work: Phase 2 (multiple except clauses), Phase 3 (finally clause)
   - **Impact**: Basic error handling support enables 7 blocked examples (14% of failures)
 
+- **Try/Except - Multiple Exception Handlers** (DEPYLER-0114 Phase 2 - COMPLETE)
+  - Multiple except clauses now fully supported in transpilation
+  - Handles 2-5+ different exception types per try block
+  - Supports: specific exceptions (ValueError, KeyError, etc.) followed by bare except
+  - Supports: exception variables in each handler (except ValueError as e:)
+  - Supports: different actions per exception type (returns, assignments, side effects)
+  - All 18/20 Phase 2 TDD tests passing (90% coverage)
+  - Test Coverage:
+    - ✅ Two, three, and multiple exception types
+    - ✅ Specific exception followed by bare except (catch-all)
+    - ✅ Exception handlers with returns, assignments, computations
+    - ✅ Nested exception handling with multiple handlers
+    - ✅ Different exception variables per handler
+    - ✅ Handlers with side effects, conditionals, function calls
+    - ✅ Chained and complex exception patterns
+  - Deferred features (2 tests):
+    - Multiple exception types in one handler: `except (ValueError, TypeError):`
+    - Re-raise with bare `raise` statement
+  - Current implementation: All handlers transpile correctly to Rust error handling
+  - **Impact**: Comprehensive multi-exception support for real-world error handling
+
 ## [3.6.0] - 2025-10-08
 
 ### Added
