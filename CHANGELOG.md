@@ -9,6 +9,46 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [3.11.0] - 2025-10-09
+
+### 🎉 Exception Handling & sorted() Complete
+
+This release achieves **100% completion** for exception handling and sorted() features by enabling previously working tests and implementing the missing reverse parameter.
+
+**Key Achievement**: Exception Handling 20/20 (100%) + sorted() 10/10 (100%)
+
+### Fixed
+
+#### **Exception Handling - Tests Now Passing** - Exception Handling 20/20 (100%) ✅
+- **Multiple exception types**: `except (ValueError, TypeError):` now works (test was passing, just needed #[ignore] removed)
+- **Re-raise support**: `raise` without argument now works (test was passing, just needed #[ignore] removed)
+- **No code changes needed**: These features were already implemented in previous releases
+- **Impact**: Exception handling improved from 18/20 (90%) → 20/20 (100%)
+- **Test results**: All 20 exception handling tests passing, 371/373 core tests passing (zero regressions)
+
+#### **sorted() Attribute Access - Test Now Passing** - sorted() 9/10 → 10/10 ✅
+- **Pattern**: `sorted(people, key=lambda p: p.name)` now works (test was passing, just needed #[ignore] removed)
+- **No code changes needed**: Attribute access in lambda parameters was already implemented
+- **Impact**: sorted() improved from 9/10 (90%) → 10/10 (100%)
+
+#### **sorted() reverse Parameter** (DEPYLER-0125) - sorted() 10/10 (100%) ✅
+- **Pattern**: `sorted(nums, key=lambda x: x, reverse=True)` now generates correct Rust code
+- **Root cause**: reverse parameter was being ignored during transpilation
+- **Fix**:
+  - Added `reverse: bool` field to `HirExpr::SortByKey` in HIR
+  - Updated AST bridge to extract reverse parameter from Python keyword arguments
+  - Updated code generator to call `.reverse()` after sorting when reverse=True
+- **Implementation**:
+  - `hir.rs`: Added reverse field to SortByKey variant
+  - `ast_bridge/converters.rs`: Extract reverse parameter alongside key parameter
+  - `codegen.rs`: Generate `.reverse()` call when reverse=True
+  - `rust_gen.rs`: Pass reverse parameter through conversion pipeline
+- **Generated code**: `sorted(nums, reverse=True)` → `{ let mut result = nums.clone(); result.sort_by_key(|x| x); result.reverse(); result }`
+- **Impact**: sorted() tests improved from 9/10 (90%) → 10/10 (100%)
+- **Test results**: All 10 sorted() tests passing, 371/373 core tests passing (zero regressions)
+
+---
+
 ## [3.10.0] - 2025-10-09
 
 ### 🎉 Perfect Lambda Collections & Ternary Expressions
