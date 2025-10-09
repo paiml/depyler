@@ -906,6 +906,7 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             iterable,
             key_params,
             key_body,
+            reverse,
         } => {
             let iter_tokens = expr_to_rust_tokens(iterable)?;
             let body_tokens = expr_to_rust_tokens(key_body)?;
@@ -915,13 +916,26 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             }
 
             let param = syn::Ident::new(&key_params[0], proc_macro2::Span::call_site());
-            Ok(quote! {
-                {
-                    let mut __sorted_result = #iter_tokens.clone();
-                    __sorted_result.sort_by_key(|#param| #body_tokens);
-                    __sorted_result
-                }
-            })
+
+            if *reverse {
+                // When reverse=True, sort and then reverse
+                Ok(quote! {
+                    {
+                        let mut __sorted_result = #iter_tokens.clone();
+                        __sorted_result.sort_by_key(|#param| #body_tokens);
+                        __sorted_result.reverse();
+                        __sorted_result
+                    }
+                })
+            } else {
+                Ok(quote! {
+                    {
+                        let mut __sorted_result = #iter_tokens.clone();
+                        __sorted_result.sort_by_key(|#param| #body_tokens);
+                        __sorted_result
+                    }
+                })
+            }
         }
     }
 }

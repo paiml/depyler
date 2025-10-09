@@ -410,11 +410,12 @@ pub enum HirExpr {
         body: Box<HirExpr>,
         orelse: Box<HirExpr>,
     },
-    // sorted() with key parameter (Python: sorted(iterable, key=lambda x: ...))
+    // sorted() with key parameter (Python: sorted(iterable, key=lambda x: ..., reverse=True))
     SortByKey {
         iterable: Box<HirExpr>,
         key_params: Vec<Symbol>,
         key_body: Box<HirExpr>,
+        reverse: bool,
     },
 }
 

@@ -3064,6 +3064,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         iterable: &HirExpr,
         key_params: &[String],
         key_body: &HirExpr,
+        reverse: bool,
     ) -> Result<syn::Expr> {
         let iter_expr = iterable.to_rust_expr(self.ctx)?;
         let body_expr = key_body.to_rust_expr(self.ctx)?;
@@ -3076,14 +3077,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             bail!("sorted() key lambda must have exactly one parameter");
         };
 
-        // Generate: { let mut result = iterable.clone(); result.sort_by_key(|param| body); result }
-        Ok(parse_quote! {
-            {
-                let mut __sorted_result = #iter_expr.clone();
-                __sorted_result.sort_by_key(|#param_pat| #body_expr);
-                __sorted_result
-            }
-        })
+        // Generate: { let mut result = iterable.clone(); result.sort_by_key(|param| body); [result.reverse();] result }
+        if reverse {
+            Ok(parse_quote! {
+                {
+                    let mut __sorted_result = #iter_expr.clone();
+                    __sorted_result.sort_by_key(|#param_pat| #body_expr);
+                    __sorted_result.reverse();
+                    __sorted_result
+                }
+            })
+        } else {
+            Ok(parse_quote! {
+                {
+                    let mut __sorted_result = #iter_expr.clone();
+                    __sorted_result.sort_by_key(|#param_pat| #body_expr);
+                    __sorted_result
+                }
+            })
+        }
     }
 }
 
@@ -3149,7 +3161,8 @@ impl ToRustExpr for HirExpr {
                 iterable,
                 key_params,
                 key_body,
-            } => converter.convert_sort_by_key(iterable, key_params, key_body),
+                reverse,
+            } => converter.convert_sort_by_key(iterable, key_params, key_body, *reverse),
         }
     }
 }

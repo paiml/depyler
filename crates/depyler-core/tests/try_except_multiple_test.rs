@@ -110,7 +110,6 @@ def handle_errors(data: str) -> str:
 }
 
 #[test]
-#[ignore] // FUTURE: Multiple exception types in one handler needs tuple support
 fn test_multiple_exceptions_one_handler() {
     let python = r#"
 def process(data: str) -> int:
@@ -373,7 +372,6 @@ def compute_fallback(x: int, y: int) -> int:
 }
 
 #[test]
-#[ignore] // FUTURE: Re-raise needs explicit support
 fn test_reraise_in_handler() {
     let python = r#"
 def reraise_specific(x: int) -> int:
