@@ -556,9 +556,22 @@ fn test_yield_expression_supported() {
 
 #[test]
 fn test_error_on_chained_comparison() {
+    // Updated: chained comparisons now supported (DEPYLER-0124)
+    // Pattern: a < b < c becomes (a < b) and (b < c)
     let expr = parse_expr("a < b < c");
     let result = ExprConverter::convert(expr);
-    assert!(result.is_err());
+    assert!(result.is_ok(), "Chained comparisons should now be supported");
+
+    // Verify it's desugared to binary AND of two comparisons
+    match result.unwrap() {
+        HirExpr::Binary { op: BinOp::And, left, right } => {
+            // Left should be (a < b)
+            assert!(matches!(*left, HirExpr::Binary { op: BinOp::Lt, .. }));
+            // Right should be (b < c)
+            assert!(matches!(*right, HirExpr::Binary { op: BinOp::Lt, .. }));
+        }
+        _ => panic!("Expected chained comparison to desugar to AND of comparisons"),
+    }
 }
 
 #[test]

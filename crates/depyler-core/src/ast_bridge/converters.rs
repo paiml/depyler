@@ -259,6 +259,7 @@ impl ExprConverter {
             ast::Expr::Name(n) => Self::convert_name(n),
             ast::Expr::BinOp(b) => Self::convert_binop_expr(b),
             ast::Expr::UnaryOp(u) => Self::convert_unaryop_expr(u),
+            ast::Expr::BoolOp(b) => Self::convert_boolop(b),
             ast::Expr::Call(c) => Self::convert_call(c),
             ast::Expr::Subscript(s) => Self::convert_subscript(s),
             ast::Expr::List(l) => Self::convert_list(l),
@@ -450,39 +451,99 @@ impl ExprConverter {
         Ok(HirExpr::Tuple(elts))
     }
 
+    fn convert_boolop(b: ast::ExprBoolOp) -> Result<HirExpr> {
+        // Convert boolean operations (and, or) to binary operations
+        if b.values.len() < 2 {
+            bail!("BoolOp must have at least 2 values");
+        }
+
+        // Convert the operator
+        let op = match b.op {
+            ast::BoolOp::And => BinOp::And,
+            ast::BoolOp::Or => BinOp::Or,
+        };
+
+        // Convert values and chain them left-to-right
+        let mut result = Self::convert(b.values[0].clone())?;
+        for value in b.values.iter().skip(1) {
+            let right = Self::convert(value.clone())?;
+            result = HirExpr::Binary {
+                op,
+                left: Box::new(result),
+                right: Box::new(right),
+            };
+        }
+
+        Ok(result)
+    }
+
     fn convert_compare(c: ast::ExprCompare) -> Result<HirExpr> {
-        // Convert simple comparisons to binary ops
-        if c.ops.len() != 1 || c.comparators.len() != 1 {
-            bail!("Chained comparisons not yet supported");
+        // Handle chained comparisons by desugaring them
+        // Example: 0 <= x <= 100 becomes (0 <= x) and (x <= 100)
+
+        if c.ops.is_empty() || c.comparators.is_empty() {
+            bail!("Compare expression must have at least one operator and comparator");
         }
 
-        // Special handling for 'is None' and 'is not None' patterns
-        let comparator = c.comparators.into_iter().next().unwrap();
-        if matches!(c.ops[0], ast::CmpOp::Is | ast::CmpOp::IsNot) {
-            // Check if comparing with None
-            let is_none_comparison = matches!(comparator, ast::Expr::Constant(ref cons)
-                if matches!(cons.value, ast::Constant::None));
+        // Special handling for 'is None' and 'is not None' patterns (single comparison only)
+        if c.ops.len() == 1 && c.comparators.len() == 1
+            && matches!(c.ops[0], ast::CmpOp::Is | ast::CmpOp::IsNot) {
+                let comparator = &c.comparators[0];
+                // Check if comparing with None
+                let is_none_comparison = matches!(comparator, ast::Expr::Constant(ref cons)
+                    if matches!(cons.value, ast::Constant::None));
 
-            if is_none_comparison {
-                // Convert 'x is None' to x.is_none(), 'x is not None' to x.is_some()
-                let object = Box::new(Self::convert(*c.left)?);
-                let method = if matches!(c.ops[0], ast::CmpOp::Is) {
-                    "is_none".to_string()
-                } else {
-                    "is_some".to_string()
-                };
-                return Ok(HirExpr::MethodCall {
-                    object,
-                    method,
-                    args: vec![],
-                });
+                if is_none_comparison {
+                    // Convert 'x is None' to x.is_none(), 'x is not None' to x.is_some()
+                    let object = Box::new(Self::convert(*c.left)?);
+                    let method = if matches!(c.ops[0], ast::CmpOp::Is) {
+                        "is_none".to_string()
+                    } else {
+                        "is_some".to_string()
+                    };
+                    return Ok(HirExpr::MethodCall {
+                        object,
+                        method,
+                        args: vec![],
+                    });
+                }
             }
+
+        // Build chain: a op1 b op2 c becomes (a op1 b) and (b op2 c)
+        let mut left_expr = *c.left;
+        let mut comparisons = Vec::new();
+
+        for (op, comparator) in c.ops.iter().zip(c.comparators.iter()) {
+            let op_hir = convert_cmpop(op)?;
+            let left_hir = Box::new(Self::convert(left_expr.clone())?);
+            let right_hir = Box::new(Self::convert(comparator.clone())?);
+
+            comparisons.push(HirExpr::Binary {
+                op: op_hir,
+                left: left_hir,
+                right: right_hir,
+            });
+
+            // For next iteration, the right side becomes the left side
+            left_expr = comparator.clone();
         }
 
-        let op = convert_cmpop(&c.ops[0])?;
-        let left = Box::new(Self::convert(*c.left)?);
-        let right = Box::new(Self::convert(comparator)?);
-        Ok(HirExpr::Binary { op, left, right })
+        // If only one comparison, return it directly
+        if comparisons.len() == 1 {
+            return Ok(comparisons.into_iter().next().unwrap());
+        }
+
+        // Chain multiple comparisons with AND
+        let mut result = comparisons[0].clone();
+        for comparison in comparisons.iter().skip(1) {
+            result = HirExpr::Binary {
+                op: BinOp::And,
+                left: Box::new(result),
+                right: Box::new(comparison.clone()),
+            };
+        }
+
+        Ok(result)
     }
 
     fn convert_list_comp(lc: ast::ExprListComp) -> Result<HirExpr> {

@@ -15,6 +15,16 @@ All notable changes to this project will be documented in this file.
 - **Test results**: All 10 lambda collection tests passing, 371/371 core tests passing (zero regressions)
 - **Files**: optimizer.rs (collect_used_vars_expr_inner)
 
+#### **Chained Comparisons & BoolOp Support** (DEPYLER-0124) - Ternary Expressions 14/14 (100%) ✅
+- **Pattern**: `0 <= x <= 100` now desugars to `(0 <= x) and (x <= 100)`
+- **BoolOp**: `x >= 0 and x <= 100` now supported via BoolOp AST node conversion
+- **Root cause**: Chained comparisons and boolean operations (and/or) were not implemented
+- **Fix**: Added convert_boolop for And/Or operations
+- **Fix**: Updated convert_compare to desugar chained comparisons into AND chains
+- **Impact**: Ternary expressions improved from 12/14 (86%) → 14/14 (100%)
+- **Test results**: All 14 ternary expression tests passing, 371/371 core tests passing (zero regressions)
+- **Files**: ast_bridge/converters.rs (convert_boolop, convert_compare), converters_tests.rs
+
 ### Added
 - Nothing yet
 
