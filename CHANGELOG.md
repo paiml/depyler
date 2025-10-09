@@ -195,14 +195,16 @@ All notable changes to this project will be documented in this file.
     - Counts yield points for state machine transitions
     - Detects loops for optimization opportunities
     - Test validates correct state variable tracking
+    - Module exported from lib.rs for public use
   - Implementation Plan:
     - ✅ Create comprehensive stateful generator test suite (20 tests) - COMPLETE
     - ✅ Implement state analysis module - COMPLETE
+    - ✅ Export module from lib.rs - COMPLETE
     - ⏳ Generate Iterator trait implementation with state struct
     - ⏳ Implement state machine for resumable execution
     - ⏳ Implement Iterator::next() with state transitions
     - ⏳ Handle yield point resumption
-  - **Status**: State analysis complete, codegen implementation next
+  - **Status**: State analysis complete and exported, codegen implementation next
   - **Next**: Integrate state analysis with backend code generators
 
 ## [3.6.0] - 2025-10-08
