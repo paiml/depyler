@@ -57,6 +57,7 @@ pub mod direct_rules;
 pub mod documentation;
 pub mod error;
 pub mod error_reporting;
+pub mod generator_state;
 pub mod generic_inference;
 pub mod hir;
 pub mod ide;
