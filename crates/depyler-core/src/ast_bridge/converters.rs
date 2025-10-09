@@ -67,7 +67,9 @@ impl StmtConverter {
         };
 
         // Extract type annotation
-        let type_annotation = Some(super::type_extraction::TypeExtractor::extract_type(&a.annotation)?);
+        let type_annotation = Some(super::type_extraction::TypeExtractor::extract_type(
+            &a.annotation,
+        )?);
 
         Ok(HirStmt::Assign {
             target,
@@ -269,6 +271,7 @@ impl ExprConverter {
             ast::Expr::Set(s) => Self::convert_set(s),
             ast::Expr::Attribute(a) => Self::convert_attribute(a),
             ast::Expr::Await(a) => Self::convert_await(a),
+            ast::Expr::Yield(y) => Self::convert_yield(y),
             ast::Expr::JoinedStr(js) => Self::convert_fstring(js),
             _ => bail!("Expression type not yet supported"),
         }
@@ -549,6 +552,15 @@ impl ExprConverter {
     fn convert_await(a: ast::ExprAwait) -> Result<HirExpr> {
         let value = Box::new(Self::convert(*a.value)?);
         Ok(HirExpr::Await { value })
+    }
+
+    fn convert_yield(y: ast::ExprYield) -> Result<HirExpr> {
+        let value = y
+            .value
+            .map(|v| Self::convert(*v))
+            .transpose()?
+            .map(Box::new);
+        Ok(HirExpr::Yield { value })
     }
 
     fn convert_fstring(js: ast::ExprJoinedStr) -> Result<HirExpr> {

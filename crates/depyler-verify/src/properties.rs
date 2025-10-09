@@ -254,7 +254,10 @@ mod tests {
     fn test_generate_quickcheck_tests_basic() {
         let func = create_test_function(
             "add",
-            vec![depyler_core::hir::HirParam::new("a".to_string(), Type::Int), depyler_core::hir::HirParam::new("b".to_string(), Type::Int)],
+            vec![
+                depyler_core::hir::HirParam::new("a".to_string(), Type::Int),
+                depyler_core::hir::HirParam::new("b".to_string(), Type::Int),
+            ],
             Type::Int,
             FunctionProperties::default(),
         );
@@ -271,7 +274,10 @@ mod tests {
     fn test_generate_quickcheck_tests_with_containers() {
         let func = create_test_function(
             "process_list",
-            vec![depyler_core::hir::HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))],
+            vec![depyler_core::hir::HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )],
             Type::Int,
             FunctionProperties::default(),
         );
@@ -293,6 +299,7 @@ mod tests {
             can_fail: false,
             error_types: vec![],
             is_async: false,
+            is_generator: false,
         };
 
         let func = create_test_function(
@@ -313,16 +320,25 @@ mod tests {
         let params_with_int = vec![depyler_core::hir::HirParam::new("x".to_string(), Type::Int)];
         assert!(has_numeric_types(&params_with_int));
 
-        let params_with_float = vec![depyler_core::hir::HirParam::new("x".to_string(), Type::Float)];
+        let params_with_float = vec![depyler_core::hir::HirParam::new(
+            "x".to_string(),
+            Type::Float,
+        )];
         assert!(has_numeric_types(&params_with_float));
 
-        let params_without_numeric = vec![depyler_core::hir::HirParam::new("x".to_string(), Type::String)];
+        let params_without_numeric = vec![depyler_core::hir::HirParam::new(
+            "x".to_string(),
+            Type::String,
+        )];
         assert!(!has_numeric_types(&params_without_numeric));
     }
 
     #[test]
     fn test_has_container_params() {
-        let params_with_list = vec![depyler_core::hir::HirParam::new("x".to_string(), Type::List(Box::new(Type::Int)))];
+        let params_with_list = vec![depyler_core::hir::HirParam::new(
+            "x".to_string(),
+            Type::List(Box::new(Type::Int)),
+        )];
         assert!(has_container_params(&params_with_list));
 
         let params_with_dict = vec![depyler_core::hir::HirParam::new(
@@ -331,7 +347,8 @@ mod tests {
         )];
         assert!(has_container_params(&params_with_dict));
 
-        let params_without_containers = vec![depyler_core::hir::HirParam::new("x".to_string(), Type::Int)];
+        let params_without_containers =
+            vec![depyler_core::hir::HirParam::new("x".to_string(), Type::Int)];
         assert!(!has_container_params(&params_without_containers));
     }
 
@@ -339,7 +356,10 @@ mod tests {
     fn test_generate_numeric_property_test() {
         let func = create_test_function(
             "multiply",
-            vec![depyler_core::hir::HirParam::new("a".to_string(), Type::Int), depyler_core::hir::HirParam::new("b".to_string(), Type::Float)],
+            vec![
+                depyler_core::hir::HirParam::new("a".to_string(), Type::Int),
+                depyler_core::hir::HirParam::new("b".to_string(), Type::Float),
+            ],
             Type::Float,
             FunctionProperties::default(),
         );
@@ -357,7 +377,10 @@ mod tests {
     fn test_generate_bounds_property_test() {
         let func = create_test_function(
             "sum_list",
-            vec![depyler_core::hir::HirParam::new("numbers".to_string(), Type::List(Box::new(Type::Int)))],
+            vec![depyler_core::hir::HirParam::new(
+                "numbers".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )],
             Type::Int,
             FunctionProperties::default(),
         );
@@ -418,7 +441,10 @@ mod tests {
     fn test_generate_quickcheck_tests_no_properties() {
         let func = create_test_function(
             "simple",
-            vec![depyler_core::hir::HirParam::new("x".to_string(), Type::String)],
+            vec![depyler_core::hir::HirParam::new(
+                "x".to_string(),
+                Type::String,
+            )],
             Type::String,
             FunctionProperties::default(),
         );
@@ -446,12 +472,16 @@ mod tests {
             can_fail: false,
             error_types: vec![],
             is_async: false,
+            is_generator: false,
         };
 
         let func = create_test_function(
             "complex_func",
             vec![
-                depyler_core::hir::HirParam::new("nums".to_string(), Type::List(Box::new(Type::Int))),
+                depyler_core::hir::HirParam::new(
+                    "nums".to_string(),
+                    Type::List(Box::new(Type::Int)),
+                ),
                 depyler_core::hir::HirParam::new("threshold".to_string(), Type::Float),
                 depyler_core::hir::HirParam::new("count".to_string(), Type::Int),
             ],

@@ -138,11 +138,7 @@ impl ContractChecker {
 
     fn generate_precondition_check(condition: &Condition) -> String {
         if condition.expression.contains("is not None") {
-            let var_name = condition
-                .expression
-                .split_whitespace()
-                .next()
-                .unwrap_or("");
+            let var_name = condition.expression.split_whitespace().next().unwrap_or("");
             format!(
                 "    if {}.is_none() {{ return Err(\"Precondition failed: {}\"); }}\n",
                 var_name, condition.description
@@ -498,7 +494,11 @@ fn format_tuple_type(types: &[Type]) -> String {
 
 fn format_function_type(params: &[Type], ret: &Type) -> String {
     let param_strs: Vec<String> = params.iter().map(type_to_rust_string).collect();
-    format!("fn({}) -> {}", param_strs.join(", "), type_to_rust_string(ret))
+    format!(
+        "fn({}) -> {}",
+        param_strs.join(", "),
+        type_to_rust_string(ret)
+    )
 }
 
 fn format_generic_type(base: &str, params: &[Type]) -> String {
@@ -668,7 +668,10 @@ mod tests {
     fn test_extract_contracts_with_list_param() {
         let func = create_test_function(
             "process_list",
-            vec![depyler_core::hir::HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))],
+            vec![depyler_core::hir::HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )],
             Type::Int,
             vec![],
             FunctionProperties::default(),
@@ -687,7 +690,10 @@ mod tests {
     fn test_extract_contracts_with_int_param() {
         let func = create_test_function(
             "calculate",
-            vec![depyler_core::hir::HirParam::new("num".to_string(), Type::Int)],
+            vec![depyler_core::hir::HirParam::new(
+                "num".to_string(),
+                Type::Int,
+            )],
             Type::Int,
             vec![],
             FunctionProperties::default(),
@@ -745,6 +751,7 @@ mod tests {
             can_fail: false,
             error_types: vec![],
             is_async: false,
+            is_generator: false,
         };
 
         let func = create_test_function("safe_function", vec![], Type::Int, vec![], properties);
@@ -768,6 +775,7 @@ mod tests {
             can_fail: false,
             error_types: vec![],
             is_async: false,
+            is_generator: false,
         };
 
         let func = create_test_function(
@@ -797,11 +805,15 @@ mod tests {
             can_fail: false,
             error_types: vec![],
             is_async: false,
+            is_generator: false,
         };
 
         let func = create_test_function(
             "perfect_function",
-            vec![depyler_core::hir::HirParam::new("data".to_string(), Type::List(Box::new(Type::Int)))],
+            vec![depyler_core::hir::HirParam::new(
+                "data".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )],
             Type::List(Box::new(Type::Int)),
             vec![],
             properties,
@@ -1068,7 +1080,10 @@ mod tests {
         let func = create_test_function(
             "get_item",
             vec![
-                depyler_core::hir::HirParam::new("items".to_string(), Type::List(Box::new(Type::Int))),
+                depyler_core::hir::HirParam::new(
+                    "items".to_string(),
+                    Type::List(Box::new(Type::Int)),
+                ),
                 depyler_core::hir::HirParam::new("index".to_string(), Type::Int),
             ],
             Type::Optional(Box::new(Type::Int)),
@@ -1097,6 +1112,7 @@ mod tests {
                 can_fail: false,
                 error_types: vec![],
                 is_async: false,
+                is_generator: false,
             },
         );
 
@@ -1116,7 +1132,10 @@ mod tests {
     fn test_generate_function_with_contracts() {
         let func = create_test_function(
             "safe_add",
-            vec![depyler_core::hir::HirParam::new("a".to_string(), Type::Int), depyler_core::hir::HirParam::new("b".to_string(), Type::Int)],
+            vec![
+                depyler_core::hir::HirParam::new("a".to_string(), Type::Int),
+                depyler_core::hir::HirParam::new("b".to_string(), Type::Int),
+            ],
             Type::Int,
             vec![],
             FunctionProperties::default(),

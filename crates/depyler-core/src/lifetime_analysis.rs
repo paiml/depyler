@@ -490,6 +490,12 @@ impl LifetimeInference {
                 // Await expressions propagate parameter usage
                 self.analyze_expr_for_param(param, value, usage, in_loop, in_return);
             }
+            HirExpr::Yield { value } => {
+                // Yield expressions pass values to iterator
+                if let Some(v) = value {
+                    self.analyze_expr_for_param(param, v, usage, in_loop, in_return);
+                }
+            }
             HirExpr::FString { .. } => {
                 // FString support not yet implemented for lifetime analysis
             }

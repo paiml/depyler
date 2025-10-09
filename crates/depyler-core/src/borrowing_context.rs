@@ -490,6 +490,12 @@ impl BorrowingContext {
                 // Await expressions don't change parameter usage patterns
                 self.analyze_expression(value, borrow_depth);
             }
+            HirExpr::Yield { value } => {
+                // Yield expressions pass values to the iterator
+                if let Some(v) = value {
+                    self.analyze_expression(v, borrow_depth);
+                }
+            }
         }
     }
 
