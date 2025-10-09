@@ -32,6 +32,7 @@ pub struct CodeGenContext<'a> {
     pub needs_zerodivisionerror: bool,
     pub needs_indexerror: bool,
     pub is_classmethod: bool,
+    pub in_generator: bool,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -452,6 +453,7 @@ pub fn generate_rust_file(
         imported_items,
         mutable_vars: HashSet::new(),
         needs_zerodivisionerror: false,
+        in_generator: false,
         needs_indexerror: false,
         is_classmethod: false,
     };
@@ -1025,6 +1027,15 @@ impl RustCodeGen for HirFunction {
             // Extract yield value type from return type
             let item_type = extract_generator_item_type(&rust_ret_type_for_generator)?;
 
+            // Generate body statements with in_generator flag set
+            ctx.in_generator = true;
+            let generator_body_stmts: Vec<_> = self
+                .body
+                .iter()
+                .map(|stmt| stmt.to_rust_tokens(ctx))
+                .collect::<Result<Vec<_>>>()?;
+            ctx.in_generator = false;
+
             // Generate the complete generator implementation
             quote! {
                 #(#attrs)*
@@ -1052,8 +1063,8 @@ impl RustCodeGen for HirFunction {
                         match self.state {
                             0 => {
                                 self.state = 1;
-                                // Execute generator body and yield first value
-                                #(#body_stmts)*
+                                // Execute generator body with yield → return Some() conversion
+                                #(#generator_body_stmts)*
                                 None // Placeholder: actual yield value extraction pending
                             }
                             _ => None
@@ -2861,11 +2872,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_yield(&mut self, value: &Option<Box<HirExpr>>) -> Result<syn::Expr> {
-        if let Some(v) = value {
-            let value_expr = v.to_rust_expr(self.ctx)?;
-            Ok(parse_quote! { yield #value_expr })
+        if self.ctx.in_generator {
+            // Inside Iterator::next() - convert to return Some(value)
+            if let Some(v) = value {
+                let value_expr = v.to_rust_expr(self.ctx)?;
+                Ok(parse_quote! { return Some(#value_expr) })
+            } else {
+                Ok(parse_quote! { return None })
+            }
         } else {
-            Ok(parse_quote! { yield })
+            // Outside generator context - keep as yield (placeholder for future)
+            if let Some(v) = value {
+                let value_expr = v.to_rust_expr(self.ctx)?;
+                Ok(parse_quote! { yield #value_expr })
+            } else {
+                Ok(parse_quote! { yield })
+            }
         }
     }
 
@@ -3358,6 +3380,7 @@ mod tests {
             needs_zerodivisionerror: false,
             needs_indexerror: false,
             is_classmethod: false,
+            in_generator: false,
         }
     }
 
