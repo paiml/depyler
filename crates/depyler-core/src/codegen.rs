@@ -491,14 +491,24 @@ fn stmt_to_rust_tokens_with_scope(
             body,
             handlers,
             orelse: _,
-            finalbody: _,
+            finalbody,
         } => {
-            // Simple try/except codegen for Phase 1
             // Generate try body statements
             let try_stmts: Vec<_> = body
                 .iter()
                 .map(|s| stmt_to_rust_tokens_with_scope(s, scope_tracker))
                 .collect::<Result<Vec<_>>>()?;
+
+            // Generate finally statements if present
+            let finally_stmts = if let Some(finally_body) = finalbody {
+                let stmts: Vec<_> = finally_body
+                    .iter()
+                    .map(|s| stmt_to_rust_tokens_with_scope(s, scope_tracker))
+                    .collect::<Result<Vec<_>>>()?;
+                Some(quote! { #(#stmts)* })
+            } else {
+                None
+            };
 
             // Generate handler statements (just use first handler for simplicity)
             if let Some(handler) = handlers.first() {
@@ -507,20 +517,44 @@ fn stmt_to_rust_tokens_with_scope(
                     .map(|s| stmt_to_rust_tokens_with_scope(s, scope_tracker))
                     .collect::<Result<Vec<_>>>()?;
 
-                Ok(quote! {
-                    {
-                        let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                            #(#try_stmts)*
-                            Ok(())
-                        })();
-                        if let Err(_e) = _result {
-                            #(#handler_stmts)*
+                if let Some(finally_code) = finally_stmts {
+                    Ok(quote! {
+                        {
+                            let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                                #(#try_stmts)*
+                                Ok(())
+                            })();
+                            if let Err(_e) = _result {
+                                #(#handler_stmts)*
+                            }
+                            #finally_code
                         }
-                    }
-                })
+                    })
+                } else {
+                    Ok(quote! {
+                        {
+                            let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                                #(#try_stmts)*
+                                Ok(())
+                            })();
+                            if let Err(_e) = _result {
+                                #(#handler_stmts)*
+                            }
+                        }
+                    })
+                }
             } else {
-                // No handlers - just execute try body
-                Ok(quote! { #(#try_stmts)* })
+                // No handlers - try/finally without except
+                if let Some(finally_code) = finally_stmts {
+                    Ok(quote! {
+                        {
+                            #(#try_stmts)*
+                            #finally_code
+                        }
+                    })
+                } else {
+                    Ok(quote! { #(#try_stmts)* })
+                }
             }
         }
         HirStmt::Pass => {
