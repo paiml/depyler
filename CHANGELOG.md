@@ -4,7 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Nothing yet
+
+---
+
+## [3.10.0] - 2025-10-09
+
+### 🎉 Perfect Lambda Collections & Ternary Expressions
+
+This release achieves **100% completion** for both lambda collections and ternary expressions, fixing the final edge cases and delivering production-ready functional programming support.
+
+**Key Achievement**: Lambda Collections 10/10 (100%) + Ternary Expressions 14/14 (100%)
+
 ### Fixed
+
 #### **Lambda Variable Assignment** (DEPYLER-0123) - Lambda Collections 10/10 (100%) ✅
 - **Pattern**: `transform = lambda x: x * 2; result = transform(5)` now fully supported
 - **In list comprehensions**: `[transform(item) for item in items]` correctly preserves lambda variables
@@ -24,9 +38,6 @@ All notable changes to this project will be documented in this file.
 - **Impact**: Ternary expressions improved from 12/14 (86%) → 14/14 (100%)
 - **Test results**: All 14 ternary expression tests passing, 371/371 core tests passing (zero regressions)
 - **Files**: ast_bridge/converters.rs (convert_boolop, convert_compare), converters_tests.rs
-
-### Added
-- Nothing yet
 
 ---
 
