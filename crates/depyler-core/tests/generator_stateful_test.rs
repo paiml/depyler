@@ -28,7 +28,6 @@
 use depyler_core::DepylerPipeline;
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_counter_state() {
     let python = r#"
 def counter(start: int, end: int):
@@ -71,7 +70,6 @@ def counter(start: int, end: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_multiple_state_variables() {
     let python = r#"
 def dual_counter(n: int):
@@ -104,7 +102,6 @@ def dual_counter(n: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_fibonacci_generator() {
     let python = r#"
 def fibonacci(n: int):
@@ -136,7 +133,6 @@ def fibonacci(n: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_accumulator_state() {
     let python = r#"
 def running_sum(numbers: list):
@@ -164,7 +160,6 @@ def running_sum(numbers: list):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_state_in_nested_loop() {
     let python = r#"
 def grid_generator(rows: int, cols: int):
@@ -192,7 +187,6 @@ def grid_generator(rows: int, cols: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_conditional_state_updates() {
     let python = r#"
 def conditional_gen(n: int):
@@ -221,7 +215,6 @@ def conditional_gen(n: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_iteration_count_tracking() {
     let python = r#"
 def indexed_values(items: list):
@@ -249,7 +242,6 @@ def indexed_values(items: list):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_early_termination_state() {
     let python = r#"
 def limited_gen(n: int, limit: int):
@@ -279,7 +271,6 @@ def limited_gen(n: int, limit: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_state_dependent_yields() {
     let python = r#"
 def alternating(n: int):
@@ -310,7 +301,6 @@ def alternating(n: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_state_preservation_across_yields() {
     let python = r#"
 def preserving_gen(n: int):
@@ -341,7 +331,6 @@ def preserving_gen(n: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_state_initialization() {
     let python = r#"
 def initialized_gen(start: int, step: int):
@@ -370,7 +359,6 @@ def initialized_gen(start: int, step: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_collecting_state() {
     let python = r#"
 def collecting_gen(items: list):
@@ -398,7 +386,6 @@ def collecting_gen(items: list):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_state_transitions() {
     let python = r#"
 def state_machine(n: int):
@@ -433,7 +420,6 @@ def state_machine(n: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_powers_of_two_generator() {
     let python = r#"
 def powers_of_two(n: int):
@@ -461,7 +447,6 @@ def powers_of_two(n: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_range_like_generator() {
     let python = r#"
 def my_range(start: int, stop: int, step: int):
@@ -490,7 +475,6 @@ def my_range(start: int, stop: int, step: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_filter_generator() {
     let python = r#"
 def filtered_gen(items: list, threshold: int):
@@ -519,7 +503,6 @@ def filtered_gen(items: list, threshold: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_windowed_generator() {
     let python = r#"
 def windowed(items: list, size: int):
@@ -548,7 +531,6 @@ def windowed(items: list, size: int):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_pairwise_generator() {
     let python = r#"
 def pairwise(items: list):
@@ -577,7 +559,6 @@ def pairwise(items: list):
 }
 
 #[test]
-#[ignore] // FUTURE: Phase 2 not yet implemented
 fn test_complex_stateful_pattern() {
     let python = r#"
 def complex_gen(n: int):
