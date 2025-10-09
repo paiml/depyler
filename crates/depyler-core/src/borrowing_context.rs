@@ -261,6 +261,38 @@ impl BorrowingContext {
                     self.analyze_statement(stmt);
                 }
             }
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
+                // Analyze try body
+                for stmt in body {
+                    self.analyze_statement(stmt);
+                }
+
+                // Analyze except handlers
+                for handler in handlers {
+                    for stmt in &handler.body {
+                        self.analyze_statement(stmt);
+                    }
+                }
+
+                // Analyze else clause
+                if let Some(else_stmts) = orelse {
+                    for stmt in else_stmts {
+                        self.analyze_statement(stmt);
+                    }
+                }
+
+                // Analyze finally clause
+                if let Some(finally_stmts) = finalbody {
+                    for stmt in finally_stmts {
+                        self.analyze_statement(stmt);
+                    }
+                }
+            }
         }
     }
 

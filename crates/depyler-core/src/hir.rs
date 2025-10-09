@@ -310,7 +310,20 @@ pub enum HirStmt {
         target: Option<Symbol>,
         body: Vec<HirStmt>,
     },
+    Try {
+        body: Vec<HirStmt>,
+        handlers: Vec<ExceptHandler>,
+        orelse: Option<Vec<HirStmt>>,
+        finalbody: Option<Vec<HirStmt>>,
+    },
     Pass,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ExceptHandler {
+    pub exception_type: Option<String>,
+    pub name: Option<Symbol>,
+    pub body: Vec<HirStmt>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

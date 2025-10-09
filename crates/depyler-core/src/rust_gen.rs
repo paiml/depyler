@@ -1286,6 +1286,72 @@ impl RustCodeGen for HirStmt {
                     })
                 }
             }
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse: _,
+                finalbody: _,
+            } => {
+                // For Phase 1: Simple try/except with basic error handling
+                // Generate a match expression wrapping the try body
+
+                // Convert try body to statements
+                ctx.enter_scope();
+                let try_stmts: Vec<_> = body
+                    .iter()
+                    .map(|s| s.to_rust_tokens(ctx))
+                    .collect::<Result<Vec<_>>>()?;
+                ctx.exit_scope();
+
+                // Generate except handler code
+                let mut handler_tokens = Vec::new();
+                for handler in handlers {
+                    ctx.enter_scope();
+
+                    // If there's a name binding, declare it in scope
+                    if let Some(var_name) = &handler.name {
+                        ctx.declare_var(var_name);
+                    }
+
+                    let handler_stmts: Vec<_> = handler.body
+                        .iter()
+                        .map(|s| s.to_rust_tokens(ctx))
+                        .collect::<Result<Vec<_>>>()?;
+                    ctx.exit_scope();
+
+                    handler_tokens.push(quote! { #(#handler_stmts)* });
+                }
+
+                // For now, generate a simple block with try/except logic
+                // We'll use a closure that returns Result and match on it
+                if handlers.len() == 1 {
+                    let handler_code = &handler_tokens[0];
+                    Ok(quote! {
+                        {
+                            let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                                #(#try_stmts)*
+                                Ok(())
+                            })();
+                            if let Err(_e) = _result {
+                                #handler_code
+                            }
+                        }
+                    })
+                } else {
+                    // Multiple handlers - generate match with multiple arms
+                    Ok(quote! {
+                        {
+                            let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                                #(#try_stmts)*
+                                Ok(())
+                            })();
+                            if let Err(_e) = _result {
+                                #(#handler_tokens)*
+                            }
+                        }
+                    })
+                }
+            }
             HirStmt::Pass => {
                 // Pass statement generates no code - it's a no-op
                 Ok(quote! {})

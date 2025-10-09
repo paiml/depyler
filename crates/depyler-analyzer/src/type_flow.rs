@@ -177,6 +177,30 @@ impl TypeInferencer {
                     self.infer_stmt(stmt)?;
                 }
             }
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
+                // Infer types in try body
+                self.infer_body(body)?;
+
+                // Infer types in except handlers
+                for handler in handlers {
+                    self.infer_body(&handler.body)?;
+                }
+
+                // Infer types in else clause
+                if let Some(else_stmts) = orelse {
+                    self.infer_body(else_stmts)?;
+                }
+
+                // Infer types in finally clause
+                if let Some(finally_stmts) = finalbody {
+                    self.infer_body(finally_stmts)?;
+                }
+            }
         }
         Ok(())
     }
