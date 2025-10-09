@@ -1816,6 +1816,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { Self::new(#(#arg_exprs),*) });
         }
 
+        // Handle map() with lambda → convert to Rust iterator pattern
+        if func == "map" && args.len() >= 2 {
+            if let Some(result) = self.try_convert_map_with_zip(args)? {
+                return Ok(result);
+            }
+        }
+
         let arg_exprs: Vec<syn::Expr> = args
             .iter()
             .map(|arg| arg.to_rust_expr(self.ctx))
@@ -1828,6 +1835,80 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "set" => self.convert_set_constructor(&arg_exprs),
             "frozenset" => self.convert_frozenset_constructor(&arg_exprs),
             _ => self.convert_generic_call(func, &arg_exprs),
+        }
+    }
+
+    fn try_convert_map_with_zip(&mut self, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+        // Check if first argument is a lambda
+        if let HirExpr::Lambda { params, body } = &args[0] {
+            let num_iterables = args.len() - 1;
+
+            // Check if lambda has matching number of parameters
+            if params.len() != num_iterables {
+                bail!(
+                    "Lambda has {} parameters but map() called with {} iterables",
+                    params.len(),
+                    num_iterables
+                );
+            }
+
+            // Convert the iterables
+            let mut iterable_exprs: Vec<syn::Expr> = Vec::new();
+            for iterable in &args[1..] {
+                iterable_exprs.push(iterable.to_rust_expr(self.ctx)?);
+            }
+
+            // Create lambda parameter pattern
+            let param_idents: Vec<syn::Ident> = params
+                .iter()
+                .map(|p| syn::Ident::new(p, proc_macro2::Span::call_site()))
+                .collect();
+
+            // Convert lambda body
+            let body_expr = body.to_rust_expr(self.ctx)?;
+
+            // Handle based on number of iterables
+            if num_iterables == 1 {
+                // Single iterable: iterable.iter().map(|x| ...).collect()
+                let iter_expr = &iterable_exprs[0];
+                let param = &param_idents[0];
+                Ok(Some(parse_quote! {
+                    #iter_expr.iter().map(|#param| #body_expr).collect::<Vec<_>>()
+                }))
+            } else {
+                // Multiple iterables: use zip pattern
+                // Build the zip chain
+                let first_iter = &iterable_exprs[0];
+                let mut zip_expr: syn::Expr = parse_quote! { #first_iter.iter() };
+
+                for iter_expr in &iterable_exprs[1..] {
+                    zip_expr = parse_quote! { #zip_expr.zip(#iter_expr.iter()) };
+                }
+
+                // Build the tuple pattern based on number of parameters
+                let tuple_pat: syn::Pat = if param_idents.len() == 2 {
+                    let p0 = &param_idents[0];
+                    let p1 = &param_idents[1];
+                    parse_quote! { (#p0, #p1) }
+                } else if param_idents.len() == 3 {
+                    // For 3 parameters, zip creates ((a, b), c)
+                    let p0 = &param_idents[0];
+                    let p1 = &param_idents[1];
+                    let p2 = &param_idents[2];
+                    parse_quote! { ((#p0, #p1), #p2) }
+                } else {
+                    // For 4+ parameters, continue the nested pattern
+                    bail!("map() with more than 3 iterables is not yet supported");
+                };
+
+                // Generate the final expression
+                Ok(Some(parse_quote! {
+                    #zip_expr.map(|#tuple_pat| #body_expr).collect::<Vec<_>>()
+                }))
+            }
+        } else {
+            // Not a lambda, fall through to normal handling
+            Ok(None)
         }
     }
 
@@ -2967,6 +3048,43 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             Ok(parse_quote! { format!(#template, #(#args),*) })
         }
     }
+
+    fn convert_ifexpr(&mut self, test: &HirExpr, body: &HirExpr, orelse: &HirExpr) -> Result<syn::Expr> {
+        let test_expr = test.to_rust_expr(self.ctx)?;
+        let body_expr = body.to_rust_expr(self.ctx)?;
+        let orelse_expr = orelse.to_rust_expr(self.ctx)?;
+
+        Ok(parse_quote! {
+            if #test_expr { #body_expr } else { #orelse_expr }
+        })
+    }
+
+    fn convert_sort_by_key(
+        &mut self,
+        iterable: &HirExpr,
+        key_params: &[String],
+        key_body: &HirExpr,
+    ) -> Result<syn::Expr> {
+        let iter_expr = iterable.to_rust_expr(self.ctx)?;
+        let body_expr = key_body.to_rust_expr(self.ctx)?;
+
+        // Create the closure parameter pattern
+        let param_pat: syn::Pat = if key_params.len() == 1 {
+            let param = syn::Ident::new(&key_params[0], proc_macro2::Span::call_site());
+            parse_quote! { #param }
+        } else {
+            bail!("sorted() key lambda must have exactly one parameter");
+        };
+
+        // Generate: { let mut result = iterable.clone(); result.sort_by_key(|param| body); result }
+        Ok(parse_quote! {
+            {
+                let mut __sorted_result = #iter_expr.clone();
+                __sorted_result.sort_by_key(|#param_pat| #body_expr);
+                __sorted_result
+            }
+        })
+    }
 }
 
 impl ToRustExpr for HirExpr {
@@ -3026,6 +3144,12 @@ impl ToRustExpr for HirExpr {
             HirExpr::Await { value } => converter.convert_await(value),
             HirExpr::Yield { value } => converter.convert_yield(value),
             HirExpr::FString { parts } => converter.convert_fstring(parts),
+            HirExpr::IfExpr { test, body, orelse } => converter.convert_ifexpr(test, body, orelse),
+            HirExpr::SortByKey {
+                iterable,
+                key_params,
+                key_body,
+            } => converter.convert_sort_by_key(iterable, key_params, key_body),
         }
     }
 }

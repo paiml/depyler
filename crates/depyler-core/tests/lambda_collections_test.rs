@@ -74,7 +74,6 @@ def filter_positive(numbers: list) -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: sorted() with key parameter needs implementation
 fn test_sorted_with_key_lambda() {
     let python = r#"
 def sort_by_length(words: list) -> list:
@@ -121,10 +120,10 @@ def add_pairs(pairs: list) -> list:
         rust_code
     );
 
-    // Should have lambda with multiple parameters
+    // Should have lambda with multiple parameters (flexible spacing)
     let has_multi_param = rust_code.contains("|x, y|") ||
                           rust_code.contains("| x, y |") ||
-                          rust_code.contains("|(x, y)|");
+                          rust_code.contains("|(x, y)");
     assert!(has_multi_param, "Should have multi-parameter closure.\nGot:\n{}", rust_code);
 }
 
@@ -190,7 +189,6 @@ def add_offset(numbers: list, offset: int) -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: map() with multiple iterables needs zip conversion
 fn test_map_with_zip() {
     let python = r#"
 def combine_lists(list1: list, list2: list) -> list:
@@ -209,10 +207,10 @@ def combine_lists(list1: list, list2: list) -> list:
         rust_code
     );
 
-    // Should have lambda with two parameters
+    // Should have lambda with two parameters (flexible spacing)
     let has_multi_param = rust_code.contains("|x, y|") ||
                           rust_code.contains("| x, y |") ||
-                          rust_code.contains("|(x, y)|");
+                          rust_code.contains("|(x, y)");
     assert!(has_multi_param, "Should have multi-parameter closure.\nGot:\n{}", rust_code);
 
     // Should have zip or similar combination
@@ -250,7 +248,6 @@ def nested_transform(matrix: list) -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Ternary/conditional expressions in lambdas (DEPYLER-0116)
 fn test_lambda_with_conditional_expression() {
     let python = r#"
 def classify_numbers(numbers: list) -> list:

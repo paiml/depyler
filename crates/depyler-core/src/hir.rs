@@ -404,6 +404,18 @@ pub enum HirExpr {
     Yield {
         value: Option<Box<HirExpr>>,
     },
+    // Ternary/conditional expression (Python: x if cond else y)
+    IfExpr {
+        test: Box<HirExpr>,
+        body: Box<HirExpr>,
+        orelse: Box<HirExpr>,
+    },
+    // sorted() with key parameter (Python: sorted(iterable, key=lambda x: ...))
+    SortByKey {
+        iterable: Box<HirExpr>,
+        key_params: Vec<Symbol>,
+        key_body: Box<HirExpr>,
+    },
 }
 
 /// Part of an f-string - either literal text or an expression to interpolate

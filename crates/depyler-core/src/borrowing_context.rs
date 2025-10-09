@@ -496,6 +496,21 @@ impl BorrowingContext {
                     self.analyze_expression(v, borrow_depth);
                 }
             }
+            HirExpr::IfExpr { test, body, orelse } => {
+                // Analyze all three parts of the ternary expression
+                self.analyze_expression(test, borrow_depth);
+                self.analyze_expression(body, borrow_depth);
+                self.analyze_expression(orelse, borrow_depth);
+            }
+            HirExpr::SortByKey {
+                iterable,
+                key_body,
+                ..
+            } => {
+                // Analyze the iterable and the key lambda body
+                self.analyze_expression(iterable, borrow_depth);
+                self.analyze_expression(key_body, borrow_depth);
+            }
         }
     }
 
