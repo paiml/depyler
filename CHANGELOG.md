@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.14.0] - 2025-10-10
+
+**Release Focus**: Correctness > Features > Performance
+
+This release focuses on fixing critical type generation bugs, adding augmented assignment support, and improving code quality. All changes prioritize correctness and idiomatic Rust code generation.
+
+### 🎯 Release Highlights
+
+- ✅ **PEP 585 Support**: Python 3.9+ lowercase type hints (`list[int]`, `dict[str, int]`)
+- ✅ **Augmented Assignment**: Dict/list item operations (`d[k] += 1`, `arr[i] *= 2`)
+- ✅ **Code Quality**: Removed unnecessary parentheses, zero clippy warnings
+- ✅ **Tests**: 393 → 408 tests (+15, 100% passing)
+- ✅ **Showcase**: 5/6 → 6/6 examples transpile (100%)
+
+### 📊 Metrics
+
+| Metric | v3.13.0 | v3.14.0 | Improvement |
+|--------|---------|---------|-------------|
+| Tests | 393 | 408 | +3.8% |
+| Showcase Transpile | 5/6 (83%) | 6/6 (100%) | +17% |
+| Showcase Compile | Unknown | 4/6 (67%) | Validated |
+| Clippy Warnings | Multiple | 0 | -100% |
+
+---
+
 ### ✅ Phase 4 - Re-validation Complete (2025-10-10)
 
 **COMPLETE: Validation confirms Phases 1-3 fixes work correctly! 🎉**
