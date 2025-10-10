@@ -369,6 +369,105 @@ fn test_convert_aug_assign() {
     }
 }
 
+// DEPYLER-0148: Tests for dict/list augmented assignment support
+#[test]
+fn test_dict_aug_assign_add() {
+    let stmt = parse_stmt("word_count[word] += 1");
+    let result = StmtConverter::convert(stmt).unwrap();
+    match result {
+        HirStmt::Assign { target, value, .. } => {
+            // Check target is Index
+            match target {
+                AssignTarget::Index { base, index } => {
+                    assert!(matches!(*base, HirExpr::Var(ref name) if name == "word_count"));
+                    assert!(matches!(*index, HirExpr::Var(ref name) if name == "word"));
+                }
+                _ => panic!("Expected Index target, got {:?}", target),
+            }
+            // Check value is Binary with Add op
+            assert!(matches!(value, HirExpr::Binary { op: BinOp::Add, .. }));
+        }
+        _ => panic!("Expected augmented assignment"),
+    }
+}
+
+#[test]
+fn test_list_aug_assign_add() {
+    let stmt = parse_stmt("arr[0] += 5");
+    let result = StmtConverter::convert(stmt).unwrap();
+    match result {
+        HirStmt::Assign { target, value, .. } => {
+            // Check target is Index
+            match target {
+                AssignTarget::Index { base, index } => {
+                    assert!(matches!(*base, HirExpr::Var(ref name) if name == "arr"));
+                    assert!(matches!(*index, HirExpr::Literal(Literal::Int(0))));
+                }
+                _ => panic!("Expected Index target"),
+            }
+            // Check value is Binary with Add op
+            match value {
+                HirExpr::Binary { op, left, right } => {
+                    assert!(matches!(op, BinOp::Add));
+                    // Left should be arr[0]
+                    assert!(matches!(*left, HirExpr::Index { .. }));
+                    // Right should be 5
+                    assert!(matches!(*right, HirExpr::Literal(Literal::Int(5))));
+                }
+                _ => panic!("Expected Binary expression"),
+            }
+        }
+        _ => panic!("Expected augmented assignment"),
+    }
+}
+
+#[test]
+fn test_dict_aug_assign_subtract() {
+    let stmt = parse_stmt("counters['total'] -= 1");
+    let result = StmtConverter::convert(stmt).unwrap();
+    match result {
+        HirStmt::Assign { target, value, .. } => {
+            assert!(matches!(target, AssignTarget::Index { .. }));
+            assert!(matches!(value, HirExpr::Binary { op: BinOp::Sub, .. }));
+        }
+        _ => panic!("Expected augmented assignment"),
+    }
+}
+
+#[test]
+fn test_list_aug_assign_multiply() {
+    let stmt = parse_stmt("matrix[i] *= 2");
+    let result = StmtConverter::convert(stmt).unwrap();
+    match result {
+        HirStmt::Assign { target, value, .. } => {
+            assert!(matches!(target, AssignTarget::Index { .. }));
+            assert!(matches!(value, HirExpr::Binary { op: BinOp::Mul, .. }));
+        }
+        _ => panic!("Expected augmented assignment"),
+    }
+}
+
+#[test]
+fn test_nested_index_aug_assign() {
+    let stmt = parse_stmt("matrix[i][j] += 1");
+    let result = StmtConverter::convert(stmt).unwrap();
+    match result {
+        HirStmt::Assign { target, value, .. } => {
+            // Target should be nested Index: matrix[i][j]
+            match target {
+                AssignTarget::Index { base, index } => {
+                    // Base should be matrix[i]
+                    assert!(matches!(*base, HirExpr::Index { .. }));
+                    assert!(matches!(*index, HirExpr::Var(ref name) if name == "j"));
+                }
+                _ => panic!("Expected nested Index target"),
+            }
+            assert!(matches!(value, HirExpr::Binary { op: BinOp::Add, .. }));
+        }
+        _ => panic!("Expected augmented assignment"),
+    }
+}
+
 #[test]
 fn test_convert_return() {
     let stmt = parse_stmt("return 42");
