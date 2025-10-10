@@ -183,3 +183,100 @@ This is the simplest, safest fix that preserves the annotation's intent.
 **High Risk**: Rushing transpiler fixes without proper testing
 
 **Recommendation**: Be transparent about transpiler limitations, document thoroughly, plan proper fixes for next version.
+
+---
+
+## Appendix: classify_number.rs Cow Warning (Phase 3 Analysis)
+
+### Issue (Cosmetic)
+```rust
+// classify_number.rs:1
+use std::borrow::Cow;  // WARNING: unused import
+
+// No Cow usage in file - only String::from() and .to_string()
+```
+
+### Python Source
+```python
+def classify_number(n: int) -> str:
+    """Classify a number as zero, positive, or negative."""
+    if n == 0:
+        return "zero"
+    elif n > 0:
+        return "positive"
+    else:
+        return "negative"
+```
+
+### Root Cause Analysis
+
+**Location**: `crates/depyler-core/src/string_optimization.rs:65-66`
+
+```rust
+if self.returned_strings.contains(s) || self.mixed_usage_strings.contains(s) {
+    OptimalStringType::CowStr  // String literals that are returned get CowStr
+}
+```
+
+**The Bug**:
+1. String optimizer marks returned string literals as needing `CowStr`
+2. This triggers `ctx.needs_cow = true` in rust_gen.rs:3689
+3. Cow import is added to generated file
+4. **But actual code generation uses `.to_string()` (owned String), not Cow!**
+5. Result: Import added but never used
+
+**Why This Happens**:
+- String optimizer's `analyze_string_literal()` (line 124-125) marks all returned strings as needing Cow "for flexibility"
+- But code generation doesn't actually use Cow - it generates owned Strings
+- Mismatch between optimization analysis and code generation
+
+### Fix Required
+
+**Short-term (v3.15.0)**: Accept warning as cosmetic
+- Code compiles and runs correctly
+- Warning is benign (unused import)
+- Impact: None on functionality
+
+**Long-term (v3.16.0)**: Fix string optimizer logic
+- Option A: Don't mark simple returned literals as needing Cow
+- Option B: Actually use Cow when optimizer suggests it
+- Option C: Better coordination between string optimizer and code generator
+- Effort: 2-3 hours (moderate complexity)
+- Files affected:
+  - `crates/depyler-core/src/string_optimization.rs`
+  - `crates/depyler-core/src/rust_gen.rs`
+
+### Complexity: MEDIUM (2-3 hours)
+- Requires understanding string optimization logic
+- Need to sync optimization decisions with code generation
+- Risk of affecting other string handling code
+
+### Priority: P3 (Cosmetic)
+- No functional impact
+- Code compiles with warning only
+- Can defer to future release
+
+---
+
+## v3.15.0 Final Status
+
+**Showcase Compilation**: 5/6 (83%) ✅
+- ✅ binary_search.rs - 0 errors
+- ✅ calculate_sum.rs - 0 errors
+- ⚠️ classify_number.rs - 1 warning (unused Cow import - cosmetic)
+- ✅ contracts_example.rs - 0 errors (fixed in Phase 1!)
+- ✅ process_config.rs - 0 errors
+- ❌ annotated_example.rs - 2 errors (transpiler bugs - deferred)
+
+**Achievements**:
+- +16.7% compilation rate (from 67% to 83%)
+- Critical float literal bug fixed
+- FnvHashMap dependency added
+- Comprehensive transpiler analysis completed
+
+**Deferred to v3.16.0** (10-14 hours):
+- String method return types (6-8 hours)
+- Int/float division semantics (4-6 hours)
+- Cow import optimization (2-3 hours)
+
+**Strategic Success**: Achieved significant progress while maintaining code quality and avoiding rushed fixes.
