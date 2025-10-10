@@ -46,7 +46,7 @@ impl IndexError {
 return total;
    
 }
-#[doc = "Process text with zero-copy string strategy."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn process_text<'a>(text: & 'a str)  -> & 'a str {
+#[doc = "Process text with zero-copy string strategy."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn process_text<'a>(text: & 'a str)  -> String {
     return text.to_uppercase();
    
 }
@@ -77,7 +77,7 @@ let _cse_temp_1 = a / b;
     return Ok(Some(_cse_temp_1));
    
 }
-#[doc = "Compute dot product with SIMD hints."] #[doc = " Depyler: proven to terminate"] pub fn dot_product<'b, 'a>(v1: & 'a Vec<f64>, v2: & 'b Vec<f64>)  -> Result<f64, IndexError>{
+#[doc = "Compute dot product with SIMD hints."] #[doc = " Depyler: proven to terminate"] pub fn dot_product<'a, 'b>(v1: & 'a Vec<f64>, v2: & 'b Vec<f64>)  -> Result<f64, IndexError>{
     let mut result = 0.0;
     for i in 0..v1.len() as i32 {
     result = result + v1.get(i as usize).copied().unwrap_or_default() * v2.get(i as usize).copied().unwrap_or_default();
