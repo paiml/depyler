@@ -272,7 +272,6 @@ def calculate() -> int:
 // ============================================================================
 
 #[test]
-#[ignore] // FUTURE: Generator expressions - nested not yet implemented
 fn test_nested_generator_expression() {
     let python = r#"
 def use_gen() -> list:
@@ -295,11 +294,11 @@ def use_gen() -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions - nested not yet implemented
 fn test_nested_generator_with_condition() {
     let python = r#"
 def use_gen() -> list:
     gen = ((x, y) for x in range(3) for y in range(x))
+    return list(gen)
 "#;
 
     let pipeline = DepylerPipeline::new();
@@ -309,15 +308,15 @@ def use_gen() -> list:
     let rust_code = result.unwrap();
 
     // Should handle dependent iteration (y depends on x)
+    // With flat_map, we can handle this without custom Iterator impl
     assert!(
-        rust_code.contains("impl Iterator"),
-        "Should have Iterator implementation.\\nGot:\\n{}",
+        rust_code.contains(".flat_map(") || rust_code.contains("impl Iterator"),
+        "Should have nested iteration (flat_map or custom Iterator).\\nGot:\\n{}",
         rust_code
     );
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions - nested not yet implemented
 fn test_nested_generator_with_filter() {
     let python = r#"
 def use_gen() -> list:
@@ -340,7 +339,6 @@ def use_gen() -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions - nested not yet implemented
 fn test_generator_of_generator_expressions() {
     let python = r#"
 def use_gen() -> list:
@@ -364,7 +362,6 @@ def use_gen() -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions - nested not yet implemented
 fn test_cartesian_product_generator() {
     let python = r#"
 def use_gen(a: list, b: list) -> list:
