@@ -3756,7 +3756,15 @@ fn literal_to_rust_expr(
             parse_quote! { #lit }
         }
         Literal::Float(f) => {
-            let lit = syn::LitFloat::new(&f.to_string(), proc_macro2::Span::call_site());
+            // Ensure float literals always have a decimal point
+            // f64::to_string() outputs "0" for 0.0, which parses as integer
+            let s = f.to_string();
+            let float_str = if s.contains('.') || s.contains('e') || s.contains('E') {
+                s
+            } else {
+                format!("{}.0", s)
+            };
+            let lit = syn::LitFloat::new(&float_str, proc_macro2::Span::call_site());
             parse_quote! { #lit }
         }
         Literal::String(s) => {
@@ -4583,5 +4591,40 @@ mod tests {
         assert!(code.contains("low"), "Expected 'low' variable, got: {}", code);
         assert!(code.contains("high"), "Expected 'high' variable, got: {}", code);
         assert!(!code.contains("as"), "Should not contain cast, got: {}", code);
+    }
+
+    #[test]
+    fn test_float_literal_decimal_point() {
+        // Regression test for DEPYLER-TBD: Ensure float literals always have decimal point
+        // Bug: f64::to_string() for 0.0 produces "0" (no decimal), parsed as integer
+        // Fix: Always ensure ".0" suffix for floats without decimal/exponent
+        let mut ctx = create_test_context();
+
+        // Test 0.0 → should generate "0.0" not "0"
+        let zero_float = HirExpr::Literal(Literal::Float(0.0));
+        let result = zero_float.to_rust_expr(&mut ctx).unwrap();
+        let code = quote! { #result }.to_string();
+        assert!(code.contains("0.0") || code.contains("0 ."),
+                "Expected '0.0' for float zero, got: {}", code);
+
+        // Test 42.0 → should generate "42.0" not "42"
+        let forty_two = HirExpr::Literal(Literal::Float(42.0));
+        let result = forty_two.to_rust_expr(&mut ctx).unwrap();
+        let code = quote! { #result }.to_string();
+        assert!(code.contains("42.0") || code.contains("42 ."),
+                "Expected '42.0' for float, got: {}", code);
+
+        // Test 1.5 → should preserve "1.5" (already has decimal)
+        let one_half = HirExpr::Literal(Literal::Float(1.5));
+        let result = one_half.to_rust_expr(&mut ctx).unwrap();
+        let code = quote! { #result }.to_string();
+        assert!(code.contains("1.5"), "Expected '1.5', got: {}", code);
+
+        // Test scientific notation: 1e10 → should preserve (has 'e')
+        let scientific = HirExpr::Literal(Literal::Float(1e10));
+        let result = scientific.to_rust_expr(&mut ctx).unwrap();
+        let code = quote! { #result }.to_string();
+        assert!(code.contains("e") || code.contains("E") || code.contains("."),
+                "Expected scientific notation or decimal, got: {}", code);
     }
 }

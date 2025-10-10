@@ -45,7 +45,7 @@ return Ok(- 1);
    
 }
 #[doc = "\n    Sum all numbers in a list.\n    \n    @requires numbers is not None\n    @ensures result>= 0 if all(n>= 0 for n in numbers) else True\n    "] #[doc = " Depyler: verified panic-free"] pub fn list_sum<'a>(numbers: & 'a Vec<f64>)  -> f64 {
-    let mut total = 0;
+    let mut total = 0.0;
     for num in numbers.iter() {
     total = total + num;
    
