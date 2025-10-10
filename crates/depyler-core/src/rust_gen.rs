@@ -1411,6 +1411,294 @@ fn codegen_for_stmt(
     })
 }
 
+/// Generate code for Assign statement (variable/index/attribute/tuple assignment)
+#[inline]
+fn codegen_assign_stmt(
+    target: &AssignTarget,
+    value: &HirExpr,
+    type_annotation: &Option<Type>,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let mut value_expr = value.to_rust_expr(ctx)?;
+
+    // If there's a type annotation, handle type conversions
+    let type_annotation_tokens = if let Some(target_type) = type_annotation {
+        let target_rust_type = ctx.type_mapper.map_type(target_type);
+        let target_syn_type = rust_type_to_syn(&target_rust_type)?;
+
+        // Check if we need type conversion (e.g., usize to i32)
+        if needs_type_conversion(target_type) {
+            value_expr = apply_type_conversion(value_expr, target_type);
+        }
+
+        Some(quote! { : #target_syn_type })
+    } else {
+        None
+    };
+
+    match target {
+        AssignTarget::Symbol(symbol) => {
+            codegen_assign_symbol(symbol, value_expr, type_annotation_tokens, ctx)
+        }
+        AssignTarget::Index { base, index } => {
+            codegen_assign_index(base, index, value_expr, ctx)
+        }
+        AssignTarget::Attribute { value, attr } => {
+            codegen_assign_attribute(value, attr, value_expr, ctx)
+        }
+        AssignTarget::Tuple(targets) => {
+            codegen_assign_tuple(targets, value_expr, type_annotation_tokens, ctx)
+        }
+    }
+}
+
+/// Generate code for symbol (variable) assignment
+#[inline]
+fn codegen_assign_symbol(
+    symbol: &str,
+    value_expr: syn::Expr,
+    type_annotation_tokens: Option<proc_macro2::TokenStream>,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let target_ident = syn::Ident::new(symbol, proc_macro2::Span::call_site());
+
+    // Inside generators, check if variable is a state variable
+    if ctx.in_generator && ctx.generator_state_vars.contains(symbol) {
+        // State variable assignment: self.field = value
+        Ok(quote! { self.#target_ident = #value_expr; })
+    } else if ctx.is_declared(symbol) {
+        // Variable already exists, just assign
+        Ok(quote! { #target_ident = #value_expr; })
+    } else {
+        // First declaration - check if variable needs mut
+        ctx.declare_var(symbol);
+        if ctx.mutable_vars.contains(symbol) {
+            if let Some(type_ann) = type_annotation_tokens {
+                Ok(quote! { let mut #target_ident #type_ann = #value_expr; })
+            } else {
+                Ok(quote! { let mut #target_ident = #value_expr; })
+            }
+        } else if let Some(type_ann) = type_annotation_tokens {
+            Ok(quote! { let #target_ident #type_ann = #value_expr; })
+        } else {
+            Ok(quote! { let #target_ident = #value_expr; })
+        }
+    }
+}
+
+/// Generate code for index (dictionary/list subscript) assignment
+#[inline]
+fn codegen_assign_index(
+    base: &HirExpr,
+    index: &HirExpr,
+    value_expr: syn::Expr,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let final_index = index.to_rust_expr(ctx)?;
+
+    // Extract the base and all intermediate indices
+    let (base_expr, indices) = extract_nested_indices_tokens(base, ctx)?;
+
+    if indices.is_empty() {
+        // Simple assignment: d[k] = v
+        Ok(quote! { #base_expr.insert(#final_index, #value_expr); })
+    } else {
+        // Nested assignment: build chain of get_mut calls
+        let mut chain = quote! { #base_expr };
+        for idx in &indices {
+            chain = quote! {
+                #chain.get_mut(&#idx).unwrap()
+            };
+        }
+
+        Ok(quote! { #chain.insert(#final_index, #value_expr); })
+    }
+}
+
+/// Generate code for attribute (struct field) assignment
+#[inline]
+fn codegen_assign_attribute(
+    base: &HirExpr,
+    attr: &str,
+    value_expr: syn::Expr,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let base_expr = base.to_rust_expr(ctx)?;
+    let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+    Ok(quote! { #base_expr.#attr_ident = #value_expr; })
+}
+
+/// Generate code for tuple unpacking assignment
+#[inline]
+fn codegen_assign_tuple(
+    targets: &[AssignTarget],
+    value_expr: syn::Expr,
+    _type_annotation_tokens: Option<proc_macro2::TokenStream>,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    // Check if all targets are simple symbols
+    let all_symbols: Option<Vec<&str>> = targets
+        .iter()
+        .map(|t| match t {
+            AssignTarget::Symbol(s) => Some(s.as_str()),
+            _ => None,
+        })
+        .collect();
+
+    match all_symbols {
+        Some(symbols) => {
+            let all_declared = symbols.iter().all(|s| ctx.is_declared(s));
+
+            if all_declared {
+                // All variables exist, do reassignment
+                let idents: Vec<_> = symbols
+                    .iter()
+                    .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
+                    .collect();
+                Ok(quote! { (#(#idents),*) = #value_expr; })
+            } else {
+                // First declaration - mark each variable individually
+                symbols.iter().for_each(|s| ctx.declare_var(s));
+                let idents_with_mut: Vec<_> = symbols
+                    .iter()
+                    .map(|s| {
+                        let ident = syn::Ident::new(s, proc_macro2::Span::call_site());
+                        if ctx.mutable_vars.contains(*s) {
+                            quote! { mut #ident }
+                        } else {
+                            quote! { #ident }
+                        }
+                    })
+                    .collect();
+                Ok(quote! { let (#(#idents_with_mut),*) = #value_expr; })
+            }
+        }
+        None => {
+            bail!("Complex tuple unpacking not yet supported")
+        }
+    }
+}
+
+/// Generate code for Try/except/finally statement
+#[inline]
+fn codegen_try_stmt(
+    body: &[HirStmt],
+    handlers: &[ExceptHandler],
+    finalbody: &Option<Vec<HirStmt>>,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    // Convert try body to statements
+    ctx.enter_scope();
+    let try_stmts: Vec<_> = body
+        .iter()
+        .map(|s| s.to_rust_tokens(ctx))
+        .collect::<Result<Vec<_>>>()?;
+    ctx.exit_scope();
+
+    // Generate except handler code
+    let mut handler_tokens = Vec::new();
+    for handler in handlers {
+        ctx.enter_scope();
+
+        // If there's a name binding, declare it in scope
+        if let Some(var_name) = &handler.name {
+            ctx.declare_var(var_name);
+        }
+
+        let handler_stmts: Vec<_> = handler
+            .body
+            .iter()
+            .map(|s| s.to_rust_tokens(ctx))
+            .collect::<Result<Vec<_>>>()?;
+        ctx.exit_scope();
+
+        handler_tokens.push(quote! { #(#handler_stmts)* });
+    }
+
+    // Generate finally clause if present
+    let finally_stmts = if let Some(finally_body) = finalbody {
+        let stmts: Vec<_> = finally_body
+            .iter()
+            .map(|s| s.to_rust_tokens(ctx))
+            .collect::<Result<Vec<_>>>()?;
+        Some(quote! { #(#stmts)* })
+    } else {
+        None
+    };
+
+    // Generate try/except/finally pattern
+    if handlers.is_empty() {
+        // Try/finally without except
+        if let Some(finally_code) = finally_stmts {
+            Ok(quote! {
+                {
+                    #(#try_stmts)*
+                    #finally_code
+                }
+            })
+        } else {
+            // Just try block
+            Ok(quote! { #(#try_stmts)* })
+        }
+    } else if handlers.len() == 1 {
+        let handler_code = &handler_tokens[0];
+        if let Some(finally_code) = finally_stmts {
+            Ok(quote! {
+                {
+                    let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                        #(#try_stmts)*
+                        Ok(())
+                    })();
+                    if let Err(_e) = _result {
+                        #handler_code
+                    }
+                    #finally_code
+                }
+            })
+        } else {
+            Ok(quote! {
+                {
+                    let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                        #(#try_stmts)*
+                        Ok(())
+                    })();
+                    if let Err(_e) = _result {
+                        #handler_code
+                    }
+                }
+            })
+        }
+    } else {
+        // Multiple handlers
+        if let Some(finally_code) = finally_stmts {
+            Ok(quote! {
+                {
+                    let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                        #(#try_stmts)*
+                        Ok(())
+                    })();
+                    if let Err(_e) = _result {
+                        #(#handler_tokens)*
+                    }
+                    #finally_code
+                }
+            })
+        } else {
+            Ok(quote! {
+                {
+                    let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                        #(#try_stmts)*
+                        Ok(())
+                    })();
+                    if let Err(_e) = _result {
+                        #(#handler_tokens)*
+                    }
+                }
+            })
+        }
+    }
+}
+
 impl RustCodeGen for HirStmt {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         match self {
@@ -1418,127 +1706,7 @@ impl RustCodeGen for HirStmt {
                 target,
                 value,
                 type_annotation,
-            } => {
-                let mut value_expr = value.to_rust_expr(ctx)?;
-
-                // If there's a type annotation, handle type conversions
-                let type_annotation_tokens = if let Some(target_type) = type_annotation {
-                    let target_rust_type = ctx.type_mapper.map_type(target_type);
-                    let target_syn_type = rust_type_to_syn(&target_rust_type)?;
-
-                    // Check if we need type conversion (e.g., usize to i32)
-                    if needs_type_conversion(target_type) {
-                        value_expr = apply_type_conversion(value_expr, target_type);
-                    }
-
-                    Some(quote! { : #target_syn_type })
-                } else {
-                    None
-                };
-
-                match target {
-                    AssignTarget::Symbol(symbol) => {
-                        let target_ident = syn::Ident::new(symbol, proc_macro2::Span::call_site());
-
-                        // Inside generators, check if variable is a state variable
-                        if ctx.in_generator && ctx.generator_state_vars.contains(symbol) {
-                            // State variable assignment: self.field = value
-                            Ok(quote! { self.#target_ident = #value_expr; })
-                        } else if ctx.is_declared(symbol) {
-                            // Variable already exists, just assign
-                            Ok(quote! { #target_ident = #value_expr; })
-                        } else {
-                            // First declaration - check if variable needs mut
-                            ctx.declare_var(symbol);
-                            if ctx.mutable_vars.contains(symbol) {
-                                if let Some(type_ann) = type_annotation_tokens {
-                                    Ok(quote! { let mut #target_ident #type_ann = #value_expr; })
-                                } else {
-                                    Ok(quote! { let mut #target_ident = #value_expr; })
-                                }
-                            } else if let Some(type_ann) = type_annotation_tokens {
-                                Ok(quote! { let #target_ident #type_ann = #value_expr; })
-                            } else {
-                                Ok(quote! { let #target_ident = #value_expr; })
-                            }
-                        }
-                    }
-                    AssignTarget::Index { base, index } => {
-                        // Dictionary/list subscript assignment
-                        let final_index = index.to_rust_expr(ctx)?;
-
-                        // Extract the base and all intermediate indices
-                        let (base_expr, indices) = extract_nested_indices_tokens(base, ctx)?;
-
-                        if indices.is_empty() {
-                            // Simple assignment: d[k] = v
-                            Ok(quote! { #base_expr.insert(#final_index, #value_expr); })
-                        } else {
-                            // Nested assignment: build chain of get_mut calls
-                            let mut chain = quote! { #base_expr };
-                            for idx in &indices {
-                                chain = quote! {
-                                    #chain.get_mut(&#idx).unwrap()
-                                };
-                            }
-
-                            Ok(quote! { #chain.insert(#final_index, #value_expr); })
-                        }
-                    }
-                    AssignTarget::Attribute { value, attr } => {
-                        // Struct field assignment: obj.field = value
-                        let base_expr = value.to_rust_expr(ctx)?;
-                        let attr_ident =
-                            syn::Ident::new(attr.as_str(), proc_macro2::Span::call_site());
-                        Ok(quote! { #base_expr.#attr_ident = #value_expr; })
-                    }
-                    AssignTarget::Tuple(targets) => {
-                        // Tuple unpacking: a, b = value
-                        // Check if all targets are simple symbols
-                        let all_symbols: Option<Vec<&str>> = targets
-                            .iter()
-                            .map(|t| match t {
-                                AssignTarget::Symbol(s) => Some(s.as_str()),
-                                _ => None,
-                            })
-                            .collect();
-
-                        match all_symbols {
-                            Some(symbols) => {
-                                let all_declared = symbols.iter().all(|s| ctx.is_declared(s));
-
-                                if all_declared {
-                                    // All variables exist, do reassignment
-                                    let idents: Vec<_> = symbols
-                                        .iter()
-                                        .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
-                                        .collect();
-                                    Ok(quote! { (#(#idents),*) = #value_expr; })
-                                } else {
-                                    // First declaration - mark each variable individually
-                                    symbols.iter().for_each(|s| ctx.declare_var(s));
-                                    let idents_with_mut: Vec<_> = symbols
-                                        .iter()
-                                        .map(|s| {
-                                            let ident =
-                                                syn::Ident::new(s, proc_macro2::Span::call_site());
-                                            if ctx.mutable_vars.contains(*s) {
-                                                quote! { mut #ident }
-                                            } else {
-                                                quote! { #ident }
-                                            }
-                                        })
-                                        .collect();
-                                    Ok(quote! { let (#(#idents_with_mut),*) = #value_expr; })
-                                }
-                            }
-                            None => {
-                                bail!("Complex tuple unpacking not yet supported")
-                            }
-                        }
-                    }
-                }
-            }
+            } => codegen_assign_stmt(target, value, type_annotation, ctx),
             HirStmt::Return(expr) => codegen_return_stmt(expr, ctx),
             HirStmt::If {
                 condition,
@@ -1564,118 +1732,7 @@ impl RustCodeGen for HirStmt {
                 handlers,
                 orelse: _,
                 finalbody,
-            } => {
-                // Convert try body to statements
-                ctx.enter_scope();
-                let try_stmts: Vec<_> = body
-                    .iter()
-                    .map(|s| s.to_rust_tokens(ctx))
-                    .collect::<Result<Vec<_>>>()?;
-                ctx.exit_scope();
-
-                // Generate except handler code
-                let mut handler_tokens = Vec::new();
-                for handler in handlers {
-                    ctx.enter_scope();
-
-                    // If there's a name binding, declare it in scope
-                    if let Some(var_name) = &handler.name {
-                        ctx.declare_var(var_name);
-                    }
-
-                    let handler_stmts: Vec<_> = handler
-                        .body
-                        .iter()
-                        .map(|s| s.to_rust_tokens(ctx))
-                        .collect::<Result<Vec<_>>>()?;
-                    ctx.exit_scope();
-
-                    handler_tokens.push(quote! { #(#handler_stmts)* });
-                }
-
-                // Generate finally clause if present
-                let finally_stmts = if let Some(finally_body) = finalbody {
-                    let stmts: Vec<_> = finally_body
-                        .iter()
-                        .map(|s| s.to_rust_tokens(ctx))
-                        .collect::<Result<Vec<_>>>()?;
-                    Some(quote! { #(#stmts)* })
-                } else {
-                    None
-                };
-
-                // Generate try/except/finally pattern
-                if handlers.is_empty() {
-                    // Try/finally without except
-                    if let Some(finally_code) = finally_stmts {
-                        Ok(quote! {
-                            {
-                                #(#try_stmts)*
-                                #finally_code
-                            }
-                        })
-                    } else {
-                        // Just try block
-                        Ok(quote! { #(#try_stmts)* })
-                    }
-                } else if handlers.len() == 1 {
-                    let handler_code = &handler_tokens[0];
-                    if let Some(finally_code) = finally_stmts {
-                        Ok(quote! {
-                            {
-                                let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                                    #(#try_stmts)*
-                                    Ok(())
-                                })();
-                                if let Err(_e) = _result {
-                                    #handler_code
-                                }
-                                #finally_code
-                            }
-                        })
-                    } else {
-                        Ok(quote! {
-                            {
-                                let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                                    #(#try_stmts)*
-                                    Ok(())
-                                })();
-                                if let Err(_e) = _result {
-                                    #handler_code
-                                }
-                            }
-                        })
-                    }
-                } else {
-                    // Multiple handlers
-                    if let Some(finally_code) = finally_stmts {
-                        Ok(quote! {
-                            {
-                                let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                                    #(#try_stmts)*
-                                    Ok(())
-                                })();
-                                if let Err(_e) = _result {
-                                    #(#handler_tokens)*
-                                }
-                                #finally_code
-                            }
-                        })
-                    } else {
-                        Ok(quote! {
-                            {
-                                let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                                    #(#try_stmts)*
-                                    Ok(())
-                                })();
-                                if let Err(_e) = _result {
-                                    #(#handler_tokens)*
-                                }
-                            }
-                        })
-                    }
-                }
-            }
+            } => codegen_try_stmt(body, handlers, finalbody, ctx),
             HirStmt::Pass => codegen_pass_stmt(),
         }
     }
@@ -4042,5 +4099,122 @@ mod tests {
 
         let result = codegen_with_stmt(&context, &None, &body, &mut ctx).unwrap();
         assert!(result.to_string().contains("let _context"));
+    }
+
+    // Phase 3b tests - Assign handler tests
+    #[test]
+    fn test_codegen_assign_symbol_new_var() {
+        let mut ctx = create_test_context();
+        let value_expr = syn::parse_quote! { 42 };
+
+        let result = codegen_assign_symbol("x", value_expr, None, &mut ctx).unwrap();
+        assert!(result.to_string().contains("let x = 42"));
+    }
+
+    #[test]
+    fn test_codegen_assign_symbol_with_type() {
+        let mut ctx = create_test_context();
+        let value_expr = syn::parse_quote! { 42 };
+        let type_ann = Some(quote! { : i32 });
+
+        let result = codegen_assign_symbol("x", value_expr, type_ann, &mut ctx).unwrap();
+        assert!(result.to_string().contains("let x : i32 = 42"));
+    }
+
+    #[test]
+    fn test_codegen_assign_symbol_existing_var() {
+        let mut ctx = create_test_context();
+        ctx.declare_var("x");
+        let value_expr = syn::parse_quote! { 100 };
+
+        let result = codegen_assign_symbol("x", value_expr, None, &mut ctx).unwrap();
+        assert_eq!(result.to_string(), "x = 100 ;");
+    }
+
+    #[test]
+    fn test_codegen_assign_index() {
+        use crate::hir::Literal;
+
+        let mut ctx = create_test_context();
+        let base = HirExpr::Var("dict".to_string());
+        let index = HirExpr::Literal(Literal::String("key".to_string()));
+        let value_expr = syn::parse_quote! { 42 };
+
+        let result = codegen_assign_index(&base, &index, value_expr, &mut ctx).unwrap();
+        assert!(result.to_string().contains("dict . insert"));
+    }
+
+    #[test]
+    fn test_codegen_assign_attribute() {
+        let mut ctx = create_test_context();
+        let base = HirExpr::Var("obj".to_string());
+        let value_expr = syn::parse_quote! { 42 };
+
+        let result = codegen_assign_attribute(&base, "field", value_expr, &mut ctx).unwrap();
+        assert_eq!(result.to_string(), "obj . field = 42 ;");
+    }
+
+    #[test]
+    fn test_codegen_assign_tuple_new_vars() {
+        use crate::hir::AssignTarget;
+
+        let mut ctx = create_test_context();
+        let targets = vec![
+            AssignTarget::Symbol("a".to_string()),
+            AssignTarget::Symbol("b".to_string()),
+        ];
+        let value_expr = syn::parse_quote! { (1, 2) };
+
+        let result = codegen_assign_tuple(&targets, value_expr, None, &mut ctx).unwrap();
+        assert!(result.to_string().contains("let (a , b) = (1 , 2)"));
+    }
+
+    // Phase 3b tests - Try handler tests
+    #[test]
+    fn test_codegen_try_stmt_simple() {
+        use crate::hir::ExceptHandler;
+
+        let mut ctx = create_test_context();
+        let body = vec![HirStmt::Pass];
+        let handlers = vec![ExceptHandler {
+            exception_type: None,
+            name: None,
+            body: vec![HirStmt::Pass],
+        }];
+
+        let result = codegen_try_stmt(&body, &handlers, &None, &mut ctx).unwrap();
+        let result_str = result.to_string();
+        assert!(result_str.contains("let _result"));
+        assert!(result_str.contains("if let Err (_e) = _result"));
+    }
+
+    #[test]
+    fn test_codegen_try_stmt_with_finally() {
+        let mut ctx = create_test_context();
+        let body = vec![HirStmt::Pass];
+        let handlers = vec![];
+        let finally = Some(vec![HirStmt::Pass]);
+
+        let result = codegen_try_stmt(&body, &handlers, &finally, &mut ctx).unwrap();
+        assert!(!result.to_string().is_empty());
+    }
+
+    #[test]
+    fn test_codegen_try_stmt_except_and_finally() {
+        use crate::hir::ExceptHandler;
+
+        let mut ctx = create_test_context();
+        let body = vec![HirStmt::Pass];
+        let handlers = vec![ExceptHandler {
+            exception_type: None,
+            name: Some("e".to_string()),
+            body: vec![HirStmt::Pass],
+        }];
+        let finally = Some(vec![HirStmt::Pass]);
+
+        let result = codegen_try_stmt(&body, &handlers, &finally, &mut ctx).unwrap();
+        let result_str = result.to_string();
+        assert!(result_str.contains("let _result"));
+        assert!(result_str.contains("if let Err (_e) = _result"));
     }
 }
