@@ -3,16 +3,18 @@
 ## 📝 **SESSION CONTEXT FOR RESUMPTION**
 
 **Last Active**: 2025-10-10
-**Current Version**: v3.17.0 🎉 (RELEASED)
-**Status**: ✅ **v3.17.0 RELEASED** - Quality & Planning Release Complete!
-**Achievement**: 4-phase quality cycle complete - Security, Error Diagnostics, Test Coverage, and Modularization Planning
+**Current Version**: v3.17.0 🎉 (RELEASED to GitHub + crates.io)
+**Status**: 📋 **v3.18.0 PLANNING COMPLETE** - Ready for Implementation!
+**Achievement**: v3.17.0 released, v3.18.0 comprehensive plan created
 **Latest Work**:
-- 🎉 **v3.17.0 RELEASED** (2025-10-10) - All 4 phases complete!
-- ✅ Phase 1: Security Remediation (0 critical vulnerabilities)
-- ✅ Phase 2: Enhanced Error Diagnostics (Python→Rust type guidance)
-- ✅ Phase 3: Test Coverage (+34 tests, backend.rs 0% → 93.55%)
-- ✅ Phase 4: Transpiler Modularity Planning (500-line refactoring plan)
-**Next Focus**: v3.18.0 Planning or Execute rust_gen.rs modularization (13-19 hours)
+- 🎉 **v3.17.0 PUBLISHED** (2025-10-10) - GitHub + crates.io (all 9 crates)
+- ✅ v3.17.0 Phases 1-4 complete (Security, Error Diagnostics, Coverage, Planning)
+- 📋 **v3.18.0 PLANNING COMPLETE** - Transpiler Modularization implementation plan
+  - Comprehensive 8-phase execution plan documented
+  - Risk mitigation strategies defined
+  - Testing strategy established
+  - Timeline: 13-19 hours (3-4 days)
+**Next Focus**: Execute v3.18.0 Plan - Modularize rust_gen.rs (4,927 LOC → 10 modules)
 
 **📦 Recent Release Summary**:
 - 🎉 v3.17.0 - Quality & Planning: Security, errors, coverage, modularization plan - 735 tests (100%)
@@ -206,6 +208,151 @@
 6. ✅ Zero clippy warnings
 
 **Impact**: Achieved A+ Quality Standards - Ready for production-grade development
+
+---
+
+## 📋 **v3.18.0 PLAN - Transpiler Modularization (PLANNING)**
+
+**Status**: 📋 **PLANNING COMPLETE** - Ready for Implementation!
+**Planning Date**: 2025-10-10
+**Target**: Transform rust_gen.rs (4,927 LOC) → 10 focused modules
+**Estimated Effort**: 13-19 hours execution + 2-3 hours planning = 15-22 hours total
+**Timeline**: 3-4 days
+
+### Planning Documents
+- **Implementation Plan**: `docs/planning/v3.18.0_plan.md` (~1000 lines)
+- **Design Reference**: `docs/design/rust_gen_modularization_plan.md` (from v3.17.0 Phase 4)
+
+### Strategic Goal
+**Modularize the monolithic rust_gen.rs file into 10 focused, maintainable modules while preserving 100% functionality and test coverage.**
+
+### Proposed Module Structure
+
+```
+src/rust_gen/
+├── mod.rs                  # Module coordination, main entry point (~200 LOC)
+├── context.rs             # CodeGenContext, RustCodeGen trait (~150 LOC)
+├── import_gen.rs          # Import processing (~350 LOC)
+├── type_gen.rs            # Type conversion utilities (~150 LOC)
+├── function_gen.rs        # Function-level codegen (~650 LOC)
+├── stmt_gen.rs            # Statement codegen (~600 LOC)
+├── expr_gen.rs            # Expression codegen (~1800 LOC) 🔴 HIGH RISK
+├── generator_gen.rs       # Generator function support (~650 LOC)
+├── error_gen.rs           # Error type generation (~60 LOC)
+└── format.rs              # Code formatting utilities (~60 LOC)
+```
+
+### 8-Phase Implementation Plan
+
+#### ✅ Phase 1: Planning & Setup (COMPLETE)
+**What**: Create comprehensive modularization plan
+**Status**: ✅ Complete
+**Deliverable**: `docs/planning/v3.18.0_plan.md` (1000 lines)
+
+#### Phase 2: Extract Pure Functions (2-3 hours)
+**Risk**: 🟢 LOW
+**What**: Extract standalone utilities (format.rs, error_gen.rs, type_gen.rs)
+**Deliverables**:
+- [ ] `src/rust_gen/format.rs` created
+- [ ] `src/rust_gen/error_gen.rs` created
+- [ ] `src/rust_gen/type_gen.rs` created
+- [ ] All 735+ tests passing
+
+#### Phase 3: Extract Context & Imports (1-2 hours)
+**Risk**: 🟢 LOW
+**What**: Extract infrastructure (context.rs, import_gen.rs)
+**Deliverables**:
+- [ ] `src/rust_gen/context.rs` created (includes ToRustExpr trait)
+- [ ] `src/rust_gen/import_gen.rs` created
+- [ ] No circular dependencies
+
+#### Phase 4: Extract Generator Support (2 hours)
+**Risk**: 🟡 MEDIUM
+**What**: Extract generator-specific logic
+**Deliverables**:
+- [ ] `src/rust_gen/generator_gen.rs` created
+- [ ] All 20/20 generator tests passing
+
+#### Phase 5: Extract Expression Codegen (3-4 hours) 🔴 HIGH RISK
+**Risk**: 🔴 HIGH (largest module, ~1800 LOC)
+**What**: Extract expression code generation (impl ToRustExpr for HirExpr)
+**Safety Protocol**:
+- Backup before starting
+- Incremental extraction with testing after each function
+- Rollback criteria: >5 test failures, >10% performance regression
+**Deliverables**:
+- [ ] `src/rust_gen/expr_gen.rs` created (~1800 LOC)
+- [ ] All expression tests passing
+- [ ] Performance within 5% of baseline
+
+#### Phase 6: Extract Statement Codegen (2-3 hours)
+**Risk**: 🟡 MEDIUM
+**What**: Extract statement code generation (impl RustCodeGen for HirStmt)
+**Deliverables**:
+- [ ] `src/rust_gen/stmt_gen.rs` created (~600 LOC)
+- [ ] All statement tests passing
+
+#### Phase 7: Extract Function Codegen (2-3 hours)
+**Risk**: 🟡 MEDIUM
+**What**: Extract function-level code generation
+**Deliverables**:
+- [ ] `src/rust_gen/function_gen.rs` created (~650 LOC)
+- [ ] All function generation tests passing
+- [ ] Borrowing/ownership tests passing
+
+#### Phase 8: Create mod.rs & Final Integration (1-2 hours)
+**Risk**: 🟢 LOW
+**What**: Tie everything together, remove old rust_gen.rs
+**Deliverables**:
+- [ ] `src/rust_gen/mod.rs` created with re-exports
+- [ ] `src/rust_gen.rs` removed
+- [ ] ALL 735+ tests passing
+- [ ] Zero clippy warnings
+- [ ] All modules grade A- or higher
+- [ ] Coverage maintained (≥62.93%)
+- [ ] Performance within 5% of baseline
+
+### Success Criteria (NON-NEGOTIABLE)
+
+**Functional Correctness**:
+- ✅ ALL 735+ tests pass (zero regressions)
+- ✅ All showcase examples compile and run
+- ✅ Zero clippy warnings with `-D warnings`
+
+**Code Quality**:
+- ✅ All modules achieve PMAT grade A- or higher
+- ✅ All functions have cyclomatic complexity ≤10
+- ✅ Zero SATD comments in production code
+
+**Performance**:
+- ✅ Transpilation time within 5% of baseline
+- ✅ Memory usage within 10% of baseline
+
+### Risk Mitigation
+
+**Circular Dependencies**: Place `ToRustExpr` trait in `context.rs` (shared by expr_gen and stmt_gen)
+
+**Phase 5 High Risk**:
+- Create safety branch before starting
+- Test after each function extraction
+- Rollback if >5 test failures
+
+**Performance Regression**:
+- Benchmark baseline before Phase 2
+- Compare after each phase
+- Rollback if >5% regression
+
+### Milestones
+
+- **Milestone 1**: Pure Functions Extracted (Phase 2)
+- **Milestone 2**: Infrastructure Ready (Phase 3)
+- **Milestone 3**: Specialized Logic Isolated (Phase 4)
+- **Milestone 4**: Expression Codegen Modularized (Phase 5) 🎯 HIGH RISK
+- **Milestone 5**: Statement Codegen Modularized (Phase 6)
+- **Milestone 6**: Function Codegen Modularized (Phase 7)
+- **Milestone 7**: v3.18.0 Complete (Phase 8) 🎉
+
+**Next Step**: Begin Phase 2 - Extract Pure Functions
 
 ---
 
