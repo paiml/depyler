@@ -15,7 +15,6 @@ use depyler_core::DepylerPipeline;
 // ============================================================================
 
 #[test]
-#[ignore] // FUTURE: Generator expressions not yet implemented
 fn test_simple_generator_expression() {
     let python = r#"
 def use_gen() -> list:
@@ -38,7 +37,6 @@ def use_gen() -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions not yet implemented
 fn test_generator_expression_with_transform() {
     let python = r#"
 def use_gen() -> list:
@@ -67,7 +65,6 @@ def use_gen() -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions not yet implemented
 fn test_generator_expression_with_filter() {
     let python = r#"
 def use_gen() -> list:
@@ -96,7 +93,6 @@ def use_gen() -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions not yet implemented
 fn test_generator_expression_map_and_filter() {
     let python = r#"
 def use_gen() -> list:
@@ -119,7 +115,6 @@ def use_gen() -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions not yet implemented
 fn test_generator_expression_in_sum() {
     let python = r#"
 def calculate() -> int:
@@ -148,7 +143,6 @@ def calculate() -> int:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions not yet implemented
 fn test_generator_expression_in_max() {
     let python = r#"
 def find_max(nums: list) -> int:
@@ -176,7 +170,6 @@ def find_max(nums: list) -> int:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions not yet implemented
 fn test_generator_expression_with_list_source() {
     let python = r#"
 def use_gen(nums: list) -> list:
@@ -205,7 +198,6 @@ def use_gen(nums: list) -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions not yet implemented
 fn test_generator_expression_string_transform() {
     let python = r#"
 def use_gen(words: list) -> list:
@@ -228,7 +220,6 @@ def use_gen(words: list) -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions not yet implemented
 fn test_generator_expression_tuple_result() {
     let python = r#"
 def use_gen() -> list:
@@ -251,7 +242,6 @@ def use_gen() -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions not yet implemented
 fn test_generator_expression_immediate_consume() {
     let python = r#"
 def calculate() -> int:
@@ -401,7 +391,6 @@ def use_gen(a: list, b: list) -> list:
 // ============================================================================
 
 #[test]
-#[ignore] // FUTURE: Generator expressions - edge cases
 fn test_generator_expression_with_complex_condition() {
     let python = r#"
 def use_gen(nums: list) -> list:
@@ -424,7 +413,6 @@ def use_gen(nums: list) -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions - edge cases
 fn test_generator_expression_with_function_call() {
     let python = r#"
 def double(x: int) -> int:
@@ -450,7 +438,6 @@ def use_gen() -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions - edge cases
 fn test_generator_expression_variable_capture() {
     let python = r#"
 def use_gen(multiplier: int) -> list:
@@ -473,7 +460,6 @@ def use_gen(multiplier: int) -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions - edge cases
 fn test_generator_expression_enumerate_pattern() {
     let python = r#"
 def use_gen(items: list) -> list:
@@ -496,7 +482,6 @@ def use_gen(items: list) -> list:
 }
 
 #[test]
-#[ignore] // FUTURE: Generator expressions - edge cases
 fn test_generator_expression_zip_pattern() {
     let python = r#"
 def use_gen(a: list, b: list) -> list:
