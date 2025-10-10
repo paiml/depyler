@@ -307,6 +307,99 @@
 
 ---
 
+## 🚀 **v3.15.0 RELEASE - Type System Enhancements (PLANNED)**
+
+**Target Date**: TBD (2-3 weeks from 2025-10-10)
+**Status**: 📋 **PLANNING COMPLETE** - Ready for development
+**Focus**: Type System Correctness > Showcase 100% > Security
+
+### Planning Documents
+- **Detailed Plan**: `/tmp/v3.15.0_plan.md` (to be moved to docs/planning/)
+- **Issue Analysis**: `/tmp/showcase_issues.md`
+
+### Strategic Goals
+
+**Primary**: Fix critical type inference bugs blocking showcase examples
+**Secondary**: Achieve 6/6 showcase examples compiling cleanly (currently 4/6)
+**Tertiary**: Address remaining security vulnerability (slab v0.4.10)
+
+### Phases
+
+#### Phase 1: Critical Type Inference Fixes (Week 1)
+- **DEPYLER-TBD (P0)**: Numeric Type Inference
+  - Fix: `let mut total = 0` should infer as f64 in f64 context
+  - Impact: Unblocks contracts_example.rs, annotated_example.rs (2/6 examples)
+  - Effort: 4-6 hours
+
+- **DEPYLER-TBD (P0)**: String Method Return Types
+  - Fix: `.upper()` should return `String`, not `&str`
+  - Impact: Unblocks annotated_example.rs (1/6 examples)
+  - Effort: 3-4 hours
+
+#### Phase 2: Dependencies & Security (Week 2)
+- **DEPYLER-TBD (P1)**: FnvHashMap Dependency Resolution
+  - Options: Add fnv dep OR use std::HashMap
+  - Impact: Unblocks annotated_example.rs
+  - Effort: 2-3 hours
+
+- **SECURITY (P1)**: Resolve slab v0.4.10 Vulnerability
+  - Status: Awaiting upstream pmcp/pmat fix
+  - Risk: LOW (function not in code paths)
+  - Action: Monitor and update when available
+
+#### Phase 3: Quality & Documentation (Week 3)
+- **DEPYLER-TBD (P2)**: Optimize Cow Import Detection
+  - Fix: Only add `use std::borrow::Cow` when actually used
+  - Impact: Removes warning from classify_number.rs
+  - Effort: 2-3 hours
+
+- **DEPYLER-TBD (P2)**: Add Showcase Examples
+  - async_example.py (demonstrate async/await)
+  - with_example.py (demonstrate context managers)
+  - Effort: 3-4 hours
+
+### Success Criteria
+
+**Must Have** (P0):
+- [ ] 6/6 showcase examples compile with 0 warnings (currently 4/6)
+- [ ] Numeric literal type inference works correctly
+- [ ] String method return types correct
+- [ ] 420+ tests passing (100% maintained)
+
+**Should Have** (P1):
+- [ ] fnv dependency resolution complete
+- [ ] slab vulnerability resolved (if upstream available)
+- [ ] Zero clippy warnings across all examples
+
+**Nice to Have** (P2):
+- [ ] Cow import optimization complete
+- [ ] New showcase examples added
+- [ ] Performance improvements
+
+### Key Metrics
+
+| Metric | Baseline (v3.14.0) | Target (v3.15.0) |
+|--------|-------|---------|
+| Showcase Compile | 4/6 (67%) | 6/6 (100%) |
+| Showcase Warnings | 1 | 0 |
+| Tests | 408 | 420+ |
+| Security Vulns | 1 (documented) | 0 (if fixed) |
+
+### Bugs to Fix
+
+1. **DEPYLER-TBD**: Numeric type inference in typed contexts (P0)
+2. **DEPYLER-TBD**: String method return type correctness (P0)
+3. **DEPYLER-TBD**: FnvHashMap dependency handling (P1)
+4. **DEPYLER-TBD**: Cow import optimization (P2)
+
+### Dependencies
+- v3.14.0 released ✅
+- Showcase issue analysis complete ✅
+- Phase 5 validation complete ✅
+- Security analysis complete ✅
+
+---
+
 ## 🎉 **v3.13.0 RELEASE - Generator Expressions 100% Complete**
 
 **Release Date**: 2025-10-10
