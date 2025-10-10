@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.17.0] - 2025-10-10
+
+**TRANSPILER QUALITY & PLANNING RELEASE** 🎯
+
+This release completes a comprehensive 4-phase quality improvement cycle focusing on security, error diagnostics, test coverage, and planning for future modularity.
+
+### Summary
+
+**4 Phases Complete**:
+- ✅ Phase 1: Security Remediation (0 critical vulnerabilities)
+- ✅ Phase 2: Enhanced Error Diagnostics (Python→Rust type mismatch guidance)
+- ✅ Phase 3: Test Coverage Improvements (backend.rs 0% → 93.55%, +34 tests)
+- ✅ Phase 4: Transpiler Modularity Planning (comprehensive refactoring plan)
+
+**Quality Metrics**:
+- **Tests**: 735 total passing (+34 from v3.16.0)
+- **Security**: 0 critical, 0 high vulnerabilities ✅
+- **Coverage**: 62.93% (strategic improvements in backend.rs and integration tests)
+- **Complexity**: All new code ≤10 cyclomatic complexity
+- **Documentation**: +1000 lines (planning docs, security docs, enhanced errors)
+
+---
+
 ### v3.17.0 Phase 2 - Enhanced Error Diagnostics (2025-10-10)
 
 **PYTHON→RUST TYPE MISMATCH GUIDANCE 🎯**
