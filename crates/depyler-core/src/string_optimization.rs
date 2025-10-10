@@ -62,8 +62,13 @@ impl StringOptimizer {
     pub fn get_optimal_type(&self, context: &StringContext) -> OptimalStringType {
         match context {
             StringContext::Literal(s) => {
-                if self.returned_strings.contains(s) || self.mixed_usage_strings.contains(s) {
+                // v3.16.0 Phase 3: Only use Cow for TRUE mixed usage (returned AND borrowed elsewhere)
+                // Don't use Cow for simple returned literals - use owned String instead
+                if self.mixed_usage_strings.contains(s) {
                     OptimalStringType::CowStr
+                } else if self.returned_strings.contains(s) {
+                    // Returned but not borrowed elsewhere - use owned String
+                    OptimalStringType::OwnedString
                 } else if self.is_read_only(s) {
                     OptimalStringType::StaticStr
                 } else {
@@ -441,10 +446,11 @@ mod tests {
         optimizer.analyze_function(&func);
 
         let context = StringContext::Literal("result".to_string());
-        // Returned strings might need Cow for flexibility
+        // v3.16.0 Phase 3: Simple returned strings use owned String, not Cow
+        // Only use Cow for mixed usage (returned AND borrowed elsewhere)
         assert_eq!(
             optimizer.get_optimal_type(&context),
-            OptimalStringType::CowStr
+            OptimalStringType::OwnedString
         );
     }
 
