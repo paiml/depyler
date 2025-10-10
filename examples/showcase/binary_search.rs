@@ -1,6 +1,6 @@
 #[doc = "Find target in sorted array, return -1 if not found."] pub fn binary_search<'a>(arr: & 'a Vec<i32>, target: i32)  -> Result<i32, Box<dyn std::error::Error>>{
     let mut left: i32  = (0) as i32;
-    let _cse_temp_0 = arr.len();
+    let _cse_temp_0  = (arr.len() as i32);
     let mut right: i32  = (_cse_temp_0 - 1) as i32;
     while left <= right {
     let mid: i32  = ({ let a = left + right;
