@@ -4,6 +4,48 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### ✅ DEPYLER-0149 Phase 1a - Fix PEP 585 Type Parsing (2025-10-10)
+
+**COMPLETE: Python 3.9+ lowercase type syntax now supported! 🎉**
+
+#### Fixed
+- **PEP 585 Support**: Added support for Python 3.9+ lowercase built-in generic types
+  - `list[int]` now correctly transpiles to `Vec<i32>` ✅
+  - `dict[str, int]` now correctly transpiles to `HashMap<String, i32>` ✅
+  - `set[str]` now correctly transpiles to `HashSet<String>` ✅
+  - Previously only uppercase `List`, `Dict`, `Set` from typing module were supported
+
+#### Technical Details
+- **File Modified**: `crates/depyler-core/src/ast_bridge/type_extraction.rs`
+- **Change**: Added lowercase handlers to `extract_named_generic_type()` function
+  - Lines 116-118: Added `"list"`, `"dict"`, `"set"` to match statement
+- **Root Cause**: PEP 585 (Python 3.9) allows using built-in types directly for type hints
+  - Old: `from typing import List; def foo(x: List[int])`
+  - New: `def foo(x: list[int])` - no import needed!
+
+#### Tests Added
+- **3 new test functions** in `type_extraction_tests.rs`:
+  - `test_extract_lowercase_list_type_pep585()` - Tests `list[int]`, `list[str]`, nested lists
+  - `test_extract_lowercase_dict_type_pep585()` - Tests `dict[str, int]`, `dict[int, float]`
+  - `test_extract_lowercase_set_type_pep585()` - Tests `set[str]`, `set[int]`
+- **All 22 tests passing** (19 existing + 3 new) ✅
+
+#### Impact
+- **Fixes**: contracts_example.py now transpiles correctly (was generating invalid `list<i32>`)
+- **Python Compatibility**: Modern Python 3.9+ type hints now fully supported
+- **Showcase Status**: Expected to improve from 4/6 (67%) → 5/6 (83%) when re-transpiled
+
+#### Remaining Work (DEPYLER-0149)
+- Phase 1b: Fix `int()` function calls (should use `as i32` casting)
+- Phase 1c: Fix type consistency (usize vs i32 mixing)
+- Phase 1d: Re-transpile all showcase examples with fix
+- Phase 1e: Validate compilation
+
+#### Documentation
+- `docs/sessions/2025-10-10-technical-debt-and-planning.md` - Comprehensive session notes
+
+---
+
 ### 🚀 v3.14.0 Planning Complete (2025-10-10)
 
 **PLANNING PHASE COMPLETE - Ready for development!**

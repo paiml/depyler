@@ -104,6 +104,7 @@ impl TypeExtractor {
 
     fn extract_named_generic_type(name: &str, s: &ast::ExprSubscript) -> Result<Type> {
         match name {
+            // Uppercase (from typing module)
             "List" => Self::extract_list_type(s),
             "Dict" => Self::extract_dict_type(s),
             "Set" => Self::extract_set_type(s),
@@ -111,6 +112,10 @@ impl TypeExtractor {
             "Union" => Self::extract_union_type(s),
             "Generic" => Self::extract_parameterized_generic(s),
             "tuple" => Self::extract_tuple_type(s),
+            // Lowercase (PEP 585 - Python 3.9+ built-in generics)
+            "list" => Self::extract_list_type(s),
+            "dict" => Self::extract_dict_type(s),
+            "set" => Self::extract_set_type(s),
             base_name => Self::extract_custom_generic(base_name, s),
         }
     }
