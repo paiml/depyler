@@ -168,3 +168,8 @@ path = "../../tests/specialized_coverage_testing.rs"
 [[test]]
 name = "quality_assurance_automation"
 path = "../../tests/quality_assurance_automation.rs"
+
+# v3.17.0 Phase 3: Coverage Improvement Tests
+[[test]]
+name = "v3_17_coverage_tests"
+path = "../../tests/v3_17_coverage_tests.rs"
