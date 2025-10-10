@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔧 DEPYLER-0140 Phase 2 - Medium Statement Handlers Extracted (2025-10-10)
+
+**Second phase of complexity refactoring complete - 8/12 handlers extracted**
+
+#### Changed
+- **Refactored `HirStmt::to_rust_tokens`**: Extracted 4 medium-complexity handlers
+  - `codegen_return_stmt(expr, ctx)` - Return with Result/Optional wrapping (36 lines)
+  - `codegen_while_stmt(condition, body, ctx)` - While loops (13 lines)
+  - `codegen_raise_stmt(exception, ctx)` - Exception raising (12 lines)
+  - `codegen_with_stmt(context, target, body, ctx)` - Context managers (34 lines)
+- **Complexity Reduction**: Removed ~95 more lines from main function
+- **Performance**: All helpers marked `#[inline]` for zero overhead
+
+#### Added
+- **7 New Unit Tests**: Comprehensive coverage for Phase 2 handlers
+  - `test_codegen_return_stmt_simple` / `_none` - Return variants
+  - `test_codegen_while_stmt` - While loop generation
+  - `test_codegen_raise_stmt_with_exception` / `_bare` - Exception variants
+  - `test_codegen_with_stmt_with_target` / `_no_target` - Context manager variants
+
+#### Quality Impact
+- Tests: 672 passing (+7 new), 0 failed ✅
+- Main function reduced from 2639 lines → 2544 lines (-95 lines)
+- Match complexity reduced: 12 inline cases → 4 inline + 8 delegated (67% extracted)
+- All extracted functions: ≤40 lines, properly tested
+
 ### 🔧 DEPYLER-0140 Phase 1 - Simple Statement Handlers Extracted (2025-10-10)
 
 **First phase of complexity refactoring complete - 4/12 handlers extracted**
