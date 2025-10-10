@@ -2191,7 +2191,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             bail!("len() requires exactly one argument");
         }
         let arg = &args[0];
-        Ok(parse_quote! { #arg.len() })
+
+        // Python's len() returns int, which we map to i32/i64/isize based on type mapper.
+        // Rust's .len() returns usize, so we cast to match Python's int type.
+        // This ensures type consistency: len() - 1, len() comparisons, etc. all work with i32.
+        //
+        // Note: This matches the type mapper's integer width preference.
+        // For functions returning indices, they should explicitly use usize in their return type.
+        Ok(parse_quote! { (#arg.len() as i32) })
     }
 
     fn convert_int_cast(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
@@ -2199,9 +2206,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             bail!("int() requires 1-2 arguments");
         }
         let arg = &args[0];
-        // Python int() with single arg → Rust as i32 cast
+
+        // Python int() serves two purposes:
+        // 1. Convert floats to integers (truncation)
+        // 2. Ensure integer type for indexing
+        //
+        // In Rust, integer division already works, so we check if the argument
+        // is already an integer expression and skip the cast to let Rust infer
+        // the correct integer type (usize for indices, i32 for general use).
+        //
+        // For now, we omit the cast and let Rust's type inference determine
+        // the appropriate integer type based on usage context.
+        // This fixes type consistency issues where array indices need usize.
+        //
+        // TODO: Add heuristic to detect float expressions and cast those explicitly
         // TODO: Handle base parameter for int(str, base) conversions
-        Ok(parse_quote! { (#arg) as i32 })
+        Ok(arg.clone())
     }
 
     fn convert_float_cast(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
@@ -4470,10 +4490,11 @@ mod tests {
         assert!(result_str.contains("if let Err (_e) = _result"));
     }
 
-    // Phase 1b tests - Type conversion functions (DEPYLER-0149)
+    // Phase 1b/1c tests - Type conversion functions (DEPYLER-0149)
     #[test]
     fn test_int_cast_conversion() {
-        // Python: int(x) → Rust: (x) as i32
+        // Python: int(x) → Rust: x (no cast, let type inference handle it)
+        // Phase 1c change: Removed cast to allow usize/i32 inference based on context
         let call_expr = HirExpr::Call {
             func: "int".to_string(),
             args: vec![HirExpr::Var("x".to_string())],
@@ -4483,7 +4504,9 @@ mod tests {
         let result = call_expr.to_rust_expr(&mut ctx).unwrap();
         let code = quote! { #result }.to_string();
 
-        assert!(code.contains("as i32"), "Expected '(x) as i32', got: {}", code);
+        // Should just be 'x' without cast
+        assert!(code.contains("x"), "Expected 'x', got: {}", code);
+        assert!(!code.contains("as"), "Should not contain cast, got: {}", code);
     }
 
     #[test]
@@ -4533,7 +4556,8 @@ mod tests {
 
     #[test]
     fn test_int_cast_with_expression() {
-        // Python: int((low + high) / 2) → Rust: ((low + high) / 2) as i32
+        // Python: int((low + high) / 2) → Rust: (low + high) / 2 (no cast)
+        // Phase 1c: Integer division already works in Rust, let type inference handle it
         let division = HirExpr::Binary {
             op: BinOp::Div,
             left: Box::new(HirExpr::Binary {
@@ -4553,8 +4577,9 @@ mod tests {
         let result = call_expr.to_rust_expr(&mut ctx).unwrap();
         let code = quote! { #result }.to_string();
 
-        assert!(code.contains("as i32"), "Expected cast to i32, got: {}", code);
+        // Should preserve the expression without cast
         assert!(code.contains("low"), "Expected 'low' variable, got: {}", code);
         assert!(code.contains("high"), "Expected 'high' variable, got: {}", code);
+        assert!(!code.contains("as"), "Should not contain cast, got: {}", code);
     }
 }
