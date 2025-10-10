@@ -4896,6 +4896,111 @@ To reach 80% overall target, we would need:
 
 ---
 
+### v3.17.0 Phase 4 - Transpiler Modularity Planning (2025-10-10) 📋
+
+**COMPREHENSIVE MODULARIZATION PLAN** - Detailed planning for rust_gen.rs refactoring
+
+#### What Was Done
+
+**Created Comprehensive Modularization Plan**
+
+The 4,927-line `rust_gen.rs` file has been analyzed and a **detailed, step-by-step modularization plan** has been documented in `docs/design/rust_gen_modularization_plan.md`.
+
+#### Why Planning Instead of Execution?
+
+**Risk Assessment**:
+- rust_gen.rs is **4,927 lines** of complex, interconnected code
+- Contains critical transpilation logic (HIR → Rust tokens)
+- All 735 tests currently passing - high risk of breakage
+- Estimated 13-19 hours for safe, incremental refactoring
+
+**Decision**: Create a comprehensive plan FIRST, execute LATER in a dedicated session with proper time allocation and rollback procedures.
+
+#### Plan Document Contents
+
+**1. Current State Analysis**
+- File statistics (4,927 LOC, ~150 functions)
+- Complexity hotspots identification
+- Dependency mapping (internal & external)
+
+**2. Proposed Module Structure** (10 modules)
+- `context.rs` - CodeGenContext, RustCodeGen trait (~150 LOC)
+- `import_gen.rs` - Import processing (~350 LOC)
+- `type_gen.rs` - Type conversion utilities (~150 LOC)
+- `function_gen.rs` - Function-level codegen (~650 LOC)
+- `stmt_gen.rs` - Statement codegen (~600 LOC)
+- `expr_gen.rs` - Expression codegen (~1800 LOC) 🔴 HIGH RISK
+- `generator_gen.rs` - Generator function support (~650 LOC)
+- `error_gen.rs` - Error type generation (~60 LOC)
+- `format.rs` - Code formatting (~60 LOC)
+- `mod.rs` - Module coordination (~200 LOC)
+
+**3. Migration Strategy** (8 Phases)
+- **Phase 1**: Preparation (✅ Complete - this plan)
+- **Phase 2**: Extract pure functions (2-3 hours, 🟢 LOW risk)
+- **Phase 3**: Extract context & imports (1-2 hours, 🟢 LOW risk)
+- **Phase 4**: Extract generator support (2 hours, 🟡 MEDIUM risk)
+- **Phase 5**: Extract expression codegen (3-4 hours, 🔴 HIGH risk)
+- **Phase 6**: Extract statement codegen (2-3 hours, 🟡 MEDIUM risk)
+- **Phase 7**: Extract function codegen (2-3 hours, 🟡 MEDIUM risk)
+- **Phase 8**: Create mod.rs & integrate (1-2 hours, 🟢 LOW risk)
+
+**4. Risk Mitigation Strategies**
+- Circular dependency prevention (trait-based approach)
+- Comprehensive testing at each step
+- Performance monitoring (no >5% regression)
+- Git rollback procedures
+
+**5. Success Metrics**
+- All functions ≤10 cyclomatic complexity
+- PMAT grade A- or higher (all modules)
+- Zero clippy warnings
+- All 735+ tests pass
+- No performance regression
+
+#### Timeline Estimate
+
+**Total**: 13-19 hours (recommended: allocate 20-24 hours)
+- Includes extraction, testing, debugging, and rollbacks
+
+#### Files Created
+
+- `docs/design/rust_gen_modularization_plan.md` (NEW, ~500 lines)
+  - Comprehensive analysis
+  - Module structure definition
+  - 8-phase migration strategy
+  - Risk assessment and mitigation
+  - Testing and rollback procedures
+
+#### Next Steps (Future Session)
+
+**Phase 2 Execution** (Lowest risk, good starting point):
+1. Extract `format.rs` (standalone, zero dependencies)
+2. Extract `error_gen.rs` (minimal dependencies)
+3. Extract `type_gen.rs` (pure type conversions)
+4. Verify all tests pass at each step
+
+**Success Criteria for Phase 2**:
+- ✅ All 735 tests pass
+- ✅ Zero clippy warnings
+- ✅ Each module has complexity ≤10
+- ✅ No circular dependencies
+
+#### Why This Approach?
+
+**Pragmatic Decision-Making**:
+- Creating working code > creating broken code
+- Planning reduces risk and execution time
+- Allows for proper resource allocation
+- Provides clear roadmap for future work
+
+**Quote from Toyota Production System**:
+> "Stop and fix problems to get quality right the first time. Take all the time you need now, because that means you will not have to waste time later."
+
+This plan embodies that principle.
+
+---
+
 🎉 Generated with [Claude Code](https://claude.com/claude-code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>
