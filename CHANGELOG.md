@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.18.0 Phase 3 - Extract Context & Imports (2025-10-10)
+
+**TRANSPILER MODULARIZATION - PHASE 3 COMPLETE** ✅
+
+Successfully extracted infrastructure modules (context and imports) as Phase 3 of the modularization plan.
+
+**Modules Created**:
+- ✅ **context.rs** (~120 LOC) - Core context and traits
+  - `CodeGenContext` struct - Central state for code generation
+    - 5 methods: enter_scope, exit_scope, is_declared, declare_var, process_union_type
+    - All methods ≤2 cyclomatic complexity
+  - `RustCodeGen` trait - Main code generation trait
+  - `ToRustExpr` trait - Expression-specific conversion trait
+  - Manages: type mapping, string optimization, imports, scopes, generators
+
+- ✅ **import_gen.rs** (~120 LOC) - Import processing
+  - `process_module_imports()` - Main entry point (PUBLIC)
+  - `process_whole_module_import()` - Handles `import math`
+  - `process_specific_items_import()` - Handles `from typing import List`
+  - `process_import_item()` - Individual item processing
+  - All functions complexity 2-5 (well within ≤10 target)
+
+**Impact**:
+- 🎯 **Reduced rust_gen.rs**: 4,598 LOC → 4,432 LOC (-166 LOC, -3.6%)
+- 📦 **Total modules**: 5 (format, error_gen, type_gen, context, import_gen)
+- 📦 **Cumulative reduction**: 4,927 → 4,432 LOC (-495 LOC, -10.0%)
+- ✅ **Zero breaking changes**: Public API maintained via re-exports
+- ✅ **All tests passing**: 441 depyler-core tests + full workspace
+- ✅ **Zero clippy warnings**: Strict validation with `-D warnings`
+- ✅ **No circular dependencies**: Clean module structure
+
+**Next**: Phase 4 - Extract Generator Support (generator_gen.rs)
+
+---
+
 ### v3.18.0 Phase 2 - Extract Pure Functions (2025-10-10)
 
 **TRANSPILER MODULARIZATION - PHASE 2 COMPLETE** ✅
