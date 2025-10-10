@@ -4,10 +4,13 @@
 
 **Last Active**: 2025-10-10
 **Current Version**: v3.13.0 (Generator Expressions 100% Complete) 🎉
-**Status**: ✅ **v3.13.0 RELEASED** - All 20 generator expression tests passing, 100% feature complete
-**Achievement**: Generator expressions complete - zero-cost iterator abstractions with flat_map
-**Latest Work**: Implemented generator expressions (simple chains, special functions, nested flat_map) → v3.13.0 release
-**Next Focus**: Roadmap planning for v3.14.0
+**Status**: 🚀 **v3.14.0 PLANNING COMPLETE** - Focus on transpiler correctness
+**Achievement**: Technical Debt Sprint + Example Validation complete
+**Latest Work**:
+- ✅ Technical Debt Sprint 100% COMPLETE (5/5 hotspots, A+ quality)
+- ✅ Example Validation Infrastructure created (4/6 passing, 67%)
+- ✅ v3.14.0 planning complete (correctness > features)
+**Next Focus**: v3.14.0 development - Fix critical transpiler bugs (DEPYLER-0148, 0149, 0150)
 
 **📦 Recent Release Summary**:
 - ✅ v3.13.0 - Generator Expressions: 20/20 tests (100% complete)
@@ -195,6 +198,105 @@
 6. ✅ Zero clippy warnings
 
 **Impact**: Achieved A+ Quality Standards - Ready for production-grade development
+
+---
+
+## 🚀 **v3.14.0 RELEASE - Transpiler Correctness (PLANNED)**
+
+**Target Date**: TBD (4-6 weeks from 2025-10-10)
+**Status**: 📋 **PLANNING COMPLETE** - Ready for development
+**Focus**: Correctness > Features > Performance
+
+### Planning Documents
+- **Detailed Plan**: `docs/planning/v3.14.0_plan.md`
+- **Validation Report**: `docs/validation_report_showcase.md`
+
+### Strategic Goals
+
+**Primary**: Fix critical transpiler bugs that generate invalid Rust code
+**Secondary**: Support common Python patterns (dict/list augmented assignment)
+**Tertiary**: Improve code generation quality (idiomatic Rust output)
+
+### Phases
+
+#### Phase 1: Critical Correctness (P0) - Week 1
+**DEPYLER-0149**: Type Generation Fixes
+- Fix `list<T>` → `Vec<T>` mapping
+- Remove invalid `int()` function calls
+- Fix type consistency (usize/i32 mixing)
+- **Target**: contracts_example.rs compiles
+- **Effort**: 12-16 hours
+
+#### Phase 2: High-Impact Correctness (P1) - Week 2
+**DEPYLER-0148**: Dict/List Item Augmented Assignment
+- Support `d[k] += 1`, `arr[i] *= 2` patterns
+- Transpile to proper Rust `get_mut` + dereference
+- **Target**: annotated_example.py transpiles successfully
+- **Effort**: 8-12 hours
+
+#### Phase 3: Code Quality (P2) - Week 3
+**DEPYLER-0150**: Code Generation Quality
+- Remove unnecessary parentheses
+- Fix type annotation spacing
+- Simplify complex generated code
+- Improve CSE variable naming
+- **Target**: Zero clippy warnings on generated code
+- **Effort**: 4-8 hours
+
+#### Phase 4: Re-validation (P0) - Week 3
+- Re-transpile all 6 showcase examples
+- Run full validation suite
+- Document improvements
+- **Target**: 6/6 showcase examples pass all quality gates
+
+#### Phase 5 (Optional): Feature Expansion - Week 4-6
+- DEPYLER-0117: Async/Await Support (defer if needed)
+- DEPYLER-0118: With Statement/Context Managers (defer if needed)
+
+### Success Criteria
+
+**Must Have** (P0):
+- [ ] 6/6 showcase examples compile (currently 4/6)
+- [ ] Zero transpiler bugs generating invalid Rust
+- [ ] Type generation produces valid Rust types
+- [ ] 393+ tests passing (100% maintained)
+- [ ] Zero clippy warnings on generated code
+
+**Should Have** (P1):
+- [ ] Dict/list item augmented assignment supported
+- [ ] Common Python patterns transpile successfully
+- [ ] 80%+ test coverage maintained
+
+**Nice to Have** (P2):
+- [ ] Clean, idiomatic generated code
+- [ ] Simplified codegen for common operations
+- [ ] 1-2 new language features (async/await or with)
+
+### Key Metrics
+
+| Metric | Baseline (v3.13.0) | Target (v3.14.0) |
+|--------|-------|---------|
+| Showcase Passing | 4/6 (67%) | 6/6 (100%) |
+| Tests | 393 | 420+ |
+| Clippy Warnings (Generated) | Unknown | 0 |
+| SATD | 0 | 0 |
+| Complexity | A+ (top 5 resolved) | A+ (maintained) |
+
+### Bugs to Fix
+
+1. **DEPYLER-0148**: Dict item augmented assignment (P1)
+2. **DEPYLER-0149**: Type generation bugs (P0 - CRITICAL)
+3. **DEPYLER-0150**: Code generation quality (P2)
+
+### Dependencies
+- v3.13.0 released ✅
+- Technical Debt Sprint complete ✅
+- Example validation infrastructure complete ✅
+
+### Risk Mitigation
+- **Technical Risk**: Comprehensive test suite (393 tests) provides safety net
+- **Schedule Risk**: Phase 5 optional - can defer features to v3.15.0
+- **Scope Risk**: Strict P0/P1/P2 prioritization prevents scope creep
 
 ---
 
