@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+---
+
+## [3.13.0] - 2025-10-10
+
+### 🎉 Generator Expressions Complete - 100% Implementation
+
+**Key Achievement**: Full Python generator expression support with zero-cost iterator abstractions
+
 ### Added
 - **Generator Expressions (COMPLETE)**: 20/20 tests passing (100% complete) 🎉
   - **Simple generator expressions** with iterator chains
@@ -17,6 +25,18 @@ All notable changes to this project will be documented in this file.
     - Pattern: `(x + y for x in range(3) for y in range(3))`
     - → `(0..3).into_iter().flat_map(|x| (0..3).into_iter().map(move |y| x + y))`
     - Cartesian products, dependent iteration, filtered nesting
+
+### Implementation Details
+- HIR: Added `GeneratorExp` variant and `HirComprehension` structure
+- AST Bridge: Full Python GeneratorExp → HIR conversion with tuple unpacking
+- Code Generation: Three-tier strategy (simple chains, special functions, nested flat_map)
+- Quality: All tests passing, zero clippy warnings, complexity ≤10
+
+### Test Coverage
+- Phase 1: Basic generators (10 tests) ✅
+- Phase 2: Nested generators (5 tests) ✅
+- Phase 3: Edge cases (5 tests) ✅
+- Total: 20/20 (100%)
 
 ---
 
