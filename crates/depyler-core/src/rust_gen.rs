@@ -1161,6 +1161,52 @@ fn apply_type_conversion(value_expr: syn::Expr, target_type: &Type) -> syn::Expr
     }
 }
 
+// ============================================================================
+// Statement Code Generation Helpers (DEPYLER-0140 Phase 1)
+// Extracted to reduce complexity of HirStmt::to_rust_tokens
+// ============================================================================
+
+/// Generate code for Pass statement (no-op)
+#[inline]
+fn codegen_pass_stmt() -> Result<proc_macro2::TokenStream> {
+    Ok(quote! {})
+}
+
+/// Generate code for Break statement with optional label
+#[inline]
+fn codegen_break_stmt(label: &Option<String>) -> Result<proc_macro2::TokenStream> {
+    if let Some(label_name) = label {
+        let label_ident = syn::Lifetime::new(
+            &format!("'{}", label_name),
+            proc_macro2::Span::call_site(),
+        );
+        Ok(quote! { break #label_ident; })
+    } else {
+        Ok(quote! { break; })
+    }
+}
+
+/// Generate code for Continue statement with optional label
+#[inline]
+fn codegen_continue_stmt(label: &Option<String>) -> Result<proc_macro2::TokenStream> {
+    if let Some(label_name) = label {
+        let label_ident = syn::Lifetime::new(
+            &format!("'{}", label_name),
+            proc_macro2::Span::call_site(),
+        );
+        Ok(quote! { continue #label_ident; })
+    } else {
+        Ok(quote! { continue; })
+    }
+}
+
+/// Generate code for expression statement
+#[inline]
+fn codegen_expr_stmt(expr: &HirExpr, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
+    let expr_tokens = expr.to_rust_expr(ctx)?;
+    Ok(quote! { #expr_tokens; })
+}
+
 impl RustCodeGen for HirStmt {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         match self {
@@ -1403,10 +1449,7 @@ impl RustCodeGen for HirStmt {
                     }
                 })
             }
-            HirStmt::Expr(expr) => {
-                let expr_tokens = expr.to_rust_expr(ctx)?;
-                Ok(quote! { #expr_tokens; })
-            }
+            HirStmt::Expr(expr) => codegen_expr_stmt(expr, ctx),
             HirStmt::Raise {
                 exception,
                 cause: _,
@@ -1420,28 +1463,8 @@ impl RustCodeGen for HirStmt {
                     Ok(quote! { return Err("Exception raised".into()); })
                 }
             }
-            HirStmt::Break { label } => {
-                if let Some(label_name) = label {
-                    let label_ident = syn::Lifetime::new(
-                        &format!("'{}", label_name),
-                        proc_macro2::Span::call_site(),
-                    );
-                    Ok(quote! { break #label_ident; })
-                } else {
-                    Ok(quote! { break; })
-                }
-            }
-            HirStmt::Continue { label } => {
-                if let Some(label_name) = label {
-                    let label_ident = syn::Lifetime::new(
-                        &format!("'{}", label_name),
-                        proc_macro2::Span::call_site(),
-                    );
-                    Ok(quote! { continue #label_ident; })
-                } else {
-                    Ok(quote! { continue; })
-                }
-            }
+            HirStmt::Break { label } => codegen_break_stmt(label),
+            HirStmt::Continue { label } => codegen_continue_stmt(label),
             HirStmt::With {
                 context,
                 target,
@@ -1594,10 +1617,7 @@ impl RustCodeGen for HirStmt {
                     }
                 }
             }
-            HirStmt::Pass => {
-                // Pass statement generates no code - it's a no-op
-                Ok(quote! {})
-            }
+            HirStmt::Pass => codegen_pass_stmt(),
         }
     }
 }
@@ -3839,5 +3859,50 @@ mod tests {
         assert!(convert_binop(BinOp::Pow).is_err());
         assert!(convert_binop(BinOp::In).is_err());
         assert!(convert_binop(BinOp::NotIn).is_err());
+    }
+
+    // ========================================================================
+    // DEPYLER-0140 Phase 1: Tests for extracted statement handlers
+    // ========================================================================
+
+    #[test]
+    fn test_codegen_pass_stmt() {
+        let result = codegen_pass_stmt().unwrap();
+        assert!(result.is_empty(), "Pass statement should generate no code");
+    }
+
+    #[test]
+    fn test_codegen_break_stmt_simple() {
+        let result = codegen_break_stmt(&None).unwrap();
+        assert_eq!(result.to_string(), "break ;");
+    }
+
+    #[test]
+    fn test_codegen_break_stmt_with_label() {
+        let result = codegen_break_stmt(&Some("outer".to_string())).unwrap();
+        assert_eq!(result.to_string(), "break 'outer ;");
+    }
+
+    #[test]
+    fn test_codegen_continue_stmt_simple() {
+        let result = codegen_continue_stmt(&None).unwrap();
+        assert_eq!(result.to_string(), "continue ;");
+    }
+
+    #[test]
+    fn test_codegen_continue_stmt_with_label() {
+        let result = codegen_continue_stmt(&Some("outer".to_string())).unwrap();
+        assert_eq!(result.to_string(), "continue 'outer ;");
+    }
+
+    #[test]
+    fn test_codegen_expr_stmt() {
+        use crate::hir::Literal;
+
+        let mut ctx = create_test_context();
+        let expr = HirExpr::Literal(Literal::Int(42));
+
+        let result = codegen_expr_stmt(&expr, &mut ctx).unwrap();
+        assert_eq!(result.to_string(), "42 ;");
     }
 }
