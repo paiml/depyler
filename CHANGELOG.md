@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔍 Quality Assessment & Technical Debt Documentation (2025-10-10)
+
+**Comprehensive quality audit reveals critical technical debt requiring attention**
+
+#### Added
+- **Quality Metrics Documentation**: Added honest assessment to roadmap
+  - Tests: 659 passing (371 core + 288 integration), 5 ignored ✅
+  - Clippy: Zero warnings with -D warnings ✅
+  - Complexity: 125 violations identified (median: 4, max: 129) ❌
+  - SATD: 19 technical debt items across 17 files ⚠️
+  - Coverage: Tooling timeout issues preventing verification ⚠️
+
+- **Technical Debt Sprint Planning**: Created DEPYLER-0140 through DEPYLER-0146
+  - DEPYLER-0140: Refactor `HirStmt::to_rust_tokens` (complexity 129→≤10, ~80h)
+  - DEPYLER-0141: Refactor `HirFunction::to_rust_tokens` (complexity 106→≤10, ~60h)
+  - DEPYLER-0142: Refactor `ExpressionConverter::convert_method_call` (complexity 99→≤10, ~50h)
+  - DEPYLER-0143: Refactor `rust_type_to_syn_type` (complexity 73→≤10, ~40h)
+  - DEPYLER-0144: Refactor `AnnotationParser::apply_annotations` (complexity 69→≤10, ~35h)
+  - DEPYLER-0145: Fix `cargo-llvm-cov` timeout issue
+  - DEPYLER-0146: SATD cleanup (19 items → 0)
+
+- **Detailed Refactoring Plan**: Created `docs/technical-debt/DEPYLER-0140-refactoring-plan.md`
+  - 9-week implementation plan for worst complexity hotspot
+  - Extract method pattern strategy for 12 statement handlers
+  - 2679-line function to be decomposed into 20+ focused functions
+
+#### Changed
+- **Roadmap Documentation**: Updated quality claims to reflect reality
+  - Removed false "complexity ≤10" claim from session context
+  - Added honest metrics with status indicators (✅/❌/⚠️)
+  - Documented production-ready features with legacy debt caveat
+
+#### Quality Impact
+- **Transparency**: Now accurately representing codebase state
+- **Prioritization**: Top 5 hotspots account for ~265 hours of refactoring
+- **Long-term Goal**: 300 hours estimated to achieve true A+ quality standards
+
 ---
 
 ## [3.13.0] - 2025-10-10
