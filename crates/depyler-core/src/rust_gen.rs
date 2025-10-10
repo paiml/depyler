@@ -3096,6 +3096,63 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             })
         }
     }
+
+    fn convert_generator_expression(
+        &mut self,
+        element: &HirExpr,
+        generators: &[crate::hir::HirComprehension],
+    ) -> Result<syn::Expr> {
+        // Strategy: Simple cases use iterator chains, complex cases use structs
+
+        // For now, implement simple case: single generator
+        if generators.len() != 1 {
+            bail!("Nested generator expressions not yet supported (use multiple generators)");
+        }
+
+        let gen = &generators[0];
+
+        // Convert the iterator expression
+        let iter_expr = gen.iter.to_rust_expr(self.ctx)?;
+
+        // Convert the element expression
+        let element_expr = element.to_rust_expr(self.ctx)?;
+
+        // Parse the target pattern (handle simple and tuple patterns)
+        let target_pat = self.parse_target_pattern(&gen.target)?;
+
+        // Build the iterator chain
+        let mut chain: syn::Expr = parse_quote! { #iter_expr.into_iter() };
+
+        // Add filters for each condition
+        for cond in &gen.conditions {
+            let cond_expr = cond.to_rust_expr(self.ctx)?;
+            chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+        }
+
+        // Add the map transformation
+        chain = parse_quote! { #chain.map(|#target_pat| #element_expr) };
+
+        Ok(chain)
+    }
+
+    fn parse_target_pattern(&self, target: &str) -> Result<syn::Pat> {
+        // Handle simple variable: x
+        // Handle tuple: (x, y)
+        if target.starts_with('(') && target.ends_with(')') {
+            // Tuple pattern
+            let inner = &target[1..target.len() - 1];
+            let parts: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+            let idents: Vec<syn::Ident> = parts
+                .iter()
+                .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
+                .collect();
+            Ok(parse_quote! { ( #(#idents),* ) })
+        } else {
+            // Simple variable
+            let ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+            Ok(parse_quote! { #ident })
+        }
+    }
 }
 
 impl ToRustExpr for HirExpr {
@@ -3162,6 +3219,9 @@ impl ToRustExpr for HirExpr {
                 key_body,
                 reverse,
             } => converter.convert_sort_by_key(iterable, key_params, key_body, *reverse),
+            HirExpr::GeneratorExp { element, generators } => {
+                converter.convert_generator_expression(element, generators)
+            }
         }
     }
 }

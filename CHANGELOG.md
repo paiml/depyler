@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- Nothing yet
+- **Generator Expressions (Phase 1)**: 11/20 tests passing (55% complete)
+  - Simple generator expressions with iterator chains
+  - Pattern: `(x * 2 for x in range(5))` → `(0..5).into_iter().map(|x| x * 2)`
+  - Support for: map, filter, map+filter, tuple results, variable capture
+  - Remaining: sum/max integration, nested generators, enumerate/zip
 
 ---
 
