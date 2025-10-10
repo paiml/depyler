@@ -1207,6 +1207,130 @@ fn codegen_expr_stmt(expr: &HirExpr, ctx: &mut CodeGenContext) -> Result<proc_ma
     Ok(quote! { #expr_tokens; })
 }
 
+// ============================================================================
+// Statement Code Generation Helpers (DEPYLER-0140 Phase 2)
+// Medium-complexity handlers extracted from HirStmt::to_rust_tokens
+// ============================================================================
+
+/// Generate code for Return statement with optional expression
+#[inline]
+fn codegen_return_stmt(
+    expr: &Option<HirExpr>,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    if let Some(e) = expr {
+        let expr_tokens = e.to_rust_expr(ctx)?;
+
+        // Check if return type is Optional and wrap value in Some()
+        let is_optional_return =
+            matches!(ctx.current_return_type.as_ref(), Some(Type::Optional(_)));
+
+        // Check if the expression is None literal
+        let is_none_literal = matches!(e, HirExpr::Literal(Literal::None));
+
+        if ctx.current_function_can_fail {
+            if is_optional_return && !is_none_literal {
+                // Wrap value in Some() for Optional return types
+                Ok(quote! { return Ok(Some(#expr_tokens)); })
+            } else {
+                Ok(quote! { return Ok(#expr_tokens); })
+            }
+        } else if is_optional_return && !is_none_literal {
+            // Wrap value in Some() for Optional return types
+            Ok(quote! { return Some(#expr_tokens); })
+        } else {
+            Ok(quote! { return #expr_tokens; })
+        }
+    } else if ctx.current_function_can_fail {
+        // No expression - check if return type is Optional
+        let is_optional_return =
+            matches!(ctx.current_return_type.as_ref(), Some(Type::Optional(_)));
+        if is_optional_return {
+            Ok(quote! { return Ok(None); })
+        } else {
+            Ok(quote! { return Ok(()); })
+        }
+    } else {
+        Ok(quote! { return; })
+    }
+}
+
+/// Generate code for While loop statement
+#[inline]
+fn codegen_while_stmt(
+    condition: &HirExpr,
+    body: &[HirStmt],
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let cond = condition.to_rust_expr(ctx)?;
+    ctx.enter_scope();
+    let body_stmts: Vec<_> = body
+        .iter()
+        .map(|s| s.to_rust_tokens(ctx))
+        .collect::<Result<Vec<_>>>()?;
+    ctx.exit_scope();
+    Ok(quote! {
+        while #cond {
+            #(#body_stmts)*
+        }
+    })
+}
+
+/// Generate code for Raise (exception) statement
+#[inline]
+fn codegen_raise_stmt(
+    exception: &Option<HirExpr>,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    // For V1, we'll implement basic error handling
+    if let Some(exc) = exception {
+        let exc_expr = exc.to_rust_expr(ctx)?;
+        Ok(quote! { return Err(#exc_expr); })
+    } else {
+        // Re-raise or bare raise - use generic error
+        Ok(quote! { return Err("Exception raised".into()); })
+    }
+}
+
+/// Generate code for With (context manager) statement
+#[inline]
+fn codegen_with_stmt(
+    context: &HirExpr,
+    target: &Option<String>,
+    body: &[HirStmt],
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    // Convert context expression
+    let context_expr = context.to_rust_expr(ctx)?;
+
+    // Convert body statements
+    let body_stmts: Vec<_> = body
+        .iter()
+        .map(|stmt| stmt.to_rust_tokens(ctx))
+        .collect::<Result<_>>()?;
+
+    // Note: Currently generates a simple scope block for context managers.
+    // Proper RAII pattern with Drop trait implementation is not yet supported.
+    // This is a known limitation - __enter__/__exit__ methods are not translated.
+    if let Some(var_name) = target {
+        let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+        ctx.declare_var(var_name);
+        Ok(quote! {
+            {
+                let mut #var_ident = #context_expr;
+                #(#body_stmts)*
+            }
+        })
+    } else {
+        Ok(quote! {
+            {
+                let _context = #context_expr;
+                #(#body_stmts)*
+            }
+        })
+    }
+}
+
 impl RustCodeGen for HirStmt {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         match self {
@@ -1335,43 +1459,7 @@ impl RustCodeGen for HirStmt {
                     }
                 }
             }
-            HirStmt::Return(expr) => {
-                if let Some(e) = expr {
-                    let expr_tokens = e.to_rust_expr(ctx)?;
-
-                    // Check if return type is Optional and wrap value in Some()
-                    let is_optional_return =
-                        matches!(ctx.current_return_type.as_ref(), Some(Type::Optional(_)));
-
-                    // Check if the expression is None literal
-                    let is_none_literal = matches!(e, HirExpr::Literal(Literal::None));
-
-                    if ctx.current_function_can_fail {
-                        if is_optional_return && !is_none_literal {
-                            // Wrap value in Some() for Optional return types
-                            Ok(quote! { return Ok(Some(#expr_tokens)); })
-                        } else {
-                            Ok(quote! { return Ok(#expr_tokens); })
-                        }
-                    } else if is_optional_return && !is_none_literal {
-                        // Wrap value in Some() for Optional return types
-                        Ok(quote! { return Some(#expr_tokens); })
-                    } else {
-                        Ok(quote! { return #expr_tokens; })
-                    }
-                } else if ctx.current_function_can_fail {
-                    // No expression - check if return type is Optional
-                    let is_optional_return =
-                        matches!(ctx.current_return_type.as_ref(), Some(Type::Optional(_)));
-                    if is_optional_return {
-                        Ok(quote! { return Ok(None); })
-                    } else {
-                        Ok(quote! { return Ok(()); })
-                    }
-                } else {
-                    Ok(quote! { return; })
-                }
-            }
+            HirStmt::Return(expr) => codegen_return_stmt(expr, ctx),
             HirStmt::If {
                 condition,
                 then_body,
@@ -1407,20 +1495,7 @@ impl RustCodeGen for HirStmt {
                     })
                 }
             }
-            HirStmt::While { condition, body } => {
-                let cond = condition.to_rust_expr(ctx)?;
-                ctx.enter_scope();
-                let body_stmts: Vec<_> = body
-                    .iter()
-                    .map(|s| s.to_rust_tokens(ctx))
-                    .collect::<Result<Vec<_>>>()?;
-                ctx.exit_scope();
-                Ok(quote! {
-                    while #cond {
-                        #(#body_stmts)*
-                    }
-                })
-            }
+            HirStmt::While { condition, body } => codegen_while_stmt(condition, body, ctx),
             HirStmt::For { target, iter, body } => {
                 let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
                 let mut iter_expr = iter.to_rust_expr(ctx)?;
@@ -1453,53 +1528,14 @@ impl RustCodeGen for HirStmt {
             HirStmt::Raise {
                 exception,
                 cause: _,
-            } => {
-                // For V1, we'll implement basic error handling
-                if let Some(exc) = exception {
-                    let exc_expr = exc.to_rust_expr(ctx)?;
-                    Ok(quote! { return Err(#exc_expr); })
-                } else {
-                    // Re-raise or bare raise - use generic error
-                    Ok(quote! { return Err("Exception raised".into()); })
-                }
-            }
+            } => codegen_raise_stmt(exception, ctx),
             HirStmt::Break { label } => codegen_break_stmt(label),
             HirStmt::Continue { label } => codegen_continue_stmt(label),
             HirStmt::With {
                 context,
                 target,
                 body,
-            } => {
-                // Convert context expression
-                let context_expr = context.to_rust_expr(ctx)?;
-
-                // Convert body statements
-                let body_stmts: Vec<_> = body
-                    .iter()
-                    .map(|stmt| stmt.to_rust_tokens(ctx))
-                    .collect::<Result<_>>()?;
-
-                // Note: Currently generates a simple scope block for context managers.
-                // Proper RAII pattern with Drop trait implementation is not yet supported.
-                // This is a known limitation - __enter__/__exit__ methods are not translated.
-                if let Some(var_name) = target {
-                    let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
-                    ctx.declare_var(var_name);
-                    Ok(quote! {
-                        {
-                            let mut #var_ident = #context_expr;
-                            #(#body_stmts)*
-                        }
-                    })
-                } else {
-                    Ok(quote! {
-                        {
-                            let _context = #context_expr;
-                            #(#body_stmts)*
-                        }
-                    })
-                }
-            }
+            } => codegen_with_stmt(context, target, body, ctx),
             HirStmt::Try {
                 body,
                 handlers,
@@ -3904,5 +3940,84 @@ mod tests {
 
         let result = codegen_expr_stmt(&expr, &mut ctx).unwrap();
         assert_eq!(result.to_string(), "42 ;");
+    }
+
+    // ========================================================================
+    // DEPYLER-0140 Phase 2: Tests for medium-complexity statement handlers
+    // ========================================================================
+
+    #[test]
+    fn test_codegen_return_stmt_simple() {
+        use crate::hir::Literal;
+
+        let mut ctx = create_test_context();
+        let expr = Some(HirExpr::Literal(Literal::Int(42)));
+
+        let result = codegen_return_stmt(&expr, &mut ctx).unwrap();
+        assert_eq!(result.to_string(), "return 42 ;");
+    }
+
+    #[test]
+    fn test_codegen_return_stmt_none() {
+        let mut ctx = create_test_context();
+
+        let result = codegen_return_stmt(&None, &mut ctx).unwrap();
+        assert_eq!(result.to_string(), "return ;");
+    }
+
+    #[test]
+    fn test_codegen_while_stmt() {
+        use crate::hir::Literal;
+
+        let mut ctx = create_test_context();
+        let condition = HirExpr::Literal(Literal::Bool(true));
+        let body = vec![HirStmt::Pass];
+
+        let result = codegen_while_stmt(&condition, &body, &mut ctx).unwrap();
+        assert!(result.to_string().contains("while true"));
+    }
+
+    #[test]
+    fn test_codegen_raise_stmt_with_exception() {
+        use crate::hir::Literal;
+
+        let mut ctx = create_test_context();
+        let exc = Some(HirExpr::Literal(Literal::String("Error".to_string())));
+
+        let result = codegen_raise_stmt(&exc, &mut ctx).unwrap();
+        assert_eq!(result.to_string(), "return Err (\"Error\" . to_string ()) ;");
+    }
+
+    #[test]
+    fn test_codegen_raise_stmt_bare() {
+        let mut ctx = create_test_context();
+
+        let result = codegen_raise_stmt(&None, &mut ctx).unwrap();
+        assert_eq!(result.to_string(), "return Err (\"Exception raised\" . into ()) ;");
+    }
+
+    #[test]
+    fn test_codegen_with_stmt_with_target() {
+        use crate::hir::Literal;
+
+        let mut ctx = create_test_context();
+        let context = HirExpr::Literal(Literal::Int(42));
+        let target = Some("file".to_string());
+        let body = vec![HirStmt::Pass];
+
+        let result = codegen_with_stmt(&context, &target, &body, &mut ctx).unwrap();
+        assert!(result.to_string().contains("let mut file"));
+    }
+
+    #[test]
+    fn test_codegen_with_stmt_no_target() {
+        use crate::hir::Literal;
+
+        let mut ctx = create_test_context();
+        let context = HirExpr::Literal(Literal::Int(42));
+        let body = vec![HirStmt::Pass];
+
+        let result = codegen_with_stmt(&context, &None, &body, &mut ctx).unwrap();
+        assert!(result.to_string().contains("let _context"));
     }
 }
