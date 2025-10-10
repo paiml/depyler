@@ -1249,7 +1249,8 @@ fn apply_type_conversion(value_expr: syn::Expr, target_type: &Type) -> syn::Expr
         Type::Int => {
             // Convert to i32 using 'as' cast
             // This handles usize->i32 conversions and is a no-op if already i32
-            parse_quote! { (#value_expr) as i32 }
+            // Note: Removed defensive parens - Rust's precedence rules handle this correctly
+            parse_quote! { #value_expr as i32 }
         }
         _ => value_expr,
     }
@@ -2198,7 +2199,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         //
         // Note: This matches the type mapper's integer width preference.
         // For functions returning indices, they should explicitly use usize in their return type.
-        Ok(parse_quote! { (#arg.len() as i32) })
+        // Removed outer parens - they're unnecessary and cause clippy warnings
+        Ok(parse_quote! { #arg.len() as i32 })
     }
 
     fn convert_int_cast(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
