@@ -4,6 +4,79 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.16.0 Phase 1 - String Method Return Types (2025-10-10)
+
+**STRING TRANSFORMATION METHODS NOW RETURN OWNED STRING 🎯**
+
+#### Problem Fixed
+
+String transformation methods (`.upper()`, `.lower()`, `.strip()`, etc.) return owned `String` in Rust, but the transpiler was generating borrowed `&str` return types with lifetimes. This caused compilation errors.
+
+**Example of Bug**:
+```python
+def process_text(text: str) -> str:
+    return text.upper()
+```
+
+**Before (WRONG)**:
+```rust
+pub fn process_text<'a>(text: &'a str) -> &'a str {
+    return text.to_uppercase();  // ERROR: to_uppercase() returns String, not &str
+}
+```
+
+**After (CORRECT)**:
+```rust
+pub fn process_text<'a>(text: &'a str) -> String {
+    return text.to_uppercase();  // ✅ Compiles!
+}
+```
+
+#### Root Cause
+
+Lifetime analysis assumed all `str -> str` functions could borrow the return value from parameters. It didn't analyze the actual return expression to detect that string transformation methods return owned values.
+
+#### Solution Implemented
+
+1. **String Method Classification** (rust_gen.rs:900-928)
+   - Added `StringMethodReturnType` enum to classify methods as `Owned` or `Borrowed`
+   - Comprehensive classification of Python string methods:
+     - **Owned**: `upper`, `lower`, `strip`, `replace`, `title`, `capitalize`, etc.
+     - **Borrowed**: `starts_with`, `ends_with`, `isdigit`, `find`, etc.
+
+2. **Return Expression Analysis** (rust_gen.rs:930-982)
+   - `contains_owned_string_method()` - Recursively checks if expression contains owned-returning methods
+   - `function_returns_owned_string()` - Scans all return statements in function body
+   - Handles nested expressions (binary ops, conditionals, etc.)
+
+3. **Return Type Override** (rust_gen.rs:1016-1025, 1080-1111)
+   - Forces return type to `RustType::String` when owned methods detected
+   - Prevents lifetime analysis from converting to borrowed `&str`
+   - Two-stage protection: early override + late lifetime check
+
+#### Impact
+
+- **annotated_example.rs**: `process_text()` error FIXED ✅
+- **Errors reduced**: 3 → 2 in annotated_example.rs
+- **Showcase compilation**: 5/6 → 5/6 (maintained, but process_text now compiles)
+- **Zero regressions**: All 408 tests passing ✅
+
+#### Files Modified
+- `crates/depyler-core/src/rust_gen.rs` - String method classification and return type analysis
+- `examples/showcase/annotated_example.rs` - Regenerated with fix
+
+#### Testing
+- Added comprehensive regression test `test_string_method_return_types()`
+- Tests `.upper()`, `.lower()`, `.strip()` all generate `-> String`
+- Validates no borrowed return types for transformation methods
+
+#### Remaining Work (v3.16.0 Phase 2 & 3)
+- **Phase 2**: Int/float division semantics (4-6 hours)
+- **Phase 3**: Cow import optimization (2-3 hours)
+- **Target**: 6/6 showcase examples compiling with 0 warnings
+
+---
+
 ### v3.15.0 Phase 2 - Dependency & Transpiler Analysis (2025-10-10)
 
 **DEPENDENCY FIX + TRANSPILER LIMITATIONS DOCUMENTED 📋**
