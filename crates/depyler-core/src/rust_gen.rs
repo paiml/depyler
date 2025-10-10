@@ -693,6 +693,43 @@ fn codegen_function_attrs(
     attrs
 }
 
+// ============================================================================
+// DEPYLER-0141 Phase 2: Medium Complexity Helpers
+// ============================================================================
+
+/// Process function body statements with proper scoping
+#[inline]
+fn codegen_function_body(
+    func: &HirFunction,
+    can_fail: bool,
+    ctx: &mut CodeGenContext,
+) -> Result<Vec<proc_macro2::TokenStream>> {
+    // Enter function scope and declare parameters
+    ctx.enter_scope();
+    ctx.current_function_can_fail = can_fail;
+    ctx.current_return_type = Some(func.ret_type.clone());
+
+    for param in &func.params {
+        ctx.declare_var(&param.name);
+    }
+
+    // Analyze which variables are mutated in the function body
+    analyze_mutable_vars(&func.body, ctx);
+
+    // Convert body
+    let body_stmts: Vec<_> = func
+        .body
+        .iter()
+        .map(|stmt| stmt.to_rust_tokens(ctx))
+        .collect::<Result<Vec<_>>>()?;
+
+    ctx.exit_scope();
+    ctx.current_function_can_fail = false;
+    ctx.current_return_type = None;
+
+    Ok(body_stmts)
+}
+
 impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         let name = syn::Ident::new(&self.name, proc_macro2::Span::call_site());
@@ -998,27 +1035,8 @@ impl RustCodeGen for HirFunction {
             }
         };
 
-        // Enter function scope and declare parameters
-        ctx.enter_scope();
-        ctx.current_function_can_fail = can_fail;
-        ctx.current_return_type = Some(self.ret_type.clone());
-        for param in &self.params {
-            ctx.declare_var(&param.name);
-        }
-
-        // Analyze which variables are mutated in the function body
-        analyze_mutable_vars(&self.body, ctx);
-
-        // Convert body
-        let body_stmts: Vec<_> = self
-            .body
-            .iter()
-            .map(|stmt| stmt.to_rust_tokens(ctx))
-            .collect::<Result<Vec<_>>>()?;
-
-        ctx.exit_scope();
-        ctx.current_function_can_fail = false;
-        ctx.current_return_type = None;
+        // Process function body with proper scoping
+        let body_stmts = codegen_function_body(self, can_fail, ctx)?;
 
         // Add documentation
         let attrs = codegen_function_attrs(&self.docstring, &self.properties);
