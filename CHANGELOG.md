@@ -95,6 +95,78 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+### ✅ DEPYLER-0149 Phase 1c - Fix Type Consistency (2025-10-10)
+
+**COMPLETE: Integer type consistency achieved! 🎉**
+
+#### Fixed
+- **int() Cast Removed**: `int((low + high) / 2)` now generates `(low + high) / 2` (no cast) ✅
+  - Lets Rust's type inference determine correct integer type based on context
+  - Fixes type mismatches where array indices need `usize` but casts forced `i32`
+- **len() Cast Added**: `len(items)` now generates `(items.len() as i32)` ✅
+  - Python's `len()` returns `int`, which we map to `i32`
+  - Ensures consistent integer types throughout functions
+
+#### Root Cause
+- **Phase 1b Issue**: Added `as i32` cast for all `int()` calls
+- **Problem**: In `mid = int((low + high) / 2)`, the cast made `mid` be `i32`
+- **But**: `low` and `high` were inferred as `usize` from `len()` returning `usize`
+- **Result**: Type mismatch on `low = mid + 1` (`usize` vs `i32`)
+
+#### Solution
+Two-part fix:
+1. **Remove unnecessary int() casts**: Let type inference work
+   - Python's `int()` in `int((a + b) / 2)` truncates float division
+   - Rust's `/` on integers already does integer division
+   - Cast not needed when operands are already integers
+
+2. **Cast len() to match Python semantics**:
+   - Python: `len()` returns `int` (unbounded)
+   - Rust: `.len()` returns `usize` (platform-dependent)
+   - We cast to `i32` to match Python's `int` mapping
+
+#### Technical Details
+**Files Modified**:
+1. `crates/depyler-core/src/rust_gen.rs`:
+   - **convert_int_cast()** (lines 2204-2217): Removed `as i32` cast, now returns arg as-is
+   - **convert_len_call()** (lines 2189-2201): Added `as i32` cast to `.len()` result
+
+**Before Phase 1c**:
+```rust
+let mid = (low + high / 2) as i32;  // Forces i32
+let _cse_temp_0 = items.len();       // Returns usize
+low = mid + 1;                       // ❌ Error: i32 vs usize
+```
+
+**After Phase 1c**:
+```rust
+let mid = low + high / 2;                    // Type inferred as i32
+let _cse_temp_0  = (items.len() as i32);    // Cast to i32
+low = mid + 1;                               // ✅ Works: i32 + i32
+```
+
+#### Tests Updated
+- **test_int_cast_conversion()**: Updated to expect no cast
+- **test_int_cast_with_expression()**: Updated to expect no cast
+- **All 403 tests passing** ✅
+
+#### Impact
+**contracts_example.py binary_search function now compiles!** ✅
+- Before: 4 type errors (usize vs i32 mismatches)
+- After: 0 errors in binary_search ✅
+- Remaining 2 errors are in different function (`list_sum`)
+
+**Type System**:
+- Integer operations remain type-safe
+- Array indexing works correctly (`mid as usize`)
+- Return types match function signatures
+
+#### Remaining Work (DEPYLER-0149)
+- Phase 1d: Re-transpile all showcase examples - **NEXT**
+- Phase 1e: Validate 6/6 compilation
+
+---
+
 ### 🚀 v3.14.0 Planning Complete (2025-10-10)
 
 **PLANNING PHASE COMPLETE - Ready for development!**
