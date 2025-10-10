@@ -981,6 +981,17 @@ fn function_returns_owned_string(func: &HirFunction) -> bool {
     false
 }
 
+/// Check if a type expects float values (recursively checks Option, Result, etc.)
+fn return_type_expects_float(ty: &Type) -> bool {
+    match ty {
+        Type::Float => true,
+        Type::Optional(inner) => return_type_expects_float(inner),
+        Type::List(inner) => return_type_expects_float(inner),
+        Type::Tuple(types) => types.iter().any(return_type_expects_float),
+        _ => false,
+    }
+}
+
 // ========== Phase 3b: Return Type Generation ==========
 
 /// Generate return type with Result wrapper and lifetime handling
@@ -2070,6 +2081,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         let rust_op = convert_binop(op)?;
                         Ok(parse_quote! { #left_expr #rust_op #right_expr })
                     }
+                }
+            }
+            BinOp::Div => {
+                // v3.16.0 Phase 2: Python's `/` always returns float
+                // Rust's `/` does integer division when both operands are integers
+                // Check if we need to cast to float based on return type context
+                let needs_float_division = self.ctx.current_return_type.as_ref()
+                    .map(return_type_expects_float)
+                    .unwrap_or(false);
+
+                if needs_float_division {
+                    // Cast both operands to f64 for Python float division semantics
+                    Ok(parse_quote! { (#left_expr as f64) / (#right_expr as f64) })
+                } else {
+                    // Regular division (int/int → int, float/float → float)
+                    let rust_op = convert_binop(op)?;
+                    Ok(parse_quote! { #left_expr #rust_op #right_expr })
                 }
             }
             BinOp::Pow => {
@@ -4807,5 +4835,93 @@ mod tests {
 
         assert!(code.contains("-> String"),
                 "Expected '-> String' for .strip() method, got: {}", code);
+    }
+
+    #[test]
+    fn test_int_float_division_semantics() {
+        // Regression test for v3.16.0 Phase 2
+        // Python's `/` operator always returns float, even with int operands
+        // Rust's `/` does integer division with int operands
+        // We need to cast to float when the context expects float
+
+        // Test 1: int / int returning float (the main bug)
+        let divide_func = HirFunction {
+            name: "safe_divide".to_string(),
+            params: vec![
+                HirParam::new("a".to_string(), Type::Int),
+                HirParam::new("b".to_string(), Type::Int),
+            ].into(),
+            ret_type: Type::Float,  // Expects float return!
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: BinOp::Div,
+                left: Box::new(HirExpr::Var("a".to_string())),
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let mut ctx = create_test_context();
+        let result = divide_func.to_rust_tokens(&mut ctx).unwrap();
+        let code = result.to_string();
+
+        // Should generate: (a as f64) / (b as f64)
+        // NOT: a / b (which would do integer division)
+        assert!(code.contains("as f64") || code.contains("as f32"),
+                "Expected float cast for int/int division with float return, got: {}", code);
+        assert!(code.contains("-> f64") || code.contains("-> f32"),
+                "Expected float return type, got: {}", code);
+
+        // Test 2: int // int returning int (floor division - should NOT cast)
+        let floor_div_func = HirFunction {
+            name: "floor_divide".to_string(),
+            params: vec![
+                HirParam::new("a".to_string(), Type::Int),
+                HirParam::new("b".to_string(), Type::Int),
+            ].into(),
+            ret_type: Type::Int,  // Expects int return
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: BinOp::FloorDiv,
+                left: Box::new(HirExpr::Var("a".to_string())),
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let mut ctx = create_test_context();
+        let result = floor_div_func.to_rust_tokens(&mut ctx).unwrap();
+        let code = result.to_string();
+
+        // Floor division should NOT add float casts
+        assert!(code.contains("-> i32") || code.contains("-> i64"),
+                "Expected int return type for floor division, got: {}", code);
+
+        // Test 3: float / float should work without changes
+        let float_div_func = HirFunction {
+            name: "divide_floats".to_string(),
+            params: vec![
+                HirParam::new("a".to_string(), Type::Float),
+                HirParam::new("b".to_string(), Type::Float),
+            ].into(),
+            ret_type: Type::Float,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: BinOp::Div,
+                left: Box::new(HirExpr::Var("a".to_string())),
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let mut ctx = create_test_context();
+        let result = float_div_func.to_rust_tokens(&mut ctx).unwrap();
+        let code = result.to_string();
+
+        assert!(code.contains("-> f64") || code.contains("-> f32"),
+                "Expected float return type, got: {}", code);
     }
 }
