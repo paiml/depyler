@@ -1,5 +1,4 @@
 use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
-use crate::generator_state::GeneratorStateInfo;
 use crate::hir::*;
 use crate::lifetime_analysis::LifetimeInference;
 use crate::string_optimization::{StringContext, StringOptimizer};
@@ -8,16 +7,18 @@ use quote::{quote, ToTokens};
 use std::collections::HashSet;
 use syn::{self, parse_quote};
 
-// Module declarations for rust_gen refactoring (v3.18.0 Phases 2-3)
+// Module declarations for rust_gen refactoring (v3.18.0 Phases 2-4)
 mod context;
 mod error_gen;
 mod format;
+mod generator_gen;
 mod import_gen;
 mod type_gen;
 
 // Internal imports
 use error_gen::generate_error_type_definitions;
 use format::format_rust_code;
+use generator_gen::codegen_generator_function;
 use import_gen::process_module_imports;
 use type_gen::{convert_binop, update_import_needs};
 
@@ -321,94 +322,6 @@ pub fn generate_rust_file(
     };
 
     Ok(format_rust_code(file.to_string()))
-}
-
-/// Generate struct fields for generator state variables
-fn generate_state_fields(
-    state_info: &crate::generator_state::GeneratorStateInfo,
-    ctx: &mut CodeGenContext,
-) -> Result<Vec<proc_macro2::TokenStream>> {
-    state_info
-        .state_variables
-        .iter()
-        .map(|var| {
-            let field_name = syn::Ident::new(&var.name, proc_macro2::Span::call_site());
-            let rust_type = ctx.type_mapper.map_type(&var.ty);
-            let field_type = rust_type_to_syn(&rust_type)?;
-            Ok(quote! { #field_name: #field_type })
-        })
-        .collect()
-}
-
-/// Generate struct fields for captured parameters
-fn generate_param_fields(
-    func: &HirFunction,
-    state_info: &crate::generator_state::GeneratorStateInfo,
-    ctx: &mut CodeGenContext,
-) -> Result<Vec<proc_macro2::TokenStream>> {
-    func.params
-        .iter()
-        .filter(|p| state_info.captured_params.contains(&p.name))
-        .map(|param| {
-            let field_name = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
-            let rust_type = ctx.type_mapper.map_type(&param.ty);
-            let field_type = rust_type_to_syn(&rust_type)?;
-            Ok(quote! { #field_name: #field_type })
-        })
-        .collect()
-}
-
-/// Extract the Item type for the Iterator from generator return type
-fn extract_generator_item_type(
-    rust_ret_type: &crate::type_mapper::RustType,
-) -> Result<syn::Type> {
-    // Note: Generator expressions are fully implemented in v3.13.0 (20/20 tests passing).
-    // This function uses the return type directly as the Iterator::Item type.
-    // For more complex Generator<Yield=T> patterns, see convert_generator_expression().
-    rust_type_to_syn(rust_ret_type)
-}
-
-/// Generate field initializers for state variables (with default values)
-fn generate_state_initializers(
-    state_info: &crate::generator_state::GeneratorStateInfo,
-) -> Vec<proc_macro2::TokenStream> {
-    state_info
-        .state_variables
-        .iter()
-        .map(|var| {
-            let field_name = syn::Ident::new(&var.name, proc_macro2::Span::call_site());
-            // Initialize with type-appropriate default (0 for int, false for bool, etc.)
-            let default_value = get_default_value_for_type(&var.ty);
-            quote! { #field_name: #default_value }
-        })
-        .collect()
-}
-
-/// Generate field initializers for captured parameters
-fn generate_param_initializers(
-    func: &HirFunction,
-    state_info: &crate::generator_state::GeneratorStateInfo,
-) -> Vec<proc_macro2::TokenStream> {
-    func.params
-        .iter()
-        .filter(|p| state_info.captured_params.contains(&p.name))
-        .map(|param| {
-            let field_name = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
-            // Initialize with parameter value (n: n)
-            quote! { #field_name: #field_name }
-        })
-        .collect()
-}
-
-/// Get default value expression for a type
-fn get_default_value_for_type(ty: &Type) -> proc_macro2::TokenStream {
-    match ty {
-        Type::Int => quote! { 0 },
-        Type::Float => quote! { 0.0 },
-        Type::Bool => quote! { false },
-        Type::String => quote! { String::new() },
-        _ => quote! { Default::default() },
-    }
 }
 
 // ============================================================================
@@ -956,114 +869,7 @@ fn codegen_return_type(
 }
 
 // ========== Phase 3c: Generator Implementation ==========
-
-/// Generate complete generator function with state struct and Iterator impl
-#[inline]
-#[allow(clippy::too_many_arguments)] // Generator needs all metadata for complex transformation
-fn codegen_generator_function(
-    func: &HirFunction,
-    name: &syn::Ident,
-    generic_params: &proc_macro2::TokenStream,
-    where_clause: &proc_macro2::TokenStream,
-    params: &[proc_macro2::TokenStream],
-    attrs: &[proc_macro2::TokenStream],
-    rust_ret_type: &crate::type_mapper::RustType,
-    ctx: &mut CodeGenContext,
-) -> Result<proc_macro2::TokenStream> {
-    // Analyze generator state requirements
-    let state_info = GeneratorStateInfo::analyze(func);
-
-    // Generate state struct name (capitalize function name)
-    let state_struct_name = format!(
-        "{}State",
-        name.to_string()
-            .chars()
-            .next()
-            .map(|c| c.to_uppercase().to_string())
-            .unwrap_or_default()
-            + &name.to_string()[1..]
-    );
-    let state_ident = syn::Ident::new(&state_struct_name, name.span());
-
-    // Build state struct fields from analysis (for struct definition)
-    let state_fields = generate_state_fields(&state_info, ctx)?;
-    let param_fields = generate_param_fields(func, &state_info, ctx)?;
-    let all_fields = [state_fields, param_fields].concat();
-
-    // Build field initializers (for struct construction)
-    let state_inits = generate_state_initializers(&state_info);
-    let param_inits = generate_param_initializers(func, &state_info);
-    let all_inits = [state_inits, param_inits].concat();
-
-    // Generate state machine field (tracks which yield point we're at)
-    let state_machine_field = quote! {
-        state: usize
-    };
-
-    // Extract yield value type from return type
-    let item_type = extract_generator_item_type(rust_ret_type)?;
-
-    // Populate generator state variables for scoping
-    ctx.generator_state_vars.clear();
-    for var in &state_info.state_variables {
-        ctx.generator_state_vars.insert(var.name.clone());
-    }
-    for param in &state_info.captured_params {
-        ctx.generator_state_vars.insert(param.clone());
-    }
-
-    // Generate body statements with in_generator flag set
-    ctx.in_generator = true;
-    let generator_body_stmts: Vec<_> = func
-        .body
-        .iter()
-        .map(|stmt| stmt.to_rust_tokens(ctx))
-        .collect::<Result<Vec<_>>>()?;
-    ctx.in_generator = false;
-    ctx.generator_state_vars.clear();
-
-    // Generate the complete generator implementation
-    Ok(quote! {
-        #(#attrs)*
-        #[doc = " Generator state struct"]
-        #[derive(Debug)]
-        struct #state_ident {
-            #state_machine_field,
-            #(#all_fields),*
-        }
-
-        #[doc = " Generator function - returns Iterator"]
-        pub fn #name #generic_params(#(#params),*) -> impl Iterator<Item = #item_type> #where_clause {
-            #state_ident {
-                state: 0,
-                #(#all_inits),*
-            }
-        }
-
-        impl Iterator for #state_ident {
-            type Item = #item_type;
-
-            fn next(&mut self) -> Option<Self::Item> {
-                // NOTE: State machine transformation not yet implemented
-                // Current limitation: yield statements become immediate returns,
-                // causing loops to exit early. Proper implementation requires
-                // transforming control flow into resumable state machine.
-                //
-                // See DEPYLER-0115 Phase 3 for full state machine transformation
-                match self.state {
-                    0 => {
-                        self.state = 1;
-                        // KNOWN ISSUE: Direct body execution causes unreachable code
-                        // after yield/return statements. Needs state splitting.
-                        #(#generator_body_stmts)*
-                        None
-                    }
-                    _ => None
-                }
-            }
-        }
-    })
-}
+// (Moved to generator_gen.rs in v3.18.0 Phase 4)
 
 impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
