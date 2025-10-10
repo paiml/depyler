@@ -3141,35 +3141,104 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         element: &HirExpr,
         generators: &[crate::hir::HirComprehension],
     ) -> Result<syn::Expr> {
-        // Strategy: Simple cases use iterator chains, complex cases use structs
+        // Strategy: Simple cases use iterator chains, nested use flat_map
 
-        // For now, implement simple case: single generator
-        if generators.len() != 1 {
-            bail!("Nested generator expressions not yet supported (use multiple generators)");
+        if generators.is_empty() {
+            bail!("Generator expression must have at least one generator");
         }
 
-        let gen = &generators[0];
+        // Single generator case (simple iterator chain)
+        if generators.len() == 1 {
+            let gen = &generators[0];
+            let iter_expr = gen.iter.to_rust_expr(self.ctx)?;
+            let element_expr = element.to_rust_expr(self.ctx)?;
+            let target_pat = self.parse_target_pattern(&gen.target)?;
 
-        // Convert the iterator expression
+            let mut chain: syn::Expr = parse_quote! { #iter_expr.into_iter() };
+
+            // Add filters for each condition
+            for cond in &gen.conditions {
+                let cond_expr = cond.to_rust_expr(self.ctx)?;
+                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+            }
+
+            // Add the map transformation
+            chain = parse_quote! { #chain.map(|#target_pat| #element_expr) };
+
+            return Ok(chain);
+        }
+
+        // Multiple generators case (nested iteration with flat_map)
+        // Pattern: (x + y for x in range(3) for y in range(3))
+        // Becomes: (0..3).flat_map(|x| (0..3).map(move |y| x + y))
+
+        self.convert_nested_generators(element, generators)
+    }
+
+    fn convert_nested_generators(
+        &mut self,
+        element: &HirExpr,
+        generators: &[crate::hir::HirComprehension],
+    ) -> Result<syn::Expr> {
+        // Start with the outermost generator
+        let first_gen = &generators[0];
+        let first_iter = first_gen.iter.to_rust_expr(self.ctx)?;
+        let first_pat = self.parse_target_pattern(&first_gen.target)?;
+
+        // Build the nested expression recursively
+        let inner_expr = self.build_nested_chain(element, generators, 1)?;
+
+        // Start the chain with the first generator
+        let mut chain: syn::Expr = parse_quote! { #first_iter.into_iter() };
+
+        // Add filters for first generator's conditions
+        for cond in &first_gen.conditions {
+            let cond_expr = cond.to_rust_expr(self.ctx)?;
+            chain = parse_quote! { #chain.filter(|#first_pat| #cond_expr) };
+        }
+
+        // Use flat_map for the first generator
+        chain = parse_quote! { #chain.flat_map(|#first_pat| #inner_expr) };
+
+        Ok(chain)
+    }
+
+    fn build_nested_chain(
+        &mut self,
+        element: &HirExpr,
+        generators: &[crate::hir::HirComprehension],
+        depth: usize,
+    ) -> Result<syn::Expr> {
+        if depth >= generators.len() {
+            // Base case: no more generators, return the element expression
+            let element_expr = element.to_rust_expr(self.ctx)?;
+            return Ok(element_expr);
+        }
+
+        let gen = &generators[depth];
         let iter_expr = gen.iter.to_rust_expr(self.ctx)?;
-
-        // Convert the element expression
-        let element_expr = element.to_rust_expr(self.ctx)?;
-
-        // Parse the target pattern (handle simple and tuple patterns)
         let target_pat = self.parse_target_pattern(&gen.target)?;
 
-        // Build the iterator chain
+        // Build the inner expression (recursive)
+        let inner_expr = self.build_nested_chain(element, generators, depth + 1)?;
+
+        // Build the chain for this level
         let mut chain: syn::Expr = parse_quote! { #iter_expr.into_iter() };
 
-        // Add filters for each condition
+        // Add filters for this generator's conditions
         for cond in &gen.conditions {
             let cond_expr = cond.to_rust_expr(self.ctx)?;
             chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
         }
 
-        // Add the map transformation
-        chain = parse_quote! { #chain.map(|#target_pat| #element_expr) };
+        // Use flat_map for intermediate generators, map for the last
+        if depth < generators.len() - 1 {
+            // Intermediate generator: use flat_map
+            chain = parse_quote! { #chain.flat_map(move |#target_pat| #inner_expr) };
+        } else {
+            // Last generator: use map
+            chain = parse_quote! { #chain.map(move |#target_pat| #inner_expr) };
+        }
 
         Ok(chain)
     }

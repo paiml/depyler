@@ -5,15 +5,18 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- **Generator Expressions (Phase 1)**: 15/20 tests passing (75% complete)
-  - Simple generator expressions with iterator chains
-  - Pattern: `(x * 2 for x in range(5))` → `(0..5).into_iter().map(|x| x * 2)`
-  - Support for: map, filter, map+filter, tuple results, variable capture
+- **Generator Expressions (COMPLETE)**: 20/20 tests passing (100% complete) 🎉
+  - **Simple generator expressions** with iterator chains
+    - Pattern: `(x * 2 for x in range(5))` → `(0..5).into_iter().map(|x| x * 2)`
+    - Support: map, filter, map+filter, tuple results, variable capture
   - **Special function integration**: sum(), max(), enumerate(), zip()
-  - Pattern: `sum(x**2 for x in range(5))` → `(0..5).into_iter().map(|x| x.pow(2)).sum()`
-  - Pattern: `enumerate(items)` → `items.into_iter().enumerate()`
-  - Pattern: `zip(a, b)` → `a.iter().zip(b.iter())`
-  - Remaining: nested generators (5 tests require flat_map support)
+    - Pattern: `sum(x**2 for x in range(5))` → `(0..5).into_iter().map(|x| x.pow(2)).sum()`
+    - Pattern: `enumerate(items)` → `items.into_iter().enumerate()`
+    - Pattern: `zip(a, b)` → `a.iter().zip(b.iter())`
+  - **Nested generators** with flat_map
+    - Pattern: `(x + y for x in range(3) for y in range(3))`
+    - → `(0..3).into_iter().flat_map(|x| (0..3).into_iter().map(move |y| x + y))`
+    - Cartesian products, dependent iteration, filtered nesting
 
 ---
 
