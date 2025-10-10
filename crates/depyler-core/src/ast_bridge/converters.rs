@@ -268,6 +268,7 @@ impl ExprConverter {
             ast::Expr::Compare(c) => Self::convert_compare(c),
             ast::Expr::ListComp(lc) => Self::convert_list_comp(lc),
             ast::Expr::SetComp(sc) => Self::convert_set_comp(sc),
+            ast::Expr::GeneratorExp(ge) => Self::convert_generator_exp(ge),
             ast::Expr::Lambda(l) => Self::convert_lambda(l),
             ast::Expr::Set(s) => Self::convert_set(s),
             ast::Expr::Attribute(a) => Self::convert_attribute(a),
@@ -641,6 +642,59 @@ impl ExprConverter {
             iter,
             condition,
         })
+    }
+
+    fn convert_generator_exp(ge: ast::ExprGeneratorExp) -> Result<HirExpr> {
+        // Convert element expression
+        let element = Box::new(Self::convert(*ge.elt)?);
+
+        // Convert all generators (support nested)
+        let mut generators = Vec::new();
+        for gen in ge.generators {
+            // Extract target variable(s)
+            let target = match &gen.target {
+                ast::Expr::Name(n) => n.id.to_string(),
+                ast::Expr::Tuple(t) => {
+                    // For tuple unpacking like: (x, y) in zip(a, b)
+                    // Extract all names and join with commas (simplified for now)
+                    let names: Vec<String> = t
+                        .elts
+                        .iter()
+                        .filter_map(|e| {
+                            if let ast::Expr::Name(n) = e {
+                                Some(n.id.to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    if names.is_empty() {
+                        bail!("Complex tuple unpacking in generator expression not yet supported");
+                    }
+                    // Join with comma for tuple targets
+                    format!("({})", names.join(", "))
+                }
+                _ => bail!("Complex generator targets not yet supported"),
+            };
+
+            // Convert iterator expression
+            let iter = Box::new(Self::convert(gen.iter.clone())?);
+
+            // Convert all conditions
+            let conditions: Vec<crate::hir::HirExpr> = gen
+                .ifs
+                .iter()
+                .map(|if_expr| Self::convert(if_expr.clone()))
+                .collect::<Result<Vec<_>>>()?;
+
+            generators.push(crate::hir::HirComprehension {
+                target,
+                iter,
+                conditions,
+            });
+        }
+
+        Ok(HirExpr::GeneratorExp { element, generators })
     }
 
     fn convert_lambda(l: ast::ExprLambda) -> Result<HirExpr> {

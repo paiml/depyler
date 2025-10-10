@@ -417,6 +417,19 @@ pub enum HirExpr {
         key_body: Box<HirExpr>,
         reverse: bool,
     },
+    // Generator expression (Python: (x * 2 for x in range(5)))
+    GeneratorExp {
+        element: Box<HirExpr>,
+        generators: Vec<HirComprehension>,
+    },
+}
+
+/// Comprehension generator (used in list/set/dict/generator comprehensions)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HirComprehension {
+    pub target: Symbol,
+    pub iter: Box<HirExpr>,
+    pub conditions: Vec<HirExpr>,
 }
 
 /// Part of an f-string - either literal text or an expression to interpolate
