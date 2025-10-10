@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔧 DEPYLER-0141 Phase 2 - Extract Body Processing Helper (4/11) (2025-10-10)
+
+**Second phase of HirFunction complexity refactoring - 4/11 sections extracted**
+
+#### Changed
+- **Refactored `HirFunction::to_rust_tokens`**: Extracted body processing helper
+  - `codegen_function_body()` - Process function body with scoping (31 lines)
+    - Enters function scope and declares parameters
+    - Analyzes variable mutations
+    - Converts body statements
+    - Manages function-level context state
+- **Complexity Reduction**: Removed ~20 more lines from main function
+- **Performance**: Helper marked `#[inline]` for zero overhead
+
+#### Quality Impact
+- Tests: 393 passing (maintained), 0 failed ✅
+- Main function reduced from 437 lines → 417 lines (-20 lines, -4.6%)
+- **Total reduction**: 504 → 417 lines (-87 lines, -17.3% overall)
+- Complexity progress: 4/11 sections extracted (36% complete)
+
+#### Remaining Work (Phase 3)
+- Complex parameter conversion (~162 lines, needs sub-functions)
+- Complex return type handling (~175 lines, needs sub-functions)
+- Generator implementation (~93 lines, needs sub-functions)
+- Target: Main function ≤50 lines, complexity ≤10
+
 ### 🔧 DEPYLER-0141 Phase 1 - Extract Simple HirFunction Helpers (3/11) (2025-10-10)
 
 **First phase of HirFunction complexity refactoring - 3/11 sections extracted**
