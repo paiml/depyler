@@ -2486,31 +2486,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(None)
     }
 
-    fn convert_method_call(
+    // ========================================================================
+    // DEPYLER-0142 Phase 2: Category Handlers
+    // ========================================================================
+
+    /// Handle list methods (append, extend, pop, insert, remove)
+    #[inline]
+    fn convert_list_method(
         &mut self,
+        object_expr: &syn::Expr,
         object: &HirExpr,
         method: &str,
-        args: &[HirExpr],
+        arg_exprs: &[syn::Expr],
     ) -> Result<syn::Expr> {
-        // Try classmethod handling first
-        if let Some(result) = self.try_convert_classmethod(object, method, args)? {
-            return Ok(result);
-        }
-
-        // Try module method handling
-        if let Some(result) = self.try_convert_module_method(object, method, args)? {
-            return Ok(result);
-        }
-
-        let object_expr = object.to_rust_expr(self.ctx)?;
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
-
-        // Map Python collection methods to Rust equivalents
         match method {
-            // List methods
             "append" => {
                 if arg_exprs.len() != 1 {
                     bail!("append() requires exactly one argument");
@@ -2530,20 +2519,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     if !arg_exprs.is_empty() {
                         bail!("pop() takes no arguments for sets");
                     }
-                    // HashSet doesn't have pop(), simulate with iter().next() and remove
                     Ok(parse_quote! {
                         #object_expr.iter().next().cloned().map(|x| {
                             #object_expr.remove(&x);
                             x
                         }).expect("pop from empty set")
                     })
+                } else if arg_exprs.is_empty() {
+                    Ok(parse_quote! { #object_expr.pop().unwrap_or_default() })
                 } else {
-                    // List pop
-                    if arg_exprs.is_empty() {
-                        Ok(parse_quote! { #object_expr.pop().unwrap_or_default() })
-                    } else {
-                        bail!("pop() with index not supported in V1");
-                    }
+                    bail!("pop() with index not supported in V1");
                 }
             }
             "insert" => {
@@ -2559,16 +2544,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("remove() requires exactly one argument");
                 }
                 let value = &arg_exprs[0];
-                // Check if it's a set or list based on the object expression
                 if self.is_set_expr(object) {
-                    // HashSet's remove returns bool, Python's raises KeyError if not found
                     Ok(parse_quote! {
                         if !#object_expr.remove(&#value) {
                             panic!("KeyError: element not in set");
                         }
                     })
                 } else {
-                    // List remove behavior
                     Ok(parse_quote! {
                         if let Some(pos) = #object_expr.iter().position(|x| x == &#value) {
                             #object_expr.remove(pos)
@@ -2578,8 +2560,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     })
                 }
             }
+            _ => bail!("Unknown list method: {}", method),
+        }
+    }
 
-            // Dict methods
+    /// Handle dict methods (get, keys, values, items, update)
+    #[inline]
+    fn convert_dict_method(
+        &mut self,
+        object_expr: &syn::Expr,
+        method: &str,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        match method {
             "get" => {
                 if arg_exprs.len() == 1 {
                     let key = &arg_exprs[0];
@@ -2608,9 +2601,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if !arg_exprs.is_empty() {
                     bail!("items() takes no arguments");
                 }
-                Ok(
-                    parse_quote! { #object_expr.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>() },
-                )
+                Ok(parse_quote! { #object_expr.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>() })
             }
             "update" => {
                 if arg_exprs.len() != 1 {
@@ -2623,8 +2614,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                 })
             }
+            _ => bail!("Unknown dict method: {}", method),
+        }
+    }
 
-            // String methods
+    /// Handle string methods (upper, lower, strip, startswith, endswith, split, join)
+    #[inline]
+    fn convert_string_method(
+        &mut self,
+        object_expr: &syn::Expr,
+        method: &str,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        match method {
             "upper" => {
                 if !arg_exprs.is_empty() {
                     bail!("upper() takes no arguments");
@@ -2659,14 +2661,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             "split" => {
                 if arg_exprs.is_empty() {
-                    Ok(
-                        parse_quote! { #object_expr.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() },
-                    )
+                    Ok(parse_quote! { #object_expr.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() })
                 } else if arg_exprs.len() == 1 {
                     let sep = &arg_exprs[0];
-                    Ok(
-                        parse_quote! { #object_expr.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() },
-                    )
+                    Ok(parse_quote! { #object_expr.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() })
                 } else {
                     bail!("split() with maxsplit not supported in V1");
                 }
@@ -2678,8 +2676,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let iterable = &arg_exprs[0];
                 Ok(parse_quote! { #iterable.join(#object_expr) })
             }
+            _ => bail!("Unknown string method: {}", method),
+        }
+    }
 
-            // Set methods
+    /// Handle set methods (add, discard, clear)
+    #[inline]
+    fn convert_set_method(
+        &mut self,
+        object_expr: &syn::Expr,
+        method: &str,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        match method {
             "add" => {
                 if arg_exprs.len() != 1 {
                     bail!("add() requires exactly one argument");
@@ -2692,7 +2701,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("discard() requires exactly one argument");
                 }
                 let arg = &arg_exprs[0];
-                // discard() is like remove() but doesn't raise error
                 Ok(parse_quote! { #object_expr.remove(&#arg) })
             }
             "clear" => {
@@ -2701,10 +2709,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 Ok(parse_quote! { #object_expr.clear() })
             }
+            _ => bail!("Unknown set method: {}", method),
+        }
+    }
 
-            // Regex methods
+    /// Handle regex methods (findall)
+    #[inline]
+    fn convert_regex_method(
+        &mut self,
+        object_expr: &syn::Expr,
+        method: &str,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        match method {
             "findall" => {
-                // regex.findall(text) -> regex.find_iter(text).map(|m| m.as_str().to_string()).collect()
                 if arg_exprs.is_empty() {
                     bail!("findall() requires at least one argument");
                 }
@@ -2715,13 +2733,78 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         .collect::<Vec<String>>()
                 })
             }
+            _ => bail!("Unknown regex method: {}", method),
+        }
+    }
 
-            // Generic method call fallback
+    /// Convert instance method calls (main dispatcher)
+    #[inline]
+    fn convert_instance_method(
+        &mut self,
+        object: &HirExpr,
+        object_expr: &syn::Expr,
+        method: &str,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        // Dispatch by method category
+        match method {
+            // List methods
+            "append" | "extend" | "pop" | "insert" | "remove" => {
+                self.convert_list_method(object_expr, object, method, arg_exprs)
+            }
+
+            // Dict methods
+            "get" | "keys" | "values" | "items" | "update" => {
+                self.convert_dict_method(object_expr, method, arg_exprs)
+            }
+
+            // String methods
+            "upper" | "lower" | "strip" | "startswith" | "endswith" | "split" | "join" => {
+                self.convert_string_method(object_expr, method, arg_exprs)
+            }
+
+            // Set methods
+            "add" | "discard" | "clear" => {
+                self.convert_set_method(object_expr, method, arg_exprs)
+            }
+
+            // Regex methods
+            "findall" => {
+                self.convert_regex_method(object_expr, method, arg_exprs)
+            }
+
+            // Default: generic method call
             _ => {
                 let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
                 Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) })
             }
         }
+    }
+
+    fn convert_method_call(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<syn::Expr> {
+        // Try classmethod handling first
+        if let Some(result) = self.try_convert_classmethod(object, method, args)? {
+            return Ok(result);
+        }
+
+        // Try module method handling
+        if let Some(result) = self.try_convert_module_method(object, method, args)? {
+            return Ok(result);
+        }
+
+        let object_expr = object.to_rust_expr(self.ctx)?;
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Dispatch to instance method handler
+        self.convert_instance_method(object, &object_expr, method, &arg_exprs)
     }
 
     fn convert_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
