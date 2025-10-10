@@ -1,5 +1,4 @@
-use std::borrow::Cow;
-    #[derive(Debug, Clone)] pub struct ZeroDivisionError {
+#[derive(Debug, Clone)] pub struct ZeroDivisionError {
     message: String ,
 }
 impl std::fmt::Display for ZeroDivisionError {
@@ -101,10 +100,10 @@ else {
 } #[doc = "Calculate average with safety check."] #[doc = " Depyler: proven to terminate"] pub fn calculate_average(total: i32, count: i32)  -> Result<f64, ZeroDivisionError>{
     let _cse_temp_0 = count == 0;
     if _cse_temp_0 {
-    return Ok(0);
+    return Ok(0.0);
    
 }
-let _cse_temp_1 = total / count;
+let _cse_temp_1  = (total as f64) /(count as f64);
     return Ok(_cse_temp_1);
    
 }
@@ -113,19 +112,19 @@ let _cse_temp_1 = total / count;
     let _inline_count = rounds;
     let _cse_temp_0 = _inline_count == 0;
     if _cse_temp_0 {
-    return 0;
+    return 0.0;
    
 }
 let _cse_temp_1 = _inline_total / _inline_count;
     let avg = _cse_temp_1;
     let mut result = "Game Statistics:\n";
-    let _cse_temp_2 = str(score);
+    let _cse_temp_2 = score.to_string();
     let _cse_temp_3 = format !("{}{}", result, "Score: ") + _cse_temp_2;
     result = format !("{}{}", _cse_temp_3, "\n");
-    let _cse_temp_4 = str(attempts);
+    let _cse_temp_4 = attempts.to_string();
     let _cse_temp_5 = format !("{}{}", result, "Attempts: ") + _cse_temp_4;
     result = format !("{}{}", _cse_temp_5, "\n");
-    let _cse_temp_6 = str(avg);
+    let _cse_temp_6 = avg.to_string();
     let _cse_temp_7 = format !("{}{}", result, "Average: ") + _cse_temp_6;
     result = format !("{}{}", _cse_temp_7, "\n");
     return result;
