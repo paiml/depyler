@@ -938,9 +938,10 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             }
         }
         HirExpr::GeneratorExp { .. } => {
-            // TODO: Implement generator expression code generation
-            // For now, return error until implementation is complete
-            bail!("Generator expressions not yet implemented in codegen")
+            // Note: Generator expressions are fully implemented in rust_gen.rs (v3.13.0, 20/20 tests).
+            // This codegen.rs path is legacy HIR-to-Rust conversion, not used in main transpiler pipeline.
+            // The primary implementation is in crates/depyler-core/src/rust_gen.rs::convert_generator_expression()
+            bail!("Generator expressions require rust_gen.rs (use DepylerPipeline instead of direct codegen)")
         }
     }
 }

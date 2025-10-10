@@ -1,4 +1,5 @@
-#[derive(Debug, Clone)] pub struct ZeroDivisionError {
+use std::borrow::Cow;
+    #[derive(Debug, Clone)] pub struct ZeroDivisionError {
     message: String ,
 }
 impl std::fmt::Display for ZeroDivisionError {
