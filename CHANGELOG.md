@@ -5,11 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- **Generator Expressions (Phase 1)**: 11/20 tests passing (55% complete)
+- **Generator Expressions (Phase 1)**: 15/20 tests passing (75% complete)
   - Simple generator expressions with iterator chains
   - Pattern: `(x * 2 for x in range(5))` → `(0..5).into_iter().map(|x| x * 2)`
   - Support for: map, filter, map+filter, tuple results, variable capture
-  - Remaining: sum/max integration, nested generators, enumerate/zip
+  - **Special function integration**: sum(), max(), enumerate(), zip()
+  - Pattern: `sum(x**2 for x in range(5))` → `(0..5).into_iter().map(|x| x.pow(2)).sum()`
+  - Pattern: `enumerate(items)` → `items.into_iter().enumerate()`
+  - Pattern: `zip(a, b)` → `a.iter().zip(b.iter())`
+  - Remaining: nested generators (5 tests require flat_map support)
 
 ---
 
