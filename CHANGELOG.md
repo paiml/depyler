@@ -4,6 +4,52 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Phase 5 - Feature Validation (2025-10-10)
+
+**COMPLETE: Async/await and with statement support validated! ✅**
+
+#### Validation Summary
+
+Phase 5 was originally planned as a feature expansion phase to implement async/await and with statements. Comprehensive codebase analysis revealed that **both features are already fully implemented and working correctly** in v3.14.0.
+
+#### Features Validated
+
+**✅ Async/Await Support**:
+- Python `async def` → Rust `pub async fn` ✅
+- Python `await expr` → Rust `expr.await` ✅
+- Async functions calling async functions ✅
+- Loops with await expressions ✅
+
+**✅ With Statement Support**:
+- Python `with` statements → Rust scoped blocks ✅
+- Context manager → RAII resource management ✅
+- Target variable binding (`as f`) → `let mut f` ✅
+- Multiple sequential with statements ✅
+
+#### Evidence
+
+- **HIR Support**: `HirExpr::Await`, `HirStmt::With` variants implemented
+- **Converters**: `convert_await()`, `convert_with()` functions working
+- **Tests**: Existing unit tests pass, new validation tests added
+- **Code Generation**: Idiomatic Rust output verified
+
+#### Validation Artifacts
+
+Added to `examples/validation/`:
+- `test_async.py` / `test_async.rs` - Async/await validation
+- `test_with.py` / `test_with.rs` - With statement validation
+- `phase5_validation.md` - Comprehensive validation report
+
+#### Metrics
+
+- **Time Investment**: ~15 minutes (investigation + validation)
+- **Features Validated**: 2/2 (100%)
+- **New Tests**: 2 comprehensive validation test files
+- **Bugs Found**: 0
+- **Implementation Changes**: 0 (both features already working)
+
+---
+
 ## [3.14.0] - 2025-10-10
 
 **Release Focus**: Correctness > Features > Performance
