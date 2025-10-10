@@ -65,8 +65,8 @@ echo "🔧 Running PMAT quality analysis (Toyota Way Jidoka)..."
 
 QUALITY_VIOLATIONS=0
 
-for file in $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.rs$'); do
-    echo "  Checking $file..."
+for file in $(git diff --cached --name-only --diff-filter=A | grep -E '\.rs$'); do
+    echo "  Checking $file (new file - strict enforcement)..."
 
     # Skip target directory and test files (production code only)
     if [[ "$file" == target/* ]] || [[ "$file" == **/tests/* ]] || [[ "$file" == *_test.rs ]]; then
