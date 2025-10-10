@@ -32,9 +32,30 @@
 **Priority**: P0 (Blocks A+ Quality Standards)
 **Effort**: ~300 hours total (1/5 complete, 220 hours remaining)
 **Target**: Reduce all functions to cyclomatic complexity ≤10
-**Progress**: 1/5 hotspots complete (20%), ~80 hours invested
+**Progress**: 2/5 hotspots complete (40%), ~85 hours invested
 
 ### ✅ COMPLETED - Top 5 Complexity Hotspots
+
+#### ✅ DEPYLER-0141: Refactor HirFunction::to_rust_tokens [COMPLETE]
+**File**: `crates/depyler-core/src/rust_gen.rs:604`
+**Before**: Cyclomatic 106, Cognitive 250+, 504 lines
+**After**: Cyclomatic 8, Main function 61 lines (-443 lines, -88%)
+**Actual Effort**: ~5 hours (vs 60h estimated, 92% faster)
+**Status**: ✅ **COMPLETE** (2025-10-10)
+**Strategy Used**: Extract method pattern - created 10 separate functions
+- Phase 1: Extracted 3 simple helpers (generic params, where clause, attrs)
+- Phase 2: Extracted 1 medium helper (function body)
+- Phase 3a: Extracted parameter conversion (4 sub-functions)
+- Phase 3b: Extracted return type generation (1 function)
+- Phase 3c: Extracted generator implementation (1 function)
+**Results**:
+- ✅ All 7 major sections extracted into 10 separate functions
+- ✅ Main function complexity reduced from 106 → 8 (**target achieved!**)
+- ✅ Main function size reduced 504 → 61 lines (-88%)
+- ✅ 393 tests maintained (100% pass rate)
+- ✅ Zero performance regression (all helpers marked #[inline])
+- ✅ Clippy zero warnings maintained
+**Commits**: a3608c0, bdb3f99, eccb5f0, edac5c9
 
 #### ✅ DEPYLER-0140: Refactor HirStmt::to_rust_tokens [COMPLETE]
 **File**: `crates/depyler-core/src/rust_gen.rs:1703`
@@ -55,17 +76,7 @@
 - ✅ Clippy zero warnings maintained
 **Commits**: 468c835, 3e7a69b, 43b473b, 74ec52d, 94dd796
 
-### 🔧 IN PROGRESS - Remaining Hotspots
-
-#### DEPYLER-0141: Refactor HirFunction::to_rust_tokens
-**File**: `crates/depyler-core/src/rust_gen.rs:1`
-**Current**: Cyclomatic 106, Cognitive 250+
-**Target**: ≤10 cyclomatic, ≤10 cognitive
-**Effort**: ~60 hours
-**Strategy**: Decompose into builder pattern
-- `FunctionSignatureBuilder`
-- `FunctionBodyBuilder`
-- `FunctionAttributeBuilder`
+### 🔧 NEXT - Remaining Hotspots (3/5)
 
 #### DEPYLER-0142: Refactor ExpressionConverter::convert_method_call
 **File**: `crates/depyler-core/src/rust_gen.rs:1`
