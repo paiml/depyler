@@ -4,6 +4,62 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.18.0 Planning (2025-10-10)
+
+**TRANSPILER MODULARIZATION PLANNING** 📋
+
+Comprehensive implementation plan created for modularizing rust_gen.rs (4,927 LOC) into 10 focused, maintainable modules.
+
+**Planning Deliverables**:
+- 📋 **Implementation Plan**: `docs/planning/v3.18.0_plan.md` (~1000 lines)
+  - Detailed 8-phase execution plan with timelines
+  - Risk mitigation strategies for each phase
+  - Comprehensive testing strategy
+  - Performance monitoring procedures
+  - Rollback protocols
+- 📋 **Design Reference**: `docs/design/rust_gen_modularization_plan.md` (from v3.17.0 Phase 4)
+  - Module structure and responsibilities
+  - Dependency analysis
+  - Success metrics and validation criteria
+
+**Proposed Architecture**:
+```
+src/rust_gen/ (10 modules)
+├── mod.rs           - Module coordination (~200 LOC)
+├── context.rs       - CodeGenContext, traits (~150 LOC)
+├── import_gen.rs    - Import processing (~350 LOC)
+├── type_gen.rs      - Type conversion (~150 LOC)
+├── function_gen.rs  - Function codegen (~650 LOC)
+├── stmt_gen.rs      - Statement codegen (~600 LOC)
+├── expr_gen.rs      - Expression codegen (~1800 LOC) 🔴 HIGH RISK
+├── generator_gen.rs - Generator support (~650 LOC)
+├── error_gen.rs     - Error types (~60 LOC)
+└── format.rs        - Code formatting (~60 LOC)
+```
+
+**Implementation Timeline**:
+- **Phase 1**: ✅ Planning & Setup (Complete)
+- **Phase 2**: Extract Pure Functions (2-3 hours)
+- **Phase 3**: Extract Context & Imports (1-2 hours)
+- **Phase 4**: Extract Generator Support (2 hours)
+- **Phase 5**: Extract Expression Codegen (3-4 hours) 🔴 HIGH RISK
+- **Phase 6**: Extract Statement Codegen (2-3 hours)
+- **Phase 7**: Extract Function Codegen (2-3 hours)
+- **Phase 8**: Final Integration (1-2 hours)
+- **Total**: 13-19 hours execution (3-4 days)
+
+**Success Criteria** (NON-NEGOTIABLE):
+- ✅ ALL 735+ tests pass (zero regressions)
+- ✅ All modules achieve PMAT grade A- or higher
+- ✅ All functions have cyclomatic complexity ≤10
+- ✅ Zero clippy warnings with `-D warnings`
+- ✅ Performance within 5% of baseline
+- ✅ Coverage maintained (≥62.93%)
+
+**Next Step**: Begin Phase 2 - Extract Pure Functions
+
+---
+
 ## [3.17.0] - 2025-10-10
 
 **TRANSPILER QUALITY & PLANNING RELEASE** 🎯
