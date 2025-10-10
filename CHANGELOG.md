@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔧 DEPYLER-0142 Phase 1 - Extract Preamble Handlers (2/8) (2025-10-10)
+
+**First phase of ExpressionConverter::convert_method_call complexity refactoring**
+
+#### Changed
+- **Refactored `ExpressionConverter::convert_method_call`**: Extracted 2 preamble helpers
+  - `try_convert_classmethod()` - Handle cls.method() → Self::method() (18 lines)
+  - `try_convert_module_method()` - Handle module.method() → std::path::fn() (58 lines)
+- **Complexity Reduction**: Removed ~66 lines from main function
+- **Performance**: All helpers marked `#[inline]` for zero overhead
+
+#### Quality Impact
+- Tests: 393 passing (maintained), 0 failed ✅
+- Main function reduced from 290 lines → 224 lines (-66 lines, -23%)
+- Complexity progress: 2/8 sections extracted (25% complete)
+- All extracted functions: ≤60 lines, complexity ≤5
+
+#### Remaining Work (Phase 2 & 3)
+- Extract 6 category handlers (list, dict, string, set, regex, default)
+- Target: Main function ≤30 lines, complexity ≤10
+
 ### 🎉 DEPYLER-0141 Phase 3 COMPLETE - Extract Complex Helpers (7/7) (2025-10-10)
 
 **COMPLETE: HirFunction complexity refactoring - ALL 7 helpers extracted successfully! 🎉**
