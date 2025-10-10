@@ -127,6 +127,10 @@ impl StmtConverter {
                 value: value.clone(),
                 attr: attr.clone(),
             }),
+            AssignTarget::Index { base, index } => Box::new(HirExpr::Index {
+                base: base.clone(),
+                index: index.clone(),
+            }),
             _ => bail!("Augmented assignment not supported for this target type"),
         };
 

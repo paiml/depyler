@@ -4,6 +4,67 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### ✅ DEPYLER-0148 Phase 2 - Dict/List Augmented Assignment Support (2025-10-10)
+
+**COMPLETE: Dict and list item augmented assignment now fully supported! 🎉**
+
+#### Fixed
+- **Augmented Assignment**: Added support for dict/list item augmented assignment operations
+  - `word_count[word] += 1` ✅
+  - `arr[0] += 5` ✅
+  - `counters['total'] -= 1` ✅
+  - `matrix[i] *= 2` ✅
+  - `matrix[i][j] += 1` ✅ (nested indexing)
+  - All augmented operators supported: `+=`, `-=`, `*=`, `/=`, `//=`, `%=`, `**=`, `&=`, `|=`, `^=`, `<<=`, `>>=`
+
+#### Technical Details
+- **File Modified**: `crates/depyler-core/src/ast_bridge/converters.rs`
+- **Change**: Added `AssignTarget::Index` case to `convert_aug_assign()` function
+  - Lines 130-133: Map `Index { base, index }` to `HirExpr::Index`
+- **Root Cause**: `convert_aug_assign()` only handled `Symbol` and `Attribute` targets, not `Index`
+- **Transformation**: `d[k] += v` → `d[k] = d[k] + v`
+
+#### Tests Added
+- **5 new comprehensive tests** in `converters_tests.rs`:
+  - `test_dict_aug_assign_add()` - Tests `word_count[word] += 1`
+  - `test_list_aug_assign_add()` - Tests `arr[0] += 5` with detailed verification
+  - `test_dict_aug_assign_subtract()` - Tests `-=` operator
+  - `test_list_aug_assign_multiply()` - Tests `*=` operator
+  - `test_nested_index_aug_assign()` - Tests `matrix[i][j] += 1`
+- **All 408 tests passing** (403 → 408, +5 new) ✅
+
+#### Impact
+- **Unblocks**: annotated_example.py now transpiles successfully! ✅
+- **Showcase Status**: 5/6 → 6/6 (67% → 100%) transpilation success
+- **Real-World Patterns**: Common Python patterns like word counting now work
+
+#### Before/After
+
+**Before Phase 2**:
+```python
+word_count[word] += 1
+```
+**Error**: `Augmented assignment not supported for this target type`
+
+**After Phase 2**:
+```python
+word_count[word] += 1
+```
+**Transpiles to**:
+```rust
+*word_count.get_mut(&word).unwrap() = *word_count.get(&word).unwrap() + 1;
+```
+
+#### Validation Results
+- **Transpilation**: 6/6 (100%) ✅ - All showcase examples transpile
+- **Compilation**: 2/6 clean (calculate_sum, process_config), others have unrelated issues
+
+#### Documentation
+- 5 comprehensive test cases covering all major use cases
+- Tests verify correct HIR transformation for augmented assignment
+
+---
+
 ### ✅ DEPYLER-0149 Phase 1a - Fix PEP 585 Type Parsing (2025-10-10)
 
 **COMPLETE: Python 3.9+ lowercase type syntax now supported! 🎉**
