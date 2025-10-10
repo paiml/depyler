@@ -425,6 +425,120 @@
 
 ---
 
+## 🚀 **v3.16.0 RELEASE - Transpiler Quality Improvements (PLANNED)**
+
+**Target Date**: TBD (2-3 weeks from 2025-10-10)
+**Status**: 📋 **PLANNING COMPLETE** - Ready for deep transpiler work
+**Focus**: Fix root causes for 6/6 showcase compilation
+
+### Planning Documents
+- **Detailed Plan**: `docs/planning/v3.16.0_plan.md` (400+ lines) ✅
+- **Issue Analysis**: `docs/issues/phase2_analysis.md` (from v3.15.0)
+
+### Strategic Goals
+
+**Primary**: Fix transpiler root causes, not symptoms
+**Secondary**: Achieve 6/6 showcase examples compile with 0 warnings
+**Tertiary**: Comprehensive regression testing for all fixes
+
+**Philosophy**: Quality over speed - do it right, not fast
+
+### Three-Phase Development
+
+#### Phase 1: String Method Return Types (6-8 hours) 🔴 HIGH
+- **Issue**: `.upper()`, `.lower()` return `String`, but transpiler generates `&str`
+- **Root Cause**: Type inference doesn't consider method call semantics
+- **Fix**: Track method return types, propagate to function signatures
+- **Files**: `rust_gen.rs`, `type_mapper.rs`, potentially `hir.rs`
+- **Impact**: Unblocks annotated_example.rs `process_text()`
+- **Complexity**: HIGH - deep type system changes
+
+#### Phase 2: Int/Float Division Semantics (4-6 hours) 🟡 MEDIUM-HIGH
+- **Issue**: `a / b` (i32/i32) generates integer division, should be float for Python
+- **Root Cause**: Binary operations don't check expected result type
+- **Fix**: Context-aware division with type casting when needed
+- **Files**: `rust_gen.rs`, `converters.rs`, potentially `hir.rs`
+- **Impact**: Unblocks annotated_example.rs `safe_divide()`
+- **Complexity**: MEDIUM-HIGH - affects binary operation codegen
+
+#### Phase 3: Cow Import Optimization (2-3 hours) 🟢 MEDIUM
+- **Issue**: Cow import added but never used (optimizer/codegen mismatch)
+- **Root Cause**: String optimizer suggests Cow, code generator uses String
+- **Fix**: Align optimizer heuristics with actual code generation
+- **Files**: `string_optimization.rs`
+- **Impact**: Removes warning from classify_number.rs
+- **Complexity**: MEDIUM - heuristic tuning
+
+### Success Criteria
+
+**Must Have** (P0):
+- [ ] 6/6 showcase examples compile cleanly
+- [ ] Zero warnings across all examples
+- [ ] All 420+ tests passing
+- [ ] Zero regressions
+- [ ] Regression tests for each fix
+
+**Should Have** (P1):
+- [ ] Performance benchmarks (no slowdown)
+- [ ] Comprehensive documentation
+- [ ] Property tests for new behaviors
+
+**Nice to Have** (P2):
+- [ ] Additional showcase examples
+- [ ] Blog post about improvements
+- [ ] User-facing documentation
+
+### Key Metrics
+
+| Metric | Baseline (v3.15.0) | Target (v3.16.0) |
+|--------|-------------------|------------------|
+| Showcase Compile | 5/6 (83%) | **6/6 (100%)** 🎯 |
+| Showcase Warnings | 1 | **0** 🎯 |
+| Tests | 407 | 420+ |
+| Regressions | 0 | 0 |
+
+### Estimated Timeline
+
+**Week 1**: Core Fixes (12-17 hours)
+- Days 1-2: Phase 1 - String return types
+- Days 3-4: Phase 2 - Float division
+- Day 5: Phase 3 - Cow optimization
+
+**Week 2**: Polish & Release
+- Days 6-7: Testing, documentation, validation
+- Day 8: Release prep, changelog, git tag
+
+**Total Estimated Effort**: 12-17 hours over 2-3 weeks
+
+### Risk Assessment
+
+**High Risk**:
+- String return type changes (core type system)
+- Mitigation: Incremental dev, extensive testing, feature flag
+
+**Medium Risk**:
+- Binary operation context tracking (many codepaths)
+- Mitigation: Add context gradually, test each operator
+
+**Low Risk**:
+- Cow optimization (isolated to string optimizer)
+- Mitigation: A/B test old vs new logic
+
+### Dependencies
+- [x] v3.15.0 released ✅
+- [x] Root cause analysis complete ✅
+- [x] Comprehensive planning complete ✅
+- [ ] Baseline test suite passing
+- [ ] Clean git working directory
+
+### Deferred from v3.15.0
+These items were identified but strategically deferred for proper implementation:
+1. String method return types (documented in phase2_analysis.md)
+2. Int/float division semantics (documented in phase2_analysis.md)
+3. Cow import optimization (documented in phase2_analysis.md)
+
+---
+
 ## 🎉 **v3.13.0 RELEASE - Generator Expressions 100% Complete**
 
 **Release Date**: 2025-10-10

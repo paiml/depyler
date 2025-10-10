@@ -895,6 +895,92 @@ fn apply_borrowing_to_type(
     Ok(ty)
 }
 
+// ========== String Method Return Type Analysis (v3.16.0) ==========
+
+/// Classification of string methods by their return type semantics
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StringMethodReturnType {
+    /// Returns owned String (e.g., upper, lower, strip, replace)
+    Owned,
+    /// Returns borrowed &str or bool (e.g., starts_with, is_digit)
+    Borrowed,
+}
+
+/// Classify a string method by its return type semantics
+fn classify_string_method(method_name: &str) -> StringMethodReturnType {
+    match method_name {
+        // Transformation methods that return owned String
+        "upper" | "lower" | "strip" | "lstrip" | "rstrip"
+        | "replace" | "format" | "title" | "capitalize"
+        | "swapcase" | "expandtabs" | "center" | "ljust"
+        | "rjust" | "zfill" => StringMethodReturnType::Owned,
+
+        // Query/test methods that return bool or &str (borrowed)
+        "startswith" | "endswith" | "isalpha" | "isdigit"
+        | "isalnum" | "isspace" | "islower" | "isupper"
+        | "istitle" | "isascii" | "isprintable"
+        | "find" | "rfind" | "index" | "rindex"
+        | "count" => StringMethodReturnType::Borrowed,
+
+        // Default: assume owned to be safe
+        _ => StringMethodReturnType::Owned,
+    }
+}
+
+/// Check if an expression contains a string method call that returns owned String
+fn contains_owned_string_method(expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::MethodCall { method, .. } => {
+            // Check if this method returns owned String
+            classify_string_method(method) == StringMethodReturnType::Owned
+        }
+        HirExpr::Binary { left, right, .. } => {
+            // Check both sides of binary operations
+            contains_owned_string_method(left) || contains_owned_string_method(right)
+        }
+        HirExpr::Unary { operand, .. } => {
+            contains_owned_string_method(operand)
+        }
+        HirExpr::IfExpr { body, orelse, .. } => {
+            // Check both branches of conditional
+            contains_owned_string_method(body) || contains_owned_string_method(orelse)
+        }
+        HirExpr::Call { .. }
+        | HirExpr::Var(_)
+        | HirExpr::Literal(_)
+        | HirExpr::List(_)
+        | HirExpr::Dict(_)
+        | HirExpr::Tuple(_)
+        | HirExpr::Set(_)
+        | HirExpr::FrozenSet(_)
+        | HirExpr::Index { .. }
+        | HirExpr::Slice { .. }
+        | HirExpr::Attribute { .. }
+        | HirExpr::Borrow { .. }
+        | HirExpr::ListComp { .. }
+        | HirExpr::SetComp { .. }
+        | HirExpr::Lambda { .. }
+        | HirExpr::Await { .. }
+        | HirExpr::FString { .. }
+        | HirExpr::Yield { .. }
+        | HirExpr::SortByKey { .. }
+        | HirExpr::GeneratorExp { .. } => false,
+    }
+}
+
+/// Check if the function's return expressions contain owned-returning string methods
+fn function_returns_owned_string(func: &HirFunction) -> bool {
+    // Check all return statements in the function body
+    for stmt in &func.body {
+        if let HirStmt::Return(Some(expr)) = stmt {
+            if contains_owned_string_method(expr) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 // ========== Phase 3b: Return Type Generation ==========
 
 /// Generate return type with Result wrapper and lifetime handling
@@ -926,6 +1012,17 @@ fn codegen_return_type(
         } else {
             mapped_ret_type
         };
+
+    // v3.16.0 Phase 1: Override return type to String if function returns owned via string methods
+    // This prevents lifetime analysis from incorrectly converting to borrowed &str
+    let rust_ret_type = if matches!(func.ret_type, Type::String)
+        && function_returns_owned_string(func)
+    {
+        // Force owned String return, don't use lifetime borrowing
+        crate::type_mapper::RustType::String
+    } else {
+        rust_ret_type
+    };
 
     // Update import needs based on return type
     update_import_needs(ctx, &rust_ret_type);
@@ -991,14 +1088,20 @@ fn codegen_return_type(
                 ty = parse_quote! { Cow<'static, str> };
             }
         } else {
-            // Apply return lifetime if needed
+            // v3.16.0 Phase 1: Check if function returns owned String via transformation methods
+            // If so, don't convert to borrowed &str even if lifetime analysis suggests it
+            let returns_owned_string = matches!(func.ret_type, Type::String)
+                && function_returns_owned_string(func);
+
+            // Apply return lifetime if needed (unless returning owned String)
             if let Some(ref return_lt) = lifetime_result.return_lifetime {
                 // Check if the return type needs lifetime substitution
                 if matches!(
                     rust_ret_type,
                     crate::type_mapper::RustType::Str { .. }
                         | crate::type_mapper::RustType::Reference { .. }
-                ) {
+                ) && !returns_owned_string {
+                    // Only apply lifetime if NOT returning owned String
                     let lt = syn::Lifetime::new(return_lt.as_str(), proc_macro2::Span::call_site());
                     match &rust_ret_type {
                         crate::type_mapper::RustType::Str { .. } => {
@@ -1016,6 +1119,7 @@ fn codegen_return_type(
                     }
                 }
             }
+            // If returns_owned_string is true, keep ty as String (already set from rust_type_to_syn)
         }
 
         if can_fail {
@@ -4626,5 +4730,82 @@ mod tests {
         let code = quote! { #result }.to_string();
         assert!(code.contains("e") || code.contains("E") || code.contains("."),
                 "Expected scientific notation or decimal, got: {}", code);
+    }
+
+    #[test]
+    fn test_string_method_return_types() {
+        // Regression test for v3.16.0 Phase 1
+        // String transformation methods (.upper(), .lower(), .strip()) return owned String
+        // Function signatures should reflect this: `fn f(s: &str) -> String` not `-> &str`
+
+        // Test 1: .upper() should generate String return type
+        let upper_func = HirFunction {
+            name: "to_upper".to_string(),
+            params: vec![HirParam::new("text".to_string(), Type::String)].into(),
+            ret_type: Type::String,
+            body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("text".to_string())),
+                method: "upper".to_string(),
+                args: vec![],
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let mut ctx = create_test_context();
+        let result = upper_func.to_rust_tokens(&mut ctx).unwrap();
+        let code = result.to_string();
+
+        // Should generate: fn to_upper(text: &str) -> String
+        // NOT: fn to_upper<'a>(text: &'a str) -> &'a str
+        assert!(code.contains("-> String"),
+                "Expected '-> String' for .upper() method, got: {}", code);
+        assert!(!code.contains("-> & ") && !code.contains("-> &'"),
+                "Should not generate borrowed return for .upper(), got: {}", code);
+
+        // Test 2: .lower() should also generate String return type
+        let lower_func = HirFunction {
+            name: "to_lower".to_string(),
+            params: vec![HirParam::new("text".to_string(), Type::String)].into(),
+            ret_type: Type::String,
+            body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("text".to_string())),
+                method: "lower".to_string(),
+                args: vec![],
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let mut ctx = create_test_context();
+        let result = lower_func.to_rust_tokens(&mut ctx).unwrap();
+        let code = result.to_string();
+
+        assert!(code.contains("-> String"),
+                "Expected '-> String' for .lower() method, got: {}", code);
+
+        // Test 3: .strip() should also generate String return type
+        let strip_func = HirFunction {
+            name: "trim_text".to_string(),
+            params: vec![HirParam::new("text".to_string(), Type::String)].into(),
+            ret_type: Type::String,
+            body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("text".to_string())),
+                method: "strip".to_string(),
+                args: vec![],
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let mut ctx = create_test_context();
+        let result = strip_func.to_rust_tokens(&mut ctx).unwrap();
+        let code = result.to_string();
+
+        assert!(code.contains("-> String"),
+                "Expected '-> String' for .strip() method, got: {}", code);
     }
 }
