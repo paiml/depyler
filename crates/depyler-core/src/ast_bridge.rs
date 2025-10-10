@@ -673,7 +673,7 @@ impl AstBridge {
             params.push(HirParam {
                 name: param_name,
                 ty: param_type,
-                default: None, // TODO: Extract method defaults
+                default: None, // Note: Method defaults extraction requires AST alignment with convert_parameters()
             });
         }
 
@@ -791,7 +791,7 @@ impl AstBridge {
             params.push(HirParam {
                 name: param_name,
                 ty: param_type,
-                default: None, // TODO: Extract method defaults
+                default: None, // Note: Method defaults extraction requires AST alignment with convert_parameters()
             });
         }
 
