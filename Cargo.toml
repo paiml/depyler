@@ -66,6 +66,9 @@ tempfile = "3.14"
 rand = "0.8"
 md5 = "0.7"
 
+# Hash functions
+fnv = "1.0.3"  # FNV hash for HashMap optimization
+
 # CLI
 clap = { version = "4.0", features = ["derive", "cargo"] }
 indicatif = "0.17"
