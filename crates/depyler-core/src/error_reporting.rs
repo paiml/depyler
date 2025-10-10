@@ -77,19 +77,19 @@ impl EnhancedError {
 
         enhanced
     }
-}
 
-impl fmt::Display for EnhancedError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Error header
-        writeln!(f, "{}: {}", "error".red().bold(), self.error)?;
-
-        // Location info
+    /// Format location information (file:line:column)
+    #[inline]
+    fn format_location_info(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let (Some(file), Some(line), Some(column)) = (&self.file_path, self.line, self.column) {
             writeln!(f, "  {} {}:{}:{}", "-->".blue().bold(), file, line, column)?;
         }
+        Ok(())
+    }
 
-        // Source context
+    /// Format source context with line number and pointer
+    #[inline]
+    fn format_source_context(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let (Some(line_text), Some(line_num), Some(col)) =
             (&self.source_line, self.line, self.column)
         {
@@ -108,16 +108,44 @@ impl fmt::Display for EnhancedError {
                 "^".red().bold()
             )?;
         }
+        Ok(())
+    }
 
-        // Suggestion
+    /// Format suggestion if present
+    #[inline]
+    fn format_suggestion(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(suggestion) = &self.suggestion {
             writeln!(f, "\n{}: {}", "suggestion".green().bold(), suggestion)?;
         }
+        Ok(())
+    }
 
-        // Notes
+    /// Format all notes
+    #[inline]
+    fn format_notes(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for note in &self.notes {
             writeln!(f, "  {} {}", "note:".yellow(), note)?;
         }
+        Ok(())
+    }
+}
+
+impl fmt::Display for EnhancedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Error header
+        writeln!(f, "{}: {}", "error".red().bold(), self.error)?;
+
+        // Location info
+        self.format_location_info(f)?;
+
+        // Source context
+        self.format_source_context(f)?;
+
+        // Suggestion
+        self.format_suggestion(f)?;
+
+        // Notes
+        self.format_notes(f)?;
 
         Ok(())
     }
@@ -153,69 +181,225 @@ fn get_source_line(source: &str, line_num: usize) -> Option<String> {
 }
 
 /// Add automatic suggestions based on error type
-fn add_automatic_suggestions(mut error: EnhancedError) -> EnhancedError {
+fn add_automatic_suggestions(error: EnhancedError) -> EnhancedError {
     let suggestion = match &error.error {
-        ErrorKind::UnsupportedFeature(feature) => {
-            let base_suggestion = format!(
-                "This Python feature '{}' is not yet supported. Consider using a simpler construct.",
-                feature
-            );
-
-            // Add specific suggestions for common features
-            match feature.as_str() {
-                "yield" => Some((
-                    "Generator functions are not supported. Consider returning a list instead."
-                        .to_string(),
-                    vec![
-                        "Example: Instead of 'yield x', collect values and 'return values'"
-                            .to_string(),
-                    ],
-                )),
-                "async for" => Some((
-                    "Async iteration is not supported. Use regular iteration with async/await."
-                        .to_string(),
-                    vec![],
-                )),
-                "match" => Some((
-                    "Pattern matching is not supported. Use if/elif/else chains instead."
-                        .to_string(),
-                    vec![],
-                )),
-                _ => Some((base_suggestion, vec![])),
-            }
-        }
-        ErrorKind::TypeInferenceError(msg) => {
-            if msg.contains("incompatible types") {
-                Some((
-                    "Check that all type annotations are correct and consistent.".to_string(),
-                    vec!["Rust has stricter type checking than Python".to_string()],
-                ))
-            } else {
-                None
-            }
-        }
-        ErrorKind::InvalidTypeAnnotation(msg) => {
-            if msg.contains("borrow") {
-                Some((
-                    "Consider using .clone() or restructuring to avoid multiple borrows."
-                        .to_string(),
-                    vec!["Rust's borrow checker ensures memory safety".to_string()],
-                ))
-            } else {
-                None
-            }
-        }
+        ErrorKind::TypeMismatch {
+            expected,
+            found,
+            context,
+        } => generate_type_mismatch_suggestion(expected, found, context),
+        ErrorKind::UnsupportedFeature(feature) => suggest_unsupported_feature(feature),
+        ErrorKind::TypeInferenceError(msg) => suggest_type_inference_fix(msg),
+        ErrorKind::InvalidTypeAnnotation(msg) => suggest_annotation_fix(msg),
         _ => None,
     };
 
+    apply_suggestion_to_error(error, suggestion)
+}
+
+/// Apply a suggestion and notes to an error
+#[inline]
+fn apply_suggestion_to_error(
+    mut error: EnhancedError,
+    suggestion: Option<(String, Vec<String>)>,
+) -> EnhancedError {
     if let Some((suggestion_text, notes)) = suggestion {
         error = error.with_suggestion(&suggestion_text);
         for note in notes {
             error = error.add_note(&note);
         }
     }
-
     error
+}
+
+/// Generate suggestion for unsupported Python features
+#[inline]
+fn suggest_unsupported_feature(feature: &str) -> Option<(String, Vec<String>)> {
+    // Special case for yield (most common unsupported feature)
+    if feature == "yield" {
+        return Some((
+            "Generator functions are not supported. Consider returning a list instead.".to_string(),
+            vec!["Example: Instead of 'yield x', collect values and 'return values'".to_string()],
+        ));
+    }
+
+    // Generic message for all other unsupported features
+    Some((
+        format!(
+            "This Python feature '{feature}' is not yet supported. Consider using a simpler construct."
+        ),
+        vec![],
+    ))
+}
+
+/// Generate suggestion for type inference errors
+#[inline]
+fn suggest_type_inference_fix(msg: &str) -> Option<(String, Vec<String>)> {
+    if msg.contains("incompatible types") {
+        Some((
+            "Check that all type annotations are correct and consistent.".to_string(),
+            vec!["Rust has stricter type checking than Python".to_string()],
+        ))
+    } else {
+        None
+    }
+}
+
+/// Generate suggestion for invalid type annotations
+#[inline]
+fn suggest_annotation_fix(msg: &str) -> Option<(String, Vec<String>)> {
+    if msg.contains("borrow") {
+        Some((
+            "Consider using .clone() or restructuring to avoid multiple borrows.".to_string(),
+            vec!["Rust's borrow checker ensures memory safety".to_string()],
+        ))
+    } else {
+        None
+    }
+}
+
+/// Generate helpful suggestions for type mismatches
+fn generate_type_mismatch_suggestion(
+    expected: &str,
+    found: &str,
+    context: &str,
+) -> Option<(String, Vec<String>)> {
+    // Try specific type mismatch patterns first
+    if let Some(suggestion) = suggest_string_mismatch(expected, found) {
+        return Some(suggestion);
+    }
+    if let Some(suggestion) = suggest_division_mismatch(expected, found) {
+        return Some(suggestion);
+    }
+    if let Some(suggestion) = suggest_option_mismatch(expected, found) {
+        return Some(suggestion);
+    }
+    if let Some(suggestion) = suggest_ownership_mismatch(expected, found) {
+        return Some(suggestion);
+    }
+    if let Some(suggestion) = suggest_collection_mismatch(expected, found) {
+        return Some(suggestion);
+    }
+
+    // Generic fallback for unmatched cases
+    suggest_generic_mismatch(expected, found, context)
+}
+
+/// Suggest fix for string type mismatches (str vs String, &str)
+#[inline]
+fn suggest_string_mismatch(expected: &str, found: &str) -> Option<(String, Vec<String>)> {
+    if (expected == "String" && found == "&str") || (expected == "str" && found == "String") {
+        Some((
+            "String type mismatch - Python 'str' maps to both Rust '&str' and 'String'".to_string(),
+            vec![
+                "In Rust:".to_string(),
+                "  • '&str' is a borrowed string slice (cheap, read-only)".to_string(),
+                "  • 'String' is an owned, heap-allocated string".to_string(),
+                "Python string methods (.upper(), .lower(), .strip()) return owned String".to_string(),
+                "Use '.to_string()' to convert &str → String, or '&s' to convert String → &str".to_string(),
+            ],
+        ))
+    } else {
+        None
+    }
+}
+
+/// Suggest fix for division type mismatches (int vs float)
+#[inline]
+fn suggest_division_mismatch(expected: &str, found: &str) -> Option<(String, Vec<String>)> {
+    if expected.contains("f64") && found.contains("i") {
+        Some((
+            "Division result type mismatch - Python '/' always returns float".to_string(),
+            vec![
+                "In Python: 10 / 3 = 3.333... (always float)".to_string(),
+                "In Rust: 10 / 3 = 3 (integer), 10.0 / 3.0 = 3.333... (float)".to_string(),
+                "Use '.as_f64()' or ensure operands are floats for division".to_string(),
+            ],
+        ))
+    } else {
+        None
+    }
+}
+
+/// Suggest fix for Option/None type mismatches
+#[inline]
+fn suggest_option_mismatch(expected: &str, found: &str) -> Option<(String, Vec<String>)> {
+    if expected.contains("Option") && (found == "None" || found == "()") {
+        Some((
+            "None type mismatch - Python None maps to Rust Option<T>".to_string(),
+            vec![
+                "In Rust, optional values use Option<T>:".to_string(),
+                "  • Some(value) for present values".to_string(),
+                "  • None for absent values".to_string(),
+                "Return type must be Option<T> if function can return None".to_string(),
+            ],
+        ))
+    } else {
+        None
+    }
+}
+
+/// Suggest fix for ownership mismatches (borrowed vs owned)
+#[inline]
+fn suggest_ownership_mismatch(expected: &str, found: &str) -> Option<(String, Vec<String>)> {
+    if expected.starts_with('&') && !found.starts_with('&') {
+        Some((
+            format!("Ownership mismatch - expected borrowed reference '{expected}', found owned value '{found}'"),
+            vec![
+                "Rust distinguishes between owned values and borrowed references".to_string(),
+                format!("Add '&' to borrow the value: '&{found}'"),
+                "Or use .as_ref() to get a reference without moving the value".to_string(),
+            ],
+        ))
+    } else {
+        None
+    }
+}
+
+/// Suggest fix for collection type mismatches (list vs Vec)
+#[inline]
+fn suggest_collection_mismatch(expected: &str, found: &str) -> Option<(String, Vec<String>)> {
+    if (expected.contains("Vec") && found.contains("list"))
+        || (expected.contains("list") && found.contains("Vec"))
+    {
+        Some((
+            "Collection type mismatch - Python list maps to Rust Vec<T>".to_string(),
+            vec![
+                "Python lists are dynamic arrays, similar to Rust Vec<T>".to_string(),
+                "Ensure element types match: Python list[int] → Rust Vec<i32>".to_string(),
+            ],
+        ))
+    } else {
+        None
+    }
+}
+
+/// Generic fallback suggestion for unmatched type mismatches
+#[inline]
+fn suggest_generic_mismatch(
+    expected: &str,
+    found: &str,
+    context: &str,
+) -> Option<(String, Vec<String>)> {
+    if context.contains("return") {
+        Some((
+            format!(
+                "Return type mismatch in {context}: expected '{expected}', found '{found}'"
+            ),
+            vec![
+                "Check that your function's return type annotation matches what you're actually returning".to_string(),
+                "Python and Rust may have different type representations".to_string(),
+            ],
+        ))
+    } else {
+        Some((
+            format!("Type mismatch in {context}: expected '{expected}', found '{found}'"),
+            vec![
+                "Rust's type system is stricter than Python's".to_string(),
+                "Ensure all type annotations are explicit and consistent".to_string(),
+            ],
+        ))
+    }
 }
 
 /// Error reporter that collects and displays enhanced errors
@@ -313,5 +497,66 @@ mod tests {
 
         assert!(enhanced.suggestion.is_some());
         assert!(enhanced.suggestion.unwrap().contains("Generator"));
+    }
+
+    #[test]
+    fn test_string_type_mismatch_suggestion() {
+        let error = EnhancedError::new(ErrorKind::TypeMismatch {
+            expected: "String".to_string(),
+            found: "&str".to_string(),
+            context: "return type".to_string(),
+        });
+        let enhanced = add_automatic_suggestions(error);
+
+        assert!(enhanced.suggestion.is_some());
+        let suggestion = enhanced.suggestion.unwrap();
+        assert!(suggestion.contains("String type mismatch"));
+        assert!(!enhanced.notes.is_empty());
+        assert!(enhanced.notes.iter().any(|n| n.contains("&str")));
+    }
+
+    #[test]
+    fn test_division_type_mismatch_suggestion() {
+        let error = EnhancedError::new(ErrorKind::TypeMismatch {
+            expected: "f64".to_string(),
+            found: "i32".to_string(),
+            context: "division result".to_string(),
+        });
+        let enhanced = add_automatic_suggestions(error);
+
+        assert!(enhanced.suggestion.is_some());
+        let suggestion = enhanced.suggestion.unwrap();
+        assert!(suggestion.contains("Division result type mismatch"));
+        assert!(enhanced.notes.iter().any(|n| n.contains("always float")));
+    }
+
+    #[test]
+    fn test_option_type_mismatch_suggestion() {
+        let error = EnhancedError::new(ErrorKind::TypeMismatch {
+            expected: "Option<i32>".to_string(),
+            found: "None".to_string(),
+            context: "return value".to_string(),
+        });
+        let enhanced = add_automatic_suggestions(error);
+
+        assert!(enhanced.suggestion.is_some());
+        let suggestion = enhanced.suggestion.unwrap();
+        assert!(suggestion.contains("None type mismatch"));
+        assert!(enhanced.notes.iter().any(|n| n.contains("Option<T>")));
+    }
+
+    #[test]
+    fn test_ownership_mismatch_suggestion() {
+        let error = EnhancedError::new(ErrorKind::TypeMismatch {
+            expected: "&String".to_string(),
+            found: "String".to_string(),
+            context: "parameter".to_string(),
+        });
+        let enhanced = add_automatic_suggestions(error);
+
+        assert!(enhanced.suggestion.is_some());
+        let suggestion = enhanced.suggestion.unwrap();
+        assert!(suggestion.contains("Ownership mismatch"));
+        assert!(enhanced.notes.iter().any(|n| n.contains("borrowed reference")));
     }
 }
