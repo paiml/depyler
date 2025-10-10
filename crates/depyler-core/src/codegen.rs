@@ -937,6 +937,11 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
                 })
             }
         }
+        HirExpr::GeneratorExp { .. } => {
+            // TODO: Implement generator expression code generation
+            // For now, return error until implementation is complete
+            bail!("Generator expressions not yet implemented in codegen")
+        }
     }
 }
 
