@@ -30,11 +30,11 @@ colored.workspace = true
 
 [features]
 default = []
-wasm = ["instant"]
+wasm = ["web-time"]
 deterministic = []
 ruchy = []
 
-[dependencies.instant]
+[dependencies.web-time]
 workspace = true
 optional = true
 
