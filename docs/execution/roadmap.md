@@ -16,9 +16,82 @@
 - ✅ v3.10.0 - Lambda Collections & Ternary: 100% complete
 - ✅ v3.9.0 - Lambda improvements (partial completion)
 
-**✅ Quality**: 371/371 core tests (100%), 425+ integration tests, zero warnings, complexity ≤10
-**📊 Total Tests**: 1020+ passing (20 new generator expression tests)
-**🚀 Status**: Production-ready transpiler with comprehensive feature coverage
+**📊 Quality Metrics** (2025-10-10 Assessment):
+- **Tests**: 659 passing (371 core + 288 integration), 5 ignored, 0 failed ✅
+- **Clippy**: Zero warnings with -D warnings ✅
+- **Complexity**: 125 violations (median: 4, max: 129) ❌ **CRITICAL DEBT**
+- **SATD**: 19 technical debt items across 17 files ⚠️
+- **Coverage**: Unable to verify (cargo-llvm-cov timeout) ⚠️
+**🚀 Status**: Production-ready features with legacy technical debt requiring refactoring
+
+---
+
+## 🚨 **TECHNICAL DEBT SPRINT - Complexity Refactoring** (PLANNED)
+
+**Priority**: P0 (Blocks A+ Quality Standards)
+**Effort**: ~300 hours (critical path: 5 functions)
+**Target**: Reduce all functions to cyclomatic complexity ≤10
+
+### Top 5 Complexity Hotspots (MUST FIX)
+
+#### DEPYLER-0140: Refactor HirStmt::to_rust_tokens
+**File**: `crates/depyler-core/src/rust_gen.rs:1`
+**Current**: Cyclomatic 129, Cognitive 296
+**Target**: ≤10 cyclomatic, ≤10 cognitive
+**Effort**: ~80 hours
+**Strategy**: Extract method pattern - create separate functions for each statement type
+- Extract `match_stmt_to_rust()`, `for_stmt_to_rust()`, `while_stmt_to_rust()`, etc.
+- Each statement type becomes its own function
+- Use visitor/strategy pattern for extensibility
+
+#### DEPYLER-0141: Refactor HirFunction::to_rust_tokens
+**File**: `crates/depyler-core/src/rust_gen.rs:1`
+**Current**: Cyclomatic 106, Cognitive 250+
+**Target**: ≤10 cyclomatic, ≤10 cognitive
+**Effort**: ~60 hours
+**Strategy**: Decompose into builder pattern
+- `FunctionSignatureBuilder`
+- `FunctionBodyBuilder`
+- `FunctionAttributeBuilder`
+
+#### DEPYLER-0142: Refactor ExpressionConverter::convert_method_call
+**File**: `crates/depyler-core/src/rust_gen.rs:1`
+**Current**: Cyclomatic 99, Cognitive 180+
+**Target**: ≤10 cyclomatic, ≤10 cognitive
+**Effort**: ~50 hours
+**Strategy**: Method dispatch table + handler pattern
+- Create `MethodCallHandler` trait
+- Separate handler for each method category (string, list, dict, etc.)
+
+#### DEPYLER-0143: Refactor rust_type_to_syn_type
+**File**: `crates/depyler-core/src/direct_rules.rs:1`
+**Current**: Cyclomatic 73, Cognitive 120+
+**Target**: ≤10 cyclomatic, ≤10 cognitive
+**Effort**: ~40 hours
+**Strategy**: Type conversion registry pattern
+- Create `TypeConverter` registry with per-type handlers
+- Separate primitive, generic, and complex type conversions
+
+#### DEPYLER-0144: Refactor AnnotationParser::apply_annotations
+**File**: `crates/depyler-annotations/src/lib.rs:1`
+**Current**: Cyclomatic 69, Cognitive 110+
+**Target**: ≤10 cyclomatic, ≤10 cognitive
+**Effort**: ~35 hours
+**Strategy**: Annotation handler chain of responsibility
+- Create `AnnotationHandler` trait with per-annotation implementations
+- Chain handlers for composability
+
+### Additional Debt Items
+
+#### DEPYLER-0145: Fix cargo-llvm-cov Timeout
+**Status**: Coverage verification times out after 120s
+**Target**: <30s coverage run with ≥80% reported
+**Investigation**: Profile test suite, implement parallel coverage
+
+#### DEPYLER-0146: SATD Cleanup
+**Status**: 19 SATD violations (TODO/FIXME)
+**Target**: 0 violations (convert to tickets or implement)
+**Files**: 17 files affected (see quality assessment)
 
 ---
 
