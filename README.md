@@ -89,6 +89,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - Collections (List, Dict, Tuple, Set)
 - Control flow (if, while, for, match)
 - List/dict/set comprehensions
+- **Generator expressions** (NEW in v3.13.0) ✨
+- **Generator functions** (yield statements)
 - Exception handling (mapped to Result<T, E>)
 - Classes and methods
 - Async/await (basic)

@@ -1,8 +1,10 @@
 # Generator Expressions (DEPYLER-TBD) - v3.13.0
 
-**Status**: Planning
+**Status**: ✅ IMPLEMENTED AND RELEASED
 **Created**: 2025-10-09
-**Target Release**: v3.13.0
+**Completed**: 2025-10-10
+**Released**: v3.13.0 (2025-10-10)
+**Test Coverage**: 20/20 passing (100%)
 **Dependencies**: Generators Phase 3 (DEPYLER-0115) ✅ Complete
 
 ## Overview
