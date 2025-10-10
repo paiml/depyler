@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔧 DEPYLER-0143 Phase 1 - Extract Simple Type Handlers (4/8) (2025-10-10)
+
+**First phase of rust_type_to_syn_type complexity refactoring**
+
+#### Changed
+- **Refactored `rust_type_to_syn_type`**: Extracted 4 type category helpers
+  - `convert_simple_type()` - Handle Unit, String, Custom, TypeParam, Enum (5 types, 18 lines)
+  - `convert_primitive_type()` - Handle all 14 primitive types (bool, integers, floats) (16 lines)
+  - `convert_lifetime_type()` - Handle Str, Cow with lifetime parameters (15 lines)
+  - `convert_unsupported_type()` - Handle unsupported placeholder types (6 lines)
+- **Complexity Reduction**: Removed ~41 lines from main function
+- **Performance**: All helpers marked `#[inline]` for zero overhead
+
+#### Quality Impact
+- Tests: 393 passing (maintained), 0 failed ✅
+- Main function reduced from 123 lines → 82 lines (-41 lines, -33%)
+- Complexity progress: 4/8 handlers extracted (50% complete)
+- All extracted functions: ≤20 lines, complexity ≤5
+
+#### Remaining Work (Phase 2)
+- Extract 4 recursive type handlers (container, complex, array)
+- Target: Main function ≤20 lines, complexity ≤10
+
 ### 🎉 DEPYLER-0142 Phase 2 COMPLETE - Extract Category Handlers (8/8) (2025-10-10)
 
 **COMPLETE: ExpressionConverter::convert_method_call complexity refactoring - ALL handlers extracted! 🎉**

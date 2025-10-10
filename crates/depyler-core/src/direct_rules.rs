@@ -758,31 +758,57 @@ fn convert_protocol_method_to_trait_method(
     }
 }
 
-fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
+/// Convert simple non-recursive types (Unit, String, Custom, TypeParam, Enum)
+#[inline]
+fn convert_simple_type(rust_type: &RustType) -> Result<syn::Type> {
     use RustType::*;
     Ok(match rust_type {
         Unit => parse_quote! { () },
-        Primitive(prim_type) => {
-            use crate::type_mapper::PrimitiveType;
-            match prim_type {
-                PrimitiveType::Bool => parse_quote! { bool },
-                PrimitiveType::I8 => parse_quote! { i8 },
-                PrimitiveType::I16 => parse_quote! { i16 },
-                PrimitiveType::I32 => parse_quote! { i32 },
-                PrimitiveType::I64 => parse_quote! { i64 },
-                PrimitiveType::I128 => parse_quote! { i128 },
-                PrimitiveType::ISize => parse_quote! { isize },
-                PrimitiveType::U8 => parse_quote! { u8 },
-                PrimitiveType::U16 => parse_quote! { u16 },
-                PrimitiveType::U32 => parse_quote! { u32 },
-                PrimitiveType::U64 => parse_quote! { u64 },
-                PrimitiveType::U128 => parse_quote! { u128 },
-                PrimitiveType::USize => parse_quote! { usize },
-                PrimitiveType::F32 => parse_quote! { f32 },
-                PrimitiveType::F64 => parse_quote! { f64 },
-            }
-        }
         String => parse_quote! { String },
+        Custom(name) => {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            parse_quote! { #ident }
+        }
+        TypeParam(name) => {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            parse_quote! { #ident }
+        }
+        Enum { name, .. } => {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            parse_quote! { #ident }
+        }
+        _ => unreachable!("convert_simple_type called with non-simple type"),
+    })
+}
+
+/// Convert primitive types (bool, integers, floats)
+#[inline]
+fn convert_primitive_type(prim_type: &crate::type_mapper::PrimitiveType) -> Result<syn::Type> {
+    use crate::type_mapper::PrimitiveType;
+    Ok(match prim_type {
+        PrimitiveType::Bool => parse_quote! { bool },
+        PrimitiveType::I8 => parse_quote! { i8 },
+        PrimitiveType::I16 => parse_quote! { i16 },
+        PrimitiveType::I32 => parse_quote! { i32 },
+        PrimitiveType::I64 => parse_quote! { i64 },
+        PrimitiveType::I128 => parse_quote! { i128 },
+        PrimitiveType::ISize => parse_quote! { isize },
+        PrimitiveType::U8 => parse_quote! { u8 },
+        PrimitiveType::U16 => parse_quote! { u16 },
+        PrimitiveType::U32 => parse_quote! { u32 },
+        PrimitiveType::U64 => parse_quote! { u64 },
+        PrimitiveType::U128 => parse_quote! { u128 },
+        PrimitiveType::USize => parse_quote! { usize },
+        PrimitiveType::F32 => parse_quote! { f32 },
+        PrimitiveType::F64 => parse_quote! { f64 },
+    })
+}
+
+/// Convert lifetime-parameterized types (Str, Cow)
+#[inline]
+fn convert_lifetime_type(rust_type: &RustType) -> Result<syn::Type> {
+    use RustType::*;
+    Ok(match rust_type {
         Str { lifetime } => {
             if let Some(lt) = lifetime {
                 let lifetime_token =
@@ -797,6 +823,38 @@ fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
                 syn::Lifetime::new(&format!("'{}", lifetime), proc_macro2::Span::call_site());
             parse_quote! { std::borrow::Cow<#lifetime_token, str> }
         }
+        _ => unreachable!("convert_lifetime_type called with non-lifetime type"),
+    })
+}
+
+/// Convert unsupported types with placeholder names
+#[inline]
+fn convert_unsupported_type(name: &str) -> Result<syn::Type> {
+    let ident = syn::Ident::new(
+        &format!("UnsupportedType_{}", name.replace(" ", "_")),
+        proc_macro2::Span::call_site(),
+    );
+    Ok(parse_quote! { #ident })
+}
+
+fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
+    use RustType::*;
+    Ok(match rust_type {
+        // Simple types - delegate to helper
+        Unit | String | Custom(_) | TypeParam(_) | Enum { .. } => {
+            convert_simple_type(rust_type)?
+        }
+
+        // Primitive types - delegate to helper
+        Primitive(prim_type) => convert_primitive_type(prim_type)?,
+
+        // Lifetime types - delegate to helper
+        Str { .. } | Cow { .. } => convert_lifetime_type(rust_type)?,
+
+        // Unsupported types - delegate to helper
+        Unsupported(name) => convert_unsupported_type(name)?,
+
+        // Recursive container types
         Vec(inner) => {
             let inner_type = rust_type_to_syn_type(inner)?;
             parse_quote! { Vec<#inner_type> }
@@ -821,32 +879,12 @@ fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
             let type_tokens = type_tokens?;
             parse_quote! { (#(#type_tokens),*) }
         }
-        Custom(name) => {
-            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-            parse_quote! { #ident }
-        }
-        Unsupported(name) => {
-            // For unsupported types, just generate a placeholder comment type
-            let ident = syn::Ident::new(
-                &format!("UnsupportedType_{}", name.replace(" ", "_")),
-                proc_macro2::Span::call_site(),
-            );
-            parse_quote! { #ident }
-        }
-        TypeParam(name) => {
-            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-            parse_quote! { #ident }
-        }
         Generic { base, params } => {
             let base_ident = syn::Ident::new(base, proc_macro2::Span::call_site());
             let param_types: anyhow::Result<std::vec::Vec<_>> =
                 params.iter().map(rust_type_to_syn_type).collect();
             let param_types = param_types?;
             parse_quote! { #base_ident<#(#param_types),*> }
-        }
-        Enum { name, variants: _ } => {
-            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-            parse_quote! { #ident }
         }
         Reference { inner, mutable, .. } => {
             let inner_type = rust_type_to_syn_type(inner)?;
