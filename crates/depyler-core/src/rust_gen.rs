@@ -2399,13 +2399,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_method_call(
+    // ========================================================================
+    // DEPYLER-0142 Phase 1: Preamble Helpers
+    // ========================================================================
+
+    /// Try to convert classmethod call (cls.method())
+    #[inline]
+    fn try_convert_classmethod(
         &mut self,
         object: &HirExpr,
         method: &str,
         args: &[HirExpr],
-    ) -> Result<syn::Expr> {
-        // Handle classmethod cls.method() → Self::method()
+    ) -> Result<Option<syn::Expr>> {
         if let HirExpr::Var(var_name) = object {
             if var_name == "cls" && self.ctx.is_classmethod {
                 let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
@@ -2413,11 +2418,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .iter()
                     .map(|arg| arg.to_rust_expr(self.ctx))
                     .collect::<Result<Vec<_>>>()?;
-                return Ok(parse_quote! { Self::#method_ident(#(#arg_exprs),*) });
+                return Ok(Some(parse_quote! { Self::#method_ident(#(#arg_exprs),*) }));
             }
         }
+        Ok(None)
+    }
 
-        // Check if this is a module method call (e.g., os.getcwd())
+    /// Try to convert module method call (e.g., os.getcwd())
+    #[inline]
+    fn try_convert_module_method(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
         if let HirExpr::Var(module_name) = object {
             let rust_name_opt = self
                 .ctx
@@ -2441,12 +2455,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
 
                 // Special handling for certain functions
-                match rust_name.as_str() {
+                let result = match rust_name.as_str() {
                     "env::current_dir" => {
                         // current_dir returns Result<PathBuf>, we need to convert to String
-                        return Ok(parse_quote! {
+                        parse_quote! {
                             #path().unwrap().to_string_lossy().to_string()
-                        });
+                        }
                     }
                     "Regex::new" => {
                         // re.compile(pattern) -> Regex::new(pattern)
@@ -2454,19 +2468,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             bail!("re.compile() requires a pattern argument");
                         }
                         let pattern = &arg_exprs[0];
-                        return Ok(parse_quote! {
+                        parse_quote! {
                             regex::Regex::new(#pattern).unwrap()
-                        });
+                        }
                     }
                     _ => {
                         if arg_exprs.is_empty() {
-                            return Ok(parse_quote! { #path() });
+                            parse_quote! { #path() }
                         } else {
-                            return Ok(parse_quote! { #path(#(#arg_exprs),*) });
+                            parse_quote! { #path(#(#arg_exprs),*) }
                         }
                     }
-                }
+                };
+                return Ok(Some(result));
             }
+        }
+        Ok(None)
+    }
+
+    fn convert_method_call(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<syn::Expr> {
+        // Try classmethod handling first
+        if let Some(result) = self.try_convert_classmethod(object, method, args)? {
+            return Ok(result);
+        }
+
+        // Try module method handling
+        if let Some(result) = self.try_convert_module_method(object, method, args)? {
+            return Ok(result);
         }
 
         let object_expr = object.to_rust_expr(self.ctx)?;
