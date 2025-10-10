@@ -4,6 +4,53 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.15.0 Phase 1 - Numeric Type Inference Fix (2025-10-10)
+
+**CRITICAL BUG FIX: Float literals now generate correct Rust code! 🎯**
+
+#### Problem Identified
+
+Python float literals like `0.0` were being transpiled to Rust integer literals `0`, causing type mismatches and compilation failures.
+
+**Root Cause**:
+- `f64::to_string()` for `0.0` produces `"0"` (no decimal point)
+- `syn::LitFloat::new("0", ...)` parses as integer literal, not float
+- Generated code: `let mut total = 0` (i32) instead of `let mut total = 0.0` (f64)
+- Result: Type errors when adding f64 values: "cannot add `&f64` to `{integer}`"
+
+#### Fix Applied
+
+Modified `rust_gen.rs:3758-3769` to ensure float literals always have decimal notation:
+- Check if float string contains `.`, `e`, or `E`
+- If missing, append `.0` to force float type inference
+- Handles edge cases: `0.0 → "0.0"`, `42.0 → "42.0"`, `1e10 → "1e10"`
+
+#### Impact
+
+**Showcase Examples**:
+- ✅ contracts_example.rs **NOW COMPILES** (was failing with 2 errors)
+- Compilation success rate: **5/6 examples (83%)**, up from 4/6 (67%)
+- Progress: **+16.7% compilation rate with ONE FIX!**
+
+**Testing**:
+- Added `test_float_literal_decimal_point()` regression test
+- All **407 tests passing** (up from 406)
+- Zero breaking changes
+- Re-transpiled all 6 showcase examples
+
+**Files Modified**:
+- `crates/depyler-core/src/rust_gen.rs` - Core fix + regression test
+- `examples/showcase/contracts_example.rs` - Regenerated, now compiles cleanly
+- `examples/showcase/annotated_example.rs` - Regenerated
+- `examples/showcase/calculate_sum.rs` - Regenerated
+
+#### Next Steps
+
+Phase 1 Complete! Remaining work for v3.15.0:
+- Fix annotated_example.rs (fnv import, string return type, type conversion)
+- Fix classify_number.rs (unused Cow import warning)
+- Target: 6/6 examples compile with 0 warnings
+
 ### Phase 5 - Feature Validation (2025-10-10)
 
 **COMPLETE: Async/await and with statement support validated! ✅**
