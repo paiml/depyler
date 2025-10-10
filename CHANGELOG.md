@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔧 DEPYLER-0141 Phase 1 - Extract Simple HirFunction Helpers (3/11) (2025-10-10)
+
+**First phase of HirFunction complexity refactoring - 3/11 sections extracted**
+
+#### Changed
+- **Refactored `HirFunction::to_rust_tokens`**: Extracted 3 simple helper functions
+  - `codegen_generic_params()` - Generate generic parameters with lifetimes (38 lines)
+  - `codegen_where_clause()` - Generate where clause for lifetime bounds (16 lines)
+  - `codegen_function_attrs()` - Generate function attributes (doc, panic-free, termination) (24 lines)
+- **Complexity Reduction**: Removed ~67 lines from main function
+- **Performance**: All helpers marked `#[inline]` for zero overhead
+
+#### Quality Impact
+- Tests: 393 passing (maintained), 0 failed ✅
+- Main function reduced from 504 lines → 437 lines (-67 lines, -13.3%)
+- Complexity progress: 3/11 sections extracted (27% complete)
+- All extracted functions: ≤40 lines, complexity ≤5
+
+#### Remaining Work (Phases 2-3)
+- Phase 2: Medium complexity sections (type inference, lifetime analysis, body processing)
+- Phase 3: Complex sections (parameter conversion, generator handling)
+- Target: 11/11 sections extracted, main function ≤50 lines
+
 ### 🎉 DEPYLER-0140 Phase 3b COMPLETE - All Statement Handlers Extracted (12/12) (2025-10-10)
 
 **Final phase of complexity refactoring complete - 12/12 handlers extracted (100% complete) 🎉**
