@@ -77,9 +77,9 @@ let _cse_temp_1 = a / b;
     return Ok(Some(_cse_temp_1));
    
 }
-#[doc = "Compute dot product with SIMD hints."] #[doc = " Depyler: proven to terminate"] pub fn dot_product<'a, 'b>(v1: & 'a Vec<f64>, v2: & 'b Vec<f64>)  -> Result<f64, IndexError>{
-    let mut result = 0;
-    for i in 0..(v1.len() as i32) {
+#[doc = "Compute dot product with SIMD hints."] #[doc = " Depyler: proven to terminate"] pub fn dot_product<'b, 'a>(v1: & 'a Vec<f64>, v2: & 'b Vec<f64>)  -> Result<f64, IndexError>{
+    let mut result = 0.0;
+    for i in 0..v1.len() as i32 {
     result = result + v1.get(i as usize).copied().unwrap_or_default() * v2.get(i as usize).copied().unwrap_or_default();
    
 }
