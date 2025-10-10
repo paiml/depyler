@@ -17,7 +17,7 @@ impl ZeroDivisionError {
 }
 #[doc = "\n    Binary search implementation with contracts.\n    \n    @requires items is not None\n    @requires all(items[i] <= items[i+1] for i in range(len(items)-1))\n    @ensures result>= -1\n    @ensures result<len(items)\n    @invariant low <= high\n    "] pub fn binary_search<'a>(items: & 'a Vec<i32>, target: i32)  -> Result<i32, Box<dyn std::error::Error>>{
     let mut low = 0;
-    let _cse_temp_0  = (items.len() as i32);
+    let _cse_temp_0 = items.len() as i32;
     let mut high = _cse_temp_0 - 1;
     while low <= high {
     let mid = low + high / 2;
