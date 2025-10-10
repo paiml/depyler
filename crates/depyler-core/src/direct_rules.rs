@@ -837,24 +837,11 @@ fn convert_unsupported_type(name: &str) -> Result<syn::Type> {
     Ok(parse_quote! { #ident })
 }
 
-fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
+/// Convert container types (Vec, HashMap, Option, Result, HashSet)
+#[inline]
+fn convert_container_type(rust_type: &RustType) -> Result<syn::Type> {
     use RustType::*;
     Ok(match rust_type {
-        // Simple types - delegate to helper
-        Unit | String | Custom(_) | TypeParam(_) | Enum { .. } => {
-            convert_simple_type(rust_type)?
-        }
-
-        // Primitive types - delegate to helper
-        Primitive(prim_type) => convert_primitive_type(prim_type)?,
-
-        // Lifetime types - delegate to helper
-        Str { .. } | Cow { .. } => convert_lifetime_type(rust_type)?,
-
-        // Unsupported types - delegate to helper
-        Unsupported(name) => convert_unsupported_type(name)?,
-
-        // Recursive container types
         Vec(inner) => {
             let inner_type = rust_type_to_syn_type(inner)?;
             parse_quote! { Vec<#inner_type> }
@@ -873,6 +860,19 @@ fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
             let err_type = rust_type_to_syn_type(err)?;
             parse_quote! { Result<#ok_type, #err_type> }
         }
+        HashSet(inner) => {
+            let inner_type = rust_type_to_syn_type(inner)?;
+            parse_quote! { HashSet<#inner_type> }
+        }
+        _ => unreachable!("convert_container_type called with non-container type"),
+    })
+}
+
+/// Convert complex recursive types (Tuple, Generic, Reference)
+#[inline]
+fn convert_complex_type(rust_type: &RustType) -> Result<syn::Type> {
+    use RustType::*;
+    Ok(match rust_type {
         Tuple(types) => {
             let type_tokens: anyhow::Result<std::vec::Vec<_>> =
                 types.iter().map(rust_type_to_syn_type).collect();
@@ -894,30 +894,66 @@ fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
                 parse_quote! { &#inner_type }
             }
         }
-        Array { element_type, size } => {
-            let element = rust_type_to_syn_type(element_type)?;
-            match size {
-                crate::type_mapper::RustConstGeneric::Literal(n) => {
-                    let size_lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
-                    parse_quote! { [#element; #size_lit] }
-                }
-                crate::type_mapper::RustConstGeneric::Parameter(name) => {
-                    let param_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-                    parse_quote! { [#element; #param_ident] }
-                }
-                crate::type_mapper::RustConstGeneric::Expression(expr) => {
-                    // For expressions, parse them as token streams
-                    let expr_tokens: proc_macro2::TokenStream = expr
-                        .parse()
-                        .unwrap_or_else(|_| "/* invalid const expression */".parse().unwrap());
-                    parse_quote! { [#element; #expr_tokens] }
-                }
+        _ => unreachable!("convert_complex_type called with non-complex type"),
+    })
+}
+
+/// Convert array types with const generic handling
+#[inline]
+fn convert_array_type(rust_type: &RustType) -> Result<syn::Type> {
+    use RustType::*;
+    if let Array { element_type, size } = rust_type {
+        let element = rust_type_to_syn_type(element_type)?;
+        Ok(match size {
+            crate::type_mapper::RustConstGeneric::Literal(n) => {
+                let size_lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
+                parse_quote! { [#element; #size_lit] }
             }
+            crate::type_mapper::RustConstGeneric::Parameter(name) => {
+                let param_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                parse_quote! { [#element; #param_ident] }
+            }
+            crate::type_mapper::RustConstGeneric::Expression(expr) => {
+                let expr_tokens: proc_macro2::TokenStream = expr
+                    .parse()
+                    .unwrap_or_else(|_| "/* invalid const expression */".parse().unwrap());
+                parse_quote! { [#element; #expr_tokens] }
+            }
+        })
+    } else {
+        unreachable!("convert_array_type called with non-array type")
+    }
+}
+
+fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
+    use RustType::*;
+    Ok(match rust_type {
+        // Simple types - delegate to helper
+        Unit | String | Custom(_) | TypeParam(_) | Enum { .. } => {
+            convert_simple_type(rust_type)?
         }
-        HashSet(inner) => {
-            let inner_type = rust_type_to_syn_type(inner)?;
-            parse_quote! { HashSet<#inner_type> }
+
+        // Primitive types - delegate to helper
+        Primitive(prim_type) => convert_primitive_type(prim_type)?,
+
+        // Lifetime types - delegate to helper
+        Str { .. } | Cow { .. } => convert_lifetime_type(rust_type)?,
+
+        // Unsupported types - delegate to helper
+        Unsupported(name) => convert_unsupported_type(name)?,
+
+        // Container types - delegate to helper
+        Vec(_) | HashMap(_, _) | Option(_) | Result(_, _) | HashSet(_) => {
+            convert_container_type(rust_type)?
         }
+
+        // Complex types - delegate to helper
+        Tuple(_) | Generic { .. } | Reference { .. } => {
+            convert_complex_type(rust_type)?
+        }
+
+        // Array types - delegate to helper
+        Array { .. } => convert_array_type(rust_type)?,
     })
 }
 
