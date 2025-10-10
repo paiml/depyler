@@ -4,6 +4,92 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.17.0 Phase 1 - Security Remediation (2025-10-10)
+
+**ZERO CRITICAL VULNERABILITIES 🎯**
+
+#### Security Fixes
+
+**CRITICAL**: Eliminated fast-float segmentation fault vulnerability
+
+- **RUSTSEC-2025-0003**: fast-float 0.2.0 - Segmentation fault due to lack of bound check
+  - **Impact**: Critical - Could cause segfaults in production
+  - **Path**: polars-io 0.35.4 → polars 0.35.4 → ruchy → depyler-ruchy
+  - **Fix**: Updated polars from 0.35.4 → 0.51.0 in depyler-ruchy
+  - **Result**: fast-float 0.2.0 completely removed from dependency tree ✅
+
+- **RUSTSEC-2024-0379**: fast-float soundness issues
+  - **Fix**: Same polars update (same dependency chain)
+  - **Result**: Fixed ✅
+
+#### Security Infrastructure
+
+**NEW: Cargo Deny Security Policy** (`deny.toml`)
+
+Created comprehensive security policy enforcement:
+- **Advisory checking**: Deny critical/high vulnerabilities
+- **License policy**: Enforce MIT, Apache-2.0, BSD-3-Clause, ISC, Unicode-DFS-2016, MPL-2.0
+- **Dependency sources**: Only allow crates.io registry
+- **Documented exceptions**: Low-risk unmaintained crates with mitigation plans
+  - `fxhash` (via sled→pmat): Hash function, stable, no known vulnerabilities
+  - `instant` (via parking_lot→sled): Time library, will migrate to web-time
+  - `paste` (proc-macro): Compile-time only, no runtime security risk
+
+**NEW: Security Documentation** (`SECURITY.md`)
+
+Comprehensive security documentation including:
+- Supported versions table (3.17.x, 3.16.x)
+- Current security status (zero critical vulnerabilities)
+- Fixed vulnerabilities with details
+- Documented warnings with risk assessment
+- Security tooling usage (cargo-audit, cargo-deny)
+- Update policy and best practices
+- CI integration recommendations
+- Future security work roadmap
+
+#### Dependency Updates
+
+**polars**: 0.35.4 → 0.51.0
+- Eliminated vulnerable fast-float dependency
+- Updated all polars-* subcrates (polars-io, polars-core, etc.)
+- Zero functional regressions
+
+#### Impact
+
+- **Critical vulnerabilities**: 1 → 0 ✅
+- **High vulnerabilities**: 1 → 0 ✅
+- **Security policy**: Automated enforcement via cargo-deny ✅
+- **All 697 tests passing** (zero regressions) ✅
+- **Cargo audit**: Clean (only documented low-risk warnings) ✅
+- **Cargo deny**: All checks passing ✅
+
+#### Testing
+
+```bash
+# Security validation
+cargo audit                           # ✅ No errors, 2 allowed warnings
+cargo deny check advisories          # ✅ advisories ok
+
+# Regression testing
+cargo test --workspace               # ✅ 697 tests passing
+cargo clippy --all-targets -- -D warnings  # ✅ Zero warnings
+```
+
+#### Files Modified
+
+- `crates/depyler-ruchy/Cargo.toml` - Updated polars dependency
+- `deny.toml` (NEW) - Security policy configuration
+- `SECURITY.md` (NEW) - Comprehensive security documentation
+- `Cargo.lock` - Updated dependency resolutions
+
+#### Next Steps (v3.17.0 Phase 2)
+
+- Replace unmaintained fxhash with rustc-hash or ahash
+- Evaluate instant replacement with web-time
+- Continue security monitoring via cargo-audit/deny in CI
+
+---
+
 ### v3.16.0 Phase 3 - Cow Import Optimization (2025-10-10)
 
 **UNUSED COW IMPORTS ELIMINATED 🎯**
