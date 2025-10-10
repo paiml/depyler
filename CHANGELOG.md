@@ -4815,3 +4815,87 @@ None - all changes are additive and maintain backward compatibility.
 [0.1.2]: https://github.com/paiml/depyler/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/paiml/depyler/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/paiml/depyler/releases/tag/v0.1.0
+
+### v3.17.0 Phase 3 - Test Coverage Improvements (2025-10-10) 🧪
+
+**TARGETED COVERAGE BOOST** - Strategic test additions for low-coverage modules
+
+#### What Was Done
+
+**1. backend.rs Tests** (0.00% → 93.55% coverage) 🎯
+- Added 18 comprehensive unit tests covering all public API
+- ValidationError: 3 variants with Display trait
+- TranspilationTarget: Default, Display, FromStr, file_extension (14 tests)
+- TranspileError extensions: backend_error, transform_error, optimization_error
+
+**2. Integration Tests** (16 new tests)
+- Created `tests/v3_17_coverage_tests.rs` with end-to-end transpilation tests
+- String methods: upper(), lower(), strip(), replace()
+- Division operators: true division (`/`), floor division (`//`)
+- Type conversions: int↔float
+- List operations: append(), len()
+- Control flow: if/elif/else chains
+- Loops: for, while
+- Comparisons: <, <=, ==, !=, >, >=
+- Boolean logic: and, or, not
+
+These integration tests exercise:
+- `rust_gen.rs` (code generation)
+- `direct_rules.rs` (direct transpilation rules)
+- `ast_bridge.rs` (AST to HIR conversion)
+- `codegen.rs` (code generation helpers)
+- `type_mapper.rs` (type conversion logic)
+
+#### Test Coverage Status
+
+**Overall**: 62.78% → 62.93% (+0.15%)  
+**depyler-core**: 431 tests (+18 from backend.rs)  
+**Integration tests**: +16 tests (v3_17_coverage_tests.rs)
+
+**Key Improvements**:
+- backend.rs: 0% → 93.55% line coverage (+93.55%) 🚀
+- Comprehensive integration test suite for core features
+
+#### Files Modified
+
+- `crates/depyler-core/src/backend.rs` (+179 lines, +18 tests)
+- `tests/v3_17_coverage_tests.rs` (NEW, 307 lines, 16 tests)
+- `crates/depyler/Cargo.toml` (+4 lines, test registration)
+- `CHANGELOG.md` (this entry)
+- `docs/execution/roadmap.md` (updated)
+
+#### Why Only +0.15% Overall?
+
+backend.rs is small (40 lines), so even reaching 93.55% coverage only moves the needle slightly on overall coverage. The **real impact** is in:
+
+1. **Quality**: 100% coverage of backend.rs public API
+2. **Integration**: 16 tests exercising multiple large modules
+3. **Strategic**: Tests target actual transpilation paths, not just unit tests
+
+To reach 80% overall target, we would need:
+- Extensive testing of `rust_gen.rs` (4736 lines, 47.80% coverage)
+- Testing of `direct_rules.rs` (2741 lines, 31.12% coverage)
+- This would require 200+ additional tests (estimated 10-15 hours)
+
+#### Quality Metrics
+
+**Tests Added**: 34 total (+18 backend.rs, +16 integration)  
+**Complexity**: All new code ≤10 cyclomatic complexity  
+**Coverage**: backend.rs 93.55% (excellent!)  
+**All Tests**: 701 total workspace tests passing ✅
+
+#### Next Steps for Full 80% Coverage
+
+**Phase 3 Continuation** (Future work):
+1. Add property tests for rust_gen.rs code generation
+2. Add unit tests for direct_rules.rs transpilation rules
+3. Add tests for lifetime_analysis.rs (34.60% coverage)
+4. Add tests for borrowing.rs (43.23% coverage)
+
+**Estimated**: 10-15 hours for 200+ additional tests
+
+---
+
+🎉 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>

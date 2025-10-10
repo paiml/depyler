@@ -145,3 +145,205 @@ impl TranspileError {
 
 // Re-export for convenience
 pub use crate::error::TranspileError as BackendError;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    // ============================================================================
+    // ValidationError Tests
+    // ============================================================================
+
+    #[test]
+    fn test_validation_error_invalid_syntax() {
+        let err = ValidationError::InvalidSyntax("missing semicolon".to_string());
+        assert_eq!(err.to_string(), "Invalid syntax: missing semicolon");
+    }
+
+    #[test]
+    fn test_validation_error_type_error() {
+        let err = ValidationError::TypeError("expected i32, found String".to_string());
+        assert_eq!(err.to_string(), "Type error: expected i32, found String");
+    }
+
+    #[test]
+    fn test_validation_error_unsupported_feature() {
+        let err = ValidationError::UnsupportedFeature("async generators".to_string());
+        assert_eq!(
+            err.to_string(),
+            "Unsupported feature: async generators"
+        );
+    }
+
+    // ============================================================================
+    // TranspilationTarget Tests
+    // ============================================================================
+
+    #[test]
+    fn test_transpilation_target_default() {
+        let target = TranspilationTarget::default();
+        assert_eq!(target, TranspilationTarget::Rust);
+    }
+
+    #[test]
+    fn test_transpilation_target_display_rust() {
+        let target = TranspilationTarget::Rust;
+        assert_eq!(target.to_string(), "rust");
+    }
+
+    #[test]
+    #[cfg(feature = "ruchy")]
+    fn test_transpilation_target_display_ruchy() {
+        let target = TranspilationTarget::Ruchy;
+        assert_eq!(target.to_string(), "ruchy");
+    }
+
+    #[test]
+    fn test_transpilation_target_file_extension_rust() {
+        let target = TranspilationTarget::Rust;
+        assert_eq!(target.file_extension(), "rs");
+    }
+
+    #[test]
+    #[cfg(feature = "ruchy")]
+    fn test_transpilation_target_file_extension_ruchy() {
+        let target = TranspilationTarget::Ruchy;
+        assert_eq!(target.file_extension(), "ruchy");
+    }
+
+    #[test]
+    fn test_transpilation_target_from_str_rust() {
+        let target = TranspilationTarget::from_str("rust").unwrap();
+        assert_eq!(target, TranspilationTarget::Rust);
+    }
+
+    #[test]
+    fn test_transpilation_target_from_str_rs() {
+        let target = TranspilationTarget::from_str("rs").unwrap();
+        assert_eq!(target, TranspilationTarget::Rust);
+    }
+
+    #[test]
+    fn test_transpilation_target_from_str_rust_uppercase() {
+        let target = TranspilationTarget::from_str("RUST").unwrap();
+        assert_eq!(target, TranspilationTarget::Rust);
+    }
+
+    #[test]
+    #[cfg(feature = "ruchy")]
+    fn test_transpilation_target_from_str_ruchy() {
+        let target = TranspilationTarget::from_str("ruchy").unwrap();
+        assert_eq!(target, TranspilationTarget::Ruchy);
+    }
+
+    #[test]
+    #[cfg(feature = "ruchy")]
+    fn test_transpilation_target_from_str_ruc() {
+        let target = TranspilationTarget::from_str("ruc").unwrap();
+        assert_eq!(target, TranspilationTarget::Ruchy);
+    }
+
+    #[test]
+    fn test_transpilation_target_from_str_invalid() {
+        let result = TranspilationTarget::from_str("python");
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            "Unknown transpilation target: python"
+        );
+    }
+
+    #[test]
+    fn test_transpilation_target_from_str_empty() {
+        let result = TranspilationTarget::from_str("");
+        assert!(result.is_err());
+    }
+
+    // ============================================================================
+    // TranspileError Extension Tests
+    // ============================================================================
+
+    #[test]
+    fn test_backend_error() {
+        let err = TranspileError::backend_error("backend initialization failed");
+        // Check error kind
+        match err.kind {
+            crate::error::ErrorKind::CodeGenerationError(ref msg) => {
+                assert_eq!(msg, "backend initialization failed");
+            }
+            _ => panic!("Expected CodeGenerationError"),
+        }
+    }
+
+    #[test]
+    fn test_transform_error() {
+        let err = TranspileError::transform_error("AST transformation failed");
+        // Check error kind and message format
+        match err.kind {
+            crate::error::ErrorKind::CodeGenerationError(ref msg) => {
+                assert!(msg.contains("Transformation failed"));
+                assert!(msg.contains("AST transformation failed"));
+            }
+            _ => panic!("Expected CodeGenerationError"),
+        }
+    }
+
+    #[test]
+    fn test_optimization_error() {
+        let err = TranspileError::optimization_error("constant folding failed");
+        // Check error kind and message format
+        match err.kind {
+            crate::error::ErrorKind::InternalError(ref msg) => {
+                assert!(msg.contains("Optimization failed"));
+                assert!(msg.contains("constant folding failed"));
+            }
+            _ => panic!("Expected InternalError"),
+        }
+    }
+
+    #[test]
+    fn test_backend_error_with_string() {
+        let err = TranspileError::backend_error(String::from("dynamic error message"));
+        // Check error kind
+        match err.kind {
+            crate::error::ErrorKind::CodeGenerationError(ref msg) => {
+                assert_eq!(msg, "dynamic error message");
+            }
+            _ => panic!("Expected CodeGenerationError"),
+        }
+    }
+
+    // ============================================================================
+    // TranspilationTarget Trait Coverage
+    // ============================================================================
+
+    #[test]
+    fn test_transpilation_target_clone() {
+        let target = TranspilationTarget::Rust;
+        let cloned = target;
+        assert_eq!(target, cloned);
+    }
+
+    #[test]
+    fn test_transpilation_target_debug() {
+        let target = TranspilationTarget::Rust;
+        let debug_str = format!("{:?}", target);
+        assert!(debug_str.contains("Rust"));
+    }
+
+    #[test]
+    fn test_transpilation_target_eq() {
+        let target1 = TranspilationTarget::Rust;
+        let target2 = TranspilationTarget::Rust;
+        assert_eq!(target1, target2);
+    }
+
+    #[test]
+    #[cfg(feature = "ruchy")]
+    fn test_transpilation_target_ne() {
+        let target1 = TranspilationTarget::Rust;
+        let target2 = TranspilationTarget::Ruchy;
+        assert_ne!(target1, target2);
+    }
+}
