@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔧 DEPYLER-0140 Phase 1 - Simple Statement Handlers Extracted (2025-10-10)
+
+**First phase of complexity refactoring complete - 4/12 handlers extracted**
+
+#### Changed
+- **Refactored `HirStmt::to_rust_tokens`**: Extracted 4 simple statement handlers
+  - `codegen_pass_stmt()` - Pass statement (no-op)
+  - `codegen_break_stmt(label)` - Break with optional label
+  - `codegen_continue_stmt(label)` - Continue with optional label
+  - `codegen_expr_stmt(expr, ctx)` - Expression statement
+- **Complexity Reduction**: Removed ~40 lines from main function
+- **Performance**: All helpers marked `#[inline]` for zero overhead
+
+#### Added
+- **6 New Unit Tests**: Comprehensive coverage for extracted handlers
+  - `test_codegen_pass_stmt` - Verifies empty token stream
+  - `test_codegen_break_stmt_simple` / `_with_label` - Break variants
+  - `test_codegen_continue_stmt_simple` / `_with_label` - Continue variants
+  - `test_codegen_expr_stmt` - Expression statements
+
+#### Quality Impact
+- Tests: 665 passing (+6 new), 0 failed ✅
+- Main function reduced from 2679 lines → 2639 lines
+- Match complexity reduced: 12 inline cases → 8 inline + 4 delegated
+- All extracted functions: ≤10 lines, complexity ≤3
+
 ### 🔍 Quality Assessment & Technical Debt Documentation (2025-10-10)
 
 **Comprehensive quality audit reveals critical technical debt requiring attention**
