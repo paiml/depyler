@@ -12,9 +12,9 @@ metadata:
   next_version: v3.14.0
 
 session_context:
-  achievement: "Generator expressions complete - zero-cost iterator abstractions with flat_map"
-  latest_work: "Implemented generator expressions (simple chains, special functions, nested flat_map) → v3.13.0 release"
-  next_focus: "Technical debt sprint - complexity refactoring"
+  achievement: "DEPYLER-0142 complete - 3/5 complexity hotspots eliminated (60% complete)"
+  latest_work: "Refactored convert_method_call: 290 → 24 lines, complexity 99 → ≤10"
+  next_focus: "Technical debt sprint - DEPYLER-0143 (rust_type_to_syn_type, complexity 73)"
 
 quality_metrics:
   date: 2025-10-10
@@ -31,14 +31,14 @@ quality_metrics:
     enforce_deny: true
     status: PASS
   complexity:
-    violations: 121
+    violations: 119
     median_cyclomatic: 4
-    max_cyclomatic: 99
-    max_cognitive: 142
+    max_cyclomatic: 63
+    max_cognitive: 107
     status: IMPROVED
     improvement:
-      violations_reduced: 4
-      max_reduced: 23
+      violations_reduced: 6
+      max_reduced: 36
   satd:
     violations: 19
     files_affected: 17
@@ -91,8 +91,8 @@ technical_debt_sprint:
 
   effort:
     total_hours: 300
-    estimated_remaining: 215
-    invested_hours: 85
+    estimated_remaining: 211
+    invested_hours: 89
 
   targets:
     max_cyclomatic_complexity: 10
@@ -101,8 +101,8 @@ technical_debt_sprint:
 
   progress:
     hotspots_total: 5
-    hotspots_complete: 2
-    completion_percent: 40.0
+    hotspots_complete: 3
+    completion_percent: 60.0
 
   completed_hotspots:
     - ticket_id: DEPYLER-0141
@@ -268,32 +268,76 @@ technical_debt_sprint:
         complexity_target_met: true
         performance_regression: false
 
-  next_hotspots:
     - ticket_id: DEPYLER-0142
       name: "Refactor ExpressionConverter::convert_method_call"
       file: "crates/depyler-core/src/rust_gen.rs"
-      line: 1
-      priority: P0
-      status: NEXT
+      line: 2402
+      status: COMPLETE
+      completed_date: 2025-10-10
 
-      metrics_current:
+      metrics_before:
         cyclomatic_complexity: 99
         cognitive_complexity: 180
+        lines: 290
 
-      targets:
-        max_cyclomatic_complexity: 10
-        max_cognitive_complexity: 10
+      metrics_after:
+        cyclomatic_complexity: 8
+        cognitive_complexity: 10
+        lines: 24
+
+      improvements:
+        lines_reduced: 266
+        lines_percent_reduced: 92.0
+        complexity_reduced: 91
+        complexity_percent_reduced: 92.0
+        target_achieved: true
 
       effort:
         estimated_hours: 50
-        realistic_hours: 6
+        actual_hours: 4
+        efficiency_percent: 92.0
 
       strategy:
-        pattern: "Method Dispatch Table + Handler Pattern"
-        steps:
-          - "Create MethodCallHandler trait"
-          - "Separate handler for each method category (string, list, dict, etc.)"
+        pattern: "Method Dispatch + Category Handler Pattern"
+        functions_created: 8
+        phases: 2
 
+      phases:
+        - phase: 1
+          description: "Preamble handlers"
+          functions:
+            - try_convert_classmethod
+            - try_convert_module_method
+        - phase: 2
+          description: "Category handlers + dispatcher"
+          functions:
+            - convert_list_method
+            - convert_dict_method
+            - convert_string_method
+            - convert_set_method
+            - convert_regex_method
+            - convert_instance_method
+
+      results:
+        - "All 21 method types organized into 6 category handlers + 2 preamble handlers"
+        - "Main function complexity reduced from 99 → ≤10 (no longer in top 5 violations)"
+        - "Main function size reduced 290 → 24 lines (-92%)"
+        - "393 tests maintained (100% pass rate)"
+        - "Zero performance regression (all helpers marked #[inline])"
+        - "Clippy zero warnings maintained"
+        - "Clean architecture: preamble → dispatcher → category handlers"
+
+      commits:
+        - f3a7b92
+        - 0c3d451
+
+      quality_gates:
+        tests_passing: true
+        clippy_passing: true
+        complexity_target_met: true
+        performance_regression: false
+
+  next_hotspots:
     - ticket_id: DEPYLER-0143
       name: "Refactor rust_type_to_syn_type"
       file: "crates/depyler-core/src/direct_rules.rs"
@@ -556,6 +600,18 @@ tools:
 # ============================================================================
 
 metrics_history:
+  - date: 2025-10-10
+    event: "DEPYLER-0142 Complete"
+    complexity:
+      violations: 119
+      median: 4
+      max: 63
+    tests:
+      passing: 393
+      total: 393
+    coverage:
+      status: TIMEOUT
+
   - date: 2025-10-10
     event: "DEPYLER-0141 Complete"
     complexity:
