@@ -30,7 +30,7 @@ web-sys = { version = "0.3", features = [
     "Window",
     "Document",
 ] }
-instant.workspace = true
+web-time.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
