@@ -4,6 +4,76 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.16.0 Phase 2 - Int/Float Division Semantics (2025-10-10)
+
+**PYTHON `/` NOW GENERATES FLOAT DIVISION 🎯**
+
+#### Problem Fixed
+
+Python's `/` operator always performs float division, even with integer operands. Rust's `/` performs integer division when both operands are integers. This caused type mismatches when the result should be float.
+
+**Example of Bug**:
+```python
+def safe_divide(a: int, b: int) -> Optional[float]:
+    return a / b  # Python: always returns float
+```
+
+**Before (WRONG)**:
+```rust
+pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, ...> {
+    let _cse_temp_1 = a / b;  // ERROR: i32/i32 = i32, expected f64
+    return Ok(Some(_cse_temp_1));
+}
+```
+
+**After (CORRECT)**:
+```rust
+pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, ...> {
+    let _cse_temp_1 = (a as f64) / (b as f64);  // ✅ Float division!
+    return Ok(Some(_cse_temp_1));
+}
+```
+
+#### Root Cause
+
+Binary operation codegen didn't analyze return type context. It always generated naive `a / b` without checking if the result should be float.
+
+#### Solution Implemented
+
+1. **Return Type Analysis** (rust_gen.rs:984-993)
+   - Added `return_type_expects_float()` helper function
+   - Recursively checks if type contains Float (handles Option<Float>, etc.)
+
+2. **Context-Aware Division** (rust_gen.rs:2086-2101)
+   - Check if `current_return_type` expects float
+   - If yes, cast both operands to f64 before dividing
+   - Python `/` semantics: Always float division when result is float
+   - Python `//` unchanged: Still generates integer floor division
+
+#### Impact
+
+- **annotated_example.rs**: `safe_divide()` error FIXED ✅
+- **Errors reduced**: 2 → 1 in annotated_example.rs (only fnv import remains)
+- **All 411 tests passing** (zero regressions) ✅
+- **Clippy**: Zero warnings ✅
+
+#### Testing
+- Added comprehensive test `test_int_float_division_semantics()`
+- Tests int/int → float (main bug)
+- Tests int//int → int (floor division - unchanged)
+- Tests float/float → float (works as-is)
+
+#### Files Modified
+- `crates/depyler-core/src/rust_gen.rs` (+30 lines)
+- `examples/showcase/annotated_example.rs` (regenerated)
+
+#### Remaining Work
+- **Phase 3**: Cow import optimization (2-3 hours)
+- **Status**: 5/6 showcase examples compile (only fnv import issue remains)
+- **Target**: 6/6 with 0 warnings
+
+---
+
 ### v3.16.0 Phase 1 - String Method Return Types (2025-10-10)
 
 **STRING TRANSFORMATION METHODS NOW RETURN OWNED STRING 🎯**
