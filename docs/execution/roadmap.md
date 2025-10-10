@@ -3,31 +3,32 @@
 ## 📝 **SESSION CONTEXT FOR RESUMPTION**
 
 **Last Active**: 2025-10-10
-**Current Version**: v3.14.0 (Correctness-Focused Release) 🎉
-**Status**: ✅ **v3.14.0 COMPLETE** + Phase 5 Validation + Security Hardening
-**Achievement**: All 5 phases complete + async/await & with statements validated
+**Current Version**: v3.15.0 (Type System Enhancements) 🎉
+**Status**: ✅ **v3.15.0 COMPLETE** - Strategic success with quality focus
+**Achievement**: +16.7% showcase compilation, critical bug fixed, transpiler limitations documented
 **Latest Work**:
-- ✅ v3.14.0 RELEASED (5/5 phases complete, 100%)
-- ✅ Phase 5 Validation: async/await & with statements working
-- ✅ Security fixes: instant → web-time, slab documented
-- ✅ Tests: 408 passing (408/408, 100%)
-- ✅ Showcase: 6/6 transpile, 4/6 compile cleanly
-**Next Focus**: v3.15.0 planning - Feature enhancements and remaining showcase fixes
+- ✅ v3.15.0 RELEASED (3/3 phases complete, 100%)
+- ✅ Phase 1: Float literal type inference FIXED
+- ✅ Phase 2: FnvHashMap added, transpiler analysis complete
+- ✅ Phase 3: Cow warning analyzed, release documented
+- ✅ Tests: 407 passing (maintained 100%)
+- ✅ Showcase: 5/6 compile (83%, up from 67%)
+**Next Focus**: v3.16.0 planning - Deep transpiler improvements (string returns, float division, Cow optimization)
 
 **📦 Recent Release Summary**:
+- ✅ v3.15.0 - Type System: Float literals fixed, FnvHashMap added, 5/6 compile (83%)
 - ✅ v3.14.0 - Correctness: PEP 585, augmented assignment, zero warnings (100%)
 - ✅ v3.13.0 - Generator Expressions: 20/20 tests (100% complete)
 - ✅ v3.12.0 - Generators: 34/34 tests (100% complete)
 - ✅ v3.11.0 - Exception Handling & sorted(): 100% complete
-- ✅ v3.10.0 - Lambda Collections & Ternary: 100% complete
 
-**📊 Quality Metrics** (2025-10-10 Post-v3.14.0):
-- **Tests**: 408 core passing (+15 from v3.13.0), 555 workspace total, 0 failed ✅
-- **Showcase**: 6/6 transpile (100%), 4/6 compile cleanly (67%)
+**📊 Quality Metrics** (2025-10-10 Post-v3.15.0):
+- **Tests**: 407 core passing, 555 workspace total, 0 failed ✅
+- **Showcase**: 5/6 compile cleanly (83%, **+16.7%** from v3.14.0) ✅
 - **Clippy**: Zero warnings with -D warnings ✅
 - **Security**: 1/2 critical issues fixed (instant → web-time), 1 documented (slab)
+- **Documentation**: 650+ lines added (analysis + release summary) ✅
 - **Complexity**: Top 5 hotspots RESOLVED ✅
-  - **DEPYLER-0140 COMPLETE**: HirStmt::to_rust_tokens: 129 → <10 ✅
   - **DEPYLER-0141 COMPLETE**: HirFunction::to_rust_tokens: 106 → 8 ✅
   - **DEPYLER-0142 COMPLETE**: convert_method_call: 99 → <10 ✅
   - **DEPYLER-0143 COMPLETE**: rust_type_to_syn_type: 73 → <10 ✅
