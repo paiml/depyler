@@ -78,6 +78,47 @@ fn test_extract_list_type() {
 }
 
 #[test]
+fn test_extract_lowercase_list_type_pep585() {
+    // PEP 585 - Python 3.9+ lowercase built-in generics
+    let expr = Expr::parse("list[int]", "<test>").unwrap();
+    let ty = TypeExtractor::extract_type(&expr).unwrap();
+    assert_eq!(ty, Type::List(Box::new(Type::Int)));
+
+    let expr2 = Expr::parse("list[str]", "<test>").unwrap();
+    let ty2 = TypeExtractor::extract_type(&expr2).unwrap();
+    assert_eq!(ty2, Type::List(Box::new(Type::String)));
+
+    // Nested lowercase list
+    let expr3 = Expr::parse("list[list[int]]", "<test>").unwrap();
+    let ty3 = TypeExtractor::extract_type(&expr3).unwrap();
+    assert_eq!(ty3, Type::List(Box::new(Type::List(Box::new(Type::Int)))));
+}
+
+#[test]
+fn test_extract_lowercase_dict_type_pep585() {
+    // PEP 585 - Python 3.9+ lowercase dict
+    let expr = Expr::parse("dict[str, int]", "<test>").unwrap();
+    let ty = TypeExtractor::extract_type(&expr).unwrap();
+    assert_eq!(ty, Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
+
+    let expr2 = Expr::parse("dict[int, float]", "<test>").unwrap();
+    let ty2 = TypeExtractor::extract_type(&expr2).unwrap();
+    assert_eq!(ty2, Type::Dict(Box::new(Type::Int), Box::new(Type::Float)));
+}
+
+#[test]
+fn test_extract_lowercase_set_type_pep585() {
+    // PEP 585 - Python 3.9+ lowercase set
+    let expr = Expr::parse("set[str]", "<test>").unwrap();
+    let ty = TypeExtractor::extract_type(&expr).unwrap();
+    assert_eq!(ty, Type::Set(Box::new(Type::String)));
+
+    let expr2 = Expr::parse("set[int]", "<test>").unwrap();
+    let ty2 = TypeExtractor::extract_type(&expr2).unwrap();
+    assert_eq!(ty2, Type::Set(Box::new(Type::Int)));
+}
+
+#[test]
 fn test_extract_dict_type() {
     let expr = Expr::parse("Dict[str, int]", "<test>").unwrap();
     let ty = TypeExtractor::extract_type(&expr).unwrap();
