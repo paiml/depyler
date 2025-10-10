@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔧 DEPYLER-0140 Phase 3a - If/For Handlers Extracted (10/12) (2025-10-10)
+
+**Third phase (partial) of complexity refactoring - 10/12 handlers extracted (83% complete)**
+
+#### Changed
+- **Refactored `HirStmt::to_rust_tokens`**: Extracted 2 additional complex handlers
+  - `codegen_if_stmt(condition, then_body, else_body, ctx)` - If/else conditionals (35 lines)
+  - `codegen_for_stmt(target, iter, body, ctx)` - For loops with iterators (32 lines)
+- **Complexity Reduction**: Removed ~67 more lines from main function
+- **Performance**: All helpers marked `#[inline]` for zero overhead
+
+#### Quality Impact
+- Tests: 384 passing (maintained), 0 failed ✅
+- Main function reduced from 2544 lines → 2477 lines (-67 lines)
+- Match complexity reduced: 12 inline cases → 2 inline + 10 delegated (83% extracted)
+- Progress: 10/12 handlers extracted, 2 most complex remaining (Assign, Try)
+
+#### Remaining Work (Phase 3b)
+- `HirStmt::Assign` - Variable/index/attribute/tuple assignment (~125 lines)
+- `HirStmt::Try` - Try/except/finally exception handling (~110 lines)
+
 ### 🔧 DEPYLER-0140 Phase 2 - Medium Statement Handlers Extracted (2025-10-10)
 
 **Second phase of complexity refactoring complete - 8/12 handlers extracted**

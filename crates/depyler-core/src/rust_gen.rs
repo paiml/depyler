@@ -1331,6 +1331,86 @@ fn codegen_with_stmt(
     }
 }
 
+// ============================================================================
+// Statement Code Generation Helpers (DEPYLER-0140 Phase 3)
+// Complex handlers extracted from HirStmt::to_rust_tokens
+// ============================================================================
+
+/// Generate code for If statement with optional else clause
+#[inline]
+fn codegen_if_stmt(
+    condition: &HirExpr,
+    then_body: &[HirStmt],
+    else_body: &Option<Vec<HirStmt>>,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let cond = condition.to_rust_expr(ctx)?;
+    ctx.enter_scope();
+    let then_stmts: Vec<_> = then_body
+        .iter()
+        .map(|s| s.to_rust_tokens(ctx))
+        .collect::<Result<Vec<_>>>()?;
+    ctx.exit_scope();
+
+    if let Some(else_stmts) = else_body {
+        ctx.enter_scope();
+        let else_tokens: Vec<_> = else_stmts
+            .iter()
+            .map(|s| s.to_rust_tokens(ctx))
+            .collect::<Result<Vec<_>>>()?;
+        ctx.exit_scope();
+        Ok(quote! {
+            if #cond {
+                #(#then_stmts)*
+            } else {
+                #(#else_tokens)*
+            }
+        })
+    } else {
+        Ok(quote! {
+            if #cond {
+                #(#then_stmts)*
+            }
+        })
+    }
+}
+
+/// Generate code for For loop statement
+#[inline]
+fn codegen_for_stmt(
+    target: &str,
+    iter: &HirExpr,
+    body: &[HirStmt],
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+    let mut iter_expr = iter.to_rust_expr(ctx)?;
+
+    // Check if we're iterating over a borrowed collection
+    // If iter is a simple variable that refers to a borrowed collection (e.g., &Vec<T>),
+    // we need to add .iter() to properly iterate over it
+    if let HirExpr::Var(_var_name) = iter {
+        // This is a simple heuristic: if the expression is just a variable name,
+        // it's likely a parameter or local var that might be borrowed
+        // The generated code already has the variable as borrowed (e.g., data: &Vec<T>)
+        // so we need to call .iter() on it
+        iter_expr = parse_quote! { #iter_expr.iter() };
+    }
+
+    ctx.enter_scope();
+    ctx.declare_var(target); // for loop variable is declared in the loop scope
+    let body_stmts: Vec<_> = body
+        .iter()
+        .map(|s| s.to_rust_tokens(ctx))
+        .collect::<Result<Vec<_>>>()?;
+    ctx.exit_scope();
+    Ok(quote! {
+        for #target_ident in #iter_expr {
+            #(#body_stmts)*
+        }
+    })
+}
+
 impl RustCodeGen for HirStmt {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         match self {
@@ -1464,66 +1544,9 @@ impl RustCodeGen for HirStmt {
                 condition,
                 then_body,
                 else_body,
-            } => {
-                let cond = condition.to_rust_expr(ctx)?;
-                ctx.enter_scope();
-                let then_stmts: Vec<_> = then_body
-                    .iter()
-                    .map(|s| s.to_rust_tokens(ctx))
-                    .collect::<Result<Vec<_>>>()?;
-                ctx.exit_scope();
-
-                if let Some(else_stmts) = else_body {
-                    ctx.enter_scope();
-                    let else_tokens: Vec<_> = else_stmts
-                        .iter()
-                        .map(|s| s.to_rust_tokens(ctx))
-                        .collect::<Result<Vec<_>>>()?;
-                    ctx.exit_scope();
-                    Ok(quote! {
-                        if #cond {
-                            #(#then_stmts)*
-                        } else {
-                            #(#else_tokens)*
-                        }
-                    })
-                } else {
-                    Ok(quote! {
-                        if #cond {
-                            #(#then_stmts)*
-                        }
-                    })
-                }
-            }
+            } => codegen_if_stmt(condition, then_body, else_body, ctx),
             HirStmt::While { condition, body } => codegen_while_stmt(condition, body, ctx),
-            HirStmt::For { target, iter, body } => {
-                let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
-                let mut iter_expr = iter.to_rust_expr(ctx)?;
-
-                // Check if we're iterating over a borrowed collection
-                // If iter is a simple variable that refers to a borrowed collection (e.g., &Vec<T>),
-                // we need to add .iter() to properly iterate over it
-                if let HirExpr::Var(_var_name) = iter {
-                    // This is a simple heuristic: if the expression is just a variable name,
-                    // it's likely a parameter or local var that might be borrowed
-                    // The generated code already has the variable as borrowed (e.g., data: &Vec<T>)
-                    // so we need to call .iter() on it
-                    iter_expr = parse_quote! { #iter_expr.iter() };
-                }
-
-                ctx.enter_scope();
-                ctx.declare_var(target); // for loop variable is declared in the loop scope
-                let body_stmts: Vec<_> = body
-                    .iter()
-                    .map(|s| s.to_rust_tokens(ctx))
-                    .collect::<Result<Vec<_>>>()?;
-                ctx.exit_scope();
-                Ok(quote! {
-                    for #target_ident in #iter_expr {
-                        #(#body_stmts)*
-                    }
-                })
-            }
+            HirStmt::For { target, iter, body } => codegen_for_stmt(target, iter, body, ctx),
             HirStmt::Expr(expr) => codegen_expr_stmt(expr, ctx),
             HirStmt::Raise {
                 exception,
