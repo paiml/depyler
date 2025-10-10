@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.15.0 Phase 2 - Dependency & Transpiler Analysis (2025-10-10)
+
+**DEPENDENCY FIX + TRANSPILER LIMITATIONS DOCUMENTED 📋**
+
+#### Actions Taken
+
+1. **Added FnvHashMap Support** ✅
+   - Added `fnv = "1.0.3"` to workspace dependencies
+   - Enables FNV hash optimization for annotated functions
+   - Resolves 1/3 errors in annotated_example.rs
+
+2. **Transpiler Limitations Identified** 📊
+   - **String Return Types**: Methods like `.upper()` return `String`, but transpiler generates `&str` return type
+   - **Int/Float Division**: Python `/` always returns float, Rust `/` does integer division for int operands
+   - Both require significant transpiler improvements (10-14 hours estimated)
+   - Documented in `docs/issues/phase2_analysis.md` for future work
+
+#### Current Status
+
+**Showcase Compilation**:
+- 5/6 examples compile cleanly (83%)
+- annotated_example.rs: 2 remaining errors (string return, float division) - **transpiler bugs**
+- classify_number.rs: 1 warning (unused Cow import) - **cosmetic**
+
+**Impact Assessment**:
+- fnv dependency: **Immediate benefit** for hash-heavy workloads
+- Transpiler fixes: **Deferred to v3.16.0** (requires deep changes)
+
+**Strategic Decision**:
+- Achieved 83% showcase compilation (up from 67%)
+- Remaining issues require upstream transpiler work
+- Better to document thoroughly than rush complex fixes
+
+#### Files Modified
+- `Cargo.toml` - Added fnv dependency
+- `docs/issues/phase2_analysis.md` - Comprehensive analysis of remaining errors
+
+#### Next Steps for v3.15.0
+- Document Phase 2 findings in roadmap
+- Create tickets for transpiler improvements (v3.16.0)
+- Consider alternative: manually fix annotated_example.rs to demonstrate best practices
+
+---
+
 ### v3.15.0 Phase 1 - Numeric Type Inference Fix (2025-10-10)
 
 **CRITICAL BUG FIX: Float literals now generate correct Rust code! 🎯**
