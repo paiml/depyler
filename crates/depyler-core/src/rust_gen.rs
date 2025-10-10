@@ -600,6 +600,99 @@ fn get_default_value_for_type(ty: &Type) -> proc_macro2::TokenStream {
     }
 }
 
+// ============================================================================
+// DEPYLER-0141 Phase 1: HirFunction Helper Functions
+// ============================================================================
+
+/// Generate combined generic parameters (<'a, 'b, T, U: Bound>)
+#[inline]
+fn codegen_generic_params(
+    type_params: &[crate::generic_inference::TypeParameter],
+    lifetime_params: &[String],
+) -> proc_macro2::TokenStream {
+    if type_params.is_empty() && lifetime_params.is_empty() {
+        return quote! {};
+    }
+
+    let mut all_params = Vec::new();
+
+    // Add lifetime parameters first
+    for lt in lifetime_params {
+        let lt_ident = syn::Lifetime::new(lt, proc_macro2::Span::call_site());
+        all_params.push(quote! { #lt_ident });
+    }
+
+    // Add type parameters with their bounds
+    for type_param in type_params {
+        let param_name = syn::Ident::new(&type_param.name, proc_macro2::Span::call_site());
+        if type_param.bounds.is_empty() {
+            all_params.push(quote! { #param_name });
+        } else {
+            let bounds: Vec<_> = type_param
+                .bounds
+                .iter()
+                .map(|b| {
+                    let bound: syn::Path =
+                        syn::parse_str(b).unwrap_or_else(|_| parse_quote! { Clone });
+                    quote! { #bound }
+                })
+                .collect();
+            all_params.push(quote! { #param_name: #(#bounds)+* });
+        }
+    }
+
+    quote! { <#(#all_params),*> }
+}
+
+/// Generate where clause for lifetime bounds (where 'a: 'b, 'c: 'd)
+#[inline]
+fn codegen_where_clause(lifetime_bounds: &[(String, String)]) -> proc_macro2::TokenStream {
+    if lifetime_bounds.is_empty() {
+        return quote! {};
+    }
+
+    let bounds: Vec<_> = lifetime_bounds
+        .iter()
+        .map(|(from, to)| {
+            let from_lt = syn::Lifetime::new(from, proc_macro2::Span::call_site());
+            let to_lt = syn::Lifetime::new(to, proc_macro2::Span::call_site());
+            quote! { #from_lt: #to_lt }
+        })
+        .collect();
+
+    quote! { where #(#bounds),* }
+}
+
+/// Generate function attributes (doc comments, panic-free, termination proofs)
+#[inline]
+fn codegen_function_attrs(
+    docstring: &Option<String>,
+    properties: &crate::hir::FunctionProperties,
+) -> Vec<proc_macro2::TokenStream> {
+    let mut attrs = vec![];
+
+    // Add docstring as documentation if present
+    if let Some(docstring) = docstring {
+        attrs.push(quote! {
+            #[doc = #docstring]
+        });
+    }
+
+    if properties.panic_free {
+        attrs.push(quote! {
+            #[doc = " Depyler: verified panic-free"]
+        });
+    }
+
+    if properties.always_terminates {
+        attrs.push(quote! {
+            #[doc = " Depyler: proven to terminate"]
+        });
+    }
+
+    attrs
+}
+
 impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         let name = syn::Ident::new(&self.name, proc_macro2::Span::call_site());
@@ -613,55 +706,10 @@ impl RustCodeGen for HirFunction {
         let lifetime_result = lifetime_inference.analyze_function(self, ctx.type_mapper);
 
         // Generate combined generic parameters (lifetimes + type params)
-        let generic_params = if type_params.is_empty() && lifetime_result.lifetime_params.is_empty()
-        {
-            quote! {}
-        } else {
-            let mut all_params = Vec::new();
-
-            // Add lifetime parameters first
-            for lt in &lifetime_result.lifetime_params {
-                let lt_ident = syn::Lifetime::new(lt, proc_macro2::Span::call_site());
-                all_params.push(quote! { #lt_ident });
-            }
-
-            // Add type parameters with their bounds
-            for type_param in &type_params {
-                let param_name = syn::Ident::new(&type_param.name, proc_macro2::Span::call_site());
-                if type_param.bounds.is_empty() {
-                    all_params.push(quote! { #param_name });
-                } else {
-                    let bounds: Vec<_> = type_param
-                        .bounds
-                        .iter()
-                        .map(|b| {
-                            let bound: syn::Path =
-                                syn::parse_str(b).unwrap_or_else(|_| parse_quote! { Clone });
-                            quote! { #bound }
-                        })
-                        .collect();
-                    all_params.push(quote! { #param_name: #(#bounds)+* });
-                }
-            }
-
-            quote! { <#(#all_params),*> }
-        };
+        let generic_params = codegen_generic_params(&type_params, &lifetime_result.lifetime_params);
 
         // Generate lifetime bounds
-        let where_clause = if lifetime_result.lifetime_bounds.is_empty() {
-            quote! {}
-        } else {
-            let bounds: Vec<_> = lifetime_result
-                .lifetime_bounds
-                .iter()
-                .map(|(from, to)| {
-                    let from_lt = syn::Lifetime::new(from, proc_macro2::Span::call_site());
-                    let to_lt = syn::Lifetime::new(to, proc_macro2::Span::call_site());
-                    quote! { #from_lt: #to_lt }
-                })
-                .collect();
-            quote! { where #(#bounds),* }
-        };
+        let where_clause = codegen_where_clause(&lifetime_result.lifetime_bounds);
 
         // Convert parameters using lifetime analysis results
         let params: Vec<_> = self
@@ -973,25 +1021,7 @@ impl RustCodeGen for HirFunction {
         ctx.current_return_type = None;
 
         // Add documentation
-        let mut attrs = vec![];
-
-        // Add docstring as documentation if present
-        if let Some(docstring) = &self.docstring {
-            attrs.push(quote! {
-                #[doc = #docstring]
-            });
-        }
-
-        if self.properties.panic_free {
-            attrs.push(quote! {
-                #[doc = " Depyler: verified panic-free"]
-            });
-        }
-        if self.properties.always_terminates {
-            attrs.push(quote! {
-                #[doc = " Depyler: proven to terminate"]
-            });
-        }
+        let attrs = codegen_function_attrs(&self.docstring, &self.properties);
 
         // Check if function is a generator (contains yield)
         let func_tokens = if self.properties.is_generator {
