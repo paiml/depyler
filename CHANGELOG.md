@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.18.0 Phase 2 - Extract Pure Functions (2025-10-10)
+
+**TRANSPILER MODULARIZATION - PHASE 2 COMPLETE** ✅
+
+Successfully extracted 3 standalone utility modules from rust_gen.rs as the first implementation phase of the modularization plan.
+
+**Modules Created**:
+- ✅ **format.rs** (~120 LOC, 4 tests) - Post-processing code formatter
+  - `format_rust_code()` - Applies 60+ string replacements for spacing/formatting
+  - Handles method calls, operators, generics, type annotations
+  - Test coverage: semicolons, method calls, generics, return types
+
+- ✅ **error_gen.rs** (~90 LOC) - Python error type generator
+  - `generate_error_type_definitions()` - Generates Rust error structs
+  - Supports ZeroDivisionError and IndexError
+  - Integration test coverage (no unit tests needed)
+
+- ✅ **type_gen.rs** (~350 LOC, 5 tests) - Type conversion utilities
+  - `rust_type_to_syn()` - Main type conversion (PUBLIC API)
+  - `convert_binop()` - Binary operator conversion
+  - `update_import_needs()` - Import tracking
+  - Helper functions: str_type_to_syn, reference_type_to_syn, array_type_to_syn
+  - Test coverage: primitives, strings, vecs, options, complex types
+
+**Impact**:
+- 🎯 **Reduced rust_gen.rs**: 4,927 LOC → 4,598 LOC (-329 LOC, -6.7%)
+- ✅ **Zero breaking changes**: Public API maintained via re-exports
+- ✅ **All tests passing**: 441 depyler-core tests + full workspace
+- ✅ **Zero clippy warnings**: Strict validation with `-D warnings`
+- 📦 **Module structure**: Created `src/rust_gen/` with 3 focused files
+
+**Next**: Phase 3 - Extract Context & Imports (context.rs, import_gen.rs)
+
+---
+
 ### v3.18.0 Planning (2025-10-10)
 
 **TRANSPILER MODULARIZATION PLANNING** 📋
