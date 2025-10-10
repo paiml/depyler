@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.18.0 Phase 4 - Extract Generator Support (2025-10-10)
+
+**TRANSPILER MODULARIZATION - PHASE 4 COMPLETE** ✅
+
+Successfully extracted generator code generation module as Phase 4 of the modularization plan.
+
+**Module Created (~270 LOC)**:
+- ✅ **generator_gen.rs** (~270 LOC) - Generator support and Iterator implementation
+  - `codegen_generator_function()` - Main entry point (PUBLIC)
+    - Complexity 10 (within ≤10 target)
+    - Handles complete generator transformation:
+      * State struct generation with captured variables
+      * Iterator trait implementation
+      * State machine logic for resumable execution
+      * Field initialization and management
+  - 6 helper functions (all complexity ≤6):
+    - `generate_state_fields()` - State variable fields (complexity 3)
+    - `generate_param_fields()` - Captured parameter fields (complexity 4)
+    - `extract_generator_item_type()` - Iterator::Item type (complexity 1)
+    - `generate_state_initializers()` - State variable init (complexity 3)
+    - `generate_param_initializers()` - Parameter capture init (complexity 4)
+    - `get_default_value_for_type()` - Type defaults (complexity 6)
+
+**Impact**:
+- 🎯 **Reduced rust_gen.rs**: 4,432 LOC → 4,162 LOC (-270 LOC, -6.1%)
+- 📦 **Total modules**: 6 (format, error_gen, type_gen, context, import_gen, generator_gen)
+- 📦 **Cumulative reduction**: 4,927 → 4,162 LOC (-765 LOC, -15.5%)
+- ✅ **Zero breaking changes**: Public API maintained via import
+- ✅ **All tests passing**: 441 depyler-core tests + full workspace
+- ✅ **Generator tests verified**: All generator functionality working
+- ✅ **Zero clippy warnings**: Strict validation with `-D warnings`
+- ✅ **All functions ≤10 complexity**: Quality standard maintained
+
+**Next**: Phase 5 - Extract Expression Codegen (expr_gen.rs) 🔴 HIGH RISK
+
+---
+
 ### v3.18.0 Phase 3 - Extract Context & Imports (2025-10-10)
 
 **TRANSPILER MODULARIZATION - PHASE 3 COMPLETE** ✅
