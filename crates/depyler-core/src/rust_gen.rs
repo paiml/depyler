@@ -8,169 +8,22 @@ use quote::{quote, ToTokens};
 use std::collections::HashSet;
 use syn::{self, parse_quote};
 
-// Module declarations for rust_gen refactoring (v3.18.0 Phase 2)
+// Module declarations for rust_gen refactoring (v3.18.0 Phases 2-3)
+mod context;
 mod error_gen;
 mod format;
+mod import_gen;
 mod type_gen;
 
-// Re-export for internal use
+// Internal imports
 use error_gen::generate_error_type_definitions;
 use format::format_rust_code;
+use import_gen::process_module_imports;
 use type_gen::{convert_binop, update_import_needs};
 
 // Public re-exports for external modules (union_enum_gen, etc.)
+pub use context::{CodeGenContext, RustCodeGen, ToRustExpr};
 pub use type_gen::rust_type_to_syn;
-
-/// Context for code generation including type mapping and configuration
-pub struct CodeGenContext<'a> {
-    pub type_mapper: &'a crate::type_mapper::TypeMapper,
-    pub annotation_aware_mapper: AnnotationAwareTypeMapper,
-    pub string_optimizer: StringOptimizer,
-    pub union_enum_generator: crate::union_enum_gen::UnionEnumGenerator,
-    pub generated_enums: Vec<proc_macro2::TokenStream>,
-    pub needs_hashmap: bool,
-    pub needs_hashset: bool,
-    pub needs_fnv_hashmap: bool,
-    pub needs_ahash_hashmap: bool,
-    pub needs_arc: bool,
-    pub needs_rc: bool,
-    pub needs_cow: bool,
-    pub declared_vars: Vec<HashSet<String>>,
-    pub current_function_can_fail: bool,
-    pub current_return_type: Option<Type>,
-    pub module_mapper: crate::module_mapper::ModuleMapper,
-    pub imported_modules: std::collections::HashMap<String, crate::module_mapper::ModuleMapping>,
-    pub imported_items: std::collections::HashMap<String, String>,
-    pub mutable_vars: HashSet<String>,
-    pub needs_zerodivisionerror: bool,
-    pub needs_indexerror: bool,
-    pub is_classmethod: bool,
-    pub in_generator: bool,
-    pub generator_state_vars: HashSet<String>,
-}
-
-impl<'a> CodeGenContext<'a> {
-    fn enter_scope(&mut self) {
-        self.declared_vars.push(HashSet::new());
-    }
-
-    fn exit_scope(&mut self) {
-        self.declared_vars.pop();
-    }
-
-    fn is_declared(&self, var_name: &str) -> bool {
-        self.declared_vars
-            .iter()
-            .any(|scope| scope.contains(var_name))
-    }
-
-    fn declare_var(&mut self, var_name: &str) {
-        if let Some(current_scope) = self.declared_vars.last_mut() {
-            current_scope.insert(var_name.to_string());
-        }
-    }
-
-    /// Process a Union type and generate an enum if needed
-    pub fn process_union_type(&mut self, types: &[crate::hir::Type]) -> String {
-        let (enum_name, enum_def) = self.union_enum_generator.generate_union_enum(types);
-        if !enum_def.is_empty() {
-            self.generated_enums.push(enum_def);
-        }
-        enum_name
-    }
-}
-
-/// Trait for converting HIR elements to Rust tokens
-pub trait RustCodeGen {
-    fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream>;
-}
-
-/// Process a whole module import (e.g., `import math`)
-///
-/// Adds the module mapping to imported_modules if found.
-/// Complexity: 2 (single if let)
-fn process_whole_module_import(
-    import: &Import,
-    module_mapper: &crate::module_mapper::ModuleMapper,
-    imported_modules: &mut std::collections::HashMap<String, crate::module_mapper::ModuleMapping>,
-) {
-    if let Some(mapping) = module_mapper.get_mapping(&import.module) {
-        imported_modules.insert(import.module.clone(), mapping.clone());
-    }
-}
-
-/// Process a single import item and add to imported_items
-///
-/// Handles special case for typing module (no full path).
-/// Complexity: 4 (if let + 2 if checks for typing/empty path)
-fn process_import_item(
-    import_module: &str,
-    item_name: &str,
-    import_key: &str, // Either name or alias
-    mapping: &crate::module_mapper::ModuleMapping,
-    imported_items: &mut std::collections::HashMap<String, String>,
-) {
-    if let Some(rust_name) = mapping.item_map.get(item_name) {
-        // Special handling for typing module
-        if import_module == "typing" && !rust_name.is_empty() {
-            // Types from typing module don't need full paths
-            imported_items.insert(import_key.to_string(), rust_name.clone());
-        } else if !mapping.rust_path.is_empty() {
-            imported_items.insert(
-                import_key.to_string(),
-                format!("{}::{}", mapping.rust_path, rust_name),
-            );
-        }
-    }
-}
-
-/// Process specific items import (e.g., `from typing import List, Dict`)
-///
-/// Handles both Named and Aliased import items.
-/// Complexity: 5 (if let + loop + match with 2 arms)
-fn process_specific_items_import(
-    import: &Import,
-    module_mapper: &crate::module_mapper::ModuleMapper,
-    imported_items: &mut std::collections::HashMap<String, String>,
-) {
-    if let Some(mapping) = module_mapper.get_mapping(&import.module) {
-        for item in &import.items {
-            match item {
-                ImportItem::Named(name) => {
-                    process_import_item(&import.module, name, name, mapping, imported_items);
-                }
-                ImportItem::Aliased { name, alias } => {
-                    process_import_item(&import.module, name, alias, mapping, imported_items);
-                }
-            }
-        }
-    }
-}
-
-/// Process module imports and populate import mappings
-///
-/// Extracts import processing logic from generate_rust_file.
-/// Complexity: 3 (loop + if/else) - Down from 15!
-fn process_module_imports(
-    imports: &[Import],
-    module_mapper: &crate::module_mapper::ModuleMapper,
-) -> (
-    std::collections::HashMap<String, crate::module_mapper::ModuleMapping>,
-    std::collections::HashMap<String, String>,
-) {
-    let mut imported_modules = std::collections::HashMap::new();
-    let mut imported_items = std::collections::HashMap::new();
-
-    for import in imports {
-        if import.items.is_empty() {
-            process_whole_module_import(import, module_mapper, &mut imported_modules);
-        } else {
-            process_specific_items_import(import, module_mapper, &mut imported_items);
-        }
-    }
-
-    (imported_modules, imported_items)
-}
 
 /// Analyze functions for string optimization
 ///
@@ -1903,11 +1756,6 @@ impl RustCodeGen for HirStmt {
             HirStmt::Pass => codegen_pass_stmt(),
         }
     }
-}
-
-/// Extension trait for converting expressions to Rust
-trait ToRustExpr {
-    fn to_rust_expr(&self, ctx: &mut CodeGenContext) -> Result<syn::Expr>;
 }
 
 /// Expression converter to reduce complexity
