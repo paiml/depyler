@@ -4,6 +4,128 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.16.0 Phase 3 - Cow Import Optimization (2025-10-10)
+
+**UNUSED COW IMPORTS ELIMINATED 🎯**
+
+#### Problem Fixed
+
+String optimizer was marking ALL returned string literals as needing `Cow<str>`, triggering the Cow import. However, code generation always used `.to_string()` (owned String), resulting in unused import warnings.
+
+**Example of Bug**:
+```python
+def classify_number(n: int) -> str:
+    if n == 0:
+        return "zero"
+    elif n > 0:
+        return "positive"
+    else:
+        return "negative"
+```
+
+**Before (GENERATES WARNING)**:
+```rust
+use std::borrow::Cow;  // ⚠️ WARNING: unused import
+
+pub fn classify_number(n: i32) -> String {
+    if n == 0 {
+        return "zero".to_string();  // Uses String, not Cow!
+    }
+    // ...
+}
+```
+
+**After (CLEAN)**:
+```rust
+// No Cow import ✅
+
+pub fn classify_number(n: i32) -> String {
+    if n == 0 {
+        return "zero".to_string();
+    }
+    // ...
+}
+```
+
+#### Root Cause
+
+**Location**: `crates/depyler-core/src/string_optimization.rs:65-66`
+
+The optimizer's `get_optimal_type()` logic was:
+```rust
+if self.returned_strings.contains(s) || self.mixed_usage_strings.contains(s) {
+    OptimalStringType::CowStr  // BUG: ALL returned strings marked as Cow
+}
+```
+
+This marked simple returned literals as needing Cow, but:
+1. Codegen in `rust_gen.rs` always generates `.to_string()` (owned String)
+2. Cow is never actually used
+3. Import is added but unused → warning
+
+**The Mismatch**: Optimizer suggests Cow, codegen uses String.
+
+#### Solution Implemented
+
+**Option A: Fix Optimizer Logic** (CHOSEN - Simplest and most correct)
+
+Changed `get_optimal_type()` to only suggest Cow for **true mixed usage** (returned AND borrowed elsewhere):
+
+```rust
+// v3.16.0 Phase 3: Only use Cow for TRUE mixed usage
+if self.mixed_usage_strings.contains(s) {
+    OptimalStringType::CowStr  // Only for returned AND borrowed elsewhere
+} else if self.returned_strings.contains(s) {
+    OptimalStringType::OwnedString  // Simple returns use owned String
+} else if self.is_read_only(s) {
+    OptimalStringType::StaticStr
+} else {
+    OptimalStringType::OwnedString
+}
+```
+
+**Rationale**:
+- Cow is for copy-on-write when you might borrow OR own
+- Simple returned strings are always owned → use `String` directly
+- Only use Cow when a string is both returned AND borrowed in other contexts
+
+#### Impact
+
+- **classify_number.rs**: Unused Cow import ELIMINATED ✅
+- **Zero warnings** in all generated code ✅
+- **All 697 tests passing** (zero regressions) ✅
+- **Clippy**: Zero warnings ✅
+- **String performance**: Unchanged (still optimal)
+
+#### Testing
+
+1. **Unit Test Updated**: `test_returned_string_needs_ownership()`
+   - Changed expectation from `CowStr` to `OwnedString`
+   - Updated comment to reflect v3.16.0 Phase 3 semantics
+
+2. **Integration Test**: Re-transpiled classify_number.py
+   - Verified no Cow import in generated code
+   - Verified zero warnings with `rustc --deny warnings`
+
+#### Files Modified
+
+- `crates/depyler-core/src/string_optimization.rs` (lines 65-76, test at 449-454)
+- `examples/showcase/classify_number.rs` (regenerated)
+
+#### v3.16.0 Status - ALL PHASES COMPLETE ✅
+
+**Phase 1**: String method return types ✅
+**Phase 2**: Int/float division semantics ✅
+**Phase 3**: Cow import optimization ✅
+
+**Final Results**:
+- **6/6 showcase examples compile** ✅
+- **Zero warnings** across all examples ✅
+- **All 697 tests passing** ✅
+- **Zero regressions** ✅
+
+---
+
 ### v3.16.0 Phase 2 - Int/Float Division Semantics (2025-10-10)
 
 **PYTHON `/` NOW GENERATES FLOAT DIVISION 🎯**
