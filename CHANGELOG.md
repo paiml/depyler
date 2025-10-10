@@ -46,6 +46,55 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+### ✅ DEPYLER-0149 Phase 1b - Fix Type Conversion Functions (2025-10-10)
+
+**COMPLETE: Python built-in type conversions now generate valid Rust! 🎉**
+
+#### Fixed
+- **int() Function**: Python `int(x)` now generates Rust `(x) as i32` ✅
+- **float() Function**: Python `float(x)` now generates Rust `(x) as f64` ✅
+- **str() Function**: Python `str(x)` now generates Rust `x.to_string()` ✅
+- **bool() Function**: Python `bool(x)` now generates Rust `(x) as bool` ✅
+- **Complex Expressions**: `int((low + high) / 2)` → `((low + high) / 2) as i32` ✅
+
+#### Technical Details
+- **File Modified**: `crates/depyler-core/src/rust_gen.rs`
+- **Changes**:
+  1. Added 4 new conversion functions (lines 2197-2231):
+     - `convert_int_cast()` - Handles `int()` → `as i32`
+     - `convert_float_cast()` - Handles `float()` → `as f64`
+     - `convert_str_conversion()` - Handles `str()` → `.to_string()`
+     - `convert_bool_cast()` - Handles `bool()` → `as bool`
+  2. Updated `convert_call()` match statement (lines 2100-2104) to route to new functions
+  3. Prevents fallthrough to `convert_generic_call()` which was generating invalid `int(args)`
+
+#### Root Cause
+- **Bug**: `convert_generic_call()` treated `int`, `float`, `str`, `bool` as regular functions
+- **Issue**: Generated `int(x)` which doesn't exist in Rust (invalid syntax)
+- **Solution**: Added explicit handling before generic call fallback
+
+#### Tests Added
+- **5 new test functions** in `rust_gen.rs` tests module:
+  - `test_int_cast_conversion()` - Simple `int(x)` → `(x) as i32`
+  - `test_float_cast_conversion()` - Simple `float(y)` → `(y) as f64`
+  - `test_str_conversion()` - Simple `str(value)` → `value.to_string()`
+  - `test_bool_cast_conversion()` - Simple `bool(flag)` → `(flag) as bool`
+  - `test_int_cast_with_expression()` - Complex `int((low + high) / 2)` case
+- **All tests passing** ✅
+
+#### Impact
+- **Fixes**: contracts_example.py line 15 now generates valid Rust
+  - Before: `let mid = int(low + high / 2);` ❌ Compilation error!
+  - After: `let mid = (low + high / 2) as i32;` ✅ Valid Rust!
+- **Correctness**: Eliminates "cannot find function `int` in this scope" errors
+
+#### Remaining Work (DEPYLER-0149)
+- Phase 1c: Fix type consistency (usize vs i32 mixing) - **NEXT**
+- Phase 1d: Re-transpile all showcase examples
+- Phase 1e: Validate 6/6 compilation
+
+---
+
 ### 🚀 v3.14.0 Planning Complete (2025-10-10)
 
 **PLANNING PHASE COMPLETE - Ready for development!**

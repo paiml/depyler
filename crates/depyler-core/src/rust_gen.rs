@@ -2097,6 +2097,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .collect::<Result<Vec<_>>>()?;
 
         match func {
+            // Python built-in type conversions → Rust casting
+            "int" => self.convert_int_cast(&arg_exprs),
+            "float" => self.convert_float_cast(&arg_exprs),
+            "str" => self.convert_str_conversion(&arg_exprs),
+            "bool" => self.convert_bool_cast(&arg_exprs),
+            // Other built-in functions
             "len" => self.convert_len_call(&arg_exprs),
             "range" => self.convert_range_call(&arg_exprs),
             "zeros" | "ones" | "full" => self.convert_array_init_call(func, args, &arg_exprs),
@@ -2186,6 +2192,42 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
         let arg = &args[0];
         Ok(parse_quote! { #arg.len() })
+    }
+
+    fn convert_int_cast(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() || args.len() > 2 {
+            bail!("int() requires 1-2 arguments");
+        }
+        let arg = &args[0];
+        // Python int() with single arg → Rust as i32 cast
+        // TODO: Handle base parameter for int(str, base) conversions
+        Ok(parse_quote! { (#arg) as i32 })
+    }
+
+    fn convert_float_cast(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("float() requires exactly one argument");
+        }
+        let arg = &args[0];
+        Ok(parse_quote! { (#arg) as f64 })
+    }
+
+    fn convert_str_conversion(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("str() requires exactly one argument");
+        }
+        let arg = &args[0];
+        Ok(parse_quote! { #arg.to_string() })
+    }
+
+    fn convert_bool_cast(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("bool() requires exactly one argument");
+        }
+        let arg = &args[0];
+        // In Python, bool(x) checks truthiness
+        // In Rust, we cast to bool or use appropriate conversion
+        Ok(parse_quote! { (#arg) as bool })
     }
 
     fn convert_range_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
@@ -4426,5 +4468,93 @@ mod tests {
         let result_str = result.to_string();
         assert!(result_str.contains("let _result"));
         assert!(result_str.contains("if let Err (_e) = _result"));
+    }
+
+    // Phase 1b tests - Type conversion functions (DEPYLER-0149)
+    #[test]
+    fn test_int_cast_conversion() {
+        // Python: int(x) → Rust: (x) as i32
+        let call_expr = HirExpr::Call {
+            func: "int".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+        };
+
+        let mut ctx = create_test_context();
+        let result = call_expr.to_rust_expr(&mut ctx).unwrap();
+        let code = quote! { #result }.to_string();
+
+        assert!(code.contains("as i32"), "Expected '(x) as i32', got: {}", code);
+    }
+
+    #[test]
+    fn test_float_cast_conversion() {
+        // Python: float(x) → Rust: (x) as f64
+        let call_expr = HirExpr::Call {
+            func: "float".to_string(),
+            args: vec![HirExpr::Var("y".to_string())],
+        };
+
+        let mut ctx = create_test_context();
+        let result = call_expr.to_rust_expr(&mut ctx).unwrap();
+        let code = quote! { #result }.to_string();
+
+        assert!(code.contains("as f64"), "Expected '(y) as f64', got: {}", code);
+    }
+
+    #[test]
+    fn test_str_conversion() {
+        // Python: str(x) → Rust: x.to_string()
+        let call_expr = HirExpr::Call {
+            func: "str".to_string(),
+            args: vec![HirExpr::Var("value".to_string())],
+        };
+
+        let mut ctx = create_test_context();
+        let result = call_expr.to_rust_expr(&mut ctx).unwrap();
+        let code = quote! { #result }.to_string();
+
+        assert!(code.contains("to_string"), "Expected 'value.to_string()', got: {}", code);
+    }
+
+    #[test]
+    fn test_bool_cast_conversion() {
+        // Python: bool(x) → Rust: (x) as bool
+        let call_expr = HirExpr::Call {
+            func: "bool".to_string(),
+            args: vec![HirExpr::Var("flag".to_string())],
+        };
+
+        let mut ctx = create_test_context();
+        let result = call_expr.to_rust_expr(&mut ctx).unwrap();
+        let code = quote! { #result }.to_string();
+
+        assert!(code.contains("as bool"), "Expected '(flag) as bool', got: {}", code);
+    }
+
+    #[test]
+    fn test_int_cast_with_expression() {
+        // Python: int((low + high) / 2) → Rust: ((low + high) / 2) as i32
+        let division = HirExpr::Binary {
+            op: BinOp::Div,
+            left: Box::new(HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("low".to_string())),
+                right: Box::new(HirExpr::Var("high".to_string())),
+            }),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+
+        let call_expr = HirExpr::Call {
+            func: "int".to_string(),
+            args: vec![division],
+        };
+
+        let mut ctx = create_test_context();
+        let result = call_expr.to_rust_expr(&mut ctx).unwrap();
+        let code = quote! { #result }.to_string();
+
+        assert!(code.contains("as i32"), "Expected cast to i32, got: {}", code);
+        assert!(code.contains("low"), "Expected 'low' variable, got: {}", code);
+        assert!(code.contains("high"), "Expected 'high' variable, got: {}", code);
     }
 }

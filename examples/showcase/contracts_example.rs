@@ -20,7 +20,7 @@ impl ZeroDivisionError {
     let _cse_temp_0 = items.len();
     let mut high = _cse_temp_0 - 1;
     while low <= high {
-    let mid = ((low + high) / 2) as i32;
+    let mid  = (low + high / 2) as i32;
     if items.get(mid as usize).copied().unwrap_or_default() == target {
     return Ok(mid);
    
@@ -45,10 +45,10 @@ return Ok(- 1);
    
 }
 #[doc = "\n    Sum all numbers in a list.\n    \n    @requires numbers is not None\n    @ensures result>= 0 if all(n>= 0 for n in numbers) else True\n    "] #[doc = " Depyler: verified panic-free"] pub fn list_sum<'a>(numbers: & 'a Vec<f64>)  -> f64 {
-    let mut total = 0.0;
+    let mut total = 0;
     for num in numbers.iter() {
     total = total + num;
-
+   
 }
 return total
 }
