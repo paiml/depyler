@@ -1822,6 +1822,45 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // Handle sum(generator_exp) → generator_exp.sum()
+        if func == "sum" && args.len() == 1
+            && matches!(args[0], HirExpr::GeneratorExp { .. }) {
+                let gen_expr = args[0].to_rust_expr(self.ctx)?;
+                return Ok(parse_quote! { #gen_expr.sum() });
+            }
+
+        // Handle max(generator_exp) → generator_exp.max()
+        if func == "max" && args.len() == 1
+            && matches!(args[0], HirExpr::GeneratorExp { .. }) {
+                let gen_expr = args[0].to_rust_expr(self.ctx)?;
+                return Ok(parse_quote! { #gen_expr.max() });
+            }
+
+        // Handle enumerate(items) → items.into_iter().enumerate()
+        if func == "enumerate" && args.len() == 1 {
+            let items_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { #items_expr.into_iter().enumerate() });
+        }
+
+        // Handle zip(a, b, ...) → a.iter().zip(b.iter()).zip(c.iter())...
+        if func == "zip" && args.len() >= 2 {
+            let arg_exprs: Vec<syn::Expr> = args
+                .iter()
+                .map(|arg| arg.to_rust_expr(self.ctx))
+                .collect::<Result<Vec<_>>>()?;
+
+            // Start with first.iter()
+            let first = &arg_exprs[0];
+            let mut chain: syn::Expr = parse_quote! { #first.iter() };
+
+            // Chain .zip() for each subsequent argument
+            for arg in &arg_exprs[1..] {
+                chain = parse_quote! { #chain.zip(#arg.iter()) };
+            }
+
+            return Ok(chain);
+        }
+
         let arg_exprs: Vec<syn::Expr> = args
             .iter()
             .map(|arg| arg.to_rust_expr(self.ctx))
