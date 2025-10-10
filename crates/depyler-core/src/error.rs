@@ -30,6 +30,13 @@ pub enum ErrorKind {
     #[error("Invalid type annotation")]
     InvalidTypeAnnotation(String),
 
+    #[error("Type mismatch")]
+    TypeMismatch {
+        expected: String,
+        found: String,
+        context: String,
+    },
+
     #[error("Code generation error")]
     CodeGenerationError(String),
 
@@ -85,18 +92,34 @@ impl fmt::Display for TranspileError {
         write!(f, "{}", self.kind)?;
 
         // Add location if available
+        self.format_location(f)?;
+
+        // Add context if available
+        self.format_context_list(f)?;
+
+        Ok(())
+    }
+}
+
+impl TranspileError {
+    /// Format location information if available
+    #[inline]
+    fn format_location(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(loc) = &self.location {
             write!(f, " at {loc}")?;
         }
+        Ok(())
+    }
 
-        // Add context if available
+    /// Format context list if not empty
+    #[inline]
+    fn format_context_list(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if !self.context.is_empty() {
             write!(f, "\n\nContext:")?;
             for (i, ctx) in self.context.iter().enumerate() {
                 write!(f, "\n  {}. {}", i + 1, ctx)?;
             }
         }
-
         Ok(())
     }
 }
@@ -106,6 +129,7 @@ pub type TranspileResult<T> = Result<T, TranspileError>;
 
 /// Extension trait for adding context to Results
 pub trait ResultExt<T> {
+    #[allow(clippy::result_large_err)]
     fn with_context(self, ctx: impl Into<String>) -> TranspileResult<T>;
 }
 

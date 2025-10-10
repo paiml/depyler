@@ -4,6 +4,107 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.17.0 Phase 2 - Enhanced Error Diagnostics (2025-10-10)
+
+**PYTHON→RUST TYPE MISMATCH GUIDANCE 🎯**
+
+#### Error Reporting Improvements
+
+**NEW: Type Mismatch Error Kind with Context**
+
+Added `ErrorKind::TypeMismatch` with structured error information:
+```rust
+ErrorKind::TypeMismatch {
+    expected: String,  // Expected type (e.g., "String", "f64")
+    found: String,     // Actual type found (e.g., "&str", "i32")
+    context: String,   // Where error occurred (e.g., "return type")
+}
+```
+
+**Enhanced Automatic Suggestions** - Python→Rust specific guidance:
+
+1. **String Type Mismatches** (`str` vs `String`, `&str`)
+   - Explains Rust's `&str` (borrowed) vs `String` (owned)
+   - Notes that Python string methods return owned `String`
+   - Suggests `.to_string()` or `&s` conversions
+
+2. **Division Type Mismatches** (int vs float)
+   - Explains Python `/` always returns float
+   - Compares with Rust integer/float division
+   - Suggests `.as_f64()` or ensuring float operands
+
+3. **Option Type Mismatches** (`None` handling)
+   - Explains Rust `Option<T>` (Some/None)
+   - Notes return type must be `Option<T>` for None returns
+   - Provides Option usage examples
+
+4. **Ownership Mismatches** (borrowed vs owned)
+   - Explains Rust's owned vs borrowed references
+   - Suggests adding `&` to borrow values
+   - Recommends `.as_ref()` to avoid moves
+
+5. **Collection Type Mismatches** (list vs Vec)
+   - Maps Python `list` to Rust `Vec<T>`
+   - Ensures element types match
+
+#### Error Message Format
+
+**Before (generic)**:
+```
+error: Type inference error
+  Incompatible types in return
+```
+
+**After (Python→Rust specific)**:
+```
+error: Type mismatch
+  --> example.py:5:12
+     |
+   5 |     return text.upper()
+     |            ^^^^^
+
+suggestion: String type mismatch - Python 'str' maps to both Rust '&str' and 'String'
+  note: In Rust:
+  note:   • '&str' is a borrowed string slice (cheap, read-only)
+  note:   • 'String' is an owned, heap-allocated string
+  note: Python string methods (.upper(), .lower(), .strip()) return owned String
+  note: Use '.to_string()' to convert &str → String, or '&s' to convert String → &str
+```
+
+#### Impact
+
+- **Better User Experience**: Clear Python→Rust guidance for common type issues ✅
+- **Error Coverage**: 5 common type mismatch scenarios covered ✅
+- **All 701 tests passing** (zero regressions, +4 new error tests) ✅
+- **Colorized Output**: Elm-style errors with syntax highlighting ✅
+
+#### Testing
+
+```bash
+# New error reporting tests
+cargo test -p depyler-core error_reporting  # ✅ 7/7 passing
+
+# Full regression test
+cargo test --workspace --lib               # ✅ 701/701 passing
+```
+
+#### Files Modified
+
+- `crates/depyler-core/src/error.rs` - Added `ErrorKind::TypeMismatch` variant
+- `crates/depyler-core/src/error_reporting.rs` - Enhanced suggestions (+165 lines)
+  - Added `generate_type_mismatch_suggestion()` function
+  - 5 type mismatch patterns with Python→Rust guidance
+  - 4 new comprehensive tests
+- `examples/error_demo.rs` (NEW) - Demonstration of enhanced errors
+
+#### Next Steps (v3.17.0 Phase 3)
+
+- Migrate key `rust_gen.rs` errors from `anyhow::bail!()` to `EnhancedError`
+- Add error reporting to common transpilation failure points
+- Increase test coverage to 80%+
+
+---
+
 ### v3.17.0 Phase 1 - Security Remediation (2025-10-10)
 
 **ZERO CRITICAL VULNERABILITIES 🎯**

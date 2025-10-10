@@ -52,6 +52,7 @@ pub enum ValidationError {
 /// Trait for different transpilation backends
 pub trait TranspilationBackend: Send + Sync {
     /// Transpile HIR to target language
+    #[allow(clippy::result_large_err)]
     fn transpile(&self, hir: &HirModule) -> Result<String, TranspileError>;
     
     /// Validate generated code
