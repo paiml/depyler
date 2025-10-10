@@ -730,6 +730,415 @@ fn codegen_function_body(
     Ok(body_stmts)
 }
 
+// ============================================================================
+// DEPYLER-0141 Phase 3: Complex Sections
+// ============================================================================
+
+// ========== Phase 3a: Parameter Conversion ==========
+
+/// Convert function parameters with lifetime and borrowing analysis
+#[inline]
+fn codegen_function_params(
+    func: &HirFunction,
+    lifetime_result: &crate::lifetime_analysis::LifetimeResult,
+    ctx: &mut CodeGenContext,
+) -> Result<Vec<proc_macro2::TokenStream>> {
+    func.params
+        .iter()
+        .map(|param| codegen_single_param(param, func, lifetime_result, ctx))
+        .collect()
+}
+
+/// Convert a single parameter with all borrowing strategies
+fn codegen_single_param(
+    param: &HirParam,
+    func: &HirFunction,
+    lifetime_result: &crate::lifetime_analysis::LifetimeResult,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let param_ident = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
+
+    // Check if parameter is mutated
+    let is_param_mutated = matches!(
+        lifetime_result.borrowing_strategies.get(&param.name),
+        Some(crate::borrowing_context::BorrowingStrategy::TakeOwnership)
+    ) && func.body.iter().any(
+        |stmt| matches!(stmt, HirStmt::Assign { target: AssignTarget::Symbol(s), .. } if s == &param.name),
+    );
+
+    // Get the inferred parameter info
+    if let Some(inferred) = lifetime_result.param_lifetimes.get(&param.name) {
+        let rust_type = &inferred.rust_type;
+
+        // Handle Union type placeholders
+        let actual_rust_type = if let crate::type_mapper::RustType::Enum { name, variants: _ } = rust_type {
+            if name == "UnionType" {
+                if let Type::Union(types) = &param.ty {
+                    let enum_name = ctx.process_union_type(types);
+                    crate::type_mapper::RustType::Custom(enum_name)
+                } else {
+                    rust_type.clone()
+                }
+            } else {
+                rust_type.clone()
+            }
+        } else {
+            rust_type.clone()
+        };
+
+        update_import_needs(ctx, &actual_rust_type);
+        let ty = apply_param_borrowing_strategy(
+            &param.name,
+            &actual_rust_type,
+            inferred,
+            lifetime_result,
+            ctx,
+        )?;
+
+        Ok(if is_param_mutated {
+            quote! { mut #param_ident: #ty }
+        } else {
+            quote! { #param_ident: #ty }
+        })
+    } else {
+        // Fallback to original mapping
+        let rust_type = ctx
+            .annotation_aware_mapper
+            .map_type_with_annotations(&param.ty, &func.annotations);
+        update_import_needs(ctx, &rust_type);
+        let ty = rust_type_to_syn(&rust_type)?;
+
+        Ok(if is_param_mutated {
+            quote! { mut #param_ident: #ty }
+        } else {
+            quote! { #param_ident: #ty }
+        })
+    }
+}
+
+/// Apply borrowing strategy to parameter type
+fn apply_param_borrowing_strategy(
+    param_name: &str,
+    rust_type: &crate::type_mapper::RustType,
+    inferred: &crate::lifetime_analysis::InferredParam,
+    lifetime_result: &crate::lifetime_analysis::LifetimeResult,
+    ctx: &mut CodeGenContext,
+) -> Result<syn::Type> {
+    let mut ty = rust_type_to_syn(rust_type)?;
+
+    // Check if we have a borrowing strategy
+    if let Some(strategy) = lifetime_result.borrowing_strategies.get(param_name) {
+        match strategy {
+            crate::borrowing_context::BorrowingStrategy::UseCow { lifetime } => {
+                ctx.needs_cow = true;
+                let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+                ty = parse_quote! { Cow<#lt, str> };
+            }
+            _ => {
+                // Apply normal borrowing if needed
+                if inferred.should_borrow {
+                    ty = apply_borrowing_to_type(ty, rust_type, inferred)?;
+                }
+            }
+        }
+    } else {
+        // Fallback to normal borrowing
+        if inferred.should_borrow {
+            ty = apply_borrowing_to_type(ty, rust_type, inferred)?;
+        }
+    }
+
+    Ok(ty)
+}
+
+/// Apply borrowing (&, &mut, with lifetime) to a type
+fn apply_borrowing_to_type(
+    mut ty: syn::Type,
+    rust_type: &crate::type_mapper::RustType,
+    inferred: &crate::lifetime_analysis::InferredParam,
+) -> Result<syn::Type> {
+    // Special case for strings: use &str instead of &String
+    if matches!(rust_type, crate::type_mapper::RustType::String) {
+        if let Some(ref lifetime) = inferred.lifetime {
+            let lt = syn::Lifetime::new(lifetime.as_str(), proc_macro2::Span::call_site());
+            ty = if inferred.needs_mut {
+                parse_quote! { &#lt mut str }
+            } else {
+                parse_quote! { &#lt str }
+            };
+        } else {
+            ty = if inferred.needs_mut {
+                parse_quote! { &mut str }
+            } else {
+                parse_quote! { &str }
+            };
+        }
+    } else {
+        // Non-string types
+        if let Some(ref lifetime) = inferred.lifetime {
+            let lt = syn::Lifetime::new(lifetime.as_str(), proc_macro2::Span::call_site());
+            ty = if inferred.needs_mut {
+                parse_quote! { &#lt mut #ty }
+            } else {
+                parse_quote! { &#lt #ty }
+            };
+        } else {
+            ty = if inferred.needs_mut {
+                parse_quote! { &mut #ty }
+            } else {
+                parse_quote! { &#ty }
+            };
+        }
+    }
+
+    Ok(ty)
+}
+
+// ========== Phase 3b: Return Type Generation ==========
+
+/// Generate return type with Result wrapper and lifetime handling
+#[inline]
+fn codegen_return_type(
+    func: &HirFunction,
+    lifetime_result: &crate::lifetime_analysis::LifetimeResult,
+    ctx: &mut CodeGenContext,
+) -> Result<(proc_macro2::TokenStream, crate::type_mapper::RustType, bool)> {
+    // Convert return type using annotation-aware mapping
+    let mapped_ret_type = ctx
+        .annotation_aware_mapper
+        .map_return_type_with_annotations(&func.ret_type, &func.annotations);
+
+    // Check if this is a placeholder Union enum that needs proper generation
+    let rust_ret_type =
+        if let crate::type_mapper::RustType::Enum { name, .. } = &mapped_ret_type {
+            if name == "UnionType" {
+                // Generate a proper enum name and definition from the original Union type
+                if let Type::Union(types) = &func.ret_type {
+                    let enum_name = ctx.process_union_type(types);
+                    crate::type_mapper::RustType::Custom(enum_name)
+                } else {
+                    mapped_ret_type
+                }
+            } else {
+                mapped_ret_type
+            }
+        } else {
+            mapped_ret_type
+        };
+
+    // Update import needs based on return type
+    update_import_needs(ctx, &rust_ret_type);
+
+    // Check if function can fail and needs Result wrapper
+    let can_fail = func.properties.can_fail;
+    let error_type_str = if can_fail && !func.properties.error_types.is_empty() {
+        // Use first error type or generic for mixed types
+        if func.properties.error_types.len() == 1 {
+            func.properties.error_types[0].clone()
+        } else {
+            "Box<dyn std::error::Error>".to_string()
+        }
+    } else {
+        "Box<dyn std::error::Error>".to_string()
+    };
+
+    // Mark error types as needed for type generation
+    if error_type_str.contains("ZeroDivisionError") {
+        ctx.needs_zerodivisionerror = true;
+    }
+    if error_type_str.contains("IndexError") {
+        ctx.needs_indexerror = true;
+    }
+
+    let return_type = if matches!(rust_ret_type, crate::type_mapper::RustType::Unit) {
+        if can_fail {
+            let error_type: syn::Type = syn::parse_str(&error_type_str)
+                .unwrap_or_else(|_| parse_quote! { Box<dyn std::error::Error> });
+            quote! { -> Result<(), #error_type> }
+        } else {
+            quote! {}
+        }
+    } else {
+        let mut ty = rust_type_to_syn(&rust_ret_type)?;
+
+        // Check if any parameter escapes through return and uses Cow
+        let mut uses_cow_return = false;
+        for param in &func.params {
+            if let Some(strategy) = lifetime_result.borrowing_strategies.get(&param.name) {
+                if matches!(
+                    strategy,
+                    crate::borrowing_context::BorrowingStrategy::UseCow { .. }
+                ) {
+                    if let Some(_usage) = lifetime_result.param_lifetimes.get(&param.name) {
+                        // If a Cow parameter escapes, return type should also be Cow
+                        if matches!(func.ret_type, crate::hir::Type::String) {
+                            uses_cow_return = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if uses_cow_return {
+            // Use the same Cow type for return
+            ctx.needs_cow = true;
+            if let Some(ref return_lt) = lifetime_result.return_lifetime {
+                let lt = syn::Lifetime::new(return_lt.as_str(), proc_macro2::Span::call_site());
+                ty = parse_quote! { Cow<#lt, str> };
+            } else {
+                ty = parse_quote! { Cow<'static, str> };
+            }
+        } else {
+            // Apply return lifetime if needed
+            if let Some(ref return_lt) = lifetime_result.return_lifetime {
+                // Check if the return type needs lifetime substitution
+                if matches!(
+                    rust_ret_type,
+                    crate::type_mapper::RustType::Str { .. }
+                        | crate::type_mapper::RustType::Reference { .. }
+                ) {
+                    let lt = syn::Lifetime::new(return_lt.as_str(), proc_macro2::Span::call_site());
+                    match &rust_ret_type {
+                        crate::type_mapper::RustType::Str { .. } => {
+                            ty = parse_quote! { &#lt str };
+                        }
+                        crate::type_mapper::RustType::Reference { mutable, inner, .. } => {
+                            let inner_ty = rust_type_to_syn(inner)?;
+                            ty = if *mutable {
+                                parse_quote! { &#lt mut #inner_ty }
+                            } else {
+                                parse_quote! { &#lt #inner_ty }
+                            };
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        if can_fail {
+            let error_type: syn::Type = syn::parse_str(&error_type_str)
+                .unwrap_or_else(|_| parse_quote! { Box<dyn std::error::Error> });
+            quote! { -> Result<#ty, #error_type> }
+        } else {
+            quote! { -> #ty }
+        }
+    };
+
+    Ok((return_type, rust_ret_type, can_fail))
+}
+
+// ========== Phase 3c: Generator Implementation ==========
+
+/// Generate complete generator function with state struct and Iterator impl
+#[inline]
+#[allow(clippy::too_many_arguments)] // Generator needs all metadata for complex transformation
+fn codegen_generator_function(
+    func: &HirFunction,
+    name: &syn::Ident,
+    generic_params: &proc_macro2::TokenStream,
+    where_clause: &proc_macro2::TokenStream,
+    params: &[proc_macro2::TokenStream],
+    attrs: &[proc_macro2::TokenStream],
+    rust_ret_type: &crate::type_mapper::RustType,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    // Analyze generator state requirements
+    let state_info = GeneratorStateInfo::analyze(func);
+
+    // Generate state struct name (capitalize function name)
+    let state_struct_name = format!(
+        "{}State",
+        name.to_string()
+            .chars()
+            .next()
+            .map(|c| c.to_uppercase().to_string())
+            .unwrap_or_default()
+            + &name.to_string()[1..]
+    );
+    let state_ident = syn::Ident::new(&state_struct_name, name.span());
+
+    // Build state struct fields from analysis (for struct definition)
+    let state_fields = generate_state_fields(&state_info, ctx)?;
+    let param_fields = generate_param_fields(func, &state_info, ctx)?;
+    let all_fields = [state_fields, param_fields].concat();
+
+    // Build field initializers (for struct construction)
+    let state_inits = generate_state_initializers(&state_info);
+    let param_inits = generate_param_initializers(func, &state_info);
+    let all_inits = [state_inits, param_inits].concat();
+
+    // Generate state machine field (tracks which yield point we're at)
+    let state_machine_field = quote! {
+        state: usize
+    };
+
+    // Extract yield value type from return type
+    let item_type = extract_generator_item_type(rust_ret_type)?;
+
+    // Populate generator state variables for scoping
+    ctx.generator_state_vars.clear();
+    for var in &state_info.state_variables {
+        ctx.generator_state_vars.insert(var.name.clone());
+    }
+    for param in &state_info.captured_params {
+        ctx.generator_state_vars.insert(param.clone());
+    }
+
+    // Generate body statements with in_generator flag set
+    ctx.in_generator = true;
+    let generator_body_stmts: Vec<_> = func
+        .body
+        .iter()
+        .map(|stmt| stmt.to_rust_tokens(ctx))
+        .collect::<Result<Vec<_>>>()?;
+    ctx.in_generator = false;
+    ctx.generator_state_vars.clear();
+
+    // Generate the complete generator implementation
+    Ok(quote! {
+        #(#attrs)*
+        #[doc = " Generator state struct"]
+        #[derive(Debug)]
+        struct #state_ident {
+            #state_machine_field,
+            #(#all_fields),*
+        }
+
+        #[doc = " Generator function - returns Iterator"]
+        pub fn #name #generic_params(#(#params),*) -> impl Iterator<Item = #item_type> #where_clause {
+            #state_ident {
+                state: 0,
+                #(#all_inits),*
+            }
+        }
+
+        impl Iterator for #state_ident {
+            type Item = #item_type;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                // NOTE: State machine transformation not yet implemented
+                // Current limitation: yield statements become immediate returns,
+                // causing loops to exit early. Proper implementation requires
+                // transforming control flow into resumable state machine.
+                //
+                // See DEPYLER-0115 Phase 3 for full state machine transformation
+                match self.state {
+                    0 => {
+                        self.state = 1;
+                        // KNOWN ISSUE: Direct body execution causes unreachable code
+                        // after yield/return statements. Needs state splitting.
+                        #(#generator_body_stmts)*
+                        None
+                    }
+                    _ => None
+                }
+            }
+        }
+    })
+}
+
 impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         let name = syn::Ident::new(&self.name, proc_macro2::Span::call_site());
@@ -749,291 +1158,10 @@ impl RustCodeGen for HirFunction {
         let where_clause = codegen_where_clause(&lifetime_result.lifetime_bounds);
 
         // Convert parameters using lifetime analysis results
-        let params: Vec<_> = self
-            .params
-            .iter()
-            .map(|param| {
-                let param_ident = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
+        let params = codegen_function_params(self, &lifetime_result, ctx)?;
 
-                // Check if parameter is mutated
-                let is_param_mutated = matches!(
-                    lifetime_result.borrowing_strategies.get(&param.name),
-                    Some(crate::borrowing_context::BorrowingStrategy::TakeOwnership)
-                ) && self.body.iter().any(
-                    |stmt| matches!(stmt, HirStmt::Assign { target: AssignTarget::Symbol(s), .. } if s == &param.name),
-                );
-
-                // Get the inferred parameter info
-                if let Some(inferred) = lifetime_result.param_lifetimes.get(&param.name) {
-                    let rust_type = &inferred.rust_type;
-
-                    // Check if this is a placeholder Union enum that needs proper generation
-                    let actual_rust_type =
-                        if let crate::type_mapper::RustType::Enum { name, variants: _ } = rust_type
-                        {
-                            if name == "UnionType" {
-                                // Generate a proper enum name and definition from the original Union type
-                                if let Type::Union(types) = &param.ty {
-                                    let enum_name = ctx.process_union_type(types);
-                                    crate::type_mapper::RustType::Custom(enum_name)
-                                } else {
-                                    rust_type.clone()
-                                }
-                            } else {
-                                rust_type.clone()
-                            }
-                        } else {
-                            rust_type.clone()
-                        };
-
-                    update_import_needs(ctx, &actual_rust_type);
-                    let mut ty = rust_type_to_syn(&actual_rust_type)?;
-
-                    // Check if we're dealing with a string that should use Cow
-                    if let Some(strategy) = lifetime_result.borrowing_strategies.get(&param.name) {
-                        match strategy {
-                            crate::borrowing_context::BorrowingStrategy::UseCow { lifetime } => {
-                                ctx.needs_cow = true;
-                                let lt =
-                                    syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
-                                ty = parse_quote! { Cow<#lt, str> };
-                            }
-                            _ => {
-                                // Apply normal borrowing if needed
-                                if inferred.should_borrow {
-                                    // Special case for strings: use &str instead of &String
-                                    if matches!(rust_type, crate::type_mapper::RustType::String) {
-                                        if let Some(ref lifetime) = inferred.lifetime {
-                                            let lt = syn::Lifetime::new(
-                                                lifetime,
-                                                proc_macro2::Span::call_site(),
-                                            );
-                                            ty = if inferred.needs_mut {
-                                                parse_quote! { &#lt mut str }
-                                            } else {
-                                                parse_quote! { &#lt str }
-                                            };
-                                        } else {
-                                            ty = if inferred.needs_mut {
-                                                parse_quote! { &mut str }
-                                            } else {
-                                                parse_quote! { &str }
-                                            };
-                                        }
-                                    } else {
-                                        // Non-string types
-                                        if let Some(ref lifetime) = inferred.lifetime {
-                                            let lt = syn::Lifetime::new(
-                                                lifetime,
-                                                proc_macro2::Span::call_site(),
-                                            );
-                                            ty = if inferred.needs_mut {
-                                                parse_quote! { &#lt mut #ty }
-                                            } else {
-                                                parse_quote! { &#lt #ty }
-                                            };
-                                        } else {
-                                            ty = if inferred.needs_mut {
-                                                parse_quote! { &mut #ty }
-                                            } else {
-                                                parse_quote! { &#ty }
-                                            };
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // Fallback to normal borrowing
-                        if inferred.should_borrow {
-                            // Special case for strings: use &str instead of &String
-                            if matches!(rust_type, crate::type_mapper::RustType::String) {
-                                if let Some(ref lifetime) = inferred.lifetime {
-                                    let lt = syn::Lifetime::new(
-                                        lifetime,
-                                        proc_macro2::Span::call_site(),
-                                    );
-                                    ty = if inferred.needs_mut {
-                                        parse_quote! { &#lt mut str }
-                                    } else {
-                                        parse_quote! { &#lt str }
-                                    };
-                                } else {
-                                    ty = if inferred.needs_mut {
-                                        parse_quote! { &mut str }
-                                    } else {
-                                        parse_quote! { &str }
-                                    };
-                                }
-                            } else {
-                                // Non-string types
-                                if let Some(ref lifetime) = inferred.lifetime {
-                                    let lt = syn::Lifetime::new(
-                                        lifetime,
-                                        proc_macro2::Span::call_site(),
-                                    );
-                                    ty = if inferred.needs_mut {
-                                        parse_quote! { &#lt mut #ty }
-                                    } else {
-                                        parse_quote! { &#lt #ty }
-                                    };
-                                } else {
-                                    ty = if inferred.needs_mut {
-                                        parse_quote! { &mut #ty }
-                                    } else {
-                                        parse_quote! { &#ty }
-                                    };
-                                }
-                            }
-                        }
-                    }
-
-                    if is_param_mutated {
-                        Ok(quote! { mut #param_ident: #ty })
-                    } else {
-                        Ok(quote! { #param_ident: #ty })
-                    }
-                } else {
-                    // Fallback to original mapping
-                    let rust_type = ctx
-                        .annotation_aware_mapper
-                        .map_type_with_annotations(&param.ty, &self.annotations);
-                    update_import_needs(ctx, &rust_type);
-                    let ty = rust_type_to_syn(&rust_type)?;
-                    if is_param_mutated {
-                        Ok(quote! { mut #param_ident: #ty })
-                    } else {
-                        Ok(quote! { #param_ident: #ty })
-                    }
-                }
-            })
-            .collect::<Result<Vec<_>>>()?;
-
-        // Convert return type using annotation-aware mapping
-        let mapped_ret_type = ctx
-            .annotation_aware_mapper
-            .map_return_type_with_annotations(&self.ret_type, &self.annotations);
-
-        // Check if this is a placeholder Union enum that needs proper generation
-        let rust_ret_type =
-            if let crate::type_mapper::RustType::Enum { name, .. } = &mapped_ret_type {
-                if name == "UnionType" {
-                    // Generate a proper enum name and definition from the original Union type
-                    if let Type::Union(types) = &self.ret_type {
-                        let enum_name = ctx.process_union_type(types);
-                        crate::type_mapper::RustType::Custom(enum_name)
-                    } else {
-                        mapped_ret_type
-                    }
-                } else {
-                    mapped_ret_type
-                }
-            } else {
-                mapped_ret_type
-            };
-
-        // Update import needs based on return type
-        update_import_needs(ctx, &rust_ret_type);
-
-        // Clone rust_ret_type for generator use (before any partial moves)
-        let rust_ret_type_for_generator = rust_ret_type.clone();
-
-        // Check if function can fail and needs Result wrapper
-        let can_fail = self.properties.can_fail;
-        let error_type_str = if can_fail && !self.properties.error_types.is_empty() {
-            // Use first error type or generic for mixed types
-            if self.properties.error_types.len() == 1 {
-                self.properties.error_types[0].clone()
-            } else {
-                "Box<dyn std::error::Error>".to_string()
-            }
-        } else {
-            "Box<dyn std::error::Error>".to_string()
-        };
-
-        // Mark error types as needed for type generation
-        if error_type_str.contains("ZeroDivisionError") {
-            ctx.needs_zerodivisionerror = true;
-        }
-        if error_type_str.contains("IndexError") {
-            ctx.needs_indexerror = true;
-        }
-
-        let return_type = if matches!(rust_ret_type, crate::type_mapper::RustType::Unit) {
-            if can_fail {
-                let error_type: syn::Type = syn::parse_str(&error_type_str)
-                    .unwrap_or_else(|_| parse_quote! { Box<dyn std::error::Error> });
-                quote! { -> Result<(), #error_type> }
-            } else {
-                quote! {}
-            }
-        } else {
-            let mut ty = rust_type_to_syn(&rust_ret_type)?;
-
-            // Check if any parameter escapes through return and uses Cow
-            let mut uses_cow_return = false;
-            for param in &self.params {
-                if let Some(strategy) = lifetime_result.borrowing_strategies.get(&param.name) {
-                    if matches!(
-                        strategy,
-                        crate::borrowing_context::BorrowingStrategy::UseCow { .. }
-                    ) {
-                        if let Some(_usage) = lifetime_result.param_lifetimes.get(&param.name) {
-                            // If a Cow parameter escapes, return type should also be Cow
-                            if matches!(self.ret_type, crate::hir::Type::String) {
-                                uses_cow_return = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if uses_cow_return {
-                // Use the same Cow type for return
-                ctx.needs_cow = true;
-                if let Some(ref return_lt) = lifetime_result.return_lifetime {
-                    let lt = syn::Lifetime::new(return_lt, proc_macro2::Span::call_site());
-                    ty = parse_quote! { Cow<#lt, str> };
-                } else {
-                    ty = parse_quote! { Cow<'static, str> };
-                }
-            } else {
-                // Apply return lifetime if needed
-                if let Some(ref return_lt) = lifetime_result.return_lifetime {
-                    // Check if the return type needs lifetime substitution
-                    if matches!(
-                        rust_ret_type,
-                        crate::type_mapper::RustType::Str { .. }
-                            | crate::type_mapper::RustType::Reference { .. }
-                    ) {
-                        let lt = syn::Lifetime::new(return_lt, proc_macro2::Span::call_site());
-                        match rust_ret_type {
-                            crate::type_mapper::RustType::Str { .. } => {
-                                ty = parse_quote! { &#lt str };
-                            }
-                            crate::type_mapper::RustType::Reference { mutable, inner, .. } => {
-                                let inner_ty = rust_type_to_syn(&inner)?;
-                                ty = if mutable {
-                                    parse_quote! { &#lt mut #inner_ty }
-                                } else {
-                                    parse_quote! { &#lt #inner_ty }
-                                };
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-
-            if can_fail {
-                let error_type: syn::Type = syn::parse_str(&error_type_str)
-                    .unwrap_or_else(|_| parse_quote! { Box<dyn std::error::Error> });
-                quote! { -> Result<#ty, #error_type> }
-            } else {
-                quote! { -> #ty }
-            }
-        };
+        // Generate return type with Result wrapper and lifetime handling
+        let (return_type, rust_ret_type, can_fail) = codegen_return_type(self, &lifetime_result, ctx)?;
 
         // Process function body with proper scoping
         let body_stmts = codegen_function_body(self, can_fail, ctx)?;
@@ -1043,99 +1171,16 @@ impl RustCodeGen for HirFunction {
 
         // Check if function is a generator (contains yield)
         let func_tokens = if self.properties.is_generator {
-            // Analyze generator state requirements
-            let state_info = GeneratorStateInfo::analyze(self);
-
-            // Generate state struct name (capitalize function name)
-            let state_struct_name = format!(
-                "{}State",
-                name.to_string()
-                    .chars()
-                    .next()
-                    .map(|c| c.to_uppercase().to_string())
-                    .unwrap_or_default()
-                    + &name.to_string()[1..]
-            );
-            let state_ident = syn::Ident::new(&state_struct_name, name.span());
-
-            // Build state struct fields from analysis (for struct definition)
-            let state_fields = generate_state_fields(&state_info, ctx)?;
-            let param_fields = generate_param_fields(self, &state_info, ctx)?;
-            let all_fields = [state_fields, param_fields].concat();
-
-            // Build field initializers (for struct construction)
-            let state_inits = generate_state_initializers(&state_info);
-            let param_inits = generate_param_initializers(self, &state_info);
-            let all_inits = [state_inits, param_inits].concat();
-
-            // Generate state machine field (tracks which yield point we're at)
-            let state_machine_field = quote! {
-                state: usize
-            };
-
-            // Extract yield value type from return type
-            let item_type = extract_generator_item_type(&rust_ret_type_for_generator)?;
-
-            // Populate generator state variables for scoping
-            ctx.generator_state_vars.clear();
-            for var in &state_info.state_variables {
-                ctx.generator_state_vars.insert(var.name.clone());
-            }
-            for param in &state_info.captured_params {
-                ctx.generator_state_vars.insert(param.clone());
-            }
-
-            // Generate body statements with in_generator flag set
-            ctx.in_generator = true;
-            let generator_body_stmts: Vec<_> = self
-                .body
-                .iter()
-                .map(|stmt| stmt.to_rust_tokens(ctx))
-                .collect::<Result<Vec<_>>>()?;
-            ctx.in_generator = false;
-            ctx.generator_state_vars.clear();
-
-            // Generate the complete generator implementation
-            quote! {
-                #(#attrs)*
-                #[doc = " Generator state struct"]
-                #[derive(Debug)]
-                struct #state_ident {
-                    #state_machine_field,
-                    #(#all_fields),*
-                }
-
-                #[doc = " Generator function - returns Iterator"]
-                pub fn #name #generic_params(#(#params),*) -> impl Iterator<Item = #item_type> #where_clause {
-                    #state_ident {
-                        state: 0,
-                        #(#all_inits),*
-                    }
-                }
-
-                impl Iterator for #state_ident {
-                    type Item = #item_type;
-
-                    fn next(&mut self) -> Option<Self::Item> {
-                        // NOTE: State machine transformation not yet implemented
-                        // Current limitation: yield statements become immediate returns,
-                        // causing loops to exit early. Proper implementation requires
-                        // transforming control flow into resumable state machine.
-                        //
-                        // See DEPYLER-0115 Phase 3 for full state machine transformation
-                        match self.state {
-                            0 => {
-                                self.state = 1;
-                                // KNOWN ISSUE: Direct body execution causes unreachable code
-                                // after yield/return statements. Needs state splitting.
-                                #(#generator_body_stmts)*
-                                None
-                            }
-                            _ => None
-                        }
-                    }
-                }
-            }
+            codegen_generator_function(
+                self,
+                &name,
+                &generic_params,
+                &where_clause,
+                &params,
+                &attrs,
+                &rust_ret_type,
+                ctx,
+            )?
         } else if self.properties.is_async {
             quote! {
                 #(#attrs)*
