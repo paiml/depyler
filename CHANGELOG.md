@@ -4,6 +4,65 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.18.0 Phase 7 - Extract Function Codegen (2025-10-11)
+
+**TRANSPILER MODULARIZATION - PHASE 7 COMPLETE** ✅
+
+Successfully extracted function code generation module as Phase 7 of the modularization plan. This extraction moves all function conversion logic (~620 LOC) from rust_gen.rs into a focused module.
+
+**Module Created (~621 LOC)**:
+- ✅ **func_gen.rs** (~621 LOC) - Function code generation
+  - Function helper functions (all pub(crate)):
+    - `codegen_generic_params()` - Generic type parameter generation
+    - `codegen_where_clause()` - Where clause for lifetime bounds
+    - `codegen_function_attrs()` - Function attributes (doc comments, panic-free, termination)
+    - `codegen_function_body()` - Function body statement processing with scoping
+    - `codegen_function_params()` - Parameter conversion with lifetime analysis
+    - `codegen_return_type()` - Return type with Result wrapper and lifetime handling
+    - `return_type_expects_float()` - Float type detection (re-exported to rust_gen)
+  - String method classification helpers:
+    - `classify_string_method()` - Classifies methods as returning owned/borrowed
+    - `contains_owned_string_method()` - Detects owned string method calls
+    - `function_returns_owned_string()` - Analyzes function return patterns
+  - Parameter conversion helpers:
+    - `codegen_single_param()` - Single parameter conversion
+    - `apply_param_borrowing_strategy()` - Borrowing strategy application
+    - `apply_borrowing_to_type()` - Borrowing annotation (&, &mut, lifetime)
+  - `HirFunction` RustCodeGen trait implementation:
+    - Generic type inference
+    - Lifetime analysis
+    - Generator/async function support
+
+**Pre-existing Complexity Hotspots** (tracked for future refactoring):
+- ⚠️ `codegen_return_type()` - Complexity 43 (Result wrapping, Cow handling, lifetime substitution)
+- ⚠️ `codegen_single_param()` - Complexity 12 (Union types, borrowing strategies)
+- Total: 2 violations, 51.0h estimated fix
+
+**Impact**:
+- 🎯 **Reduced rust_gen.rs**: 1,643 LOC → 1,035 LOC (-608 LOC, -37.0%)
+- 📦 **Total modules**: 9 (format, error_gen, type_gen, context, import_gen, generator_gen, expr_gen, stmt_gen, func_gen)
+- 📦 **Cumulative reduction**: 4,927 → 1,035 LOC (-3,892 LOC, -79.0%)
+- ✅ **Zero breaking changes**: Public API maintained via pub(crate) re-exports
+- ✅ **All tests passing**: 441 depyler-core tests + full workspace
+- ✅ **Zero regressions**: Complete test coverage verified
+- ✅ **Zero clippy warnings**: Strict validation with `-D warnings`
+- ✅ **Clean compilation**: cargo check passes
+
+**Safety Protocols Applied**:
+- ✅ Created backup: rust_gen.rs.phase7.backup (1,643 LOC)
+- ✅ Incremental verification after each change
+- ✅ All helper functions made pub(crate) for cross-module access
+- ✅ Complete test suite run after extraction
+
+**Quality Gate Updates**:
+- Added func_gen.rs to legacy extraction files (pre-commit hook)
+- Maintains SATD zero-tolerance for all files (including legacy)
+- Documents pre-existing complexity for incremental improvement (Kaizen)
+
+**Next**: Phase 8 - Extract Union/Enum Codegen + Final Integration
+
+---
+
 ### v3.18.0 Phase 6 - Extract Statement Codegen (2025-10-11)
 
 **TRANSPILER MODULARIZATION - PHASE 6 COMPLETE** ✅
