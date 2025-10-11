@@ -6,9 +6,9 @@
 ---
 metadata:
   project_name: Depyler
-  current_version: v3.18.0
+  current_version: v3.18.1
   last_active: 2025-10-11
-  status: MODULARIZATION_COMPLETE
+  status: QUALITY_IMPROVEMENTS
   next_version: v3.19.0
 
 session_context:
@@ -313,6 +313,19 @@ recent_releases:
       - "rust_gen.rs modularized: 4,927 → 1,035 LOC (-79.0%)"
       - "9 focused modules extracted (4,434 LOC total)"
       - "Zero regressions, all quality gates passing"
+
+  - version: v3.18.1
+    name: "Quality & Stability Improvements"
+    date: 2025-10-11
+    tests_passing: 116
+    tests_total: 116
+    completion_percent: 100.0
+    status: RELEASED
+    highlights:
+      - "AnnotationParser refactoring: 2/3 functions ≤10 complexity (DEPYLER-0145)"
+      - "Coverage timeout fixed: 120s → 25.4s (4.7x speedup) (DEPYLER-0146)"
+      - "SATD cleanup: Zero technical debt in production code (DEPYLER-0147)"
+      - "All quality gates passing: clippy (0 warnings), tests (116/116)"
 
   - version: v3.17.0
     name: "Quality & Planning Release"
