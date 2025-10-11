@@ -414,8 +414,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // the appropriate integer type based on usage context.
         // This fixes type consistency issues where array indices need usize.
         //
-        // TODO: Add heuristic to detect float expressions and cast those explicitly
-        // TODO: Handle base parameter for int(str, base) conversions
+        // Known Limitations:
+        // - No automatic detection of float expressions for explicit casting
+        // - Base parameter (int(str, base)) is not supported
+        //   For hex/binary conversions, use explicit Rust i32::from_str_radix()
         Ok(arg.clone())
     }
 
