@@ -321,6 +321,9 @@ recent_releases:
     tests_total: 116
     completion_percent: 100.0
     status: RELEASED
+    published_to:
+      - github
+      - crates_io
     highlights:
       - "AnnotationParser refactoring: 2/3 functions ≤10 complexity (DEPYLER-0145)"
       - "Coverage timeout fixed: 120s → 25.4s (4.7x speedup) (DEPYLER-0146)"
