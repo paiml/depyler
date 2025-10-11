@@ -108,7 +108,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if we're subtracting from a .len() call to prevent underflow
                 if self.is_len_call(left) {
                     // Use saturating_sub to prevent underflow when subtracting from array length
-                    Ok(parse_quote! { #left_expr.saturating_sub(#right_expr) })
+                    // Wrap left_expr in parens because it contains a cast: (arr.len() as i32).saturating_sub(x)
+                    // Without parens, Rust parses "as i32.saturating_sub" incorrectly
+                    Ok(parse_quote! { (#left_expr).saturating_sub(#right_expr) })
                 } else {
                     let rust_op = convert_binop(op)?;
                     Ok(parse_quote! { #left_expr #rust_op #right_expr })
