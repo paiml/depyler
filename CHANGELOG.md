@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Transpiler Bug Fix - Cast + Method Call Syntax (2025-10-11)
+
+**🐛 CRITICAL BUG FIX** - Fixed Code Generation for Array Length Operations
+
+Fixed code generation bug where casts followed by method calls generated invalid Rust syntax, blocking all coverage reports and quality gates.
+
+**Problem**:
+- Failing test: `test_array_length_subtraction_safety`
+- Location: `crates/depyler-core/src/rust_gen/expr_gen.rs:111`
+- Generated code: `arr.len() as i32.saturating_sub(1)` ❌
+- Error: "casts cannot be followed by a method call"
+- Impact: **P0 BLOCKING** - all coverage runs failed
+
+**Root Cause**:
+- Python: `len(arr) - 1`
+- Transpiled to: `arr.len() as i32.saturating_sub(1)`
+- Rust parses as: `arr.len() as (i32.saturating_sub(1))` ❌ Invalid!
+- Rust operator precedence: cast binds tighter than method call
+
+**Solution**:
+- Wrap expression in parentheses: `(arr.len() as i32).saturating_sub(1)` ✅
+- Added explanatory comment for future maintainers
+- Applies to all `len()` subtraction operations
+
+**Testing**:
+- ✅ test_array_length_subtraction_safety: **PASSING**
+- ✅ All 12 operator tests: **PASSING**
+- ✅ All 735 workspace tests: **PASSING**
+- ✅ Zero regressions introduced
+
+**Quality Impact**:
+- ✅ Unblocked: `make coverage` can now run
+- ✅ Unblocked: All quality gates operational
+- ✅ Pattern: Demonstrates "Stop the Line" philosophy - halt everything to fix transpiler bugs at source
+
 ### Security Analysis - Dependency Vulnerability Review (2025-10-11)
 
 **🔒 SECURITY ANALYSIS COMPLETE** - All Dependencies Secure!
