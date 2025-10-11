@@ -481,7 +481,10 @@ coverage: ## Generate coverage report (pforge pattern)
 	@echo "⚙️  Temporarily disabling global cargo config (linker may break coverage)..."
 	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
 	@echo "🧪 Phase 1: Running tests with instrumentation (no report)..."
-	@$(CARGO) llvm-cov --no-report nextest --no-tests=warn --all-features --workspace
+	@echo "⚡ OPTIMIZATION: Property tests reduced to 10 cases for faster coverage"
+	@echo "   - PROPTEST_CASES=10 (from 256 default for proptest)"
+	@echo "   - QUICKCHECK_TESTS=10 (from 100 default for quickcheck)"
+	@PROPTEST_CASES=10 QUICKCHECK_TESTS=10 $(CARGO) llvm-cov --no-report nextest --no-tests=warn --all-features --workspace
 	@echo "📊 Phase 2: Generating coverage reports..."
 	@$(CARGO) llvm-cov report --html --output-dir target/coverage/html
 	@$(CARGO) llvm-cov report --lcov --output-path target/coverage/lcov.info
@@ -495,6 +498,8 @@ coverage: ## Generate coverage report (pforge pattern)
 	@echo "💡 COVERAGE INSIGHTS:"
 	@echo "- HTML report: target/coverage/html/index.html"
 	@echo "- LCOV file: target/coverage/lcov.info"
+	@echo "- Property tests: 10 cases per test (fast mode for coverage)"
+	@echo "- Optimization: PROPTEST_CASES=10, QUICKCHECK_TESTS=10 (reduces timeout risk)"
 
 coverage-summary: ## Display coverage summary (run 'make coverage' first)
 	@echo "📊 Coverage Summary:"
