@@ -4,6 +4,58 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.18.0 Phase 6 - Extract Statement Codegen (2025-10-11)
+
+**TRANSPILER MODULARIZATION - PHASE 6 COMPLETE** ✅
+
+Successfully extracted statement code generation module as Phase 6 of the modularization plan. This extraction moves all statement conversion logic (~630 LOC) from rust_gen.rs into a focused module.
+
+**Module Created (~642 LOC)**:
+- ✅ **stmt_gen.rs** (~642 LOC) - Statement code generation
+  - 16 `codegen_*_stmt()` functions (all pub(crate) for test access):
+    - **Phase 1** (Simple): Pass, Break, Continue, Expr
+    - **Phase 2** (Medium): Return, While, Raise, With
+    - **Phase 3** (Complex): If, For, Assign (4 variants), Try
+  - `HirStmt` RustCodeGen trait implementation:
+    - Delegates to specialized codegen functions
+    - Handles all 13 statement types
+  - Helper functions:
+    - `extract_nested_indices_tokens()` - Nested dictionary access
+    - `needs_type_conversion()` / `apply_type_conversion()` - Type casting
+
+**Pre-existing Complexity Hotspots** (tracked for future refactoring):
+- ⚠️ `codegen_return_stmt()` - Complexity 20 (Optional/Result wrapping, error handling)
+- ⚠️ `codegen_try_stmt()` - Complexity 20 (except/finally combinations)
+- ⚠️ `codegen_assign_symbol()` - Complexity 13 (generator state vars, mut inference)
+- ⚠️ `codegen_assign_tuple()` - Complexity 12 (tuple unpacking patterns)
+- Total: 11 violations, 60.2h estimated fix (down from original rust_gen.rs)
+
+**Impact**:
+- 🎯 **Reduced rust_gen.rs**: 2,266 LOC → 1,637 LOC (-629 LOC, -27.7%)
+- 📦 **Total modules**: 8 (format, error_gen, type_gen, context, import_gen, generator_gen, expr_gen, stmt_gen)
+- 📦 **Cumulative reduction**: 4,927 → 1,637 LOC (-3,290 LOC, -66.8%)
+- ✅ **Zero breaking changes**: Public API maintained via imports
+- ✅ **All tests passing**: 441 depyler-core tests + full workspace
+- ✅ **Zero regressions**: Complete test coverage verified
+- ✅ **Zero clippy warnings**: Strict validation with `-D warnings`
+- ✅ **Clean compilation**: cargo check passes
+- 📝 **Tests retained**: All statement codegen tests in rust_gen.rs with imports
+
+**Safety Protocols Applied**:
+- ✅ Created backup: rust_gen.rs.phase6.backup (2,266 LOC)
+- ✅ Incremental verification after each change
+- ✅ All codegen functions made pub(crate) for test access
+- ✅ Complete test suite run after extraction
+
+**Quality Gate Updates**:
+- Added stmt_gen.rs to legacy extraction files (pre-commit hook)
+- Maintains SATD zero-tolerance for all files (including legacy)
+- Documents pre-existing complexity for incremental improvement (Kaizen)
+
+**Next**: Phase 7 - Extract Function Codegen (func_gen.rs)
+
+---
+
 ### v3.18.0 Phase 5 - Extract Expression Codegen (2025-10-11)
 
 **TRANSPILER MODULARIZATION - PHASE 5 COMPLETE** ✅ 🔴 **HIGH RISK PHASE**
