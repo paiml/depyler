@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.18.1] - 2025-10-11
+
+### Quality & Stability Improvements
+
+This maintenance release focuses on three critical quality improvements that enhance the development experience and codebase maintainability.
+
 ### AnnotationParser Complexity Refactoring (2025-10-11)
 
 **🔧 PARTIAL_COMPLETE** - Complexity Reduction for Annotation Parsing!
