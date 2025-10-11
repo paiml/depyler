@@ -93,4 +93,7 @@ deep_context.md
 
 # Node modules
 playground/node_modules/
+
+# Rust build artifacts
 *.rlib
+*.rmeta
