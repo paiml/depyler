@@ -4,6 +4,51 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.18.0 Phase 5 - Extract Expression Codegen (2025-10-11)
+
+**TRANSPILER MODULARIZATION - PHASE 5 COMPLETE** ✅ 🔴 **HIGH RISK PHASE**
+
+Successfully extracted expression code generation module as Phase 5 of the modularization plan. This was the largest and highest-risk extraction, moving ~2000 LOC of complex expression conversion logic.
+
+**Module Created (~2004 LOC)**:
+- ✅ **expr_gen.rs** (~2004 LOC) - Expression code generation
+  - `ExpressionConverter` struct with 52 methods:
+    - Converts HIR expressions to Rust syn::Expr nodes
+    - Handles all expression types: literals, variables, binary ops, calls, comprehensions
+    - Manages string optimization, generator state access, type coercion
+  - `ToRustExpr` trait implementation for `HirExpr`:
+    - 20+ expression type conversions
+    - Integration with CodeGenContext
+  - Helper functions:
+    - `literal_to_rust_expr()` - Literal conversion with string optimization
+    - String interning support via StringOptimizer
+
+**Pre-existing Complexity Hotspots** (tracked for future refactoring):
+- ⚠️ `convert_binary()` - Complexity 68 (handles all binary operators + type coercion)
+- ⚠️ `convert_call()` - Complexity 43 (handles function/method calls + special cases)
+- ⚠️ `convert_array_init_call()` - Complexity 42 (array initialization patterns)
+
+**Impact**:
+- 🎯 **Reduced rust_gen.rs**: 4,252 LOC → 2,266 LOC (-1,986 LOC, -46.7%)
+- 📦 **Total modules**: 7 (format, error_gen, type_gen, context, import_gen, generator_gen, expr_gen)
+- 📦 **Cumulative reduction**: 4,927 → 2,266 LOC (-2,661 LOC, -54.0%)
+- ✅ **Zero breaking changes**: Public API maintained via imports
+- ✅ **All tests passing**: 441 depyler-core tests + full workspace
+- ✅ **Zero regressions**: Complete test coverage verified
+- ✅ **Zero clippy warnings**: Strict validation with `-D warnings`
+- ✅ **Clean compilation**: cargo check passes
+- 📝 **Tests organized**: 698 lines of tests retained in rust_gen.rs with code under test
+
+**Safety Protocols Applied**:
+- ✅ Created backup: rust_gen.rs.phase5.backup (4,252 LOC)
+- ✅ Incremental verification after each change
+- ✅ Cross-module dependencies properly handled (return_type_expects_float made pub(crate))
+- ✅ Complete test suite run after extraction
+
+**Next**: Phase 6 - Extract Statement Codegen (stmt_gen.rs)
+
+---
+
 ### v3.18.0 Phase 4 - Extract Generator Support (2025-10-10)
 
 **TRANSPILER MODULARIZATION - PHASE 4 COMPLETE** ✅
