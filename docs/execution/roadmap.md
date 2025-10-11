@@ -2,25 +2,28 @@
 
 ## 📝 **SESSION CONTEXT FOR RESUMPTION**
 
-**Last Active**: 2025-10-10
+**Last Active**: 2025-10-11
 **Current Version**: v3.17.0 🎉 (RELEASED to GitHub + crates.io)
-**Status**: 🚀 **v3.18.0 PHASE 4 COMPLETE** - Generator Support Extracted!
-**Achievement**: v3.18.0 Phase 4 - Extracted generator module (6 total modules)
+**Status**: 🚀 **v3.18.0 PHASE 5 COMPLETE** - Expression Codegen Extracted!
+**Achievement**: v3.18.0 Phase 5 - Extracted expression module (7 total modules)
 **Latest Work**:
+- ✅ **v3.18.0 PHASE 5 COMPLETE** (2025-10-11) - Expression Codegen Extracted (HIGH RISK ✅)
+  - Created expr_gen.rs (~2000 LOC) - ExpressionConverter + ToRustExpr impl
+  - Extracted 52 expression methods + literal_to_rust_expr helper
+  - rust_gen.rs: 4,252 LOC → 2,266 LOC (expression code moved to expr_gen.rs)
+  - All 441 depyler-core tests passing ✅
+  - Zero regressions ✅
+  - Module count: 7 (format, error_gen, type_gen, context, import_gen, generator_gen, expr_gen)
 - ✅ **v3.18.0 PHASE 4 COMPLETE** (2025-10-10) - Generator Support Extracted
   - Created generator_gen.rs (~270 LOC) - Generator support and Iterator implementation
   - Reduced rust_gen.rs: 4,432 LOC → 4,162 LOC (-270 LOC, -6.1%)
-  - All 441 depyler-core tests passing ✅
-  - All generator tests verified working ✅
-  - Zero clippy warnings ✅
 - ✅ **v3.18.0 PHASE 3 COMPLETE** (2025-10-10) - Context & Imports Extracted
   - Created context.rs (~120 LOC) - CodeGenContext, RustCodeGen, ToRustExpr traits
   - Created import_gen.rs (~120 LOC) - Import processing (4 functions)
-  - Reduced rust_gen.rs: 4,598 LOC → 4,432 LOC (-166 LOC, -3.6%)
 - ✅ **v3.18.0 PHASE 2 COMPLETE** (2025-10-10) - Pure Functions Extracted
   - Created format.rs, error_gen.rs, type_gen.rs (560+ LOC)
 - 🎉 **v3.17.0 PUBLISHED** (2025-10-10) - GitHub + crates.io (all 9 crates)
-**Next Focus**: v3.18.0 Phase 5 - Extract Expression Codegen (expr_gen.rs) 🔴 HIGH RISK
+**Next Focus**: v3.18.0 Phase 6 - Extract Statement Codegen (stmt_gen.rs)
 
 **📦 Recent Release Summary**:
 - 🎉 v3.17.0 - Quality & Planning: Security, errors, coverage, modularization plan - 735 tests (100%)
