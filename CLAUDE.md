@@ -481,7 +481,7 @@ pmat analyze satd                                  # ✅ Zero SATD
 - Fix verification (before/after)
 
 **Files**:
-- `docs/execution/roadmap.md` - Ticket tracking
+- `docs/execution/roadmap.yaml` - Ticket tracking (PMAT YAML format)
 - `docs/issues/DEPYLER-XXXX.md` - Detailed analysis
 - GitHub Issues - Upstream feedback
 
@@ -573,7 +573,7 @@ cargo llvm-cov --all-features --workspace --summary-only | grep -q "80" || {
 
 **CRITICAL**: ALL development work MUST follow roadmap-driven development:
 
-1. **ALWAYS Use Ticket Numbers**: Every commit, PR, and task MUST reference a ticket ID from docs/execution/roadmap.md
+1. **ALWAYS Use Ticket Numbers**: Every commit, PR, and task MUST reference a ticket ID from docs/execution/roadmap.yaml
 2. **Roadmap-First Development**: No work begins without a corresponding roadmap entry
 3. **Ticket Format**: Use format "DEPYLER-XXX" per roadmap
 4. **Traceability**: Every change must be traceable back to requirements via ticket system
@@ -957,7 +957,7 @@ git push origin main
 ### MANDATORY: PMAT Quality at Every Step
 ```
 1. BASELINE CHECK: Run `pmat quality-gate --fail-on-violation`
-2. LOCATE task in docs/execution/roadmap.md with ticket number
+2. LOCATE task in docs/execution/roadmap.yaml with ticket number
 3. VERIFY dependencies complete via roadmap
 4. WRITE property test FIRST (TDD mandatory)
 5. IMPLEMENT with <10 complexity (verified by `pmat analyze complexity`)
