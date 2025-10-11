@@ -546,7 +546,7 @@ impl AnnotationParser {
 
                 // Global strategy (1)
                 "global_strategy" => {
-                    annotations.global_strategy = self.parse_global_strategy(&value)?;
+                    self.apply_global_strategy_annotation(annotations, &value)?;
                 }
 
                 // Verification (3)
@@ -694,6 +694,17 @@ impl AnnotationParser {
         Ok(())
     }
 
+    /// Apply global strategy annotation
+    #[inline]
+    fn apply_global_strategy_annotation(
+        &self,
+        annotations: &mut TranspilationAnnotations,
+        value: &str,
+    ) -> Result<(), AnnotationError> {
+        annotations.global_strategy = self.parse_global_strategy(value)?;
+        Ok(())
+    }
+
     /// Apply string/hash strategy annotation (string_strategy, hash_strategy)
     #[inline]
     fn apply_string_hash_annotation(
@@ -783,7 +794,7 @@ impl AnnotationParser {
         Ok(())
     }
 
-    /// Apply lambda-specific annotation (9 lambda keys)
+    /// Apply lambda-specific annotation (9 lambda keys) - dispatcher with ≤10 complexity
     #[inline]
     fn apply_lambda_annotation(
         &self,
@@ -796,30 +807,83 @@ impl AnnotationParser {
             .get_or_insert_with(LambdaAnnotations::default);
 
         match key {
+            "lambda_runtime" | "event_type" | "architecture" => {
+                self.apply_lambda_config(lambda_annotations, key, value)?;
+            }
+            "cold_start_optimize" | "batch_failure_reporting" | "custom_serialization" | "tracing" => {
+                self.apply_lambda_flags(lambda_annotations, key, value);
+            }
+            "memory_size" | "timeout" => {
+                self.apply_lambda_numeric(lambda_annotations, key, value)?;
+            }
+            _ => unreachable!("apply_lambda_annotation called with non-lambda key"),
+        }
+        Ok(())
+    }
+
+    /// Apply lambda configuration (runtime, event_type, architecture)
+    #[inline]
+    fn apply_lambda_config(
+        &self,
+        lambda_annotations: &mut LambdaAnnotations,
+        key: &str,
+        value: &str,
+    ) -> Result<(), AnnotationError> {
+        match key {
             "lambda_runtime" => {
                 lambda_annotations.runtime = self.parse_lambda_runtime(value)?;
             }
             "event_type" => {
                 lambda_annotations.event_type = Some(self.parse_lambda_event_type(value)?);
             }
-            "cold_start_optimize" => {
-                lambda_annotations.cold_start_optimize = value == "true";
-            }
-            "memory_size" => {
-                lambda_annotations.memory_size =
-                    value.parse().map_err(|_| AnnotationError::InvalidValue {
-                        key: key.to_string(),
-                        value: value.to_string(),
-                    })?;
-            }
             "architecture" => {
                 lambda_annotations.architecture = self.parse_architecture(value)?;
+            }
+            _ => unreachable!("apply_lambda_config called with non-config key"),
+        }
+        Ok(())
+    }
+
+    /// Apply lambda feature flags (cold_start_optimize, batch_failure_reporting, custom_serialization, tracing)
+    #[inline]
+    fn apply_lambda_flags(
+        &self,
+        lambda_annotations: &mut LambdaAnnotations,
+        key: &str,
+        value: &str,
+    ) {
+        match key {
+            "cold_start_optimize" => {
+                lambda_annotations.cold_start_optimize = value == "true";
             }
             "batch_failure_reporting" => {
                 lambda_annotations.batch_failure_reporting = value == "true";
             }
             "custom_serialization" => {
                 lambda_annotations.custom_serialization = value == "true";
+            }
+            "tracing" => {
+                lambda_annotations.tracing_enabled = value == "true" || value == "Active";
+            }
+            _ => unreachable!("apply_lambda_flags called with non-flag key"),
+        }
+    }
+
+    /// Apply lambda numeric settings (memory_size, timeout)
+    #[inline]
+    fn apply_lambda_numeric(
+        &self,
+        lambda_annotations: &mut LambdaAnnotations,
+        key: &str,
+        value: &str,
+    ) -> Result<(), AnnotationError> {
+        match key {
+            "memory_size" => {
+                lambda_annotations.memory_size =
+                    value.parse().map_err(|_| AnnotationError::InvalidValue {
+                        key: key.to_string(),
+                        value: value.to_string(),
+                    })?;
             }
             "timeout" => {
                 lambda_annotations.timeout =
@@ -828,10 +892,7 @@ impl AnnotationParser {
                         value: value.to_string(),
                     })?);
             }
-            "tracing" => {
-                lambda_annotations.tracing_enabled = value == "true" || value == "Active";
-            }
-            _ => unreachable!("apply_lambda_annotation called with non-lambda key"),
+            _ => unreachable!("apply_lambda_numeric called with non-numeric key"),
         }
         Ok(())
     }
@@ -1063,26 +1124,54 @@ impl AnnotationParser {
     }
 
     fn parse_lambda_event_type(&self, value: &str) -> Result<LambdaEventType, AnnotationError> {
-        match value {
-            "auto" => Ok(LambdaEventType::Auto),
-            "S3Event" => Ok(LambdaEventType::S3Event),
-            "APIGatewayProxyRequest" => Ok(LambdaEventType::ApiGatewayProxyRequest),
-            "APIGatewayV2HttpRequest" => Ok(LambdaEventType::ApiGatewayV2HttpRequest),
-            "SqsEvent" => Ok(LambdaEventType::SqsEvent),
-            "SnsEvent" => Ok(LambdaEventType::SnsEvent),
-            "DynamodbEvent" => Ok(LambdaEventType::DynamodbEvent),
-            "CloudwatchEvent" => Ok(LambdaEventType::CloudwatchEvent),
-            "KinesisEvent" => Ok(LambdaEventType::KinesisEvent),
-            _ => {
-                if value.starts_with("EventBridgeEvent<") && value.ends_with('>') {
-                    let inner = &value[17..value.len() - 1];
-                    Ok(LambdaEventType::EventBridgeEvent(Some(inner.to_string())))
-                } else if value == "EventBridgeEvent" {
-                    Ok(LambdaEventType::EventBridgeEvent(None))
-                } else {
-                    Ok(LambdaEventType::Custom(value.to_string()))
-                }
+        // Quick path for common types
+        let event_type = match value {
+            "auto" => LambdaEventType::Auto,
+            "S3Event" | "SqsEvent" | "SnsEvent" | "DynamodbEvent" | "CloudwatchEvent" | "KinesisEvent" => {
+                self.parse_aws_service_event(value)
             }
+            "APIGatewayProxyRequest" | "APIGatewayV2HttpRequest" => {
+                self.parse_api_gateway_event(value)
+            }
+            _ => self.parse_custom_event_type(value),
+        };
+        Ok(event_type)
+    }
+
+    /// Parse AWS service events (S3, SQS, SNS, DynamoDB, CloudWatch, Kinesis)
+    #[inline]
+    fn parse_aws_service_event(&self, value: &str) -> LambdaEventType {
+        match value {
+            "S3Event" => LambdaEventType::S3Event,
+            "SqsEvent" => LambdaEventType::SqsEvent,
+            "SnsEvent" => LambdaEventType::SnsEvent,
+            "DynamodbEvent" => LambdaEventType::DynamodbEvent,
+            "CloudwatchEvent" => LambdaEventType::CloudwatchEvent,
+            "KinesisEvent" => LambdaEventType::KinesisEvent,
+            _ => unreachable!("parse_aws_service_event called with non-AWS-service event"),
+        }
+    }
+
+    /// Parse API Gateway events (v1 and v2)
+    #[inline]
+    fn parse_api_gateway_event(&self, value: &str) -> LambdaEventType {
+        match value {
+            "APIGatewayProxyRequest" => LambdaEventType::ApiGatewayProxyRequest,
+            "APIGatewayV2HttpRequest" => LambdaEventType::ApiGatewayV2HttpRequest,
+            _ => unreachable!("parse_api_gateway_event called with non-API-Gateway event"),
+        }
+    }
+
+    /// Parse custom or EventBridge event types
+    #[inline]
+    fn parse_custom_event_type(&self, value: &str) -> LambdaEventType {
+        if value.starts_with("EventBridgeEvent<") && value.ends_with('>') {
+            let inner = &value[17..value.len() - 1];
+            LambdaEventType::EventBridgeEvent(Some(inner.to_string()))
+        } else if value == "EventBridgeEvent" {
+            LambdaEventType::EventBridgeEvent(None)
+        } else {
+            LambdaEventType::Custom(value.to_string())
         }
     }
 
