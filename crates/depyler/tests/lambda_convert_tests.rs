@@ -145,7 +145,9 @@ fn test_conversion_with_deploy_templates() {
     // NOTE: Current implementation doesn't generate separate template files
     // The deploy flag is accepted but templates are always None in LambdaProject
     // This test just verifies the command succeeds with deploy=true
-    // TODO (future): Implement actual SAM/CDK template generation
+    //
+    // Future Enhancement: SAM/CDK template generation for deployment automation
+    // would require additional infrastructure code generation beyond core transpilation
 
     // Verify basic files still generated
     assert!(output_dir.join("src/main.rs").exists(), "main.rs should exist");
