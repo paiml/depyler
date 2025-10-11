@@ -4,9 +4,17 @@
 
 **Last Active**: 2025-10-11
 **Current Version**: v3.17.0 🎉 (RELEASED to GitHub + crates.io)
-**Status**: 🚀 **v3.18.0 PHASE 5 COMPLETE** - Expression Codegen Extracted!
-**Achievement**: v3.18.0 Phase 5 - Extracted expression module (7 total modules)
+**Status**: 🚀 **v3.18.0 PHASE 6 COMPLETE** - Statement Codegen Extracted!
+**Achievement**: v3.18.0 Phase 6 - Extracted statement module (8 total modules)
 **Latest Work**:
+- ✅ **v3.18.0 PHASE 6 COMPLETE** (2025-10-11) - Statement Codegen Extracted
+  - Created stmt_gen.rs (~642 LOC) - All statement codegen + HirStmt impl
+  - Extracted 16 codegen functions (Pass, Break, Continue, Expr, Return, While, Raise, With, If, For, Assign variants, Try)
+  - Extracted helper functions (nested indices, type conversion)
+  - rust_gen.rs: 2,266 LOC → 1,637 LOC (-629 LOC, -27.7%)
+  - All 441 depyler-core tests passing ✅
+  - Zero regressions ✅
+  - Module count: 8 (format, error_gen, type_gen, context, import_gen, generator_gen, expr_gen, stmt_gen)
 - ✅ **v3.18.0 PHASE 5 COMPLETE** (2025-10-11) - Expression Codegen Extracted (HIGH RISK ✅)
   - Created expr_gen.rs (~2000 LOC) - ExpressionConverter + ToRustExpr impl
   - Extracted 52 expression methods + literal_to_rust_expr helper
@@ -23,7 +31,7 @@
 - ✅ **v3.18.0 PHASE 2 COMPLETE** (2025-10-10) - Pure Functions Extracted
   - Created format.rs, error_gen.rs, type_gen.rs (560+ LOC)
 - 🎉 **v3.17.0 PUBLISHED** (2025-10-10) - GitHub + crates.io (all 9 crates)
-**Next Focus**: v3.18.0 Phase 6 - Extract Statement Codegen (stmt_gen.rs)
+**Next Focus**: v3.18.0 Phase 7 - Extract Function Codegen (func_gen.rs)
 
 **📦 Recent Release Summary**:
 - 🎉 v3.17.0 - Quality & Planning: Security, errors, coverage, modularization plan - 735 tests (100%)
