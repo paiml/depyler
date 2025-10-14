@@ -383,7 +383,8 @@ v3_18_2_emergency_sprint:
       priority: P0
       severity: BLOCKING
       estimated_hours: 6
-      status: PLANNED
+      status: IN_PROGRESS
+      started_date: 2025-10-14
 
       problem:
         input_code: |
