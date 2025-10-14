@@ -158,8 +158,10 @@ impl ModuleMapper {
                 is_external: false,
                 version: None,
                 item_map: HashMap::from([
-                    ("defaultdict".to_string(), "HashMap::new".to_string()),
-                    ("Counter".to_string(), "HashMap::new".to_string()),
+                    // DEPYLER-0170: Map to HashMap type, not HashMap::new
+                    // Constructor calls are handled separately in expr_gen.rs
+                    ("defaultdict".to_string(), "HashMap".to_string()),
+                    ("Counter".to_string(), "HashMap".to_string()),
                     ("deque".to_string(), "VecDeque".to_string()),
                     ("OrderedDict".to_string(), "IndexMap".to_string()), // requires indexmap crate
                 ]),
