@@ -339,3 +339,53 @@ fn test_empty_imports_dependencies() {
     let deps = mapper.get_dependencies(&imports);
     assert!(deps.is_empty());
 }
+
+// ============================================================================
+// DEPYLER-0170: Fix HashMap Import Path Generation
+// ============================================================================
+
+#[test]
+fn test_collections_hashmap_import_path() {
+    // DEPYLER-0170: HashMap should be imported as a type, not HashMap::new
+    let mapper = ModuleMapper::new();
+
+    let import = Import {
+        module: "collections".to_string(),
+        items: vec![
+            ImportItem::Named("Counter".to_string()),
+            ImportItem::Named("defaultdict".to_string()),
+        ],
+    };
+
+    let rust_imports = mapper.map_import(&import);
+
+    // Verify Counter mapping
+    assert_eq!(rust_imports.len(), 2);
+    assert_eq!(rust_imports[0].path, "std::collections::HashMap");
+    assert!(!rust_imports[0].is_external);
+
+    // Verify defaultdict mapping
+    assert_eq!(rust_imports[1].path, "std::collections::HashMap");
+    assert!(!rust_imports[1].is_external);
+
+    // CRITICAL: Path should NOT be "std::collections::HashMap::new"
+    assert!(!rust_imports[0].path.ends_with("::new"));
+    assert!(!rust_imports[1].path.ends_with("::new"));
+}
+
+#[test]
+fn test_collections_deque_import_path() {
+    // DEPYLER-0173: VecDeque should be imported correctly
+    let mapper = ModuleMapper::new();
+
+    let import = Import {
+        module: "collections".to_string(),
+        items: vec![ImportItem::Named("deque".to_string())],
+    };
+
+    let rust_imports = mapper.map_import(&import);
+
+    assert_eq!(rust_imports.len(), 1);
+    assert_eq!(rust_imports[0].path, "std::collections::VecDeque");
+    assert!(!rust_imports[0].is_external);
+}
