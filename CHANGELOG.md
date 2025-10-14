@@ -82,6 +82,72 @@ assert!(nums.len() as i32 == 5);
 - Actual: 4 hours
 - Efficiency: 50% faster than estimated
 
+#### DEPYLER-0162.2: Fix Missing Variable Initialization in Async Functions (2025-10-14)
+
+**✅ COMPLETE** - Variables used in await expressions are now correctly preserved!
+
+Fixed bug where dead code elimination was incorrectly removing variable assignments that were only used inside await expressions.
+
+**The Bug**:
+- **Error**: Generated code has undefined variables: `let results = process_urls(urls).await;` but `urls` is never defined
+- **Location**: `crates/depyler-core/src/optimizer.rs:775`
+- **Impact**: Async functions using variables in await expressions would fail to compile
+- **Severity**: P1 MAJOR - async code generation broken
+
+**Root Cause**:
+- `collect_used_vars_expr_inner()` had no handler for `HirExpr::Await` variant
+- Dead code elimination pass couldn't see that variables were used inside await expressions
+- Catch-all `_ => {}` pattern meant await expressions were silently ignored
+- Variables like `urls` were incorrectly identified as "unused" and removed
+
+**Solution**:
+```rust
+// Before: Missing await handler, catch-all ignores it
+HirExpr::SetComp { ... } => { ... }
+_ => {}  // ← Silently ignores HirExpr::Await!
+
+// After: Explicit await handler
+HirExpr::SetComp { ... } => { ... }
+HirExpr::Await { value } => {
+    collect_used_vars_expr_inner(value, used);
+}
+_ => {}
+```
+
+**Files Modified**:
+- `crates/depyler-core/src/optimizer.rs` (lines 775-777) - Added Await expression handler
+
+**Before/After Example**:
+```rust
+// BEFORE FIX (line 20 missing urls):
+pub async fn main() {
+    let results = process_urls(urls).await;  // ❌ urls undefined!
+    ...
+}
+
+// AFTER FIX (line 20 has urls):
+pub async fn main() {
+    let urls = vec!["http://api.example.com", "http://api2.example.com"];
+    let results = process_urls(urls).await;  // ✅ urls defined!
+    ...
+}
+```
+
+**Test Coverage**:
+- ✅ Dead code elimination tests pass
+- ✅ All 443 workspace tests pass
+- ✅ Zero regressions
+
+**Code Quality**:
+- ✅ Cyclomatic Complexity: 1 (single match arm added)
+- ✅ Cognitive Complexity: 1 (recursive call)
+- ✅ SATD Violations: 0
+- ✅ Clippy Warnings: 0 (with -D warnings)
+
+**Known Remaining Issues**:
+- `let results = vec![]` should be `let mut results = vec![]` (separate bug)
+- `print(result)` should be `println!("{}", result)` (DEPYLER-0162.3)
+
 #### DEPYLER-0162.1: Fix Async Methods Missing Async Keyword (2025-10-14)
 
 **✅ COMPLETE** - Async methods in classes now correctly generate with async keyword!

@@ -772,6 +772,9 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
                 collect_used_vars_expr_inner(cond, used);
             }
         }
+        HirExpr::Await { value } => {
+            collect_used_vars_expr_inner(value, used);
+        }
         _ => {}
     }
 }
