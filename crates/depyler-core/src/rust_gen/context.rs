@@ -28,6 +28,7 @@ pub struct CodeGenContext<'a> {
     pub generated_enums: Vec<proc_macro2::TokenStream>,
     pub needs_hashmap: bool,
     pub needs_hashset: bool,
+    pub needs_vecdeque: bool,
     pub needs_fnv_hashmap: bool,
     pub needs_ahash_hashmap: bool,
     pub needs_arc: bool,
