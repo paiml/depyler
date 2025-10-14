@@ -3,7 +3,7 @@
     return format !("Data from {}", url);
    
 }
-#[doc = " Depyler: verified panic-free"] pub async fn process_urls<'a>(urls: & 'a list<String>)  -> list<String>{
+#[doc = " Depyler: verified panic-free"] pub async fn process_urls<'a>(urls: & 'a Vec<String>)  -> Vec<String>{
     let results = vec ! [];
     for url in urls.iter() {
     let data = fetch_data(url).await;
@@ -20,6 +20,15 @@ return results;
     let results = process_urls(urls).await;
     for result in results.iter() {
     print(result);
+   
+}
+} #[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_process_urls_examples() {
+    assert_eq !(process_urls(vec ! []), vec ! []);
+    assert_eq !(process_urls(vec ! [1]), vec ! [1]);
    
 }
 }
