@@ -44,9 +44,49 @@ Added targeted coverage tests to close the gap toward 80% coverage target. Phase
 - `docs/planning/v3.19.1_precision_coverage_plan.md` (UPDATED)
 
 **Next Steps**:
-- Phase 3: type_mapper.rs tests (+0.68% expected)
 - Measure total coverage gain from all phases
 - Phase 4: Final push to ≥80%
+
+#### Phase 3: Precision Strike Coverage Tests (COMPLETE - 2025-10-14)
+
+**✅ COMPLETE** - Added 17 comprehensive tests for type_mapper.rs module
+
+Added precision coverage tests targeting complex type mapping functionality,
+including Union types, Generic resolution, and nested type structures.
+
+**Tests Added**:
+- **type_mapper_coverage_test.rs**: 17 comprehensive tests
+  * Unit tests for Union type handling (Union[T, None] → Option<T>)
+  * Unit tests for Union without None (Enum generation)
+  * Unit tests for Generic type resolution (List[T], Dict[K, V], Set[T])
+  * Unit tests for Custom type parameters vs type names
+  * Unit tests for Array types with literal sizes
+  * Unit tests for Reference types (lifetimes, mutability, Cow)
+  * Unit tests for Result type generation
+  * Property tests for complex nested types
+  * Mutation tests for type structure preservation
+  * Edge case: Unsupported Callable type (expects error)
+  * Integration test: All type features working together
+
+**Test Quality**:
+- All tests follow unit + property + mutation pattern
+- Mutation kill strategies documented
+- Complexity ≤10 for all test functions
+- Zero SATD comments
+- All 17 tests passing (zero regressions)
+- Fixed test_unsupported_function_type to expect error (Callable types unsupported)
+
+**Target Module**:
+- `type_mapper.rs`: 75% → ? (17 tests, expected +0.68%)
+
+**Related Files**:
+- `crates/depyler-core/tests/type_mapper_coverage_test.rs` (NEW)
+- `docs/planning/v3.19.1_precision_coverage_plan.md` (UPDATED)
+
+**Cumulative Progress**:
+- Total tests added (Phases 1-3): 93 tests (29 + 47 + 17)
+- Expected cumulative gain: +1.96%
+- Target: 77.66% → 79.62% (buffer: 0.38% to 80%)
 
 #### Phase 2: High Impact Coverage Tests (COMPLETE - 2025-10-14)
 
