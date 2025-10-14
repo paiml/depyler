@@ -10,6 +10,20 @@
 
 A Python-to-Rust transpiler with semantic verification and memory safety analysis. Depyler translates annotated Python code into idiomatic Rust, preserving program semantics while providing compile-time safety guarantees.
 
+## Recent Updates (v3.18.2)
+
+**Emergency Bug Fix Sprint** - Critical transpiler fixes:
+- ✅ Fixed async methods missing `async` keyword in classes
+- ✅ Fixed variable initialization in async functions (await expressions)
+- ✅ Fixed print() statements (now correctly generates `println!()` macro)
+- ✅ Added Assert statement support (was completely missing)
+- ✅ Fixed array literal transpilation bugs
+- ✅ Added CI validation to ensure all transpiled code compiles
+
+**Status**: All P0 blocking issues resolved. Generated code quality significantly improved.
+
+See [CHANGELOG.md](CHANGELOG.md) for complete details.
+
 ## Installation
 
 ```bash
@@ -93,9 +107,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - **Generator functions** (yield statements)
 - Exception handling (mapped to Result<T, E>)
 - Classes and methods
-- Async/await (basic)
+- **Assert statements** (NEW in v3.18.2) ✨
+- Async/await (functions and methods - FIXED in v3.18.2)
 - Context managers (with statements)
 - Iterators
+- **Print statements** (correctly generates println! macro)
 
 **Not Supported:**
 - Dynamic features (eval, exec)
@@ -150,12 +166,14 @@ Key components:
 
 ## Quality Standards
 
-This project follows strict quality standards:
-- Test coverage: 70%+ (596 passing tests)
-- Max cyclomatic complexity: ≤20
-- Zero clippy warnings (`-D warnings`)
-- Zero self-admitted technical debt (SATD)
-- TDG grade: A+ (99.1/100)
+This project follows strict quality standards enforced by CI:
+- Test coverage: 70%+ (440+ passing tests in core, 600+ workspace-wide)
+- Max cyclomatic complexity: ≤10 (enforced via PMAT)
+- Max cognitive complexity: ≤10 (enforced via PMAT)
+- Zero clippy warnings (`-D warnings` - BLOCKING)
+- Zero self-admitted technical debt (SATD - BLOCKING)
+- TDG grade: A- minimum (≥85 points)
+- **NEW**: CI validates all transpiled code compiles (v3.18.2)
 
 ## Development
 
