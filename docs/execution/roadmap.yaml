@@ -1434,8 +1434,10 @@ stdlib_transpiler_bugs:
       name: "Fix HashMap Import Path Generation"
       priority: P0
       severity: CRITICAL
-      status: ACTIVE
+      status: COMPLETE
       estimated_hours: 2
+      actual_hours: 0.5
+      completed_date: 2025-10-14
 
       problem:
         generated_code: "use std::collections::HashMap::new;"
