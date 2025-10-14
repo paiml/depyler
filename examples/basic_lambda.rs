@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+    use std::borrow::Cow;
     #[doc = "Process Lambda events and return status."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn lambda_handler(event: HashMap<DynamicType, DynamicType>, context: HashMap<DynamicType, DynamicType>)  -> HashMap<DynamicType, DynamicType>{
     return {
     let mut map = HashMap::new();
