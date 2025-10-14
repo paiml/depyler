@@ -4,6 +4,51 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.19.1 Precision Coverage Sprint (IN PROGRESS - 2025-10-14)
+
+#### Phase 1: Quick Wins Coverage Tests (COMPLETE - 2025-10-14)
+
+**✅ COMPLETE** - Added 29 comprehensive tests for import_gen.rs and context.rs modules
+
+Added targeted coverage tests to close the gap toward 80% coverage target. Phase 1 focuses on "quick win" modules with low coverage but high impact potential.
+
+**Tests Added**:
+- **import_gen_coverage_test.rs**: 13 comprehensive tests
+  - Unit tests for whole module imports, specific item imports (Named, Aliased)
+  - Special handling for typing module (no full path needed)
+  - Property tests for import mapping correctness
+  - Mutation tests for path generation (format!("{}::{}", path, name))
+  - Edge cases: unmapped imports, empty rust_path, mixed import styles
+
+- **context_coverage_test.rs**: 16 comprehensive tests
+  - Unit tests for scope management (enter_scope, exit_scope, declare_var, is_declared)
+  - Unit tests for Union type processing (process_union_type)
+  - Property tests for scope invariants
+  - Mutation tests for scope stack integrity
+  - Edge cases: empty scope stack, undeclared variables, nested scopes
+
+**Test Quality**:
+- All tests follow unit + property + mutation pattern
+- Mutation kill strategies documented in test comments
+- Complexity ≤10 for all test functions
+- Zero SATD comments
+- All 29 tests passing (zero regressions)
+
+**Target Modules**:
+- `import_gen.rs`: 60% → ? (13 tests, expected +0.12%)
+- `context.rs`: 66% → ? (16 tests, expected +0.05%)
+
+**Related Files**:
+- `crates/depyler-core/tests/import_gen_coverage_test.rs` (NEW)
+- `crates/depyler-core/tests/context_coverage_test.rs` (NEW)
+- `docs/planning/v3.19.1_precision_coverage_plan.md` (UPDATED)
+
+**Next Steps**:
+- Measure actual coverage gain from Phase 1
+- Phase 2: func_gen.rs and stmt_gen.rs tests (+1.11% expected)
+- Phase 3: type_mapper.rs tests (+0.68% expected)
+- Phase 4: Final push to ≥80%
+
 ### v3.18.2 Emergency Bug Fix Sprint (PUBLISHED - 2025-10-14)
 
 #### DEPYLER-0163: Add CI Transpilation Validation (2025-10-14)

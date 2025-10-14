@@ -12,18 +12,16 @@ metadata:
   next_version: v3.19.0
 
 session_context:
-  achievement: "🎯 v3.19.0 SPRINT COMPLETE - Quality-Focused Coverage Expansion!"
-  latest_work: "Phase 3 complete! Sprint achieved 77.66% coverage (vs 80% target) with 46 comprehensive tests. Quality over quantity approach validated."
+  achievement: "🎯 v3.19.1 Phase 1 COMPLETE - Precision Coverage Quick Wins!"
+  latest_work: "Phase 1: import_gen.rs + context.rs comprehensive tests complete (29 tests). Ready for coverage measurement."
   recent_completions:
-    - "✅ v3.19.0 COMPLETE: 9 hours, 46 tests (unit + property + mutation), 77.66% coverage"
-    - "✅ Phase 3: Coverage milestone verification and sprint summary"
-    - "✅ BUGFIX: Filter Rust keywords in property test param generation"
-    - "✅ Phase 2C: direct_rules.rs property + mutation tests (3h, 17 tests)"
-    - "✅ Phase 2B: expr_gen.rs property + mutation tests (2h, 17 tests)"
-    - "✅ Phase 2A: string_optimization_test.rs enhanced (1h, 12 tests)"
-    - "✅ Overall core coverage: 77.52% → 77.66% (+0.14%, 34 lines)"
-  next_focus: "v3.19.1 Planning - Evaluate next milestone (80% coverage or feature work)"
-  current_status: "V3_19_0_COMPLETE"
+    - "✅ v3.19.1 Phase 1: import_gen.rs tests (13 comprehensive tests)"
+    - "✅ v3.19.1 Phase 1: context.rs tests (16 comprehensive tests)"
+    - "✅ All Phase 1 tests passing (29/29, zero regressions)"
+    - "✅ v3.19.0 COMPLETE: 77.66% coverage with 46 comprehensive tests"
+    - "✅ Strategic planning: A → C → B sequence (coverage, quality, features)"
+  next_focus: "v3.19.1 Phase 2 - func_gen.rs and stmt_gen.rs coverage (+1.11% expected)"
+  current_status: "V3_19_1_PHASE_1_COMPLETE"
 
 # ============================================================================
 # v3.18.0 MODULARIZATION PROJECT
@@ -883,6 +881,136 @@ v3_19_0_coverage_milestone:
       phase_2c: "3h estimated, 3h actual (100% on-time)"
       total: "11h estimated, 9h actual (18% faster than estimate)"
       lesson: "Focused testing approach more efficient than broad coverage sweeps"
+
+# ============================================================================
+# v3.19.1 PRECISION COVERAGE SPRINT - REACH 80% TARGET
+# ============================================================================
+
+v3_19_1_precision_coverage:
+  name: "Precision Coverage to 80% Target"
+  status: IN_PROGRESS
+  start_date: 2025-10-14
+  target_duration_hours: 3-4
+  current_phase: 1
+  completion_percent: 25
+
+  goals:
+    primary: "Close 2.34% gap (77.66% → 80.00%)"
+    approach: "Precision targeting of highest-impact modules"
+    tests_planned: 8-10
+
+  strategy:
+    method: "Direct function call targeting (not integration tests)"
+    focus: "Modules with low coverage but high line count impact"
+    priority: "Quick wins first, then high-impact modules"
+
+  target_modules:
+    - module: import_gen.rs
+      coverage_before: "60.00%"
+      missed_lines: 28
+      expected_gain: "+0.12%"
+      estimated_hours: 0.5
+      estimated_tests: 2
+      status: COMPLETE
+      actual_tests: 13
+      actual_hours: 0.5
+    - module: context.rs
+      coverage_before: "65.71%"
+      missed_lines: 12
+      expected_gain: "+0.05%"
+      estimated_hours: 0.3
+      estimated_tests: 1
+      status: COMPLETE
+      actual_tests: 16
+      actual_hours: 0.3
+    - module: func_gen.rs
+      coverage_before: "68.98%"
+      missed_lines: 170
+      expected_gain: "+0.70%"
+      estimated_hours: 1.0
+      estimated_tests: 3
+      status: PENDING
+    - module: stmt_gen.rs
+      coverage_before: "82.27%"
+      missed_lines: 100
+      expected_gain: "+0.41%"
+      estimated_hours: 0.75
+      estimated_tests: 2
+      status: PENDING
+    - module: type_mapper.rs
+      coverage_before: "74.62%"
+      missed_lines: 165
+      expected_gain: "+0.68%"
+      estimated_hours: 0.75
+      estimated_tests: 2
+      status: PENDING
+
+  phases:
+    - phase: 1
+      title: "Quick Wins (import_gen.rs + context.rs)"
+      status: COMPLETE
+      actual_duration_hours: 0.8
+      completion_date: 2025-10-14
+      expected_gain: "+0.17%"
+      tests_added: 29
+      tasks_completed:
+        - "✅ import_gen.rs: 13 comprehensive tests"
+        - "✅ context.rs: 16 comprehensive tests"
+        - "✅ All tests passing (29/29)"
+      deliverables:
+        - "import_gen_coverage_test.rs (13 tests)"
+        - "context_coverage_test.rs (16 tests)"
+
+    - phase: 2
+      title: "High Impact (func_gen.rs + stmt_gen.rs)"
+      status: PENDING
+      estimated_duration_hours: 2.0
+      expected_gain: "+1.11%"
+      estimated_tests: 5
+
+    - phase: 3
+      title: "Precision Strike (type_mapper.rs)"
+      status: PENDING
+      estimated_duration_hours: 0.75
+      expected_gain: "+0.68%"
+      estimated_tests: 2
+
+    - phase: 4
+      title: "Final Push & Verification"
+      status: PENDING
+      estimated_duration_hours: 0.5
+      tasks:
+        - "Measure actual coverage gain"
+        - "Analyze remaining gap"
+        - "Add 1-2 targeted tests if needed"
+        - "Verify ≥80% achieved"
+
+  tickets:
+    - ticket_id: DEPYLER-v3.19.1-P1
+      name: "Phase 1: Quick Wins Coverage Tests"
+      phase: 1
+      priority: P0
+      estimated_hours: 1
+      actual_hours: 0.8
+      status: COMPLETE
+      completed_date: 2025-10-14
+      tests_added: 29
+      deliverables:
+        - "import_gen_coverage_test.rs (13 tests)"
+        - "context_coverage_test.rs (16 tests)"
+      test_structure: "unit + property + mutation"
+
+  success_criteria:
+    - "Coverage ≥80.00%"
+    - "All tests passing (no regressions)"
+    - "Zero clippy warnings"
+    - "Complexity ≤10 for all new code"
+    - "Tests follow best practices (focused, minimal)"
+
+  toyota_way_principles:
+    jidoka: "Quality built in through comprehensive test patterns"
+    kaizen: "Incremental progress toward 80% goal"
+    genchi_genbutsu: "Direct targeting of specific uncovered lines"
 
 recent_releases:
   - version: v3.18.2
