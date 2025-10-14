@@ -295,6 +295,13 @@ impl LifetimeInference {
             HirStmt::Break { .. } | HirStmt::Continue { .. } | HirStmt::Pass => {
                 // Break, continue, and pass don't contain expressions to analyze
             }
+            HirStmt::Assert { test, msg } => {
+                // Analyze the test expression and optional message
+                self.analyze_expr_for_param(param, test, usage, in_loop, false);
+                if let Some(message) = msg {
+                    self.analyze_expr_for_param(param, message, usage, in_loop, false);
+                }
+            }
             HirStmt::With {
                 context,
                 target: _,

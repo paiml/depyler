@@ -163,6 +163,13 @@ impl TypeInferencer {
             HirStmt::Break { .. } | HirStmt::Continue { .. } | HirStmt::Pass => {
                 // Break, continue, and pass don't affect type inference
             }
+            HirStmt::Assert { test, msg } => {
+                // Infer types of test expression and optional message
+                self.infer_expr(test)?;
+                if let Some(message) = msg {
+                    self.infer_expr(message)?;
+                }
+            }
             HirStmt::With {
                 context,
                 target: _,

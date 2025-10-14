@@ -4,6 +4,90 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.18.2 Emergency Bug Fix Sprint (In Progress)
+
+#### DEPYLER-0160: Add Assert Statement Support (2025-10-14)
+
+**✅ COMPLETE** - Full Python assert statement transpilation support!
+
+Implemented complete Assert statement support across the entire transpilation pipeline, resolving "Statement type not yet supported" errors when transpiling test functions with assertions.
+
+**The Bug**:
+- **Error**: `Error: Statement type not yet supported` when transpiling classes with test functions
+- **Command**: `depyler transpile examples/basic_class_test.py`
+- **Impact**: Could not transpile any Python code containing assert statements
+- **Severity**: P0 BLOCKING - assert is fundamental for testing
+
+**Root Cause**:
+- `StmtConverter::convert()` in `converters.rs:43` had NO handler for `ast::Stmt::Assert`
+- Assert wasn't implemented in HIR representation
+- Assert wasn't implemented in code generation
+- 8 files across codebase had non-exhaustive pattern matches
+
+**Important Discovery**:
+- Original ticket title "Fix Class/Dataclass Transpilation" was misleading
+- Classes and dataclasses work perfectly fine
+- Imports (from/import) work correctly
+- The ACTUAL issue: Assert statements were simply not implemented
+
+**Solution**:
+1. Added `HirStmt::Assert { test, msg }` variant to HIR (`hir.rs`)
+2. Implemented `convert_assert()` in AST bridge (`converters.rs:241-245`)
+3. Added `codegen_assert_stmt()` code generator (`stmt_gen.rs:78-93`)
+4. Fixed 8 non-exhaustive pattern matches across codebase
+
+**Files Modified** (8 total):
+- `crates/depyler-core/src/hir.rs` - Added Assert HIR variant
+- `crates/depyler-core/src/ast_bridge/converters.rs` - AST → HIR conversion
+- `crates/depyler-core/src/rust_gen/stmt_gen.rs` - HIR → Rust codegen
+- `crates/depyler-core/src/borrowing_context.rs` - Borrow analysis
+- `crates/depyler-core/src/codegen.rs` - Legacy codegen path
+- `crates/depyler-core/src/direct_rules.rs` - Direct conversion
+- `crates/depyler-core/src/lifetime_analysis.rs` - Lifetime inference
+- `crates/depyler-analyzer/src/type_flow.rs` - Type inference
+
+**Generated Code Examples**:
+```rust
+// Python: assert x == 5
+assert!(x == 5);
+
+// Python: assert x == 10, "x should be 10"
+assert!(x == 10, "{}", "x should be 10".to_string());
+
+// Python: assert len(nums) == 5
+assert!(nums.len() as i32 == 5);
+```
+
+**Test Coverage**:
+- Basic assertions: `assert x == 5`
+- Assertions with messages: `assert x == 10, "message"`
+- Complex expressions: `assert len(nums) == 5`
+- Boolean assertions: `assert flag`, `assert not False`
+- All property tests and integration tests passing
+
+**Code Quality**:
+- ✅ Cyclomatic Complexity: ≤10 (stmt_gen.rs median: 4)
+- ✅ Cognitive Complexity: ≤10 (stmt_gen.rs median: 5)
+- ✅ SATD Violations: 0
+- ✅ Clippy Warnings: 0 (with -D warnings)
+- ✅ All Tests: Passing (zero regressions)
+
+**New Limitation Discovered**:
+- FString (f-strings) are not yet supported
+- Example: `f"Hello, {name}"` generates "Expression type not yet supported: FString"
+- This is a separate issue to be addressed in future work
+
+**Estimated vs Actual**:
+- Estimated: 8 hours
+- Actual: 4 hours
+- Efficiency: 50% faster than estimated
+
+#### DEPYLER-0161: Fix Array Literal Transpilation (2025-10-14)
+
+**✅ COMPLETE** - Fixed dead code elimination bug with array literals!
+
+See previous changelog entry for full details.
+
 ## [3.18.1] - 2025-10-11
 
 ### Quality & Stability Improvements

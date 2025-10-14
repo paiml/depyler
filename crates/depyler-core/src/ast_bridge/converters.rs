@@ -40,6 +40,7 @@ impl StmtConverter {
             ast::Stmt::Continue(c) => Self::convert_continue(c),
             ast::Stmt::With(w) => Self::convert_with(w),
             ast::Stmt::Try(t) => Self::convert_try(t),
+            ast::Stmt::Assert(a) => Self::convert_assert(a),
             ast::Stmt::Pass(_) => Self::convert_pass(),
             _ => bail!("Statement type not yet supported"),
         }
@@ -235,6 +236,12 @@ impl StmtConverter {
             orelse,
             finalbody,
         })
+    }
+
+    fn convert_assert(a: ast::StmtAssert) -> Result<HirStmt> {
+        let test = super::convert_expr(*a.test)?;
+        let msg = a.msg.map(|m| super::convert_expr(*m)).transpose()?;
+        Ok(HirStmt::Assert { test, msg })
     }
 
     fn convert_pass() -> Result<HirStmt> {

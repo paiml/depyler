@@ -245,6 +245,13 @@ impl BorrowingContext {
             HirStmt::Break { .. } | HirStmt::Continue { .. } | HirStmt::Pass => {
                 // Break, continue, and pass don't analyze any expressions
             }
+            HirStmt::Assert { test, msg } => {
+                // Analyze the test expression and optional message
+                self.analyze_expression(test, 0);
+                if let Some(message) = msg {
+                    self.analyze_expression(message, 0);
+                }
+            }
             HirStmt::With {
                 context,
                 target: _,
