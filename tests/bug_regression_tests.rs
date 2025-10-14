@@ -382,6 +382,113 @@ def calculate_sum(numbers: List[int]) -> int:
             "Expected proper assignment operator spacing ' = ': {}", rust_code);
     
     // Check method call spacing - should NOT have spaces in method calls
-    assert!(!rust_code.contains(". "), 
+    assert!(!rust_code.contains(". "),
             "Found spaces in method calls, should be '.method()': {}", rust_code);
+}
+
+// ============================================================================
+// DEPYLER-0161: Array Literal Transpilation Bug (CRITICAL - P0)
+// ============================================================================
+// BUG: Array literal assignments are being DROPPED during code generation.
+// ALL variable assignments are missing, leaving only return statements with
+// undefined variables. This is a SHOWSTOPPER bug.
+//
+// EXTREME TDD: These tests MUST fail first, proving the bug exists.
+// ============================================================================
+
+#[test]
+fn test_depyler_0161_simple_array_literal_missing_assignment() {
+    // DEPYLER-0161: Critical bug - array assignments are dropped
+    let python_code = r#"
+def test_array():
+    arr = [1, 2, 3]
+    return arr
+"#;
+
+    let pipeline = DepylerPipeline::new();
+    let result = pipeline.transpile(python_code);
+    assert!(result.is_ok(), "Transpilation should succeed");
+
+    let rust_code = result.unwrap();
+
+    // CRITICAL ASSERTION: Generated code MUST include the assignment
+    assert!(
+        rust_code.contains("arr =") || rust_code.contains("let arr"),
+        "BUG CONFIRMED: Array assignment is missing!\nGenerated code:\n{}",
+        rust_code
+    );
+
+    // CRITICAL: Must contain array initialization, not just undefined variable
+    assert!(
+        rust_code.contains("[1") || rust_code.contains("vec!"),
+        "BUG CONFIRMED: Array literal is missing!\nGenerated code:\n{}",
+        rust_code
+    );
+}
+
+#[test]
+fn test_depyler_0161_multiple_array_assignments_dropped() {
+    // DEPYLER-0161: Multiple array assignments all dropped
+    let python_code = r#"
+def test_arrays():
+    arr1 = [1, 2, 3]
+    arr2 = [4, 5, 6]
+    arr3 = [7, 8, 9]
+    return arr1, arr2, arr3
+"#;
+
+    let pipeline = DepylerPipeline::new();
+    let result = pipeline.transpile(python_code);
+    assert!(result.is_ok(), "Transpilation should succeed");
+
+    let rust_code = result.unwrap();
+
+    // Check for assignments (not just variable names in return statement)
+    let has_arr1_assign = rust_code.contains("arr1 =") || rust_code.contains("let arr1");
+    let has_arr2_assign = rust_code.contains("arr2 =") || rust_code.contains("let arr2");
+    let has_arr3_assign = rust_code.contains("arr3 =") || rust_code.contains("let arr3");
+
+    assert!(
+        has_arr1_assign,
+        "BUG CONFIRMED: arr1 assignment is missing!\nGenerated code:\n{}",
+        rust_code
+    );
+    assert!(
+        has_arr2_assign,
+        "BUG CONFIRMED: arr2 assignment is missing!\nGenerated code:\n{}",
+        rust_code
+    );
+    assert!(
+        has_arr3_assign,
+        "BUG CONFIRMED: arr3 assignment is missing!\nGenerated code:\n{}",
+        rust_code
+    );
+}
+
+#[test]
+fn test_depyler_0161_boolean_array_assignment_dropped() {
+    // DEPYLER-0161: Boolean arrays also affected
+    let python_code = r#"
+def test_bool_array():
+    flags = [True, False, True]
+    return flags
+"#;
+
+    let pipeline = DepylerPipeline::new();
+    let result = pipeline.transpile(python_code);
+    assert!(result.is_ok(), "Transpilation should succeed");
+
+    let rust_code = result.unwrap();
+
+    assert!(
+        rust_code.contains("flags =") || rust_code.contains("let flags"),
+        "BUG CONFIRMED: Boolean array assignment is missing!\nGenerated code:\n{}",
+        rust_code
+    );
+
+    assert!(
+        rust_code.contains("true") || rust_code.contains("false"),
+        "BUG CONFIRMED: Boolean literals are missing!\nGenerated code:\n{}",
+        rust_code
+    );
 }
