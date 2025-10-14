@@ -1083,13 +1083,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// Handle string methods (upper, lower, strip, startswith, endswith, split, join)
+    /// Handle string methods (upper, lower, strip, startswith, endswith, split, join, replace, find, count, isdigit, isalpha)
     #[inline]
     fn convert_string_method(
         &mut self,
+        hir_object: &HirExpr,
         object_expr: &syn::Expr,
         method: &str,
         arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
     ) -> Result<syn::Expr> {
         match method {
             "upper" => {
@@ -1135,11 +1137,70 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             "join" => {
-                if arg_exprs.len() != 1 {
+                // DEPYLER-0196: sep.join(iterable) → iterable.join(sep)
+                // Use bare string literal for separator without .to_string()
+                if hir_args.len() != 1 {
                     bail!("join() requires exactly one argument");
                 }
                 let iterable = &arg_exprs[0];
-                Ok(parse_quote! { #iterable.join(#object_expr) })
+                // Extract bare string literal for separator
+                let separator = match hir_object {
+                    HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                    _ => object_expr.clone(),
+                };
+                Ok(parse_quote! { #iterable.join(#separator) })
+            }
+            "replace" => {
+                // DEPYLER-0195: str.replace(old, new) → .replace(old, new)
+                // Use bare string literals without .to_string() for correct types
+                if hir_args.len() != 2 {
+                    bail!("replace() requires exactly two arguments");
+                }
+                // Extract bare string literals for arguments
+                let old = match &hir_args[0] {
+                    HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                    _ => arg_exprs[0].clone(),
+                };
+                let new = match &hir_args[1] {
+                    HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                    _ => arg_exprs[1].clone(),
+                };
+                Ok(parse_quote! { #object_expr.replace(#old, #new) })
+            }
+            "find" => {
+                // DEPYLER-0197: str.find(sub) → .find(sub).map(|i| i as i32).unwrap_or(-1)
+                // Python's find() returns -1 if not found, Rust's returns Option<usize>
+                if arg_exprs.len() != 1 {
+                    bail!("find() requires exactly one argument");
+                }
+                let substring = &arg_exprs[0];
+                Ok(parse_quote! {
+                    #object_expr.find(#substring)
+                        .map(|i| i as i32)
+                        .unwrap_or(-1)
+                })
+            }
+            "count" => {
+                // DEPYLER-0198: str.count(sub) → .matches(sub).count() as i32
+                if arg_exprs.len() != 1 {
+                    bail!("count() requires exactly one argument");
+                }
+                let substring = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.matches(#substring).count() as i32 })
+            }
+            "isdigit" => {
+                // DEPYLER-0199: str.isdigit() → .chars().all(|c| c.is_numeric())
+                if !arg_exprs.is_empty() {
+                    bail!("isdigit() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.chars().all(|c| c.is_numeric()) })
+            }
+            "isalpha" => {
+                // DEPYLER-0200: str.isalpha() → .chars().all(|c| c.is_alphabetic())
+                if !arg_exprs.is_empty() {
+                    bail!("isalpha() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.chars().all(|c| c.is_alphabetic()) })
             }
             _ => bail!("Unknown string method: {}", method),
         }
@@ -1210,6 +1271,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         object_expr: &syn::Expr,
         method: &str,
         arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
     ) -> Result<syn::Expr> {
         // Dispatch by method category
         match method {
@@ -1224,8 +1286,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // String methods
-            "upper" | "lower" | "strip" | "startswith" | "endswith" | "split" | "join" => {
-                self.convert_string_method(object_expr, method, arg_exprs)
+            "upper" | "lower" | "strip" | "startswith" | "endswith" | "split" | "join"
+            | "replace" | "find" | "count" | "isdigit" | "isalpha" => {
+                self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
             }
 
             // Set methods
@@ -1269,7 +1332,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .collect::<Result<Vec<_>>>()?;
 
         // Dispatch to instance method handler
-        self.convert_instance_method(object, &object_expr, method, &arg_exprs)
+        self.convert_instance_method(object, &object_expr, method, &arg_exprs, args)
     }
 
     fn convert_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
