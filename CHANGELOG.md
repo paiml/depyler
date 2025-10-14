@@ -4,7 +4,48 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### v3.19.1 Precision Coverage Sprint (IN PROGRESS - 2025-10-14)
+### v3.19.2 Quality Improvement Sprint (IN PROGRESS - 2025-10-14)
+
+#### Phase 1: expr_gen.rs Complexity Reduction (COMPLETE - 2025-10-14)
+
+**✅ COMPLETE** - Refactored 2 functions in expr_gen.rs using Extract Method pattern
+
+Applied Extract Method refactoring pattern to reduce cyclomatic complexity in expr_gen.rs. Target: functions with complexity 11-15 (easiest to fix).
+
+**Functions Refactored**:
+1. **convert_range_call** (complexity ~11 → ≤10)
+   - Extracted `convert_range_with_step` - dispatches to positive/negative handlers
+   - Extracted `convert_range_negative_step` - handles range with negative step
+   - Extracted `convert_range_positive_step` - handles range with positive step
+   - Pattern: Method Dispatch + Extract Method
+
+2. **convert_array_init_call** (complexity ~11-13 → ≤10)
+   - Extracted `convert_array_small_literal` - handles small static arrays (≤32 elements)
+   - Extracted `convert_array_large_literal` - handles large static arrays (vec!)
+   - Extracted `convert_array_dynamic_size` - handles dynamic size arrays
+   - Pattern: Extract Method by case
+
+**Quality Impact**:
+- Violations reduced: 2-3 functions (estimated ~4% of 57 total)
+- Technical debt removed: estimated 15-25 hours
+- All tests passing: zero regressions
+- Zero clippy warnings maintained
+- All new helper functions: complexity ≤10
+
+**Toyota Way Principles Applied**:
+- Kaizen (改善): Small, incremental improvements
+- Jidoka (自働化): Build quality in through refactoring
+- Genchi Genbutsu (現地現物): Measure actual complexity
+
+**Related Files**:
+- `crates/depyler-core/src/rust_gen/expr_gen.rs` (MODIFIED)
+- `docs/planning/v3.19.2_quality_improvement_plan.md` (UPDATED)
+
+**Next Steps**:
+- Phase 2: stmt_gen.rs improvements (2-3 violations)
+- Phase 3: Documentation & final metrics
+
+### v3.19.1 Precision Coverage Sprint (COMPLETE - 2025-10-14)
 
 #### Phase 1: Quick Wins Coverage Tests (COMPLETE - 2025-10-14)
 
