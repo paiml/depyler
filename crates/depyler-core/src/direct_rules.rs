@@ -1895,6 +1895,22 @@ impl<'a> ExprConverter<'a> {
     }
 
     fn convert_generic_call(&self, func: &str, args: &[syn::Expr]) -> Result<syn::Expr> {
+        // Special case: Python print() → Rust println!()
+        if func == "print" {
+            return if args.is_empty() {
+                // print() with no arguments → println!()
+                Ok(parse_quote! { println!() })
+            } else if args.len() == 1 {
+                // print(x) → println!("{}", x)
+                let arg = &args[0];
+                Ok(parse_quote! { println!("{}", #arg) })
+            } else {
+                // print(a, b, c) → println!("{} {} {}", a, b, c)
+                let format_str = vec!["{}"  ; args.len()].join(" ");
+                Ok(parse_quote! { println!(#format_str, #(#args),*) })
+            };
+        }
+
         // Check if this might be a constructor call (capitalized name)
         if func
             .chars()
