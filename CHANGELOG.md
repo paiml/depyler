@@ -145,8 +145,77 @@ pub async fn main() {
 - ✅ Clippy Warnings: 0 (with -D warnings)
 
 **Known Remaining Issues**:
-- `let results = vec![]` should be `let mut results = vec![]` (separate bug)
-- `print(result)` should be `println!("{}", result)` (DEPYLER-0162.3)
+- `let results = vec![]` should be `let mut results = vec![]` (separate bug, not blocking)
+
+#### DEPYLER-0162.3: Fix print() vs println!() Macro Usage (2025-10-14)
+
+**✅ COMPLETE** - Python print() now correctly generates Rust println!() macro calls!
+
+Fixed code generation bug where Python `print()` statements were being translated to invalid Rust function calls instead of the correct `println!()` macro invocation.
+
+**The Bug**:
+- **Error**: `print(result)` generated as invalid function call instead of macro
+- **Location**: Both `direct_rules.rs:1897` and `expr_gen.rs:613` `convert_generic_call()` functions
+- **Impact**: All generated code with print statements would fail to compile
+- **Severity**: P1 MAJOR - print statements are fundamental to Python programs
+
+**Root Cause**:
+- `convert_generic_call()` treated all lowercase functions uniformly
+- No special handling for Python's print() built-in
+- Generated `print(result)` function call instead of `println!("{}", result)` macro
+
+**Solution**:
+Added special case handling for print() at the beginning of `convert_generic_call()` in both files:
+```rust
+// Special case: Python print() → Rust println!()
+if func == "print" {
+    return if args.is_empty() {
+        Ok(parse_quote! { println!() })
+    } else if args.len() == 1 {
+        let arg = &args[0];
+        Ok(parse_quote! { println!("{}", #arg) })
+    } else {
+        let format_str = vec!["{}"  ; args.len()].join(" ");
+        Ok(parse_quote! { println!(#format_str, #(#args),*) })
+    };
+}
+```
+
+**Files Modified**:
+- `crates/depyler-core/src/direct_rules.rs` (lines 1898-1912) - Added print handler
+- `crates/depyler-core/src/rust_gen/expr_gen.rs` (lines 614-628) - Added print handler
+
+**Before/After Examples**:
+```rust
+// BEFORE FIX (line 23):
+for result in results.iter() {
+    print(result);  // ❌ Error: expected function, found macro `print`
+}
+
+// AFTER FIX (line 23):
+for result in results.iter() {
+    println!("{}", result);  // ✅ Correct Rust println! macro
+}
+
+// Multiple arguments:
+// Python: print(a, b, c)
+// Rust: println!("{} {} {}", a, b, c)
+
+// No arguments:
+// Python: print()
+// Rust: println!()
+```
+
+**Test Coverage**:
+- ✅ All 441 core tests pass
+- ✅ Zero regressions
+- ✅ Clippy passes with -D warnings
+
+**Code Quality**:
+- ✅ Cyclomatic Complexity: 3 (if-else chain)
+- ✅ Cognitive Complexity: 3 (simple branching)
+- ✅ SATD Violations: 0
+- ✅ Clippy Warnings: 0
 
 #### DEPYLER-0162.1: Fix Async Methods Missing Async Keyword (2025-10-14)
 
