@@ -75,6 +75,23 @@ pub(crate) fn codegen_pass_stmt() -> Result<proc_macro2::TokenStream> {
     Ok(quote! {})
 }
 
+/// Generate code for Assert statement
+#[inline]
+pub(crate) fn codegen_assert_stmt(
+    test: &HirExpr,
+    msg: &Option<HirExpr>,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let test_expr = test.to_rust_expr(ctx)?;
+
+    if let Some(message_expr) = msg {
+        let msg_tokens = message_expr.to_rust_expr(ctx)?;
+        Ok(quote! { assert!(#test_expr, "{}", #msg_tokens); })
+    } else {
+        Ok(quote! { assert!(#test_expr); })
+    }
+}
+
 /// Generate code for Break statement with optional label
 #[inline]
 pub(crate) fn codegen_break_stmt(label: &Option<String>) -> Result<proc_macro2::TokenStream> {
@@ -636,6 +653,7 @@ impl RustCodeGen for HirStmt {
                 orelse: _,
                 finalbody,
             } => codegen_try_stmt(body, handlers, finalbody, ctx),
+            HirStmt::Assert { test, msg } => codegen_assert_stmt(test, msg, ctx),
             HirStmt::Pass => codegen_pass_stmt(),
         }
     }

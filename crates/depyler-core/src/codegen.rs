@@ -558,6 +558,16 @@ fn stmt_to_rust_tokens_with_scope(
                 }
             }
         }
+        HirStmt::Assert { test, msg } => {
+            // Generate assert! macro call
+            let test_expr = expr_to_rust_tokens(test)?;
+            if let Some(message) = msg {
+                let msg_expr = expr_to_rust_tokens(message)?;
+                Ok(quote! { assert!(#test_expr, "{}", #msg_expr); })
+            } else {
+                Ok(quote! { assert!(#test_expr); })
+            }
+        }
         HirStmt::Pass => {
             // Pass statement generates no code
             Ok(quote! {})
