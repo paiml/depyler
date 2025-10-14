@@ -108,14 +108,15 @@ impl TypeExtractor {
             "List" => Self::extract_list_type(s),
             "Dict" => Self::extract_dict_type(s),
             "Set" => Self::extract_set_type(s),
+            "Tuple" => Self::extract_tuple_type(s),
             "Optional" => Self::extract_optional_type(s),
             "Union" => Self::extract_union_type(s),
             "Generic" => Self::extract_parameterized_generic(s),
-            "tuple" => Self::extract_tuple_type(s),
             // Lowercase (PEP 585 - Python 3.9+ built-in generics)
             "list" => Self::extract_list_type(s),
             "dict" => Self::extract_dict_type(s),
             "set" => Self::extract_set_type(s),
+            "tuple" => Self::extract_tuple_type(s),
             base_name => Self::extract_custom_generic(base_name, s),
         }
     }
