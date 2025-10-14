@@ -168,6 +168,15 @@ def concat(x: str, y: str) -> str:
         #[test]
         fn prop_string_parameters_use_references(param_name in "[a-z]{1,10}") {
             // Property: String parameters should prefer &str over String
+            // Filter out Rust keywords to avoid parsing errors
+            let rust_keywords = ["as", "break", "const", "continue", "crate", "do", "else",
+                                 "enum", "extern", "false", "fn", "for", "if", "impl", "in",
+                                 "let", "loop", "match", "mod", "move", "mut", "pub", "ref",
+                                 "return", "self", "Self", "static", "struct", "super", "trait",
+                                 "true", "type", "unsafe", "use", "where", "while"];
+
+            prop_assume!(!rust_keywords.contains(&param_name.as_str()));
+
             let pipeline = DepylerPipeline::new();
             let python_code = format!(r#"
 def check_{param}({param}: str) -> int:
