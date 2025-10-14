@@ -12,16 +12,16 @@ metadata:
   next_version: v3.19.0
 
 session_context:
-  achievement: "🚀 v3.19.0 ACTIVE - Coverage Milestone Sprint STARTED!"
-  latest_work: "Starting Phase 1: Coverage Analysis & Test Planning"
+  achievement: "🎯 v3.19.0 Phase 1 COMPLETE - Only 2.48% from 80% target!"
+  latest_work: "Phase 1 complete! Core at 77.52% (not 62.93%). Revised plan: 8h/17 tests (not 24h/65)"
   recent_completions:
+    - "✅ Phase 1 COMPLETE: Coverage analysis (2h, 77.52% actual vs 62.93% estimated)"
+    - "✅ Revised test plan with property + mutation testing (MANDATORY)"
+    - "✅ Fixed string_optimization_test.rs unit test"
+    - "✅ Created comprehensive Phase 1 analysis document"
     - "✅ v3.18.2 PUBLISHED to crates.io (all 9 crates) - 2025-10-14"
-    - "✅ GitHub release created with comprehensive notes"
-    - "✅ All documentation updated (CHANGELOG.md, README.md, roadmap.yaml)"
-    - "✅ All P0 blocking issues resolved"
-    - "✅ Emergency sprint completed 59% faster than estimated (13h vs 22h)"
-  next_focus: "v3.19.0 Phase 1: Generate coverage report, identify gaps, create test plan"
-  current_status: "ACTIVE_SPRINT"
+  next_focus: "Phase 2A: Add property + mutation tests to string_optimization_test.rs, then expr_gen.rs"
+  current_status: "PHASE_2A_READY"
 
 # ============================================================================
 # v3.18.0 MODULARIZATION PROJECT
@@ -600,22 +600,29 @@ v3_19_0_coverage_milestone:
     quality: "Maintain all A+ quality standards"
 
   current_metrics:
-    coverage_percent: 62.93
+    coverage_percent_workspace: 62.93
+    coverage_percent_core: 77.52
     target_coverage: 80.0
-    gap_percent: 17.07
-    tests_passing: 735
+    gap_percent: 2.48
+    tests_passing: 441
     clippy_warnings: 0
     satd_violations: 0
     complexity_violations: 57
+    note: "Core crate much closer to target than workspace average!"
 
   coverage_strategy:
-    approach: "Targeted test coverage expansion for uncovered modules"
+    approach: "Property + Mutation Testing for ALL coverage increases"
     priorities:
-      - expr_gen.rs
-      - stmt_gen.rs
-      - func_gen.rs
-      - annotation parser edge cases
-    method: "Add unit tests for uncovered paths and edge cases"
+      - expr_gen.rs (64.15%, 492 missed lines)
+      - direct_rules.rs (63.80%, 629 missed lines)
+      - Quick wins (hir.rs, context.rs, import_gen.rs)
+    method: "MANDATORY: Every test includes unit + property + mutation"
+    test_structure:
+      unit_tests: "Basic behavior validation"
+      property_tests: "proptest!/quickcheck! with arbitrary inputs (10 cases)"
+      mutation_tests: "Document which mutations are killed"
+    skip_modules:
+      - inlining.rs (13.42%, 649 lines - optimization disabled, unused)
 
   phases:
     - phase: 1
