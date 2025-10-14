@@ -650,7 +650,11 @@ fn convert_method_to_impl_item(
         defaultness: None,
         sig: syn::Signature {
             constness: None,
-            asyncness: None,
+            asyncness: if method.is_async {
+                Some(syn::Token![async](proc_macro2::Span::call_site()))
+            } else {
+                None
+            },
             unsafety: None,
             abi: None,
             fn_token: syn::Token![fn](proc_macro2::Span::call_site()),
