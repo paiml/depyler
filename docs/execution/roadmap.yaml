@@ -1482,11 +1482,23 @@ stdlib_transpiler_bugs:
         - "All quality gates pass"
 
     - ticket_id: DEPYLER-0171
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       name: "Fix HashMap Constructor Call Generation"
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       priority: P0
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       severity: CRITICAL
-      status: ACTIVE
+      actual_hours: 0.5
+      completed_date: 2025-10-14
+      status: COMPLETE
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       estimated_hours: 2
+      actual_hours: 0.5
+      completed_date: 2025-10-14
 
       problem:
         generated_code: "return dict(std::collections::HashMap::new(words));"
@@ -1530,11 +1542,23 @@ stdlib_transpiler_bugs:
         - "All quality gates pass"
 
     - ticket_id: DEPYLER-0172
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       name: "Add dict() Function Mapping (Python → Rust)"
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       priority: P0
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       severity: CRITICAL
-      status: ACTIVE
+      actual_hours: 0.5
+      completed_date: 2025-10-14
+      status: COMPLETE
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       estimated_hours: 3
+      actual_hours: 0.5
+      completed_date: 2025-10-14
 
       problem:
         generated_code: "return dict(groups);"
@@ -1582,11 +1606,23 @@ stdlib_transpiler_bugs:
         - "Zero regressions in existing tests"
 
     - ticket_id: DEPYLER-0173
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       name: "Fix VecDeque Constructor Generation"
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       priority: P0
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       severity: CRITICAL
-      status: ACTIVE
+      actual_hours: 0.5
+      completed_date: 2025-10-14
+      status: COMPLETE
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       estimated_hours: 2
+      actual_hours: 0.5
+      completed_date: 2025-10-14
 
       problem:
         generated_code: "let queue = std::collections::VecDeque(items);"
@@ -1634,11 +1670,23 @@ stdlib_transpiler_bugs:
         - "All quality gates pass"
 
     - ticket_id: DEPYLER-0174
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       name: "Add list() Function Mapping (Python → Rust)"
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       priority: P0
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       severity: CRITICAL
-      status: ACTIVE
+      actual_hours: 0.5
+      completed_date: 2025-10-14
+      status: COMPLETE
+      actual_hours: 0.5
+      completed_date: 2025-10-14
       estimated_hours: 3
+      actual_hours: 0.5
+      completed_date: 2025-10-14
 
       problem:
         generated_code: "let windows = vec![list(window)];"

@@ -464,3 +464,137 @@ def make_set():
         );
     }
 }
+
+// ============================================================================
+// DEPYLER-0171, 0172, 0173, 0174: Builtin Conversion Functions
+// ============================================================================
+
+#[test]
+fn test_counter_builtin_conversion() {
+    // DEPYLER-0171: Counter(iterable) should count elements and create HashMap
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+from collections import Counter
+def count_items(items):
+    return Counter(items)
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated Counter() code:\n{}", rust_code);
+
+    // Should NOT generate HashMap::new(items) or HashMap(items)
+    assert!(
+        !rust_code.contains("HashMap::new(items)") && !rust_code.contains("HashMap(items)"),
+        "Counter(items) should NOT use HashMap::new(items) or HashMap(items)"
+    );
+
+    // Should generate proper iterator collection
+    assert!(
+        rust_code.contains(".collect::<HashMap<") || rust_code.contains(".fold("),
+        "Counter(items) should use .collect() or .fold() to count elements"
+    );
+}
+
+#[test]
+fn test_dict_builtin_conversion() {
+    // DEPYLER-0172: dict(mapping) should convert mapping to HashMap
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def convert_to_dict(mapping):
+    return dict(mapping)
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated dict() code:\n{}", rust_code);
+
+    // Should NOT generate: dict(mapping) - function not found error
+    // Should generate proper conversion
+    assert!(
+        rust_code.contains(".collect::<HashMap<") || rust_code.contains("HashMap::from"),
+        "dict(mapping) should use .collect() or HashMap::from()"
+    );
+}
+
+#[test]
+fn test_dict_empty_constructor() {
+    // DEPYLER-0172: dict() with no args should create empty HashMap
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def make_empty_dict():
+    return dict()
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated dict() empty code:\n{}", rust_code);
+
+    // Should generate HashMap::new()
+    assert!(
+        rust_code.contains("HashMap::new()"),
+        "dict() with no args should generate HashMap::new()"
+    );
+}
+
+#[test]
+fn test_deque_builtin_conversion() {
+    // DEPYLER-0173: deque(iterable) should create VecDeque from iterable
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+from collections import deque
+def make_deque(items):
+    return deque(items)
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated deque() code:\n{}", rust_code);
+
+    // Should NOT generate: VecDeque(items) - tuple struct error
+    assert!(
+        !rust_code.contains("VecDeque(items)"),
+        "deque(items) should NOT use VecDeque(items)"
+    );
+
+    // Should generate proper conversion
+    assert!(
+        rust_code.contains("VecDeque::from(") || rust_code.contains(".collect::<VecDeque<"),
+        "deque(items) should use VecDeque::from() or .collect()"
+    );
+}
+
+#[test]
+fn test_list_builtin_conversion() {
+    // DEPYLER-0174: list(iterable) should convert iterable to Vec
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def convert_to_list(iterable):
+    return list(iterable)
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated list() code:\n{}", rust_code);
+
+    // Should NOT generate: list(iterable) - function not found error
+    // Should generate proper conversion
+    assert!(
+        rust_code.contains(".collect::<Vec<") || rust_code.contains("Vec::from") || rust_code.contains(".to_vec()"),
+        "list(iterable) should use .collect(), Vec::from(), or .to_vec()"
+    );
+}
+
+#[test]
+fn test_list_empty_constructor() {
+    // DEPYLER-0174: list() with no args should create empty Vec
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def make_empty_list():
+    return list()
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated list() empty code:\n{}", rust_code);
+
+    // Should generate Vec::new() or vec![]
+    assert!(
+        rust_code.contains("Vec::new()") || rust_code.contains("vec![]") || rust_code.contains("vec ! []"),
+        "list() with no args should generate Vec::new() or vec![]"
+    );
+}
