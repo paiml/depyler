@@ -12,17 +12,16 @@ metadata:
   next_version: v3.19.0
 
 session_context:
-  achievement: "✅ v3.19.2 COMPLETE - Incremental Quality Improvements Successful!"
-  latest_work: "v3.19.2 completed: 2 functions refactored in expr_gen.rs (~4% complexity reduction). 6 helper methods extracted. 75% faster than estimated (0.5h vs 2h). Phase 2 skipped for clean completion."
+  achievement: "🛑 STOP THE LINE - Stdlib Transpiler Bugs Discovered"
+  latest_work: "v3.19.2 published successfully. Started Extreme TDD stdlib verification. Discovered 5 critical transpiler bugs in collections module support (HashMap import, dict() mapping, VecDeque constructor, list() mapping). Following Jidoka protocol - HALT ALL WORK until transpiler fixed."
   recent_completions:
-    - "✅ v3.19.2 COMPLETE: expr_gen.rs refactoring (2 functions, 6 helpers, ~4% debt reduction)"
-    - "✅ Phase 1: convert_range_call + convert_array_init_call refactored"
-    - "✅ 15-25 hours technical debt removed (estimated)"
-    - "✅ Zero regressions, zero warnings, zero SATD maintained"
-    - "✅ 75% faster than estimated (0.5h actual vs 2h estimated)"
-    - "✅ v3.19.1 COMPLETE: 93 tests, 76.60% coverage (module-level success)"
-  next_focus: "Ready for v3.20.0: Feature work per A→C→B strategy"
-  current_status: "V3_19_2_COMPLETE_READY_FOR_V3_20_0"
+    - "✅ v3.19.2 PUBLISHED: GitHub + crates.io (all 9 crates)"
+    - "✅ Roadmap updated with v3.19.2 release information"
+    - "🛑 DISCOVERED: 5 critical stdlib transpiler bugs (DEPYLER-0170 to DEPYLER-0174)"
+    - "📋 CREATED: Detailed bug tickets in roadmap.yaml"
+    - "🛑 STOPPED: All feature work until transpiler fixed"
+  next_focus: "Fix DEPYLER-0170 through DEPYLER-0174 (stdlib transpiler bugs) using TDD"
+  current_status: "STOP_THE_LINE_TRANSPILER_BUGS_FOUND"
 
 # ============================================================================
 # v3.18.0 MODULARIZATION PROJECT
@@ -1404,6 +1403,307 @@ recent_releases:
     name: "Lambda improvements"
     completion_percent: 75.0
     status: PARTIAL
+
+# ============================================================================
+# STDLIB TRANSPILER BUGS (STOP THE LINE)
+# ============================================================================
+
+stdlib_transpiler_bugs:
+  name: "Python stdlib Collections Module Transpiler Bugs"
+  status: ACTIVE
+  priority: P0
+  severity: BLOCKING
+  start_date: 2025-10-14
+  discovery_method: "Extreme TDD - stdlib verification (test_collections_import.py)"
+
+  context:
+    trigger: "Post v3.19.2 release - Python stdlib verification sprint"
+    approach: "Extreme TDD per CLAUDE.md protocol"
+    test_file: "examples/test_collections_import.py"
+    transpile_success: true
+    compile_success: false
+    total_errors: 13
+
+  jidoka_response:
+    action: "🛑 STOP THE LINE - Halt all feature work until transpiler fixed"
+    principle: "Never pass defects downstream"
+    philosophy: "Fix the transpiler (not the output) to improve ALL future code"
+
+  tickets:
+    - ticket_id: DEPYLER-0170
+      name: "Fix HashMap Import Path Generation"
+      priority: P0
+      severity: CRITICAL
+      status: ACTIVE
+      estimated_hours: 2
+
+      problem:
+        generated_code: "use std::collections::HashMap::new;"
+        error: "error[E0433]: failed to resolve: `new` is not a module - HashMap is a struct, not a module"
+        location: "/tmp/test_collections.rs:1"
+        impact: "Cannot use HashMap from collections - core Python feature broken"
+
+      root_cause:
+        module: "import_gen.rs or context.rs"
+        issue: "Import path generator treats HashMap as a module instead of a struct"
+        incorrect_pattern: "HashMap::new (function path)"
+        correct_pattern: "HashMap (type import)"
+
+      minimal_reproduction: |
+        # Python
+        from collections import defaultdict, Counter, deque
+        def count_words(text: str) -> Dict[str, int]:
+            words = text.lower().split()
+            return dict(Counter(words))
+
+        # Transpiles to (WRONG):
+        use std::collections::HashMap::new;  // ❌
+
+        # Should transpile to (CORRECT):
+        use std::collections::HashMap;       // ✅
+
+      expected_behavior: "HashMap should be imported as a type, not a function path"
+
+      fix_strategy:
+        approach: "TDD - Write failing test first, then fix import generator"
+        steps:
+          - "Create test: test_hashmap_import_path()"
+          - "Identify import path generator in import_gen.rs"
+          - "Fix HashMap special case handling"
+          - "Re-transpile ALL examples to verify"
+          - "Verify all tests pass"
+
+      success_criteria:
+        - "Test passes: HashMap imported as type"
+        - "test_collections_import.py compiles successfully"
+        - "Zero regressions in existing tests"
+        - "All quality gates pass"
+
+    - ticket_id: DEPYLER-0171
+      name: "Fix HashMap Constructor Call Generation"
+      priority: P0
+      severity: CRITICAL
+      status: ACTIVE
+      estimated_hours: 2
+
+      problem:
+        generated_code: "return dict(std::collections::HashMap::new(words));"
+        error: "error[E0061]: this function takes 0 arguments but 1 argument was supplied"
+        location: "/tmp/test_collections.rs:24"
+        impact: "Cannot construct HashMap from iterator - fundamental transpilation error"
+
+      root_cause:
+        module: "expr_gen.rs"
+        issue: "HashMap::new() constructor incorrectly takes arguments"
+        incorrect_pattern: "HashMap::new(words)"
+        correct_pattern: "words.into_iter().collect::<HashMap<_, _>>()"
+
+      minimal_reproduction: |
+        # Python
+        def count_words(text: str) -> Dict[str, int]:
+            words = text.lower().split()
+            return dict(Counter(words))  # Construct dict from Counter
+
+        # Transpiles to (WRONG):
+        return dict(std::collections::HashMap::new(words));  // ❌
+
+        # Should transpile to (CORRECT):
+        return words.into_iter().collect::<HashMap<_, _>>();  // ✅
+
+      expected_behavior: "HashMap construction from iterator should use collect()"
+
+      fix_strategy:
+        approach: "TDD - Write failing test first, then fix HashMap constructor codegen"
+        steps:
+          - "Create test: test_hashmap_constructor_from_iterator()"
+          - "Identify HashMap constructor in expr_gen.rs"
+          - "Fix to use .collect() pattern"
+          - "Re-transpile ALL examples to verify"
+          - "Verify all tests pass"
+
+      success_criteria:
+        - "Test passes: HashMap uses collect() from iterator"
+        - "test_collections_import.py compiles successfully"
+        - "Zero regressions in existing tests"
+        - "All quality gates pass"
+
+    - ticket_id: DEPYLER-0172
+      name: "Add dict() Function Mapping (Python → Rust)"
+      priority: P0
+      severity: CRITICAL
+      status: ACTIVE
+      estimated_hours: 3
+
+      problem:
+        generated_code: "return dict(groups);"
+        error: "error[E0425]: cannot find function `dict` in this scope"
+        location: "/tmp/test_collections.rs:33"
+        impact: "Python's dict() builtin not mapped to Rust equivalent"
+
+      root_cause:
+        module: "expr_gen.rs or builtin_mapper.rs"
+        issue: "dict() builtin function has no Rust mapping"
+        missing: "Conversion from Python dict() to Rust HashMap construction"
+
+      minimal_reproduction: |
+        # Python
+        from collections import defaultdict
+        def group_by_length(words: List[str]) -> Dict[int, List[str]]:
+            groups = defaultdict(list)
+            for word in words:
+                groups[len(word)].append(word)
+            return dict(groups)  # Convert defaultdict to dict
+
+        # Transpiles to (WRONG):
+        return dict(groups);  // ❌ Function 'dict' not found
+
+        # Should transpile to (CORRECT):
+        return groups.into_iter().collect::<HashMap<_, _>>();  // ✅
+
+      expected_behavior: "dict() should convert to HashMap::from() or .collect()"
+
+      fix_strategy:
+        approach: "TDD - Add dict() builtin mapping"
+        steps:
+          - "Create test: test_dict_builtin_conversion()"
+          - "Add dict() to builtin function mappings"
+          - "Map to appropriate Rust pattern (HashMap::from or collect)"
+          - "Handle dict() with no args (empty HashMap)"
+          - "Handle dict(iterable) pattern"
+          - "Re-transpile ALL examples to verify"
+
+      success_criteria:
+        - "Test passes: dict() maps to HashMap construction"
+        - "dict() with no args → HashMap::new()"
+        - "dict(iterable) → iterable.collect::<HashMap<_,_>>()"
+        - "test_collections_import.py compiles successfully"
+        - "Zero regressions in existing tests"
+
+    - ticket_id: DEPYLER-0173
+      name: "Fix VecDeque Constructor Generation"
+      priority: P0
+      severity: CRITICAL
+      status: ACTIVE
+      estimated_hours: 2
+
+      problem:
+        generated_code: "let queue = std::collections::VecDeque(items);"
+        error: "error[E0423]: expected function, tuple struct or tuple variant, found struct `VecDeque`"
+        location: "/tmp/test_collections.rs:37"
+        impact: "Cannot construct VecDeque - deque support completely broken"
+
+      root_cause:
+        module: "expr_gen.rs"
+        issue: "VecDeque treated as tuple struct instead of regular struct"
+        incorrect_pattern: "VecDeque(items)"
+        correct_pattern: "VecDeque::from(items)"
+
+      minimal_reproduction: |
+        # Python
+        from collections import deque
+        def process_queue(items: List[int]) -> List[int]:
+            queue = deque(items)  # Create deque from list
+            results = []
+            while queue:
+                results.append(queue.popleft())
+            return results
+
+        # Transpiles to (WRONG):
+        let queue = std::collections::VecDeque(items);  // ❌
+
+        # Should transpile to (CORRECT):
+        let queue = std::collections::VecDeque::from(items);  // ✅
+
+      expected_behavior: "deque(items) should transpile to VecDeque::from(items)"
+
+      fix_strategy:
+        approach: "TDD - Write failing test first, then fix VecDeque constructor"
+        steps:
+          - "Create test: test_vecdeque_constructor()"
+          - "Identify deque constructor in expr_gen.rs"
+          - "Fix to use VecDeque::from() pattern"
+          - "Re-transpile ALL examples to verify"
+          - "Verify all tests pass"
+
+      success_criteria:
+        - "Test passes: VecDeque uses ::from() constructor"
+        - "test_collections_import.py compiles successfully"
+        - "Zero regressions in existing tests"
+        - "All quality gates pass"
+
+    - ticket_id: DEPYLER-0174
+      name: "Add list() Function Mapping (Python → Rust)"
+      priority: P0
+      severity: CRITICAL
+      status: ACTIVE
+      estimated_hours: 3
+
+      problem:
+        generated_code: "let windows = vec![list(window)];"
+        error: "error[E0425]: cannot find function `list` in this scope"
+        location: "/tmp/test_collections.rs:61"
+        impact: "Python's list() builtin not mapped to Rust equivalent"
+
+      root_cause:
+        module: "expr_gen.rs or builtin_mapper.rs"
+        issue: "list() builtin function has no Rust mapping"
+        missing: "Conversion from Python list() to Rust Vec construction"
+
+      minimal_reproduction: |
+        # Python
+        from collections import deque
+        def sliding_window(data: List[int], window_size: int) -> List[List[int]]:
+            window = deque(data[:window_size])
+            windows = [list(window)]  # Convert deque to list
+            for item in data[window_size:]:
+                window.append(item)
+                windows.append(list(window))
+            return windows
+
+        # Transpiles to (WRONG):
+        let windows = vec![list(window)];  // ❌ Function 'list' not found
+
+        # Should transpile to (CORRECT):
+        let windows = vec![window.iter().cloned().collect::<Vec<_>>()];  // ✅
+
+      expected_behavior: "list() should convert to Vec::from() or .collect()"
+
+      fix_strategy:
+        approach: "TDD - Add list() builtin mapping"
+        steps:
+          - "Create test: test_list_builtin_conversion()"
+          - "Add list() to builtin function mappings"
+          - "Map to appropriate Rust pattern (Vec::from or collect)"
+          - "Handle list() with no args (empty Vec)"
+          - "Handle list(iterable) pattern"
+          - "Re-transpile ALL examples to verify"
+
+      success_criteria:
+        - "Test passes: list() maps to Vec construction"
+        - "list() with no args → Vec::new()"
+        - "list(iterable) → iterable.collect::<Vec<_>>()"
+        - "test_collections_import.py compiles successfully"
+        - "Zero regressions in existing tests"
+
+  success_criteria:
+    - "✅ All 5 tickets completed (DEPYLER-0170 through DEPYLER-0174)"
+    - "✅ test_collections_import.py transpiles AND compiles"
+    - "✅ test_itertools.py transpiles AND compiles"
+    - "✅ Zero regressions in existing 441 tests"
+    - "✅ All examples/ files re-transpiled and verified"
+    - "✅ All quality gates passing"
+    - "✅ Comprehensive test suite added for each fix"
+
+  estimated_effort:
+    total_hours: 12
+    team_size: 1
+    target_completion: "2025-10-15"
+
+  toyota_way_principles:
+    jidoka: "STOP THE LINE - Fix transpiler quality issues immediately"
+    kaizen: "Each bug fixed improves ALL future transpiled code"
+    genchi_genbutsu: "Verified actual compilation errors, not assumptions"
+    hansei: "Reflect - stdlib support assumed working, but wasn't validated"
 
 # ============================================================================
 # TRANSPILER BUG FIX
