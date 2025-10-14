@@ -302,6 +302,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "zeros" | "ones" | "full" => self.convert_array_init_call(func, args, &arg_exprs),
             "set" => self.convert_set_constructor(&arg_exprs),
             "frozenset" => self.convert_frozenset_constructor(&arg_exprs),
+            // DEPYLER-0171, 0172, 0173, 0174: Collection conversion builtins
+            "Counter" => self.convert_counter_builtin(&arg_exprs),
+            "dict" => self.convert_dict_builtin(&arg_exprs),
+            "deque" => self.convert_deque_builtin(&arg_exprs),
+            "list" => self.convert_list_builtin(&arg_exprs),
             _ => self.convert_generic_call(func, &arg_exprs),
         }
     }
@@ -612,6 +617,80 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 "frozenset() takes at most 1 argument ({} given)",
                 args.len()
             )
+        }
+    }
+
+    // ========================================================================
+    // DEPYLER-0171, 0172, 0173, 0174: Collection Conversion Builtins
+    // ========================================================================
+
+    fn convert_counter_builtin(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        // DEPYLER-0171: Counter(iterable) counts elements and creates HashMap
+        self.ctx.needs_hashmap = true;
+        if args.is_empty() {
+            // Counter() with no args → empty HashMap
+            Ok(parse_quote! { HashMap::new() })
+        } else if args.len() == 1 {
+            // Counter(iterable) → count elements using fold
+            let arg = &args[0];
+            Ok(parse_quote! {
+                #arg.into_iter().fold(HashMap::new(), |mut acc, item| {
+                    *acc.entry(item).or_insert(0) += 1;
+                    acc
+                })
+            })
+        } else {
+            bail!("Counter() takes at most 1 argument ({} given)", args.len())
+        }
+    }
+
+    fn convert_dict_builtin(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        // DEPYLER-0172: dict() converts mapping/iterable to HashMap
+        self.ctx.needs_hashmap = true;
+        if args.is_empty() {
+            // dict() with no args → empty HashMap
+            Ok(parse_quote! { HashMap::new() })
+        } else if args.len() == 1 {
+            // dict(mapping) → convert to HashMap
+            let arg = &args[0];
+            Ok(parse_quote! {
+                #arg.into_iter().collect::<HashMap<_, _>>()
+            })
+        } else {
+            bail!("dict() takes at most 1 argument ({} given)", args.len())
+        }
+    }
+
+    fn convert_deque_builtin(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        // DEPYLER-0173: deque(iterable) creates VecDeque from iterable
+        self.ctx.needs_vecdeque = true;
+        if args.is_empty() {
+            // deque() with no args → empty VecDeque
+            Ok(parse_quote! { VecDeque::new() })
+        } else if args.len() == 1 {
+            // deque(iterable) → VecDeque::from()
+            let arg = &args[0];
+            Ok(parse_quote! {
+                VecDeque::from(#arg)
+            })
+        } else {
+            bail!("deque() takes at most 1 argument ({} given)", args.len())
+        }
+    }
+
+    fn convert_list_builtin(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        // DEPYLER-0174: list(iterable) converts iterable to Vec
+        if args.is_empty() {
+            // list() with no args → empty Vec
+            Ok(parse_quote! { Vec::new() })
+        } else if args.len() == 1 {
+            // list(iterable) → collect to Vec
+            let arg = &args[0];
+            Ok(parse_quote! {
+                #arg.into_iter().collect::<Vec<_>>()
+            })
+        } else {
+            bail!("list() takes at most 1 argument ({} given)", args.len())
         }
     }
 

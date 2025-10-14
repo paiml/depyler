@@ -155,6 +155,7 @@ fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenS
     let conditional_imports = [
         (ctx.needs_hashmap, quote! { use std::collections::HashMap; }),
         (ctx.needs_hashset, quote! { use std::collections::HashSet; }),
+        (ctx.needs_vecdeque, quote! { use std::collections::VecDeque; }),
         (ctx.needs_fnv_hashmap, quote! { use fnv::FnvHashMap; }),
         (ctx.needs_ahash_hashmap, quote! { use ahash::AHashMap; }),
         (ctx.needs_arc, quote! { use std::sync::Arc; }),
@@ -261,6 +262,7 @@ pub fn generate_rust_file(
         generated_enums: Vec::new(),
         needs_hashmap: false,
         needs_hashset: false,
+        needs_vecdeque: false,
         needs_fnv_hashmap: false,
         needs_ahash_hashmap: false,
         needs_arc: false,
@@ -357,6 +359,7 @@ mod tests {
             generated_enums: Vec::new(),
             needs_hashmap: false,
             needs_hashset: false,
+        needs_vecdeque: false,
             needs_fnv_hashmap: false,
             needs_ahash_hashmap: false,
             needs_arc: false,
