@@ -44,10 +44,50 @@ Added targeted coverage tests to close the gap toward 80% coverage target. Phase
 - `docs/planning/v3.19.1_precision_coverage_plan.md` (UPDATED)
 
 **Next Steps**:
-- Measure actual coverage gain from Phase 1
-- Phase 2: func_gen.rs and stmt_gen.rs tests (+1.11% expected)
 - Phase 3: type_mapper.rs tests (+0.68% expected)
+- Measure total coverage gain from all phases
 - Phase 4: Final push to ≥80%
+
+#### Phase 2: High Impact Coverage Tests (COMPLETE - 2025-10-14)
+
+**✅ COMPLETE** - Added 47 comprehensive tests for func_gen.rs and stmt_gen.rs modules
+
+Added high-impact coverage tests targeting function generation and statement handling,
+the two largest modules with significant uncovered code.
+
+**Tests Added**:
+- **func_gen_coverage_test.rs**: 23 comprehensive tests
+  * Unit tests for generic parameter generation
+  * Unit tests for lifetime handling
+  * Unit tests for return type generation (Result, Optional, Cow)
+  * String method return type analysis
+  * Property tests for function transpilation
+  * Mutation tests for parameter borrowing
+  * Edge cases: async functions, generators, error tracking
+
+- **stmt_gen_coverage_test.rs**: 24 comprehensive tests
+  * Unit tests for exception handling (try/except/finally)
+  * Unit tests for context managers (with statement)
+  * Unit tests for control flow (break/continue with labels)
+  * Property tests for statement transpilation
+  * Mutation tests for assignment strategies
+  * Edge cases: tuple unpacking, nested index assignment
+
+**Test Quality**:
+- All tests follow unit + property + mutation pattern
+- Mutation kill strategies documented
+- Complexity ≤10 for all test functions
+- Zero SATD comments
+- All 47 tests passing (zero regressions)
+
+**Target Modules**:
+- `func_gen.rs`: 69% → ? (23 tests, expected +0.70%)
+- `stmt_gen.rs`: 82% → ? (24 tests, expected +0.41%)
+
+**Related Files**:
+- `crates/depyler-core/tests/func_gen_coverage_test.rs` (NEW)
+- `crates/depyler-core/tests/stmt_gen_coverage_test.rs` (NEW)
+- `docs/planning/v3.19.1_precision_coverage_plan.md` (UPDATED)
 
 ### v3.18.2 Emergency Bug Fix Sprint (PUBLISHED - 2025-10-14)
 

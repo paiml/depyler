@@ -963,10 +963,18 @@ v3_19_1_precision_coverage:
 
     - phase: 2
       title: "High Impact (func_gen.rs + stmt_gen.rs)"
-      status: PENDING
-      estimated_duration_hours: 2.0
+      status: COMPLETE
+      actual_duration_hours: 1.8
+      completion_date: 2025-10-14
       expected_gain: "+1.11%"
-      estimated_tests: 5
+      tests_added: 47
+      tasks_completed:
+        - "✅ func_gen.rs: 23 comprehensive tests"
+        - "✅ stmt_gen.rs: 24 comprehensive tests"
+        - "✅ All tests passing (47/47)"
+      deliverables:
+        - "func_gen_coverage_test.rs (23 tests)"
+        - "stmt_gen_coverage_test.rs (24 tests)"
 
     - phase: 3
       title: "Precision Strike (type_mapper.rs)"
