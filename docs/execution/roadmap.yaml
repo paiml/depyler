@@ -12,16 +12,16 @@ metadata:
   next_version: v3.19.0
 
 session_context:
-  achievement: "🎯 v3.19.1 COMPLETE - Module-Level Coverage Success!"
-  latest_work: "v3.19.1 sprint complete: 93 tests added, module coverage +3% to +31%. Coverage: 76.60% (test code dilution artifact). Module-level SUCCESS achieved."
+  achievement: "📋 v3.19.2 PLANNED - Incremental Quality Improvements Ready!"
+  latest_work: "v3.19.2 quality plan created: Target 10% complexity reduction (5-6 violations). Kaizen approach: expr_gen.rs + stmt_gen.rs improvements over 4-6 hours."
   recent_completions:
+    - "✅ v3.19.2 PLANNED: Incremental complexity reduction (10% target, 4-6h)"
     - "✅ v3.19.1 COMPLETE: 93 tests, 76.60% coverage (module-level success)"
     - "✅ Module improvements: import_gen +31%, context +31%, func_gen +3%, stmt_gen +10%, type_mapper +4%"
     - "✅ All 93 tests passing (zero regressions, 11% faster than estimated)"
     - "✅ Documented test code dilution paradox and lessons learned"
-    - "✅ v3.19.0 COMPLETE: 77.66% coverage with 46 comprehensive tests"
-  next_focus: "v3.19.2 - Quality improvements (complexity reduction per A→C→B strategy)"
-  current_status: "V3_19_1_COMPLETE_MODULE_SUCCESS"
+  next_focus: "Ready to start v3.19.2 Phase 1: expr_gen.rs quick wins (3 violations, 2h)"
+  current_status: "V3_19_2_READY_TO_START"
 
 # ============================================================================
 # v3.18.0 MODULARIZATION PROJECT
@@ -1099,8 +1099,116 @@ v3_19_1_precision_coverage:
 
   toyota_way_principles:
     jidoka: "Quality built in through comprehensive test patterns"
-    kaizen: "Incremental progress toward 80% goal"
+    kaizen: "Incremental progress toward coverage goals"
     genchi_genbutsu: "Direct targeting of specific uncovered lines"
+
+# ============================================================================
+# v3.19.2 QUALITY IMPROVEMENT SPRINT - INCREMENTAL COMPLEXITY REDUCTION
+# ============================================================================
+
+v3_19_2_quality_improvement:
+  name: "Incremental Complexity Reduction (Kaizen)"
+  status: PLANNED
+  start_date: TBD
+  target_duration_hours: 4-6
+  completion_percent: 0
+
+  goals:
+    primary: "Reduce legacy complexity violations by 10% (5-6 violations)"
+    approach: "Incremental Kaizen improvements using Extract Method pattern"
+    philosophy: "Small, safe, incremental changes (Toyota Way)"
+
+  current_debt:
+    total_violations: 57
+    estimated_hours: 482.0
+    policy: "Tracked for incremental improvement, not blocking"
+
+    modules:
+      - module: expr_gen.rs
+        violations: 44
+        percentage: 77
+        estimated_hours: 370.8
+        priority: P1
+      - module: stmt_gen.rs
+        violations: 11
+        percentage: 19
+        estimated_hours: 60.2
+        priority: P2
+      - module: func_gen.rs
+        violations: 2
+        percentage: 4
+        estimated_hours: 51.0
+        priority: P3
+
+  phases:
+    - phase: 1
+      title: "Quick Wins (expr_gen.rs)"
+      status: PLANNED
+      estimated_duration_hours: 2
+      target_violations: 3
+      complexity_range: "11-15"
+      expected_reduction: "44 → 41 violations"
+
+    - phase: 2
+      title: "Medium Impact (stmt_gen.rs)"
+      status: PLANNED
+      estimated_duration_hours: 2-3
+      target_violations: 2-3
+      complexity_range: "11-20"
+      expected_reduction: "11 → 8-9 violations"
+
+    - phase: 3
+      title: "Documentation & Metrics"
+      status: PLANNED
+      estimated_duration_hours: 0.5
+      tasks:
+        - "Update roadmap.yaml with new counts"
+        - "Document refactoring patterns"
+        - "Measure complexity reduction"
+        - "Update CHANGELOG.md"
+
+  success_criteria:
+    minimum:
+      - "Reduce violations: 57 → 52 (9% reduction)"
+      - "All tests passing (zero regressions)"
+      - "Zero clippy warnings"
+      - "Zero SATD introduced"
+      - "All new code complexity ≤10"
+
+    target:
+      - "Reduce violations: 57 → 46 (19% reduction)"
+      - "expr_gen.rs: 44 → 38 violations"
+      - "stmt_gen.rs: 11 → 8 violations"
+      - "Estimated hours saved: 50-100h"
+
+    stretch:
+      - "Reduce violations: 57 → 40 (30% reduction)"
+      - "expr_gen.rs: 44 → 32 violations"
+      - "stmt_gen.rs: 11 → 0 violations (complete)"
+
+  refactoring_patterns:
+    - pattern: "Extract Method"
+      description: "Break large functions into focused helpers"
+      proven: "v3.18.0 modularization sprint"
+    - pattern: "Early Return Guards"
+      description: "Reduce nesting with guard clauses"
+      proven: "v3.18.0 complexity reduction"
+    - pattern: "Method Dispatch"
+      description: "Delegate match arms to handlers"
+      proven: "v3.18.0 method call refactoring"
+
+  risk_mitigation:
+    - risk: "Regression risk - refactoring breaks functionality"
+      mitigation: "TDD approach - run tests after EVERY change"
+    - risk: "Time overrun - complexity reduction takes too long"
+      mitigation: "If stuck >1h on function, skip and document"
+    - risk: "Test failures after refactoring"
+      mitigation: "Small commits after each function refactored"
+
+  toyota_way_principles:
+    kaizen: "10% reduction is success - small, safe, incremental"
+    jidoka: "Test after every refactoring, zero regressions"
+    genchi_genbutsu: "Measure actual complexity before/after"
 
 recent_releases:
   - version: v3.18.2
