@@ -29,7 +29,11 @@ pub struct OptimizerConfig {
 impl Default for OptimizerConfig {
     fn default() -> Self {
         Self {
-            inline_functions: true,
+            // DEPYLER-0161: Disabled broken inlining optimization
+            // BUG: Inlining pass marks functions as "Trivial" but doesn't inline them,
+            // then dead code elimination removes assignments, leaving undefined variables.
+            // TODO: Fix inlining logic in v3.19.0, then re-enable this optimization.
+            inline_functions: false,
             eliminate_dead_code: true,
             propagate_constants: true,
             eliminate_common_subexpressions: true,
@@ -710,6 +714,14 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
             collect_used_vars_expr_inner(operand, used);
         }
         HirExpr::List(items) => {
+            for item in items {
+                collect_used_vars_expr_inner(item, used);
+            }
+        }
+        HirExpr::Tuple(items) => {
+            // DEPYLER-0161 FIX: Collect variables from tuple expressions
+            // This was causing dead code elimination to remove assignments
+            // for variables used in tuple returns like: return (a, b, c)
             for item in items {
                 collect_used_vars_expr_inner(item, used);
             }
