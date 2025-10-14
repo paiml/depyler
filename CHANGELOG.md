@@ -6,6 +6,70 @@ All notable changes to this project will be documented in this file.
 
 ### v3.18.2 Emergency Bug Fix Sprint (In Progress)
 
+#### DEPYLER-0163: Add CI Transpilation Validation (2025-10-14)
+
+**✅ COMPLETE** - CI now validates that ALL transpiled code compiles successfully!
+
+Enhanced CI integration tests to include Rust compilation validation for all transpiled Python examples, ensuring generated code is not just syntactically correct but actually compiles.
+
+**The Need**:
+- **Problem**: CI only validated transpilation succeeded, not that generated Rust compiled
+- **Impact**: Broken transpiler changes could pass CI despite generating invalid Rust
+- **Location**: `.github/workflows/ci.yml` integration test job
+- **Priority**: P0 BLOCKING - must catch transpiler regressions before merge
+
+**Solution**:
+Added `rustc` compilation validation step after each successful transpilation:
+```bash
+# DEPYLER-0163: Validate that generated Rust code compiles
+echo "🔍 Validating Rust compilation..."
+if rustc --crate-type lib --edition 2021 "${py_file%.py}.rs" ...; then
+  echo "✅ Generated Rust code compiles successfully!"
+  compile_count=$((compile_count + 1))
+else
+  echo "❌ COMPILATION FAILED - BLOCKING"
+  exit 1
+fi
+```
+
+**Validation Logic**:
+1. Transpile each `.py` file in `examples/showcase/`
+2. Verify generated `.rs` file exists and has content
+3. **NEW**: Compile with `rustc --crate-type lib --edition 2021`
+4. **BLOCKING**: Exit 1 if ANY transpiled file fails to compile
+5. Report: `compile_count/success_count` must equal `success_count/success_count`
+
+**Files Modified**:
+- `.github/workflows/ci.yml` (lines 187-243) - Enhanced integration test
+
+**Benefits**:
+- ✅ Catches transpiler bugs that generate invalid Rust (like DEPYLER-0162 bugs)
+- ✅ Ensures all showcase examples are valid, compilable Rust
+- ✅ Provides early warning before issues reach production
+- ✅ Validates compilation with edition 2021 (async/await support)
+
+**Example Output**:
+```
+========================================
+Transpiling: examples/showcase/binary_search.py
+✅ Transpilation completed: examples/showcase/binary_search.rs
+✅ Generated Rust file exists and has content
+📝 Generated 42 lines of Rust code
+🔍 Validating Rust compilation...
+✅ Generated Rust code compiles successfully!
+========================================
+📊 Transpilation Success: 4/4 files
+📊 Compilation Success: 4/4 transpiled files
+✅ All transpiled files compile successfully
+🎉 CI transpilation validation passed!
+```
+
+**Code Quality**:
+- ✅ Bash script complexity: Minimal (simple loop + conditionals)
+- ✅ Clear error messages with actionable output
+- ✅ BLOCKING failures prevent bad code from merging
+- ✅ Comprehensive reporting (transpile + compile counts)
+
 #### DEPYLER-0160: Add Assert Statement Support (2025-10-14)
 
 **✅ COMPLETE** - Full Python assert statement transpilation support!
