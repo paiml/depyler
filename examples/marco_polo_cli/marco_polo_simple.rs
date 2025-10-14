@@ -108,25 +108,17 @@ let _cse_temp_1  = (total as f64) /(count as f64);
    
 }
 #[doc = "Format game statistics as string."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn format_statistics(score: i32, attempts: i32, rounds: i32)  -> String {
-    let _inline_total = attempts;
-    let _inline_count = rounds;
-    let _cse_temp_0 = _inline_count == 0;
-    if _cse_temp_0 {
-    return 0.0;
-   
-}
-let _cse_temp_1 = _inline_total / _inline_count;
-    let avg = _cse_temp_1;
+    let avg = calculate_average(attempts, rounds);
     let mut result = "Game Statistics:\n";
-    let _cse_temp_2 = score.to_string();
-    let _cse_temp_3 = format !("{}{}", result, "Score: ") + _cse_temp_2;
+    let _cse_temp_0 = score.to_string();
+    let _cse_temp_1 = format !("{}{}", result, "Score: ") + _cse_temp_0;
+    result = format !("{}{}", _cse_temp_1, "\n");
+    let _cse_temp_2 = attempts.to_string();
+    let _cse_temp_3 = format !("{}{}", result, "Attempts: ") + _cse_temp_2;
     result = format !("{}{}", _cse_temp_3, "\n");
-    let _cse_temp_4 = attempts.to_string();
-    let _cse_temp_5 = format !("{}{}", result, "Attempts: ") + _cse_temp_4;
+    let _cse_temp_4 = avg.to_string();
+    let _cse_temp_5 = format !("{}{}", result, "Average: ") + _cse_temp_4;
     result = format !("{}{}", _cse_temp_5, "\n");
-    let _cse_temp_6 = avg.to_string();
-    let _cse_temp_7 = format !("{}{}", result, "Average: ") + _cse_temp_6;
-    result = format !("{}{}", _cse_temp_7, "\n");
     return result;
    
 }
