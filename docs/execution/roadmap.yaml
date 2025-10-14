@@ -1260,6 +1260,30 @@ v3_19_2_quality_improvement:
     Per A→C→B strategy, proceed to v3.20.0 (feature work) after v3.19.2 completion.
 
 recent_releases:
+  - version: v3.19.2
+    name: "Quality Improvement Sprint"
+    date: 2025-10-14
+    tests_passing: 441
+    tests_total: 441
+    completion_percent: 100.0
+    status: PUBLISHED
+    published_to:
+      - github
+      - crates_io
+    published_date: 2025-10-14
+    release_url: "https://github.com/paiml/depyler/releases/tag/v3.19.2"
+    crates_io_url: "https://crates.io/crates/depyler/3.19.2"
+    highlights:
+      - "2 functions refactored in expr_gen.rs (convert_range_call, convert_array_init_call)"
+      - "6 helper methods extracted using Extract Method pattern"
+      - "~4% complexity debt reduction (~2 violations from 57 total)"
+      - "15-25 hours technical debt removed (estimated)"
+      - "75% faster than estimated (0.5h actual vs 2h)"
+      - "Zero regressions (441/441 tests passing)"
+      - "Zero clippy warnings, zero SATD violations"
+      - "All helper functions complexity ≤10"
+      - "Phase 2 strategically skipped for clean completion"
+
   - version: v3.18.2
     name: "Emergency Bug Fix Sprint"
     date: 2025-10-14
