@@ -246,6 +246,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // DEPYLER-0178: Handle filter() with lambda → convert to Rust iterator pattern
+        if func == "filter" && args.len() == 2 {
+            if let HirExpr::Lambda { params, body } = &args[0] {
+                if params.len() != 1 {
+                    bail!("filter() lambda must have exactly one parameter");
+                }
+                let iterable_expr = args[1].to_rust_expr(self.ctx)?;
+                let param_ident = syn::Ident::new(&params[0], proc_macro2::Span::call_site());
+                let body_expr = body.to_rust_expr(self.ctx)?;
+
+                return Ok(parse_quote! {
+                    #iterable_expr.into_iter().filter(|#param_ident| #body_expr)
+                });
+            }
+        }
+
         // Handle sum(generator_exp) → generator_exp.sum()
         if func == "sum" && args.len() == 1
             && matches!(args[0], HirExpr::GeneratorExp { .. }) {
@@ -684,13 +700,60 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // list() with no args → empty Vec
             Ok(parse_quote! { Vec::new() })
         } else if args.len() == 1 {
-            // list(iterable) → collect to Vec
             let arg = &args[0];
-            Ok(parse_quote! {
-                #arg.into_iter().collect::<Vec<_>>()
-            })
+
+            // DEPYLER-0177: Check if expression already collected
+            // map(lambda...) already includes .collect(), don't add another
+            if self.already_collected(arg) {
+                Ok(arg.clone())
+            } else if self.is_range_expr(arg) {
+                // DEPYLER-0179: range(5) → (0..5).collect()
+                Ok(parse_quote! {
+                    (#arg).collect::<Vec<_>>()
+                })
+            } else if self.is_iterator_expr(arg) {
+                // DEPYLER-0176: zip(), enumerate() return iterators
+                // Don't add redundant .into_iter()
+                Ok(parse_quote! {
+                    #arg.collect::<Vec<_>>()
+                })
+            } else {
+                // Regular iterable → collect to Vec
+                Ok(parse_quote! {
+                    #arg.into_iter().collect::<Vec<_>>()
+                })
+            }
         } else {
             bail!("list() takes at most 1 argument ({} given)", args.len())
+        }
+    }
+
+    /// Check if expression already ends with .collect()
+    fn already_collected(&self, expr: &syn::Expr) -> bool {
+        if let syn::Expr::MethodCall(method_call) = expr {
+            method_call.method == "collect"
+        } else {
+            false
+        }
+    }
+
+    /// Check if expression is a range (0..5, start..end, etc.)
+    fn is_range_expr(&self, expr: &syn::Expr) -> bool {
+        matches!(expr, syn::Expr::Range(_))
+    }
+
+    /// Check if expression is an iterator-producing expression
+    fn is_iterator_expr(&self, expr: &syn::Expr) -> bool {
+        // Check if it's a method call that returns an iterator
+        if let syn::Expr::MethodCall(method_call) = expr {
+            let method_name = method_call.method.to_string();
+            matches!(
+                method_name.as_str(),
+                "iter" | "iter_mut" | "into_iter" | "zip" | "map" | "filter"
+                | "enumerate" | "chain" | "flat_map" | "take" | "skip" | "collect"
+            )
+        } else {
+            false
         }
     }
 
