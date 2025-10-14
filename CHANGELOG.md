@@ -82,6 +82,73 @@ assert!(nums.len() as i32 == 5);
 - Actual: 4 hours
 - Efficiency: 50% faster than estimated
 
+#### DEPYLER-0162.1: Fix Async Methods Missing Async Keyword (2025-10-14)
+
+**✅ COMPLETE** - Async methods in classes now correctly generate with async keyword!
+
+Fixed critical bug where all async methods in classes were being generated as synchronous methods.
+
+**The Bug**:
+- **Error**: Async methods generated as synchronous: `pub fn increment(&mut self)` instead of `pub async fn increment(&mut self)`
+- **Location**: `crates/depyler-core/src/direct_rules.rs:653`
+- **Impact**: ALL async methods in classes were unusable - could not use `.await` on method calls
+- **Severity**: P1 MAJOR - async/await in classes completely broken
+
+**Root Cause**:
+- `convert_method_to_impl_item()` had hardcoded `asyncness: None` on line 653
+- `HirMethod` has `is_async: bool` field but it was never being checked
+- Every async method was generated as a regular synchronous method
+
+**Solution**:
+- Changed line 653 from hardcoded `asyncness: None` to conditional check
+- Now checks `method.is_async` and generates appropriate token:
+  ```rust
+  asyncness: if method.is_async {
+      Some(syn::Token![async](...))
+  } else {
+      None
+  }
+  ```
+
+**Files Modified**:
+- `crates/depyler-core/src/direct_rules.rs:653-657` - Added async keyword support
+
+**Generated Code Examples**:
+```rust
+// Before (WRONG):
+pub fn increment(&mut self) -> i32 {
+    self._simulate_delay().await;  // ❌ Can't use await in sync function!
+    self.value += 1;
+    return self.value;
+}
+
+// After (CORRECT):
+pub async fn increment(&mut self) -> i32 {
+    self._simulate_delay().await;  // ✅ Correct async/await!
+    self.value += 1;
+    return self.value;
+}
+```
+
+**Test Coverage**:
+- AsyncCounter methods: `increment()`, `get_value()`, `_simulate_delay()`
+- AsyncDataProcessor methods: `process()`, `_async_work()`
+- All async methods in classes now generate correctly
+
+**Verification**:
+- ✅ All 441 tests passing (zero regressions)
+- ✅ Clippy: Zero warnings with -D warnings
+- ✅ Build: Successful compilation
+- ✅ Example: `test_async_methods.py` now generates correct async methods
+
+**Remaining Async Issues** (separate tickets):
+- Missing variable initialization in async functions (DEPYLER-0162.2)
+- `print()` vs `println!()` macro usage (DEPYLER-0162.3)
+
+**Estimated vs Actual**:
+- Fix time: 1 hour
+- Impact: Critical - fixes ALL async class methods
+
 #### DEPYLER-0161: Fix Array Literal Transpilation (2025-10-14)
 
 **✅ COMPLETE** - Fixed dead code elimination bug with array literals!
