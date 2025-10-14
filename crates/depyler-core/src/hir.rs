@@ -317,6 +317,10 @@ pub enum HirStmt {
         orelse: Option<Vec<HirStmt>>,
         finalbody: Option<Vec<HirStmt>>,
     },
+    Assert {
+        test: HirExpr,
+        msg: Option<HirExpr>,
+    },
     Pass,
 }
 

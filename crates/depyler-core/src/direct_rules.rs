@@ -1467,6 +1467,17 @@ fn convert_stmt_with_context(
                 Ok(syn::Stmt::Expr(block_expr, None))
             }
         }
+        HirStmt::Assert { test, msg } => {
+            // Generate assert! macro call
+            let test_expr = convert_expr_with_context(test, type_mapper, is_classmethod)?;
+            let assert_macro: syn::Stmt = if let Some(message) = msg {
+                let msg_expr = convert_expr_with_context(message, type_mapper, is_classmethod)?;
+                parse_quote! { assert!(#test_expr, "{}", #msg_expr); }
+            } else {
+                parse_quote! { assert!(#test_expr); }
+            };
+            Ok(assert_macro)
+        }
         HirStmt::Pass => {
             // Pass statement generates empty statement
             Ok(syn::Stmt::Expr(parse_quote! { {} }, None))
