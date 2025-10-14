@@ -184,24 +184,40 @@ jobs:
         export RUSTFLAGS="-C linker=gcc"
         cargo build --release --bin depyler
     
-    - name: Run example transpilations
+    - name: Run example transpilations with compilation validation
       run: |
         echo "Testing example Python files..."
         success_count=0
+        compile_count=0
         total_count=0
+
         for py_file in examples/showcase/*.py; do
+          echo "========================================="
           echo "Transpiling: $py_file"
           total_count=$((total_count + 1))
-          
+
           # Try transpilation - some may fail in V1
           if ./target/release/depyler transpile "$py_file" -o "${py_file%.py}.rs"; then
             echo "✅ Transpilation completed: ${py_file%.py}.rs"
-            
+
             # Verify Rust file was generated and has content
             if [ -f "${py_file%.py}.rs" ] && [ -s "${py_file%.py}.rs" ]; then
               echo "✅ Generated Rust file exists and has content"
               echo "📝 Generated $(wc -l < "${py_file%.py}.rs") lines of Rust code"
               success_count=$((success_count + 1))
+
+              # DEPYLER-0163: Validate that generated Rust code compiles
+              echo "🔍 Validating Rust compilation..."
+              if rustc --crate-type lib --edition 2021 "${py_file%.py}.rs" -o /tmp/$(basename "${py_file%.py}").rlib 2>&1 | tee /tmp/rustc_output.txt; then
+                echo "✅ Generated Rust code compiles successfully!"
+                compile_count=$((compile_count + 1))
+              else
+                echo "❌ COMPILATION FAILED for ${py_file%.py}.rs"
+                echo "Compiler output:"
+                cat /tmp/rustc_output.txt
+                echo "This is a BLOCKING FAILURE - generated code must compile"
+                exit 1
+              fi
             else
               echo "⚠️  Generated file is empty or missing"
             fi
@@ -209,14 +225,19 @@ jobs:
             echo "⚠️  Transpilation failed (acceptable for V1 - some Python features not yet supported)"
           fi
         done
-        
-        echo "📊 Success rate: $success_count/$total_count files transpiled successfully"
-        
-        # Require at least one successful transpilation
-        if [ $success_count -gt 0 ]; then
-          echo "✅ At least one file transpiled successfully"
+
+        echo "========================================="
+        echo "📊 Transpilation Success: $success_count/$total_count files"
+        echo "📊 Compilation Success: $compile_count/$success_count transpiled files"
+
+        # Require at least one successful transpilation AND compilation
+        if [ $success_count -gt 0 ] && [ $compile_count -eq $success_count ]; then
+          echo "✅ All transpiled files compile successfully"
+          echo "🎉 CI transpilation validation passed!"
+        elif [ $success_count -gt 0 ] && [ $compile_count -lt $success_count ]; then
+          echo "❌ Some transpiled files failed to compile: $compile_count/$success_count"
+          exit 1
         else
           echo "❌ No files transpiled successfully"
           exit 1
         fi
-        echo "🎉 All transpilation tests completed successfully!"
