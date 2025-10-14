@@ -7,19 +7,20 @@
 metadata:
   project_name: Depyler
   current_version: v3.18.1
-  last_active: 2025-10-11
-  status: QUALITY_IMPROVEMENTS
-  next_version: v3.19.0
+  last_active: 2025-10-14
+  status: EMERGENCY_BUG_FIX
+  next_version: v3.18.2
 
 session_context:
-  achievement: "🎉 v3.18.1 RELEASED - Quality & Stability improvements published to crates.io"
-  latest_work: "v3.18.1 release complete - All 4 crates published successfully"
+  achievement: "🚨 AUDIT ACKNOWLEDGED - Emergency response initiated for critical transpilation bugs"
+  latest_work: "Gemini audit verified - 3 critical bugs confirmed (class, array, async transpilation)"
   recent_completions:
-    - "v3.18.1 published to GitHub and crates.io (2025-10-11)"
-    - "AnnotationParser refactoring complete (DEPYLER-0145)"
-    - "Coverage timeout fixed - 25.4s (DEPYLER-0146)"
-    - "SATD cleanup - Zero technical debt (DEPYLER-0147)"
-  next_focus: "v3.19.0 - Coverage Milestone Sprint (Target: 80% coverage)"
+    - "Audit response created (docs/qa/AUDIT_RESPONSE_2025-10-14.md)"
+    - "Bug #3 CONFIRMED: Class transpilation fails"
+    - "Bug #4 CONFIRMED: Array literals generate invalid code"
+    - "Bug #5 PARTIALLY CONFIRMED: Async has multiple issues"
+    - "v3.18.2 emergency sprint planned (5 tickets, 22 hours)"
+  next_focus: "v3.18.2 EMERGENCY SPRINT - Fix P0 bugs before ANY other work"
 
 # ============================================================================
 # v3.18.0 MODULARIZATION PROJECT
@@ -303,14 +304,236 @@ quality_metrics:
   overall_status: PRODUCTION_READY
 
 # ============================================================================
-# v3.19.0 SPRINT PLAN - COVERAGE MILESTONE
+# v3.18.2 EMERGENCY SPRINT - CRITICAL TRANSPILATION BUGS
+# ============================================================================
+
+v3_18_2_emergency_sprint:
+  name: "Emergency Bug Fix Sprint"
+  status: PLANNED
+  priority: P0
+  start_date: 2025-10-15
+  target_date: 2025-10-17
+  duration_days: 2-3
+
+  trigger:
+    event: "Gemini Audit (2025-10-14)"
+    audit_file: "docs/qa/gemini-audit-oct14.yaml"
+    response_file: "docs/qa/AUDIT_RESPONSE_2025-10-14.md"
+    severity: CRITICAL
+    action_taken: "HALT v3.19.0 coverage work, FIX P0 bugs immediately"
+
+  audit_findings_confirmed:
+    - finding: "Quality gate violations (51 total)"
+      status: CONFIRMED
+      action: TRACKED_NOT_BLOCKING
+    - finding: "Bug #3: Class/dataclass transpilation fails"
+      status: CONFIRMED
+      severity: P0_BLOCKER
+    - finding: "Bug #4: Array literal code generation broken"
+      status: CONFIRMED
+      severity: P0_BLOCKER
+    - finding: "Bug #5: Async code generation bugs"
+      status: PARTIALLY_CONFIRMED
+      severity: P1_MAJOR
+
+  goals:
+    primary: "Fix ALL critical transpilation bugs discovered in audit"
+    secondary: "Add CI validation to prevent future regressions"
+    tertiary: "Update documentation to accurately reflect capabilities"
+
+  toyota_way_response:
+    jidoka: "STOP THE LINE - Halt all feature/coverage work to fix critical bugs"
+    genchi_genbutsu: "GO AND SEE - Verified every audit claim with actual transpilation tests"
+    kaizen: "LEARN AND IMPROVE - Add CI validation, improve testing"
+    hansei: "REFLECT - Acknowledged mistakes in release process and documentation"
+
+  tickets:
+    - ticket_id: DEPYLER-0160
+      name: "Fix Class/Dataclass Transpilation"
+      priority: P0
+      severity: BLOCKING
+      estimated_hours: 8
+      status: PLANNED
+
+      problem:
+        command: "depyler transpile examples/basic_class_test.py"
+        error: "Error: Statement type not yet supported"
+        impact: "Classes are fundamental Python feature - complete blocker"
+
+      root_cause:
+        - "AST → HIR conversion doesn't handle ImportFrom statements"
+        - "Class definitions with decorators not supported"
+        - "@dataclass decorator not recognized"
+        - "Certain method types within classes may be unsupported"
+
+      solution:
+        - "Add ImportFrom statement support"
+        - "Add decorator support for class definitions"
+        - "Add @dataclass decorator recognition"
+        - "Ensure all standard __init__, __str__, etc. methods work"
+
+      success_criteria:
+        - "basic_class_test.py transpiles successfully"
+        - "Generated code passes cargo check"
+        - "20+ class/dataclass examples added to test suite"
+        - "All tests pass"
+
+    - ticket_id: DEPYLER-0161
+      name: "Fix Array Literal Code Generation"
+      priority: P0
+      severity: BLOCKING
+      estimated_hours: 6
+      status: PLANNED
+
+      problem:
+        input_code: |
+          def test_array_literals():
+              arr1 = [1, 2, 3, 4, 5]
+              return arr1
+        generated_code: |
+          pub fn test_array_literals() -> DynamicType {
+              return arr1;  // ❌ Variable never defined!
+          }
+        error: "Generated code missing ALL variable assignments"
+        impact: "Arrays/lists are most basic data structure - complete blocker"
+
+      root_cause:
+        - "Statement generation logic dropping assignment statements"
+        - "Likely issue in stmt_gen.rs or HIR → Rust conversion"
+        - "Only return statements being generated"
+
+      solution:
+        - "Fix statement generation to include ALL assignment statements"
+        - "Verify array/list literals generate correct Rust code"
+        - "Test both small arrays ([1,2,3]) and large arrays (vec!)"
+
+      success_criteria:
+        - "array_test.py generates valid Rust code"
+        - "Generated code passes cargo check AND compiles"
+        - "15+ array/list examples added to test suite"
+        - "All assignments present in generated code"
+
+    - ticket_id: DEPYLER-0162
+      name: "Fix Async Code Generation Bugs"
+      priority: P1
+      severity: MAJOR
+      estimated_hours: 4
+      status: PLANNED
+
+      problem:
+        generated_issues:
+          - "Undefined variables (e.g., 'urls' in main())"
+          - "Wrong test types (Vec<i32> instead of Vec<String>)"
+          - "print() instead of println!() macro"
+        impact: "Async code unusable in current state"
+
+      root_cause:
+        - "Missing variable initialization for function parameters"
+        - "Test generation not type-aware"
+        - "Macro vs function confusion in code generation"
+
+      solution:
+        - "Fix variable initialization in generated async functions"
+        - "Improve type inference in test generation"
+        - "Fix print → println! conversion"
+
+      success_criteria:
+        - "test_async_function.py generates valid Rust code"
+        - "Generated code passes cargo check AND compiles"
+        - "10+ async examples added to test suite"
+        - "All generated tests have correct types"
+
+    - ticket_id: DEPYLER-0163
+      name: "Add Transpilation Validation to CI"
+      priority: P0
+      severity: BLOCKING
+      estimated_hours: 2
+      status: PLANNED
+
+      goal: "Prevent future regressions - ALL generated code must compile"
+
+      implementation:
+        - "Create CI job: validate-transpilation"
+        - "Transpile ALL examples/*.py files"
+        - "Run cargo check on EVERY generated .rs file"
+        - "Fail CI if ANY generated code doesn't compile"
+
+      ci_workflow: |
+        - name: Validate Generated Code Compiles
+          run: |
+            for example in examples/*.py; do
+              echo "Testing $example..."
+              cargo run --bin depyler -- transpile "$example" || exit 1
+              rustc --crate-type lib "${example%.py}.rs" || exit 1
+            done
+
+      success_criteria:
+        - "CI job added to .github/workflows/"
+        - "All current examples pass validation"
+        - "Future PRs blocked if transpilation breaks"
+
+    - ticket_id: DEPYLER-0164
+      name: "Update Documentation - Honest Status"
+      priority: P1
+      severity: MAJOR
+      estimated_hours: 2
+      status: PLANNED
+
+      problem: "Documentation overstates capabilities, missing 'Known Limitations'"
+
+      updates_required:
+        readme:
+          - "Add 'Project Status: Alpha - Active Development' warning"
+          - "Add 'Known Limitations' section"
+          - "Remove unsupported features from 'Supported Features'"
+          - "List verified working vs planned features"
+
+        roadmap:
+          - "Mark v3.18.1 with caveat: 'quality improvements, but critical bugs discovered'"
+          - "Add v3.18.2 emergency sprint"
+          - "Postpone v3.19.0 until after v3.18.2"
+
+      success_criteria:
+        - "README.md updated with honest status"
+        - "Roadmap.yaml includes v3.18.2"
+        - "Documentation accurately reflects current capabilities"
+
+  success_criteria:
+    - "✅ All P0 bugs fixed (DEPYLER-0160, DEPYLER-0161)"
+    - "✅ P1 bugs fixed (DEPYLER-0162)"
+    - "✅ CI validation added (DEPYLER-0163)"
+    - "✅ Documentation updated (DEPYLER-0164)"
+    - "✅ ALL example files transpile successfully"
+    - "✅ ALL generated code passes cargo check"
+    - "✅ Comprehensive regression test suite added"
+    - "✅ Zero regressions in existing tests"
+
+  estimated_effort:
+    total_hours: 22
+    total_days: 2.75
+    team_size: 1
+    start: 2025-10-15
+    end: 2025-10-17
+
+  release_plan:
+    version: v3.18.2
+    type: EMERGENCY_PATCH
+    publish_to:
+      - github
+      - crates_io
+    notes: "Critical transpilation bug fixes - ALL users should upgrade"
+
+# ============================================================================
+# v3.19.0 SPRINT PLAN - COVERAGE MILESTONE (POSTPONED)
 # ============================================================================
 
 v3_19_0_coverage_milestone:
   name: "Coverage Milestone Sprint"
-  status: PLANNED
-  start_date: 2025-10-12
-  target_date: 2025-10-15
+  status: POSTPONED
+  reason: "Postponed due to v3.18.2 emergency sprint (critical transpilation bugs)"
+  original_start_date: 2025-10-12
+  new_start_date: "After v3.18.2 completion"
+  target_date: TBD
   duration_days: 3
 
   goals:
