@@ -257,7 +257,8 @@ impl TestGenerator {
 
     /// Check if function is a sorting function
     fn is_sorting_function(&self, func: &HirFunction) -> bool {
-        func.name.contains("sort")
+        // DEPYLER-0189: Must have at least one parameter to be a sorting function
+        !func.params.is_empty() && func.name.contains("sort")
     }
 
     /// Convert Python type to quickcheck-compatible type
@@ -285,6 +286,10 @@ impl TestGenerator {
     ) -> proc_macro2::TokenStream {
         match prop {
             TestProperty::Identity => {
+                // DEPYLER-0189: Bounds check before accessing params
+                if params.is_empty() {
+                    return quote! {};
+                }
                 let param = &params[0];
                 quote! {
                     let result = #func_name(#param.clone());
@@ -294,6 +299,10 @@ impl TestGenerator {
                 }
             }
             TestProperty::Commutative => {
+                // DEPYLER-0189: Bounds check before accessing params
+                if params.len() < 2 {
+                    return quote! {};
+                }
                 let (a, b) = (&params[0], &params[1]);
                 quote! {
                     let result1 = #func_name(#a.clone(), #b.clone());
@@ -312,6 +321,10 @@ impl TestGenerator {
                 }
             }
             TestProperty::LengthPreserving => {
+                // DEPYLER-0189: Bounds check before accessing params
+                if params.is_empty() {
+                    return quote! {};
+                }
                 let param = &params[0];
                 quote! {
                     let input_len = #param.len();
@@ -332,6 +345,10 @@ impl TestGenerator {
                 }
             }
             TestProperty::SameElements => {
+                // DEPYLER-0189: Bounds check before accessing params (THIS WAS THE PANIC!)
+                if params.is_empty() {
+                    return quote! {};
+                }
                 let param = &params[0];
                 quote! {
                     let mut input_sorted = #param.clone();
