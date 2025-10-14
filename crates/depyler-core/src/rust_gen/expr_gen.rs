@@ -276,6 +276,48 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 return Ok(parse_quote! { #gen_expr.max() });
             }
 
+        // DEPYLER-0190: Handle sorted(iterable) → { let mut result = iterable.clone(); result.sort(); result }
+        if func == "sorted" && args.len() == 1 {
+            let iter_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! {
+                {
+                    let mut __sorted_result = #iter_expr.clone();
+                    __sorted_result.sort();
+                    __sorted_result
+                }
+            });
+        }
+
+        // DEPYLER-0191: Handle reversed(iterable) → iterable.into_iter().rev().collect()
+        if func == "reversed" && args.len() == 1 {
+            let iter_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! {
+                {
+                    let mut __reversed_result = #iter_expr.clone();
+                    __reversed_result.reverse();
+                    __reversed_result
+                }
+            });
+        }
+
+        // DEPYLER-0192: Handle sum(iterable) → iterable.iter().sum()
+        if func == "sum" && args.len() == 1 {
+            let iter_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { #iter_expr.iter().sum() });
+        }
+
+        // DEPYLER-0193: Handle max(iterable) → iterable.iter().copied().max().unwrap()
+        if func == "max" && args.len() == 1 {
+            let iter_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { *#iter_expr.iter().max().unwrap() });
+        }
+
+        // DEPYLER-0194: Handle min(iterable) → iterable.iter().copied().min().unwrap()
+        if func == "min" && args.len() == 1 {
+            let iter_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { *#iter_expr.iter().min().unwrap() });
+        }
+
         // Handle enumerate(items) → items.into_iter().enumerate()
         if func == "enumerate" && args.len() == 1 {
             let items_expr = args[0].to_rust_expr(self.ctx)?;
