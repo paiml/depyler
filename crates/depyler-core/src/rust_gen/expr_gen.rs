@@ -1190,7 +1190,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "get" => {
                 if arg_exprs.len() == 1 {
                     let key = &arg_exprs[0];
-                    Ok(parse_quote! { #object_expr.get(&#key).cloned() })
+                    // DEPYLER-0222: dict.get() without default should unwrap the Option
+                    Ok(parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_default() })
                 } else if arg_exprs.len() == 2 {
                     let key = &arg_exprs[0];
                     let default = &arg_exprs[1];
@@ -1389,6 +1390,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let arg = &arg_exprs[0];
                 Ok(parse_quote! { #object_expr.insert(#arg) })
             }
+            "remove" => {
+                // DEPYLER-0224: Set.remove(value) - remove value or panic if not found
+                if arg_exprs.len() != 1 {
+                    bail!("remove() requires exactly one argument");
+                }
+                let arg = &arg_exprs[0];
+                Ok(parse_quote! {
+                    if !#object_expr.remove(&#arg) {
+                        panic!("KeyError: element not in set")
+                    }
+                })
+            }
             "discard" => {
                 if arg_exprs.len() != 1 {
                     bail!("discard() requires exactly one argument");
@@ -1559,6 +1572,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if self.is_set_expr(object) {
             match method {
                 "add"
+                | "remove"
                 | "discard"
                 | "update"
                 | "intersection_update"
@@ -1594,8 +1608,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 self.convert_list_method(object_expr, object, method, arg_exprs, hir_args)
             }
 
+            // DEPYLER-0223: Disambiguate update() for dict vs set
+            "update" => {
+                // Check if argument is a set or dict literal
+                if !hir_args.is_empty() && self.is_set_expr(&hir_args[0]) {
+                    // numbers.update({3, 4}) - set update
+                    self.convert_set_method(object_expr, method, arg_exprs)
+                } else {
+                    // data.update({"b": 2}) - dict update (default for variables)
+                    self.convert_dict_method(object_expr, method, arg_exprs)
+                }
+            }
+
             // Dict methods (for variables without type info)
-            // Note: "update" removed - it's ambiguous, prefer set interpretation in fallback
             "get" | "keys" | "values" | "items" => {
                 self.convert_dict_method(object_expr, method, arg_exprs)
             }
@@ -1607,10 +1632,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // Set methods (for variables without type info)
-            // Note: "update" is more commonly used with sets in typed code, so prefer set interpretation
+            // Note: "update" handled separately above with disambiguation logic
+            // Note: "remove" is ambiguous (list vs set) - keep in list fallback for now
             "add"
             | "discard"
-            | "update"
             | "intersection_update"
             | "difference_update"
             | "symmetric_difference_update"
