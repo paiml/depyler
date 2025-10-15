@@ -10,7 +10,7 @@ use std::fs;
 use std::process::Command;
 
 #[test]
-fn test_DEPYLER_0220_codegen_formatting_rustfmt_compliant() {
+fn test_depyler_0220_codegen_formatting_rustfmt_compliant() {
     // ARRANGE: Python code with class (simple error handling)
     let python_code = r#"
 class CustomError(Exception):
@@ -77,7 +77,7 @@ class DataProcessor:
 }
 
 #[test]
-fn test_DEPYLER_0220_codegen_formatting_generics() {
+fn test_depyler_0220_codegen_formatting_generics() {
     // ARRANGE: Python code that generates generic parameters
     let python_code = r#"
 from typing import Generic, TypeVar
@@ -131,7 +131,7 @@ class Container(Generic[T]):
 }
 
 #[test]
-fn test_DEPYLER_0220_codegen_formatting_macros() {
+fn test_depyler_0220_codegen_formatting_macros() {
     // ARRANGE: Python code that generates macro calls
     let python_code = r#"
 def format_message(name: str, value: int) -> str:
@@ -168,7 +168,7 @@ def log_error(message: str) -> None:
 }
 
 #[test]
-fn test_DEPYLER_0220_codegen_formatting_impl_blocks() {
+fn test_depyler_0220_codegen_formatting_impl_blocks() {
     // ARRANGE: Python class with multiple impl blocks
     let python_code = r#"
 class Point:
@@ -210,7 +210,7 @@ class Point:
 }
 
 #[test]
-fn test_DEPYLER_0220_codegen_formatting_comprehensive() {
+fn test_depyler_0220_codegen_formatting_comprehensive() {
     // ARRANGE: Comprehensive Python code combining all patterns
     let python_code = r#"
 from typing import List, Dict, Optional

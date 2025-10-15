@@ -1011,6 +1011,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         object: &HirExpr,
         method: &str,
         arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
     ) -> Result<syn::Expr> {
         match method {
             "append" => {
@@ -1063,12 +1064,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(parse_quote! { #object_expr.pop().unwrap_or_default() })
                 } else {
                     // 1 argument: could be list.pop(index) OR dict.pop(key)
-                    // Heuristic: assume dict for variables (most common case in typed code)
-                    // For list.pop(index), users should use Vec methods directly in Rust
+                    // Use multiple heuristics to disambiguate:
                     let arg = &arg_exprs[0];
-                    Ok(
-                        parse_quote! { #object_expr.remove(&#arg).expect("KeyError: key not found") },
-                    )
+
+                    // Heuristic 1: Explicit list literal
+                    let is_list = self.is_list_expr(object);
+
+                    // Heuristic 2: Explicit dict literal
+                    let is_dict = self.is_dict_expr(object);
+
+                    // Heuristic 3: Integer argument suggests list index
+                    let arg_is_int = !hir_args.is_empty()
+                        && matches!(hir_args[0], HirExpr::Literal(crate::hir::Literal::Int(_)));
+
+                    if is_list || (!is_dict && arg_is_int) {
+                        // List.pop(index) - use Vec::remove() which takes usize by value
+                        Ok(parse_quote! { #object_expr.remove(#arg as usize) })
+                    } else {
+                        // dict.pop(key) - HashMap::remove() takes &K by reference
+                        Ok(
+                            parse_quote! { #object_expr.remove(&#arg).expect("KeyError: key not found") },
+                        )
+                    }
                 }
             }
             "insert" => {
@@ -1574,7 +1591,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // List methods
             "append" | "extend" | "pop" | "insert" | "remove" | "index" | "count" | "copy"
             | "clear" | "reverse" | "sort" => {
-                self.convert_list_method(object_expr, object, method, arg_exprs)
+                self.convert_list_method(object_expr, object, method, arg_exprs, hir_args)
             }
 
             // Dict methods (for variables without type info)
@@ -2150,6 +2167,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Var(_name) => {
                 // For rust_gen, we're more conservative since we don't have type info
                 // Only treat explicit dict literals and calls as dicts
+                false
+            }
+            _ => false,
+        }
+    }
+
+    fn is_list_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::List(_) => true,
+            HirExpr::Call { func, .. } if func == "list" => true,
+            HirExpr::Var(_name) => {
+                // For rust_gen, we're more conservative since we don't have type info
+                // Only treat explicit list literals and calls as lists
                 false
             }
             _ => false,
