@@ -4,6 +4,61 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.19.13 Fix ValueError for Pure Functions (2025-10-15)
+
+**🔧 BUGFIX** - Fixed pure functions incorrectly getting Result<T, ValueError> return types
+
+This release fixes DEPYLER-0217 by making int() failure analysis context-aware. Pure functions using int() for type conversion no longer generate undefined ValueError types.
+
+#### Bug Fixed
+
+**DEPYLER-0217: ValueError Generated for Pure Functions**
+- **Problem**: Functions using `int(bool_var)` or `int(int_var)` got `Result<i32, ValueError>` return types, but ValueError was never defined
+- **Root Cause**: `expr_can_fail()` in properties.rs marked ALL `int()` calls as failable with ValueError
+- **Impact**: Generated code failed to compile with "cannot find type ValueError"
+- **Fix**: Made failure analysis context-aware - only string parsing can fail, not type conversions
+- **Files Modified**: `crates/depyler-core/src/ast_bridge/properties.rs` (lines 206-238)
+
+**Before (BROKEN)**:
+```rust
+// Python: def add(a: int, b: int) -> int: return int(a) + int(b)
+pub fn add(a: i32, b: i32) -> Result<i32, ValueError> {  // ValueError undefined!
+    return Ok((a) as i32 + (b) as i32);
+}
+```
+
+**After (FIXED)**:
+```rust
+// Python: def add(a: int, b: int) -> int: return int(a) + int(b)
+pub fn add(a: i32, b: i32) -> i32 {  // ✅ Pure function, no Result needed
+    return (a) as i32 + (b) as i32;
+}
+```
+
+#### Implementation Strategy
+
+Context-aware failure analysis for `int()`:
+1. **int(string_literal)** → Can fail with ValueError (parsing)
+2. **int(string, base)** → Can fail with ValueError (parsing with base)
+3. **int(typed_value)** → Safe cast, cannot fail (type conversion)
+
+The fix distinguishes between:
+- **Parsing**: `int("123")` → can fail if string is invalid
+- **Casting**: `int(bool_var)` → transpiles to `(bool_var) as i32`, always safe
+
+#### Test Results
+
+✅ All 443 depyler-core tests passing
+✅ Pure functions now correctly return direct types (not Result)
+✅ Generated code compiles without ValueError errors
+✅ String parsing functions still correctly get Result types
+
+#### Known Limitations
+
+**Note**: The transpiler currently generates `(string_var) as i32` for `int(string_var)`, which is invalid Rust. Proper string parsing (`str::parse()`) will be implemented in a future release. For now, this fix prevents the more critical issue of undefined ValueError types in pure functions.
+
+---
+
 ### v3.19.12 Bool Cast Fix for int() (2025-10-15)
 
 **🔧 BUGFIX** - Fixed missing casts in int() conversion for bool variables/expressions
