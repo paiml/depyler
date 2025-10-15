@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- **Repository Organization**: Major cleanup removing 55 obsolete files (session summaries, old release notes, cruft)
+- **Documentation**: Updated README.md and ROADMAP.md to reflect v3.19.14 status and achievements
+- **Maintainability**: Reduced from 71 to 16 markdown files in root directory
+
+---
+
 ### v3.19.14 Complete Stdlib Collection Coverage (2025-10-15)
 
 **✨ FEATURE + BUGFIX** - Achieved 100% stdlib method coverage for all collection types
