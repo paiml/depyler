@@ -350,7 +350,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         match func {
             // Python built-in type conversions → Rust casting
-            "int" => self.convert_int_cast(&arg_exprs),
+            "int" => self.convert_int_cast(args, &arg_exprs),
             "float" => self.convert_float_cast(&arg_exprs),
             "str" => self.convert_str_conversion(&arg_exprs),
             "bool" => self.convert_bool_cast(&arg_exprs),
@@ -459,22 +459,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { #arg.len() as i32 })
     }
 
-    fn convert_int_cast(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.is_empty() || args.len() > 2 {
+    fn convert_int_cast(&self, hir_args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+        if arg_exprs.is_empty() || arg_exprs.len() > 2 {
             bail!("int() requires 1-2 arguments");
         }
-        let arg = &args[0];
+        let arg = &arg_exprs[0];
 
-        // Python int() serves two purposes:
+        // Python int() serves three purposes:
         // 1. Convert floats to integers (truncation)
-        // 2. Ensure integer type for indexing
+        // 2. Convert bools to integers (False→0, True→1)
+        // 3. Ensure integer type for indexing
         //
-        // In Rust, integer division already works, so we check if the argument
-        // is already an integer expression and skip the cast to let Rust infer
+        // Check if we're converting a bool (comparison, method call returning bool, etc.)
+        if !hir_args.is_empty() {
+            if let Some(is_bool) = self.is_bool_expr(&hir_args[0]) {
+                if is_bool {
+                    return Ok(parse_quote! { (#arg) as i32 });
+                }
+            }
+        }
+
+        // For other cases, omit the cast and let Rust's type inference determine
         // the correct integer type (usize for indices, i32 for general use).
-        //
-        // For now, we omit the cast and let Rust's type inference determine
-        // the appropriate integer type based on usage context.
         // This fixes type consistency issues where array indices need usize.
         //
         // Known Limitations:
@@ -1193,17 +1199,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! { #object_expr.trim().to_string() })
             }
             "startswith" => {
-                if arg_exprs.len() != 1 {
+                if hir_args.len() != 1 {
                     bail!("startswith() requires exactly one argument");
                 }
-                let prefix = &arg_exprs[0];
+                // Extract bare string literal for Pattern trait compatibility
+                let prefix = match &hir_args[0] {
+                    HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                    _ => arg_exprs[0].clone(),
+                };
                 Ok(parse_quote! { #object_expr.starts_with(#prefix) })
             }
             "endswith" => {
-                if arg_exprs.len() != 1 {
+                if hir_args.len() != 1 {
                     bail!("endswith() requires exactly one argument");
                 }
-                let suffix = &arg_exprs[0];
+                // Extract bare string literal for Pattern trait compatibility
+                let suffix = match &hir_args[0] {
+                    HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                    _ => arg_exprs[0].clone(),
+                };
                 Ok(parse_quote! { #object_expr.ends_with(#suffix) })
             }
             "split" => {
@@ -1250,10 +1264,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "find" => {
                 // DEPYLER-0197: str.find(sub) → .find(sub).map(|i| i as i32).unwrap_or(-1)
                 // Python's find() returns -1 if not found, Rust's returns Option<usize>
-                if arg_exprs.len() != 1 {
+                if hir_args.len() != 1 {
                     bail!("find() requires exactly one argument");
                 }
-                let substring = &arg_exprs[0];
+                // Extract bare string literal for Pattern trait compatibility
+                let substring = match &hir_args[0] {
+                    HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                    _ => arg_exprs[0].clone(),
+                };
                 Ok(parse_quote! {
                     #object_expr.find(#substring)
                         .map(|i| i as i32)
@@ -2063,6 +2081,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 false
             }
             _ => false,
+        }
+    }
+
+    fn is_bool_expr(&self, expr: &HirExpr) -> Option<bool> {
+        match expr {
+            // Comparison operations always return bool
+            HirExpr::Binary {
+                op: BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq
+                    | BinOp::In | BinOp::NotIn,
+                ..
+            } => Some(true),
+            // Method calls that return bool
+            HirExpr::MethodCall { method, .. } if matches!(
+                method.as_str(),
+                "startswith" | "endswith" | "isdigit" | "isalpha" | "isspace" | "isupper"
+                | "islower" | "issubset" | "issuperset" | "isdisjoint"
+            ) => Some(true),
+            // Boolean literals
+            HirExpr::Literal(Literal::Bool(_)) => Some(true),
+            // Logical operations
+            HirExpr::Unary { op: UnaryOp::Not, .. } => Some(true),
+            _ => None,
         }
     }
 
