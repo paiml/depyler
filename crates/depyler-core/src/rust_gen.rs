@@ -48,14 +48,81 @@ fn analyze_string_optimization(ctx: &mut CodeGenContext, functions: &[HirFunctio
 
 /// Analyze which variables are reassigned (mutated) in a list of statements
 ///
-/// Populates ctx.mutable_vars with variables that are reassigned after declaration.
-/// Complexity: 4 (loop + match + if)
+/// Populates ctx.mutable_vars with variables that are:
+/// 1. Reassigned after declaration (x = 1; x = 2)
+/// 2. Mutated via method calls (.push(), .extend(), .insert(), .remove(), .pop(), etc.)
+///
+/// Complexity: 7 (stmt loop + match + if + expr scan + method match)
 fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
     let mut declared = HashSet::new();
 
+    fn analyze_expr_for_mutations(expr: &HirExpr, mutable: &mut HashSet<String>) {
+        match expr {
+            HirExpr::MethodCall { object, method, args } => {
+                // Check if this is a mutating method call
+                if is_mutating_method(method) {
+                    if let HirExpr::Var(var_name) = &**object {
+                        mutable.insert(var_name.clone());
+                    }
+                }
+                // Recursively check nested expressions
+                analyze_expr_for_mutations(object, mutable);
+                for arg in args {
+                    analyze_expr_for_mutations(arg, mutable);
+                }
+            }
+            HirExpr::Binary { left, right, .. } => {
+                analyze_expr_for_mutations(left, mutable);
+                analyze_expr_for_mutations(right, mutable);
+            }
+            HirExpr::Unary { operand, .. } => {
+                analyze_expr_for_mutations(operand, mutable);
+            }
+            HirExpr::Call { args, .. } => {
+                for arg in args {
+                    analyze_expr_for_mutations(arg, mutable);
+                }
+            }
+            HirExpr::IfExpr { test, body, orelse } => {
+                analyze_expr_for_mutations(test, mutable);
+                analyze_expr_for_mutations(body, mutable);
+                analyze_expr_for_mutations(orelse, mutable);
+            }
+            HirExpr::List(items) | HirExpr::Tuple(items) | HirExpr::Set(items) | HirExpr::FrozenSet(items) => {
+                for item in items {
+                    analyze_expr_for_mutations(item, mutable);
+                }
+            }
+            HirExpr::Dict(pairs) => {
+                for (key, value) in pairs {
+                    analyze_expr_for_mutations(key, mutable);
+                    analyze_expr_for_mutations(value, mutable);
+                }
+            }
+            HirExpr::Index { base, index } => {
+                analyze_expr_for_mutations(base, mutable);
+                analyze_expr_for_mutations(index, mutable);
+            }
+            HirExpr::Attribute { value, .. } => {
+                analyze_expr_for_mutations(value, mutable);
+            }
+            _ => {}
+        }
+    }
+
+    fn is_mutating_method(method: &str) -> bool {
+        matches!(
+            method,
+            "append" | "extend" | "insert" | "remove" | "pop" | "clear" | "reverse" | "sort"
+        )
+    }
+
     fn analyze_stmt(stmt: &HirStmt, declared: &mut HashSet<String>, mutable: &mut HashSet<String>) {
         match stmt {
-            HirStmt::Assign { target, .. } => {
+            HirStmt::Assign { target, value, .. } => {
+                // Check if the value expression contains method calls that mutate variables
+                analyze_expr_for_mutations(value, mutable);
+
                 match target {
                     AssignTarget::Symbol(name) => {
                         if declared.contains(name) {
@@ -83,11 +150,20 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
                     _ => {}
                 }
             }
+            HirStmt::Expr(expr) => {
+                // Check standalone expressions for method calls (e.g., numbers.push(4))
+                analyze_expr_for_mutations(expr, mutable);
+            }
+            HirStmt::Return(Some(expr)) => {
+                analyze_expr_for_mutations(expr, mutable);
+            }
             HirStmt::If {
+                condition,
                 then_body,
                 else_body,
                 ..
             } => {
+                analyze_expr_for_mutations(condition, mutable);
                 for stmt in then_body {
                     analyze_stmt(stmt, declared, mutable);
                 }
@@ -97,7 +173,13 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
                     }
                 }
             }
-            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+            HirStmt::While { condition, body, .. } => {
+                analyze_expr_for_mutations(condition, mutable);
+                for stmt in body {
+                    analyze_stmt(stmt, declared, mutable);
+                }
+            }
+            HirStmt::For { body, .. } => {
                 for stmt in body {
                     analyze_stmt(stmt, declared, mutable);
                 }

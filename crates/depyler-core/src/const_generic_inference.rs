@@ -230,6 +230,9 @@ impl ConstGenericInferencer {
             }
         }
 
+        // Check if any variables are mutated (method calls like .push(), .extend(), etc.)
+        let mutated_vars = self.detect_mutated_variables(function);
+
         // Then check return statements
         for stmt in &function.body {
             if let HirStmt::Return(Some(expr)) = stmt {
@@ -239,6 +242,10 @@ impl ConstGenericInferencer {
                 }
                 // Check if returning a variable with known size
                 if let HirExpr::Var(var_name) = expr {
+                    // Skip if variable was mutated (can't use fixed-size array)
+                    if mutated_vars.contains(var_name) {
+                        return None;
+                    }
                     if let Some(size) = var_sizes.get(var_name) {
                         return Some(*size);
                     }
@@ -246,6 +253,103 @@ impl ConstGenericInferencer {
             }
         }
         None
+    }
+
+    /// Detect variables that are mutated via method calls
+    fn detect_mutated_variables(&self, function: &HirFunction) -> HashSet<String> {
+        let mut mutated = HashSet::new();
+        for stmt in &function.body {
+            self.scan_stmt_for_mutations(stmt, &mut mutated);
+        }
+        mutated
+    }
+
+    /// Scan statement for list mutations
+    fn scan_stmt_for_mutations(&self, stmt: &HirStmt, mutated: &mut HashSet<String>) {
+        match stmt {
+            HirStmt::Expr(expr) => {
+                self.scan_expr_for_mutations(expr, mutated);
+            }
+            HirStmt::Assign { value, .. } => {
+                self.scan_expr_for_mutations(value, mutated);
+            }
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
+                self.scan_expr_for_mutations(condition, mutated);
+                for s in then_body {
+                    self.scan_stmt_for_mutations(s, mutated);
+                }
+                if let Some(else_stmts) = else_body {
+                    for s in else_stmts {
+                        self.scan_stmt_for_mutations(s, mutated);
+                    }
+                }
+            }
+            HirStmt::While { condition, body } => {
+                self.scan_expr_for_mutations(condition, mutated);
+                for s in body {
+                    self.scan_stmt_for_mutations(s, mutated);
+                }
+            }
+            HirStmt::For { iter, body, .. } => {
+                self.scan_expr_for_mutations(iter, mutated);
+                for s in body {
+                    self.scan_stmt_for_mutations(s, mutated);
+                }
+            }
+            HirStmt::Return(Some(expr)) => {
+                self.scan_expr_for_mutations(expr, mutated);
+            }
+            _ => {}
+        }
+    }
+
+    /// Scan expression for list mutations
+    #[allow(clippy::only_used_in_recursion)]
+    fn scan_expr_for_mutations(&self, expr: &HirExpr, mutated: &mut HashSet<String>) {
+        match expr {
+            HirExpr::MethodCall { object, method, args } => {
+                // Mutating list methods
+                if matches!(
+                    method.as_str(),
+                    "append" | "extend" | "insert" | "remove" | "pop" | "clear" | "reverse" | "sort"
+                ) {
+                    if let HirExpr::Var(var_name) = &**object {
+                        mutated.insert(var_name.clone());
+                    }
+                }
+                // Recursively check arguments
+                self.scan_expr_for_mutations(object, mutated);
+                for arg in args {
+                    self.scan_expr_for_mutations(arg, mutated);
+                }
+            }
+            HirExpr::Binary { left, right, .. } => {
+                self.scan_expr_for_mutations(left, mutated);
+                self.scan_expr_for_mutations(right, mutated);
+            }
+            HirExpr::Unary { operand, .. } => {
+                self.scan_expr_for_mutations(operand, mutated);
+            }
+            HirExpr::Call { args, .. } => {
+                for arg in args {
+                    self.scan_expr_for_mutations(arg, mutated);
+                }
+            }
+            HirExpr::Index { base, index } => {
+                self.scan_expr_for_mutations(base, mutated);
+                self.scan_expr_for_mutations(index, mutated);
+            }
+            HirExpr::List(elements) => {
+                for elem in elements {
+                    self.scan_expr_for_mutations(elem, mutated);
+                }
+            }
+            _ => {}
+        }
     }
 
     /// Find const usage patterns in statements

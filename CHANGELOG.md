@@ -4,6 +4,57 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.19.8 List Methods Critical Fixes (2025-10-15)
+
+**🛑 STOP THE LINE** - Critical list handling bugs discovered and fixed
+
+This release fixes three critical P0 bugs discovered through systematic stdlib verification (Sprint 3 - Extreme TDD).
+
+#### Bugs Fixed
+
+1. **DEPYLER-0201: `list[T]` Type Mapping Error** (P0)
+   - **Problem**: `list[int]` transpiled to fixed-size array `[i32; N]` instead of dynamic `Vec<i32>`
+   - **Root Cause**: `const_generic_inference.rs` converted return types to arrays without checking for mutations
+   - **Fix**: Added mutation detection to skip array conversion for mutated lists
+   - **Impact**: All functions that mutate and return lists now compile correctly
+
+2. **DEPYLER-0202: Missing `mut` on List Variables** (P0)
+   - **Problem**: Variables used with mutating methods (`.push()`, `.extend()`, `.insert()`, `.remove()`, `.pop()`) were not declared as `mut`
+   - **Root Cause**: `analyze_mutable_vars()` only detected reassignments, not method mutations
+   - **Fix**: Enhanced mutability analysis to detect mutating method calls (`.append()`, `.extend()`, `.insert()`, `.remove()`, `.pop()`, `.clear()`, `.reverse()`, `.sort()`)
+   - **Impact**: All list mutation methods now correctly generate `let mut` declarations
+
+3. **DEPYLER-0203: `pop(index)` Not Implemented** (P0)
+   - **Problem**: Python's `list.pop(index)` was not supported, causing transpilation failures
+   - **Fix**: Implemented `pop(index)` → `.remove(index as usize)` mapping
+   - **Impact**: All `pop()` variations now work (with and without index)
+
+#### Files Changed
+
+- `crates/depyler-core/src/const_generic_inference.rs`: Added mutation detection (lines 217-352)
+- `crates/depyler-core/src/rust_gen.rs`: Enhanced `analyze_mutable_vars()` to detect method mutations (lines 49-194)
+- `crates/depyler-core/src/rust_gen/expr_gen.rs`: Implemented `pop(index)` support (lines 996-1002)
+
+#### Test Results
+
+- ✅ All 443/443 core tests passing
+- ✅ Zero regressions
+- ✅ Manual verification: list methods compile and execute correctly
+
+#### Discovery Method
+
+**Systematic Stdlib Verification** (Extreme TDD + Toyota Way Jidoka):
+1. Created minimal test file: `/tmp/test_stdlib_list_methods_minimal.py`
+2. Transpiled to Rust
+3. Attempted compilation → discovered 5 compilation errors
+4. 🛑 **STOPPED THE LINE** - Halted all other work
+5. Root cause analysis for each bug
+6. Fixed transpiler (not generated code)
+7. Re-transpiled → verified fixes
+8. Zero regressions confirmed
+
+**Methodology**: Never patch generated code - always fix the generator!
+
 ### v3.19.2 Quality Improvement Sprint (COMPLETE - 2025-10-14)
 
 **✅ COMPLETE** - Incremental complexity reduction sprint successful
