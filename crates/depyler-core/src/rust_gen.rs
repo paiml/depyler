@@ -825,11 +825,12 @@ mod tests {
         assert!(result_str.contains("if let Err (_e) = _result"));
     }
 
-    // Phase 1b/1c tests - Type conversion functions (DEPYLER-0149)
+    // Phase 1b/1c tests - Type conversion functions (DEPYLER-0149, DEPYLER-0216)
     #[test]
     fn test_int_cast_conversion() {
-        // Python: int(x) → Rust: x (no cast, let type inference handle it)
-        // Phase 1c change: Removed cast to allow usize/i32 inference based on context
+        // DEPYLER-0216 FIX: Python: int(x) → Rust: (x) as i32 (always cast variables)
+        // Previous behavior (no cast) caused "cannot add bool to bool" errors
+        // when x is a bool variable: int(flag1) + int(flag2) → flag1 + flag2 (ERROR!)
         let call_expr = HirExpr::Call {
             func: "int".to_string(),
             args: vec![HirExpr::Var("x".to_string())],
@@ -839,9 +840,9 @@ mod tests {
         let result = call_expr.to_rust_expr(&mut ctx).unwrap();
         let code = quote! { #result }.to_string();
 
-        // Should just be 'x' without cast
+        // Should generate cast for variables to prevent bool arithmetic errors
         assert!(code.contains("x"), "Expected 'x', got: {}", code);
-        assert!(!code.contains("as"), "Should not contain cast, got: {}", code);
+        assert!(code.contains("as i32"), "Should contain 'as i32' cast, got: {}", code);
     }
 
     #[test]
@@ -891,8 +892,9 @@ mod tests {
 
     #[test]
     fn test_int_cast_with_expression() {
-        // Python: int((low + high) / 2) → Rust: (low + high) / 2 (no cast)
-        // Phase 1c: Integer division already works in Rust, let type inference handle it
+        // DEPYLER-0216 FIX: Python: int((low + high) / 2) → Rust: ((low + high) / 2) as i32
+        // Previous behavior (no cast) caused "cannot add bool to bool" errors
+        // when expression might be bool: int(x > 0) + int(y > 0) → (x > 0) + (y > 0) (ERROR!)
         let division = HirExpr::Binary {
             op: BinOp::Div,
             left: Box::new(HirExpr::Binary {
@@ -912,10 +914,10 @@ mod tests {
         let result = call_expr.to_rust_expr(&mut ctx).unwrap();
         let code = quote! { #result }.to_string();
 
-        // Should preserve the expression without cast
+        // Should generate cast for expressions to prevent bool arithmetic errors
         assert!(code.contains("low"), "Expected 'low' variable, got: {}", code);
         assert!(code.contains("high"), "Expected 'high' variable, got: {}", code);
-        assert!(!code.contains("as"), "Should not contain cast, got: {}", code);
+        assert!(code.contains("as i32"), "Should contain 'as i32' cast, got: {}", code);
     }
 
     #[test]
