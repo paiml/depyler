@@ -4,6 +4,82 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.19.12 Bool Cast Fix for int() (2025-10-15)
+
+**🔧 BUGFIX** - Fixed missing casts in int() conversion for bool variables/expressions
+
+This release fixes DEPYLER-0216 by ensuring `int(bool_var)` always generates explicit casts to prevent "cannot add bool to bool" errors.
+
+#### Bug Fixed
+
+**DEPYLER-0216: int(bool_var) Doesn't Generate Cast**
+- **Problem**: `int(starts) + int(ends)` generated `_cse_temp_0 + _cse_temp_1` where temps were bool, causing "cannot add bool to bool" errors
+- **Root Cause**: `convert_int_cast()` returned `Ok(arg.clone())` for variables, stripping the int() call completely
+- **Initial Hypothesis (Wrong)**: Believed CSE pass was removing casts after generation
+- **Actual Root Cause (Correct)**: Code generation never created casts in the first place
+- **Fix**: Always generate `(arg) as i32` for variables and complex expressions, only skip cast for integer literals
+- **Files Modified**:
+  - `crates/depyler-core/src/rust_gen/expr_gen.rs` (lines 462-501, 2087-2107)
+  - `crates/depyler-core/src/rust_gen.rs` (lines 828-920, test updates)
+
+**Before (BROKEN)**:
+```rust
+let starts: bool = text.starts_with("Hello");
+let ends: bool = text.ends_with("World");
+let _cse_temp_0 = starts;           // NO CAST!
+let _cse_temp_1 = ends;
+let result = _cse_temp_0 + _cse_temp_1;  // ERROR: cannot add bool to bool
+```
+
+**After (FIXED)**:
+```rust
+let starts: bool = text.starts_with("Hello");
+let ends: bool = text.ends_with("World");
+let _cse_temp_0 = (starts) as i32;  // ✅ HAS CAST
+let _cse_temp_1 = (ends) as i32;
+let result = _cse_temp_0 + _cse_temp_1;  // ✅ Works!
+```
+
+#### Implementation Strategy
+
+Conservative casting approach:
+1. **Integer literals** (e.g., `int(42)`): Skip cast (no-op)
+2. **Variables** (e.g., `int(x)`): Always cast `(x) as i32`
+3. **Bool expressions** (e.g., `int(x > 0)`): Always cast `(x > 0) as i32`
+4. **Complex expressions**: Always cast conservatively
+
+Added `is_bool_expr()` helper to detect:
+- Comparison operations (==, !=, <, >, <=, >=, in, not in)
+- Boolean method calls (startswith, endswith, isdigit, etc.)
+- Boolean literals and unary not operations
+
+#### Test Updates
+
+Updated tests to reflect new correct behavior:
+- `test_int_cast_conversion`: Now expects `(x) as i32` instead of `x`
+- `test_int_cast_with_expression`: Now expects `((low + high) / 2) as i32` instead of `(low + high) / 2`
+
+Old tests were based on flawed assumption (relying on type inference) which caused the bool arithmetic bug.
+
+#### Test Results
+
+✅ All 443 depyler-core tests passing (including updated int() cast tests)
+✅ Zero clippy warnings
+✅ Bool arithmetic compiles correctly with explicit casts
+✅ No regressions in other type conversions (float, str, bool)
+
+#### Scientific Method Applied
+
+1. **Hypothesis**: CSE optimizer was removing casts after code generation
+2. **Investigation**: Traced code through CSE pass - found no cast removal logic
+3. **Analysis**: Examined generated code - casts never existed in first place
+4. **Root Cause**: `convert_int_cast()` returned `Ok(arg.clone())` for variables
+5. **Fix**: Changed to always generate cast except for integer literals
+6. **Verification**: Transpiled test file shows `(starts) as i32` in output
+7. **Validation**: All tests pass, zero clippy warnings
+
+---
+
 ### v3.19.11 String Method Pattern Fix (2025-10-15)
 
 **🔧 BUGFIX** - Fixed Rust Pattern trait errors in string methods

@@ -470,24 +470,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // 2. Convert bools to integers (False→0, True→1)
         // 3. Ensure integer type for indexing
         //
-        // Check if we're converting a bool (comparison, method call returning bool, etc.)
+        // DEPYLER-0216 FIX: Always generate cast for variables and expressions
+        // that might be bool, to prevent "cannot add bool to bool" errors.
+        //
+        // Strategy:
+        // - For known bool expressions (comparisons, bool methods) → cast
+        // - For variables (unknown type at codegen) → cast conservatively
+        // - For integer literals (no cast needed) → skip cast for cleaner code
         if !hir_args.is_empty() {
-            if let Some(is_bool) = self.is_bool_expr(&hir_args[0]) {
-                if is_bool {
+            match &hir_args[0] {
+                // Integer literals don't need casting
+                HirExpr::Literal(Literal::Int(_)) => return Ok(arg.clone()),
+                // Bool expressions and variables need casting
+                HirExpr::Var(_) => return Ok(parse_quote! { (#arg) as i32 }),
+                // Check if it's a known bool expression
+                expr => {
+                    if let Some(is_bool) = self.is_bool_expr(expr) {
+                        if is_bool {
+                            return Ok(parse_quote! { (#arg) as i32 });
+                        }
+                    }
+                    // For other complex expressions, apply cast conservatively
                     return Ok(parse_quote! { (#arg) as i32 });
                 }
             }
         }
 
-        // For other cases, omit the cast and let Rust's type inference determine
-        // the correct integer type (usize for indices, i32 for general use).
-        // This fixes type consistency issues where array indices need usize.
-        //
-        // Known Limitations:
-        // - No automatic detection of float expressions for explicit casting
-        // - Base parameter (int(str, base)) is not supported
-        //   For hex/binary conversions, use explicit Rust i32::from_str_radix()
-        Ok(arg.clone())
+        // Default: cast for safety
+        Ok(parse_quote! { (#arg) as i32 })
     }
 
     fn convert_float_cast(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
