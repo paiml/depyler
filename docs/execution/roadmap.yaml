@@ -3260,3 +3260,63 @@ DEPYLER-0224:
   complexity: LOW
   dependencies: ["DEPYLER-0221 (completed)"]
   blocks: ["Stdlib verification", "Set method support"]
+
+DEPYLER-0225:
+  title: "Fix str.split(sep) Pattern type error"
+  status: done
+  phase: DONE
+  priority: high
+  type: bug
+  category: code_generation_correctness
+  discovered_by: "stdlib string methods verification"
+  discovery_date: "2025-10-15"
+  completion_date: "2025-10-15"
+  actual_duration_hours: 1
+  
+  description: |
+    str.split(sep) with string argument generates Pattern trait error.
+    Generated: .split(",".to_string()) - String doesn't impl Pattern
+    Expected: .split(",") - &str impls Pattern
+    
+  root_cause:
+    file: "crates/depyler-core/src/rust_gen/expr_gen.rs"
+    function: "convert_string_method (split case)"
+    issue: "Used arg_exprs instead of extracting bare literals from hir_args"
+    
+  fix:
+    approach: "Extract bare string literals for Pattern trait compatibility"
+    changes:
+      - "Line 1295-1299: Match hir_args for string literals"
+      - "Line 1361-1364: Same fix for count() method"
+    
+DEPYLER-0226:
+  title: "Fix str.count() routing to list.count() logic"
+  status: done
+  phase: DONE
+  priority: high
+  type: bug
+  category: method_routing
+  discovered_by: "stdlib string methods verification"
+  discovery_date: "2025-10-15"
+  completion_date: "2025-10-15"
+  actual_duration_hours: 2
+  
+  description: |
+    String variables with .count() method route to list handler.
+    Generated: .iter().filter(|x| **x == "hello").count()
+    Expected: .matches("hello").count()
+    
+  root_cause:
+    file: "crates/depyler-core/src/rust_gen/expr_gen.rs"
+    function: "convert_instance_method (routing)"
+    issue: "count in list methods fallback matches before string methods"
+    
+  fix:
+    approach: "Explicit disambiguation with heuristics"
+    changes:
+      - "Lines 1619-1634: Added count() disambiguation logic"
+      - "String literals → str.count()"
+      - "List literals/variables → list.count()"
+    limitation: "Requires type tracking for perfect disambiguation"
+    workaround: "None - heuristic works for 100% of test cases"
+

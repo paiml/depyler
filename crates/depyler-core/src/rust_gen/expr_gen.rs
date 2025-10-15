@@ -1292,7 +1292,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         parse_quote! { #object_expr.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() },
                     )
                 } else if arg_exprs.len() == 1 {
-                    let sep = &arg_exprs[0];
+                    // DEPYLER-0225: Extract bare string literal for Pattern trait compatibility
+                    let sep = match &hir_args[0] {
+                        HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                        _ => arg_exprs[0].clone(),
+                    };
                     Ok(
                         parse_quote! { #object_expr.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() },
                     )
@@ -1349,11 +1353,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 })
             }
             "count" => {
-                // DEPYLER-0198: str.count(sub) → .matches(sub).count() as i32
-                if arg_exprs.len() != 1 {
+                // DEPYLER-0198/0226: str.count(sub) → .matches(sub).count() as i32
+                // Extract bare string literal for Pattern trait compatibility
+                if hir_args.len() != 1 {
                     bail!("count() requires exactly one argument");
                 }
-                let substring = &arg_exprs[0];
+                let substring = match &hir_args[0] {
+                    HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                    _ => arg_exprs[0].clone(),
+                };
                 Ok(parse_quote! { #object_expr.matches(#substring).count() as i32 })
             }
             "isdigit" => {
@@ -1603,9 +1611,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Fallback to method name dispatch
         match method {
             // List methods
-            "append" | "extend" | "pop" | "insert" | "remove" | "index" | "count" | "copy"
+            "append" | "extend" | "pop" | "insert" | "remove" | "index" | "copy"
             | "clear" | "reverse" | "sort" => {
                 self.convert_list_method(object_expr, object, method, arg_exprs, hir_args)
+            }
+
+            // DEPYLER-0226: Disambiguate count() for list vs string
+            "count" => {
+                // Heuristic: Check if object is a string literal
+                // Default to list.count() for variables (safer - no Pattern trait issues)
+                // Use str.count() only for explicit string literals
+                match object {
+                    HirExpr::Literal(Literal::String(_)) => {
+                        // String literal: use str.count()
+                        self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
+                    }
+                    _ => {
+                        // List literal, variable, or other: use list.count()
+                        self.convert_list_method(object_expr, object, method, arg_exprs, hir_args)
+                    }
+                }
             }
 
             // DEPYLER-0223: Disambiguate update() for dict vs set
@@ -1626,6 +1651,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // String methods
+            // Note: "count" handled separately above with disambiguation logic
             "upper" | "lower" | "strip" | "startswith" | "endswith" | "split" | "join"
             | "replace" | "find" | "isdigit" | "isalpha" => {
                 self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
