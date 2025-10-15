@@ -2822,3 +2822,154 @@ v3_19_6_stdlib_verification:
     - "Update code generator to emit proper stdlib calls"
     - "Add CI validation for stdlib functions"
     - "Document all stdlib function mappings"
+
+# ============================================================================
+# DEPYLER-0220: Fix Rust Code Generation Formatting Issues
+# ============================================================================
+# Discovered: 2025-10-15 via examples/validate_all.sh (15-tool validation)
+# Status: STOP THE LINE - P0 Critical
+# Protocol: RED-GREEN-REFACTOR mandatory
+# ============================================================================
+
+DEPYLER-0220:
+  title: "Fix Rust Code Generation Formatting Issues"
+  status: not_started
+  phase: null  # Will be: RED → GREEN → REFACTOR → DONE
+  priority: critical
+  type: bug
+  category: code_generation_quality
+  discovered_by: "15-tool validation protocol (EXTREME CLI VALIDATION)"
+  discovery_date: "2025-10-15"
+
+  description: |
+    Generated Rust code fails rustfmt --check due to multiple formatting issues.
+    This blocks production readiness and fails validation gate #2 of 10.
+
+    STOP THE LINE activated: No further example validation until fixed.
+
+    Evidence from examples/demo.rs:
+    - Spaces before commas: "message: String ," → should be "message: String,"
+    - Spaces in generic parameters: "& self, f: & mut" → should be "&self, f: &mut"
+    - Spaces before macro !: "write !(f," → should be "write!(f,"
+    - Wrong line breaks: "} impl std" → should be "}\n\nimpl std"
+    - Extra blank lines in impl blocks
+    - Wrong indentation in nested blocks
+
+  impact:
+    severity: CRITICAL
+    scope: "ALL transpiled examples"
+    validation_gate: "rustfmt_check (gate 2/10)"
+    current_pass_rate: "90% (9/10 gates pass)"
+    blocks_production: true
+    affects_code_review: true
+    user_visible: true
+
+  root_cause:
+    module: "crates/depyler-core/src/rust_gen/"
+    likely_files:
+      - "expr_gen.rs - Expression code generation"
+      - "stmt_gen.rs - Statement code generation"
+      - "type_gen.rs - Type annotation generation"
+      - "mod.rs - Template assembly"
+
+    issues:
+      - "Template strings have improper spacing"
+      - "Generic parameter formatting incorrect"
+      - "Macro invocation spacing wrong"
+      - "Line break logic between items broken"
+      - "Indentation not consistent"
+
+  acceptance_criteria:
+    - "ALL generated code passes rustfmt --check"
+    - "examples/validate_all.sh passes 10/10 gates"
+    - "Zero formatting warnings in ANY example"
+    - "All 731 existing tests still pass"
+    - "No regressions in code generation"
+
+  test_strategy: |
+    RED Phase:
+    - Write failing test: test_DEPYLER_0220_codegen_formatting_rustfmt_compliant()
+    - Test generates Python class → Rust struct
+    - Runs rustfmt --check on output
+    - MUST FAIL initially (proving test works)
+
+    GREEN Phase:
+    - Fix template strings in rust_gen modules
+    - Remove extra spaces in generics, commas, macros
+    - Fix line break logic between impl blocks
+    - Test MUST PASS
+
+    REFACTOR Phase:
+    - Run all 731 tests (100% must pass)
+    - Run validation script on ALL examples (10/10 gates)
+    - Coverage ≥80% maintained
+    - Complexity ≤10 maintained
+
+  files_to_modify:
+    - "crates/depyler-core/src/rust_gen/expr_gen.rs"
+    - "crates/depyler-core/src/rust_gen/stmt_gen.rs"
+    - "crates/depyler-core/src/rust_gen/type_gen.rs"
+    - "crates/depyler-core/tests/integration/formatting_test.rs (NEW)"
+
+  validation_steps:
+    RED:
+      - "Write test_DEPYLER_0220_codegen_formatting_rustfmt_compliant()"
+      - "cargo test test_DEPYLER_0220 -- --nocapture (MUST FAIL)"
+      - "git commit --no-verify -m '[RED] DEPYLER-0220: Add formatting test'"
+      - "Update roadmap.yaml: phase: RED"
+
+    GREEN:
+      - "Fix template spacing in rust_gen/*.rs"
+      - "cargo test test_DEPYLER_0220 -- --nocapture (MUST PASS)"
+      - "git commit -m '[GREEN] DEPYLER-0220: Fix formatting'"
+      - "Update roadmap.yaml: phase: GREEN"
+
+    REFACTOR:
+      - "cargo test --workspace (731 tests must pass)"
+      - "cargo clippy --all-targets -- -D warnings (zero warnings)"
+      - "cargo llvm-cov report --fail-under-lines 80 (≥80% coverage)"
+      - "pmat tdg . --min-grade A- --fail-on-violation"
+      - "pmat analyze complexity --max-cyclomatic 10 --fail-on-violation"
+      - "Re-transpile ALL examples: find examples -name '*.py' | xargs depyler transpile"
+      - "./examples/validate_all.sh (10/10 gates must pass)"
+      - "git commit -m '[REFACTOR] DEPYLER-0220: Meet quality gates'"
+      - "Update roadmap.yaml: phase: DONE, status: done"
+
+  estimated_effort: "4-6 hours"
+  complexity: MEDIUM
+  dependencies: []
+  blocks: ["Further example validation", "Production deployment"]
+
+  notes:
+    - "First bug found by 15-tool validation protocol (working as designed!)"
+    - "Demonstrates value of EXTREME CLI VALIDATION from ruchy"
+    - "STOP THE LINE protocol activated per CLAUDE.md"
+    - "Fix transpiler, not output (per purification philosophy)"
+    - "Every fix improves ALL future transpilations"
+
+  related_tickets:
+    - "DEPYLER-0219: Documentation standardization (validation tooling)"
+    - "DEPYLER-0095: Code generation quality issues (similar category)"
+
+  evidence:
+    validation_output: |
+      ❌ FAIL: rustfmt_check
+      Diff in /home/noah/src/depyler/examples/demo.rs:
+      -#[derive(Debug, Clone)] pub struct ZeroDivisionError {
+      -    message: String ,
+      +#[derive(Debug, Clone)]
+      +pub struct ZeroDivisionError {
+      +    message: String,
+
+      -    fn fmt(& self, f: & mut std::fmt::Formatter<'_>)  -> std::fmt::Result {
+      -    write !(f, "division by zero: {}", self.message)
+      +    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      +        write!(f, "division by zero: {}", self.message)
+
+      -} impl std::error::Error for ZeroDivisionError {
+      +}
+      +impl std::error::Error for ZeroDivisionError {}
+
+    pass_rate: "9/10 gates (90%)"
+    failed_gate: "rustfmt_check"
+    total_examples_affected: "ALL (estimated 60+ .rs files)"
