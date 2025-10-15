@@ -681,11 +681,7 @@ for item in items {
     }
 
     fn format_suggestion_metadata(&self, suggestion: &MigrationSuggestion) -> String {
-        let mut output = format!(
-            "   {} {:?}\n",
-            "Category:".dimmed(),
-            suggestion.category
-        );
+        let mut output = format!("   {} {:?}\n", "Category:".dimmed(), suggestion.category);
 
         output.push_str(&format!(
             "   {} {}\n",
@@ -948,7 +944,10 @@ mod tests {
     fn test_mutable_parameter_pattern() {
         let func = HirFunction {
             name: "modify_list".to_string(),
-            params: smallvec![HirParam::new("lst".to_string(), Type::List(Box::new(Type::Int)))],
+            params: smallvec![HirParam::new(
+                "lst".to_string(),
+                Type::List(Box::new(Type::Int))
+            )],
             ret_type: Type::Unknown,
             body: vec![HirStmt::Expr(HirExpr::MethodCall {
                 object: Box::new(HirExpr::Var("lst".to_string())),

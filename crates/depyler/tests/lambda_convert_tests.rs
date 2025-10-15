@@ -53,10 +53,10 @@ fn test_basic_conversion_with_defaults() {
 
     let result = lambda_convert_command(
         input.clone(),
-        None,    // output: use default
-        false,   // optimize: off
-        false,   // tests: off
-        false,   // deploy: off
+        None,  // output: use default
+        false, // optimize: off
+        false, // tests: off
+        false, // deploy: off
     );
 
     if let Err(ref e) = result {
@@ -66,11 +66,26 @@ fn test_basic_conversion_with_defaults() {
 
     // Verify default output directory was created
     let default_output = input.parent().unwrap().join("handler_lambda");
-    assert!(default_output.exists(), "Default output directory should exist");
-    assert!(default_output.join("src/main.rs").exists(), "main.rs should exist");
-    assert!(default_output.join("Cargo.toml").exists(), "Cargo.toml should exist");
-    assert!(default_output.join("build.sh").exists(), "build.sh should exist");
-    assert!(default_output.join("README.md").exists(), "README.md should exist");
+    assert!(
+        default_output.exists(),
+        "Default output directory should exist"
+    );
+    assert!(
+        default_output.join("src/main.rs").exists(),
+        "main.rs should exist"
+    );
+    assert!(
+        default_output.join("Cargo.toml").exists(),
+        "Cargo.toml should exist"
+    );
+    assert!(
+        default_output.join("build.sh").exists(),
+        "build.sh should exist"
+    );
+    assert!(
+        default_output.join("README.md").exists(),
+        "README.md should exist"
+    );
 }
 
 #[test]
@@ -80,7 +95,7 @@ fn test_conversion_with_optimization() {
     let result = lambda_convert_command(
         input.clone(),
         None,
-        true,    // optimize: ON
+        true, // optimize: ON
         false,
         false,
     );
@@ -92,10 +107,14 @@ fn test_conversion_with_optimization() {
 
     // Verify optimization profile in Cargo.toml
     // NOTE: Current implementation generates [profile.lambda] which inherits from release
-    assert!(cargo_toml.contains("[profile.lambda]") || cargo_toml.contains("[profile.release]"),
-            "Should have lambda or release profile");
-    assert!(cargo_toml.contains("lto = true") || cargo_toml.contains("lto = \"fat\""),
-            "Should enable LTO");
+    assert!(
+        cargo_toml.contains("[profile.lambda]") || cargo_toml.contains("[profile.release]"),
+        "Should have lambda or release profile"
+    );
+    assert!(
+        cargo_toml.contains("lto = true") || cargo_toml.contains("lto = \"fat\""),
+        "Should enable LTO"
+    );
 }
 
 #[test]
@@ -106,14 +125,17 @@ fn test_conversion_with_tests_generation() {
         input.clone(),
         None,
         false,
-        true,    // tests: ON
+        true, // tests: ON
         false,
     );
 
     assert!(result.is_ok(), "Conversion with tests should succeed");
 
     let output_dir = input.parent().unwrap().join("handler_lambda");
-    assert!(output_dir.join("src/lib.rs").exists(), "lib.rs test suite should exist");
+    assert!(
+        output_dir.join("src/lib.rs").exists(),
+        "lib.rs test suite should exist"
+    );
     assert!(output_dir.join("test.sh").exists(), "test.sh should exist");
 
     // Verify test.sh is executable on Unix
@@ -122,7 +144,11 @@ fn test_conversion_with_tests_generation() {
         use std::os::unix::fs::PermissionsExt;
         let metadata = fs::metadata(output_dir.join("test.sh")).unwrap();
         let permissions = metadata.permissions();
-        assert_eq!(permissions.mode() & 0o111, 0o111, "test.sh should be executable");
+        assert_eq!(
+            permissions.mode() & 0o111,
+            0o111,
+            "test.sh should be executable"
+        );
     }
 }
 
@@ -135,7 +161,7 @@ fn test_conversion_with_deploy_templates() {
         None,
         false,
         false,
-        true,    // deploy: ON
+        true, // deploy: ON
     );
 
     assert!(result.is_ok(), "Conversion with deploy should succeed");
@@ -150,8 +176,14 @@ fn test_conversion_with_deploy_templates() {
     // would require additional infrastructure code generation beyond core transpilation
 
     // Verify basic files still generated
-    assert!(output_dir.join("src/main.rs").exists(), "main.rs should exist");
-    assert!(output_dir.join("Cargo.toml").exists(), "Cargo.toml should exist");
+    assert!(
+        output_dir.join("src/main.rs").exists(),
+        "main.rs should exist"
+    );
+    assert!(
+        output_dir.join("Cargo.toml").exists(),
+        "Cargo.toml should exist"
+    );
 }
 
 #[test]
@@ -161,9 +193,9 @@ fn test_conversion_with_all_options_enabled() {
     let result = lambda_convert_command(
         input.clone(),
         None,
-        true,    // optimize: ON
-        true,    // tests: ON
-        true,    // deploy: ON
+        true, // optimize: ON
+        true, // tests: ON
+        true, // deploy: ON
     );
 
     assert!(result.is_ok(), "Full-featured conversion should succeed");
@@ -172,14 +204,19 @@ fn test_conversion_with_all_options_enabled() {
 
     // Verify all features generated their files
     assert!(output_dir.join("src/main.rs").exists());
-    assert!(output_dir.join("src/lib.rs").exists(), "Tests should generate lib.rs");
+    assert!(
+        output_dir.join("src/lib.rs").exists(),
+        "Tests should generate lib.rs"
+    );
     assert!(output_dir.join("Cargo.toml").exists());
     assert!(output_dir.join("build.sh").exists());
     assert!(output_dir.join("test.sh").exists());
 
     let cargo_toml = fs::read_to_string(output_dir.join("Cargo.toml")).unwrap();
-    assert!(cargo_toml.contains("lto") || cargo_toml.contains("opt-level"),
-            "Optimization should be configured");
+    assert!(
+        cargo_toml.contains("lto") || cargo_toml.contains("opt-level"),
+        "Optimization should be configured"
+    );
 }
 
 // ============================================================================
@@ -195,7 +232,10 @@ fn test_s3_event_inference() {
     if let Err(ref e) = result {
         eprintln!("S3 conversion error: {:?}", e);
     }
-    assert!(result.is_ok(), "S3 event handler should convert successfully");
+    assert!(
+        result.is_ok(),
+        "S3 event handler should convert successfully"
+    );
 }
 
 #[test]
@@ -207,7 +247,10 @@ fn test_api_gateway_event_inference() {
     if let Err(ref e) = result {
         eprintln!("API Gateway conversion error: {:?}", e);
     }
-    assert!(result.is_ok(), "API Gateway handler should convert successfully");
+    assert!(
+        result.is_ok(),
+        "API Gateway handler should convert successfully"
+    );
 }
 
 #[test]
@@ -219,7 +262,10 @@ fn test_sns_event_inference() {
     if let Err(ref e) = result {
         eprintln!("SNS conversion error: {:?}", e);
     }
-    assert!(result.is_ok(), "SNS event handler should convert successfully");
+    assert!(
+        result.is_ok(),
+        "SNS event handler should convert successfully"
+    );
 }
 
 #[test]
@@ -231,7 +277,10 @@ fn test_sqs_event_inference() {
     if let Err(ref e) = result {
         eprintln!("SQS conversion error: {:?}", e);
     }
-    assert!(result.is_ok(), "SQS event handler should convert successfully");
+    assert!(
+        result.is_ok(),
+        "SQS event handler should convert successfully"
+    );
 }
 
 #[test]
@@ -243,7 +292,10 @@ fn test_dynamodb_event_inference() {
     if let Err(ref e) = result {
         eprintln!("DynamoDB conversion error: {:?}", e);
     }
-    assert!(result.is_ok(), "DynamoDB event handler should convert successfully");
+    assert!(
+        result.is_ok(),
+        "DynamoDB event handler should convert successfully"
+    );
 }
 
 #[test]
@@ -255,7 +307,10 @@ fn test_eventbridge_event_inference() {
     if let Err(ref e) = result {
         eprintln!("EventBridge conversion error: {:?}", e);
     }
-    assert!(result.is_ok(), "EventBridge handler should convert successfully");
+    assert!(
+        result.is_ok(),
+        "EventBridge handler should convert successfully"
+    );
 }
 
 // ============================================================================
@@ -267,16 +322,13 @@ fn test_custom_output_path() {
     let (_temp, input) = create_test_lambda(simple_s3_handler());
     let custom_output = input.parent().unwrap().join("custom_lambda_output");
 
-    let result = lambda_convert_command(
-        input,
-        Some(custom_output.clone()),
-        false,
-        false,
-        false,
-    );
+    let result = lambda_convert_command(input, Some(custom_output.clone()), false, false, false);
 
     assert!(result.is_ok(), "Custom output path should work");
-    assert!(custom_output.exists(), "Custom output directory should exist");
+    assert!(
+        custom_output.exists(),
+        "Custom output directory should exist"
+    );
     assert!(custom_output.join("src/main.rs").exists());
 }
 
@@ -286,13 +338,19 @@ fn test_output_directory_creation() {
 
     // Output directory doesn't exist yet
     let output_dir = input.parent().unwrap().join("handler_lambda");
-    assert!(!output_dir.exists(), "Output should not exist before conversion");
+    assert!(
+        !output_dir.exists(),
+        "Output should not exist before conversion"
+    );
 
     let result = lambda_convert_command(input, None, false, false, false);
 
     assert!(result.is_ok());
     assert!(output_dir.exists(), "Output directory should be created");
-    assert!(output_dir.join("src").exists(), "src/ subdirectory should be created");
+    assert!(
+        output_dir.join("src").exists(),
+        "src/ subdirectory should be created"
+    );
 }
 
 #[test]
@@ -312,7 +370,11 @@ fn test_build_script_permissions() {
         use std::os::unix::fs::PermissionsExt;
         let metadata = fs::metadata(build_script).unwrap();
         let permissions = metadata.permissions();
-        assert_eq!(permissions.mode() & 0o111, 0o111, "build.sh should be executable");
+        assert_eq!(
+            permissions.mode() & 0o111,
+            0o111,
+            "build.sh should be executable"
+        );
     }
 }
 
@@ -348,13 +410,7 @@ fn test_multiple_file_writes() {
 fn test_invalid_input_file() {
     let non_existent = PathBuf::from("/tmp/non_existent_lambda_file_12345.py");
 
-    let result = lambda_convert_command(
-        non_existent,
-        None,
-        false,
-        false,
-        false,
-    );
+    let result = lambda_convert_command(non_existent, None, false, false, false);
 
     assert!(result.is_err(), "Should fail for non-existent input file");
 }
@@ -442,8 +498,10 @@ fn test_readme_content_generation() {
     let readme = fs::read_to_string(output_dir.join("README.md")).unwrap();
 
     // Verify README has useful content
-    assert!(readme.contains("Lambda") || readme.contains("AWS"),
-            "README should mention Lambda");
+    assert!(
+        readme.contains("Lambda") || readme.contains("AWS"),
+        "README should mention Lambda"
+    );
     assert!(!readme.is_empty(), "README should not be empty");
 }
 
@@ -458,8 +516,16 @@ fn test_cargo_toml_dependencies() {
     let cargo_toml = fs::read_to_string(output_dir.join("Cargo.toml")).unwrap();
 
     // Verify essential Lambda dependencies
-    assert!(cargo_toml.contains("lambda_runtime") || cargo_toml.contains("lambda"),
-            "Should include Lambda runtime dependency");
-    assert!(cargo_toml.contains("tokio"), "Should include tokio for async runtime");
-    assert!(cargo_toml.contains("serde"), "Should include serde for JSON");
+    assert!(
+        cargo_toml.contains("lambda_runtime") || cargo_toml.contains("lambda"),
+        "Should include Lambda runtime dependency"
+    );
+    assert!(
+        cargo_toml.contains("tokio"),
+        "Should include tokio for async runtime"
+    );
+    assert!(
+        cargo_toml.contains("serde"),
+        "Should include serde for JSON"
+    );
 }

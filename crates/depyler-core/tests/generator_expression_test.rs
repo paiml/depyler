@@ -24,7 +24,11 @@ def use_gen() -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -46,7 +50,11 @@ def use_gen() -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -74,7 +82,11 @@ def use_gen() -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -102,7 +114,11 @@ def use_gen() -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -123,7 +139,11 @@ def calculate() -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -151,7 +171,11 @@ def find_max(nums: list) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -179,7 +203,11 @@ def use_gen(nums: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -207,7 +235,11 @@ def use_gen(words: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -229,7 +261,11 @@ def use_gen() -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -251,7 +287,11 @@ def calculate() -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -281,7 +321,11 @@ def use_gen() -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -303,7 +347,11 @@ def use_gen() -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -326,7 +374,11 @@ def use_gen() -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -349,7 +401,11 @@ def use_gen() -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -371,7 +427,11 @@ def use_gen(a: list, b: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -397,7 +457,11 @@ def use_gen(nums: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -422,7 +486,11 @@ def use_gen() -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -444,7 +512,11 @@ def use_gen(multiplier: int) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -466,7 +538,11 @@ def use_gen(items: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -488,7 +564,11 @@ def use_gen(a: list, b: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 

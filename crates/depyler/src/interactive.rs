@@ -705,7 +705,9 @@ impl InteractiveSession {
 
     fn has_string_operations(&self, func: &depyler_core::hir::HirFunction) -> bool {
         use depyler_core::hir::Type;
-        func.params.iter().any(|param| matches!(param.ty, Type::String))
+        func.params
+            .iter()
+            .any(|param| matches!(param.ty, Type::String))
             || matches!(func.ret_type, Type::String)
     }
 

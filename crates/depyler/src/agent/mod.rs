@@ -9,4 +9,6 @@ pub mod transpilation_monitor;
 
 pub use daemon::{AgentDaemon, DaemonConfig, DaemonSettings, DaemonState, DaemonStatus};
 pub use mcp_server::DepylerMcpServer;
-pub use transpilation_monitor::{TranspilationMonitorEngine, TranspilationMonitorConfig, TranspilationEvent};
+pub use transpilation_monitor::{
+    TranspilationEvent, TranspilationMonitorConfig, TranspilationMonitorEngine,
+};

@@ -50,8 +50,16 @@ mod tests {
         module.functions.push(HirFunction {
             name: "add".to_string(),
             params: smallvec![
-                HirParam { name: Symbol::from("a"), ty: Type::Int, default: None },
-                HirParam { name: Symbol::from("b"), ty: Type::Int, default: None }
+                HirParam {
+                    name: Symbol::from("a"),
+                    ty: Type::Int,
+                    default: None
+                },
+                HirParam {
+                    name: Symbol::from("b"),
+                    ty: Type::Int,
+                    default: None
+                }
             ],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
@@ -161,7 +169,11 @@ mod tests {
 
         module.functions.push(HirFunction {
             name: "control_flow".to_string(),
-            params: smallvec![HirParam { name: Symbol::from("x"), ty: Type::Int, default: None }],
+            params: smallvec![HirParam {
+                name: Symbol::from("x"),
+                ty: Type::Int,
+                default: None
+            }],
             ret_type: Type::Int,
             body: vec![HirStmt::If {
                 condition: HirExpr::Binary {
@@ -250,7 +262,11 @@ mod tests {
             base_classes: vec![],
             methods: vec![HirMethod {
                 name: "increment".to_string(),
-                params: smallvec![HirParam { name: Symbol::from("self"), ty: Type::Unknown, default: None }],
+                params: smallvec![HirParam {
+                    name: Symbol::from("self"),
+                    ty: Type::Unknown,
+                    default: None
+                }],
                 ret_type: Type::None,
                 body: vec![],
                 is_static: false,
@@ -356,7 +372,11 @@ mod tests {
 
         module.functions.push(HirFunction {
             name: "process".to_string(),
-            params: smallvec![HirParam { name: Symbol::from("data"), ty: Type::List(Box::new(Type::Int)), default: None }],
+            params: smallvec![HirParam {
+                name: Symbol::from("data"),
+                ty: Type::List(Box::new(Type::Int)),
+                default: None
+            }],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))],
             properties: FunctionProperties::default(),

@@ -58,7 +58,11 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
 
     fn analyze_expr_for_mutations(expr: &HirExpr, mutable: &mut HashSet<String>) {
         match expr {
-            HirExpr::MethodCall { object, method, args } => {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+            } => {
                 // Check if this is a mutating method call
                 if is_mutating_method(method) {
                     if let HirExpr::Var(var_name) = &**object {
@@ -88,7 +92,10 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
                 analyze_expr_for_mutations(body, mutable);
                 analyze_expr_for_mutations(orelse, mutable);
             }
-            HirExpr::List(items) | HirExpr::Tuple(items) | HirExpr::Set(items) | HirExpr::FrozenSet(items) => {
+            HirExpr::List(items)
+            | HirExpr::Tuple(items)
+            | HirExpr::Set(items)
+            | HirExpr::FrozenSet(items) => {
                 for item in items {
                     analyze_expr_for_mutations(item, mutable);
                 }
@@ -173,7 +180,9 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
                     }
                 }
             }
-            HirStmt::While { condition, body, .. } => {
+            HirStmt::While {
+                condition, body, ..
+            } => {
                 analyze_expr_for_mutations(condition, mutable);
                 for stmt in body {
                     analyze_stmt(stmt, declared, mutable);
@@ -237,7 +246,10 @@ fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenS
     let conditional_imports = [
         (ctx.needs_hashmap, quote! { use std::collections::HashMap; }),
         (ctx.needs_hashset, quote! { use std::collections::HashSet; }),
-        (ctx.needs_vecdeque, quote! { use std::collections::VecDeque; }),
+        (
+            ctx.needs_vecdeque,
+            quote! { use std::collections::VecDeque; },
+        ),
         (ctx.needs_fnv_hashmap, quote! { use fnv::FnvHashMap; }),
         (ctx.needs_ahash_hashmap, quote! { use ahash::AHashMap; }),
         (ctx.needs_arc, quote! { use std::sync::Arc; }),
@@ -423,10 +435,10 @@ mod tests {
     use super::*;
     use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
     use crate::rust_gen::context::RustCodeGen;
+    use crate::rust_gen::type_gen::convert_binop;
     use crate::type_mapper::TypeMapper;
     use depyler_annotations::TranspilationAnnotations;
     use std::collections::HashSet;
-    use crate::rust_gen::type_gen::convert_binop;
 
     fn create_test_context() -> CodeGenContext<'static> {
         // This is a bit of a hack for testing - in real use, the TypeMapper would have a longer lifetime
@@ -441,7 +453,7 @@ mod tests {
             generated_enums: Vec::new(),
             needs_hashmap: false,
             needs_hashset: false,
-        needs_vecdeque: false,
+            needs_vecdeque: false,
             needs_fnv_hashmap: false,
             needs_ahash_hashmap: false,
             needs_arc: false,
@@ -672,7 +684,10 @@ mod tests {
         let exc = Some(HirExpr::Literal(Literal::String("Error".to_string())));
 
         let result = codegen_raise_stmt(&exc, &mut ctx).unwrap();
-        assert_eq!(result.to_string(), "return Err (\"Error\" . to_string ()) ;");
+        assert_eq!(
+            result.to_string(),
+            "return Err (\"Error\" . to_string ()) ;"
+        );
     }
 
     #[test]
@@ -680,7 +695,10 @@ mod tests {
         let mut ctx = create_test_context();
 
         let result = codegen_raise_stmt(&None, &mut ctx).unwrap();
-        assert_eq!(result.to_string(), "return Err (\"Exception raised\" . into ()) ;");
+        assert_eq!(
+            result.to_string(),
+            "return Err (\"Exception raised\" . into ()) ;"
+        );
     }
 
     #[test]
@@ -842,7 +860,11 @@ mod tests {
 
         // Should generate cast for variables to prevent bool arithmetic errors
         assert!(code.contains("x"), "Expected 'x', got: {}", code);
-        assert!(code.contains("as i32"), "Should contain 'as i32' cast, got: {}", code);
+        assert!(
+            code.contains("as i32"),
+            "Should contain 'as i32' cast, got: {}",
+            code
+        );
     }
 
     #[test]
@@ -857,7 +879,11 @@ mod tests {
         let result = call_expr.to_rust_expr(&mut ctx).unwrap();
         let code = quote! { #result }.to_string();
 
-        assert!(code.contains("as f64"), "Expected '(y) as f64', got: {}", code);
+        assert!(
+            code.contains("as f64"),
+            "Expected '(y) as f64', got: {}",
+            code
+        );
     }
 
     #[test]
@@ -872,7 +898,11 @@ mod tests {
         let result = call_expr.to_rust_expr(&mut ctx).unwrap();
         let code = quote! { #result }.to_string();
 
-        assert!(code.contains("to_string"), "Expected 'value.to_string()', got: {}", code);
+        assert!(
+            code.contains("to_string"),
+            "Expected 'value.to_string()', got: {}",
+            code
+        );
     }
 
     #[test]
@@ -887,7 +917,11 @@ mod tests {
         let result = call_expr.to_rust_expr(&mut ctx).unwrap();
         let code = quote! { #result }.to_string();
 
-        assert!(code.contains("as bool"), "Expected '(flag) as bool', got: {}", code);
+        assert!(
+            code.contains("as bool"),
+            "Expected '(flag) as bool', got: {}",
+            code
+        );
     }
 
     #[test]
@@ -915,9 +949,21 @@ mod tests {
         let code = quote! { #result }.to_string();
 
         // Should generate cast for expressions to prevent bool arithmetic errors
-        assert!(code.contains("low"), "Expected 'low' variable, got: {}", code);
-        assert!(code.contains("high"), "Expected 'high' variable, got: {}", code);
-        assert!(code.contains("as i32"), "Should contain 'as i32' cast, got: {}", code);
+        assert!(
+            code.contains("low"),
+            "Expected 'low' variable, got: {}",
+            code
+        );
+        assert!(
+            code.contains("high"),
+            "Expected 'high' variable, got: {}",
+            code
+        );
+        assert!(
+            code.contains("as i32"),
+            "Should contain 'as i32' cast, got: {}",
+            code
+        );
     }
 
     #[test]
@@ -931,15 +977,21 @@ mod tests {
         let zero_float = HirExpr::Literal(Literal::Float(0.0));
         let result = zero_float.to_rust_expr(&mut ctx).unwrap();
         let code = quote! { #result }.to_string();
-        assert!(code.contains("0.0") || code.contains("0 ."),
-                "Expected '0.0' for float zero, got: {}", code);
+        assert!(
+            code.contains("0.0") || code.contains("0 ."),
+            "Expected '0.0' for float zero, got: {}",
+            code
+        );
 
         // Test 42.0 → should generate "42.0" not "42"
         let forty_two = HirExpr::Literal(Literal::Float(42.0));
         let result = forty_two.to_rust_expr(&mut ctx).unwrap();
         let code = quote! { #result }.to_string();
-        assert!(code.contains("42.0") || code.contains("42 ."),
-                "Expected '42.0' for float, got: {}", code);
+        assert!(
+            code.contains("42.0") || code.contains("42 ."),
+            "Expected '42.0' for float, got: {}",
+            code
+        );
 
         // Test 1.5 → should preserve "1.5" (already has decimal)
         let one_half = HirExpr::Literal(Literal::Float(1.5));
@@ -951,8 +1003,11 @@ mod tests {
         let scientific = HirExpr::Literal(Literal::Float(1e10));
         let result = scientific.to_rust_expr(&mut ctx).unwrap();
         let code = quote! { #result }.to_string();
-        assert!(code.contains("e") || code.contains("E") || code.contains("."),
-                "Expected scientific notation or decimal, got: {}", code);
+        assert!(
+            code.contains("e") || code.contains("E") || code.contains("."),
+            "Expected scientific notation or decimal, got: {}",
+            code
+        );
     }
 
     #[test]
@@ -982,10 +1037,16 @@ mod tests {
 
         // Should generate: fn to_upper(text: &str) -> String
         // NOT: fn to_upper<'a>(text: &'a str) -> &'a str
-        assert!(code.contains("-> String"),
-                "Expected '-> String' for .upper() method, got: {}", code);
-        assert!(!code.contains("-> & ") && !code.contains("-> &'"),
-                "Should not generate borrowed return for .upper(), got: {}", code);
+        assert!(
+            code.contains("-> String"),
+            "Expected '-> String' for .upper() method, got: {}",
+            code
+        );
+        assert!(
+            !code.contains("-> & ") && !code.contains("-> &'"),
+            "Should not generate borrowed return for .upper(), got: {}",
+            code
+        );
 
         // Test 2: .lower() should also generate String return type
         let lower_func = HirFunction {
@@ -1006,8 +1067,11 @@ mod tests {
         let result = lower_func.to_rust_tokens(&mut ctx).unwrap();
         let code = result.to_string();
 
-        assert!(code.contains("-> String"),
-                "Expected '-> String' for .lower() method, got: {}", code);
+        assert!(
+            code.contains("-> String"),
+            "Expected '-> String' for .lower() method, got: {}",
+            code
+        );
 
         // Test 3: .strip() should also generate String return type
         let strip_func = HirFunction {
@@ -1028,8 +1092,11 @@ mod tests {
         let result = strip_func.to_rust_tokens(&mut ctx).unwrap();
         let code = result.to_string();
 
-        assert!(code.contains("-> String"),
-                "Expected '-> String' for .strip() method, got: {}", code);
+        assert!(
+            code.contains("-> String"),
+            "Expected '-> String' for .strip() method, got: {}",
+            code
+        );
     }
 
     #[test]
@@ -1045,8 +1112,9 @@ mod tests {
             params: vec![
                 HirParam::new("a".to_string(), Type::Int),
                 HirParam::new("b".to_string(), Type::Int),
-            ].into(),
-            ret_type: Type::Float,  // Expects float return!
+            ]
+            .into(),
+            ret_type: Type::Float, // Expects float return!
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Div,
                 left: Box::new(HirExpr::Var("a".to_string())),
@@ -1063,10 +1131,16 @@ mod tests {
 
         // Should generate: (a as f64) / (b as f64)
         // NOT: a / b (which would do integer division)
-        assert!(code.contains("as f64") || code.contains("as f32"),
-                "Expected float cast for int/int division with float return, got: {}", code);
-        assert!(code.contains("-> f64") || code.contains("-> f32"),
-                "Expected float return type, got: {}", code);
+        assert!(
+            code.contains("as f64") || code.contains("as f32"),
+            "Expected float cast for int/int division with float return, got: {}",
+            code
+        );
+        assert!(
+            code.contains("-> f64") || code.contains("-> f32"),
+            "Expected float return type, got: {}",
+            code
+        );
 
         // Test 2: int // int returning int (floor division - should NOT cast)
         let floor_div_func = HirFunction {
@@ -1074,8 +1148,9 @@ mod tests {
             params: vec![
                 HirParam::new("a".to_string(), Type::Int),
                 HirParam::new("b".to_string(), Type::Int),
-            ].into(),
-            ret_type: Type::Int,  // Expects int return
+            ]
+            .into(),
+            ret_type: Type::Int, // Expects int return
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::FloorDiv,
                 left: Box::new(HirExpr::Var("a".to_string())),
@@ -1091,8 +1166,11 @@ mod tests {
         let code = result.to_string();
 
         // Floor division should NOT add float casts
-        assert!(code.contains("-> i32") || code.contains("-> i64"),
-                "Expected int return type for floor division, got: {}", code);
+        assert!(
+            code.contains("-> i32") || code.contains("-> i64"),
+            "Expected int return type for floor division, got: {}",
+            code
+        );
 
         // Test 3: float / float should work without changes
         let float_div_func = HirFunction {
@@ -1100,7 +1178,8 @@ mod tests {
             params: vec![
                 HirParam::new("a".to_string(), Type::Float),
                 HirParam::new("b".to_string(), Type::Float),
-            ].into(),
+            ]
+            .into(),
             ret_type: Type::Float,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Div,
@@ -1116,7 +1195,10 @@ mod tests {
         let result = float_div_func.to_rust_tokens(&mut ctx).unwrap();
         let code = result.to_string();
 
-        assert!(code.contains("-> f64") || code.contains("-> f32"),
-                "Expected float return type, got: {}", code);
+        assert!(
+            code.contains("-> f64") || code.contains("-> f32"),
+            "Expected float return type, got: {}",
+            code
+        );
     }
 }

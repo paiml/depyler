@@ -27,7 +27,11 @@ def combine_lists(list1: list, list2: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -43,7 +47,11 @@ def combine_lists(list1: list, list2: list) -> list:
 
     // Should have tuple destructuring in lambda (flexible spacing)
     let has_tuple_lambda = rust_code.contains("|(x, y)") || rust_code.contains("|( x, y )");
-    assert!(has_tuple_lambda, "Should have tuple destructuring lambda.\nGot:\n{}", rust_code);
+    assert!(
+        has_tuple_lambda,
+        "Should have tuple destructuring lambda.\nGot:\n{}",
+        rust_code
+    );
 
     // Should have collect
     let has_collect = rust_code.contains(".collect");
@@ -59,18 +67,30 @@ def combine_three(list1: list, list2: list, list3: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
     // Should have multiple zip calls
     let zip_count = rust_code.matches(".zip(").count();
-    assert!(zip_count >= 2, "Should have at least 2 .zip() calls for 3 iterables.\nGot:\n{}", rust_code);
+    assert!(
+        zip_count >= 2,
+        "Should have at least 2 .zip() calls for 3 iterables.\nGot:\n{}",
+        rust_code
+    );
 
     // Should have three-parameter tuple destructuring (flexible spacing)
-    let has_triple_lambda = rust_code.contains("|((x, y), z)") ||
-                            rust_code.contains("|( ( x, y ), z )");
-    assert!(has_triple_lambda, "Should have three-parameter tuple destructuring.\nGot:\n{}", rust_code);
+    let has_triple_lambda =
+        rust_code.contains("|((x, y), z)") || rust_code.contains("|( ( x, y ), z )");
+    assert!(
+        has_triple_lambda,
+        "Should have three-parameter tuple destructuring.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -82,20 +102,36 @@ def complex_combine(nums1: list, nums2: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
     // Should have zip pattern
-    assert!(rust_code.contains(".zip("), "Should have .zip().\nGot:\n{}", rust_code);
+    assert!(
+        rust_code.contains(".zip("),
+        "Should have .zip().\nGot:\n{}",
+        rust_code
+    );
 
     // Should have tuple lambda (flexible spacing)
     let has_tuple_lambda = rust_code.contains("|(x, y)") || rust_code.contains("|( x, y )");
-    assert!(has_tuple_lambda, "Should have tuple lambda.\nGot:\n{}", rust_code);
+    assert!(
+        has_tuple_lambda,
+        "Should have tuple lambda.\nGot:\n{}",
+        rust_code
+    );
 
     // Should preserve the complex expression
     let has_multiplication = rust_code.contains("* 2") && rust_code.contains("* 3");
-    assert!(has_multiplication, "Should preserve multiplication operations.\nGot:\n{}", rust_code);
+    assert!(
+        has_multiplication,
+        "Should preserve multiplication operations.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -107,16 +143,28 @@ def concat_strings(first: list, last: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
     // Should have zip pattern
-    assert!(rust_code.contains(".zip("), "Should have .zip().\nGot:\n{}", rust_code);
+    assert!(
+        rust_code.contains(".zip("),
+        "Should have .zip().\nGot:\n{}",
+        rust_code
+    );
 
     // Should have tuple lambda with f and l (flexible spacing)
     let has_tuple_lambda = rust_code.contains("|(f, l)") || rust_code.contains("|( f, l )");
-    assert!(has_tuple_lambda, "Should have |(f, l)| lambda.\nGot:\n{}", rust_code);
+    assert!(
+        has_tuple_lambda,
+        "Should have |(f, l)| lambda.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -128,16 +176,28 @@ def compare_lists(list1: list, list2: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
     // Should have zip pattern
-    assert!(rust_code.contains(".zip("), "Should have .zip().\nGot:\n{}", rust_code);
+    assert!(
+        rust_code.contains(".zip("),
+        "Should have .zip().\nGot:\n{}",
+        rust_code
+    );
 
     // Should have comparison
     let has_comparison = rust_code.contains(">") || rust_code.contains("gt");
-    assert!(has_comparison, "Should have comparison operator.\nGot:\n{}", rust_code);
+    assert!(
+        has_comparison,
+        "Should have comparison operator.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -149,16 +209,28 @@ def combine_indexed(pairs: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
     // Should have zip pattern
-    assert!(rust_code.contains(".zip("), "Should have .zip().\nGot:\n{}", rust_code);
+    assert!(
+        rust_code.contains(".zip("),
+        "Should have .zip().\nGot:\n{}",
+        rust_code
+    );
 
     // Should have indexing operations
     let has_indexing = rust_code.contains(".get(0") && rust_code.contains(".get(1");
-    assert!(has_indexing, "Should have index access.\nGot:\n{}", rust_code);
+    assert!(
+        has_indexing,
+        "Should have index access.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -170,16 +242,28 @@ def conditional_combine(list1: list, list2: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
     // Should have zip pattern
-    assert!(rust_code.contains(".zip("), "Should have .zip().\nGot:\n{}", rust_code);
+    assert!(
+        rust_code.contains(".zip("),
+        "Should have .zip().\nGot:\n{}",
+        rust_code
+    );
 
     // Should have conditional
     let has_conditional = rust_code.contains("if") || rust_code.contains("match");
-    assert!(has_conditional, "Should have conditional logic.\nGot:\n{}", rust_code);
+    assert!(
+        has_conditional,
+        "Should have conditional logic.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -191,13 +275,21 @@ def nested_combine(matrix1: list, matrix2: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
     // Should have multiple zip patterns
     let zip_count = rust_code.matches(".zip(").count();
-    assert!(zip_count >= 2, "Should have multiple .zip() calls.\nGot:\n{}", rust_code);
+    assert!(
+        zip_count >= 2,
+        "Should have multiple .zip() calls.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -209,16 +301,28 @@ def multiply_lists(a: list, b: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
     // Should have zip pattern
-    assert!(rust_code.contains(".zip("), "Should have .zip().\nGot:\n{}", rust_code);
+    assert!(
+        rust_code.contains(".zip("),
+        "Should have .zip().\nGot:\n{}",
+        rust_code
+    );
 
     // Should have multiplication
     let has_multiply = rust_code.contains("*");
-    assert!(has_multiply, "Should have multiplication.\nGot:\n{}", rust_code);
+    assert!(
+        has_multiply,
+        "Should have multiplication.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -230,13 +334,21 @@ def double_list(nums: list) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
     // Single-iterable map should NOT have zip
     let has_zip = rust_code.contains(".zip(");
-    assert!(!has_zip, "Single-iterable map should NOT use .zip().\nGot:\n{}", rust_code);
+    assert!(
+        !has_zip,
+        "Single-iterable map should NOT use .zip().\nGot:\n{}",
+        rust_code
+    );
 
     // Should still have map
     let has_map = rust_code.contains(".map");
@@ -244,5 +356,9 @@ def double_list(nums: list) -> list:
 
     // Should NOT have tuple destructuring
     let has_tuple_lambda = rust_code.contains("|(x)|") || rust_code.contains("|( x )|");
-    assert!(!has_tuple_lambda, "Single-parameter lambda should not use tuple.\nGot:\n{}", rust_code);
+    assert!(
+        !has_tuple_lambda,
+        "Single-parameter lambda should not use tuple.\nGot:\n{}",
+        rust_code
+    );
 }

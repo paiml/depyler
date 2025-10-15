@@ -16,10 +16,7 @@ fn create_test_module_mapper() -> ModuleMapper {
 fn process_module_imports_wrapper(
     imports: &[Import],
     module_mapper: &ModuleMapper,
-) -> (
-    HashMap<String, ModuleMapping>,
-    HashMap<String, String>,
-) {
+) -> (HashMap<String, ModuleMapping>, HashMap<String, String>) {
     // This will call the actual function from rust_gen.rs
     // For now, we'll test the expected behavior
 

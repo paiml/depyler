@@ -110,13 +110,19 @@ impl MemorySafetyAnalyzer {
         annotations: &TranspilationAnnotations,
     ) -> Option<MemorySafetyViolation> {
         match stmt {
-            HirStmt::Assign { target, value, .. } => self.analyze_assign(target, value, annotations),
-            HirStmt::Return(Some(expr)) => self.check_expr_moves(expr, "return statement"),
-            HirStmt::If { condition, then_body, else_body } => {
-                self.analyze_if(condition, then_body, else_body, annotations)
+            HirStmt::Assign { target, value, .. } => {
+                self.analyze_assign(target, value, annotations)
             }
+            HirStmt::Return(Some(expr)) => self.check_expr_moves(expr, "return statement"),
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => self.analyze_if(condition, then_body, else_body, annotations),
             HirStmt::While { condition, body } => self.analyze_while(condition, body, annotations),
-            HirStmt::For { target, iter, body } => self.analyze_for(target, iter, body, annotations),
+            HirStmt::For { target, iter, body } => {
+                self.analyze_for(target, iter, body, annotations)
+            }
             _ => None,
         }
     }

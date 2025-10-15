@@ -16,11 +16,11 @@ proptest! {
     #[test]
     fn prop_generated_code_is_valid(expr in arb_hir_expr()) {
         let backend = RuchyBackend::new();
-        
+
         if let Ok(ruchy_code) = backend.transpile(&Hir { root: expr, metadata: Default::default() }) {
             // Code should not be empty
             prop_assert!(!ruchy_code.is_empty());
-            
+
             // Code should be valid (when validation feature is enabled)
             #[cfg(feature = "validation")]
             {
@@ -43,15 +43,15 @@ proptest! {
             ..Default::default()
         };
         let backend = RuchyBackend::with_config(config);
-        
+
         let expr = HirExpr::Binary {
             left: Box::new(HirExpr::Literal(HirLiteral::Integer(a))),
             op: HirBinaryOp::Add,
             right: Box::new(HirExpr::Literal(HirLiteral::Integer(b))),
         };
-        
+
         let result = backend.transpile(&Hir { root: expr, metadata: Default::default() }).unwrap();
-        
+
         // Should be folded to a single number
         let expected = (a + b).to_string();
         prop_assert!(result.contains(&expected));
@@ -72,18 +72,18 @@ proptest! {
             optimization_level: 2,
             ..Default::default()
         };
-        
+
         let backend_no_opt = RuchyBackend::with_config(config_no_opt);
         let backend_opt = RuchyBackend::with_config(config_opt);
-        
+
         // Create a pipeline expression
         let expr = HirExpr::List(values.into_iter()
             .map(|v| HirExpr::Literal(HirLiteral::Integer(v)))
             .collect());
-        
+
         let result1 = backend_no_opt.transpile(&Hir { root: expr.clone(), metadata: Default::default() });
         let result2 = backend_opt.transpile(&Hir { root: expr, metadata: Default::default() });
-        
+
         // Both should compile successfully
         prop_assert!(result1.is_ok());
         prop_assert!(result2.is_ok());
@@ -94,10 +94,10 @@ proptest! {
 #[quickcheck]
 fn prop_type_conversion_is_sound(val: i64) -> bool {
     let backend = RuchyBackend::new();
-    
+
     let expr = HirExpr::Literal(HirLiteral::Integer(val));
     let result = backend.transpile(&Hir { root: expr, metadata: Default::default() });
-    
+
     result.is_ok()
 }
 
@@ -106,10 +106,10 @@ proptest! {
     #[test]
     fn prop_transpilation_is_idempotent(expr in arb_hir_expr()) {
         let backend = RuchyBackend::new();
-        
+
         let result1 = backend.transpile(&Hir { root: expr.clone(), metadata: Default::default() });
         let result2 = backend.transpile(&Hir { root: expr, metadata: Default::default() });
-        
+
         prop_assert_eq!(result1, result2);
     }
 }
@@ -122,7 +122,7 @@ fn arb_hir_expr() -> impl Strategy<Value = HirExpr> {
         any::<bool>().prop_map(|b| HirExpr::Literal(HirLiteral::Bool(b))),
         "[a-z][a-z0-9]{0,5}".prop_map(|s| HirExpr::Identifier(s)),
     ];
-    
+
     leaf.prop_recursive(
         8, // 8 levels deep max
         256, // 256 nodes max

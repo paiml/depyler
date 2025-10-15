@@ -513,15 +513,16 @@ impl LifetimeInference {
                 self.analyze_expr_for_param(param, orelse, usage, in_loop, in_return);
             }
             HirExpr::SortByKey {
-                iterable,
-                key_body,
-                ..
+                iterable, key_body, ..
             } => {
                 // Analyze the iterable and key lambda body
                 self.analyze_expr_for_param(param, iterable, usage, in_loop, in_return);
                 self.analyze_expr_for_param(param, key_body, usage, in_loop, in_return);
             }
-            HirExpr::GeneratorExp { element, generators } => {
+            HirExpr::GeneratorExp {
+                element,
+                generators,
+            } => {
                 // Analyze element and all generator components
                 self.analyze_expr_for_param(param, element, usage, in_loop, in_return);
                 for gen in generators {

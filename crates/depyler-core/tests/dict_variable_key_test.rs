@@ -23,7 +23,11 @@ def lookup_values(data: Dict[str, int], keys: List[str]) -> List[int]:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -54,7 +58,11 @@ def get_value(data: Dict[str, int]) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -85,7 +93,11 @@ def get_item(items: List[int], index: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 

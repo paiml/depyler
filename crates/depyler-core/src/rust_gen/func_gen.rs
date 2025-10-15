@@ -57,7 +57,9 @@ pub(crate) fn codegen_generic_params(
 
 /// Generate where clause for lifetime bounds (where 'a: 'b, 'c: 'd)
 #[inline]
-pub(crate) fn codegen_where_clause(lifetime_bounds: &[(String, String)]) -> proc_macro2::TokenStream {
+pub(crate) fn codegen_where_clause(
+    lifetime_bounds: &[(String, String)],
+) -> proc_macro2::TokenStream {
     if lifetime_bounds.is_empty() {
         return quote! {};
     }
@@ -182,20 +184,21 @@ fn codegen_single_param(
         let rust_type = &inferred.rust_type;
 
         // Handle Union type placeholders
-        let actual_rust_type = if let crate::type_mapper::RustType::Enum { name, variants: _ } = rust_type {
-            if name == "UnionType" {
-                if let Type::Union(types) = &param.ty {
-                    let enum_name = ctx.process_union_type(types);
-                    crate::type_mapper::RustType::Custom(enum_name)
+        let actual_rust_type =
+            if let crate::type_mapper::RustType::Enum { name, variants: _ } = rust_type {
+                if name == "UnionType" {
+                    if let Type::Union(types) = &param.ty {
+                        let enum_name = ctx.process_union_type(types);
+                        crate::type_mapper::RustType::Custom(enum_name)
+                    } else {
+                        rust_type.clone()
+                    }
                 } else {
                     rust_type.clone()
                 }
             } else {
                 rust_type.clone()
-            }
-        } else {
-            rust_type.clone()
-        };
+            };
 
         update_import_needs(ctx, &actual_rust_type);
         let ty = apply_param_borrowing_strategy(
@@ -320,17 +323,15 @@ enum StringMethodReturnType {
 fn classify_string_method(method_name: &str) -> StringMethodReturnType {
     match method_name {
         // Transformation methods that return owned String
-        "upper" | "lower" | "strip" | "lstrip" | "rstrip"
-        | "replace" | "format" | "title" | "capitalize"
-        | "swapcase" | "expandtabs" | "center" | "ljust"
-        | "rjust" | "zfill" => StringMethodReturnType::Owned,
+        "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "format" | "title"
+        | "capitalize" | "swapcase" | "expandtabs" | "center" | "ljust" | "rjust" | "zfill" => {
+            StringMethodReturnType::Owned
+        }
 
         // Query/test methods that return bool or &str (borrowed)
-        "startswith" | "endswith" | "isalpha" | "isdigit"
-        | "isalnum" | "isspace" | "islower" | "isupper"
-        | "istitle" | "isascii" | "isprintable"
-        | "find" | "rfind" | "index" | "rindex"
-        | "count" => StringMethodReturnType::Borrowed,
+        "startswith" | "endswith" | "isalpha" | "isdigit" | "isalnum" | "isspace" | "islower"
+        | "isupper" | "istitle" | "isascii" | "isprintable" | "find" | "rfind" | "index"
+        | "rindex" | "count" => StringMethodReturnType::Borrowed,
 
         // Default: assume owned to be safe
         _ => StringMethodReturnType::Owned,
@@ -348,9 +349,7 @@ fn contains_owned_string_method(expr: &HirExpr) -> bool {
             // Check both sides of binary operations
             contains_owned_string_method(left) || contains_owned_string_method(right)
         }
-        HirExpr::Unary { operand, .. } => {
-            contains_owned_string_method(operand)
-        }
+        HirExpr::Unary { operand, .. } => contains_owned_string_method(operand),
         HirExpr::IfExpr { body, orelse, .. } => {
             // Check both branches of conditional
             contains_owned_string_method(body) || contains_owned_string_method(orelse)
@@ -417,33 +416,31 @@ pub(crate) fn codegen_return_type(
         .map_return_type_with_annotations(&func.ret_type, &func.annotations);
 
     // Check if this is a placeholder Union enum that needs proper generation
-    let rust_ret_type =
-        if let crate::type_mapper::RustType::Enum { name, .. } = &mapped_ret_type {
-            if name == "UnionType" {
-                // Generate a proper enum name and definition from the original Union type
-                if let Type::Union(types) = &func.ret_type {
-                    let enum_name = ctx.process_union_type(types);
-                    crate::type_mapper::RustType::Custom(enum_name)
-                } else {
-                    mapped_ret_type
-                }
+    let rust_ret_type = if let crate::type_mapper::RustType::Enum { name, .. } = &mapped_ret_type {
+        if name == "UnionType" {
+            // Generate a proper enum name and definition from the original Union type
+            if let Type::Union(types) = &func.ret_type {
+                let enum_name = ctx.process_union_type(types);
+                crate::type_mapper::RustType::Custom(enum_name)
             } else {
                 mapped_ret_type
             }
         } else {
             mapped_ret_type
-        };
+        }
+    } else {
+        mapped_ret_type
+    };
 
     // v3.16.0 Phase 1: Override return type to String if function returns owned via string methods
     // This prevents lifetime analysis from incorrectly converting to borrowed &str
-    let rust_ret_type = if matches!(func.ret_type, Type::String)
-        && function_returns_owned_string(func)
-    {
-        // Force owned String return, don't use lifetime borrowing
-        crate::type_mapper::RustType::String
-    } else {
-        rust_ret_type
-    };
+    let rust_ret_type =
+        if matches!(func.ret_type, Type::String) && function_returns_owned_string(func) {
+            // Force owned String return, don't use lifetime borrowing
+            crate::type_mapper::RustType::String
+        } else {
+            rust_ret_type
+        };
 
     // Update import needs based on return type
     update_import_needs(ctx, &rust_ret_type);
@@ -511,8 +508,8 @@ pub(crate) fn codegen_return_type(
         } else {
             // v3.16.0 Phase 1: Check if function returns owned String via transformation methods
             // If so, don't convert to borrowed &str even if lifetime analysis suggests it
-            let returns_owned_string = matches!(func.ret_type, Type::String)
-                && function_returns_owned_string(func);
+            let returns_owned_string =
+                matches!(func.ret_type, Type::String) && function_returns_owned_string(func);
 
             // Apply return lifetime if needed (unless returning owned String)
             if let Some(ref return_lt) = lifetime_result.return_lifetime {
@@ -521,7 +518,8 @@ pub(crate) fn codegen_return_type(
                     rust_ret_type,
                     crate::type_mapper::RustType::Str { .. }
                         | crate::type_mapper::RustType::Reference { .. }
-                ) && !returns_owned_string {
+                ) && !returns_owned_string
+                {
                     // Only apply lifetime if NOT returning owned String
                     let lt = syn::Lifetime::new(return_lt.as_str(), proc_macro2::Span::call_site());
                     match &rust_ret_type {
@@ -580,7 +578,8 @@ impl RustCodeGen for HirFunction {
         let params = codegen_function_params(self, &lifetime_result, ctx)?;
 
         // Generate return type with Result wrapper and lifetime handling
-        let (return_type, rust_ret_type, can_fail) = codegen_return_type(self, &lifetime_result, ctx)?;
+        let (return_type, rust_ret_type, can_fail) =
+            codegen_return_type(self, &lifetime_result, ctx)?;
 
         // Process function body with proper scoping
         let body_stmts = codegen_function_body(self, can_fail, ctx)?;

@@ -711,7 +711,8 @@ impl InliningAnalyzer {
                 return None;
             }
             let target_func = function_map.get(func)?;
-            let inlined = self.inline_function_call(target_func, args, function_map, decisions, depth);
+            let inlined =
+                self.inline_function_call(target_func, args, function_map, decisions, depth);
 
             if inlined.is_empty() {
                 return None;
@@ -787,7 +788,11 @@ impl InliningAnalyzer {
     ) -> HirStmt {
         match stmt {
             HirStmt::Expr(expr) => HirStmt::Expr(transform_expr_for_inlining_inner(expr, params)),
-            HirStmt::Assign { target, value, type_annotation } => HirStmt::Assign {
+            HirStmt::Assign {
+                target,
+                value,
+                type_annotation,
+            } => HirStmt::Assign {
                 target: self.transform_assign_target_for_inlining(target, params),
                 value: transform_expr_for_inlining_inner(value, params),
                 type_annotation: type_annotation.clone(),
@@ -906,7 +911,9 @@ fn call_has_side_effects(func: &str, args: &[HirExpr]) -> bool {
 }
 
 fn method_has_side_effects(method: &str) -> bool {
-    let mutating_methods = ["append", "extend", "remove", "pop", "clear", "sort", "reverse"];
+    let mutating_methods = [
+        "append", "extend", "remove", "pop", "clear", "sort", "reverse",
+    ];
     mutating_methods.contains(&method)
 }
 
@@ -948,10 +955,7 @@ fn count_returns_inner(body: &[HirStmt]) -> usize {
     count
 }
 
-fn transform_expr_for_inlining_inner(
-    expr: &HirExpr,
-    params: &[crate::hir::HirParam],
-) -> HirExpr {
+fn transform_expr_for_inlining_inner(expr: &HirExpr, params: &[crate::hir::HirParam]) -> HirExpr {
     match expr {
         HirExpr::Var(name) => {
             // Replace parameter references with inlined versions

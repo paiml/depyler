@@ -301,7 +301,8 @@ impl BorrowingContext {
         if types.is_empty() {
             "()".to_string()
         } else {
-            let type_strs: Vec<String> = types.iter().map(|t| self.type_to_rust_string(t)).collect();
+            let type_strs: Vec<String> =
+                types.iter().map(|t| self.type_to_rust_string(t)).collect();
             format!("({})", type_strs.join(", "))
         }
     }
@@ -348,7 +349,10 @@ mod tests {
 
         let func = HirFunction {
             name: "test".to_string(),
-            params: smallvec![HirParam::new("x".to_string(), Type::List(Box::new(Type::Int)))],
+            params: smallvec![HirParam::new(
+                "x".to_string(),
+                Type::List(Box::new(Type::Int))
+            )],
             ret_type: Type::None,
             body: vec![HirStmt::Expr(HirExpr::Call {
                 func: "append".to_string(),

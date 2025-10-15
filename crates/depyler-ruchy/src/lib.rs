@@ -30,12 +30,12 @@ pub mod transformer;
 pub mod types;
 
 use anyhow::Result;
-use depyler_core::{TranspilationBackend, TranspileError, ValidationError};
 use depyler_core::hir::HirModule;
+use depyler_core::{TranspilationBackend, TranspileError, ValidationError};
 use std::fmt;
 
 #[cfg(feature = "interpreter")]
-use ruchy::{compile, is_valid_syntax, get_parse_error};
+use ruchy::{compile, get_parse_error, is_valid_syntax};
 
 #[cfg(feature = "dataframe")]
 #[allow(unused_imports)]
@@ -45,20 +45,20 @@ use polars::prelude::*;
 pub struct RuchyBackend {
     /// AST builder for constructing Ruchy expressions
     ast_builder: ast::RuchyAstBuilder,
-    
+
     /// Type mapping engine for Python to Ruchy types
     #[allow(dead_code)]
     type_mapper: types::TypeMapper,
-    
+
     /// Optimization passes for generated code
     optimizer: optimizer::RuchyOptimizer,
-    
+
     /// Code formatter for pretty-printing
     formatter: formatter::RuchyFormatter,
-    
+
     /// Pattern transformer for Pythonic to functional style
     transformer: transformer::PatternTransformer,
-    
+
     /// Integrated Ruchy interpreter for execution and validation
     #[cfg(feature = "interpreter")]
     interpreter: interpreter::RuchyInterpreter,
@@ -78,7 +78,7 @@ impl RuchyBackend {
             interpreter: interpreter::RuchyInterpreter::new(),
         }
     }
-    
+
     /// Creates a Ruchy backend with custom configuration
     #[must_use]
     pub fn with_config(config: RuchyConfig) -> Self {
@@ -92,25 +92,25 @@ impl RuchyBackend {
             interpreter: interpreter::RuchyInterpreter::with_config(&config),
         }
     }
-    
+
     /// Executes Ruchy code directly using the integrated interpreter
     #[cfg(feature = "interpreter")]
     pub fn execute(&self, code: &str) -> Result<String, TranspileError> {
-        self.interpreter.execute(code)
+        self.interpreter
+            .execute(code)
             .map_err(|e| TranspileError::backend_error(e.to_string()))
     }
-    
+
     /// Validates Ruchy syntax using the integrated parser
     #[cfg(feature = "interpreter")]
     pub fn validate_syntax(&self, code: &str) -> bool {
         is_valid_syntax(code)
     }
-    
+
     /// Compiles Ruchy code to optimized bytecode
     #[cfg(feature = "interpreter")]
     pub fn compile_ruchy(&self, code: &str) -> Result<String, TranspileError> {
-        compile(code)
-            .map_err(|e| TranspileError::backend_error(e.to_string()))
+        compile(code).map_err(|e| TranspileError::backend_error(e.to_string()))
     }
 }
 
@@ -123,26 +123,32 @@ impl Default for RuchyBackend {
 impl TranspilationBackend for RuchyBackend {
     fn transpile(&self, hir: &HirModule) -> Result<String, TranspileError> {
         // Phase 1: Transform HIR to Ruchy AST
-        let mut ruchy_ast = self.ast_builder.build(hir)
+        let mut ruchy_ast = self
+            .ast_builder
+            .build(hir)
             .map_err(|e| TranspileError::backend_error(e.to_string()))?;
-        
+
         // Phase 2: Apply pattern transformations (e.g., list comp → pipeline)
-        ruchy_ast = self.transformer.transform(ruchy_ast)
+        ruchy_ast = self
+            .transformer
+            .transform(ruchy_ast)
             .map_err(|e| TranspileError::backend_error(e.to_string()))?;
-        
+
         // Phase 3: Apply optimizations
-        ruchy_ast = self.optimizer.optimize(ruchy_ast)
+        ruchy_ast = self
+            .optimizer
+            .optimize(ruchy_ast)
             .map_err(|e| TranspileError::backend_error(e.to_string()))?;
-        
+
         // Phase 4: Format and serialize to string
         Ok(self.formatter.format(&ruchy_ast))
     }
-    
+
     fn validate_output(&self, code: &str) -> Result<(), ValidationError> {
         if code.is_empty() {
             return Err(ValidationError::InvalidSyntax("Empty code".to_string()));
         }
-        
+
         // Use integrated Ruchy parser for validation if available
         #[cfg(feature = "interpreter")]
         {
@@ -150,7 +156,9 @@ impl TranspilationBackend for RuchyBackend {
                 if let Some(error) = get_parse_error(code) {
                     return Err(ValidationError::InvalidSyntax(error));
                 }
-                return Err(ValidationError::InvalidSyntax("Invalid Ruchy syntax".to_string()));
+                return Err(ValidationError::InvalidSyntax(
+                    "Invalid Ruchy syntax".to_string(),
+                ));
             }
         }
 
@@ -174,22 +182,24 @@ impl TranspilationBackend for RuchyBackend {
             }
 
             if paren_count != 0 || brace_count != 0 || bracket_count != 0 {
-                return Err(ValidationError::InvalidSyntax("Unmatched brackets".to_string()));
+                return Err(ValidationError::InvalidSyntax(
+                    "Unmatched brackets".to_string(),
+                ));
             }
         }
 
         Ok(())
     }
-    
+
     fn optimize(&self, hir: &HirModule) -> HirModule {
         // Apply HIR-level optimizations before transpilation
         self.optimizer.optimize_hir(hir.clone())
     }
-    
+
     fn target_name(&self) -> &str {
         "ruchy"
     }
-    
+
     fn file_extension(&self) -> &str {
         "ruchy"
     }
@@ -200,32 +210,32 @@ impl TranspilationBackend for RuchyBackend {
 pub struct RuchyConfig {
     /// Enable pipeline operator transformations
     pub use_pipelines: bool,
-    
+
     /// Convert async/await to actor system
     pub use_actors: bool,
-    
+
     /// Enable DataFrame optimizations
     pub optimize_dataframes: bool,
-    
+
     /// Use string interpolation
     pub use_string_interpolation: bool,
-    
+
     /// Maximum line length for formatting
     pub max_line_length: usize,
-    
+
     /// Indentation width
     pub indent_width: usize,
-    
+
     /// Optimization level (0-3)
     pub optimization_level: u8,
-    
+
     /// Enable integrated interpreter for execution
     #[cfg(feature = "interpreter")]
     pub use_interpreter: bool,
-    
+
     /// Enable property-based testing
     pub enable_property_tests: bool,
-    
+
     /// Enable MCP integration for tool support
     #[cfg(feature = "interpreter")]
     pub enable_mcp: bool,
@@ -259,14 +269,14 @@ impl fmt::Display for RuchyBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_backend_creation() {
         let backend = RuchyBackend::new();
         assert_eq!(backend.target_name(), "ruchy");
         assert_eq!(backend.file_extension(), "ruchy");
     }
-    
+
     #[test]
     fn test_config_defaults() {
         let config = RuchyConfig::default();
@@ -274,7 +284,7 @@ mod tests {
         assert!(config.use_string_interpolation);
         assert_eq!(config.optimization_level, 2);
     }
-    
+
     #[cfg(feature = "interpreter")]
     #[test]
     fn test_interpreter_integration() {

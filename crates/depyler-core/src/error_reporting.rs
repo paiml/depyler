@@ -295,8 +295,10 @@ fn suggest_string_mismatch(expected: &str, found: &str) -> Option<(String, Vec<S
                 "In Rust:".to_string(),
                 "  • '&str' is a borrowed string slice (cheap, read-only)".to_string(),
                 "  • 'String' is an owned, heap-allocated string".to_string(),
-                "Python string methods (.upper(), .lower(), .strip()) return owned String".to_string(),
-                "Use '.to_string()' to convert &str → String, or '&s' to convert String → &str".to_string(),
+                "Python string methods (.upper(), .lower(), .strip()) return owned String"
+                    .to_string(),
+                "Use '.to_string()' to convert &str → String, or '&s' to convert String → &str"
+                    .to_string(),
             ],
         ))
     } else {
@@ -557,6 +559,9 @@ mod tests {
         assert!(enhanced.suggestion.is_some());
         let suggestion = enhanced.suggestion.unwrap();
         assert!(suggestion.contains("Ownership mismatch"));
-        assert!(enhanced.notes.iter().any(|n| n.contains("borrowed reference")));
+        assert!(enhanced
+            .notes
+            .iter()
+            .any(|n| n.contains("borrowed reference")));
     }
 }

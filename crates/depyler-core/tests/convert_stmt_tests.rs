@@ -313,9 +313,9 @@ fn test_if_with_else() {
         vec![HirStmt::If {
             condition: HirExpr::Literal(Literal::Bool(true)),
             then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(
-                Literal::Int(2),
-            )))]),
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
+                2,
+            ))))]),
         }],
     ));
 
@@ -381,17 +381,15 @@ fn test_while_complex_condition() {
                 left: Box::new(HirExpr::Var("i".to_string())),
                 right: Box::new(HirExpr::Literal(Literal::Int(10))),
             },
-            body: vec![
-                HirStmt::Assign {
-                    target: AssignTarget::Symbol("i".to_string()),
-                    value: HirExpr::Binary {
-                        op: BinOp::Add,
-                        left: Box::new(HirExpr::Var("i".to_string())),
-                        right: Box::new(HirExpr::Literal(Literal::Int(1))),
-                    },
-                    type_annotation: None,
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("i".to_string()),
+                value: HirExpr::Binary {
+                    op: BinOp::Add,
+                    left: Box::new(HirExpr::Var("i".to_string())),
+                    right: Box::new(HirExpr::Literal(Literal::Int(1))),
                 },
-            ],
+                type_annotation: None,
+            }],
         }],
     ));
 
@@ -494,7 +492,9 @@ fn test_raise_with_exception() {
     module.functions.push(create_function_with_body(
         "test",
         vec![HirStmt::Raise {
-            exception: Some(HirExpr::Literal(Literal::String("Error occurred".to_string()))),
+            exception: Some(HirExpr::Literal(Literal::String(
+                "Error occurred".to_string(),
+            ))),
             cause: None,
         }],
     ));

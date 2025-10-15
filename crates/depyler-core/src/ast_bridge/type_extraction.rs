@@ -42,9 +42,7 @@ impl TypeExtractor {
             ast::Expr::Name(n) => Self::extract_simple_type(n.id.as_str()),
             ast::Expr::Subscript(s) => Self::extract_generic_type(s),
             // Handle None constant (used in -> None return annotations)
-            ast::Expr::Constant(c) if matches!(c.value, ast::Constant::None) => {
-                Ok(Type::None)
-            }
+            ast::Expr::Constant(c) if matches!(c.value, ast::Constant::None) => Ok(Type::None),
             _ => bail!("Unsupported type annotation"),
         }
     }

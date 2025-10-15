@@ -89,21 +89,21 @@ use serde::{Deserialize, Serialize};
 
 // Re-export backend traits and types
 pub use backend::{TranspilationBackend, TranspilationTarget, ValidationError};
+pub use error::TranspileError;
 pub use simplified_hir::{
     Hir, HirBinaryOp, HirExpr, HirLiteral, HirParam, HirStatement, HirType, HirUnaryOp,
 };
-pub use error::TranspileError;
 
 /// The main transpilation pipeline for converting Python code to multiple targets
 ///
 /// ## Version 3.0.0 - Multi-Target Support
-/// 
+///
 /// Depyler now supports multiple transpilation targets through the `TranspilationBackend` trait:
 /// - **Rust** (default): Generates idiomatic, safe Rust code
 /// - **Ruchy**: Generates functional Ruchy script format with pipeline operators
-/// 
+///
 /// ### Example Usage
-/// 
+///
 /// ```rust
 /// use depyler_core::DepylerPipeline;
 /// # use anyhow::Result;

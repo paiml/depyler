@@ -5,8 +5,8 @@
 
 use crate::generator_state::GeneratorStateInfo;
 use crate::hir::{HirFunction, Type};
-use crate::rust_gen::CodeGenContext;
 use crate::rust_gen::type_gen::rust_type_to_syn;
+use crate::rust_gen::CodeGenContext;
 use anyhow::Result;
 use quote::quote;
 
@@ -64,9 +64,7 @@ fn generate_param_fields(
 /// # Complexity
 /// 1 (simple delegation)
 #[inline]
-fn extract_generator_item_type(
-    rust_ret_type: &crate::type_mapper::RustType,
-) -> Result<syn::Type> {
+fn extract_generator_item_type(rust_ret_type: &crate::type_mapper::RustType) -> Result<syn::Type> {
     rust_type_to_syn(rust_ret_type)
 }
 
@@ -76,9 +74,7 @@ fn extract_generator_item_type(
 ///
 /// # Complexity
 /// 3 (iter + map + collect)
-fn generate_state_initializers(
-    state_info: &GeneratorStateInfo,
-) -> Vec<proc_macro2::TokenStream> {
+fn generate_state_initializers(state_info: &GeneratorStateInfo) -> Vec<proc_macro2::TokenStream> {
     state_info
         .state_variables
         .iter()
@@ -191,10 +187,7 @@ fn generate_state_struct_name(name: &syn::Ident) -> syn::Ident {
 ///
 /// # Complexity: 3 (clear + 2 loops)
 #[inline]
-fn populate_generator_state_vars(
-    ctx: &mut CodeGenContext,
-    state_info: &GeneratorStateInfo,
-) {
+fn populate_generator_state_vars(ctx: &mut CodeGenContext, state_info: &GeneratorStateInfo) {
     ctx.generator_state_vars.clear();
     for var in &state_info.state_variables {
         ctx.generator_state_vars.insert(var.name.clone());
