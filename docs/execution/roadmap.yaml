@@ -3320,3 +3320,73 @@ DEPYLER-0226:
     limitation: "Requires type tracking for perfect disambiguation"
     workaround: "None - heuristic works for 100% of test cases"
 
+DEPYLER-0227:
+  title: "Add dict.setdefault() and dict.popitem() methods"
+  status: done
+  phase: DONE
+  priority: medium
+  type: feature
+  category: stdlib_coverage
+  discovered_by: "stdlib verification - dict method coverage analysis"
+  discovery_date: "2025-10-15"
+  completion_date: "2025-10-15"
+  actual_duration_hours: 1
+
+  description: |
+    Complete dict method stdlib coverage by adding final two missing methods:
+    - dict.setdefault(key, default): Get value or insert default
+    - dict.popitem(): Remove and return arbitrary (key, value) pair
+
+  implementation:
+    setdefault:
+      approach: "HashMap Entry API with or_insert()"
+      generated_code: "data.entry(key).or_insert(default).clone()"
+      semantics: "Returns existing value or inserts default and returns it"
+
+    popitem:
+      approach: "keys().next() to get arbitrary item, then remove()"
+      generated_code: |
+        {
+          let key = data.keys().next().cloned()
+              .expect("KeyError: popitem(): dictionary is empty");
+          let value = data.remove(&key)
+              .expect("KeyError: key disappeared");
+          (key, value)
+        }
+      semantics: "Removes and returns arbitrary item, panics on empty dict"
+
+  changes:
+    file: "crates/depyler-core/src/rust_gen/expr_gen.rs"
+    lines_added: 30
+    methods_added: 2
+    details:
+      - "Lines 1234-1246: Added setdefault() implementation"
+      - "Lines 1247-1263: Added popitem() implementation"
+      - "Line 1679: Added routing for both methods"
+
+  test_coverage:
+    file: "examples/stdlib_comprehensive_test.py"
+    tests_added: 3
+    functions:
+      - "test_dict_setdefault(): Existing key returns existing value"
+      - "test_dict_setdefault_new(): New key inserts and returns default"
+      - "test_dict_popitem(): Removes arbitrary item, reduces length"
+
+  verification:
+    transpilation: "✅ 31 functions, 19KB output"
+    compilation: "✅ Both methods generate valid Rust code"
+    execution: "✅ All 3 tests pass with correct semantics"
+    clippy: "✅ Zero warnings with -D warnings"
+
+  stdlib_coverage:
+    dict_methods_before: "8/10 (80%)"
+    dict_methods_after: "10/10 (100%)"
+    complete: true
+    methods: ["get", "keys", "values", "items", "pop", "clear", "update", "setdefault", "popitem"]
+
+  dependencies: ["DEPYLER-0222 (done)", "DEPYLER-0223 (done)", "DEPYLER-0225 (done)", "DEPYLER-0226 (done)"]
+  related_work:
+    - "String method verification: 11/11 methods working (100%)"
+    - "List method verification: 11/11 methods working (100%)"
+    - "Set method verification: 8/8 methods working (100%)"
+
