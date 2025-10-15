@@ -3129,13 +3129,15 @@ DEPYLER-0221:
 
 DEPYLER-0222:
   title: "Fix dict.get() without default returns Option instead of value"
-  status: todo
-  phase: PLANNING
+  status: done
+  phase: DONE
   priority: critical
   type: bug
   category: code_generation_correctness
   discovered_by: "stdlib comprehensive test (EXTREME TDD continuation)"
   discovery_date: "2025-10-15"
+  completion_date: "2025-10-15"
+  actual_duration_hours: 1
 
   description: |
     dict.get(key) without default returns Option<T> instead of T, causing type mismatch.
@@ -3172,13 +3174,15 @@ DEPYLER-0222:
 
 DEPYLER-0223:
   title: "Fix dict.update() iteration doesn't destructure tuples"
-  status: todo
-  phase: PLANNING
+  status: done
+  phase: DONE
   priority: critical
   type: bug
   category: code_generation_correctness
   discovered_by: "stdlib comprehensive test (EXTREME TDD continuation)"
   discovery_date: "2025-10-15"
+  completion_date: "2025-10-15"
+  actual_duration_hours: 2
 
   description: |
     dict.update() iterates over dict but doesn't destructure tuple items.
@@ -3213,13 +3217,16 @@ DEPYLER-0223:
 
 DEPYLER-0224:
   title: "Fix set.remove() uses list logic instead of HashSet logic"
-  status: todo
+  status: blocked
   phase: PLANNING
   priority: critical
   type: bug
   category: code_generation_correctness
   discovered_by: "stdlib comprehensive test (EXTREME TDD continuation)"
   discovery_date: "2025-10-15"
+  partial_fix_date: "2025-10-15"
+  blocked_by: "DEPYLER-0225 (Type tracking for variables)"
+  workaround: "Use .discard() for set variables"
 
   description: |
     set.remove() transpiles to list.remove() logic (iter().position())

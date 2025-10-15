@@ -153,7 +153,7 @@ pub fn test_dict_get() -> i32 {
         map.insert(STR_B, 2);
         map
     };
-    let value = data.get(&STR_A).cloned();
+    let value = data.get(&STR_A).cloned().unwrap_or_default();
     return value;
 }
 #[doc = "Test dict.get() with default"]
@@ -252,12 +252,12 @@ pub fn test_dict_update() -> i32 {
         map.insert(STR_A, 1);
         map
     };
-    for item in {
+    for (k, v) in {
         let mut map = HashMap::new();
         map.insert(STR_B, 2);
         map
     } {
-        data.insert(item);
+        data.insert(k, v);
     }
     let _cse_temp_0 = data.len() as i32;
     return _cse_temp_0;
