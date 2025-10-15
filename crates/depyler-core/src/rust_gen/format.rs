@@ -77,7 +77,6 @@ pub fn format_rust_code(code: String) -> String {
         .replace(".. ", "..")
         // Fix 'in' keyword spacing
         .replace("in(", "in (")
-        .replace(";\n    }", "\n}")
 }
 
 #[cfg(test)]

@@ -980,7 +980,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! { #object_expr.extend(#arg) })
             }
             "pop" => {
-                if self.is_set_expr(object) {
+                // DEPYLER-0210 FIX: Handle pop() for sets, dicts, and lists
+                // Disambiguate based on argument count FIRST, then object type
+
+                if arg_exprs.len() == 2 {
+                    // Only dict.pop(key, default) takes 2 arguments
+                    let key = &arg_exprs[0];
+                    let default = &arg_exprs[1];
+                    Ok(parse_quote! { #object_expr.remove(&#key).unwrap_or(#default) })
+                } else if arg_exprs.len() > 2 {
+                    bail!("pop() takes at most 2 arguments");
+                } else if self.is_set_expr(object) {
+                    // Set.pop() - must have 0 arguments
                     if !arg_exprs.is_empty() {
                         bail!("pop() takes no arguments for sets");
                     }
@@ -990,15 +1001,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             x
                         }).expect("pop from empty set")
                     })
+                } else if self.is_dict_expr(object) {
+                    // Dict literal - pop(key) with 1 argument
+                    if arg_exprs.len() != 1 {
+                        bail!("dict literal pop() requires exactly 1 argument (key)");
+                    }
+                    let key = &arg_exprs[0];
+                    Ok(parse_quote! { #object_expr.remove(&#key).expect("KeyError: key not found") })
                 } else if arg_exprs.is_empty() {
-                    // pop() with no arguments - remove and return last element
+                    // List.pop() with no arguments - remove last element
                     Ok(parse_quote! { #object_expr.pop().unwrap_or_default() })
-                } else if arg_exprs.len() == 1 {
-                    // pop(index) - remove and return element at index
-                    let index = &arg_exprs[0];
-                    Ok(parse_quote! { #object_expr.remove(#index as usize) })
                 } else {
-                    bail!("pop() takes at most one argument");
+                    // 1 argument: could be list.pop(index) OR dict.pop(key)
+                    // Heuristic: assume dict for variables (most common case in typed code)
+                    // For list.pop(index), users should use Vec methods directly in Rust
+                    let arg = &arg_exprs[0];
+                    Ok(parse_quote! { #object_expr.remove(&#arg).expect("KeyError: key not found") })
                 }
             }
             "insert" => {
@@ -1029,6 +1047,63 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     })
                 }
+            }
+            "index" => {
+                // Python: list.index(value) -> returns index of first occurrence
+                // Rust: list.iter().position(|x| x == &value).ok_or(...)
+                if arg_exprs.len() != 1 {
+                    bail!("index() requires exactly one argument");
+                }
+                let value = &arg_exprs[0];
+                Ok(parse_quote! {
+                    #object_expr.iter()
+                        .position(|x| x == &#value)
+                        .map(|i| i as i32)
+                        .expect("ValueError: value is not in list")
+                })
+            }
+            "count" => {
+                // Python: list.count(value) -> counts occurrences
+                // Rust: list.iter().filter(|x| **x == value).count()
+                if arg_exprs.len() != 1 {
+                    bail!("count() requires exactly one argument");
+                }
+                let value = &arg_exprs[0];
+                Ok(parse_quote! {
+                    #object_expr.iter().filter(|x| **x == #value).count() as i32
+                })
+            }
+            "copy" => {
+                // Python: list.copy() -> shallow copy
+                // Rust: list.clone()
+                if !arg_exprs.is_empty() {
+                    bail!("copy() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.clone() })
+            }
+            "clear" => {
+                // Python: list.clear() -> removes all elements
+                // Rust: list.clear()
+                if !arg_exprs.is_empty() {
+                    bail!("clear() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.clear() })
+            }
+            "reverse" => {
+                // Python: list.reverse() -> reverses in place
+                // Rust: list.reverse()
+                if !arg_exprs.is_empty() {
+                    bail!("reverse() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.reverse() })
+            }
+            "sort" => {
+                // Python: list.sort() -> sorts in place
+                // Rust: list.sort()
+                if !arg_exprs.is_empty() {
+                    bail!("sort() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.sort() })
             }
             _ => bail!("Unknown list method: {}", method),
         }
@@ -1240,6 +1315,48 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 Ok(parse_quote! { #object_expr.clear() })
             }
+            "update" => {
+                // DEPYLER-0211 FIX: Set.update(other) - add all elements from other set
+                if arg_exprs.len() != 1 {
+                    bail!("update() requires exactly one argument");
+                }
+                let other = &arg_exprs[0];
+                Ok(parse_quote! {
+                    for item in #other {
+                        #object_expr.insert(item);
+                    }
+                })
+            }
+            "intersection_update" => {
+                // DEPYLER-0212 FIX: Set.intersection_update(other) - keep only common elements
+                // Note: This generates an expression that returns (), suitable for ExprStmt
+                if arg_exprs.len() != 1 {
+                    bail!("intersection_update() requires exactly one argument");
+                }
+                let other = &arg_exprs[0];
+                Ok(parse_quote! {
+                    {
+                        let temp: std::collections::HashSet<_> = #object_expr.intersection(&#other).cloned().collect();
+                        #object_expr.clear();
+                        #object_expr.extend(temp);
+                    }
+                })
+            }
+            "difference_update" => {
+                // DEPYLER-0213 FIX: Set.difference_update(other) - remove elements in other
+                // Note: This generates an expression that returns (), suitable for ExprStmt
+                if arg_exprs.len() != 1 {
+                    bail!("difference_update() requires exactly one argument");
+                }
+                let other = &arg_exprs[0];
+                Ok(parse_quote! {
+                    {
+                        let temp: std::collections::HashSet<_> = #object_expr.difference(&#other).cloned().collect();
+                        #object_expr.clear();
+                        #object_expr.extend(temp);
+                    }
+                })
+            }
             _ => bail!("Unknown set method: {}", method),
         }
     }
@@ -1278,26 +1395,51 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         arg_exprs: &[syn::Expr],
         hir_args: &[HirExpr],
     ) -> Result<syn::Expr> {
-        // Dispatch by method category
+        // DEPYLER-0211 FIX: Check object type first for ambiguous methods like update()
+        // Both sets and dicts have update(), so we need to disambiguate
+
+        // Check for set-specific context first
+        if self.is_set_expr(object) {
+            match method {
+                "add" | "discard" | "update" | "intersection_update" | "difference_update" => {
+                    return self.convert_set_method(object_expr, method, arg_exprs);
+                }
+                _ => {}
+            }
+        }
+
+        // Check for dict-specific context
+        if self.is_dict_expr(object) {
+            match method {
+                "get" | "keys" | "values" | "items" | "update" => {
+                    return self.convert_dict_method(object_expr, method, arg_exprs);
+                }
+                _ => {}
+            }
+        }
+
+        // Fallback to method name dispatch
         match method {
             // List methods
-            "append" | "extend" | "pop" | "insert" | "remove" => {
+            "append" | "extend" | "pop" | "insert" | "remove" | "index" | "count" | "copy" | "clear" | "reverse" | "sort" => {
                 self.convert_list_method(object_expr, object, method, arg_exprs)
             }
 
-            // Dict methods
-            "get" | "keys" | "values" | "items" | "update" => {
+            // Dict methods (for variables without type info)
+            // Note: "update" removed - it's ambiguous, prefer set interpretation in fallback
+            "get" | "keys" | "values" | "items" => {
                 self.convert_dict_method(object_expr, method, arg_exprs)
             }
 
             // String methods
             "upper" | "lower" | "strip" | "startswith" | "endswith" | "split" | "join"
-            | "replace" | "find" | "count" | "isdigit" | "isalpha" => {
+            | "replace" | "find" | "isdigit" | "isalpha" => {
                 self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
             }
 
-            // Set methods
-            "add" | "discard" | "clear" => {
+            // Set methods (for variables without type info)
+            // Note: "update" is more commonly used with sets in typed code, so prefer set interpretation
+            "add" | "discard" | "update" | "intersection_update" | "difference_update" | "symmetric_difference_update" => {
                 self.convert_set_method(object_expr, method, arg_exprs)
             }
 
@@ -1366,8 +1508,33 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         } else {
             // Vec/List access with numeric index
             let index_expr = index.to_rust_expr(self.ctx)?;
+
+            // Check if index is a negative literal
+            if let HirExpr::Unary { op: UnaryOp::Neg, operand } = index {
+                if let HirExpr::Literal(Literal::Int(n)) = **operand {
+                    // Negative index literal: arr[-1] → arr.get(arr.len() - 1)
+                    let offset = n as usize;
+                    return Ok(parse_quote! {
+                        {
+                            let base = #base_expr;
+                            base.get(base.len().saturating_sub(#offset)).copied().unwrap_or_default()
+                        }
+                    });
+                }
+            }
+
+            // For potentially negative indices, we need runtime handling
             Ok(parse_quote! {
-                #base_expr.get(#index_expr as usize).copied().unwrap_or_default()
+                {
+                    let base = #base_expr;
+                    let idx = #index_expr;
+                    let actual_idx = if idx < 0 {
+                        base.len().saturating_sub((-idx) as usize)
+                    } else {
+                        idx as usize
+                    };
+                    base.get(actual_idx).copied().unwrap_or_default()
+                }
             })
         }
     }
@@ -1480,17 +1647,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             (None, None, Some(step)) => {
                 Ok(parse_quote! {
                     {
+                        let base = #base_expr;
                         let step = #step;
                         if step == 1 {
-                            #base_expr.clone()
+                            base.clone()
                         } else if step > 0 {
-                            #base_expr.iter().step_by(step as usize).cloned().collect::<Vec<_>>()
+                            base.iter().step_by(step as usize).cloned().collect::<Vec<_>>()
                         } else if step == -1 {
-                            #base_expr.iter().rev().cloned().collect::<Vec<_>>()
+                            base.iter().rev().cloned().collect::<Vec<_>>()
                         } else {
                             // Negative step with abs value
                             let abs_step = (-step) as usize;
-                            #base_expr.iter().rev().step_by(abs_step).cloned().collect::<Vec<_>>()
+                            base.iter().rev().step_by(abs_step).cloned().collect::<Vec<_>>()
                         }
                     }
                 })
@@ -1499,10 +1667,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Start and stop: base[start:stop]
             (Some(start), Some(stop), None) => Ok(parse_quote! {
                 {
+                    let base = #base_expr;
                     let start = (#start).max(0) as usize;
                     let stop = (#stop).max(0) as usize;
-                    if start < #base_expr.len() {
-                        #base_expr[start..stop.min(#base_expr.len())].to_vec()
+                    if start < base.len() {
+                        base[start..stop.min(base.len())].to_vec()
                     } else {
                         Vec::new()
                     }
@@ -1512,9 +1681,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Start only: base[start:]
             (Some(start), None, None) => Ok(parse_quote! {
                 {
+                    let base = #base_expr;
                     let start = (#start).max(0) as usize;
-                    if start < #base_expr.len() {
-                        #base_expr[start..].to_vec()
+                    if start < base.len() {
+                        base[start..].to_vec()
                     } else {
                         Vec::new()
                     }
@@ -1524,8 +1694,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Stop only: base[:stop]
             (None, Some(stop), None) => Ok(parse_quote! {
                 {
+                    let base = #base_expr;
                     let stop = (#stop).max(0) as usize;
-                    #base_expr[..stop.min(#base_expr.len())].to_vec()
+                    base[..stop.min(base.len())].to_vec()
                 }
             }),
 
@@ -1536,18 +1707,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             (Some(start), Some(stop), Some(step)) => {
                 Ok(parse_quote! {
                     {
+                        let base = #base_expr;
                         let start = (#start).max(0) as usize;
                         let stop = (#stop).max(0) as usize;
                         let step = #step;
 
                         if step == 1 {
-                            if start < #base_expr.len() {
-                                #base_expr[start..stop.min(#base_expr.len())].to_vec()
+                            if start < base.len() {
+                                base[start..stop.min(base.len())].to_vec()
                             } else {
                                 Vec::new()
                             }
                         } else if step > 0 {
-                            #base_expr[start..stop.min(#base_expr.len())]
+                            base[start..stop.min(base.len())]
                                 .iter()
                                 .step_by(step as usize)
                                 .cloned()
@@ -1555,8 +1727,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         } else {
                             // Negative step - slice in reverse
                             let abs_step = (-step) as usize;
-                            if start < #base_expr.len() {
-                                #base_expr[start..stop.min(#base_expr.len())]
+                            if start < base.len() {
+                                base[start..stop.min(base.len())]
                                     .iter()
                                     .rev()
                                     .step_by(abs_step)
@@ -1573,27 +1745,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Start and step: base[start::step]
             (Some(start), None, Some(step)) => Ok(parse_quote! {
                 {
+                    let base = #base_expr;
                     let start = (#start).max(0) as usize;
                     let step = #step;
 
-                    if start < #base_expr.len() {
+                    if start < base.len() {
                         if step == 1 {
-                            #base_expr[start..].to_vec()
+                            base[start..].to_vec()
                         } else if step > 0 {
-                            #base_expr[start..]
+                            base[start..]
                                 .iter()
                                 .step_by(step as usize)
                                 .cloned()
                                 .collect::<Vec<_>>()
                         } else if step == -1 {
-                            #base_expr[start..]
+                            base[start..]
                                 .iter()
                                 .rev()
                                 .cloned()
                                 .collect::<Vec<_>>()
                         } else {
                             let abs_step = (-step) as usize;
-                            #base_expr[start..]
+                            base[start..]
                                 .iter()
                                 .rev()
                                 .step_by(abs_step)
@@ -1609,26 +1782,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Stop and step: base[:stop:step]
             (None, Some(stop), Some(step)) => Ok(parse_quote! {
                 {
+                    let base = #base_expr;
                     let stop = (#stop).max(0) as usize;
                     let step = #step;
 
                     if step == 1 {
-                        #base_expr[..stop.min(#base_expr.len())].to_vec()
+                        base[..stop.min(base.len())].to_vec()
                     } else if step > 0 {
-                        #base_expr[..stop.min(#base_expr.len())]
+                        base[..stop.min(base.len())]
                             .iter()
                             .step_by(step as usize)
                             .cloned()
                             .collect::<Vec<_>>()
                     } else if step == -1 {
-                        #base_expr[..stop.min(#base_expr.len())]
+                        base[..stop.min(base.len())]
                             .iter()
                             .rev()
                             .cloned()
                             .collect::<Vec<_>>()
                     } else {
                         let abs_step = (-step) as usize;
-                        #base_expr[..stop.min(#base_expr.len())]
+                        base[..stop.min(base.len())]
                             .iter()
                             .rev()
                             .step_by(abs_step)
@@ -1799,6 +1973,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Var(_name) => {
                 // For rust_gen, we're more conservative since we don't have type info
                 // Only treat explicit set literals and calls as sets
+                false
+            }
+            _ => false,
+        }
+    }
+
+    fn is_dict_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Dict(_) => true,
+            HirExpr::Call { func, .. } if func == "dict" => true,
+            HirExpr::Var(_name) => {
+                // For rust_gen, we're more conservative since we don't have type info
+                // Only treat explicit dict literals and calls as dicts
                 false
             }
             _ => false,
