@@ -186,10 +186,7 @@ mod call_tests {
     fn test_call_with_args() {
         let expr = HirExpr::Call {
             func: "add".to_string(),
-            args: vec![
-                create_int_literal(1),
-                create_int_literal(2),
-            ],
+            args: vec![create_int_literal(1), create_int_literal(2)],
         };
         assert!(matches!(expr, HirExpr::Call { .. }));
     }
@@ -268,10 +265,7 @@ mod collection_tests {
 
     #[test]
     fn test_frozen_set() {
-        let expr = HirExpr::FrozenSet(vec![
-            create_int_literal(1),
-            create_int_literal(2),
-        ]);
+        let expr = HirExpr::FrozenSet(vec![create_int_literal(1), create_int_literal(2)]);
         assert!(matches!(expr, HirExpr::FrozenSet(_)));
     }
 }
@@ -571,12 +565,26 @@ mod regression_tests {
     #[test]
     fn test_all_binary_operators() {
         let operators = vec![
-            BinOp::Add, BinOp::Sub, BinOp::Mul, BinOp::Div,
-            BinOp::FloorDiv, BinOp::Mod, BinOp::Pow,
-            BinOp::Eq, BinOp::NotEq, BinOp::Lt, BinOp::LtEq,
-            BinOp::Gt, BinOp::GtEq, BinOp::And, BinOp::Or,
-            BinOp::BitAnd, BinOp::BitOr, BinOp::BitXor,
-            BinOp::LShift, BinOp::RShift,
+            BinOp::Add,
+            BinOp::Sub,
+            BinOp::Mul,
+            BinOp::Div,
+            BinOp::FloorDiv,
+            BinOp::Mod,
+            BinOp::Pow,
+            BinOp::Eq,
+            BinOp::NotEq,
+            BinOp::Lt,
+            BinOp::LtEq,
+            BinOp::Gt,
+            BinOp::GtEq,
+            BinOp::And,
+            BinOp::Or,
+            BinOp::BitAnd,
+            BinOp::BitOr,
+            BinOp::BitXor,
+            BinOp::LShift,
+            BinOp::RShift,
         ];
 
         for op in operators {

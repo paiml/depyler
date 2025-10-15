@@ -137,14 +137,17 @@ fn test_all_arithmetic_operators() {
         (BinOp::Div, "/"),
         (BinOp::Mod, "%"),
         (BinOp::FloorDiv, "//"),
-        (BinOp::Pow, "**")
+        (BinOp::Pow, "**"),
     ];
 
     for (op, expected) in test_cases {
         let module = HirModule {
             functions: vec![HirFunction {
                 name: format!("test_{op:?}").to_lowercase(),
-                params: smallvec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)],
+                params: smallvec![
+                    HirParam::new("a".to_string(), Type::Int),
+                    HirParam::new("b".to_string(), Type::Int)
+                ],
                 ret_type: Type::Int,
                 body: vec![HirStmt::Return(Some(HirExpr::Binary {
                     op,
@@ -169,13 +172,25 @@ fn test_all_arithmetic_operators() {
         match op {
             BinOp::FloorDiv => {
                 // Floor division generates complex Python-compatible logic
-                assert!(code.contains("let q = a / b"), "Expected floor division logic in code: {code}");
-                assert!(code.contains("let r = a % b"), "Expected modulo in floor division logic: {code}");
-                assert!(code.contains("if (r != 0) && ((r < 0) != (b < 0))"), "Expected floor division condition: {code}");
+                assert!(
+                    code.contains("let q = a / b"),
+                    "Expected floor division logic in code: {code}"
+                );
+                assert!(
+                    code.contains("let r = a % b"),
+                    "Expected modulo in floor division logic: {code}"
+                );
+                assert!(
+                    code.contains("if (r != 0) && ((r < 0) != (b < 0))"),
+                    "Expected floor division condition: {code}"
+                );
             }
             BinOp::Pow => {
                 // Power operation generates type-specific handling
-                assert!(code.contains("checked_pow") || code.contains("powf"), "Expected power operation in code: {code}");
+                assert!(
+                    code.contains("checked_pow") || code.contains("powf"),
+                    "Expected power operation in code: {code}"
+                );
             }
             _ => {
                 // Simple operators should have the expected pattern
@@ -203,7 +218,10 @@ fn test_comparison_operators() {
         let module = HirModule {
             functions: vec![HirFunction {
                 name: format!("test_{op:?}").to_lowercase(),
-                params: smallvec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)],
+                params: smallvec![
+                    HirParam::new("a".to_string(), Type::Int),
+                    HirParam::new("b".to_string(), Type::Int)
+                ],
                 ret_type: Type::Bool,
                 body: vec![HirStmt::Return(Some(HirExpr::Binary {
                     op,
@@ -239,7 +257,10 @@ fn test_logical_operators() {
         let module = HirModule {
             functions: vec![HirFunction {
                 name: format!("test_{op:?}").to_lowercase(),
-                params: smallvec![HirParam::new("a".to_string(), Type::Bool), HirParam::new("b".to_string(), Type::Bool)],
+                params: smallvec![
+                    HirParam::new("a".to_string(), Type::Bool),
+                    HirParam::new("b".to_string(), Type::Bool)
+                ],
                 ret_type: Type::Bool,
                 body: vec![HirStmt::Return(Some(HirExpr::Binary {
                     op,
@@ -281,7 +302,10 @@ fn test_bitwise_operators() {
         let module = HirModule {
             functions: vec![HirFunction {
                 name: format!("test_{op:?}").to_lowercase(),
-                params: smallvec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)],
+                params: smallvec![
+                    HirParam::new("a".to_string(), Type::Int),
+                    HirParam::new("b".to_string(), Type::Int)
+                ],
                 ret_type: Type::Int,
                 body: vec![HirStmt::Return(Some(HirExpr::Binary {
                     op,
@@ -314,7 +338,10 @@ fn test_power_operator() {
     let module = HirModule {
         functions: vec![HirFunction {
             name: "test_pow".to_string(),
-            params: smallvec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)],
+            params: smallvec![
+                HirParam::new("a".to_string(), Type::Int),
+                HirParam::new("b".to_string(), Type::Int)
+            ],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Pow,
@@ -347,7 +374,10 @@ fn test_floor_division_operator() {
     let module = HirModule {
         functions: vec![HirFunction {
             name: "test_floor_div".to_string(),
-            params: smallvec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)],
+            params: smallvec![
+                HirParam::new("a".to_string(), Type::Int),
+                HirParam::new("b".to_string(), Type::Int)
+            ],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::FloorDiv,
@@ -384,7 +414,10 @@ fn test_array_length_subtraction_safety() {
     let module = HirModule {
         functions: vec![HirFunction {
             name: "safe_last_index".to_string(),
-            params: smallvec![HirParam::new("arr".to_string(), Type::List(Box::new(Type::Int)))],
+            params: smallvec![HirParam::new(
+                "arr".to_string(),
+                Type::List(Box::new(Type::Int))
+            )],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Sub,
@@ -421,7 +454,10 @@ fn test_regular_subtraction_unchanged() {
     let module = HirModule {
         functions: vec![HirFunction {
             name: "regular_sub".to_string(),
-            params: smallvec![HirParam::new("x".to_string(), Type::Int), HirParam::new("y".to_string(), Type::Int)],
+            params: smallvec![
+                HirParam::new("x".to_string(), Type::Int),
+                HirParam::new("y".to_string(), Type::Int)
+            ],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Sub,

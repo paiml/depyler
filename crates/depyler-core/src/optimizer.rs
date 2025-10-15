@@ -95,7 +95,11 @@ impl Optimizer {
         program
     }
 
-    fn collect_mutated_vars_function(&self, func: &HirFunction, mutated_vars: &mut HashSet<String>) {
+    fn collect_mutated_vars_function(
+        &self,
+        func: &HirFunction,
+        mutated_vars: &mut HashSet<String>,
+    ) {
         let mut assignments = HashMap::new();
         self.count_assignments_stmt(&func.body, &mut assignments);
 
@@ -113,12 +117,23 @@ impl Optimizer {
         }
     }
 
-    fn count_assignments_in_single_stmt(&self, stmt: &HirStmt, assignments: &mut HashMap<String, usize>) {
+    fn count_assignments_in_single_stmt(
+        &self,
+        stmt: &HirStmt,
+        assignments: &mut HashMap<String, usize>,
+    ) {
         match stmt {
-            HirStmt::Assign { target: AssignTarget::Symbol(name), .. } => {
+            HirStmt::Assign {
+                target: AssignTarget::Symbol(name),
+                ..
+            } => {
                 *assignments.entry(name.clone()).or_insert(0) += 1;
             }
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 self.count_assignments_stmt(then_body, assignments);
                 if let Some(else_stmts) = else_body {
                     self.count_assignments_stmt(else_stmts, assignments);
@@ -142,7 +157,12 @@ impl Optimizer {
         }
     }
 
-    fn collect_constants_stmt(&self, stmt: &HirStmt, constants: &mut HashMap<String, HirExpr>, mutated_vars: &HashSet<String>) {
+    fn collect_constants_stmt(
+        &self,
+        stmt: &HirStmt,
+        constants: &mut HashMap<String, HirExpr>,
+        mutated_vars: &HashSet<String>,
+    ) {
         match stmt {
             HirStmt::Assign {
                 target: AssignTarget::Symbol(name),
@@ -485,7 +505,11 @@ impl Optimizer {
 
         for stmt in body {
             match stmt {
-                HirStmt::Assign { target, value, type_annotation } => {
+                HirStmt::Assign {
+                    target,
+                    value,
+                    type_annotation,
+                } => {
                     let (new_value, extra_stmts) =
                         self.process_expr_for_cse(value, cse_map, temp_counter);
                     new_body.extend(extra_stmts);

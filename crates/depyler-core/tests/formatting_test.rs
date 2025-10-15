@@ -31,11 +31,7 @@ class DataProcessor:
     // ACT: Transpile to Rust
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
@@ -101,11 +97,7 @@ class Container(Generic[T]):
     // ACT: Transpile to Rust
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
@@ -114,7 +106,9 @@ class Container(Generic[T]):
     assert!(
         !rust_code.contains("< T >") && !rust_code.contains("<T >") && !rust_code.contains("< T>"),
         "Generated code has spaces in generic parameters: {:?}",
-        rust_code.lines().find(|line| line.contains("< T") || line.contains("T >"))
+        rust_code
+            .lines()
+            .find(|line| line.contains("< T") || line.contains("T >"))
     );
 
     // No spaces before commas in generic bounds
@@ -128,7 +122,9 @@ class Container(Generic[T]):
     assert!(
         !rust_code.contains("& self") && !rust_code.contains("& mut"),
         "Generated code has spaces after & in references: {:?}",
-        rust_code.lines().find(|line| line.contains("& self") || line.contains("& mut"))
+        rust_code
+            .lines()
+            .find(|line| line.contains("& self") || line.contains("& mut"))
     );
 
     println!("✅ Generic parameter formatting correct");
@@ -150,28 +146,22 @@ def log_error(message: str) -> None:
     // ACT: Transpile to Rust
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
     // ASSERT: Check for proper macro formatting
     // No spaces before macro !
     assert!(
-        !rust_code.contains("format !") &&
-        !rust_code.contains("println !") &&
-        !rust_code.contains("write !") &&
-        !rust_code.contains("vec !"),
+        !rust_code.contains("format !")
+            && !rust_code.contains("println !")
+            && !rust_code.contains("write !")
+            && !rust_code.contains("vec !"),
         "Generated code has spaces before macro !: {:?}",
-        rust_code.lines().find(|line|
-            line.contains("format !") ||
-            line.contains("println !") ||
-            line.contains("write !") ||
-            line.contains("vec !")
-        )
+        rust_code.lines().find(|line| line.contains("format !")
+            || line.contains("println !")
+            || line.contains("write !")
+            || line.contains("vec !"))
     );
 
     println!("✅ Macro invocation formatting correct");
@@ -199,11 +189,7 @@ class Point:
     // ACT: Transpile to Rust
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 
@@ -213,7 +199,8 @@ class Point:
     assert!(
         !rust_code.contains("}\nimpl") || rust_code.contains("}\n\nimpl"),
         "Generated code missing blank line between impl blocks: {:?}",
-        rust_code.lines()
+        rust_code
+            .lines()
             .collect::<Vec<_>>()
             .windows(2)
             .find(|w| w[0].trim() == "}" && w[1].trim().starts_with("impl"))
@@ -255,11 +242,7 @@ class Validator:
     // ACT: Transpile to Rust
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
 

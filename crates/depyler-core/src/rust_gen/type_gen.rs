@@ -273,8 +273,12 @@ pub fn rust_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<syn:
         }
         RustType::Array { element_type, size } => array_type_to_syn(element_type, size)?,
         // Collection types handled above
-        RustType::Vec(_) | RustType::HashMap(_, _) | RustType::HashSet(_) |
-        RustType::Option(_) | RustType::Result(_, _) | RustType::Tuple(_) => {
+        RustType::Vec(_)
+        | RustType::HashMap(_, _)
+        | RustType::HashSet(_)
+        | RustType::Option(_)
+        | RustType::Result(_, _)
+        | RustType::Tuple(_) => {
             unreachable!("Collection types handled by collection_type_to_syn")
         }
     })

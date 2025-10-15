@@ -1337,7 +1337,9 @@ pub fn lambda_convert_command(
         annotations
             .lambda_annotations
             .unwrap_or_else(|| depyler_annotations::LambdaAnnotations {
-                event_type: Some(infer_and_map_event_type(analysis.inferred_event_type.clone())),
+                event_type: Some(infer_and_map_event_type(
+                    analysis.inferred_event_type.clone(),
+                )),
                 ..Default::default()
             });
     pb.inc(1);
@@ -1346,7 +1348,8 @@ pub fn lambda_convert_command(
     pb.set_message("🦀 Transpiling to Rust...");
     let rust_code = pipeline.transpile(&python_source)?;
 
-    let generation_context = create_lambda_generation_context(&lambda_annotations, rust_code, &input);
+    let generation_context =
+        create_lambda_generation_context(&lambda_annotations, rust_code, &input);
     pb.inc(1);
 
     // Step 4: Generate optimized Lambda project
@@ -1377,7 +1380,15 @@ pub fn lambda_convert_command(
 
     // Print summary
     let total_time = start.elapsed();
-    print_lambda_summary(&input, &output_dir, &analysis, optimize, tests, deploy, total_time);
+    print_lambda_summary(
+        &input,
+        &output_dir,
+        &analysis,
+        optimize,
+        tests,
+        deploy,
+        total_time,
+    );
 
     Ok(())
 }
@@ -1598,14 +1609,14 @@ pub async fn agent_start_command(
 
 pub fn agent_stop_command() -> Result<()> {
     use crate::agent::daemon::AgentDaemon;
-    
+
     println!("🛑 Stopping Depyler agent daemon...");
     AgentDaemon::stop_daemon()
 }
 
 pub fn agent_status_command() -> Result<()> {
     use crate::agent::daemon::AgentDaemon;
-    
+
     match AgentDaemon::daemon_status()? {
         Some(pid) => {
             println!("✅ Depyler agent daemon is running (PID: {pid})");
@@ -1614,26 +1625,22 @@ pub fn agent_status_command() -> Result<()> {
             println!("❌ Depyler agent daemon is not running");
         }
     }
-    
+
     Ok(())
 }
 
-pub async fn agent_restart_command(
-    port: u16,
-    debug: bool,
-    config: Option<PathBuf>,
-) -> Result<()> {
+pub async fn agent_restart_command(port: u16, debug: bool, config: Option<PathBuf>) -> Result<()> {
     println!("🔄 Restarting Depyler agent daemon...");
-    
+
     let _ = agent_stop_command();
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-    
+
     agent_start_command(port, debug, config, false).await
 }
 
 pub fn agent_logs_command(lines: usize, follow: bool) -> Result<()> {
     use crate::agent::daemon::AgentDaemon;
-    
+
     if follow {
         println!("📜 Following Depyler agent logs (Ctrl+C to stop)...");
         AgentDaemon::tail_logs()

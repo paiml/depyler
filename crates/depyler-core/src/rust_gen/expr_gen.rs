@@ -148,7 +148,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // v3.16.0 Phase 2: Python's `/` always returns float
                 // Rust's `/` does integer division when both operands are integers
                 // Check if we need to cast to float based on return type context
-                let needs_float_division = self.ctx.current_return_type.as_ref()
+                let needs_float_division = self
+                    .ctx
+                    .current_return_type
+                    .as_ref()
                     .map(return_type_expects_float)
                     .unwrap_or(false);
 
@@ -263,18 +266,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // Handle sum(generator_exp) → generator_exp.sum()
-        if func == "sum" && args.len() == 1
-            && matches!(args[0], HirExpr::GeneratorExp { .. }) {
-                let gen_expr = args[0].to_rust_expr(self.ctx)?;
-                return Ok(parse_quote! { #gen_expr.sum() });
-            }
+        if func == "sum" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
+            let gen_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { #gen_expr.sum() });
+        }
 
         // Handle max(generator_exp) → generator_exp.max()
-        if func == "max" && args.len() == 1
-            && matches!(args[0], HirExpr::GeneratorExp { .. }) {
-                let gen_expr = args[0].to_rust_expr(self.ctx)?;
-                return Ok(parse_quote! { #gen_expr.max() });
-            }
+        if func == "max" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
+            let gen_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { #gen_expr.max() });
+        }
 
         // DEPYLER-0190: Handle sorted(iterable) → { let mut result = iterable.clone(); result.sort(); result }
         if func == "sorted" && args.len() == 1 {
@@ -542,9 +543,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_range_with_step(&self, start: &syn::Expr, end: &syn::Expr, step: &syn::Expr) -> Result<syn::Expr> {
+    fn convert_range_with_step(
+        &self,
+        start: &syn::Expr,
+        end: &syn::Expr,
+        step: &syn::Expr,
+    ) -> Result<syn::Expr> {
         // Check if step is negative by looking at the expression
-        let is_negative_step = matches!(step, syn::Expr::Unary(unary) if matches!(unary.op, syn::UnOp::Neg(_)));
+        let is_negative_step =
+            matches!(step, syn::Expr::Unary(unary) if matches!(unary.op, syn::UnOp::Neg(_)));
 
         if is_negative_step {
             self.convert_range_negative_step(start, end, step)
@@ -553,7 +560,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_range_negative_step(&self, start: &syn::Expr, end: &syn::Expr, step: &syn::Expr) -> Result<syn::Expr> {
+    fn convert_range_negative_step(
+        &self,
+        start: &syn::Expr,
+        end: &syn::Expr,
+        step: &syn::Expr,
+    ) -> Result<syn::Expr> {
         // For negative steps, we need to reverse the range
         // Python: range(10, 0, -1) → Rust: (0..10).rev()
         Ok(parse_quote! {
@@ -571,7 +583,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         })
     }
 
-    fn convert_range_positive_step(&self, start: &syn::Expr, end: &syn::Expr, step: &syn::Expr) -> Result<syn::Expr> {
+    fn convert_range_positive_step(
+        &self,
+        start: &syn::Expr,
+        end: &syn::Expr,
+        step: &syn::Expr,
+    ) -> Result<syn::Expr> {
         // Positive step - check for zero
         Ok(parse_quote! {
             {
@@ -607,7 +624,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_array_small_literal(&mut self, func: &str, args: &[HirExpr], size: i64) -> Result<syn::Expr> {
+    fn convert_array_small_literal(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+        size: i64,
+    ) -> Result<syn::Expr> {
         let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
         match func {
             "zeros" => Ok(parse_quote! { [0; #size_lit] }),
@@ -807,8 +829,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let method_name = method_call.method.to_string();
             matches!(
                 method_name.as_str(),
-                "iter" | "iter_mut" | "into_iter" | "zip" | "map" | "filter"
-                | "enumerate" | "chain" | "flat_map" | "take" | "skip" | "collect"
+                "iter"
+                    | "iter_mut"
+                    | "into_iter"
+                    | "zip"
+                    | "map"
+                    | "filter"
+                    | "enumerate"
+                    | "chain"
+                    | "flat_map"
+                    | "take"
+                    | "skip"
+                    | "collect"
             )
         } else {
             false
@@ -827,7 +859,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! { println!("{}", #arg) })
             } else {
                 // print(a, b, c) → println!("{} {} {}", a, b, c)
-                let format_str = vec!["{}"  ; args.len()].join(" ");
+                let format_str = vec!["{}"; args.len()].join(" ");
                 Ok(parse_quote! { println!(#format_str, #(#args),*) })
             };
         }
@@ -1023,7 +1055,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         bail!("dict literal pop() requires exactly 1 argument (key)");
                     }
                     let key = &arg_exprs[0];
-                    Ok(parse_quote! { #object_expr.remove(&#key).expect("KeyError: key not found") })
+                    Ok(
+                        parse_quote! { #object_expr.remove(&#key).expect("KeyError: key not found") },
+                    )
                 } else if arg_exprs.is_empty() {
                     // List.pop() with no arguments - remove last element
                     Ok(parse_quote! { #object_expr.pop().unwrap_or_default() })
@@ -1032,7 +1066,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Heuristic: assume dict for variables (most common case in typed code)
                     // For list.pop(index), users should use Vec methods directly in Rust
                     let arg = &arg_exprs[0];
-                    Ok(parse_quote! { #object_expr.remove(&#arg).expect("KeyError: key not found") })
+                    Ok(
+                        parse_quote! { #object_expr.remove(&#arg).expect("KeyError: key not found") },
+                    )
                 }
             }
             "insert" => {
@@ -1162,7 +1198,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if !arg_exprs.is_empty() {
                     bail!("items() takes no arguments");
                 }
-                Ok(parse_quote! { #object_expr.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>() })
+                Ok(
+                    parse_quote! { #object_expr.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>() },
+                )
             }
             "update" => {
                 if arg_exprs.len() != 1 {
@@ -1232,10 +1270,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             "split" => {
                 if arg_exprs.is_empty() {
-                    Ok(parse_quote! { #object_expr.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() })
+                    Ok(
+                        parse_quote! { #object_expr.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() },
+                    )
                 } else if arg_exprs.len() == 1 {
                     let sep = &arg_exprs[0];
-                    Ok(parse_quote! { #object_expr.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() })
+                    Ok(
+                        parse_quote! { #object_expr.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() },
+                    )
                 } else {
                     bail!("split() with maxsplit not supported in V1");
                 }
@@ -1499,9 +1541,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Check for set-specific context first
         if self.is_set_expr(object) {
             match method {
-                "add" | "discard" | "update" | "intersection_update" | "difference_update"
-                | "union" | "intersection" | "difference" | "symmetric_difference"
-                | "issubset" | "issuperset" | "isdisjoint" => {
+                "add"
+                | "discard"
+                | "update"
+                | "intersection_update"
+                | "difference_update"
+                | "union"
+                | "intersection"
+                | "difference"
+                | "symmetric_difference"
+                | "issubset"
+                | "issuperset"
+                | "isdisjoint" => {
                     return self.convert_set_method(object_expr, method, arg_exprs);
                 }
                 _ => {}
@@ -1521,7 +1572,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Fallback to method name dispatch
         match method {
             // List methods
-            "append" | "extend" | "pop" | "insert" | "remove" | "index" | "count" | "copy" | "clear" | "reverse" | "sort" => {
+            "append" | "extend" | "pop" | "insert" | "remove" | "index" | "count" | "copy"
+            | "clear" | "reverse" | "sort" => {
                 self.convert_list_method(object_expr, object, method, arg_exprs)
             }
 
@@ -1539,16 +1591,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // Set methods (for variables without type info)
             // Note: "update" is more commonly used with sets in typed code, so prefer set interpretation
-            "add" | "discard" | "update" | "intersection_update" | "difference_update" | "symmetric_difference_update"
-            | "union" | "intersection" | "difference" | "symmetric_difference"
-            | "issubset" | "issuperset" | "isdisjoint" => {
-                self.convert_set_method(object_expr, method, arg_exprs)
-            }
+            "add"
+            | "discard"
+            | "update"
+            | "intersection_update"
+            | "difference_update"
+            | "symmetric_difference_update"
+            | "union"
+            | "intersection"
+            | "difference"
+            | "symmetric_difference"
+            | "issubset"
+            | "issuperset"
+            | "isdisjoint" => self.convert_set_method(object_expr, method, arg_exprs),
 
             // Regex methods
-            "findall" => {
-                self.convert_regex_method(object_expr, method, arg_exprs)
-            }
+            "findall" => self.convert_regex_method(object_expr, method, arg_exprs),
 
             // Default: generic method call
             _ => {
@@ -1612,7 +1670,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let index_expr = index.to_rust_expr(self.ctx)?;
 
             // Check if index is a negative literal
-            if let HirExpr::Unary { op: UnaryOp::Neg, operand } = index {
+            if let HirExpr::Unary {
+                op: UnaryOp::Neg,
+                operand,
+            } = index
+            {
                 if let HirExpr::Literal(Literal::Int(n)) = **operand {
                     // Negative index literal: arr[-1] → arr.get(arr.len() - 1)
                     let offset = n as usize;
@@ -2098,20 +2160,41 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match expr {
             // Comparison operations always return bool
             HirExpr::Binary {
-                op: BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq
-                    | BinOp::In | BinOp::NotIn,
+                op:
+                    BinOp::Eq
+                    | BinOp::NotEq
+                    | BinOp::Lt
+                    | BinOp::LtEq
+                    | BinOp::Gt
+                    | BinOp::GtEq
+                    | BinOp::In
+                    | BinOp::NotIn,
                 ..
             } => Some(true),
             // Method calls that return bool
-            HirExpr::MethodCall { method, .. } if matches!(
-                method.as_str(),
-                "startswith" | "endswith" | "isdigit" | "isalpha" | "isspace" | "isupper"
-                | "islower" | "issubset" | "issuperset" | "isdisjoint"
-            ) => Some(true),
+            HirExpr::MethodCall { method, .. }
+                if matches!(
+                    method.as_str(),
+                    "startswith"
+                        | "endswith"
+                        | "isdigit"
+                        | "isalpha"
+                        | "isspace"
+                        | "isupper"
+                        | "islower"
+                        | "issubset"
+                        | "issuperset"
+                        | "isdisjoint"
+                ) =>
+            {
+                Some(true)
+            }
             // Boolean literals
             HirExpr::Literal(Literal::Bool(_)) => Some(true),
             // Logical operations
-            HirExpr::Unary { op: UnaryOp::Not, .. } => Some(true),
+            HirExpr::Unary {
+                op: UnaryOp::Not, ..
+            } => Some(true),
             _ => None,
         }
     }
@@ -2276,7 +2359,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_ifexpr(&mut self, test: &HirExpr, body: &HirExpr, orelse: &HirExpr) -> Result<syn::Expr> {
+    fn convert_ifexpr(
+        &mut self,
+        test: &HirExpr,
+        body: &HirExpr,
+        orelse: &HirExpr,
+    ) -> Result<syn::Expr> {
         let test_expr = test.to_rust_expr(self.ctx)?;
         let body_expr = body.to_rust_expr(self.ctx)?;
         let orelse_expr = orelse.to_rust_expr(self.ctx)?;
@@ -2516,9 +2604,10 @@ impl ToRustExpr for HirExpr {
                 key_body,
                 reverse,
             } => converter.convert_sort_by_key(iterable, key_params, key_body, *reverse),
-            HirExpr::GeneratorExp { element, generators } => {
-                converter.convert_generator_expression(element, generators)
-            }
+            HirExpr::GeneratorExp {
+                element,
+                generators,
+            } => converter.convert_generator_expression(element, generators),
         }
     }
 }
@@ -2589,4 +2678,3 @@ fn literal_to_rust_expr(
         Literal::None => parse_quote! { None },
     }
 }
-

@@ -1,8 +1,8 @@
 // EXTREME TDD: Tests for default parameter functionality (DEPYLER-0104)
 // These tests define the expected behavior BEFORE implementation
 
-use depyler_core::hir::{HirFunction, HirParam, HirExpr, Literal, Type, FunctionProperties};
 use depyler_annotations::TranspilationAnnotations;
+use depyler_core::hir::{FunctionProperties, HirExpr, HirFunction, HirParam, Literal, Type};
 use smallvec::smallvec;
 
 /// Test 1: Function with one default parameter (None)
@@ -63,7 +63,7 @@ fn test_function_with_int_default() {
     assert_eq!(func.params.len(), 2);
     assert_eq!(func.params[1].name, "step");
     match &func.params[1].default {
-        Some(HirExpr::Literal(Literal::Int(1))) => {},
+        Some(HirExpr::Literal(Literal::Int(1))) => {}
         _ => panic!("Expected default value of 1"),
     }
 }
@@ -93,7 +93,7 @@ fn test_function_with_string_default() {
     };
 
     match &func.params[1].default {
-        Some(HirExpr::Literal(Literal::String(s))) if s == "INFO" => {},
+        Some(HirExpr::Literal(Literal::String(s))) if s == "INFO" => {}
         _ => panic!("Expected default value of 'INFO'"),
     }
 }
@@ -123,7 +123,7 @@ fn test_function_with_bool_default() {
     };
 
     match &func.params[1].default {
-        Some(HirExpr::Literal(Literal::Bool(false))) => {},
+        Some(HirExpr::Literal(Literal::Bool(false))) => {}
         _ => panic!("Expected default value of false"),
     }
 }
@@ -133,13 +133,11 @@ fn test_function_with_bool_default() {
 fn test_function_with_empty_list_default() {
     let func = HirFunction {
         name: "extend".to_string(),
-        params: smallvec![
-            HirParam {
-                name: "items".to_string(),
-                ty: Type::List(Box::new(Type::Int)),
-                default: Some(HirExpr::List(vec![])),
-            },
-        ],
+        params: smallvec![HirParam {
+            name: "items".to_string(),
+            ty: Type::List(Box::new(Type::Int)),
+            default: Some(HirExpr::List(vec![])),
+        },],
         ret_type: Type::List(Box::new(Type::Int)),
         body: vec![],
         properties: FunctionProperties::default(),
@@ -148,7 +146,7 @@ fn test_function_with_empty_list_default() {
     };
 
     match &func.params[0].default {
-        Some(HirExpr::List(items)) if items.is_empty() => {},
+        Some(HirExpr::List(items)) if items.is_empty() => {}
         _ => panic!("Expected default value of empty list"),
     }
 }
@@ -166,7 +164,10 @@ fn test_function_with_dict_none_default() {
             },
             HirParam {
                 name: "memo".to_string(),
-                ty: Type::Optional(Box::new(Type::Dict(Box::new(Type::Int), Box::new(Type::Int)))),
+                ty: Type::Optional(Box::new(Type::Dict(
+                    Box::new(Type::Int),
+                    Box::new(Type::Int)
+                ))),
                 default: Some(HirExpr::Literal(Literal::None)),
             },
         ],
@@ -180,7 +181,10 @@ fn test_function_with_dict_none_default() {
     // This is the fibonacci_memo.py pattern: def fib(n, memo: Dict[int, int] = None)
     assert_eq!(func.params[1].name, "memo");
     assert!(matches!(func.params[1].ty, Type::Optional(_)));
-    assert!(matches!(func.params[1].default, Some(HirExpr::Literal(Literal::None))));
+    assert!(matches!(
+        func.params[1].default,
+        Some(HirExpr::Literal(Literal::None))
+    ));
 }
 
 /// Test 7: Multiple defaults in sequence
@@ -301,7 +305,7 @@ fn test_function_with_float_default() {
     };
 
     match &func.params[1].default {
-        Some(HirExpr::Literal(Literal::Float(f))) if (*f - 1.0).abs() < f64::EPSILON => {},
+        Some(HirExpr::Literal(Literal::Float(f))) if (*f - 1.0).abs() < f64::EPSILON => {}
         _ => panic!("Expected default value of 1.0"),
     }
 }

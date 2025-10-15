@@ -170,13 +170,19 @@ impl PerformanceAnalyzer {
 
     fn analyze_stmt(&mut self, stmt: &HirStmt, func: &HirFunction, line: usize) {
         match stmt {
-            HirStmt::For { target: _, iter, body } => {
+            HirStmt::For {
+                target: _,
+                iter,
+                body,
+            } => {
                 self.analyze_for_loop(iter, body, func, line);
             }
             HirStmt::While { condition: _, body } => {
                 self.analyze_while_loop(body, func, line);
             }
-            HirStmt::Assign { target: _, value, .. } => {
+            HirStmt::Assign {
+                target: _, value, ..
+            } => {
                 self.analyze_assignment(value, func, line);
             }
             HirStmt::Expr(expr) => {
@@ -186,7 +192,13 @@ impl PerformanceAnalyzer {
         }
     }
 
-    fn analyze_for_loop(&mut self, iter: &HirExpr, body: &[HirStmt], func: &HirFunction, line: usize) {
+    fn analyze_for_loop(
+        &mut self,
+        iter: &HirExpr,
+        body: &[HirStmt],
+        func: &HirFunction,
+        line: usize,
+    ) {
         self.current_loop_depth += 1;
 
         self.check_loop_depth_violation(func, line);
@@ -223,8 +235,11 @@ impl PerformanceAnalyzer {
                 category: WarningCategory::AlgorithmComplexity,
                 severity: WarningSeverity::High,
                 message: format!("Deeply nested loops (depth: {})", self.current_loop_depth),
-                explanation: "Deeply nested loops can lead to exponential time complexity".to_string(),
-                suggestion: "Consider refactoring to reduce nesting or use more efficient algorithms".to_string(),
+                explanation: "Deeply nested loops can lead to exponential time complexity"
+                    .to_string(),
+                suggestion:
+                    "Consider refactoring to reduce nesting or use more efficient algorithms"
+                        .to_string(),
                 impact: PerformanceImpact {
                     complexity: format!("O(n^{})", self.current_loop_depth),
                     scales_with_input: true,
@@ -245,8 +260,10 @@ impl PerformanceAnalyzer {
             category: WarningCategory::StringPerformance,
             severity: WarningSeverity::High,
             message: "String concatenation in loop".to_string(),
-            explanation: "String concatenation in loops creates many intermediate strings".to_string(),
-            suggestion: "Use String::with_capacity() and push_str(), or collect into a String".to_string(),
+            explanation: "String concatenation in loops creates many intermediate strings"
+                .to_string(),
+            suggestion: "Use String::with_capacity() and push_str(), or collect into a String"
+                .to_string(),
             impact: PerformanceImpact {
                 complexity: "O(n²)".to_string(),
                 scales_with_input: true,
@@ -269,7 +286,11 @@ impl PerformanceAnalyzer {
             HirExpr::Call { func: fname, args } => {
                 self.analyze_function_call(fname, args, func, line);
             }
-            HirExpr::MethodCall { object, method, args } => {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+            } => {
                 self.analyze_method_call(object, method, args, func, line);
             }
             HirExpr::List(items) => {
@@ -279,7 +300,14 @@ impl PerformanceAnalyzer {
         }
     }
 
-    fn analyze_binary_expr(&mut self, left: &HirExpr, right: &HirExpr, op: &BinOp, func: &HirFunction, line: usize) {
+    fn analyze_binary_expr(
+        &mut self,
+        left: &HirExpr,
+        right: &HirExpr,
+        op: &BinOp,
+        func: &HirFunction,
+        line: usize,
+    ) {
         self.analyze_expr(left, func, line);
         self.analyze_expr(right, func, line);
 
@@ -288,7 +316,13 @@ impl PerformanceAnalyzer {
         }
     }
 
-    fn analyze_function_call(&mut self, fname: &str, args: &[HirExpr], func: &HirFunction, line: usize) {
+    fn analyze_function_call(
+        &mut self,
+        fname: &str,
+        args: &[HirExpr],
+        func: &HirFunction,
+        line: usize,
+    ) {
         if self.current_loop_depth > 0 && self.is_expensive_function(fname) {
             self.warn_expensive_function_in_loop(fname, func, line);
         }
@@ -300,7 +334,14 @@ impl PerformanceAnalyzer {
         }
     }
 
-    fn analyze_method_call(&mut self, object: &HirExpr, method: &str, args: &[HirExpr], func: &HirFunction, line: usize) {
+    fn analyze_method_call(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirExpr],
+        func: &HirFunction,
+        line: usize,
+    ) {
         self.analyze_expr(object, func, line);
         self.check_method_patterns(object, method, args, func, line);
 
@@ -345,7 +386,8 @@ impl PerformanceAnalyzer {
             category: WarningCategory::RedundantComputation,
             severity: WarningSeverity::Medium,
             message: format!("Expensive function '{}' called in loop", fname),
-            explanation: "Calling expensive functions repeatedly can impact performance".to_string(),
+            explanation: "Calling expensive functions repeatedly can impact performance"
+                .to_string(),
             suggestion: "Cache the result if the inputs don't change".to_string(),
             impact: PerformanceImpact {
                 complexity: "Depends on function".to_string(),
@@ -366,8 +408,10 @@ impl PerformanceAnalyzer {
             category: WarningCategory::MemoryAllocation,
             severity: WarningSeverity::Medium,
             message: "Large list created in loop".to_string(),
-            explanation: "Creating large collections in loops causes repeated allocations".to_string(),
-            suggestion: "Move the list creation outside the loop or use a pre-allocated buffer".to_string(),
+            explanation: "Creating large collections in loops causes repeated allocations"
+                .to_string(),
+            suggestion: "Move the list creation outside the loop or use a pre-allocated buffer"
+                .to_string(),
             impact: PerformanceImpact {
                 complexity: "O(n) allocations".to_string(),
                 scales_with_input: true,

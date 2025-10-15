@@ -94,7 +94,10 @@ fn test_vec_string() {
 
 #[test]
 fn test_hashmap_string_i32() {
-    let ty = RustType::HashMap(Box::new(RustType::String), Box::new(RustType::Primitive(PrimitiveType::I32)));
+    let ty = RustType::HashMap(
+        Box::new(RustType::String),
+        Box::new(RustType::Primitive(PrimitiveType::I32)),
+    );
     assert_eq!(type_to_string(&ty), "HashMap < String , i32 >");
 }
 
@@ -455,7 +458,9 @@ fn test_option_of_vec() {
 fn test_hashmap_string_vec_i32() {
     let ty = RustType::HashMap(
         Box::new(RustType::String),
-        Box::new(RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::I32)))),
+        Box::new(RustType::Vec(Box::new(RustType::Primitive(
+            PrimitiveType::I32,
+        )))),
     );
     let result = type_to_string(&ty);
     assert!(result.contains("HashMap"));

@@ -510,15 +510,16 @@ impl BorrowingContext {
                 self.analyze_expression(orelse, borrow_depth);
             }
             HirExpr::SortByKey {
-                iterable,
-                key_body,
-                ..
+                iterable, key_body, ..
             } => {
                 // Analyze the iterable and the key lambda body
                 self.analyze_expression(iterable, borrow_depth);
                 self.analyze_expression(key_body, borrow_depth);
             }
-            HirExpr::GeneratorExp { element, generators } => {
+            HirExpr::GeneratorExp {
+                element,
+                generators,
+            } => {
                 // Analyze element expression and all generator iterables
                 self.analyze_expression(element, borrow_depth);
                 for gen in generators {

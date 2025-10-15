@@ -75,9 +75,7 @@ impl ConstGenericInferencer {
                 else_body,
                 ..
             } => self.scan_if_branches(then_body, else_body),
-            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
-                self.scan_stmt_block(body)
-            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => self.scan_stmt_block(body),
             _ => Ok(()),
         }
     }
@@ -311,11 +309,22 @@ impl ConstGenericInferencer {
     #[allow(clippy::only_used_in_recursion)]
     fn scan_expr_for_mutations(&self, expr: &HirExpr, mutated: &mut HashSet<String>) {
         match expr {
-            HirExpr::MethodCall { object, method, args } => {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+            } => {
                 // Mutating list methods
                 if matches!(
                     method.as_str(),
-                    "append" | "extend" | "insert" | "remove" | "pop" | "clear" | "reverse" | "sort"
+                    "append"
+                        | "extend"
+                        | "insert"
+                        | "remove"
+                        | "pop"
+                        | "clear"
+                        | "reverse"
+                        | "sort"
                 ) {
                     if let HirExpr::Var(var_name) = &**object {
                         mutated.insert(var_name.clone());
@@ -472,7 +481,11 @@ impl ConstGenericInferencer {
         Ok(())
     }
 
-    fn transform_while_stmt(&mut self, condition: &mut HirExpr, body: &mut [HirStmt]) -> Result<()> {
+    fn transform_while_stmt(
+        &mut self,
+        condition: &mut HirExpr,
+        body: &mut [HirStmt],
+    ) -> Result<()> {
         self.transform_expression(condition)?;
         self.transform_stmt_block(body)
     }
@@ -497,9 +510,7 @@ impl ConstGenericInferencer {
             HirExpr::Binary { left, right, .. } => self.transform_binary_expr(left, right),
             HirExpr::Unary { operand, .. } => self.transform_expression(operand),
             HirExpr::Call { args, .. } => self.transform_call_args(args),
-            HirExpr::MethodCall { object, args, .. } => {
-                self.transform_method_call(object, args)
-            }
+            HirExpr::MethodCall { object, args, .. } => self.transform_method_call(object, args),
             HirExpr::Index { base, index } => self.transform_index_expr(base, index),
             HirExpr::Slice {
                 base,
@@ -539,11 +550,7 @@ impl ConstGenericInferencer {
         Ok(())
     }
 
-    fn transform_method_call(
-        &mut self,
-        object: &mut HirExpr,
-        args: &mut [HirExpr],
-    ) -> Result<()> {
+    fn transform_method_call(&mut self, object: &mut HirExpr, args: &mut [HirExpr]) -> Result<()> {
         self.transform_expression(object)?;
         self.transform_call_args(args)
     }
@@ -675,7 +682,10 @@ mod tests {
 
         let mut function = HirFunction {
             name: "process_array".to_string(),
-            params: smallvec![HirParam::new("arr".to_string(), Type::List(Box::new(Type::Int)))],
+            params: smallvec![HirParam::new(
+                "arr".to_string(),
+                Type::List(Box::new(Type::Int))
+            )],
             ret_type: Type::List(Box::new(Type::Int)),
             body: vec![
                 HirStmt::Assign {

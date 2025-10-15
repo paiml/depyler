@@ -4,7 +4,9 @@
 //! providing Python-to-Rust transpilation tools for Claude Code integration.
 
 use async_trait::async_trait;
-use pmcp::{Error, RequestHandlerExtra, Result, Server, ServerCapabilities, ToolCapabilities, ToolHandler};
+use pmcp::{
+    Error, RequestHandlerExtra, Result, Server, ServerCapabilities, ToolCapabilities, ToolHandler,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -15,7 +17,7 @@ use tracing::{debug, info, warn};
 use depyler_core::DepylerPipeline;
 
 /// Depyler MCP Server using PMCP SDK
-/// 
+///
 /// Provides Python-to-Rust transpilation capabilities through MCP protocol,
 /// leveraging the pmcp SDK for high-performance JSON-RPC handling.
 pub struct DepylerMcpServer {
@@ -28,16 +30,16 @@ pub struct DepylerMcpServer {
 pub struct ServerState {
     /// Active transpilation projects
     projects: std::collections::HashMap<String, ProjectInfo>,
-    
+
     /// Total files transpiled
     total_transpilations: u64,
-    
+
     /// Successful transpilations
     successful_transpilations: u64,
-    
+
     /// Failed transpilations  
     failed_transpilations: u64,
-    
+
     /// Server start time
     start_time: std::time::SystemTime,
 }
@@ -59,16 +61,16 @@ impl Default for ServerState {
 struct ProjectInfo {
     /// Project name
     name: String,
-    
+
     /// Root path
     path: PathBuf,
-    
+
     /// Watch patterns
     patterns: Vec<String>,
-    
+
     /// Files transpiled in this project
     files_transpiled: u64,
-    
+
     /// Last transpilation time
     last_transpilation: Option<std::time::SystemTime>,
 }
@@ -83,7 +85,7 @@ impl DepylerMcpServer {
             })),
         }
     }
-    
+
     /// Shutdown the MCP server
     pub async fn shutdown(&self) -> Result<()> {
         // Clean up any resources here
@@ -104,12 +106,27 @@ impl DepylerMcpServer {
                 ..Default::default()
             })
             // Core transpilation tools
-            .tool("transpile_python_file", TranspilePythonFileTool::new(self.state.clone()))
-            .tool("transpile_python_directory", TranspilePythonDirectoryTool::new(self.state.clone()))
-            .tool("monitor_python_project", MonitorPythonProjectTool::new(self.state.clone()))
-            .tool("get_transpilation_status", GetTranspilationStatusTool::new(self.state.clone()))
+            .tool(
+                "transpile_python_file",
+                TranspilePythonFileTool::new(self.state.clone()),
+            )
+            .tool(
+                "transpile_python_directory",
+                TranspilePythonDirectoryTool::new(self.state.clone()),
+            )
+            .tool(
+                "monitor_python_project",
+                MonitorPythonProjectTool::new(self.state.clone()),
+            )
+            .tool(
+                "get_transpilation_status",
+                GetTranspilationStatusTool::new(self.state.clone()),
+            )
             .tool("verify_rust_code", VerifyRustCodeTool::new())
-            .tool("analyze_python_compatibility", AnalyzePythonCompatibilityTool::new())
+            .tool(
+                "analyze_python_compatibility",
+                AnalyzePythonCompatibilityTool::new(),
+            )
             .build()?;
 
         info!(
@@ -164,22 +181,27 @@ impl ToolHandler for TranspilePythonFileTool {
             .map_err(|e| Error::validation(format!("Invalid arguments: {}", e)))?;
 
         let file_path = PathBuf::from(&params.file_path);
-        
+
         // Validate file exists and is Python
         if !file_path.exists() {
-            return Err(Error::validation(format!("File not found: {}", params.file_path)));
+            return Err(Error::validation(format!(
+                "File not found: {}",
+                params.file_path
+            )));
         }
-        
+
         if file_path.extension().and_then(|s| s.to_str()) != Some("py") {
-            return Err(Error::validation("File must have .py extension".to_string()));
+            return Err(Error::validation(
+                "File must have .py extension".to_string(),
+            ));
         }
 
         let start_time = std::time::Instant::now();
-        
+
         // Read Python source
         let source = std::fs::read_to_string(&file_path)
             .map_err(|e| Error::internal(format!("Failed to read file: {}", e)))?;
-        
+
         let python_lines = source.lines().count();
 
         // Configure transpiler pipeline
@@ -189,7 +211,7 @@ impl ToolHandler for TranspilePythonFileTool {
         let transpile_result = pipeline
             .transpile(&source)
             .map_err(|e| Error::internal(format!("Transpilation failed: {}", e)))?;
-        
+
         let rust_lines = transpile_result.lines().count();
 
         // Determine output path
@@ -244,7 +266,7 @@ impl ToolHandler for TranspilePythonFileTool {
                     rust_lines,
                     transpilation_time.as_millis(),
                     if let Some(ref verify) = verification_result {
-                        format!("🔍 Verification: {}\n", 
+                        format!("🔍 Verification: {}\n",
                                if verify.get("success").and_then(|v| v.as_bool()).unwrap_or(false) {
                                    "✅ Passed"
                                } else {
@@ -302,14 +324,17 @@ impl ToolHandler for TranspilePythonDirectoryTool {
             .map_err(|e| Error::validation(format!("Invalid arguments: {}", e)))?;
 
         let dir_path = PathBuf::from(&params.directory_path);
-        
+
         if !dir_path.exists() || !dir_path.is_dir() {
-            return Err(Error::validation(format!("Directory not found: {}", params.directory_path)));
+            return Err(Error::validation(format!(
+                "Directory not found: {}",
+                params.directory_path
+            )));
         }
 
         let recursive = params.recursive.unwrap_or(true);
         let _verify = params.verify.unwrap_or(false);
-        
+
         // Find all Python files
         let mut python_files = Vec::new();
         find_python_files(&dir_path, recursive, &mut python_files)?;
@@ -349,12 +374,14 @@ impl ToolHandler for TranspilePythonDirectoryTool {
             match pipeline.transpile(&source) {
                 Ok(result) => {
                     total_rust_lines += result.lines().count();
-                    
+
                     let output_path = match &params.output_directory {
                         Some(out_dir) => {
-                            let relative_path = python_file.strip_prefix(&dir_path)
-                                .unwrap_or(python_file);
-                            PathBuf::from(out_dir).join(relative_path).with_extension("rs")
+                            let relative_path =
+                                python_file.strip_prefix(&dir_path).unwrap_or(python_file);
+                            PathBuf::from(out_dir)
+                                .join(relative_path)
+                                .with_extension("rs")
                         }
                         None => python_file.with_extension("rs"),
                     };
@@ -363,7 +390,11 @@ impl ToolHandler for TranspilePythonDirectoryTool {
                     if let Some(parent) = output_path.parent() {
                         if let Err(e) = std::fs::create_dir_all(parent) {
                             failed_count += 1;
-                            errors.push(format!("Failed to create directory {}: {}", parent.display(), e));
+                            errors.push(format!(
+                                "Failed to create directory {}: {}",
+                                parent.display(),
+                                e
+                            ));
                             continue;
                         }
                     }
@@ -377,7 +408,11 @@ impl ToolHandler for TranspilePythonDirectoryTool {
                 }
                 Err(e) => {
                     failed_count += 1;
-                    errors.push(format!("Transpilation failed for {}: {}", python_file.display(), e));
+                    errors.push(format!(
+                        "Transpilation failed for {}: {}",
+                        python_file.display(),
+                        e
+                    ));
                 }
             }
         }
@@ -465,30 +500,39 @@ impl ToolHandler for MonitorPythonProjectTool {
             .map_err(|e| Error::validation(format!("Invalid arguments: {}", e)))?;
 
         let project_path = PathBuf::from(&params.project_path);
-        
+
         if !project_path.exists() || !project_path.is_dir() {
-            return Err(Error::validation(format!("Project directory not found: {}", params.project_path)));
+            return Err(Error::validation(format!(
+                "Project directory not found: {}",
+                params.project_path
+            )));
         }
 
-        let project_name = params.project_name
-            .unwrap_or_else(|| project_path.file_name()
+        let project_name = params.project_name.unwrap_or_else(|| {
+            project_path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("unnamed_project")
-                .to_string());
+                .to_string()
+        });
 
-        let watch_patterns = params.watch_patterns
+        let watch_patterns = params
+            .watch_patterns
             .unwrap_or_else(|| vec!["**/*.py".to_string()]);
 
         // Add to monitored projects
         {
             let mut state = self.state.lock().await;
-            state.projects.insert(project_name.clone(), ProjectInfo {
-                name: project_name.clone(),
-                path: project_path.clone(),
-                patterns: watch_patterns.clone(),
-                files_transpiled: 0,
-                last_transpilation: None,
-            });
+            state.projects.insert(
+                project_name.clone(),
+                ProjectInfo {
+                    name: project_name.clone(),
+                    path: project_path.clone(),
+                    patterns: watch_patterns.clone(),
+                    files_transpiled: 0,
+                    last_transpilation: None,
+                },
+            );
         }
 
         let result = json!({
@@ -565,7 +609,8 @@ impl ToolHandler for GetTranspilationStatusTool {
                     project.name,
                     project.path.display(),
                     project.files_transpiled,
-                    project.last_transpilation
+                    project
+                        .last_transpilation
                         .map(|t| format!("{:?} ago", t.elapsed().unwrap_or_default()))
                         .unwrap_or("Never".to_string()),
                     project.patterns
@@ -591,11 +636,15 @@ impl ToolHandler for GetTranspilationStatusTool {
                 state.failed_transpilations,
                 success_rate,
                 if params.detailed.unwrap_or(false) && !state.projects.is_empty() {
-                    format!("\n🔍 Monitored Projects:\n{}", 
-                           state.projects.values()
-                               .map(|p| format!("  • {} ({})", p.name, p.path.display()))
-                               .collect::<Vec<_>>()
-                               .join("\n"))
+                    format!(
+                        "\n🔍 Monitored Projects:\n{}",
+                        state
+                            .projects
+                            .values()
+                            .map(|p| format!("  • {} ({})", p.name, p.path.display()))
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    )
                 } else {
                     "".to_string()
                 }
@@ -658,11 +707,14 @@ impl ToolHandler for VerifyRustCodeTool {
 
         let rust_file = PathBuf::from(&params.rust_file_path);
         if !rust_file.exists() {
-            return Err(Error::validation(format!("Rust file not found: {}", params.rust_file_path)));
+            return Err(Error::validation(format!(
+                "Rust file not found: {}",
+                params.rust_file_path
+            )));
         }
 
         let verification_level = params.verification_level.as_deref().unwrap_or("basic");
-        
+
         match verify_rust_code(&rust_file, verification_level).await {
             Ok(result) => Ok(json!({
                 "content": [{
@@ -685,7 +737,7 @@ impl ToolHandler for VerifyRustCodeTool {
                 }],
                 "metadata": result
             })),
-            Err(e) => Err(Error::internal(format!("Verification failed: {}", e)))
+            Err(e) => Err(Error::internal(format!("Verification failed: {}", e))),
         }
     }
 }
@@ -720,7 +772,10 @@ impl ToolHandler for AnalyzePythonCompatibilityTool {
 
         let python_file = PathBuf::from(&params.python_file_path);
         if !python_file.exists() {
-            return Err(Error::validation(format!("Python file not found: {}", params.python_file_path)));
+            return Err(Error::validation(format!(
+                "Python file not found: {}",
+                params.python_file_path
+            )));
         }
 
         // Read and analyze Python code
@@ -764,16 +819,17 @@ fn find_python_files(dir: &PathBuf, recursive: bool, files: &mut Vec<PathBuf>) -
         .map_err(|e| Error::internal(format!("Failed to read directory: {}", e)))?;
 
     for entry in entries {
-        let entry = entry.map_err(|e| Error::internal(format!("Failed to read directory entry: {}", e)))?;
+        let entry =
+            entry.map_err(|e| Error::internal(format!("Failed to read directory entry: {}", e)))?;
         let path = entry.path();
-        
+
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("py") {
             files.push(path);
         } else if path.is_dir() && recursive {
             find_python_files(&path, recursive, files)?;
         }
     }
-    
+
     Ok(())
 }
 
@@ -790,7 +846,7 @@ async fn verify_rust_code(rust_file: &Path, level: &str) -> Result<Value> {
                 .args(["--parse-only", &rust_file.to_string_lossy()])
                 .output()
                 .map_err(|e| Error::internal(format!("Failed to run rustc: {}", e)))?;
-            
+
             if !output.status.success() {
                 success = false;
                 messages.push(String::from_utf8_lossy(&output.stderr).to_string());
@@ -802,7 +858,7 @@ async fn verify_rust_code(rust_file: &Path, level: &str) -> Result<Value> {
                 .args(["--check", &rust_file.to_string_lossy()])
                 .output()
                 .map_err(|e| Error::internal(format!("Failed to run rustc: {}", e)))?;
-            
+
             if !output.status.success() {
                 success = false;
                 messages.push(String::from_utf8_lossy(&output.stderr).to_string());
@@ -812,16 +868,25 @@ async fn verify_rust_code(rust_file: &Path, level: &str) -> Result<Value> {
             // Clippy checks
             let output = std::process::Command::new("cargo")
                 .args(["clippy", "--", "-D", "warnings"])
-                .current_dir(rust_file.parent().unwrap_or_else(|| std::path::Path::new(".")))
+                .current_dir(
+                    rust_file
+                        .parent()
+                        .unwrap_or_else(|| std::path::Path::new(".")),
+                )
                 .output()
                 .map_err(|e| Error::internal(format!("Failed to run clippy: {}", e)))?;
-            
+
             if !output.status.success() {
                 success = false;
                 messages.push(String::from_utf8_lossy(&output.stderr).to_string());
             }
         }
-        _ => return Err(Error::validation(format!("Unknown verification level: {}", level)))
+        _ => {
+            return Err(Error::validation(format!(
+                "Unknown verification level: {}",
+                level
+            )))
+        }
     }
 
     let verification_time = start_time.elapsed();
@@ -841,7 +906,7 @@ async fn analyze_python_compatibility(source: &str) -> Result<Value> {
     let mut supported_features = Vec::new();
     let mut warnings = Vec::new();
     let mut unsupported_features = Vec::new();
-    
+
     // Check for basic Python constructs
     if source.contains("def ") {
         supported_features.push("Functions");
@@ -855,7 +920,7 @@ async fn analyze_python_compatibility(source: &str) -> Result<Value> {
     if source.contains("if ") {
         supported_features.push("Conditionals");
     }
-    
+
     // Check for potentially problematic constructs
     if source.contains("eval") || source.contains("exec") {
         unsupported_features.push("Dynamic code execution (eval/exec)");
@@ -863,19 +928,21 @@ async fn analyze_python_compatibility(source: &str) -> Result<Value> {
     if source.contains("import sys") {
         warnings.push("System imports may need manual handling");
     }
-    
+
     let compatibility_score = if !lines.is_empty() {
-        ((supported_features.len() as f64) / (supported_features.len() + unsupported_features.len()) as f64) * 100.0
+        ((supported_features.len() as f64)
+            / (supported_features.len() + unsupported_features.len()) as f64)
+            * 100.0
     } else {
         100.0
     };
-    
+
     let recommendations = if unsupported_features.is_empty() {
         "✅ Code appears compatible with Depyler transpilation"
     } else {
         "⚠️ Some features may need manual refactoring before transpilation"
     };
-    
+
     Ok(json!({
         "compatibility_score": compatibility_score,
         "supported_features": supported_features,

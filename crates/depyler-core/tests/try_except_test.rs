@@ -34,7 +34,11 @@ def safe_divide(a: int, b: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -45,10 +49,13 @@ def safe_divide(a: int, b: int) -> int:
     );
 
     // Should have error handling pattern (Result, match, or if let)
-    let has_error_handling = rust_code.contains("Result")
-        || rust_code.contains("match")
-        || rust_code.contains("if let");
-    assert!(has_error_handling, "Should have error handling pattern.\nGot:\n{}", rust_code);
+    let has_error_handling =
+        rust_code.contains("Result") || rust_code.contains("match") || rust_code.contains("if let");
+    assert!(
+        has_error_handling,
+        "Should have error handling pattern.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -63,7 +70,11 @@ def parse_number(s: str) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -74,10 +85,13 @@ def parse_number(s: str) -> int:
     );
 
     // Should have error handling with binding
-    let has_error_handling = rust_code.contains("Result")
-        || rust_code.contains("match")
-        || rust_code.contains("Err");
-    assert!(has_error_handling, "Should have error handling.\nGot:\n{}", rust_code);
+    let has_error_handling =
+        rust_code.contains("Result") || rust_code.contains("match") || rust_code.contains("Err");
+    assert!(
+        has_error_handling,
+        "Should have error handling.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -92,7 +106,11 @@ def get_value(data: dict, key: str) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -104,7 +122,11 @@ def get_value(data: dict, key: str) -> str:
 
     // Should handle return in try block
     let has_return = rust_code.contains("return") || rust_code.contains("->");
-    assert!(has_return, "Should have return handling.\nGot:\n{}", rust_code);
+    assert!(
+        has_return,
+        "Should have return handling.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -120,7 +142,11 @@ def safe_operation(x: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -131,10 +157,13 @@ def safe_operation(x: int) -> int:
     );
 
     // Should have error handling
-    let has_error_handling = rust_code.contains("Result")
-        || rust_code.contains("match")
-        || rust_code.contains("if let");
-    assert!(has_error_handling, "Should have error handling.\nGot:\n{}", rust_code);
+    let has_error_handling =
+        rust_code.contains("Result") || rust_code.contains("match") || rust_code.contains("if let");
+    assert!(
+        has_error_handling,
+        "Should have error handling.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -152,7 +181,11 @@ def nested_operation(x: int, y: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -163,9 +196,12 @@ def nested_operation(x: int, y: int) -> int:
     );
 
     // Should have nested error handling
-    let has_error_handling = rust_code.contains("Result")
-        || rust_code.contains("match");
-    assert!(has_error_handling, "Should have error handling.\nGot:\n{}", rust_code);
+    let has_error_handling = rust_code.contains("Result") || rust_code.contains("match");
+    assert!(
+        has_error_handling,
+        "Should have error handling.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -182,7 +218,11 @@ def process_data(data: list) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -212,7 +252,11 @@ def convert_to_int(s: str) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -223,10 +267,13 @@ def convert_to_int(s: str) -> int:
     );
 
     // Should have error handling
-    let has_error_handling = rust_code.contains("Result")
-        || rust_code.contains("match")
-        || rust_code.contains("Err");
-    assert!(has_error_handling, "Should have error handling.\nGot:\n{}", rust_code);
+    let has_error_handling =
+        rust_code.contains("Result") || rust_code.contains("match") || rust_code.contains("Err");
+    assert!(
+        has_error_handling,
+        "Should have error handling.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -243,7 +290,11 @@ def ignore_errors(x: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -254,10 +305,13 @@ def ignore_errors(x: int) -> int:
     );
 
     // Should have error handling
-    let has_error_handling = rust_code.contains("Result")
-        || rust_code.contains("match")
-        || rust_code.contains("if let");
-    assert!(has_error_handling, "Should have error handling.\nGot:\n{}", rust_code);
+    let has_error_handling =
+        rust_code.contains("Result") || rust_code.contains("match") || rust_code.contains("if let");
+    assert!(
+        has_error_handling,
+        "Should have error handling.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -274,7 +328,11 @@ def calculate(x: int, y: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -286,7 +344,11 @@ def calculate(x: int, y: int) -> int:
 
     // Should have multiple variables
     let has_vars = rust_code.contains("a") && rust_code.contains("b");
-    assert!(has_vars, "Should have multiple variables.\nGot:\n{}", rust_code);
+    assert!(
+        has_vars,
+        "Should have multiple variables.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -302,7 +364,11 @@ def safe_process(x: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -313,10 +379,13 @@ def safe_process(x: int) -> int:
     );
 
     // Should have error handling
-    let has_error_handling = rust_code.contains("Result")
-        || rust_code.contains("match")
-        || rust_code.contains("if let");
-    assert!(has_error_handling, "Should have error handling.\nGot:\n{}", rust_code);
+    let has_error_handling =
+        rust_code.contains("Result") || rust_code.contains("match") || rust_code.contains("if let");
+    assert!(
+        has_error_handling,
+        "Should have error handling.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -331,7 +400,11 @@ def get_error_message(s: str) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -343,7 +416,11 @@ def get_error_message(s: str) -> str:
 
     // Should have error variable binding
     let has_error_binding = rust_code.contains("Err") || rust_code.contains("match");
-    assert!(has_error_binding, "Should have error binding.\nGot:\n{}", rust_code);
+    assert!(
+        has_error_binding,
+        "Should have error binding.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -358,7 +435,11 @@ def catch_all(x: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -369,10 +450,13 @@ def catch_all(x: int) -> int:
     );
 
     // Should have error handling
-    let has_error_handling = rust_code.contains("Result")
-        || rust_code.contains("match")
-        || rust_code.contains("if let");
-    assert!(has_error_handling, "Should have error handling.\nGot:\n{}", rust_code);
+    let has_error_handling =
+        rust_code.contains("Result") || rust_code.contains("match") || rust_code.contains("if let");
+    assert!(
+        has_error_handling,
+        "Should have error handling.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -388,7 +472,11 @@ def compute_ratio(a: int, b: int) -> float:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -421,7 +509,11 @@ def log_operation(x: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -433,7 +525,11 @@ def log_operation(x: int) -> int:
 
     // Should have print statements
     let has_print = rust_code.contains("print") || rust_code.contains("println");
-    assert!(has_print, "Should have print statements.\nGot:\n{}", rust_code);
+    assert!(
+        has_print,
+        "Should have print statements.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -450,7 +546,11 @@ def assign_safely(x: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 

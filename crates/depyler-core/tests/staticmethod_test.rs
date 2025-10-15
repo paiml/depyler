@@ -28,7 +28,11 @@ class Math:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -46,7 +50,11 @@ class Math:
 
     // Should NOT have &self or &mut self parameter
     let has_self = rust_code.contains("&self") || rust_code.contains("& self");
-    assert!(!has_self, "Staticmethod should not have &self parameter.\nGot:\n{}", rust_code);
+    assert!(
+        !has_self,
+        "Staticmethod should not have &self parameter.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -60,7 +68,11 @@ class Calculator:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -79,7 +91,11 @@ class Calculator:
 
     // Should NOT have &self
     let has_self = rust_code.contains("&self") || rust_code.contains("& self");
-    assert!(!has_self, "Staticmethod should not have &self.\nGot:\n{}", rust_code);
+    assert!(
+        !has_self,
+        "Staticmethod should not have &self.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -93,7 +109,11 @@ class StringUtils:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -104,10 +124,14 @@ class StringUtils:
     );
 
     // Should have String return type
-    let has_string_return = rust_code.contains("-> String") ||
-                            rust_code.contains("-> str") ||
-                            rust_code.contains("String");
-    assert!(has_string_return, "Should have String return type.\nGot:\n{}", rust_code);
+    let has_string_return = rust_code.contains("-> String")
+        || rust_code.contains("-> str")
+        || rust_code.contains("String");
+    assert!(
+        has_string_return,
+        "Should have String return type.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -123,7 +147,11 @@ class Config:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -135,7 +163,11 @@ class Config:
 
     // Should have MAX_SIZE constant
     let has_max_size = rust_code.contains("MAX_SIZE") || rust_code.contains("max_size");
-    assert!(has_max_size, "Should reference MAX_SIZE.\nGot:\n{}", rust_code);
+    assert!(
+        has_max_size,
+        "Should reference MAX_SIZE.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -157,7 +189,11 @@ class Math:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -196,7 +232,11 @@ class Math:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -214,7 +254,11 @@ class Math:
 
     // Should call Math::square or similar
     let calls_square = rust_code.contains("square");
-    assert!(calls_square, "Should call square method.\nGot:\n{}", rust_code);
+    assert!(
+        calls_square,
+        "Should call square method.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -234,7 +278,11 @@ class Calculator:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -252,7 +300,11 @@ class Calculator:
 
     // apply_double should have &self
     let has_self = rust_code.contains("&self") || rust_code.contains("& self");
-    assert!(has_self, "apply_double should have &self.\nGot:\n{}", rust_code);
+    assert!(
+        has_self,
+        "apply_double should have &self.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -266,7 +318,11 @@ class Converter:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -277,9 +333,8 @@ class Converter:
     );
 
     // Should have float parameters and return
-    let has_float = rust_code.contains("f32") ||
-                    rust_code.contains("f64") ||
-                    rust_code.contains("celsius");
+    let has_float =
+        rust_code.contains("f32") || rust_code.contains("f64") || rust_code.contains("celsius");
     assert!(has_float, "Should have float type.\nGot:\n{}", rust_code);
 }
 
@@ -294,7 +349,11 @@ class Validator:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -306,7 +365,11 @@ class Validator:
 
     // Should have bool return type
     let has_bool_return = rust_code.contains("-> bool") || rust_code.contains("bool");
-    assert!(has_bool_return, "Should have bool return type.\nGot:\n{}", rust_code);
+    assert!(
+        has_bool_return,
+        "Should have bool return type.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -333,7 +396,11 @@ class Counter:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 

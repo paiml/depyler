@@ -102,10 +102,7 @@ def modulo(a: int, b: int) -> int:
     println!("Generated modulo operator:\n{}", rust_code);
 
     // Should use % for modulo
-    assert!(
-        rust_code.contains("%"),
-        "Python % should map to Rust %"
-    );
+    assert!(rust_code.contains("%"), "Python % should map to Rust %");
 }
 
 #[test]
@@ -120,10 +117,7 @@ def compare(a: int, b: int) -> bool:
     println!("Generated comparison operator:\n{}", rust_code);
 
     // Should use <= for less than or equal
-    assert!(
-        rust_code.contains("<="),
-        "Python <= should map to Rust <="
-    );
+    assert!(rust_code.contains("<="), "Python <= should map to Rust <=");
 }
 
 // ============================================================================

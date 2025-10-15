@@ -60,7 +60,11 @@ class Config:
     // true && false = false → no field inference
     // If mutated to ||: true || false = true → would incorrectly infer
     assert_eq!(hir.classes.len(), 1);
-    assert_eq!(hir.classes[0].fields.len(), 0, "Dataclass should not have inferred fields");
+    assert_eq!(
+        hir.classes[0].fields.len(),
+        0,
+        "Dataclass should not have inferred fields"
+    );
 }
 
 #[test]
@@ -82,7 +86,11 @@ class Config:
     // false && true = false → no inference
     // Already has 1 explicit field
     assert_eq!(hir.classes.len(), 1);
-    assert_eq!(hir.classes[0].fields.len(), 1, "Should only have explicit field");
+    assert_eq!(
+        hir.classes[0].fields.len(),
+        1,
+        "Should only have explicit field"
+    );
     assert_eq!(hir.classes[0].fields[0].name, "name");
 }
 
@@ -153,13 +161,18 @@ class Config:
     // Should skip __str__ and __repr__ but keep normal_method
     // The AND condition requires BOTH starts and ends with "__"
     assert_eq!(hir.classes.len(), 1);
-    let methods: Vec<&str> = hir.classes[0].methods.iter()
+    let methods: Vec<&str> = hir.classes[0]
+        .methods
+        .iter()
         .map(|m| m.name.as_str())
         .collect();
 
     assert!(!methods.contains(&"__str__"), "Should skip __str__");
     assert!(!methods.contains(&"__repr__"), "Should skip __repr__");
-    assert!(methods.contains(&"normal_method"), "Should keep normal_method");
+    assert!(
+        methods.contains(&"normal_method"),
+        "Should keep normal_method"
+    );
 }
 
 #[test]
@@ -183,7 +196,9 @@ class Iterator:
 
     // Should keep __init__, __iter__, __next__ (special exceptions)
     assert_eq!(hir.classes.len(), 1);
-    let methods: Vec<&str> = hir.classes[0].methods.iter()
+    let methods: Vec<&str> = hir.classes[0]
+        .methods
+        .iter()
         .map(|m| m.name.as_str())
         .collect();
 
@@ -214,13 +229,21 @@ class Config:
     // These methods don't match both, so they're kept
     // If mutated to OR: would incorrectly filter __starts_only
     assert_eq!(hir.classes.len(), 1);
-    let methods: Vec<&str> = hir.classes[0].methods.iter()
+    let methods: Vec<&str> = hir.classes[0]
+        .methods
+        .iter()
         .map(|m| m.name.as_str())
         .collect();
 
     assert!(methods.contains(&"_private"), "Should keep _private");
-    assert!(methods.contains(&"__starts_only"), "Should keep __starts_only (only starts)");
-    assert!(methods.contains(&"ends_only__"), "Should keep ends_only__ (only ends)");
+    assert!(
+        methods.contains(&"__starts_only"),
+        "Should keep __starts_only (only starts)"
+    );
+    assert!(
+        methods.contains(&"ends_only__"),
+        "Should keep ends_only__ (only ends)"
+    );
 }
 
 // ============================================================================
@@ -253,7 +276,10 @@ class Service:
     // not_async: has decorator but not async → regular method
     // no_decorator: async but no decorator → async method (async is enough)
     assert_eq!(hir.classes.len(), 1);
-    assert!(hir.classes[0].methods.len() >= 2, "Should have at least 2 methods");
+    assert!(
+        hir.classes[0].methods.len() >= 2,
+        "Should have at least 2 methods"
+    );
 }
 
 #[test]
@@ -333,14 +359,19 @@ class DataModel:
     let class = &hir.classes[0];
 
     // Should have 2 explicit fields (id, name) - not inferred temp
-    assert_eq!(class.fields.len(), 2, "Dataclass should have only explicit fields");
+    assert_eq!(
+        class.fields.len(),
+        2,
+        "Dataclass should have only explicit fields"
+    );
 
     // Should have methods: __iter__, display_name, fetch_details
     // Should NOT have: __init__ (no body), __str__ (filtered dunder)
-    let method_names: Vec<&str> = class.methods.iter()
-        .map(|m| m.name.as_str())
-        .collect();
+    let method_names: Vec<&str> = class.methods.iter().map(|m| m.name.as_str()).collect();
 
-    assert!(method_names.contains(&"__iter__"), "Should keep special __iter__");
+    assert!(
+        method_names.contains(&"__iter__"),
+        "Should keep special __iter__"
+    );
     assert!(!method_names.contains(&"__str__"), "Should skip __str__");
 }

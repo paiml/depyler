@@ -521,28 +521,30 @@ impl ExprConverter {
         }
 
         // Special handling for 'is None' and 'is not None' patterns (single comparison only)
-        if c.ops.len() == 1 && c.comparators.len() == 1
-            && matches!(c.ops[0], ast::CmpOp::Is | ast::CmpOp::IsNot) {
-                let comparator = &c.comparators[0];
-                // Check if comparing with None
-                let is_none_comparison = matches!(comparator, ast::Expr::Constant(ref cons)
+        if c.ops.len() == 1
+            && c.comparators.len() == 1
+            && matches!(c.ops[0], ast::CmpOp::Is | ast::CmpOp::IsNot)
+        {
+            let comparator = &c.comparators[0];
+            // Check if comparing with None
+            let is_none_comparison = matches!(comparator, ast::Expr::Constant(ref cons)
                     if matches!(cons.value, ast::Constant::None));
 
-                if is_none_comparison {
-                    // Convert 'x is None' to x.is_none(), 'x is not None' to x.is_some()
-                    let object = Box::new(Self::convert(*c.left)?);
-                    let method = if matches!(c.ops[0], ast::CmpOp::Is) {
-                        "is_none".to_string()
-                    } else {
-                        "is_some".to_string()
-                    };
-                    return Ok(HirExpr::MethodCall {
-                        object,
-                        method,
-                        args: vec![],
-                    });
-                }
+            if is_none_comparison {
+                // Convert 'x is None' to x.is_none(), 'x is not None' to x.is_some()
+                let object = Box::new(Self::convert(*c.left)?);
+                let method = if matches!(c.ops[0], ast::CmpOp::Is) {
+                    "is_none".to_string()
+                } else {
+                    "is_some".to_string()
+                };
+                return Ok(HirExpr::MethodCall {
+                    object,
+                    method,
+                    args: vec![],
+                });
             }
+        }
 
         // Build chain: a op1 b op2 c becomes (a op1 b) and (b op2 c)
         let mut left_expr = *c.left;
@@ -705,7 +707,10 @@ impl ExprConverter {
             });
         }
 
-        Ok(HirExpr::GeneratorExp { element, generators })
+        Ok(HirExpr::GeneratorExp {
+            element,
+            generators,
+        })
     }
 
     fn convert_lambda(l: ast::ExprLambda) -> Result<HirExpr> {

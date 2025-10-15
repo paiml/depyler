@@ -1,22 +1,20 @@
 //! Pattern-based transformations for Pythonic to functional style
 
-use crate::ast::{
-    Literal, Param, PipelineStage, RuchyExpr, StringPart,
-};
+use crate::ast::{Literal, Param, PipelineStage, RuchyExpr, StringPart};
 use anyhow::{anyhow, Result};
 
 /// Pattern transformer for Pythonic constructs to Ruchy functional style
 pub struct PatternTransformer {
     /// Enable list comprehension to pipeline transformation
     enable_pipeline_transform: bool,
-    
+
     /// Enable string formatting to interpolation
     enable_string_interpolation: bool,
-    
+
     /// Enable async/await to actor transformation
     #[allow(dead_code)]
     enable_actor_transform: bool,
-    
+
     /// Enable DataFrame optimizations
     enable_dataframe_opt: bool,
 }
@@ -32,7 +30,7 @@ impl PatternTransformer {
             enable_dataframe_opt: true,
         }
     }
-    
+
     /// Creates transformer with custom configuration
     #[must_use]
     pub fn with_config(config: &crate::RuchyConfig) -> Self {
@@ -43,12 +41,12 @@ impl PatternTransformer {
             enable_dataframe_opt: config.optimize_dataframes,
         }
     }
-    
+
     /// Transform a Ruchy AST with pattern-based optimizations
     pub fn transform(&self, expr: RuchyExpr) -> Result<RuchyExpr> {
         self.transform_expr(expr)
     }
-    
+
     /// Transform an expression recursively
     fn transform_expr(&self, expr: RuchyExpr) -> Result<RuchyExpr> {
         match expr {
@@ -56,22 +54,22 @@ impl PatternTransformer {
             RuchyExpr::Call { func, args } if self.is_list_comprehension(&func, &args) => {
                 self.transform_list_comprehension(func, args)
             }
-            
+
             // Transform string formatting to interpolation
             RuchyExpr::Call { func, args } if self.is_string_format(&func, &args) => {
                 self.transform_string_format(func, args)
             }
-            
+
             // Transform nested for loops to DataFrame operations
             RuchyExpr::For { var, iter, body } if self.enable_dataframe_opt => {
                 self.check_dataframe_pattern(var, iter, body)
             }
-            
+
             // Transform filter + map patterns to single pipeline
             RuchyExpr::Call { func, args } if self.is_filter_map_pattern(&func, &args) => {
                 self.transform_filter_map(*func, args)
             }
-            
+
             // Recursively transform nested expressions
             RuchyExpr::Block(exprs) => {
                 let transformed = exprs
@@ -80,7 +78,7 @@ impl PatternTransformer {
                     .collect::<Result<Vec<_>>>()?;
                 Ok(RuchyExpr::Block(transformed))
             }
-            
+
             RuchyExpr::If {
                 condition,
                 then_branch,
@@ -92,7 +90,7 @@ impl PatternTransformer {
                     .map(|e| self.transform_expr(*e).map(Box::new))
                     .transpose()?,
             }),
-            
+
             RuchyExpr::Function {
                 name,
                 params,
@@ -106,23 +104,23 @@ impl PatternTransformer {
                 is_async,
                 return_type,
             }),
-            
+
             RuchyExpr::Lambda { params, body } => Ok(RuchyExpr::Lambda {
                 params,
                 body: Box::new(self.transform_expr(*body)?),
             }),
-            
+
             RuchyExpr::For { var, iter, body } => Ok(RuchyExpr::For {
                 var,
                 iter: Box::new(self.transform_expr(*iter)?),
                 body: Box::new(self.transform_expr(*body)?),
             }),
-            
+
             RuchyExpr::While { condition, body } => Ok(RuchyExpr::While {
                 condition: Box::new(self.transform_expr(*condition)?),
                 body: Box::new(self.transform_expr(*body)?),
             }),
-            
+
             RuchyExpr::Let {
                 name,
                 value,
@@ -134,22 +132,22 @@ impl PatternTransformer {
                 body: Box::new(self.transform_expr(*body)?),
                 is_mutable,
             }),
-            
+
             // Pass through other expressions unchanged
             _ => Ok(expr),
         }
     }
-    
+
     /// Check if a call is a list comprehension pattern
     fn is_list_comprehension(&self, func: &Box<RuchyExpr>, _args: &[RuchyExpr]) -> bool {
         if !self.enable_pipeline_transform {
             return false;
         }
-        
+
         // Check for patterns like: [expr for x in iter if cond]
         matches!(**func, RuchyExpr::Identifier(ref name) if name == "list_comp")
     }
-    
+
     /// Transform list comprehension to pipeline
     fn transform_list_comprehension(
         &self,
@@ -158,9 +156,9 @@ impl PatternTransformer {
     ) -> Result<RuchyExpr> {
         // Extract comprehension parts
         let (element_expr, var_name, iterable, condition) = self.parse_comprehension(&args)?;
-        
+
         let mut stages = Vec::new();
-        
+
         // Add filter stage if there's a condition
         if let Some(cond) = condition {
             let filter_lambda = RuchyExpr::Lambda {
@@ -173,7 +171,7 @@ impl PatternTransformer {
             };
             stages.push(PipelineStage::Filter(Box::new(filter_lambda)));
         }
-        
+
         // Add map stage for transformation
         let map_lambda = RuchyExpr::Lambda {
             params: vec![Param {
@@ -184,16 +182,16 @@ impl PatternTransformer {
             body: Box::new(element_expr),
         };
         stages.push(PipelineStage::Map(Box::new(map_lambda)));
-        
+
         // Add collect stage to create list
         stages.push(PipelineStage::Call("collect".to_string(), vec![]));
-        
+
         Ok(RuchyExpr::Pipeline {
             expr: Box::new(iterable),
             stages,
         })
     }
-    
+
     /// Parse comprehension arguments
     fn parse_comprehension(
         &self,
@@ -202,26 +200,26 @@ impl PatternTransformer {
         if args.len() < 3 {
             return Err(anyhow!("Invalid comprehension structure"));
         }
-        
+
         let element = args[0].clone();
-        
+
         let var_name = match &args[1] {
             RuchyExpr::Identifier(name) => name.clone(),
             _ => return Err(anyhow!("Expected variable name in comprehension")),
         };
-        
+
         let iterable = args[2].clone();
         let condition = args.get(3).cloned();
-        
+
         Ok((element, var_name, iterable, condition))
     }
-    
+
     /// Check if a call is string formatting
     fn is_string_format(&self, func: &RuchyExpr, _args: &[RuchyExpr]) -> bool {
         if !self.enable_string_interpolation {
             return false;
         }
-        
+
         matches!(
             func,
             RuchyExpr::FieldAccess {
@@ -230,7 +228,7 @@ impl PatternTransformer {
             } if method == "format"
         )
     }
-    
+
     /// Transform string format to interpolation
     fn transform_string_format(
         &self,
@@ -245,24 +243,20 @@ impl PatternTransformer {
             },
             _ => return Ok(RuchyExpr::Call { func, args }),
         };
-        
+
         // Parse format string and create interpolation parts
         let parts = self.parse_format_string(&format_str, &args)?;
-        
+
         Ok(RuchyExpr::StringInterpolation { parts })
     }
-    
+
     /// Parse format string into interpolation parts
-    fn parse_format_string(
-        &self,
-        format_str: &str,
-        args: &[RuchyExpr],
-    ) -> Result<Vec<StringPart>> {
+    fn parse_format_string(&self, format_str: &str, args: &[RuchyExpr]) -> Result<Vec<StringPart>> {
         let mut parts = Vec::new();
         let mut current = String::new();
         let mut arg_index = 0;
         let mut chars = format_str.chars().peekable();
-        
+
         while let Some(ch) = chars.next() {
             if ch == '{' {
                 if chars.peek() == Some(&'{') {
@@ -275,7 +269,7 @@ impl PatternTransformer {
                         parts.push(StringPart::Text(current.clone()));
                         current.clear();
                     }
-                    
+
                     // Find closing brace
                     let mut placeholder = String::new();
                     for ch in chars.by_ref() {
@@ -284,7 +278,7 @@ impl PatternTransformer {
                         }
                         placeholder.push(ch);
                     }
-                    
+
                     // Get corresponding argument
                     if arg_index < args.len() {
                         parts.push(StringPart::Expr(Box::new(args[arg_index].clone())));
@@ -303,20 +297,20 @@ impl PatternTransformer {
                 current.push(ch);
             }
         }
-        
+
         if !current.is_empty() {
             parts.push(StringPart::Text(current));
         }
-        
+
         Ok(parts)
     }
-    
+
     /// Check if expression matches filter + map pattern
     fn is_filter_map_pattern(&self, func: &RuchyExpr, args: &[RuchyExpr]) -> bool {
         if !self.enable_pipeline_transform {
             return false;
         }
-        
+
         // Check for map(filter(...)) pattern
         matches!(
             func,
@@ -330,7 +324,7 @@ impl PatternTransformer {
                 } if matches!(**inner_func, RuchyExpr::Identifier(ref name) if name == "filter")
             )
     }
-    
+
     /// Transform filter + map to single pipeline
     fn transform_filter_map(&self, _func: RuchyExpr, args: Vec<RuchyExpr>) -> Result<RuchyExpr> {
         if args.len() != 2 {
@@ -339,14 +333,14 @@ impl PatternTransformer {
                 args,
             });
         }
-        
+
         let map_fn = args[0].clone();
-        
+
         // Extract filter call
         let (filter_fn, source) = match &args[1] {
-            RuchyExpr::Call { args: filter_args, .. } if filter_args.len() == 2 => {
-                (filter_args[0].clone(), filter_args[1].clone())
-            }
+            RuchyExpr::Call {
+                args: filter_args, ..
+            } if filter_args.len() == 2 => (filter_args[0].clone(), filter_args[1].clone()),
             _ => {
                 return Ok(RuchyExpr::Call {
                     func: Box::new(RuchyExpr::Identifier("map".to_string())),
@@ -354,7 +348,7 @@ impl PatternTransformer {
                 })
             }
         };
-        
+
         // Create pipeline
         Ok(RuchyExpr::Pipeline {
             expr: Box::new(source),
@@ -364,7 +358,7 @@ impl PatternTransformer {
             ],
         })
     }
-    
+
     /// Check if for loop can be converted to DataFrame operation
     fn check_dataframe_pattern(
         &self,
@@ -379,13 +373,13 @@ impl PatternTransformer {
             Ok(RuchyExpr::For { var, iter, body })
         }
     }
-    
+
     /// Check if expression is a DataFrame-like operation
     #[allow(clippy::only_used_in_recursion)]
     fn is_dataframe_operation(&self, expr: &RuchyExpr) -> bool {
         match expr {
             RuchyExpr::Block(exprs) => exprs.iter().any(|e| self.is_dataframe_operation(e)),
-            
+
             RuchyExpr::Call { func, .. } => match &**func {
                 RuchyExpr::FieldAccess { field, .. } => {
                     matches!(
@@ -395,11 +389,11 @@ impl PatternTransformer {
                 }
                 _ => false,
             },
-            
+
             _ => false,
         }
     }
-    
+
     /// Transform loop to DataFrame operation
     fn transform_to_dataframe(
         &self,
@@ -409,18 +403,16 @@ impl PatternTransformer {
     ) -> Result<RuchyExpr> {
         // Extract operations from body
         let operations = self.extract_dataframe_ops(&body)?;
-        
+
         // Create DataFrame from iterator
         let df_expr = RuchyExpr::Call {
             func: Box::new(RuchyExpr::Identifier("DataFrame".to_string())),
-            args: vec![
-                RuchyExpr::Call {
-                    func: Box::new(RuchyExpr::Identifier("from_iter".to_string())),
-                    args: vec![iter],
-                },
-            ],
+            args: vec![RuchyExpr::Call {
+                func: Box::new(RuchyExpr::Identifier("from_iter".to_string())),
+                args: vec![iter],
+            }],
         };
-        
+
         // Apply operations as pipeline
         let mut result = df_expr;
         for op in operations {
@@ -430,22 +422,22 @@ impl PatternTransformer {
                 args: op.args,
             };
         }
-        
+
         Ok(result)
     }
-    
+
     /// Extract DataFrame operations from expression
     #[allow(clippy::only_used_in_recursion)]
     fn extract_dataframe_ops(&self, expr: &RuchyExpr) -> Result<Vec<DataFrameOp>> {
         let mut ops = Vec::new();
-        
+
         match expr {
             RuchyExpr::Block(exprs) => {
                 for e in exprs {
                     ops.extend(self.extract_dataframe_ops(e)?);
                 }
             }
-            
+
             RuchyExpr::Call { func, args } => {
                 if let RuchyExpr::FieldAccess { field, .. } = &**func {
                     ops.push(DataFrameOp {
@@ -454,10 +446,10 @@ impl PatternTransformer {
                     });
                 }
             }
-            
+
             _ => {}
         }
-        
+
         Ok(ops)
     }
 }
@@ -478,11 +470,11 @@ impl Default for PatternTransformer {
 mod tests {
     use super::*;
     use crate::ast::BinaryOp;
-    
+
     #[test]
     fn test_pipeline_transformation() {
         let transformer = PatternTransformer::new();
-        
+
         // Simulated list comprehension structure
         let comp_expr = RuchyExpr::Call {
             func: Box::new(RuchyExpr::Identifier("list_comp".to_string())),
@@ -505,17 +497,17 @@ mod tests {
                 },
             ],
         };
-        
+
         let result = transformer.transform(comp_expr).unwrap();
-        
+
         // Should be transformed to pipeline
         assert!(matches!(result, RuchyExpr::Pipeline { .. }));
     }
-    
+
     #[test]
     fn test_string_interpolation_transformation() {
         let transformer = PatternTransformer::new();
-        
+
         // Simulated string.format() call
         let format_expr = RuchyExpr::Call {
             func: Box::new(RuchyExpr::FieldAccess {
@@ -526,9 +518,9 @@ mod tests {
             }),
             args: vec![RuchyExpr::Identifier("name".to_string())],
         };
-        
+
         let result = transformer.transform(format_expr).unwrap();
-        
+
         // Should be transformed to string interpolation
         assert!(matches!(result, RuchyExpr::StringInterpolation { .. }));
     }

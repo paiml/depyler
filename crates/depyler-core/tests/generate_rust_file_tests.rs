@@ -3,10 +3,10 @@
 // EXTREME TDD: These tests are written BEFORE refactoring to ensure
 // behavior preservation during Extract Method pattern application.
 
-use depyler_core::rust_gen::generate_rust_file;
-use depyler_core::hir::*;
-use depyler_core::type_mapper::TypeMapper;
 use depyler_annotations::TranspilationAnnotations;
+use depyler_core::hir::*;
+use depyler_core::rust_gen::generate_rust_file;
+use depyler_core::type_mapper::TypeMapper;
 use smallvec::SmallVec;
 
 /// Helper function to create a minimal valid HirFunction
@@ -104,7 +104,10 @@ mod simple_function_tests {
         let type_mapper = TypeMapper::new();
         let result = generate_rust_file(&module, &type_mapper);
 
-        assert!(result.is_ok(), "Simple function should transpile successfully");
+        assert!(
+            result.is_ok(),
+            "Simple function should transpile successfully"
+        );
 
         if let Ok(code) = result {
             assert!(syn::parse_file(&code).is_ok(), "Code must be valid Rust");
@@ -204,7 +207,11 @@ mod function_with_params_tests {
         let mut module = create_empty_module();
 
         let mut func = create_simple_function("add_one");
-        func.params = SmallVec::from_vec(vec![HirParam { name: Symbol::from("x"), ty: Type::Int, default: None }]);
+        func.params = SmallVec::from_vec(vec![HirParam {
+            name: Symbol::from("x"),
+            ty: Type::Int,
+            default: None,
+        }]);
         func.ret_type = Type::Int;
 
         module.functions = vec![func];
@@ -226,8 +233,16 @@ mod function_with_params_tests {
 
         let mut func = create_simple_function("add");
         func.params = SmallVec::from_vec(vec![
-            HirParam { name: Symbol::from("a"), ty: Type::Int, default: None },
-            HirParam { name: Symbol::from("b"), ty: Type::Int, default: None },
+            HirParam {
+                name: Symbol::from("a"),
+                ty: Type::Int,
+                default: None,
+            },
+            HirParam {
+                name: Symbol::from("b"),
+                ty: Type::Int,
+                default: None,
+            },
         ]);
         func.ret_type = Type::Int;
 
@@ -236,7 +251,10 @@ mod function_with_params_tests {
         let type_mapper = TypeMapper::new();
         let result = generate_rust_file(&module, &type_mapper);
 
-        assert!(result.is_ok(), "Function with multiple params should transpile");
+        assert!(
+            result.is_ok(),
+            "Function with multiple params should transpile"
+        );
 
         if let Ok(code) = result {
             assert!(code.contains("fn add"));
@@ -295,7 +313,11 @@ mod regression_tests {
             {
                 let mut m = create_empty_module();
                 let mut func = create_simple_function("f");
-                func.params = SmallVec::from_vec(vec![HirParam { name: Symbol::from("p"), ty: Type::Int, default: None }]);
+                func.params = SmallVec::from_vec(vec![HirParam {
+                    name: Symbol::from("p"),
+                    ty: Type::Int,
+                    default: None,
+                }]);
                 m.functions = vec![func];
                 m
             },

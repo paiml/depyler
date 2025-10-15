@@ -202,7 +202,10 @@ impl TypeHintProvider {
 
     /// Format type hints for display
     pub fn format_hints(&self, hints: &[TypeHint]) -> String {
-        hints.iter().map(|hint| self.format_single_hint(hint)).collect()
+        hints
+            .iter()
+            .map(|hint| self.format_single_hint(hint))
+            .collect()
     }
 
     fn format_single_hint(&self, hint: &TypeHint) -> String {
@@ -308,9 +311,11 @@ impl TypeHintProvider {
         match expr {
             HirExpr::Binary { left, right, op } => self.analyze_binary_op(left, right, *op),
             HirExpr::Call { func, args } => self.analyze_call(func, args),
-            HirExpr::MethodCall { object, method, args } => {
-                self.analyze_method_call(object, method, args)
-            }
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+            } => self.analyze_method_call(object, method, args),
             HirExpr::Index { base, index } => self.analyze_indexing(base, index),
             _ => Ok(()),
         }
@@ -742,7 +747,11 @@ impl TypeHintProvider {
         }
     }
 
-    fn build_variable_hint(&self, var_name: &str, type_score: HashMap<Type, u32>) -> Option<TypeHint> {
+    fn build_variable_hint(
+        &self,
+        var_name: &str,
+        type_score: HashMap<Type, u32>,
+    ) -> Option<TypeHint> {
         let (suggested_type, score) = type_score.into_iter().max_by_key(|(_, score)| *score)?;
 
         let confidence = self.variable_confidence(score);
@@ -825,7 +834,9 @@ impl TypeHintProvider {
 
 fn type_to_annotation_inner(ty: &Type) -> String {
     match ty {
-        Type::Int | Type::Float | Type::String | Type::Bool | Type::None => simple_type_annotation(ty),
+        Type::Int | Type::Float | Type::String | Type::Bool | Type::None => {
+            simple_type_annotation(ty)
+        }
         Type::List(elem) => format_list_annotation(elem),
         Type::Dict(k, v) => format_dict_annotation(k, v),
         Type::Optional(inner) => format_optional_annotation(inner),

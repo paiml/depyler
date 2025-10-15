@@ -74,7 +74,11 @@ impl StateAnalyzer {
 
     fn analyze_statement(&mut self, stmt: &HirStmt) {
         match stmt {
-            HirStmt::Assign { target, value, type_annotation } => {
+            HirStmt::Assign {
+                target,
+                value,
+                type_annotation,
+            } => {
                 self.analyze_assign(target, value, type_annotation);
             }
             HirStmt::For { iter, body, .. } => {
@@ -97,7 +101,12 @@ impl StateAnalyzer {
         }
     }
 
-    fn analyze_assign(&mut self, target: &crate::hir::AssignTarget, value: &HirExpr, type_annotation: &Option<Type>) {
+    fn analyze_assign(
+        &mut self,
+        target: &crate::hir::AssignTarget,
+        value: &HirExpr,
+        type_annotation: &Option<Type>,
+    ) {
         if let crate::hir::AssignTarget::Symbol(name) = target {
             let name_str = name.as_str();
             if !self.declared_vars.contains(name_str) {
@@ -124,7 +133,12 @@ impl StateAnalyzer {
         self.analyze_statements(body);
     }
 
-    fn analyze_if_stmt(&mut self, condition: &HirExpr, then_body: &[HirStmt], else_body: &Option<Vec<HirStmt>>) {
+    fn analyze_if_stmt(
+        &mut self,
+        condition: &HirExpr,
+        then_body: &[HirStmt],
+        else_body: &Option<Vec<HirStmt>>,
+    ) {
         self.analyze_expression(condition);
         self.analyze_statements(then_body);
         if let Some(else_stmts) = else_body {
@@ -179,7 +193,7 @@ impl StateAnalyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::{HirParam, FunctionProperties};
+    use crate::hir::{FunctionProperties, HirParam};
     use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
 

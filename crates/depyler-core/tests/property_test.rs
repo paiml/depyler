@@ -31,7 +31,11 @@ class Person:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -49,7 +53,11 @@ class Person:
 
     // Should have &self parameter (it's a getter)
     let has_self = rust_code.contains("&self") || rust_code.contains("& self");
-    assert!(has_self, "Property should have &self parameter.\nGot:\n{}", rust_code);
+    assert!(
+        has_self,
+        "Property should have &self parameter.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -67,7 +75,11 @@ class Rectangle:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -79,7 +91,11 @@ class Rectangle:
 
     // Should have computation (width * height)
     let has_computation = rust_code.contains("width") && rust_code.contains("height");
-    assert!(has_computation, "Should have computation.\nGot:\n{}", rust_code);
+    assert!(
+        has_computation,
+        "Should have computation.\nGot:\n{}",
+        rust_code
+    );
 
     // Should have &self
     let has_self = rust_code.contains("&self") || rust_code.contains("& self");
@@ -101,7 +117,11 @@ class Person:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -113,7 +133,11 @@ class Person:
 
     // Should access self.first and self.last
     let accesses_fields = rust_code.contains("first") && rust_code.contains("last");
-    assert!(accesses_fields, "Should access instance fields.\nGot:\n{}", rust_code);
+    assert!(
+        accesses_fields,
+        "Should access instance fields.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -132,7 +156,11 @@ class Circle:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -178,7 +206,11 @@ class Person:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -219,7 +251,11 @@ class Calculator:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -237,7 +273,11 @@ class Calculator:
 
     // Should call double method
     let calls_double = rust_code.contains("double");
-    assert!(calls_double, "Should call double method.\nGot:\n{}", rust_code);
+    assert!(
+        calls_double,
+        "Should call double method.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -254,7 +294,11 @@ class Counter:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -266,7 +310,11 @@ class Counter:
 
     // Should have bool return type
     let has_bool_return = rust_code.contains("-> bool") || rust_code.contains("bool");
-    assert!(has_bool_return, "Should have bool return type.\nGot:\n{}", rust_code);
+    assert!(
+        has_bool_return,
+        "Should have bool return type.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -293,7 +341,11 @@ class Account:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -346,7 +398,11 @@ class DataHolder:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -389,7 +445,11 @@ class User:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -401,7 +461,11 @@ class User:
 
     // Should have conditional logic
     let has_conditional = rust_code.contains("if") || rust_code.contains("match");
-    assert!(has_conditional, "Should have conditional logic.\nGot:\n{}", rust_code);
+    assert!(
+        has_conditional,
+        "Should have conditional logic.\nGot:\n{}",
+        rust_code
+    );
 
     // Should have &self
     let has_self = rust_code.contains("&self") || rust_code.contains("& self");
