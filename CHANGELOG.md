@@ -4,6 +4,66 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.19.9 Stdlib Methods & Semicolon Critical Fixes (2025-10-15)
+
+**🛑 STOP THE LINE** - Critical stdlib method bugs and code generation issues fixed
+
+This release fixes 5 critical bugs discovered during comprehensive stdlib verification (Sprint 3 - Phase 2).
+
+#### Bugs Fixed
+
+1. **DEPYLER-0209: Slice Expressions Not Tracked in Dead Code Elimination**
+   - **Problem**: Variables used in slice expressions like `numbers[start:end]` were incorrectly removed by optimizer
+   - **Root Cause**: `collect_used_vars_expr_inner()` didn't handle `HirExpr::Slice`
+   - **Fix**: Added slice expression tracking to collect base, start, stop, step variables
+   - **File**: `crates/depyler-core/src/optimizer.rs:778-797`
+
+2. **DEPYLER-0210: Dict.pop(key, default) Not Supported**
+   - **Problem**: `dict.pop("key", default_value)` with 2 arguments failed with "takes at most one argument"
+   - **Root Cause**: pop() handler only supported list signatures (0-1 args)
+   - **Fix**: Refactored to check argument count FIRST; 2 args → dict.pop() only
+   - **File**: `crates/depyler-core/src/rust_gen/expr_gen.rs:982-1021`
+
+3. **DEPYLER-0211: Set.update() Incorrectly Treated as Dict Method**
+   - **Problem**: `set.update(other)` generated dict iteration code `for(k,v) in other`
+   - **Root Cause**: Method dispatcher checked name before object type
+   - **Fix**: Added type-aware dispatch checking `is_set_expr()` BEFORE method name
+   - **File**: `crates/depyler-core/src/rust_gen/expr_gen.rs:1356-1400`
+
+4. **DEPYLER-0212: Set.intersection_update() Not Implemented**
+   - **Problem**: `set.intersection_update(other)` had no transpilation handler
+   - **Fix**: Implemented using clear() + extend() pattern with proper type annotations
+   - **File**: `crates/depyler-core/src/rust_gen/expr_gen.rs:1330-1344`
+
+5. **DEPYLER-0213: Set.difference_update() Not Implemented**
+   - **Problem**: `set.difference_update(other)` had no transpilation handler
+   - **Fix**: Implemented using clear() + extend() pattern with proper type annotations
+   - **File**: `crates/depyler-core/src/rust_gen/expr_gen.rs:1345-1359`
+
+6. **DEPYLER-0214: Missing Semicolons Before Closing Braces** ⭐ **CRITICAL**
+   - **Problem**: Last statements in functions were missing semicolons, causing compilation errors
+   - **Root Cause**: `format_rust_code()` had `.replace(";\n    }", "\n}")` stripping ALL semicolons before `}`
+   - **Fix**: Removed the problematic replace pattern - ALL Rust statements need semicolons
+   - **File**: `crates/depyler-core/src/rust_gen/format.rs:80`
+   - **Impact**: This bug affected EVERY function with a final assignment statement
+
+#### Test Results
+
+- ✅ All 443/443 depyler-core tests passing
+- ✅ Zero regressions
+- ✅ Generated code compiles without semicolon errors
+- ✅ Set methods generate valid Rust syntax
+- ✅ Dict.pop() with defaults works correctly
+
+#### Methodology
+
+- **Extreme TDD**: Created comprehensive test files before implementing fixes
+- **Toyota Way Jidoka**: Stopped immediately when bugs found, fixed before continuing
+- **Scientific Method**: Root cause analysis with evidence (hex dumps, code tracing)
+- **Zero Tolerance**: Fixed ALL issues found, no deferred work
+
+---
+
 ### v3.19.8 List Methods Critical Fixes (2025-10-15)
 
 **🛑 STOP THE LINE** - Critical list handling bugs discovered and fixed

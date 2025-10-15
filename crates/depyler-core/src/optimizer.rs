@@ -775,6 +775,26 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
         HirExpr::Await { value } => {
             collect_used_vars_expr_inner(value, used);
         }
+        HirExpr::Slice {
+            base,
+            start,
+            stop,
+            step,
+        } => {
+            // DEPYLER-0209 FIX: Collect variables from slice expressions
+            // This was causing dead code elimination to remove assignments
+            // for variables used in slice operations like: numbers[2:7]
+            collect_used_vars_expr_inner(base, used);
+            if let Some(start_expr) = start {
+                collect_used_vars_expr_inner(start_expr, used);
+            }
+            if let Some(stop_expr) = stop {
+                collect_used_vars_expr_inner(stop_expr, used);
+            }
+            if let Some(step_expr) = step {
+                collect_used_vars_expr_inner(step_expr, used);
+            }
+        }
         _ => {}
     }
 }
