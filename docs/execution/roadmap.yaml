@@ -2979,14 +2979,16 @@ DEPYLER-0220:
 
 DEPYLER-0221:
   title: "Fix list.pop(index) Generates Incorrect Reference (&index)"
-  status: in_progress
-  phase: GREEN  # RED ✅ → GREEN ✅ → REFACTOR → DONE
+  status: done
+  phase: DONE  # RED ✅ → GREEN ✅ → REFACTOR ✅ → DONE ✅
   priority: critical
   type: bug
   category: code_generation_correctness
   discovered_by: "stdlib comprehensive test (EXTREME TDD)"
   discovery_date: "2025-10-15"
   green_phase_completed: "2025-10-15"
+  refactor_phase_completed: "2025-10-15"
+  completion_date: "2025-10-15"
 
   description: |
     list.pop(index) generates incorrect Rust code that passes &index instead of index.
