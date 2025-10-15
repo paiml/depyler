@@ -152,6 +152,28 @@ def test_dict_update() -> int:
     return len(data)  # Expected: 2
 
 
+def test_dict_setdefault() -> int:
+    """Test dict.setdefault() method - existing key"""
+    data = {"a": 1, "b": 2}
+    value = data.setdefault("a", 999)
+    return value  # Expected: 1 (existing value, not default)
+
+
+def test_dict_setdefault_new() -> int:
+    """Test dict.setdefault() method - new key"""
+    data = {"a": 1}
+    value = data.setdefault("b", 42)
+    return value  # Expected: 42 (inserted default)
+
+
+def test_dict_popitem() -> int:
+    """Test dict.popitem() method"""
+    data = {"a": 1, "b": 2, "c": 3}
+    # Note: popitem removes arbitrary item, so we just check length reduction
+    data.popitem()
+    return len(data)  # Expected: 2
+
+
 # ============================================================================
 # SET METHODS TESTS
 # ============================================================================

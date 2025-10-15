@@ -262,6 +262,54 @@ pub fn test_dict_update() -> i32 {
     let _cse_temp_0 = data.len() as i32;
     return _cse_temp_0;
 }
+#[doc = "Test dict.setdefault() method - existing key"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_dict_setdefault() -> i32 {
+    let mut data = {
+        let mut map = HashMap::new();
+        map.insert(STR_A, 1);
+        map.insert(STR_B, 2);
+        map
+    };
+    let value = data.entry(STR_A).or_insert(999).clone();
+    return value;
+}
+#[doc = "Test dict.setdefault() method - new key"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_dict_setdefault_new() -> i32 {
+    let mut data = {
+        let mut map = HashMap::new();
+        map.insert(STR_A, 1);
+        map
+    };
+    let value = data.entry(STR_B).or_insert(42).clone();
+    return value;
+}
+#[doc = "Test dict.popitem() method"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_dict_popitem() -> i32 {
+    let mut data = {
+        let mut map = HashMap::new();
+        map.insert(STR_A, 1);
+        map.insert(STR_B, 2);
+        map.insert("c", 3);
+        map
+    };
+    {
+        let key = data
+            .keys()
+            .next()
+            .cloned()
+            .expect("KeyError: popitem(): dictionary is empty");
+        let value = data.remove(&key).expect("KeyError: key disappeared");
+        (key, value)
+    };
+    let _cse_temp_0 = data.len() as i32;
+    return _cse_temp_0;
+}
 #[doc = "Test set.add() method"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
@@ -602,6 +650,33 @@ mod tests {
     #[test]
     fn test_test_dict_update_examples() {
         let _ = test_dict_update();
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_test_dict_setdefault_examples() {
+        let _ = test_dict_setdefault();
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_test_dict_setdefault_new_examples() {
+        let _ = test_dict_setdefault_new();
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_test_dict_popitem_examples() {
+        let _ = test_dict_popitem();
     }
 }
 #[cfg(test)]
