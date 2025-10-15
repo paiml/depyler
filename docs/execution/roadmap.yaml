@@ -2976,3 +2976,151 @@ DEPYLER-0220:
     pass_rate: "9/10 gates (90%)"
     failed_gate: "rustfmt_check"
     total_examples_affected: "ALL (estimated 60+ .rs files)"
+
+DEPYLER-0221:
+  title: "Fix list.pop(index) Generates Incorrect Reference (&index)"
+  status: in_progress
+  phase: GREEN  # RED ✅ → GREEN ✅ → REFACTOR → DONE
+  priority: critical
+  type: bug
+  category: code_generation_correctness
+  discovered_by: "stdlib comprehensive test (EXTREME TDD)"
+  discovery_date: "2025-10-15"
+  green_phase_completed: "2025-10-15"
+
+  description: |
+    list.pop(index) generates incorrect Rust code that passes &index instead of index.
+    Generated: numbers.remove(&1).expect("KeyError: key not found")
+    Correct:   numbers.remove(1)
+
+    This is a type error - Vec::remove() expects usize by value, not &usize.
+    Additionally, the error message is incorrect (KeyError is for dicts, not lists).
+
+    Root cause: expr_gen.rs:1065-1071 assumes pop(arg) with 1 argument is always a dict,
+    but it could be list.pop(index). The code uses &#arg for both cases.
+
+  impact:
+    severity: CRITICAL
+    scope: "All code using list.pop(index)"
+    compilation: "Fails with type mismatch error"
+    blocks_production: true
+    affects_stdlib_support: true
+    user_visible: true
+
+  root_cause:
+    file: "crates/depyler-core/src/rust_gen/expr_gen.rs"
+    lines: "1065-1071"
+    function: "convert_list_method"
+    issue: |
+      Current code:
+      ```rust
+      } else {
+          // 1 argument: could be list.pop(index) OR dict.pop(key)
+          // Heuristic: assume dict for variables (most common case in typed code)
+          // For list.pop(index), users should use Vec methods directly in Rust
+          let arg = &arg_exprs[0];
+          Ok(parse_quote! { #object_expr.remove(&#arg).expect("KeyError: key not found") })
+      }
+      ```
+
+      Problem: Uses &#arg (reference) for both dict.pop(key) and list.pop(index),
+      but Vec::remove() requires usize by value, not reference.
+
+  solution: |
+    Add is_list_expr() helper to disambiguate list vs dict:
+    - If object is a list literal or list variable → use remove(#arg as usize)
+    - If object is a dict literal or dict variable → use remove(&#arg)
+    - Error message should match the collection type
+
+  acceptance_criteria:
+    - "list.pop(index) generates numbers.remove(index as usize)"
+    - "dict.pop(key) generates dict.remove(&key).expect(...)"
+    - "Error messages are collection-type specific"
+    - "All 731+ existing tests still pass"
+    - "test_list_pop_index() compiles and runs correctly"
+    - "No regressions in other method call generation"
+
+  test_strategy: |
+    RED Phase:
+    - Run comprehensive stdlib test: cargo test --example stdlib_comprehensive_test
+    - MUST FAIL with type mismatch error on line 82
+    - Error: expected `usize`, found `&{integer}`
+
+    GREEN Phase:
+    - Add is_list_expr() helper to expr_gen.rs
+    - Update pop() method generation logic to distinguish list vs dict
+    - Use remove(#arg as usize) for lists
+    - Use remove(&#arg).expect(...) for dicts
+    - Test MUST PASS
+
+    REFACTOR Phase:
+    - Run all workspace tests (100% must pass)
+    - Verify other pop() uses still work (set.pop(), dict.pop(), list.pop())
+    - Coverage ≥80% maintained
+    - Complexity ≤10 maintained
+
+  files_to_modify:
+    - "crates/depyler-core/src/rust_gen/expr_gen.rs:1065-1071 (fix pop logic)"
+    - "crates/depyler-core/src/rust_gen/expr_gen.rs:2157+ (add is_list_expr helper)"
+
+  validation_steps:
+    RED:
+      - "cargo test --example stdlib_comprehensive_test (MUST FAIL)"
+      - "Verify error: expected `usize`, found `&{integer}`"
+      - "git commit -m '[RED] DEPYLER-0221: Failing test for list.pop(index)'"
+      - "Update roadmap.yaml: phase: RED"
+
+    GREEN:
+      - "Add is_list_expr() helper after is_dict_expr()"
+      - "Update pop() logic to check is_list_expr(object)"
+      - "cargo test --example stdlib_comprehensive_test (MUST PASS)"
+      - "git commit -m '[GREEN] DEPYLER-0221: Fix list.pop(index) reference bug'"
+      - "Update roadmap.yaml: phase: GREEN"
+
+    REFACTOR:
+      - "cargo test --workspace (all tests must pass)"
+      - "cargo clippy --all-targets -- -D warnings (zero warnings)"
+      - "pmat tdg crates/depyler-core/src/rust_gen/expr_gen.rs --min-grade B+"
+      - "git commit -m '[REFACTOR] DEPYLER-0221: Quality gates passed'"
+      - "Update roadmap.yaml: phase: DONE, status: done"
+
+  estimated_effort: "2-3 hours"
+  complexity: LOW
+  dependencies: ["DEPYLER-0220 (completed)"]
+  blocks: ["Stdlib verification", "List method support"]
+
+  notes:
+    - "Discovered during systematic stdlib verification (EXTREME TDD)"
+    - "First bug caught by comprehensive test suite"
+    - "Similar to DEPYLER-0203 which fixed pop(index) support initially"
+    - "DEPYLER-0203 added pop(index) but used wrong reference semantics"
+    - "Fix transpiler logic, not workaround in tests"
+
+  related_tickets:
+    - "DEPYLER-0203: Added pop(index) support (introduced this bug)"
+    - "DEPYLER-0220: Formatting fixes (same code quality category)"
+    - "DEPYLER-0210: pop() disambiguation (related fix)"
+
+  evidence:
+    error_output: |
+      error[E0308]: mismatched types
+        --> examples/stdlib_comprehensive_test.rs:82:33
+         |
+      82 |     let middle = numbers.remove(&1).expect("KeyError: key not found");
+         |                          ------ ^^ expected `usize`, found `&{integer}`
+         |                          |
+         |                          arguments to this method are incorrect
+
+    generated_code: |
+      pub fn test_list_pop_index() -> i32 {
+          let mut numbers = vec![1, 2, 3];
+          let middle = numbers.remove(&1).expect("KeyError: key not found");
+          return middle;
+      }
+
+    expected_code: |
+      pub fn test_list_pop_index() -> i32 {
+          let mut numbers = vec![1, 2, 3];
+          let middle = numbers.remove(1);
+          return middle;
+      }
