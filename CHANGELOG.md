@@ -4,6 +4,62 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.19.10 Set Operations Implementation (2025-10-15)
+
+**✅ STDLIB COMPLETION** - Implemented missing set operation methods
+
+This release completes set operation support discovered during stdlib verification.
+
+#### Features Added
+
+**Set Operation Methods (Non-Mutating)**
+- `set.union(other)` → Returns new set with elements from both sets
+- `set.intersection(other)` → Returns new set with common elements
+- `set.difference(other)` → Returns new set with elements not in other
+- `set.symmetric_difference(other)` → Returns new set with elements in either but not both
+
+**Set Membership Test Methods**
+- `set.issubset(other)` → Check if all elements are in other
+- `set.issuperset(other)` → Check if contains all elements of other
+- `set.isdisjoint(other)` → Check if no common elements
+
+#### Implementation Details
+
+**Generated Code Pattern**:
+```rust
+// Python: union = s1.union(s2)
+// Rust:
+let union = s1.union(&s2).cloned().collect::<std::collections::HashSet<_>>();
+```
+
+All non-mutating set operations now properly:
+- Return collected `HashSet<_>` (not iterators)
+- Use `.cloned()` to clone elements
+- Use explicit type annotation for correct inference
+
+**Files Modified**:
+- `crates/depyler-core/src/rust_gen/expr_gen.rs`
+  - Added 7 new method handlers to `convert_set_method()` (lines 1360-1429)
+  - Updated type-aware dispatcher (line 1474-1476)
+  - Updated fallback dispatcher (line 1514-1516)
+
+#### Test Results
+
+✅ All 443 depyler-core tests passing
+✅ Set operations transpile and compile correctly
+✅ Zero clippy warnings
+✅ No regressions
+
+#### Verification
+
+Created comprehensive test: `/tmp/test_set_operations.py`
+- Tests all 7 new methods
+- Transpiles without errors
+- Compiles with `rustc` successfully
+- Generated code is idiomatic Rust
+
+---
+
 ### v3.19.9 Stdlib Methods & Semicolon Critical Fixes (2025-10-15)
 
 **🛑 STOP THE LINE** - Critical stdlib method bugs and code generation issues fixed
