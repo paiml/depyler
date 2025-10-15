@@ -120,9 +120,9 @@ let starts = text.starts_with("Hello");  // ✅ &str implements Pattern
 
 #### Known Limitations Discovered
 
-**DEPYLER-0216: CSE Removes int(bool_var) Casts** (Not Fixed - Optimizer Issue)
+**DEPYLER-0216: CSE Removes int(bool_var) Casts** (✅ FIXED in v3.19.12)
 - `int(flag) + int(other)` → `flag + other` (missing cast)
-- Requires optimizer fix in CSE pass
+- Fixed by ensuring convert_int_cast() always generates explicit casts
 
 **DEPYLER-0217: ValueError Generated for Pure Functions** (Not Fixed - Analysis Issue)
 - Pure functions incorrectly get `Result<i32, ValueError>` return type
