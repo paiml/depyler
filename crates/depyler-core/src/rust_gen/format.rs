@@ -43,8 +43,12 @@ fn run_rustfmt(code: &str) -> Result<String, std::io::Error> {
         .stderr(Stdio::piped())
         .spawn()?;
 
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(code.as_bytes())?;
+    // Write to stdin in a scope to ensure it's dropped/closed before wait
+    {
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin.write_all(code.as_bytes())?;
+            // stdin is automatically dropped here when it goes out of scope
+        }
     }
 
     let output = child.wait_with_output()?;

@@ -2833,14 +2833,16 @@ v3_19_6_stdlib_verification:
 
 DEPYLER-0220:
   title: "Fix Rust Code Generation Formatting Issues"
-  status: in_progress
-  phase: GREEN  # RED ✅ → GREEN ✅ → REFACTOR (in progress) → DONE
+  status: done
+  phase: DONE  # RED ✅ → GREEN ✅ → REFACTOR ✅ → DONE ✅
   priority: critical
   type: bug
   category: code_generation_quality
   discovered_by: "15-tool validation protocol (EXTREME CLI VALIDATION)"
   discovery_date: "2025-10-15"
   green_phase_completed: "2025-10-15"
+  refactor_phase_completed: "2025-10-15"
+  completion_date: "2025-10-15"
 
   description: |
     Generated Rust code fails rustfmt --check due to multiple formatting issues.
