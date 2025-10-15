@@ -3126,3 +3126,130 @@ DEPYLER-0221:
           let middle = numbers.remove(1);
           return middle;
       }
+
+DEPYLER-0222:
+  title: "Fix dict.get() without default returns Option instead of value"
+  status: todo
+  phase: PLANNING
+  priority: critical
+  type: bug
+  category: code_generation_correctness
+  discovered_by: "stdlib comprehensive test (EXTREME TDD continuation)"
+  discovery_date: "2025-10-15"
+
+  description: |
+    dict.get(key) without default returns Option<T> instead of T, causing type mismatch.
+    Python's dict.get() without default returns the value or None.
+    Rust should unwrap or provide default value.
+
+    Generated: data.get(&key).cloned() → Option<T>
+    Expected: data.get(&key).cloned().unwrap_or_default() → T
+
+  impact:
+    severity: CRITICAL
+    scope: "All code using dict.get() without default parameter"
+    compilation: "Fails with type mismatch error"
+    blocks_production: true
+    affects_stdlib_support: true
+    user_visible: true
+
+  root_cause:
+    file: "crates/depyler-core/src/rust_gen/expr_gen.rs"
+    function: "convert_dict_method (get case)"
+    issue: "dict.get() always returns Option, doesn't unwrap when no default provided"
+
+  solution: |
+    Distinguish between:
+    - dict.get(key) → unwrap_or_default()
+    - dict.get(key, default) → unwrap_or(default)
+
+    Check number of arguments to determine behavior.
+
+  estimated_effort: "1-2 hours"
+  complexity: LOW
+  dependencies: ["DEPYLER-0221 (completed)"]
+  blocks: ["Stdlib verification", "Dict method support"]
+
+DEPYLER-0223:
+  title: "Fix dict.update() iteration doesn't destructure tuples"
+  status: todo
+  phase: PLANNING
+  priority: critical
+  type: bug
+  category: code_generation_correctness
+  discovered_by: "stdlib comprehensive test (EXTREME TDD continuation)"
+  discovery_date: "2025-10-15"
+
+  description: |
+    dict.update() iterates over dict but doesn't destructure tuple items.
+    Generated: for item in dict { data.insert(item); }
+    Expected: for (k, v) in dict { data.insert(k, v); }
+
+    Error: insert() expects 2 args (key, value), got 1 (tuple)
+
+  impact:
+    severity: CRITICAL
+    scope: "All code using dict.update()"
+    compilation: "Fails with method signature mismatch"
+    blocks_production: true
+    affects_stdlib_support: true
+    user_visible: true
+
+  root_cause:
+    file: "crates/depyler-core/src/rust_gen/expr_gen.rs"
+    function: "convert_dict_method (update case)"
+    issue: "Iterates dict without destructuring (k, v) pairs"
+
+  solution: |
+    Update dict.update() to generate:
+    for (k, v) in other {
+        data.insert(k, v);
+    }
+
+  estimated_effort: "1-2 hours"
+  complexity: LOW
+  dependencies: ["DEPYLER-0221 (completed)"]
+  blocks: ["Stdlib verification", "Dict method support"]
+
+DEPYLER-0224:
+  title: "Fix set.remove() uses list logic instead of HashSet logic"
+  status: todo
+  phase: PLANNING
+  priority: critical
+  type: bug
+  category: code_generation_correctness
+  discovered_by: "stdlib comprehensive test (EXTREME TDD continuation)"
+  discovery_date: "2025-10-15"
+
+  description: |
+    set.remove() transpiles to list.remove() logic (iter().position())
+    instead of HashSet::remove().
+
+    Generated: if let Some(pos) = numbers.iter().position(...) { numbers.remove(pos) }
+    Expected: if !numbers.remove(&value) { panic!(...) }
+
+    Error: HashSet::remove expects &T, got usize
+
+  impact:
+    severity: CRITICAL
+    scope: "All code using set.remove()"
+    compilation: "Fails with type mismatch error"
+    blocks_production: true
+    affects_stdlib_support: true
+    user_visible: true
+
+  root_cause:
+    file: "crates/depyler-core/src/rust_gen/expr_gen.rs"
+    function: "convert_list_method or method dispatch"
+    issue: "set.remove() incorrectly routed to list.remove() logic"
+
+  solution: |
+    Ensure set.remove() uses HashSet logic:
+    - Check is_set_expr() first
+    - Generate: if !set.remove(&value) { panic!("KeyError") }
+    - Use set-specific error message
+
+  estimated_effort: "1-2 hours"
+  complexity: LOW
+  dependencies: ["DEPYLER-0221 (completed)"]
+  blocks: ["Stdlib verification", "Set method support"]
