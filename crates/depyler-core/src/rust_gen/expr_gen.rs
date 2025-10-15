@@ -1231,6 +1231,36 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                 })
             }
+            "setdefault" => {
+                // dict.setdefault(key, default) - get or insert with default
+                // Python: dict.setdefault(key, default) returns value at key, or inserts default and returns it
+                // Rust: entry().or_insert(default).clone()
+                if arg_exprs.len() != 2 {
+                    bail!("setdefault() requires exactly 2 arguments (key, default)");
+                }
+                let key = &arg_exprs[0];
+                let default = &arg_exprs[1];
+                Ok(parse_quote! {
+                    #object_expr.entry(#key).or_insert(#default).clone()
+                })
+            }
+            "popitem" => {
+                // dict.popitem() - remove and return arbitrary (key, value) pair
+                // Python: dict.popitem() removes and returns arbitrary item, or raises KeyError
+                // Rust: iter().next() to get first item, then remove it
+                if !arg_exprs.is_empty() {
+                    bail!("popitem() takes no arguments");
+                }
+                Ok(parse_quote! {
+                    {
+                        let key = #object_expr.keys().next().cloned()
+                            .expect("KeyError: popitem(): dictionary is empty");
+                        let value = #object_expr.remove(&key)
+                            .expect("KeyError: key disappeared");
+                        (key, value)
+                    }
+                })
+            }
             _ => bail!("Unknown dict method: {}", method),
         }
     }
@@ -1646,7 +1676,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // Dict methods (for variables without type info)
-            "get" | "keys" | "values" | "items" => {
+            "get" | "keys" | "values" | "items" | "setdefault" | "popitem" => {
                 self.convert_dict_method(object_expr, method, arg_exprs)
             }
 
