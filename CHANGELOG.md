@@ -4,6 +4,56 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### v3.19.11 String Method Pattern Fix (2025-10-15)
+
+**🔧 BUGFIX** - Fixed Rust Pattern trait errors in string methods
+
+This release fixes critical string method bugs discovered during stdlib verification that caused compilation errors due to incorrect type generation.
+
+#### Bugs Fixed
+
+**DEPYLER-0215: String Methods Generate String Instead of &str for Pattern Trait**
+- **Problem**: `text.starts_with("Hello".to_string())` generated `String` argument, but Rust's Pattern trait requires `&str`
+- **Affected Methods**: `startswith()`, `endswith()`, `find()`
+- **Root Cause**: Methods used `arg_exprs` directly instead of extracting bare string literals from HIR
+- **Fix**: Extract bare string literals from `HirExpr::Literal(Literal::String(s))` like `replace()` does
+- **Files Modified**: `crates/depyler-core/src/rust_gen/expr_gen.rs` (lines 1195-1274)
+
+**Before (BROKEN)**:
+```rust
+let starts = text.starts_with("Hello".to_string());  // ERROR: String doesn't implement Pattern
+```
+
+**After (FIXED)**:
+```rust
+let starts = text.starts_with("Hello");  // ✅ &str implements Pattern
+```
+
+#### Additional Improvements
+
+- Added `is_bool_expr()` helper function to detect boolean expressions
+- Updated `convert_int_cast()` to handle `int(bool)` conversions (for bool literals only)
+- Improved clippy compliance with collapsed match patterns
+
+#### Test Results
+
+✅ All 443 depyler-core tests passing
+✅ Zero clippy warnings
+✅ String methods compile without Pattern trait errors
+✅ No regressions
+
+#### Known Limitations Discovered
+
+**DEPYLER-0216: CSE Removes int(bool_var) Casts** (Not Fixed - Optimizer Issue)
+- `int(flag) + int(other)` → `flag + other` (missing cast)
+- Requires optimizer fix in CSE pass
+
+**DEPYLER-0217: ValueError Generated for Pure Functions** (Not Fixed - Analysis Issue)
+- Pure functions incorrectly get `Result<i32, ValueError>` return type
+- Requires fix in function properties analysis
+
+---
+
 ### v3.19.10 Set Operations Implementation (2025-10-15)
 
 **✅ STDLIB COMPLETION** - Implemented missing set operation methods
