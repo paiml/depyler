@@ -991,9 +991,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }).expect("pop from empty set")
                     })
                 } else if arg_exprs.is_empty() {
+                    // pop() with no arguments - remove and return last element
                     Ok(parse_quote! { #object_expr.pop().unwrap_or_default() })
+                } else if arg_exprs.len() == 1 {
+                    // pop(index) - remove and return element at index
+                    let index = &arg_exprs[0];
+                    Ok(parse_quote! { #object_expr.remove(#index as usize) })
                 } else {
-                    bail!("pop() with index not supported in V1");
+                    bail!("pop() takes at most one argument");
                 }
             }
             "insert" => {
