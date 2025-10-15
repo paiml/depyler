@@ -13,6 +13,33 @@ Depyler is a Python-to-Rust transpiler focusing on energy-efficient, safe code
 generation with progressive verification. The system must produce idiomatic Rust
 code with formal correctness guarantees for a practical Python subset.
 
+## Transpilation Workflows
+
+Depyler supports bidirectional Python-Rust workflows inspired by bashrs "purify" methodology:
+
+### PRIMARY WORKFLOW: Python → Safe Rust
+
+Write actual Python code, test with standard Python tooling, then transpile to verified, panic-free Rust.
+
+**Why this is powerful**:
+- Write REAL Python code (with type annotations)
+- Use standard Python tooling: pytest, mypy, black
+- Test with `uv run pytest` BEFORE transpiling
+- Get verified, panic-free Rust output
+- Guaranteed safe against runtime panics
+- Idiomatic Rust (passes clippy with `-D warnings`)
+
+### SECONDARY WORKFLOW (Future): Python → Rust → Purified Python
+
+Ingest legacy Python scripts, convert to Rust with tests, then transpile back to purified Python.
+
+**Purification pipeline** (planned):
+1. Parse legacy Python (with dynamic typing, mutable globals, side effects)
+2. Convert to Rust + generate comprehensive tests
+3. Transpile back to purified Python (typed, functional, deterministic)
+
+This "cleans up" existing Python scripts by running them through the Depyler safety pipeline.
+
 ## Python Packaging Protocol
 
 **MANDATORY: Use `uv` for ALL Python operations**
@@ -108,6 +135,162 @@ fn process_single_node(item: AstNode) -> Result<HirNode> {
 - **Property Tests**: Automated generation of valid/invalid programs (80% target)
 - **Fuzz Tests**: Random input stress testing (AFL, cargo-fuzz)
 - **Examples Tests**: All examples/ must transpile and compile
+
+## EXTREME CLI VALIDATION (From ruchy)
+
+**CRITICAL**: Every transpiled Rust file MUST work with native Rust tooling. NO EXCEPTIONS.
+
+### 15-Tool Validation Protocol (MANDATORY for ALL Examples)
+
+Every transpiled .rs file MUST pass validation with these native tools:
+
+```bash
+# GATE 1: Compilation
+rustc --crate-type lib example.rs --deny warnings
+
+# GATE 2: Clippy (strict mode)
+rustc --crate-type lib example.rs -Z extra-lints -- -D warnings
+
+# GATE 3: Format check
+rustfmt --check example.rs
+
+# GATE 4: Basic compilation
+rustc example.rs --crate-type lib
+
+# GATE 5: LLVM IR generation
+rustc example.rs --emit=llvm-ir -o /dev/null
+
+# GATE 6: Assembly generation
+rustc example.rs --emit=asm -o /dev/null
+
+# GATE 7: MIR generation
+rustc example.rs --emit=mir -o /dev/null
+
+# GATE 8: Syntax check
+rustc example.rs --parse-only
+
+# GATE 9: Type check
+rustc example.rs --crate-type lib 2>&1 | grep -v "warning"
+
+# GATE 10: Dependency analysis
+cargo tree (if part of workspace)
+
+# GATE 11: Documentation build
+rustdoc example.rs --crate-type lib -o /tmp/docs
+
+# GATE 12: Macro expansion check
+rustc example.rs -Z unpretty=expanded > /dev/null
+
+# GATE 13: HIR dump (verify HIR generation)
+rustc example.rs -Z unpretty=hir > /dev/null
+
+# GATE 14: Dead code analysis
+rustc example.rs --crate-type lib -W dead-code
+
+# GATE 15: Complexity analysis
+pmat analyze complexity example.rs --max-cyclomatic 10
+```
+
+### STOP THE LINE Protocol (Zero Bypass Tolerance)
+
+**SACRED RULE**: NEVER bypass validation gates. EVER.
+
+**ABSOLUTELY FORBIDDEN**:
+- Skipping tools "because they don't apply" - FIX the transpiler instead
+- Marking gates as "optional" - ALL gates are MANDATORY
+- Working around tool failures - Fix root cause
+- Deferring fixes to "later" - Fix IMMEDIATELY
+
+**When ANY gate fails**:
+1. 🛑 **HALT ALL WORK** - Stop transpiling new examples
+2. 📋 **CREATE TICKET** - Document failure in roadmap (DEPYLER-XXXX)
+3. 🔍 **ROOT CAUSE ANALYSIS** - Identify transpiler bug
+4. 🧪 **WRITE FAILING TEST** - Reproduce issue with unit test
+5. 🔧 **FIX TRANSPILER** - Implement fix with EXTREME TDD
+6. ✅ **RE-VALIDATE ALL** - Re-transpile and re-test ALL examples
+7. ▶️ **RESUME WORK** - Continue only when ALL gates pass
+
+### Validation Script (examples/validate_all.sh)
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+FAILED=0
+TOTAL=0
+
+for example in examples/**/*.rs; do
+    TOTAL=$((TOTAL + 1))
+    echo "Validating $example..."
+
+    # Run all 15 gates
+    if ! rustc --crate-type lib "$example" --deny warnings 2>&1; then
+        echo "❌ FAILED: $example (rustc --deny warnings)"
+        FAILED=$((FAILED + 1))
+        continue
+    fi
+
+    if ! rustfmt --check "$example" 2>&1; then
+        echo "❌ FAILED: $example (rustfmt)"
+        FAILED=$((FAILED + 1))
+        continue
+    fi
+
+    if ! pmat analyze complexity "$example" --max-cyclomatic 10 2>&1; then
+        echo "❌ FAILED: $example (complexity)"
+        FAILED=$((FAILED + 1))
+        continue
+    fi
+
+    echo "✅ PASSED: $example"
+done
+
+echo ""
+echo "Validation Summary:"
+echo "  Total: $TOTAL"
+echo "  Passed: $((TOTAL - FAILED))"
+echo "  Failed: $FAILED"
+
+if [ $FAILED -gt 0 ]; then
+    echo ""
+    echo "🛑 STOP THE LINE: $FAILED examples failed validation"
+    echo "Fix transpiler before continuing!"
+    exit 1
+fi
+
+echo "✅ All examples passed 15-tool validation!"
+```
+
+### Missing Feature Protocol (From ruchy)
+
+**CRITICAL**: When transpiler lacks a feature needed for validation, FIX IT IMMEDIATELY.
+
+**WRONG Approach** ❌:
+- Skip examples that need the feature
+- Work around with manual edits
+- Mark as "TODO" and continue
+
+**RIGHT Approach** ✅:
+1. Create DEPYLER-XXXX ticket for missing feature
+2. Mark ticket as P0 (blocks validation)
+3. Implement feature with EXTREME TDD
+4. Add property tests (10K+ iterations)
+5. Verify with mutation testing
+6. ONLY THEN resume validation
+
+**Example**: If transpiler doesn't generate proper `#[derive(Debug)]` annotations:
+```bash
+# WRONG: Skip validation for affected files ❌
+echo "Skipping examples/foo.rs - needs Debug derive"
+
+# RIGHT: Fix transpiler immediately ✅
+1. Create DEPYLER-0218: Generate #[derive(Debug)] for structs
+2. Write failing test: test_derive_debug_generation()
+3. Implement code generation logic
+4. Verify all 731 tests pass
+5. Re-transpile ALL examples
+6. Resume validation
+```
 
 ## Scientific Method Protocol
 
@@ -511,15 +694,249 @@ Week 4: Zero warnings → Transpiler generates perfect code! 🎉
 
 ## Testing Strategy
 
+### Multi-Level Testing (From decy/ruchy)
+
+Every module MUST have 4 types of tests:
+
+#### 1. Unit Tests (≥5 per module)
 ```bash
-# Verify core transpilation pipeline
+# Location: #[cfg(test)] mod tests or separate *_tests.rs
 cargo test -p depyler-core
 
-# Run property-based tests on generated code
-cargo test -p depyler-verify
+# Target: 85% coverage minimum
+```
 
-# Test MCP fallback integration
-cargo test -p depyler-mcp
+**Requirements**:
+- Test each function independently
+- Mock external dependencies
+- Cover happy path + error cases
+- ≥5 unit tests per module
+
+#### 2. Property Tests (≥3 per module)
+```bash
+# Location: tests/*_property_tests.rs
+cargo test --features proptest-tests
+
+# Target: 100 properties × 1000 cases = 100K+ total tests
+```
+
+**Example Property Test**:
+```rust
+use proptest::prelude::*;
+
+proptest! {
+    #[test]
+    fn test_transpile_determinism(
+        python_code in "[a-zA-Z0-9_\\s]+",
+        seed in 0u64..1000
+    ) {
+        // Property: Same input always produces same output
+        let output1 = transpile(&python_code, seed);
+        let output2 = transpile(&python_code, seed);
+        prop_assert_eq!(output1, output2);
+    }
+
+    #[test]
+    fn test_panic_free_generation(
+        valid_python in python_ast_strategy()
+    ) {
+        // Property: Transpiler never panics on valid Python
+        let result = std::panic::catch_unwind(|| {
+            transpile_ast(&valid_python)
+        });
+        prop_assert!(result.is_ok());
+    }
+}
+```
+
+**Property Test Requirements**:
+- ≥3 properties per module
+- 1000 iterations per property minimum
+- Cover invariants: determinism, panic-free, idempotency
+- Use `proptest` crate with custom strategies
+
+#### 3. Doctests (≥2 per public function)
+```bash
+# Run doctests
+cargo test --doc
+
+# Target: 100% of public functions have working examples
+```
+
+**Example Doctest**:
+```rust
+/// Transpiles Python code to Rust
+///
+/// # Examples
+///
+/// ```
+/// use depyler::transpile;
+///
+/// let python = "def add(a: int, b: int) -> int: return a + b";
+/// let rust = transpile(python)?;
+/// assert!(rust.contains("pub fn add"));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub fn transpile(code: &str) -> Result<String> {
+    // Implementation
+}
+```
+
+#### 4. Integration Tests (End-to-End)
+```bash
+# Location: tests/*.rs (not in #[cfg(test)])
+cargo test --test '*'
+
+# Target: Full transpile → compile → execute pipeline
+```
+
+**Example Integration Test**:
+```rust
+#[test]
+fn test_DEPYLER_XXXX_full_pipeline() {
+    // ARRANGE: Create Python test file
+    let python_code = r#"
+def binary_search(arr: list[int], target: int) -> int:
+    left, right = 0, len(arr) - 1
+    while left <= right:
+        mid = (left + right) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            left = mid + 1
+        else:
+            right = mid - 1
+    return -1
+"#;
+
+    // ACT: Transpile to Rust
+    let rust_code = depyler::transpile(python_code).unwrap();
+
+    // ASSERT: Generated Rust compiles
+    let temp_file = "/tmp/test_binary_search.rs";
+    std::fs::write(temp_file, &rust_code).unwrap();
+
+    let output = Command::new("rustc")
+        .arg("--crate-type").arg("lib")
+        .arg("--deny").arg("warnings")
+        .arg(temp_file)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(),
+        "Generated Rust failed to compile:\n{}",
+        String::from_utf8_lossy(&output.stderr));
+
+    // ASSERT: Passes clippy
+    let clippy_output = Command::new("cargo")
+        .arg("clippy")
+        .arg("--")
+        .arg("-D").arg("warnings")
+        .output()
+        .unwrap();
+
+    assert!(clippy_output.status.success(),
+        "Generated Rust has clippy warnings:\n{}",
+        String::from_utf8_lossy(&clippy_output.stderr));
+}
+```
+
+### Mutation Testing (From ruchy)
+
+**CRITICAL**: Tests must PROVE they catch real bugs.
+
+```bash
+# Run mutation testing (CI only - too slow for local)
+cargo install cargo-mutants
+cargo mutants --workspace
+
+# Target: ≥75% mutation kill rate (ruchy standard)
+# Aspirational: ≥90% mutation kill rate (decy standard)
+```
+
+**What is Mutation Testing?**
+- Automatically introduces bugs into your code
+- Verifies tests catch those bugs
+- If tests still pass with buggy code, your tests are weak
+- Empirical proof that tests are effective
+
+**Example Mutation**:
+```rust
+// Original code:
+fn add(a: i32, b: i32) -> i32 {
+    a + b  // ← Mutation: change to a - b
+}
+
+// If tests still pass, mutation "survived" (BAD)
+// If tests fail, mutation was "killed" (GOOD)
+```
+
+**Mutation Testing Requirements**:
+- Run in CI on every PR
+- ≥75% kill rate minimum
+- Track mutation score per sprint
+- Improve weak tests identified by mutations
+
+### Test Naming Convention (From ruchy)
+
+**MANDATORY**: All tests MUST follow this naming pattern for traceability:
+
+```rust
+#[test]
+fn test_DEPYLER_XXXX_<section>_<feature>_<scenario>() {
+    // Example: test_DEPYLER_0216_codegen_int_cast_bool_to_int()
+}
+```
+
+**Pattern Breakdown**:
+- `DEPYLER_XXXX`: Ticket ID for traceability
+- `<section>`: Module/component (codegen, parser, analyzer, etc.)
+- `<feature>`: Specific feature being tested
+- `<scenario>`: Test scenario (happy_path, error_case, edge_case, etc.)
+
+**Why This Matters**:
+- Trace test failures back to requirements
+- Know which ticket a test validates
+- Enable roadmap-driven test coverage tracking
+- Facilitate issue investigation
+
+### Coverage Requirements
+
+```bash
+# Generate coverage report (using cargo-llvm-cov, NOT tarpaulin)
+cargo llvm-cov --all-features --workspace --html --open
+
+# Minimum: 80% line coverage
+# Target: 85% line coverage
+# Critical modules (codegen, properties): 90%
+```
+
+**Per-Module Coverage Targets**:
+- `depyler-core`: 85% minimum
+- `depyler-ast-bridge`: 85% minimum
+- `depyler-codegen`: 90% minimum (critical path)
+- `depyler-properties`: 90% minimum (safety critical)
+- `depyler-verify`: 85% minimum
+- `depyler-mcp`: 70% minimum (external integration)
+
+### Testing Workflow Summary
+
+```bash
+# STEP 1: Run all test levels
+cargo test --workspace                    # Unit + integration
+cargo test --doc                          # Doctests
+cargo test --features proptest-tests      # Property tests
+
+# STEP 2: Check coverage
+cargo llvm-cov --all-features --workspace --fail-under-lines 80
+
+# STEP 3: Mutation testing (CI only)
+cargo mutants --workspace --fail-under 75
+
+# STEP 4: Validate examples with 15-tool protocol
+./examples/validate_all.sh
+
+# ALL MUST PASS before commit
 ```
 
 ## PMAT TDG Quality Enforcement (MANDATORY - BLOCKING)
@@ -605,15 +1022,98 @@ Closes: TICKET-ID
 
 **CRITICAL**: Quality gates are now BLOCKING and ENFORCED. No commit shall pass without meeting all gates.
 
+### RED-GREEN-REFACTOR Workflow (From decy)
+
+**MANDATORY**: Every DEPYLER ticket MUST follow the RED-GREEN-REFACTOR cycle:
+
+#### Phase 1: RED (Write Failing Tests)
+```bash
+# Write comprehensive failing tests FIRST
+cargo test test_DEPYLER_XXXX -- --nocapture  # Tests MUST FAIL
+
+# Commit RED phase (ONLY time --no-verify is allowed)
+git commit --no-verify -m "[RED] DEPYLER-XXXX: Add failing tests for <feature>"
+
+# Update roadmap.yaml: phase: RED, status: in_progress
+```
+
+**RED Phase Requirements**:
+- ≥5 unit tests demonstrating expected behavior
+- ≥2 integration tests for end-to-end workflow
+- ≥1 property test (if applicable)
+- ALL tests must FAIL (proving they test new behavior)
+
+#### Phase 2: GREEN (Minimal Implementation)
+```bash
+# Implement MINIMAL code to make tests pass
+cargo test test_DEPYLER_XXXX -- --nocapture  # Tests MUST PASS
+
+# Commit GREEN phase
+git commit -m "[GREEN] DEPYLER-XXXX: Implement <feature>"
+
+# Update roadmap.yaml: phase: GREEN
+```
+
+**GREEN Phase Requirements**:
+- ALL tests from RED phase must PASS
+- Implementation can be "ugly" - focus on correctness
+- No quality gates required yet
+
+#### Phase 3: REFACTOR (Meet Quality Standards)
+```bash
+# Clean up code to meet ALL quality gates
+pmat tdg . --min-grade A- --fail-on-violation
+pmat analyze complexity --max-cyclomatic 10 --fail-on-violation
+cargo clippy --all-targets --all-features -- -D warnings
+cargo llvm-cov report --fail-under-lines 80
+
+# Commit REFACTOR phase (quality gates enforced)
+git commit -m "[REFACTOR] DEPYLER-XXXX: Meet quality standards
+
+- Complexity: All functions ≤10
+- Coverage: 82.3% (target: 80%)
+- SATD: 0 violations
+- TDG Grade: A-
+
+Closes #XXXX"
+
+# Update roadmap.yaml: phase: DONE, status: done
+```
+
+**REFACTOR Phase Requirements**:
+- TDG grade A- or higher
+- Complexity ≤10 per function
+- Zero SATD comments
+- Coverage ≥80%
+- All quality gates PASS
+
+#### Phase 4: SQUASH (Final Commit)
+```bash
+# Squash RED/GREEN/REFACTOR into single commit
+git rebase -i HEAD~3
+
+# Final commit message format:
+git commit -m "DEPYLER-XXXX: <Feature description>
+
+- Coverage: 82.3% ✅
+- TDG Grade: A- ✅
+- Complexity: ≤10 all functions ✅
+- SATD: 0 ✅
+
+Closes #XXXX"
+```
+
 ### SACRED RULE: NEVER BYPASS QUALITY GATES
 
-**ABSOLUTELY FORBIDDEN**:
-- `git commit --no-verify` - NEVER use this - NO EXCEPTIONS EVER
+**ABSOLUTELY FORBIDDEN** (except during RED phase):
+- `git commit --no-verify` - ONLY allowed during RED phase
 - Skipping tests "temporarily" - NO exceptions
 - Ignoring failing quality checks - Must fix EVERY defect
 - Dismissing warnings as "unrelated" - All defects matter
 
 **Toyota Way Principle**: Stop the line for ANY defect. No defect is too small. No shortcut is acceptable.
+
+**ONLY EXCEPTION**: During RED phase, use `--no-verify` to commit failing tests. ALL other commits MUST pass quality gates.
 
 ### Pre-commit Hooks (MANDATORY)
 ```bash
