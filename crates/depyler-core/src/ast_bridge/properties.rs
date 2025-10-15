@@ -204,9 +204,29 @@ impl FunctionAnalyzer {
                 ..
             } => (true, vec!["ZeroDivisionError".to_string()]),
             HirExpr::Call { func, args } => {
-                // Check if function can fail and combine with argument errors
+                // DEPYLER-0217 FIX: Check if function can fail based on context
+                // int() only fails when parsing strings, not when casting typed values
                 let func_errors = match func.as_str() {
-                    "int" => vec!["ValueError".to_string()],
+                    "int" => {
+                        // Only mark as failable if parsing a string argument
+                        // int(typed_value) → (value) as i32 (safe cast, cannot fail)
+                        // int("123") → can fail with ValueError (parsing)
+                        if args.len() == 1 {
+                            match &args[0] {
+                                // String literals being parsed can fail
+                                HirExpr::Literal(crate::hir::Literal::String(_)) => {
+                                    vec!["ValueError".to_string()]
+                                }
+                                // Variables or other expressions - safe cast, cannot fail
+                                _ => Vec::new(),
+                            }
+                        } else if args.len() == 2 {
+                            // int(string, base) - always can fail
+                            vec!["ValueError".to_string()]
+                        } else {
+                            Vec::new()
+                        }
+                    }
                     _ => Vec::new(),
                 };
 
