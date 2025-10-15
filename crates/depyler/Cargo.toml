@@ -23,13 +23,13 @@ coverage = [] # Feature flag to disable heavy property tests during coverage run
 ruchy = ["depyler-ruchy"]
 
 [dependencies]
-depyler-core = { version = "3.17.0", path = "../depyler-core" }
-depyler-analyzer = { version = "3.17.0", path = "../depyler-analyzer" }
-depyler-verify = { version = "3.17.0", path = "../depyler-verify" }
-depyler-mcp = { version = "3.17.0", path = "../depyler-mcp" }
-depyler-annotations = { version = "3.17.0", path = "../depyler-annotations" }
-depyler-quality = { version = "3.17.0", path = "../depyler-quality" }
-depyler-ruchy = { version = "3.17.0", path = "../depyler-ruchy", optional = true }
+depyler-core = { version = "3.19.14", path = "../depyler-core" }
+depyler-analyzer = { version = "3.19.14", path = "../depyler-analyzer" }
+depyler-verify = { version = "3.19.14", path = "../depyler-verify" }
+depyler-mcp = { version = "3.19.14", path = "../depyler-mcp" }
+depyler-annotations = { version = "3.19.14", path = "../depyler-annotations" }
+depyler-quality = { version = "3.19.14", path = "../depyler-quality" }
+depyler-ruchy = { version = "3.19.14", path = "../depyler-ruchy", optional = true }
 
 anyhow.workspace = true
 thiserror.workspace = true
