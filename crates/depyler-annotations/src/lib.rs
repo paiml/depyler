@@ -524,7 +524,10 @@ impl AnnotationParser {
                 }
 
                 // Optimization annotations (5)
-                "optimization_level" | "performance_critical" | "vectorize" | "unroll_loops"
+                "optimization_level"
+                | "performance_critical"
+                | "vectorize"
+                | "unroll_loops"
                 | "optimization_hint" => {
                     self.apply_optimization_annotation(annotations, &key, &value)?;
                 }
@@ -560,9 +563,15 @@ impl AnnotationParser {
                 }
 
                 // Lambda-specific annotations (9)
-                "lambda_runtime" | "event_type" | "cold_start_optimize" | "memory_size"
-                | "architecture" | "batch_failure_reporting" | "custom_serialization"
-                | "timeout" | "tracing" => {
+                "lambda_runtime"
+                | "event_type"
+                | "cold_start_optimize"
+                | "memory_size"
+                | "architecture"
+                | "batch_failure_reporting"
+                | "custom_serialization"
+                | "timeout"
+                | "tracing" => {
                     self.apply_lambda_annotation(annotations, &key, &value)?;
                 }
 
@@ -810,7 +819,10 @@ impl AnnotationParser {
             "lambda_runtime" | "event_type" | "architecture" => {
                 self.apply_lambda_config(lambda_annotations, key, value)?;
             }
-            "cold_start_optimize" | "batch_failure_reporting" | "custom_serialization" | "tracing" => {
+            "cold_start_optimize"
+            | "batch_failure_reporting"
+            | "custom_serialization"
+            | "tracing" => {
                 self.apply_lambda_flags(lambda_annotations, key, value);
             }
             "memory_size" | "timeout" => {
@@ -1127,9 +1139,8 @@ impl AnnotationParser {
         // Quick path for common types
         let event_type = match value {
             "auto" => LambdaEventType::Auto,
-            "S3Event" | "SqsEvent" | "SnsEvent" | "DynamodbEvent" | "CloudwatchEvent" | "KinesisEvent" => {
-                self.parse_aws_service_event(value)
-            }
+            "S3Event" | "SqsEvent" | "SnsEvent" | "DynamodbEvent" | "CloudwatchEvent"
+            | "KinesisEvent" => self.parse_aws_service_event(value),
             "APIGatewayProxyRequest" | "APIGatewayV2HttpRequest" => {
                 self.parse_api_gateway_event(value)
             }

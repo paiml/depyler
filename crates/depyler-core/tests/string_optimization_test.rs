@@ -39,7 +39,9 @@ def get_greeting():
     // When returning a string literal, it should use appropriate ownership
     // Current implementation uses DynamicType or String
     assert!(
-        rust_code.contains("String") || rust_code.contains("Cow") || rust_code.contains("DynamicType"),
+        rust_code.contains("String")
+            || rust_code.contains("Cow")
+            || rust_code.contains("DynamicType"),
         "Should handle string return appropriately"
     );
 }

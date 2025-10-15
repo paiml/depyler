@@ -111,7 +111,11 @@ x, y = 1, 2
     let hir = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should NOT be recognized as type alias
-    assert_eq!(hir.type_aliases.len(), 0, "Multiple targets should not be type alias");
+    assert_eq!(
+        hir.type_aliases.len(),
+        0,
+        "Multiple targets should not be type alias"
+    );
 
     // If mutation != → ==: when len() == 2, != 1 becomes == which is false → would process (WRONG!)
 }
@@ -353,7 +357,11 @@ Name = str
 
     // Validates multiple comparison operators in complex scenario
     assert_eq!(hir.classes.len(), 1, "Should have GenericService class");
-    assert_eq!(hir.type_aliases.len(), 2, "Should have UserId and Name aliases");
+    assert_eq!(
+        hir.type_aliases.len(),
+        2,
+        "Should have UserId and Name aliases"
+    );
 
     let class = &hir.classes[0];
     // Multiple methods with different characteristics

@@ -49,7 +49,10 @@ fn create_sample_module() -> HirModule {
 fn create_add_function() -> HirFunction {
     HirFunction {
         name: "add".to_string(),
-        params: smallvec![HirParam::new("a".to_string(), Type::Int), HirParam::new("b".to_string(), Type::Int)],
+        params: smallvec![
+            HirParam::new("a".to_string(), Type::Int),
+            HirParam::new("b".to_string(), Type::Int)
+        ],
         ret_type: Type::Int,
         body: vec![HirStmt::Return(Some(HirExpr::Binary {
             op: BinOp::Add,

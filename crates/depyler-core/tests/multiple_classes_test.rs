@@ -34,7 +34,11 @@ class Color:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -81,7 +85,11 @@ class Person:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -99,7 +107,11 @@ class Person:
 
     // Person should reference Address type
     let has_address_field = rust_code.contains("address") || rust_code.contains("Address");
-    assert!(has_address_field, "Person should have address field.\nGot:\n{}", rust_code);
+    assert!(
+        has_address_field,
+        "Person should have address field.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -123,7 +135,11 @@ class Car:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -172,7 +188,11 @@ class Robot:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -212,7 +232,11 @@ class Logger:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -257,7 +281,11 @@ class Library:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -296,7 +324,11 @@ class Buffer:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -315,7 +347,11 @@ class Buffer:
     // Both should have their constants
     let has_max_size = rust_code.contains("MAX_SIZE") || rust_code.contains("max_size");
     let has_size = rust_code.contains("SIZE") || rust_code.contains("size");
-    assert!(has_max_size && has_size, "Should have both constants.\nGot:\n{}", rust_code);
+    assert!(
+        has_max_size && has_size,
+        "Should have both constants.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -336,7 +372,11 @@ class WidgetFactory:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -378,7 +418,11 @@ def add_vector_to_point(point: Point, vector: Vector) -> Point:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -419,7 +463,11 @@ class Outer:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 

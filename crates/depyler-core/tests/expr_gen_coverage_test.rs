@@ -575,7 +575,9 @@ def convert_to_list(iterable):
     // Should NOT generate: list(iterable) - function not found error
     // Should generate proper conversion
     assert!(
-        rust_code.contains(".collect::<Vec<") || rust_code.contains("Vec::from") || rust_code.contains(".to_vec()"),
+        rust_code.contains(".collect::<Vec<")
+            || rust_code.contains("Vec::from")
+            || rust_code.contains(".to_vec()"),
         "list(iterable) should use .collect(), Vec::from(), or .to_vec()"
     );
 }
@@ -594,7 +596,9 @@ def make_empty_list():
 
     // Should generate Vec::new() or vec![]
     assert!(
-        rust_code.contains("Vec::new()") || rust_code.contains("vec![]") || rust_code.contains("vec ! []"),
+        rust_code.contains("Vec::new()")
+            || rust_code.contains("vec![]")
+            || rust_code.contains("vec ! []"),
         "list() with no args should generate Vec::new() or vec![]"
     );
 }

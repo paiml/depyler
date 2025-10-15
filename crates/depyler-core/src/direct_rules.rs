@@ -933,9 +933,7 @@ fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
     use RustType::*;
     Ok(match rust_type {
         // Simple types - delegate to helper
-        Unit | String | Custom(_) | TypeParam(_) | Enum { .. } => {
-            convert_simple_type(rust_type)?
-        }
+        Unit | String | Custom(_) | TypeParam(_) | Enum { .. } => convert_simple_type(rust_type)?,
 
         // Primitive types - delegate to helper
         Primitive(prim_type) => convert_primitive_type(prim_type)?,
@@ -952,9 +950,7 @@ fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
         }
 
         // Complex types - delegate to helper
-        Tuple(_) | Generic { .. } | Reference { .. } => {
-            convert_complex_type(rust_type)?
-        }
+        Tuple(_) | Generic { .. } | Reference { .. } => convert_complex_type(rust_type)?,
 
         // Array types - delegate to helper
         Array { .. } => convert_array_type(rust_type)?,
@@ -1906,7 +1902,7 @@ impl<'a> ExprConverter<'a> {
                 Ok(parse_quote! { println!("{}", #arg) })
             } else {
                 // print(a, b, c) → println!("{} {} {}", a, b, c)
-                let format_str = vec!["{}"  ; args.len()].join(" ");
+                let format_str = vec!["{}"; args.len()].join(" ");
                 Ok(parse_quote! { println!(#format_str, #(#args),*) })
             };
         }

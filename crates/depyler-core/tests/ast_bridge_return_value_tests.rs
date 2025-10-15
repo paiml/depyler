@@ -102,7 +102,11 @@ result = calculate(42)
     let hir = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should NOT recognize calculate() as type alias
-    assert_eq!(hir.type_aliases.len(), 0, "calculate() should not be type alias");
+    assert_eq!(
+        hir.type_aliases.len(),
+        0,
+        "calculate() should not be type alias"
+    );
 
     // If mutated to always true: would treat function calls as types
 }
@@ -129,8 +133,10 @@ class User:
     let class = &hir.classes[0];
 
     // Should infer 2 fields from __init__ parameters
-    assert!(class.fields.len() >= 2 || !class.methods.is_empty(),
-            "Should have fields or __init__ method");
+    assert!(
+        class.fields.len() >= 2 || !class.methods.is_empty(),
+        "Should have fields or __init__ method"
+    );
 
     // If mutated to Ok(vec![]): would return empty fields (WRONG!)
 }
@@ -198,8 +204,10 @@ class NoDoc:
     let class = &hir.classes[0];
 
     // Should return None when no docstring
-    assert!(class.docstring.is_none() || class.docstring == Some(String::new()),
-            "Should have no docstring");
+    assert!(
+        class.docstring.is_none() || class.docstring == Some(String::new()),
+        "Should have no docstring"
+    );
 
     // If mutated to Some("xyzzy"): would return fake docstring (WRONG!)
 }
@@ -341,7 +349,11 @@ class Service:
     let hir = bridge.python_to_hir(ast).expect("conversion failed");
 
     assert_eq!(hir.classes.len(), 1);
-    assert_eq!(hir.classes[0].methods.len(), 1, "Should have process method");
+    assert_eq!(
+        hir.classes[0].methods.len(),
+        1,
+        "Should have process method"
+    );
 
     let method = &hir.classes[0].methods[0];
     assert_eq!(method.name, "process");

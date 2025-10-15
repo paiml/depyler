@@ -32,7 +32,11 @@ class Counter:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -52,7 +56,11 @@ class Counter:
 
     // Should take &self parameter
     let has_self_ref = rust_code.contains("&self") || rust_code.contains("& self");
-    assert!(has_self_ref, "Method should take &self parameter.\nGot:\n{}", rust_code);
+    assert!(
+        has_self_ref,
+        "Method should take &self parameter.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -69,7 +77,11 @@ class Rectangle:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -82,7 +94,11 @@ class Rectangle:
     // Should access self.width and self.height
     let has_width = rust_code.contains("self.width") || rust_code.contains("self .width");
     let has_height = rust_code.contains("self.height") || rust_code.contains("self .height");
-    assert!(has_width && has_height, "Should access self.width and self.height.\nGot:\n{}", rust_code);
+    assert!(
+        has_width && has_height,
+        "Should access self.width and self.height.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -98,7 +114,11 @@ class Counter:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -110,7 +130,11 @@ class Counter:
 
     // Should take &mut self since it modifies fields
     let has_mut_self = rust_code.contains("&mut self") || rust_code.contains("& mut self");
-    assert!(has_mut_self, "Mutating method should take &mut self.\nGot:\n{}", rust_code);
+    assert!(
+        has_mut_self,
+        "Mutating method should take &mut self.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -126,7 +150,11 @@ class Calculator:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -160,7 +188,11 @@ class Circle:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -177,8 +209,13 @@ class Circle:
     );
 
     // Should call self.diameter()
-    let calls_diameter = rust_code.contains("self.diameter()") || rust_code.contains("self .diameter");
-    assert!(calls_diameter, "Should call self.diameter().\nGot:\n{}", rust_code);
+    let calls_diameter =
+        rust_code.contains("self.diameter()") || rust_code.contains("self .diameter");
+    assert!(
+        calls_diameter,
+        "Should call self.diameter().\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -200,7 +237,11 @@ class BankAccount:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -236,7 +277,11 @@ class StringHolder:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -247,10 +292,14 @@ class StringHolder:
     );
 
     // Should have return type (i32, i64, usize, or similar)
-    let has_return_type = rust_code.contains("-> i32") ||
-                          rust_code.contains("-> i64") ||
-                          rust_code.contains("-> usize");
-    assert!(has_return_type, "Should have return type annotation.\nGot:\n{}", rust_code);
+    let has_return_type = rust_code.contains("-> i32")
+        || rust_code.contains("-> i64")
+        || rust_code.contains("-> usize");
+    assert!(
+        has_return_type,
+        "Should have return type annotation.\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -266,7 +315,11 @@ class Logger:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -298,14 +351,21 @@ def test_distance() -> float:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
     // Should call method on instance (flexible about whitespace)
-    let calls_method = rust_code.contains("p.distance_from_origin") &&
-                       rust_code.contains("()");
-    assert!(calls_method, "Should call p.distance_from_origin().\nGot:\n{}", rust_code);
+    let calls_method = rust_code.contains("p.distance_from_origin") && rust_code.contains("()");
+    assert!(
+        calls_method,
+        "Should call p.distance_from_origin().\nGot:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -330,7 +390,11 @@ def compute() -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -360,7 +424,11 @@ class Formatter:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -395,7 +463,11 @@ def convert_temperature(c: float) -> float:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation failed: {:?}", result.as_ref().err());
+    assert!(
+        result.is_ok(),
+        "Transpilation failed: {:?}",
+        result.as_ref().err()
+    );
 
     let rust_code = result.unwrap();
 

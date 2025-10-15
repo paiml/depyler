@@ -93,11 +93,25 @@ pub enum HirLiteral {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HirBinaryOp {
-    Add, Subtract, Multiply, Divide, Modulo, Power,
-    Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual,
-    And, Or,
-    BitwiseAnd, BitwiseOr, BitwiseXor,
-    LeftShift, RightShift,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+    Power,
+    Equal,
+    NotEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    And,
+    Or,
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+    LeftShift,
+    RightShift,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

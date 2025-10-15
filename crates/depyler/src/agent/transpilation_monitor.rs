@@ -18,16 +18,16 @@ use tracing::{debug, error, info};
 pub struct TranspilationMonitorEngine {
     /// Configuration
     config: TranspilationMonitorConfig,
-    
+
     /// File system watchers by project
     watchers: Arc<RwLock<HashMap<String, RecommendedWatcher>>>,
-    
+
     /// Current metrics by project
     metrics: Arc<RwLock<HashMap<String, TranspilationMetrics>>>,
-    
+
     /// Event sender for transpilation updates
     event_sender: Option<mpsc::Sender<TranspilationEvent>>,
-    
+
     /// Event receiver for external consumption
     event_receiver: Option<mpsc::Receiver<TranspilationEvent>>,
 }
@@ -37,19 +37,19 @@ pub struct TranspilationMonitorEngine {
 pub struct TranspilationMonitorConfig {
     /// Update interval for periodic checks
     pub update_interval: Duration,
-    
+
     /// File patterns to watch for transpilation
     pub watch_patterns: Vec<String>,
-    
+
     /// Debounce interval to avoid excessive transpilations
     pub debounce_interval: Duration,
-    
+
     /// Maximum number of files to transpile per batch
     pub max_batch_size: usize,
-    
+
     /// Auto-transpile on file changes
     pub auto_transpile: bool,
-    
+
     /// Verification level for transpiled code
     pub verification_level: String,
 }
@@ -72,28 +72,28 @@ impl Default for TranspilationMonitorConfig {
 pub struct TranspilationMetrics {
     /// Project identifier
     pub project_id: String,
-    
+
     /// Last update timestamp
     pub last_updated: SystemTime,
-    
+
     /// Total files transpiled
     pub files_transpiled: u64,
-    
+
     /// Successful transpilations
     pub successful_transpilations: u64,
-    
+
     /// Failed transpilations
     pub failed_transpilations: u64,
-    
+
     /// Average transpilation time (milliseconds)
     pub avg_transpilation_time_ms: u64,
-    
+
     /// Total Python lines processed
     pub total_python_lines: usize,
-    
+
     /// Total Rust lines generated
     pub total_rust_lines: usize,
-    
+
     /// Last error message (if any)
     pub last_error: Option<String>,
 }
@@ -128,7 +128,7 @@ pub enum TranspilationEvent {
         /// Timestamp of the event
         timestamp: SystemTime,
     },
-    
+
     /// File was successfully transpiled
     TranspilationSucceeded {
         /// Project identifier
@@ -144,7 +144,7 @@ pub enum TranspilationEvent {
         /// Lines of generated Rust code
         rust_lines: usize,
     },
-    
+
     /// File transpilation failed
     TranspilationFailed {
         /// Project identifier
@@ -156,7 +156,7 @@ pub enum TranspilationEvent {
         /// Timestamp of the failure
         timestamp: SystemTime,
     },
-    
+
     /// Project was added to monitoring
     ProjectAdded {
         /// Project identifier
@@ -166,13 +166,13 @@ pub enum TranspilationEvent {
         /// Watch patterns
         patterns: Vec<String>,
     },
-    
+
     /// Project was removed from monitoring
     ProjectRemoved {
         /// Project identifier
         project_id: String,
     },
-    
+
     /// Periodic status update
     StatusUpdate {
         /// Overall metrics
@@ -199,7 +199,7 @@ impl TranspilationMonitorEngine {
     /// Create a new transpilation monitor engine
     pub async fn new(config: TranspilationMonitorConfig) -> Result<Self> {
         let (event_sender, event_receiver) = mpsc::channel(1000);
-        
+
         Ok(Self {
             config,
             watchers: Arc::new(RwLock::new(HashMap::new())),
@@ -208,16 +208,25 @@ impl TranspilationMonitorEngine {
             event_receiver: Some(event_receiver),
         })
     }
-    
+
     /// Start monitoring a project
-    pub async fn add_project(&mut self, project_id: String, path: PathBuf, patterns: Vec<String>) -> Result<()> {
-        info!("Adding project '{}' to transpilation monitoring at {}", project_id, path.display());
-        
+    pub async fn add_project(
+        &mut self,
+        project_id: String,
+        path: PathBuf,
+        patterns: Vec<String>,
+    ) -> Result<()> {
+        info!(
+            "Adding project '{}' to transpilation monitoring at {}",
+            project_id,
+            path.display()
+        );
+
         // Create file system watcher
         let event_sender = self.event_sender.clone().unwrap();
         let project_id_clone = project_id.clone();
         let (tx, mut rx) = mpsc::channel(100);
-        
+
         let mut watcher = RecommendedWatcher::new(
             move |res: notify::Result<Event>| {
                 if let Ok(event) = res {
@@ -226,10 +235,10 @@ impl TranspilationMonitorEngine {
             },
             Config::default(),
         )?;
-        
+
         // Start watching the project directory
         watcher.watch(&path, RecursiveMode::Recursive)?;
-        
+
         // Spawn event handler for this project
         let project_path = path.clone();
         let watch_patterns = patterns.clone();
@@ -241,82 +250,94 @@ impl TranspilationMonitorEngine {
                     &project_path,
                     &watch_patterns,
                     event,
-                ).await {
+                )
+                .await
+                {
                     error!("Failed to handle file system event: {}", e);
                 }
             }
         });
-        
+
         // Store the watcher
         {
             let mut watchers = self.watchers.write().await;
             watchers.insert(project_id.clone(), watcher);
         }
-        
+
         // Initialize metrics for this project
         {
             let mut metrics = self.metrics.write().await;
-            metrics.insert(project_id.clone(), TranspilationMetrics {
-                project_id: project_id.clone(),
-                ..Default::default()
-            });
+            metrics.insert(
+                project_id.clone(),
+                TranspilationMetrics {
+                    project_id: project_id.clone(),
+                    ..Default::default()
+                },
+            );
         }
-        
+
         // Send project added event
         if let Some(ref sender) = self.event_sender {
-            let _ = sender.send(TranspilationEvent::ProjectAdded {
-                project_id,
-                path,
-                patterns,
-            }).await;
+            let _ = sender
+                .send(TranspilationEvent::ProjectAdded {
+                    project_id,
+                    path,
+                    patterns,
+                })
+                .await;
         }
-        
+
         Ok(())
     }
-    
+
     /// Stop monitoring a project
     pub async fn remove_project(&mut self, project_id: &str) -> Result<()> {
-        info!("Removing project '{}' from transpilation monitoring", project_id);
-        
+        info!(
+            "Removing project '{}' from transpilation monitoring",
+            project_id
+        );
+
         // Remove watcher
         {
             let mut watchers = self.watchers.write().await;
             watchers.remove(project_id);
         }
-        
+
         // Remove metrics
         {
             let mut metrics = self.metrics.write().await;
             metrics.remove(project_id);
         }
-        
+
         // Send project removed event
         if let Some(ref sender) = self.event_sender {
-            let _ = sender.send(TranspilationEvent::ProjectRemoved {
-                project_id: project_id.to_string(),
-            }).await;
+            let _ = sender
+                .send(TranspilationEvent::ProjectRemoved {
+                    project_id: project_id.to_string(),
+                })
+                .await;
         }
-        
+
         Ok(())
     }
-    
+
     /// Get metrics for a specific project
     pub async fn get_project_metrics(&self, project_id: &str) -> Option<TranspilationMetrics> {
         let metrics = self.metrics.read().await;
         metrics.get(project_id).cloned()
     }
-    
+
     /// Get metrics for all projects
     pub async fn get_all_metrics(&self) -> HashMap<String, TranspilationMetrics> {
         let metrics = self.metrics.read().await;
         metrics.clone()
     }
-    
+
     /// Get event receiver for consuming transpilation events
     pub fn get_event_receiver(&mut self) -> mpsc::Receiver<TranspilationEvent> {
         self.event_receiver.take().unwrap()
     }
-    
+
     /// Handle file system events
     async fn handle_fs_event(
         event_sender: &mpsc::Sender<TranspilationEvent>,
@@ -326,7 +347,7 @@ impl TranspilationMonitorEngine {
         event: Event,
     ) -> Result<()> {
         debug!("File system event: {:?}", event);
-        
+
         // Filter for relevant events
         let event_type = match event.kind {
             EventKind::Create(_) => FileEventType::Created,
@@ -334,43 +355,44 @@ impl TranspilationMonitorEngine {
             EventKind::Remove(_) => FileEventType::Deleted,
             _ => return Ok(()), // Ignore other event types
         };
-        
+
         // Process each path in the event
         for path in &event.paths {
             // Check if this is a Python file
             if !Self::matches_patterns(path, watch_patterns) {
                 continue;
             }
-            
+
             // Don't process deleted files
             if matches!(event_type, FileEventType::Deleted) {
                 continue;
             }
-            
+
             // Send file changed event
-            let _ = event_sender.send(TranspilationEvent::FileChanged {
-                project_id: project_id.to_string(),
-                path: path.clone(),
-                event_type: event_type.clone(),
-                timestamp: SystemTime::now(),
-            }).await;
+            let _ = event_sender
+                .send(TranspilationEvent::FileChanged {
+                    project_id: project_id.to_string(),
+                    path: path.clone(),
+                    event_type: event_type.clone(),
+                    timestamp: SystemTime::now(),
+                })
+                .await;
         }
-        
+
         Ok(())
     }
-    
+
     /// Check if a path matches any of the watch patterns
     fn matches_patterns(path: &Path, patterns: &[String]) -> bool {
         // Simple implementation - in practice would use glob patterns
         for pattern in patterns {
-            if pattern == "**/*.py"
-                && path.extension().and_then(|s| s.to_str()) == Some("py") {
-                    return true;
-                }
+            if pattern == "**/*.py" && path.extension().and_then(|s| s.to_str()) == Some("py") {
+                return true;
+            }
         }
         false
     }
-    
+
     /// Update metrics for a project
     pub async fn update_metrics(
         &self,
@@ -385,63 +407,68 @@ impl TranspilationMonitorEngine {
         if let Some(project_metrics) = metrics.get_mut(project_id) {
             project_metrics.last_updated = SystemTime::now();
             project_metrics.files_transpiled += 1;
-            
+
             if transpilation_success {
                 project_metrics.successful_transpilations += 1;
                 project_metrics.total_python_lines += python_lines;
                 project_metrics.total_rust_lines += rust_lines;
-                
+
                 // Update average transpilation time
-                let total_time = project_metrics.avg_transpilation_time_ms * (project_metrics.successful_transpilations - 1) + transpilation_time_ms;
-                project_metrics.avg_transpilation_time_ms = total_time / project_metrics.successful_transpilations;
+                let total_time = project_metrics.avg_transpilation_time_ms
+                    * (project_metrics.successful_transpilations - 1)
+                    + transpilation_time_ms;
+                project_metrics.avg_transpilation_time_ms =
+                    total_time / project_metrics.successful_transpilations;
             } else {
                 project_metrics.failed_transpilations += 1;
                 project_metrics.last_error = error_message;
             }
         }
     }
-    
+
     /// Start periodic status updates
     pub async fn start_status_updates(&self) -> Result<()> {
         let mut interval = interval(self.config.update_interval);
         let event_sender = self.event_sender.clone().unwrap();
         let metrics = Arc::clone(&self.metrics);
-        
+
         tokio::spawn(async move {
             loop {
                 interval.tick().await;
-                
+
                 let current_metrics = {
                     let metrics = metrics.read().await;
                     metrics.clone()
                 };
-                
-                let _ = event_sender.send(TranspilationEvent::StatusUpdate {
-                    metrics: current_metrics,
-                    timestamp: SystemTime::now(),
-                }).await;
+
+                let _ = event_sender
+                    .send(TranspilationEvent::StatusUpdate {
+                        metrics: current_metrics,
+                        timestamp: SystemTime::now(),
+                    })
+                    .await;
             }
         });
-        
+
         Ok(())
     }
-    
+
     /// Shutdown the transpilation monitor
     pub async fn shutdown(&mut self) -> Result<()> {
         info!("Shutting down transpilation monitor...");
-        
+
         // Clear all watchers
         {
             let mut watchers = self.watchers.write().await;
             watchers.clear();
         }
-        
+
         // Clear metrics
         {
             let mut metrics = self.metrics.write().await;
             metrics.clear();
         }
-        
+
         info!("Transpilation monitor shut down successfully");
         Ok(())
     }

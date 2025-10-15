@@ -539,7 +539,10 @@ mod tests {
 
         let func = HirFunction {
             name: "identity".to_string(),
-            params: smallvec::smallvec![HirParam::new("x".to_string(), Type::Custom("T".to_string()))],
+            params: smallvec::smallvec![HirParam::new(
+                "x".to_string(),
+                Type::Custom("T".to_string())
+            )],
             ret_type: Type::Custom("T".to_string()),
             body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
             properties: FunctionProperties::default(),

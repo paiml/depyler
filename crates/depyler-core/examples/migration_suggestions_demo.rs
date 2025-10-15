@@ -44,7 +44,10 @@ fn create_sample_program() -> HirProgram {
 fn create_accumulator_function() -> HirFunction {
     HirFunction {
         name: "filter_even_numbers".to_string(),
-        params: smallvec![HirParam::new("numbers".to_string(), Type::List(Box::new(Type::Int)))],
+        params: smallvec![HirParam::new(
+            "numbers".to_string(),
+            Type::List(Box::new(Type::Int))
+        )],
         ret_type: Type::List(Box::new(Type::Int)),
         body: vec![
             // result = []

@@ -306,7 +306,11 @@ impl DocGenerator {
             doc.push_str("- May have deep recursion, consider iterative implementation\n");
         }
 
-        if func.params.iter().any(|param| matches!(param.ty, Type::String)) {
+        if func
+            .params
+            .iter()
+            .any(|param| matches!(param.ty, Type::String))
+        {
             doc.push_str("- String parameters use `&str` for zero-copy performance\n");
         }
 
@@ -499,7 +503,10 @@ mod tests {
     fn create_test_function(name: &str) -> HirFunction {
         HirFunction {
             name: name.to_string(),
-            params: smallvec![HirParam::new("x".to_string(), Type::Int), HirParam::new("y".to_string(), Type::Int),],
+            params: smallvec![
+                HirParam::new("x".to_string(), Type::Int),
+                HirParam::new("y".to_string(), Type::Int),
+            ],
             ret_type: Type::Int,
             body: vec![],
             properties: FunctionProperties::default(),
@@ -662,7 +669,10 @@ mod tests {
 
         let func = HirFunction {
             name: "process_list".to_string(),
-            params: smallvec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int))),],
+            params: smallvec![HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Int))
+            ),],
             ret_type: Type::Optional(Box::new(Type::Int)),
             body: vec![],
             properties: FunctionProperties::default(),

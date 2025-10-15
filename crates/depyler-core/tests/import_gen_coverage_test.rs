@@ -201,12 +201,16 @@ def list_func(items: List[int]) -> Optional[str]:
     let rust_code = pipeline.transpile(python_code).unwrap();
 
     // MUTATION KILL: Typing imports must not have full paths
-    assert!(!rust_code.contains("typing::List"),
-            "MUTATION KILL: typing module items should not have full paths");
+    assert!(
+        !rust_code.contains("typing::List"),
+        "MUTATION KILL: typing module items should not have full paths"
+    );
 
     // MUTATION KILL: Should use Rust equivalents
-    assert!(rust_code.contains("Vec") || rust_code.contains("Option"),
-            "MUTATION KILL: typing imports must map to Rust types");
+    assert!(
+        rust_code.contains("Vec") || rust_code.contains("Option"),
+        "MUTATION KILL: typing imports must map to Rust types"
+    );
 }
 
 /// Property Test: Import processing idempotency
@@ -229,8 +233,10 @@ def func2(items: List[str]) -> int:
     let rust_code_2 = pipeline.transpile(python_code).unwrap();
 
     // Should produce identical output
-    assert_eq!(rust_code_1, rust_code_2,
-               "Import processing should be deterministic");
+    assert_eq!(
+        rust_code_1, rust_code_2,
+        "Import processing should be deterministic"
+    );
 }
 
 /// Edge Case: Import with no mapping in module mapper
@@ -297,6 +303,8 @@ def complex_types(
     assert!(rust_code.contains("fn complex_types"));
 
     // Verify no typing:: paths leak through
-    assert!(!rust_code.contains("typing::"),
-            "Typing module should not use full paths");
+    assert!(
+        !rust_code.contains("typing::"),
+        "Typing module should not use full paths"
+    );
 }

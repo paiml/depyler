@@ -9,13 +9,13 @@ use crate::ast::{
 pub struct RuchyFormatter {
     /// Indentation width
     indent_width: usize,
-    
+
     /// Maximum line length
     max_line_length: usize,
-    
+
     /// Current indentation level
     current_indent: usize,
-    
+
     /// Output buffer
     output: String,
 }
@@ -31,7 +31,7 @@ impl RuchyFormatter {
             output: String::new(),
         }
     }
-    
+
     /// Creates a formatter with custom configuration
     #[must_use]
     pub fn with_config(config: &crate::RuchyConfig) -> Self {
@@ -42,7 +42,7 @@ impl RuchyFormatter {
             output: String::new(),
         }
     }
-    
+
     /// Formats a Ruchy AST into a string
     pub fn format(&self, expr: &RuchyExpr) -> String {
         let mut formatter = Self {
@@ -51,31 +51,31 @@ impl RuchyFormatter {
             current_indent: 0,
             output: String::new(),
         };
-        
+
         formatter.format_expr(expr, false);
         formatter.output
     }
-    
+
     /// Format an expression
     fn format_expr(&mut self, expr: &RuchyExpr, needs_semicolon: bool) {
         match expr {
             RuchyExpr::Literal(lit) => self.format_literal(lit),
-            
+
             RuchyExpr::Identifier(name) => {
                 self.write(name);
             }
-            
+
             RuchyExpr::Binary { left, op, right } => {
                 self.format_expr(left, false);
                 self.write(&format!(" {} ", self.format_binary_op(*op)));
                 self.format_expr(right, false);
             }
-            
+
             RuchyExpr::Unary { op, operand } => {
                 self.write(self.format_unary_op(*op));
                 self.format_expr(operand, false);
             }
-            
+
             RuchyExpr::Function {
                 name,
                 params,
@@ -85,18 +85,18 @@ impl RuchyFormatter {
             } => {
                 self.format_function(name, params, body, *is_async, return_type.as_ref());
             }
-            
+
             RuchyExpr::Lambda { params, body } => {
                 self.format_lambda(params, body);
             }
-            
+
             RuchyExpr::Call { func, args } => {
                 self.format_expr(func, false);
                 self.write("(");
                 self.format_comma_separated(args, |f, arg| f.format_expr(arg, false));
                 self.write(")");
             }
-            
+
             RuchyExpr::MethodCall {
                 receiver,
                 method,
@@ -107,11 +107,11 @@ impl RuchyFormatter {
                 self.format_comma_separated(args, |f, arg| f.format_expr(arg, false));
                 self.write(")");
             }
-            
+
             RuchyExpr::Pipeline { expr, stages } => {
                 self.format_pipeline(expr, stages);
             }
-            
+
             RuchyExpr::If {
                 condition,
                 then_branch,
@@ -119,29 +119,29 @@ impl RuchyFormatter {
             } => {
                 self.format_if(condition, then_branch, else_branch.as_deref());
             }
-            
+
             RuchyExpr::Match { expr, arms } => {
                 self.format_match(expr, arms);
             }
-            
+
             RuchyExpr::For { var, iter, body } => {
                 self.write(&format!("for {var} in "));
                 self.format_expr(iter, false);
                 self.write(" ");
                 self.format_block_or_expr(body);
             }
-            
+
             RuchyExpr::While { condition, body } => {
                 self.write("while ");
                 self.format_expr(condition, false);
                 self.write(" ");
                 self.format_block_or_expr(body);
             }
-            
+
             RuchyExpr::Block(exprs) => {
                 self.format_block(exprs);
             }
-            
+
             RuchyExpr::Let {
                 name,
                 value,
@@ -157,21 +157,21 @@ impl RuchyFormatter {
                 self.writeln("");
                 self.format_expr(body, false);
             }
-            
+
             RuchyExpr::List(elements) => {
                 self.write("[");
                 self.format_comma_separated(elements, |f, e| f.format_expr(e, false));
                 self.write("]");
             }
-            
+
             RuchyExpr::StringInterpolation { parts } => {
                 self.format_string_interpolation(parts);
             }
-            
+
             RuchyExpr::Struct { name, fields } => {
                 self.format_struct(name, fields);
             }
-            
+
             RuchyExpr::StructLiteral { name, fields } => {
                 self.write(&format!("{name} {{ "));
                 self.format_comma_separated(fields, |f, (field_name, field_expr)| {
@@ -180,26 +180,26 @@ impl RuchyFormatter {
                 });
                 self.write(" }");
             }
-            
+
             RuchyExpr::FieldAccess { object, field } => {
                 self.format_expr(object, false);
                 self.write(&format!(".{field}"));
             }
-            
+
             RuchyExpr::Await { expr } => {
                 self.format_expr(expr, false);
                 self.write(".await");
             }
-            
+
             RuchyExpr::Try { expr } => {
                 self.format_expr(expr, false);
                 self.write("?");
             }
-            
+
             RuchyExpr::DataFrame { columns } => {
                 self.format_dataframe(columns);
             }
-            
+
             RuchyExpr::Range {
                 start,
                 end,
@@ -213,7 +213,7 @@ impl RuchyFormatter {
                 }
                 self.format_expr(end, false);
             }
-            
+
             RuchyExpr::Break { label } => {
                 if let Some(lbl) = label {
                     self.write(&format!("break '{lbl}"));
@@ -221,7 +221,7 @@ impl RuchyFormatter {
                     self.write("break");
                 }
             }
-            
+
             RuchyExpr::Continue { label } => {
                 if let Some(lbl) = label {
                     self.write(&format!("continue '{lbl}"));
@@ -229,7 +229,7 @@ impl RuchyFormatter {
                     self.write("continue");
                 }
             }
-            
+
             RuchyExpr::Return { value } => {
                 if let Some(val) = value {
                     self.write("return ");
@@ -239,12 +239,12 @@ impl RuchyFormatter {
                 }
             }
         }
-        
+
         if needs_semicolon {
             self.write(";");
         }
     }
-    
+
     /// Format a literal
     fn format_literal(&mut self, lit: &Literal) {
         match lit {
@@ -263,7 +263,7 @@ impl RuchyFormatter {
             Literal::Unit => self.write("()"),
         }
     }
-    
+
     /// Format a function definition
     fn format_function(
         &mut self,
@@ -279,16 +279,16 @@ impl RuchyFormatter {
         self.write(&format!("fun {name}("));
         self.format_params(params);
         self.write(")");
-        
+
         if let Some(ret_type) = return_type {
             self.write(" -> ");
             self.format_type(ret_type);
         }
-        
+
         self.write(" ");
         self.format_block_or_expr(body);
     }
-    
+
     /// Format function parameters
     fn format_params(&mut self, params: &[Param]) {
         self.format_comma_separated(params, |f, param| {
@@ -303,13 +303,13 @@ impl RuchyFormatter {
             }
         });
     }
-    
+
     /// Format a lambda expression
     fn format_lambda(&mut self, params: &[Param], body: &RuchyExpr) {
         self.write("|");
         self.format_params(params);
         self.write("| ");
-        
+
         // Single expression lambdas don't need braces
         if !matches!(body, RuchyExpr::Block(_)) {
             self.format_expr(body, false);
@@ -317,11 +317,11 @@ impl RuchyFormatter {
             self.format_block_or_expr(body);
         }
     }
-    
+
     /// Format a pipeline expression
     fn format_pipeline(&mut self, expr: &RuchyExpr, stages: &[PipelineStage]) {
         self.format_expr(expr, false);
-        
+
         for stage in stages {
             if self.current_line_length() > self.max_line_length / 2 {
                 self.writeln("");
@@ -330,7 +330,7 @@ impl RuchyFormatter {
             } else {
                 self.write(" |> ");
             }
-            
+
             match stage {
                 PipelineStage::Map(f) => {
                     self.write("map(");
@@ -360,14 +360,19 @@ impl RuchyFormatter {
             }
         }
     }
-    
+
     /// Format an if expression
-    fn format_if(&mut self, condition: &RuchyExpr, then_branch: &RuchyExpr, else_branch: Option<&RuchyExpr>) {
+    fn format_if(
+        &mut self,
+        condition: &RuchyExpr,
+        then_branch: &RuchyExpr,
+        else_branch: Option<&RuchyExpr>,
+    ) {
         self.write("if ");
         self.format_expr(condition, false);
         self.write(" ");
         self.format_block_or_expr(then_branch);
-        
+
         if let Some(else_expr) = else_branch {
             self.write(" else ");
             if matches!(else_expr, RuchyExpr::If { .. }) {
@@ -377,35 +382,35 @@ impl RuchyFormatter {
             }
         }
     }
-    
+
     /// Format a match expression
     fn format_match(&mut self, expr: &RuchyExpr, arms: &[MatchArm]) {
         self.write("match ");
         self.format_expr(expr, false);
         self.write(" {");
         self.increase_indent();
-        
+
         for arm in arms {
             self.writeln("");
             self.indent();
             self.format_pattern(&arm.pattern);
-            
+
             if let Some(guard) = &arm.guard {
                 self.write(" if ");
                 self.format_expr(guard, false);
             }
-            
+
             self.write(" => ");
             self.format_expr(&arm.body, false);
             self.write(",");
         }
-        
+
         self.decrease_indent();
         self.writeln("");
         self.indent();
         self.write("}");
     }
-    
+
     /// Format a pattern
     fn format_pattern(&mut self, pattern: &Pattern) {
         match pattern {
@@ -432,31 +437,31 @@ impl RuchyFormatter {
             }
         }
     }
-    
+
     /// Format a block of expressions
     fn format_block(&mut self, exprs: &[RuchyExpr]) {
         self.write("{");
-        
+
         if !exprs.is_empty() {
             self.increase_indent();
-            
+
             for (i, expr) in exprs.iter().enumerate() {
                 self.writeln("");
                 self.indent();
-                
+
                 // Last expression in block doesn't get semicolon unless it's a statement
                 let needs_semi = i < exprs.len() - 1 || self.is_statement(expr);
                 self.format_expr(expr, needs_semi);
             }
-            
+
             self.decrease_indent();
             self.writeln("");
             self.indent();
         }
-        
+
         self.write("}");
     }
-    
+
     /// Format block or single expression
     fn format_block_or_expr(&mut self, expr: &RuchyExpr) {
         if matches!(expr, RuchyExpr::Block(_)) {
@@ -473,11 +478,11 @@ impl RuchyFormatter {
             self.write("}");
         }
     }
-    
+
     /// Format string interpolation
     fn format_string_interpolation(&mut self, parts: &[StringPart]) {
         self.write("f\"");
-        
+
         for part in parts {
             match part {
                 StringPart::Text(text) => {
@@ -496,45 +501,45 @@ impl RuchyFormatter {
                 }
             }
         }
-        
+
         self.write("\"");
     }
-    
+
     /// Format a struct definition
     fn format_struct(&mut self, name: &str, fields: &[StructField]) {
         self.write(&format!("struct {name} {{"));
-        
+
         if !fields.is_empty() {
             self.increase_indent();
-            
+
             for field in fields {
                 self.writeln("");
                 self.indent();
-                
+
                 if field.is_public {
                     self.write("pub ");
                 }
-                
+
                 self.write(&format!("{}: ", field.name));
                 self.format_type(&field.typ);
                 self.write(",");
             }
-            
+
             self.decrease_indent();
             self.writeln("");
             self.indent();
         }
-        
+
         self.write("}");
     }
-    
+
     /// Format a DataFrame literal
     fn format_dataframe(&mut self, columns: &[DataFrameColumn]) {
         self.write("df![");
-        
+
         if !columns.is_empty() {
             self.increase_indent();
-            
+
             for (i, col) in columns.iter().enumerate() {
                 if i > 0 {
                     self.write(",");
@@ -542,20 +547,20 @@ impl RuchyFormatter {
                 self.writeln("");
                 self.indent();
                 self.write(&format!("\"{}\": [", col.name));
-                
+
                 self.format_comma_separated(&col.values, |f, val| f.format_expr(val, false));
-                
+
                 self.write("]");
             }
-            
+
             self.decrease_indent();
             self.writeln("");
             self.indent();
         }
-        
+
         self.write("]");
     }
-    
+
     /// Format a type
     fn format_type(&mut self, typ: &RuchyType) {
         match typ {
@@ -576,30 +581,30 @@ impl RuchyFormatter {
             RuchyType::Bool => self.write("bool"),
             RuchyType::Char => self.write("char"),
             RuchyType::String => self.write("String"),
-            
+
             RuchyType::Vec(inner) => {
                 self.write("Vec<");
                 self.format_type(inner);
                 self.write(">");
             }
-            
+
             RuchyType::Array(inner, size) => {
                 self.write("[");
                 self.format_type(inner);
                 self.write(&format!("; {size}]"));
             }
-            
+
             RuchyType::Tuple(types) => {
                 self.write("(");
                 self.format_comma_separated(types, |f, t| f.format_type(t));
                 self.write(")");
             }
-            
+
             RuchyType::Option(inner) => {
                 self.format_type(inner);
                 self.write("?");
             }
-            
+
             RuchyType::Result(ok, err) => {
                 self.write("Result<");
                 self.format_type(ok);
@@ -607,33 +612,30 @@ impl RuchyFormatter {
                 self.format_type(err);
                 self.write(">");
             }
-            
+
             RuchyType::Function { params, returns } => {
                 self.write("fun(");
                 self.format_comma_separated(params, |f, t| f.format_type(t));
                 self.write(") -> ");
                 self.format_type(returns);
             }
-            
+
             RuchyType::Named(name) => self.write(name),
-            
+
             RuchyType::Generic(name) => self.write(name),
-            
-            RuchyType::Reference {
-                typ,
-                is_mutable,
-            } => {
+
+            RuchyType::Reference { typ, is_mutable } => {
                 self.write("&");
                 if *is_mutable {
                     self.write("mut ");
                 }
                 self.format_type(typ);
             }
-            
+
             RuchyType::Dynamic => self.write("dyn Any"),
         }
     }
-    
+
     /// Format binary operator
     fn format_binary_op(&self, op: BinaryOp) -> &'static str {
         match op {
@@ -658,7 +660,7 @@ impl RuchyFormatter {
             BinaryOp::RightShift => ">>",
         }
     }
-    
+
     /// Format unary operator
     fn format_unary_op(&self, op: UnaryOp) -> &'static str {
         match op {
@@ -667,7 +669,7 @@ impl RuchyFormatter {
             UnaryOp::BitwiseNot => "!",
         }
     }
-    
+
     /// Check if expression is a statement (needs semicolon)
     fn is_statement(&self, expr: &RuchyExpr) -> bool {
         matches!(
@@ -678,7 +680,7 @@ impl RuchyFormatter {
                 | RuchyExpr::Return { .. }
         )
     }
-    
+
     /// Format comma-separated items
     fn format_comma_separated<T, F>(&mut self, items: &[T], mut format_fn: F)
     where
@@ -691,41 +693,38 @@ impl RuchyFormatter {
             format_fn(self, item);
         }
     }
-    
+
     /// Write string to output
     fn write(&mut self, s: &str) {
         self.output.push_str(s);
     }
-    
+
     /// Write string with newline
     fn writeln(&mut self, s: &str) {
         self.output.push_str(s);
         self.output.push('\n');
     }
-    
+
     /// Write current indentation
     fn indent(&mut self) {
         for _ in 0..self.current_indent {
             self.output.push(' ');
         }
     }
-    
+
     /// Increase indentation level
     fn increase_indent(&mut self) {
         self.current_indent += self.indent_width;
     }
-    
+
     /// Decrease indentation level
     fn decrease_indent(&mut self) {
         self.current_indent = self.current_indent.saturating_sub(self.indent_width);
     }
-    
+
     /// Get current line length
     fn current_line_length(&self) -> usize {
-        self.output
-            .lines()
-            .last()
-            .map_or(0, |line| line.len())
+        self.output.lines().last().map_or(0, |line| line.len())
     }
 }
 
@@ -738,25 +737,25 @@ impl Default for RuchyFormatter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_format_literal() {
         let formatter = RuchyFormatter::new();
-        
+
         let expr = RuchyExpr::Literal(Literal::Integer(42));
         assert_eq!(formatter.format(&expr), "42");
-        
+
         let expr = RuchyExpr::Literal(Literal::String("hello".to_string()));
         assert_eq!(formatter.format(&expr), "\"hello\"");
-        
+
         let expr = RuchyExpr::Literal(Literal::Bool(true));
         assert_eq!(formatter.format(&expr), "true");
     }
-    
+
     #[test]
     fn test_format_function() {
         let formatter = RuchyFormatter::new();
-        
+
         let expr = RuchyExpr::Function {
             name: "add".to_string(),
             params: vec![
@@ -779,16 +778,16 @@ mod tests {
             is_async: false,
             return_type: Some(RuchyType::I64),
         };
-        
+
         let formatted = formatter.format(&expr);
         assert!(formatted.contains("fun add(x: i64, y: i64) -> i64"));
         assert!(formatted.contains("x + y"));
     }
-    
+
     #[test]
     fn test_format_pipeline() {
         let formatter = RuchyFormatter::new();
-        
+
         let expr = RuchyExpr::Pipeline {
             expr: Box::new(RuchyExpr::List(vec![
                 RuchyExpr::Literal(Literal::Integer(1)),
@@ -822,7 +821,7 @@ mod tests {
                 })),
             ],
         };
-        
+
         let formatted = formatter.format(&expr);
         assert!(formatted.contains("[1, 2, 3]"));
         assert!(formatted.contains("|> filter(|x| x > 1)"));

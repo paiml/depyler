@@ -128,7 +128,12 @@ impl StringOptimizer {
         self.analyze_expr(value, false);
     }
 
-    fn analyze_if_stmt(&mut self, condition: &HirExpr, then_body: &[HirStmt], else_body: &Option<Vec<HirStmt>>) {
+    fn analyze_if_stmt(
+        &mut self,
+        condition: &HirExpr,
+        then_body: &[HirStmt],
+        else_body: &Option<Vec<HirStmt>>,
+    ) {
         self.analyze_expr(condition, false);
         for stmt in then_body {
             self.analyze_stmt(stmt);
@@ -200,10 +205,11 @@ impl StringOptimizer {
 
     fn analyze_binary_expr(&mut self, op: &crate::hir::BinOp, left: &HirExpr, right: &HirExpr) {
         if matches!(op, crate::hir::BinOp::Add)
-            && (self.is_string_expr(left) || self.is_string_expr(right)) {
-                self.mark_as_owned(left);
-                self.mark_as_owned(right);
-            }
+            && (self.is_string_expr(left) || self.is_string_expr(right))
+        {
+            self.mark_as_owned(left);
+            self.mark_as_owned(right);
+        }
         self.analyze_expr(left, false);
         self.analyze_expr(right, false);
     }
@@ -376,7 +382,9 @@ fn generate_cow_str(context: &StringContext) -> String {
     match context {
         StringContext::Literal(s) => format!("Cow::Borrowed(\"{}\")", escape_string(s)),
         StringContext::Parameter(name) => format!("Cow::Borrowed({})", name),
-        StringContext::Concatenation | StringContext::Return => "Cow::Owned(String::new())".to_string(),
+        StringContext::Concatenation | StringContext::Return => {
+            "Cow::Owned(String::new())".to_string()
+        }
     }
 }
 

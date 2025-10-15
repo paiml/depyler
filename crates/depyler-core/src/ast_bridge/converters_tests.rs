@@ -659,11 +659,18 @@ fn test_error_on_chained_comparison() {
     // Pattern: a < b < c becomes (a < b) and (b < c)
     let expr = parse_expr("a < b < c");
     let result = ExprConverter::convert(expr);
-    assert!(result.is_ok(), "Chained comparisons should now be supported");
+    assert!(
+        result.is_ok(),
+        "Chained comparisons should now be supported"
+    );
 
     // Verify it's desugared to binary AND of two comparisons
     match result.unwrap() {
-        HirExpr::Binary { op: BinOp::And, left, right } => {
+        HirExpr::Binary {
+            op: BinOp::And,
+            left,
+            right,
+        } => {
             // Left should be (a < b)
             assert!(matches!(*left, HirExpr::Binary { op: BinOp::Lt, .. }));
             // Right should be (b < c)

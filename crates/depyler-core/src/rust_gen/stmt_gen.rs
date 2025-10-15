@@ -96,10 +96,8 @@ pub(crate) fn codegen_assert_stmt(
 #[inline]
 pub(crate) fn codegen_break_stmt(label: &Option<String>) -> Result<proc_macro2::TokenStream> {
     if let Some(label_name) = label {
-        let label_ident = syn::Lifetime::new(
-            &format!("'{}", label_name),
-            proc_macro2::Span::call_site(),
-        );
+        let label_ident =
+            syn::Lifetime::new(&format!("'{}", label_name), proc_macro2::Span::call_site());
         Ok(quote! { break #label_ident; })
     } else {
         Ok(quote! { break; })
@@ -110,10 +108,8 @@ pub(crate) fn codegen_break_stmt(label: &Option<String>) -> Result<proc_macro2::
 #[inline]
 pub(crate) fn codegen_continue_stmt(label: &Option<String>) -> Result<proc_macro2::TokenStream> {
     if let Some(label_name) = label {
-        let label_ident = syn::Lifetime::new(
-            &format!("'{}", label_name),
-            proc_macro2::Span::call_site(),
-        );
+        let label_ident =
+            syn::Lifetime::new(&format!("'{}", label_name), proc_macro2::Span::call_site());
         Ok(quote! { continue #label_ident; })
     } else {
         Ok(quote! { continue; })
@@ -122,7 +118,10 @@ pub(crate) fn codegen_continue_stmt(label: &Option<String>) -> Result<proc_macro
 
 /// Generate code for expression statement
 #[inline]
-pub(crate) fn codegen_expr_stmt(expr: &HirExpr, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
+pub(crate) fn codegen_expr_stmt(
+    expr: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
     let expr_tokens = expr.to_rust_expr(ctx)?;
     Ok(quote! { #expr_tokens; })
 }
@@ -360,9 +359,7 @@ pub(crate) fn codegen_assign_stmt(
         AssignTarget::Symbol(symbol) => {
             codegen_assign_symbol(symbol, value_expr, type_annotation_tokens, ctx)
         }
-        AssignTarget::Index { base, index } => {
-            codegen_assign_index(base, index, value_expr, ctx)
-        }
+        AssignTarget::Index { base, index } => codegen_assign_index(base, index, value_expr, ctx),
         AssignTarget::Attribute { value, attr } => {
             codegen_assign_attribute(value, attr, value_expr, ctx)
         }

@@ -203,8 +203,16 @@ mod tests {
         HirFunction {
             name: "test_func".to_string(),
             params: smallvec![
-                HirParam { name: Symbol::from("x"), ty: Type::Int, default: None },
-                HirParam { name: Symbol::from("y"), ty: Type::String, default: None }
+                HirParam {
+                    name: Symbol::from("x"),
+                    ty: Type::Int,
+                    default: None
+                },
+                HirParam {
+                    name: Symbol::from("y"),
+                    ty: Type::String,
+                    default: None
+                }
             ],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
@@ -270,7 +278,11 @@ mod tests {
         use smallvec::smallvec;
         let func_with_types = HirFunction {
             name: "typed_func".to_string(),
-            params: smallvec![HirParam { name: Symbol::from("x"), ty: Type::Int, default: None }],
+            params: smallvec![HirParam {
+                name: Symbol::from("x"),
+                ty: Type::Int,
+                default: None
+            }],
             ret_type: Type::String,
             body: vec![],
             properties: FunctionProperties::default(),
@@ -280,7 +292,11 @@ mod tests {
 
         let func_without_types = HirFunction {
             name: "untyped_func".to_string(),
-            params: smallvec![HirParam { name: Symbol::from("y"), ty: Type::Unknown, default: None }],
+            params: smallvec![HirParam {
+                name: Symbol::from("y"),
+                ty: Type::Unknown,
+                default: None
+            }],
             ret_type: Type::Unknown,
             body: vec![],
             properties: FunctionProperties::default(),
