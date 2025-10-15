@@ -179,9 +179,9 @@ let starts = text.starts_with("Hello");  // ✅ &str implements Pattern
 - `int(flag) + int(other)` → `flag + other` (missing cast)
 - Fixed by ensuring convert_int_cast() always generates explicit casts
 
-**DEPYLER-0217: ValueError Generated for Pure Functions** (Not Fixed - Analysis Issue)
+**DEPYLER-0217: ValueError Generated for Pure Functions** (✅ FIXED in v3.19.13)
 - Pure functions incorrectly get `Result<i32, ValueError>` return type
-- Requires fix in function properties analysis
+- Fixed by making int() failure analysis context-aware
 
 ---
 
