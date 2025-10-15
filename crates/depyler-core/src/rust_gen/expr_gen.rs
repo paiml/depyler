@@ -1357,6 +1357,76 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                 })
             }
+            "union" => {
+                // Set.union(other) - return new set with elements from both sets
+                if arg_exprs.len() != 1 {
+                    bail!("union() requires exactly one argument");
+                }
+                let other = &arg_exprs[0];
+                Ok(parse_quote! {
+                    #object_expr.union(&#other).cloned().collect::<std::collections::HashSet<_>>()
+                })
+            }
+            "intersection" => {
+                // Set.intersection(other) - return new set with common elements
+                if arg_exprs.len() != 1 {
+                    bail!("intersection() requires exactly one argument");
+                }
+                let other = &arg_exprs[0];
+                Ok(parse_quote! {
+                    #object_expr.intersection(&#other).cloned().collect::<std::collections::HashSet<_>>()
+                })
+            }
+            "difference" => {
+                // Set.difference(other) - return new set with elements not in other
+                if arg_exprs.len() != 1 {
+                    bail!("difference() requires exactly one argument");
+                }
+                let other = &arg_exprs[0];
+                Ok(parse_quote! {
+                    #object_expr.difference(&#other).cloned().collect::<std::collections::HashSet<_>>()
+                })
+            }
+            "symmetric_difference" => {
+                // Set.symmetric_difference(other) - return new set with elements in either but not both
+                if arg_exprs.len() != 1 {
+                    bail!("symmetric_difference() requires exactly one argument");
+                }
+                let other = &arg_exprs[0];
+                Ok(parse_quote! {
+                    #object_expr.symmetric_difference(&#other).cloned().collect::<std::collections::HashSet<_>>()
+                })
+            }
+            "issubset" => {
+                // Set.issubset(other) - check if all elements are in other
+                if arg_exprs.len() != 1 {
+                    bail!("issubset() requires exactly one argument");
+                }
+                let other = &arg_exprs[0];
+                Ok(parse_quote! {
+                    #object_expr.is_subset(&#other)
+                })
+            }
+            "issuperset" => {
+                // Set.issuperset(other) - check if contains all elements of other
+                if arg_exprs.len() != 1 {
+                    bail!("issuperset() requires exactly one argument");
+                }
+                let other = &arg_exprs[0];
+                Ok(parse_quote! {
+                    #object_expr.is_superset(&#other)
+                })
+            }
+            "isdisjoint" => {
+                // Set.isdisjoint(other) - check if no common elements
+                if arg_exprs.len() != 1 {
+                    bail!("isdisjoint() requires exactly one argument");
+                }
+                let other = &arg_exprs[0];
+                Ok(parse_quote! {
+                    #object_expr.is_disjoint(&#other)
+                })
+            }
             _ => bail!("Unknown set method: {}", method),
         }
     }
@@ -1401,7 +1471,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Check for set-specific context first
         if self.is_set_expr(object) {
             match method {
-                "add" | "discard" | "update" | "intersection_update" | "difference_update" => {
+                "add" | "discard" | "update" | "intersection_update" | "difference_update"
+                | "union" | "intersection" | "difference" | "symmetric_difference"
+                | "issubset" | "issuperset" | "isdisjoint" => {
                     return self.convert_set_method(object_expr, method, arg_exprs);
                 }
                 _ => {}
@@ -1439,7 +1511,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // Set methods (for variables without type info)
             // Note: "update" is more commonly used with sets in typed code, so prefer set interpretation
-            "add" | "discard" | "update" | "intersection_update" | "difference_update" | "symmetric_difference_update" => {
+            "add" | "discard" | "update" | "intersection_update" | "difference_update" | "symmetric_difference_update"
+            | "union" | "intersection" | "difference" | "symmetric_difference"
+            | "issubset" | "issuperset" | "isdisjoint" => {
                 self.convert_set_method(object_expr, method, arg_exprs)
             }
 
