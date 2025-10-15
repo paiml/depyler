@@ -2833,8 +2833,8 @@ v3_19_6_stdlib_verification:
 
 DEPYLER-0220:
   title: "Fix Rust Code Generation Formatting Issues"
-  status: not_started
-  phase: null  # Will be: RED → GREEN → REFACTOR → DONE
+  status: in_progress
+  phase: RED  # RED → GREEN → REFACTOR → DONE
   priority: critical
   type: bug
   category: code_generation_quality
