@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **BUGFIX** (2025-10-17): Disabled overly aggressive ConstGenericInferencer
+  - **Issue**: `list[int]` return types incorrectly converted to `[i32; 5]` fixed-size arrays
+  - **Root Cause**: `ConstGenericInferencer` auto-transformed types based on literal return values
+  - **Impact**: Type mismatch errors (signature `[i32; 5]` vs body `Vec<{integer}>`)
+  - **Fix**: Disabled automatic list-to-array transformation in `const_generic_inference.rs:173-183`
+  - **Result**: `test_21_list_creation` now passes ✅
+  - **Pass Rate**: 40% → 41% (+1% improvement)
+  - **File**: `crates/depyler-core/src/const_generic_inference.rs`
+  - **Rationale**: User explicitly wrote `list[int]` → should generate `Vec<i32>`, not `[i32; 5]`
+
+### Changed
+- **Planning**: Updated v3.20.0 Priority Fixes document with correction
+  - Original Issue #1 ("missing use statements") was MISIDENTIFIED
+  - Actual issue was ConstGenericInferencer overly aggressive transformation
+  - Import tracking system ALREADY EXISTS and works correctly (`generate_conditional_imports()`)
+  - Document marked for comprehensive revision
+
 ### Added
 - **Testing**: ✅ SQLite-style systematic validation framework - 100/100 tests complete (100% coverage achieved)
   - Phase 1 (20 tests): Foundational features - 90% pass rate
@@ -11,13 +29,14 @@ All notable changes to this project will be documented in this file.
   - Phase 3 (20 tests): Classes & Exceptions - 30% pass rate
   - Phase 4 (20 tests): Advanced features - 30% pass rate
   - Phase 5 (20 tests): Type system & modern Python - 10% pass rate
-  - **Overall**: 40% pass rate (40/100 passing), 61 documented transpiler limitations
+  - **Overall**: 41% pass rate (41/100 passing), 60 documented transpiler limitations
   - **Documentation**: Complete summary in docs/testing/sqlite-style-complete-summary.md
 - **Testing**: Framework specification in docs/specifications/testing-sqlite-style.md
 - **Planning**: v3.20.0 Priority Fixes roadmap (docs/planning/v3.20.0-priority-fixes.md)
-  - Detailed implementation plan for 3 critical issues
-  - Timeline: 2-3 weeks to 75% pass rate (+35% improvement)
-  - Low-risk, high-impact fixes identified
+  - ⚠️ Needs revision - Issue #1 was misidentified
+  - Detailed implementation plan for remaining 2 critical issues
+  - Timeline: 2-3 weeks to 75% pass rate (+34% improvement)
+  - Scientific method applied: verify root cause before implementing fixes
 
 ### Changed
 - **Repository Organization**: Major cleanup removing 55 obsolete files (session summaries, old release notes, cruft)
