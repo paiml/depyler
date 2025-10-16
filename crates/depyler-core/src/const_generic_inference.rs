@@ -159,43 +159,31 @@ impl ConstGenericInferencer {
     }
 
     /// Transform function types to use const generics where appropriate
-    fn transform_function_types(&mut self, function: &mut HirFunction) -> Result<()> {
-        // First, collect information about parameter sizes
-        let mut param_sizes = HashMap::new();
-        for param in &function.params {
-            if let Type::List(_) = param.ty {
-                if let Some(size) = self.infer_const_size_for_param(&param.name, function) {
-                    param_sizes.insert(param.name.clone(), size);
-                }
-            }
-        }
+    ///
+    /// IMPORTANT: This is DISABLED for now because it's too aggressive.
+    /// Converting `list[int]` to `[i32; 5]` based on return value inference
+    /// violates user intent - if they wrote `list[int]`, they want `Vec<i32>`.
+    ///
+    /// This transformation should only be enabled when:
+    /// 1. User explicitly requests arrays via annotations
+    /// 2. We add a `array[int, 5]` syntax for explicit fixed-size arrays
+    /// 3. We have strong evidence (beyond literal inference) that arrays are needed
+    ///
+    /// See: https://github.com/depyler/depyler/issues/XXXX
+    fn transform_function_types(&mut self, _function: &mut HirFunction) -> Result<()> {
+        // DISABLED: This transformation was causing list[int] -> [i32; 5]
+        // which breaks semantics (dynamic list becomes fixed array)
 
-        // Then transform parameter types
-        for param in &mut function.params {
-            if let Type::List(element_type) = &param.ty {
-                if let Some(size) = param_sizes.get(&param.name) {
-                    param.ty = Type::Array {
-                        element_type: element_type.clone(),
-                        size: ConstGeneric::Literal(*size),
-                    };
-                }
-            }
-        }
-
-        // Transform return type
-        if let Type::List(element_type) = &function.ret_type {
-            if let Some(size) = self.infer_const_size_for_return(function) {
-                function.ret_type = Type::Array {
-                    element_type: element_type.clone(),
-                    size: ConstGeneric::Literal(size),
-                };
-            }
-        }
+        // TODO: Re-enable with proper opt-in mechanism:
+        // - Check for @depyler annotations like `# @depyler: use_arrays = true`
+        // - Only transform when explicitly requested
+        // - Never transform return types unless user uses array syntax
 
         Ok(())
     }
 
     /// Infer const size for a parameter based on usage
+    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
     fn infer_const_size_for_param(
         &self,
         param_name: &str,
@@ -212,6 +200,7 @@ impl ConstGenericInferencer {
     }
 
     /// Infer const size for return type based on return statements
+    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
     fn infer_const_size_for_return(&self, function: &HirFunction) -> Option<usize> {
         // First, collect variable assignments
         let mut var_sizes = HashMap::new();
@@ -254,6 +243,7 @@ impl ConstGenericInferencer {
     }
 
     /// Detect variables that are mutated via method calls
+    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
     fn detect_mutated_variables(&self, function: &HirFunction) -> HashSet<String> {
         let mut mutated = HashSet::new();
         for stmt in &function.body {
@@ -263,6 +253,7 @@ impl ConstGenericInferencer {
     }
 
     /// Scan statement for list mutations
+    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
     fn scan_stmt_for_mutations(&self, stmt: &HirStmt, mutated: &mut HashSet<String>) {
         match stmt {
             HirStmt::Expr(expr) => {
@@ -307,6 +298,7 @@ impl ConstGenericInferencer {
 
     /// Scan expression for list mutations
     #[allow(clippy::only_used_in_recursion)]
+    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
     fn scan_expr_for_mutations(&self, expr: &HirExpr, mutated: &mut HashSet<String>) {
         match expr {
             HirExpr::MethodCall {
@@ -362,6 +354,7 @@ impl ConstGenericInferencer {
     }
 
     /// Find const usage patterns in statements
+    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
     fn find_const_usage_in_stmt(&self, param_name: &str, stmt: &HirStmt) -> Option<usize> {
         match stmt {
             HirStmt::Assign { value, .. } => self.find_const_usage_in_expr(param_name, value),
@@ -391,6 +384,7 @@ impl ConstGenericInferencer {
     }
 
     /// Find const usage patterns in expressions
+    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
     fn find_const_usage_in_expr(&self, param_name: &str, expr: &HirExpr) -> Option<usize> {
         match expr {
             HirExpr::Binary {
@@ -403,6 +397,7 @@ impl ConstGenericInferencer {
         }
     }
 
+    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
     fn find_len_equality_pattern(
         &self,
         param_name: &str,
@@ -413,6 +408,7 @@ impl ConstGenericInferencer {
             .or_else(|| self.check_len_eq_side(param_name, right, left))
     }
 
+    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
     fn check_len_eq_side(
         &self,
         param_name: &str,
@@ -433,6 +429,7 @@ impl ConstGenericInferencer {
         None
     }
 
+    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
     fn find_index_pattern(
         &self,
         param_name: &str,
