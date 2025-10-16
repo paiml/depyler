@@ -14,6 +14,10 @@ All notable changes to this project will be documented in this file.
   - **Overall**: 40% pass rate (40/100 passing), 61 documented transpiler limitations
   - **Documentation**: Complete summary in docs/testing/sqlite-style-complete-summary.md
 - **Testing**: Framework specification in docs/specifications/testing-sqlite-style.md
+- **Planning**: v3.20.0 Priority Fixes roadmap (docs/planning/v3.20.0-priority-fixes.md)
+  - Detailed implementation plan for 3 critical issues
+  - Timeline: 2-3 weeks to 75% pass rate (+35% improvement)
+  - Low-risk, high-impact fixes identified
 
 ### Changed
 - **Repository Organization**: Major cleanup removing 55 obsolete files (session summaries, old release notes, cruft)
