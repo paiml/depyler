@@ -332,7 +332,6 @@ def test() -> int:
 // ============================================================================
 
 #[test]
-#[ignore] // List creation generates incomplete code (missing use statements) - tracked for future enhancement
 fn test_21_list_creation() {
     let python = r#"
 def test() -> list[int]:
