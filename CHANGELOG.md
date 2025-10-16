@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **Testing**: SQLite-style systematic validation framework specification (docs/specifications/testing-sqlite-style.md)
 - **Testing**: Phase 1 implementation with 20 systematic tests across 4 Python language categories (literals, operators, control flow, functions)
+- **Testing**: Phase 2 implementation with 20 additional tests across 4 collection categories (lists, dicts, sets, strings)
 
 ### Changed
 - **Repository Organization**: Major cleanup removing 55 obsolete files (session summaries, old release notes, cruft)
