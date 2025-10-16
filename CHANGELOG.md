@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **BUGFIX** (2025-10-17): Fix String/&str type mismatch in HashMap dict literals
+  - **Issue**: Dict literals with string keys generate `&str` but `HashMap<String, V>` expects `String`
+  - **Root Cause**: `convert_dict()` didn't check return type for key conversion
+  - **Impact**: Type mismatch errors (`expected HashMap<String, V>, found HashMap<&str, V>`)
+  - **Fix**: Context-aware string key conversion in `expr_gen.rs:2090-2118`
+  - **Result**: `test_26_dict_creation` now passes ✅
+  - **Pass Rate**: 41% → 42% (+1% improvement)
+  - **Example**: `{"Alice": 30}` now generates `map.insert("Alice".to_string(), 30)` for HashMap<String, V>
+
 - **BUGFIX** (2025-10-17): Disabled overly aggressive ConstGenericInferencer
   - **Issue**: `list[int]` return types incorrectly converted to `[i32; 5]` fixed-size arrays
   - **Root Cause**: `ConstGenericInferencer` auto-transformed types based on literal return values

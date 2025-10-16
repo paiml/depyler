@@ -404,7 +404,6 @@ def test() -> list[int]:
 // ============================================================================
 
 #[test]
-#[ignore] // Dict creation generates incomplete code (missing use statements) - tracked for future enhancement
 fn test_26_dict_creation() {
     let python = r#"
 def test() -> dict[str, int]:
