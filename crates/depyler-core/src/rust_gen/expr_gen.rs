@@ -2089,10 +2089,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     fn convert_dict(&mut self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
         self.ctx.needs_hashmap = true;
+
+        // Check if return type is Dict with String keys
+        let needs_owned_keys = matches!(
+            &self.ctx.current_return_type,
+            Some(Type::Dict(key_type, _)) if **key_type == Type::String
+        );
+
         let mut insert_stmts = Vec::new();
         for (key, value) in items {
-            let key_expr = key.to_rust_expr(self.ctx)?;
+            let mut key_expr = key.to_rust_expr(self.ctx)?;
             let val_expr = value.to_rust_expr(self.ctx)?;
+
+            // If function returns HashMap<String, V>, convert &str keys to String
+            if needs_owned_keys && matches!(key, HirExpr::Literal(Literal::String(_))) {
+                key_expr = parse_quote! { #key_expr.to_string() };
+            }
+
             insert_stmts.push(quote! { map.insert(#key_expr, #val_expr); });
         }
         Ok(parse_quote! {
