@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **BUGFIX** (2025-10-17): Fix String concatenation detection in binary operations
+  - **Issue**: String concatenation with variables generates `String + String` (type error)
+  - **Root Cause**: `convert_binary()` only detected string concatenation when operands were literals
+  - **Impact**: Type mismatch errors (`expected &str, found String` in binary add operations)
+  - **Fix**: Enhanced detection to check `current_return_type` for `String` in `expr_gen.rs:61-76`
+  - **Result**: `test_36_string_methods` and `test_38_string_formatting` now pass ✅
+  - **Pass Rate**: 42% → 44% (+2% improvement, 2 tests fixed)
+  - **Example**: `upper + lower` now generates `format!("{}{}", upper, lower)` for String return type
+
 - **BUGFIX** (2025-10-17): Fix String/&str type mismatch in HashMap dict literals
   - **Issue**: Dict literals with string keys generate `&str` but `HashMap<String, V>` expects `String`
   - **Root Cause**: `convert_dict()` didn't check return type for key conversion
