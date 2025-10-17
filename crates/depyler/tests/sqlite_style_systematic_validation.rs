@@ -107,7 +107,6 @@ def test() -> bool:
 }
 
 #[test]
-#[ignore] // None type support is limited - tracked for future enhancement
 fn test_05_literals_none() {
     let python = r#"
 def test() -> None:
