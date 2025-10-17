@@ -127,6 +127,8 @@ pub(crate) fn codegen_function_body(
 
     for param in &func.params {
         ctx.declare_var(&param.name);
+        // Store parameter type information for set/dict disambiguation
+        ctx.var_types.insert(param.name.clone(), param.ty.clone());
     }
 
     // Analyze which variables are mutated in the function body

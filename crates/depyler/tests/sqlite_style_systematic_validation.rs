@@ -509,7 +509,6 @@ def test() -> set[int]:
 }
 
 #[test]
-#[ignore] // Set membership generates contains_key() instead of contains() for HashSet - requires variable type tracking
 fn test_34_set_membership() {
     let python = r#"
 def test(items: set[int], value: int) -> bool:
