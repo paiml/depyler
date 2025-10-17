@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **BUGFIX** (2025-10-17): Fix set membership to use .contains() instead of .contains_key()
+  - **Issue**: `value in items` where `items: set[int]` generates `.contains_key(&value)` instead of `.contains(&value)`
+  - **Root Cause**: Binary operator `in` didn't distinguish between `HashSet` and `HashMap`
+  - **Impact**: HashSet has `.contains()` method, not `.contains_key()` (which is HashMap-specific)
+  - **Fix**: Added `is_set_var()` helper to check parameter types via `ctx.var_types`, disambiguate set vs dict
+  - **Technical**: Populate `ctx.var_types` with function parameter types in `codegen_function_body()`
+  - **Result**: `test_34_set_membership` now passes ✅, **Sets category now 100% complete (5/5)**
+  - **Pass Rate**: 53.5% → 54.5% (+1% improvement, 55/101 tests)
+  - **Milestone**: Sets category first to reach 100% completion! 🎉
+
 - **BUGFIX** (2025-10-17): Fix dict.get() with String Literals vs &str Parameters
   - **Issue**: `data.get("key", 0)` generates compilation error (expected `&_`, found `String`)
   - **Root Cause**: Previous fix removed `&` from all dict.get() calls, breaking string literals
