@@ -819,6 +819,19 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
                 collect_used_vars_expr_inner(step_expr, used);
             }
         }
+        HirExpr::Attribute { value, .. } => {
+            // DEPYLER-0229 FIX: Collect variables from attribute access expressions
+            // This was causing dead code elimination to remove assignments
+            // for variables used in attribute access like: p.x + p.y
+            collect_used_vars_expr_inner(value, used);
+        }
+        HirExpr::Index { base, index } => {
+            // DEPYLER-0229 FIX: Collect variables from index expressions
+            // This was causing dead code elimination to remove assignments
+            // for variables used in indexing like: data[key]
+            collect_used_vars_expr_inner(base, used);
+            collect_used_vars_expr_inner(index, used);
+        }
         _ => {}
     }
 }

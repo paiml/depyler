@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **BUGFIX** (2025-10-17): Fix dead code elimination removing class instance variables
+  - **Issue**: `p = Point(3, 4)` followed by `p.x + p.y` has the assignment removed, leaving `p` undefined
+  - **Root Cause**: `collect_used_vars_expr_inner()` didn't handle `HirExpr::Attribute` or `HirExpr::Index`
+  - **Impact**: Dead code eliminator saw `p.x + p.y` but didn't mark `p` as used, so removed `p = Point(3, 4)`
+  - **Fix**: Added cases for `Attribute` and `Index` to recursively collect variables from base expressions
+  - **Technical**: When visiting `p.x`, now recursively visits `p` to mark it as used
+  - **Result**: `test_43_class_attributes` now passes ✅, **Classes - Basic category now 60% complete (3/5)**
+  - **Pass Rate**: 54.5% → 55.4% (+0.9% improvement, 56/101 tests)
+  - **Impact**: Also fixes any code using dictionary/list indexing like `data[key]` or array access
+
 - **BUGFIX** (2025-10-17): Fix set membership to use .contains() instead of .contains_key()
   - **Issue**: `value in items` where `items: set[int]` generates `.contains_key(&value)` instead of `.contains(&value)`
   - **Root Cause**: Binary operator `in` didn't distinguish between `HashSet` and `HashMap`
