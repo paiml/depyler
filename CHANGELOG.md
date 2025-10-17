@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **BUGFIX** (2025-10-17): Fix range expression precedence in list comprehensions
+  - **Issue**: `[x*x for x in range(10)]` generates `0..10.into_iter()` which parses as `0..(10.into_iter())`
+  - **Root Cause**: Range expressions need parentheses before method calls due to operator precedence
+  - **Impact**: Compilation error (`can't call method into_iter on type {integer}`)
+  - **Fix**: Added range detection and parentheses wrapping in `expr_gen.rs:2224-2231`
+  - **Result**: `test_25_list_comprehension` now passes ✅, Lists category now 100% complete (5/5)
+  - **Pass Rate**: 44% → 45% (+1% improvement)
+  - **Example**: `range(10)` now generates `(0..10).into_iter()` instead of `0..10.into_iter()`
+
 - **BUGFIX** (2025-10-17): Fix String concatenation detection in binary operations
   - **Issue**: String concatenation with variables generates `String + String` (type error)
   - **Root Cause**: `convert_binary()` only detected string concatenation when operands were literals

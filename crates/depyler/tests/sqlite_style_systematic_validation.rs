@@ -387,7 +387,6 @@ def test(items: list[int]) -> int:
 }
 
 #[test]
-#[ignore] // List comprehension generates incorrect range syntax - tracked for future enhancement
 fn test_25_list_comprehension() {
     let python = r#"
 def test() -> list[int]:
