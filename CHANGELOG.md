@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **IMPROVEMENT** (2025-10-17): Remove outdated #[ignore] from test_33_set_methods
+  - **Observation**: `test_33_set_methods` was marked ignored with comment "Set methods generate immutable bindings"
+  - **Reality**: Transpiler correctly generates `let mut items = ...` with mutable binding
+  - **Fix**: Removed `#[ignore]` attribute - test now passes ✅
+  - **Result**: Sets category now 60% complete (3/5), pass rate 50% → 51%
+
 - **BUGFIX** (2025-10-17): Fix missing HashSet import in generated code
   - **Issue**: Functions with `set[int]` parameters don't generate `use std::collections::HashSet;` import
   - **Root Cause**: `update_import_needs()` had no case for `RustType::HashSet`
