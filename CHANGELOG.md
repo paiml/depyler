@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **BUGFIX** (2025-10-17): Fix 'static lifetime as generic parameter
+  - **Issue**: Functions with Cow<'static, str> parameters generate `<'static>` generic parameter
+  - **Root Cause**: `codegen_generic_params()` added all lifetimes without filtering reserved keyword
+  - **Impact**: Compilation error (`invalid lifetime parameter name: 'static is a reserved lifetime name`)
+  - **Fix**: Filter out "'static" from generic parameters in `func_gen.rs:33`
+  - **Result**: `test_81_basic_type_annotations` now passes ✅, Type Annotations category now 40% complete (2/5)
+  - **Pass Rate**: 52% → 52.5% (+0.5% improvement, 53/101 tests)
+  - **Example**: `pub fn greet<'static>` now generates `pub fn greet` (no generic lifetime param)
+
 - **BUGFIX** (2025-10-17): Fix set comprehension range syntax
   - **Issue**: `{x for x in range(10) if x % 2 == 0}` generates `0..10.into_iter()` causing ambiguous type error
   - **Root Cause**: `convert_set_comp()` didn't wrap range expressions in parentheses
