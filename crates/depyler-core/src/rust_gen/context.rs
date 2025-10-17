@@ -8,7 +8,7 @@ use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
 use crate::hir::Type;
 use crate::string_optimization::StringOptimizer;
 use anyhow::Result;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// Code generation context
 ///
@@ -46,6 +46,7 @@ pub struct CodeGenContext<'a> {
     pub is_classmethod: bool,
     pub in_generator: bool,
     pub generator_state_vars: HashSet<String>,
+    pub var_types: HashMap<String, Type>,
 }
 
 impl<'a> CodeGenContext<'a> {

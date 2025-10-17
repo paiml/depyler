@@ -495,7 +495,6 @@ def test(a: set[int], b: set[int]) -> set[int]:
 }
 
 #[test]
-#[ignore] // Set methods generate immutable bindings - tracked for future enhancement
 fn test_33_set_methods() {
     let python = r#"
 def test() -> set[int]:
@@ -510,7 +509,7 @@ def test() -> set[int]:
 }
 
 #[test]
-#[ignore] // Set membership generates code without HashSet import - tracked for future enhancement
+#[ignore] // Set membership generates contains_key() instead of contains() for HashSet - requires variable type tracking
 fn test_34_set_membership() {
     let python = r#"
 def test(items: set[int], value: int) -> bool:

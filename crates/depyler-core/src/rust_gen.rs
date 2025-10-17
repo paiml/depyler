@@ -379,6 +379,7 @@ pub fn generate_rust_file(
         needs_indexerror: false,
         is_classmethod: false,
         generator_state_vars: HashSet::new(),
+        var_types: std::collections::HashMap::new(),
     };
 
     // Analyze all functions first for string optimization
@@ -476,6 +477,7 @@ mod tests {
             is_classmethod: false,
             in_generator: false,
             generator_state_vars: HashSet::new(),
+            var_types: std::collections::HashMap::new(),
         }
     }
 
