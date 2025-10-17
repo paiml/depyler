@@ -28,9 +28,12 @@ pub(crate) fn codegen_generic_params(
     let mut all_params = Vec::new();
 
     // Add lifetime parameters first
+    // Note: Filter out 'static as it's a reserved keyword in Rust and doesn't need to be declared
     for lt in lifetime_params {
-        let lt_ident = syn::Lifetime::new(lt, proc_macro2::Span::call_site());
-        all_params.push(quote! { #lt_ident });
+        if lt != "'static" {
+            let lt_ident = syn::Lifetime::new(lt, proc_macro2::Span::call_site());
+            all_params.push(quote! { #lt_ident });
+        }
     }
 
     // Add type parameters with their bounds

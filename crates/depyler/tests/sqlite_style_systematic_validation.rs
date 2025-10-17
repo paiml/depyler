@@ -1420,7 +1420,6 @@ def test() -> int:
 // ============================================================================
 
 #[test]
-#[ignore] // Basic type annotations generate String/&str type mismatch - tracked for future enhancement
 fn test_81_basic_type_annotations() {
     let python = r#"
 def greet(name: str, age: int) -> str:
@@ -1429,7 +1428,7 @@ def greet(name: str, age: int) -> str:
 
     let rust = transpile_and_verify(python, "basic_type_annotations").unwrap();
     assert!(rust.contains("fn greet"));
-    assert!(rust.contains("String") || rust.contains("&str"));
+    assert!(rust.contains("String") || rust.contains("&str") || rust.contains("Cow"));
 }
 
 #[test]
