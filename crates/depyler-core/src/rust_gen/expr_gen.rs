@@ -2221,11 +2221,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let iter_expr = iter.to_rust_expr(self.ctx)?;
         let element_expr = element.to_rust_expr(self.ctx)?;
 
+        // Wrap range expressions in parentheses to avoid precedence issues
+        // e.g., 0..10.into_iter() is parsed as 0..(10.into_iter())
+        // but we want (0..10).into_iter()
+        let iter_with_parens = if self.is_range_expr(&iter_expr) {
+            parse_quote! { (#iter_expr) }
+        } else {
+            iter_expr
+        };
+
         if let Some(cond) = condition {
             // With condition: iter().filter().map().collect()
             let cond_expr = cond.to_rust_expr(self.ctx)?;
             Ok(parse_quote! {
-                #iter_expr
+                #iter_with_parens
                     .into_iter()
                     .filter(|#target_ident| #cond_expr)
                     .map(|#target_ident| #element_expr)
@@ -2234,7 +2243,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         } else {
             // Without condition: iter().map().collect()
             Ok(parse_quote! {
-                #iter_expr
+                #iter_with_parens
                     .into_iter()
                     .map(|#target_ident| #element_expr)
                     .collect::<Vec<_>>()
