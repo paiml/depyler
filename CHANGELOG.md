@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **BUGFIX** (2025-10-17): Fix power operator type mismatch in fallback cast
+  - **Issue**: `a ** 2` generates type mismatch error (`expected i32, found i64`)
+  - **Root Cause**: Fallback branch in power operator hardcoded `as i64` cast instead of using context type
+  - **Impact**: Compilation error for power operations with non-literal expressions
+  - **Fix**: Added context-aware type casting using `current_return_type` in `expr_gen.rs:205-225`
+  - **Result**: `test_10_binop_power` now passes ✅, Binary Operators category now 100% complete (5/5)
+  - **Pass Rate**: 45% → 46% (+1% improvement)
+  - **Example**: `a ** 2` for `fn(...) -> i32` now generates `... as i32` instead of `... as i64`
+
 - **BUGFIX** (2025-10-17): Fix range expression precedence in list comprehensions
   - **Issue**: `[x*x for x in range(10)]` generates `0..10.into_iter()` which parses as `0..(10.into_iter())`
   - **Root Cause**: Range expressions need parentheses before method calls due to operator precedence
