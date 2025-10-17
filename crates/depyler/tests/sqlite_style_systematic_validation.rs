@@ -521,7 +521,6 @@ def test(items: set[int], value: int) -> bool:
 }
 
 #[test]
-#[ignore] // Set comprehension generates incorrect range syntax - tracked for future enhancement
 fn test_35_set_comprehension() {
     let python = r#"
 def test() -> set[int]:
