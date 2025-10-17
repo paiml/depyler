@@ -439,7 +439,6 @@ def test() -> dict[str, int]:
 }
 
 #[test]
-#[ignore] // Dict iteration generates incorrect borrowing for keys - tracked for future enhancement
 fn test_29_dict_iteration() {
     let python = r#"
 def test(data: dict[str, int]) -> int:
