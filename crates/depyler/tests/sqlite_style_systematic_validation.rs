@@ -631,7 +631,6 @@ def test() -> Point:
 }
 
 #[test]
-#[ignore] // Class attributes generate code with variable scope issues - tracked for future enhancement
 fn test_43_class_attributes() {
     let python = r#"
 class Point:
