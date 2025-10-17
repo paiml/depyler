@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **FEATURE** (2025-10-17): Add dict comprehension support (DEPYLER-0237)
+  - **Feature**: Dict comprehensions (`{key: value for x in iterable}`) now transpile to idiomatic Rust iterator chains
+  - **Example**:
+    ```python
+    # Python input:
+    squares = {x: x * x for x in range(5)}
+
+    # Rust output:
+    let squares = (0..5)
+        .into_iter()
+        .map(|x| (x, x * x))
+        .collect::<HashMap<_, _>>();
+    ```
+  - **Implementation**:
+    - Added `DictComp` variant to HIR `HirExpr` enum with key, value, target, iter, and condition fields
+    - Implemented `convert_dict_comp()` in AST bridge (`ast_bridge/converters.rs`)
+    - Added code generation in 7 files:
+      1. `direct_rules.rs` - Class method code generation path
+      2. `codegen.rs` - Function code generation path
+      3. `borrowing_context.rs` - Borrowing analysis for dict comprehensions
+      4. `lifetime_analysis.rs` - Lifetime analysis for comprehension scope
+      5. `rust_gen/expr_gen.rs` - Expression converter for modern Rust output
+      6. `rust_gen/func_gen.rs` - Function utilities pattern list
+      7. `rust_gen/stmt_gen.rs` - Statement generation utilities
+  - **Features Supported**:
+    - Simple dict comprehensions: `{k: v for x in iter}`
+    - Conditional comprehensions: `{k: v for x in iter if condition}`
+    - Automatic `HashMap` import injection
+    - Range expression parenthesization for operator precedence
+  - **Result**:
+    - `test_30_dict_comprehension` now passes ✅
+    - **Collections - Dicts category now 100% complete (5/5)**
+  - **Pass Rate**: 65.3% → 66.3% (+1.0% improvement, 67/101 tests)
+  - **Test Fixed**: test_30_dict_comprehension (dict comprehension with range iterator)
+
 ### Fixed
 - **BUGFIX** (2025-10-17): Fix floor division formatting in class methods (DEPYLER-0236)
   - **Issue**: Floor division (`//`) in class methods generated syntactically invalid Rust code with broken `!=` operator spacing:

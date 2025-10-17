@@ -2512,6 +2512,48 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    fn convert_dict_comp(
+        &mut self,
+        key: &HirExpr,
+        value: &HirExpr,
+        target: &str,
+        iter: &HirExpr,
+        condition: &Option<Box<HirExpr>>,
+    ) -> Result<syn::Expr> {
+        self.ctx.needs_hashmap = true;
+        let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+        let iter_expr = iter.to_rust_expr(self.ctx)?;
+        let key_expr = key.to_rust_expr(self.ctx)?;
+        let value_expr = value.to_rust_expr(self.ctx)?;
+
+        // Wrap range expressions in parentheses to avoid precedence issues
+        let iter_with_parens = if self.is_range_expr(&iter_expr) {
+            parse_quote! { (#iter_expr) }
+        } else {
+            iter_expr
+        };
+
+        if let Some(cond) = condition {
+            // With condition: iter().filter().map().collect()
+            let cond_expr = cond.to_rust_expr(self.ctx)?;
+            Ok(parse_quote! {
+                #iter_with_parens
+                    .into_iter()
+                    .filter(|#target_ident| #cond_expr)
+                    .map(|#target_ident| (#key_expr, #value_expr))
+                    .collect::<HashMap<_, _>>()
+            })
+        } else {
+            // Without condition: iter().map().collect()
+            Ok(parse_quote! {
+                #iter_with_parens
+                    .into_iter()
+                    .map(|#target_ident| (#key_expr, #value_expr))
+                    .collect::<HashMap<_, _>>()
+            })
+        }
+    }
+
     fn convert_lambda(&mut self, params: &[String], body: &HirExpr) -> Result<syn::Expr> {
         // Convert parameters to pattern identifiers
         let param_pats: Vec<syn::Pat> = params
@@ -2851,6 +2893,13 @@ impl ToRustExpr for HirExpr {
                 iter,
                 condition,
             } => converter.convert_set_comp(element, target, iter, condition),
+            HirExpr::DictComp {
+                key,
+                value,
+                target,
+                iter,
+                condition,
+            } => converter.convert_dict_comp(key, value, target, iter, condition),
             HirExpr::Await { value } => converter.convert_await(value),
             HirExpr::Yield { value } => converter.convert_yield(value),
             HirExpr::FString { parts } => converter.convert_fstring(parts),

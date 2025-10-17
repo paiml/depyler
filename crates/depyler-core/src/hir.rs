@@ -391,6 +391,14 @@ pub enum HirExpr {
         iter: Box<HirExpr>,
         condition: Option<Box<HirExpr>>,
     },
+    // Dict comprehension
+    DictComp {
+        key: Box<HirExpr>,
+        value: Box<HirExpr>,
+        target: Symbol,
+        iter: Box<HirExpr>,
+        condition: Option<Box<HirExpr>>,
+    },
     // Lambda function
     Lambda {
         params: Vec<Symbol>,
