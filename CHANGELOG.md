@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **BUGFIX** (2025-10-17): Fix dict iteration key borrowing
+  - **Issue**: `for key in data.keys(): data[key]` generates `data.get(key)` causing type mismatch (`expected &_, found String`)
+  - **Root Cause**: `convert_index()` didn't borrow owned keys when accessing HashMap
+  - **Impact**: Compilation error for dict iteration with variable keys
+  - **Fix**: Added borrow operator `&` before index expression in `expr_gen.rs:1776`
+  - **Result**: `test_29_dict_iteration` now passes ✅, Dicts category now 80% complete (4/5)
+  - **Pass Rate**: 48% → 49% (+1% improvement)
+  - **Example**: `data.get(key)` now generates `data.get(&key)` when key is owned
+
 - **BUGFIX** (2025-10-17): Fix dict methods mutability tracking
   - **Issue**: `data.update({"b": 2})` generates `let data = ...` instead of `let mut data = ...`
   - **Root Cause**: `analyze_mutable_vars()` only tracked list methods, not dict/set methods
