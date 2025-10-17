@@ -3,7 +3,7 @@ use crate::hir::*;
 use crate::string_optimization::StringOptimizer;
 use anyhow::Result;
 use quote::{quote, ToTokens};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use syn::{self, parse_quote};
 
 // Module declarations for rust_gen refactoring (v3.18.0 Phases 2-7)
@@ -56,7 +56,12 @@ fn analyze_string_optimization(ctx: &mut CodeGenContext, functions: &[HirFunctio
 fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
     let mut declared = HashSet::new();
 
-    fn analyze_expr_for_mutations(expr: &HirExpr, mutable: &mut HashSet<String>) {
+    fn analyze_expr_for_mutations(
+        expr: &HirExpr,
+        mutable: &mut HashSet<String>,
+        var_types: &HashMap<String, String>,
+        mutating_methods: &HashMap<String, HashSet<String>>,
+    ) {
         match expr {
             HirExpr::MethodCall {
                 object,
@@ -64,54 +69,72 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
                 args,
             } => {
                 // Check if this is a mutating method call
-                if is_mutating_method(method) {
+                let is_mut = if is_mutating_method(method) {
+                    // Built-in mutating method
+                    true
+                } else if let HirExpr::Var(var_name) = &**object {
+                    // Check if this is a user-defined mutating method
+                    if let Some(class_name) = var_types.get(var_name) {
+                        if let Some(mut_methods) = mutating_methods.get(class_name) {
+                            mut_methods.contains(method)
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                if is_mut {
                     if let HirExpr::Var(var_name) = &**object {
                         mutable.insert(var_name.clone());
                     }
                 }
                 // Recursively check nested expressions
-                analyze_expr_for_mutations(object, mutable);
+                analyze_expr_for_mutations(object, mutable, var_types, mutating_methods);
                 for arg in args {
-                    analyze_expr_for_mutations(arg, mutable);
+                    analyze_expr_for_mutations(arg, mutable, var_types, mutating_methods);
                 }
             }
             HirExpr::Binary { left, right, .. } => {
-                analyze_expr_for_mutations(left, mutable);
-                analyze_expr_for_mutations(right, mutable);
+                analyze_expr_for_mutations(left, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(right, mutable, var_types, mutating_methods);
             }
             HirExpr::Unary { operand, .. } => {
-                analyze_expr_for_mutations(operand, mutable);
+                analyze_expr_for_mutations(operand, mutable, var_types, mutating_methods);
             }
             HirExpr::Call { args, .. } => {
                 for arg in args {
-                    analyze_expr_for_mutations(arg, mutable);
+                    analyze_expr_for_mutations(arg, mutable, var_types, mutating_methods);
                 }
             }
             HirExpr::IfExpr { test, body, orelse } => {
-                analyze_expr_for_mutations(test, mutable);
-                analyze_expr_for_mutations(body, mutable);
-                analyze_expr_for_mutations(orelse, mutable);
+                analyze_expr_for_mutations(test, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(body, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(orelse, mutable, var_types, mutating_methods);
             }
             HirExpr::List(items)
             | HirExpr::Tuple(items)
             | HirExpr::Set(items)
             | HirExpr::FrozenSet(items) => {
                 for item in items {
-                    analyze_expr_for_mutations(item, mutable);
+                    analyze_expr_for_mutations(item, mutable, var_types, mutating_methods);
                 }
             }
             HirExpr::Dict(pairs) => {
                 for (key, value) in pairs {
-                    analyze_expr_for_mutations(key, mutable);
-                    analyze_expr_for_mutations(value, mutable);
+                    analyze_expr_for_mutations(key, mutable, var_types, mutating_methods);
+                    analyze_expr_for_mutations(value, mutable, var_types, mutating_methods);
                 }
             }
             HirExpr::Index { base, index } => {
-                analyze_expr_for_mutations(base, mutable);
-                analyze_expr_for_mutations(index, mutable);
+                analyze_expr_for_mutations(base, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(index, mutable, var_types, mutating_methods);
             }
             HirExpr::Attribute { value, .. } => {
-                analyze_expr_for_mutations(value, mutable);
+                analyze_expr_for_mutations(value, mutable, var_types, mutating_methods);
             }
             _ => {}
         }
@@ -129,14 +152,26 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
         )
     }
 
-    fn analyze_stmt(stmt: &HirStmt, declared: &mut HashSet<String>, mutable: &mut HashSet<String>) {
+    fn analyze_stmt(
+        stmt: &HirStmt,
+        declared: &mut HashSet<String>,
+        mutable: &mut HashSet<String>,
+        var_types: &mut HashMap<String, String>,
+        mutating_methods: &HashMap<String, HashSet<String>>,
+    ) {
         match stmt {
             HirStmt::Assign { target, value, .. } => {
                 // Check if the value expression contains method calls that mutate variables
-                analyze_expr_for_mutations(value, mutable);
+                analyze_expr_for_mutations(value, mutable, var_types, mutating_methods);
 
                 match target {
                     AssignTarget::Symbol(name) => {
+                        // Track variable type if assigned from class constructor
+                        if let HirExpr::Call { func, .. } = value {
+                            // Store the type (class name) for this variable
+                            var_types.insert(name.clone(), func.clone());
+                        }
+
                         if declared.contains(name) {
                             // Variable is being reassigned - mark as mutable
                             mutable.insert(name.clone());
@@ -159,15 +194,28 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
                             }
                         }
                     }
-                    _ => {}
+                    AssignTarget::Attribute { value, .. } => {
+                        // DEPYLER-0235 FIX: Property writes require the base object to be mutable
+                        // e.g., `b.size = 20` requires `let mut b = ...`
+                        if let HirExpr::Var(var_name) = value.as_ref() {
+                            mutable.insert(var_name.clone());
+                        }
+                    }
+                    AssignTarget::Index { base, .. } => {
+                        // DEPYLER-0235 FIX: Index assignments also require mutability
+                        // e.g., `arr[i] = value` requires `let mut arr = ...`
+                        if let HirExpr::Var(var_name) = base.as_ref() {
+                            mutable.insert(var_name.clone());
+                        }
+                    }
                 }
             }
             HirStmt::Expr(expr) => {
                 // Check standalone expressions for method calls (e.g., numbers.push(4))
-                analyze_expr_for_mutations(expr, mutable);
+                analyze_expr_for_mutations(expr, mutable, var_types, mutating_methods);
             }
             HirStmt::Return(Some(expr)) => {
-                analyze_expr_for_mutations(expr, mutable);
+                analyze_expr_for_mutations(expr, mutable, var_types, mutating_methods);
             }
             HirStmt::If {
                 condition,
@@ -175,35 +223,43 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
                 else_body,
                 ..
             } => {
-                analyze_expr_for_mutations(condition, mutable);
+                analyze_expr_for_mutations(condition, mutable, var_types, mutating_methods);
                 for stmt in then_body {
-                    analyze_stmt(stmt, declared, mutable);
+                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
                 }
                 if let Some(else_stmts) = else_body {
                     for stmt in else_stmts {
-                        analyze_stmt(stmt, declared, mutable);
+                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
                     }
                 }
             }
             HirStmt::While {
                 condition, body, ..
             } => {
-                analyze_expr_for_mutations(condition, mutable);
+                analyze_expr_for_mutations(condition, mutable, var_types, mutating_methods);
                 for stmt in body {
-                    analyze_stmt(stmt, declared, mutable);
+                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
                 }
             }
             HirStmt::For { body, .. } => {
                 for stmt in body {
-                    analyze_stmt(stmt, declared, mutable);
+                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
                 }
             }
             _ => {}
         }
     }
 
+    let mut var_types = HashMap::new();
+    let mutating_methods = &ctx.mutating_methods;
     for stmt in stmts {
-        analyze_stmt(stmt, &mut declared, &mut ctx.mutable_vars);
+        analyze_stmt(
+            stmt,
+            &mut declared,
+            &mut ctx.mutable_vars,
+            &mut var_types,
+            mutating_methods,
+        );
     }
 }
 
@@ -353,6 +409,26 @@ pub fn generate_rust_file(
     let (imported_modules, imported_items) =
         process_module_imports(&module.imports, &module_mapper);
 
+    // Extract class names from module (DEPYLER-0230: distinguish user classes from builtins)
+    let class_names: HashSet<String> = module
+        .classes
+        .iter()
+        .map(|class| class.name.clone())
+        .collect();
+
+    // DEPYLER-0231: Build map of mutating methods (class_name -> set of method names)
+    let mut mutating_methods: std::collections::HashMap<String, HashSet<String>> =
+        std::collections::HashMap::new();
+    for class in &module.classes {
+        let mut mut_methods = HashSet::new();
+        for method in &class.methods {
+            if crate::direct_rules::method_mutates_self(method) {
+                mut_methods.insert(method.name.clone());
+            }
+        }
+        mutating_methods.insert(class.name.clone(), mut_methods);
+    }
+
     let mut ctx = CodeGenContext {
         type_mapper,
         annotation_aware_mapper: AnnotationAwareTypeMapper::with_base_mapper(type_mapper.clone()),
@@ -380,6 +456,8 @@ pub fn generate_rust_file(
         is_classmethod: false,
         generator_state_vars: HashSet::new(),
         var_types: std::collections::HashMap::new(),
+        class_names,
+        mutating_methods,
     };
 
     // Analyze all functions first for string optimization
@@ -478,6 +556,8 @@ mod tests {
             in_generator: false,
             generator_state_vars: HashSet::new(),
             var_types: std::collections::HashMap::new(),
+            class_names: HashSet::new(),
+            mutating_methods: std::collections::HashMap::new(),
         }
     }
 

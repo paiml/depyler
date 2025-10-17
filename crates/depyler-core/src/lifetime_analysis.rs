@@ -493,6 +493,27 @@ impl LifetimeInference {
                 // If target shadows param, we don't analyze element/condition
                 // since they would refer to the comprehension variable, not the parameter
             }
+            HirExpr::DictComp {
+                key,
+                value,
+                target,
+                iter,
+                condition,
+            } => {
+                // Dict comprehensions create a new scope, so the target variable
+                // shadows any outer variable with the same name
+                if target != param {
+                    // Only analyze if the comprehension target doesn't shadow our parameter
+                    self.analyze_expr_for_param(param, iter, usage, true, false);
+                    self.analyze_expr_for_param(param, key, usage, true, in_return);
+                    self.analyze_expr_for_param(param, value, usage, true, in_return);
+                    if let Some(cond) = condition {
+                        self.analyze_expr_for_param(param, cond, usage, true, false);
+                    }
+                }
+                // If target shadows param, we don't analyze key/value/condition
+                // since they would refer to the comprehension variable, not the parameter
+            }
             HirExpr::Await { value } => {
                 // Await expressions propagate parameter usage
                 self.analyze_expr_for_param(param, value, usage, in_loop, in_return);

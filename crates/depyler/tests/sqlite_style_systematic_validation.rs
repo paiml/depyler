@@ -454,7 +454,6 @@ def test(data: dict[str, int]) -> int:
 }
 
 #[test]
-#[ignore] // Dict comprehension generates incomplete code - tracked for future enhancement
 fn test_30_dict_comprehension() {
     let python = r#"
 def test() -> dict[int, int]:

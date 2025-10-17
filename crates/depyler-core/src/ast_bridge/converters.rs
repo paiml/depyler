@@ -279,6 +279,7 @@ impl ExprConverter {
             ast::Expr::Compare(c) => Self::convert_compare(c),
             ast::Expr::ListComp(lc) => Self::convert_list_comp(lc),
             ast::Expr::SetComp(sc) => Self::convert_set_comp(sc),
+            ast::Expr::DictComp(dc) => Self::convert_dict_comp(dc),
             ast::Expr::GeneratorExp(ge) => Self::convert_generator_exp(ge),
             ast::Expr::Lambda(l) => Self::convert_lambda(l),
             ast::Expr::Set(s) => Self::convert_set(s),
@@ -651,6 +652,45 @@ impl ExprConverter {
 
         Ok(HirExpr::SetComp {
             element,
+            target,
+            iter,
+            condition,
+        })
+    }
+
+    fn convert_dict_comp(dc: ast::ExprDictComp) -> Result<HirExpr> {
+        // Convert only simple dict comprehensions for now
+        if dc.generators.len() != 1 {
+            bail!("Nested dict comprehensions not yet supported");
+        }
+
+        let generator = &dc.generators[0];
+
+        // Extract the target variable
+        let target = match &generator.target {
+            ast::Expr::Name(n) => n.id.to_string(),
+            _ => bail!("Complex comprehension targets not yet supported"),
+        };
+
+        // Convert the iterator expression
+        let iter = Box::new(Self::convert(generator.iter.clone())?);
+
+        // Convert the key and value expressions
+        let key = Box::new(Self::convert(*dc.key)?);
+        let value = Box::new(Self::convert(*dc.value)?);
+
+        // Convert the condition if present
+        let condition = if generator.ifs.is_empty() {
+            None
+        } else if generator.ifs.len() == 1 {
+            Some(Box::new(Self::convert(generator.ifs[0].clone())?))
+        } else {
+            bail!("Multiple if conditions in dict comprehensions not yet supported");
+        };
+
+        Ok(HirExpr::DictComp {
+            key,
+            value,
             target,
             iter,
             condition,

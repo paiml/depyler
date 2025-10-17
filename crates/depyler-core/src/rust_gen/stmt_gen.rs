@@ -338,6 +338,17 @@ pub(crate) fn codegen_assign_stmt(
     type_annotation: &Option<Type>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0232: Track variable types for class instances
+    // This allows proper method dispatch for user-defined classes
+    if let AssignTarget::Symbol(var_name) = target {
+        if let HirExpr::Call { func, .. } = value {
+            // Check if this is a user-defined class constructor
+            if ctx.class_names.contains(func) {
+                ctx.var_types.insert(var_name.clone(), Type::Custom(func.clone()));
+            }
+        }
+    }
+
     let mut value_expr = value.to_rust_expr(ctx)?;
 
     // If there's a type annotation, handle type conversions

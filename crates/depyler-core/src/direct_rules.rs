@@ -1572,6 +1572,13 @@ impl<'a> ExprConverter<'a> {
                 iter,
                 condition,
             } => self.convert_set_comp(element, target, iter, condition),
+            HirExpr::DictComp {
+                key,
+                value,
+                target,
+                iter,
+                condition,
+            } => self.convert_dict_comp(key, value, target, iter, condition),
             HirExpr::Attribute { value, attr } => self.convert_attribute(value, attr),
             HirExpr::Await { value } => self.convert_await(value),
             _ => bail!("Expression type not yet supported: {:?}", expr),
@@ -2266,6 +2273,40 @@ impl<'a> ExprConverter<'a> {
                     .into_iter()
                     .map(|#target_ident| #element_expr)
                     .collect::<HashSet<_>>()
+            })
+        }
+    }
+
+    fn convert_dict_comp(
+        &self,
+        key: &HirExpr,
+        value: &HirExpr,
+        target: &str,
+        iter: &HirExpr,
+        condition: &Option<Box<HirExpr>>,
+    ) -> Result<syn::Expr> {
+        let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+        let iter_expr = self.convert(iter)?;
+        let key_expr = self.convert(key)?;
+        let value_expr = self.convert(value)?;
+
+        if let Some(cond) = condition {
+            // With condition: iter().filter().map().collect()
+            let cond_expr = self.convert(cond)?;
+            Ok(parse_quote! {
+                #iter_expr
+                    .into_iter()
+                    .filter(|#target_ident| #cond_expr)
+                    .map(|#target_ident| (#key_expr, #value_expr))
+                    .collect::<HashMap<_, _>>()
+            })
+        } else {
+            // Without condition: iter().map().collect()
+            Ok(parse_quote! {
+                #iter_expr
+                    .into_iter()
+                    .map(|#target_ident| (#key_expr, #value_expr))
+                    .collect::<HashMap<_, _>>()
             })
         }
     }
