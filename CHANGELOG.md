@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **BUGFIX** (2025-10-17): Fix dict methods mutability tracking
+  - **Issue**: `data.update({"b": 2})` generates `let data = ...` instead of `let mut data = ...`
+  - **Root Cause**: `analyze_mutable_vars()` only tracked list methods, not dict/set methods
+  - **Impact**: Compilation error (`cannot borrow data as mutable, as it is not declared as mutable`)
+  - **Fix**: Added dict methods (`update`, `setdefault`, `popitem`) and set methods (`add`, `discard`, etc.) to `is_mutating_method()` in `rust_gen.rs:120-130`
+  - **Result**: `test_28_dict_methods` now passes ✅, Dicts category now 60% complete (3/5)
+  - **Pass Rate**: 47% → 48% (+1% improvement)
+  - **Example**: Variables using `.update()` now correctly generate `let mut data = ...`
+
 - **BUGFIX** (2025-10-17): Fix None literal to generate unit type ()
   - **Issue**: Python `None` generates `None` in Rust, causing type mismatch (`expected (), found Option<_>`)
   - **Root Cause**: `literal_to_rust_expr()` hardcoded `None` instead of unit type `()`
