@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **BUGFIX** (2025-10-17): Fix set comprehension range syntax
+  - **Issue**: `{x for x in range(10) if x % 2 == 0}` generates `0..10.into_iter()` causing ambiguous type error
+  - **Root Cause**: `convert_set_comp()` didn't wrap range expressions in parentheses
+  - **Impact**: Compilation error (`can't call method into_iter on ambiguous numeric type {integer}`)
+  - **Fix**: Added range expression parenthesization matching `convert_list_comp()` in `expr_gen.rs:2387-2391`
+  - **Result**: `test_35_set_comprehension` now passes ✅, Sets category now 80% complete (4/5)
+  - **Pass Rate**: 51% → 51.5% (+0.5% improvement)
+  - **Example**: Set comprehensions now generate `(0..10).into_iter()` instead of `0..10.into_iter()`
+
 - **IMPROVEMENT** (2025-10-17): Remove outdated #[ignore] from test_33_set_methods
   - **Observation**: `test_33_set_methods` was marked ignored with comment "Set methods generate immutable bindings"
   - **Reality**: Transpiler correctly generates `let mut items = ...` with mutable binding
