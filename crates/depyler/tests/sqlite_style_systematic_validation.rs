@@ -483,7 +483,6 @@ def test() -> set[int]:
 }
 
 #[test]
-#[ignore] // Set operations generate code without HashSet import - tracked for future enhancement
 fn test_32_set_operations() {
     let python = r#"
 def test(a: set[int], b: set[int]) -> set[int]:
