@@ -648,7 +648,6 @@ def test() -> int:
 }
 
 #[test]
-#[ignore] // Class methods generate incorrect code - tracked for future enhancement
 fn test_44_class_simple_method() {
     let python = r#"
 class Counter:
@@ -669,7 +668,6 @@ def test() -> int:
 }
 
 #[test]
-#[ignore] // Class multiple instances generate variable scope issues - tracked for future enhancement
 fn test_45_class_multiple_instances() {
     let python = r#"
 class Point:
@@ -692,7 +690,6 @@ def test() -> int:
 // ============================================================================
 
 #[test]
-#[ignore] // Instance methods generate incorrect method routing (insert vs add) - tracked for future enhancement
 fn test_46_instance_method() {
     let python = r#"
 class Calculator:
@@ -712,7 +709,6 @@ def test() -> int:
 }
 
 #[test]
-#[ignore] // Method with self mutation generates incorrect HashMap call - tracked for future enhancement
 fn test_47_method_with_self_mutation() {
     let python = r#"
 class Counter:
@@ -732,7 +728,6 @@ def test() -> None:
 }
 
 #[test]
-#[ignore] // Method returning attribute generates String/&str type mismatch - tracked for future enhancement
 fn test_48_method_returning_self_attribute() {
     let python = r#"
 class Person:
@@ -777,7 +772,6 @@ def test() -> int:
 }
 
 #[test]
-#[ignore] // Method chaining generates incorrect method routing - tracked for future enhancement
 fn test_50_method_chaining() {
     let python = r#"
 class Builder:
@@ -808,7 +802,6 @@ def test() -> int:
 // ============================================================================
 
 #[test]
-#[ignore] // Read property generates variable scope issues - tracked for future enhancement
 fn test_51_read_property() {
     let python = r#"
 class Circle:
@@ -825,7 +818,6 @@ def test() -> int:
 }
 
 #[test]
-#[ignore] // Write property generates variable scope issues - tracked for future enhancement
 fn test_52_write_property() {
     let python = r#"
 class Box:
@@ -843,7 +835,6 @@ def test() -> int:
 }
 
 #[test]
-#[ignore] // Multiple properties generate variable scope issues - tracked for future enhancement
 fn test_53_multiple_properties() {
     let python = r#"
 class Point3D:
@@ -881,7 +872,6 @@ def test() -> int:
 }
 
 #[test]
-#[ignore] // Computed property generates invalid syntax (spacing issue) - tracked for future enhancement
 fn test_55_computed_property() {
     let python = r#"
 class Temperature:

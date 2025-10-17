@@ -549,7 +549,7 @@ fn convert_init_to_new(
 
 /// Check if a method mutates self (requires &mut self)
 /// Scans the method body for assignments to self attributes
-fn method_mutates_self(method: &HirMethod) -> bool {
+pub fn method_mutates_self(method: &HirMethod) -> bool {
     for stmt in &method.body {
         if stmt_mutates_self(stmt) {
             return true;
@@ -1628,6 +1628,7 @@ impl<'a> ExprConverter<'a> {
                 // Note: This implementation works for integers with proper floor semantics.
                 // Type-based dispatch for float division (using .floor()) would be ideal
                 // but requires full type inference integration. This is a known limitation.
+                // DEPYLER-0236: Use intermediate variables to avoid formatting issues with != operator
 
                 Ok(parse_quote! {
                     {
@@ -1635,7 +1636,12 @@ impl<'a> ExprConverter<'a> {
                         let b = #right_expr;
                         let q = a / b;
                         let r = a % b;
-                        if (r != 0) && ((r < 0) != (b < 0)) { q - 1 } else { q }
+                        let r_negative = r < 0;
+                        let b_negative = b < 0;
+                        let r_nonzero = r != 0;
+                        let signs_differ = r_negative != b_negative;
+                        let needs_adjustment = r_nonzero && signs_differ;
+                        if needs_adjustment { q - 1 } else { q }
                     }
                 })
             }

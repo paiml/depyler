@@ -373,10 +373,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(chain);
         }
 
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+        // DEPYLER-0230: Check if func is a user-defined class before treating as builtin
+        let is_user_class = self.ctx.class_names.contains(func);
+
+        // DEPYLER-0234: For user-defined class constructors, convert string literals to String
+        // This fixes "expected String, found &str" errors when calling constructors
+        let arg_exprs: Vec<syn::Expr> = if is_user_class {
+            args.iter()
+                .map(|arg| {
+                    let expr = arg.to_rust_expr(self.ctx)?;
+                    // Wrap string literals with .to_string()
+                    if matches!(arg, HirExpr::Literal(Literal::String(_))) {
+                        Ok(parse_quote! { #expr.to_string() })
+                    } else {
+                        Ok(expr)
+                    }
+                })
+                .collect::<Result<Vec<_>>>()?
+        } else {
+            args.iter()
+                .map(|arg| arg.to_rust_expr(self.ctx))
+                .collect::<Result<Vec<_>>>()?
+        };
 
         match func {
             // Python built-in type conversions → Rust casting
@@ -391,10 +409,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "set" => self.convert_set_constructor(&arg_exprs),
             "frozenset" => self.convert_frozenset_constructor(&arg_exprs),
             // DEPYLER-0171, 0172, 0173, 0174: Collection conversion builtins
-            "Counter" => self.convert_counter_builtin(&arg_exprs),
-            "dict" => self.convert_dict_builtin(&arg_exprs),
-            "deque" => self.convert_deque_builtin(&arg_exprs),
-            "list" => self.convert_list_builtin(&arg_exprs),
+            // DEPYLER-0230: Only treat as builtin if not a user-defined class
+            "Counter" if !is_user_class => self.convert_counter_builtin(&arg_exprs),
+            "dict" if !is_user_class => self.convert_dict_builtin(&arg_exprs),
+            "deque" if !is_user_class => self.convert_deque_builtin(&arg_exprs),
+            "list" if !is_user_class => self.convert_list_builtin(&arg_exprs),
             _ => self.convert_generic_call(func, &arg_exprs),
         }
     }
@@ -923,14 +942,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Treat as constructor call - ClassName::new(args)
             let class_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
             if args.is_empty() {
+                // DEPYLER-0233: Only apply default argument heuristics for Python stdlib types
+                // User-defined classes should always generate ClassName::new() with no args
+                let is_user_class = self.ctx.class_names.contains(func);
+
                 // Note: Constructor default parameter handling uses simple heuristics.
                 // Ideally this would be context-aware and know the actual default values
                 // for each class constructor, but currently uses hardcoded patterns.
                 // This is a known limitation - constructors may require explicit arguments.
-                match func {
-                    "Counter" => Ok(parse_quote! { #class_ident::new(0) }),
-                    _ => Ok(parse_quote! { #class_ident::new() }),
+                if !is_user_class && func == "Counter" {
+                    return Ok(parse_quote! { #class_ident::new(0) });
                 }
+                Ok(parse_quote! { #class_ident::new() })
             } else {
                 Ok(parse_quote! { #class_ident::new(#(#args),*) })
             }
@@ -1650,6 +1673,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         arg_exprs: &[syn::Expr],
         hir_args: &[HirExpr],
     ) -> Result<syn::Expr> {
+        // DEPYLER-0232 FIX: Check for user-defined class instances FIRST
+        // User-defined classes can have methods with names like "add" that conflict with
+        // built-in collection methods. We must prioritize user-defined methods.
+        if self.is_class_instance(object) {
+            // This is a user-defined class instance - use generic method call
+            let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+            return Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) });
+        }
+
         // DEPYLER-0211 FIX: Check object type first for ambiguous methods like update()
         // Both sets and dicts have update(), so we need to disambiguate
 
@@ -2347,6 +2379,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // For rust_gen, we're more conservative since we don't have type info
                 // Only treat explicit list literals and calls as lists
                 false
+            }
+            _ => false,
+        }
+    }
+
+    /// Check if an expression is a user-defined class instance
+    fn is_class_instance(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Var(name) => {
+                // Check var_types to see if this variable is a user-defined class
+                if let Some(Type::Custom(class_name)) = self.ctx.var_types.get(name) {
+                    // Check if this is a user-defined class (not a builtin)
+                    self.ctx.class_names.contains(class_name)
+                } else {
+                    false
+                }
+            }
+            HirExpr::Call { func, .. } => {
+                // Direct constructor call like Calculator(10)
+                self.ctx.class_names.contains(func)
             }
             _ => false,
         }
