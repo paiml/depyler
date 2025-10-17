@@ -323,6 +323,10 @@ fn update_custom_type_imports(ctx: &mut CodeGenContext, name: &str) {
 pub fn update_import_needs(ctx: &mut CodeGenContext, rust_type: &crate::type_mapper::RustType) {
     match rust_type {
         crate::type_mapper::RustType::HashMap(_, _) => ctx.needs_hashmap = true,
+        crate::type_mapper::RustType::HashSet(inner) => {
+            ctx.needs_hashset = true;
+            update_import_needs(ctx, inner);
+        }
         crate::type_mapper::RustType::Cow { .. } => ctx.needs_cow = true,
         crate::type_mapper::RustType::Custom(name) => update_custom_type_imports(ctx, name),
         crate::type_mapper::RustType::Reference { inner, .. } => {

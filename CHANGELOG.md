@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **BUGFIX** (2025-10-17): Fix missing HashSet import in generated code
+  - **Issue**: Functions with `set[int]` parameters don't generate `use std::collections::HashSet;` import
+  - **Root Cause**: `update_import_needs()` had no case for `RustType::HashSet`
+  - **Impact**: Compilation error (`cannot find type HashSet in this scope`)
+  - **Fix**: Added `HashSet` case to `update_import_needs()` in `type_gen.rs:326-329`
+  - **Result**: `test_32_set_operations` now passes ✅, Sets category now 40% complete (2/5)
+  - **Pass Rate**: 49% → 50% (+1% improvement, halfway milestone! 🎉)
+  - **Example**: Functions with `set[int]` params now generate `use std::collections::HashSet;`
+
 - **BUGFIX** (2025-10-17): Fix dict iteration key borrowing
   - **Issue**: `for key in data.keys(): data[key]` generates `data.get(key)` causing type mismatch (`expected &_, found String`)
   - **Root Cause**: `convert_index()` didn't borrow owned keys when accessing HashMap
