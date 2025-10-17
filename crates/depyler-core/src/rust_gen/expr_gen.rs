@@ -41,18 +41,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         match op {
             BinOp::In => {
-                // Convert "x in dict" to "dict.contains_key(x)" or "dict.contains_key(&x)"
+                // Convert "x in container" to appropriate method call
+                // - HashSet: container.contains(&x)
+                // - HashMap/dict: container.contains_key(&x)
+                // Check if right side is a set based on type information
+                let is_set = self.is_set_expr(right) || self.is_set_var(right);
+
                 // String literals are already &str, so don't add extra &
-                if matches!(left, HirExpr::Literal(Literal::String(_))) {
+                if is_set && matches!(left, HirExpr::Literal(Literal::String(_))) {
+                    Ok(parse_quote! { #right_expr.contains(#left_expr) })
+                } else if is_set {
+                    Ok(parse_quote! { #right_expr.contains(&#left_expr) })
+                } else if matches!(left, HirExpr::Literal(Literal::String(_))) {
                     Ok(parse_quote! { #right_expr.contains_key(#left_expr) })
                 } else {
                     Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
                 }
             }
             BinOp::NotIn => {
-                // Convert "x not in dict" to "!dict.contains_key(x)" or "!dict.contains_key(&x)"
+                // Convert "x not in container" to !container.method(&x)
+                // Check if right side is a set based on type information
+                let is_set = self.is_set_expr(right) || self.is_set_var(right);
+
                 // String literals are already &str, so don't add extra &
-                if matches!(left, HirExpr::Literal(Literal::String(_))) {
+                if is_set && matches!(left, HirExpr::Literal(Literal::String(_))) {
+                    Ok(parse_quote! { !#right_expr.contains(#left_expr) })
+                } else if is_set {
+                    Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
+                } else if matches!(left, HirExpr::Literal(Literal::String(_))) {
                     Ok(parse_quote! { !#right_expr.contains_key(#left_expr) })
                 } else {
                     Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
@@ -2290,6 +2306,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // For rust_gen, we're more conservative since we don't have type info
                 // Only treat explicit set literals and calls as sets
                 false
+            }
+            _ => false,
+        }
+    }
+
+    /// Check if a variable has a set type based on type information in context
+    fn is_set_var(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Var(name) => {
+                // Check var_types in context to see if this variable is a set
+                if let Some(var_type) = self.ctx.var_types.get(name) {
+                    matches!(var_type, Type::Set(_))
+                } else {
+                    false
+                }
             }
             _ => false,
         }
