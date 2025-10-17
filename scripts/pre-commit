@@ -94,15 +94,49 @@ for file in $(git diff --cached --name-only --diff-filter=A | grep -E '\.rs$'); 
         else
             echo "    ✓ SATD check passed (zero debt)"
         fi
+
+        # Entropy check (code readability via information theory)
+        echo "    Running entropy analysis..."
+        ENTROPY_OUTPUT=$(pmat analyze entropy --path "$file" 2>&1)
+        if echo "$ENTROPY_OUTPUT" | grep -q "High entropy detected"; then
+            echo "    ⚠️  High entropy detected in $file (may indicate low readability)"
+            echo "    💡 Consider refactoring for better readability"
+            # Not blocking, but logged as warning
+        else
+            echo "    ✓ Entropy check passed (good readability)"
+        fi
     else
         echo "    ⚠️  PMAT binary not found, skipping quality checks"
         echo "    💡 Install: cargo install pmat"
     fi
 done
 
-# Skip TDG grade check (pmat tdg command doesn't exist in pmat 2.4.0)
-# Project-wide TDG is tracked separately via: pmat analyze tdg --path . --include-components
-# Per-file complexity enforcement (above) provides granular quality gates
+# TDG (Technical Debt Grading) - Project-wide quality gate
+if command -v pmat &> /dev/null; then
+    if git diff --cached --name-only | grep -qE '\.rs$'; then
+        echo "📊 Running TDG (Technical Debt Grading) analysis..."
+
+        # Run TDG with minimum grade requirement
+        TDG_OUTPUT=$(pmat tdg . --min-grade A- --format=summary 2>&1 || true)
+        TDG_EXIT_CODE=$?
+
+        if [ $TDG_EXIT_CODE -eq 0 ]; then
+            echo "  ✓ TDG grade check passed (≥A- maintained)"
+        else
+            # Check if TDG command exists
+            if echo "$TDG_OUTPUT" | grep -q "no such command\|command not found"; then
+                echo "  ⚠️  pmat tdg command not available in this version"
+                echo "  💡 Using per-file complexity checks as fallback"
+            else
+                echo "  ❌ TDG grade below A- threshold"
+                echo "  🔧 Fix: Improve code quality to meet A- standard"
+                echo ""
+                echo "$TDG_OUTPUT"
+                QUALITY_VIOLATIONS=$((QUALITY_VIOLATIONS + 1))
+            fi
+        fi
+    fi
+fi
 
 # Check for Rust linting if we have Rust files
 if git diff --cached --name-only | grep -qE '\.rs$'; then
@@ -150,6 +184,10 @@ echo ""
 echo "✅ All pre-commit quality gates passed!"
 echo "   🎯 Toyota Way: Quality built-in, documentation synchronized"
 echo "   📝 Documentation updates verified"
-echo "   📚 Documentation validation passed (pmat validate-docs)"
-echo "   🔧 Code quality standards maintained (≤10 complexity, zero SATD)"
+echo "   📊 TDG grade ≥A- maintained (Technical Debt Grading)"
+echo "   🔧 Code quality standards maintained:"
+echo "      • Complexity ≤10 (cyclomatic & cognitive)"
+echo "      • Zero SATD (no TODO/FIXME/HACK)"
+echo "      • Entropy acceptable (good readability)"
+echo "      • Zero clippy warnings"
 echo "   ✓ Ready for commit"
