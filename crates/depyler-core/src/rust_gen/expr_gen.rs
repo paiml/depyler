@@ -60,9 +60,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             BinOp::Add => {
                 // Special handling for string concatenation
-                // Only use format! if we're certain at least one operand is a string
+                // Check if we're dealing with strings (literals or type-inferred)
                 let is_definitely_string = matches!(left, HirExpr::Literal(Literal::String(_)))
-                    || matches!(right, HirExpr::Literal(Literal::String(_)));
+                    || matches!(right, HirExpr::Literal(Literal::String(_)))
+                    || matches!(self.ctx.current_return_type, Some(Type::String));
 
                 if is_definitely_string {
                     // This is string concatenation - use format! to handle references properly

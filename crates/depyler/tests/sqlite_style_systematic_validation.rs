@@ -545,7 +545,6 @@ def test() -> set[int]:
 // ============================================================================
 
 #[test]
-#[ignore] // String methods generate type mismatch on concatenation - tracked for future enhancement
 fn test_36_string_methods() {
     let python = r#"
 def test(s: str) -> str:
@@ -571,7 +570,6 @@ def test(s: str) -> list[str]:
 }
 
 #[test]
-#[ignore] // String formatting generates type mismatch on concatenation - tracked for future enhancement
 fn test_38_string_formatting() {
     let python = r#"
 def test(name: str, age: int) -> str:
