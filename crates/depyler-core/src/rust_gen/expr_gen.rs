@@ -1198,17 +1198,35 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         object_expr: &syn::Expr,
         method: &str,
         arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
     ) -> Result<syn::Expr> {
         match method {
             "get" => {
                 if arg_exprs.len() == 1 {
                     let key = &arg_exprs[0];
                     // DEPYLER-0222: dict.get() without default should unwrap the Option
-                    Ok(parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_default() })
+                    // DEPYLER-0227: String literals need & prefix, but variables with &str type don't
+                    // Check if key is a string literal that was converted to .to_string()
+                    let key_expr: syn::Expr = if matches!(hir_args.first(), Some(HirExpr::Literal(Literal::String(_)))) {
+                        // String literal - add & to borrow the String
+                        parse_quote! { &#key }
+                    } else {
+                        // Variable or other expression - already properly typed
+                        parse_quote! { #key }
+                    };
+                    Ok(parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or_default() })
                 } else if arg_exprs.len() == 2 {
                     let key = &arg_exprs[0];
                     let default = &arg_exprs[1];
-                    Ok(parse_quote! { #object_expr.get(&#key).cloned().unwrap_or(#default) })
+                    // DEPYLER-0227: String literals need & prefix, but variables with &str type don't
+                    let key_expr: syn::Expr = if matches!(hir_args.first(), Some(HirExpr::Literal(Literal::String(_)))) {
+                        // String literal - add & to borrow the String
+                        parse_quote! { &#key }
+                    } else {
+                        // Variable or other expression - already properly typed
+                        parse_quote! { #key }
+                    };
+                    Ok(parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#default) })
                 } else {
                     bail!("get() requires 1 or 2 arguments");
                 }
@@ -1645,7 +1663,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if self.is_dict_expr(object) {
             match method {
                 "get" | "keys" | "values" | "items" | "update" => {
-                    return self.convert_dict_method(object_expr, method, arg_exprs);
+                    return self.convert_dict_method(object_expr, method, arg_exprs, hir_args);
                 }
                 _ => {}
             }
@@ -1684,13 +1702,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     self.convert_set_method(object_expr, method, arg_exprs)
                 } else {
                     // data.update({"b": 2}) - dict update (default for variables)
-                    self.convert_dict_method(object_expr, method, arg_exprs)
+                    self.convert_dict_method(object_expr, method, arg_exprs, hir_args)
                 }
             }
 
             // Dict methods (for variables without type info)
             "get" | "keys" | "values" | "items" | "setdefault" | "popitem" => {
-                self.convert_dict_method(object_expr, method, arg_exprs)
+                self.convert_dict_method(object_expr, method, arg_exprs, hir_args)
             }
 
             // String methods
