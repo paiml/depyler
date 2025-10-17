@@ -120,7 +120,12 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
     fn is_mutating_method(method: &str) -> bool {
         matches!(
             method,
-            "append" | "extend" | "insert" | "remove" | "pop" | "clear" | "reverse" | "sort"
+            // List methods
+            "append" | "extend" | "insert" | "remove" | "pop" | "clear" | "reverse" | "sort" |
+            // Dict methods
+            "update" | "setdefault" | "popitem" |
+            // Set methods
+            "add" | "discard" | "difference_update" | "intersection_update"
         )
     }
 

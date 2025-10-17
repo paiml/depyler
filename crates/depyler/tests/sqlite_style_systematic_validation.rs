@@ -426,7 +426,6 @@ def test(data: dict[str, int]) -> int:
 }
 
 #[test]
-#[ignore] // Dict methods generate type mismatch issues (String vs &str) - tracked for future enhancement
 fn test_28_dict_methods() {
     let python = r#"
 def test() -> dict[str, int]:
