@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **BUGFIX** (2025-10-17): Fix dict.get() with String Literals vs &str Parameters
+  - **Issue**: `data.get("key", 0)` generates compilation error (expected `&_`, found `String`)
+  - **Root Cause**: Previous fix removed `&` from all dict.get() calls, breaking string literals
+  - **Impact**: String literals need borrowing (`&"key".to_string()`), string parameters don't (`key: &str`)
+  - **Fix**: Modified `convert_dict_method()` to check HIR expression type and apply borrowing conditionally
+  - **Technical**: String literals → `.get(&"key".to_string())`, parameters → `.get(key)`
+  - **Result**: `test_27_dict_access` and `test_83_dict_type_annotation` now pass ✅
+  - **Pass Rate**: 52.5% → 53.5% (+1% improvement, 54/101 tests)
+  - **Related**: DEPYLER-0155 (initial dict.get() fix)
+
 - **BUGFIX** (2025-10-17): Fix 'static lifetime as generic parameter
   - **Issue**: Functions with Cow<'static, str> parameters generate `<'static>` generic parameter
   - **Root Cause**: `codegen_generic_params()` added all lifetimes without filtering reserved keyword

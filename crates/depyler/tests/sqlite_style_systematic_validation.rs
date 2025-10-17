@@ -1446,7 +1446,6 @@ def sum_list(numbers: list[int]) -> int:
 }
 
 #[test]
-#[ignore] // Dict type annotation generates String Borrow trait issues - tracked for future enhancement
 fn test_83_dict_type_annotation() {
     let python = r#"
 def lookup(data: dict[str, int], key: str) -> int:
