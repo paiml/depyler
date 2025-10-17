@@ -169,7 +169,6 @@ def test(a: int, b: int) -> int:
 }
 
 #[test]
-#[ignore] // Power operator (**) requires special handling - tracked for future enhancement
 fn test_10_binop_power() {
     let python = r#"
 def test(a: int) -> int:

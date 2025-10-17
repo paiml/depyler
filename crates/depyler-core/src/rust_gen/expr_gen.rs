@@ -201,6 +201,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     _ => {
                         // For non-literal expressions, we need runtime type checking
                         // This is a conservative approach that works for common cases
+                        // Determine the target type for casting from context
+                        let target_type = self
+                            .ctx
+                            .current_return_type
+                            .as_ref()
+                            .and_then(|t| match t {
+                                Type::Int => Some(quote! { i32 }),
+                                Type::Float => Some(quote! { f64 }),
+                                _ => None,
+                            })
+                            .unwrap_or_else(|| quote! { i32 });
+
                         Ok(parse_quote! {
                             {
                                 // Try integer power first if exponent can be u32
@@ -209,7 +221,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                         .expect("Power operation overflowed")
                                 } else {
                                     // Fall back to float power for negative or large exponents
-                                    (#left_expr as f64).powf(#right_expr as f64) as i64
+                                    (#left_expr as f64).powf(#right_expr as f64) as #target_type
                                 }
                             }
                         })
