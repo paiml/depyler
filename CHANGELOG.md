@@ -5,6 +5,132 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **BUGFIX** (2025-10-17): Fix floor division formatting in class methods (DEPYLER-0236)
+  - **Issue**: Floor division (`//`) in class methods generated syntactically invalid Rust code with broken `!=` operator spacing:
+    ```rust
+    // WRONG (generated broken spacing):
+    if(r!= 0) &&((r<0)! = (b<0)) {  // Space between `!` and `=` breaks !=
+    ```
+  - **Root Cause**:
+    1. Floor division generated complex conditional: `if (r != 0) && ((r < 0) != (b < 0))`
+    2. Prettyplease formatter inconsistently handled spacing around operators
+    3. String replacement `.replace(" !", "!")` transformed `(r<0) ! = (b<0)` into `(r<0)! = (b<0)`, breaking the `!=` operator
+  - **Solution**: Changed floor division code generation to use intermediate boolean variables instead of inline complex conditional:
+    ```rust
+    // CORRECT (using intermediate variables):
+    let r_negative = r < 0;
+    let b_negative = b < 0;
+    let r_nonzero = r != 0;
+    let signs_differ = r_negative != b_negative;
+    let needs_adjustment = r_nonzero && signs_differ;
+    if needs_adjustment { q - 1 } else { q }
+    ```
+  - **Files Modified**:
+    - `crates/depyler-core/src/direct_rules.rs` lines 1624-1646 (class method code path)
+    - `crates/depyler-core/src/codegen.rs` lines 594-612 (function code path)
+  - **Result**:
+    - `test_55_computed_property` now passes ✅
+    - **Classes - Properties category now 100% complete (5/5)**
+  - **Pass Rate**: 64.4% → 65.3% (+0.9% improvement, 66/101 tests)
+  - **Test Fixed**: test_55_computed_property (Temperature class with `fahrenheit()` method using floor division)
+
+- **BUGFIX** (2025-10-17): Fix property writes not detected by dead code elimination and mutability analysis (DEPYLER-0235)
+  - **Issue**: Property write statements like `b.size = 20` caused two problems:
+    1. Dead code eliminator removed the `b = Box(10)` assignment entirely
+    2. Variable `b` wasn't declared with `mut` keyword
+  - **Root Cause**:
+    1. Dead code elimination in `optimizer.rs` only checked RHS expressions, not LHS assignment targets
+    2. Mutability analysis in `rust_gen.rs` only detected mutating method calls, not direct field writes
+  - **Impact**: Any code writing to object properties would either be eliminated or fail to compile with mutability errors
+  - **Fix Part 1 - Dead Code Elimination**: Modified `collect_used_vars_stmt()` to collect variables from assignment targets
+    - Added `collect_used_vars_assign_target()` helper function that handles all `AssignTarget` variants
+    - For `AssignTarget::Attribute { value, .. }`, extracts base variable (e.g., `b` from `b.size = 20`)
+    - For `AssignTarget::Index { base, .. }`, extracts base variable (e.g., `arr` from `arr[i] = value`)
+    - For `AssignTarget::Tuple(targets)`, recursively collects from tuple elements
+  - **Fix Part 2 - Mutability Detection**: Modified `analyze_stmt()` to mark variables as mutable when fields/indices are assigned
+    - Added case for `AssignTarget::Attribute` that marks base variable as mutable
+    - Added case for `AssignTarget::Index` that marks base variable as mutable
+  - **Technical**:
+    - `optimizer.rs` lines 408-480: Dead code elimination fix
+    - `rust_gen.rs` lines 197-211: Mutability analysis fix
+  - **Files Modified**: `optimizer.rs`, `rust_gen.rs`
+  - **Result**:
+    - `test_52_write_property` now passes ✅
+    - `test_53_multiple_properties` now passes ✅
+    - **Classes - Properties category now 80% complete (4/5)**
+  - **Pass Rate**: 61.4% → 64.4% (+3% improvement, 65/101 tests)
+  - **Example**: `b = Box(10); b.size = 20` now correctly generates `let mut b = Box::new(10); b.size = 20;`
+
+- **BUGFIX** (2025-10-17): Fix String/&str type mismatch for constructor calls (DEPYLER-0234)
+  - **Issue**: Constructor defined with `name: String` parameter but called with `"Alice"` (&str literal) causes type mismatch error
+  - **Root Cause**: String literals weren't being converted to String when calling user-defined class constructors
+  - **Impact**: Any user-defined constructor accepting String parameters fails to compile when called with string literals
+  - **Fix**: Modified `convert_call()` in `expr_gen.rs` to wrap string literal arguments with `.to_string()` for user-defined classes
+  - **Implementation**:
+    - Check if func is a user-defined class before processing arguments
+    - For user-defined classes, wrap `HirExpr::Literal(Literal::String(_))` arguments with `.to_string()`
+    - Other argument types pass through unchanged
+    - Builtins (non-user classes) maintain existing behavior
+  - **Technical**: Lines 376-397 in `expr_gen.rs` - conditional argument processing based on `is_user_class` flag
+  - **Files Modified**: `expr_gen.rs` (lines 376-397)
+  - **Result**: `test_48_method_returning_self_attribute` now passes ✅, **Classes - Methods category now 80% complete (4/5)**
+  - **Pass Rate**: 58.4% → 61.4% (+3% improvement, 62/101 tests)
+  - **Bonus**: test_49_multiple_methods and test_50_method_chaining also pass (already working, no issues found)
+  - **Example**: `Person::new("Alice", 30)` now correctly generates `Person::new("Alice".to_string(), 30)`
+
+- **BUGFIX** (2025-10-17): Fix hardcoded default argument for user-defined Counter classes (DEPYLER-0233)
+  - **Issue**: User-defined `Counter()` class with no-arg `__init__` generates `Counter::new(0)` instead of `Counter::new()`
+  - **Root Cause**: Hardcoded special case in `convert_generic_call()` added default arg `0` for Python stdlib `collections.Counter`
+  - **Impact**: Any user-defined class named `Counter` with parameterless constructor failed to compile
+  - **Fix**: Check if constructor is for user-defined class before applying stdlib default argument heuristics
+  - **Technical**: Added `is_user_class` check in `convert_generic_call()` at line 932
+  - **Files Modified**: `expr_gen.rs` (lines 930-944)
+  - **Result**: `test_47_method_with_self_mutation` now passes ✅, **Classes - Methods category now 40% complete (2/5)**
+  - **Pass Rate**: 57.4% → 58.4% (+1% improvement, 59/101 tests)
+  - **Example**: `Counter()` now correctly generates `Counter::new()` instead of `Counter::new(0)`
+
+- **BUGFIX** (2025-10-17): Fix user-defined class method routing conflict with builtins (DEPYLER-0232)
+  - **Issue**: Methods named "add", "remove", etc. incorrectly routed to collection methods (e.g., `calc.add(5)` → `calc.insert(5)`)
+  - **Root Cause**: `convert_instance_method()` checked for built-in method names before checking for user-defined classes
+  - **Impact**: User-defined classes with methods like `add()` generated incorrect method calls (`insert` for sets, etc.)
+  - **Fix**: Check if object is user-defined class instance FIRST before dispatching to collection-specific handlers
+  - **Implementation**:
+    - Added `is_class_instance()` helper in `expr_gen.rs` to identify user-defined class instances
+    - Modified `convert_instance_method()` to prioritize user-defined class methods over built-in collection methods
+    - Added type tracking in `codegen_assign_stmt()` to populate `ctx.var_types` with `Type::Custom` for class instances
+    - Updated `is_class_instance()` to check both `ctx.var_types` (for variables) and `ctx.class_names` (for direct calls)
+  - **Files Modified**: `expr_gen.rs` (lines 1660-1664, 2359-2386), `stmt_gen.rs` (lines 341-350)
+  - **Result**: `test_46_instance_method` now passes ✅, also enables test_50_method_chaining ✅
+  - **Pass Rate**: 56.4% → 57.4% (+1% improvement, 58/101 tests) - later improved by DEPYLER-0234 to 61.4%
+  - **Example**: `calc.add(5)` now correctly generates `calc.add(5)` instead of `calc.insert(5)`
+
+- **BUGFIX** (2025-10-17): Fix mutability detection for user-defined class methods (DEPYLER-0231)
+  - **Issue**: Variables calling methods with `&mut self` not detected as needing `mut` declaration
+  - **Root Cause**: `analyze_mutable_vars()` only knew about built-in mutating methods (append, update, etc.)
+  - **Impact**: `let c = Counter::new(0); c.increment()` fails to compile (`cannot borrow 'c' as mutable`)
+  - **Fix**: Build map of class methods requiring `&mut self` using existing `method_mutates_self()` function
+  - **Technical**: Track variable types during statement analysis, check both built-in and user-defined mutating methods
+  - **Implementation**:
+    - Added `mutating_methods: HashMap<String, HashSet<String>>` to `CodeGenContext`
+    - Populated map in `generate_rust_file()` by scanning all class methods with `method_mutates_self()`
+    - Modified `analyze_mutable_vars()` to track variable types from constructor assignments
+    - Extended `analyze_expr_for_mutations()` to check user-defined mutating methods via variable type mapping
+    - Made `method_mutates_self()` public in `direct_rules.rs` to enable reuse
+  - **Files Modified**: `context.rs`, `rust_gen.rs` (lines 56-251, 363-374), `direct_rules.rs`, `expr_gen.rs`
+  - **Result**: `test_44_class_simple_method` now passes ✅, **Classes - Basic category now 80% complete (4/5)**
+  - **Pass Rate**: 55.4% → 56.4% (+1% improvement, 57/101 tests)
+  - **Example**: `let c = Counter::new(0)` now correctly generates `let mut c = Counter::new(0)`
+
+- **BUGFIX** (2025-10-17): Fix user-defined classes misidentified as Python stdlib builtins (DEPYLER-0230)
+  - **Issue**: `Counter(0)` class constructor generates fold expression instead of `Counter::new(0)`
+  - **Root Cause**: `convert_call_expr()` always treated "Counter"/"dict"/"deque"/"list" as Python stdlib builtins
+  - **Impact**: Any user-defined class named Counter/dict/deque/list was transpiled incorrectly
+  - **Fix**: Added `class_names: HashSet<String>` to `CodeGenContext` populated from `module.classes`
+  - **Technical**: Check `ctx.class_names.contains(func)` before treating name as builtin in `expr_gen.rs:398-401`
+  - **Result**: Class constructors now generate correct `ClassName::new()` calls
+  - **Note**: Reveals second bug - mutability detection for method calls (tracked separately)
+  - **Pass Rate**: 55.4% (56/101 tests) - no change yet as mutability bug blocks test_44
+
 - **BUGFIX** (2025-10-17): Fix dead code elimination removing class instance variables
   - **Issue**: `p = Point(3, 4)` followed by `p.x + p.y` has the assignment removed, leaving `p` undefined
   - **Root Cause**: `collect_used_vars_expr_inner()` didn't handle `HirExpr::Attribute` or `HirExpr::Index`

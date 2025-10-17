@@ -594,13 +594,19 @@ fn binary_expr_to_rust_tokens(
         BinOp::FloorDiv => {
             // Python floor division semantics
             // For now, assume numeric types and use the integer floor division formula
+            // DEPYLER-0236: Use intermediate variables to avoid formatting issues with != operator
             Ok(quote! {
                 {
                     let a = #left_tokens;
                     let b = #right_tokens;
                     let q = a / b;
                     let r = a % b;
-                    if (r != 0) && ((r < 0) != (b < 0)) { q - 1 } else { q }
+                    let r_negative = r < 0;
+                    let b_negative = b < 0;
+                    let r_nonzero = r != 0;
+                    let signs_differ = r_negative != b_negative;
+                    let needs_adjustment = r_nonzero && signs_differ;
+                    if needs_adjustment { q - 1 } else { q }
                 }
             })
         }
