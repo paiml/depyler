@@ -493,6 +493,33 @@ impl BorrowingContext {
 
                 self.context_stack.pop();
             }
+            HirExpr::DictComp {
+                key,
+                value,
+                target: _,
+                iter,
+                condition,
+            } => {
+                // Dict comprehensions create a new scope
+                self.context_stack.push(AnalysisContext::Loop);
+
+                // Analyze the iterator
+                self.analyze_expression(iter, borrow_depth);
+
+                // The target variable is local to the comprehension
+                // We don't track it as a parameter usage
+
+                // Analyze the key and value expressions
+                self.analyze_expression(key, borrow_depth);
+                self.analyze_expression(value, borrow_depth);
+
+                // Analyze the condition if present
+                if let Some(cond) = condition {
+                    self.analyze_expression(cond, borrow_depth);
+                }
+
+                self.context_stack.pop();
+            }
             HirExpr::Await { value } => {
                 // Await expressions don't change parameter usage patterns
                 self.analyze_expression(value, borrow_depth);

@@ -843,6 +843,41 @@ fn set_comp_to_rust_tokens(
     }
 }
 
+/// Convert dict comprehension to Rust iterator chain
+/// Complexity: 2 (if-else for condition, within ≤10 target)
+fn dict_comp_to_rust_tokens(
+    key: &HirExpr,
+    value: &HirExpr,
+    target: &str,
+    iter: &HirExpr,
+    condition: &Option<Box<HirExpr>>,
+) -> Result<proc_macro2::TokenStream> {
+    let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+    let iter_tokens = expr_to_rust_tokens(iter)?;
+    let key_tokens = expr_to_rust_tokens(key)?;
+    let value_tokens = expr_to_rust_tokens(value)?;
+
+    if let Some(cond) = condition {
+        // With condition: iter().filter().map().collect()
+        let cond_tokens = expr_to_rust_tokens(cond)?;
+        Ok(quote! {
+            #iter_tokens
+                .into_iter()
+                .filter(|#target_ident| #cond_tokens)
+                .map(|#target_ident| (#key_tokens, #value_tokens))
+                .collect::<HashMap<_, _>>()
+        })
+    } else {
+        // Without condition: iter().map().collect()
+        Ok(quote! {
+            #iter_tokens
+                .into_iter()
+                .map(|#target_ident| (#key_tokens, #value_tokens))
+                .collect::<HashMap<_, _>>()
+        })
+    }
+}
+
 fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
     match expr {
         HirExpr::Literal(lit) => literal_to_rust_tokens(lit),
@@ -897,6 +932,13 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             iter,
             condition,
         } => set_comp_to_rust_tokens(element, target, iter, condition),
+        HirExpr::DictComp {
+            key,
+            value,
+            target,
+            iter,
+            condition,
+        } => dict_comp_to_rust_tokens(key, value, target, iter, condition),
         HirExpr::Await { value } => {
             let value_tokens = expr_to_rust_tokens(value)?;
             Ok(quote! { #value_tokens.await })

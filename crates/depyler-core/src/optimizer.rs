@@ -407,7 +407,10 @@ impl Optimizer {
 
     fn collect_used_vars_stmt(&self, stmt: &HirStmt, used: &mut HashMap<String, bool>) {
         match stmt {
-            HirStmt::Assign { value, .. } => {
+            HirStmt::Assign { target, value, .. } => {
+                // DEPYLER-0235 FIX: Collect variables from assignment targets
+                // This fixes property writes like `b.size = 20` where `b` is used on LHS
+                self.collect_used_vars_assign_target(target, used);
                 self.collect_used_vars_expr(value, used);
             }
             HirStmt::Return(Some(expr)) => {
@@ -449,6 +452,31 @@ impl Optimizer {
 
     fn collect_used_vars_expr(&self, expr: &HirExpr, used: &mut HashMap<String, bool>) {
         collect_used_vars_expr_inner(expr, used);
+    }
+
+    fn collect_used_vars_assign_target(&self, target: &AssignTarget, used: &mut HashMap<String, bool>) {
+        match target {
+            AssignTarget::Symbol(_) => {
+                // Simple variable assignment - no variables used on LHS
+            }
+            AssignTarget::Index { base, index } => {
+                // Collect from both base and index expressions
+                // e.g., `arr[i] = value` uses both `arr` and `i`
+                self.collect_used_vars_expr(base, used);
+                self.collect_used_vars_expr(index, used);
+            }
+            AssignTarget::Attribute { value, .. } => {
+                // Collect from the base object
+                // e.g., `obj.attr = value` uses `obj`
+                self.collect_used_vars_expr(value, used);
+            }
+            AssignTarget::Tuple(targets) => {
+                // Recursively collect from tuple elements
+                for t in targets {
+                    self.collect_used_vars_assign_target(t, used);
+                }
+            }
+        }
     }
 
     /// Inline small functions using sophisticated heuristics

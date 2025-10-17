@@ -373,6 +373,7 @@ fn contains_owned_string_method(expr: &HirExpr) -> bool {
         | HirExpr::Borrow { .. }
         | HirExpr::ListComp { .. }
         | HirExpr::SetComp { .. }
+        | HirExpr::DictComp { .. }
         | HirExpr::Lambda { .. }
         | HirExpr::Await { .. }
         | HirExpr::FString { .. }

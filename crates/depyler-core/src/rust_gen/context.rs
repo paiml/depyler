@@ -47,6 +47,8 @@ pub struct CodeGenContext<'a> {
     pub in_generator: bool,
     pub generator_state_vars: HashSet<String>,
     pub var_types: HashMap<String, Type>,
+    pub class_names: HashSet<String>,
+    pub mutating_methods: HashMap<String, HashSet<String>>,
 }
 
 impl<'a> CodeGenContext<'a> {
