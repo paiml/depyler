@@ -2821,6 +2821,12 @@ fn literal_to_rust_expr(
             let lit = syn::LitBool::new(*b, proc_macro2::Span::call_site());
             parse_quote! { #lit }
         }
-        Literal::None => parse_quote! { None },
+        Literal::None => {
+            // Python None maps to Rust unit type ()
+            // This is correct for both:
+            // 1. Functions returning None (-> None becomes -> () implicitly)
+            // 2. Optional types (Option<T> uses None, but that's handled separately)
+            parse_quote! { () }
+        }
     }
 }

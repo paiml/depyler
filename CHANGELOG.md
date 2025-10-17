@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **BUGFIX** (2025-10-17): Fix None literal to generate unit type ()
+  - **Issue**: Python `None` generates `None` in Rust, causing type mismatch (`expected (), found Option<_>`)
+  - **Root Cause**: `literal_to_rust_expr()` hardcoded `None` instead of unit type `()`
+  - **Impact**: Compilation error for functions with `-> None` return type
+  - **Fix**: Changed `Literal::None` to generate `()` in `expr_gen.rs:2824-2830`
+  - **Result**: `test_05_literals_none` now passes ✅, Literals category now 100% complete (5/5)
+  - **Pass Rate**: 46% → 47% (+1% improvement)
+  - **Example**: `return None` now generates `return ()` in Rust
+
 - **BUGFIX** (2025-10-17): Fix power operator type mismatch in fallback cast
   - **Issue**: `a ** 2` generates type mismatch error (`expected i32, found i64`)
   - **Root Cause**: Fallback branch in power operator hardcoded `as i64` cast instead of using context type
