@@ -1770,9 +1770,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 _ => {
                     // String variable - needs proper referencing
+                    // HashMap.get() expects &K, so we need to borrow the key
                     let index_expr = index.to_rust_expr(self.ctx)?;
                     Ok(parse_quote! {
-                        #base_expr.get(#index_expr).cloned().unwrap_or_default()
+                        #base_expr.get(&#index_expr).cloned().unwrap_or_default()
                     })
                 }
             }
