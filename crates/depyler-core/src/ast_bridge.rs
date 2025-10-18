@@ -680,6 +680,9 @@ impl AstBridge {
         // Convert return type
         let ret_type = if let Some(ret) = &method.returns {
             TypeExtractor::extract_type(ret)?
+        } else if self.check_returns_self(&method.body) {
+            // If method returns self without annotation, infer &Self
+            Type::Custom("&Self".to_string())
         } else {
             Type::None
         };
@@ -798,6 +801,9 @@ impl AstBridge {
         // Convert return type
         let ret_type = if let Some(ret) = &method.returns {
             TypeExtractor::extract_type(ret)?
+        } else if self.check_returns_self(&method.body) {
+            // If method returns self without annotation, infer &Self
+            Type::Custom("&Self".to_string())
         } else {
             Type::None
         };
@@ -994,6 +1000,21 @@ impl AstBridge {
             ast::Expr::Set(_) => Some(Type::Set(Box::new(Type::Unknown))),
             _ => None,
         }
+    }
+
+    fn check_returns_self(&self, body: &[ast::Stmt]) -> bool {
+        for stmt in body {
+            if let ast::Stmt::Return(ret_stmt) = stmt {
+                if let Some(value) = &ret_stmt.value {
+                    if let ast::Expr::Name(n) = value.as_ref() {
+                        if n.id.as_str() == "self" {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        false
     }
 }
 
