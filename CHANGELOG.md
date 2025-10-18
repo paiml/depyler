@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **FEATURE** (2025-10-18): Fix context managers with `as` clause to call `__enter__()` (DEPYLER-0240)
+  - **Feature**: Context managers with `as` clause now correctly call `__enter__()` and bind the result
+  - **Example**:
+    ```python
+    # Python input:
+    with Resource() as r:
+        return r.get_value()
+
+    # Rust output (BEFORE - INCORRECT):
+    let mut r = Resource::new();  // Missing __enter__() call!
+    return r.get_value();
+
+    # Rust output (AFTER - CORRECT):
+    let _context = Resource::new();
+    let r = _context.__enter__();
+    return r.get_value();
+    ```
+  - **Implementation**:
+    - Modified `codegen_with_stmt()` to generate `__enter__()` call for context managers with `as` clause (stmt_gen.rs:231-242)
+    - Creates temporary `_context` variable and calls `__enter__()` to get the bound variable
+  - **Test Coverage**:
+    - test_77_with_as now passes (Context Managers category)
+    - Verified with `/tmp/test_with_as.py` test case
+  - **Impact**: Enables proper use of context manager return values
+  - **Pass Rate**: 67.3% → 68.3% (+1.0% improvement, 69/101 tests)
+  - **Category Progress**: Context Managers 2/5 → 3/5 (40% → 60%)
+
 - **FEATURE** (2025-10-18): Fix return type inference for methods returning `self` (DEPYLER-0239)
   - **Feature**: Methods like `__enter__(self)` that return `self` now correctly generate `-> &Self` return type annotation
   - **Example**:

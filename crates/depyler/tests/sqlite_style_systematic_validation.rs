@@ -1301,7 +1301,6 @@ def test() -> int:
 }
 
 #[test]
-#[ignore] // Context managers with as generate incorrect code - tracked for future enhancement
 fn test_77_with_as() {
     let python = r#"
 class Resource:

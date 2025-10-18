@@ -228,15 +228,15 @@ pub(crate) fn codegen_with_stmt(
         .map(|stmt| stmt.to_rust_tokens(ctx))
         .collect::<Result<_>>()?;
 
-    // Note: Currently generates a simple scope block for context managers.
-    // Proper RAII pattern with Drop trait implementation is not yet supported.
-    // This is a known limitation - __enter__/__exit__ methods are not translated.
+    // Generate code that calls __enter__() and binds the result
+    // Note: __exit__() is not yet called (Drop trait implementation pending)
     if let Some(var_name) = target {
         let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
         ctx.declare_var(var_name);
         Ok(quote! {
             {
-                let mut #var_ident = #context_expr;
+                let _context = #context_expr;
+                let #var_ident = _context.__enter__();
                 #(#body_stmts)*
             }
         })
