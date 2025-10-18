@@ -826,7 +826,7 @@ mod tests {
     #[test]
     fn test_string_concat_in_loop_detection() {
         let body = vec![HirStmt::For {
-            target: "i".to_string(),
+            target: AssignTarget::Symbol("i".to_string()),
             iter: HirExpr::Call {
                 func: "range".to_string(),
                 args: vec![HirExpr::Literal(Literal::Int(10))],
@@ -861,13 +861,13 @@ mod tests {
     #[test]
     fn test_nested_loop_detection() {
         let inner_loop = HirStmt::For {
-            target: "j".to_string(),
+            target: AssignTarget::Symbol("j".to_string()),
             iter: HirExpr::Var("items".to_string()),
             body: vec![HirStmt::Expr(HirExpr::Var("j".to_string()))],
         };
 
         let body = vec![HirStmt::For {
-            target: "i".to_string(),
+            target: AssignTarget::Symbol("i".to_string()),
             iter: HirExpr::Var("items".to_string()),
             body: vec![inner_loop],
         }];
@@ -891,7 +891,7 @@ mod tests {
     #[test]
     fn test_expensive_function_in_loop() {
         let body = vec![HirStmt::For {
-            target: "item".to_string(),
+            target: AssignTarget::Symbol("item".to_string()),
             iter: HirExpr::Var("items".to_string()),
             body: vec![HirStmt::Assign {
                 target: AssignTarget::Symbol("s".to_string()),

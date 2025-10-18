@@ -409,7 +409,7 @@ fn test_for_simple() {
     module.functions.push(create_function_with_body(
         "test",
         vec![HirStmt::For {
-            target: "i".to_string(),
+            target: AssignTarget::Symbol("i".to_string()),
             iter: HirExpr::Var("items".to_string()),
             body: vec![HirStmt::Expr(HirExpr::Var("i".to_string()))],
         }],
@@ -427,7 +427,7 @@ fn test_for_with_assignment() {
     module.functions.push(create_function_with_body(
         "test",
         vec![HirStmt::For {
-            target: "x".to_string(),
+            target: AssignTarget::Symbol("x".to_string()),
             iter: HirExpr::Var("numbers".to_string()),
             body: vec![HirStmt::Assign {
                 target: AssignTarget::Symbol("sum".to_string()),
@@ -762,7 +762,7 @@ fn test_all_statement_types() {
             },
             // For
             HirStmt::For {
-                target: "i".to_string(),
+                target: AssignTarget::Symbol("i".to_string()),
                 iter: HirExpr::Var("items".to_string()),
                 body: vec![HirStmt::Continue { label: None }],
             },

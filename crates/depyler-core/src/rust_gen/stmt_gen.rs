@@ -297,12 +297,32 @@ pub(crate) fn codegen_if_stmt(
 /// Generate code for For loop statement
 #[inline]
 pub(crate) fn codegen_for_stmt(
-    target: &str,
+    target: &AssignTarget,
     iter: &HirExpr,
     body: &[HirStmt],
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
-    let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+    // Generate target pattern based on AssignTarget type
+    let target_pattern: syn::Pat = match target {
+        AssignTarget::Symbol(name) => {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            parse_quote! { #ident }
+        }
+        AssignTarget::Tuple(targets) => {
+            let idents: Vec<syn::Ident> = targets
+                .iter()
+                .map(|t| match t {
+                    AssignTarget::Symbol(s) => {
+                        syn::Ident::new(s, proc_macro2::Span::call_site())
+                    }
+                    _ => panic!("Nested tuple unpacking not supported in for loops"),
+                })
+                .collect();
+            parse_quote! { (#(#idents),*) }
+        }
+        _ => bail!("Unsupported for loop target type"),
+    };
+
     let mut iter_expr = iter.to_rust_expr(ctx)?;
 
     // Check if we're iterating over a borrowed collection
@@ -317,14 +337,25 @@ pub(crate) fn codegen_for_stmt(
     }
 
     ctx.enter_scope();
-    ctx.declare_var(target); // for loop variable is declared in the loop scope
+    // Declare all variables from the target pattern
+    match target {
+        AssignTarget::Symbol(name) => ctx.declare_var(name),
+        AssignTarget::Tuple(targets) => {
+            for t in targets {
+                if let AssignTarget::Symbol(s) = t {
+                    ctx.declare_var(s);
+                }
+            }
+        }
+        _ => {}
+    }
     let body_stmts: Vec<_> = body
         .iter()
         .map(|s| s.to_rust_tokens(ctx))
         .collect::<Result<Vec<_>>>()?;
     ctx.exit_scope();
     Ok(quote! {
-        for #target_ident in #iter_expr {
+        for #target_pattern in #iter_expr {
             #(#body_stmts)*
         }
     })

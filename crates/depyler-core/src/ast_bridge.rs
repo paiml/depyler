@@ -1096,13 +1096,6 @@ pub(crate) fn extract_assign_target(expr: &ast::Expr) -> Result<AssignTarget> {
     }
 }
 
-pub(crate) fn extract_simple_target(expr: &ast::Expr) -> Result<Symbol> {
-    match expr {
-        ast::Expr::Name(n) => Ok(n.id.to_string()),
-        _ => bail!("Only simple name targets supported for loops"),
-    }
-}
-
 pub(crate) fn convert_expr(expr: ast::Expr) -> Result<HirExpr> {
     ExprConverter::convert(expr)
 }
@@ -1345,7 +1338,7 @@ def iterate(items: list) -> int:
         let func = &hir.functions[0];
         assert_eq!(func.body.len(), 3); // assign, for, return
         if let HirStmt::For { target, iter, body } = &func.body[1] {
-            assert_eq!(target, "item");
+            assert!(matches!(target, AssignTarget::Symbol(ref s) if s == "item"));
             assert!(matches!(iter, HirExpr::Var(_)));
             assert_eq!(body.len(), 1);
         } else {

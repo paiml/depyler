@@ -116,7 +116,7 @@ fn create_fibonacci_function() -> HirFunction {
             },
             // for _ in range(n):
             HirStmt::For {
-                target: "_".to_string(),
+                target: AssignTarget::Symbol("_".to_string()),
                 iter: HirExpr::Call {
                     func: "range".to_string(),
                     args: vec![HirExpr::Var("n".to_string())],

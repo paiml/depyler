@@ -537,7 +537,7 @@ fn test_convert_for() {
     let result = StmtConverter::convert(stmt).unwrap();
     match result {
         HirStmt::For { target, iter, body } => {
-            assert_eq!(target, "i");
+            assert!(matches!(target, AssignTarget::Symbol(ref s) if s == "i"));
             assert!(matches!(iter, HirExpr::Call { .. }));
             assert_eq!(body.len(), 1);
         }

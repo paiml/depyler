@@ -1,6 +1,6 @@
 use super::{
     convert_aug_op, convert_binop, convert_body, convert_cmpop, convert_unaryop,
-    extract_assign_target, extract_simple_target,
+    extract_assign_target,
 };
 use crate::hir::*;
 use anyhow::{bail, Result};
@@ -106,7 +106,7 @@ impl StmtConverter {
     }
 
     fn convert_for(f: ast::StmtFor) -> Result<HirStmt> {
-        let target = extract_simple_target(&f.target)?;
+        let target = extract_assign_target(&f.target)?;
         let iter = super::convert_expr(*f.iter)?;
         let body = convert_body(f.body)?;
         Ok(HirStmt::For { target, iter, body })
