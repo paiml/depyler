@@ -1501,7 +1501,6 @@ def sum_range(n: int) -> int:
 }
 
 #[test]
-#[ignore] // Enumerate works but needs usize→int conversion - DEPYLER-0239
 fn test_88_enumerate_iterator() {
     let python = r#"
 def find_index(items: list[int], target: int) -> int:
