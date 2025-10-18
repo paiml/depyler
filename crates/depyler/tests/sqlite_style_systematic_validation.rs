@@ -1282,7 +1282,6 @@ def test() -> int:
 // ============================================================================
 
 #[test]
-#[ignore] // Context managers generate incorrect code - tracked for future enhancement
 fn test_76_with_statement() {
     let python = r#"
 class FileManager:
