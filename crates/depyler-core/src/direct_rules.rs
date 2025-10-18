@@ -770,8 +770,13 @@ fn convert_simple_type(rust_type: &RustType) -> Result<syn::Type> {
         Unit => parse_quote! { () },
         String => parse_quote! { String },
         Custom(name) => {
-            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-            parse_quote! { #ident }
+            // Handle special case for &Self (method returning self)
+            if name == "&Self" {
+                parse_quote! { &Self }
+            } else {
+                let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                parse_quote! { #ident }
+            }
         }
         TypeParam(name) => {
             let ident = syn::Ident::new(name, proc_macro2::Span::call_site());

@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **FEATURE** (2025-10-18): Fix return type inference for methods returning `self` (DEPYLER-0239)
+  - **Feature**: Methods like `__enter__(self)` that return `self` now correctly generate `-> &Self` return type annotation
+  - **Example**:
+    ```python
+    # Python input:
+    class FileManager:
+        def __enter__(self):
+            return self
+
+    # Rust output (BEFORE - INCORRECT):
+    pub fn __enter__(&self) {  // Missing return type
+        return self;  // ERROR: expected (), found &FileManager
+    }
+
+    # Rust output (AFTER - CORRECT):
+    pub fn __enter__(&self) -> &Self {
+        return self;
+    }
+    ```
+  - **Implementation**:
+    - Added `check_returns_self()` helper method to detect methods returning `self` (ast_bridge.rs:999-1012)
+    - Modified `convert_method()` to infer `Type::Custom("&Self")` for self-returning methods (ast_bridge.rs:680-687)
+    - Modified `convert_async_method()` with same logic for async methods (ast_bridge.rs:798-805)
+    - Updated `convert_simple_type()` to handle `"&Self"` as a special case (direct_rules.rs:772-780)
+    - Applies to both sync and async methods
+  - **Test Coverage**:
+    - test_76_with_statement now passes (Context Managers category)
+    - Verified with `/tmp/test_self_return.py` test case
+  - **Impact**: Enables proper transpilation of Python context managers (`__enter__`, `__exit__`)
+  - **Pass Rate**: 66.3% → 67.3% (+1.0% improvement, 68/101 tests)
+  - **Category Progress**: Context Managers 1/5 → 2/5 (20% → 40%)
+
 - **FEATURE** (2025-10-17): Add tuple unpacking in for loops (DEPYLER-0238)
   - **Feature**: For loops now support tuple unpacking patterns like `for i, value in enumerate(items)`
   - **Example**:
