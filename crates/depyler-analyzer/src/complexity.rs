@@ -156,7 +156,7 @@ pub fn count_statements(body: &[HirStmt]) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use depyler_core::hir::{HirExpr, HirStmt, Literal};
+    use depyler_core::hir::{AssignTarget, HirExpr, HirStmt, Literal};
 
     #[test]
     fn test_cyclomatic_simple_function() {
@@ -203,7 +203,7 @@ mod tests {
     fn test_cyclomatic_for_loop() {
         // Function with for loop should have complexity 2
         let body = vec![HirStmt::For {
-            target: "i".to_string(),
+            target: AssignTarget::Symbol("i".to_string()),
             iter: HirExpr::Literal(Literal::Int(0)),
             body: vec![HirStmt::Return(None)],
         }];
@@ -299,7 +299,7 @@ mod tests {
             then_body: vec![HirStmt::While {
                 condition: HirExpr::Literal(Literal::Bool(true)),
                 body: vec![HirStmt::For {
-                    target: "i".to_string(),
+                    target: AssignTarget::Symbol("i".to_string()),
                     iter: HirExpr::Literal(Literal::Int(0)),
                     body: vec![HirStmt::Return(None)],
                 }],

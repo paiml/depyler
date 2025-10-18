@@ -374,22 +374,45 @@ fn handle_while_stmt(
 }
 
 fn handle_for_stmt(
-    target: &str,
+    target: &AssignTarget,
     iter: &HirExpr,
     body: &[HirStmt],
     scope_tracker: &mut ScopeTracker,
 ) -> Result<proc_macro2::TokenStream> {
-    let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
     let iter_tokens = expr_to_rust_tokens(iter)?;
     scope_tracker.enter_scope();
-    scope_tracker.declare_var(target);
+
+    // Generate target pattern and declare variables
+    let target_pattern = match target {
+        AssignTarget::Symbol(name) => {
+            scope_tracker.declare_var(name);
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            quote! { #ident }
+        }
+        AssignTarget::Tuple(targets) => {
+            // Extract symbols and declare them
+            let idents: Vec<_> = targets
+                .iter()
+                .map(|t| match t {
+                    AssignTarget::Symbol(s) => {
+                        scope_tracker.declare_var(s);
+                        syn::Ident::new(s, proc_macro2::Span::call_site())
+                    }
+                    _ => panic!("Nested tuple unpacking not supported in for loops"),
+                })
+                .collect();
+            quote! { (#(#idents),*) }
+        }
+        _ => bail!("Unsupported for loop target type"),
+    };
+
     let body_stmts: Vec<_> = body
         .iter()
         .map(|stmt| stmt_to_rust_tokens_with_scope(stmt, scope_tracker))
         .collect::<Result<Vec<_>>>()?;
     scope_tracker.exit_scope();
     Ok(quote! {
-        for #target_ident in #iter_tokens {
+        for #target_pattern in #iter_tokens {
             #(#body_stmts)*
         }
     })
@@ -1546,7 +1569,7 @@ mod tests {
     fn test_for_loop_scope_tracking() {
         let mut scope = ScopeTracker::new();
         let stmt = HirStmt::For {
-            target: "i".to_string(),
+            target: AssignTarget::Symbol("i".to_string()),
             iter: HirExpr::Call {
                 func: "range".to_string(),
                 args: vec![HirExpr::Literal(Literal::Int(5))],

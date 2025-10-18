@@ -290,7 +290,7 @@ pub enum HirStmt {
         body: Vec<HirStmt>,
     },
     For {
-        target: Symbol,
+        target: AssignTarget,
         iter: HirExpr,
         body: Vec<HirStmt>,
     },

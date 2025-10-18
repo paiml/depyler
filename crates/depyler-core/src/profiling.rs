@@ -741,7 +741,7 @@ mod tests {
         let func = create_test_function(
             "with_loop",
             vec![HirStmt::For {
-                target: "i".to_string(),
+                target: AssignTarget::Symbol("i".to_string()),
                 iter: HirExpr::Call {
                     func: "range".to_string(),
                     args: vec![HirExpr::Literal(Literal::Int(10))],
@@ -772,13 +772,13 @@ mod tests {
         let func = create_test_function(
             "hot_function",
             vec![HirStmt::For {
-                target: "i".to_string(),
+                target: AssignTarget::Symbol("i".to_string()),
                 iter: HirExpr::Call {
                     func: "range".to_string(),
                     args: vec![HirExpr::Literal(Literal::Int(1000))],
                 },
                 body: vec![HirStmt::For {
-                    target: "j".to_string(),
+                    target: AssignTarget::Symbol("j".to_string()),
                     iter: HirExpr::Call {
                         func: "range".to_string(),
                         args: vec![HirExpr::Literal(Literal::Int(1000))],

@@ -141,7 +141,10 @@ impl TypeInferencer {
             HirStmt::For { target, iter, body } => {
                 let iter_type = self.infer_expr(iter)?;
                 let element_type = self.get_element_type(&iter_type);
-                self.env.set_var_type(target.clone(), element_type);
+                // Only track simple symbol targets for type flow
+                if let AssignTarget::Symbol(name) = target {
+                    self.env.set_var_type(name.clone(), element_type);
+                }
                 self.infer_body(body)?;
             }
             HirStmt::Return(expr) => {

@@ -182,7 +182,7 @@ impl MemorySafetyAnalyzer {
 
     fn analyze_for(
         &mut self,
-        target: &str,
+        target: &AssignTarget,
         iter: &HirExpr,
         body: &[HirStmt],
         annotations: &TranspilationAnnotations,
@@ -192,7 +192,21 @@ impl MemorySafetyAnalyzer {
         }
 
         self.scope_depth += 1;
-        self.register_variable(target, &Type::Unknown, false);
+
+        // Register all variables from the target pattern
+        match target {
+            AssignTarget::Symbol(name) => {
+                self.register_variable(name, &Type::Unknown, false);
+            }
+            AssignTarget::Tuple(targets) => {
+                for t in targets {
+                    if let AssignTarget::Symbol(name) = t {
+                        self.register_variable(name, &Type::Unknown, false);
+                    }
+                }
+            }
+            _ => {}
+        }
 
         for stmt in body {
             if let Some(violation) = self.analyze_statement(stmt, annotations) {

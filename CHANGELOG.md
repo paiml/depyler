@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **FEATURE** (2025-10-17): Add tuple unpacking in for loops (DEPYLER-0238)
+  - **Feature**: For loops now support tuple unpacking patterns like `for i, value in enumerate(items)`
+  - **Example**:
+    ```python
+    # Python input:
+    for i, value in enumerate(items):
+        print(i, value)
+
+    # Rust output:
+    for (i, value) in items.into_iter().enumerate() {
+        println!("{} {}", i, value);
+    }
+    ```
+  - **Implementation**:
+    - Modified HIR `For` statement to use `AssignTarget` enum instead of `Symbol` (hir.rs:292-296)
+    - Updated AST bridge `convert_for()` to use `extract_assign_target()` (converters.rs:108-113)
+    - Updated 8 files to handle tuple unpacking patterns:
+      1. `codegen.rs` - Legacy code generation path (lines 376-419)
+      2. `direct_rules.rs` - Class method code generation (lines 1329-1359)
+      3. `rust_gen/stmt_gen.rs` - Modern statement generation (lines 297-362)
+      4. `migration_suggestions.rs` - Updated for loop analysis (line 262, 3 tests)
+      5. `type_hints.rs` - Type inference for for loops (lines 305-311)
+      6. `memory_safety.rs` - Memory safety analysis (lines 183-222)
+      7. `lifetime_analysis.rs` - Lifetime tracking (lines 160-191, 1 test)
+      8. `type_flow.rs` - Type flow analysis (lines 141-149)
+  - **Features Supported**:
+    - Simple name targets: `for item in items`
+    - Tuple unpacking: `for i, value in enumerate(items)`
+    - Nested tuple extraction in code generation
+    - Proper variable declaration in all scopes
+  - **Result**:
+    - Tuple unpacking infrastructure complete
+    - Enables enumerate() and zip() patterns
+    - Note: Full enumerate() support blocked by type conversion issue (usize→int) - tracked as DEPYLER-0239
+  - **Cleanup**: Removed unused `extract_simple_target()` function and import
+
 - **FEATURE** (2025-10-17): Add dict comprehension support (DEPYLER-0237)
   - **Feature**: Dict comprehensions (`{key: value for x in iterable}`) now transpile to idiomatic Rust iterator chains
   - **Example**:

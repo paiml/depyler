@@ -261,7 +261,7 @@ fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
 
     fn analyze_for_loop(
         &mut self,
-        _target: &str,
+        _target: &crate::hir::AssignTarget,
         iter: &HirExpr,
         body: &[HirStmt],
         func: &HirFunction,
@@ -824,7 +824,7 @@ mod tests {
     #[test]
     fn test_enumerate_pattern_detection() {
         let body = vec![HirStmt::For {
-            target: "i".to_string(),
+            target: AssignTarget::Symbol("i".to_string()),
             iter: HirExpr::Call {
                 func: "enumerate".to_string(),
                 args: vec![HirExpr::Var("items".to_string())],
@@ -975,7 +975,7 @@ mod tests {
     #[test]
     fn test_filter_map_pattern_detection() {
         let body = vec![HirStmt::For {
-            target: "item".to_string(),
+            target: AssignTarget::Symbol("item".to_string()),
             iter: HirExpr::Var("items".to_string()),
             body: vec![HirStmt::If {
                 condition: HirExpr::Call {
@@ -1242,7 +1242,7 @@ mod tests {
                 type_annotation: None,
             },
             HirStmt::For {
-                target: "item".to_string(),
+                target: AssignTarget::Symbol("item".to_string()),
                 iter: HirExpr::Var("items".to_string()),
                 body: vec![HirStmt::Expr(HirExpr::MethodCall {
                     object: Box::new(HirExpr::Var("result".to_string())),
