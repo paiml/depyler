@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **FEATURE** (2025-10-18): Fix enumerate() usize→i32 conversion in return statements (DEPYLER-0241)
+  - **Feature**: Return statements now correctly convert `usize` indices from `enumerate()` to `i32` for Python `int` return types
+  - **Example**:
+    ```python
+    # Python input:
+    def find_index(items: list[int], target: int) -> int:
+        for i, value in enumerate(items):
+            if value == target:
+                return i  # i is usize from enumerate()
+        return -1
+
+    # Rust output (BEFORE - TYPE ERROR):
+    for (i, value) in items.into_iter().enumerate() {
+        return i;  // ERROR: expected i32, found usize
+    }
+
+    # Rust output (AFTER - CORRECT):
+    for (i, value) in items.into_iter().enumerate() {
+        return i as i32;  // ✅ Automatic type conversion
+    }
+    return -1 as i32;
+    ```
+  - **Implementation**:
+    - Modified `codegen_return_stmt()` to apply type conversion when needed (stmt_gen.rs:136-188)
+    - Reuses existing `needs_type_conversion()` and `apply_type_conversion()` helpers
+    - Handles Optional return types by unwrapping to get underlying type
+  - **Test Coverage**:
+    - test_88_enumerate_iterator now passes (Iterators & Protocols category)
+    - Verified with `/tmp/test_enumerate.py` test case
+  - **Pass Rate**: 68.3% → 69.3% (+1.0% improvement, 70/101 tests)
+  - **Category Progress**: Iterators & Protocols 3/5 → 4/5 (60% → 80%)
+
 - **FEATURE** (2025-10-18): Fix context managers with `as` clause to call `__enter__()` (DEPYLER-0240)
   - **Feature**: Context managers with `as` clause now correctly call `__enter__()` and bind the result
   - **Example**:
