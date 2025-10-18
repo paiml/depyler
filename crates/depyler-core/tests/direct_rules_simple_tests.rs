@@ -207,7 +207,7 @@ mod tests {
             body: vec![
                 // For loop
                 HirStmt::For {
-                    target: "i".to_string(),
+                    target: AssignTarget::Symbol("i".to_string()),
                     iter: HirExpr::Call {
                         func: "range".to_string(),
                         args: vec![HirExpr::Literal(Literal::Int(10))],

@@ -58,7 +58,7 @@ fn create_accumulator_function() -> HirFunction {
             },
             // for num in numbers:
             HirStmt::For {
-                target: "num".to_string(),
+                target: AssignTarget::Symbol("num".to_string()),
                 iter: HirExpr::Var("numbers".to_string()),
                 body: vec![
                     // if num % 2 == 0:

@@ -1327,12 +1327,32 @@ fn convert_stmt_with_context(
             Ok(syn::Stmt::Expr(while_expr, Some(Default::default())))
         }
         HirStmt::For { target, iter, body } => {
-            let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+            // Generate target pattern based on AssignTarget type
+            let target_pattern: syn::Pat = match target {
+                AssignTarget::Symbol(name) => {
+                    let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                    parse_quote! { #ident }
+                }
+                AssignTarget::Tuple(targets) => {
+                    let idents: Vec<syn::Ident> = targets
+                        .iter()
+                        .map(|t| match t {
+                            AssignTarget::Symbol(s) => {
+                                syn::Ident::new(s, proc_macro2::Span::call_site())
+                            }
+                            _ => panic!("Nested tuple unpacking not supported in for loops"),
+                        })
+                        .collect();
+                    parse_quote! { (#(#idents),*) }
+                }
+                _ => panic!("Unsupported for loop target type"),
+            };
+
             let iter_expr = convert_expr_with_context(iter, type_mapper, is_classmethod)?;
             let body_block = convert_block_with_context(body, type_mapper, is_classmethod)?;
 
             let for_expr = parse_quote! {
-                for #target_ident in #iter_expr #body_block
+                for #target_pattern in #iter_expr #body_block
             };
 
             Ok(syn::Stmt::Expr(for_expr, Some(Default::default())))

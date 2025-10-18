@@ -159,7 +159,7 @@ impl LifetimeAnalyzer {
 
     fn analyze_for_stmt(
         &mut self,
-        target: &str,
+        target: &AssignTarget,
         iter: &HirExpr,
         body: &[HirStmt],
         scope_depth: usize,
@@ -168,7 +168,22 @@ impl LifetimeAnalyzer {
         self.check_iterator_invalidation(iter, body);
 
         self.enter_scope(scope_depth + 1);
-        self.register_variable(target, &Type::Unknown, scope_depth + 1);
+
+        // Register all variables from the target pattern
+        match target {
+            AssignTarget::Symbol(name) => {
+                self.register_variable(name, &Type::Unknown, scope_depth + 1);
+            }
+            AssignTarget::Tuple(targets) => {
+                for t in targets {
+                    if let AssignTarget::Symbol(name) = t {
+                        self.register_variable(name, &Type::Unknown, scope_depth + 1);
+                    }
+                }
+            }
+            _ => {}
+        }
+
         for stmt in body {
             self.analyze_stmt(stmt, scope_depth + 1);
         }
@@ -537,7 +552,7 @@ mod tests {
             .into(),
             ret_type: Type::None,
             body: vec![HirStmt::For {
-                target: "item".to_string(),
+                target: AssignTarget::Symbol("item".to_string()),
                 iter: HirExpr::Var("items".to_string()),
                 body: vec![HirStmt::Expr(HirExpr::Call {
                     func: "append".to_string(),

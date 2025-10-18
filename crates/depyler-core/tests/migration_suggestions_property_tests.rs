@@ -260,7 +260,7 @@ proptest! {
             ret_type: Type::Unknown,
             body: vec![
                 HirStmt::For {
-                    target,
+                    target: AssignTarget::Symbol(target),
                     iter: HirExpr::Call {
                         func: "enumerate".to_string(),
                         args: vec![HirExpr::Var(items)],

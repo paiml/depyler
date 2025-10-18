@@ -302,8 +302,11 @@ impl TypeHintProvider {
         self.analyze_body(body)
     }
 
-    fn analyze_for_stmt(&mut self, target: &str, iter: &HirExpr, body: &[HirStmt]) -> Result<()> {
-        self.analyze_for_loop(target, iter)?;
+    fn analyze_for_stmt(&mut self, target: &crate::hir::AssignTarget, iter: &HirExpr, body: &[HirStmt]) -> Result<()> {
+        // For now, only analyze simple symbol targets
+        if let crate::hir::AssignTarget::Symbol(target_name) = target {
+            self.analyze_for_loop(target_name, iter)?;
+        }
         self.analyze_body(body)
     }
 
