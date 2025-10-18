@@ -138,7 +138,20 @@ pub(crate) fn codegen_return_stmt(
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
     if let Some(e) = expr {
-        let expr_tokens = e.to_rust_expr(ctx)?;
+        let mut expr_tokens = e.to_rust_expr(ctx)?;
+
+        // DEPYLER-0241: Apply type conversion if needed (e.g., usize -> i32 from enumerate())
+        if let Some(return_type) = &ctx.current_return_type {
+            // Unwrap Optional to get the underlying type
+            let target_type = match return_type {
+                Type::Optional(inner) => inner.as_ref(),
+                other => other,
+            };
+
+            if needs_type_conversion(target_type) {
+                expr_tokens = apply_type_conversion(expr_tokens, target_type);
+            }
+        }
 
         // Check if return type is Optional and wrap value in Some()
         let is_optional_return =
