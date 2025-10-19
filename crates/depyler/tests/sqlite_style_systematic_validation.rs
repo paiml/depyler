@@ -1929,6 +1929,18 @@ def test_any(items: list[bool]) -> bool:
     assert!(rust.contains(".iter().any("));
 }
 
+#[test]
+fn test_118_builtin_all() {
+    let python = r#"
+def test_all(items: list[bool]) -> bool:
+    return all(items)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_all").unwrap();
+    assert!(rust.contains("fn test_all"));
+    assert!(rust.contains(".iter().all("));
+}
+
 // ============================================================================
 // Summary Test
 // ============================================================================

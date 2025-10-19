@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **FEATURE** (2025-10-19): Implement all() built-in function (DEPYLER-0250)
+  - **Feature**: Added support for Python's `all()` built-in function
+  - **Implementation**: Maps `all(iterable)` to Rust's `.iter().all(|&x| x)`
+  - **Code Generation**: expr_gen.rs:391-395
+  - **Tests**:
+    - Added test_118_builtin_all to validate implementation
+    - Verified generated code compiles with rustc
+  - **Pass Rate**: 75.4% → 75.6% (+0.2% improvement, 90/119 tests)
+  - **Progress**: 2 more tests needed to reach 80% (95/119 = 79.8%)
+
 - **FEATURE** (2025-10-19): Implement any() built-in function (DEPYLER-0249)
   - **Feature**: Added support for Python's `any()` built-in function
   - **Implementation**: Maps `any(iterable)` to Rust's `.iter().any(|&x| x)`
