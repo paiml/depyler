@@ -1722,6 +1722,46 @@ def test() -> int:
 }
 
 // ============================================================================
+// Category 21: Built-in Functions (3 tests - expanding coverage)
+// ============================================================================
+
+#[test]
+fn test_101_builtin_len() {
+    let python = r#"
+def test_len(items: list[int]) -> int:
+    return len(items)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_len").unwrap();
+    assert!(rust.contains("fn test_len"));
+    assert!(rust.contains(".len()"));
+}
+
+#[test]
+fn test_102_builtin_max() {
+    let python = r#"
+def test_max(items: list[int]) -> int:
+    return max(items)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_max").unwrap();
+    assert!(rust.contains("fn test_max"));
+    assert!(rust.contains(".max()") || rust.contains("iter().max()"));
+}
+
+#[test]
+fn test_103_builtin_min() {
+    let python = r#"
+def test_min(items: list[int]) -> int:
+    return min(items)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_min").unwrap();
+    assert!(rust.contains("fn test_min"));
+    assert!(rust.contains(".min()") || rust.contains("iter().min()"));
+}
+
+// ============================================================================
 // Summary Test
 // ============================================================================
 
