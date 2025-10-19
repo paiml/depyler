@@ -400,6 +400,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #value_expr.round() });
         }
 
+        // DEPYLER-0252: Handle pow(base, exp) → base.pow(exp as u32)
+        // Rust's pow() requires u32 exponent, so we cast
+        if func == "pow" && args.len() == 2 {
+            let base_expr = args[0].to_rust_expr(self.ctx)?;
+            let exp_expr = args[1].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { #base_expr.pow(#exp_expr as u32) });
+        }
+
         // Handle enumerate(items) → items.into_iter().enumerate()
         if func == "enumerate" && args.len() == 1 {
             let items_expr = args[0].to_rust_expr(self.ctx)?;
