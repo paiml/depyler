@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **FEATURE** (2025-10-19): Implement chr(), ord(), bool() built-in functions (DEPYLER-0253-0255)
+  - **chr(code)**: Maps to `char::from_u32(code as u32).unwrap().to_string()`
+  - **ord(char)**: Maps to `char.chars().next().unwrap() as u32`
+  - **bool(value)**: Maps to `value != 0` (Rust idiomatic truthiness)
+  - **Code Generation**: expr_gen.rs:411-427
+  - **Tests**: Added test_121_builtin_chr, test_122_builtin_ord, test_123_builtin_bool
+  - **Pass Rate**: 76.0% → 76.6% (+0.6%, 95/124 tests)
+  - **Milestone**: Near 80% target! Only 4 more tests needed (99/124 ≈ 79.8%)
+
 - **FEATURE** (2025-10-19): Implement pow() built-in function (DEPYLER-0252)
   - **Feature**: Added support for Python's `pow()` built-in function
   - **Implementation**: Maps `pow(base, exp)` to Rust's `.pow(exp as u32)` method
