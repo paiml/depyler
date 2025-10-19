@@ -1953,6 +1953,18 @@ def test_round(value: float) -> int:
     assert!(rust.contains(".round()"));
 }
 
+#[test]
+fn test_120_builtin_pow() {
+    let python = r#"
+def test_pow(base: int, exp: int) -> int:
+    return pow(base, exp)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_pow").unwrap();
+    assert!(rust.contains("fn test_pow"));
+    assert!(rust.contains(".pow("));
+}
+
 // ============================================================================
 // Summary Test
 // ============================================================================

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **FEATURE** (2025-10-19): Implement pow() built-in function (DEPYLER-0252)
+  - **Feature**: Added support for Python's `pow()` built-in function
+  - **Implementation**: Maps `pow(base, exp)` to Rust's `.pow(exp as u32)` method
+  - **Code Generation**: expr_gen.rs:403-409
+  - **Tests**:
+    - Added test_120_builtin_pow to validate implementation
+    - Verified generated code compiles with rustc
+  - **Pass Rate**: 75.8% → 76.0% (+0.2% improvement, 92/121 tests)
+  - **Progress**: 3 more tests needed to reach 80% (97/121 ≈ 80.2%)
+
 - **FEATURE** (2025-10-19): Implement round() built-in function (DEPYLER-0251)
   - **Feature**: Added support for Python's `round()` built-in function
   - **Implementation**: Maps `round(value)` to Rust's `.round()` method
