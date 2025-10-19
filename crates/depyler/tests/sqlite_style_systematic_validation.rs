@@ -1905,6 +1905,18 @@ def test_sum(numbers: list[int]) -> int:
     assert!(rust.contains(".sum::<i32>()"));
 }
 
+#[test]
+fn test_116_builtin_abs() {
+    let python = r#"
+def test_abs(value: int) -> int:
+    return abs(value)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_abs").unwrap();
+    assert!(rust.contains("fn test_abs"));
+    assert!(rust.contains(".abs()"));
+}
+
 // ============================================================================
 // Summary Test
 // ============================================================================
