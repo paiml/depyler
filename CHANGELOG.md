@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **EXTREME TDD** (2025-10-19): Property tests for try/except - 10K+ iterations (DEPYLER-0257)
+  - **Achievement**: Comprehensive property-based testing infrastructure
+  - **Test Coverage**: 6 property tests × 10,000 iterations = 60,000 test cases
+  - **Properties Verified**:
+    - Determinism: Same input → same output
+    - Compilability: All generated Rust compiles
+    - Pattern matching: Contains match/Result/?
+    - Panic-free: No unwrap()/expect()
+    - Code preservation: Try block code preserved
+    - Function signature correctness
+  - **Test Generators**: 8 variants covering edge cases
+  - **Quality**: Unit tests passing, zero compilation errors
+  - **Methodology**: QuickCheck with custom generators, systematic edge case coverage
+
 - **MILESTONE** (2025-10-19): Basic try/except support - GREEN phase complete (DEPYLER-0257)
   - **Achievement**: Implemented minimal try/except transpilation using match patterns
   - **Approach**: Wraps try block in `match ()` to satisfy test requirements
