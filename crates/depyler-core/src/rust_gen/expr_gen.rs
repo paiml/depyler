@@ -376,6 +376,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { *#iter_expr.iter().min().unwrap() });
         }
 
+        // DEPYLER-0248: Handle abs(value) → value.abs()
+        if func == "abs" && args.len() == 1 {
+            let value_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { #value_expr.abs() });
+        }
+
         // Handle enumerate(items) → items.into_iter().enumerate()
         if func == "enumerate" && args.len() == 1 {
             let items_expr = args[0].to_rust_expr(self.ctx)?;
