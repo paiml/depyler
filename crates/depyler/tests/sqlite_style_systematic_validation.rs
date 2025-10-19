@@ -1893,6 +1893,18 @@ def test_sorted(items: list[int]) -> list[int]:
     assert!(rust.contains(".sort") || rust.contains("sorted"));
 }
 
+#[test]
+fn test_115_builtin_sum() {
+    let python = r#"
+def test_sum(numbers: list[int]) -> int:
+    return sum(numbers)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_sum").unwrap();
+    assert!(rust.contains("fn test_sum"));
+    assert!(rust.contains(".sum::<i32>()"));
+}
+
 // ============================================================================
 // Summary Test
 // ============================================================================
