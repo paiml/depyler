@@ -894,7 +894,6 @@ def test() -> int:
 // ============================================================================
 
 #[test]
-#[ignore] // Try/except generates incorrect Result wrapping - tracked for future enhancement
 fn test_56_try_except_basic() {
     let python = r#"
 def test(x: int) -> int:
