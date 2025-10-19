@@ -34,7 +34,7 @@ pub fn generate_number(min_val: i32, max_val: i32) -> Result<i32, ZeroDivisionEr
             q
         }
     };
-    return Ok(_cse_temp_0);
+    return Ok(_cse_temp_0 as i32);
 }
 #[doc = "Provide a hint based on the guess."]
 #[doc = " Depyler: verified panic-free"]
@@ -58,7 +58,7 @@ pub fn get_hint(guess: i32, target: i32) -> String {
 pub fn calculate_score(attempts: i32, rounds: i32) -> i32 {
     let _cse_temp_0 = rounds == 0;
     if _cse_temp_0 {
-        return 0;
+        return 0 as i32;
     }
     let _cse_temp_1 = 100 * rounds;
     let base_score = _cse_temp_1;
@@ -67,9 +67,9 @@ pub fn calculate_score(attempts: i32, rounds: i32) -> i32 {
     let score = base_score - penalty;
     let _cse_temp_3 = score < 0;
     if _cse_temp_3 {
-        return 0;
+        return 0 as i32;
     }
-    return score;
+    return score as i32;
 }
 #[doc = "Get difficulty name from level."]
 #[doc = " Depyler: verified panic-free"]
@@ -109,13 +109,13 @@ pub fn format_statistics(score: i32, attempts: i32, rounds: i32) -> String {
     let avg = calculate_average(attempts, rounds);
     let mut result = "Game Statistics:\n";
     let _cse_temp_0 = score.to_string();
-    let _cse_temp_1 = format!("{}{}", result, "Score: ") + _cse_temp_0;
+    let _cse_temp_1 = format!("{}{}", format!("{}{}", result, "Score: "), _cse_temp_0);
     result = format!("{}{}", _cse_temp_1, "\n");
     let _cse_temp_2 = attempts.to_string();
-    let _cse_temp_3 = format!("{}{}", result, "Attempts: ") + _cse_temp_2;
+    let _cse_temp_3 = format!("{}{}", format!("{}{}", result, "Attempts: "), _cse_temp_2);
     result = format!("{}{}", _cse_temp_3, "\n");
     let _cse_temp_4 = avg.to_string();
-    let _cse_temp_5 = format!("{}{}", result, "Average: ") + _cse_temp_4;
+    let _cse_temp_5 = format!("{}{}", format!("{}{}", result, "Average: "), _cse_temp_4);
     result = format!("{}{}", _cse_temp_5, "\n");
     return result;
 }
@@ -141,7 +141,7 @@ pub fn play_simple_round(target: i32, max_attempts: i32) -> i32 {
     while attempts < max_attempts {
         attempts = attempts + 1;
         if guess == target {
-            return attempts;
+            return attempts as i32;
         } else {
             if guess < target {
                 guess = guess + 10;
@@ -150,7 +150,7 @@ pub fn play_simple_round(target: i32, max_attempts: i32) -> i32 {
             }
         }
     }
-    return attempts;
+    return attempts as i32;
 }
 #[cfg(test)]
 mod tests {
