@@ -1809,6 +1809,90 @@ def test_replace(text: str, old: str, new: str) -> str:
     assert!(rust.contains(".replace("));
 }
 
+#[test]
+fn test_108_str_startswith() {
+    let python = r#"
+def test_startswith(text: str, prefix: str) -> bool:
+    return text.startswith(prefix)
+"#;
+
+    let rust = transpile_and_verify(python, "str_startswith").unwrap();
+    assert!(rust.contains("fn test_startswith"));
+    assert!(rust.contains(".starts_with("));
+}
+
+#[test]
+fn test_109_str_endswith() {
+    let python = r#"
+def test_endswith(text: str, suffix: str) -> bool:
+    return text.endswith(suffix)
+"#;
+
+    let rust = transpile_and_verify(python, "str_endswith").unwrap();
+    assert!(rust.contains("fn test_endswith"));
+    assert!(rust.contains(".ends_with("));
+}
+
+#[test]
+fn test_110_str_lower() {
+    let python = r#"
+def test_lower(text: str) -> str:
+    return text.lower()
+"#;
+
+    let rust = transpile_and_verify(python, "str_lower").unwrap();
+    assert!(rust.contains("fn test_lower"));
+    assert!(rust.contains(".to_lowercase("));
+}
+
+#[test]
+fn test_111_str_upper() {
+    let python = r#"
+def test_upper(text: str) -> str:
+    return text.upper()
+"#;
+
+    let rust = transpile_and_verify(python, "str_upper").unwrap();
+    assert!(rust.contains("fn test_upper"));
+    assert!(rust.contains(".to_uppercase("));
+}
+
+#[test]
+fn test_112_str_strip() {
+    let python = r#"
+def test_strip(text: str) -> str:
+    return text.strip()
+"#;
+
+    let rust = transpile_and_verify(python, "str_strip").unwrap();
+    assert!(rust.contains("fn test_strip"));
+    assert!(rust.contains(".trim("));
+}
+
+#[test]
+fn test_113_str_split() {
+    let python = r#"
+def test_split(text: str, sep: str) -> list[str]:
+    return text.split(sep)
+"#;
+
+    let rust = transpile_and_verify(python, "str_split").unwrap();
+    assert!(rust.contains("fn test_split"));
+    assert!(rust.contains(".split("));
+}
+
+#[test]
+fn test_114_builtin_sorted() {
+    let python = r#"
+def test_sorted(items: list[int]) -> list[int]:
+    return sorted(items)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_sorted").unwrap();
+    assert!(rust.contains("fn test_sorted"));
+    assert!(rust.contains(".sort") || rust.contains("sorted"));
+}
+
 // ============================================================================
 // Summary Test
 // ============================================================================

@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **TESTS** (2025-10-19): Add comprehensive string method tests (DEPYLER-0246)
+  - **Feature**: Added test coverage for 7 essential string methods and sorted() built-in
+  - **Tests Added**:
+    - test_108_str_startswith: Tests str.startswith() → Rust .starts_with()
+    - test_109_str_endswith: Tests str.endswith() → Rust .ends_with()
+    - test_110_str_lower: Tests str.lower() → Rust .to_lowercase()
+    - test_111_str_upper: Tests str.upper() → Rust .to_uppercase()
+    - test_112_str_strip: Tests str.strip() → Rust .trim()
+    - test_113_str_split: Tests str.split() → Rust .split()
+    - test_114_builtin_sorted: Tests sorted() → Rust .sort()
+  - **Implementation**:
+    - Continued expanding Category 21: "Built-in Functions"
+    - All 7 tests pass on first run (features already implemented)
+    - Batch-tested transpilation and compilation for efficiency
+  - **Quality Metrics**:
+    - Tests cover essential string manipulation operations
+    - Each test validates transpilation + compilation + correctness
+  - **Pass Rate**: 73.1% → 74.8% (+1.7% improvement, 86/115 tests)
+  - **Progress**: Approaching 75% pass rate threshold
+
 - **TESTS** (2025-10-19): Add list and string method tests (DEPYLER-0245)
   - **Feature**: Added test coverage for 4 supported list/string methods
   - **Tests Added**:
