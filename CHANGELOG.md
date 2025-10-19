@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **FEATURE** (2025-10-19): Implement any() built-in function (DEPYLER-0249)
+  - **Feature**: Added support for Python's `any()` built-in function
+  - **Implementation**: Maps `any(iterable)` to Rust's `.iter().any(|&x| x)`
+  - **Code Generation**: expr_gen.rs:385-389
+  - **Tests**:
+    - Added test_117_builtin_any to validate implementation
+    - Verified generated code compiles with rustc
+  - **Pass Rate**: 75.2% → 75.4% (+0.2% improvement, 89/118 tests)
+  - **Progress**: 3 more tests needed to reach 80% (93/118 = 78.8%)
+
 - **FEATURE** (2025-10-19): Implement abs() built-in function (DEPYLER-0248)
   - **Feature**: Added support for Python's `abs()` built-in function
   - **Implementation**: Maps `abs(value)` to Rust's `.abs()` method
