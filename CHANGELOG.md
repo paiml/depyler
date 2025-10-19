@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **FEATURE** (2025-10-19): Implement abs() built-in function (DEPYLER-0248)
+  - **Feature**: Added support for Python's `abs()` built-in function
+  - **Implementation**: Maps `abs(value)` to Rust's `.abs()` method
+  - **Code Generation**: expr_gen.rs:379-383
+  - **Tests**:
+    - Added test_116_builtin_abs to validate implementation
+    - Verified generated code compiles with rustc
+  - **Pass Rate**: 75.0% → 75.2% (+0.2% improvement, 88/117 tests)
+  - **Progress**: 4 more tests needed to reach 80% (92/117 tests)
+
 ### Fixed
 - **CODEGEN** (2025-10-19): Fix sum() type inference with turbofish syntax (DEPYLER-0247)
   - **Bug**: `sum()` was generating `.iter().sum()` without type annotation, causing Rust compilation errors
@@ -19,7 +30,7 @@ All notable changes to this project will be documented in this file.
   - **Pass Rate**: 74.8% → 75.0% (+0.2% improvement, 87/116 tests)
   - **Impact**: Fixes first known bug from session stdlib coverage sprint
 
-### Added
+### Added (Previous)
 - **TESTS** (2025-10-19): Add comprehensive string method tests (DEPYLER-0246)
   - **Feature**: Added test coverage for 7 essential string methods and sorted() built-in
   - **Tests Added**:
