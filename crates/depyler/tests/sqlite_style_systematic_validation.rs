@@ -1514,7 +1514,6 @@ def find_index(items: list[int], target: int) -> int:
 }
 
 #[test]
-#[ignore] // Zip iterator generates incomplete code - tracked for future enhancement
 fn test_89_zip_iterator() {
     let python = r#"
 def pair_sum(a: list[int], b: list[int]) -> list[int]:
