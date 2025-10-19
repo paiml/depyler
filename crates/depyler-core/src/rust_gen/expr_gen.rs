@@ -382,6 +382,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #value_expr.abs() });
         }
 
+        // DEPYLER-0249: Handle any(iterable) → iterable.iter().any(|&x| x)
+        if func == "any" && args.len() == 1 {
+            let iter_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { #iter_expr.iter().any(|&x| x) });
+        }
+
         // Handle enumerate(items) → items.into_iter().enumerate()
         if func == "enumerate" && args.len() == 1 {
             let items_expr = args[0].to_rust_expr(self.ctx)?;
