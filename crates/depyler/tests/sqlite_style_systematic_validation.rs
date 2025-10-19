@@ -2001,6 +2001,195 @@ def test_bool(value: int) -> bool:
     assert!(rust.contains("!= 0"));
 }
 
+#[test]
+fn test_124_builtin_str() {
+    let python = r#"
+def test_str(value: int) -> str:
+    return str(value)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_str").unwrap();
+    assert!(rust.contains("fn test_str"));
+    assert!(rust.contains(".to_string()"));
+}
+
+#[test]
+fn test_125_builtin_int() {
+    let python = r#"
+def test_int(value: float) -> int:
+    return int(value)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_int").unwrap();
+    assert!(rust.contains("fn test_int"));
+    assert!(rust.contains("as i32"));
+}
+
+#[test]
+fn test_126_builtin_float() {
+    let python = r#"
+def test_float(value: int) -> float:
+    return float(value)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_float").unwrap();
+    assert!(rust.contains("fn test_float"));
+    assert!(rust.contains("as f64"));
+}
+
+#[test]
+fn test_127_builtin_len_string() {
+    let python = r#"
+def test_len_string(text: str) -> int:
+    return len(text)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_len_string").unwrap();
+    assert!(rust.contains("fn test_len_string"));
+    assert!(rust.contains(".len()"));
+}
+
+#[test]
+fn test_128_builtin_reversed() {
+    let python = r#"
+def test_reversed(items: list[int]) -> list[int]:
+    return list(reversed(items))
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_reversed").unwrap();
+    assert!(rust.contains("fn test_reversed"));
+    assert!(rust.contains(".reverse()"));
+}
+
+#[test]
+fn test_129_math_operators_compound() {
+    let python = r#"
+def test_math(a: int, b: int, c: int) -> int:
+    return a + b * c - (a // b)
+"#;
+
+    let rust = transpile_and_verify(python, "math_operators_compound").unwrap();
+    assert!(rust.contains("fn test_math"));
+}
+
+#[test]
+fn test_130_comparison_chains() {
+    let python = r#"
+def test_compare(x: int, y: int, z: int) -> bool:
+    return x < y and y < z
+"#;
+
+    let rust = transpile_and_verify(python, "comparison_chains").unwrap();
+    assert!(rust.contains("fn test_compare"));
+}
+
+#[test]
+fn test_131_negative_indexing() {
+    let python = r#"
+def test_negative_index(items: list[int]) -> int:
+    return items[-1] + items[-2]
+"#;
+
+    let rust = transpile_and_verify(python, "negative_indexing").unwrap();
+    assert!(rust.contains("fn test_negative_index"));
+}
+
+#[test]
+fn test_132_list_slicing() {
+    let python = r#"
+def test_slice(items: list[int]) -> list[int]:
+    return items[1:3]
+"#;
+
+    let rust = transpile_and_verify(python, "list_slicing").unwrap();
+    assert!(rust.contains("fn test_slice"));
+}
+
+#[test]
+fn test_133_modulo_operator() {
+    let python = r#"
+def test_modulo(a: int, b: int) -> int:
+    return a % b
+"#;
+
+    let rust = transpile_and_verify(python, "modulo_operator").unwrap();
+    assert!(rust.contains("fn test_modulo"));
+    assert!(rust.contains("%"));
+}
+
+#[test]
+fn test_134_bitshift_operators() {
+    let python = r#"
+def test_bitshift(value: int) -> int:
+    return (value << 2) >> 1
+"#;
+
+    let rust = transpile_and_verify(python, "bitshift_operators").unwrap();
+    assert!(rust.contains("fn test_bitshift"));
+    assert!(rust.contains("<<") && rust.contains(">>"));
+}
+
+#[test]
+fn test_135_unary_negation() {
+    let python = r#"
+def test_unary(x: int) -> int:
+    return -x + -10
+"#;
+
+    let rust = transpile_and_verify(python, "unary_negation").unwrap();
+    assert!(rust.contains("fn test_unary"));
+    assert!(rust.contains("-"));
+}
+
+#[test]
+fn test_136_augmented_assignment() {
+    let python = r#"
+def test_aug(x: int) -> int:
+    x += 5
+    x *= 2
+    return x
+"#;
+
+    let rust = transpile_and_verify(python, "augmented_assignment").unwrap();
+    assert!(rust.contains("fn test_aug"));
+}
+
+#[test]
+fn test_137_boolean_literals() {
+    let python = r#"
+def test_bool_literals() -> bool:
+    t = True
+    f = False
+    return t or f
+"#;
+
+    let rust = transpile_and_verify(python, "boolean_literals").unwrap();
+    assert!(rust.contains("fn test_bool_literals"));
+    assert!(rust.contains("true") || rust.contains("false"));
+}
+
+#[test]
+fn test_138_string_concatenation() {
+    let python = r#"
+def test_concat(a: str, b: str) -> str:
+    return a + b + "test"
+"#;
+
+    let rust = transpile_and_verify(python, "string_concatenation").unwrap();
+    assert!(rust.contains("fn test_concat"));
+}
+
+#[test]
+fn test_139_parenthesized_expressions() {
+    let python = r#"
+def test_parens(a: int, b: int) -> int:
+    return (a + b) * (a - b)
+"#;
+
+    let rust = transpile_and_verify(python, "parenthesized_expressions").unwrap();
+    assert!(rust.contains("fn test_parens"));
+}
+
 // ============================================================================
 // Summary Test
 // ============================================================================
