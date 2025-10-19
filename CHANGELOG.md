@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **FEATURE** (2025-10-19): Implement round() built-in function (DEPYLER-0251)
+  - **Feature**: Added support for Python's `round()` built-in function
+  - **Implementation**: Maps `round(value)` to Rust's `.round()` method
+  - **Code Generation**: expr_gen.rs:397-401
+  - **Tests**:
+    - Added test_119_builtin_round to validate implementation
+    - Verified generated code compiles with rustc
+  - **Pass Rate**: 75.6% → 75.8% (+0.2% improvement, 91/120 tests)
+  - **Progress**: 4 more tests needed to reach 80% (96/120 = 80.0%)
+
 - **FEATURE** (2025-10-19): Implement all() built-in function (DEPYLER-0250)
   - **Feature**: Added support for Python's `all()` built-in function
   - **Implementation**: Maps `all(iterable)` to Rust's `.iter().all(|&x| x)`
