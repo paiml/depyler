@@ -394,6 +394,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #iter_expr.iter().all(|&x| x) });
         }
 
+        // DEPYLER-0251: Handle round(value) → value.round()
+        if func == "round" && args.len() == 1 {
+            let value_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { #value_expr.round() });
+        }
+
         // Handle enumerate(items) → items.into_iter().enumerate()
         if func == "enumerate" && args.len() == 1 {
             let items_expr = args[0].to_rust_expr(self.ctx)?;

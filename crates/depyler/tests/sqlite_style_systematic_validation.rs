@@ -1941,6 +1941,18 @@ def test_all(items: list[bool]) -> bool:
     assert!(rust.contains(".iter().all("));
 }
 
+#[test]
+fn test_119_builtin_round() {
+    let python = r#"
+def test_round(value: float) -> int:
+    return round(value)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_round").unwrap();
+    assert!(rust.contains("fn test_round"));
+    assert!(rust.contains(".round()"));
+}
+
 // ============================================================================
 // Summary Test
 // ============================================================================
