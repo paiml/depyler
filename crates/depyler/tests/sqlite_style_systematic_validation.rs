@@ -1323,7 +1323,6 @@ def test() -> int:
 }
 
 #[test]
-#[ignore] // Nested context managers generate incorrect code - tracked for future enhancement
 fn test_78_nested_with() {
     let python = r#"
 class Resource1:
