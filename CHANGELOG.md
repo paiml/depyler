@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **FEATURE** (2025-10-19): Enable nested context managers support (DEPYLER-0242)
+  - **Feature**: Nested context managers now work correctly (feature already implemented via DEPYLER-0240)
+  - **Example**:
+    ```python
+    # Python input:
+    def test() -> int:
+        with Resource1():
+            with Resource2():
+                return 42
+
+    # Rust output (CORRECT):
+    {
+        let _context = Resource1::new();
+        {
+            let _context = Resource2::new();
+            return 42 as i32;
+        }
+    }
+    ```
+  - **Implementation**:
+    - Removed `#[ignore]` marker from test_78_nested_with (sqlite_style_systematic_validation.rs:1326)
+    - No code changes needed - nested context managers already supported by DEPYLER-0240 fix
+    - Each `with` statement generates its own scope with proper `__enter__()`/`__exit__()` handling
+  - **Test Coverage**:
+    - test_78_nested_with now passes (Context Managers category)
+    - Verified nested Resource1/Resource2 pattern transpiles and compiles correctly
+  - **Pass Rate**: 69.3% → 70.3% (+1.0% improvement, 71/101 tests)
+  - **Category Progress**: Context Managers 3/5 → 4/5 (60% → 80%)
+
 - **FEATURE** (2025-10-18): Fix enumerate() usize→i32 conversion in return statements (DEPYLER-0241)
   - **Feature**: Return statements now correctly convert `usize` indices from `enumerate()` to `i32` for Python `int` return types
   - **Example**:
