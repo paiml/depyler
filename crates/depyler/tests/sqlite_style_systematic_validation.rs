@@ -1965,6 +1965,42 @@ def test_pow(base: int, exp: int) -> int:
     assert!(rust.contains(".pow("));
 }
 
+#[test]
+fn test_121_builtin_chr() {
+    let python = r#"
+def test_chr(code: int) -> str:
+    return chr(code)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_chr").unwrap();
+    assert!(rust.contains("fn test_chr"));
+    assert!(rust.contains("char::from_u32"));
+}
+
+#[test]
+fn test_122_builtin_ord() {
+    let python = r#"
+def test_ord(char: str) -> int:
+    return ord(char)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_ord").unwrap();
+    assert!(rust.contains("fn test_ord"));
+    assert!(rust.contains(".chars().next()"));
+}
+
+#[test]
+fn test_123_builtin_bool() {
+    let python = r#"
+def test_bool(value: int) -> bool:
+    return bool(value)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_bool").unwrap();
+    assert!(rust.contains("fn test_bool"));
+    assert!(rust.contains("!= 0"));
+}
+
 // ============================================================================
 // Summary Test
 // ============================================================================

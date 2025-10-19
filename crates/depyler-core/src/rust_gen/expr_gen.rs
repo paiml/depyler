@@ -408,6 +408,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #base_expr.pow(#exp_expr as u32) });
         }
 
+        // DEPYLER-0253: Handle chr(code) → char::from_u32(code as u32).unwrap().to_string()
+        if func == "chr" && args.len() == 1 {
+            let code_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { char::from_u32(#code_expr as u32).unwrap().to_string() });
+        }
+
+        // DEPYLER-0254: Handle ord(char) → char.chars().next().unwrap() as u32
+        if func == "ord" && args.len() == 1 {
+            let char_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { #char_expr.chars().next().unwrap() as u32 });
+        }
+
+        // DEPYLER-0255: Handle bool(value) → value != 0
+        if func == "bool" && args.len() == 1 {
+            let value_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { #value_expr != 0 });
+        }
+
         // Handle enumerate(items) → items.into_iter().enumerate()
         if func == "enumerate" && args.len() == 1 {
             let items_expr = args[0].to_rust_expr(self.ctx)?;
