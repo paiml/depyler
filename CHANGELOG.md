@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **CODEGEN** (2025-10-19): Fix sum() type inference with turbofish syntax (DEPYLER-0247)
+  - **Bug**: `sum()` was generating `.iter().sum()` without type annotation, causing Rust compilation errors
+  - **Root Cause**: Rust's type inference cannot determine the return type for `.sum()` without explicit annotation
+  - **Fix**: Added turbofish syntax `.sum::<T>()` with type inferred from function return type context
+  - **Changes**:
+    - Updated `sum(iterable)` handling in expr_gen.rs:333-351 to use `.sum::<T>()`
+    - Updated `sum(generator_exp)` handling in expr_gen.rs:297-315 to use `.sum::<T>()`
+    - Type inference uses `current_return_type` context (i32 for int, f64 for float)
+  - **Tests**:
+    - Added test_115_builtin_sum to validate fix
+    - Verified generated code compiles successfully with rustc
+  - **Pass Rate**: 74.8% → 75.0% (+0.2% improvement, 87/116 tests)
+  - **Impact**: Fixes first known bug from session stdlib coverage sprint
+
 ### Added
 - **TESTS** (2025-10-19): Add comprehensive string method tests (DEPYLER-0246)
   - **Feature**: Added test coverage for 7 essential string methods and sorted() built-in
