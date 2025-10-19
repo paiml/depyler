@@ -1917,6 +1917,18 @@ def test_abs(value: int) -> int:
     assert!(rust.contains(".abs()"));
 }
 
+#[test]
+fn test_117_builtin_any() {
+    let python = r#"
+def test_any(items: list[bool]) -> bool:
+    return any(items)
+"#;
+
+    let rust = transpile_and_verify(python, "builtin_any").unwrap();
+    assert!(rust.contains("fn test_any"));
+    assert!(rust.contains(".iter().any("));
+}
+
 // ============================================================================
 // Summary Test
 // ============================================================================
