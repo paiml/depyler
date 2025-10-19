@@ -1761,6 +1761,54 @@ def test_min(items: list[int]) -> int:
     assert!(rust.contains(".min()") || rust.contains("iter().min()"));
 }
 
+#[test]
+fn test_104_list_index() {
+    let python = r#"
+def test_index(items: list[int], value: int) -> int:
+    return items.index(value)
+"#;
+
+    let rust = transpile_and_verify(python, "list_index").unwrap();
+    assert!(rust.contains("fn test_index"));
+    assert!(rust.contains(".position(") || rust.contains(".iter().position("));
+}
+
+#[test]
+fn test_105_list_count() {
+    let python = r#"
+def test_count(items: list[int], value: int) -> int:
+    return items.count(value)
+"#;
+
+    let rust = transpile_and_verify(python, "list_count").unwrap();
+    assert!(rust.contains("fn test_count"));
+    assert!(rust.contains(".filter(") || rust.contains(".count()"));
+}
+
+#[test]
+fn test_106_str_find() {
+    let python = r#"
+def test_find(text: str, substring: str) -> int:
+    return text.find(substring)
+"#;
+
+    let rust = transpile_and_verify(python, "str_find").unwrap();
+    assert!(rust.contains("fn test_find"));
+    assert!(rust.contains(".find("));
+}
+
+#[test]
+fn test_107_str_replace() {
+    let python = r#"
+def test_replace(text: str, old: str, new: str) -> str:
+    return text.replace(old, new)
+"#;
+
+    let rust = transpile_and_verify(python, "str_replace").unwrap();
+    assert!(rust.contains("fn test_replace"));
+    assert!(rust.contains(".replace("));
+}
+
 // ============================================================================
 // Summary Test
 // ============================================================================
