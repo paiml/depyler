@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **FEATURE** (2025-10-19): Enable zip() iterator support (DEPYLER-0243)
+  - **Feature**: zip() iterator now works correctly (feature already implemented)
+  - **Example**:
+    ```python
+    # Python input:
+    def pair_sum(a: list[int], b: list[int]) -> list[int]:
+        result = []
+        for x, y in zip(a, b):
+            result.append(x + y)
+        return result
+
+    # Rust output (CORRECT):
+    pub fn pair_sum(a: Vec<i32>, b: Vec<i32>) -> Vec<i32> {
+        let mut result = vec![];
+        for (x, y) in a.iter().zip(b.iter()) {
+            result.push(x + y);
+        }
+        return result;
+    }
+    ```
+  - **Implementation**:
+    - Removed `#[ignore]` marker from test_89_zip_iterator (sqlite_style_systematic_validation.rs:1517)
+    - No code changes needed - zip() already supported
+    - Transpiles to Rust's `.iter().zip()` iterator adaptor
+  - **Test Coverage**:
+    - test_89_zip_iterator now passes (Iterators & Protocols category)
+    - Verified zip(a, b) transpiles and compiles correctly
+  - **Pass Rate**: 70.3% → 71.3% (+1.0% improvement, 72/101 tests)
+  - **Category Progress**: Iterators & Protocols 4/5 → 5/5 (80% → 100%) ✅ **COMPLETE**
+
 - **FEATURE** (2025-10-19): Enable nested context managers support (DEPYLER-0242)
   - **Feature**: Nested context managers now work correctly (feature already implemented via DEPYLER-0240)
   - **Example**:
