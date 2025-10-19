@@ -294,10 +294,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
-        // Handle sum(generator_exp) → generator_exp.sum()
+        // Handle sum(generator_exp) → generator_exp.sum::<T>()
+        // Need turbofish type annotation to help Rust's type inference
         if func == "sum" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
             let gen_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #gen_expr.sum() });
+
+            // Infer the target type from return type context
+            let target_type = self
+                .ctx
+                .current_return_type
+                .as_ref()
+                .and_then(|t| match t {
+                    Type::Int => Some(quote! { i32 }),
+                    Type::Float => Some(quote! { f64 }),
+                    _ => None,
+                })
+                .unwrap_or_else(|| quote! { i32 });
+
+            return Ok(parse_quote! { #gen_expr.sum::<#target_type>() });
         }
 
         // Handle max(generator_exp) → generator_exp.max()
@@ -330,10 +344,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             });
         }
 
-        // DEPYLER-0192: Handle sum(iterable) → iterable.iter().sum()
+        // DEPYLER-0247: Handle sum(iterable) → iterable.iter().sum::<T>()
+        // Need turbofish type annotation to help Rust's type inference
         if func == "sum" && args.len() == 1 {
             let iter_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #iter_expr.iter().sum() });
+
+            // Infer the target type from return type context
+            let target_type = self
+                .ctx
+                .current_return_type
+                .as_ref()
+                .and_then(|t| match t {
+                    Type::Int => Some(quote! { i32 }),
+                    Type::Float => Some(quote! { f64 }),
+                    _ => None,
+                })
+                .unwrap_or_else(|| quote! { i32 });
+
+            return Ok(parse_quote! { #iter_expr.iter().sum::<#target_type>() });
         }
 
         // DEPYLER-0193: Handle max(iterable) → iterable.iter().copied().max().unwrap()
