@@ -4,6 +4,7 @@
 //! Rust Iterator implementations with state structs.
 
 use crate::generator_state::GeneratorStateInfo;
+use crate::generator_yield_analysis::YieldAnalysis;
 use crate::hir::{HirFunction, Type};
 use crate::rust_gen::type_gen::rust_type_to_syn;
 use crate::rust_gen::CodeGenContext;
@@ -275,6 +276,16 @@ pub fn codegen_generator_function(
 ) -> Result<proc_macro2::TokenStream> {
     // Analyze generator state requirements
     let state_info = GeneratorStateInfo::analyze(func);
+
+    // DEPYLER-0262 Phase 2: Analyze yield points for state machine transformation
+    let _yield_analysis = YieldAnalysis::analyze(func);
+    // TODO(DEPYLER-0262 Phase 3): Use _yield_analysis to generate multi-state machine
+    // Currently: Single-state implementation (state 0 → state 1 → done)
+    // Future: Multi-state with proper resume points for each yield
+    // yield_analysis contains:
+    //   - yield_points: Vec<YieldPoint> with state_id, depth, live_vars
+    //   - resume_points: HashMap<state_id, stmt_idx> for resumption
+    //   - num_states(): Total states needed (0 + num yields)
 
     // Generate state struct name
     let state_ident = generate_state_struct_name(name);
