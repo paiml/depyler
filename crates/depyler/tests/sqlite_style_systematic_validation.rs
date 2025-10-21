@@ -908,7 +908,6 @@ def test(x: int) -> int:
 }
 
 #[test]
-#[ignore] // Try/except with type generates incorrect Result wrapping - tracked for future enhancement
 fn test_57_try_except_with_type() {
     let python = r#"
 def test(x: int) -> int:
@@ -923,7 +922,6 @@ def test(x: int) -> int:
 }
 
 #[test]
-#[ignore] // Try/except/finally generates variable scope issues - tracked for future enhancement
 fn test_58_try_except_finally() {
     let python = r#"
 def test(x: int) -> int:
@@ -942,7 +940,6 @@ def test(x: int) -> int:
 }
 
 #[test]
-#[ignore] // Multiple except generates incorrect Result handling - tracked for future enhancement
 fn test_59_multiple_except() {
     let python = r#"
 def test(x: int, y: int) -> int:
