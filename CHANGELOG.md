@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **🐛 BUGFIX** (2025-10-21): Generator Type Inference Fix (DEPYLER-0258)
+  - **Bug #1 Fixed**: DynamicType inference now works correctly
+  - **Problem**: Generator state variables without type annotations defaulted to `Type::Unknown`
+  - **Solution**: Added `infer_type_from_expression()` to infer types from value literals
+  - **Example**: `i = 0` now correctly infers `Type::Int` instead of `Type::Unknown`
+  - **Implementation**: New helper function (complexity: 8, within ≤10 target)
+  - **Test**: `test_DEPYLER_0258_type_inference_from_literal_values()` (RED-GREEN-REFACTOR)
+  - **Status**: GREEN phase complete, zero regressions (2/2 generator tests passing)
+  - **Impact**: Generators with untyped state variables now transpile correctly
+  - **Part of**: Generator Quick Wins Strategy (Bug #1 of 2)
+
 - **🔧 INFRASTRUCTURE** (2025-10-21): bashrs + pmat 2.4.0 Integration Complete
   - **Enhanced Pre-commit Hook**: Integrated bashrs shell script validation and pmat 2.4.0 advanced analysis
   - **New Quality Gates**:

@@ -322,3 +322,48 @@ pub fn codegen_generator_function(
         }
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_DEPYLER_0259_snake_case_to_pascal_case_naming() {
+        // BUG #2: generate_state_struct_name only capitalizes first character
+        // Input: "count_up" → Current: "Count_upState" (WRONG)
+        // Input: "count_up" → Expected: "CountUpState" (CORRECT)
+
+        let input_name = syn::Ident::new("count_up", proc_macro2::Span::call_site());
+        let result = generate_state_struct_name(&input_name);
+
+        // This WILL FAIL (RED phase) because current code produces "Count_upState"
+        assert_eq!(
+            result.to_string(),
+            "CountUpState",
+            "DEPYLER-0259: Should convert snake_case to PascalCase, not just capitalize first char"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_DEPYLER_0259_single_word_naming() {
+        // Edge case: single word (no underscores)
+        let input_name = syn::Ident::new("counter", proc_macro2::Span::call_site());
+        let result = generate_state_struct_name(&input_name);
+
+        // Should just capitalize and add "State"
+        assert_eq!(result.to_string(), "CounterState");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_DEPYLER_0259_multiple_words_naming() {
+        // Test with multiple underscores
+        let input_name = syn::Ident::new("fibonacci_generator_with_memo", proc_macro2::Span::call_site());
+        let result = generate_state_struct_name(&input_name);
+
+        // Should capitalize each word
+        assert_eq!(result.to_string(), "FibonacciGeneratorWithMemoState");
+    }
+}
