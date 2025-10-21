@@ -5,9 +5,9 @@
 
 use crate::generator_state::GeneratorStateInfo;
 use crate::generator_yield_analysis::YieldAnalysis;
-use crate::hir::{HirFunction, Type};
+use crate::hir::{HirExpr, HirFunction, Type};
+use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use crate::rust_gen::type_gen::rust_type_to_syn;
-use crate::rust_gen::CodeGenContext;
 use anyhow::Result;
 use quote::quote;
 
@@ -239,6 +239,80 @@ fn generate_generator_body(
     Ok(generator_body_stmts)
 }
 
+/// Convert HirExpr to syn::Expr for code generation
+///
+/// # Complexity: 1 (direct conversion)
+#[inline]
+fn hir_expr_to_syn(expr: &HirExpr, ctx: &mut CodeGenContext) -> Result<syn::Expr> {
+    // Use the ToRustExpr trait to convert HIR expression to syn::Expr
+    expr.to_rust_expr(ctx)
+}
+
+/// Generate multi-state match arms for sequential yields
+///
+/// DEPYLER-0262 Phase 3A: Transforms sequential yield points into proper state machine.
+/// Each yield becomes a separate state with resumption at the next statement.
+///
+/// # Complexity: 5 (iterate yields + generate arms)
+#[inline]
+fn generate_simple_multi_state_match(
+    yield_analysis: &YieldAnalysis,
+    _func: &HirFunction,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let mut match_arms = Vec::new();
+
+    // State 0: Initial state - execute up to first yield
+    if let Some(first_yield) = yield_analysis.yield_points.first() {
+        let yield_value = hir_expr_to_syn(&first_yield.yield_expr, ctx)?;
+        let next_state = first_yield.state_id;
+
+        match_arms.push(quote! {
+            0 => {
+                self.state = #next_state;
+                return Some(#yield_value);
+            }
+        });
+    }
+
+    // Generate state for each yield point (states 1..N)
+    for (idx, yield_point) in yield_analysis.yield_points.iter().enumerate() {
+        let current_state = yield_point.state_id;
+
+        // If there's a next yield, transition to it; otherwise go to terminal state
+        if let Some(next_yield) = yield_analysis.yield_points.get(idx + 1) {
+            let yield_value = hir_expr_to_syn(&next_yield.yield_expr, ctx)?;
+            let next_state = next_yield.state_id;
+
+            match_arms.push(quote! {
+                #current_state => {
+                    self.state = #next_state;
+                    return Some(#yield_value);
+                }
+            });
+        } else {
+            // Last yield - transition to terminal state
+            match_arms.push(quote! {
+                #current_state => {
+                    self.state = #current_state + 1;
+                    None
+                }
+            });
+        }
+    }
+
+    // Terminal state: generator exhausted
+    match_arms.push(quote! {
+        _ => None
+    });
+
+    Ok(quote! {
+        match self.state {
+            #(#match_arms)*
+        }
+    })
+}
+
 /// Generate complete generator function with state struct and Iterator impl
 ///
 /// This is the main entry point for generator code generation. It:
@@ -278,14 +352,11 @@ pub fn codegen_generator_function(
     let state_info = GeneratorStateInfo::analyze(func);
 
     // DEPYLER-0262 Phase 2: Analyze yield points for state machine transformation
-    let _yield_analysis = YieldAnalysis::analyze(func);
-    // TODO(DEPYLER-0262 Phase 3): Use _yield_analysis to generate multi-state machine
-    // Currently: Single-state implementation (state 0 → state 1 → done)
-    // Future: Multi-state with proper resume points for each yield
-    // yield_analysis contains:
-    //   - yield_points: Vec<YieldPoint> with state_id, depth, live_vars
-    //   - resume_points: HashMap<state_id, stmt_idx> for resumption
-    //   - num_states(): Total states needed (0 + num yields)
+    let yield_analysis = YieldAnalysis::analyze(func);
+
+    // DEPYLER-0262 Phase 3A: Check if we can use simple multi-state transformation
+    let use_simple_multi_state = yield_analysis.has_yields()
+        && yield_analysis.yield_points.iter().all(|yp| yp.depth == 0);
 
     // Generate state struct name
     let state_ident = generate_state_struct_name(name);
@@ -311,8 +382,25 @@ pub fn codegen_generator_function(
     // Populate generator state variables for scoping
     populate_generator_state_vars(ctx, &state_info);
 
-    // Generate body statements with proper context
-    let generator_body_stmts = generate_generator_body(func, ctx)?;
+    // Generate state machine implementation based on yield analysis
+    let state_machine_impl = if use_simple_multi_state {
+        // DEPYLER-0262 Phase 3A: Multi-state transformation for sequential yields
+        generate_simple_multi_state_match(&yield_analysis, func, ctx)?
+    } else {
+        // Fallback: Single-state implementation (for loops or no yields)
+        let generator_body_stmts = generate_generator_body(func, ctx)?;
+        quote! {
+            match self.state {
+                0 => {
+                    self.state = 1;
+                    // Execute generator body with early-exit semantics
+                    #(#generator_body_stmts)*
+                    None
+                }
+                _ => None
+            }
+        }
+    };
 
     // Generate the complete generator implementation
     Ok(quote! {
@@ -336,18 +424,7 @@ pub fn codegen_generator_function(
             type Item = #item_type;
 
             fn next(&mut self) -> Option<Self::Item> {
-                // State machine implementation: Simplified single-state execution
-                // for basic generator support (v3.12.0). Multi-state transformation
-                // with resumable yield points is future work.
-                match self.state {
-                    0 => {
-                        self.state = 1;
-                        // Execute generator body with early-exit semantics
-                        #(#generator_body_stmts)*
-                        None
-                    }
-                    _ => None
-                }
+                #state_machine_impl
             }
         }
     })

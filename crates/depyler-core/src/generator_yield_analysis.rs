@@ -73,7 +73,7 @@ impl YieldAnalysis {
 
     /// Recursively analyze a statement for yield points
     ///
-    /// # Complexity: 9 (match with 8 recursive arms)
+    /// # Complexity: 6 (delegated to helpers)
     fn analyze_stmt(
         stmt: &HirStmt,
         analysis: &mut YieldAnalysis,
@@ -83,38 +83,17 @@ impl YieldAnalysis {
     ) {
         match stmt {
             HirStmt::Expr(expr) => {
-                // Check if this expression contains a yield
-                if let Some(yield_expr) = Self::extract_yield_expr(expr) {
-                    let yield_point = YieldPoint {
-                        state_id: *state_counter,
-                        yield_expr,
-                        live_vars: Vec::new(), // Will be computed in finalize()
-                        depth,
-                    };
-                    analysis.yield_points.push(yield_point);
-                    analysis.resume_points.insert(*state_counter, stmt_idx + 1);
-                    *state_counter += 1;
-                }
+                Self::analyze_expr_stmt(expr, analysis, state_counter, depth, stmt_idx);
             }
             HirStmt::If {
                 then_body,
                 else_body,
                 ..
             } => {
-                for s in then_body {
-                    Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
-                }
-                if let Some(else_stmts) = else_body {
-                    for s in else_stmts {
-                        Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
-                    }
-                }
+                Self::analyze_if_stmt(then_body, else_body, analysis, state_counter, depth, stmt_idx);
             }
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
-                // Loops with yields need special handling - increased depth
-                for s in body {
-                    Self::analyze_stmt(s, analysis, state_counter, depth + 1, stmt_idx);
-                }
+                Self::analyze_loop_stmt(body, analysis, state_counter, depth, stmt_idx);
             }
             HirStmt::Try {
                 body,
@@ -122,33 +101,126 @@ impl YieldAnalysis {
                 orelse,
                 finalbody,
             } => {
-                for s in body {
-                    Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
-                }
-                for handler in handlers {
-                    for s in &handler.body {
-                        Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
-                    }
-                }
-                if let Some(else_stmts) = orelse {
-                    for s in else_stmts {
-                        Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
-                    }
-                }
-                if let Some(finally_stmts) = finalbody {
-                    for s in finally_stmts {
-                        Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
-                    }
-                }
+                Self::analyze_try_stmt(body, handlers, orelse, finalbody, analysis, state_counter, depth, stmt_idx);
             }
             HirStmt::With { body, .. } => {
-                for s in body {
-                    Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
-                }
+                Self::analyze_with_stmt(body, analysis, state_counter, depth, stmt_idx);
             }
             _ => {
                 // Other statements don't affect control flow for yields
             }
+        }
+    }
+
+    /// Analyze expression statement for yield
+    ///
+    /// # Complexity: 2
+    #[inline]
+    fn analyze_expr_stmt(
+        expr: &HirExpr,
+        analysis: &mut YieldAnalysis,
+        state_counter: &mut usize,
+        depth: usize,
+        stmt_idx: usize,
+    ) {
+        if let Some(yield_expr) = Self::extract_yield_expr(expr) {
+            let yield_point = YieldPoint {
+                state_id: *state_counter,
+                yield_expr,
+                live_vars: Vec::new(),
+                depth,
+            };
+            analysis.yield_points.push(yield_point);
+            analysis.resume_points.insert(*state_counter, stmt_idx + 1);
+            *state_counter += 1;
+        }
+    }
+
+    /// Analyze if statement branches
+    ///
+    /// # Complexity: 3
+    #[inline]
+    fn analyze_if_stmt(
+        then_body: &[HirStmt],
+        else_body: &Option<Vec<HirStmt>>,
+        analysis: &mut YieldAnalysis,
+        state_counter: &mut usize,
+        depth: usize,
+        stmt_idx: usize,
+    ) {
+        for s in then_body {
+            Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
+        }
+        if let Some(else_stmts) = else_body {
+            for s in else_stmts {
+                Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
+            }
+        }
+    }
+
+    /// Analyze loop body with increased depth
+    ///
+    /// # Complexity: 2
+    #[inline]
+    fn analyze_loop_stmt(
+        body: &[HirStmt],
+        analysis: &mut YieldAnalysis,
+        state_counter: &mut usize,
+        depth: usize,
+        stmt_idx: usize,
+    ) {
+        for s in body {
+            Self::analyze_stmt(s, analysis, state_counter, depth + 1, stmt_idx);
+        }
+    }
+
+    /// Analyze try/except/else/finally blocks
+    ///
+    /// # Complexity: 5
+    #[inline]
+    fn analyze_try_stmt(
+        body: &[HirStmt],
+        handlers: &[crate::hir::ExceptHandler],
+        orelse: &Option<Vec<HirStmt>>,
+        finalbody: &Option<Vec<HirStmt>>,
+        analysis: &mut YieldAnalysis,
+        state_counter: &mut usize,
+        depth: usize,
+        stmt_idx: usize,
+    ) {
+        for s in body {
+            Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
+        }
+        for handler in handlers {
+            for s in &handler.body {
+                Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
+            }
+        }
+        if let Some(else_stmts) = orelse {
+            for s in else_stmts {
+                Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
+            }
+        }
+        if let Some(finally_stmts) = finalbody {
+            for s in finally_stmts {
+                Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
+            }
+        }
+    }
+
+    /// Analyze with statement body
+    ///
+    /// # Complexity: 2
+    #[inline]
+    fn analyze_with_stmt(
+        body: &[HirStmt],
+        analysis: &mut YieldAnalysis,
+        state_counter: &mut usize,
+        depth: usize,
+        stmt_idx: usize,
+    ) {
+        for s in body {
+            Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
         }
     }
 
