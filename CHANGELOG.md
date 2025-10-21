@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **🐛 BUGFIX** (2025-10-21): Generator Naming Convention Fix (DEPYLER-0259)
+  - **Bug #2 Fixed**: snake_case to PascalCase conversion now works correctly
+  - **Problem**: `generate_state_struct_name()` only capitalized first character
+  - **Example**: `count_up` generated `Count_upState` instead of `CountUpState`
+  - **Solution**: Implemented proper snake_case to PascalCase conversion
+  - **Implementation**: Split by '_', capitalize each word, join (complexity: 6)
+  - **Tests**: 3 comprehensive tests (RED-GREEN-REFACTOR)
+    - `test_DEPYLER_0259_snake_case_to_pascal_case_naming()` ✅
+    - `test_DEPYLER_0259_multiple_words_naming()` ✅
+    - `test_DEPYLER_0259_single_word_naming()` ✅
+  - **Status**: GREEN phase complete, all tests passing (3/3)
+  - **Impact**: Generator state struct names now follow Rust naming conventions
+  - **Part of**: Generator Quick Wins Strategy (Bug #2 of 2)
+
 - **🐛 BUGFIX** (2025-10-21): Generator Type Inference Fix (DEPYLER-0258)
   - **Bug #1 Fixed**: DynamicType inference now works correctly
   - **Problem**: Generator state variables without type annotations defaulted to `Type::Unknown`
