@@ -58,6 +58,7 @@ pub mod documentation;
 pub mod error;
 pub mod error_reporting;
 pub mod generator_state;
+pub mod generator_yield_analysis;
 pub mod generic_inference;
 pub mod hir;
 pub mod ide;
