@@ -5,7 +5,7 @@
 
 use crate::generator_state::GeneratorStateInfo;
 use crate::generator_yield_analysis::YieldAnalysis;
-use crate::hir::{HirExpr, HirFunction, Type};
+use crate::hir::{HirExpr, HirFunction, HirStmt, Type};
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use crate::rust_gen::type_gen::rust_type_to_syn;
 use anyhow::Result;
@@ -313,6 +313,142 @@ fn generate_simple_multi_state_match(
     })
 }
 
+/// Generate loop with yield transformation
+///
+/// DEPYLER-0262 Phase 3B: Transforms simple loops with single yield into state machines.
+/// Handles pattern: `while condition: yield value; increment`
+///
+/// Strategy:
+/// - Extract loop from function body
+/// - Generate initialization code (statements before loop)
+/// - Generate loop state that checks condition and yields properly
+///
+/// # Complexity: 8 (within ≤10 target)
+#[inline]
+fn generate_simple_loop_with_yield(
+    func: &HirFunction,
+    yield_analysis: &YieldAnalysis,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    // Find the loop statement in the function body
+    let loop_info = extract_loop_info(func)?;
+
+    // Generate initialization statements (before the loop)
+    let init_stmts = generate_loop_init_stmts(&loop_info.pre_loop_stmts, ctx)?;
+
+    // Get the yield expression
+    let yield_point = &yield_analysis.yield_points[0];
+    let yield_value = hir_expr_to_syn(&yield_point.yield_expr, ctx)?;
+
+    // Extract loop condition
+    let loop_condition = hir_expr_to_syn(&loop_info.condition, ctx)?;
+
+    // Generate loop body statements (updates, increments)
+    let loop_body_stmts = generate_loop_body_stmts(&loop_info.body_stmts, ctx)?;
+
+    // Generate the state machine
+    Ok(quote! {
+        match self.state {
+            0 => {
+                // Initialize loop variables
+                #(#init_stmts)*
+                // Transition to loop state
+                self.state = 1;
+                // Check condition immediately
+                self.next()
+            }
+            1 => {
+                // Check loop condition
+                if #loop_condition {
+                    // Yield the value
+                    let result = #yield_value;
+                    // Execute loop body (increments, updates)
+                    #(#loop_body_stmts)*
+                    // Stay in state 1 (continue looping)
+                    return Some(result);
+                } else {
+                    // Condition false - exit loop
+                    self.state = 2;
+                    None
+                }
+            }
+            _ => None
+        }
+    })
+}
+
+/// Extract loop information from function body
+///
+/// # Complexity: 5
+#[inline]
+fn extract_loop_info(func: &HirFunction) -> Result<LoopInfo> {
+    // Find the While statement in the body
+    let mut pre_loop_stmts = Vec::new();
+    let mut loop_stmt = None;
+
+    for stmt in &func.body {
+        match stmt {
+            HirStmt::While { condition, body } => {
+                loop_stmt = Some((condition.clone(), body.clone()));
+                break;
+            }
+            _ => {
+                // Statements before the loop (initialization)
+                pre_loop_stmts.push(stmt.clone());
+            }
+        }
+    }
+
+    let (condition, body) = loop_stmt
+        .ok_or_else(|| anyhow::anyhow!("No while loop found in generator function"))?;
+
+    // Separate yield statement from other body statements
+    let mut body_stmts = Vec::new();
+    for stmt in &body {
+        // Skip the yield statement itself - we'll handle it separately
+        if !matches!(stmt, HirStmt::Expr(HirExpr::Yield { .. })) {
+            body_stmts.push(stmt.clone());
+        }
+    }
+
+    Ok(LoopInfo {
+        pre_loop_stmts,
+        condition,
+        body_stmts,
+    })
+}
+
+/// Loop information structure
+struct LoopInfo {
+    pre_loop_stmts: Vec<HirStmt>,
+    condition: HirExpr,
+    body_stmts: Vec<HirStmt>,
+}
+
+/// Generate initialization statements before loop
+///
+/// # Complexity: 2
+#[inline]
+fn generate_loop_init_stmts(
+    stmts: &[HirStmt],
+    ctx: &mut CodeGenContext,
+) -> Result<Vec<proc_macro2::TokenStream>> {
+    use crate::rust_gen::RustCodeGen;
+    stmts.iter().map(|stmt| stmt.to_rust_tokens(ctx)).collect()
+}
+
+/// Generate loop body statements (after yield)
+///
+/// # Complexity: 2
+#[inline]
+fn generate_loop_body_stmts(
+    stmts: &[HirStmt],
+    ctx: &mut CodeGenContext,
+) -> Result<Vec<proc_macro2::TokenStream>> {
+    use crate::rust_gen::RustCodeGen;
+    stmts.iter().map(|stmt| stmt.to_rust_tokens(ctx)).collect()
+}
+
 /// Generate complete generator function with state struct and Iterator impl
 ///
 /// This is the main entry point for generator code generation. It:
@@ -382,12 +518,20 @@ pub fn codegen_generator_function(
     // Populate generator state variables for scoping
     populate_generator_state_vars(ctx, &state_info);
 
+    // DEPYLER-0262 Phase 3B: Check if we have simple loop with yield pattern
+    let has_while_loop = func.body.iter().any(|stmt| matches!(stmt, HirStmt::While { .. }));
+    let has_loop_yields = yield_analysis.has_yields()
+        && yield_analysis.yield_points.iter().any(|yp| yp.depth > 0);
+
     // Generate state machine implementation based on yield analysis
     let state_machine_impl = if use_simple_multi_state {
         // DEPYLER-0262 Phase 3A: Multi-state transformation for sequential yields
         generate_simple_multi_state_match(&yield_analysis, func, ctx)?
+    } else if has_while_loop && has_loop_yields && yield_analysis.yield_points.len() == 1 {
+        // DEPYLER-0262 Phase 3B: Simple loop with single yield pattern
+        generate_simple_loop_with_yield(func, &yield_analysis, ctx)?
     } else {
-        // Fallback: Single-state implementation (for loops or no yields)
+        // Fallback: Single-state implementation (for complex cases or no yields)
         let generator_body_stmts = generate_generator_body(func, ctx)?;
         quote! {
             match self.state {

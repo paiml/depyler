@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **🔄 LOOP TRANSFORMATION** (2025-10-21): Loop Generator State Machine (DEPYLER-0262 Phase 3B/4)
+  - **Module**: `crates/depyler-core/src/rust_gen/generator_gen.rs`
+  - **Milestone**: Loop yields transformed to proper state machines ✅
+  - **Implementation**:
+    - `generate_simple_loop_with_yield()`: Transforms single-loop-with-yield to state machine (complexity: 8)
+    - `extract_loop_info()`: Extracts loop condition, initialization, and body statements (complexity: 5)
+    - `generate_loop_init_stmts()` & `generate_loop_body_stmts()`: Helper functions (complexity: 2 each)
+    - Detection: Checks for while loops explicitly before applying transformation
+  - **Pattern Handled**:
+    ```python
+    def count_up(n: int):
+        i = 0
+        while i < n:
+            yield i
+            i = i + 1
+    ```
+  - **Generated State Machine**:
+    ```rust
+    match self.state {
+        0 => {
+            // Initialize loop variables
+            self.i = 0;
+            self.state = 1;
+            self.next()  // Check condition immediately
+        }
+        1 => {
+            // Check loop condition
+            if self.i < self.n {
+                let result = self.i;
+                self.i = self.i + 1;  // Execute loop body
+                return Some(result);  // Yield and stay in state 1
+            } else {
+                self.state = 2;  // Exit loop
+                None
+            }
+        }
+        _ => None
+    }
+    ```
+  - **Status**: Phase 3B complete (90% of DEPYLER-0262)
+  - **Tests**: All 15 generator tests passing ✅
+  - **Next**: Phase 4 - Comprehensive validation and testing
+  - **Compilation**: ✅ Clean build with zero warnings
+
 - **⚙️  TRANSFORMATION** (2025-10-21): Multi-State Generator Implementation (DEPYLER-0262 Phase 3A/4)
   - **Module**: `crates/depyler-core/src/rust_gen/generator_gen.rs`
   - **Milestone**: Core multi-state transformation logic implemented ✅
