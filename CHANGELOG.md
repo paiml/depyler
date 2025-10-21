@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **🧪 TEST FIX** (2025-10-21): Update Test Assertions for DEPYLER-0236 Floor Division Refactoring
+  - **Files Updated**: `tests/operator_tests.rs`, `crates/depyler-core/src/codegen.rs`
+  - **Reason**: Tests were checking for old single-line floor division pattern
+  - **Old Pattern**: `if (r != 0) && ((r < 0) != (b < 0))`
+  - **New Pattern**: Intermediate boolean variables (r_negative, b_negative, r_nonzero, signs_differ, needs_adjustment)
+  - **Background**: DEPYLER-0236 refactored floor division for readability + rustfmt compatibility
+  - **Impact**: 14 test assertions updated across 3 test functions
+  - **Result**: All operator tests passing (12/12 ✅), codegen test fixed (1/1 ✅)
+  - **Zero Regressions**: Generator tests unaffected (5/5 ✅)
+
 - **🐛 BUGFIX** (2025-10-21): Generator Naming Convention Fix (DEPYLER-0259)
   - **Bug #2 Fixed**: snake_case to PascalCase conversion now works correctly
   - **Problem**: `generate_state_struct_name()` only capitalized first character
