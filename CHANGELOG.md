@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- **🏗️ FOUNDATION** (2025-10-21): Yield Point Analysis Infrastructure (DEPYLER-0262 Phase 1)
+- **🔗 INTEGRATION** (2025-10-21): Yield Analysis Integration (DEPYLER-0262 Phase 2/4)
+  - **Module**: `crates/depyler-core/src/rust_gen/generator_gen.rs`
+  - **Integration**: YieldAnalysis now called in `codegen_generator_function()`
+  - **Purpose**: Prepares for multi-state transformation (Phase 3)
+  - **Current Behavior**: Analysis runs but results not yet used (intentional)
+  - **Status**: Phase 2 complete (50% of DEPYLER-0262)
+  - **Next**: Phase 3 will use analysis results to generate proper state machine
+
+- **🏗️ FOUNDATION** (2025-10-21): Yield Point Analysis Infrastructure (DEPYLER-0262 Phase 1/4)
   - **Module Created**: `crates/depyler-core/src/generator_yield_analysis.rs` (290 lines)
   - **Purpose**: Foundation for generator state machine transformation (DEPYLER-0262)
   - **Key Components**:
