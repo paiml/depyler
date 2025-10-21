@@ -58,14 +58,24 @@ fn generate_param_fields(
 
 /// Extract the Item type for the Iterator from generator return type
 ///
-/// Generator expressions are fully implemented in v3.13.0 (20/20 tests passing).
-/// This function uses the return type directly as the Iterator::Item type.
+/// DEPYLER-0260 FIX: Use func.ret_type directly as yield type, then map to Rust type.
+/// This fixes the DynamicType bug where generators used undefined DynamicType instead of
+/// concrete types like i32.
+///
+/// For generators, func.ret_type contains the yield type directly (e.g., Type::Int),
+/// not wrapped in a Generator variant. The is_generator flag marks it as a generator.
 ///
 /// # Complexity
-/// 1 (simple delegation)
+/// 2 (map + convert)
 #[inline]
-fn extract_generator_item_type(rust_ret_type: &crate::type_mapper::RustType) -> Result<syn::Type> {
-    rust_type_to_syn(rust_ret_type)
+fn extract_generator_item_type(
+    func: &HirFunction,
+    ctx: &CodeGenContext,
+) -> Result<syn::Type> {
+    // DEPYLER-0260 FIX: func.ret_type already contains the yield type
+    // (e.g., Type::Int for a generator that yields integers)
+    let rust_yield_type = ctx.type_mapper.map_type(&func.ret_type);
+    rust_type_to_syn(&rust_yield_type)
 }
 
 /// Generate field initializers for state variables (with default values)
@@ -260,7 +270,7 @@ pub fn codegen_generator_function(
     where_clause: &proc_macro2::TokenStream,
     params: &[proc_macro2::TokenStream],
     attrs: &[proc_macro2::TokenStream],
-    rust_ret_type: &crate::type_mapper::RustType,
+    _rust_ret_type: &crate::type_mapper::RustType,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
     // Analyze generator state requirements
@@ -284,8 +294,8 @@ pub fn codegen_generator_function(
         state: usize
     };
 
-    // Extract yield value type from return type
-    let item_type = extract_generator_item_type(rust_ret_type)?;
+    // DEPYLER-0260 FIX: Extract yield value type from HIR Type::Generator, not mapped RustType
+    let item_type = extract_generator_item_type(func, ctx)?;
 
     // Populate generator state variables for scoping
     populate_generator_state_vars(ctx, &state_info);
