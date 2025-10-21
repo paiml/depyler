@@ -252,4 +252,67 @@ mod tests {
             "Should capture parameter 'n'"
         );
     }
+
+    #[test]
+    fn test_DEPYLER_0258_type_inference_from_literal_values() {
+        // BUG #1: DynamicType inference should infer from value expressions
+        // Current: i = 0 (no type annotation) → Type::Unknown
+        // Expected: i = 0 (no type annotation) → Type::Int
+
+        let func = HirFunction {
+            name: "count_up".to_string(),
+            params: smallvec![HirParam::new("n".to_string(), Type::Int)],
+            ret_type: Type::Int,
+            body: vec![
+                // Assignment WITHOUT type annotation - should infer from literal
+                HirStmt::Assign {
+                    target: crate::hir::AssignTarget::Symbol("i".to_string()),
+                    value: HirExpr::Literal(crate::hir::Literal::Int(0)),
+                    type_annotation: None,  // ← No annotation, must infer!
+                },
+                HirStmt::While {
+                    condition: HirExpr::Binary {
+                        left: Box::new(HirExpr::Var("i".to_string())),
+                        op: crate::hir::BinOp::Lt,
+                        right: Box::new(HirExpr::Var("n".to_string())),
+                    },
+                    body: vec![
+                        HirStmt::Expr(HirExpr::Yield {
+                            value: Some(Box::new(HirExpr::Var("i".to_string()))),
+                        }),
+                        HirStmt::Assign {
+                            target: crate::hir::AssignTarget::Symbol("i".to_string()),
+                            value: HirExpr::Binary {
+                                left: Box::new(HirExpr::Var("i".to_string())),
+                                op: crate::hir::BinOp::Add,
+                                right: Box::new(HirExpr::Literal(crate::hir::Literal::Int(1))),
+                            },
+                            type_annotation: None,  // ← Reassignment, type already known
+                        },
+                    ],
+                },
+            ],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let state_info = GeneratorStateInfo::analyze(&func);
+
+        // Assert: Should find state variable 'i'
+        assert_eq!(
+            state_info.state_variables.len(),
+            1,
+            "Should find 'i' variable"
+        );
+        assert_eq!(state_info.state_variables[0].name, "i");
+
+        // Assert: Type should be inferred as Int from literal value
+        // This WILL FAIL (RED phase) because current code uses Type::Unknown
+        assert_eq!(
+            state_info.state_variables[0].ty,
+            Type::Int,
+            "DEPYLER-0258: Should infer Type::Int from literal value, not Type::Unknown"
+        );
+    }
 }
