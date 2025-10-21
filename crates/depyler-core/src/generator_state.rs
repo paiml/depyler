@@ -101,6 +101,32 @@ impl StateAnalyzer {
         }
     }
 
+    /// DEPYLER-0258: Infer type from value expression when no annotation provided
+    /// Complexity: 8 (within ≤10 target)
+    fn infer_type_from_expression(expr: &HirExpr) -> Type {
+        match expr {
+            HirExpr::Literal(lit) => match lit {
+                crate::hir::Literal::Int(_) => Type::Int,
+                crate::hir::Literal::Float(_) => Type::Float,
+                crate::hir::Literal::String(_) => Type::String,
+                crate::hir::Literal::Bool(_) => Type::Bool,
+                crate::hir::Literal::None => Type::None,
+            },
+            HirExpr::List(items) => {
+                // Infer element type from first item
+                let elem_type = items
+                    .first()
+                    .map(Self::infer_type_from_expression)
+                    .unwrap_or(Type::Unknown);
+                Type::List(Box::new(elem_type))
+            }
+            HirExpr::Dict(_) => Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+            HirExpr::Set(_) => Type::Set(Box::new(Type::Unknown)),
+            // For complex expressions, default to Unknown
+            _ => Type::Unknown,
+        }
+    }
+
     fn analyze_assign(
         &mut self,
         target: &crate::hir::AssignTarget,
@@ -111,7 +137,10 @@ impl StateAnalyzer {
             let name_str = name.as_str();
             if !self.declared_vars.contains(name_str) {
                 self.declared_vars.insert(name_str.to_string());
-                let ty = type_annotation.clone().unwrap_or(Type::Unknown);
+                // DEPYLER-0258 FIX: Infer type from value expression if no annotation
+                let ty = type_annotation
+                    .clone()
+                    .unwrap_or_else(|| Self::infer_type_from_expression(value));
                 self.state_variables.push(StateVariable {
                     name: name_str.to_string(),
                     ty,
@@ -254,6 +283,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn test_DEPYLER_0258_type_inference_from_literal_values() {
         // BUG #1: DynamicType inference should infer from value expressions
         // Current: i = 0 (no type annotation) → Type::Unknown
