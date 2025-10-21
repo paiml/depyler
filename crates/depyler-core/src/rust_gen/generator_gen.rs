@@ -166,20 +166,29 @@ fn get_default_value_for_type(ty: &Type) -> proc_macro2::TokenStream {
     }
 }
 
-/// Generate state struct name by capitalizing function name
+/// Generate state struct name by converting snake_case to PascalCase
 ///
-/// # Complexity: 2
+/// DEPYLER-0259: Converts snake_case to PascalCase properly
+/// Examples: count_up → CountUpState, counter → CounterState
+///
+/// # Complexity: 6 (within ≤10 target)
 #[inline]
 fn generate_state_struct_name(name: &syn::Ident) -> syn::Ident {
-    let state_struct_name = format!(
-        "{}State",
-        name.to_string()
-            .chars()
-            .next()
-            .map(|c| c.to_uppercase().to_string())
-            .unwrap_or_default()
-            + &name.to_string()[1..]
-    );
+    let name_str = name.to_string();
+
+    // DEPYLER-0259 FIX: Convert snake_case to PascalCase properly
+    let pascal_case = name_str
+        .split('_')
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect::<String>();
+
+    let state_struct_name = format!("{}State", pascal_case);
     syn::Ident::new(&state_struct_name, name.span())
 }
 
