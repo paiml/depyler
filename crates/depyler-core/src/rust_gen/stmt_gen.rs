@@ -613,36 +613,23 @@ pub(crate) fn codegen_try_stmt(
             Ok(quote! { #(#try_stmts)* })
         }
     } else if !handlers.is_empty() {
-        // DEPYLER-0257 REFACTOR v2: Result-based exception handling
-        // Uses closure pattern: || -> Result<(), Box<dyn std::error::Error>>
-        // Consolidated: same pattern for single and multiple handlers
+        // DEPYLER-0257 REFACTOR v3: Simplified try/except for value-returning functions
+        // Result-based pattern breaks functions with return statements
+        // For now: just execute try block directly, except handlers are dead code
+        // TODO: Add actual exception catching when operations return Result
         if let Some(finally_code) = finally_stmts {
             Ok(quote! {
                 {
-                    let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                        #(#try_stmts)*
-                        Ok(())
-                    })();
-
-                    if let Err(_e) = _result {
-                        #(#handler_tokens)*
-                    }
-
+                    #(#try_stmts)*
                     #finally_code
                 }
             })
         } else {
             // Simple case: try/except without finally
+            // Just execute try block statements
             Ok(quote! {
                 {
-                    let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                        #(#try_stmts)*
-                        Ok(())
-                    })();
-
-                    if let Err(_e) = _result {
-                        #(#handler_tokens)*
-                    }
+                    #(#try_stmts)*
                 }
             })
         }
