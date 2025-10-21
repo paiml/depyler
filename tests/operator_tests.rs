@@ -180,9 +180,15 @@ fn test_all_arithmetic_operators() {
                     code.contains("let r = a % b"),
                     "Expected modulo in floor division logic: {code}"
                 );
+                // DEPYLER-0236: Floor division now uses intermediate boolean variables
+                // for better readability and to avoid rustfmt edge cases
                 assert!(
-                    code.contains("if (r != 0) && ((r < 0) != (b < 0))"),
-                    "Expected floor division condition: {code}"
+                    code.contains("let r_negative = r < 0")
+                        && code.contains("let b_negative = b < 0")
+                        && code.contains("let r_nonzero = r != 0")
+                        && code.contains("let signs_differ = r_negative != b_negative")
+                        && code.contains("let needs_adjustment = r_nonzero && signs_differ"),
+                    "Expected floor division condition with intermediate booleans: {code}"
                 );
             }
             BinOp::Pow => {
@@ -404,7 +410,13 @@ fn test_floor_division_operator() {
     assert!(rust_code.contains("let b ="));
     assert!(rust_code.contains("let q = a / b"));
     assert!(rust_code.contains("let r = a % b"));
-    assert!(rust_code.contains("if (r != 0) && ((r < 0) != (b < 0))"));
+    // DEPYLER-0236: Floor division now uses intermediate boolean variables
+    assert!(rust_code.contains("let r_negative = r < 0"));
+    assert!(rust_code.contains("let b_negative = b < 0"));
+    assert!(rust_code.contains("let r_nonzero = r != 0"));
+    assert!(rust_code.contains("let signs_differ = r_negative != b_negative"));
+    assert!(rust_code.contains("let needs_adjustment = r_nonzero && signs_differ"));
+    assert!(rust_code.contains("if needs_adjustment"));
     assert!(rust_code.contains("{ q - 1 } else { q }"));
 }
 
