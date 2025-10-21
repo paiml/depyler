@@ -1346,7 +1346,6 @@ def test() -> int:
 }
 
 #[test]
-#[ignore] // Context managers with exception generate incorrect code - tracked for future enhancement
 fn test_79_with_exception() {
     let python = r#"
 class ErrorHandler:
@@ -1643,7 +1642,6 @@ def extract_value(data: dict[str, int]) -> int:
 // ============================================================================
 
 #[test]
-#[ignore] // Lambda functions generate incomplete code - tracked for future enhancement
 fn test_96_lambda_functions() {
     let python = r#"
 def test() -> int:
@@ -1656,7 +1654,6 @@ def test() -> int:
 }
 
 #[test]
-#[ignore] // List map with lambda generates incomplete code - tracked for future enhancement
 fn test_97_map_with_lambda() {
     let python = r#"
 def test(numbers: list[int]) -> list[int]:
@@ -1669,7 +1666,6 @@ def test(numbers: list[int]) -> list[int]:
 }
 
 #[test]
-#[ignore] // Filter with lambda generates incomplete code - tracked for future enhancement
 fn test_98_filter_with_lambda() {
     let python = r#"
 def test(numbers: list[int]) -> list[int]:
