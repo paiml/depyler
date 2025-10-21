@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **🔍 INVESTIGATION** (2025-10-21): Critical Generator Bugs Identified (DEPYLER-0260/0261/0262)
+  - **Discovery**: Generated generator code does NOT compile - contrary to roadmap "80% complete" status
+  - **Transpilation Evidence**: Successfully transpiled `examples/test_generator.py` but output fails rustc compilation
+  - **Three Critical Bugs Identified**:
+    1. **DEPYLER-0260**: DynamicType Undefined
+       - Generated code uses undefined `DynamicType` type
+       - rustc error: "cannot find type `DynamicType` in this scope"
+       - Occurs in: `impl Iterator<Item = DynamicType>`
+       - Impact: ALL generated generator code fails to compile
+    2. **DEPYLER-0261**: Wrong Iterator Item Type
+       - Iterator Item should be concrete type (i32) not DynamicType
+       - Expected: `impl Iterator<Item = i32>`
+       - Got: `impl Iterator<Item = DynamicType>`
+       - Impact: Type safety violated, incorrect API contracts
+    3. **DEPYLER-0262**: Broken State Machine Resume Logic
+       - Generator yields once then loops infinitely on first value
+       - Root cause: State machine returns on first iteration, never resumes
+       - Evidence: Dead code after `return Some(value)` in while loop
+       - Impact: Generators produce incorrect results
+  - **Test Suite Created**: `tests/generator_compilation_tests.rs` (3 comprehensive RED phase tests)
+    - `test_DEPYLER_0260_simple_generator_compiles()` - Integration test with rustc
+    - `test_DEPYLER_0260_generator_no_dynamictype()` - Verify concrete types used
+    - `test_DEPYLER_0260_fibonacci_generator_compiles()` - Complex generator test
+  - **Status**: RED phase complete (tests created but not yet validated)
+  - **Priority**: P0 (blocks all generator functionality)
+  - **Estimation**: 8-12 hours to fix all three bugs
+  - **Next Steps**: GREEN phase implementation + state machine refactoring
+
 - **🧪 TEST FIX** (2025-10-21): Update Test Assertions for DEPYLER-0236 Floor Division Refactoring
   - **Files Updated**: `tests/operator_tests.rs`, `crates/depyler-core/src/codegen.rs`
   - **Reason**: Tests were checking for old single-line floor division pattern
