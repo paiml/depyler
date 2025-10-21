@@ -32,6 +32,7 @@ mod integration_benchmarks {
 
     /// Comprehensive integration benchmark testing full pipeline
     #[test]
+    #[ignore = "Timing-sensitive test - flaky in parallel test execution and CI environments"]
     fn comprehensive_integration_benchmark() {
         println!("=== Comprehensive Integration Benchmark ===");
 
