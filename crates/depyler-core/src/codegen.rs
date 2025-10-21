@@ -1368,7 +1368,11 @@ mod tests {
 
         let tokens = expr_to_rust_tokens(&neg_floor_div).unwrap();
         let code = tokens.to_string();
-        assert!(code.contains("if (r != 0) && ((r < 0) != (b < 0))"));
+        // DEPYLER-0236: Floor division now uses intermediate boolean variables
+        assert!(code.contains("let r_negative = r < 0"));
+        assert!(code.contains("let b_negative = b < 0"));
+        assert!(code.contains("let signs_differ = r_negative != b_negative"));
+        assert!(code.contains("let needs_adjustment = r_nonzero && signs_differ"));
     }
 
     // DEPYLER-0012: Comprehensive tests for stmt_to_rust_tokens_with_scope
