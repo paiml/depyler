@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **⚙️  TRANSFORMATION** (2025-10-21): Multi-State Generator Implementation (DEPYLER-0262 Phase 3A/4)
+  - **Module**: `crates/depyler-core/src/rust_gen/generator_gen.rs`
+  - **Milestone**: Core multi-state transformation logic implemented ✅
+  - **Implementation**:
+    - `hir_expr_to_syn()`: Converts yield expressions to Rust syn::Expr (complexity: 1)
+    - `generate_simple_multi_state_match()`: Generates proper state machine match arms (complexity: 5)
+    - Conditional logic: Uses multi-state for sequential yields (depth==0), fallback for loops
+    - Each yield point becomes a separate state with proper resumption
+  - **Key Technical Solutions**:
+    - Fixed trait visibility: Import `ToRustExpr` from `rust_gen::context`
+    - Used `to_rust_expr()` instead of `to_rust_tokens()` for expression conversion
+    - Preserved fallback to single-state implementation for complex cases (loops)
+  - **Generated Code Pattern**:
+    ```rust
+    match self.state {
+        0 => { self.state = 1; return Some(value1); }
+        1 => { self.state = 2; return Some(value2); }
+        2 => { self.state = 3; return Some(value3); }
+        _ => None
+    }
+    ```
+  - **Status**: Phase 3A complete (75% of DEPYLER-0262)
+  - **Next**: Phase 3B - Loop yield transformation, Phase 4 - Testing & validation
+  - **Compilation**: ✅ Clean build with zero warnings
+
 - **🔗 INTEGRATION** (2025-10-21): Yield Analysis Integration (DEPYLER-0262 Phase 2/4)
   - **Module**: `crates/depyler-core/src/rust_gen/generator_gen.rs`
   - **Integration**: YieldAnalysis now called in `codegen_generator_function()`
