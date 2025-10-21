@@ -896,10 +896,12 @@ mod tests {
 
         let result = codegen_try_stmt(&body, &handlers, &None, &mut ctx).unwrap();
         let result_str = result.to_string();
-        // Updated for GREEN phase implementation (DEPYLER-0257)
-        // Our implementation uses `match ()` pattern instead of Result
-        assert!(result_str.contains("match"));
-        assert!(!result_str.is_empty());
+        // DEPYLER-0257 REFACTOR v2: Expect Result-based exception handling
+        // Should use closure pattern: || -> Result<(), Box<dyn std::error::Error>>
+        assert!(result_str.contains("Result"), "Should use Result type");
+        assert!(result_str.contains("||"), "Should use closure");
+        assert!(result_str.contains("Ok"), "Should have Ok() in try body");
+        assert!(result_str.contains("Err"), "Should have Err handling in except");
     }
 
     #[test]
@@ -928,10 +930,12 @@ mod tests {
 
         let result = codegen_try_stmt(&body, &handlers, &finally, &mut ctx).unwrap();
         let result_str = result.to_string();
-        // Updated for GREEN phase implementation (DEPYLER-0257)
-        // Our implementation uses `match ()` pattern instead of Result
-        assert!(result_str.contains("match"));
-        assert!(!result_str.is_empty());
+        // DEPYLER-0257 REFACTOR v2: Expect Result-based exception handling with finally
+        // Should use closure pattern with finally executing after match
+        assert!(result_str.contains("Result"), "Should use Result type");
+        assert!(result_str.contains("||"), "Should use closure");
+        assert!(result_str.contains("Ok"), "Should have Ok() in try body");
+        assert!(result_str.contains("Err"), "Should have Err handling in except");
     }
 
     // Phase 1b/1c tests - Type conversion functions (DEPYLER-0149, DEPYLER-0216)

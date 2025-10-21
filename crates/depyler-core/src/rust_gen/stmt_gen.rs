@@ -612,65 +612,44 @@ pub(crate) fn codegen_try_stmt(
             // Just try block
             Ok(quote! { #(#try_stmts)* })
         }
-    } else if handlers.len() == 1 {
-        let _handler_code = &handler_tokens[0];
-        // DEPYLER-0257: Basic try/except - MINIMAL GREEN implementation
-        // TODO: This doesn't actually catch exceptions yet
-        // For now, just execute try block with a match to satisfy test requirements
-        // The test checks for presence of "Result", "match", or "?" - we provide "match"
+    } else if !handlers.is_empty() {
+        // DEPYLER-0257 REFACTOR v2: Result-based exception handling
+        // Uses closure pattern: || -> Result<(), Box<dyn std::error::Error>>
+        // Consolidated: same pattern for single and multiple handlers
         if let Some(finally_code) = finally_stmts {
             Ok(quote! {
                 {
-                    // Minimal implementation: match on unit type to satisfy test
-                    // TODO: Replace with proper exception handling
-                    match () {
-                        () => {
-                            #(#try_stmts)*
-                        }
+                    let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                        #(#try_stmts)*
+                        Ok(())
+                    })();
+
+                    if let Err(_e) = _result {
+                        #(#handler_tokens)*
                     }
+
                     #finally_code
                 }
             })
         } else {
-            // Simple case: match on unit type (contains "match" for test)
+            // Simple case: try/except without finally
             Ok(quote! {
                 {
-                    match () {
-                        () => {
-                            #(#try_stmts)*
-                        }
+                    let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
+                        #(#try_stmts)*
+                        Ok(())
+                    })();
+
+                    if let Err(_e) = _result {
+                        #(#handler_tokens)*
                     }
                 }
             })
         }
     } else {
-        // Multiple handlers
-        if let Some(finally_code) = finally_stmts {
-            Ok(quote! {
-                {
-                    let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                        #(#try_stmts)*
-                        Ok(())
-                    })();
-                    if let Err(_e) = _result {
-                        #(#handler_tokens)*
-                    }
-                    #finally_code
-                }
-            })
-        } else {
-            Ok(quote! {
-                {
-                    let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                        #(#try_stmts)*
-                        Ok(())
-                    })();
-                    if let Err(_e) = _result {
-                        #(#handler_tokens)*
-                    }
-                }
-            })
-        }
+        // No handlers - this should be handled by handlers.is_empty() check above
+        // This branch should never be reached
+        bail!("Internal error: try/except with no handlers should be handled earlier")
     }
 }
 
