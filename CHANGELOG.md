@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **🏗️ FOUNDATION** (2025-10-21): Yield Point Analysis Infrastructure (DEPYLER-0262 Phase 1)
+  - **Module Created**: `crates/depyler-core/src/generator_yield_analysis.rs` (290 lines)
+  - **Purpose**: Foundation for generator state machine transformation (DEPYLER-0262)
+  - **Key Components**:
+    - `YieldPoint` struct: Tracks individual yield locations with state_id, depth, live_vars
+    - `YieldAnalysis` struct: Aggregates all yields + resume points for transformation
+    - `analyze()` function: Walks HIR function body to identify all yield expressions
+    - `analyze_stmt()` function: Recursively traverses control flow (loops, if/else, try/except)
+    - `extract_yield_expr()` helper: Extracts HirExpr::Yield from expression statements
+  - **Key Discoveries**:
+    - Yield is HirExpr not HirStmt: Python yield is an expression, wrapped in HirStmt::Expr
+    - Try statement fields: Uses 'orelse' and 'finalbody', not 'finally'
+    - Depth tracking: Essential for loop handling in state machine
+  - **Tests**: 3/3 passing ✅
+    - `test_DEPYLER_0262_simple_yield_detection()` - Single yield in function body
+    - `test_DEPYLER_0262_loop_with_yield()` - Yield inside while loop (main bug scenario)
+    - `test_DEPYLER_0262_multiple_yields()` - Multiple sequential yields
+  - **Complexity**: All functions ≤10 (within target)
+    - analyze(): 3
+    - analyze_stmt(): 9
+    - extract_yield_expr(): 2
+  - **Status**: Foundation complete, ready for integration into code generation
+  - **Next Steps**: Integrate YieldAnalysis into generator_gen.rs, implement multi-state transformation
+
 - **🔍 INVESTIGATION** (2025-10-21): Critical Generator Bugs Identified (DEPYLER-0260/0261/0262)
   - **Discovery**: Generated generator code does NOT compile - contrary to roadmap "80% complete" status
   - **Transpilation Evidence**: Successfully transpiled `examples/test_generator.py` but output fails rustc compilation
