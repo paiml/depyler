@@ -210,56 +210,9 @@ pmat analyze complexity example.rs --max-cyclomatic 10
 6. ✅ **RE-VALIDATE ALL** - Re-transpile and re-test ALL examples
 7. ▶️ **RESUME WORK** - Continue only when ALL gates pass
 
-### Validation Script (examples/validate_all.sh)
+### Validation Script
 
-```bash
-#!/bin/bash
-set -euo pipefail
-
-FAILED=0
-TOTAL=0
-
-for example in examples/**/*.rs; do
-    TOTAL=$((TOTAL + 1))
-    echo "Validating $example..."
-
-    # Run all 15 gates
-    if ! rustc --crate-type lib "$example" --deny warnings 2>&1; then
-        echo "❌ FAILED: $example (rustc --deny warnings)"
-        FAILED=$((FAILED + 1))
-        continue
-    fi
-
-    if ! rustfmt --check "$example" 2>&1; then
-        echo "❌ FAILED: $example (rustfmt)"
-        FAILED=$((FAILED + 1))
-        continue
-    fi
-
-    if ! pmat analyze complexity "$example" --max-cyclomatic 10 2>&1; then
-        echo "❌ FAILED: $example (complexity)"
-        FAILED=$((FAILED + 1))
-        continue
-    fi
-
-    echo "✅ PASSED: $example"
-done
-
-echo ""
-echo "Validation Summary:"
-echo "  Total: $TOTAL"
-echo "  Passed: $((TOTAL - FAILED))"
-echo "  Failed: $FAILED"
-
-if [ $FAILED -gt 0 ]; then
-    echo ""
-    echo "🛑 STOP THE LINE: $FAILED examples failed validation"
-    echo "Fix transpiler before continuing!"
-    exit 1
-fi
-
-echo "✅ All examples passed 15-tool validation!"
-```
+See `examples/validate_all.sh` for full implementation of 15-tool validation protocol.
 
 ### Missing Feature Protocol (From ruchy)
 
@@ -720,38 +673,8 @@ cargo test --features proptest-tests
 # Target: 100 properties × 1000 cases = 100K+ total tests
 ```
 
-**Example Property Test**:
-```rust
-use proptest::prelude::*;
-
-proptest! {
-    #[test]
-    fn test_transpile_determinism(
-        python_code in "[a-zA-Z0-9_\\s]+",
-        seed in 0u64..1000
-    ) {
-        // Property: Same input always produces same output
-        let output1 = transpile(&python_code, seed);
-        let output2 = transpile(&python_code, seed);
-        prop_assert_eq!(output1, output2);
-    }
-
-    #[test]
-    fn test_panic_free_generation(
-        valid_python in python_ast_strategy()
-    ) {
-        // Property: Transpiler never panics on valid Python
-        let result = std::panic::catch_unwind(|| {
-            transpile_ast(&valid_python)
-        });
-        prop_assert!(result.is_ok());
-    }
-}
-```
-
 **Property Test Requirements**:
-- ≥3 properties per module
-- 1000 iterations per property minimum
+- ≥3 properties per module, 1000 iterations each
 - Cover invariants: determinism, panic-free, idempotency
 - Use `proptest` crate with custom strategies
 
@@ -763,24 +686,6 @@ cargo test --doc
 # Target: 100% of public functions have working examples
 ```
 
-**Example Doctest**:
-```rust
-/// Transpiles Python code to Rust
-///
-/// # Examples
-///
-/// ```
-/// use depyler::transpile;
-///
-/// let python = "def add(a: int, b: int) -> int: return a + b";
-/// let rust = transpile(python)?;
-/// assert!(rust.contains("pub fn add"));
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
-pub fn transpile(code: &str) -> Result<String> {
-    // Implementation
-}
-```
 
 #### 4. Integration Tests (End-to-End)
 ```bash
@@ -790,56 +695,7 @@ cargo test --test '*'
 # Target: Full transpile → compile → execute pipeline
 ```
 
-**Example Integration Test**:
-```rust
-#[test]
-fn test_DEPYLER_XXXX_full_pipeline() {
-    // ARRANGE: Create Python test file
-    let python_code = r#"
-def binary_search(arr: list[int], target: int) -> int:
-    left, right = 0, len(arr) - 1
-    while left <= right:
-        mid = (left + right) // 2
-        if arr[mid] == target:
-            return mid
-        elif arr[mid] < target:
-            left = mid + 1
-        else:
-            right = mid - 1
-    return -1
-"#;
-
-    // ACT: Transpile to Rust
-    let rust_code = depyler::transpile(python_code).unwrap();
-
-    // ASSERT: Generated Rust compiles
-    let temp_file = "/tmp/test_binary_search.rs";
-    std::fs::write(temp_file, &rust_code).unwrap();
-
-    let output = Command::new("rustc")
-        .arg("--crate-type").arg("lib")
-        .arg("--deny").arg("warnings")
-        .arg(temp_file)
-        .output()
-        .unwrap();
-
-    assert!(output.status.success(),
-        "Generated Rust failed to compile:\n{}",
-        String::from_utf8_lossy(&output.stderr));
-
-    // ASSERT: Passes clippy
-    let clippy_output = Command::new("cargo")
-        .arg("clippy")
-        .arg("--")
-        .arg("-D").arg("warnings")
-        .output()
-        .unwrap();
-
-    assert!(clippy_output.status.success(),
-        "Generated Rust has clippy warnings:\n{}",
-        String::from_utf8_lossy(&clippy_output.stderr));
-}
-```
+Integration tests must validate the full transpile → compile → execute pipeline.
 
 ### Mutation Testing (From ruchy)
 
@@ -1116,167 +972,19 @@ Closes #XXXX"
 **ONLY EXCEPTION**: During RED phase, use `--no-verify` to commit failing tests. ALL other commits MUST pass quality gates.
 
 ### Pre-commit Hooks (MANDATORY)
-```bash
-#!/bin/bash
-# scripts/pre-commit - BLOCKS commits that violate quality
-set -e
 
-echo "🔍 Depyler Quality Gates - Checking documentation synchronization..."
+Pre-commit hooks enforce:
+- Documentation updates (roadmap.md, CHANGELOG.md) for Rust changes
+- PMAT complexity ≤10, zero SATD
+- TDG grade A- minimum
+- Coverage ≥80%
+- Clippy `-D warnings`
 
-# Documentation files that MUST be updated with code changes
-REQUIRED_DOCS=(
-    "docs/execution/roadmap.md"
-    "CHANGELOG.md"
-)
-
-# Check if any Rust/source files are being committed
-if git diff --cached --name-only | grep -qE '\.(rs)$'; then
-    echo "📝 Source changes detected - verifying documentation updates..."
-
-    # Ensure at least one documentation file is updated
-    DOC_UPDATED=false
-    for doc in "${REQUIRED_DOCS[@]}"; do
-        if git diff --cached --name-only | grep -q "$doc"; then
-            DOC_UPDATED=true
-            break
-        fi
-    done
-
-    if [ "$DOC_UPDATED" = false ]; then
-        echo "❌ ERROR: Code changes require documentation updates!"
-        echo "📋 Must update at least one of:"
-        for doc in "${REQUIRED_DOCS[@]}"; do
-            echo "   - $doc"
-        done
-        echo ""
-        echo "💡 Quick fix:"
-        echo "   1. Update docs/execution/roadmap.md with task status"
-        echo "   2. Update CHANGELOG.md with feature/fix"
-        exit 1
-    fi
-fi
-
-# Verify roadmap.md structure
-if git diff --cached --name-only | grep -q "docs/execution/roadmap.md"; then
-    ROADMAP=$(git show :docs/execution/roadmap.md 2>/dev/null || cat docs/execution/roadmap.md)
-
-    # Ensure task ID format (DEPYLER-XXXX)
-    if ! echo "$ROADMAP" | grep -qE 'DEPYLER-[0-9]{4}'; then
-        echo "⚠️  Warning: roadmap.md should use DEPYLER-XXXX task ID format"
-    fi
-
-    # Check for status markers
-    if ! echo "$ROADMAP" | grep -qE '\[[ x]\]'; then
-        echo "⚠️  Warning: roadmap.md should include [x] completion markers"
-    fi
-fi
-
-echo "🔧 Running PMAT quality analysis..."
-
-for file in $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.rs$'); do
-    echo "  Checking $file..."
-
-    # Skip target directory
-    if [[ "$file" == target/* ]]; then
-        continue
-    fi
-
-    # Complexity check
-    if command -v pmat &> /dev/null; then
-        pmat analyze complexity "$file" \
-            --max-cyclomatic 10 \
-            --max-cognitive 10 \
-            --fail-on-violation || {
-            echo "❌ Complexity violation in $file"
-            echo "Run: pmat refactor auto --file $file"
-            exit 1
-        }
-
-        # SATD check (zero tolerance)
-        pmat analyze satd "$file" --fail-on-violation || {
-            echo "❌ SATD violation in $file"
-            echo "Remove all TODO/FIXME/HACK comments"
-            exit 1
-        }
-    fi
-done
-
-# TDG Grade Check
-if command -v pmat &> /dev/null; then
-    echo "📊 Running TDG grade check..."
-    pmat tdg . --min-grade A- --fail-on-violation || {
-        echo "❌ BLOCKED: TDG grade below A- threshold"
-        echo "Run: pmat tdg . --include-components --top-files 5"
-        exit 1
-    }
-fi
-
-# Coverage check (cargo-llvm-cov)
-if command -v cargo-llvm-cov &> /dev/null; then
-    echo "📊 Running coverage check..."
-    COVERAGE=$(cargo llvm-cov --all-features --workspace --summary-only 2>/dev/null | grep -oP '\d+\.\d+%' | head -1 | sed 's/%//')
-    if (( $(echo "$COVERAGE < 80" | bc -l) )); then
-        echo "❌ BLOCKED: Coverage $COVERAGE% below 80% threshold"
-        exit 1
-    fi
-fi
-
-# Clippy check
-echo "🔧 Running clippy..."
-cargo clippy --all-targets --all-features -- -D warnings || {
-    echo "❌ BLOCKED: Clippy warnings found"
-    exit 1
-}
-
-echo "✅ All quality gates passed!"
-```
+See `scripts/pre-commit` for full implementation.
 
 ### CI/CD Pipeline Enforcement
-```yaml
-# .github/workflows/quality-gates.yml
-name: MANDATORY Quality Gates
-on: [push, pull_request]
 
-jobs:
-  quality-gates:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Quality Tools
-        run: |
-          cargo install pmat --locked
-          cargo install cargo-llvm-cov --locked
-
-      - name: GATE 1 - TDG Grade Check
-        run: |
-          pmat tdg . --min-grade A- --fail-on-violation
-
-      - name: GATE 2 - Complexity Enforcement
-        run: |
-          pmat analyze complexity --max-cyclomatic 10 --max-cognitive 10 --fail-on-violation
-
-      - name: GATE 3 - Zero SATD
-        run: |
-          pmat analyze satd --fail-on-violation
-
-      - name: GATE 4 - Lint Zero Tolerance
-        run: |
-          cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: GATE 5 - Coverage Gate (80% minimum)
-        run: |
-          cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
-          cargo llvm-cov report --fail-under-lines 80
-
-      - name: GATE 6 - All Tests Pass
-        run: |
-          cargo test --all-features --workspace
-```
+CI enforces 6 mandatory gates: TDG grade A-, complexity ≤10, zero SATD, clippy `-D warnings`, coverage ≥80%, all tests pass. See `.github/workflows/quality-gates.yml`.
 
 ## The Make Lint Contract (Zero Warnings Allowed)
 ```bash
@@ -1315,37 +1023,9 @@ fn special_case() { }
 
 ## Performance Invariants
 
-### Transpilation Throughput
-
-```rust
-#[bench]
-fn bench_transpile_throughput(b: &mut Bencher) {
-    let input = include_str!("../corpus/large.py"); // 10K LOC Python
-    b.iter(|| {
-        let pipeline = DepylerPipeline::new();
-        pipeline.transpile(input)
-    });
-    
-    // Invariant: >10MB/s transpilation
-    assert!(b.bytes_per_second() > 10_000_000);
-}
-```
-
-### Memory Safety Verification
-
-```rust
-#[bench]
-fn bench_verification_latency(b: &mut Bencher) {
-    let hir = test_hir_module();
-    b.iter(|| {
-        let verifier = PropertyVerifier::new();
-        verifier.verify(&hir)
-    });
-    
-    // Invariant: <50ms for typical module
-    assert!(b.ns_per_iter() < 50_000_000);
-}
-```
+- Transpilation: >10MB/s throughput
+- Verification: <50ms for typical module
+- Generated Rust: compiles in <500ms
 
 ## Architectural Patterns
 
@@ -1363,63 +1043,10 @@ impl HirModule {
 }
 ```
 
-### Ownership Inference - Conservative Defaults
-
-```rust
-impl OwnershipInferencer {
-    fn infer_ownership(&mut self, expr: &HirExpr) -> Ownership {
-        match expr {
-            HirExpr::Variable(name) => {
-                // Conservative: default to borrowed
-                self.env.lookup(name)
-                    .unwrap_or(Ownership::Borrowed)
-            }
-            HirExpr::FunctionCall(func, args) => {
-                // Move semantics for non-Copy types
-                if self.is_move_required(func) {
-                    Ownership::Owned
-                } else {
-                    Ownership::Borrowed
-                }
-            }
-            _ => Ownership::Borrowed
-        }
-    }
-}
-```
 
 ## Error Diagnostics Quality
 
-### Elm-Level Error Messages
-
-```rust
-impl ErrorReporter {
-    fn render(&self, error: &TranspileError) -> String {
-        let mut output = String::new();
-        
-        // Source context with highlighting
-        writeln!(output, "{}", self.source_snippet(error.span));
-        writeln!(output, "{}", "^".repeat(error.span.len()).red());
-        
-        // Primary message
-        writeln!(output, "\n{}: {}", "Error".red().bold(), error.message);
-        
-        // Type mismatch details
-        if let Some(expected) = &error.expected_type {
-            writeln!(output, "  {} {}", "Expected:".yellow(), expected);
-            writeln!(output, "  {} {}", "Found:".yellow(), error.found_type);
-        }
-        
-        // Actionable suggestion
-        if let Some(suggestion) = &error.suggestion {
-            writeln!(output, "\n{}: {}", "Hint".green(), suggestion);
-            writeln!(output, "{}", self.render_suggestion_diff(suggestion));
-        }
-        
-        output
-    }
-}
-```
+Error messages must be Elm-level: show source context, highlight errors, provide expected vs found types, and suggest actionable fixes.
 
 ## Sprint Hygiene Protocol
 
@@ -1553,30 +1180,7 @@ impl OwnershipAnalyzer {
 
 ## Memory Management
 
-### String Interning for Optimization
-
-```rust
-pub struct StringInterner {
-    strings: FxHashMap<String, InternedString>,
-    usage_counts: FxHashMap<InternedString, usize>,
-}
-
-impl StringInterner {
-    pub fn should_intern(&self, s: &str) -> bool {
-        // Intern strings used more than 3 times
-        self.usage_counts.get(s).map_or(false, |&count| count > 3)
-    }
-    
-    pub fn intern(&mut self, s: String) -> InternedString {
-        *self.strings.entry(s.clone())
-            .or_insert_with(|| {
-                let id = InternedString(self.strings.len());
-                *self.usage_counts.entry(id).or_insert(0) += 1;
-                id
-            })
-    }
-}
-```
+String interning optimizes repeated string literals (>3 uses). Conservative ownership defaults prevent lifetime errors.
 
 ## Release Checklist
 
