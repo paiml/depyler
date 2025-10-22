@@ -4,7 +4,8 @@
 .PHONY: all build test test-full test-rust test-frontend test-fast test-comprehensive test-fixtures test-property \
         test-compilation test-semantic validate quality-gate coverage \
         clean-test lint lint-rust lint-frontend clippy fmt format fmt-check fmt-fix fmt-rust fmt-frontend fmt-docs \
-        check bench install-deps help
+        check bench install-deps help \
+        book-test book-test-fast book-build book-serve book-clean book-validate book-check
 
 # Configuration
 CARGO := cargo
@@ -626,6 +627,41 @@ docs: ## Generate documentation
 
 docs-open: docs ## Generate and open documentation
 	$(CARGO) doc --workspace --no-deps --open
+
+book-test: ## Test TDD book examples (BLOCKING for releases)
+	@echo "🧪 Testing TDD book examples..."
+	@cd tdd-book && uv run pytest tests/ -v --tb=short
+
+book-test-fast: ## Test book examples in parallel
+	@echo "🧪 Testing TDD book examples (fast)..."
+	@cd tdd-book && uv run pytest tests/ -n auto -v
+
+book-build: ## Build mdBook
+	@echo "📚 Building Depyler TDD Book..."
+	@command -v mdbook >/dev/null 2>&1 || { echo "❌ mdbook not installed. Run: cargo install mdbook"; exit 1; }
+	@cd tdd-book && mdbook build
+	@echo "✅ Book built at tdd-book/book/index.html"
+
+book-serve: ## Serve book locally at http://localhost:3000
+	@echo "📖 Serving Depyler TDD Book at http://localhost:3000..."
+	@cd tdd-book && mdbook serve --open
+
+book-clean: ## Clean book build artifacts
+	@echo "🧹 Cleaning book artifacts..."
+	@rm -rf tdd-book/book/
+	@echo "✅ Book artifacts cleaned"
+
+book-validate: book-test book-build ## Validate book (test + build)
+	@echo "✅ Book validation complete - all examples tested and book builds"
+
+book-check: ## Check if book needs updates (for pre-release)
+	@echo "🔍 Checking if book is up to date..."
+	@if [ -n "$$(git status --porcelain tdd-book/)" ]; then \
+		echo "⚠️  TDD book has uncommitted changes"; \
+		git status --short tdd-book/; \
+		exit 1; \
+	fi
+	@echo "✅ Book is up to date"
 
 ##@ Performance Profiling
 

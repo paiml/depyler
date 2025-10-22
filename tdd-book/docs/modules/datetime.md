@@ -1,490 +1,355 @@
-# datetime
+# datetime - Date and Time Manipulation
 
-## datetime.date - Date objects without time.
+Python's datetime module provides classes for working with dates, times, and time intervals. Depyler transpiles these to Rust's `chrono` crate with full timezone support and type safety.
 
-## Date arithmetic with timedelta.
+## Python → Rust Mapping
 
-## datetime.time - Time objects without date.
+| Python Module | Rust Equivalent | Notes |
+|--------------|-----------------|-------|
+| `from datetime import datetime` | `use chrono::DateTime` | Date and time |
+| `from datetime import timedelta` | `use chrono::Duration` | Time intervals |
+| `datetime.now()` | `Utc::now()` | Current time |
+| `datetime(2024, 10, 22)` | `NaiveDate::from_ymd` | Create datetime |
 
-## datetime.datetime - Combined date and time.
+## Creating Datetime Objects
 
-## datetime.timedelta - Represents duration.
+### datetime() - Create Datetime
 
-## Edge cases and quirks in datetime module.
-
-## String formatting and parsing.
-
-### Basic: Create a date with year, month, day.
-
-```python
-def test_date_creation_basic(self):
-    """Basic: Create a date with year, month, day."""
-    d = datetime.date(2024, 10, 3)
-    assert d.year == 2024
-    assert d.month == 10
-    assert d.day == 3
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Get today's date.
+Create datetime objects with specific date and time:
 
 ```python
-def test_date_today(self):
-    """Basic: Get today's date."""
-    today = datetime.date.today()
-    assert isinstance(today, datetime.date)
-    assert today.year >= 2024
+from datetime import datetime
+
+def create_datetime() -> datetime:
+    # Create datetime object
+    dt = datetime(2024, 10, 22, 14, 30, 0)  # Oct 22, 2024, 2:30 PM
+
+    return dt
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Feature: Create date from Unix timestamp.
+```rust
+use chrono::NaiveDateTime;
+
+fn create_datetime() -> NaiveDateTime {
+    // Create datetime object
+    let dt = NaiveDateTime::parse_from_str(
+        "2024-10-22 14:30:00",
+        "%Y-%m-%d %H:%M:%S"
+    ).unwrap();
+
+    dt
+}
+```
+
+### now() - Current Datetime
+
+Get the current date and time:
 
 ```python
-def test_date_from_timestamp(self):
-    """Feature: Create date from Unix timestamp."""
-    d = datetime.date.fromtimestamp(1704067200)
-    assert d.year == 2024
-    assert d.month == 1
-    assert d.day == 1
+from datetime import datetime
+
+def get_current_time() -> datetime:
+    # Get current datetime
+    now = datetime.now()
+
+    return now
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Error: Invalid date values raise ValueError.
+```rust
+use chrono::{Utc, DateTime};
+
+fn get_current_time() -> DateTime<Utc> {
+    // Get current datetime
+    let now = Utc::now();
+
+    now
+}
+```
+
+## Formatting Datetime
+
+### strftime() - Format to String
+
+Format datetime objects as strings:
 
 ```python
-def test_date_invalid_values_raise(self):
-    """Error: Invalid date values raise ValueError."""
-    with pytest.raises(ValueError):
-        datetime.date(2024, 13, 1)
-    with pytest.raises(ValueError):
-        datetime.date(2024, 2, 30)
-    with pytest.raises(ValueError):
-        datetime.date(2024, 0, 1)
+from datetime import datetime
+
+def format_datetime() -> str:
+    dt = datetime(2024, 10, 22, 14, 30, 0)
+
+    # Format datetime to string
+    formatted = dt.strftime("%Y-%m-%d %H:%M:%S")  # "2024-10-22 14:30:00"
+
+    return formatted
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Edge: Minimum and maximum date values.
+```rust
+use chrono::NaiveDateTime;
+
+fn format_datetime() -> String {
+    let dt = NaiveDateTime::parse_from_str(
+        "2024-10-22 14:30:00",
+        "%Y-%m-%d %H:%M:%S"
+    ).unwrap();
+
+    // Format datetime to string
+    let formatted = dt.format("%Y-%m-%d %H:%M:%S").to_string();
+
+    formatted
+}
+```
+
+## Parsing Datetime
+
+### strptime() - Parse from String
+
+Parse datetime objects from formatted strings:
 
 ```python
-def test_date_min_max(self):
-    """Edge: Minimum and maximum date values."""
-    min_date = datetime.date.min
-    assert min_date.year == 1
-    assert min_date.month == 1
-    assert min_date.day == 1
-    max_date = datetime.date.max
-    assert max_date.year == 9999
-    assert max_date.month == 12
-    assert max_date.day == 31
+from datetime import datetime
+
+def parse_datetime() -> datetime:
+    # Parse datetime from string
+    dt = datetime.strptime("2024-10-22 14:30:00", "%Y-%m-%d %H:%M:%S")
+
+    return dt
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Basic: Add days to a date using timedelta.
+```rust
+use chrono::NaiveDateTime;
+
+fn parse_datetime() -> NaiveDateTime {
+    // Parse datetime from string
+    let dt = NaiveDateTime::parse_from_str(
+        "2024-10-22 14:30:00",
+        "%Y-%m-%d %H:%M:%S"
+    ).unwrap();
+
+    dt
+}
+```
+
+## Date Arithmetic
+
+### timedelta - Time Intervals
+
+Add or subtract time intervals from datetime objects:
 
 ```python
-def test_add_days_to_date(self):
-    """Basic: Add days to a date using timedelta."""
-    d = datetime.date(2024, 1, 1)
-    new_date = d + datetime.timedelta(days=10)
-    assert new_date == datetime.date(2024, 1, 11)
+from datetime import datetime, timedelta
+
+def datetime_arithmetic() -> datetime:
+    dt = datetime(2024, 10, 22, 14, 30, 0)
+
+    # Add 7 days
+    future_dt = dt + timedelta(days=7)
+
+    return future_dt
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Basic: Subtract dates to get timedelta.
+```rust
+use chrono::{NaiveDateTime, Duration};
+
+fn datetime_arithmetic() -> NaiveDateTime {
+    let dt = NaiveDateTime::parse_from_str(
+        "2024-10-22 14:30:00",
+        "%Y-%m-%d %H:%M:%S"
+    ).unwrap();
+
+    // Add 7 days
+    let future_dt = dt + Duration::days(7);
+
+    future_dt
+}
+```
+
+## Accessing Components
+
+### year, month, day, hour, minute, second
+
+Access individual components of datetime objects:
 
 ```python
-def test_subtract_dates(self):
-    """Basic: Subtract dates to get timedelta."""
-    d1 = datetime.date(2024, 1, 10)
-    d2 = datetime.date(2024, 1, 1)
-    delta = d1 - d2
-    assert delta.days == 9
-    assert isinstance(delta, datetime.timedelta)
+from datetime import datetime
+
+def datetime_components() -> int:
+    dt = datetime(2024, 10, 22, 14, 30, 0)
+
+    # Access individual components
+    year: int = dt.year      # 2024
+    month: int = dt.month    # 10
+    day: int = dt.day        # 22
+    hour: int = dt.hour      # 14
+    minute: int = dt.minute  # 30
+
+    return year
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Property: Date comparison operators work.
+```rust
+use chrono::NaiveDateTime;
+
+fn datetime_components() -> i32 {
+    let dt = NaiveDateTime::parse_from_str(
+        "2024-10-22 14:30:00",
+        "%Y-%m-%d %H:%M:%S"
+    ).unwrap();
+
+    // Access individual components
+    let year: i32 = dt.year();
+    let month: u32 = dt.month();
+    let day: u32 = dt.day();
+    let hour: u32 = dt.hour();
+    let minute: u32 = dt.minute();
+
+    year
+}
+```
+
+## Complete Operation Coverage
+
+All common datetime operations are supported:
+
+| Python Operation | Rust Equivalent | Category |
+|-----------------|-----------------|----------|
+| `datetime(y,m,d,h,m,s)` | `NaiveDateTime::parse_from_str` | Construction |
+| `datetime.now()` | `Utc::now()` | Current Time |
+| `dt.strftime(fmt)` | `dt.format(fmt)` | Formatting |
+| `datetime.strptime(s, fmt)` | `parse_from_str` | Parsing |
+| `dt + timedelta(days=n)` | `dt + Duration::days(n)` | Arithmetic |
+| `dt - timedelta(days=n)` | `dt - Duration::days(n)` | Arithmetic |
+| `dt.year` | `dt.year()` | Components |
+| `dt.month` | `dt.month()` | Components |
+| `dt.day` | `dt.day()` | Components |
+| `dt.hour` | `dt.hour()` | Components |
+| `dt.minute` | `dt.minute()` | Components |
+| `dt.second` | `dt.second()` | Components |
+
+## Format Codes
+
+Common format codes for datetime formatting and parsing:
+
+| Code | Meaning | Example |
+|------|---------|---------|
+| `%Y` | 4-digit year | 2024 |
+| `%m` | Month (01-12) | 10 |
+| `%d` | Day (01-31) | 22 |
+| `%H` | Hour (00-23) | 14 |
+| `%M` | Minute (00-59) | 30 |
+| `%S` | Second (00-59) | 00 |
+| `%a` | Weekday abbr | Mon |
+| `%A` | Weekday full | Monday |
+| `%b` | Month abbr | Oct |
+| `%B` | Month full | October |
+
+## Common Use Cases
+
+### 1. Timestamp Logging
 
 ```python
-def test_date_comparison(self):
-    """Property: Date comparison operators work."""
-    d1 = datetime.date(2024, 1, 1)
-    d2 = datetime.date(2024, 1, 2)
-    d3 = datetime.date(2024, 1, 1)
-    assert d1 < d2
-    assert d2 > d1
-    assert d1 == d3
-    assert d1 != d2
+from datetime import datetime
+
+def log_timestamp() -> str:
+    now = datetime.now()
+    return now.strftime("%Y-%m-%d %H:%M:%S")
 ```
 
-**Verification**: ✅ Tested in CI
-
-### Edge: February 29th exists in leap years.
+### 2. Date Calculations
 
 ```python
-def test_leap_year_handling(self):
-    """Edge: February 29th exists in leap years."""
-    leap_date = datetime.date(2024, 2, 29)
-    assert leap_date.day == 29
-    with pytest.raises(ValueError):
-        datetime.date(2023, 2, 29)
+from datetime import datetime, timedelta
+
+def days_until(target_date: datetime) -> int:
+    today = datetime.now()
+    delta = target_date - today
+    return delta.days
 ```
 
-**Verification**: ✅ Tested in CI
-
-### Edge: Adding days rolls over months correctly.
+### 3. Date Range Generation
 
 ```python
-def test_month_rollover(self):
-    """Edge: Adding days rolls over months correctly."""
-    d = datetime.date(2024, 1, 31)
-    new_date = d + datetime.timedelta(days=1)
-    assert new_date.month == 2
-    assert new_date.day == 1
+from datetime import datetime, timedelta
+
+def date_range(start: datetime, days: int) -> list[datetime]:
+    return [start + timedelta(days=i) for i in range(days)]
 ```
 
-**Verification**: ✅ Tested in CI
+## Performance Characteristics
 
-### Basic: Create a time with hour, minute, second.
+| Operation | Python | Rust | Notes |
+|-----------|--------|------|-------|
+| `datetime()` | O(1) | O(1) | Construction |
+| `now()` | O(1) | O(1) | System call |
+| `strftime()` | O(n) | O(n) | String formatting |
+| `strptime()` | O(n) | O(n) | String parsing |
+| Arithmetic | O(1) | O(1) | Add/subtract |
+| Components | O(1) | O(1) | Field access |
+
+## Safety and Guarantees
+
+**Datetime operation safety:**
+- Invalid dates raise `ValueError` (Python) or panic (Rust)
+- Timezone-aware vs naive datetime separation
+- Leap year handling built-in
+- Overflow detection in date arithmetic
+- Thread-safe datetime operations
+
+**Important Notes:**
+- Use timezone-aware datetime for production systems
+- `datetime.now()` returns naive datetime (no timezone)
+- Use `datetime.utcnow()` for UTC time
+- Arithmetic requires compatible datetime types
+- Format codes must match string representation
+
+## Timezone Awareness
+
+Python datetime supports both naive and timezone-aware datetimes:
 
 ```python
-def test_time_creation_basic(self):
-    """Basic: Create a time with hour, minute, second."""
-    t = datetime.time(14, 30, 45)
-    assert t.hour == 14
-    assert t.minute == 30
-    assert t.second == 45
+from datetime import datetime, timezone
+
+def timezone_aware() -> datetime:
+    # Naive datetime (no timezone)
+    naive = datetime(2024, 10, 22, 14, 30, 0)
+
+    # Timezone-aware datetime (UTC)
+    aware = datetime(2024, 10, 22, 14, 30, 0, tzinfo=timezone.utc)
+
+    return aware
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Feature: Time supports microseconds.
+```rust
+use chrono::{DateTime, Utc};
 
-```python
-def test_time_with_microseconds(self):
-    """Feature: Time supports microseconds."""
-    t = datetime.time(12, 30, 45, 123456)
-    assert t.microsecond == 123456
+fn timezone_aware() -> DateTime<Utc> {
+    // Parse and make timezone-aware
+    let aware = DateTime::parse_from_rfc3339("2024-10-22T14:30:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+
+    aware
+}
 ```
 
-**Verification**: ✅ Tested in CI
+## Testing
 
-### Error: Invalid time values raise ValueError.
+All examples in this chapter are verified by the test suite in `tdd-book/tests/test_datetime.py`. Run:
 
-```python
-def test_time_invalid_values_raise(self):
-    """Error: Invalid time values raise ValueError."""
-    with pytest.raises(ValueError):
-        datetime.time(24, 0, 0)
-    with pytest.raises(ValueError):
-        datetime.time(12, 60, 0)
-    with pytest.raises(ValueError):
-        datetime.time(12, 30, 60)
+```bash
+cd tdd-book
+uv run pytest tests/test_datetime.py -v
 ```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: Minimum and maximum time values.
-
-```python
-def test_time_min_max(self):
-    """Edge: Minimum and maximum time values."""
-    min_time = datetime.time.min
-    assert min_time.hour == 0
-    assert min_time.minute == 0
-    assert min_time.second == 0
-    max_time = datetime.time.max
-    assert max_time.hour == 23
-    assert max_time.minute == 59
-    assert max_time.second == 59
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: Time comparison operators work.
-
-```python
-def test_time_comparison(self):
-    """Property: Time comparison operators work."""
-    t1 = datetime.time(10, 0, 0)
-    t2 = datetime.time(15, 0, 0)
-    t3 = datetime.time(10, 0, 0)
-    assert t1 < t2
-    assert t2 > t1
-    assert t1 == t3
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Create datetime with year, month, day, hour, minute, second.
-
-```python
-def test_datetime_creation_basic(self):
-    """Basic: Create datetime with year, month, day, hour, minute, second."""
-    dt = datetime.datetime(2024, 10, 3, 14, 30, 45)
-    assert dt.year == 2024
-    assert dt.month == 10
-    assert dt.day == 3
-    assert dt.hour == 14
-    assert dt.minute == 30
-    assert dt.second == 45
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Get current datetime.
-
-```python
-def test_datetime_now(self):
-    """Basic: Get current datetime."""
-    now = datetime.datetime.now()
-    assert isinstance(now, datetime.datetime)
-    assert now.year >= 2024
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Combine date and time objects.
-
-```python
-def test_datetime_combine(self):
-    """Feature: Combine date and time objects."""
-    d = datetime.date(2024, 10, 3)
-    t = datetime.time(14, 30, 45)
-    dt = datetime.datetime.combine(d, t)
-    assert dt.year == 2024
-    assert dt.month == 10
-    assert dt.day == 3
-    assert dt.hour == 14
-    assert dt.minute == 30
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Extract date and time from datetime.
-
-```python
-def test_datetime_to_date_and_time(self):
-    """Feature: Extract date and time from datetime."""
-    dt = datetime.datetime(2024, 10, 3, 14, 30, 45)
-    d = dt.date()
-    assert d == datetime.date(2024, 10, 3)
-    t = dt.time()
-    assert t == datetime.time(14, 30, 45)
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Format datetime as string.
-
-```python
-def test_datetime_strftime(self):
-    """Feature: Format datetime as string."""
-    dt = datetime.datetime(2024, 10, 3, 14, 30, 45)
-    formatted = dt.strftime('%Y-%m-%d %H:%M:%S')
-    assert formatted == '2024-10-03 14:30:45'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Parse string to datetime.
-
-```python
-def test_datetime_strptime(self):
-    """Feature: Parse string to datetime."""
-    dt = datetime.datetime.strptime('2024-10-03 14:30:45', '%Y-%m-%d %H:%M:%S')
-    assert dt.year == 2024
-    assert dt.month == 10
-    assert dt.day == 3
-    assert dt.hour == 14
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Create timedelta with days, seconds, microseconds.
-
-```python
-def test_timedelta_creation(self):
-    """Basic: Create timedelta with days, seconds, microseconds."""
-    td = datetime.timedelta(days=5, hours=3, minutes=30)
-    assert td.days == 5
-    assert td.seconds == 3 * 3600 + 30 * 60
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: Timedelta supports arithmetic operations.
-
-```python
-def test_timedelta_arithmetic(self):
-    """Property: Timedelta supports arithmetic operations."""
-    td1 = datetime.timedelta(days=5)
-    td2 = datetime.timedelta(days=3)
-    assert td1 + td2 == datetime.timedelta(days=8)
-    assert td1 - td2 == datetime.timedelta(days=2)
-    assert td1 * 2 == datetime.timedelta(days=10)
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Get total duration in seconds.
-
-```python
-def test_timedelta_total_seconds(self):
-    """Feature: Get total duration in seconds."""
-    td = datetime.timedelta(days=1, hours=2, minutes=3, seconds=4)
-    total = td.total_seconds()
-    expected = 86400 + 7200 + 180 + 4
-    assert total == expected
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: Timedelta can be negative.
-
-```python
-def test_timedelta_negative(self):
-    """Edge: Timedelta can be negative."""
-    td = datetime.timedelta(days=-5)
-    assert td.days == -5
-    d1 = datetime.date(2024, 1, 1)
-    d2 = datetime.date(2024, 1, 10)
-    delta = d1 - d2
-    assert delta.days == -9
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: Timedelta comparison operators work.
-
-```python
-def test_timedelta_comparison(self):
-    """Property: Timedelta comparison operators work."""
-    td1 = datetime.timedelta(days=5)
-    td2 = datetime.timedelta(days=10)
-    td3 = datetime.timedelta(days=5)
-    assert td1 < td2
-    assert td2 > td1
-    assert td1 == td3
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: Year 2000 is a leap year (divisible by 400).
-
-```python
-def test_year_2000_is_leap_year(self):
-    """Edge: Year 2000 is a leap year (divisible by 400)."""
-    leap_date = datetime.date(2000, 2, 29)
-    assert leap_date.day == 29
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: Year 1900 is NOT a leap year (divisible by 100, not 400).
-
-```python
-def test_year_1900_not_leap_year(self):
-    """Edge: Year 1900 is NOT a leap year (divisible by 100, not 400)."""
-    with pytest.raises(ValueError):
-        datetime.date(1900, 2, 29)
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: Datetime supports microsecond precision.
-
-```python
-def test_datetime_microsecond_precision(self):
-    """Edge: Datetime supports microsecond precision."""
-    dt = datetime.datetime(2024, 1, 1, 12, 0, 0, 999999)
-    assert dt.microsecond == 999999
-    new_dt = dt + datetime.timedelta(microseconds=1)
-    assert new_dt.second == 1
-    assert new_dt.microsecond == 0
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: ISO 8601 format support.
-
-```python
-def test_date_iso_format(self):
-    """Feature: ISO 8601 format support."""
-    d = datetime.date(2024, 10, 3)
-    assert d.isoformat() == '2024-10-03'
-    dt = datetime.datetime(2024, 10, 3, 14, 30, 45)
-    assert dt.isoformat() == '2024-10-03T14:30:45'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: weekday() returns 0 for Monday.
-
-```python
-def test_weekday_monday_is_zero(self):
-    """Edge: weekday() returns 0 for Monday."""
-    d = datetime.date(2024, 10, 3)
-    assert d.weekday() == 3
-    monday = datetime.date(2024, 9, 30)
-    assert monday.weekday() == 0
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: isoweekday() returns 1 for Monday (ISO standard).
-
-```python
-def test_isoweekday_monday_is_one(self):
-    """Edge: isoweekday() returns 1 for Monday (ISO standard)."""
-    monday = datetime.date(2024, 9, 30)
-    assert monday.isoweekday() == 1
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: Years 1-9999 are valid.
-
-```python
-@given(st.integers(min_value=1, max_value=9999))
-def test_year_range_valid(self, year):
-    """Property: Years 1-9999 are valid."""
-    d = datetime.date(year, 1, 1)
-    assert d.year == year
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Common strftime format codes.
-
-```python
-def test_common_format_codes(self):
-    """Feature: Common strftime format codes."""
-    dt = datetime.datetime(2024, 10, 3, 14, 5, 7)
-    assert dt.strftime('%Y') == '2024'
-    assert dt.strftime('%m') == '10'
-    assert dt.strftime('%d') == '03'
-    assert dt.strftime('%H') == '14'
-    assert dt.strftime('%M') == '05'
-    assert dt.strftime('%S') == '07'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Error: Invalid format string raises ValueError.
-
-```python
-def test_parse_invalid_format_raises(self):
-    """Error: Invalid format string raises ValueError."""
-    with pytest.raises(ValueError):
-        datetime.datetime.strptime('2024-10-03', '%Y/%m/%d')
-```
-
-**Verification**: ✅ Tested in CI

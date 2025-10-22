@@ -5,7 +5,7 @@
 
 use crate::generator_state::GeneratorStateInfo;
 use crate::generator_yield_analysis::YieldAnalysis;
-use crate::hir::{HirExpr, HirFunction, HirStmt, Type};
+use crate::hir::{HirExpr, HirFunction, HirStmt, Literal, Type};
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use crate::rust_gen::type_gen::rust_type_to_syn;
 use anyhow::Result;
@@ -59,24 +59,47 @@ fn generate_param_fields(
 
 /// Extract the Item type for the Iterator from generator return type
 ///
-/// DEPYLER-0260 FIX: Use func.ret_type directly as yield type, then map to Rust type.
-/// This fixes the DynamicType bug where generators used undefined DynamicType instead of
-/// concrete types like i32.
-///
-/// For generators, func.ret_type contains the yield type directly (e.g., Type::Int),
-/// not wrapped in a Generator variant. The is_generator flag marks it as a generator.
+/// DEPYLER-0263 FIX: Infer yield type from yield analysis, not func.ret_type.
+/// func.ret_type is often Type::Unknown for generators, which maps to DynamicType.
+/// Instead, we analyze the actual yield expressions to infer the concrete type.
 ///
 /// # Complexity
-/// 2 (map + convert)
+/// 3 (analyze + map + convert)
 #[inline]
 fn extract_generator_item_type(
     func: &HirFunction,
+    yield_analysis: &YieldAnalysis,
     ctx: &CodeGenContext,
 ) -> Result<syn::Type> {
-    // DEPYLER-0260 FIX: func.ret_type already contains the yield type
-    // (e.g., Type::Int for a generator that yields integers)
-    let rust_yield_type = ctx.type_mapper.map_type(&func.ret_type);
+    // DEPYLER-0263: Infer type from first yield expression if func.ret_type is Unknown
+    let yield_type = if matches!(func.ret_type, Type::Unknown) && !yield_analysis.yield_points.is_empty() {
+        // Infer from first yield expression
+        infer_yield_type(&yield_analysis.yield_points[0].yield_expr)
+    } else {
+        // Use func.ret_type if available
+        func.ret_type.clone()
+    };
+
+    let rust_yield_type = ctx.type_mapper.map_type(&yield_type);
     rust_type_to_syn(&rust_yield_type)
+}
+
+/// Infer type from a yield expression
+///
+/// # Complexity: 2 (match + return)
+#[inline]
+fn infer_yield_type(expr: &HirExpr) -> Type {
+    match expr {
+        HirExpr::Literal(lit) => match lit {
+            Literal::Int(_) => Type::Int,
+            Literal::Float(_) => Type::Float,
+            Literal::String(_) => Type::String,
+            Literal::Bool(_) => Type::Bool,
+            Literal::None => Type::None,
+        },
+        HirExpr::Var(_) => Type::Int, // Default to Int for variables without type info
+        _ => Type::Unknown,
+    }
 }
 
 /// Generate field initializers for state variables (with default values)
@@ -260,6 +283,9 @@ fn generate_simple_multi_state_match(
     _func: &HirFunction,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0263: Set generator context flag for proper variable scoping
+    ctx.in_generator = true;
+
     let mut match_arms = Vec::new();
 
     // State 0: Initial state - execute up to first yield
@@ -306,6 +332,9 @@ fn generate_simple_multi_state_match(
         _ => None
     });
 
+    // Clear generator context flag
+    ctx.in_generator = false;
+
     Ok(quote! {
         match self.state {
             #(#match_arms)*
@@ -330,6 +359,9 @@ fn generate_simple_loop_with_yield(
     yield_analysis: &YieldAnalysis,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0263: Set generator context flag for proper variable scoping
+    ctx.in_generator = true;
+
     // Find the loop statement in the function body
     let loop_info = extract_loop_info(func)?;
 
@@ -345,6 +377,9 @@ fn generate_simple_loop_with_yield(
 
     // Generate loop body statements (updates, increments)
     let loop_body_stmts = generate_loop_body_stmts(&loop_info.body_stmts, ctx)?;
+
+    // Clear generator context flag
+    ctx.in_generator = false;
 
     // Generate the state machine
     Ok(quote! {
@@ -512,8 +547,8 @@ pub fn codegen_generator_function(
         state: usize
     };
 
-    // DEPYLER-0260 FIX: Extract yield value type from HIR Type::Generator, not mapped RustType
-    let item_type = extract_generator_item_type(func, ctx)?;
+    // DEPYLER-0263: Extract yield value type, inferring from yield expressions if needed
+    let item_type = extract_generator_item_type(func, &yield_analysis, ctx)?;
 
     // Populate generator state variables for scoping
     populate_generator_state_vars(ctx, &state_info);

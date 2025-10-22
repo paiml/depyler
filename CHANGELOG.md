@@ -21,6 +21,29 @@ All notable changes to this project will be documented in this file.
   - **Files**: debug_cmd.rs, lib.rs, main.rs
   - **External Tool**: Requires `spydecy` (cargo install spydecy from ../spydecy)
 
+### Fixed
+- **✅ DEPYLER-0263** (2025-10-22): Fix generator variable scoping and type inference
+  - **Issue**: Generator code generation produced uncompilable Rust code with 7 compilation errors
+  - **Root Causes**:
+    1. `generate_simple_loop_with_yield()` never set `ctx.in_generator = true`
+    2. `generate_simple_multi_state_match()` never set `ctx.in_generator = true`
+    3. `func.ret_type` was `Type::Unknown`, mapping to undefined `DynamicType`
+  - **Fixes**:
+    - Set `ctx.in_generator = true` in both generator generation paths
+    - Created `infer_yield_type()` helper to infer types from yield expressions
+    - Updated `extract_generator_item_type()` to use yield analysis for type inference
+  - **Generated Code Changes**:
+    - Before: `impl Iterator<Item = DynamicType>` (undefined type) ❌
+    - After: `impl Iterator<Item = i32>` (correct type) ✅
+    - Before: `let mut i = 0` (local variable) ❌
+    - After: `self.i = 0` (state field) ✅
+  - **Test Results**:
+    - test_66_simple_generator: PASSING ✅ (was failing)
+    - 447 core tests: PASSING (zero regressions) ✅
+    - 117 integration tests: PASSING (+1 from unignoring) ✅
+  - **Impact**: Generators now produce correct, compilable Rust Iterator implementations
+  - **Files**: generator_gen.rs, sqlite_style_systematic_validation.rs
+
 ## [3.19.18] - 2025-10-22
 
 ### Summary

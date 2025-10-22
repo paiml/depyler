@@ -1086,7 +1086,6 @@ def test() -> int:
 // ============================================================================
 
 #[test]
-#[ignore] // Generators generate incorrect code - tracked for future enhancement
 fn test_66_simple_generator() {
     let python = r#"
 def count_up(n: int):
