@@ -36,6 +36,12 @@
 - v3.19.17: Quick Wins #1-2
 - v3.19.18: Quick Wins #3-4
 
+**Bugs Fixed**:
+- DEPYLER-0263: Generator variable scoping and type inference
+  - Issue: Generated uncompilable Rust with DynamicType and missing self. prefix
+  - Fix: Set ctx.in_generator flag in both generation paths + yield type inference
+  - Impact: test_66_simple_generator now passing (+1 integration test)
+
 ---
 
 ### ✅ v3.19.14-16 - Generator State Machine & Stdlib Coverage
