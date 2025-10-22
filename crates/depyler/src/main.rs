@@ -159,7 +159,9 @@ async fn handle_command(command: Commands) -> Result<()> {
             debugger,
             source,
             output,
-        } => debug_command(tips, gen_script, debugger, source, output),
+            spydecy,
+            visualize,
+        } => debug_command(tips, gen_script, debugger, source, output, spydecy, visualize),
         Commands::Docs {
             input,
             output,

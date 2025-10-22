@@ -46,6 +46,31 @@ pub fn generate_debugger_script(
     Ok(())
 }
 
+/// Launch interactive debugger with spydecy
+pub fn launch_spydecy_debugger(source_file: &Path, visualize: bool) -> Result<()> {
+    use std::process::Command;
+
+    println!("🐛 Launching spydecy interactive debugger...");
+    println!("   Source: {}", source_file.display());
+
+    let mut cmd = Command::new("spydecy");
+    cmd.arg("debug").arg(source_file);
+
+    if visualize {
+        cmd.arg("--visualize");
+        println!("   Visualization: enabled");
+    }
+
+    let status = cmd.status()?;
+
+    if status.success() {
+        println!("✅ Debugger session completed");
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("Debugger exited with error code: {:?}", status.code()))
+    }
+}
+
 /// Print debugging tips
 pub fn print_debugging_tips() {
     println!("🐛 Depyler Debugging Guide");
@@ -57,19 +82,23 @@ pub fn print_debugging_tips() {
     println!("2. Generate source map:");
     println!("   depyler transpile script.py --source-map");
     println!();
-    println!("3. Debug with GDB:");
+    println!("3. Interactive debugging with spydecy:");
+    println!("   depyler debug --spydecy script.py");
+    println!("   depyler debug --spydecy script.py --visualize");
+    println!();
+    println!("4. Debug with GDB:");
     println!("   rust-gdb target/debug/your_program");
     println!("   (gdb) source script.gdb");
     println!();
-    println!("4. Debug with LLDB:");
+    println!("5. Debug with LLDB:");
     println!("   rust-lldb target/debug/your_program");
     println!("   (lldb) command source script.lldb");
     println!();
-    println!("5. Set breakpoints:");
+    println!("6. Set breakpoints:");
     println!("   - In original Python function names");
     println!("   - Line numbers map to Rust code");
     println!();
-    println!("6. View variables:");
+    println!("7. View variables:");
     println!("   - Python variables retain their names");
     println!("   - Use 'info locals' (gdb) or 'frame variable' (lldb)");
 }

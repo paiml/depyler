@@ -222,6 +222,14 @@ pub enum Commands {
         /// Output script path
         #[arg(short, long)]
         output: Option<PathBuf>,
+
+        /// Use spydecy interactive debugger
+        #[arg(long)]
+        spydecy: Option<PathBuf>,
+
+        /// Enable visualization mode (spydecy only)
+        #[arg(long)]
+        visualize: bool,
     },
 
     /// Generate documentation from Python code
@@ -993,9 +1001,16 @@ pub fn debug_command(
     debugger: String,
     source: Option<PathBuf>,
     output: Option<PathBuf>,
+    spydecy: Option<PathBuf>,
+    visualize: bool,
 ) -> Result<()> {
     if tips {
         debug_cmd::print_debugging_tips();
+        return Ok(());
+    }
+
+    if let Some(source_file) = spydecy {
+        debug_cmd::launch_spydecy_debugger(&source_file, visualize)?;
         return Ok(());
     }
 
@@ -1011,6 +1026,7 @@ pub fn debug_command(
         )?;
     } else {
         println!("Use --tips for debugging guide or --gen-script to generate debugger scripts");
+        println!("Use --spydecy <file> for interactive debugging");
     }
 
     Ok(())
