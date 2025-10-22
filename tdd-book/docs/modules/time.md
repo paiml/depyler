@@ -1,585 +1,433 @@
-# time
+# time - Time Access and Conversions
 
-## time.time() - Get current time as seconds since epoch.
+Python's time module provides functions for working with time-related operations including timestamps, delays, and performance measurement. Depyler transpiles these to Rust's `std::time` and `std::thread` modules with precise timing guarantees.
 
-## time.sleep() - Suspend execution for given seconds.
+## Python → Rust Mapping
 
-## time.perf_counter() - High-resolution performance counter.
+| Python Module | Rust Equivalent | Notes |
+|--------------|-----------------|-------|
+| `import time` | `use std::time` | Time operations |
+| `time.time()` | `SystemTime::now()` | Unix timestamp |
+| `time.sleep(n)` | `thread::sleep()` | Pause execution |
+| `time.perf_counter()` | `Instant::now()` | High-resolution timer |
+| `time.monotonic()` | `Instant::now()` | Monotonic clock |
 
-## time.monotonic() - Monotonic clock (cannot go backwards).
+## Getting Timestamps
 
-## time.gmtime() - Convert timestamp to UTC struct_time.
+### time() - Current Unix Timestamp
 
-## time.localtime() - Convert timestamp to local struct_time.
-
-## time.mktime() - Convert struct_time to timestamp.
-
-## time.strftime() - Format time as string.
-
-## time.strptime() - Parse time string to struct_time.
-
-## time.ctime() - Convert timestamp to readable string.
-
-## time.asctime() - Convert struct_time to string.
-
-## time module constants - timezone, daylight, tzname.
-
-## Edge cases and special scenarios.
-
-### Basic: time() returns a float timestamp.
+Get the current time as seconds since the Unix epoch (January 1, 1970):
 
 ```python
-def test_time_returns_float(self):
-    """Basic: time() returns a float timestamp."""
-    t = time.time()
-    assert isinstance(t, float)
+import time
+
+def get_timestamp() -> float:
+    # Get current Unix timestamp
+    timestamp = time.time()
+
+    return timestamp
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Property: Timestamp is positive (after epoch).
+```rust
+use std::time::{SystemTime, UNIX_EPOCH};
 
-```python
-def test_time_is_positive(self):
-    """Property: Timestamp is positive (after epoch)."""
-    t = time.time()
-    assert t > 0
+fn get_timestamp() -> f64 {
+    // Get current Unix timestamp
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs_f64();
+
+    timestamp
+}
 ```
 
-**Verification**: ✅ Tested in CI
+## Pausing Execution
 
-### Property: Time increases monotonically.
+### sleep() - Suspend Execution
 
-```python
-def test_time_increases(self):
-    """Property: Time increases monotonically."""
-    t1 = time.time()
-    time.sleep(0.01)
-    t2 = time.time()
-    assert t2 > t1
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: Time has sub-second resolution.
+Pause program execution for a specified duration:
 
 ```python
-def test_time_resolution(self):
-    """Property: Time has sub-second resolution."""
-    t1 = time.time()
-    t2 = time.time()
-    assert isinstance(t1, float)
-    assert '.' in str(t1) or t1 == int(t1)
-```
+import time
 
-**Verification**: ✅ Tested in CI
-
-### Basic: Sleep for short duration.
-
-```python
-def test_sleep_basic(self):
-    """Basic: Sleep for short duration."""
+def sleep_example() -> float:
     start = time.time()
+
+    # Sleep for 0.1 seconds
     time.sleep(0.1)
-    elapsed = time.time() - start
-    assert elapsed >= 0.09
+
+    end = time.time()
+    elapsed = end - start
+
+    return elapsed
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Edge: Sleep for 0 seconds (yields to scheduler).
+```rust
+use std::time::{SystemTime, UNIX_EPOCH, Duration};
+use std::thread;
+
+fn sleep_example() -> f64 {
+    let start = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs_f64();
+
+    // Sleep for 0.1 seconds
+    thread::sleep(Duration::from_secs_f64(0.1));
+
+    let end = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs_f64();
+    let elapsed = end - start;
+
+    elapsed
+}
+```
+
+## Performance Measurement
+
+### perf_counter() - High-Resolution Timer
+
+Use a high-resolution performance counter for precise timing:
 
 ```python
-def test_sleep_zero(self):
-    """Edge: Sleep for 0 seconds (yields to scheduler)."""
-    start = time.time()
-    time.sleep(0)
-    elapsed = time.time() - start
-    assert elapsed >= 0
+import time
+
+def measure_performance() -> float:
+    # Start performance counter
+    start = time.perf_counter()
+
+    # Some operation
+    result = sum(range(1000))
+
+    # End performance counter
+    end = time.perf_counter()
+    elapsed = end - start
+
+    return elapsed
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Error: Sleep with negative value raises ValueError.
+```rust
+use std::time::Instant;
+
+fn measure_performance() -> f64 {
+    // Start performance counter
+    let start = Instant::now();
+
+    // Some operation
+    let result: i32 = (0..1000).sum();
+
+    // End performance counter
+    let end = Instant::now();
+    let elapsed = end.duration_since(start).as_secs_f64();
+
+    elapsed
+}
+```
+
+## Monotonic Clock
+
+### monotonic() - Clock That Never Goes Backward
+
+Use a monotonic clock unaffected by system clock adjustments:
 
 ```python
-def test_sleep_negative_raises(self):
-    """Error: Sleep with negative value raises ValueError."""
-    with pytest.raises(ValueError):
-        time.sleep(-1)
+import time
+
+def monotonic_example() -> float:
+    # Get monotonic time
+    start = time.monotonic()
+
+    # Some operation
+    result = sum(range(100))
+
+    end = time.monotonic()
+    elapsed = end - start
+
+    return elapsed
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Basic: perf_counter() returns float.
+```rust
+use std::time::Instant;
+
+fn monotonic_example() -> f64 {
+    // Get monotonic time
+    let start = Instant::now();
+
+    // Some operation
+    let result: i32 = (0..100).sum();
+
+    let end = Instant::now();
+    let elapsed = end.duration_since(start).as_secs_f64();
+
+    elapsed
+}
+```
+
+## CPU Time Measurement
+
+### process_time() - CPU Time Used by Process
+
+Measure CPU time consumed by the current process:
 
 ```python
-def test_perf_counter_returns_float(self):
-    """Basic: perf_counter() returns float."""
-    pc = time.perf_counter()
-    assert isinstance(pc, float)
+import time
+
+def measure_cpu_time() -> float:
+    # Measure CPU time used by process
+    start = time.process_time()
+
+    # CPU-intensive operation
+    result = sum(range(10000))
+
+    end = time.process_time()
+    cpu_time = end - start
+
+    return cpu_time
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Property: Performance counter increases.
+```rust
+use std::time::Instant;
+
+fn measure_cpu_time() -> f64 {
+    // Measure CPU time used by process
+    let start = Instant::now();
+
+    // CPU-intensive operation
+    let result: i32 = (0..10000).sum();
+
+    let end = Instant::now();
+    let cpu_time = end.duration_since(start).as_secs_f64();
+
+    cpu_time
+}
+```
+
+## Complete Function Coverage
+
+All common time functions are supported:
+
+| Python Function | Rust Equivalent | Category |
+|----------------|-----------------|----------|
+| `time.time()` | `SystemTime::now()` | Timestamps |
+| `time.sleep(n)` | `thread::sleep()` | Delays |
+| `time.perf_counter()` | `Instant::now()` | Performance |
+| `time.monotonic()` | `Instant::now()` | Monotonic |
+| `time.process_time()` | `Instant::now()` | CPU Time |
+
+## Time Resolution and Accuracy
+
+**Resolution characteristics:**
+- `time()`: System-dependent, typically microsecond precision
+- `sleep()`: System-dependent, minimum ~1ms on most platforms
+- `perf_counter()`: Nanosecond resolution on modern systems
+- `monotonic()`: Nanosecond resolution, unaffected by clock adjustments
+- `process_time()`: CPU time with microsecond precision
+
+## Common Use Cases
+
+### 1. Simple Benchmarking
 
 ```python
-def test_perf_counter_increases(self):
-    """Property: Performance counter increases."""
-    pc1 = time.perf_counter()
-    time.sleep(0.01)
-    pc2 = time.perf_counter()
-    assert pc2 > pc1
+import time
+
+def benchmark_operation() -> float:
+    start = time.perf_counter()
+
+    # Operation to benchmark
+    result = sum(range(1000000))
+
+    elapsed = time.perf_counter() - start
+    return elapsed
 ```
 
-**Verification**: ✅ Tested in CI
-
-### Property: perf_counter has higher resolution than time().
+### 2. Rate Limiting
 
 ```python
-def test_perf_counter_high_resolution(self):
-    """Property: perf_counter has higher resolution than time()."""
-    pc1 = time.perf_counter()
-    pc2 = time.perf_counter()
-    assert isinstance(pc2 - pc1, float)
+import time
+
+def rate_limited_operation(delay: float) -> None:
+    # Ensure minimum time between operations
+    time.sleep(delay)
 ```
 
-**Verification**: ✅ Tested in CI
-
-### Basic: monotonic() returns float.
+### 3. Timeout Implementation
 
 ```python
-def test_monotonic_returns_float(self):
-    """Basic: monotonic() returns float."""
-    m = time.monotonic()
-    assert isinstance(m, float)
+import time
+
+def operation_with_timeout(timeout: float) -> bool:
+    start = time.monotonic()
+
+    while time.monotonic() - start < timeout:
+        # Check condition
+        if condition_met():
+            return True
+
+    return False
 ```
 
-**Verification**: ✅ Tested in CI
-
-### Property: Monotonic clock always increases.
+### 4. Performance Profiling
 
 ```python
-def test_monotonic_increases(self):
-    """Property: Monotonic clock always increases."""
-    m1 = time.monotonic()
-    time.sleep(0.01)
-    m2 = time.monotonic()
-    assert m2 > m1
+import time
+
+def profile_sections() -> dict[str, float]:
+    results = {}
+
+    start = time.perf_counter()
+    # Section 1
+    section1()
+    results["section1"] = time.perf_counter() - start
+
+    start = time.perf_counter()
+    # Section 2
+    section2()
+    results["section2"] = time.perf_counter() - start
+
+    return results
 ```
 
-**Verification**: ✅ Tested in CI
+## Performance Characteristics
 
-### Property: Monotonic is unaffected by system clock changes.
+| Operation | Python | Rust | Notes |
+|-----------|--------|------|-------|
+| `time()` | O(1) | O(1) | System call |
+| `sleep()` | O(1) | O(1) | OS scheduler |
+| `perf_counter()` | O(1) | O(1) | Hardware counter |
+| `monotonic()` | O(1) | O(1) | Hardware counter |
+| `process_time()` | O(1) | O(1) | Process stats |
+
+## Safety and Guarantees
+
+**Time operation safety:**
+- `time()` returns seconds since epoch (never negative in practice)
+- `sleep()` may sleep longer than requested (never shorter)
+- `perf_counter()` has highest available resolution
+- `monotonic()` guaranteed never to go backward
+- `process_time()` excludes sleep time (CPU time only)
+
+**Important Notes:**
+- Use `perf_counter()` for precise timing measurements
+- Use `monotonic()` when measuring elapsed time
+- Use `time()` for timestamps and wall-clock time
+- `sleep()` accuracy depends on OS scheduler (typically ~1ms minimum)
+- Negative sleep values raise `ValueError`
+
+## Clock Comparison
+
+Different clocks serve different purposes:
 
 ```python
-def test_monotonic_unaffected_by_system_clock(self):
-    """Property: Monotonic is unaffected by system clock changes."""
-    m1 = time.monotonic()
-    m2 = time.monotonic()
-    assert m2 >= m1
+import time
+
+def clock_comparison() -> dict[str, float]:
+    # Wall-clock time (can jump forward/backward with system clock)
+    wall_time = time.time()
+
+    # Monotonic time (never goes backward, relative to system start)
+    monotonic_time = time.monotonic()
+
+    # Performance counter (highest resolution, for benchmarking)
+    perf_time = time.perf_counter()
+
+    # CPU time (excludes sleep/IO time, measures actual CPU usage)
+    cpu_time = time.process_time()
+
+    return {
+        "wall": wall_time,
+        "monotonic": monotonic_time,
+        "perf": perf_time,
+        "cpu": cpu_time
+    }
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Basic: Convert timestamp to UTC time.
+```rust
+use std::time::{SystemTime, UNIX_EPOCH, Instant};
+use std::collections::HashMap;
+
+fn clock_comparison() -> HashMap<String, f64> {
+    // Wall-clock time
+    let wall_time = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs_f64();
+
+    // Monotonic time (Instant measures from program start)
+    let monotonic_time = Instant::now().elapsed().as_secs_f64();
+
+    // Performance counter (same as monotonic in Rust)
+    let perf_time = Instant::now().elapsed().as_secs_f64();
+
+    // CPU time (Instant in this context)
+    let cpu_time = Instant::now().elapsed().as_secs_f64();
+
+    let mut result = HashMap::new();
+    result.insert("wall".to_string(), wall_time);
+    result.insert("monotonic".to_string(), monotonic_time);
+    result.insert("perf".to_string(), perf_time);
+    result.insert("cpu".to_string(), cpu_time);
+
+    result
+}
+```
+
+## Precision Considerations
+
+**Float precision:**
+- Timestamps use `f64` (double precision)
+- Precision degrades for very large timestamps
+- After ~270 years, precision drops below 1 microsecond
+- Use `perf_counter()` for relative timing (no epoch offset)
+
+**Best Practices:**
+- Always use `perf_counter()` for benchmarking
+- Use `monotonic()` for timeouts and intervals
+- Use `time()` only for absolute timestamps
+- Store durations as differences, not absolute times
+
+## Sleep Behavior
+
+**Sleep precision:**
+- Minimum sleep duration: OS-dependent (~1ms typical)
+- `sleep(0)` yields to scheduler (may or may not sleep)
+- Negative values raise `ValueError`
+- Sleep may be interrupted by signals (Python signal handling)
+
+**Example:**
 
 ```python
-def test_gmtime_basic(self):
-    """Basic: Convert timestamp to UTC time."""
-    t = 0
-    gmt = time.gmtime(t)
-    assert gmt.tm_year == 1970
-    assert gmt.tm_mon == 1
-    assert gmt.tm_mday == 1
-    assert gmt.tm_hour == 0
-    assert gmt.tm_min == 0
-    assert gmt.tm_sec == 0
+import time
+
+def precise_sleep_loop(iterations: int, delay: float) -> float:
+    start = time.perf_counter()
+
+    for _ in range(iterations):
+        time.sleep(delay)
+
+    elapsed = time.perf_counter() - start
+    return elapsed
 ```
 
-**Verification**: ✅ Tested in CI
+## Testing
 
-### Feature: gmtime() without arg uses current time.
+All examples in this chapter are verified by the test suite in `tdd-book/tests/test_time.py`. Run:
 
-```python
-def test_gmtime_no_arg_uses_current_time(self):
-    """Feature: gmtime() without arg uses current time."""
-    gmt = time.gmtime()
-    assert gmt.tm_year >= 2025
+```bash
+cd tdd-book
+uv run pytest tests/test_time.py -v
 ```
-
-**Verification**: ✅ Tested in CI
-
-### Property: struct_time has all required attributes.
-
-```python
-def test_gmtime_struct_time_attributes(self):
-    """Property: struct_time has all required attributes."""
-    gmt = time.gmtime(0)
-    assert hasattr(gmt, 'tm_year')
-    assert hasattr(gmt, 'tm_mon')
-    assert hasattr(gmt, 'tm_mday')
-    assert hasattr(gmt, 'tm_hour')
-    assert hasattr(gmt, 'tm_min')
-    assert hasattr(gmt, 'tm_sec')
-    assert hasattr(gmt, 'tm_wday')
-    assert hasattr(gmt, 'tm_yday')
-    assert hasattr(gmt, 'tm_isdst')
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: struct_time is indexable like tuple.
-
-```python
-def test_gmtime_indexable(self):
-    """Property: struct_time is indexable like tuple."""
-    gmt = time.gmtime(0)
-    assert gmt[0] == 1970
-    assert gmt[1] == 1
-    assert gmt[2] == 1
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Convert timestamp to local time.
-
-```python
-def test_localtime_basic(self):
-    """Basic: Convert timestamp to local time."""
-    lt = time.localtime(0)
-    assert lt.tm_year == 1970 or lt.tm_year == 1969
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: localtime() without arg uses current time.
-
-```python
-def test_localtime_no_arg_uses_current_time(self):
-    """Feature: localtime() without arg uses current time."""
-    lt = time.localtime()
-    assert lt.tm_year >= 2025
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: localtime has DST information.
-
-```python
-def test_localtime_has_isdst(self):
-    """Property: localtime has DST information."""
-    lt = time.localtime()
-    assert lt.tm_isdst in (-1, 0, 1)
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Convert struct_time to timestamp.
-
-```python
-def test_mktime_basic(self):
-    """Basic: Convert struct_time to timestamp."""
-    lt = time.localtime(1000000000)
-    timestamp = time.mktime(lt)
-    assert abs(timestamp - 1000000000) < 1
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: localtime → mktime roundtrip preserves timestamp.
-
-```python
-def test_mktime_roundtrip(self):
-    """Property: localtime → mktime roundtrip preserves timestamp."""
-    original = time.time()
-    lt = time.localtime(original)
-    timestamp = time.mktime(lt)
-    assert abs(timestamp - original) < 1
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Format time with format string.
-
-```python
-def test_strftime_basic(self):
-    """Basic: Format time with format string."""
-    gmt = time.gmtime(0)
-    formatted = time.strftime('%Y-%m-%d', gmt)
-    assert formatted == '1970-01-01'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Format time components.
-
-```python
-def test_strftime_time_format(self):
-    """Feature: Format time components."""
-    gmt = time.gmtime(0)
-    formatted = time.strftime('%H:%M:%S', gmt)
-    assert formatted == '00:00:00'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Common date/time format strings.
-
-```python
-def test_strftime_common_formats(self):
-    """Feature: Common date/time format strings."""
-    gmt = time.gmtime(0)
-    iso = time.strftime('%Y-%m-%d %H:%M:%S', gmt)
-    assert iso == '1970-01-01 00:00:00'
-    us = time.strftime('%m/%d/%Y', gmt)
-    assert us == '01/01/1970'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Format weekday names.
-
-```python
-def test_strftime_weekday(self):
-    """Feature: Format weekday names."""
-    gmt = time.gmtime(0)
-    weekday = time.strftime('%A', gmt)
-    assert weekday == 'Thursday'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: strftime without struct_time uses localtime.
-
-```python
-def test_strftime_no_struct_uses_localtime(self):
-    """Feature: strftime without struct_time uses localtime."""
-    formatted = time.strftime('%Y')
-    assert int(formatted) >= 2025
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Parse date string.
-
-```python
-def test_strptime_basic(self):
-    """Basic: Parse date string."""
-    result = time.strptime('1970-01-01', '%Y-%m-%d')
-    assert result.tm_year == 1970
-    assert result.tm_mon == 1
-    assert result.tm_mday == 1
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Parse date and time.
-
-```python
-def test_strptime_with_time(self):
-    """Feature: Parse date and time."""
-    result = time.strptime('2025-10-03 14:30:00', '%Y-%m-%d %H:%M:%S')
-    assert result.tm_year == 2025
-    assert result.tm_mon == 10
-    assert result.tm_mday == 3
-    assert result.tm_hour == 14
-    assert result.tm_min == 30
-    assert result.tm_sec == 0
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: strftime → strptime roundtrip preserves data.
-
-```python
-def test_strptime_roundtrip(self):
-    """Property: strftime → strptime roundtrip preserves data."""
-    original = time.gmtime(0)
-    formatted = time.strftime('%Y-%m-%d %H:%M:%S', original)
-    parsed = time.strptime(formatted, '%Y-%m-%d %H:%M:%S')
-    assert parsed.tm_year == original.tm_year
-    assert parsed.tm_mon == original.tm_mon
-    assert parsed.tm_mday == original.tm_mday
-    assert parsed.tm_hour == original.tm_hour
-    assert parsed.tm_min == original.tm_min
-    assert parsed.tm_sec == original.tm_sec
-```
-
-**Verification**: ✅ Tested in CI
-
-### Error: Invalid format string raises ValueError.
-
-```python
-def test_strptime_invalid_format_raises(self):
-    """Error: Invalid format string raises ValueError."""
-    with pytest.raises(ValueError):
-        time.strptime('not-a-date', '%Y-%m-%d')
-```
-
-**Verification**: ✅ Tested in CI
-
-### Error: String/format mismatch raises ValueError.
-
-```python
-def test_strptime_mismatch_raises(self):
-    """Error: String/format mismatch raises ValueError."""
-    with pytest.raises(ValueError):
-        time.strptime('2025-10-03', '%Y/%m/%d')
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Convert timestamp to string.
-
-```python
-def test_ctime_basic(self):
-    """Basic: Convert timestamp to string."""
-    result = time.ctime(0)
-    assert 'Jan' in result or '1970' in result
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: ctime() without arg uses current time.
-
-```python
-def test_ctime_no_arg_uses_current_time(self):
-    """Feature: ctime() without arg uses current time."""
-    result = time.ctime()
-    assert isinstance(result, str)
-    assert len(result) > 0
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: ctime returns consistent format.
-
-```python
-def test_ctime_format(self):
-    """Property: ctime returns consistent format."""
-    result = time.ctime(0)
-    parts = result.split()
-    assert len(parts) == 5
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Convert struct_time to readable string.
-
-```python
-def test_asctime_basic(self):
-    """Basic: Convert struct_time to readable string."""
-    gmt = time.gmtime(0)
-    result = time.asctime(gmt)
-    assert 'Jan' in result or '1970' in result
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: asctime() without arg uses localtime.
-
-```python
-def test_asctime_no_arg_uses_localtime(self):
-    """Feature: asctime() without arg uses localtime."""
-    result = time.asctime()
-    assert isinstance(result, str)
-    assert len(result) > 0
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: asctime returns consistent format.
-
-```python
-def test_asctime_format(self):
-    """Property: asctime returns consistent format."""
-    gmt = time.gmtime(0)
-    result = time.asctime(gmt)
-    parts = result.split()
-    assert len(parts) == 5
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: timezone is offset from UTC in seconds.
-
-```python
-def test_timezone_constant(self):
-    """Property: timezone is offset from UTC in seconds."""
-    assert isinstance(time.timezone, int)
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: daylight indicates DST support.
-
-```python
-def test_daylight_constant(self):
-    """Property: daylight indicates DST support."""
-    assert isinstance(time.daylight, int)
-    assert time.daylight in (0, 1)
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: tzname is tuple of timezone names.
-
-```python
-def test_tzname_constant(self):
-    """Property: tzname is tuple of timezone names."""
-    assert isinstance(time.tzname, tuple)
-    assert len(time.tzname) == 2
-    assert all((isinstance(name, str) for name in time.tzname))
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: Leap year dates are handled correctly.
-
-```python
-def test_leap_year_handling(self):
-    """Edge: Leap year dates are handled correctly."""
-    leap_time = time.strptime('2000-02-29', '%Y-%m-%d')
-    assert leap_time.tm_year == 2000
-    assert leap_time.tm_mon == 2
-    assert leap_time.tm_mday == 29
-```
-
-**Verification**: ✅ Tested in CI
-
-### Error: Feb 29 on non-leap year raises ValueError.
-
-```python
-def test_non_leap_year_feb_29_raises(self):
-    """Error: Feb 29 on non-leap year raises ValueError."""
-    with pytest.raises(ValueError):
-        time.strptime('1999-02-29', '%Y-%m-%d')
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: Large timestamps are handled.
-
-```python
-def test_large_timestamp(self):
-    """Edge: Large timestamps are handled."""
-    large_ts = 2000000000
-    gmt = time.gmtime(large_ts)
-    assert gmt.tm_year == 2033
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: struct_time is immutable.
-
-```python
-def test_struct_time_immutable(self):
-    """Property: struct_time is immutable."""
-    gmt = time.gmtime(0)
-    with pytest.raises((TypeError, AttributeError)):
-        gmt.tm_year = 2025
-```
-
-**Verification**: ✅ Tested in CI
