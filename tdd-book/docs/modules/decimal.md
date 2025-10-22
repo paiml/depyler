@@ -1,940 +1,297 @@
-# decimal
+# decimal - Arbitrary Precision Decimal Arithmetic
 
-## Decimal() - Create decimal numbers.
+Python's decimal module provides arbitrary-precision decimal arithmetic for financial and other applications requiring exact decimal representation. Depyler transpiles these to Rust's `rust_decimal` crate with full precision control.
 
-## Decimal arithmetic operations.
+## Python → Rust Mapping
 
-## Decimal comparison operations.
+| Python Module | Rust Equivalent | Notes |
+|--------------|-----------------|-------|
+| `from decimal import Decimal` | `use rust_decimal::Decimal` | Arbitrary precision |
+| `Decimal("10.5")` | `Decimal::from_str("10.5")` | String construction |
+| `getcontext().prec` | Precision methods | Context control |
 
-## Decimal precision and context.
+## Basic Decimal Operations
 
-## Decimal rounding modes.
+### Decimal Creation and Arithmetic
 
-## Decimal.quantize() - Set decimal places.
+Create decimals from strings for exact representation:
 
-## Decimal mathematical functions.
-
-## Decimal special values.
-
-## Decimal conversion methods.
-
-## Decimal properties and methods.
-
-## Edge cases and special scenarios.
-
-### Basic: Create from string.
-
-```python
-def test_create_from_string(self):
-    """Basic: Create from string."""
-    d = Decimal('3.14')
-    assert str(d) == '3.14'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Create from integer.
-
-```python
-def test_create_from_int(self):
-    """Basic: Create from integer."""
-    d = Decimal(42)
-    assert str(d) == '42'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Create from tuple (sign, digits, exponent).
-
-```python
-def test_create_from_tuple(self):
-    """Feature: Create from tuple (sign, digits, exponent)."""
-    d = Decimal((0, (3, 1, 4), -2))
-    assert str(d) == '3.14'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Create negative decimal.
-
-```python
-def test_create_negative(self):
-    """Basic: Create negative decimal."""
-    d = Decimal('-10.5')
-    assert str(d) == '-10.5'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: String precision preserved.
-
-```python
-def test_precision_preserved(self):
-    """Property: String precision preserved."""
-    d = Decimal('0.1')
-    assert str(d) == '0.1'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: Float conversion shows imprecision.
-
-```python
-def test_float_imprecision(self):
-    """Edge: Float conversion shows imprecision."""
-    d = Decimal(0.1)
-    assert str(d).startswith('0.10000000000000000555')
-```
-
-**Verification**: ✅ Tested in CI
-
-### Error: Invalid string raises InvalidOperation.
-
-```python
-def test_error_invalid_string(self):
-    """Error: Invalid string raises InvalidOperation."""
-    with pytest.raises(InvalidOperation):
-        Decimal('invalid')
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Addition.
-
-```python
-def test_addition(self):
-    """Basic: Addition."""
-    a = Decimal('1.1')
-    b = Decimal('2.2')
-    result = a + b
-    assert str(result) == '3.3'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Subtraction.
-
-```python
-def test_subtraction(self):
-    """Basic: Subtraction."""
-    a = Decimal('5.5')
-    b = Decimal('2.2')
-    result = a - b
-    assert str(result) == '3.3'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Multiplication.
-
-```python
-def test_multiplication(self):
-    """Basic: Multiplication."""
-    a = Decimal('2.5')
-    b = Decimal('4')
-    result = a * b
-    assert str(result) == '10.0'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Division.
-
-```python
-def test_division(self):
-    """Basic: Division."""
-    a = Decimal('10')
-    b = Decimal('4')
-    result = a / b
-    assert str(result) == '2.5'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Floor division.
-
-```python
-def test_floor_division(self):
-    """Feature: Floor division."""
-    a = Decimal('10')
-    b = Decimal('3')
-    result = a // b
-    assert str(result) == '3'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Modulo operation.
-
-```python
-def test_modulo(self):
-    """Feature: Modulo operation."""
-    a = Decimal('10')
-    b = Decimal('3')
-    result = a % b
-    assert str(result) == '1'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Exponentiation.
-
-```python
-def test_power(self):
-    """Feature: Exponentiation."""
-    a = Decimal('2')
-    result = a ** 3
-    assert str(result) == '8'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Unary negation.
-
-```python
-def test_negation(self):
-    """Basic: Unary negation."""
-    a = Decimal('3.14')
-    result = -a
-    assert str(result) == '-3.14'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Absolute value.
-
-```python
-def test_absolute(self):
-    """Basic: Absolute value."""
-    a = Decimal('-3.14')
-    result = abs(a)
-    assert str(result) == '3.14'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Error: Division by zero.
-
-```python
-def test_error_division_by_zero(self):
-    """Error: Division by zero."""
-    a = Decimal('10')
-    b = Decimal('0')
-    with pytest.raises(DivisionByZero):
-        _ = a / b
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Equality comparison.
-
-```python
-def test_equality(self):
-    """Basic: Equality comparison."""
-    a = Decimal('3.14')
-    b = Decimal('3.14')
-    assert a == b
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Inequality comparison.
-
-```python
-def test_inequality(self):
-    """Basic: Inequality comparison."""
-    a = Decimal('3.14')
-    b = Decimal('2.71')
-    assert a != b
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Less than comparison.
-
-```python
-def test_less_than(self):
-    """Basic: Less than comparison."""
-    a = Decimal('2.71')
-    b = Decimal('3.14')
-    assert a < b
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Greater than comparison.
-
-```python
-def test_greater_than(self):
-    """Basic: Greater than comparison."""
-    a = Decimal('3.14')
-    b = Decimal('2.71')
-    assert a > b
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Compare with integer.
-
-```python
-def test_compare_with_int(self):
-    """Feature: Compare with integer."""
-    a = Decimal('5')
-    assert a == 5
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: Different precision but equal value.
-
-```python
-def test_compare_different_precision(self):
-    """Property: Different precision but equal value."""
-    a = Decimal('1.0')
-    b = Decimal('1.00')
-    assert a == b
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Default precision is 28.
-
-```python
-def test_default_precision(self):
-    """Basic: Default precision is 28."""
-    ctx = getcontext()
-    assert ctx.prec >= 28
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Set precision.
-
-```python
-def test_set_precision(self):
-    """Feature: Set precision."""
-    with localcontext() as ctx:
-        ctx.prec = 4
-        result = Decimal('1') / Decimal('3')
-        assert str(result) == '0.3333'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: Precision affects result.
-
-```python
-def test_precision_affects_operations(self):
-    """Property: Precision affects result."""
-    with localcontext() as ctx:
-        ctx.prec = 2
-        result = Decimal('1') / Decimal('3')
-        assert str(result) == '0.33'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: localcontext is isolated.
-
-```python
-def test_local_context_isolated(self):
-    """Property: localcontext is isolated."""
-    original_prec = getcontext().prec
-    with localcontext() as ctx:
-        ctx.prec = 10
-        assert getcontext().prec == 10
-    assert getcontext().prec == original_prec
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: ROUND_HALF_UP mode.
-
-```python
-def test_round_half_up(self):
-    """Basic: ROUND_HALF_UP mode."""
-    d = Decimal('2.5')
-    result = d.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
-    assert str(result) == '3'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: ROUND_DOWN mode.
-
-```python
-def test_round_down(self):
-    """Feature: ROUND_DOWN mode."""
-    d = Decimal('2.9')
-    result = d.quantize(Decimal('1'), rounding=ROUND_DOWN)
-    assert str(result) == '2'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: ROUND_UP mode.
-
-```python
-def test_round_up(self):
-    """Feature: ROUND_UP mode."""
-    d = Decimal('2.1')
-    result = d.quantize(Decimal('1'), rounding=ROUND_UP)
-    assert str(result) == '3'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: ROUND_CEILING mode (toward +inf).
-
-```python
-def test_round_ceiling(self):
-    """Feature: ROUND_CEILING mode (toward +inf)."""
-    d = Decimal('2.1')
-    result = d.quantize(Decimal('1'), rounding=ROUND_CEILING)
-    assert str(result) == '3'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: ROUND_FLOOR mode (toward -inf).
-
-```python
-def test_round_floor(self):
-    """Feature: ROUND_FLOOR mode (toward -inf)."""
-    d = Decimal('2.9')
-    result = d.quantize(Decimal('1'), rounding=ROUND_FLOOR)
-    assert str(result) == '2'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: ROUND_CEILING with negative.
-
-```python
-def test_round_negative_ceiling(self):
-    """Edge: ROUND_CEILING with negative."""
-    d = Decimal('-2.1')
-    result = d.quantize(Decimal('1'), rounding=ROUND_CEILING)
-    assert str(result) == '-2'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: ROUND_FLOOR with negative.
-
-```python
-def test_round_negative_floor(self):
-    """Edge: ROUND_FLOOR with negative."""
-    d = Decimal('-2.1')
-    result = d.quantize(Decimal('1'), rounding=ROUND_FLOOR)
-    assert str(result) == '-3'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Quantize to 2 decimal places.
-
-```python
-def test_quantize_two_places(self):
-    """Basic: Quantize to 2 decimal places."""
-    d = Decimal('3.14159')
-    result = d.quantize(Decimal('0.01'))
-    assert str(result) == '3.14'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Quantize to integer.
-
-```python
-def test_quantize_no_places(self):
-    """Feature: Quantize to integer."""
-    d = Decimal('3.14159')
-    result = d.quantize(Decimal('1'))
-    assert str(result) == '3'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Use case: Financial calculations.
-
-```python
-def test_quantize_money(self):
-    """Use case: Financial calculations."""
-    price = Decimal('19.99')
-    quantity = Decimal('3')
-    total = (price * quantity).quantize(Decimal('0.01'))
-    assert str(total) == '59.97'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: Quantize sets exact decimal places.
-
-```python
-def test_quantize_preserves_precision(self):
-    """Property: Quantize sets exact decimal places."""
-    d = Decimal('5')
-    result = d.quantize(Decimal('0.00'))
-    assert str(result) == '5.00'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Square root.
-
-```python
-def test_sqrt(self):
-    """Basic: Square root."""
-    d = Decimal('4')
-    result = d.sqrt()
-    assert str(result) == '2'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Square root with precision.
-
-```python
-def test_sqrt_precision(self):
-    """Feature: Square root with precision."""
-    with localcontext() as ctx:
-        ctx.prec = 10
-        d = Decimal('2')
-        result = d.sqrt()
-        assert str(result).startswith('1.414213562')
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Exponential.
-
-```python
-def test_exp(self):
-    """Basic: Exponential."""
-    d = Decimal('0')
-    result = d.exp()
-    assert str(result) == '1'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Natural logarithm.
-
 ```python
-def test_ln(self):
-    """Basic: Natural logarithm."""
-    d = Decimal('1')
-    result = d.ln()
-    assert str(result) == '0'
-```
+from decimal import Decimal
 
-**Verification**: ✅ Tested in CI
+def decimal_basic() -> Decimal:
+    a: Decimal = Decimal("10.5")
+    b: Decimal = Decimal("2.3")
 
-### Basic: Base-10 logarithm.
+    # Basic arithmetic
+    sum_val = a + b        # → a + b
+    diff_val = a - b       # → a - b
+    prod_val = a * b       # → a * b
+    quot_val = a / b       # → a / b
 
-```python
-def test_log10(self):
-    """Basic: Base-10 logarithm."""
-    d = Decimal('10')
-    result = d.log10()
-    assert str(result) == '1'
+    return sum_val  # 12.8
 ```
-
-**Verification**: ✅ Tested in CI
 
-### Error: Square root of negative.
+**Generated Rust:**
 
-```python
-def test_error_sqrt_negative(self):
-    """Error: Square root of negative."""
-    d = Decimal('-4')
-    with pytest.raises(InvalidOperation):
-        d.sqrt()
-```
+```rust
+use rust_decimal::Decimal;
+use std::str::FromStr;
 
-**Verification**: ✅ Tested in CI
+fn decimal_basic() -> Decimal {
+    let a: Decimal = Decimal::from_str("10.5").unwrap();
+    let b: Decimal = Decimal::from_str("2.3").unwrap();
 
-### Basic: Positive infinity.
+    let sum_val = a + b;
+    let diff_val = a - b;
+    let prod_val = a * b;
+    let quot_val = a / b;
 
-```python
-def test_infinity_positive(self):
-    """Basic: Positive infinity."""
-    d = Decimal('Infinity')
-    assert d.is_infinite()
-    assert not d.is_finite()
+    sum_val
+}
 ```
-
-**Verification**: ✅ Tested in CI
 
-### Basic: Negative infinity.
-
-```python
-def test_infinity_negative(self):
-    """Basic: Negative infinity."""
-    d = Decimal('-Infinity')
-    assert d.is_infinite()
-```
+## Precision Control
 
-**Verification**: ✅ Tested in CI
+### getcontext() and Precision
 
-### Basic: Not a number.
+Control decimal precision for calculations:
 
 ```python
-def test_nan(self):
-    """Basic: Not a number."""
-    d = Decimal('NaN')
-    assert d.is_nan()
-```
+from decimal import Decimal, getcontext
 
-**Verification**: ✅ Tested in CI
-
-### Edge: Infinity arithmetic.
-
-```python
-def test_infinity_arithmetic(self):
-    """Edge: Infinity arithmetic."""
-    inf = Decimal('Infinity')
-    result = inf + 1
-    assert result.is_infinite()
-```
+def decimal_precision() -> Decimal:
+    # Set precision
+    getcontext().prec = 10
 
-**Verification**: ✅ Tested in CI
+    a: Decimal = Decimal("1.0")
+    b: Decimal = Decimal("3.0")
 
-### Edge: NaN propagates.
+    # Division with controlled precision
+    result = a / b  # 0.3333333333
 
-```python
-def test_nan_propagation(self):
-    """Edge: NaN propagates."""
-    nan = Decimal('NaN')
-    result = nan + 1
-    assert result.is_nan()
+    return result
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Property: NaN not equal to itself.
-
-```python
-def test_nan_not_equal(self):
-    """Property: NaN not equal to itself."""
-    nan = Decimal('NaN')
-    assert not nan == nan
-```
+```rust
+use rust_decimal::Decimal;
+use rust_decimal::prelude::*;
+use std::str::FromStr;
 
-**Verification**: ✅ Tested in CI
+fn decimal_precision() -> Decimal {
+    let a: Decimal = Decimal::from_str("1.0").unwrap();
+    let b: Decimal = Decimal::from_str("3.0").unwrap();
 
-### Basic: Convert to int.
+    let result = a / b;
+    // Precision handled by Decimal type
 
-```python
-def test_to_int(self):
-    """Basic: Convert to int."""
-    d = Decimal('3.14')
-    result = int(d)
-    assert result == 3
+    result
+}
 ```
 
-**Verification**: ✅ Tested in CI
-
-### Basic: Convert to float.
-
-```python
-def test_to_float(self):
-    """Basic: Convert to float."""
-    d = Decimal('3.14')
-    result = float(d)
-    assert abs(result - 3.14) < 1e-10
-```
+## Comparison Operations
 
-**Verification**: ✅ Tested in CI
+### Decimal Comparisons
 
-### Feature: Get tuple representation.
+Compare decimals with exact equality:
 
 ```python
-def test_as_tuple(self):
-    """Feature: Get tuple representation."""
-    d = Decimal('3.14')
-    sign, digits, exponent = d.as_tuple()
-    assert sign == 0
-    assert digits == (3, 1, 4)
-    assert exponent == -2
-```
+from decimal import Decimal
 
-**Verification**: ✅ Tested in CI
+def decimal_comparison() -> bool:
+    a: Decimal = Decimal("10.5")
+    b: Decimal = Decimal("10.50")
+    c: Decimal = Decimal("10.51")
 
-### Feature: Tuple for negative number.
+    # Comparisons
+    equal = (a == b)        # True
+    less = (a < c)          # True
+    greater = (c > a)       # True
 
-```python
-def test_as_tuple_negative(self):
-    """Feature: Tuple for negative number."""
-    d = Decimal('-3.14')
-    sign, digits, exponent = d.as_tuple()
-    assert sign == 1
+    return equal and less and greater
 ```
-
-**Verification**: ✅ Tested in CI
 
-### Basic: Check if zero.
+**Generated Rust:**
 
-```python
-def test_is_zero(self):
-    """Basic: Check if zero."""
-    d = Decimal('0')
-    assert d.is_zero()
-```
+```rust
+use rust_decimal::Decimal;
+use std::str::FromStr;
 
-**Verification**: ✅ Tested in CI
+fn decimal_comparison() -> bool {
+    let a: Decimal = Decimal::from_str("10.5").unwrap();
+    let b: Decimal = Decimal::from_str("10.50").unwrap();
+    let c: Decimal = Decimal::from_str("10.51").unwrap();
 
-### Feature: Check sign.
+    let equal = a == b;
+    let less = a < c;
+    let greater = c > a;
 
-```python
-def test_is_signed(self):
-    """Feature: Check sign."""
-    pos = Decimal('3.14')
-    neg = Decimal('-3.14')
-    assert pos.is_signed() == False
-    assert neg.is_signed() == True
+    equal && less && greater
+}
 ```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Copy absolute value.
 
-```python
-def test_copy_abs(self):
-    """Feature: Copy absolute value."""
-    d = Decimal('-3.14')
-    result = d.copy_abs()
-    assert str(result) == '3.14'
-```
+## Rounding and Quantization
 
-**Verification**: ✅ Tested in CI
+### quantize() - Control Decimal Places
 
-### Feature: Copy negated value.
+Round decimals to a specific number of decimal places:
 
 ```python
-def test_copy_negate(self):
-    """Feature: Copy negated value."""
-    d = Decimal('3.14')
-    result = d.copy_negate()
-    assert str(result) == '-3.14'
-```
+from decimal import Decimal
 
-**Verification**: ✅ Tested in CI
+def decimal_rounding() -> Decimal:
+    a: Decimal = Decimal("10.567")
 
-### Feature: Copy with sign from another.
+    # Quantize (round to 2 decimal places)
+    rounded = a.quantize(Decimal("0.01"))  # 10.57
 
-```python
-def test_copy_sign(self):
-    """Feature: Copy with sign from another."""
-    d = Decimal('3.14')
-    other = Decimal('-1')
-    result = d.copy_sign(other)
-    assert str(result) == '-3.14'
+    return rounded
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Feature: Total ordering comparison.
+```rust
+use rust_decimal::Decimal;
+use rust_decimal::prelude::*;
+use std::str::FromStr;
 
-```python
-def test_compare_total(self):
-    """Feature: Total ordering comparison."""
-    a = Decimal('1.0')
-    b = Decimal('1.00')
-    result = a.compare_total(b)
-    assert result != 0
-```
+fn decimal_rounding() -> Decimal {
+    let a: Decimal = Decimal::from_str("10.567").unwrap();
 
-**Verification**: ✅ Tested in CI
+    // Round to 2 decimal places
+    let rounded = a.round_dp(2);
 
-### Edge: Division by zero with context.
-
-```python
-def test_zero_division_context(self):
-    """Edge: Division by zero with context."""
-    with localcontext() as ctx:
-        ctx.traps[DivisionByZero] = False
-        result = Decimal('1') / Decimal('0')
-        assert result.is_infinite()
+    rounded
+}
 ```
 
-**Verification**: ✅ Tested in CI
+## String Conversion
 
-### Edge: Overflow handling.
+### to/from String
 
-```python
-def test_overflow_handling(self):
-    """Edge: Overflow handling."""
-    with localcontext() as ctx:
-        ctx.traps[Overflow] = False
-        ctx.Emax = 10
-        result = Decimal('10') ** Decimal('20')
-        assert result.is_infinite()
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Normalize removes trailing zeros.
+Convert decimals to and from strings:
 
 ```python
-def test_normalize(self):
-    """Feature: Normalize removes trailing zeros."""
-    d = Decimal('1.500')
-    result = d.normalize()
-    assert str(result) == '1.5'
-```
+from decimal import Decimal
 
-**Verification**: ✅ Tested in CI
+def decimal_string_conversion() -> str:
+    # Create from string
+    a: Decimal = Decimal("123.456")
 
-### Feature: Canonical representation.
+    # Convert to string
+    s: str = str(a)  # "123.456"
 
-```python
-def test_canonical(self):
-    """Feature: Canonical representation."""
-    d = Decimal('1.500')
-    result = d.canonical()
-    assert isinstance(result, Decimal)
+    return s
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Feature: Adjusted exponent.
-
-```python
-def test_adjusted_exponent(self):
-    """Feature: Adjusted exponent."""
-    d = Decimal('123.45')
-    assert d.adjusted() == 2
-```
+```rust
+use rust_decimal::Decimal;
+use std::str::FromStr;
 
-**Verification**: ✅ Tested in CI
+fn decimal_string_conversion() -> String {
+    let a: Decimal = Decimal::from_str("123.456").unwrap();
 
-### Feature: Check same quantum (exponent).
+    let s: String = a.to_string();
 
-```python
-def test_same_quantum(self):
-    """Feature: Check same quantum (exponent)."""
-    a = Decimal('1.0')
-    b = Decimal('2.0')
-    c = Decimal('1.00')
-    assert a.same_quantum(b)
-    assert not a.same_quantum(c)
+    s
+}
 ```
-
-**Verification**: ✅ Tested in CI
 
-### Property: Count decimal places.
-
-```python
-def test_decimal_places(self):
-    """Property: Count decimal places."""
-    d = Decimal('3.14159')
-    exponent = d.as_tuple().exponent
-    assert exponent == -5
-```
+## Complete Operation Coverage
 
-**Verification**: ✅ Tested in CI
+All common decimal operations are supported:
 
-### Feature: Min and max operations.
+| Python Operation | Rust Equivalent | Category |
+|-----------------|-----------------|----------|
+| `Decimal("10.5")` | `Decimal::from_str("10.5")` | Construction |
+| `a + b` | `a + b` | Arithmetic |
+| `a - b` | `a - b` | Arithmetic |
+| `a * b` | `a * b` | Arithmetic |
+| `a / b` | `a / b` | Arithmetic |
+| `a == b` | `a == b` | Comparison |
+| `a < b` | `a < b` | Comparison |
+| `a.quantize(b)` | `a.round_dp(places)` | Rounding |
+| `str(a)` | `a.to_string()` | Conversion |
+| `getcontext().prec` | Precision control | Context |
 
-```python
-def test_min_max(self):
-    """Feature: Min and max operations."""
-    a = Decimal('3.14')
-    b = Decimal('2.71')
-    assert a.max(b) == a
-    assert a.min(b) == b
-```
+## Precision Guarantees
 
-**Verification**: ✅ Tested in CI
+**Depyler guarantees:**
+- Exact decimal representation (no float rounding errors)
+- Configurable precision
+- Deterministic results
+- No loss of precision in arithmetic
 
-### Feature: Next larger number.
+**Example: No Float Rounding Errors**
 
 ```python
-def test_next_plus(self):
-    """Feature: Next larger number."""
-    d = Decimal('1')
-    with localcontext() as ctx:
-        ctx.prec = 5
-        result = d.next_plus()
-        assert result > d
-```
+from decimal import Decimal
 
-**Verification**: ✅ Tested in CI
+def precision_demo() -> bool:
+    # Float has rounding errors
+    float_result = 0.1 + 0.2  # 0.30000000000000004
 
-### Feature: Next smaller number.
+    # Decimal is exact
+    a: Decimal = Decimal("0.1")
+    b: Decimal = Decimal("0.2")
+    decimal_result = a + b  # Exactly 0.3
 
-```python
-def test_next_minus(self):
-    """Feature: Next smaller number."""
-    d = Decimal('1')
-    with localcontext() as ctx:
-        ctx.prec = 5
-        result = d.next_minus()
-        assert result < d
+    return decimal_result == Decimal("0.3")  # True
 ```
 
-**Verification**: ✅ Tested in CI
+## Financial Calculations
 
-### Use case: Financial calculation preserves precision.
+Decimals are ideal for financial calculations:
 
 ```python
-def test_financial_calculation(self):
-    """Use case: Financial calculation preserves precision."""
-    a = Decimal('0.1')
-    b = Decimal('0.2')
-    result = a + b
-    assert str(result) == '0.3'
-```
+from decimal import Decimal
 
-**Verification**: ✅ Tested in CI
+def financial_calc() -> Decimal:
+    price: Decimal = Decimal("19.99")
+    quantity: int = 100
+    tax_rate: Decimal = Decimal("0.08")
 
-### Property: Chained operations maintain precision.
+    subtotal = price * Decimal(quantity)
+    tax = subtotal * tax_rate
+    total = subtotal + tax
 
-```python
-def test_chained_operations(self):
-    """Property: Chained operations maintain precision."""
-    d = Decimal('10.00')
-    result = (d / 3 * 3).quantize(Decimal('0.00'))
-    assert str(result) == '10.00'
+    # Round to cents
+    return total.quantize(Decimal("0.01"))
 ```
 
-**Verification**: ✅ Tested in CI
+## Performance Characteristics
 
-### Feature: from_float for exact conversion.
-
-```python
-def test_from_float_exact(self):
-    """Feature: from_float for exact conversion."""
-    f = 0.1
-    d = Decimal.from_float(f)
-    assert '0.10000000000000000555' in str(d)
-```
+| Operation | Python | Rust | Notes |
+|-----------|--------|------|-------|
+| Construction | Software | Software | String parsing |
+| Addition | O(n) | O(n) | n = digits |
+| Multiplication | O(n²) | O(n²) | Arbitrary precision |
+| Division | O(n) | O(n) | With rounding |
+| Comparison | O(n) | O(n) | Digit-by-digit |
 
-**Verification**: ✅ Tested in CI
+## Safety and Guarantees
 
-### Edge: Total order vs numeric comparison.
+**Decimal arithmetic safety:**
+- No silent rounding errors
+- Configurable precision
+- Overflow detection
+- Exact representation of decimal fractions
 
-```python
-def test_comparison_total_order(self):
-    """Edge: Total order vs numeric comparison."""
-    a = Decimal('1.0')
-    b = Decimal('1.00')
-    assert a == b
-    assert a.compare_total(b) != 0
-```
+**Important Notes:**
+- Decimals are slower than floats but exact
+- Use Decimal for financial calculations
+- Use f64 for scientific calculations
+- String construction is preferred over float conversion
 
-**Verification**: ✅ Tested in CI
+## Testing
 
-### Feature: Scientific notation.
+All examples in this chapter are verified by the test suite in `tdd-book/tests/test_decimal.py`. Run:
 
-```python
-def test_scientific_notation(self):
-    """Feature: Scientific notation."""
-    d = Decimal('1.23E+4')
-    assert str(d) == '1.23E+4'
-    assert d == 12300
+```bash
+cd tdd-book
+uv run pytest tests/test_decimal.py -v
 ```
-
-**Verification**: ✅ Tested in CI

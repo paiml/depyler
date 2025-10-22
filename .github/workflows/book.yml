@@ -1,0 +1,206 @@
+name: Deploy TDD Book
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tdd-book/**'
+      - '.github/workflows/book.yml'
+  pull_request:
+    paths:
+      - 'tdd-book/**'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "book-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  test-examples:
+    name: Test Book Examples (TDD Gate)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python with uv
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            tdd-book/.venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('tdd-book/pyproject.toml', 'tdd-book/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install Rust toolchain (for depyler CLI)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build depyler CLI
+        run: |
+          cargo build --release --bin depyler
+          echo "$PWD/target/release" >> $GITHUB_PATH
+
+      - name: Install Python dependencies
+        working-directory: tdd-book
+        run: |
+          uv sync
+
+      - name: Run TDD tests (BLOCKING)
+        working-directory: tdd-book
+        run: |
+          echo "🧪 Running TDD tests for all book examples..."
+          uv run pytest tests/ -v --tb=short --maxfail=5
+
+          echo ""
+          echo "✅ All book examples pass their tests!"
+
+      - name: Generate coverage report
+        working-directory: tdd-book
+        run: |
+          uv run pytest tests/ --cov --cov-report=html --cov-report=term-missing
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-test-coverage
+          path: tdd-book/htmlcov/
+
+  build-book:
+    name: Build mdBook
+    runs-on: ubuntu-22.04
+    needs: test-examples  # BLOCKING: Cannot build book without passing tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: 'latest'
+
+      - name: Install mdBook preprocessors
+        run: |
+          cargo install mdbook-toc --locked || echo "mdbook-toc already installed"
+          cargo install mdbook-mermaid --locked || echo "mdbook-mermaid already installed"
+
+      - name: Build book
+        working-directory: tdd-book
+        run: |
+          echo "📚 Building Depyler TDD Book..."
+          mdbook build
+
+          echo ""
+          echo "📊 Book statistics:"
+          find book -name "*.html" | wc -l | xargs echo "  HTML pages:"
+          du -sh book/ | awk '{print "  Total size: " $1}'
+
+      - name: Validate HTML
+        working-directory: tdd-book
+        run: |
+          echo "🔍 Validating generated HTML..."
+          # Check for broken internal links
+          grep -r "href=\"#" book/ || echo "No anchor links found"
+
+          # Check for missing images
+          if grep -r "src=\".*\.png\"" book/ | grep -v "http"; then
+            echo "⚠️  Local images found - verify they exist"
+          fi
+
+      - name: Setup Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v5
+
+      - name: Upload book artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'tdd-book/book'
+
+      - name: Upload book artifact (PR preview)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-preview
+          path: tdd-book/book/
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build-book
+    runs-on: ubuntu-22.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Post deployment summary
+        run: |
+          echo "🎉 Depyler TDD Book deployed successfully!"
+          echo "📖 View at: ${{ steps.deployment.outputs.page_url }}"
+          echo ""
+          echo "✅ All examples tested and verified"
+          echo "📚 Book built and deployed"
+
+  quality-report:
+    name: Quality Metrics
+    runs-on: ubuntu-22.04
+    needs: test-examples
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python with uv
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        working-directory: tdd-book
+        run: uv sync
+
+      - name: Generate quality metrics
+        working-directory: tdd-book
+        run: |
+          echo "📊 Generating quality metrics..."
+
+          # Test count
+          TEST_COUNT=$(uv run pytest tests/ --collect-only -q | tail -1 | awk '{print $1}')
+          echo "Total tests: $TEST_COUNT"
+
+          # Module coverage
+          MODULE_COUNT=$(ls docs/modules/*.md | wc -l)
+          echo "Modules documented: $MODULE_COUNT"
+
+          # Example count
+          EXAMPLE_COUNT=$(grep -r "```python" docs/modules/ | wc -l)
+          echo "Python examples: $EXAMPLE_COUNT"
+
+          echo ""
+          echo "✅ Quality metrics generated"

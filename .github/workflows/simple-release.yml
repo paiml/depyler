@@ -12,8 +12,69 @@ permissions:
   contents: write
 
 jobs:
+  validate-book:
+    name: Validate TDD Book (BLOCKING)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python with uv
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install Rust toolchain (for depyler CLI)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build depyler CLI
+        run: |
+          cargo build --release --bin depyler
+          echo "$PWD/target/release" >> $GITHUB_PATH
+
+      - name: Install Python dependencies
+        working-directory: tdd-book
+        run: |
+          uv sync
+
+      - name: Run TDD tests (BLOCKING)
+        working-directory: tdd-book
+        run: |
+          echo "🧪 Running TDD tests for all book examples..."
+          uv run pytest tests/ -v --tb=short --maxfail=5
+          echo ""
+          echo "✅ All book examples pass their tests!"
+
+      - name: Install mdBook and preprocessors
+        run: |
+          curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.40/mdbook-v0.4.40-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=$HOME/.cargo/bin
+          cargo install mdbook-toc --locked
+          cargo install mdbook-mermaid --locked
+
+      - name: Build book
+        working-directory: tdd-book
+        run: |
+          echo "📚 Building Depyler TDD Book..."
+          mdbook build
+
+      - name: Check book status
+        run: |
+          echo "🔍 Checking if book is up to date..."
+          if [ -n "$(git status --porcelain tdd-book/)" ]; then
+            echo "⚠️  TDD book has uncommitted changes"
+            git status --short tdd-book/
+            exit 1
+          fi
+          echo "✅ Book is up to date"
+
   create-release:
     name: Create Release
+    needs: validate-book
     runs-on: ubuntu-latest
     outputs:
       release_id: ${{ steps.create_release.outputs.id }}
