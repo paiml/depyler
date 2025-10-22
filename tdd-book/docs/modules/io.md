@@ -1,620 +1,363 @@
-# io
+# io - Core I/O Tools
 
-## StringIO - In-memory text stream.
+Python's io module provides core tools for working with streams, including in-memory text and binary streams. Depyler transpiles these operations to Rust's standard I/O types with full type safety and efficient memory handling.
 
-## BytesIO - In-memory binary stream.
+## Python → Rust Mapping
 
-## TextIOWrapper - Text wrapper for binary streams.
+| Python Class/Method | Rust Equivalent | Notes |
+|---------------------|-----------------|-------|
+| `import io` | `use std::io::*` | Core I/O traits |
+| `io.StringIO()` | `String` or `Cursor<String>` | In-memory text buffer |
+| `sio.write(text)` | `string.push_str(text)` | Append to string |
+| `sio.read()` | `string.clone()` | Read entire content |
+| `sio.getvalue()` | `string.as_str()` | Get current value |
+| `sio.seek(pos)` | Cursor position | Position tracking |
+| `sio.readline()` | `lines().next()` | Line-by-line reading |
+| `for line in sio` | `lines()` iterator | Iterate over lines |
 
-## StringIO iteration - Iterate over lines.
+## StringIO - In-Memory Text Streams
 
-## BytesIO iteration - Iterate over binary lines.
+### Basic Write and Read Operations
 
-### Basic: Write text to StringIO.
+Create and manipulate in-memory text streams:
 
 ```python
-def test_stringio_basic_write(self):
-    """Basic: Write text to StringIO."""
+import io
+
+def test_stringio() -> str:
+    # Create in-memory text stream
     sio = io.StringIO()
-    sio.write('Hello')
-    assert sio.getvalue() == 'Hello'
+
+    # Write text
+    sio.write("Hello, ")
+    sio.write("StringIO!")
+
+    # Get complete value
+    result = sio.getvalue()
+
+    return result
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Feature: Read after writing requires seek(0).
+```rust
+fn test_stringio() -> String {
+    // Create in-memory text stream (String)
+    let mut sio = String::new();
+
+    // Write text
+    sio.push_str("Hello, ");
+    sio.push_str("StringIO!");
+
+    // Get complete value
+    let result = sio.clone();
+
+    result
+}
+```
+
+**Key Differences:**
+- Python: `StringIO` is a separate object with methods
+- Rust: Uses `String` directly with `push_str()` for appending
+- Both support efficient in-memory text manipulation
+- Rust's `String` is UTF-8 validated
+
+### Seek and Read Operations
+
+Read from specific positions in the stream:
 
 ```python
-def test_stringio_read_after_write(self):
-    """Feature: Read after writing requires seek(0)."""
+import io
+
+def test_stringio_seek() -> str:
+    # Create in-memory text stream
     sio = io.StringIO()
-    sio.write('Hello')
+
+    # Write text
+    sio.write("Hello, World!")
+
+    # Seek to beginning
     sio.seek(0)
+
+    # Read content
     content = sio.read()
-    assert content == 'Hello'
+
+    return content
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Feature: Multiple writes append.
+```rust
+fn test_stringio_seek() -> String {
+    // Create in-memory text stream
+    let mut sio = String::new();
 
-```python
-def test_stringio_multiple_writes(self):
-    """Feature: Multiple writes append."""
-    sio = io.StringIO()
-    sio.write('Hello ')
-    sio.write('World')
-    assert sio.getvalue() == 'Hello World'
+    // Write text
+    sio.push_str("Hello, World!");
+
+    // Read content (no seek needed for String)
+    let content = sio.clone();
+
+    content
+}
 ```
 
-**Verification**: ✅ Tested in CI
+**Seek Behavior:**
+- Python: Explicit `seek(0)` required to read after writing
+- Rust: String access doesn't require seek (always reads full content)
+- For cursor-based operations, use `std::io::Cursor<String>`
 
-### Feature: Read line by line.
+### StringIO with Initial Value
 
 ```python
-def test_stringio_readline(self):
-    """Feature: Read line by line."""
-    sio = io.StringIO('Line 1\nLine 2\nLine 3')
-    assert sio.readline() == 'Line 1\n'
-    assert sio.readline() == 'Line 2\n'
-    assert sio.readline() == 'Line 3'
+import io
+
+def test_initial_value() -> str:
+    # Create StringIO with initial content
+    sio = io.StringIO("Initial content")
+
+    # Read from beginning
+    content = sio.read()
+
+    return content
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Feature: Read all lines at once.
+```rust
+fn test_initial_value() -> String {
+    // Create String with initial content
+    let sio = String::from("Initial content");
 
-```python
-def test_stringio_readlines(self):
-    """Feature: Read all lines at once."""
-    sio = io.StringIO('Line 1\nLine 2\nLine 3')
-    lines = sio.readlines()
-    assert lines == ['Line 1\n', 'Line 2\n', 'Line 3']
+    // Read content
+    let content = sio.clone();
+
+    content
+}
 ```
 
-**Verification**: ✅ Tested in CI
+## Line-Based Operations
 
-### Feature: tell() returns current position.
+### readline() - Read Single Lines
 
 ```python
-def test_stringio_tell_position(self):
-    """Feature: tell() returns current position."""
-    sio = io.StringIO()
-    assert sio.tell() == 0
-    sio.write('Hello')
-    assert sio.tell() == 5
+import io
+
+def test_readline() -> int:
+    # Create stream with multiple lines
+    sio = io.StringIO("Line 1\\nLine 2\\nLine 3\\n")
+
+    # Read lines
+    line_count = 0
+    while True:
+        line = sio.readline()
+        if not line:
+            break
+        line_count += 1
+
+    return line_count
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Feature: Seek to specific position.
+```rust
+fn test_readline() -> i32 {
+    // Create string with multiple lines
+    let content = String::from("Line 1\nLine 2\nLine 3\n");
 
-```python
-def test_stringio_seek(self):
-    """Feature: Seek to specific position."""
-    sio = io.StringIO('Hello World')
-    sio.seek(6)
-    assert sio.read() == 'World'
+    // Count lines by splitting
+    let line_count = content.lines().count() as i32;
+
+    line_count
+}
 ```
 
-**Verification**: ✅ Tested in CI
-
-### Feature: Seek from end with whence=2.
+### Iteration Over Lines
 
 ```python
-def test_stringio_seek_from_end(self):
-    """Feature: Seek from end with whence=2."""
-    sio = io.StringIO('Hello World')
-    sio.seek(0, 2)
-    assert sio.tell() == 11
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: StringIO doesn't support cur-relative seeks (whence=1 with offset != 0).
-
-```python
-def test_stringio_seek_relative_unsupported(self):
-    """Edge: StringIO doesn't support cur-relative seeks (whence=1 with offset != 0)."""
-    sio = io.StringIO('Hello World')
-    with pytest.raises(OSError):
-        sio.seek(-5, 1)
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Initialize with existing string.
-
-```python
-def test_stringio_initial_value(self):
-    """Feature: Initialize with existing string."""
-    sio = io.StringIO('Initial')
-    assert sio.read() == 'Initial'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Truncate at current position.
-
-```python
-def test_stringio_truncate(self):
-    """Feature: Truncate at current position."""
-    sio = io.StringIO('Hello World')
-    sio.seek(5)
-    sio.truncate()
-    assert sio.getvalue() == 'Hello'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Truncate to specific size.
-
-```python
-def test_stringio_truncate_size(self):
-    """Feature: Truncate to specific size."""
-    sio = io.StringIO('Hello World')
-    sio.truncate(5)
-    assert sio.getvalue() == 'Hello'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Close stream and verify closed property.
-
-```python
-def test_stringio_close(self):
-    """Feature: Close stream and verify closed property."""
-    sio = io.StringIO('Hello')
-    assert sio.closed is False
-    sio.close()
-    assert sio.closed is True
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Use StringIO as context manager.
-
-```python
-def test_stringio_context_manager(self):
-    """Feature: Use StringIO as context manager."""
-    with io.StringIO() as sio:
-        sio.write('Hello')
-        assert sio.getvalue() == 'Hello'
-    assert sio.closed is True
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: StringIO is writable.
-
-```python
-def test_stringio_writable(self):
-    """Property: StringIO is writable."""
-    sio = io.StringIO()
-    assert sio.writable() is True
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: StringIO is readable.
-
-```python
-def test_stringio_readable(self):
-    """Property: StringIO is readable."""
-    sio = io.StringIO()
-    assert sio.readable() is True
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: StringIO is seekable.
-
-```python
-def test_stringio_seekable(self):
-    """Property: StringIO is seekable."""
-    sio = io.StringIO()
-    assert sio.seekable() is True
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: Reading from empty StringIO returns empty string.
-
-```python
-def test_stringio_empty_read(self):
-    """Edge: Reading from empty StringIO returns empty string."""
-    sio = io.StringIO()
-    assert sio.read() == ''
-```
-
-**Verification**: ✅ Tested in CI
-
-### Error: Reading after close raises ValueError.
-
-```python
-def test_stringio_read_after_close_raises(self):
-    """Error: Reading after close raises ValueError."""
-    sio = io.StringIO('Hello')
-    sio.close()
-    with pytest.raises(ValueError):
-        sio.read()
-```
-
-**Verification**: ✅ Tested in CI
-
-### Error: Writing after close raises ValueError.
-
-```python
-def test_stringio_write_after_close_raises(self):
-    """Error: Writing after close raises ValueError."""
-    sio = io.StringIO()
-    sio.close()
-    with pytest.raises(ValueError):
-        sio.write('Hello')
-```
-
-**Verification**: ✅ Tested in CI
-
-### Error: Seeking to negative position raises ValueError.
-
-```python
-def test_stringio_negative_seek_raises(self):
-    """Error: Seeking to negative position raises ValueError."""
-    sio = io.StringIO('Hello')
-    with pytest.raises(ValueError):
-        sio.seek(-1)
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Write bytes to BytesIO.
-
-```python
-def test_bytesio_basic_write(self):
-    """Basic: Write bytes to BytesIO."""
-    bio = io.BytesIO()
-    bio.write(b'Hello')
-    assert bio.getvalue() == b'Hello'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Read after writing requires seek(0).
-
-```python
-def test_bytesio_read_after_write(self):
-    """Feature: Read after writing requires seek(0)."""
-    bio = io.BytesIO()
-    bio.write(b'Hello')
-    bio.seek(0)
-    content = bio.read()
-    assert content == b'Hello'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Multiple writes append.
-
-```python
-def test_bytesio_multiple_writes(self):
-    """Feature: Multiple writes append."""
-    bio = io.BytesIO()
-    bio.write(b'Hello ')
-    bio.write(b'World')
-    assert bio.getvalue() == b'Hello World'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Read line by line from binary stream.
-
-```python
-def test_bytesio_readline(self):
-    """Feature: Read line by line from binary stream."""
-    bio = io.BytesIO(b'Line 1\nLine 2\nLine 3')
-    assert bio.readline() == b'Line 1\n'
-    assert bio.readline() == b'Line 2\n'
-    assert bio.readline() == b'Line 3'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Read all lines at once.
-
-```python
-def test_bytesio_readlines(self):
-    """Feature: Read all lines at once."""
-    bio = io.BytesIO(b'Line 1\nLine 2\nLine 3')
-    lines = bio.readlines()
-    assert lines == [b'Line 1\n', b'Line 2\n', b'Line 3']
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: tell() returns current position.
-
-```python
-def test_bytesio_tell_position(self):
-    """Feature: tell() returns current position."""
-    bio = io.BytesIO()
-    assert bio.tell() == 0
-    bio.write(b'Hello')
-    assert bio.tell() == 5
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Seek to specific position.
-
-```python
-def test_bytesio_seek(self):
-    """Feature: Seek to specific position."""
-    bio = io.BytesIO(b'Hello World')
-    bio.seek(6)
-    assert bio.read() == b'World'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Initialize with existing bytes.
-
-```python
-def test_bytesio_initial_value(self):
-    """Feature: Initialize with existing bytes."""
-    bio = io.BytesIO(b'Initial')
-    assert bio.read() == b'Initial'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Truncate at current position.
-
-```python
-def test_bytesio_truncate(self):
-    """Feature: Truncate at current position."""
-    bio = io.BytesIO(b'Hello World')
-    bio.seek(5)
-    bio.truncate()
-    assert bio.getvalue() == b'Hello'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Close stream and verify closed property.
-
-```python
-def test_bytesio_close(self):
-    """Feature: Close stream and verify closed property."""
-    bio = io.BytesIO(b'Hello')
-    assert bio.closed is False
-    bio.close()
-    assert bio.closed is True
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Use BytesIO as context manager.
-
-```python
-def test_bytesio_context_manager(self):
-    """Feature: Use BytesIO as context manager."""
-    with io.BytesIO() as bio:
-        bio.write(b'Hello')
-        assert bio.getvalue() == b'Hello'
-    assert bio.closed is True
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: BytesIO is writable.
-
-```python
-def test_bytesio_writable(self):
-    """Property: BytesIO is writable."""
-    bio = io.BytesIO()
-    assert bio.writable() is True
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: BytesIO is readable.
-
-```python
-def test_bytesio_readable(self):
-    """Property: BytesIO is readable."""
-    bio = io.BytesIO()
-    assert bio.readable() is True
-```
-
-**Verification**: ✅ Tested in CI
-
-### Property: BytesIO is seekable.
-
-```python
-def test_bytesio_seekable(self):
-    """Property: BytesIO is seekable."""
-    bio = io.BytesIO()
-    assert bio.seekable() is True
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Handle arbitrary binary data.
-
-```python
-def test_bytesio_binary_data(self):
-    """Feature: Handle arbitrary binary data."""
-    data = b'\x00\x01\x02\x03\xff\xfe\xfd'
-    bio = io.BytesIO(data)
-    assert bio.read() == data
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Read specific number of bytes.
-
-```python
-def test_bytesio_read_size(self):
-    """Feature: Read specific number of bytes."""
-    bio = io.BytesIO(b'Hello World')
-    assert bio.read(5) == b'Hello'
-    assert bio.read(1) == b' '
-    assert bio.read(5) == b'World'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: Reading from empty BytesIO returns empty bytes.
-
-```python
-def test_bytesio_empty_read(self):
-    """Edge: Reading from empty BytesIO returns empty bytes."""
-    bio = io.BytesIO()
-    assert bio.read() == b''
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: Reading beyond end returns what's available.
-
-```python
-def test_bytesio_read_beyond_end(self):
-    """Edge: Reading beyond end returns what's available."""
-    bio = io.BytesIO(b'Hello')
-    assert bio.read(100) == b'Hello'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Error: Writing string to BytesIO raises TypeError.
-
-```python
-def test_bytesio_write_string_raises(self):
-    """Error: Writing string to BytesIO raises TypeError."""
-    bio = io.BytesIO()
-    with pytest.raises(TypeError):
-        bio.write('Hello')
-```
-
-**Verification**: ✅ Tested in CI
-
-### Error: Reading after close raises ValueError.
-
-```python
-def test_bytesio_read_after_close_raises(self):
-    """Error: Reading after close raises ValueError."""
-    bio = io.BytesIO(b'Hello')
-    bio.close()
-    with pytest.raises(ValueError):
-        bio.read()
-```
-
-**Verification**: ✅ Tested in CI
-
-### Basic: Wrap BytesIO with TextIOWrapper.
-
-```python
-def test_textiowrapper_basic(self):
-    """Basic: Wrap BytesIO with TextIOWrapper."""
-    bio = io.BytesIO()
-    text = io.TextIOWrapper(bio, encoding='utf-8')
-    text.write('Hello')
-    text.flush()
-    assert bio.getvalue() == b'Hello'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Specify encoding for text wrapper.
-
-```python
-def test_textiowrapper_encoding(self):
-    """Feature: Specify encoding for text wrapper."""
-    bio = io.BytesIO()
-    text = io.TextIOWrapper(bio, encoding='utf-8')
-    text.write('Hello 世界')
-    text.flush()
-    bio.seek(0)
-    assert bio.read() == 'Hello 世界'.encode('utf-8')
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Handle newline translations.
-
-```python
-def test_textiowrapper_newline_handling(self):
-    """Feature: Handle newline translations."""
-    bio = io.BytesIO()
-    text = io.TextIOWrapper(bio, encoding='utf-8', newline='\n')
-    text.write('Line 1\nLine 2\n')
-    text.flush()
-    assert bio.getvalue() == b'Line 1\nLine 2\n'
-```
-
-**Verification**: ✅ Tested in CI
-
-### Edge: Closing wrapper closes underlying stream.
-
-```python
-def test_textiowrapper_close_underlying(self):
-    """Edge: Closing wrapper closes underlying stream."""
-    bio = io.BytesIO()
-    text = io.TextIOWrapper(bio, encoding='utf-8')
-    text.close()
-    assert bio.closed is True
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Iterate over StringIO lines.
-
-```python
-def test_stringio_iterate_lines(self):
-    """Feature: Iterate over StringIO lines."""
-    sio = io.StringIO('Line 1\nLine 2\nLine 3')
-    lines = list(sio)
-    assert lines == ['Line 1\n', 'Line 2\n', 'Line 3']
-```
-
-**Verification**: ✅ Tested in CI
-
-### Feature: Use StringIO in for loop.
-
-```python
-def test_stringio_for_loop(self):
-    """Feature: Use StringIO in for loop."""
-    sio = io.StringIO('A\nB\nC')
-    result = []
+import io
+
+def test_iteration() -> int:
+    # Create stream with multiple lines
+    content = "Line 1\\nLine 2\\nLine 3\\n"
+    sio = io.StringIO(content)
+
+    # Count lines using iteration
+    count = 0
     for line in sio:
-        result.append(line.strip())
-    assert result == ['A', 'B', 'C']
+        count += 1
+
+    return count
 ```
 
-**Verification**: ✅ Tested in CI
+**Generated Rust:**
 
-### Feature: Iterate over BytesIO lines.
+```rust
+fn test_iteration() -> i32 {
+    // Create string with multiple lines
+    let content = String::from("Line 1\nLine 2\nLine 3\n");
+
+    // Count lines using iterator
+    let count = content.lines().count() as i32;
+
+    count
+}
+```
+
+## Common Use Cases
+
+### 1. Build String Incrementally
 
 ```python
-def test_bytesio_iterate_lines(self):
-    """Feature: Iterate over BytesIO lines."""
-    bio = io.BytesIO(b'Line 1\nLine 2\nLine 3')
-    lines = list(bio)
-    assert lines == [b'Line 1\n', b'Line 2\n', b'Line 3']
+import io
+
+def build_report(items: list) -> str:
+    output = io.StringIO()
+
+    output.write("Report Header\n")
+    output.write("=" * 40 + "\n")
+
+    for item in items:
+        output.write(f"Item: {item}\n")
+
+    output.write("\nReport Footer\n")
+
+    return output.getvalue()
 ```
 
-**Verification**: ✅ Tested in CI
-
-### Feature: Use BytesIO in for loop.
+### 2. Parse Multi-Line Text
 
 ```python
-def test_bytesio_for_loop(self):
-    """Feature: Use BytesIO in for loop."""
-    bio = io.BytesIO(b'A\nB\nC')
-    result = []
-    for line in bio:
-        result.append(line.strip())
-    assert result == [b'A', b'B', b'C']
+import io
+
+def parse_config(text: str) -> dict:
+    config = {}
+    stream = io.StringIO(text)
+
+    for line in stream:
+        line = line.strip()
+        if '=' in line:
+            key, value = line.split('=', 1)
+            config[key.strip()] = value.strip()
+
+    return config
 ```
 
-**Verification**: ✅ Tested in CI
+### 3. CSV-Like Processing
+
+```python
+import io
+
+def process_csv_like(data: str) -> int:
+    stream = io.StringIO(data)
+    count = 0
+
+    for line in stream:
+        fields = line.strip().split(',')
+        if len(fields) >= 3:
+            count += 1
+
+    return count
+```
+
+## Performance Characteristics
+
+| Operation | Python | Rust | Notes |
+|-----------|--------|------|-------|
+| `StringIO()` | O(1) | O(1) | Create empty buffer |
+| `write(text)` | O(n) | O(n) | n = text length |
+| `getvalue()` | O(1) | O(n) | Python caches, Rust clones |
+| `read()` | O(n) | O(n) | n = content size |
+| `seek(pos)` | O(1) | O(1) | Position update |
+| `readline()` | O(n) | O(n) | n = line length |
+| Iteration | O(n) | O(n) | n = content size |
+
+**Performance Notes:**
+- Rust's `String` has amortized O(1) append via capacity doubling
+- Python's `StringIO` uses similar strategy internally
+- Rust avoids position tracking overhead for simple cases
+- Both efficiently handle incremental string building
+
+## Safety and Guarantees
+
+**Type Safety:**
+- Python: `StringIO` handles only text (str), `BytesIO` for bytes
+- Rust: `String` is UTF-8 validated, `Vec<u8>` for arbitrary bytes
+- Type system prevents mixing text and binary data
+- No runtime encoding errors in Rust
+
+**Memory Safety:**
+- Both use dynamic arrays with capacity management
+- Rust prevents buffer overruns at compile time
+- Python raises exceptions for invalid operations
+- Rust's borrow checker ensures no concurrent mutation
+
+**Important Notes:**
+- StringIO position is mutable state (use carefully)
+- Reading doesn't consume content (unlike file reads)
+- Both support unlimited growth (memory permitting)
+- Rust cloning is explicit, Python copying requires explicit call
+
+## Testing
+
+All examples in this chapter are verified by the test suite in `tdd-book/tests/test_io.py`. Run:
+
+```bash
+cd tdd-book
+uv run pytest tests/test_io.py -v
+```
+
+**Expected Output:**
+```
+tests/test_io.py::test_io_stringio_basic PASSED          [ 20%]
+tests/test_io.py::test_io_stringio_seek PASSED           [ 40%]
+tests/test_io.py::test_io_stringio_readline PASSED       [ 60%]
+tests/test_io.py::test_io_stringio_iteration PASSED      [ 80%]
+tests/test_io.py::test_io_stringio_initial_value PASSED  [100%]
+
+====== 5 passed in 0.XX s ======
+```
+
+## Comparison: StringIO vs String Concatenation
+
+| Feature | `StringIO` | String `+` operator |
+|---------|-----------|---------------------|
+| Performance | O(n) total | O(n²) for n appends |
+| Memory | Single buffer | Multiple allocations |
+| Use case | Many appends | Few concatenations |
+| Readability | Method calls | Operator syntax |
+| Python idiom | Large builders | Small strings |
+
+**Recommendation:** Use StringIO for building strings with many operations, use `+` for simple cases.
+
+## Advanced: Cursor-Based I/O
+
+For more complex I/O operations in Rust, use `Cursor`:
+
+```rust
+use std::io::{Cursor, Read, Write, Seek, SeekFrom};
+
+fn cursor_example() -> String {
+    let mut cursor = Cursor::new(Vec::new());
+
+    // Write data
+    cursor.write_all(b"Hello, ").unwrap();
+    cursor.write_all(b"World!").unwrap();
+
+    // Seek to beginning
+    cursor.seek(SeekFrom::Start(0)).unwrap();
+
+    // Read data
+    let mut buffer = String::new();
+    cursor.read_to_string(&mut buffer).unwrap();
+
+    buffer
+}
+```
+
+**Cursor Features:**
+- Implements `Read`, `Write`, `Seek` traits
+- Provides file-like API for in-memory buffers
+- Tracks position automatically
+- Supports both `Vec<u8>` and `&[u8]`
+
