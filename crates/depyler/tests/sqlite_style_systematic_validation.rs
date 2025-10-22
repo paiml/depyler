@@ -508,6 +508,24 @@ def test() -> set[int]:
 }
 
 #[test]
+fn test_depyler_0224_set_remove_with_variable() {
+    // DEPYLER-0224: set.remove() should use HashSet::remove(), not list position logic
+    let python = r#"
+def test(value: int) -> set[int]:
+    numbers = {1, 2, 3, 4, 5}
+    numbers.remove(value)
+    return numbers
+"#;
+
+    let rust = transpile_and_verify(python, "set_remove_variable").unwrap();
+
+    // Should use HashSet::remove() which takes &T reference
+    // NOT list logic with iter().position() returning usize
+    assert!(rust.contains("numbers.remove(&value)") || rust.contains("numbers.remove(& value)"));
+    assert!(!rust.contains("iter().position"));
+}
+
+#[test]
 fn test_34_set_membership() {
     let python = r#"
 def test(items: set[int], value: int) -> bool:

@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **🐛 SPYDECY DEBUGGER INTEGRATION** (2025-10-22): Interactive Python debugging
+  - **Feature**: Integrated spydecy interactive debugger into depyler CLI
+  - **Usage**: `depyler debug --spydecy script.py` for interactive debugging
+  - **Visualization**: `depyler debug --spydecy script.py --visualize` for visual mode
+  - **Implementation**:
+    - New `launch_spydecy_debugger()` function in debug_cmd.rs
+    - Added --spydecy and --visualize CLI flags
+    - Updated debugging tips to include spydecy workflow
+  - **Benefits**:
+    - Interactive Python-level debugging without transpilation
+    - Visualization mode for complex code analysis
+    - Unified debugging workflow (spydecy + gdb/lldb)
+    - Better developer experience for debugging transpiled code
+  - **Files**: debug_cmd.rs, lib.rs, main.rs
+  - **External Tool**: Requires `spydecy` (cargo install spydecy from ../spydecy)
+
 ## [3.19.18] - 2025-10-22
 
 ### Summary

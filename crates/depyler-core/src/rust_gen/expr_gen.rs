@@ -2412,10 +2412,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match expr {
             HirExpr::Set(_) | HirExpr::FrozenSet(_) => true,
             HirExpr::Call { func, .. } if func == "set" || func == "frozenset" => true,
-            HirExpr::Var(_name) => {
-                // For rust_gen, we're more conservative since we don't have type info
-                // Only treat explicit set literals and calls as sets
-                false
+            HirExpr::Var(_) => {
+                // Check type information in context for variables
+                self.is_set_var(expr)
             }
             _ => false,
         }
