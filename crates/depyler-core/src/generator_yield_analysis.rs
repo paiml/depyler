@@ -101,7 +101,7 @@ impl YieldAnalysis {
                 orelse,
                 finalbody,
             } => {
-                Self::analyze_try_stmt(body, handlers, orelse, finalbody, analysis, state_counter, depth, stmt_idx);
+                Self::analyze_try_stmt(body, handlers, orelse, finalbody, analysis, state_counter, (depth, stmt_idx));
             }
             HirStmt::With { body, .. } => {
                 Self::analyze_with_stmt(body, analysis, state_counter, depth, stmt_idx);
@@ -185,9 +185,9 @@ impl YieldAnalysis {
         finalbody: &Option<Vec<HirStmt>>,
         analysis: &mut YieldAnalysis,
         state_counter: &mut usize,
-        depth: usize,
-        stmt_idx: usize,
+        context: (usize, usize), // (depth, stmt_idx)
     ) {
+        let (depth, stmt_idx) = context;
         for s in body {
             Self::analyze_stmt(s, analysis, state_counter, depth, stmt_idx);
         }

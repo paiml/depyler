@@ -384,12 +384,30 @@ pub(crate) fn codegen_assign_stmt(
 ) -> Result<proc_macro2::TokenStream> {
     // DEPYLER-0232: Track variable types for class instances
     // This allows proper method dispatch for user-defined classes
+    // DEPYLER-0224: Also track types for set/dict/list literals for proper method dispatch
     if let AssignTarget::Symbol(var_name) = target {
-        if let HirExpr::Call { func, .. } = value {
-            // Check if this is a user-defined class constructor
-            if ctx.class_names.contains(func) {
-                ctx.var_types.insert(var_name.clone(), Type::Custom(func.clone()));
+        match value {
+            HirExpr::Call { func, .. } => {
+                // Check if this is a user-defined class constructor
+                if ctx.class_names.contains(func) {
+                    ctx.var_types.insert(var_name.clone(), Type::Custom(func.clone()));
+                }
             }
+            HirExpr::Set(elements) | HirExpr::FrozenSet(elements) => {
+                // Track set type from literal for proper method dispatch (DEPYLER-0224)
+                // Use type annotation if available, otherwise infer from elements
+                let elem_type = if let Some(Type::Set(elem)) = type_annotation {
+                    elem.as_ref().clone()
+                } else if !elements.is_empty() {
+                    // Infer from first element (assume homogeneous set)
+                    // For int literals, use Int type
+                    Type::Int
+                } else {
+                    Type::Unknown
+                };
+                ctx.var_types.insert(var_name.clone(), Type::Set(Box::new(elem_type)));
+            }
+            _ => {}
         }
     }
 
