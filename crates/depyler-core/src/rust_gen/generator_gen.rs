@@ -94,6 +94,7 @@ fn infer_yield_type(expr: &HirExpr) -> Type {
             Literal::Int(_) => Type::Int,
             Literal::Float(_) => Type::Float,
             Literal::String(_) => Type::String,
+            Literal::Bytes(_) => Type::Custom("bytes".to_string()),
             Literal::Bool(_) => Type::Bool,
             Literal::None => Type::None,
         },

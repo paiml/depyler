@@ -2402,6 +2402,10 @@ fn convert_literal(lit: &Literal) -> syn::Expr {
             let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
             parse_quote! { #lit.to_string() }
         }
+        Literal::Bytes(b) => {
+            let byte_str = syn::LitByteStr::new(b, proc_macro2::Span::call_site());
+            parse_quote! { #byte_str }
+        }
         Literal::Bool(b) => {
             let lit = syn::LitBool::new(*b, proc_macro2::Span::call_site());
             parse_quote! { #lit }

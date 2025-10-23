@@ -714,6 +714,7 @@ fn hash_expr_recursive_inner<H: Hasher>(expr: &HirExpr, hasher: &mut H) {
                 Literal::Int(n) => n.hash(hasher),
                 Literal::Float(f) => f.to_bits().hash(hasher),
                 Literal::String(s) => s.hash(hasher),
+                Literal::Bytes(b) => b.hash(hasher),
                 Literal::Bool(b) => b.hash(hasher),
                 Literal::None => "none".hash(hasher),
             }
