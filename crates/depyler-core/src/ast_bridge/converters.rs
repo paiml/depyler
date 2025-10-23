@@ -301,6 +301,7 @@ impl ExprConverter {
             }
             ast::Constant::Float(f) => Literal::Float(*f),
             ast::Constant::Str(s) => Literal::String(s.to_string()),
+            ast::Constant::Bytes(b) => Literal::Bytes(b.clone()),
             ast::Constant::Bool(b) => Literal::Bool(*b),
             ast::Constant::None => Literal::None,
             _ => bail!("Unsupported constant type"),

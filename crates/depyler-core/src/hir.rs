@@ -458,6 +458,7 @@ pub enum Literal {
     Int(i64),
     Float(f64),
     String(String),
+    Bytes(Vec<u8>),
     Bool(bool),
     None,
 }
