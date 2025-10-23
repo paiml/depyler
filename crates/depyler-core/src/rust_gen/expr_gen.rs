@@ -3054,6 +3054,12 @@ fn literal_to_rust_expr(
                 }
             }
         }
+        Literal::Bytes(b) => {
+            // Generate Rust byte array: &[u8] slice from byte values
+            // Python: b"hello" → Rust: &[104_u8, 101, 108, 108, 111]
+            let byte_str = syn::LitByteStr::new(b, proc_macro2::Span::call_site());
+            parse_quote! { #byte_str }
+        }
         Literal::Bool(b) => {
             let lit = syn::LitBool::new(*b, proc_macro2::Span::call_site());
             parse_quote! { #lit }

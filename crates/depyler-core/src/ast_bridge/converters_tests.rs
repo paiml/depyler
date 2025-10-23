@@ -77,6 +77,24 @@ fn test_convert_constant_none() {
 }
 
 #[test]
+fn test_convert_constant_bytes() {
+    // Test for Issue #22: bytes literal support
+    // Python: b"hello world"
+    let expr = ExprConstant {
+        value: Constant::Bytes(vec![104, 101, 108, 108, 111]), // "hello" in ASCII
+        kind: None,
+        range: Default::default(),
+    };
+    let result = ExprConverter::convert(Expr::Constant(expr)).unwrap();
+    match result {
+        HirExpr::Literal(Literal::Bytes(bytes)) => {
+            assert_eq!(bytes, vec![104, 101, 108, 108, 111]);
+        }
+        _ => panic!("Expected bytes literal, got {:?}", result),
+    }
+}
+
+#[test]
 fn test_convert_name() {
     let expr = ExprName {
         id: "variable".into(),

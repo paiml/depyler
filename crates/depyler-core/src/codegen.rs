@@ -1032,6 +1032,11 @@ fn literal_to_rust_tokens(lit: &Literal) -> Result<proc_macro2::TokenStream> {
         Literal::Int(i) => Ok(quote! { #i }),
         Literal::Float(f) => Ok(quote! { #f }),
         Literal::String(s) => Ok(quote! { #s.to_string() }),
+        Literal::Bytes(b) => {
+            // Generate byte string literal
+            let byte_lit = proc_macro2::Literal::byte_string(b);
+            Ok(quote! { #byte_lit })
+        }
         Literal::Bool(b) => Ok(quote! { #b }),
         Literal::None => Ok(quote! { None }),
     }

@@ -109,6 +109,7 @@ impl StateAnalyzer {
                 crate::hir::Literal::Int(_) => Type::Int,
                 crate::hir::Literal::Float(_) => Type::Float,
                 crate::hir::Literal::String(_) => Type::String,
+                crate::hir::Literal::Bytes(_) => Type::Custom("bytes".to_string()),
                 crate::hir::Literal::Bool(_) => Type::Bool,
                 crate::hir::Literal::None => Type::None,
             },

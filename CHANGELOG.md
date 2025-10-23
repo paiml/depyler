@@ -22,6 +22,15 @@ All notable changes to this project will be documented in this file.
   - **External Tool**: Requires `spydecy` (cargo install spydecy from ../spydecy)
 
 ### Fixed
+- **✅ DEPYLER-0022 [PARTIAL]** (2025-10-23): Add bytes literal support to HIR
+  - **Issue**: Python bytes literals (`b"hello"`) caused transpiler to crash with "Unsupported constant type"
+  - **Fix**: Added `Literal::Bytes(Vec<u8>)` variant to HIR and updated all 7 codegen locations
+  - **Impact**: Bytes literals now transpile correctly to Rust `b"hello"` via syn::LitByteStr
+  - **Progress**: Issue #22 from 0% → ~50% complete (bytes literals work, memoryview type still needed)
+  - **Test**: test_convert_constant_bytes() passes
+  - **Quality**: ✅ Clippy passed, ✅ 448 unit tests passed
+  - **Remaining**: memoryview type implementation, struct.pack/unpack support
+
 - **✅ DEPYLER-0263** (2025-10-22): Fix generator variable scoping and type inference
   - **Issue**: Generator code generation produced uncompilable Rust code with 7 compilation errors
   - **Root Causes**:
