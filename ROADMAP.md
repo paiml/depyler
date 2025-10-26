@@ -37,6 +37,18 @@
 - v3.19.18: Quick Wins #3-4
 
 **Bugs Fixed**:
+- DEPYLER-0023: Fix Rust keyword collision causing transpiler panic
+  - Bug: Python vars with Rust keywords (match, type, impl) caused panic
+  - Fix: Use raw identifiers (r#match) via syn::Ident::new_raw()
+  - Tests: 4 regression tests, all pass
+  - Impact: Fixes re module tests, enables keyword-named variables
+
+- DEPYLER-0024: Add regression test for copy.copy() list bug (already fixed)
+  - Discovery: TDD Book validation reported copy.copy() for lists as broken
+  - Investigation: Bug was already fixed - transpiler correctly generates .clone()
+  - Tests: 3 regression tests added to prevent future regressions
+  - Status: All tests PASS ✅
+
 - DEPYLER-0263: Generator variable scoping and type inference
   - Issue: Generated uncompilable Rust with DynamicType and missing self. prefix
   - Fix: Set ctx.in_generator flag in both generation paths + yield type inference

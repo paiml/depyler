@@ -22,15 +22,37 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Self { ctx }
     }
 
+    /// Check if a name is a Rust keyword that requires raw identifier syntax
+    fn is_rust_keyword(name: &str) -> bool {
+        matches!(
+            name,
+            "as" | "break" | "const" | "continue" | "crate" | "else" | "enum" | "extern"
+                | "false" | "fn" | "for" | "if" | "impl" | "in" | "let" | "loop" | "match"
+                | "mod" | "move" | "mut" | "pub" | "ref" | "return" | "self" | "Self"
+                | "static" | "struct" | "super" | "trait" | "true" | "type" | "unsafe"
+                | "use" | "where" | "while" | "async" | "await" | "dyn" | "abstract"
+                | "become" | "box" | "do" | "final" | "macro" | "override" | "priv"
+                | "typeof" | "unsized" | "virtual" | "yield" | "try"
+        )
+    }
+
     fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
         // Inside generators, check if variable is a state variable
         if self.ctx.in_generator && self.ctx.generator_state_vars.contains(name) {
             // Generate self.field for state variables
-            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            let ident = if Self::is_rust_keyword(name) {
+                syn::Ident::new_raw(name, proc_macro2::Span::call_site())
+            } else {
+                syn::Ident::new(name, proc_macro2::Span::call_site())
+            };
             Ok(parse_quote! { self.#ident })
         } else {
-            // Regular variable
-            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            // Regular variable - use raw identifier if it's a Rust keyword
+            let ident = if Self::is_rust_keyword(name) {
+                syn::Ident::new_raw(name, proc_macro2::Span::call_site())
+            } else {
+                syn::Ident::new(name, proc_macro2::Span::call_site())
+            };
             Ok(parse_quote! { #ident })
         }
     }
@@ -1273,11 +1295,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 })
             }
             "copy" => {
-                // Python: list.copy() -> shallow copy
-                // Rust: list.clone()
+                // Python: list.copy() -> shallow copy OR copy.copy(x) -> shallow copy
+                // Rust: list.clone() OR x.clone()
+                // DEPYLER-0024 FIX: Handle copy.copy(x) from copy module
+                if arg_exprs.len() == 1 {
+                    // This is copy.copy(x) from the copy module being misparsed as method call
+                    // Just clone the argument directly
+                    let arg = &arg_exprs[0];
+                    return Ok(parse_quote! { #arg.clone() });
+                }
                 if !arg_exprs.is_empty() {
                     bail!("copy() takes no arguments");
                 }
+                // This is list.copy() method - clone the list
                 Ok(parse_quote! { #object_expr.clone() })
             }
             "clear" => {
