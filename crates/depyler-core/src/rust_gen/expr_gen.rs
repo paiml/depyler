@@ -2127,7 +2127,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     return Ok(parse_quote! {
                         {
                             let base = #base_expr;
-                            base.get(base.len().saturating_sub(#offset)).copied().unwrap_or_default()
+                            // DEPYLER-0267: Use .cloned() instead of .copied() for non-Copy types (String, Vec, etc.)
+                            base.get(base.len().saturating_sub(#offset)).cloned().unwrap_or_default()
                         }
                     });
                 }
@@ -2143,7 +2144,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     } else {
                         idx as usize
                     };
-                    base.get(actual_idx).copied().unwrap_or_default()
+                    // DEPYLER-0267: Use .cloned() instead of .copied() for non-Copy types (String, Vec, etc.)
+                    base.get(actual_idx).cloned().unwrap_or_default()
                 }
             })
         }
