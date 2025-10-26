@@ -1,22 +1,23 @@
-# BUG REPORT: re module - Match object handling causes PANIC
+# BUG REPORT: re module - RESOLVED (Rust Keyword Collision)
 
 **Discovered**: 2025-10-23
+**Fixed**: 2025-10-26 (DEPYLER-0023)
 **Test Suite**: tdd-book/tests/test_re.py
-**Severity**: P1 - MAJOR (Transpiler Crash)
-**Category**: transpiler_crash
+**Severity**: P1 - MAJOR (Transpiler Crash) → FIXED
+**Category**: transpiler_crash → rust_keyword_collision
+**Resolution Time**: 30 minutes (vs 6-12h estimate)
 
-## Problem
+## Problem (RESOLVED)
 
-re module operations that return Match objects cause **transpiler panic**:
-```
-thread 'main' panicked at expr_gen.rs:34:16:
-unexpected end of input, expected an expression
-```
+re module operations caused **transpiler panic** - but NOT due to Match objects!
+
+**Root Cause**: Variable named `match` (Rust strict keyword) caused panic at expr_gen.rs:34
 
 ## Test Evidence
 
 **Test File**: tests/test_re.py
-**Results**: 2/6 passing (33.3% - PARTIAL FAILURE)
+**Before Fix**: 2/6 passing (33.3% - PARTIAL FAILURE)
+**After DEPYLER-0023**: **6/6 passing (100% - COMPLETE SUCCESS)**
 
 **Failed** ❌:
 - test_re_search_basic - Panic (Match object check)
@@ -120,22 +121,37 @@ This should be fixed after struct module but before copy.copy() because:
 3. Match object is fundamental to regex usage
 4. More commonly used than struct module
 
-## Next Ticket
+## Resolution Summary (DEPYLER-0023)
 
-Should create: **DEPYLER-0XXX: Implement Match object type and truthiness for re module**
+**What We Learned**:
+1. **TDD Book Misdiagnosis**: Report claimed "Match object not implemented" - WRONG!
+2. **Actual Root Cause**: Variable named `match` (Rust keyword) caused parser failure
+3. **Simple Fix**: Added `is_rust_keyword()` + `syn::Ident::new_raw()` for raw identifiers
+4. **Impact**: Fixed ALL re module tests (2/6 → 6/6 passing = 100%)
+5. **Time Saved**: 30 min vs 6-12h estimate (12-24x faster via correct root cause analysis)
 
-This will require:
-1. Add Match object type to type system
-2. Implement Option<regex::Captures> mapping
-3. Implement truthiness check for Match object (is_some())
-4. Handle match.group(), match.groups(), match.span()
-5. Implement compiled pattern (Regex) type
-6. Add re module to import resolution
+**The Fix** (crates/depyler-core/src/rust_gen/expr_gen.rs):
+```rust
+fn is_rust_keyword(name: &str) -> bool {
+    matches!(name, "match" | "type" | "impl" | /* ... all Rust keywords */)
+}
 
-**Estimated Effort**: 6-12 hours (new type + pattern implementation)
+fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
+    let ident = if Self::is_rust_keyword(name) {
+        syn::Ident::new_raw(name, proc_macro2::Span::call_site())  // r#match
+    } else {
+        syn::Ident::new(name, proc_macro2::Span::call_site())
+    };
+    Ok(parse_quote! { #ident })
+}
+```
+
+**Lesson**: Always test simplest hypothesis first! Variable naming issue, not complex type system gap.
+
+**Status**: RESOLVED - No Match object implementation needed. re module fully working!
 
 ---
 
 **Discovery Method**: TDD Book validation (OPTION 1 strategy)
-**Bug Severity Progression**: P1 (copy) → P0 (struct) → P1 (re)
-**Expected Outcome**: More bugs in memoryview, sys, textwrap modules
+**Resolution**: DEPYLER-0023 (2025-10-26)
+**Closes**: GitHub Issue #23
