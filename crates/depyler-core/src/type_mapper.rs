@@ -119,7 +119,9 @@ impl TypeMapper {
 
     pub fn map_type(&self, py_type: &PythonType) -> RustType {
         match py_type {
-            PythonType::Unknown => RustType::Custom("DynamicType".to_string()), // Default to dynamic type for unknown
+            // DEPYLER-0264: Map Unknown to serde_json::Value instead of undefined DynamicType
+            // This matches the pattern used for untyped Dict/List (lines 158-161)
+            PythonType::Unknown => RustType::Custom("serde_json::Value".to_string()),
             PythonType::Int => RustType::Primitive(match self.width_preference {
                 IntWidth::I32 => PrimitiveType::I32,
                 IntWidth::I64 => PrimitiveType::I64,
@@ -585,9 +587,9 @@ mod tests {
 
         let unknown_type = PythonType::Unknown;
         if let RustType::Custom(name) = mapper.map_type(&unknown_type) {
-            assert_eq!(name, "DynamicType");
+            assert_eq!(name, "serde_json::Value");
         } else {
-            panic!("Expected custom type DynamicType for unknown type");
+            panic!("Expected custom type serde_json::Value for unknown type");
         }
     }
 
