@@ -27,6 +27,16 @@ All notable changes to this project will be documented in this file.
   - **Files**: `stmt_gen.rs:355` (fix), `type_flow.rs:244` (Bytes literal), `depyler_0265_iterator_deref_test.rs` (295 lines), `DEPYLER-0265.md`
   - **Discovery**: Performance Benchmarking Campaign (compute_intensive.py)
 
+- **🐛 DEPYLER-0267: Index Access Bug** (2025-10-26): Fixed `.copied()` used for non-Copy types causing compilation failures
+  - **Issue**: Index access generated `.copied()` for all types, but String and other non-Copy types require `.cloned()`
+  - **Impact**: P0 BLOCKING - prevented compilation of index access on String, Vec, and other Clone-only types
+  - **Root Cause**: `expr_gen.rs:2130, 2148` used `.copied()` unconditionally for Vec/List index access (HashMap correctly used `.cloned()`)
+  - **Fix**: Changed `.copied()` to `.cloned()` for Vec/List index access - works for both Copy and Clone types
+  - **Testing**: EXTREME TDD protocol - 4 comprehensive tests, 3 failed in RED phase (String: Copy error), all 4 pass after fix
+  - **Verification**: All tests compile and pass, Copy types (int) still work, zero regressions (740 tests)
+  - **Files**: `expr_gen.rs:2131, 2148` (.copied() → .cloned()), `depyler_0267_index_access_test.rs` (4 tests), `DEPYLER-0267.md` (bug ticket)
+  - **Discovery**: DEPYLER-0265 final failing test (String list iteration)
+
 - **🐛 DEPYLER-0266: Boolean Conversion Bug** (2025-10-26): Fixed `if not collection:` generating invalid `!` operator on borrowed collections
   - **Issue**: Python `if not collection:` generated `if !collection` but Rust's `!` operator only works on `bool`, not `&Vec<T>`, `&str`, etc.
   - **Impact**: P0 BLOCKING - prevented compilation of all empty collection checks (blocked 3 of 4 DEPYLER-0265 tests)
