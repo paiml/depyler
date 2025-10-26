@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **🚀 PERFORMANCE BENCHMARKING** (2025-10-26): Initial benchmarking campaign demonstrates significant speedup
+  - **Framework**: Created `benchmarks/` directory structure (python/, rust/, results/)
+  - **Results**: Rust 12.36x faster execution, 4.8x lower memory usage (Fibonacci benchmark)
+  - **Methodology**: hyperfine statistical measurement (warmup, multiple runs, markdown export)
+  - **Report**: Comprehensive PERFORMANCE.md with execution time, memory usage, binary size analysis
+  - **Tooling**: Integration with hyperfine, GNU time, size-optimized builds
+  - **Discoveries**: Found 13 transpiler compilation errors (DynamicType, iterators, Result unwrapping)
+  - **Workaround**: Manual Rust implementation used for initial benchmarks
+  - **Future Work**: I/O-bound, memory-intensive benchmarks, energy profiling, CI integration
+
+### Fixed
+- **🐛 DEPYLER-0264: DynamicType Undefined** (2025-10-26): Fixed critical bug preventing transpilation of untyped collection parameters
+  - **Issue**: Type mapper generated `Vec<DynamicType>`, `HashMap<DynamicType, DynamicType>`, `HashSet<DynamicType>` but DynamicType was never defined
+  - **Impact**: P0 BLOCKING - prevented transpilation of any code with untyped list/dict/set parameters
+  - **Root Cause**: `type_mapper.rs:124` mapped `Type::Unknown → RustType::Custom("DynamicType")`
+  - **Fix**: Changed mapping to `Type::Unknown → serde_json::Value` (matches pattern at lines 158-161)
+  - **Testing**: EXTREME TDD protocol - 3 comprehensive tests (list, dict, set), all pass, zero regressions
+  - **Verification**: Generated code compiles (no "cannot find type" errors), benchmark re-transpilation successful
+  - **Files**: `type_mapper.rs` (fix + regression test), `depyler_0264_dynamic_type_test.rs` (218 lines), `DEPYLER-0264.md` (bug ticket)
+  - **Discovery**: Performance Benchmarking Campaign (compute_intensive.py)
+
 ## [3.19.19] - 2025-10-26
 
 ### Summary

@@ -1,4 +1,5 @@
 use depyler_core::DepylerPipeline;
+use std::process::Command;
 
 #[test]
 fn test_variable_shadowing_in_loops_bug() {
@@ -86,8 +87,8 @@ def add(a: int, b: int) -> int:
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python_code).unwrap();
     
-    // Should NOT contain docstring as an expression like `"Add two numbers" . to_string ();`
-    assert!(!rust_code.contains(`"Add two numbers" . to_string ()`), 
+    // Should NOT contain docstring as an expression like '"Add two numbers" . to_string ();'
+    assert!(!rust_code.contains(r#""Add two numbers" . to_string ()"#),
            "Docstring should not be generated as a string expression");
     
     // Should contain proper Rust doc comment
@@ -490,5 +491,245 @@ def test_bool_array():
         rust_code.contains("true") || rust_code.contains("false"),
         "BUG CONFIRMED: Boolean literals are missing!\nGenerated code:\n{}",
         rust_code
+    );
+}
+
+// ============================================================================
+// DEPYLER-0024: copy.copy() for lists generates invalid Rust code (P1 MAJOR)
+// ============================================================================
+// BUG: copy.copy() for lists generates `.copy()` method call which doesn't
+// exist in Rust. Should generate `.clone()` or proper copy semantics.
+//
+// DISCOVERED: TDD Book validation (copy module)
+// SEVERITY: P1 MAJOR - affects fundamental stdlib function
+// ============================================================================
+
+#[test]
+fn test_depyler_0024_copy_copy_list_invalid_codegen() {
+    // DEPYLER-0024: copy.copy() for lists generates invalid Rust code
+    let python_code = r#"
+import copy
+
+def test_shallow_copy() -> int:
+    original = [1, 2, 3]
+    copied = copy.copy(original)
+    copied.append(4)
+    return len(original)
+"#;
+
+    let pipeline = DepylerPipeline::new();
+    let result = pipeline.transpile(python_code);
+    assert!(result.is_ok(), "Transpilation should succeed");
+
+    let rust_code = result.unwrap();
+
+    // CRITICAL: Should NOT generate `.copy()` method (doesn't exist in Rust)
+    assert!(
+        !rust_code.contains(".copy()"),
+        "BUG CONFIRMED: Generated invalid `.copy()` method!\nGenerated code:\n{}",
+        rust_code
+    );
+
+    // Should generate valid Rust code with .clone() or proper copy semantics
+    assert!(
+        rust_code.contains(".clone()") || rust_code.contains("copy::copy"),
+        "Should generate valid Rust copy operation (.clone() or copy::copy)\nGenerated code:\n{}",
+        rust_code
+    );
+
+    // Verify the copy semantics are correct (shallow copy behavior)
+    assert!(
+        rust_code.contains("copied") || rust_code.contains("let"),
+        "Should have proper variable assignment for copied list\nGenerated code:\n{}",
+        rust_code
+    );
+}
+
+#[test]
+fn test_depyler_0024_copy_copy_dict_works() {
+    // DEPYLER-0024: Verify copy.copy() for dicts works (regression check)
+    let python_code = r#"
+import copy
+
+def test_dict_copy() -> int:
+    original = {"a": 1, "b": 2}
+    copied = copy.copy(original)
+    copied["c"] = 3
+    return len(original)
+"#;
+
+    let pipeline = DepylerPipeline::new();
+    let result = pipeline.transpile(python_code);
+    assert!(result.is_ok(), "Transpilation should succeed");
+
+    let rust_code = result.unwrap();
+
+    // Should generate valid Rust code for dict copy
+    assert!(
+        rust_code.contains(".clone()") || rust_code.contains("copy"),
+        "Should generate valid dict copy operation\nGenerated code:\n{}",
+        rust_code
+    );
+}
+
+#[test]
+fn test_depyler_0024_copy_deepcopy_list_works() {
+    // DEPYLER-0024: Verify copy.deepcopy() still works (regression check)
+    let python_code = r#"
+import copy
+
+def test_deep_copy() -> int:
+    original = [[1, 2], [3, 4]]
+    copied = copy.deepcopy(original)
+    copied[0].append(5)
+    return len(original[0])
+"#;
+
+    let pipeline = DepylerPipeline::new();
+    let result = pipeline.transpile(python_code);
+    assert!(result.is_ok(), "Transpilation should succeed");
+
+    let rust_code = result.unwrap();
+
+    // Should generate valid deep copy operation
+    assert!(
+        rust_code.contains("clone") || rust_code.contains("deep"),
+        "Should generate valid deep copy operation\nGenerated code:\n{}",
+        rust_code
+    );
+}
+#[test]
+#[allow(non_snake_case)]
+fn test_DEPYLER_0264_untyped_list_parameter_compiles() {
+    // DEPYLER-0264: Untyped list parameters generate Vec<DynamicType> which doesn't compile
+    // RED Phase: This test MUST FAIL initially because DynamicType is undefined
+    
+    let python_code = r#"
+def sum_list(numbers: list) -> int:
+    """Sum all numbers in a list."""
+    total = 0
+    for num in numbers:
+        total = total + num
+    return total
+"#;
+
+    let pipeline = DepylerPipeline::new();
+    let result = pipeline.transpile(python_code);
+    
+    assert!(result.is_ok(), "Transpilation should succeed");
+    let rust_code = result.unwrap();
+
+    // Debugging: Print generated code before compilation
+    eprintln!("=== DEPYLER-0264: Generated Rust Code ===");
+    eprintln!("{}", rust_code);
+
+    // Write to temp file
+    let temp_file = "/tmp/test_depyler_0264_untyped_list.rs";
+    std::fs::write(temp_file, &rust_code)
+        .expect("DEPYLER-0264: Failed to write temp file");
+
+    // Attempt to compile with rustc
+    let output = Command::new("rustc")
+        .arg("--crate-type")
+        .arg("lib")
+        .arg("--edition")
+        .arg("2021")
+        .arg(temp_file)
+        .arg("-o")
+        .arg("/tmp/test_depyler_0264_untyped_list.rlib")
+        .output()
+        .expect("DEPYLER-0264: Failed to run rustc");
+
+    // ASSERT: Generated code must compile
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        eprintln!("\n=== DEPYLER-0264: rustc stderr ===");
+        eprintln!("{}", stderr);
+        
+        // Check if error is about DynamicType
+        assert!(
+            !stderr.contains("cannot find type `DynamicType`"),
+            "DEPYLER-0264 FAILURE: Generated code references undefined DynamicType!\n\
+             Expected: Use serde_json::Value or concrete type for untyped list\n\
+             Actual: Generated Vec<DynamicType> which doesn't exist\n\
+             \n\
+             See docs/bugs/DEPYLER-0264.md for details.\n\
+             \n\
+             Generated Rust code:\n{}\n\
+             \n\
+             rustc error:\n{}",
+            rust_code,
+            stderr
+        );
+    }
+
+    // Verify code actually compiled
+    assert!(
+        output.status.success(),
+        "DEPYLER-0264: Generated code must compile with rustc\n\
+         Generated code:\n{}\n\
+         \n\
+         rustc stderr:\n{}",
+        rust_code,
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // GREEN Phase check: Should NOT contain DynamicType
+    assert!(
+        !rust_code.contains("DynamicType"),
+        "DEPYLER-0264: Generated code should not reference DynamicType\n\
+         Expected: serde_json::Value or concrete type\n\
+         Generated code:\n{}",
+        rust_code
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn test_DEPYLER_0264_untyped_dict_parameter_compiles() {
+    // DEPYLER-0264: Untyped dict parameters also generate HashMap<DynamicType, DynamicType>
+    // This is a related bug - same root cause
+    
+    let python_code = r#"
+def get_value(data: dict, key: str) -> int:
+    """Get a value from dictionary."""
+    return data.get(key, 0)
+"#;
+
+    let pipeline = DepylerPipeline::new();
+    let result = pipeline.transpile(python_code);
+    
+    assert!(result.is_ok(), "Transpilation should succeed");
+    let rust_code = result.unwrap();
+
+    // Write to temp file
+    let temp_file = "/tmp/test_depyler_0264_untyped_dict.rs";
+    std::fs::write(temp_file, &rust_code)
+        .expect("DEPYLER-0264: Failed to write temp file");
+
+    // Attempt to compile
+    let output = Command::new("rustc")
+        .arg("--crate-type")
+        .arg("lib")
+        .arg("--edition")
+        .arg("2021")
+        .arg(temp_file)
+        .arg("-o")
+        .arg("/tmp/test_depyler_0264_untyped_dict.rlib")
+        .output()
+        .expect("DEPYLER-0264: Failed to run rustc");
+
+    // ASSERT: Must compile
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            !stderr.contains("cannot find type `DynamicType`"),
+            "DEPYLER-0264: Untyped dict generates undefined DynamicType"
+        );
+    }
+
+    assert!(
+        output.status.success(),
+        "DEPYLER-0264: Generated code must compile"
     );
 }
