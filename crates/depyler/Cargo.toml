@@ -194,3 +194,7 @@ path = "../../tests/depyler_0265_iterator_deref_test.rs"
 [[test]]
 name = "depyler_0266_boolean_conversion_test"
 path = "../../tests/depyler_0266_boolean_conversion_test.rs"
+
+[[test]]
+name = "depyler_0267_index_access_test"
+path = "../../tests/depyler_0267_index_access_test.rs"
