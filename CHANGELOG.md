@@ -43,6 +43,17 @@ All notable changes to this project will be documented in this file.
   - **TDD Book**: tests/test_copy.py::test_copy_shallow_list PASSED
   - **Impact**: Prevents regression of copy.copy() transpilation
 
+- **✅ DEPYLER-0023 Regression Fix** (2025-10-26): Handle special Rust keywords that cannot be raw identifiers
+  - **Bug**: DEPYLER-0023 fix introduced regression with special keywords (self, Self, super, crate)
+  - **Error**: `r#self` cannot be a raw identifier - panic at expr_gen.rs:52
+  - **Test Failure**: error_path_tests::test_unsupported_python_features
+  - **Root Cause**: syn::Ident::new_raw() works for most keywords but fails for self/Self/super/crate
+  - **Fix**: Added is_non_raw_keyword() check with helpful error message
+  - **Error Message**: "Python variable conflicts with special Rust keyword that cannot be escaped"
+  - **Suggestion**: Recommends renaming (e.g., self -> self_var or py_self)
+  - **Impact**: Graceful error handling instead of panic, improved UX
+  - **Quality**: ✅ All tests passing, zero regressions
+
 - **✅ DEPYLER-0021 [COMPLETE]** (2025-10-26): Implement struct module (pack, unpack, calcsize)
   - **Bug**: Python struct module completely unimplemented, caused invalid Rust code generation
   - **Error**: Generated `r#struct.pack("i".to_string(), 42)` (undefined, doesn't compile)
