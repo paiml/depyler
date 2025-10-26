@@ -291,7 +291,29 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn convert_unary(&mut self, op: &UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
         let operand_expr = operand.to_rust_expr(self.ctx)?;
         match op {
-            UnaryOp::Not => Ok(parse_quote! { !#operand_expr }),
+            UnaryOp::Not => {
+                // DEPYLER-0266: Check if operand is a collection type
+                // For collections (list, dict, set, string), use .is_empty() instead of !
+                // because Rust doesn't allow ! operator on non-bool types
+                let is_collection = if let HirExpr::Var(var_name) = operand {
+                    if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                        matches!(
+                            var_type,
+                            Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::String
+                        )
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                if is_collection {
+                    Ok(parse_quote! { #operand_expr.is_empty() })
+                } else {
+                    Ok(parse_quote! { !#operand_expr })
+                }
+            }
             UnaryOp::Neg => Ok(parse_quote! { -#operand_expr }),
             UnaryOp::Pos => Ok(operand_expr), // No +x in Rust
             UnaryOp::BitNot => Ok(parse_quote! { !#operand_expr }),
