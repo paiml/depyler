@@ -16,6 +16,17 @@ All notable changes to this project will be documented in this file.
   - **Future Work**: I/O-bound, memory-intensive benchmarks, energy profiling, CI integration
 
 ### Fixed
+- **🐛 DEPYLER-0265: Iterator Dereferencing Bug** (2025-10-26): Fixed type mismatches in for loops over collections (partial fix)
+  - **Issue**: For loops generated `.iter()` yielding `&T` but loop body treated values as `T`, causing type mismatches
+  - **Impact**: P0 BLOCKING - prevented compilation of for loops over collections with comparisons/assignments
+  - **Root Cause**: `stmt_gen.rs:349` generated `for item in collection.iter()` where item is `&T`, not `T`
+  - **Fix**: Changed `.iter()` to `.iter().cloned()` in stmt_gen.rs:355 for automatic dereferencing
+  - **Testing**: EXTREME TDD protocol - 4 comprehensive tests (295 lines), 1 passes (arithmetic), 3 blocked by other bugs
+  - **Verification**: Iterator dereferencing WORKS, zero regressions (736 tests pass), discovered 3 additional bugs
+  - **Discovered Bugs**: DEPYLER-0266 (boolean conversion), DEPYLER-0267 (index access), DEPYLER-0268 (index negation)
+  - **Files**: `stmt_gen.rs:355` (fix), `type_flow.rs:244` (Bytes literal), `depyler_0265_iterator_deref_test.rs` (295 lines), `DEPYLER-0265.md`
+  - **Discovery**: Performance Benchmarking Campaign (compute_intensive.py)
+
 - **🐛 DEPYLER-0264: DynamicType Undefined** (2025-10-26): Fixed critical bug preventing transpilation of untyped collection parameters
   - **Issue**: Type mapper generated `Vec<DynamicType>`, `HashMap<DynamicType, DynamicType>`, `HashSet<DynamicType>` but DynamicType was never defined
   - **Impact**: P0 BLOCKING - prevented transpilation of any code with untyped list/dict/set parameters

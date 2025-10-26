@@ -186,3 +186,7 @@ path = "../../tests/depyler_0024_copy_bug_test.rs"
 [[test]]
 name = "depyler_0264_dynamic_type_test"
 path = "../../tests/depyler_0264_dynamic_type_test.rs"
+
+[[test]]
+name = "depyler_0265_iterator_deref_test"
+path = "../../tests/depyler_0265_iterator_deref_test.rs"

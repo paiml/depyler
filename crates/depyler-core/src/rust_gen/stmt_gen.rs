@@ -346,7 +346,13 @@ pub(crate) fn codegen_for_stmt(
         // it's likely a parameter or local var that might be borrowed
         // The generated code already has the variable as borrowed (e.g., data: &Vec<T>)
         // so we need to call .iter() on it
-        iter_expr = parse_quote! { #iter_expr.iter() };
+        //
+        // DEPYLER-0265: Use .iter().cloned() to automatically clone items
+        // This handles both Copy types (int, float, bool) and Clone types (String, Vec, etc.)
+        // For Copy types, .cloned() is optimized to a simple bit-copy by the compiler.
+        // For Clone types, it calls .clone() which is correct for Rust.
+        // This matches Python semantics where loop variables are values, not references.
+        iter_expr = parse_quote! { #iter_expr.iter().cloned() };
     }
 
     ctx.enter_scope();

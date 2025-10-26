@@ -241,6 +241,7 @@ impl TypeInferencer {
             depyler_core::hir::Literal::Int(_) => Type::Int,
             depyler_core::hir::Literal::Float(_) => Type::Float,
             depyler_core::hir::Literal::String(_) => Type::String,
+            depyler_core::hir::Literal::Bytes(_) => Type::Custom("bytes".to_string()),
             depyler_core::hir::Literal::Bool(_) => Type::Bool,
             depyler_core::hir::Literal::None => Type::None,
         }
