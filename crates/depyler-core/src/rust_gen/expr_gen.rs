@@ -1096,6 +1096,117 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(None)
     }
 
+    /// DEPYLER-0021: Handle struct module methods (pack, unpack, calcsize)
+    /// Only supports format codes 'i' (signed 32-bit int) and 'ii' (two ints)
+    fn try_convert_struct_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        match method {
+            "pack" => {
+                if args.is_empty() {
+                    bail!("struct.pack() requires at least a format argument");
+                }
+
+                // First arg is format string
+                if let HirExpr::Literal(Literal::String(format)) = &args[0] {
+                    let count = format.chars().filter(|&c| c == 'i').count();
+
+                    if count == 0 {
+                        bail!("struct.pack() format '{}' not supported (only 'i' and 'ii' implemented)", format);
+                    }
+
+                    if count != args.len() - 1 {
+                        bail!("struct.pack() format '{}' expects {} values, got {}", format, count, args.len() - 1);
+                    }
+
+                    // Convert value arguments
+                    let value_exprs: Vec<syn::Expr> = args[1..]
+                        .iter()
+                        .map(|arg| arg.to_rust_expr(self.ctx))
+                        .collect::<Result<Vec<_>>>()?;
+
+                    if count == 1 {
+                        // struct.pack('i', value) → (value as i32).to_le_bytes().to_vec()
+                        let val = &value_exprs[0];
+                        Ok(Some(parse_quote! {
+                            (#val as i32).to_le_bytes().to_vec()
+                        }))
+                    } else {
+                        // struct.pack('ii', a, b) → { let mut v = Vec::new(); v.extend_from_slice(&(a as i32).to_le_bytes()); ... }
+                        Ok(Some(parse_quote! {
+                            {
+                                let mut __struct_pack_result = Vec::new();
+                                #(__struct_pack_result.extend_from_slice(&(#value_exprs as i32).to_le_bytes());)*
+                                __struct_pack_result
+                            }
+                        }))
+                    }
+                } else {
+                    bail!("struct.pack() requires string literal format (dynamic formats not supported)");
+                }
+            }
+            "unpack" => {
+                if args.len() != 2 {
+                    bail!("struct.unpack() requires exactly 2 arguments (format, bytes)");
+                }
+
+                // First arg is format string
+                if let HirExpr::Literal(Literal::String(format)) = &args[0] {
+                    let count = format.chars().filter(|&c| c == 'i').count();
+
+                    if count == 0 {
+                        bail!("struct.unpack() format '{}' not supported (only 'i' and 'ii' implemented)", format);
+                    }
+
+                    let bytes_expr = args[1].to_rust_expr(self.ctx)?;
+
+                    if count == 1 {
+                        // struct.unpack('i', bytes) → (i32::from_le_bytes(bytes[0..4].try_into().unwrap()),)
+                        Ok(Some(parse_quote! {
+                            (i32::from_le_bytes(#bytes_expr[0..4].try_into().unwrap()),)
+                        }))
+                    } else if count == 2 {
+                        // struct.unpack('ii', bytes) → (i32::from_le_bytes(...), i32::from_le_bytes(...))
+                        Ok(Some(parse_quote! {
+                            (
+                                i32::from_le_bytes(#bytes_expr[0..4].try_into().unwrap()),
+                                i32::from_le_bytes(#bytes_expr[4..8].try_into().unwrap()),
+                            )
+                        }))
+                    } else {
+                        bail!("struct.unpack() only supports 'i' and 'ii' formats (got {} ints)", count);
+                    }
+                } else {
+                    bail!("struct.unpack() requires string literal format (dynamic formats not supported)");
+                }
+            }
+            "calcsize" => {
+                if args.len() != 1 {
+                    bail!("struct.calcsize() requires exactly 1 argument");
+                }
+
+                // Arg is format string
+                if let HirExpr::Literal(Literal::String(format)) = &args[0] {
+                    let count = format.chars().filter(|&c| c == 'i').count();
+
+                    if count == 0 {
+                        bail!("struct.calcsize() format '{}' not supported (only 'i' and 'ii' implemented)", format);
+                    }
+
+                    let size = (count * 4) as i32;
+                    Ok(Some(parse_quote! { #size }))
+                } else {
+                    bail!("struct.calcsize() requires string literal format (dynamic formats not supported)");
+                }
+            }
+            _ => {
+                bail!("struct.{} not implemented", method);
+            }
+        }
+    }
+
     /// Try to convert module method call (e.g., os.getcwd())
     #[inline]
     fn try_convert_module_method(
@@ -1105,6 +1216,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
         if let HirExpr::Var(module_name) = object {
+            // DEPYLER-0021: Handle struct module (pack, unpack, calcsize)
+            if module_name == "struct" {
+                return self.try_convert_struct_method(method, args);
+            }
+
             let rust_name_opt = self
                 .ctx
                 .imported_modules
