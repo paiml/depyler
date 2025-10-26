@@ -27,6 +27,16 @@ All notable changes to this project will be documented in this file.
   - **Files**: `stmt_gen.rs:355` (fix), `type_flow.rs:244` (Bytes literal), `depyler_0265_iterator_deref_test.rs` (295 lines), `DEPYLER-0265.md`
   - **Discovery**: Performance Benchmarking Campaign (compute_intensive.py)
 
+- **🐛 DEPYLER-0266: Boolean Conversion Bug** (2025-10-26): Fixed `if not collection:` generating invalid `!` operator on borrowed collections
+  - **Issue**: Python `if not collection:` generated `if !collection` but Rust's `!` operator only works on `bool`, not `&Vec<T>`, `&str`, etc.
+  - **Impact**: P0 BLOCKING - prevented compilation of all empty collection checks (blocked 3 of 4 DEPYLER-0265 tests)
+  - **Root Cause**: `expr_gen.rs:294` always generated `!operand` for `UnaryOp::Not` without checking operand type
+  - **Fix**: Type-aware expression generation - use `.is_empty()` for collections (List, Dict, Set, String), preserve `!` for booleans
+  - **Testing**: EXTREME TDD protocol - 5 comprehensive tests (314 lines), 4 failed in RED phase, all 5 pass after fix
+  - **Verification**: All tests compile and pass, zero regressions (736 tests), guard clause patterns work
+  - **Files**: `expr_gen.rs:291-321` (type-aware fix), `depyler_0266_boolean_conversion_test.rs` (314 lines), `DEPYLER-0266.md` (bug ticket)
+  - **Discovery**: DEPYLER-0265 test suite (blocked 3 of 4 tests)
+
 - **🐛 DEPYLER-0264: DynamicType Undefined** (2025-10-26): Fixed critical bug preventing transpilation of untyped collection parameters
   - **Issue**: Type mapper generated `Vec<DynamicType>`, `HashMap<DynamicType, DynamicType>`, `HashSet<DynamicType>` but DynamicType was never defined
   - **Impact**: P0 BLOCKING - prevented transpilation of any code with untyped list/dict/set parameters
