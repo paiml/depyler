@@ -36,7 +36,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         )
     }
 
+    /// Check if a keyword cannot be used as a raw identifier
+    /// These special keywords (self, Self, super, crate) cannot use r# syntax
+    fn is_non_raw_keyword(name: &str) -> bool {
+        matches!(name, "self" | "Self" | "super" | "crate")
+    }
+
     fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
+        // Check for special keywords that cannot be raw identifiers
+        if Self::is_non_raw_keyword(name) {
+            bail!(
+                "Python variable '{}' conflicts with a special Rust keyword that cannot be escaped. \
+                 Please rename this variable (e.g., '{}_var' or 'py_{}')",
+                name, name, name
+            );
+        }
+
         // Inside generators, check if variable is a state variable
         if self.ctx.in_generator && self.ctx.generator_state_vars.contains(name) {
             // Generate self.field for state variables
