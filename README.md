@@ -3,6 +3,8 @@
 [![Crates.io](https://img.shields.io/crates/v/depyler.svg)](https://crates.io/crates/depyler)
 [![Documentation](https://docs.rs/depyler/badge.svg)](https://docs.rs/depyler)
 [![CI](https://github.com/paiml/depyler/actions/workflows/ci.yml/badge.svg)](https://github.com/paiml/depyler/actions/workflows/ci.yml)
+[![TDD Book](https://github.com/paiml/depyler/actions/workflows/book.yml/badge.svg)](https://github.com/paiml/depyler/actions/workflows/book.yml)
+[![Stdlib Validation](https://img.shields.io/badge/stdlib%20validation-27%20modules%20%7C%20151%20tests-brightgreen.svg)](tdd-book/VALIDATION-FINAL-2025-10-26.md)
 [![Coverage](https://img.shields.io/badge/coverage-70.16%25-yellow.svg)](https://codecov.io/gh/paiml/depyler)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Apache License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
