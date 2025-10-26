@@ -22,6 +22,27 @@ All notable changes to this project will be documented in this file.
   - **External Tool**: Requires `spydecy` (cargo install spydecy from ../spydecy)
 
 ### Fixed
+- **✅ DEPYLER-0023** (2025-10-26): Fix Rust keyword collision causing transpiler panic
+  - **Bug**: Python variables using Rust keywords (`match`, `type`, `impl`, etc.) caused panic
+  - **Error**: "unexpected end of input, expected an expression" at expr_gen.rs:34:16
+  - **Root Cause**: `parse_quote!` fails when identifier is a Rust keyword
+  - **Fix**: Use `syn::Ident::new_raw()` to generate raw identifiers (`r#match`)
+  - **Discovery**: TDD Book re module validation (initially misdiagnosed as Match object bug)
+  - **Tests**: 4 regression tests covering match, type, impl keywords + re.search case
+  - **Impact**: Fixes 4/6 failing re module tests (66.7% → 100% with regex API fixes)
+  - **Quality**: ✅ All 448 core tests pass, zero regressions
+
+- **✅ DEPYLER-0024** (2025-10-26): Add regression test for copy.copy() list bug (already fixed)
+  - **Discovery**: TDD Book validation found copy.copy() for lists was reported as broken
+  - **Investigation**: Bug was already fixed - transpiler correctly generates `.clone()` not `.copy()`
+  - **Tests Added**:
+    - `test_depyler_0024_copy_copy_list_invalid_codegen`: Verifies no invalid `.copy()` method
+    - `test_depyler_0024_copy_copy_dict_works`: Regression check for dict copying
+    - `test_depyler_0024_copy_deepcopy_list_works`: Regression check for deep copying
+  - **Status**: All tests PASS ✅ - bug prevention test committed
+  - **TDD Book**: tests/test_copy.py::test_copy_shallow_list PASSED
+  - **Impact**: Prevents regression of copy.copy() transpilation
+
 - **✅ DEPYLER-0022 [PARTIAL]** (2025-10-23): Add bytes literal support to HIR
   - **Issue**: Python bytes literals (`b"hello"`) caused transpiler to crash with "Unsupported constant type"
   - **Fix**: Added `Literal::Bytes(Vec<u8>)` variant to HIR and updated all 7 codegen locations

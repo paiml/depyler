@@ -173,3 +173,12 @@ path = "../../tests/quality_assurance_automation.rs"
 [[test]]
 name = "v3_17_coverage_tests"
 path = "../../tests/v3_17_coverage_tests.rs"
+
+# Bug Regression Tests
+[[test]]
+name = "depyler_0023_rust_keywords_test"
+path = "../../tests/depyler_0023_rust_keywords_test.rs"
+
+[[test]]
+name = "depyler_0024_copy_bug_test"
+path = "../../tests/depyler_0024_copy_bug_test.rs"
