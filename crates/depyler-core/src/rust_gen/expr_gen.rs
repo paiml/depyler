@@ -366,6 +366,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             });
         }
 
+        // DEPYLER-0022: Handle memoryview(data) → data (identity/no-op)
+        // Rust byte slices (&[u8]) already provide memoryview functionality (zero-copy view)
+        // Python's memoryview provides a buffer interface - Rust slices are already references
+        if func == "memoryview" && args.len() == 1 {
+            return args[0].to_rust_expr(self.ctx);
+        }
+
         // DEPYLER-0247: Handle sum(iterable) → iterable.iter().sum::<T>()
         // Need turbofish type annotation to help Rust's type inference
         if func == "sum" && args.len() == 1 {

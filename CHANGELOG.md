@@ -43,11 +43,19 @@ All notable changes to this project will be documented in this file.
   - **TDD Book**: tests/test_copy.py::test_copy_shallow_list PASSED
   - **Impact**: Prevents regression of copy.copy() transpilation
 
-- **✅ DEPYLER-0022 [PARTIAL]** (2025-10-23): Add bytes literal support to HIR
-  - **Issue**: Python bytes literals (`b"hello"`) caused transpiler to crash with "Unsupported constant type"
-  - **Fix**: Added `Literal::Bytes(Vec<u8>)` variant to HIR and updated all 7 codegen locations
-  - **Impact**: Bytes literals now transpile correctly to Rust `b"hello"` via syn::LitByteStr
-  - **Progress**: Issue #22 from 0% → ~50% complete (bytes literals work, memoryview type still needed)
+- **✅ DEPYLER-0022 [COMPLETE]** (2025-10-26): Fix memoryview() invalid code generation
+  - **Part 1** (2025-10-23): Added bytes literal support to HIR
+    - Fixed Python bytes literals (`b"hello"`) crash with "Unsupported constant type"
+    - Added `Literal::Bytes(Vec<u8>)` variant to HIR, updated all 7 codegen locations
+  - **Part 2** (2025-10-26): Fixed memoryview() generating invalid Rust code
+    - **Bug**: `memoryview(b"hello")` generated call to non-existent Rust function
+    - **Discovery**: TDD tests passed but didn't check Rust compilation (test gap found!)
+    - **Root Cause**: memoryview() treated as regular function call, no special handler
+    - **Fix**: Added 5-line identity handler (expr_gen.rs:369-373) - returns data as-is
+    - **Rationale**: Rust byte slices (`&[u8]`) already provide zero-copy view semantics
+    - **Generated Code**: `let view = b"hello";` instead of invalid `let view = memoryview(b"hello");`
+  - **Tests**: All 6 TDD Book memoryview tests passing, manual Rust compilation verified
+  - **Status**: DEPYLER-0022 fully resolved (100% complete)
   - **Test**: test_convert_constant_bytes() passes
   - **Quality**: ✅ Clippy passed, ✅ 448 unit tests passed
   - **Remaining**: memoryview type implementation, struct.pack/unpack support
