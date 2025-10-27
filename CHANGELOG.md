@@ -15,6 +15,20 @@ All notable changes to this project will be documented in this file.
   - **Next**: File DEPYLER-0269+ tickets for remaining 5 errors, continue STOP THE LINE protocol
   - **Files**: `benchmarks/rust/compute_intensive_transpiled.rs`, `benchmarks/TRANSPILATION_VALIDATION.md`
 
+### Fixed
+- **🐛 DEPYLER-0271: Main Function Return Type** (2025-10-27): Fixed functions without return annotations generating incorrect serde_json::Value return type
+  - **Issue**: Functions without return type annotations generated `pub fn main() -> serde_json::Value {}` instead of `pub fn main() {}`
+  - **Impact**: P1 MEDIUM - Function signature correctness, caused "use of unresolved crate serde_json" errors
+  - **Root Cause**: `annotation_aware_type_mapper.rs:165-180` mapped `Type::Unknown` → `serde_json::Value` for return types
+  - **Semantic Issue**: Python functions without return annotation implicitly return None, should map to `()` not `serde_json::Value`
+  - **Fix**: Added `PythonType::Unknown → RustType::Unit` case in `map_return_type_with_annotations()` and `map_return_type()`
+  - **Testing**: EXTREME TDD protocol - 8 comprehensive tests (330 lines), 7/8 pass (1 blocked by DEPYLER-0272)
+  - **Verification**: Generated code correct (`pub fn main() {}`), compiles without --deny warnings, zero regressions (448 tests)
+  - **Note**: One test fails due to DEPYLER-0272 (unused variable warnings), not return type issue
+  - **Files**: `crates/depyler-core/src/annotation_aware_type_mapper.rs:178`, `crates/depyler-core/src/type_mapper.rs:230`
+  - **Tests**: `tests/depyler_0271_main_return_type_test.rs`, `docs/bugs/DEPYLER-0271.md`
+  - **Discovered**: Performance Benchmarking Campaign (compute_intensive.py validation)
+
 ## [3.19.20] - 2025-10-27
 
 ### Summary
