@@ -99,15 +99,27 @@ rustc --crate-type lib --deny warnings <output.rs>
 ```
 
 ## 🛑 STOP THE LINE: Validation-Driven Development
-**When validation finds issues**:
-1. 🛑 STOP - Don't continue
-2. 📋 DOCUMENT - Capture issue
-3. 🎫 TICKET - Create DEPYLER-XXXX
-4. 🔍 ANALYZE - Root cause
-5. 🔧 FIX TRANSPILER - Not output
-6. ♻️ RE-TRANSPILE ALL
-7. ✅ VERIFY - Confirm fix
-8. ▶️ RESUME
+
+**MANDATORY PROTOCOL**: When ANY defect is discovered in transpiled output, **STOP IMMEDIATELY**.
+
+**Quick Response**:
+1. 🛑 STOP - Halt all feature work
+2. 📋 DOCUMENT - Create GitHub issue using `.github/ISSUE_TEMPLATE/transpiler_bug.yml`
+3. 🎫 TICKET - Assign DEPYLER-XXXX number (sequential)
+4. 🔍 ANALYZE - Find root cause in transpiler code
+5. 🔧 FIX TRANSPILER - Never fix output, always fix source
+6. ♻️ RE-TRANSPILE - Regenerate ALL affected examples
+7. ✅ VERIFY - All quality gates must pass
+8. ▶️ RESUME - Only after full verification
+
+**Full Protocol**: See [docs/processes/stop-the-line.md](docs/processes/stop-the-line.md)
+
+**GitHub Issue Template**: `.github/ISSUE_TEMPLATE/transpiler_bug.yml`
+
+**Defect Severity**:
+- **P0 (STOP ALL WORK)**: Compilation failures, type safety violations, memory safety issues
+- **P1 (BLOCK RELEASE)**: Clippy warnings, non-idiomatic code, performance regressions
+- **P2/P3 (TRACK)**: Optimization opportunities, documentation gaps
 
 ## Testing Strategy
 ### Multi-Level Testing (MANDATORY)
