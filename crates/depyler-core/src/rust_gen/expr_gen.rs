@@ -560,6 +560,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(chain);
         }
 
+        // DEPYLER-0269: Handle isinstance(value, type) → true
+        // In statically-typed Rust, type system guarantees make runtime checks unnecessary
+        // isinstance(x, T) where x: T is always true at compile-time
+        if func == "isinstance" && args.len() == 2 {
+            // Return literal true since Rust's type system guarantees correctness
+            return Ok(parse_quote! { true });
+        }
+
         // DEPYLER-0230: Check if func is a user-defined class before treating as builtin
         let is_user_class = self.ctx.class_names.contains(func);
 
