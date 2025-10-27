@@ -1,0 +1,190 @@
+name: 🐛 Transpiler Bug (Stop the Line)
+description: Report a transpiler bug discovered during matrix-testing validation
+title: "[DEPYLER-XXXX] Brief description of transpiler bug"
+labels: ["bug", "transpiler", "stop-the-line", "P0"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🛑 Stop the Line (Jidoka)
+
+        This template follows Toyota Way's **Jidoka** principle:
+        - **Stop immediately** when defects are found
+        - **Fix at source** (transpiler, not output)
+        - **Prevent recurrence** via automated tests
+        - **Resume only after verification**
+
+  - type: input
+    id: ticket_id
+    attributes:
+      label: Ticket ID
+      description: Sequential ticket number (e.g., DEPYLER-0269)
+      placeholder: "DEPYLER-0269"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: Impact level on transpiler quality
+      options:
+        - P0 - Critical (Blocks compilation)
+        - P1 - High (Generates unidiomatic code)
+        - P2 - Medium (Non-blocking warnings)
+        - P3 - Low (Optimization opportunity)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: discovery_phase
+    attributes:
+      label: Discovery Phase
+      description: Where was the bug discovered?
+      options:
+        - Matrix Testing - Column A → B
+        - Matrix Testing - Column B → C
+        - Matrix Testing - Column A → D
+        - Integration Testing
+        - User Report
+    validations:
+      required: true
+
+  - type: textarea
+    id: bug_description
+    attributes:
+      label: Bug Description
+      description: What does the transpiler generate incorrectly?
+      placeholder: |
+        **Issue**: Brief summary
+        **Root Cause**: Where in transpiler code (file:line)
+        **Impact**: How many examples affected
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_output
+    attributes:
+      label: Expected Output (Idiomatic Rust)
+      description: What SHOULD the transpiler generate?
+      placeholder: |
+        ```rust
+        pub fn example(x: i32) -> i32 {
+            x + 1
+        }
+        ```
+      render: rust
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual_output
+    attributes:
+      label: Actual Output (Generated Code)
+      description: What DOES the transpiler currently generate?
+      placeholder: |
+        ```rust
+        pub fn example(x: i32) -> i32 {
+            return x + 1 as i32;  // Unnecessary return + cast
+        }
+        ```
+      render: rust
+    validations:
+      required: true
+
+  - type: textarea
+    id: python_source
+    attributes:
+      label: Python Source Input
+      description: Original Python code that triggers this bug
+      placeholder: |
+        ```python
+        def example(x: int) -> int:
+            return x + 1
+        ```
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    id: quality_gate_failures
+    attributes:
+      label: Quality Gate Failures
+      description: Which quality gates failed?
+      placeholder: |
+        - [ ] cargo check: FAIL (compilation errors)
+        - [ ] clippy -D warnings: 17 warnings
+        - [ ] cargo test: PASS
+        - [ ] cargo-llvm-cov: Not reached (compilation failure)
+    validations:
+      required: true
+
+  - type: textarea
+    id: fix_verification
+    attributes:
+      label: Fix Verification Plan
+      description: How will we verify the fix works?
+      placeholder: |
+        1. Add regression test in tests/depyler_0269_isinstance_test.rs
+        2. Update transpiler code in crates/depyler-core/src/rust_gen.rs
+        3. Re-transpile ALL matrix-testing examples
+        4. Verify all quality gates pass
+        5. Update CHANGELOG.md with fix
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected_examples
+    attributes:
+      label: Affected Examples
+      description: Which matrix-testing examples are impacted?
+      placeholder: |
+        - examples/01_basic_types/column_b (type_check_int, type_check_str)
+        - examples/03_functions/column_b (all functions with isinstance)
+        - Estimated: 15% of all examples
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: stop_the_line_checklist
+    attributes:
+      label: Stop the Line Checklist
+      description: Mandatory steps before resuming work
+      options:
+        - label: "🛑 Stopped all related work (no new examples until fixed)"
+          required: true
+        - label: "📋 Documented bug with reproducible test case"
+          required: true
+        - label: "🔍 Root cause identified in transpiler code"
+          required: true
+        - label: "✅ Fix implemented with regression test"
+          required: true
+        - label: "🔄 Re-transpiled ALL affected examples"
+          required: true
+        - label: "✅ All quality gates passing"
+          required: true
+        - label: "📝 CHANGELOG.md updated"
+          required: true
+        - label: "🚀 Ready to resume development"
+          required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+        ## Scientific Foundation
+
+        This process follows **mutation testing** principles (DeMillo et al., 1978):
+        - Each bug is a "surviving mutant" in the transpiler
+        - Quality gates act as "mutation killers"
+        - Fix must eliminate ALL instances of the pattern
+
+        ## Toyota Way Integration
+
+        - **Jidoka (自働化)**: Build quality in, stop on defects
+        - **Genchi Genbutsu (現地現物)**: Go see actual generated code
+        - **Kaizen (改善)**: Each bug makes transpiler better for EVERYONE
+        - **Hansei (反省)**: Fix before adding new features

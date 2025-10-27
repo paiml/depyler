@@ -330,9 +330,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 This project maintains the highest quality standards:
 
 - **自働化 (Jidoka)**: Build quality in, not bolt it on
-  - Stop the line when defects found
-  - Fix at source, verify, then resume
+  - **Stop the Line when defects found** - See [docs/processes/stop-the-line.md](docs/processes/stop-the-line.md)
+  - Fix at source (transpiler), never at output (generated code)
+  - Verify all affected examples after fix
   - Zero tolerance for technical debt
+  - **GitHub Issue Template**: `.github/ISSUE_TEMPLATE/transpiler_bug.yml`
 
 - **改善 (Kaizen)**: Continuous improvement
   - Incremental verification and enhancement
