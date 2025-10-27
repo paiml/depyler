@@ -396,6 +396,44 @@ fn function_returns_owned_string(func: &HirFunction) -> bool {
     false
 }
 
+// DEPYLER-0270: String Concatenation Detection
+
+/// Check if an expression contains string concatenation (which returns owned String)
+fn contains_string_concatenation(expr: &HirExpr) -> bool {
+    match expr {
+        // String concatenation: a + b (Add operator generates format!() for strings)
+        HirExpr::Binary { op: BinOp::Add, .. } => {
+            // Binary Add on strings generates format!() which returns String
+            // We detect this by assuming any Add at top level is string concat
+            // (numeric Add is handled differently in code generation)
+            true
+        }
+        // F-strings generate format!() which returns String
+        HirExpr::FString { .. } => true,
+        // Recursive checks for nested expressions
+        HirExpr::Binary { left, right, .. } => {
+            contains_string_concatenation(left) || contains_string_concatenation(right)
+        }
+        HirExpr::Unary { operand, .. } => contains_string_concatenation(operand),
+        HirExpr::IfExpr { body, orelse, .. } => {
+            contains_string_concatenation(body) || contains_string_concatenation(orelse)
+        }
+        _ => false,
+    }
+}
+
+/// Check if function returns string concatenation
+fn function_returns_string_concatenation(func: &HirFunction) -> bool {
+    for stmt in &func.body {
+        if let HirStmt::Return(Some(expr)) = stmt {
+            if contains_string_concatenation(expr) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Check if a type expects float values (recursively checks Option, Result, etc.)
 pub(crate) fn return_type_expects_float(ty: &Type) -> bool {
     match ty {
@@ -483,26 +521,35 @@ pub(crate) fn codegen_return_type(
     } else {
         let mut ty = rust_type_to_syn(&rust_ret_type)?;
 
+        // DEPYLER-0270: Check if function returns string concatenation
+        // String concatenation (format!(), a + b) always returns owned String
+        // Never use Cow for concatenation results
+        let returns_concatenation = matches!(func.ret_type, crate::hir::Type::String)
+            && function_returns_string_concatenation(func);
+
         // Check if any parameter escapes through return and uses Cow
         let mut uses_cow_return = false;
-        for param in &func.params {
-            if let Some(strategy) = lifetime_result.borrowing_strategies.get(&param.name) {
-                if matches!(
-                    strategy,
-                    crate::borrowing_context::BorrowingStrategy::UseCow { .. }
-                ) {
-                    if let Some(_usage) = lifetime_result.param_lifetimes.get(&param.name) {
-                        // If a Cow parameter escapes, return type should also be Cow
-                        if matches!(func.ret_type, crate::hir::Type::String) {
-                            uses_cow_return = true;
-                            break;
+        if !returns_concatenation {
+            // Only consider Cow if NOT doing string concatenation
+            for param in &func.params {
+                if let Some(strategy) = lifetime_result.borrowing_strategies.get(&param.name) {
+                    if matches!(
+                        strategy,
+                        crate::borrowing_context::BorrowingStrategy::UseCow { .. }
+                    ) {
+                        if let Some(_usage) = lifetime_result.param_lifetimes.get(&param.name) {
+                            // If a Cow parameter escapes, return type should also be Cow
+                            if matches!(func.ret_type, crate::hir::Type::String) {
+                                uses_cow_return = true;
+                                break;
+                            }
                         }
                     }
                 }
             }
         }
 
-        if uses_cow_return {
+        if uses_cow_return && !returns_concatenation {
             // Use the same Cow type for return
             ctx.needs_cow = true;
             if let Some(ref return_lt) = lifetime_result.return_lifetime {
