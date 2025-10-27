@@ -198,3 +198,7 @@ path = "../../tests/depyler_0266_boolean_conversion_test.rs"
 [[test]]
 name = "depyler_0267_index_access_test"
 path = "../../tests/depyler_0267_index_access_test.rs"
+
+[[test]]
+name = "depyler_0268_index_negation_test"
+path = "../../tests/depyler_0268_index_negation_test.rs"

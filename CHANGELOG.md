@@ -27,6 +27,20 @@ All notable changes to this project will be documented in this file.
   - **Files**: `stmt_gen.rs:355` (fix), `type_flow.rs:244` (Bytes literal), `depyler_0265_iterator_deref_test.rs` (295 lines), `DEPYLER-0265.md`
   - **Discovery**: Performance Benchmarking Campaign (compute_intensive.py)
 
+- **🔬 DEPYLER-0268: Index Negation Investigation** (2025-10-27): NON-ISSUE - Transpiler correctly handles negative indices (regression tests added)
+  - **Investigation**: Suspected bug where `(-idx) as usize` might fail due to usize not implementing Neg trait
+  - **Finding**: Bug DOES NOT EXIST - transpiler correctly handles negative indices in both literal and runtime cases
+  - **Evidence Literal**: `-1` generates `saturating_sub(1usize)` directly (NO negation operator)
+  - **Evidence Runtime**: `idx: i32` generates `if idx < 0 { len.saturating_sub((-idx) as usize) }` (CORRECT - idx is signed i32)
+  - **Root Non-Cause**: `expr_gen.rs:2126` converts negative literals to usize offsets, line 2143 negates signed idx correctly
+  - **Action Taken**: Created comprehensive regression tests to prevent future regressions and document correct behavior
+  - **Testing**: 5 comprehensive tests (309 lines) - all 5 PASS without any code changes (confirming no bug exists)
+  - **Tests**: Negative literal indices (-1, -2), runtime negative indices, nested collections, positive index regression
+  - **Verification**: All generated code compiles and runs correctly, feature works as expected
+  - **Files**: `depyler_0268_index_negation_test.rs` (5 regression tests, 309 lines), `DEPYLER-0268.md` (ticket marked CLOSED - NON-ISSUE)
+  - **Value**: Regression protection for negative indexing feature, documents transpiler behavior for future reference
+  - **Discovery**: DEPYLER-0265 test suite analysis (suspected during String negative index testing)
+
 - **🐛 DEPYLER-0267: Index Access Bug** (2025-10-26): Fixed `.copied()` used for non-Copy types causing compilation failures
   - **Issue**: Index access generated `.copied()` for all types, but String and other non-Copy types require `.cloned()`
   - **Impact**: P0 BLOCKING - prevented compilation of index access on String, Vec, and other Clone-only types
