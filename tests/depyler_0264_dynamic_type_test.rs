@@ -41,8 +41,7 @@ def sum_list(numbers: list) -> int:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0264_untyped_list.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0264: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0264: Failed to write temp file");
 
     // Attempt to compile with rustc
     let output = Command::new("rustc")
@@ -120,8 +119,7 @@ def get_value(data: dict, key: str) -> int:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0264_untyped_dict.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0264: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0264: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")
@@ -178,8 +176,7 @@ def count_unique(items: set) -> int:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0264_untyped_set.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0264: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0264: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")

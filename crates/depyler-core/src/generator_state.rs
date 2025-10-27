@@ -299,7 +299,7 @@ mod tests {
                 HirStmt::Assign {
                     target: crate::hir::AssignTarget::Symbol("i".to_string()),
                     value: HirExpr::Literal(crate::hir::Literal::Int(0)),
-                    type_annotation: None,  // ← No annotation, must infer!
+                    type_annotation: None, // ← No annotation, must infer!
                 },
                 HirStmt::While {
                     condition: HirExpr::Binary {
@@ -318,7 +318,7 @@ mod tests {
                                 op: crate::hir::BinOp::Add,
                                 right: Box::new(HirExpr::Literal(crate::hir::Literal::Int(1))),
                             },
-                            type_annotation: None,  // ← Reassignment, type already known
+                            type_annotation: None, // ← Reassignment, type already known
                         },
                     ],
                 },
