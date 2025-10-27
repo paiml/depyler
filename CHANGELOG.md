@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.19.20] - 2025-10-27
+
+### Summary
+**🐛 Critical Bug Fix Release - STOP THE LINE Campaign Complete**
+
+This release completes the EXTREME TDD bug fix campaign addressing 4 P0 BLOCKING bugs discovered during performance benchmarking and TDD Book validation. All bugs have been fixed with comprehensive regression test coverage.
+
+**Highlights:**
+- ✅ **4 Critical Bugs Fixed**: DEPYLER-0264, 0265, 0266, 0267 + 1 investigation (0268)
+- 🧪 **18 New Regression Tests**: 868 lines of comprehensive test coverage
+- 🔬 **Investigation**: DEPYLER-0268 verified as non-issue, regression tests retained
+- 🎯 **Zero Regressions**: All existing tests continue to pass
+
 ### Added
 - **🚀 PERFORMANCE BENCHMARKING** (2025-10-26): Initial benchmarking campaign demonstrates significant speedup
   - **Framework**: Created `benchmarks/` directory structure (python/, rust/, results/)
