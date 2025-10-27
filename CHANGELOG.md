@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **[DEPYLER-0272]** Unnecessary type casts in generated Rust code (2025-10-27)
+  - Generated code now only adds `as i32` casts when expression actually returns `usize`
+  - Prevents unnecessary casts like `(a: i32) as i32` for variables already of correct type
+  - Implements heuristic-based detection for usize-returning operations (`.len()`, `.count()`, `len()`, `range()`)
+  - Zero clippy warnings, all tests pass
+  - Root cause: `needs_type_conversion()` was always returning true for Int types
+  - Fix: Added `expr_returns_usize()` to check if expression actually needs cast
 - **[DEPYLER-0271]** Unnecessary return keywords in generated Rust code (2025-10-27)
   - Generated code now uses idiomatic expression-based returns for final statements
   - Early returns in control flow branches correctly keep `return` keyword
