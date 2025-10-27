@@ -139,11 +139,57 @@ This YAML file contains:
 
 ---
 
-## Next Priorities (Post-v3.19.14)
+## Next Priorities (Post-v3.19.20)
 
-### Short Term (v3.20.0 - v3.21.0)
+### 🎯 TOP PRIORITY: Matrix-Testing Project (v3.20.0 - 4 weeks)
 
-**Advanced Stdlib Methods** (Priority: P1)
+**Project**: `python-to-rust-conversion-examples` repository
+**Goal**: Demonstrate verified bidirectional conversions (Python ↔ Rust ↔ Ruchy)
+**Status**: 🚀 ACTIVE - Specification complete, implementation starting
+
+**Phase 1: Foundation** (Week 1-2) - DEPYLER-0273
+- [ ] Create repository structure
+- [ ] Implement validation scripts (validate_example.sh, generate_matrix.py)
+- [ ] Set up CI/CD pipeline (GitHub Actions with concurrency control)
+- [ ] Create first 3 examples (basic_types, control_flow, functions)
+- [ ] Document CONVERSION_GUIDE.md
+- [ ] Set up pyproject.toml for Python dependencies
+
+**Phase 2: Core Features** (Week 3-4) - DEPYLER-0274
+- [ ] Implement 6 core examples (collections, error_handling, comprehensions, type_annotations, string_operations)
+- [ ] Validate all Column A (Python) examples
+- [ ] Transpile Column B (Python → Rust) for all core examples
+- [ ] Begin Column C (Rust → Python purification)
+
+**Phase 3: Advanced Features** (Week 5-6) - DEPYLER-0275
+- [ ] Implement 6 advanced examples (classes, iterators, decorators, context_managers, pattern_matching, async_await)
+- [ ] Complete Column B for advanced features
+- [ ] Complete Column C for core features
+- [ ] Begin Column D (Python → Ruchy)
+
+**Phase 4: Real-World Examples** (Week 7-8) - DEPYLER-0276
+- [ ] Implement 6 algorithm examples (binary_search, fibonacci, merge_sort, graph_traversal, json_parser, http_client)
+- [ ] Complete all conversion paths for algorithms
+- [ ] Validate all mutation scores ≥90%
+- [ ] Performance benchmarking (hyperfine)
+
+**Success Metrics**:
+- ✅ 20 examples × 4 paths = 80 verified conversions
+- ✅ 100% coverage (line + branch) across all paths
+- ✅ ≥90% mutation score (Rust), ≥80% (Python)
+- ✅ ≥A- pmat grade (Ruchy)
+- ✅ Zero quality gate failures in CI
+
+**Scientific Foundation**: Grounded in peer-reviewed research (DeMillo 1978, Claessen 2000, Hatton 2008)
+**Toyota Way**: Build quality in, standardized work, continuous improvement
+
+**Specification**: See [docs/specifications/matrix-testing-python-to-rust-projects.md](docs/specifications/matrix-testing-python-to-rust-projects.md)
+
+---
+
+### Short Term (v3.21.0 - v3.22.0) - DEFERRED until Matrix-Testing Complete
+
+**Advanced Stdlib Methods** (Priority: P2 - deferred)
 - dict.copy() - shallow copy support
 - set.issubset() - subset testing
 - set.issuperset() - superset testing

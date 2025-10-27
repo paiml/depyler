@@ -4,6 +4,59 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🎯 TOP PRIORITY: Matrix-Testing Project
+
+**Overview**: Create python-to-rust-conversion-examples repository demonstrating verified bidirectional conversions (Python ↔ Rust ↔ Ruchy)
+
+- **📋 DEPYLER-0273: Phase 1 - Foundation** (2025-10-27): Repository structure, validation scripts, CI/CD, first 3 examples
+  - **Goal**: Create repository infrastructure with automated validation
+  - **Deliverables**:
+    - Repository structure (examples/, scripts/, docs/, .github/workflows/)
+    - Validation scripts (validate_example.sh, generate_matrix.py)
+    - CI/CD pipeline (GitHub Actions with concurrency control, version pinning)
+    - First 3 examples (basic_types, control_flow, functions) with all 4 paths
+    - CONVERSION_GUIDE.md documentation
+    - pyproject.toml for Python dependency management
+  - **Timeline**: Week 1-2 (estimated 2 weeks)
+  - **Status**: 🚧 NOT STARTED - Specification complete
+
+- **📋 DEPYLER-0274: Phase 2 - Core Features** (planned): 6 core language feature examples
+  - **Goal**: Demonstrate core Python features across all 4 conversion paths
+  - **Deliverables**: collections, error_handling, comprehensions, type_annotations, string_operations examples
+  - **Quality Gates**: 100% coverage (line+branch), ≥90% mutation (Rust), ≥80% mutation (Python), ≥A- pmat (Ruchy)
+  - **Timeline**: Week 3-4
+  - **Status**: 📅 PLANNED
+
+- **📋 DEPYLER-0275: Phase 3 - Advanced Features** (planned): 6 advanced language feature examples
+  - **Goal**: Demonstrate advanced Python features
+  - **Deliverables**: classes, iterators, decorators, context_managers, pattern_matching, async_await examples
+  - **Timeline**: Week 5-6
+  - **Status**: 📅 PLANNED
+
+- **📋 DEPYLER-0276: Phase 4 - Real-World Examples** (planned): 6 algorithm examples with performance benchmarks
+  - **Goal**: Demonstrate real-world algorithms with verified correctness and performance
+  - **Deliverables**: binary_search, fibonacci, merge_sort, graph_traversal, json_parser, http_client examples
+  - **Performance**: Benchmark all paths with hyperfine, document speedups
+  - **Timeline**: Week 7-8
+  - **Status**: 📅 PLANNED
+
+**Success Metrics**:
+- ✅ 20 examples × 4 paths = 80 verified conversions
+- ✅ 100% coverage (line + branch) across all paths
+- ✅ ≥90% mutation score (Rust), ≥80% (Python)
+- ✅ ≥A- pmat grade (Ruchy)
+- ✅ Zero quality gate failures in CI
+
+**Scientific Foundation**:
+- Mutation Testing (DeMillo et al. 1978 - "Hints on Test Data Selection")
+- Property Testing (QuickCheck - Claessen & Hughes 2000)
+- Coverage Analysis (Hatton 2008 - "Dark Side of Coverage")
+- Benchmarking (Georges et al. 2007 - "Statistically Rigorous Java Performance Evaluation")
+
+**Specification**: [docs/specifications/matrix-testing-python-to-rust-projects.md](docs/specifications/matrix-testing-python-to-rust-projects.md) (1064 lines)
+
+---
+
 ### Fixed
 - **🐛 DEPYLER-TBD: HIR Structure Migration** (2025-10-27): Fixed code generation layer to match refactored HIR structure
   - **Issue**: 9 compilation errors after HIR enum refactoring (BinOp→Binary, UnaryOp→Unary, field renames)
