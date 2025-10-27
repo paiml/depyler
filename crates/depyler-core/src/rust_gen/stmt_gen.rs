@@ -160,30 +160,60 @@ pub(crate) fn codegen_return_stmt(
         // Check if the expression is None literal
         let is_none_literal = matches!(e, HirExpr::Literal(Literal::None));
 
+        // DEPYLER-0271: For final statement in function, omit `return` keyword (idiomatic Rust)
+        // Early returns (not final) keep the `return` keyword
+        let use_return_keyword = !ctx.is_final_statement;
+
         if ctx.current_function_can_fail {
             if is_optional_return && !is_none_literal {
                 // Wrap value in Some() for Optional return types
-                Ok(quote! { return Ok(Some(#expr_tokens)); })
-            } else {
+                if use_return_keyword {
+                    Ok(quote! { return Ok(Some(#expr_tokens)); })
+                } else {
+                    Ok(quote! { Ok(Some(#expr_tokens)) })
+                }
+            } else if use_return_keyword {
                 Ok(quote! { return Ok(#expr_tokens); })
+            } else {
+                Ok(quote! { Ok(#expr_tokens) })
             }
         } else if is_optional_return && !is_none_literal {
             // Wrap value in Some() for Optional return types
-            Ok(quote! { return Some(#expr_tokens); })
-        } else {
+            if use_return_keyword {
+                Ok(quote! { return Some(#expr_tokens); })
+            } else {
+                Ok(quote! { Some(#expr_tokens) })
+            }
+        } else if use_return_keyword {
             Ok(quote! { return #expr_tokens; })
+        } else {
+            Ok(quote! { #expr_tokens })
         }
     } else if ctx.current_function_can_fail {
         // No expression - check if return type is Optional
         let is_optional_return =
             matches!(ctx.current_return_type.as_ref(), Some(Type::Optional(_)));
+        let use_return_keyword = !ctx.is_final_statement;
+
         if is_optional_return {
-            Ok(quote! { return Ok(None); })
-        } else {
+            if use_return_keyword {
+                Ok(quote! { return Ok(None); })
+            } else {
+                Ok(quote! { Ok(None) })
+            }
+        } else if use_return_keyword {
             Ok(quote! { return Ok(()); })
+        } else {
+            Ok(quote! { Ok(()) })
         }
     } else {
-        Ok(quote! { return; })
+        let use_return_keyword = !ctx.is_final_statement;
+        if use_return_keyword {
+            Ok(quote! { return; })
+        } else {
+            // Final bare return becomes unit value (implicit)
+            Ok(quote! {})
+        }
     }
 }
 

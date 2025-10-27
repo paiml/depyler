@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **[DEPYLER-0271]** Unnecessary return keywords in generated Rust code (2025-10-27)
+  - Generated code now uses idiomatic expression-based returns for final statements
+  - Early returns in control flow branches correctly keep `return` keyword
+  - Added `is_final_statement` context flag to distinguish between early and final returns
+  - All tests pass (47 passed, 0 failed), zero clippy warnings
+
 ### 🛑 STOP THE LINE: Transpiler Quality Protocol (2025-10-27)
 
 **Implementation**: Jidoka (自働化) - Stop the Line process for transpiler defects

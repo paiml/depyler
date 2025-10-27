@@ -134,11 +134,17 @@ pub(crate) fn codegen_function_body(
     // Analyze which variables are mutated in the function body
     analyze_mutable_vars(&func.body, ctx);
 
-    // Convert body
+    // DEPYLER-0271: Convert body, marking final statement for expression-based returns
+    let body_len = func.body.len();
     let body_stmts: Vec<_> = func
         .body
         .iter()
-        .map(|stmt| stmt.to_rust_tokens(ctx))
+        .enumerate()
+        .map(|(i, stmt)| {
+            // Mark final statement for idiomatic expression-based return
+            ctx.is_final_statement = i == body_len - 1;
+            stmt.to_rust_tokens(ctx)
+        })
         .collect::<Result<Vec<_>>>()?;
 
     ctx.exit_scope();
