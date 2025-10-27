@@ -202,3 +202,7 @@ path = "../../tests/depyler_0267_index_access_test.rs"
 [[test]]
 name = "depyler_0268_index_negation_test"
 path = "../../tests/depyler_0268_index_negation_test.rs"
+
+[[test]]
+name = "depyler_0269_function_borrowing_test"
+path = "../../tests/depyler_0269_function_borrowing_test.rs"
