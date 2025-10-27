@@ -18,7 +18,7 @@ fn assert_compiles(rust_code: &str, test_name: &str) {
     fs::write(&temp_file, rust_code).expect("Failed to write temp file");
 
     let output = Command::new("rustc")
-        .args(&[
+        .args([
             "--edition",
             "2021",
             "--crate-type",
@@ -58,11 +58,7 @@ def main():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
     println!("Generated code:\n{}", rust_code);
@@ -91,11 +87,7 @@ def main() -> None:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
     println!("Generated code:\n{}", rust_code);
@@ -121,11 +113,7 @@ def main() -> None:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
     println!("Generated code:\n{}", rust_code);
@@ -154,11 +142,7 @@ def main() -> None:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
     println!("Generated code:\n{}", rust_code);
@@ -195,11 +179,7 @@ def main():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
     println!("Generated code:\n{}", rust_code);
@@ -227,11 +207,7 @@ def main() -> None:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
     println!("Generated code:\n{}", rust_code);
@@ -268,11 +244,7 @@ def main():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
     println!("Generated code:\n{}", rust_code);
@@ -313,11 +285,7 @@ def main() -> None:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(
-        result.is_ok(),
-        "Transpilation failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
 
     let rust_code = result.unwrap();
     println!("Generated code:\n{}", rust_code);

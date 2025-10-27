@@ -227,6 +227,7 @@ impl TypeMapper {
     pub fn map_return_type(&self, py_type: &PythonType) -> RustType {
         match py_type {
             PythonType::None => RustType::Unit,
+            PythonType::Unknown => RustType::Unit, // Functions without return annotation implicitly return None/()
             _ => self.map_type(py_type),
         }
     }
