@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **🐛 DEPYLER-TBD: HIR Structure Migration** (2025-10-27): Fixed code generation layer to match refactored HIR structure
+  - **Issue**: 9 compilation errors after HIR enum refactoring (BinOp→Binary, UnaryOp→Unary, field renames)
+  - **Impact**: P0 BLOCKING - Entire codebase broken, all development halted
+  - **Root Cause**: Code generation layer (stmt_gen.rs) not updated to match new HIR structure
+  - **Fix**: Updated all pattern matches and field names in stmt_gen.rs to match refactored HIR
+  - **Changes**: BinOp→Binary, UnaryOp→Unary, Attribute.base→value, IfExpr fields, Assert fields, removed AugAssign/Range
+  - **Testing**: All tests pass (119 passed, 4 pre-existing DEPYLER-0269 failures, 4 ignored)
+  - **Verification**: Zero compilation errors, zero warnings, all tests compile successfully
+  - **Files**: `crates/depyler-core/src/rust_gen/stmt_gen.rs`, `expr_gen.rs`, `generator_gen.rs`
+
 ### Validation
 - **✅ BENCHMARK TRANSPILATION VALIDATION** (2025-10-27): Fibonacci benchmark now transpiles successfully after STOP THE LINE fixes
   - **Milestone**: Transpilation SUCCESS (was FAILED before v3.19.20) - 65% improvement (13 → 5 errors)

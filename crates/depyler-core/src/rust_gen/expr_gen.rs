@@ -26,13 +26,56 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn is_rust_keyword(name: &str) -> bool {
         matches!(
             name,
-            "as" | "break" | "const" | "continue" | "crate" | "else" | "enum" | "extern"
-                | "false" | "fn" | "for" | "if" | "impl" | "in" | "let" | "loop" | "match"
-                | "mod" | "move" | "mut" | "pub" | "ref" | "return" | "self" | "Self"
-                | "static" | "struct" | "super" | "trait" | "true" | "type" | "unsafe"
-                | "use" | "where" | "while" | "async" | "await" | "dyn" | "abstract"
-                | "become" | "box" | "do" | "final" | "macro" | "override" | "priv"
-                | "typeof" | "unsized" | "virtual" | "yield" | "try"
+            "as" | "break"
+                | "const"
+                | "continue"
+                | "crate"
+                | "else"
+                | "enum"
+                | "extern"
+                | "false"
+                | "fn"
+                | "for"
+                | "if"
+                | "impl"
+                | "in"
+                | "let"
+                | "loop"
+                | "match"
+                | "mod"
+                | "move"
+                | "mut"
+                | "pub"
+                | "ref"
+                | "return"
+                | "self"
+                | "Self"
+                | "static"
+                | "struct"
+                | "super"
+                | "trait"
+                | "true"
+                | "type"
+                | "unsafe"
+                | "use"
+                | "where"
+                | "while"
+                | "async"
+                | "await"
+                | "dyn"
+                | "abstract"
+                | "become"
+                | "box"
+                | "do"
+                | "final"
+                | "macro"
+                | "override"
+                | "priv"
+                | "typeof"
+                | "unsized"
+                | "virtual"
+                | "yield"
+                | "try"
         )
     }
 
@@ -1155,7 +1198,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
 
                     if count != args.len() - 1 {
-                        bail!("struct.pack() format '{}' expects {} values, got {}", format, count, args.len() - 1);
+                        bail!(
+                            "struct.pack() format '{}' expects {} values, got {}",
+                            format,
+                            count,
+                            args.len() - 1
+                        );
                     }
 
                     // Convert value arguments
@@ -1213,7 +1261,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             )
                         }))
                     } else {
-                        bail!("struct.unpack() only supports 'i' and 'ii' formats (got {} ints)", count);
+                        bail!(
+                            "struct.unpack() only supports 'i' and 'ii' formats (got {} ints)",
+                            count
+                        );
                     }
                 } else {
                     bail!("struct.unpack() requires string literal format (dynamic formats not supported)");
@@ -1514,25 +1565,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-0222: dict.get() without default should unwrap the Option
                     // DEPYLER-0227: String literals need & prefix, but variables with &str type don't
                     // Check if key is a string literal that was converted to .to_string()
-                    let key_expr: syn::Expr = if matches!(hir_args.first(), Some(HirExpr::Literal(Literal::String(_)))) {
-                        // String literal - add & to borrow the String
-                        parse_quote! { &#key }
-                    } else {
-                        // Variable or other expression - already properly typed
-                        parse_quote! { #key }
-                    };
+                    let key_expr: syn::Expr =
+                        if matches!(hir_args.first(), Some(HirExpr::Literal(Literal::String(_)))) {
+                            // String literal - add & to borrow the String
+                            parse_quote! { &#key }
+                        } else {
+                            // Variable or other expression - already properly typed
+                            parse_quote! { #key }
+                        };
                     Ok(parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or_default() })
                 } else if arg_exprs.len() == 2 {
                     let key = &arg_exprs[0];
                     let default = &arg_exprs[1];
                     // DEPYLER-0227: String literals need & prefix, but variables with &str type don't
-                    let key_expr: syn::Expr = if matches!(hir_args.first(), Some(HirExpr::Literal(Literal::String(_)))) {
-                        // String literal - add & to borrow the String
-                        parse_quote! { &#key }
-                    } else {
-                        // Variable or other expression - already properly typed
-                        parse_quote! { #key }
-                    };
+                    let key_expr: syn::Expr =
+                        if matches!(hir_args.first(), Some(HirExpr::Literal(Literal::String(_)))) {
+                            // String literal - add & to borrow the String
+                            parse_quote! { &#key }
+                        } else {
+                            // Variable or other expression - already properly typed
+                            parse_quote! { #key }
+                        };
                     Ok(parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#default) })
                 } else {
                     bail!("get() requires 1 or 2 arguments");
@@ -1988,8 +2041,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Fallback to method name dispatch
         match method {
             // List methods
-            "append" | "extend" | "pop" | "insert" | "remove" | "index" | "copy"
-            | "clear" | "reverse" | "sort" => {
+            "append" | "extend" | "pop" | "insert" | "remove" | "index" | "copy" | "clear"
+            | "reverse" | "sort" => {
                 self.convert_list_method(object_expr, object, method, arg_exprs, hir_args)
             }
 

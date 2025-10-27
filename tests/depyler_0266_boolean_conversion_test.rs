@@ -42,8 +42,7 @@ def is_empty_list(items: list[int]) -> bool:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0266_list.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0266: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0266: Failed to write temp file");
 
     // Attempt to compile with rustc
     let output = Command::new("rustc")
@@ -113,8 +112,7 @@ def is_empty_string(text: str) -> bool:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0266_string.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0266: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0266: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")
@@ -174,8 +172,7 @@ def is_empty_dict(mapping: dict[str, int]) -> bool:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0266_dict.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0266: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0266: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")
@@ -238,8 +235,7 @@ def process_items(items: list[int]) -> int:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0266_guard.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0266: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0266: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")
@@ -299,8 +295,7 @@ def negate_bool(flag: bool) -> bool:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0266_bool.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0266: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0266: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")

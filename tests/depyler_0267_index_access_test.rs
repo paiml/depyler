@@ -41,8 +41,7 @@ def get_string(items: list[str], index: int) -> str:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0267_string_index.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0267: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0267: Failed to write temp file");
 
     // Attempt to compile with rustc
     let output = Command::new("rustc")
@@ -110,8 +109,7 @@ def get_row(matrix: list[list[int]], row: int) -> list[int]:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0267_vec_index.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0267: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0267: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")
@@ -169,8 +167,7 @@ def get_int(nums: list[int], index: int) -> int:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0267_copy_type.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0267: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0267: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")
@@ -220,8 +217,7 @@ def get_last_string(items: list[str]) -> str:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0267_negative_string.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0267: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0267: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")
