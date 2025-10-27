@@ -38,7 +38,11 @@ All notable changes to this project will be documented in this file.
   - Fix: Added handler that returns `true` (type system guarantees correctness)
   - Verification: Manual transpilation test + full test suite passing + zero clippy warnings
   - Impact: All Python code using isinstance() now transpiles correctly
-- 🛑 **DEPYLER-0270**: Cow<'static, str> type inference bug (P0 - Blocking) [#26](https://github.com/paiml/depyler/issues/26)
+- 🔄 **DEPYLER-0270**: Cow<'static, str> type inference bug (P0 - Blocking) [#26](https://github.com/paiml/depyler/issues/26) - **IN PROGRESS**
+  - Root cause: func_gen.rs:505-513 incorrectly infers Cow return type for string concatenation
+  - Issue: format!() returns String, but return type is Cow<'static, str> (type mismatch)
+  - TDD RED phase: Regression tests created (tests/depyler_0281_cow_type_test.rs)
+  - Next: GREEN phase - implement fix to detect concatenation and return String
 - ⚠️  **DEPYLER-0271**: Unnecessary return statements (P1 - 17 clippy warnings) [#27](https://github.com/paiml/depyler/issues/27)
 - ⚠️  **DEPYLER-0272**: Unnecessary type casts (P1 - clippy warnings) [#28](https://github.com/paiml/depyler/issues/28)
 
