@@ -175,6 +175,7 @@ impl AnnotationAwareTypeMapper {
                 ),
                 _ => RustType::Unit,
             },
+            PythonType::Unknown => RustType::Unit, // Functions without return annotation implicitly return None/()
             _ => self.map_type_with_annotations(py_type, annotations),
         }
     }
