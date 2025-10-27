@@ -49,6 +49,9 @@ pub struct CodeGenContext<'a> {
     pub var_types: HashMap<String, Type>,
     pub class_names: HashSet<String>,
     pub mutating_methods: HashMap<String, HashSet<String>>,
+    /// DEPYLER-0271: Tracks if current statement is the final statement in its block
+    /// Used to generate idiomatic expression-based returns (no `return` keyword)
+    pub is_final_statement: bool,
 }
 
 impl<'a> CodeGenContext<'a> {
