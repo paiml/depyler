@@ -183,7 +183,7 @@ impl ConstGenericInferencer {
     }
 
     /// Infer const size for a parameter based on usage
-    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
+    #[allow(dead_code)] // Currently unused due to disabled transform_function_types
     fn infer_const_size_for_param(
         &self,
         param_name: &str,
@@ -200,7 +200,7 @@ impl ConstGenericInferencer {
     }
 
     /// Infer const size for return type based on return statements
-    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
+    #[allow(dead_code)] // Currently unused due to disabled transform_function_types
     fn infer_const_size_for_return(&self, function: &HirFunction) -> Option<usize> {
         // First, collect variable assignments
         let mut var_sizes = HashMap::new();
@@ -243,7 +243,7 @@ impl ConstGenericInferencer {
     }
 
     /// Detect variables that are mutated via method calls
-    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
+    #[allow(dead_code)] // Currently unused due to disabled transform_function_types
     fn detect_mutated_variables(&self, function: &HirFunction) -> HashSet<String> {
         let mut mutated = HashSet::new();
         for stmt in &function.body {
@@ -253,7 +253,7 @@ impl ConstGenericInferencer {
     }
 
     /// Scan statement for list mutations
-    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
+    #[allow(dead_code)] // Currently unused due to disabled transform_function_types
     fn scan_stmt_for_mutations(&self, stmt: &HirStmt, mutated: &mut HashSet<String>) {
         match stmt {
             HirStmt::Expr(expr) => {
@@ -298,7 +298,7 @@ impl ConstGenericInferencer {
 
     /// Scan expression for list mutations
     #[allow(clippy::only_used_in_recursion)]
-    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
+    #[allow(dead_code)] // Currently unused due to disabled transform_function_types
     fn scan_expr_for_mutations(&self, expr: &HirExpr, mutated: &mut HashSet<String>) {
         match expr {
             HirExpr::MethodCall {
@@ -354,7 +354,7 @@ impl ConstGenericInferencer {
     }
 
     /// Find const usage patterns in statements
-    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
+    #[allow(dead_code)] // Currently unused due to disabled transform_function_types
     fn find_const_usage_in_stmt(&self, param_name: &str, stmt: &HirStmt) -> Option<usize> {
         match stmt {
             HirStmt::Assign { value, .. } => self.find_const_usage_in_expr(param_name, value),
@@ -384,7 +384,7 @@ impl ConstGenericInferencer {
     }
 
     /// Find const usage patterns in expressions
-    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
+    #[allow(dead_code)] // Currently unused due to disabled transform_function_types
     fn find_const_usage_in_expr(&self, param_name: &str, expr: &HirExpr) -> Option<usize> {
         match expr {
             HirExpr::Binary {
@@ -397,7 +397,7 @@ impl ConstGenericInferencer {
         }
     }
 
-    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
+    #[allow(dead_code)] // Currently unused due to disabled transform_function_types
     fn find_len_equality_pattern(
         &self,
         param_name: &str,
@@ -408,7 +408,7 @@ impl ConstGenericInferencer {
             .or_else(|| self.check_len_eq_side(param_name, right, left))
     }
 
-    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
+    #[allow(dead_code)] // Currently unused due to disabled transform_function_types
     fn check_len_eq_side(
         &self,
         param_name: &str,
@@ -429,7 +429,7 @@ impl ConstGenericInferencer {
         None
     }
 
-    #[allow(dead_code)]  // Currently unused due to disabled transform_function_types
+    #[allow(dead_code)] // Currently unused due to disabled transform_function_types
     fn find_index_pattern(
         &self,
         param_name: &str,

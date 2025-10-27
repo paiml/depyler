@@ -67,7 +67,10 @@ pub fn launch_spydecy_debugger(source_file: &Path, visualize: bool) -> Result<()
         println!("✅ Debugger session completed");
         Ok(())
     } else {
-        Err(anyhow::anyhow!("Debugger exited with error code: {:?}", status.code()))
+        Err(anyhow::anyhow!(
+            "Debugger exited with error code: {:?}",
+            status.code()
+        ))
     }
 }
 

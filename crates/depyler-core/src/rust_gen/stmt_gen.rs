@@ -307,6 +307,85 @@ pub(crate) fn codegen_if_stmt(
     }
 }
 
+/// Check if a variable is used in an expression
+fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::Var(name) => name == var_name,
+        HirExpr::Binary { left, right, .. } => {
+            is_var_used_in_expr(var_name, left) || is_var_used_in_expr(var_name, right)
+        }
+        HirExpr::Unary { operand, .. } => is_var_used_in_expr(var_name, operand),
+        HirExpr::Call { func: _, args } => {
+            args.iter().any(|arg| is_var_used_in_expr(var_name, arg))
+        }
+        HirExpr::Index { base, index } => {
+            is_var_used_in_expr(var_name, base) || is_var_used_in_expr(var_name, index)
+        }
+        HirExpr::Attribute { value, .. } => is_var_used_in_expr(var_name, value),
+        HirExpr::List(elements) | HirExpr::Tuple(elements) | HirExpr::Set(elements) | HirExpr::FrozenSet(elements) => {
+            elements.iter().any(|e| is_var_used_in_expr(var_name, e))
+        }
+        HirExpr::Dict(pairs) => pairs
+            .iter()
+            .any(|(k, v)| is_var_used_in_expr(var_name, k) || is_var_used_in_expr(var_name, v)),
+        HirExpr::IfExpr {
+            test,
+            body,
+            orelse,
+        } => {
+            is_var_used_in_expr(var_name, test)
+                || is_var_used_in_expr(var_name, body)
+                || is_var_used_in_expr(var_name, orelse)
+        }
+        HirExpr::Lambda { params: _, body } => is_var_used_in_expr(var_name, body),
+        HirExpr::Slice { base, start, stop, step } => {
+            is_var_used_in_expr(var_name, base)
+                || start.as_ref().is_some_and(|s| is_var_used_in_expr(var_name, s))
+                || stop.as_ref().is_some_and(|s| is_var_used_in_expr(var_name, s))
+                || step.as_ref().is_some_and(|s| is_var_used_in_expr(var_name, s))
+        }
+        _ => false, // Literals and other expressions don't reference variables
+    }
+}
+
+/// Check if a variable is used in a statement
+fn is_var_used_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
+    match stmt {
+        HirStmt::Assign { value, .. } => is_var_used_in_expr(var_name, value),
+        HirStmt::If {
+            condition,
+            then_body,
+            else_body,
+        } => {
+            is_var_used_in_expr(var_name, condition)
+                || then_body.iter().any(|s| is_var_used_in_stmt(var_name, s))
+                || else_body.as_ref().is_some_and(|body| {
+                    body.iter().any(|s| is_var_used_in_stmt(var_name, s))
+                })
+        }
+        HirStmt::While { condition, body } => {
+            is_var_used_in_expr(var_name, condition)
+                || body.iter().any(|s| is_var_used_in_stmt(var_name, s))
+        }
+        HirStmt::For { iter, body, .. } => {
+            is_var_used_in_expr(var_name, iter)
+                || body.iter().any(|s| is_var_used_in_stmt(var_name, s))
+        }
+        HirStmt::Return(Some(expr)) => is_var_used_in_expr(var_name, expr),
+        HirStmt::Expr(expr) => is_var_used_in_expr(var_name, expr),
+        HirStmt::Raise { exception, .. } => {
+            exception.as_ref().is_some_and(|e| is_var_used_in_expr(var_name, e))
+        }
+        HirStmt::Assert {
+            test, msg, ..
+        } => {
+            is_var_used_in_expr(var_name, test)
+                || msg.as_ref().is_some_and(|m| is_var_used_in_expr(var_name, m))
+        }
+        _ => false,
+    }
+}
+
 /// Generate code for For loop statement
 #[inline]
 pub(crate) fn codegen_for_stmt(
@@ -315,18 +394,39 @@ pub(crate) fn codegen_for_stmt(
     body: &[HirStmt],
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0272: Check if loop variable(s) are used in body
+    // If unused, prefix with _ to avoid unused variable warnings with -D warnings
+
     // Generate target pattern based on AssignTarget type
     let target_pattern: syn::Pat = match target {
         AssignTarget::Symbol(name) => {
-            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            // Check if this variable is used in the loop body
+            let is_used = body.iter().any(|stmt| is_var_used_in_stmt(name, stmt));
+
+            // If unused, prefix with underscore
+            let var_name = if is_used {
+                name.clone()
+            } else {
+                format!("_{}", name)
+            };
+
+            let ident = syn::Ident::new(&var_name, proc_macro2::Span::call_site());
             parse_quote! { #ident }
         }
         AssignTarget::Tuple(targets) => {
+            // For tuple unpacking, check each variable individually
             let idents: Vec<syn::Ident> = targets
                 .iter()
                 .map(|t| match t {
                     AssignTarget::Symbol(s) => {
-                        syn::Ident::new(s, proc_macro2::Span::call_site())
+                        // Check if this specific tuple element is used
+                        let is_used = body.iter().any(|stmt| is_var_used_in_stmt(s, stmt));
+                        let var_name = if is_used {
+                            s.clone()
+                        } else {
+                            format!("_{}", s)
+                        };
+                        syn::Ident::new(&var_name, proc_macro2::Span::call_site())
                     }
                     _ => panic!("Nested tuple unpacking not supported in for loops"),
                 })
@@ -396,7 +496,8 @@ pub(crate) fn codegen_assign_stmt(
             HirExpr::Call { func, .. } => {
                 // Check if this is a user-defined class constructor
                 if ctx.class_names.contains(func) {
-                    ctx.var_types.insert(var_name.clone(), Type::Custom(func.clone()));
+                    ctx.var_types
+                        .insert(var_name.clone(), Type::Custom(func.clone()));
                 }
             }
             HirExpr::Set(elements) | HirExpr::FrozenSet(elements) => {
@@ -411,7 +512,8 @@ pub(crate) fn codegen_assign_stmt(
                 } else {
                     Type::Unknown
                 };
-                ctx.var_types.insert(var_name.clone(), Type::Set(Box::new(elem_type)));
+                ctx.var_types
+                    .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
             }
             _ => {}
         }

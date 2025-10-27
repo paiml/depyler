@@ -18,27 +18,31 @@
 use depyler_core::DepylerPipeline;
 
 /// Helper function to transpile Python code and verify it compiles
-fn transpile_and_verify(python: &str, test_name: &str) -> Result<String, Box<dyn std::error::Error>> {
+fn transpile_and_verify(
+    python: &str,
+    test_name: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
     let pipeline = DepylerPipeline::new();
     let rust_code = pipeline.transpile(python)?;
-    
+
     // Write to temp file and verify with rustc
     let temp_file = format!("/tmp/depyler_test_{}.rs", test_name);
     std::fs::write(&temp_file, &rust_code)?;
-    
+
     // Check compilation (using --crate-type lib for quick validation)
     let output = std::process::Command::new("rustc")
         .args(["--crate-type", "lib", "--edition", "2021", &temp_file])
         .output()?;
-    
+
     if !output.status.success() {
         return Err(format!(
-            "Compilation failed for {}: {}", 
+            "Compilation failed for {}: {}",
             test_name,
             String::from_utf8_lossy(&output.stderr)
-        ).into());
+        )
+        .into());
     }
-    
+
     Ok(rust_code)
 }
 
@@ -56,7 +60,7 @@ def test() -> int:
     binary = 0b101010
     return decimal + hexadecimal + octal + binary
 "#;
-    
+
     let rust = transpile_and_verify(python, "literals_integers").unwrap();
     assert!(rust.contains("fn test()"));
     assert!(rust.contains("-> i32"));
@@ -71,7 +75,7 @@ def test() -> float:
     negative = -2.5e-3
     return normal + scientific + negative
 "#;
-    
+
     let rust = transpile_and_verify(python, "literals_floats").unwrap();
     assert!(rust.contains("fn test()"));
     assert!(rust.contains("-> f64"));
@@ -86,7 +90,7 @@ def test() -> str:
     unicode = "hello 世界"
     return simple + escaped + unicode
 "#;
-    
+
     let rust = transpile_and_verify(python, "literals_strings").unwrap();
     assert!(rust.contains("fn test()"));
     assert!(rust.contains("String"));
@@ -100,7 +104,7 @@ def test() -> bool:
     f = False
     return t and not f
 "#;
-    
+
     let rust = transpile_and_verify(python, "literals_booleans").unwrap();
     assert!(rust.contains("fn test()"));
     assert!(rust.contains("bool"));
@@ -128,7 +132,7 @@ fn test_06_binop_arithmetic() {
 def test(a: int, b: int) -> int:
     return a + b * 2 - b / 2
 "#;
-    
+
     let rust = transpile_and_verify(python, "binop_arithmetic").unwrap();
     assert!(rust.contains("fn test"));
     assert!(rust.contains("+") && rust.contains("*") && rust.contains("-"));
@@ -140,7 +144,7 @@ fn test_07_binop_comparison() {
 def test(a: int, b: int) -> bool:
     return a < b and a <= b and a == b and a != b and a > b and a >= b
 "#;
-    
+
     let rust = transpile_and_verify(python, "binop_comparison").unwrap();
     assert!(rust.contains("<") || rust.contains("<="));
 }
@@ -151,7 +155,7 @@ fn test_08_binop_logical() {
 def test(a: bool, b: bool) -> bool:
     return a and b or not a
 "#;
-    
+
     let rust = transpile_and_verify(python, "binop_logical").unwrap();
     assert!(rust.contains("&&") || rust.contains("||") || rust.contains("!"));
 }
@@ -162,7 +166,7 @@ fn test_09_binop_bitwise() {
 def test(a: int, b: int) -> int:
     return a & b | a ^ b
 "#;
-    
+
     let rust = transpile_and_verify(python, "binop_bitwise").unwrap();
     assert!(rust.contains("&") || rust.contains("|") || rust.contains("^"));
 }
@@ -191,7 +195,7 @@ def test(x: int) -> int:
     else:
         return -1
 "#;
-    
+
     let rust = transpile_and_verify(python, "control_if_simple").unwrap();
     assert!(rust.contains("if") && rust.contains("else"));
 }
@@ -207,7 +211,7 @@ def test(x: int) -> int:
     else:
         return 0
 "#;
-    
+
     let rust = transpile_and_verify(python, "control_if_elif").unwrap();
     assert!(rust.contains("if") && rust.contains("else"));
 }
@@ -221,7 +225,7 @@ def test(n: int) -> int:
         x = x + 1
     return x
 "#;
-    
+
     let rust = transpile_and_verify(python, "control_while").unwrap();
     assert!(rust.contains("while"));
 }
@@ -235,7 +239,7 @@ def test(n: int) -> int:
         total = total + i
     return total
 "#;
-    
+
     let rust = transpile_and_verify(python, "control_for_range").unwrap();
     assert!(rust.contains("for"));
 }
@@ -253,7 +257,7 @@ def test(n: int) -> int:
             break
     return x
 "#;
-    
+
     let rust = transpile_and_verify(python, "control_break_continue").unwrap();
     assert!(rust.contains("break") || rust.contains("continue"));
 }
@@ -268,7 +272,7 @@ fn test_16_function_simple() {
 def add(a: int, b: int) -> int:
     return a + b
 "#;
-    
+
     let rust = transpile_and_verify(python, "function_simple").unwrap();
     assert!(rust.contains("fn add"));
 }
@@ -281,7 +285,7 @@ def test(x: int) -> int:
         return 1
     return -1
 "#;
-    
+
     let rust = transpile_and_verify(python, "function_multiple_returns").unwrap();
     assert!(rust.contains("return"));
 }
@@ -292,7 +296,7 @@ fn test_18_function_no_return() {
 def test(x: int) -> None:
     y = x + 1
 "#;
-    
+
     let rust = transpile_and_verify(python, "function_no_return").unwrap();
     assert!(rust.contains("fn test"));
 }
@@ -305,7 +309,7 @@ def factorial(n: int) -> int:
         return 1
     return n * factorial(n - 1)
 "#;
-    
+
     let rust = transpile_and_verify(python, "function_recursion").unwrap();
     assert!(rust.contains("fn factorial"));
     assert!(rust.contains("factorial")); // Recursive call
@@ -320,7 +324,7 @@ def add(a: int, b: int) -> int:
 def test() -> int:
     return add(1, 2)
 "#;
-    
+
     let rust = transpile_and_verify(python, "function_call").unwrap();
     assert!(rust.contains("add("));
 }

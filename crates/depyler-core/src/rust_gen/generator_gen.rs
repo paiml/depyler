@@ -72,13 +72,14 @@ fn extract_generator_item_type(
     ctx: &CodeGenContext,
 ) -> Result<syn::Type> {
     // DEPYLER-0263: Infer type from first yield expression if func.ret_type is Unknown
-    let yield_type = if matches!(func.ret_type, Type::Unknown) && !yield_analysis.yield_points.is_empty() {
-        // Infer from first yield expression
-        infer_yield_type(&yield_analysis.yield_points[0].yield_expr)
-    } else {
-        // Use func.ret_type if available
-        func.ret_type.clone()
-    };
+    let yield_type =
+        if matches!(func.ret_type, Type::Unknown) && !yield_analysis.yield_points.is_empty() {
+            // Infer from first yield expression
+            infer_yield_type(&yield_analysis.yield_points[0].yield_expr)
+        } else {
+            // Use func.ret_type if available
+            func.ret_type.clone()
+        };
 
     let rust_yield_type = ctx.type_mapper.map_type(&yield_type);
     rust_type_to_syn(&rust_yield_type)
@@ -435,8 +436,8 @@ fn extract_loop_info(func: &HirFunction) -> Result<LoopInfo> {
         }
     }
 
-    let (condition, body) = loop_stmt
-        .ok_or_else(|| anyhow::anyhow!("No while loop found in generator function"))?;
+    let (condition, body) =
+        loop_stmt.ok_or_else(|| anyhow::anyhow!("No while loop found in generator function"))?;
 
     // Separate yield statement from other body statements
     let mut body_stmts = Vec::new();
@@ -527,8 +528,8 @@ pub fn codegen_generator_function(
     let yield_analysis = YieldAnalysis::analyze(func);
 
     // DEPYLER-0262 Phase 3A: Check if we can use simple multi-state transformation
-    let use_simple_multi_state = yield_analysis.has_yields()
-        && yield_analysis.yield_points.iter().all(|yp| yp.depth == 0);
+    let use_simple_multi_state =
+        yield_analysis.has_yields() && yield_analysis.yield_points.iter().all(|yp| yp.depth == 0);
 
     // Generate state struct name
     let state_ident = generate_state_struct_name(name);
@@ -555,9 +556,12 @@ pub fn codegen_generator_function(
     populate_generator_state_vars(ctx, &state_info);
 
     // DEPYLER-0262 Phase 3B: Check if we have simple loop with yield pattern
-    let has_while_loop = func.body.iter().any(|stmt| matches!(stmt, HirStmt::While { .. }));
-    let has_loop_yields = yield_analysis.has_yields()
-        && yield_analysis.yield_points.iter().any(|yp| yp.depth > 0);
+    let has_while_loop = func
+        .body
+        .iter()
+        .any(|stmt| matches!(stmt, HirStmt::While { .. }));
+    let has_loop_yields =
+        yield_analysis.has_yields() && yield_analysis.yield_points.iter().any(|yp| yp.depth > 0);
 
     // Generate state machine implementation based on yield analysis
     let state_machine_impl = if use_simple_multi_state {
@@ -647,7 +651,10 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_DEPYLER_0259_multiple_words_naming() {
         // Test with multiple underscores
-        let input_name = syn::Ident::new("fibonacci_generator_with_memo", proc_macro2::Span::call_site());
+        let input_name = syn::Ident::new(
+            "fibonacci_generator_with_memo",
+            proc_macro2::Span::call_site(),
+        );
         let result = generate_state_struct_name(&input_name);
 
         // Should capitalize each word

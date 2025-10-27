@@ -90,7 +90,14 @@ impl YieldAnalysis {
                 else_body,
                 ..
             } => {
-                Self::analyze_if_stmt(then_body, else_body, analysis, state_counter, depth, stmt_idx);
+                Self::analyze_if_stmt(
+                    then_body,
+                    else_body,
+                    analysis,
+                    state_counter,
+                    depth,
+                    stmt_idx,
+                );
             }
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
                 Self::analyze_loop_stmt(body, analysis, state_counter, depth, stmt_idx);
@@ -101,7 +108,15 @@ impl YieldAnalysis {
                 orelse,
                 finalbody,
             } => {
-                Self::analyze_try_stmt(body, handlers, orelse, finalbody, analysis, state_counter, (depth, stmt_idx));
+                Self::analyze_try_stmt(
+                    body,
+                    handlers,
+                    orelse,
+                    finalbody,
+                    analysis,
+                    state_counter,
+                    (depth, stmt_idx),
+                );
             }
             HirStmt::With { body, .. } => {
                 Self::analyze_with_stmt(body, analysis, state_counter, depth, stmt_idx);

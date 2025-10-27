@@ -181,20 +181,23 @@ impl Arbitrary for ArbitraryTryExcept {
 // ============================================================================
 
 fn generate_simple_try_except(func_name: &str, id: u32) -> String {
-    format!(r#"
+    format!(
+        r#"
 def {func_name}(x: int) -> int:
     try:
         # marker_{id}
         return 10 // x
     except:
         return -1
-"#)
+"#
+    )
 }
 
 fn generate_try_except_with_division(func_name: &str, id: u32) -> String {
     let a = (id % 100) as i32;
     let b_param = "x";
-    format!(r#"
+    format!(
+        r#"
 def {func_name}({b_param}: int) -> int:
     try:
         # marker_{id}
@@ -202,11 +205,13 @@ def {func_name}({b_param}: int) -> int:
         return result
     except:
         return 0
-"#)
+"#
+    )
 }
 
 fn generate_try_except_with_return(func_name: &str, id: u32) -> String {
-    format!(r#"
+    format!(
+        r#"
 def {func_name}(value: int) -> int:
     try:
         # marker_{id}
@@ -216,11 +221,13 @@ def {func_name}(value: int) -> int:
             return value // 2
     except:
         return -999
-"#)
+"#
+    )
 }
 
 fn generate_try_except_nested(func_name: &str, id: u32) -> String {
-    format!(r#"
+    format!(
+        r#"
 def {func_name}(x: int) -> int:
     try:
         # marker_{id}
@@ -230,11 +237,13 @@ def {func_name}(x: int) -> int:
             return x * 3
     except:
         return 0
-"#)
+"#
+    )
 }
 
 fn generate_try_except_with_finally(func_name: &str, id: u32) -> String {
-    format!(r#"
+    format!(
+        r#"
 def {func_name}(x: int) -> int:
     result = 0
     try:
@@ -245,11 +254,13 @@ def {func_name}(x: int) -> int:
     finally:
         result = result + 1
     return result
-"#)
+"#
+    )
 }
 
 fn generate_try_except_multiple_statements(func_name: &str, id: u32) -> String {
-    format!(r#"
+    format!(
+        r#"
 def {func_name}(x: int, y: int) -> int:
     try:
         # marker_{id}
@@ -259,11 +270,13 @@ def {func_name}(x: int, y: int) -> int:
         return c
     except:
         return -1
-"#)
+"#
+    )
 }
 
 fn generate_try_except_with_variables(func_name: &str, id: u32) -> String {
-    format!(r#"
+    format!(
+        r#"
 def {func_name}(dividend: int, divisor: int) -> int:
     try:
         # marker_{id}
@@ -272,12 +285,14 @@ def {func_name}(dividend: int, divisor: int) -> int:
         return quotient + remainder
     except:
         return 0
-"#)
+"#
+    )
 }
 
 fn generate_try_except_with_arithmetic(func_name: &str, id: u32) -> String {
     let const_val = ((id % 50) + 1) as i32; // Avoid 0
-    format!(r#"
+    format!(
+        r#"
 def {func_name}(x: int) -> int:
     try:
         # marker_{id}
@@ -286,7 +301,8 @@ def {func_name}(x: int) -> int:
         return b
     except:
         return {const_val}
-"#)
+"#
+    )
 }
 
 #[cfg(test)]
@@ -324,7 +340,11 @@ mod tests {
 
             assert!(code.contains("try:"), "Generator {} failed", i);
             assert!(code.contains("except:"), "Generator {} failed", i);
-            assert!(code.contains(&format!("marker_{}", id)), "Generator {} failed", i);
+            assert!(
+                code.contains(&format!("marker_{}", id)),
+                "Generator {} failed",
+                i
+            );
         }
     }
 }

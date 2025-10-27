@@ -49,8 +49,7 @@ def find_min(numbers: list[int]) -> int:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0265_comparison.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0265: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0265: Failed to write temp file");
 
     // Attempt to compile with rustc
     let output = Command::new("rustc")
@@ -123,8 +122,7 @@ def sum_list(numbers: list[int]) -> int:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0265_arithmetic.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0265: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0265: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")
@@ -188,8 +186,7 @@ def find_max(numbers: list[int]) -> int:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0265_assignment.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0265: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0265: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")
@@ -253,8 +250,7 @@ def find_longest(words: list[str]) -> str:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0265_string.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0265: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0265: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")
