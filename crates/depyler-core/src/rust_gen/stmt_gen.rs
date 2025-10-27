@@ -37,15 +37,44 @@ fn extract_nested_indices_tokens(
     }
 }
 
+/// Check if an HIR expression returns usize (needs cast to i32)
+///
+/// DEPYLER-0272: Only add casts for expressions that actually return usize.
+/// This prevents unnecessary casts like `(a: i32) as i32`.
+/// Complexity: 4 (recursive pattern matching)
+fn expr_returns_usize(expr: &HirExpr) -> bool {
+    match expr {
+        // Method calls that return usize
+        HirExpr::MethodCall { method, .. } => {
+            matches!(method.as_str(), "len" | "count" | "capacity")
+        }
+        // Builtin functions that return usize
+        HirExpr::Call { func, .. } => {
+            matches!(func.as_str(), "len" | "range")
+        }
+        // Binary operations might contain usize expressions
+        HirExpr::Binary { left, right, .. } => {
+            expr_returns_usize(left) || expr_returns_usize(right)
+        }
+        // All other expressions (Var, Literal, etc.) don't return usize in our HIR
+        _ => false,
+    }
+}
+
 /// Check if a type annotation requires explicit conversion
 ///
-/// For numeric types like Int, we always apply conversion to ensure correctness
-/// even after optimizations like CSE transform the expression.
-/// Complexity: 2 (simple match)
-fn needs_type_conversion(target_type: &Type) -> bool {
-    // For Int annotations, always apply conversion to handle cases where
-    // the value might be usize (from len(), range, etc.)
-    matches!(target_type, Type::Int)
+/// DEPYLER-0272 FIX: Now checks the actual expression to determine if cast is needed.
+/// Only adds cast when expression returns usize (from len(), count(), etc.)
+/// Complexity: 3 (type check + expression check)
+fn needs_type_conversion(target_type: &Type, expr: &HirExpr) -> bool {
+    match target_type {
+        Type::Int => {
+            // Only convert if expression actually returns usize
+            // This prevents unnecessary casts like `(x: i32) as i32`
+            expr_returns_usize(expr)
+        }
+        _ => false,
+    }
 }
 
 /// Apply type conversion to value expression
@@ -56,8 +85,7 @@ fn apply_type_conversion(value_expr: syn::Expr, target_type: &Type) -> syn::Expr
     match target_type {
         Type::Int => {
             // Convert to i32 using 'as' cast
-            // This handles usize->i32 conversions and is a no-op if already i32
-            // Note: Removed defensive parens - Rust's precedence rules handle this correctly
+            // This handles usize->i32 conversions
             parse_quote! { #value_expr as i32 }
         }
         _ => value_expr,
@@ -148,7 +176,8 @@ pub(crate) fn codegen_return_stmt(
                 other => other,
             };
 
-            if needs_type_conversion(target_type) {
+            // DEPYLER-0272: Pass expression to check if cast is actually needed
+            if needs_type_conversion(target_type, e) {
                 expr_tokens = apply_type_conversion(expr_tokens, target_type);
             }
         }
@@ -556,8 +585,9 @@ pub(crate) fn codegen_assign_stmt(
         let target_rust_type = ctx.type_mapper.map_type(target_type);
         let target_syn_type = rust_type_to_syn(&target_rust_type)?;
 
-        // Check if we need type conversion (e.g., usize to i32)
-        if needs_type_conversion(target_type) {
+        // DEPYLER-0272: Check if we need type conversion (e.g., usize to i32)
+        // Pass the value expression to determine if cast is actually needed
+        if needs_type_conversion(target_type, value) {
             value_expr = apply_type_conversion(value_expr, target_type);
         }
 
