@@ -4,6 +4,44 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🛑 STOP THE LINE: Transpiler Quality Protocol (2025-10-27)
+
+**Implementation**: Jidoka (自働化) - Stop the Line process for transpiler defects
+
+**Added**:
+- **GitHub Issue Template**: `.github/ISSUE_TEMPLATE/transpiler_bug.yml`
+  - Comprehensive bug reporting template with Stop the Line checklist
+  - Mandatory quality gate tracking
+  - Fix verification plan requirements
+  - Affected examples tracking
+- **Process Documentation**: `docs/processes/stop-the-line.md`
+  - 8-step defect response protocol (STOP → DOCUMENT → ANALYZE → FIX → RE-TRANSPILE → VERIFY → RESUME)
+  - Defect severity levels (P0-P3) with response times
+  - Root cause analysis workflow
+  - Test-driven fix process
+  - Re-transpilation verification
+  - Metrics and tracking
+- **Bug Documentation Template**: `docs/bugs/DEPYLER-XXXX-*.md`
+  - Standardized format for transpiler bugs
+  - Expected vs actual output comparison
+  - Quality gate failure tracking
+  - Fix verification checklist
+
+**Updated**:
+- **CLAUDE.md**: Added Stop the Line protocol to development workflow
+- **ROADMAP.md**: Added Jidoka principles with Stop the Line reference
+- **Commit Process**: All transpiler bugs MUST use `[DEPYLER-XXXX]` prefix
+
+**Bugs Discovered** (Matrix-Testing Column A → B):
+- 🛑 **DEPYLER-0269**: isinstance() generates invalid Rust code (P0 - Blocking)
+- 🛑 **DEPYLER-0270**: Cow<'static, str> type inference bug (P0 - Blocking)
+- ⚠️  **DEPYLER-0271**: Unnecessary return statements (P1 - 17 clippy warnings)
+- ⚠️  **DEPYLER-0272**: Unnecessary type casts (P1 - clippy warnings)
+
+**Philosophy**: Following Toyota Way's Jidoka principle - when defects are discovered in transpiled output, **STOP IMMEDIATELY**, fix the transpiler (not the output), re-transpile ALL affected examples, and only resume after full verification.
+
+---
+
 ### 🎯 TOP PRIORITY: Matrix-Testing Project
 
 **Overview**: Create python-to-rust-conversion-examples repository demonstrating verified bidirectional conversions (Python ↔ Rust ↔ Ruchy)
