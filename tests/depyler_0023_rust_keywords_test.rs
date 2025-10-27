@@ -24,12 +24,15 @@ def test_match_keyword() -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
-    
+
     // Should NOT panic
-    assert!(result.is_ok(), "Transpilation should not panic on Rust keyword 'match'");
-    
+    assert!(
+        result.is_ok(),
+        "Transpilation should not panic on Rust keyword 'match'"
+    );
+
     let rust_code = result.unwrap();
-    
+
     // Should use raw identifier r#match
     assert!(
         rust_code.contains("r#match") || !rust_code.contains(" match "),
@@ -49,9 +52,12 @@ def test_type_keyword() -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
-    
-    assert!(result.is_ok(), "Transpilation should not panic on Rust keyword 'type'");
-    
+
+    assert!(
+        result.is_ok(),
+        "Transpilation should not panic on Rust keyword 'type'"
+    );
+
     let rust_code = result.unwrap();
     assert!(
         rust_code.contains("r#type") || !rust_code.contains(" type "),
@@ -71,9 +77,12 @@ def test_impl_keyword() -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
-    
-    assert!(result.is_ok(), "Transpilation should not panic on Rust keyword 'impl'");
-    
+
+    assert!(
+        result.is_ok(),
+        "Transpilation should not panic on Rust keyword 'impl'"
+    );
+
     let rust_code = result.unwrap();
     assert!(
         rust_code.contains("r#impl") || !rust_code.contains(" impl "),
@@ -100,10 +109,10 @@ def test_search() -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_code);
-    
+
     // This was causing panic in TDD Book tests
     assert!(
-        result.is_ok(), 
+        result.is_ok(),
         "Should not panic on 're.search' with 'match' variable\nError: {:?}",
         result.err()
     );

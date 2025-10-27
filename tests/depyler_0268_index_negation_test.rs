@@ -40,8 +40,7 @@ def get_last(items: list[str]) -> str:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0268_negative_last.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0268: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0268: Failed to write temp file");
 
     // Attempt to compile with rustc
     let output = Command::new("rustc")
@@ -63,8 +62,7 @@ def get_last(items: list[str]) -> str:
 
         // ASSERT: Must NOT have "cannot apply unary operator `-`" error
         assert!(
-            !stderr.contains("cannot apply unary operator `-`")
-                && !stderr.contains("usize: Neg"),
+            !stderr.contains("cannot apply unary operator `-`") && !stderr.contains("usize: Neg"),
             "DEPYLER-0268 FAILURE: Cannot negate usize!\n\
              Expected: Use .unsigned_abs() or .abs() to convert signed to unsigned offset\n\
              Actual: Generated (-idx) as usize which attempts to negate usize\n\
@@ -112,8 +110,7 @@ def get_second_last(nums: list[int]) -> int:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0268_negative_second_last.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0268: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0268: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")
@@ -134,8 +131,7 @@ def get_second_last(nums: list[int]) -> int:
         eprintln!("{}", stderr);
 
         assert!(
-            !stderr.contains("cannot apply unary operator `-`")
-                && !stderr.contains("usize: Neg"),
+            !stderr.contains("cannot apply unary operator `-`") && !stderr.contains("usize: Neg"),
             "DEPYLER-0268: Cannot negate usize!\n\
              Error: {}\n\
              Code: {}",
@@ -172,8 +168,7 @@ def get_by_index(items: list[str], idx: int) -> str:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0268_runtime_index.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0268: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0268: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")
@@ -194,8 +189,7 @@ def get_by_index(items: list[str], idx: int) -> str:
         eprintln!("{}", stderr);
 
         assert!(
-            !stderr.contains("cannot apply unary operator `-`")
-                && !stderr.contains("usize: Neg"),
+            !stderr.contains("cannot apply unary operator `-`") && !stderr.contains("usize: Neg"),
             "DEPYLER-0268: Runtime index negation error!\n\
              Error: {}\n\
              Code: {}",
@@ -232,8 +226,7 @@ def get_last_row(matrix: list[list[int]]) -> list[int]:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0268_nested_negative.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0268: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0268: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")
@@ -254,8 +247,7 @@ def get_last_row(matrix: list[list[int]]) -> list[int]:
         eprintln!("{}", stderr);
 
         assert!(
-            !stderr.contains("cannot apply unary operator `-`")
-                && !stderr.contains("usize: Neg"),
+            !stderr.contains("cannot apply unary operator `-`") && !stderr.contains("usize: Neg"),
             "DEPYLER-0268: Nested collection negative index error!\n\
              Error: {}\n\
              Code: {}",
@@ -292,8 +284,7 @@ def get_first(items: list[int]) -> int:
 
     // Write to temp file
     let temp_file = "/tmp/test_depyler_0268_positive_index.rs";
-    std::fs::write(temp_file, &rust_code)
-        .expect("DEPYLER-0268: Failed to write temp file");
+    std::fs::write(temp_file, &rust_code).expect("DEPYLER-0268: Failed to write temp file");
 
     // Attempt to compile
     let output = Command::new("rustc")

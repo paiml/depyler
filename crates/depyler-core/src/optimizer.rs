@@ -454,7 +454,11 @@ impl Optimizer {
         collect_used_vars_expr_inner(expr, used);
     }
 
-    fn collect_used_vars_assign_target(&self, target: &AssignTarget, used: &mut HashMap<String, bool>) {
+    fn collect_used_vars_assign_target(
+        &self,
+        target: &AssignTarget,
+        used: &mut HashMap<String, bool>,
+    ) {
         match target {
             AssignTarget::Symbol(_) => {
                 // Simple variable assignment - no variables used on LHS
