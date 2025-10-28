@@ -155,11 +155,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             BinOp::Add => {
-                // DEPYLER-0290: Special handling for list concatenation
-                // Check if we're dealing with lists/vectors
-                let is_definitely_list = self.is_list_expr(left)
-                    || self.is_list_expr(right)
-                    || matches!(left, HirExpr::Var(_)) && matches!(right, HirExpr::Var(_));
+                // DEPYLER-0290 FIX: Special handling for list concatenation
+                // DEPYLER-0299 Pattern #4 FIX: Don't assume all Var + Var is list concatenation
+
+                // Check if we're dealing with lists/vectors (explicit detection only)
+                let is_definitely_list = self.is_list_expr(left) || self.is_list_expr(right);
 
                 // Check if we're dealing with strings (literals or type-inferred)
                 let is_definitely_string = matches!(left, HirExpr::Literal(Literal::String(_)))
@@ -182,6 +182,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(parse_quote! { format!("{}{}", #left_expr, #right_expr) })
                 } else {
                     // Regular arithmetic addition or unknown types
+                    // Default to arithmetic - safer assumption for scalar types
                     let rust_op = convert_binop(op)?;
                     Ok(parse_quote! { #left_expr #rust_op #right_expr })
                 }
