@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.19.24] - 2025-10-28
+
+### Fixed
+- **[DEPYLER-0283]** Incorrect Test Expectations for sum_list Function
+  - **Issue**: Generated test expected `sum_list([1,2,3]) == 3` (length) instead of `6` (sum)
+  - **Root Cause**: Test generator assumed all list→int functions return length, not sum
+  - **Solution**: Name-based heuristic to detect sum vs length functions
+    - Functions with "sum" in name → test sum of elements
+    - Functions with "len"/"count"/"size" → test length
+    - Default → conservative length-based test
+  - **Verification**: `sum_list([1,2,3])` now correctly expects `6` ✅
+
+- **[DEPYLER-0284]** Integer Overflow in Commutative Property Tests
+  - **Issue**: QuickCheck generated large random integers causing overflow: `556415076 + 1591068572 = overflow`
+  - **Error**: `attempt to add with overflow`
+  - **Solution**: Pre-check for potential overflow before testing commutative property
+    - `if (a > 0 && b > i32::MAX - a) || (a < 0 && b < i32::MIN - a) → discard()`
+    - Uses QuickCheck's `TestResult::discard()` to skip overflow cases
+  - **Verification**: `quickcheck_add_integers` now passes without overflow ✅
+
+- **[DEPYLER-0285]** NaN Comparison Failures in Float Property Tests
+  - **Issue**: QuickCheck generated NaN values causing comparison failures: `0.0 * NaN = NaN`, `NaN != NaN`
+  - **Error**: `TEST FAILED. Arguments: (0.0, NaN)`
+  - **Root Cause**: IEEE 754 specifies NaN != NaN, breaking equality-based property tests
+  - **Solution**: Filter out NaN and infinite values before testing
+    - `if a.is_nan() || b.is_nan() || a.is_infinite() || b.is_infinite() → discard()`
+  - **Verification**: `quickcheck_multiply_floats` now passes, skipping special values ✅
+
+### Impact
+- ✅ Matrix Project 01_basic_types: All 6 tests passing
+- ✅ Transpilation quality improved (correct test expectations)
+- ✅ Property tests more robust (handle edge cases gracefully)
+
 ## [3.19.23] - 2025-10-28
 
 ### Fixed
