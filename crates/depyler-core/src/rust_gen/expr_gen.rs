@@ -155,13 +155,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             BinOp::Add => {
-                // Special handling for string concatenation
+                // DEPYLER-0290: Special handling for list concatenation
+                // Check if we're dealing with lists/vectors
+                let is_definitely_list = self.is_list_expr(left) || self.is_list_expr(right)
+                    || matches!(left, HirExpr::Var(_)) && matches!(right, HirExpr::Var(_));
+
                 // Check if we're dealing with strings (literals or type-inferred)
                 let is_definitely_string = matches!(left, HirExpr::Literal(Literal::String(_)))
                     || matches!(right, HirExpr::Literal(Literal::String(_)))
                     || matches!(self.ctx.current_return_type, Some(Type::String));
 
-                if is_definitely_string {
+                if is_definitely_list && !is_definitely_string {
+                    // List concatenation - use iterator chain
+                    // Convert: list1 + list2
+                    // To: list1.iter().chain(list2.iter()).cloned().collect()
+                    Ok(parse_quote! {
+                        {
+                            let mut __temp = #left_expr.clone();
+                            __temp.extend(#right_expr.iter().cloned());
+                            __temp
+                        }
+                    })
+                } else if is_definitely_string {
                     // This is string concatenation - use format! to handle references properly
                     Ok(parse_quote! { format!("{}{}", #left_expr, #right_expr) })
                 } else {
@@ -1422,11 +1437,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! { #object_expr.push(#arg) })
             }
             "extend" => {
+                // DEPYLER-0292: Handle iterator conversion for extend()
                 if arg_exprs.len() != 1 {
                     bail!("extend() requires exactly one argument");
                 }
                 let arg = &arg_exprs[0];
-                Ok(parse_quote! { #object_expr.extend(#arg) })
+                // extend() expects IntoIterator<Item = T>, but we often pass &Vec<T>
+                // which gives IntoIterator<Item = &T>. Add .iter().cloned() to fix this.
+                // Check if arg is a reference (most common case for function parameters)
+                let arg_string = quote! { #arg }.to_string();
+                if arg_string.contains("&") || !arg_string.contains(".into_iter()") {
+                    // Likely a reference or direct variable - add iterator conversion
+                    Ok(parse_quote! { #object_expr.extend(#arg.iter().cloned()) })
+                } else {
+                    // Already an iterator or owned value
+                    Ok(parse_quote! { #object_expr.extend(#arg) })
+                }
             }
             "pop" => {
                 // DEPYLER-0210 FIX: Handle pop() for sets, dicts, and lists

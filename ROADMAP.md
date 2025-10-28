@@ -277,14 +277,13 @@ This YAML file contains:
 - Status: 🛑 STOP THE LINE - Requires type inference architecture improvements
 - Analysis: docs/issues/DEPYLER-0289-0292-analysis.md
 
-**DEPYLER-0290**: Vector Addition Not Supported (Matrix Project - 04_collections) - 🛑 BLOCKING
+**DEPYLER-0290**: ✅ RESOLVED (v3.19.28) - Vector Addition Translation
 - Issue: List concatenation `list1 + list2` generates invalid `&Vec + &Vec`
 - Error: `cannot add '&Vec<Value>' to '&Vec<Value>'`
-- Root Cause: Binary operator handler doesn't recognize list concatenation pattern
-- Fix Estimate: 2-3 hours (detect pattern, convert to iterator chain)
-- Priority: P0 (blocking Matrix Project 04_collections)
-- Status: 🛑 STOP THE LINE - Needs operator translation fix
-- Analysis: docs/issues/DEPYLER-0289-0292-analysis.md
+- Root Cause: Binary operator handler didn't recognize list concatenation pattern
+- Fix: Added Vec detection in `BinOp::Add`, generates `.extend()` pattern
+- Location: expr_gen.rs:157-187
+- Status: ✅ FIXED in v3.19.28
 
 **DEPYLER-0291**: Generic Collection Type Handling (Matrix Project - 04_collections) - 🛑 BLOCKING
 - Issue: Overuse of `serde_json::Value` instead of concrete types for collections
@@ -295,14 +294,13 @@ This YAML file contains:
 - Status: 🛑 STOP THE LINE - Long-term architectural work
 - Analysis: docs/issues/DEPYLER-0289-0292-analysis.md
 
-**DEPYLER-0292**: Iterator vs Reference Mismatch (Matrix Project - 04_collections) - 🛑 BLOCKING
-- Issue: `extend()` expects `IntoIterator<Item = Value>`, gets `&Vec<Value>`
+**DEPYLER-0292**: ✅ RESOLVED (v3.19.28) - Iterator Conversion for extend()
+- Issue: `extend()` expected `IntoIterator<Item = Value>`, got `&Vec<Value>`
 - Error: `type mismatch resolving '<&Vec<Value> as IntoIterator>::Item == Value'`
-- Root Cause: Method call handler doesn't auto-convert references to iterators
-- Fix Estimate: 1-2 hours (add `.iter().cloned()` for extend())
-- Priority: P0 (blocking Matrix Project 04_collections)
-- Status: 🛑 STOP THE LINE - Needs iterator conversion fix
-- Analysis: docs/issues/DEPYLER-0289-0292-analysis.md
+- Root Cause: Method call handler didn't auto-convert references to iterators
+- Fix: Added `.iter().cloned()` conversion in extend() method handler
+- Location: expr_gen.rs:1439-1456
+- Status: ✅ FIXED in v3.19.28
 
 **Security Alerts**: 2 dependabot alerts in transitive dependencies
 - 1 critical (slab v0.4.10 - RUSTSEC-2025-0047)

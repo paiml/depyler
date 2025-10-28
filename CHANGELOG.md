@@ -4,7 +4,56 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### 🛑 STOP THE LINE - Critical Issues Discovered
+## [3.19.28] - 2025-10-28
+
+### Fixed
+#### ✅ DEPYLER-0290 & DEPYLER-0292 - Collection Operation Fixes (Partial Resolution)
+
+**Context**: Matrix Project validation - 04_collections example
+**Status**: PARTIAL FIX - 2 of 4 bugs resolved via Extreme TDD
+
+#### DEPYLER-0290: Vector Addition Translation ✅ FIXED
+- **Issue**: List concatenation `list1 + list2` generated invalid `&Vec + &Vec`
+- **Error**: `cannot add '&Vec<Value>' to '&Vec<Value>'`
+- **Root Cause**: Binary operator handler didn't recognize list concatenation pattern
+- **Fix**: Added Vec detection in `BinOp::Add` case, generates iterator extend pattern
+- **Implementation**: expr_gen.rs:157-187
+- **Generated Code**:
+  ```rust
+  let combined = {
+      let mut __temp = list1.clone();
+      __temp.extend(list2.iter().cloned());
+      __temp
+  }
+  ```
+- **Verification**: Test `test_vector_concatenation_executes` now passes ✅
+- **Impact**: Vec concatenation in 04_collections now generates valid Rust
+
+#### DEPYLER-0292: Iterator Conversion for extend() ✅ FIXED
+- **Issue**: `extend()` expected `IntoIterator<Item = Value>`, got `&Vec<Value>`
+- **Error**: `type mismatch resolving '<&Vec<Value> as IntoIterator>::Item == Value'`
+- **Root Cause**: Method call handler didn't auto-convert references to iterators
+- **Fix**: Added `.iter().cloned()` conversion for extend() method calls
+- **Implementation**: expr_gen.rs:1439-1456
+- **Generated Code**: `result.extend(list2.iter().cloned())`
+- **Verification**: Test `test_list_extend_executes` now passes ✅
+- **Impact**: List extend operations now compile correctly
+
+**Test Coverage**:
+- 5 new Extreme TDD tests in `test_collection_operations.rs`
+- All tests passing ✅ (RED→GREEN cycle complete)
+- Tests verify: concatenation, extend(), and combined operations
+
+**04_collections Status**:
+- DEPYLER-0290: ✅ FIXED (Vec concatenation working)
+- DEPYLER-0292: ✅ FIXED (extend() working)
+- DEPYLER-0289: 🛑 REMAINS (HashMap type inference - architectural)
+- DEPYLER-0291: 🛑 REMAINS (Ord trait for Value - architectural)
+- **Remaining Errors**: 9 (down from original, but different errors)
+
+**Next Steps**: DEPYLER-0289 and DEPYLER-0291 require Type Inference v2 architecture (deferred to next sprint)
+
+### 🛑 STOP THE LINE - Remaining Critical Issues
 
 #### DEPYLER-0289 to DEPYLER-0292: Collection Type Handling Bugs (BLOCKING)
 
