@@ -46,7 +46,10 @@ impl TestGenerator {
     ///
     /// DEPYLER-0280 FIX: This generates test functions only, not the module wrapper.
     /// The module wrapper should be added once at the file level.
-    pub fn generate_test_items_for_function(&self, func: &HirFunction) -> Result<Vec<proc_macro2::TokenStream>> {
+    pub fn generate_test_items_for_function(
+        &self,
+        func: &HirFunction,
+    ) -> Result<Vec<proc_macro2::TokenStream>> {
         // Only generate tests for pure functions
         if !func.properties.is_pure {
             return Ok(Vec::new());
@@ -75,7 +78,10 @@ impl TestGenerator {
     ///
     /// DEPYLER-0280 FIX: Wraps all test items in a single `mod tests {}` block.
     /// This prevents "the name `tests` is defined multiple times" errors.
-    pub fn generate_tests_module(&self, functions: &[HirFunction]) -> Result<Option<proc_macro2::TokenStream>> {
+    pub fn generate_tests_module(
+        &self,
+        functions: &[HirFunction],
+    ) -> Result<Option<proc_macro2::TokenStream>> {
         let mut all_test_items = Vec::new();
 
         // Collect test items from all functions
@@ -105,7 +111,10 @@ impl TestGenerator {
     ///
     /// DEPYLER-0280: This function is deprecated because it creates duplicate `mod tests {}` blocks.
     /// Use `generate_tests_module()` for module-level test generation instead.
-    #[deprecated(since = "3.19.22", note = "Use generate_tests_module() to avoid duplicate mod tests blocks (DEPYLER-0280)")]
+    #[deprecated(
+        since = "3.19.22",
+        note = "Use generate_tests_module() to avoid duplicate mod tests blocks (DEPYLER-0280)"
+    )]
     pub fn generate_tests(&self, func: &HirFunction) -> Result<Option<proc_macro2::TokenStream>> {
         let test_items = self.generate_test_items_for_function(func)?;
 
@@ -260,8 +269,9 @@ impl TestGenerator {
                 // Only numeric addition is commutative, not string concatenation.
 
                 // Check if this is string concatenation (Add with String parameters)
-                let is_string_concat = matches!(op, BinOp::Add) &&
-                    (matches!(func.params[0].ty, Type::String) || matches!(func.params[1].ty, Type::String));
+                let is_string_concat = matches!(op, BinOp::Add)
+                    && (matches!(func.params[0].ty, Type::String)
+                        || matches!(func.params[1].ty, Type::String));
 
                 // If it's string concatenation, it's NOT commutative
                 if is_string_concat {
@@ -417,14 +427,18 @@ impl TestGenerator {
 
                 // DEPYLER-0284 FIX: Check for potential overflow with integer addition
                 // DEPYLER-0285 FIX: Check for NaN in float operations
-                let special_value_check = if matches!(func_params[0].ty, Type::Int) && matches!(func_params[1].ty, Type::Int) {
+                let special_value_check = if matches!(func_params[0].ty, Type::Int)
+                    && matches!(func_params[1].ty, Type::Int)
+                {
                     quote! {
                         // Skip test if values would overflow
                         if (#a > 0 && #b > i32::MAX - #a) || (#a < 0 && #b < i32::MIN - #a) {
                             return TestResult::discard();
                         }
                     }
-                } else if matches!(func_params[0].ty, Type::Float) && matches!(func_params[1].ty, Type::Float) {
+                } else if matches!(func_params[0].ty, Type::Float)
+                    && matches!(func_params[1].ty, Type::Float)
+                {
                     quote! {
                         // Skip test if either value is NaN or infinite
                         if #a.is_nan() || #b.is_nan() || #a.is_infinite() || #b.is_infinite() {
@@ -446,8 +460,12 @@ impl TestGenerator {
             }
             TestProperty::NonNegative => {
                 // DEPYLER-0281: Convert all arguments to match function signature
-                let converted_args: Vec<_> = params.iter().zip(func_params.iter())
-                    .map(|(param, func_param)| self.convert_arg_for_property_test(&func_param.ty, param))
+                let converted_args: Vec<_> = params
+                    .iter()
+                    .zip(func_params.iter())
+                    .map(|(param, func_param)| {
+                        self.convert_arg_for_property_test(&func_param.ty, param)
+                    })
                     .collect();
 
                 quote! {
@@ -477,8 +495,12 @@ impl TestGenerator {
             }
             TestProperty::Sorted => {
                 // DEPYLER-0281: Convert all arguments to match function signature
-                let converted_args: Vec<_> = params.iter().zip(func_params.iter())
-                    .map(|(param, func_param)| self.convert_arg_for_property_test(&func_param.ty, param))
+                let converted_args: Vec<_> = params
+                    .iter()
+                    .zip(func_params.iter())
+                    .map(|(param, func_param)| {
+                        self.convert_arg_for_property_test(&func_param.ty, param)
+                    })
                     .collect();
 
                 quote! {
@@ -512,8 +534,12 @@ impl TestGenerator {
             }
             TestProperty::Idempotent => {
                 // DEPYLER-0281: Convert all arguments to match function signature
-                let converted_args: Vec<_> = params.iter().zip(func_params.iter())
-                    .map(|(param, func_param)| self.convert_arg_for_property_test(&func_param.ty, param))
+                let converted_args: Vec<_> = params
+                    .iter()
+                    .zip(func_params.iter())
+                    .map(|(param, func_param)| {
+                        self.convert_arg_for_property_test(&func_param.ty, param)
+                    })
                     .collect();
 
                 quote! {
@@ -574,7 +600,10 @@ impl TestGenerator {
                                 assert_eq!(#func_name(&vec![1]), 1);
                                 assert_eq!(#func_name(&vec![1, 2, 3]), 6);  // 1+2+3=6
                             });
-                        } else if func.name.contains("len") || func.name.contains("count") || func.name.contains("size") {
+                        } else if func.name.contains("len")
+                            || func.name.contains("count")
+                            || func.name.contains("size")
+                        {
                             // Length/count function - test length
                             cases.push(quote! {
                                 assert_eq!(#func_name(&vec![]), 0);

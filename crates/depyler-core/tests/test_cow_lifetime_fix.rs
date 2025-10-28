@@ -14,7 +14,8 @@ def concatenate(a: str, b: str) -> str:
 
     // WHEN: We transpile the code
     let pipeline = DepylerPipeline::new();
-    let generated_code = pipeline.transpile(python_code)
+    let generated_code = pipeline
+        .transpile(python_code)
         .expect("Transpilation should succeed");
 
     // THEN: Generated code should NOT contain Cow<'static, str> for parameters
@@ -47,7 +48,8 @@ def concatenate(a: str, b: str) -> str:
 
     // WHEN: We transpile with test generation (disabled for now due to DEPYLER-0281 workaround)
     let pipeline = DepylerPipeline::new();
-    let generated_code = pipeline.transpile(python_code)
+    let generated_code = pipeline
+        .transpile(python_code)
         .expect("Transpilation should succeed");
 
     // THEN: Generated code should compile
@@ -75,8 +77,7 @@ mod test_local_strings {{
         generated_code
     );
 
-    std::fs::write(&test_file, &test_code)
-        .expect("Failed to write test file");
+    std::fs::write(&test_file, &test_code).expect("Failed to write test file");
 
     // Try to compile - this will fail with the current bug
     let output = std::process::Command::new("rustc")
@@ -95,7 +96,10 @@ mod test_local_strings {{
         let stderr = String::from_utf8_lossy(&output.stderr);
 
         // Check if it's the lifetime error we expect
-        if stderr.contains("Cow<'static, str>") || stderr.contains("cannot infer") || stderr.contains("lifetime") {
+        if stderr.contains("Cow<'static, str>")
+            || stderr.contains("cannot infer")
+            || stderr.contains("lifetime")
+        {
             panic!(
                 "❌ BUG CONFIRMED: Generated code requires 'static lifetime for parameters!\n\
                  This prevents using local Strings in tests.\n\n\
