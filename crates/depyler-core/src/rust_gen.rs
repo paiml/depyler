@@ -458,7 +458,7 @@ pub fn generate_rust_file(
         var_types: std::collections::HashMap::new(),
         class_names,
         mutating_methods,
-        is_final_statement: false,  // DEPYLER-0271: Track final statement for expression-based returns
+        is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
     };
 
     // Analyze all functions first for string optimization
@@ -554,7 +554,7 @@ mod tests {
             var_types: std::collections::HashMap::new(),
             class_names: HashSet::new(),
             mutating_methods: std::collections::HashMap::new(),
-            is_final_statement: false,  // DEPYLER-0271: Track final statement for expression-based returns
+            is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
         }
     }
 
@@ -586,7 +586,10 @@ mod tests {
         assert!(code.contains("i32"));
         // DEPYLER-0271: Final return statements use expression-based returns (no `return` keyword)
         // The function body should contain the expression result without explicit `return`
-        assert!(code.contains("a + b"), "Function should contain expression 'a + b'");
+        assert!(
+            code.contains("a + b"),
+            "Function should contain expression 'a + b'"
+        );
     }
 
     #[test]
