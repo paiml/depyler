@@ -2517,13 +2517,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             insert_stmts.push(quote! { map.insert(#key_expr, #val_expr); });
         }
-        Ok(parse_quote! {
-            {
-                let mut map = HashMap::new();
-                #(#insert_stmts)*
-                map
-            }
-        })
+
+        // DEPYLER-0279: Only add `mut` if there are items to insert
+        // Empty dicts don't need mutable bindings
+        if items.is_empty() {
+            Ok(parse_quote! {
+                {
+                    let map = HashMap::new();
+                    map
+                }
+            })
+        } else {
+            Ok(parse_quote! {
+                {
+                    let mut map = HashMap::new();
+                    #(#insert_stmts)*
+                    map
+                }
+            })
+        }
     }
 
     fn convert_tuple(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
