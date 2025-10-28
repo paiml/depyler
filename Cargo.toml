@@ -8,7 +8,7 @@ members = [
     "crates/depyler-quality",
     "crates/depyler",
     "crates/depyler-wasm",
-    "crates/depyler-ruchy",
+    "crates/depyler-ruchy", "python-to-rust-conversion-examples/examples/02_control_flow/column_b",
 ]
 resolver = "2"
 
