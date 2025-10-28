@@ -260,11 +260,26 @@ fn apply_param_borrowing_strategy(
         match strategy {
             crate::borrowing_context::BorrowingStrategy::UseCow { lifetime } => {
                 ctx.needs_cow = true;
-                if should_elide_lifetimes || lifetime == "'static" {
-                    // Elide or use static
-                    let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
-                    ty = parse_quote! { Cow<#lt, str> };
+
+                // DEPYLER-0282 FIX: Parameters should NEVER use 'static lifetime
+                // For parameters, we need borrowed data that can be passed from local scope
+                // Use generic lifetime or elide it - never 'static for parameters
+                if should_elide_lifetimes {
+                    // Elide lifetime - let Rust infer it
+                    ty = parse_quote! { Cow<'_, str> };
+                } else if lifetime == "'static" {
+                    // CRITICAL FIX: Don't use 'static for parameters!
+                    // If inference suggested 'static, use generic lifetime instead
+                    // This allows passing local Strings/&str to the function
+                    if let Some(first_lifetime) = lifetime_result.lifetime_params.first() {
+                        let lt = syn::Lifetime::new(first_lifetime, proc_macro2::Span::call_site());
+                        ty = parse_quote! { Cow<#lt, str> };
+                    } else {
+                        // No explicit lifetimes - use elision
+                        ty = parse_quote! { Cow<'_, str> };
+                    }
                 } else {
+                    // Use the provided non-static lifetime
                     let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
                     ty = parse_quote! { Cow<#lt, str> };
                 }
