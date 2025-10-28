@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.19.22] - 2025-10-28
+
+### Fixed
+- **[DEPYLER-0280]** Duplicate `mod tests` Blocks in Generated Code
+  - **Issue**: Test generation created multiple `#[cfg(test)] mod tests {}` blocks (one per function), causing compilation failure
+  - **Error**: `error[E0428]: the name 'tests' is defined multiple times`
+  - **Impact**: Blocked Matrix Testing Project validation - any file with >1 function failed to compile
+  - **Root Cause**: `generate_tests()` called per-function, each creating separate `mod tests` wrapper
+  - **Solution**: Refactored to module-level test generation:
+    - Created `generate_test_items_for_function()` - returns test functions only
+    - Created `generate_tests_module()` - wraps ALL tests in single `mod tests {}`
+    - Updated `rust_gen.rs` to use module-level generation
+    - Deprecated old per-function approach
+  - **Verification**:
+    - Before: 6 `mod tests` blocks → compilation error ❌
+    - After: 1 `mod tests` block → compiles cleanly ✅
+  - **Result**: All multi-function files now compile successfully
+  - **Pattern**: Idiomatic Rust (single test module per file)
+
+### Documentation
+- **CLAUDE.md**: Enhanced STOP THE LINE protocol to be MANDATORY (non-optional)
+  - Added comprehensive 8-step bug-fix protocol
+  - Emphasized "NOT OPTIONAL" and "NON-NEGOTIABLE" nature
+  - Added enforcement mechanisms and violation consequences
+  - Documented recent examples (DEPYLER-0279, DEPYLER-0280)
+
 ## [3.19.21] - 2025-10-28
 
 ### Summary
