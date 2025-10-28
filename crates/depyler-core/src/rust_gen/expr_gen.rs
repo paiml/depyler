@@ -1153,7 +1153,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         } else {
             // Regular function call
             let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
-            Ok(parse_quote! { #func_ident(#(#args),*) })
+
+            // DEPYLER-0287 Fix Part 1: Borrow Vec arguments for functions expecting &Vec
+            // When passing a local Vec to a function, automatically borrow it
+            // This handles cases like: sum_list_recursive(rest) where rest is Vec but param is &Vec
+            //
+            // IMPORTANT: Only borrow expressions that create new Vecs (like .to_vec())
+            // Do NOT borrow simple identifiers or literals (those are Copy types like i32)
+            let borrowed_args: Vec<syn::Expr> = args
+                .iter()
+                .map(|arg_expr| {
+                    // Only borrow if the expression creates a new Vec via .to_vec()
+                    let expr_string = quote! { #arg_expr }.to_string();
+                    if expr_string.contains("to_vec") {
+                        // Borrow the Vec that's being created
+                        parse_quote! { &#arg_expr }
+                    } else {
+                        // Don't borrow - it's likely a Copy type (i32, bool, etc.)
+                        arg_expr.clone()
+                    }
+                })
+                .collect();
+
+            // DEPYLER-0287 Fix Part 2: Add `?` operator for recursive calls in Result-returning functions
+            // If we're in a function that can fail (returns Result), and we're calling another
+            // function (potentially recursive), propagate errors with `?` operator.
+            // This is needed for recursive functions that perform operations like list indexing
+            // which return Result<T, E>.
+            if self.ctx.current_function_can_fail {
+                Ok(parse_quote! { #func_ident(#(#borrowed_args),*)? })
+            } else {
+                Ok(parse_quote! { #func_ident(#(#borrowed_args),*) })
+            }
         }
     }
 
@@ -2194,12 +2225,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // For potentially negative indices, we need runtime handling
+            // DEPYLER-0288: Explicitly type idx as i32 to support negation
             Ok(parse_quote! {
                 {
                     let base = #base_expr;
-                    let idx = #index_expr;
+                    let idx: i32 = #index_expr;
                     let actual_idx = if idx < 0 {
-                        base.len().saturating_sub((-idx) as usize)
+                        // Use .abs() instead of negation to avoid "Neg not implemented for usize" error
+                        base.len().saturating_sub(idx.abs() as usize)
                     } else {
                         idx as usize
                     };

@@ -250,6 +250,22 @@ This YAML file contains:
 - Workaround: Use set.discard() for variables
 - Status: Blocked on architectural refactoring
 
+**DEPYLER-0287**: sum_list_recursive missing Result unwrap in recursion (Matrix Project - 03_functions)
+- Issue: Recursive call `sum_list_recursive(rest)` returns `Result<i32, IndexError>` but code adds it directly to `i32`
+- Error: `cannot add 'Result<i32, IndexError>' to 'i32'`
+- Root Cause: Transpiler doesn't propagate Result handling through recursive calls
+- Location: List slicing operations generate Result types, but recursion doesn't unwrap
+- Priority: P0 (blocking Matrix Project validation)
+- Status: 🛑 STOP THE LINE - Fix transpiler before continuing
+
+**DEPYLER-0288**: sum_list_recursive incorrect type handling for idx negation (Matrix Project - 03_functions)
+- Issue: Variable `idx` typed as `usize` but code tries to negate it with `(-idx)`
+- Error: `the trait 'Neg' is not implemented for 'usize'`
+- Root Cause: Transpiler generates usize for list indexing but doesn't handle Python's negative index semantics properly
+- Location: List slicing with negative indices requires i32/isize, not usize
+- Priority: P0 (blocking Matrix Project validation)
+- Status: 🛑 STOP THE LINE - Fix transpiler before continuing
+
 **Security Alerts**: 2 dependabot alerts in transitive dependencies
 - 1 critical (slab v0.4.10 - RUSTSEC-2025-0047)
 - 1 moderate

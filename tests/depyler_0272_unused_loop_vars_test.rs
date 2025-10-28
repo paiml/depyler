@@ -66,8 +66,8 @@ fn contains_unused_variable_warning(rust_code: &str, var_name: &str) -> bool {
         .expect("Failed to run rustc");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    let has_warning = stderr.contains("unused variable")
-        && stderr.contains(&format!("`{}`", var_name));
+    let has_warning =
+        stderr.contains("unused variable") && stderr.contains(&format!("`{}`", var_name));
 
     let _ = fs::remove_file(temp_file);
     has_warning
