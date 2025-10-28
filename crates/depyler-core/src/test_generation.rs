@@ -408,7 +408,28 @@ impl TestGenerator {
                 let a_converted = self.convert_arg_for_property_test(&func_params[0].ty, a);
                 let b_converted = self.convert_arg_for_property_test(&func_params[1].ty, b);
 
+                // DEPYLER-0284 FIX: Check for potential overflow with integer addition
+                // DEPYLER-0285 FIX: Check for NaN in float operations
+                let special_value_check = if matches!(func_params[0].ty, Type::Int) && matches!(func_params[1].ty, Type::Int) {
+                    quote! {
+                        // Skip test if values would overflow
+                        if (#a > 0 && #b > i32::MAX - #a) || (#a < 0 && #b < i32::MIN - #a) {
+                            return TestResult::discard();
+                        }
+                    }
+                } else if matches!(func_params[0].ty, Type::Float) && matches!(func_params[1].ty, Type::Float) {
+                    quote! {
+                        // Skip test if either value is NaN or infinite
+                        if #a.is_nan() || #b.is_nan() || #a.is_infinite() || #b.is_infinite() {
+                            return TestResult::discard();
+                        }
+                    }
+                } else {
+                    quote! {}
+                };
+
                 quote! {
+                    #special_value_check
                     let result1 = #func_name(#a_converted, #b_converted);
                     let result2 = #func_name(#b_converted, #a_converted);
                     if result1 != result2 {
@@ -537,12 +558,30 @@ impl TestGenerator {
                         }
                     }
                     Type::List(_) => {
-                        // List parameter - generate vec test cases
-                        cases.push(quote! {
-                            assert_eq!(#func_name(&vec![]), 0);
-                            assert_eq!(#func_name(&vec![1]), 1);
-                            assert_eq!(#func_name(&vec![1, 2, 3]), 3);
-                        });
+                        // DEPYLER-0283 FIX: List parameter returning int
+                        // Detect if it's a sum function vs length function by name
+                        if func.name.contains("sum") {
+                            // Sum function - test sum of elements
+                            cases.push(quote! {
+                                assert_eq!(#func_name(&vec![]), 0);
+                                assert_eq!(#func_name(&vec![1]), 1);
+                                assert_eq!(#func_name(&vec![1, 2, 3]), 6);  // 1+2+3=6
+                            });
+                        } else if func.name.contains("len") || func.name.contains("count") || func.name.contains("size") {
+                            // Length/count function - test length
+                            cases.push(quote! {
+                                assert_eq!(#func_name(&vec![]), 0);
+                                assert_eq!(#func_name(&vec![1]), 1);
+                                assert_eq!(#func_name(&vec![1, 2, 3]), 3);
+                            });
+                        } else {
+                            // Unknown function - use conservative length-based test
+                            cases.push(quote! {
+                                assert_eq!(#func_name(&vec![]), 0);
+                                assert_eq!(#func_name(&vec![1]), 1);
+                                assert_eq!(#func_name(&vec![1, 2, 3]), 3);
+                            });
+                        }
                     }
                     Type::String => {
                         // String parameter - generate string test cases
