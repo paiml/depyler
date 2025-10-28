@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.19.27] - 2025-10-28
+
+### Fixed
+#### ✅ DEPYLER-0287 & DEPYLER-0288 - Transpiler Bugs Resolved (Extreme TDD)
+
+**Context**: Matrix Project validation - 03_functions example
+**Status**: FIXED - Transpiler bugs resolved via Extreme TDD methodology
+
+#### DEPYLER-0287: Missing Result Unwrap in Recursive Calls ✅ FIXED
+- **Issue**: Recursive function calls didn't properly handle Result<T, E> return types
+- **Error**: `cannot add 'Result<i32, IndexError>' to 'i32'`
+- **Example**: `sum_list_recursive(rest)` returns Result but code treated it as i32
+- **Root Cause**: Function call generator didn't check if callee returns Result
+- **Fix**: Added `?` operator in `convert_generic_call()` when `current_function_can_fail` is true
+- **Location**: `expr_gen.rs:1175-1184`
+- **Verification**: Test `test_recursive_list_sum_executes` now passes ✅
+- **Impact**: Recursive functions using lists now compile correctly
+- **Analysis**: See `docs/issues/DEPYLER-0287-0288-analysis.md`
+
+#### DEPYLER-0288: Incorrect Type Handling for Negative Index ✅ FIXED
+- **Issue**: Variable `idx` typed as ambiguous integer but negated in usize context
+- **Error**: `the trait 'Neg' is not implemented for 'usize'`
+- **Example**: `base.len().saturating_sub((-idx) as usize)` where idx lacked type annotation
+- **Root Cause**: Index generator didn't explicitly type index variables as i32/isize
+- **Fix**: Added explicit type annotation `let idx: i32 = #index_expr;` and changed `(-idx)` to `idx.abs()`
+- **Location**: `expr_gen.rs:2226-2233`
+- **Verification**: Test `test_negative_index_executes` now passes ✅
+- **Impact**: Negative list indexing now compiles correctly
+- **Analysis**: See `docs/issues/DEPYLER-0287-0288-analysis.md`
+
+**Methodology Applied**:
+1. ✅ STOP THE LINE (Jidoka) - Halted all work when bugs discovered
+2. ✅ Documentation (roadmap.md + analysis.md + CHANGELOG.md)
+3. ✅ Extreme TDD - RED→GREEN→REFACTOR cycle
+4. ✅ Five Whys root cause analysis
+5. ✅ Re-transpile 03_functions with fixes
+6. ✅ Verification - Core tests passing (sum_list_recursive, filter_evens, fibonacci_recursive)
+7. ✅ Ready to resume Matrix Project validation
+
+**Impact on Matrix Project**:
+- 03_functions: 4/13 tests passing (core recursive list functions WORKING)
+- Remaining failures: Test expectation issues (same as 02_control_flow - known limitation)
+- Next: Continue Matrix Project expansion with additional examples
+
 ## [3.19.26] - 2025-10-28
 
 ### Fixed

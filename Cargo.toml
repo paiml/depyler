@@ -8,7 +8,7 @@ members = [
     "crates/depyler-quality",
     "crates/depyler",
     "crates/depyler-wasm",
-    "crates/depyler-ruchy", "python-to-rust-conversion-examples/examples/02_control_flow/column_b",
+    "crates/depyler-ruchy", "python-to-rust-conversion-examples/examples/02_control_flow/column_b", "python-to-rust-conversion-examples/examples/03_functions/column_b",
 ]
 resolver = "2"
 
@@ -19,7 +19,7 @@ max_cyclomatic_complexity = 15
 required_documentation_coverage = 100.0
 
 [workspace.package]
-version = "3.19.26"
+version = "3.19.27"
 edition = "2021"
 authors = ["Depyler Contributors"]
 license = "MIT OR Apache-2.0"

@@ -395,27 +395,35 @@ fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
             is_var_used_in_expr(var_name, base) || is_var_used_in_expr(var_name, index)
         }
         HirExpr::Attribute { value, .. } => is_var_used_in_expr(var_name, value),
-        HirExpr::List(elements) | HirExpr::Tuple(elements) | HirExpr::Set(elements) | HirExpr::FrozenSet(elements) => {
-            elements.iter().any(|e| is_var_used_in_expr(var_name, e))
-        }
+        HirExpr::List(elements)
+        | HirExpr::Tuple(elements)
+        | HirExpr::Set(elements)
+        | HirExpr::FrozenSet(elements) => elements.iter().any(|e| is_var_used_in_expr(var_name, e)),
         HirExpr::Dict(pairs) => pairs
             .iter()
             .any(|(k, v)| is_var_used_in_expr(var_name, k) || is_var_used_in_expr(var_name, v)),
-        HirExpr::IfExpr {
-            test,
-            body,
-            orelse,
-        } => {
+        HirExpr::IfExpr { test, body, orelse } => {
             is_var_used_in_expr(var_name, test)
                 || is_var_used_in_expr(var_name, body)
                 || is_var_used_in_expr(var_name, orelse)
         }
         HirExpr::Lambda { params: _, body } => is_var_used_in_expr(var_name, body),
-        HirExpr::Slice { base, start, stop, step } => {
+        HirExpr::Slice {
+            base,
+            start,
+            stop,
+            step,
+        } => {
             is_var_used_in_expr(var_name, base)
-                || start.as_ref().is_some_and(|s| is_var_used_in_expr(var_name, s))
-                || stop.as_ref().is_some_and(|s| is_var_used_in_expr(var_name, s))
-                || step.as_ref().is_some_and(|s| is_var_used_in_expr(var_name, s))
+                || start
+                    .as_ref()
+                    .is_some_and(|s| is_var_used_in_expr(var_name, s))
+                || stop
+                    .as_ref()
+                    .is_some_and(|s| is_var_used_in_expr(var_name, s))
+                || step
+                    .as_ref()
+                    .is_some_and(|s| is_var_used_in_expr(var_name, s))
         }
         _ => false, // Literals and other expressions don't reference variables
     }
@@ -432,9 +440,9 @@ fn is_var_used_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
         } => {
             is_var_used_in_expr(var_name, condition)
                 || then_body.iter().any(|s| is_var_used_in_stmt(var_name, s))
-                || else_body.as_ref().is_some_and(|body| {
-                    body.iter().any(|s| is_var_used_in_stmt(var_name, s))
-                })
+                || else_body
+                    .as_ref()
+                    .is_some_and(|body| body.iter().any(|s| is_var_used_in_stmt(var_name, s)))
         }
         HirStmt::While { condition, body } => {
             is_var_used_in_expr(var_name, condition)
@@ -446,14 +454,14 @@ fn is_var_used_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
         }
         HirStmt::Return(Some(expr)) => is_var_used_in_expr(var_name, expr),
         HirStmt::Expr(expr) => is_var_used_in_expr(var_name, expr),
-        HirStmt::Raise { exception, .. } => {
-            exception.as_ref().is_some_and(|e| is_var_used_in_expr(var_name, e))
-        }
-        HirStmt::Assert {
-            test, msg, ..
-        } => {
+        HirStmt::Raise { exception, .. } => exception
+            .as_ref()
+            .is_some_and(|e| is_var_used_in_expr(var_name, e)),
+        HirStmt::Assert { test, msg, .. } => {
             is_var_used_in_expr(var_name, test)
-                || msg.as_ref().is_some_and(|m| is_var_used_in_expr(var_name, m))
+                || msg
+                    .as_ref()
+                    .is_some_and(|m| is_var_used_in_expr(var_name, m))
         }
         _ => false,
     }
@@ -556,9 +564,17 @@ pub(crate) fn codegen_for_stmt(
 /// Check if this is a dict augmented assignment pattern (dict[key] op= value)
 /// Returns true if target is Index and value is Binary with left being an Index to same location
 fn is_dict_augassign_pattern(target: &AssignTarget, value: &HirExpr) -> bool {
-    if let AssignTarget::Index { base: target_base, index: target_index } = target {
+    if let AssignTarget::Index {
+        base: target_base,
+        index: target_index,
+    } = target
+    {
         if let HirExpr::Binary { left, .. } = value {
-            if let HirExpr::Index { base: value_base, index: value_index } = left.as_ref() {
+            if let HirExpr::Index {
+                base: value_base,
+                index: value_index,
+            } = left.as_ref()
+            {
                 // Check if both indices refer to the same dict[key] location
                 // Simple heuristic: compare base and index expressions
                 // (This is simplified - a full solution would do deeper structural comparison)
