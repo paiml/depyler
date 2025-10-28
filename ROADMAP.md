@@ -302,6 +302,78 @@ This YAML file contains:
 - Location: expr_gen.rs:1439-1456
 - Status: ✅ FIXED in v3.19.28
 
+**DEPYLER-0293**: Invalid String-to-int Casting (Matrix Project - 05_error_handling) - 🛑 BLOCKING
+- Issue: `int(str)` generates `(s) as i32` instead of `.parse::<i32>()`
+- Error: `non-primitive cast: 'String' as 'i32'`
+- Impact: 5/8 errors in 05_error_handling (62.5% of failures)
+- Root Cause: Transpiler treats all `int(x)` as type casts, lacks context-aware builtin handling
+- Priority: P0 (blocking exception handling examples)
+- Estimate: 4-6 hours
+- Status: 🛑 STOP THE LINE - Quick win fix available
+- Analysis: docs/issues/DEPYLER-0293-0296-analysis.md
+
+**DEPYLER-0294**: Missing Result Unwrapping (Matrix Project - 05_error_handling) - 🛑 BLOCKING
+- Issue: Calling Result-returning function from try block doesn't unwrap
+- Error: `expected 'i32', found 'Result<i32, ZeroDivisionError>'`
+- Impact: 1/8 errors in 05_error_handling (12.5% of failures)
+- Root Cause: Exception handler doesn't recognize Result-returning function calls
+- Priority: P0 (blocking exception handling examples)
+- Estimate: 8-12 hours (high complexity)
+- Status: 🛑 STOP THE LINE - Requires cross-function type inference
+- Analysis: docs/issues/DEPYLER-0293-0296-analysis.md
+
+**DEPYLER-0295**: Undefined Exception Types (Matrix Project - 05_error_handling) - 🛑 BLOCKING
+- Issue: Using ValueError doesn't generate type definition
+- Error: `failed to resolve: use of undeclared type 'ValueError'`
+- Impact: 1/8 errors in 05_error_handling (12.5% of failures)
+- Root Cause: Transpiler only generates ZeroDivisionError, no module-level exception collection
+- Priority: P0 (blocking exception handling examples)
+- Estimate: 6-8 hours
+- Status: 🛑 STOP THE LINE - Quick win fix available
+- Analysis: docs/issues/DEPYLER-0293-0296-analysis.md
+
+**DEPYLER-0296**: Return Type Mismatches in Exception Paths (Matrix Project - 05_error_handling) - 🛑 BLOCKING
+- Issue: `raise` statement generates `return Err()` in non-Result function
+- Error: `expected 'i32', found 'Result<_, ZeroDivisionError>'`
+- Impact: 1/8 errors in 05_error_handling (12.5% of failures)
+- Root Cause: Exception handling doesn't use closure pattern - emits inline `return Err()`
+- Priority: P0 (blocking exception handling examples)
+- Estimate: 10-12 hours (high complexity - requires rewrite)
+- Status: 🛑 STOP THE LINE - Requires exception handling architecture rewrite
+- Analysis: docs/issues/DEPYLER-0293-0296-analysis.md
+
+**DEPYLER-0297**: Nested List Comprehensions Not Supported (Matrix Project - 06_list_comprehensions) - ⚠️ LIMITATION
+- Issue: Transpiler error "Nested list comprehensions not yet supported"
+- Pattern: `[item for sublist in nested for item in sublist]`
+- Impact: Blocks flattening, cartesian products, matrix operations
+- Root Cause: Feature not implemented
+- Priority: P2 (feature gap, not bug)
+- Status: ⚠️ KNOWN LIMITATION - Document and defer
+- Analysis: docs/issues/DEPYLER-0299-analysis.md
+
+**DEPYLER-0298**: Complex Comprehension Targets Not Supported (Matrix Project - 06_list_comprehensions) - ⚠️ LIMITATION
+- Issue: Transpiler error "Complex comprehension targets not yet supported"
+- Pattern: `[(i, v) for i, v in enumerate(values)]`
+- Impact: Blocks tuple unpacking from enumerate(), items(), zip()
+- Root Cause: Feature not implemented
+- Priority: P2 (feature gap, not bug)
+- Status: ⚠️ KNOWN LIMITATION - Document and defer
+- Analysis: docs/issues/DEPYLER-0299-analysis.md
+
+**DEPYLER-0299**: List Comprehension Iterator Translation Bugs (Matrix Project - 06_list_comprehensions) - 🛑 BLOCKING
+- Issue: Comprehensions generate incorrect iterator methods and references
+- Errors: 15 compilation errors across 8 functions (50% failure rate)
+- Patterns:
+  - Double-reference in closures (`&&i32` vs `&i32`) - 6 errors
+  - Owned vs borrowed return types (`Vec<&i32>` vs `Vec<i32>`) - 4 errors
+  - String indexing translation (invalid `.get()`) - 1 error
+  - Binary operator misclassification (`x + const` as list concat) - 2 errors
+- Root Cause: Wrong iterator method selection (`.into_iter()` vs `.iter()`) + missing `.copied()`
+- Priority: P0 (blocking comprehension examples - core feature)
+- Estimate: 12-18 hours (1.5-2 days) - tactical fixes with high ROI
+- Status: 🛑 STOP THE LINE - Core Python feature broken
+- Analysis: docs/issues/DEPYLER-0299-analysis.md
+
 **Security Alerts**: 2 dependabot alerts in transitive dependencies
 - 1 critical (slab v0.4.10 - RUSTSEC-2025-0047)
 - 1 moderate
