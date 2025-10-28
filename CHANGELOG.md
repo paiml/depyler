@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.19.2] - 2025-10-28
+
+### Fixed
+- **[DEPYLER-0277]** Optional None Return Bug - Fixed incorrect `Ok(())` generation
+  - **Issue**: Functions returning `Optional[T]` that returned Python `None` generated `Ok(())` instead of `Ok(None)`
+  - **Symptom**: Compilation error: `expected Option<String>, found ()`
+  - **Root Cause**: `codegen_return_stmt()` had logic for `!is_none_literal` but no explicit branch for `is_none_literal`
+  - **Fix**: Added explicit handling in `stmt_gen.rs:204-210, 223-229` for both `Result<Option<T>>` and `Option<T>` cases
+  - **Changes**:
+    - Case 1 (Result<Option<T>>): `return Ok(None);` instead of `return Ok(());`
+    - Case 2 (Option<T>): `return None;` instead of `return ();`
+  - **Verification**:
+    - `process_config.py` now compiles with zero errors/warnings ✅
+    - `annotated_example.py` generates correct `Ok(None)` (still has DEPYLER-0278 fnv issue) ✅
+  - **TDD Cycle**: RED (compilation failure) → GREEN (added explicit branches) → REFACTOR (validated on showcase examples)
+
 ## [3.19.1] - 2025-10-28
 
 ### Fixed

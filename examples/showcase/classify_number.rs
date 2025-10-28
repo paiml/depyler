@@ -4,13 +4,13 @@
 pub fn classify_number(n: i32) -> String {
     let _cse_temp_0 = n == 0;
     if _cse_temp_0 {
-        return "zero".to_string();
+        "zero".to_string()
     } else {
         let _cse_temp_1 = n > 0;
         if _cse_temp_1 {
-            return "positive".to_string();
+            "positive".to_string()
         } else {
-            return "negative".to_string();
+            "negative".to_string()
         }
     }
 }

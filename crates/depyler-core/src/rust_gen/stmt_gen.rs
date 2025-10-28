@@ -201,6 +201,13 @@ pub(crate) fn codegen_return_stmt(
                 } else {
                     Ok(quote! { Ok(Some(#expr_tokens)) })
                 }
+            } else if is_optional_return && is_none_literal {
+                // DEPYLER-0277: Return None for Optional types (not ())
+                if use_return_keyword {
+                    Ok(quote! { return Ok(None); })
+                } else {
+                    Ok(quote! { Ok(None) })
+                }
             } else if use_return_keyword {
                 Ok(quote! { return Ok(#expr_tokens); })
             } else {
@@ -212,6 +219,13 @@ pub(crate) fn codegen_return_stmt(
                 Ok(quote! { return Some(#expr_tokens); })
             } else {
                 Ok(quote! { Some(#expr_tokens) })
+            }
+        } else if is_optional_return && is_none_literal {
+            // DEPYLER-0277: Return None for Optional types (not ()) - non-Result case
+            if use_return_keyword {
+                Ok(quote! { return None; })
+            } else {
+                Ok(quote! { None })
             }
         } else if use_return_keyword {
             Ok(quote! { return #expr_tokens; })
