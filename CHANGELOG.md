@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.19.26] - 2025-10-28
+
+### Fixed
+- **[DEPYLER-0286]** String Concatenation Falsely Detected as Commutative
+  - **Issue**: Property test generator incorrectly tested string concatenation for commutativity
+  - **Error**: `TEST FAILED. Arguments: ("\0", "\u{1}")` - `"ab" ≠ "ba"`
+  - **Root Cause**: `is_commutative()` checked for `BinOp::Add` without distinguishing numeric addition (commutative) from string concatenation (NOT commutative)
+  - **Impact**: Invalid property tests generated for string concatenation functions
+  - **Solution**: Added type checking to `is_commutative()` in `test_generation.rs:254-283`
+    - Check if parameters are String type before testing commutativity
+    - If `BinOp::Add` with String params → NOT commutative (return false)
+    - Only numeric Add is commutative
+  - **Verification**:
+    - `quickcheck_concatenate_strings` no longer generated ✅
+    - Matrix 01_basic_types: All 6 tests passing ✅
+  - **Pattern**: Property detection must consider operand types, not just operators
+
+### Changed
+- **[DEPYLER-0281 Workaround Removed]** String Parameter Property Tests Re-enabled
+  - DEPYLER-0282 fixed root cause (Cow<'static, str> → Cow<'_, str>)
+  - Property tests now work correctly for String parameters
+  - Workaround that skipped String parameter tests has been removed from `test_generation.rs:203-212`
+  - Full property test coverage restored for all types including Strings
+
 ## [3.19.25] - 2025-10-28
 
 ### Fixed
