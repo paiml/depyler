@@ -4,6 +4,53 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🛑 STOP THE LINE - Critical Issues Discovered
+
+#### DEPYLER-0289 to DEPYLER-0292: Collection Type Handling Bugs (BLOCKING)
+
+**Context**: Matrix Project validation - 04_collections example
+**Status**: 🛑 BLOCKED - Critical transpiler bugs discovered
+**Discovery Date**: 2025-10-28
+
+**Issues Discovered**:
+1. **DEPYLER-0289**: HashMap Type Inference Issues
+   - Dict key type mismatch (expects `&Value`, receives `&str`)
+   - Dict value type incompatible with unwrap_or defaults
+   - Dict iteration borrowing issues with insert()
+
+2. **DEPYLER-0290**: Vector Addition Not Supported
+   - List concatenation (`list1 + list2`) generates invalid `&Vec + &Vec`
+   - No operator translation for Vec concatenation patterns
+
+3. **DEPYLER-0291**: Generic Collection Type Handling
+   - Overuse of `serde_json::Value` instead of concrete types
+   - Missing `Ord` trait for sorting `Vec<Value>`
+   - No type inference from usage context
+
+4. **DEPYLER-0292**: Iterator vs Reference Mismatch
+   - `extend()` expects `IntoIterator<Item = Value>`, gets `&Vec<Value>`
+   - No automatic iterator conversion for method calls
+
+**Compilation Impact**: 9 errors preventing 04_collections compilation
+
+**Root Cause**: Type inference system lacks:
+- Context-aware type propagation
+- Relationship tracking between parameters and collection generic types
+- Trait-aware code generation (checking Ord, IntoIterator, etc.)
+
+**Recommended Fixes**:
+- **Short-term** (DEPYLER-0290, DEPYLER-0292): Fix operator and method call handling (4-5 hours)
+- **Long-term** (DEPYLER-0289, DEPYLER-0291): Type Inference v2 architecture (next sprint)
+
+**Analysis**: See `docs/issues/DEPYLER-0289-0292-analysis.md`
+
+**Jidoka Protocol Applied**:
+1. ✅ STOP THE LINE - Halted Matrix Project expansion
+2. ✅ Documentation - Comprehensive Five Whys analysis
+3. ⏸️  Awaiting transpiler fixes before continuing
+
+**Impact**: Blocks Matrix Project 04_collections validation
+
 ## [3.19.27] - 2025-10-28
 
 ### Fixed
