@@ -693,14 +693,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
         let arg = &args[0];
 
-        // Python's len() returns int, which we map to i32/i64/isize based on type mapper.
-        // Rust's .len() returns usize, so we cast to match Python's int type.
-        // This ensures type consistency: len() - 1, len() comparisons, etc. all work with i32.
-        //
-        // Note: This matches the type mapper's integer width preference.
-        // For functions returning indices, they should explicitly use usize in their return type.
-        // Removed outer parens - they're unnecessary and cause clippy warnings
-        Ok(parse_quote! { #arg.len() as i32 })
+        // DEPYLER-0275: Return .len() without cast - let caller add cast if needed
+        // Python's len() → Rust's .len() which returns usize
+        // The return statement processing in stmt_gen.rs will add `as i32` if needed
+        // This prevents double casts like `s.len() as i32 as i32`
+        Ok(parse_quote! { #arg.len() })
     }
 
     fn convert_int_cast(&self, hir_args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
