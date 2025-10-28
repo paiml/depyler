@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **[DEPYLER-0279]** Dictionary Codegen Bugs (Unused mut + Borrow After Move)
+  - **Issue 1**: Empty dict literal generates unnecessary `mut` modifier
+    - **Symptom**: `warning: variable does not need to be mutable` for `let mut map = HashMap::new()`
+    - **Root Cause**: `convert_dict()` always added `mut` even when `items.is_empty()`
+    - **Fix**: Conditional `mut` in expr_gen.rs:2523-2537 - only add `mut` if items not empty
+  - **Issue 2**: Dict update in loop causes borrow after move error
+    - **Symptom**: `error[E0382]: borrow of moved value: 'word'` in `dict.insert(key, dict.get(&key)...)`
+    - **Root Cause**: Augmented assignment `dict[key] += 1` converted at HIR level, causing key to appear twice in codegen
+    - **Fix**: Special pattern detection in stmt_gen.rs:556-611 - evaluate old value before insert
+    - **Generated Code**: `{ let _key = key; let _old_val = dict.get(&_key)...; dict.insert(_key, _old_val + value); }`
+  - **Impact**: Affects common Python pattern (dict with loop updates, empty dict literals)
+  - **Verification**:
+    - `annotated_example.rs` compiles with 0 errors, 0 warnings (was 1 error, 1 warning) ✅
+    - Test case `test_dict_loop.py` compiles with 0 errors, 0 warnings ✅
+    - Full test suite: 0 regressions (same 4 DEPYLER-0269 pre-existing failures) ✅
+  - **TDD Cycle**: RED (compilation failures) → GREEN (pattern detection + conditional mut) → REFACTOR (validated on showcase)
+
 ## [3.19.3] - 2025-10-28
 
 ### Fixed
