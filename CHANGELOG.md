@@ -4,8 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.19.21] - 2025-10-28
+
+### Summary
+🎉 **v3.19.x Series Complete: 100% Showcase Compilation Success**
+
+This release completes the v3.19.x bug-fixing campaign with 6 bugs fixed total.
+- **Showcase**: 100% transpilation, 100% compilation (6/6 examples) ✅
+- **Tests**: 0 failing tests ✅
+- **Quality**: All commits passed gates (100%) ✅
+
 ### Fixed
-- **[DEPYLER-0269]** Test Generation Type Mismatch
+- **[DEPYLER-0279]** Dictionary Codegen Bugs (v3.19.4)
+- **[DEPYLER-0269]** Test Generation Type Mismatch (v3.19.5)
+
+See full details below and in [docs/releases/v3.19.x-RELEASE-SUMMARY.md](docs/releases/v3.19.x-RELEASE-SUMMARY.md)
+
+### Fixed - DEPYLER-0279
+- **Issue 1**: Empty dict literal generates unnecessary `mut` modifier
+  - Conditional `mut` in expr_gen.rs:2523-2537
+- **Issue 2**: Dict update in loop causes borrow after move error
+  - Pattern detection in stmt_gen.rs:556-611
+- **Result**: annotated_example.rs now compiles with 0 errors, 0 warnings ✅
+
+### Fixed - DEPYLER-0269
   - **Issue**: Test generation creates test cases with wrong parameter types
     - **Symptom**: Generated tests like `assert_eq!(f(0), 0)` when function expects `&Vec<i32>`
     - **Error**: `error[E0308]: mismatched types - expected &Vec<i32>, found integer`
