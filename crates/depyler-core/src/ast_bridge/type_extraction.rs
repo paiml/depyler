@@ -43,6 +43,10 @@ impl TypeExtractor {
             ast::Expr::Subscript(s) => Self::extract_generic_type(s),
             // Handle None constant (used in -> None return annotations)
             ast::Expr::Constant(c) if matches!(c.value, ast::Constant::None) => Ok(Type::None),
+            // DEPYLER-0273: Handle PEP 604 union syntax (int | None)
+            ast::Expr::BinOp(b) if matches!(b.op, ast::Operator::BitOr) => {
+                Self::extract_union_from_binop(b)
+            }
             _ => bail!("Unsupported type annotation"),
         }
     }
@@ -192,6 +196,50 @@ impl TypeExtractor {
             expr => {
                 let ty = Self::extract_type(expr)?;
                 Ok(Type::Union(vec![ty]))
+            }
+        }
+    }
+
+    /// DEPYLER-0273: Extract union type from PEP 604 binary operator syntax (T | U)
+    ///
+    /// Handles Python 3.10+ union type syntax like `int | None`, `int | str | None`.
+    /// Special case: `T | None` is converted to `Optional[T]` (Rust's `Option<T>`)
+    ///
+    /// Complexity: 8 (recursive collection of union types)
+    fn extract_union_from_binop(b: &ast::ExprBinOp) -> Result<Type> {
+        // Collect all types in the union chain (left | middle | right)
+        let mut types = Vec::new();
+        Self::collect_union_types(&b.left, &mut types)?;
+        Self::collect_union_types(&b.right, &mut types)?;
+
+        // Special case: T | None → Optional[T] (Rust's Option<T>)
+        if types.len() == 2 {
+            let has_none = types.iter().any(|t| matches!(t, Type::None));
+            if has_none {
+                // Find the non-None type
+                if let Some(inner_type) = types.iter().find(|t| !matches!(t, Type::None)) {
+                    return Ok(Type::Optional(Box::new(inner_type.clone())));
+                }
+            }
+        }
+
+        // Multiple types (int | str | None, etc.) → Union type
+        Ok(Type::Union(types))
+    }
+
+    /// Helper to recursively collect all types from a union chain
+    fn collect_union_types(expr: &ast::Expr, types: &mut Vec<Type>) -> Result<()> {
+        match expr {
+            // Nested union: (a | b) | c
+            ast::Expr::BinOp(b) if matches!(b.op, ast::Operator::BitOr) => {
+                Self::collect_union_types(&b.left, types)?;
+                Self::collect_union_types(&b.right, types)?;
+                Ok(())
+            }
+            // Base case: single type
+            _ => {
+                types.push(Self::extract_type(expr)?);
+                Ok(())
             }
         }
     }
