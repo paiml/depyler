@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.19.0] - 2025-10-28
+
+### Fixed
+- **[DEPYLER-0275]** Code Quality Improvements: Removed Unnecessary CSE Temps, Lifetimes, and Casts
+  - **CSE Temp Elision**: Removed unnecessary CSE temporaries in final return statements
+    - Before: `let _cse_temp_0 = x + y; _cse_temp_0`
+    - After: `x + y` (direct return)
+    - Root cause: Optimizer applied CSE to final returns without checking if expression was simple
+    - Fix: Added `is_simple_return_expr()` and skip CSE for final simple returns in `optimizer.rs:530-714`
+  - **Lifetime Elision**: Applied Rust's lifetime elision rules to reduce explicit lifetimes
+    - Before: `pub fn concat_strings<'a>(s1: Cow<'static, str>, s2: &'a str) -> String`
+    - After: `pub fn concat_strings(s1: Cow<'static, str>, s2: &str) -> String`
+    - Root cause: `analyze_function()` always added explicit lifetimes even when Rust could elide them
+    - Fix: Integrated `apply_elision_rules()` into code generation pipeline in `func_gen.rs:626-630`
+    - Fix: Added `should_elide_lifetimes` parameter to `apply_borrowing_to_type()` in `func_gen.rs:289-346`
+  - **Double Cast Removal**: Eliminated redundant type casts in len() expressions
+    - Before: `s.len() as i32 as i32`
+    - After: `s.len() as i32`
+    - Root cause: `convert_len_call()` added `as i32` cast, then return statement added another
+    - Fix: Removed cast from `convert_len_call()` to let caller add cast once in `expr_gen.rs:690-701`
+  - Result: Generated code now passes `cargo clippy -- -D warnings` with zero warnings
+  - Testing: Applied Extreme TDD methodology - created minimal failing tests, fixed root cause, verified fix
+  - Impact: 50% reduction in CSE temps (21→10 in basic_types example), cleaner function signatures
+
 ## [3.18.0] - 2025-10-28
 
 ### Added
