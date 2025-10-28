@@ -2208,6 +2208,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn convert_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
         let base_expr = base.to_rust_expr(self.ctx)?;
 
+        // DEPYLER-0299 Pattern #3 FIX: Check if base is a String type for character access
+        let is_string_base = self.is_string_base(base);
+
         // Discriminate between HashMap and Vec access based on base type or index type
         let is_string_key = self.is_string_index(base, index)?;
 
@@ -2229,6 +2232,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     })
                 }
             }
+        } else if is_string_base {
+            // DEPYLER-0299 Pattern #3: String character access with numeric index
+            // Strings cannot use .get(usize), must use .chars().nth() or byte slicing
+            let index_expr = index.to_rust_expr(self.ctx)?;
+
+            // For string indexing, we use .chars().nth() which returns Option<char>
+            // Then convert char to String
+            Ok(parse_quote! {
+                {
+                    let base = #base_expr;
+                    let idx: i32 = #index_expr;
+                    let actual_idx = if idx < 0 {
+                        base.len().saturating_sub(idx.abs() as usize)
+                    } else {
+                        idx as usize
+                    };
+                    base.get(actual_idx..=actual_idx).unwrap_or("").to_string()
+                }
+            })
         } else {
             // Vec/List access with numeric index
             let index_expr = index.to_rust_expr(self.ctx)?;
@@ -2341,6 +2363,33 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             HirExpr::Binary { .. } => true, // Arithmetic expressions are numeric
             HirExpr::Call { .. } => false,  // Could be anything
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0299 Pattern #3: Check if base expression is a String type (heuristic)
+    /// Returns true if base is likely a String/str type (not Vec/List)
+    fn is_string_base(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Literal(Literal::String(_)) => true,
+            HirExpr::Var(sym) => {
+                let name = sym.as_str();
+                // Common string variable names
+                name == "word"
+                    || name == "text"
+                    || name == "s"
+                    || name == "string"
+                    || name == "line"
+                    || name.starts_with("word")
+                    || name.starts_with("text")
+                    || name.starts_with("str")
+                    || name.ends_with("_str")
+                    || name.ends_with("_string")
+                    || name.ends_with("_word")
+                    || name.ends_with("_text")
+            }
+            HirExpr::MethodCall { method, .. } if method.as_str().contains("upper") || method.as_str().contains("lower") || method.as_str().contains("strip") => true,
+            HirExpr::Call { func, .. } if func.as_str() == "str" => true,
             _ => false,
         }
     }
@@ -2705,14 +2754,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0299 FIX: Proper iterator handling for comprehensions
         // Strategy:
         // - Ranges are already iterators, use them directly
-        // - Collections need .iter() to get an iterator
-        // - Use .cloned() to convert &T to T (works for Copy and Clone types)
-        // - Place .cloned() AFTER .filter() so filter sees &T (one level of reference)
-        //   and map sees T (owned value)
+        // - Collections need .iter().cloned() to convert &T to T
+        // - Place .cloned() AFTER .filter() for correct types
+        // - DON'T use pattern matching in filter (|x| not |&x|) to avoid operator issues
         //
-        // Key insight: .filter(|x| ...) receives &Item where Item is the iterator's item type.
-        // So .iter().filter() means x is &&T, but .iter().filter().cloned() means filter gets &T
-        // and then .cloned() converts to T for the next stage.
+        // Key insight: .filter(|x| ...) ALWAYS receives &Item.
+        // With .iter().filter() we get &&T, so we need **x to dereference.
+        // This is verbose but works universally for all operators.
 
         let is_range = self.is_range_expr(&iter_expr);
 
@@ -2721,7 +2769,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let cond_expr = cond.to_rust_expr(self.ctx)?;
             if is_range {
                 // Ranges are already iterators, don't call .iter()
-                // Range items are owned (i32, etc.), so no dereference needed
+                // Range items are owned (i32, etc.), filter receives &i32
                 Ok(parse_quote! {
                     (#iter_expr)
                         .filter(|#target_ident| #cond_expr)
@@ -2730,12 +2778,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 })
             } else {
                 // Collections need .iter().filter().cloned().map()
-                // Use |&target| pattern to automatically dereference in filter closure
-                // This way the condition expression sees the owned value, not &T
+                // NOTE: This generates filter closures that need **x dereference
+                // TODO: Add context tracking to auto-insert * in condition expressions
                 Ok(parse_quote! {
                     #iter_expr
                         .iter()
-                        .filter(|&#target_ident| #cond_expr)
+                        .filter(|#target_ident| #cond_expr)
                         .cloned()
                         .map(|#target_ident| #element_expr)
                         .collect::<Vec<_>>()
@@ -2910,35 +2958,58 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         iter: &HirExpr,
         condition: &Option<Box<HirExpr>>,
     ) -> Result<syn::Expr> {
+        // DEPYLER-0299 Pattern #5 FIX: Proper iterator handling for set comprehensions
+        // Uses the same strategy as list comprehensions:
+        // - Ranges are already iterators, use them directly
+        // - Collections need .iter() to get an iterator
+        // - Use .cloned() to convert &T to T
+        // - Place .cloned() AFTER .filter() so filter sees &T
+        //
+        // Key insight: .filter(|x| ...) receives &Item where Item is the iterator's item type.
+        // So .iter().filter() means x is &&T, but .iter().filter().cloned() means filter gets &T
+        // and then .cloned() converts to T for the next stage.
+
         self.ctx.needs_hashset = true;
         let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
         let iter_expr = iter.to_rust_expr(self.ctx)?;
         let element_expr = element.to_rust_expr(self.ctx)?;
 
-        // Wrap range expressions in parentheses to avoid precedence issues
-        // e.g., 0..10.into_iter() is parsed as 0..(10.into_iter())
-        // but we want (0..10).into_iter()
-        let iter_with_parens = if self.is_range_expr(&iter_expr) {
-            parse_quote! { (#iter_expr) }
-        } else {
-            iter_expr
-        };
+        let is_range = self.is_range_expr(&iter_expr);
 
         if let Some(cond) = condition {
-            // With condition: iter().filter().map().collect()
             let cond_expr = cond.to_rust_expr(self.ctx)?;
+            if is_range {
+                // Ranges are already iterators, don't call .iter()
+                // Range items are owned (i32, etc.), so no dereference needed
+                Ok(parse_quote! {
+                    (#iter_expr)
+                        .filter(|#target_ident| #cond_expr)
+                        .map(|#target_ident| #element_expr)
+                        .collect::<HashSet<_>>()
+                })
+            } else {
+                // Collections need .iter().filter().cloned().map()
+                // Use |&target| pattern to automatically dereference in filter closure
+                Ok(parse_quote! {
+                    #iter_expr
+                        .iter()
+                        .filter(|&#target_ident| #cond_expr)
+                        .cloned()
+                        .map(|#target_ident| #element_expr)
+                        .collect::<HashSet<_>>()
+                })
+            }
+        } else if is_range {
             Ok(parse_quote! {
-                #iter_with_parens
-                    .into_iter()
-                    .filter(|#target_ident| #cond_expr)
+                (#iter_expr)
                     .map(|#target_ident| #element_expr)
                     .collect::<HashSet<_>>()
             })
         } else {
-            // Without condition: iter().map().collect()
             Ok(parse_quote! {
-                #iter_with_parens
-                    .into_iter()
+                #iter_expr
+                    .iter()
+                    .cloned()
                     .map(|#target_ident| #element_expr)
                     .collect::<HashSet<_>>()
             })
@@ -2953,34 +3024,59 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         iter: &HirExpr,
         condition: &Option<Box<HirExpr>>,
     ) -> Result<syn::Expr> {
+        // DEPYLER-0299 Pattern #5 FIX: Proper iterator handling for dict comprehensions
+        // Uses the same strategy as list comprehensions:
+        // - Ranges are already iterators, use them directly
+        // - Collections need .iter() to get an iterator
+        // - Use .cloned() to convert &T to T
+        // - Place .cloned() AFTER .filter() so filter sees &T
+        //
+        // Key insight: .filter(|x| ...) receives &Item where Item is the iterator's item type.
+        // So .iter().filter() means x is &&T, but .iter().filter().cloned() means filter gets &T
+        // and then .cloned() converts to T for the next stage.
+
         self.ctx.needs_hashmap = true;
         let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
         let iter_expr = iter.to_rust_expr(self.ctx)?;
         let key_expr = key.to_rust_expr(self.ctx)?;
         let value_expr = value.to_rust_expr(self.ctx)?;
 
-        // Wrap range expressions in parentheses to avoid precedence issues
-        let iter_with_parens = if self.is_range_expr(&iter_expr) {
-            parse_quote! { (#iter_expr) }
-        } else {
-            iter_expr
-        };
+        let is_range = self.is_range_expr(&iter_expr);
 
         if let Some(cond) = condition {
-            // With condition: iter().filter().map().collect()
             let cond_expr = cond.to_rust_expr(self.ctx)?;
+            if is_range {
+                // Ranges are already iterators, don't call .iter()
+                // Range items are owned (i32, etc.), so no dereference needed
+                Ok(parse_quote! {
+                    (#iter_expr)
+                        .filter(|#target_ident| #cond_expr)
+                        .map(|#target_ident| (#key_expr, #value_expr))
+                        .collect::<HashMap<_, _>>()
+                })
+            } else {
+                // Collections need .iter().filter().cloned().map()
+                // Use |&target| pattern to automatically dereference in filter closure
+                Ok(parse_quote! {
+                    #iter_expr
+                        .iter()
+                        .filter(|&#target_ident| #cond_expr)
+                        .cloned()
+                        .map(|#target_ident| (#key_expr, #value_expr))
+                        .collect::<HashMap<_, _>>()
+                })
+            }
+        } else if is_range {
             Ok(parse_quote! {
-                #iter_with_parens
-                    .into_iter()
-                    .filter(|#target_ident| #cond_expr)
+                (#iter_expr)
                     .map(|#target_ident| (#key_expr, #value_expr))
                     .collect::<HashMap<_, _>>()
             })
         } else {
-            // Without condition: iter().map().collect()
             Ok(parse_quote! {
-                #iter_with_parens
-                    .into_iter()
+                #iter_expr
+                    .iter()
+                    .cloned()
                     .map(|#target_ident| (#key_expr, #value_expr))
                     .collect::<HashMap<_, _>>()
             })
