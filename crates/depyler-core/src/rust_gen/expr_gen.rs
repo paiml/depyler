@@ -157,7 +157,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             BinOp::Add => {
                 // DEPYLER-0290: Special handling for list concatenation
                 // Check if we're dealing with lists/vectors
-                let is_definitely_list = self.is_list_expr(left) || self.is_list_expr(right)
+                let is_definitely_list = self.is_list_expr(left)
+                    || self.is_list_expr(right)
                     || matches!(left, HirExpr::Var(_)) && matches!(right, HirExpr::Var(_));
 
                 // Check if we're dealing with strings (literals or type-inferred)
@@ -2700,33 +2701,65 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let iter_expr = iter.to_rust_expr(self.ctx)?;
         let element_expr = element.to_rust_expr(self.ctx)?;
 
-        // Wrap range expressions in parentheses to avoid precedence issues
-        // e.g., 0..10.into_iter() is parsed as 0..(10.into_iter())
-        // but we want (0..10).into_iter()
-        let iter_with_parens = if self.is_range_expr(&iter_expr) {
-            parse_quote! { (#iter_expr) }
-        } else {
-            iter_expr
-        };
+        // DEPYLER-0299 FIX: Proper iterator handling for comprehensions
+        // Strategy:
+        // - Ranges are already iterators, use them directly
+        // - Collections need .iter() to get an iterator
+        // - Use .cloned() to convert &T to T (works for Copy and Clone types)
+        // - Place .cloned() AFTER .filter() so filter sees &T (one level of reference)
+        //   and map sees T (owned value)
+        //
+        // Key insight: .filter(|x| ...) receives &Item where Item is the iterator's item type.
+        // So .iter().filter() means x is &&T, but .iter().filter().cloned() means filter gets &T
+        // and then .cloned() converts to T for the next stage.
+
+        let is_range = self.is_range_expr(&iter_expr);
 
         if let Some(cond) = condition {
-            // With condition: iter().filter().map().collect()
+            // With condition: iter().filter().cloned().map().collect()
             let cond_expr = cond.to_rust_expr(self.ctx)?;
-            Ok(parse_quote! {
-                #iter_with_parens
-                    .into_iter()
-                    .filter(|#target_ident| #cond_expr)
-                    .map(|#target_ident| #element_expr)
-                    .collect::<Vec<_>>()
-            })
+            if is_range {
+                // Ranges are already iterators, don't call .iter()
+                // Range items are owned (i32, etc.), so no dereference needed
+                Ok(parse_quote! {
+                    (#iter_expr)
+                        .filter(|#target_ident| #cond_expr)
+                        .map(|#target_ident| #element_expr)
+                        .collect::<Vec<_>>()
+                })
+            } else {
+                // Collections need .iter().filter().cloned().map()
+                // Use |&target| pattern to automatically dereference in filter closure
+                // This way the condition expression sees the owned value, not &T
+                Ok(parse_quote! {
+                    #iter_expr
+                        .iter()
+                        .filter(|&#target_ident| #cond_expr)
+                        .cloned()
+                        .map(|#target_ident| #element_expr)
+                        .collect::<Vec<_>>()
+                })
+            }
         } else {
-            // Without condition: iter().map().collect()
-            Ok(parse_quote! {
-                #iter_with_parens
-                    .into_iter()
-                    .map(|#target_ident| #element_expr)
-                    .collect::<Vec<_>>()
-            })
+            // Without condition: iter().cloned().map().collect()
+            if is_range {
+                // Ranges are already iterators, don't call .iter()
+                Ok(parse_quote! {
+                    (#iter_expr)
+                        .map(|#target_ident| #element_expr)
+                        .collect::<Vec<_>>()
+                })
+            } else {
+                // Collections need .iter().cloned().map()
+                // .cloned() converts &T to T for map
+                Ok(parse_quote! {
+                    #iter_expr
+                        .iter()
+                        .cloned()
+                        .map(|#target_ident| #element_expr)
+                        .collect::<Vec<_>>()
+                })
+            }
         }
     }
 
