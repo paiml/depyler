@@ -387,22 +387,47 @@ impl TestGenerator {
                 });
             }
             (Type::Int, 1) => {
-                // Single integer parameter
-                if func.name.contains("abs") {
-                    // Special case for absolute value functions
-                    cases.push(quote! {
-                        assert_eq!(#func_name(0), 0);
-                        assert_eq!(#func_name(1), 1);
-                        assert_eq!(#func_name(-1), 1);
-                        assert_eq!(#func_name(i32::MIN + 1), i32::MAX);
-                    });
-                } else {
-                    // General case
-                    cases.push(quote! {
-                        assert_eq!(#func_name(0), 0);
-                        assert_eq!(#func_name(1), 1);
-                        assert_eq!(#func_name(-1), -1);
-                    });
+                // DEPYLER-0269: Check actual parameter type before generating test values
+                let param_type = &func.params[0].ty;
+                match param_type {
+                    Type::Int => {
+                        // Single integer parameter
+                        if func.name.contains("abs") {
+                            // Special case for absolute value functions
+                            cases.push(quote! {
+                                assert_eq!(#func_name(0), 0);
+                                assert_eq!(#func_name(1), 1);
+                                assert_eq!(#func_name(-1), 1);
+                                assert_eq!(#func_name(i32::MIN + 1), i32::MAX);
+                            });
+                        } else {
+                            // General case
+                            cases.push(quote! {
+                                assert_eq!(#func_name(0), 0);
+                                assert_eq!(#func_name(1), 1);
+                                assert_eq!(#func_name(-1), -1);
+                            });
+                        }
+                    }
+                    Type::List(_) => {
+                        // List parameter - generate vec test cases
+                        cases.push(quote! {
+                            assert_eq!(#func_name(&vec![]), 0);
+                            assert_eq!(#func_name(&vec![1]), 1);
+                            assert_eq!(#func_name(&vec![1, 2, 3]), 3);
+                        });
+                    }
+                    Type::String => {
+                        // String parameter - generate string test cases
+                        cases.push(quote! {
+                            assert_eq!(#func_name(""), 0);
+                            assert_eq!(#func_name("a"), 1);
+                            assert_eq!(#func_name("abc"), 3);
+                        });
+                    }
+                    _ => {
+                        // Unsupported parameter type - skip test generation
+                    }
                 }
             }
             (Type::Int, 2)
