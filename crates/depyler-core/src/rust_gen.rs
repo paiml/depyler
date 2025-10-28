@@ -495,18 +495,13 @@ pub fn generate_rust_file(
     // Add all functions
     items.extend(functions);
 
-    // Generate tests for functions if applicable
+    // Generate tests for all functions in a single test module
+    // DEPYLER-0280 FIX: Use generate_tests_module() to create a single `mod tests {}` block
+    // instead of one per function, which caused "the name `tests` is defined multiple times" errors
     let test_gen = crate::test_generation::TestGenerator::new(Default::default());
-    let mut test_modules = Vec::new();
-
-    for func in &module.functions {
-        if let Some(test_module) = test_gen.generate_tests(func)? {
-            test_modules.push(test_module);
-        }
+    if let Some(test_module) = test_gen.generate_tests_module(&module.functions)? {
+        items.push(test_module);
     }
-
-    // Add test modules
-    items.extend(test_modules);
 
     let file = quote! {
         #(#items)*
