@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.19.25] - 2025-10-28
+
+### Fixed
+- **[DEPYLER-0282]** Cow<'static, str> Lifetime Bug in Parameters (ROOT CAUSE FIX)
+  - **Issue**: Parameters incorrectly used `Cow<'static, str>`, preventing local Strings from being passed to functions
+  - **Error**: `error[E0308]: expected enum 'Cow<'static, str>', found 'String'` in property tests
+  - **Impact**: Property tests couldn't pass local String values, blocked DEPYLER-0281 fix
+  - **Methodology**: Applied Extreme TDD + Five Whys + PMAT per STOP THE LINE protocol
+  - **Root Cause Analysis (Five Whys)**:
+    1. Why do property tests fail? → `Cow<'static, str>` requires 'static lifetime
+    2. Why can't pass local Strings? → 'static lifetime means entire program lifetime
+    3. Why `Cow<'static, str>`? → Code generator incorrectly applied 'static to parameters
+    4. Why 'static wrong? → Parameters are borrowed, should use generic lifetime 'a
+    5. Why no generic lifetime? → Ownership inference didn't distinguish parameter vs return context
+  - **Location**: `func_gen.rs:263-270` in `apply_param_borrowing_strategy()`
+  - **Solution**: Changed parameter lifetime handling:
+    - **Before**: `Cow<'static, str>` (WRONG - requires compile-time data)
+    - **After**: `Cow<'_, str>` (CORRECT - allows local data via lifetime elision)
+    - For explicit lifetimes: Use generic lifetime 'a instead of 'static
+    - Parameters NEVER use 'static lifetime (this is fundamental to Rust borrowing)
+  - **Extreme TDD Verification**:
+    - RED: Wrote failing test (`test_string_param_no_static_lifetime`) - confirmed bug ❌
+    - GREEN: Fixed code generator - test passes with `Cow<'_, str>` ✅
+    - VERIFY: Compilation test confirms local Strings work with `.into()` ✅
+  - **Matrix Validation**:
+    - Re-transpiled 01_basic_types with fix
+    - `concatenate_strings(a: Cow<'_, str>, b: &str)` now correct ✅
+    - All 6 tests passing (including property tests) ✅
+  - **Outcome**: Removes DEPYLER-0281 workaround prerequisite, enables full property test coverage for String parameters
+
+### Tests Added
+- `test_cow_lifetime_fix.rs`: Comprehensive tests for DEPYLER-0282
+  - `test_string_param_no_static_lifetime`: Verifies no 'static in generated parameters
+  - `test_string_param_compiles_with_local_strings`: Verifies local Strings compile
+
 ## [3.19.24] - 2025-10-28
 
 ### Fixed
