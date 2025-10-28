@@ -553,6 +553,25 @@ pub(crate) fn codegen_for_stmt(
     })
 }
 
+/// Check if this is a dict augmented assignment pattern (dict[key] op= value)
+/// Returns true if target is Index and value is Binary with left being an Index to same location
+fn is_dict_augassign_pattern(target: &AssignTarget, value: &HirExpr) -> bool {
+    if let AssignTarget::Index { base: target_base, index: target_index } = target {
+        if let HirExpr::Binary { left, .. } = value {
+            if let HirExpr::Index { base: value_base, index: value_index } = left.as_ref() {
+                // Check if both indices refer to the same dict[key] location
+                // Simple heuristic: compare base and index expressions
+                // (This is simplified - a full solution would do deeper structural comparison)
+                return matches!((target_base.as_ref(), value_base.as_ref()),
+                    (HirExpr::Var(t_var), HirExpr::Var(v_var)) if t_var == v_var)
+                    && matches!((target_index.as_ref(), value_index.as_ref()),
+                        (HirExpr::Var(t_idx), HirExpr::Var(v_idx)) if t_idx == v_idx);
+            }
+        }
+    }
+    false
+}
+
 /// Generate code for Assign statement (variable/index/attribute/tuple assignment)
 #[inline]
 pub(crate) fn codegen_assign_stmt(
@@ -561,6 +580,36 @@ pub(crate) fn codegen_assign_stmt(
     type_annotation: &Option<Type>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0279: Detect and handle dict augmented assignment pattern
+    // If we have dict[key] += value, avoid borrow-after-move by evaluating old value first
+    if is_dict_augassign_pattern(target, value) {
+        if let AssignTarget::Index { base, index } = target {
+            if let HirExpr::Binary { op, left: _, right } = value {
+                // Generate: let old_val = dict.get(&key).cloned().unwrap_or_default();
+                //           dict.insert(key, old_val + right_value);
+                let base_expr = base.to_rust_expr(ctx)?;
+                let index_expr = index.to_rust_expr(ctx)?;
+                let right_expr = right.to_rust_expr(ctx)?;
+                let op_token = match op {
+                    BinOp::Add => quote! { + },
+                    BinOp::Sub => quote! { - },
+                    BinOp::Mul => quote! { * },
+                    BinOp::Div => quote! { / },
+                    BinOp::Mod => quote! { % },
+                    _ => bail!("Unsupported augmented assignment operator for dict"),
+                };
+
+                return Ok(quote! {
+                    {
+                        let _key = #index_expr;
+                        let _old_val = #base_expr.get(&_key).cloned().unwrap_or_default();
+                        #base_expr.insert(_key, _old_val #op_token #right_expr);
+                    }
+                });
+            }
+        }
+    }
+
     // DEPYLER-0232: Track variable types for class instances
     // This allows proper method dispatch for user-defined classes
     // DEPYLER-0224: Also track types for set/dict/list literals for proper method dispatch

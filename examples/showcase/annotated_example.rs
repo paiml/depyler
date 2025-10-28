@@ -54,7 +54,7 @@ pub fn process_text(text: &str) -> String {
 #[doc = "Count word frequencies with FNV hash strategy."]
 pub fn count_words(text: &str) -> Result<HashMap<String, i32>, IndexError> {
     let mut word_count = {
-        let mut map = HashMap::new();
+        let map = HashMap::new();
         map
     };
     let words = text
@@ -63,7 +63,11 @@ pub fn count_words(text: &str) -> Result<HashMap<String, i32>, IndexError> {
         .collect::<Vec<String>>();
     for word in words.iter().cloned() {
         if word_count.contains_key(&word) {
-            word_count.insert(word, word_count.get(&word).cloned().unwrap_or_default() + 1);
+            {
+                let _key = word;
+                let _old_val = word_count.get(&_key).cloned().unwrap_or_default();
+                word_count.insert(_key, _old_val + 1);
+            }
         } else {
             word_count.insert(word, 1);
         }
@@ -81,7 +85,7 @@ pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, ZeroDivisionError> {
 }
 #[doc = "Compute dot product with SIMD hints."]
 #[doc = " Depyler: proven to terminate"]
-pub fn dot_product<'b, 'a>(v1: &'a Vec<f64>, v2: &'b Vec<f64>) -> Result<f64, IndexError> {
+pub fn dot_product<'a, 'b>(v1: &'a Vec<f64>, v2: &'b Vec<f64>) -> Result<f64, IndexError> {
     let mut result = 0.0;
     for i in 0..v1.len() as i32 {
         result = result + {
