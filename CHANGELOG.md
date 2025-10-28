@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.19.1] - 2025-10-28
+
+### Fixed
+- **[DEPYLER-0276]** CSE Type Preservation for len() Calls
+  - **Issue**: CSE optimization extracted `len()` without preserving type cast, causing compilation errors
+    - Generated: `let _cse_temp_0 = arr.len(); let mut right: i32 = _cse_temp_0 - 1;`
+    - Error: `expected i32, found usize`
+  - **Root Cause**: DEPYLER-0275 removed cast from `convert_len_call()`, but CSE runs BEFORE return statement processing
+  - **Fix**: Reverted cast removal - keep `as i32` in `convert_len_call()` for CSE compatibility (expr_gen.rs:690-701)
+  - **Rationale**: CSE compatibility more important than avoiding occasional double casts
+  - **Verification**: binary_search.py and contracts_example.py both transpile and compile with zero errors/warnings
+  - **TDD Cycle**: RED (compilation failure) → GREEN (restored cast) → REFACTOR (validated on showcase examples)
+
 ## [3.19.0] - 2025-10-28
 
 ### Fixed

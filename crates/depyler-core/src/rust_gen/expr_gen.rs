@@ -693,11 +693,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
         let arg = &args[0];
 
-        // DEPYLER-0275: Return .len() without cast - let caller add cast if needed
-        // Python's len() → Rust's .len() which returns usize
-        // The return statement processing in stmt_gen.rs will add `as i32` if needed
-        // This prevents double casts like `s.len() as i32 as i32`
-        Ok(parse_quote! { #arg.len() })
+        // DEPYLER-0276: Keep cast for CSE compatibility
+        // Python's len() returns int (maps to i32)
+        // Rust's .len() returns usize, so we cast to i32
+        // CSE optimization runs before return statement processing, so we need the cast here
+        // to avoid type mismatches when CSE extracts len() into a temporary variable
+        Ok(parse_quote! { #arg.len() as i32 })
     }
 
     fn convert_int_cast(&self, hir_args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
