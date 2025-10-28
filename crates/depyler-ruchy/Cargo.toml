@@ -1,6 +1,6 @@
 [package]
 name = "depyler-ruchy"
-version = "3.19.18"
+version = "3.19.21"
 edition = "2021"
 authors = ["Depyler Contributors"]
 description = "Ruchy script format backend for Depyler Python-to-Rust transpiler"
