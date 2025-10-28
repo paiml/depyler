@@ -4,8 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Fixed
-- **[DEPYLER-0273]** Union type syntax not supported (PEP 604) (2025-10-28)
+## [3.18.0] - 2025-10-28
+
+### Added
+- **[DEPYLER-0273]** Python 3.10+ Union Type Syntax Support (PEP 604)
   - Implemented support for Python 3.10+ union type syntax: `int | None` → `Option<i32>`
   - Added `extract_union_from_binop()` to handle `|` binary operator in type context
   - Special case: `T | None` transpiles to idiomatic `Option<T>` (Rust's Option type)
