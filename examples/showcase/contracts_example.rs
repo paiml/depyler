@@ -16,10 +16,7 @@ impl ZeroDivisionError {
     }
 }
 #[doc = "\n    Binary search implementation with contracts.\n    \n    @requires items is not None\n    @requires all(items[i] <= items[i+1] for i in range(len(items)-1))\n    @ensures result>= -1\n    @ensures result<len(items)\n    @invariant low <= high\n    "]
-pub fn binary_search<'a>(
-    items: &'a Vec<i32>,
-    target: i32,
-) -> Result<i32, Box<dyn std::error::Error>> {
+pub fn binary_search(items: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut low = 0;
     let _cse_temp_0 = items.len() as i32;
     let mut high = _cse_temp_0 - 1;
@@ -33,7 +30,7 @@ pub fn binary_search<'a>(
             } else {
                 idx as usize
             };
-            base.get(actual_idx).copied().unwrap_or_default()
+            base.get(actual_idx).cloned().unwrap_or_default()
         } == target
         {
             return Ok(mid);
@@ -46,7 +43,7 @@ pub fn binary_search<'a>(
                 } else {
                     idx as usize
                 };
-                base.get(actual_idx).copied().unwrap_or_default()
+                base.get(actual_idx).cloned().unwrap_or_default()
             } < target
             {
                 low = mid + 1;
@@ -55,20 +52,19 @@ pub fn binary_search<'a>(
             }
         }
     }
-    return Ok(-1);
+    Ok(-1)
 }
 #[doc = "\n    Safe division with contracts.\n    \n    @requires denominator!= 0\n    @ensures result == numerator / denominator\n    "]
 #[doc = " Depyler: proven to terminate"]
 pub fn safe_divide(numerator: f64, denominator: f64) -> Result<f64, ZeroDivisionError> {
-    let _cse_temp_0 = (numerator as f64) / (denominator as f64);
-    return Ok(_cse_temp_0);
+    Ok((numerator as f64) / (denominator as f64))
 }
 #[doc = "\n    Sum all numbers in a list.\n    \n    @requires numbers is not None\n    @ensures result>= 0 if all(n>= 0 for n in numbers) else True\n    "]
 #[doc = " Depyler: verified panic-free"]
-pub fn list_sum<'a>(numbers: &'a Vec<f64>) -> f64 {
+pub fn list_sum(numbers: &Vec<f64>) -> f64 {
     let mut total = 0.0;
-    for num in numbers.iter() {
+    for num in numbers.iter().cloned() {
         total = total + num;
     }
-    return total;
+    total
 }

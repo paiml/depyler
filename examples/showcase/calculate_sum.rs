@@ -1,11 +1,11 @@
 #[doc = "Calculate the sum of a list of integers."]
 #[doc = " Depyler: verified panic-free"]
-pub fn calculate_sum<'a>(numbers: &'a Vec<i32>) -> i32 {
-    let mut total: i32 = 0 as i32;
-    for n in numbers.iter() {
+pub fn calculate_sum(numbers: &Vec<i32>) -> i32 {
+    let mut total: i32 = 0;
+    for n in numbers.iter().cloned() {
         total = total + n;
     }
-    return total;
+    total
 }
 #[cfg(test)]
 mod tests {
