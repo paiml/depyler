@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **[DEPYLER-0273]** Union type syntax not supported (PEP 604) (2025-10-28)
+  - Implemented support for Python 3.10+ union type syntax: `int | None` → `Option<i32>`
+  - Added `extract_union_from_binop()` to handle `|` binary operator in type context
+  - Special case: `T | None` transpiles to idiomatic `Option<T>` (Rust's Option type)
+  - General case: `T | U | V` transpiles to `Union([T, U, V])`
+  - Added 5 comprehensive test cases for PEP 604 syntax (all passing)
+  - Root cause: Type extraction didn't handle `ast::Expr::BinOp` with `BitOr` operator
+  - Fix: Added recursive type collection for union chains (left | middle | right)
+  - All 453 depyler-core tests pass, zero clippy warnings
 - **[DEPYLER-0272]** Unnecessary type casts in generated Rust code (2025-10-27)
   - Generated code now only adds `as i32` casts when expression actually returns `usize`
   - Prevents unnecessary casts like `(a: i32) as i32` for variables already of correct type
