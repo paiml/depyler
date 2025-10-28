@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **[DEPYLER-0269]** Test Generation Type Mismatch
+  - **Issue**: Test generation creates test cases with wrong parameter types
+    - **Symptom**: Generated tests like `assert_eq!(f(0), 0)` when function expects `&Vec<i32>`
+    - **Error**: `error[E0308]: mismatched types - expected &Vec<i32>, found integer`
+  - **Root Cause**: `generate_test_cases()` only checked return type and param count, not actual param types
+  - **Fix**: Added parameter type inspection in test_generation.rs:389-432
+  - **Generated Test Values by Type**:
+    - `Type::Int`: `f(0), f(1), f(-1)` (i32 values)
+    - `Type::List(_)`: `f(&vec![]), f(&vec![1]), f(&vec![1,2,3])` (Vec references)
+    - `Type::String`: `f(""), f("a"), f("abc")` (string slices)
+  - **Impact**: Affects any function returning Int with non-Int parameter (e.g., len, count)
+  - **Verification**:
+    - test_list_length.py: Generated tests compile with correct types ✅
+    - Before: `assert_eq!(f(0), 0)` ❌ Wrong type
+    - After: `assert_eq!(f(&vec![]), 0)` ✅ Correct type
+  - **TDD Cycle**: RED (test compilation failure) → GREEN (param type inspection) → REFACTOR (verified correctness)
+
 - **[DEPYLER-0279]** Dictionary Codegen Bugs (Unused mut + Borrow After Move)
   - **Issue 1**: Empty dict literal generates unnecessary `mut` modifier
     - **Symptom**: `warning: variable does not need to be mutable` for `let mut map = HashMap::new()`
