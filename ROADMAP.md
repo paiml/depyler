@@ -250,21 +250,59 @@ This YAML file contains:
 - Workaround: Use set.discard() for variables
 - Status: Blocked on architectural refactoring
 
-**DEPYLER-0287**: sum_list_recursive missing Result unwrap in recursion (Matrix Project - 03_functions)
+**DEPYLER-0287**: ✅ RESOLVED (v3.19.27) - sum_list_recursive missing Result unwrap in recursion
 - Issue: Recursive call `sum_list_recursive(rest)` returns `Result<i32, IndexError>` but code adds it directly to `i32`
 - Error: `cannot add 'Result<i32, IndexError>' to 'i32'`
 - Root Cause: Transpiler doesn't propagate Result handling through recursive calls
-- Location: List slicing operations generate Result types, but recursion doesn't unwrap
-- Priority: P0 (blocking Matrix Project validation)
-- Status: 🛑 STOP THE LINE - Fix transpiler before continuing
+- Fix: Added `?` operator in `convert_generic_call()` when `current_function_can_fail` is true
+- Location: expr_gen.rs:1175-1184
+- Status: ✅ FIXED in v3.19.27
 
-**DEPYLER-0288**: sum_list_recursive incorrect type handling for idx negation (Matrix Project - 03_functions)
+**DEPYLER-0288**: ✅ RESOLVED (v3.19.27) - sum_list_recursive incorrect type handling for idx negation
 - Issue: Variable `idx` typed as `usize` but code tries to negate it with `(-idx)`
 - Error: `the trait 'Neg' is not implemented for 'usize'`
 - Root Cause: Transpiler generates usize for list indexing but doesn't handle Python's negative index semantics properly
-- Location: List slicing with negative indices requires i32/isize, not usize
-- Priority: P0 (blocking Matrix Project validation)
-- Status: 🛑 STOP THE LINE - Fix transpiler before continuing
+- Fix: Added explicit type annotation `let idx: i32` and changed `(-idx)` to `idx.abs()`
+- Location: expr_gen.rs:2226-2233
+- Status: ✅ FIXED in v3.19.27
+
+**DEPYLER-0289**: HashMap Type Inference Issues (Matrix Project - 04_collections) - 🛑 BLOCKING
+- Issue: Dict operations generate type mismatches with serde_json::Value
+- Errors:
+  - Dict key type mismatch (expects `&Value`, receives `&str`)
+  - Dict value type incompatible with unwrap_or defaults
+  - Dict iteration borrowing issues with insert()
+- Root Cause: Python's untyped `dict` defaults to `HashMap<Value, Value>` without type inference
+- Priority: P0 (blocking Matrix Project 04_collections)
+- Status: 🛑 STOP THE LINE - Requires type inference architecture improvements
+- Analysis: docs/issues/DEPYLER-0289-0292-analysis.md
+
+**DEPYLER-0290**: Vector Addition Not Supported (Matrix Project - 04_collections) - 🛑 BLOCKING
+- Issue: List concatenation `list1 + list2` generates invalid `&Vec + &Vec`
+- Error: `cannot add '&Vec<Value>' to '&Vec<Value>'`
+- Root Cause: Binary operator handler doesn't recognize list concatenation pattern
+- Fix Estimate: 2-3 hours (detect pattern, convert to iterator chain)
+- Priority: P0 (blocking Matrix Project 04_collections)
+- Status: 🛑 STOP THE LINE - Needs operator translation fix
+- Analysis: docs/issues/DEPYLER-0289-0292-analysis.md
+
+**DEPYLER-0291**: Generic Collection Type Handling (Matrix Project - 04_collections) - 🛑 BLOCKING
+- Issue: Overuse of `serde_json::Value` instead of concrete types for collections
+- Error: `the trait 'Ord' is not implemented for 'Value'` when sorting
+- Root Cause: No usage-based type inference for generic collections
+- Fix Estimate: Epic - requires type inference v2 architecture
+- Priority: P0 (blocking Matrix Project 04_collections)
+- Status: 🛑 STOP THE LINE - Long-term architectural work
+- Analysis: docs/issues/DEPYLER-0289-0292-analysis.md
+
+**DEPYLER-0292**: Iterator vs Reference Mismatch (Matrix Project - 04_collections) - 🛑 BLOCKING
+- Issue: `extend()` expects `IntoIterator<Item = Value>`, gets `&Vec<Value>`
+- Error: `type mismatch resolving '<&Vec<Value> as IntoIterator>::Item == Value'`
+- Root Cause: Method call handler doesn't auto-convert references to iterators
+- Fix Estimate: 1-2 hours (add `.iter().cloned()` for extend())
+- Priority: P0 (blocking Matrix Project 04_collections)
+- Status: 🛑 STOP THE LINE - Needs iterator conversion fix
+- Analysis: docs/issues/DEPYLER-0289-0292-analysis.md
 
 **Security Alerts**: 2 dependabot alerts in transitive dependencies
 - 1 critical (slab v0.4.10 - RUSTSEC-2025-0047)
