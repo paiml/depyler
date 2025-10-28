@@ -535,7 +535,9 @@ impl Optimizer {
     ) -> Vec<HirStmt> {
         let mut new_body = Vec::new();
 
-        for stmt in body {
+        for (idx, stmt) in body.iter().enumerate() {
+            let is_final_stmt = idx == body.len() - 1;
+
             match stmt {
                 HirStmt::Assign {
                     target,
@@ -552,10 +554,17 @@ impl Optimizer {
                     });
                 }
                 HirStmt::Return(Some(expr)) => {
-                    let (new_expr, extra_stmts) =
-                        self.process_expr_for_cse(expr, cse_map, temp_counter);
-                    new_body.extend(extra_stmts);
-                    new_body.push(HirStmt::Return(Some(new_expr)));
+                    // DEPYLER-0275 FIX: Skip CSE for final return with simple expressions
+                    // This avoids unnecessary `let _cse_temp_0 = expr; _cse_temp_0` pattern
+                    if is_final_stmt && self.is_simple_return_expr(expr) {
+                        // Don't create CSE temp for final simple returns
+                        new_body.push(HirStmt::Return(Some(expr.clone())));
+                    } else {
+                        let (new_expr, extra_stmts) =
+                            self.process_expr_for_cse(expr, cse_map, temp_counter);
+                        new_body.extend(extra_stmts);
+                        new_body.push(HirStmt::Return(Some(new_expr)));
+                    }
                 }
                 HirStmt::If {
                     condition,
@@ -686,6 +695,22 @@ impl Optimizer {
             HirExpr::Call { .. } => true,
             _ => false,
         }
+    }
+
+    /// DEPYLER-0275: Check if expression is simple enough to return directly
+    /// without creating a CSE temporary variable.
+    /// Simple expressions: literals, variables, basic operations, method calls
+    fn is_simple_return_expr(&self, expr: &HirExpr) -> bool {
+        matches!(
+            expr,
+            HirExpr::Literal(_)
+                | HirExpr::Var(_)
+                | HirExpr::Binary { .. }
+                | HirExpr::Unary { .. }
+                | HirExpr::MethodCall { .. }
+                | HirExpr::Call { .. }
+                | HirExpr::Attribute { .. }
+        )
     }
 
     fn is_pure_function(&self, func: &str) -> bool {

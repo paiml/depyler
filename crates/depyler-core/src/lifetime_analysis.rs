@@ -710,16 +710,15 @@ impl LifetimeInference {
 
         if ref_params.len() == 1 {
             // Rule 2: Single input lifetime can be elided
-            if return_needs_lifetime {
-                // The return type uses the same lifetime as the single input
-                return Some(LifetimeResult {
-                    param_lifetimes: full_result.param_lifetimes,
-                    return_lifetime: None,   // Elided
-                    lifetime_params: vec![], // No explicit lifetimes needed
-                    lifetime_bounds: vec![],
-                    borrowing_strategies: full_result.borrowing_strategies,
-                });
-            }
+            // DEPYLER-0275: Elide lifetime even if return doesn't use it
+            // Rust's elision rules allow omitting explicit lifetime in single-param functions
+            return Some(LifetimeResult {
+                param_lifetimes: full_result.param_lifetimes,
+                return_lifetime: None,   // Elided
+                lifetime_params: vec![], // No explicit lifetimes needed
+                lifetime_bounds: vec![],
+                borrowing_strategies: full_result.borrowing_strategies,
+            });
         }
 
         // Rule 3: If there's a &self or &mut self parameter, use its lifetime for outputs

@@ -251,25 +251,35 @@ fn apply_param_borrowing_strategy(
 ) -> Result<syn::Type> {
     let mut ty = rust_type_to_syn(rust_type)?;
 
+    // DEPYLER-0275: Check if lifetimes should be elided
+    // If lifetime_params is empty, Rust's elision rules apply - don't add explicit lifetimes
+    let should_elide_lifetimes = lifetime_result.lifetime_params.is_empty();
+
     // Check if we have a borrowing strategy
     if let Some(strategy) = lifetime_result.borrowing_strategies.get(param_name) {
         match strategy {
             crate::borrowing_context::BorrowingStrategy::UseCow { lifetime } => {
                 ctx.needs_cow = true;
-                let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
-                ty = parse_quote! { Cow<#lt, str> };
+                if should_elide_lifetimes || lifetime == "'static" {
+                    // Elide or use static
+                    let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+                    ty = parse_quote! { Cow<#lt, str> };
+                } else {
+                    let lt = syn::Lifetime::new(lifetime, proc_macro2::Span::call_site());
+                    ty = parse_quote! { Cow<#lt, str> };
+                }
             }
             _ => {
                 // Apply normal borrowing if needed
                 if inferred.should_borrow {
-                    ty = apply_borrowing_to_type(ty, rust_type, inferred)?;
+                    ty = apply_borrowing_to_type(ty, rust_type, inferred, should_elide_lifetimes)?;
                 }
             }
         }
     } else {
         // Fallback to normal borrowing
         if inferred.should_borrow {
-            ty = apply_borrowing_to_type(ty, rust_type, inferred)?;
+            ty = apply_borrowing_to_type(ty, rust_type, inferred, should_elide_lifetimes)?;
         }
     }
 
@@ -277,14 +287,23 @@ fn apply_param_borrowing_strategy(
 }
 
 /// Apply borrowing (&, &mut, with lifetime) to a type
+/// DEPYLER-0275: Added should_elide_lifetimes parameter to respect Rust elision rules
 fn apply_borrowing_to_type(
     mut ty: syn::Type,
     rust_type: &crate::type_mapper::RustType,
     inferred: &crate::lifetime_analysis::InferredParam,
+    should_elide_lifetimes: bool,
 ) -> Result<syn::Type> {
     // Special case for strings: use &str instead of &String
     if matches!(rust_type, crate::type_mapper::RustType::String) {
-        if let Some(ref lifetime) = inferred.lifetime {
+        // DEPYLER-0275: Elide lifetime if elision rules apply
+        if should_elide_lifetimes || inferred.lifetime.is_none() {
+            ty = if inferred.needs_mut {
+                parse_quote! { &mut str }
+            } else {
+                parse_quote! { &str }
+            };
+        } else if let Some(ref lifetime) = inferred.lifetime {
             let lt = syn::Lifetime::new(lifetime.as_str(), proc_macro2::Span::call_site());
             ty = if inferred.needs_mut {
                 parse_quote! { &#lt mut str }
@@ -300,7 +319,14 @@ fn apply_borrowing_to_type(
         }
     } else {
         // Non-string types
-        if let Some(ref lifetime) = inferred.lifetime {
+        // DEPYLER-0275: Elide lifetime if elision rules apply
+        if should_elide_lifetimes || inferred.lifetime.is_none() {
+            ty = if inferred.needs_mut {
+                parse_quote! { &mut #ty }
+            } else {
+                parse_quote! { &#ty }
+            };
+        } else if let Some(ref lifetime) = inferred.lifetime {
             let lt = syn::Lifetime::new(lifetime.as_str(), proc_macro2::Span::call_site());
             ty = if inferred.needs_mut {
                 parse_quote! { &#lt mut #ty }
@@ -623,9 +649,11 @@ impl RustCodeGen for HirFunction {
         let mut generic_registry = crate::generic_inference::TypeVarRegistry::new();
         let type_params = generic_registry.infer_function_generics(self)?;
 
-        // Perform lifetime analysis
+        // Perform lifetime analysis with automatic elision (DEPYLER-0275)
         let mut lifetime_inference = LifetimeInference::new();
-        let lifetime_result = lifetime_inference.analyze_function(self, ctx.type_mapper);
+        let lifetime_result = lifetime_inference
+            .apply_elision_rules(self, ctx.type_mapper)
+            .unwrap_or_else(|| lifetime_inference.analyze_function(self, ctx.type_mapper));
 
         // Generate combined generic parameters (lifetimes + type params)
         let generic_params = codegen_generic_params(&type_params, &lifetime_result.lifetime_params);
