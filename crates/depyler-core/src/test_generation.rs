@@ -42,11 +42,14 @@ impl TestGenerator {
         Self { config }
     }
 
-    /// Generate tests for a function if applicable
-    pub fn generate_tests(&self, func: &HirFunction) -> Result<Option<proc_macro2::TokenStream>> {
+    /// Generate test items for a single function (without mod tests wrapper)
+    ///
+    /// DEPYLER-0280 FIX: This generates test functions only, not the module wrapper.
+    /// The module wrapper should be added once at the file level.
+    pub fn generate_test_items_for_function(&self, func: &HirFunction) -> Result<Vec<proc_macro2::TokenStream>> {
         // Only generate tests for pure functions
         if !func.properties.is_pure {
-            return Ok(None);
+            return Ok(Vec::new());
         }
 
         let mut test_functions = Vec::new();
@@ -65,7 +68,48 @@ impl TestGenerator {
             }
         }
 
-        if test_functions.is_empty() {
+        Ok(test_functions)
+    }
+
+    /// Generate a complete test module for multiple functions
+    ///
+    /// DEPYLER-0280 FIX: Wraps all test items in a single `mod tests {}` block.
+    /// This prevents "the name `tests` is defined multiple times" errors.
+    pub fn generate_tests_module(&self, functions: &[HirFunction]) -> Result<Option<proc_macro2::TokenStream>> {
+        let mut all_test_items = Vec::new();
+
+        // Collect test items from all functions
+        for func in functions {
+            let test_items = self.generate_test_items_for_function(func)?;
+            all_test_items.extend(test_items);
+        }
+
+        // If no tests were generated, return None
+        if all_test_items.is_empty() {
+            return Ok(None);
+        }
+
+        // Wrap all tests in a single mod tests block
+        Ok(Some(quote! {
+            #[cfg(test)]
+            mod tests {
+                use super::*;
+                use quickcheck::{quickcheck, TestResult};
+
+                #(#all_test_items)*
+            }
+        }))
+    }
+
+    /// Generate tests for a function if applicable (DEPRECATED - use generate_tests_module instead)
+    ///
+    /// DEPYLER-0280: This function is deprecated because it creates duplicate `mod tests {}` blocks.
+    /// Use `generate_tests_module()` for module-level test generation instead.
+    #[deprecated(since = "3.19.22", note = "Use generate_tests_module() to avoid duplicate mod tests blocks (DEPYLER-0280)")]
+    pub fn generate_tests(&self, func: &HirFunction) -> Result<Option<proc_macro2::TokenStream>> {
+        let test_items = self.generate_test_items_for_function(func)?;
+
+        if test_items.is_empty() {
             return Ok(None);
         }
 
@@ -75,7 +119,7 @@ impl TestGenerator {
                 use super::*;
                 use quickcheck::{quickcheck, TestResult};
 
-                #(#test_functions)*
+                #(#test_items)*
             }
         }))
     }
