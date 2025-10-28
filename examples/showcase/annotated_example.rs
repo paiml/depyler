@@ -1,4 +1,3 @@
-use fnv::FnvHashMap;
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
@@ -53,7 +52,7 @@ pub fn process_text(text: &str) -> String {
     text.to_uppercase()
 }
 #[doc = "Count word frequencies with FNV hash strategy."]
-pub fn count_words(text: &str) -> Result<FnvHashMap<String, i32>, IndexError> {
+pub fn count_words(text: &str) -> Result<HashMap<String, i32>, IndexError> {
     let mut word_count = {
         let mut map = HashMap::new();
         map

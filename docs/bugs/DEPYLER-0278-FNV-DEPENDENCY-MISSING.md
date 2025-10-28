@@ -1,8 +1,9 @@
 # DEPYLER-0278: Missing fnv Crate Dependency for FnvHashMap
 
-**Status**: DISCOVERED
+**Status**: FIXED ✅
 **Priority**: P2 (Medium - breaks compilation but has workaround)
 **Discovered**: 2025-10-28
+**Fixed**: 2025-10-28
 **Root Cause**: Transpiler generates code using `fnv::FnvHashMap` based on annotations, but doesn't ensure dependency is available
 
 ## Issue
@@ -80,30 +81,36 @@ Only use `FnvHashMap` when transpiling within a Cargo project context where depe
 ### Option 4: Always Use std::HashMap
 Ignore `hash_strategy` annotations and always use std::HashMap for standalone file transpilation.
 
-## Implementation
+## Solution ✅
 
-**Short-term fix (Option 4)**: Disable FnvHashMap generation for showcase examples
-- Modify annotation processing to ignore `hash_strategy` for standalone files
-- Only use `std::collections::HashMap`
+**Implemented Fix (Option 4)**: Disabled hash_strategy annotation for standalone transpilation
 
-**Long-term solution (Option 1 or 2)**:
-- Add dependency comment generation
-- Or add feature flag support
+**Rationale**:
+- Standalone files don't have Cargo.toml to declare dependencies
+- Compilation success > optimization for standalone use case
+- Projects can still optimize manually if they add fnv dependency
 
-### Code Changes
-
-In `import_gen.rs` or annotation processing:
+**Implementation** (annotation_aware_type_mapper.rs:102-114):
 ```rust
-fn should_use_fnv_hashmap(&self, annotations: &Annotations) -> bool {
-    // Check if in project context with Cargo.toml
-    if !self.is_cargo_project_context() {
-        return false;  // Use std::HashMap for standalone files
-    }
+// DEPYLER-0278: Always use std::HashMap for standalone file transpilation
+// FnvHashMap and AHashMap require external crate dependencies that may not be available
+// For standalone files, we prioritize compilation success over optimization
+// TODO: In the future, detect Cargo project context and use hash_strategy only within projects
+let hash_map_type = "HashMap";
 
-    // Check annotation
-    annotations.hash_strategy == Some("fnv")
-}
+// Note: hash_strategy annotation is currently ignored for standalone transpilation
+// Original logic (disabled):
+// match annotations.hash_strategy {
+//     depyler_annotations::HashStrategy::Standard => "HashMap",
+//     depyler_annotations::HashStrategy::Fnv => "FnvHashMap",
+//     depyler_annotations::HashStrategy::AHash => "AHashMap",
+// }
 ```
+
+**Changes**:
+- Modified `map_dict_type()` to always return `HashMap`
+- Updated tests to expect `HashMap` for all hash strategies
+- Preserved hash_strategy enum for future use (Cargo project detection)
 
 ## Test Case
 
@@ -141,27 +148,36 @@ pub fn make_map() -> Result<FnvHashMap<String, i32>, ...> {
 - **Examples Affected**: `annotated_example.py`
 - **Workaround**: Remove annotation or manually add `fnv` crate dependency
 
+## Verification ✅
+
+**Test Results**:
+- `annotated_example.py` → transpiles successfully ✅
+- Generated code uses `use std::collections::HashMap;` (not `fnv::FnvHashMap`) ✅
+- No fnv references in generated code ✅
+
+**Remaining Issues in annotated_example.rs** (separate bugs):
+1. Unused `mut` warning (minor codegen issue)
+2. Borrow after move error (separate ownership tracking bug)
+
+**Note**: DEPYLER-0278 fix resolves the fnv import issue. The remaining errors are unrelated bugs.
+
 ## Related
 
 - Annotation system design
 - Import generation in `import_gen.rs`
 - Dependency management strategy
-- Similar issues might exist for other external crate features
+- TODO: Future enhancement - detect Cargo project context and enable hash_strategy
 
-## Extreme TDD Approach
+## Extreme TDD Cycle ✅
 
-- **RED**: annotated_example.rs fails to compile with unresolved import
-- **GREEN**: Implement Option 4 (disable FnvHashMap for showcase examples)
-- **REFACTOR**: Consider long-term solution with dependency comments or feature flags
+- **RED**: annotated_example.rs failed with unresolved import `fnv`
+- **GREEN**: Disabled hash_strategy annotation, always use `HashMap`
+- **REFACTOR**: Updated tests, verified no fnv references in generated code
 
-## Additional Issue in annotated_example.rs
+## Future Enhancement
 
-There's also a type mismatch error (similar to DEPYLER-0277):
-```
-error[E0308]: mismatched types
-   --> examples/showcase/annotated_example.rs:79:19
-    |
- 79 |         return Ok(());
-```
-
-This suggests the same `None` → `()` bug exists in multiple functions.
+When Cargo project detection is implemented:
+1. Check for Cargo.toml in parent directories
+2. If found, check for fnv/ahash dependencies in Cargo.toml
+3. Only use FnvHashMap/AHashMap if dependencies are declared
+4. For standalone files, always use HashMap

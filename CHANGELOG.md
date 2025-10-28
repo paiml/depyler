@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.19.3] - 2025-10-28
+
+### Fixed
+- **[DEPYLER-0278]** Missing fnv Crate Dependency - Disabled hash_strategy annotation for standalone files
+  - **Issue**: `# @depyler: hash_strategy = "fnv"` generated `use fnv::FnvHashMap;` but fnv crate not available
+  - **Symptom**: Compilation error: `unresolved import 'fnv'`
+  - **Root Cause**: Annotation processing generated FnvHashMap usage without checking dependency availability
+  - **Fix**: Disabled hash_strategy annotation for standalone transpilation (annotation_aware_type_mapper.rs:102-114)
+  - **Rationale**: Compilation success > optimization for standalone files
+  - **Changes**:
+    - Always use `std::collections::HashMap` regardless of hash_strategy annotation
+    - Updated tests to expect HashMap for all strategies
+    - Preserved hash_strategy enum for future Cargo project detection
+  - **Verification**:
+    - `annotated_example.py` transpiles successfully, uses `HashMap` (not `FnvHashMap`) ✅
+    - No fnv references in generated code ✅
+  - **TDD Cycle**: RED (unresolved import) → GREEN (disabled annotation) → REFACTOR (verified no fnv refs)
+  - **Future**: Detect Cargo project context and enable hash_strategy when dependencies declared
+
 ## [3.19.2] - 2025-10-28
 
 ### Fixed
