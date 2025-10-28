@@ -292,3 +292,44 @@ fn test_extract_type_with_name_expr() {
     let ty = TypeExtractor::extract_type(&expr).unwrap();
     assert_eq!(ty, Type::Int);
 }
+
+// DEPYLER-0273: PEP 604 Union Type Syntax Tests
+#[test]
+fn test_pep604_union_int_or_none() {
+    // Python 3.10+ syntax: int | None → Optional[int]
+    let expr = Expr::parse("int | None", "<test>").unwrap();
+    let ty = TypeExtractor::extract_type(&expr).unwrap();
+    assert_eq!(ty, Type::Optional(Box::new(Type::Int)));
+}
+
+#[test]
+fn test_pep604_union_str_or_none() {
+    // Python 3.10+ syntax: str | None → Optional[str]
+    let expr = Expr::parse("str | None", "<test>").unwrap();
+    let ty = TypeExtractor::extract_type(&expr).unwrap();
+    assert_eq!(ty, Type::Optional(Box::new(Type::String)));
+}
+
+#[test]
+fn test_pep604_union_multiple_types() {
+    // Python 3.10+ syntax: int | str | float → Union[int, str, float]
+    let expr = Expr::parse("int | str | float", "<test>").unwrap();
+    let ty = TypeExtractor::extract_type(&expr).unwrap();
+    assert_eq!(ty, Type::Union(vec![Type::Int, Type::String, Type::Float]));
+}
+
+#[test]
+fn test_pep604_union_multiple_types_with_none() {
+    // Python 3.10+ syntax: int | str | None → Union[int, str, None]
+    let expr = Expr::parse("int | str | None", "<test>").unwrap();
+    let ty = TypeExtractor::extract_type(&expr).unwrap();
+    assert_eq!(ty, Type::Union(vec![Type::Int, Type::String, Type::None]));
+}
+
+#[test]
+fn test_pep604_union_two_non_none_types() {
+    // Python 3.10+ syntax: int | str → Union[int, str]
+    let expr = Expr::parse("int | str", "<test>").unwrap();
+    let ty = TypeExtractor::extract_type(&expr).unwrap();
+    assert_eq!(ty, Type::Union(vec![Type::Int, Type::String]));
+}
