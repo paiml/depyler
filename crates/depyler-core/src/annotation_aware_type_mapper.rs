@@ -99,12 +99,19 @@ impl AnnotationAwareTypeMapper {
         let key_rust = self.map_type_with_annotations(key, annotations);
         let value_rust = self.map_type_with_annotations(value, annotations);
 
-        // Choose hash map implementation based on hash strategy
-        let hash_map_type = match annotations.hash_strategy {
-            depyler_annotations::HashStrategy::Standard => "HashMap",
-            depyler_annotations::HashStrategy::Fnv => "FnvHashMap",
-            depyler_annotations::HashStrategy::AHash => "AHashMap",
-        };
+        // DEPYLER-0278: Always use std::HashMap for standalone file transpilation
+        // FnvHashMap and AHashMap require external crate dependencies that may not be available
+        // For standalone files, we prioritize compilation success over optimization
+        // TODO: In the future, detect Cargo project context and use hash_strategy only within projects
+        let hash_map_type = "HashMap";
+
+        // Note: hash_strategy annotation is currently ignored for standalone transpilation
+        // Original logic (disabled):
+        // match annotations.hash_strategy {
+        //     depyler_annotations::HashStrategy::Standard => "HashMap",
+        //     depyler_annotations::HashStrategy::Fnv => "FnvHashMap",
+        //     depyler_annotations::HashStrategy::AHash => "AHashMap",
+        // }
 
         let base_type = RustType::Custom(format!(
             "{}<{}, {}>",
@@ -272,20 +279,23 @@ mod tests {
             RustType::Custom("HashMap<String, i32>".to_string())
         );
 
-        // Test FnvHashMap
+        // DEPYLER-0278: hash_strategy annotation is ignored for standalone transpilation
+        // All hash strategies now map to HashMap (compilation success over optimization)
+
+        // Test Fnv strategy (ignored, uses HashMap)
         annotations.hash_strategy = HashStrategy::Fnv;
         let rust_type = mapper.map_type_with_annotations(&dict_type, &annotations);
         assert_eq!(
             rust_type,
-            RustType::Custom("FnvHashMap<String, i32>".to_string())
+            RustType::Custom("HashMap<String, i32>".to_string())
         );
 
-        // Test AHashMap
+        // Test AHash strategy (ignored, uses HashMap)
         annotations.hash_strategy = HashStrategy::AHash;
         let rust_type = mapper.map_type_with_annotations(&dict_type, &annotations);
         assert_eq!(
             rust_type,
-            RustType::Custom("AHashMap<String, i32>".to_string())
+            RustType::Custom("HashMap<String, i32>".to_string())
         );
     }
 
