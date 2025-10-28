@@ -1,11 +1,8 @@
 #[doc = "Find target in sorted array, return -1 if not found."]
-pub fn binary_search<'a>(
-    arr: &'a Vec<i32>,
-    target: i32,
-) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut left: i32 = 0 as i32;
-    let _cse_temp_0 = arr.len() as i32;
-    let mut right: i32 = _cse_temp_0 - 1 as i32;
+pub fn binary_search(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut left: i32 = 0;
+    let _cse_temp_0 = arr.len();
+    let mut right: i32 = _cse_temp_0 - 1;
     while left <= right {
         let mid: i32 = {
             let a = left + right;
@@ -22,7 +19,7 @@ pub fn binary_search<'a>(
             } else {
                 q
             }
-        } as i32;
+        };
         if {
             let base = arr;
             let idx = mid;
@@ -31,7 +28,7 @@ pub fn binary_search<'a>(
             } else {
                 idx as usize
             };
-            base.get(actual_idx).copied().unwrap_or_default()
+            base.get(actual_idx).cloned().unwrap_or_default()
         } == target
         {
             return Ok(mid);
@@ -44,7 +41,7 @@ pub fn binary_search<'a>(
                 } else {
                     idx as usize
                 };
-                base.get(actual_idx).copied().unwrap_or_default()
+                base.get(actual_idx).cloned().unwrap_or_default()
             } < target
             {
                 left = mid + 1;
@@ -53,5 +50,5 @@ pub fn binary_search<'a>(
             }
         }
     }
-    return Ok(-1);
+    Ok(-1)
 }
