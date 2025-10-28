@@ -98,25 +98,108 @@ rustc --crate-type lib --deny warnings <output.rs>
 // Source: <source.py>
 ```
 
-## 🛑 STOP THE LINE: Validation-Driven Development
+## 🛑 STOP THE LINE: MANDATORY Bug-Fix Protocol (NON-NEGOTIABLE)
 
-**MANDATORY PROTOCOL**: When ANY defect is discovered in transpiled output, **STOP IMMEDIATELY**.
+**ABSOLUTE REQUIREMENT - NOT OPTIONAL**: When ANY defect is discovered in transpiled output, **STOP ALL WORK IMMEDIATELY**. This protocol is MANDATORY and cannot be bypassed, deferred, or delegated.
 
-**Quick Response**:
-1. 🛑 STOP - Halt all feature work
-2. 📋 DOCUMENT - Create GitHub issue using `.github/ISSUE_TEMPLATE/transpiler_bug.yml`
-3. 🎫 TICKET - Assign DEPYLER-XXXX number (sequential)
-4. 🔍 ANALYZE - Find root cause in transpiler code
-5. 🔧 FIX TRANSPILER - Never fix output, always fix source
-6. ♻️ RE-TRANSPILE - Regenerate ALL affected examples
-7. ✅ VERIFY - All quality gates must pass
-8. ▶️ RESUME - Only after full verification
+### Why This Exists
+Every transpiler bug affects ALL future code generated. Fixing bugs immediately prevents:
+- Technical debt accumulation
+- Cascading failures in downstream projects
+- Loss of user trust
+- Compounding maintenance costs
 
-**Full Protocol**: See [docs/processes/stop-the-line.md](docs/processes/stop-the-line.md)
+### The 8-Step Protocol (MANDATORY - NO EXCEPTIONS)
 
-**GitHub Issue Template**: `.github/ISSUE_TEMPLATE/transpiler_bug.yml`
+1. **🛑 STOP THE LINE** - Halt ALL feature work immediately
+   - Do not "finish this one thing first"
+   - Do not "just commit what I have"
+   - STOP means STOP
 
-**Defect Severity**:
+2. **📋 DOCUMENT THE BUG** - Create comprehensive bug document
+   - File: `docs/bugs/DEPYLER-XXXX-<description>.md`
+   - Template: See DEPYLER-0279, DEPYLER-0280 examples
+   - Must include: Problem, Root Cause, Solution, Test Plan
+   - Minimum 200 lines of analysis (comprehensive is required)
+
+3. **🎫 ASSIGN TICKET NUMBER** - Sequential DEPYLER-XXXX
+   - Check last ticket number in `docs/bugs/`
+   - Increment by 1
+   - Update roadmap.yaml with ticket reference
+
+4. **🔍 ROOT CAUSE ANALYSIS** - Find transpiler bug source
+   - Never blame "user error" - transpiler must handle it
+   - Locate exact file + line number in transpiler
+   - Understand WHY the bug exists (not just WHAT)
+
+5. **🔧 FIX THE TRANSPILER** - NEVER fix generated output
+   - SACRED RULE: Fix the generator, not the generated code
+   - Add regression test BEFORE implementing fix
+   - Ensure fix meets all quality gates (≤10 complexity)
+
+6. **♻️ RE-TRANSPILE EVERYTHING** - Regenerate ALL affected files
+   - Matrix Testing Project examples
+   - Showcase examples
+   - Documentation examples
+   - Any other transpiled code
+
+7. **✅ VERIFY COMPREHENSIVELY** - All quality gates must pass
+   - Transpiled code compiles (rustc --deny warnings)
+   - All tests pass (cargo test)
+   - Quality gates pass (pmat, clippy, llvm-cov)
+   - No regressions in other examples
+
+8. **▶️ RESUME WORK** - Only after 100% verification
+   - Update CLAUDE.md if protocol improved
+   - Document lessons learned
+   - Continue previous work
+
+### Enforcement
+
+**This protocol is MANDATORY and enforced by**:
+- GitHub issue templates
+- Pre-commit hooks
+- Code review requirements
+- CI/CD pipeline gates
+
+**Violations Result In**:
+- Commit rejection
+- PR block
+- Build failure
+
+**NO EXCEPTIONS** - Even for:
+- "Quick fixes" ❌
+- "Just this once" ❌
+- "We'll fix it later" ❌
+- "It's only a warning" ❌
+
+### Examples
+
+**CORRECT** ✅:
+```
+Discover bug → STOP → Document → Fix transpiler → Re-transpile → Verify → Resume
+Timeline: 2-4 hours of focused work
+Result: Bug fixed forever, all code benefits
+```
+
+**INCORRECT** ❌:
+```
+Discover bug → "Note it for later" → Continue feature work
+Result: Bug persists, affects all new code, technical debt grows
+```
+
+### Recent Examples
+
+- **DEPYLER-0279**: Dict codegen bugs (2 issues fixed, 419-line doc)
+- **DEPYLER-0280**: Duplicate mod tests (1 issue fixed, 582-line doc)
+
+Both followed this protocol religiously. See `docs/bugs/` for templates.
+
+### Full Protocol Document
+
+Detailed procedures: [docs/processes/stop-the-line.md](docs/processes/stop-the-line.md)
+
+**Defect Severity Classification**:
 - **P0 (STOP ALL WORK)**: Compilation failures, type safety violations, memory safety issues
 - **P1 (BLOCK RELEASE)**: Clippy warnings, non-idiomatic code, performance regressions
 - **P2/P3 (TRACK)**: Optimization opportunities, documentation gaps
