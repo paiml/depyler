@@ -201,15 +201,9 @@ impl TestGenerator {
 
     /// Analyze function to determine testable properties
     fn analyze_function_properties(&self, func: &HirFunction) -> Vec<TestProperty> {
-        // DEPYLER-0281 WORKAROUND: Skip property tests for functions with String parameters
-        // until the Cow<'static, str> lifetime issue is resolved in code generation.
-        // String parameters become Cow<'static, str> which cannot be constructed from test-local
-        // String values without lifetime errors.
-        for param in &func.params {
-            if matches!(param.ty, Type::String) {
-                return Vec::new(); // Skip property tests
-            }
-        }
+        // DEPYLER-0282 FIXED: String parameters now correctly use Cow<'_, str> instead of
+        // Cow<'static, str>, so property tests work properly with local String values.
+        // The DEPYLER-0281 workaround has been removed.
 
         let mut properties = Vec::new();
 
@@ -261,6 +255,19 @@ impl TestGenerator {
     fn is_commutative(&self, func: &HirFunction) -> bool {
         if func.params.len() == 2 && func.body.len() == 1 {
             if let HirStmt::Return(Some(HirExpr::Binary { op, left, right })) = &func.body[0] {
+                // DEPYLER-0286 FIX: String concatenation (BinOp::Add on strings) is NOT commutative!
+                // "ab" + "cd" ≠ "cd" + "ab"
+                // Only numeric addition is commutative, not string concatenation.
+
+                // Check if this is string concatenation (Add with String parameters)
+                let is_string_concat = matches!(op, BinOp::Add) &&
+                    (matches!(func.params[0].ty, Type::String) || matches!(func.params[1].ty, Type::String));
+
+                // If it's string concatenation, it's NOT commutative
+                if is_string_concat {
+                    return false;
+                }
+
                 // Check if it's a commutative operation
                 matches!(
                     op,
