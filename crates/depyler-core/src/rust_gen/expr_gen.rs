@@ -1806,9 +1806,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             "replace" => {
                 // DEPYLER-0195: str.replace(old, new) → .replace(old, new)
+                // DEPYLER-0301: str.replace(old, new, count) → .replacen(old, new, count)
                 // Use bare string literals without .to_string() for correct types
-                if hir_args.len() != 2 {
-                    bail!("replace() requires exactly two arguments");
+                if hir_args.len() < 2 || hir_args.len() > 3 {
+                    bail!("replace() requires 2 or 3 arguments");
                 }
                 // Extract bare string literals for arguments
                 let old = match &hir_args[0] {
@@ -1819,7 +1820,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
                     _ => arg_exprs[1].clone(),
                 };
-                Ok(parse_quote! { #object_expr.replace(#old, #new) })
+
+                if hir_args.len() == 3 {
+                    // Python: str.replace(old, new, count)
+                    // Rust: str.replacen(old, new, count as usize)
+                    let count = &arg_exprs[2];
+                    Ok(parse_quote! { #object_expr.replacen(#old, #new, #count as usize) })
+                } else {
+                    // Python: str.replace(old, new)
+                    // Rust: str.replace(old, new) - replaces all
+                    Ok(parse_quote! { #object_expr.replace(#old, #new) })
+                }
             }
             "find" => {
                 // DEPYLER-0197: str.find(sub) → .find(sub).map(|i| i as i32).unwrap_or(-1)
