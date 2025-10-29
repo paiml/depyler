@@ -224,23 +224,84 @@ fn test_DEPYLER_XXXX_<section>_<feature>_<scenario>() {}
 ```
 
 ## PMAT TDG Quality Enforcement (MANDATORY - BLOCKING)
+
+### TDG (Technical Debt Grading) Overview
+TDG is PMAT's comprehensive quality metric that quantifies technical debt on a 0-5 scale:
+- **0.0-1.5**: Excellent (A+/A)
+- **1.5-2.0**: Good (A-/B+)
+- **2.0-2.5**: Acceptable (B/B-)
+- **2.5-3.5**: Warning (C)
+- **3.5+**: Critical (D/F) - BLOCKS COMMITS
+
+**Workspace Policy** (from Cargo.toml):
+```toml
+[workspace.metadata.quality]
+max_tdg_score = 2.0  # Any file above = technical debt violation
+```
+
+### TDG Command Reference
+**IMPORTANT**: Use `pmat analyze tdg` (not `pmat tdg`):
+```bash
+# Full project analysis with component breakdown
+pmat analyze tdg --path . --threshold 2.0 --include-components
+
+# Critical files only (TDG > 2.5)
+pmat analyze tdg --path crates --critical-only
+
+# Top 10 debt hotspots
+pmat analyze tdg --path . --top-files 10 --format table
+
+# JSON output for automation
+pmat analyze tdg --path . --format json > tdg_report.json
+```
+
+### Git-Enforced TDG Quality Gates
+**Pre-commit hook enforcement** (`.git/hooks/pre-commit`):
+- **Scope**: Only `crates/` directory (optimized for performance)
+- **Threshold**: TDG ≤ 2.0 (from workspace config)
+- **Timeout**: 30 seconds (skips if exceeded)
+- **Blocking**: Fails commit if critical files found (TDG > 2.5)
+
+**Current Status** (as of 2025-10-29):
+- **Total Files (crates/)**: 188
+- **Critical Files**: 0 (0.0%) ✅
+- **Warning Files**: 7 (3.7%)
+- **Average TDG**: 0.70
+- **95th Percentile**: 1.45
+- **99th Percentile**: 1.79
+- **Estimated Debt**: 576.9 hours
+
+### TDG Development Workflow
 **Before ANY code changes**:
 ```bash
-pmat tdg . --min-grade A- --fail-on-violation
+# Baseline analysis
+pmat analyze tdg --path crates --threshold 2.0 --include-components
+
+# Quality gate check
 pmat quality-gate --fail-on-violation
 ```
 
-**During development**:
+**During development** (after each function/module):
 ```bash
-pmat tdg <file.rs> --include-components --min-grade B+
-pmat analyze complexity --max-cyclomatic 10 --fail-on-violation
-pmat analyze satd --fail-on-violation
+# File-level TDG
+pmat analyze tdg --path <file.rs> --include-components
+
+# Traditional complexity (backup)
+pmat analyze complexity --file <file.rs> --max-cyclomatic 10 --fail-on-violation
+
+# SATD zero-tolerance
+pmat analyze satd --path <file.rs> --fail-on-violation
 ```
 
-**Before commit (BLOCKING)**:
+**Before commit (MANDATORY - BLOCKS COMMITS)**:
 ```bash
-pmat tdg . --min-grade A- --fail-on-violation
+# TDG threshold enforcement (automated in pre-commit hook)
+pmat analyze tdg --path crates --threshold 2.0 --critical-only
+
+# Comprehensive quality gate
 pmat quality-gate --fail-on-violation --format=detailed
+
+# Coverage enforcement
 cargo llvm-cov --all-features --workspace --fail-under-lines 80
 ```
 
@@ -293,15 +354,22 @@ git commit -m "[REFACTOR] DEPYLER-XXXX: Meet quality standards"
 ```
 
 ### Pre-commit Hooks (MANDATORY)
-**Quality Gates**:
-- Documentation synchronization (roadmap.md + CHANGELOG.md)
-- Complexity ≤10 (pmat analyze complexity)
-- Zero SATD (pmat analyze satd)
-- TDG grade A- (pmat tdg)
-- Coverage ≥80% (cargo-llvm-cov)
-- Clippy warnings (cargo clippy -- -D warnings)
+**Quality Gates** (`.git/hooks/pre-commit`):
+1. **Documentation Synchronization**: roadmap.md + CHANGELOG.md must be updated with code changes
+2. **Complexity Enforcement**: ≤10 cyclomatic/cognitive (`pmat analyze complexity --max-cyclomatic 10`)
+3. **SATD Zero-Tolerance**: No TODO/FIXME/HACK (`pmat analyze satd --fail-on-violation`)
+4. **TDG Threshold**: ≤2.0 project-wide (`pmat analyze tdg --path crates --threshold 2.0 --critical-only`)
+5. **Coverage Minimum**: ≥80% (`cargo llvm-cov --fail-under-lines 80`)
+6. **Clippy Zero-Warnings**: All warnings = errors (`cargo clippy -- -D warnings`)
+7. **Dead Code Detection**: `pmat analyze dead-code` (30s timeout)
+8. **Duplicate Code**: `pmat analyze duplicates --threshold 0.8` (15s timeout)
 
-**SACRED RULE**: NEVER `git commit --no-verify` (except RED phase)
+**SACRED RULE**: NEVER `git commit --no-verify` (except RED phase in TDD)
+
+**Performance Optimizations**:
+- TDG: Only analyzes `crates/` directory (not examples/playground) with 30s timeout
+- Dead Code: Only changed files, 30s timeout
+- Duplicates: Only `crates/` directory, 15s timeout
 
 ## The Make Lint Contract
 ```bash
