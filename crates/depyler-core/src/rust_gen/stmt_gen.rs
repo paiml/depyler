@@ -391,6 +391,11 @@ fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
         HirExpr::Call { func: _, args } => {
             args.iter().any(|arg| is_var_used_in_expr(var_name, arg))
         }
+        HirExpr::MethodCall { object, args, .. } => {
+            // DEPYLER-0307 Fix #6: Check method receiver and arguments for variable usage
+            is_var_used_in_expr(var_name, object)
+                || args.iter().any(|arg| is_var_used_in_expr(var_name, arg))
+        }
         HirExpr::Index { base, index } => {
             is_var_used_in_expr(var_name, base) || is_var_used_in_expr(var_name, index)
         }
@@ -554,11 +559,46 @@ pub(crate) fn codegen_for_stmt(
         .map(|s| s.to_rust_tokens(ctx))
         .collect::<Result<Vec<_>>>()?;
     ctx.exit_scope();
-    Ok(quote! {
-        for #target_pattern in #iter_expr {
-            #(#body_stmts)*
+
+    // DEPYLER-0307 Fix #8: Handle enumerate() usize index casting
+    // When iterating with enumerate(), the first element of the tuple is usize
+    // If we're destructuring a tuple and the iterator is enumerate(), cast the first variable to i32
+    let needs_enumerate_cast = matches!(iter, HirExpr::Call { func, .. } if func == "enumerate")
+        && matches!(target, AssignTarget::Tuple(targets) if !targets.is_empty());
+
+    if needs_enumerate_cast {
+        // Get the first variable name from the tuple pattern (the index from enumerate)
+        if let AssignTarget::Tuple(targets) = target {
+            if let Some(AssignTarget::Symbol(index_var)) = targets.first() {
+                // Add a cast statement at the beginning of the loop body
+                let index_ident = syn::Ident::new(index_var, proc_macro2::Span::call_site());
+                Ok(quote! {
+                    for #target_pattern in #iter_expr {
+                        let #index_ident = #index_ident as i32;
+                        #(#body_stmts)*
+                    }
+                })
+            } else {
+                Ok(quote! {
+                    for #target_pattern in #iter_expr {
+                        #(#body_stmts)*
+                    }
+                })
+            }
+        } else {
+            Ok(quote! {
+                for #target_pattern in #iter_expr {
+                    #(#body_stmts)*
+                }
+            })
         }
-    })
+    } else {
+        Ok(quote! {
+            for #target_pattern in #iter_expr {
+                #(#body_stmts)*
+            }
+        })
+    }
 }
 
 /// Check if this is a dict augmented assignment pattern (dict[key] op= value)

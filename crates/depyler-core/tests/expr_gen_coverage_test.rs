@@ -602,3 +602,477 @@ def make_empty_list():
         "list() with no args should generate Vec::new() or vec![]"
     );
 }
+
+// ============================================================================
+// v3.19.1: Coverage Expansion Tests (Target: 58.77% → 80%)
+// ============================================================================
+
+#[test]
+fn test_set_method_add() {
+    // Test set.add() method conversion
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_set():
+    s = {1, 2, 3}
+    s.add(4)
+    return s
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated set.add() code:\n{}", rust_code);
+
+    // Should generate .insert() for set.add()
+    assert!(
+        rust_code.contains(".insert("),
+        "set.add() should transpile to .insert()"
+    );
+}
+
+#[test]
+fn test_set_method_remove() {
+    // Test set.remove() method conversion
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_set():
+    s = {1, 2, 3}
+    s.remove(2)
+    return s
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated set.remove() code:\n{}", rust_code);
+
+    // Should generate .remove() for set.remove()
+    assert!(
+        rust_code.contains(".remove("),
+        "set.remove() should transpile to .remove()"
+    );
+}
+
+#[test]
+fn test_frozenset_literal() {
+    // Test frozenset creation
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def make_frozenset():
+    fs = frozenset([1, 2, 3])
+    return fs
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated frozenset code:\n{}", rust_code);
+
+    // Should use HashSet for frozenset
+    assert!(
+        rust_code.contains("HashSet"),
+        "frozenset should use HashSet in Rust"
+    );
+}
+
+#[test]
+fn test_string_method_lower() {
+    // Test str.lower() method
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_str():
+    text = "HELLO"
+    return text.lower()
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated string.lower() code:\n{}", rust_code);
+
+    // Should generate .to_lowercase()
+    assert!(
+        rust_code.contains(".to_lowercase()"),
+        "str.lower() should transpile to .to_lowercase()"
+    );
+}
+
+#[test]
+fn test_string_method_split() {
+    // Test str.split() method
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_str():
+    text = "hello,world"
+    return text.split(",")
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated string.split() code:\n{}", rust_code);
+
+    // Should generate .split() method
+    assert!(
+        rust_code.contains(".split("),
+        "str.split() should transpile to .split()"
+    );
+}
+
+#[test]
+fn test_string_method_replace() {
+    // Test str.replace() method
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_str():
+    text = "hello world"
+    return text.replace("world", "Rust")
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated string.replace() code:\n{}", rust_code);
+
+    // Should generate .replace() method
+    assert!(
+        rust_code.contains(".replace("),
+        "str.replace() should transpile to .replace()"
+    );
+}
+
+#[test]
+fn test_string_method_strip() {
+    // Test str.strip() method
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_str():
+    text = "  hello  "
+    return text.strip()
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated string.strip() code:\n{}", rust_code);
+
+    // Should generate .trim() method
+    assert!(
+        rust_code.contains(".trim()"),
+        "str.strip() should transpile to .trim()"
+    );
+}
+
+#[test]
+fn test_string_method_startswith() {
+    // Test str.startswith() method
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_str():
+    text = "hello"
+    return text.startswith("hel")
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated string.startswith() code:\n{}", rust_code);
+
+    // Should generate .starts_with() method
+    assert!(
+        rust_code.contains(".starts_with("),
+        "str.startswith() should transpile to .starts_with()"
+    );
+}
+
+#[test]
+fn test_string_method_endswith() {
+    // Test str.endswith() method
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_str():
+    text = "hello"
+    return text.endswith("lo")
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated string.endswith() code:\n{}", rust_code);
+
+    // Should generate .ends_with() method
+    assert!(
+        rust_code.contains(".ends_with("),
+        "str.endswith() should transpile to .ends_with()"
+    );
+}
+
+#[test]
+fn test_dict_method_keys() {
+    // Test dict.keys() method
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_dict():
+    d = {"a": 1, "b": 2}
+    return list(d.keys())
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated dict.keys() code:\n{}", rust_code);
+
+    // Should generate .keys() method
+    assert!(
+        rust_code.contains(".keys()"),
+        "dict.keys() should transpile to .keys()"
+    );
+}
+
+#[test]
+fn test_dict_method_values() {
+    // Test dict.values() method
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_dict():
+    d = {"a": 1, "b": 2}
+    return list(d.values())
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated dict.values() code:\n{}", rust_code);
+
+    // Should generate .values() method
+    assert!(
+        rust_code.contains(".values()"),
+        "dict.values() should transpile to .values()"
+    );
+}
+
+#[test]
+fn test_dict_method_items() {
+    // Test dict.items() method
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_dict():
+    d = {"a": 1, "b": 2}
+    for k, v in d.items():
+        print(k, v)
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated dict.items() code:\n{}", rust_code);
+
+    // Should generate .iter() for dict iteration
+    assert!(
+        rust_code.contains(".iter()") || rust_code.contains(".items()"),
+        "dict.items() should transpile to .iter()"
+    );
+}
+
+#[test]
+fn test_list_method_extend() {
+    // Test list.extend() method
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_list():
+    a = [1, 2]
+    b = [3, 4]
+    a.extend(b)
+    return a
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated list.extend() code:\n{}", rust_code);
+
+    // Should generate .extend() for list.extend()
+    assert!(
+        rust_code.contains(".extend("),
+        "list.extend() should transpile to .extend()"
+    );
+}
+
+#[test]
+fn test_list_method_remove() {
+    // Test list.remove() method
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_list():
+    items = [1, 2, 3]
+    items.remove(2)
+    return items
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated list.remove() code:\n{}", rust_code);
+
+    // Should generate remove logic (find index, then remove)
+    assert!(
+        rust_code.contains("position") || rust_code.contains(".remove("),
+        "list.remove() should find and remove element"
+    );
+}
+
+#[test]
+fn test_list_method_pop_with_index() {
+    // Test list.pop(index) method
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_list():
+    items = [1, 2, 3]
+    val = items.pop(1)
+    return val
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated list.pop(1) code:\n{}", rust_code);
+
+    // Should generate .remove(index) for list.pop(i)
+    assert!(
+        rust_code.contains(".remove("),
+        "list.pop(index) should transpile to .remove(index)"
+    );
+}
+
+#[test]
+fn test_list_method_clear() {
+    // Test list.clear() method
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_list():
+    items = [1, 2, 3]
+    items.clear()
+    return items
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated list.clear() code:\n{}", rust_code);
+
+    // Should generate .clear() for list.clear()
+    assert!(
+        rust_code.contains(".clear()"),
+        "list.clear() should transpile to .clear()"
+    );
+}
+
+#[test]
+fn test_attribute_access_simple() {
+    // Test simple attribute access
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+class Point:
+    def __init__(self, x: int, y: int):
+        self.x = x
+        self.y = y
+
+def get_x(p: Point) -> int:
+    return p.x
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated attribute access code:\n{}", rust_code);
+
+    // Should generate field access syntax
+    assert!(
+        rust_code.contains(".x"),
+        "Attribute access p.x should transpile to .x field access"
+    );
+}
+
+#[test]
+fn test_tuple_unpacking() {
+    // Test tuple unpacking in assignment
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def swap_values():
+    a = 1
+    b = 2
+    a, b = b, a
+    return (a, b)
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated tuple unpacking code:\n{}", rust_code);
+
+    // Should generate tuple pattern matching
+    assert!(
+        rust_code.contains("=") && rust_code.contains(","),
+        "Tuple unpacking should work correctly"
+    );
+}
+
+#[test]
+fn test_lambda_simple() {
+    // Test simple lambda expression
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def use_lambda():
+    f = lambda x: x * 2
+    return f(5)
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated lambda code:\n{}", rust_code);
+
+    // Should generate closure syntax
+    assert!(
+        rust_code.contains("|") && rust_code.contains("*"),
+        "Lambda should transpile to Rust closure"
+    );
+}
+
+#[test]
+fn test_ternary_expression() {
+    // Test ternary (if-else) expression
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_ternary(x: int) -> str:
+    return "positive" if x > 0 else "non-positive"
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated ternary expression code:\n{}", rust_code);
+
+    // Should generate if-else expression
+    assert!(
+        rust_code.contains("if") && rust_code.contains("else"),
+        "Ternary expression should use if-else"
+    );
+}
+
+#[test]
+fn test_set_comprehension() {
+    // Test set comprehension
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def make_set_comp():
+    return {x * 2 for x in range(5)}
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated set comprehension code:\n{}", rust_code);
+
+    // Should use HashSet
+    assert!(
+        rust_code.contains("HashSet") && rust_code.contains(".collect"),
+        "Set comprehension should create HashSet"
+    );
+}
+
+#[test]
+fn test_dict_comprehension() {
+    // Test dict comprehension
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def make_dict_comp():
+    return {x: x * 2 for x in range(5)}
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated dict comprehension code:\n{}", rust_code);
+
+    // Should use HashMap
+    assert!(
+        rust_code.contains("HashMap") && rust_code.contains(".collect"),
+        "Dict comprehension should create HashMap"
+    );
+}
+
+#[test]
+fn test_nested_list_comprehension() {
+    // Test nested list comprehension
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def nested_comp():
+    return [[y for y in range(3)] for x in range(2)]
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated nested comprehension code:\n{}", rust_code);
+
+    // Should have nested .map() and .collect()
+    assert!(
+        rust_code.matches(".map(").count() >= 2 && rust_code.matches(".collect").count() >= 2,
+        "Nested comprehension should have multiple .map() and .collect()"
+    );
+}

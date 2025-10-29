@@ -472,7 +472,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0247: Handle sum(iterable) → iterable.iter().sum::<T>()
         // Need turbofish type annotation to help Rust's type inference
+        // DEPYLER-0307 Fix #2: Handle sum(range(...))
+        // Ranges in Rust (0..n) are already iterators - don't call .iter() on them
+        // DEPYLER-0307 Phase 2 Fix: Wrap range in parentheses for correct precedence
         if func == "sum" && args.len() == 1 {
+            if let HirExpr::Call { func: range_func, .. } = &args[0] {
+                if range_func == "range" {
+                    let range_expr = args[0].to_rust_expr(self.ctx)?;
+
+                    let target_type = self
+                        .ctx
+                        .current_return_type
+                        .as_ref()
+                        .and_then(|t| match t {
+                            Type::Int => Some(quote! { i32 }),
+                            Type::Float => Some(quote! { f64 }),
+                            _ => None,
+                        })
+                        .unwrap_or_else(|| quote! { i32 });
+
+                    // Wrap range in parentheses to fix precedence: (0..n).sum() not 0..n.sum()
+                    return Ok(parse_quote! { (#range_expr).sum::<#target_type>() });
+                }
+            }
+
+            // Default: assume iterable that needs .iter()
             let iter_expr = args[0].to_rust_expr(self.ctx)?;
 
             // Infer the target type from return type context
@@ -490,10 +514,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #iter_expr.iter().sum::<#target_type>() });
         }
 
+        // DEPYLER-0307 Fix #3: Handle max(a, b) with 2 arguments → std::cmp::max(a, b)
+        if func == "max" && args.len() == 2 {
+            let arg1 = args[0].to_rust_expr(self.ctx)?;
+            let arg2 = args[1].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { std::cmp::max(#arg1, #arg2) });
+        }
+
         // DEPYLER-0193: Handle max(iterable) → iterable.iter().copied().max().unwrap()
         if func == "max" && args.len() == 1 {
             let iter_expr = args[0].to_rust_expr(self.ctx)?;
             return Ok(parse_quote! { *#iter_expr.iter().max().unwrap() });
+        }
+
+        // DEPYLER-0307 Fix #3: Handle min(a, b) with 2 arguments → std::cmp::min(a, b)
+        if func == "min" && args.len() == 2 {
+            let arg1 = args[0].to_rust_expr(self.ctx)?;
+            let arg2 = args[1].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { std::cmp::min(#arg1, #arg2) });
         }
 
         // DEPYLER-0194: Handle min(iterable) → iterable.iter().copied().min().unwrap()
@@ -508,10 +546,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #value_expr.abs() });
         }
 
+        // DEPYLER-0307 Fix #1: Handle any() with generator expressions
+        // Generator expressions (e.g., any(n > 0 for n in numbers)) return iterators
+        // Don't call .iter() on them - call .any() directly
+        if func == "any" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
+            let gen_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { #gen_expr.any(|x| x) });
+        }
+
         // DEPYLER-0249: Handle any(iterable) → iterable.iter().any(|&x| x)
         if func == "any" && args.len() == 1 {
             let iter_expr = args[0].to_rust_expr(self.ctx)?;
             return Ok(parse_quote! { #iter_expr.iter().any(|&x| x) });
+        }
+
+        // DEPYLER-0307 Fix #1: Handle all() with generator expressions
+        // Generator expressions (e.g., all(n > 0 for n in numbers)) return iterators
+        // Don't call .iter() on them - call .all() directly
+        if func == "all" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
+            let gen_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { #gen_expr.all(|x| x) });
         }
 
         // DEPYLER-0250: Handle all(iterable) → iterable.iter().all(|&x| x)
@@ -724,24 +778,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
         let arg = &arg_exprs[0];
 
-        // Python int() serves three purposes:
-        // 1. Convert floats to integers (truncation)
-        // 2. Convert bools to integers (False→0, True→1)
-        // 3. Ensure integer type for indexing
+        // Python int() serves four purposes:
+        // 1. Parse strings to integers (requires .parse())
+        // 2. Convert floats to integers (truncation via as i32)
+        // 3. Convert bools to integers (False→0, True→1 via as i32)
+        // 4. Ensure integer type for indexing (via as i32)
         //
-        // DEPYLER-0216 FIX: Always generate cast for variables and expressions
-        // that might be bool, to prevent "cannot add bool to bool" errors.
+        // DEPYLER-0307 Fix #7: Check if variable is String type
+        // String variables need .parse().unwrap_or_default() not 'as i32' cast
         //
         // Strategy:
-        // - For known bool expressions (comparisons, bool methods) → cast
-        // - For variables (unknown type at codegen) → cast conservatively
-        // - For integer literals (no cast needed) → skip cast for cleaner code
+        // - For String variables/params → .parse().unwrap_or_default()
+        // - For known bool expressions → as i32 cast
+        // - For integer literals → no cast needed
+        // - For other variables → as i32 cast conservatively
         if !hir_args.is_empty() {
             match &hir_args[0] {
                 // Integer literals don't need casting
                 HirExpr::Literal(Literal::Int(_)) => return Ok(arg.clone()),
-                // Bool expressions and variables need casting
-                HirExpr::Var(_) => return Ok(parse_quote! { (#arg) as i32 }),
+
+                // DEPYLER-0307 Fix #7: Check if variable is String type
+                HirExpr::Var(var_name) => {
+                    // Check if this variable is known to be String type
+                    if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                        if matches!(var_type, Type::String) {
+                            // String → int requires parsing, not casting
+                            return Ok(parse_quote! { #arg.parse().unwrap_or_default() });
+                        }
+                    }
+                    // Default: use as i32 cast for other types
+                    return Ok(parse_quote! { (#arg) as i32 });
+                }
+
                 // Check if it's a known bool expression
                 expr => {
                     if let Some(is_bool) = self.is_bool_expr(expr) {
@@ -2219,6 +2287,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn convert_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
         let base_expr = base.to_rust_expr(self.ctx)?;
 
+        // DEPYLER-0307 Fix #9: Handle tuple indexing with integer literals
+        // Python: tuple[0], tuple[1] → Rust: tuple.0, tuple.1
+        // HEURISTIC: Use tuple syntax for variables with tuple-suggesting names
+        // This is a temporary solution until proper type tracking is implemented
+        // Common tuple iteration variable names: pair, entry, item, elem, tuple, row
+        let should_use_tuple_syntax = if let HirExpr::Literal(Literal::Int(idx)) = index {
+            if *idx >= 0 {
+                if let HirExpr::Var(var_name) = base {
+                    // Heuristic: Check if variable name suggests tuple iteration
+                    // TODO: Replace with proper type tracking via ctx.var_types
+                    matches!(var_name.as_str(), "pair" | "entry" | "item" | "elem" | "tuple" | "row")
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        if should_use_tuple_syntax {
+            if let HirExpr::Literal(Literal::Int(idx)) = index {
+                let field_idx = syn::Index::from(*idx as usize);
+                return Ok(parse_quote! { #base_expr.#field_idx });
+            }
+        }
+
         // DEPYLER-0299 Pattern #3 FIX: Check if base is a String type for character access
         let is_string_base = self.is_string_base(base);
 
@@ -2252,7 +2348,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Then convert char to String
             Ok(parse_quote! {
                 {
-                    let base = #base_expr;
+                    // DEPYLER-0307 Fix #11: Use borrow to avoid moving the base expression
+                    let base = &#base_expr;
                     let idx: i32 = #index_expr;
                     let actual_idx = if idx < 0 {
                         base.len().saturating_sub(idx.abs() as usize)
@@ -2277,7 +2374,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let offset = n as usize;
                     return Ok(parse_quote! {
                         {
-                            let base = #base_expr;
+                            // DEPYLER-0307 Fix #11: Use borrow to avoid moving the base expression
+                            let base = &#base_expr;
                             // DEPYLER-0267: Use .cloned() instead of .copied() for non-Copy types (String, Vec, etc.)
                             base.get(base.len().saturating_sub(#offset)).cloned().unwrap_or_default()
                         }
@@ -2289,7 +2387,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0288: Explicitly type idx as i32 to support negation
             Ok(parse_quote! {
                 {
-                    let base = #base_expr;
+                    // DEPYLER-0307 Fix #11: Use borrow to avoid moving the base expression
+                    let base = &#base_expr;
                     let idx: i32 = #index_expr;
                     let actual_idx = if idx < 0 {
                         // Use .abs() instead of negation to avoid "Neg not implemented for usize" error
@@ -3270,7 +3369,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let element_expr = element.to_rust_expr(self.ctx)?;
             let target_pat = self.parse_target_pattern(&gen.target)?;
 
-            let mut chain: syn::Expr = parse_quote! { #iter_expr.into_iter() };
+            // DEPYLER-0307 Fix #10: Use .iter().copied() for borrowed collections
+            // When the iterator is a variable (likely a borrowed parameter like &Vec<i32>),
+            // use .iter().copied() to get owned values instead of references
+            // This prevents type mismatches like `&i32` vs `i32` in generator expressions
+            let mut chain: syn::Expr = if matches!(&*gen.iter, HirExpr::Var(_)) {
+                // Variable iteration - likely borrowed, use .iter().copied()
+                parse_quote! { #iter_expr.iter().copied() }
+            } else {
+                // Direct expression (ranges, lists, etc.) - use .into_iter()
+                parse_quote! { #iter_expr.into_iter() }
+            };
 
             // Add filters for each condition
             for cond in &gen.conditions {
