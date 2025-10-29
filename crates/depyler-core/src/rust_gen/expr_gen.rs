@@ -1946,6 +1946,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 Ok(parse_quote! { #object_expr.chars().all(|c| c.is_alphabetic()) })
             }
+            "lstrip" => {
+                // DEPYLER-0302: str.lstrip() → .trim_start()
+                if !arg_exprs.is_empty() {
+                    bail!("lstrip() with arguments not supported in V1");
+                }
+                Ok(parse_quote! { #object_expr.trim_start().to_string() })
+            }
+            "rstrip" => {
+                // DEPYLER-0302: str.rstrip() → .trim_end()
+                if !arg_exprs.is_empty() {
+                    bail!("rstrip() with arguments not supported in V1");
+                }
+                Ok(parse_quote! { #object_expr.trim_end().to_string() })
+            }
+            "isalnum" => {
+                // DEPYLER-0302: str.isalnum() → .chars().all(|c| c.is_alphanumeric())
+                if !arg_exprs.is_empty() {
+                    bail!("isalnum() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.chars().all(|c| c.is_alphanumeric()) })
+            }
             _ => bail!("Unknown string method: {}", method),
         }
     }
@@ -2194,19 +2215,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // DEPYLER-0226: Disambiguate count() for list vs string
+            // DEPYLER-0302: Improved heuristic using is_string_base()
             "count" => {
-                // Heuristic: Check if object is a string literal
-                // Default to list.count() for variables (safer - no Pattern trait issues)
-                // Use str.count() only for explicit string literals
-                match object {
-                    HirExpr::Literal(Literal::String(_)) => {
-                        // String literal: use str.count()
-                        self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
-                    }
-                    _ => {
-                        // List literal, variable, or other: use list.count()
-                        self.convert_list_method(object_expr, object, method, arg_exprs, hir_args)
-                    }
+                // Heuristic: Check if object is string-typed using is_string_base()
+                // This covers string literals, variables with str type annotations, and string method results
+                if self.is_string_base(object) {
+                    // String: use str.count() → .matches().count()
+                    self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
+                } else {
+                    // List: use list.count() → .iter().filter().count()
+                    self.convert_list_method(object_expr, object, method, arg_exprs, hir_args)
                 }
             }
 
@@ -2229,8 +2247,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // String methods
             // Note: "count" handled separately above with disambiguation logic
-            "upper" | "lower" | "strip" | "startswith" | "endswith" | "split" | "join"
-            | "replace" | "find" | "isdigit" | "isalpha" => {
+            "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
+            | "split" | "join" | "replace" | "find" | "isdigit" | "isalpha" | "isalnum" => {
                 self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
             }
 
@@ -2507,7 +2525,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::MethodCall { method, .. }
                 if method.as_str().contains("upper")
                     || method.as_str().contains("lower")
-                    || method.as_str().contains("strip") =>
+                    || method.as_str().contains("strip")
+                    || method.as_str().contains("lstrip")
+                    || method.as_str().contains("rstrip") =>
             {
                 true
             }
