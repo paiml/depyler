@@ -458,6 +458,7 @@ pub fn generate_rust_file(
         var_types: std::collections::HashMap::new(),
         class_names,
         mutating_methods,
+        tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
         is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
     };
 
@@ -554,6 +555,7 @@ mod tests {
             var_types: std::collections::HashMap::new(),
             class_names: HashSet::new(),
             mutating_methods: std::collections::HashMap::new(),
+            tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
             is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
         }
     }
