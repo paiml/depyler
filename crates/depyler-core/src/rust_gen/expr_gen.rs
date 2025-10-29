@@ -476,7 +476,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Ranges in Rust (0..n) are already iterators - don't call .iter() on them
         // DEPYLER-0307 Phase 2 Fix: Wrap range in parentheses for correct precedence
         if func == "sum" && args.len() == 1 {
-            if let HirExpr::Call { func: range_func, .. } = &args[0] {
+            if let HirExpr::Call {
+                func: range_func, ..
+            } = &args[0]
+            {
                 if range_func == "range" {
                     let range_expr = args[0].to_rust_expr(self.ctx)?;
 
@@ -2297,7 +2300,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if let HirExpr::Var(var_name) = base {
                     // Heuristic: Check if variable name suggests tuple iteration
                     // TODO: Replace with proper type tracking via ctx.var_types
-                    matches!(var_name.as_str(), "pair" | "entry" | "item" | "elem" | "tuple" | "row")
+                    matches!(
+                        var_name.as_str(),
+                        "pair" | "entry" | "item" | "elem" | "tuple" | "row"
+                    )
                 } else {
                     false
                 }
@@ -2498,7 +2504,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     || name.ends_with("_word")
                     || name.ends_with("_text")
             }
-            HirExpr::MethodCall { method, .. } if method.as_str().contains("upper") || method.as_str().contains("lower") || method.as_str().contains("strip") => true,
+            HirExpr::MethodCall { method, .. }
+                if method.as_str().contains("upper")
+                    || method.as_str().contains("lower")
+                    || method.as_str().contains("strip") =>
+            {
+                true
+            }
             HirExpr::Call { func, .. } if func.as_str() == "str" => true,
             _ => false,
         }
