@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔵 DEPYLER-0306: Nested 2D Array Indexing Investigation ✅ **COMPLETE** (2025-10-29)
+
+**Goal**: Fix `for j in range(len(matrix[i]))` generating invalid Rust syntax
+**Status**: Root cause identified, fix deferred to Phase 3 (architectural complexity)
+**Time**: 2 hours investigation
+**Estimate Updated**: 4-6 hours → 6-8 hours (architectural fix needed)
+
+#### Investigation Results
+
+**Root Cause Identified**: Indexing generates blocks with braces for negative index handling
+- **Location**: `crates/depyler-core/src/rust_gen/expr_gen.rs` lines 2290-2410 (`convert_index` function)
+- **Problem**: `for j in 0..matrix[i].len()` becomes `for j in 0..{ let base = ...; ... }.len()` (invalid Rust syntax)
+- **Why**: Range context doesn't allow block expressions, but indexing needs blocks for runtime negative index handling
+
+**Fix Attempt #1**: Extract complex expressions to variable before for loop ❌ **FAILED**
+- Modified `stmt_gen.rs` to detect complex indexing and extract to `let _loop_iter = ...`
+- Result: Still generates block expressions in extracted variable assignment
+- Conclusion: Issue is deeper in `expr_gen.rs` - needs context-aware generation
+
+**Real Fix Needed** (deferred to Phase 3):
+- Option A: Thread "range context" through expression generation (complex)
+- Option B: Generate simpler inline expressions when index guaranteed non-negative
+- Option C: Detect loop variable scope and skip negative index handling
+
+**Workaround Documented**:
+```python
+# Instead of: for j in range(len(matrix[i])):
+# Use: row = matrix[i]; for j in range(len(row)):
+```
+
+**Strategic Impact**:
+- DEPYLER-0306 moved from Phase 2 (quick win) to Phase 3 (architectural)
+- ROI downgraded: High → Medium
+- Complexity upgraded: Medium → High
+- Priority maintained: P1 (affects ~20% of code)
+
+**Documentation**:
+- Updated: `docs/issues/DEPYLER-0306-NESTED-2D-ARRAY-INDEXING.md` with root cause analysis
+- Updated: `docs/execution/STRATEGIC-FIX-ROADMAP.md` with revised estimates and phase assignment
+
 ### 🔵 v3.19.1: Test Coverage Improvements (IN PROGRESS - 2025-10-29)
 
 **Goal**: Increase test coverage towards 80% target
