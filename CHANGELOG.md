@@ -4,6 +4,133 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔴 DEPYLER-0306: Fix Transpiler Panic on Rust Keyword Method Names ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Fix critical transpiler panic when Python methods/functions use Rust keyword names
+**Priority**: P0 - STOP THE LINE (transpiler must never panic)
+**Time**: 4 hours (investigation + fix + testing)
+**Impact**: Fixed 11_basic_classes transpilation (was PANIC - unacceptable)
+
+#### Problem Statement
+
+Matrix Project validation discovered a critical transpiler panic:
+
+```python
+# Python code (11_basic_classes)
+class Point:
+    def move(self, dx: int, dy: int) -> None:  # 'move' is a Rust keyword!
+        self.x = self.x + dx
+        self.y = self.y + dy
+```
+
+```
+# Transpiler output
+thread 'main' panicked at expr_gen.rs:1760:23:
+expected identifier or integer
+```
+
+**Root Cause**: `syn::Ident::new("move", ...)` fails because 'move' is a Rust keyword. The syn crate rejects keywords in identifier positions, causing a panic.
+
+#### Solution: Raw Identifier Handling
+
+Applied raw identifier (`r#keyword`) handling in 4 critical locations:
+
+**1. Method Calls** (expr_gen.rs:2353, 2465):
+```rust
+// Before: syn::Ident::new(method, ...)
+// After:
+let method_ident = if Self::is_rust_keyword(method) {
+    syn::Ident::new_raw(method, ...)  // p.r#move(...)
+} else {
+    syn::Ident::new(method, ...)
+};
+```
+
+**2. Function Definitions** (func_gen.rs:827):
+```rust
+// Before: let name = syn::Ident::new(&self.name, ...)
+// After:
+let name = if is_rust_keyword(&self.name) {
+    syn::Ident::new_raw(&self.name, ...)  // pub fn r#move(...)
+} else {
+    syn::Ident::new(&self.name, ...)
+};
+```
+
+**3. Class Method Definitions** (direct_rules.rs:591):
+```rust
+// Before: let method_name = syn::Ident::new(&method.name, ...)
+// After:
+let method_name = if is_rust_keyword(&method.name) {
+    syn::Ident::new_raw(&method.name, ...)  // impl Point { pub fn r#move(...) }
+} else {
+    syn::Ident::new(&method.name, ...)
+};
+```
+
+**4. Attribute Access** (expr_gen.rs:3262, 3301):
+```rust
+// Handles: self.r#type, p.r#match, etc.
+let attr_ident = if Self::is_rust_keyword(attr) {
+    syn::Ident::new_raw(attr, ...)
+} else {
+    syn::Ident::new(attr, ...)
+};
+```
+
+#### Generated Rust Code
+
+```rust
+// ✅ FIXED: Uses raw identifiers for keywords
+impl Point {
+    pub fn r#move(&mut self, dx: i32, dy: i32) {
+        self.x = self.x + dx;
+        self.y = self.y + dy;
+    }
+}
+
+pub fn move_point(mut p: Point, dx: i32, dy: i32) -> Point {
+    p.r#move(dx, dy);  // Method call with raw identifier
+    p
+}
+```
+
+#### Implementation Details
+
+- Added `is_rust_keyword()` helper to func_gen.rs and direct_rules.rs
+- Covers all 40+ Rust keywords: `move`, `type`, `match`, `async`, `yield`, etc.
+- Similar approach to DEPYLER-0023 (variable name keywords)
+- Used `new_raw()` instead of trying to escape/rename
+
+#### Testing & Validation
+
+**Core Tests**: ✅ 453/453 pass (zero regressions)
+- All existing unit tests pass
+- No breaking changes to working code
+
+**Matrix Project**: ✅ 11_basic_classes transpiles
+- Before: PANIC at expr_gen.rs:1760
+- After: Successful transpilation (5073 bytes generated)
+
+**Minimal Test Case**:
+```python
+class Point:
+    def move(self, dx: int, dy: int) -> None:
+        self.x = self.x + dx
+```
+- ✅ Transpiles successfully
+- ✅ Generated Rust compiles (after fixing mut parameter issue)
+
+#### Impact & Next Steps
+
+- 🛑 **STOP THE LINE issue resolved**: Transpiler must never panic
+- 📊 **Matrix Project unblocked**: Can continue validation campaign
+- 🎯 **All keyword methods supported**: `move`, `type`, `match`, `async`, etc.
+
+**Next Priority**: Continue Matrix Project validation (DEPYLER-0301: recursive borrow issue - 2-3h quick win)
+
+---
+
 ### 🟢 DEPYLER-0302: Fix String Heuristic Regression - Plurals ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Fix false positive in string detection heuristic that incorrectly treated plural variable names as strings

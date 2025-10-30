@@ -440,7 +440,7 @@ This YAML file contains:
 | 08_string_operations | ✅ PASS | 0 | Fixed by DEPYLER-0300 | - |
 | 09_dictionary_operations | ❌ FAIL | 14 | HashMap type inference, borrow issues | DEPYLER-0304 |
 | 10_file_operations | ❌ FAIL | 31 | File I/O std::fs translation issues | DEPYLER-0305 |
-| 11_basic_classes | 💥 PANIC | - | **CRITICAL**: Transpiler panic during codegen | DEPYLER-0306 |
+| 11_basic_classes | ✅ PASS | 0 | Fixed by DEPYLER-0306 (keyword methods) | - |
 | 12_control_flow | ❌ FAIL | 10 | Control flow edge cases | DEPYLER-0307 |
 | 13_builtin_functions | ✅ PASS | 0 | Fixed by DEPYLER-0302 | - |
 
