@@ -2349,7 +2349,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // built-in collection methods. We must prioritize user-defined methods.
         if self.is_class_instance(object) {
             // This is a user-defined class instance - use generic method call
-            let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+            // DEPYLER-0306 FIX: Use raw identifiers for method names that are Rust keywords
+            let method_ident = if Self::is_rust_keyword(method) {
+                syn::Ident::new_raw(method, proc_macro2::Span::call_site())
+            } else {
+                syn::Ident::new(method, proc_macro2::Span::call_site())
+            };
             return Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) });
         }
 
@@ -2456,7 +2461,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // Default: generic method call
             _ => {
-                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                // DEPYLER-0306 FIX: Use raw identifiers for method names that are Rust keywords
+                let method_ident = if Self::is_rust_keyword(method) {
+                    syn::Ident::new_raw(method, proc_macro2::Span::call_site())
+                } else {
+                    syn::Ident::new(method, proc_macro2::Span::call_site())
+                };
                 Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) })
             }
         }
@@ -3248,7 +3258,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Handle classmethod cls.ATTR → Self::ATTR
         if let HirExpr::Var(var_name) = value {
             if var_name == "cls" && self.ctx.is_classmethod {
-                let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+                // DEPYLER-0306 FIX: Use raw identifiers for attributes that are Rust keywords
+                let attr_ident = if Self::is_rust_keyword(attr) {
+                    syn::Ident::new_raw(attr, proc_macro2::Span::call_site())
+                } else {
+                    syn::Ident::new(attr, proc_macro2::Span::call_site())
+                };
                 return Ok(parse_quote! { Self::#attr_ident });
             }
         }
@@ -3282,7 +3297,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // Default behavior for non-module attributes
         let value_expr = value.to_rust_expr(self.ctx)?;
-        let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+        // DEPYLER-0306 FIX: Use raw identifiers for attributes that are Rust keywords
+        let attr_ident = if Self::is_rust_keyword(attr) {
+            syn::Ident::new_raw(attr, proc_macro2::Span::call_site())
+        } else {
+            syn::Ident::new(attr, proc_macro2::Span::call_site())
+        };
         Ok(parse_quote! { #value_expr.#attr_ident })
     }
 

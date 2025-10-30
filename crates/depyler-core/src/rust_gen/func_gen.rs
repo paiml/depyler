@@ -15,6 +15,64 @@ use syn::{self, parse_quote};
 // Import analyze_mutable_vars from parent module
 use super::analyze_mutable_vars;
 
+/// Check if a name is a Rust keyword that requires raw identifier syntax
+/// DEPYLER-0306: Copied from expr_gen.rs to support method name keyword handling
+fn is_rust_keyword(name: &str) -> bool {
+    matches!(
+        name,
+        "as" | "break"
+            | "const"
+            | "continue"
+            | "crate"
+            | "else"
+            | "enum"
+            | "extern"
+            | "false"
+            | "fn"
+            | "for"
+            | "if"
+            | "impl"
+            | "in"
+            | "let"
+            | "loop"
+            | "match"
+            | "mod"
+            | "move"
+            | "mut"
+            | "pub"
+            | "ref"
+            | "return"
+            | "self"
+            | "Self"
+            | "static"
+            | "struct"
+            | "super"
+            | "trait"
+            | "true"
+            | "type"
+            | "unsafe"
+            | "use"
+            | "where"
+            | "while"
+            | "async"
+            | "await"
+            | "dyn"
+            | "abstract"
+            | "become"
+            | "box"
+            | "do"
+            | "final"
+            | "macro"
+            | "override"
+            | "priv"
+            | "typeof"
+            | "unsized"
+            | "virtual"
+            | "yield"
+            | "try"
+    )
+}
+
 /// Generate combined generic parameters (<'a, 'b, T, U: Bound>)
 #[inline]
 pub(crate) fn codegen_generic_params(
@@ -765,7 +823,12 @@ pub(crate) fn codegen_return_type(
 
 impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
-        let name = syn::Ident::new(&self.name, proc_macro2::Span::call_site());
+        // DEPYLER-0306 FIX: Use raw identifiers for function names that are Rust keywords
+        let name = if is_rust_keyword(&self.name) {
+            syn::Ident::new_raw(&self.name, proc_macro2::Span::call_site())
+        } else {
+            syn::Ident::new(&self.name, proc_macro2::Span::call_site())
+        };
 
         // Perform generic type inference
         let mut generic_registry = crate::generic_inference::TypeVarRegistry::new();
