@@ -4,6 +4,148 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0301: Auto-Borrow Vec Variables in Recursive Function Calls ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Automatically borrow owned Vec variables when calling functions expecting `&Vec`
+**Priority**: P1 - Quick Win (2-3 hours)
+**Time**: ~5 hours (investigation + implementation + testing)
+**Impact**: Fixed recursive list operations (03_functions, sum_list_recursive pattern)
+
+#### Problem Statement
+
+Matrix Project validation revealed borrow errors in recursive functions:
+
+```python
+# Python code (03_functions)
+def sum_list_recursive(numbers: list[int]) -> int:
+    if len(numbers) == 0:
+        return 0
+    else:
+        first = numbers[0]
+        rest = numbers[1:]  # Creates owned Vec<i32>
+        return first + sum_list_recursive(rest)  # Error: expected &Vec, found Vec
+```
+
+```rust
+// Generated Rust (BEFORE fix)
+pub fn sum_list_recursive(numbers: &Vec<i32>) -> Result<i32, IndexError> {
+    // ...
+    let rest = base[start..].to_vec();  // rest: Vec<i32>
+    Ok(first + sum_list_recursive(rest)?)  // ❌ Type mismatch!
+    //                             ^^^^
+    //                Expected &Vec<i32>, found Vec<i32>
+}
+```
+
+**Root Cause**: Python slice operations (`numbers[1:]`) create owned Vecs in Rust, but recursive calls expect `&Vec` parameters. The transpiler wasn't tracking local variable types to auto-insert borrows.
+
+#### Solution: Type-Tracked Auto-Borrowing
+
+Implemented two-part fix:
+
+**Part 1: Track Slice Variable Types** (stmt_gen.rs:735-750):
+```rust
+// When assigning from slice: rest = numbers[1:]
+HirExpr::Slice { base, .. } => {
+    // Track rest as List(Int) type
+    let elem_type = if let HirExpr::Var(base_var) = base.as_ref() {
+        // Infer element type from base variable
+        if let Some(Type::List(elem)) = ctx.var_types.get(base_var) {
+            elem.as_ref().clone()
+        } else {
+            Type::Int  // Default
+        }
+    } else {
+        Type::Int
+    };
+    ctx.var_types.insert(var_name.clone(), Type::List(Box::new(elem_type)));
+}
+```
+
+**Part 2: Auto-Borrow List Variables** (expr_gen.rs:1359-1386):
+```rust
+// When calling functions with Vec arguments
+let borrowed_args: Vec<syn::Expr> = hir_args
+    .iter()
+    .zip(args.iter())
+    .map(|(hir_arg, arg_expr)| {
+        let should_borrow = match hir_arg {
+            HirExpr::Var(var_name) => {
+                // Check if variable is typed as List
+                if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                    matches!(var_type, Type::List(_))  // Auto-borrow Vec variables
+                } else {
+                    false
+                }
+            }
+            _ => {
+                // Fallback: borrow expressions with .to_vec()
+                let expr_string = quote! { #arg_expr }.to_string();
+                expr_string.contains("to_vec")
+            }
+        };
+
+        if should_borrow {
+            parse_quote! { &#arg_expr }  // Insert borrow
+        } else {
+            arg_expr.clone()
+        }
+    })
+    .collect();
+```
+
+**Generated Rust (AFTER fix)**:
+```rust
+pub fn sum_list_recursive(numbers: &Vec<i32>) -> Result<i32, IndexError> {
+    // ...
+    let rest = base[start..].to_vec();  // rest: Vec<i32> (tracked in var_types)
+    Ok(first + sum_list_recursive(&rest)?)  // ✅ Auto-borrowed!
+    //                             ^^^^^
+}
+```
+
+#### Testing & Verification
+
+**Test 1: Minimal Reproduction**
+```python
+def sum_list_recursive(numbers: list[int]) -> int:
+    rest = numbers[1:]
+    return first + sum_list_recursive(rest)
+```
+✅ Compiles without errors (was: `expected &Vec, found Vec`)
+
+**Test 2: Full 03_functions Example**
+- 13 functions including `sum_list_recursive`
+- ✅ Transpiles successfully
+- ✅ Generated code compiles (only unrelated Result unwrap issue remains)
+
+**Test 3: Core Test Suite**
+- ✅ 453/453 tests pass (zero regressions)
+
+#### Impact
+
+**Fixed Pattern**: Any recursive function using list slicing
+- `sum_list_recursive(numbers[1:])` → `sum_list_recursive(&rest)`
+- `process_tail(items[1:])` → `process_tail(&tail)`
+- Applies to all Vec variables passed to `&Vec` parameters
+
+**Matrix Project Impact**:
+- 03_functions: Moves from ❌ FAIL → ⚠️ (only unrelated Result issue remains)
+- Enables recursive list algorithms (common in functional programming)
+
+#### Implementation Details
+
+**Files Modified**:
+1. `stmt_gen.rs` (lines 735-750): Track slice variable types in `var_types`
+2. `expr_gen.rs` (lines 1359-1386): Auto-borrow List variables in function calls
+3. `expr_gen.rs` (line 791): Pass HIR args to `convert_generic_call` for type checking
+
+**Complexity**: O(1) per variable lookup, zero runtime overhead
+
+**Next Priority**: DEPYLER-0307 (Result unwrap in recursive calls - unblocks 03_functions completely)
+
+---
+
 ### 🔴 DEPYLER-0306: Fix Transpiler Panic on Rust Keyword Method Names ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Fix critical transpiler panic when Python methods/functions use Rust keyword names

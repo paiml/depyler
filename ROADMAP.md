@@ -432,7 +432,7 @@ This YAML file contains:
 |---------|--------|--------|-------|--------|
 | 01_basic_types | ✅ PASS | 0 | 2 cosmetic warnings (unused vars) | - |
 | 02_control_flow | ✅ PASS | 0 | Perfect compilation | - |
-| 03_functions | ❌ FAIL | 2 | Recursive borrow, Result unwrap | DEPYLER-0301 |
+| 03_functions | ⚠️  PARTIAL | 1 | Result unwrap (fixed borrow via DEPYLER-0301) | DEPYLER-0307 |
 | 04_collections | ⏭️ SKIP | - | Known blockers: DEPYLER-0289, 0291 | - |
 | 05_error_handling | ⏭️ SKIP | - | Known blockers: DEPYLER-0294, 0296 | - |
 | 06_list_comprehensions | ✅ PASS | 0 | Fixed by DEPYLER-0299 | - |
@@ -462,10 +462,11 @@ This YAML file contains:
 - **Priority**: **IMMEDIATE** - Transpiler must never panic
 - **Status**: 🛑 STOP THE LINE - Critical defect
 
-**DEPYLER-0301**: Recursive Borrow Issue (03_functions)
+**DEPYLER-0301**: ✅ RESOLVED (v3.19.30) - Recursive Borrow Issue (03_functions)
 - **Pattern**: `sum_list_recursive(rest)` where `rest = numbers[1:]`
 - **Error**: `expected &Vec<i32>, found Vec<i32>` (missing borrow)
-- **Impact**: 2 errors in 03_functions (affects recursive patterns)
+- **Fix**: Auto-track slice variable types + auto-borrow Vec variables in function calls
+- **Impact**: Fixed recursive list patterns, 03_functions moves from 2 errors → 1 error (only Result unwrap remains)
 - **Estimate**: 2-3 hours (slice type inference)
 - **Priority**: P1 (common pattern)
 - **Status**: Documented, ready to fix
