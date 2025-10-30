@@ -4,6 +4,64 @@ use anyhow::{bail, Result};
 use quote::quote;
 use syn::{self, parse_quote};
 
+/// Check if a name is a Rust keyword that requires raw identifier syntax
+/// DEPYLER-0306: Copied from expr_gen.rs to support method name keyword handling
+fn is_rust_keyword(name: &str) -> bool {
+    matches!(
+        name,
+        "as" | "break"
+            | "const"
+            | "continue"
+            | "crate"
+            | "else"
+            | "enum"
+            | "extern"
+            | "false"
+            | "fn"
+            | "for"
+            | "if"
+            | "impl"
+            | "in"
+            | "let"
+            | "loop"
+            | "match"
+            | "mod"
+            | "move"
+            | "mut"
+            | "pub"
+            | "ref"
+            | "return"
+            | "self"
+            | "Self"
+            | "static"
+            | "struct"
+            | "super"
+            | "trait"
+            | "true"
+            | "type"
+            | "unsafe"
+            | "use"
+            | "where"
+            | "while"
+            | "async"
+            | "await"
+            | "dyn"
+            | "abstract"
+            | "become"
+            | "box"
+            | "do"
+            | "final"
+            | "macro"
+            | "override"
+            | "priv"
+            | "typeof"
+            | "unsized"
+            | "virtual"
+            | "yield"
+            | "try"
+    )
+}
+
 /// Helper to build nested dictionary access for assignment
 /// Returns (base_expr, access_chain) where access_chain is a vec of index expressions
 fn extract_nested_indices(
@@ -587,7 +645,12 @@ fn convert_method_to_impl_item(
     method: &HirMethod,
     type_mapper: &TypeMapper,
 ) -> Result<syn::ImplItemFn> {
-    let method_name = syn::Ident::new(&method.name, proc_macro2::Span::call_site());
+    // DEPYLER-0306 FIX: Use raw identifiers for method names that are Rust keywords
+    let method_name = if is_rust_keyword(&method.name) {
+        syn::Ident::new_raw(&method.name, proc_macro2::Span::call_site())
+    } else {
+        syn::Ident::new(&method.name, proc_macro2::Span::call_site())
+    };
 
     // Convert parameters
     let mut inputs = syn::punctuated::Punctuated::new();
