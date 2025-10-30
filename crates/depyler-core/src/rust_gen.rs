@@ -470,6 +470,7 @@ pub fn generate_rust_file(
         tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
         is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
         result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
+        current_error_type: None, // DEPYLER-0310: Track error type for raise statement wrapping
     };
 
     // Analyze all functions first for string optimization
@@ -577,6 +578,7 @@ mod tests {
             tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
             is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
             result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
+            current_error_type: None, // DEPYLER-0310: Track error type for raise statement wrapping
         }
     }
 
