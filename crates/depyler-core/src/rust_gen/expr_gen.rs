@@ -1755,7 +1755,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "get" => {
                 if arg_exprs.len() == 1 {
                     let key = &arg_exprs[0];
-                    // DEPYLER-0222: dict.get() without default should unwrap the Option
+                    // DEPYLER-0303 Phase 2: Check if return type is Optional
+                    // If function returns Option<T>, dict.get() should return Option directly
+                    // Otherwise, unwrap with unwrap_or_default()
+                    let returns_option = matches!(
+                        self.ctx.current_return_type.as_ref(),
+                        Some(Type::Optional(_))
+                    );
+
                     // DEPYLER-0227: String literals need & prefix, but variables with &str type don't
                     // Check if key is a string literal that was converted to .to_string()
                     let key_expr: syn::Expr =
@@ -1766,7 +1773,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             // Variable or other expression - already properly typed
                             parse_quote! { #key }
                         };
-                    Ok(parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or_default() })
+
+                    if returns_option {
+                        // Return Option directly - don't unwrap
+                        Ok(parse_quote! { #object_expr.get(#key_expr).cloned() })
+                    } else {
+                        // Unwrap with default for non-Optional returns
+                        Ok(parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or_default() })
+                    }
                 } else if arg_exprs.len() == 2 {
                     let key = &arg_exprs[0];
                     let default = &arg_exprs[1];

@@ -560,9 +560,12 @@ impl BorrowingContext {
     }
 
     /// Analyze expression in return context
+    /// DEPYLER-0303: Only mark parameters as escaping if they are DIRECTLY returned,
+    /// not when used in operations that produce different types (e.g., `key in dict` → bool)
     fn analyze_expression_for_return(&mut self, expr: &HirExpr) {
         match expr {
             HirExpr::Var(name) => {
+                // Parameter is directly returned - it escapes
                 if let Some(usage) = self.param_usage.get_mut(name) {
                     usage.escapes_through_return = true;
                     usage.usage_sites.push(UsageSite {
@@ -574,15 +577,10 @@ impl BorrowingContext {
                 }
             }
             HirExpr::Binary { left, right, .. } => {
-                // For binary operations in return context, parameters are used but not directly returned
+                // Binary operations (comparisons, arithmetic, etc.) produce NEW values
+                // Parameters are used but don't escape - just analyze normally
                 self.analyze_expression(left, 0);
                 self.analyze_expression(right, 0);
-                // Mark any parameter used here as escaping since it contributes to the return value
-                if let HirExpr::Var(name) = &**left {
-                    if let Some(usage) = self.param_usage.get_mut(name) {
-                        usage.escapes_through_return = true;
-                    }
-                }
             }
             _ => self.analyze_expression(expr, 0),
         }
