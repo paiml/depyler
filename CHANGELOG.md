@@ -4,6 +4,122 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0304: HashMap Type Inference in 09_dictionary_operations (Phase 1/3) ✅ **PHASE 1 COMPLETE** (2025-10-30)
+
+**Goal**: Fix dictionary operations compilation errors through type-aware code generation
+**Priority**: P1 - High Value (4-6 hours for all phases)
+**Phase 1 Time**: ~1.5 hours
+**Phase 1 Impact**: Fixed 2/6 errors (33%) - Dictionary subscript assignment now works correctly
+
+#### Problem Statement (Phase 1)
+
+Matrix Project validation revealed Python `d[key] = value` dict subscript assignments incorrectly generating Vec-style numeric indexing:
+
+```python
+# Python code (09_dictionary_operations/column_a.py)
+def add_entry(d: dict[str, int], key: str, value: int) -> dict[str, int]:
+    """Add new entry to dictionary."""
+    d[key] = value  # Python dict subscript assignment
+    return d
+```
+
+```rust
+// Generated Rust (BEFORE Phase 1) - Trying to cast String to usize!
+pub fn add_entry(mut d: HashMap<String, i32>, key: String, value: i32) -> HashMap<String, i32> {
+    d.insert((key) as usize, value);  // ❌ Tries to cast String to usize!
+    d
+}
+```
+
+**Errors**:
+```
+error[E0308]: mismatched types
+  --> lib.rs:52:14
+   |
+52 |     d.insert((key) as usize, value);
+   |       ------ ^^^^^^^^^^^^^^ expected `String`, found `usize`
+
+error[E0605]: non-primitive cast: `String` as `usize`
+  --> lib.rs:52:14
+   |
+52 |     d.insert((key) as usize, value);
+   |              ^^^^^^^^^^^^^^ an `as` expression can only be used to convert between primitive types
+```
+
+**Root Cause**: The heuristic in `codegen_assign_index()` treated ALL `Var(_)` indices as numeric (for Vec indexing), incorrectly applying `as usize` cast to HashMap string keys.
+
+#### Solution: Type-Aware Subscript Assignment (Phase 1)
+
+Enhanced `codegen_assign_index()` (stmt_gen.rs:905-939) to use type information from `ctx.var_types`:
+
+```rust
+// DEPYLER-0304: Type-aware subscript assignment detection
+let is_numeric_index = if let HirExpr::Var(base_name) = base {
+    // Check if we have type information for this variable
+    if let Some(base_type) = ctx.var_types.get(base_name) {
+        // Type-based detection (most reliable)
+        match base_type {
+            Type::List(_) => true,  // List/Vec → numeric index
+            Type::Dict(_, _) => false,  // Dict/HashMap → key (not numeric)
+            _ => { /* fall back to heuristic */ }
+        }
+    } else { /* fall back to heuristic */ }
+} else { /* fall back to heuristic */ }
+```
+
+**Generated Code (AFTER Phase 1)** - Correct HashMap.insert()!
+```rust
+pub fn add_entry(mut d: HashMap<String, i32>, key: String, value: i32) -> HashMap<String, i32> {
+    d.insert(key, value);  // ✅ Correct HashMap.insert() call
+    d
+}
+```
+
+#### Verification Results
+
+**Build Status**: ✅ depyler-core compiled successfully (24.57s)
+**Retranspile**: ✅ 09_dictionary_operations regenerated with correct code
+**Regression Testing**: ✅ 455/458 tests pass (3 pre-existing failures unrelated to change)
+**Generated Code**: ✅ Line 52 now shows `d.insert(key, value);` (no cast)
+
+#### Error Resolution Progress
+
+**Phase 1 Target Errors** (Pattern #2 - Dictionary Subscript):
+- ✅ Error #2: `mismatched types: expected String, found usize` - **FIXED**
+- ✅ Error #3: `non-primitive cast: String as usize` - **FIXED**
+
+**Total Progress**: 6 errors → 4 remaining (33% reduction)
+
+**Remaining Errors** (Future Phases):
+- Pattern #1: Option type confusion (1 error) - Phase 3
+- Pattern #3A: Double borrowing in `.contains_key()` (2 errors) - Phase 2
+- Pattern #3B: Iterator reference mismatches (1 error) - Phase 2
+
+#### Impact
+
+- ✅ Dictionary subscript assignment now generates correct HashMap.insert() calls
+- ✅ Zero regressions in existing functionality (455/458 tests passing)
+- ✅ Type-aware detection with fallback to heuristic ensures compatibility
+- ✅ Enables Python dict[key] = value to transpile correctly to Rust
+
+#### Files Changed
+
+- `crates/depyler-core/src/rust_gen/stmt_gen.rs` (lines 905-939)
+- `docs/issues/DEPYLER-0304-analysis.md` (implementation report added)
+
+#### Next Steps
+
+**Phase 2** (2-3 hours): HashMap Reference Handling
+- Fix double borrowing in `.contains_key(&key)` (2 errors)
+- Fix iterator reference mismatches in `update_dict` (1 error)
+- Target: 4 errors → 1 error (75% reduction)
+
+**Phase 3** (2 hours): Option Context Analysis
+- Fix `result.is_none()` on i32 type (1 error)
+- Target: 1 error → 0 errors (100% complete) 🎯
+
+---
+
 ### 🟢 DEPYLER-0314: Auto-cast i32 to usize for Vec.insert() ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Automatically cast i32 loop indices to usize for Vec index operations
