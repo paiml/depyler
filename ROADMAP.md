@@ -418,6 +418,123 @@ This YAML file contains:
 - Priority: ~~P0~~ P✅ COMPLETE (regression fix)
 - Status: ✅ **COMPLETELY RESOLVED** - Plural variable names now correctly identified as collections
 
+---
+
+### 📊 Matrix Project Validation Status (2025-10-30)
+
+**Campaign Goal**: Systematically test transpiler against real-world Python examples to discover and fix bugs
+
+**Testing Methodology**: Transpile → Compile → Document errors → Fix transpiler (not generated code)
+
+#### Validation Results (9/13 examples tested)
+
+| Example | Status | Errors | Notes | Ticket |
+|---------|--------|--------|-------|--------|
+| 01_basic_types | ✅ PASS | 0 | 2 cosmetic warnings (unused vars) | - |
+| 02_control_flow | ✅ PASS | 0 | Perfect compilation | - |
+| 03_functions | ❌ FAIL | 2 | Recursive borrow, Result unwrap | DEPYLER-0301 |
+| 04_collections | ⏭️ SKIP | - | Known blockers: DEPYLER-0289, 0291 | - |
+| 05_error_handling | ⏭️ SKIP | - | Known blockers: DEPYLER-0294, 0296 | - |
+| 06_list_comprehensions | ✅ PASS | 0 | Fixed by DEPYLER-0299 | - |
+| 07_algorithms | ❌ FAIL | 15 | Multiple complex issues | DEPYLER-0303 |
+| 08_string_operations | ✅ PASS | 0 | Fixed by DEPYLER-0300 | - |
+| 09_dictionary_operations | ❌ FAIL | 14 | HashMap type inference, borrow issues | DEPYLER-0304 |
+| 10_file_operations | ❌ FAIL | 31 | File I/O std::fs translation issues | DEPYLER-0305 |
+| 11_basic_classes | 💥 PANIC | - | **CRITICAL**: Transpiler panic during codegen | DEPYLER-0306 |
+| 12_control_flow | ❌ FAIL | 10 | Control flow edge cases | DEPYLER-0307 |
+| 13_builtin_functions | ✅ PASS | 0 | Fixed by DEPYLER-0302 | - |
+
+**Success Metrics**:
+- ✅ **Passing**: 4/9 tested (44% success rate)
+- ❌ **Failing**: 4/9 tested (44% have compilation errors)
+- 💥 **Panicking**: 1/9 tested (11% cause transpiler crash)
+- ⏭️ **Skipped**: 2/13 total (known blockers)
+- 🎯 **Overall Progress**: 4/13 examples fully working (31% of Matrix Project)
+
+#### New Bugs Discovered (Prioritized by Quick Wins)
+
+**DEPYLER-0306**: 💥 CRITICAL - Transpiler Panic in 11_basic_classes
+- **Severity**: P0 (transpiler crash - unacceptable)
+- **Error**: `panicked at expr_gen.rs:1760:23: expected identifier or integer`
+- **Impact**: Blocks all class attribute access examples
+- **Pattern**: Unknown (requires investigation)
+- **Estimate**: 2-4 hours (crash investigation + fix)
+- **Priority**: **IMMEDIATE** - Transpiler must never panic
+- **Status**: 🛑 STOP THE LINE - Critical defect
+
+**DEPYLER-0301**: Recursive Borrow Issue (03_functions)
+- **Pattern**: `sum_list_recursive(rest)` where `rest = numbers[1:]`
+- **Error**: `expected &Vec<i32>, found Vec<i32>` (missing borrow)
+- **Impact**: 2 errors in 03_functions (affects recursive patterns)
+- **Estimate**: 2-3 hours (slice type inference)
+- **Priority**: P1 (common pattern)
+- **Status**: Documented, ready to fix
+
+**DEPYLER-0303**: Multiple Translation Errors in 07_algorithms
+- **Errors**: 15 distinct compilation errors
+- **Patterns**: Vec addition, HashSet methods, immutability issues
+- **Impact**: Complex algorithms example completely broken
+- **Estimate**: 6-8 hours (requires pattern analysis + multiple fixes)
+- **Priority**: P1 (high-value example)
+- **Status**: Documented, requires investigation
+
+**DEPYLER-0304**: HashMap Type Inference in 09_dictionary_operations
+- **Errors**: 14 compilation errors
+- **Patterns**:
+  - `result.is_none()` called on `i32` (should be `Option<i32>`)
+  - `String: Borrow<&str>` trait bounds (borrow checker issues)
+- **Impact**: All dictionary method examples broken
+- **Estimate**: 4-6 hours (dict method translation)
+- **Priority**: P1 (core feature)
+- **Status**: Documented, requires analysis
+
+**DEPYLER-0305**: File I/O Translation in 10_file_operations
+- **Errors**: 31 compilation errors (highest count)
+- **Impact**: Complete failure of file operations example
+- **Estimate**: 8-12 hours (std::fs integration, error handling)
+- **Priority**: P2 (advanced feature)
+- **Status**: Documented, deferred (complex)
+
+**DEPYLER-0307**: Control Flow Edge Cases in 12_control_flow
+- **Errors**: 10 compilation errors
+- **Impact**: Duplicate of 02_control_flow but with edge cases
+- **Estimate**: 4-6 hours (edge case analysis)
+- **Priority**: P2 (redundant with 02_control_flow)
+- **Status**: Documented, lower priority
+
+#### Next Steps (Recommended Order - Quick Wins First)
+
+1. **🛑 DEPYLER-0306** (P0 - 2-4h): Fix transpiler panic in 11_basic_classes - **CRITICAL**
+2. **DEPYLER-0301** (P1 - 2-3h): Fix recursive borrow issue - **Quick Win**
+3. **DEPYLER-0304** (P1 - 4-6h): Fix dictionary operations - **High Value**
+4. **DEPYLER-0303** (P1 - 6-8h): Fix algorithms example - **High Impact**
+5. **DEPYLER-0307** (P2 - 4-6h): Fix control flow edge cases
+6. **DEPYLER-0305** (P2 - 8-12h): Fix file operations - **Deferred (complex)**
+
+#### Campaign Insights
+
+**✅ Victories**:
+- Quick win approach works: DEPYLER-0302 fixed in 30 minutes
+- String detection heuristics improving iteratively (DEPYLER-0300, 0302)
+- List comprehension fix (DEPYLER-0299) had broad impact (15 errors → 0)
+
+**⚠️ Challenges**:
+- HashMap/Dict type inference remains problematic (DEPYLER-0289, 0304)
+- File I/O requires std::fs integration strategy
+- Class attribute access causes transpiler panic (unacceptable)
+
+**🎯 Quality Impact**:
+- Found 6 new bugs across 9 examples
+- 1 critical transpiler panic (must fix immediately)
+- Success rate: 44% → Target: 100%
+
+**📈 Progress Tracking**:
+- Baseline: 31% of Matrix Project working (4/13 examples)
+- Target: 85%+ working (11/13 examples, excluding known limitations)
+- Remaining: 7 examples to fix (estimate: 30-40 hours total)
+
+---
+
 **Security Alerts**: 2 dependabot alerts in transitive dependencies
 - 1 critical (slab v0.4.10 - RUSTSEC-2025-0047)
 - 1 moderate
