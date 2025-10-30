@@ -247,6 +247,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             BinOp::Mul => {
+                // DEPYLER-0302 Phase 2: String repetition (s * n or n * s)
+                // Check if we have string * integer or integer * string
+                let left_is_string = self.is_string_base(left);
+                let right_is_string = self.is_string_base(right);
+                let left_is_int = matches!(left, HirExpr::Literal(Literal::Int(_)) | HirExpr::Var(_));
+                let right_is_int = matches!(right, HirExpr::Literal(Literal::Int(_)) | HirExpr::Var(_));
+
+                if left_is_string && right_is_int {
+                    // Pattern: s * n (string * integer)
+                    return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
+                } else if left_is_int && right_is_string {
+                    // Pattern: n * s (integer * string)
+                    return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
+                }
+
                 // Special case: [value] * n or n * [value] creates an array
                 match (left, right) {
                     // Pattern: [x] * n
@@ -2009,6 +2024,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 Ok(parse_quote! { #object_expr.chars().all(|c| c.is_alphanumeric()) })
             }
+            "title" => {
+                // DEPYLER-0302 Phase 2: str.title() → custom title case implementation
+                // Python's title() capitalizes the first letter of each word
+                if !arg_exprs.is_empty() {
+                    bail!("title() takes no arguments");
+                }
+                Ok(parse_quote! {
+                    #object_expr
+                        .split_whitespace()
+                        .map(|word| {
+                            let mut chars = word.chars();
+                            match chars.next() {
+                                None => String::new(),
+                                Some(first) => first.to_uppercase().chain(chars).collect::<String>(),
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                })
+            }
             _ => bail!("Unknown string method: {}", method),
         }
     }
@@ -2290,7 +2325,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // String methods
             // Note: "count" handled separately above with disambiguation logic
             "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
-            | "split" | "join" | "replace" | "find" | "isdigit" | "isalpha" | "isalnum" => {
+            | "split" | "join" | "replace" | "find" | "isdigit" | "isalpha" | "isalnum" | "title" => {
                 self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
             }
 
@@ -2569,7 +2604,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     || method.as_str().contains("lower")
                     || method.as_str().contains("strip")
                     || method.as_str().contains("lstrip")
-                    || method.as_str().contains("rstrip") =>
+                    || method.as_str().contains("rstrip")
+                    || method.as_str().contains("title") =>
             {
                 true
             }
