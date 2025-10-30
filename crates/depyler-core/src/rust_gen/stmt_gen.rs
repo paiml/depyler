@@ -546,13 +546,23 @@ pub(crate) fn codegen_for_stmt(
     // If iter is a simple variable that refers to a borrowed collection (e.g., &Vec<T>),
     // we need to add .iter() to properly iterate over it
     if let HirExpr::Var(_var_name) = iter {
-        // DEPYLER-0300: Check if we're iterating over a string
+        // DEPYLER-0300/0302: Check if we're iterating over a string
         // Strings use .chars() instead of .iter().cloned()
+        // DEPYLER-0302: Exclude plurals (strings, words, etc.) which are collections
         let is_string = matches!(iter, HirExpr::Var(name) if {
             let n = name.as_str();
-            n == "s" || n == "string" || n == "text" || n == "word" || n == "line"
-                || n.starts_with("str") || n.starts_with("word") || n.starts_with("text")
-                || n.ends_with("_str") || n.ends_with("_string") || n.ends_with("_word") || n.ends_with("_text")
+            // Exact matches (singular forms only)
+            (n == "s" || n == "string" || n == "text" || n == "word" || n == "line"
+                || n == "char" || n == "character")
+            // Prefixes (but not if followed by 's' for plural)
+            || (n.starts_with("str") && !n.starts_with("strings"))
+            || (n.starts_with("word") && !n.starts_with("words"))
+            || (n.starts_with("text") && !n.starts_with("texts"))
+            // Suffixes (but exclude plurals)
+            || (n.ends_with("_str") && !n.ends_with("_strs"))
+            || (n.ends_with("_string") && !n.ends_with("_strings"))
+            || (n.ends_with("_word") && !n.ends_with("_words"))
+            || (n.ends_with("_text") && !n.ends_with("_texts"))
         });
 
         if is_string {
