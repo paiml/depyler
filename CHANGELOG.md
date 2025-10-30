@@ -4,6 +4,93 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0302: Fix String Heuristic Regression - Plurals ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Fix false positive in string detection heuristic that incorrectly treated plural variable names as strings
+**Time**: 30 minutes (quick fix)
+**Impact**: Fixed 13_builtin_functions compilation (was 1 error from DEPYLER-0300 regression)
+
+#### Problem Statement
+
+The string detection heuristic added in DEPYLER-0300 was too aggressive and created a false positive:
+
+```python
+# Python code
+def parse_int_list(strings: list[str]) -> list[int]:
+    result = []
+    for s in strings:  # "strings" is a Vec<String>, not a string!
+        result.append(int(s))
+    return result
+```
+
+```rust
+// ❌ BROKEN: Applied .chars() to Vec<String>
+pub fn parse_int_list(strings: &Vec<String>) -> Vec<i32> {
+    let mut result = vec![];
+    for s in strings.chars() {  // error: no method `chars` on `&Vec<String>`
+        result.push(s.parse::<i32>().unwrap_or_default());
+    }
+    result
+}
+```
+
+**Compilation Error**: `error[E0599]: no method named 'chars' found for reference &Vec<String>`
+
+#### Root Cause
+
+The heuristic in stmt_gen.rs checked `name.ends_with("_string")` which incorrectly matched:
+- ✅ `"my_string"` (singular - correct match)
+- ❌ `"strings"` (plural - false positive!)
+
+The logic couldn't distinguish between:
+- **Singular**: A single string value (should use `.chars()`)
+- **Plural**: A collection of strings (should use `.iter().cloned()`)
+
+#### Solution
+
+Refined the heuristic to **exclude plurals** (stmt_gen.rs:552-566):
+
+```rust
+let is_string = matches!(iter, HirExpr::Var(name) if {
+    let n = name.as_str();
+    // Exact matches (singular forms only)
+    (n == "s" || n == "string" || n == "text" || n == "word" || n == "line"
+        || n == "char" || n == "character")
+    // Prefixes (but exclude plurals)
+    || (n.starts_with("str") && !n.starts_with("strings"))
+    || (n.starts_with("word") && !n.starts_with("words"))
+    || (n.starts_with("text") && !n.starts_with("texts"))
+    // Suffixes (but exclude plurals)
+    || (n.ends_with("_str") && !n.ends_with("_strs"))
+    || (n.ends_with("_string") && !n.ends_with("_strings"))  // Key fix!
+    || (n.ends_with("_word") && !n.ends_with("_words"))
+    || (n.ends_with("_text") && !n.ends_with("_texts"))
+});
+```
+
+#### Results
+
+✅ **13_builtin_functions**: 0 errors (was 1 error)
+✅ **08_string_operations**: 0 errors (no regression from DEPYLER-0300)
+✅ **Core test suite**: 453/453 pass (zero regressions)
+
+**Generated Code** (Correct):
+```rust
+pub fn parse_int_list(strings: &Vec<String>) -> Vec<i32> {
+    let mut result = vec![];
+    for s in strings.iter().cloned() {  // ✅ Correct iterator for Vec<String>
+        result.push(s.parse::<i32>().unwrap_or_default());
+    }
+    result
+}
+```
+
+#### Files Changed
+
+- `crates/depyler-core/src/rust_gen/stmt_gen.rs` - Added plural exclusion logic to string detection
+
+---
+
 ### 🟢 DEPYLER-0300: Fix String Operations Translation Bugs ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Fix incorrect code generation for Python's `in` operator on strings and string iteration
