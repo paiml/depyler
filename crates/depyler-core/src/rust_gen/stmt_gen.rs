@@ -546,17 +546,27 @@ pub(crate) fn codegen_for_stmt(
     // If iter is a simple variable that refers to a borrowed collection (e.g., &Vec<T>),
     // we need to add .iter() to properly iterate over it
     if let HirExpr::Var(_var_name) = iter {
-        // This is a simple heuristic: if the expression is just a variable name,
-        // it's likely a parameter or local var that might be borrowed
-        // The generated code already has the variable as borrowed (e.g., data: &Vec<T>)
-        // so we need to call .iter() on it
-        //
-        // DEPYLER-0265: Use .iter().cloned() to automatically clone items
-        // This handles both Copy types (int, float, bool) and Clone types (String, Vec, etc.)
-        // For Copy types, .cloned() is optimized to a simple bit-copy by the compiler.
-        // For Clone types, it calls .clone() which is correct for Rust.
-        // This matches Python semantics where loop variables are values, not references.
-        iter_expr = parse_quote! { #iter_expr.iter().cloned() };
+        // DEPYLER-0300: Check if we're iterating over a string
+        // Strings use .chars() instead of .iter().cloned()
+        let is_string = matches!(iter, HirExpr::Var(name) if {
+            let n = name.as_str();
+            n == "s" || n == "string" || n == "text" || n == "word" || n == "line"
+                || n.starts_with("str") || n.starts_with("word") || n.starts_with("text")
+                || n.ends_with("_str") || n.ends_with("_string") || n.ends_with("_word") || n.ends_with("_text")
+        });
+
+        if is_string {
+            // For strings, use .chars() to iterate over characters
+            iter_expr = parse_quote! { #iter_expr.chars() };
+        } else {
+            // For collections, use .iter().cloned()
+            // DEPYLER-0265: Use .iter().cloned() to automatically clone items
+            // This handles both Copy types (int, float, bool) and Clone types (String, Vec, etc.)
+            // For Copy types, .cloned() is optimized to a simple bit-copy by the compiler.
+            // For Clone types, it calls .clone() which is correct for Rust.
+            // This matches Python semantics where loop variables are values, not references.
+            iter_expr = parse_quote! { #iter_expr.iter().cloned() };
+        }
     }
 
     ctx.enter_scope();

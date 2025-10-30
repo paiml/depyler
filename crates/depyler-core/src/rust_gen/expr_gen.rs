@@ -122,8 +122,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match op {
             BinOp::In => {
                 // Convert "x in container" to appropriate method call
+                // - String: string.contains(substring)
                 // - HashSet: container.contains(&x)
                 // - HashMap/dict: container.contains_key(&x)
+
+                // DEPYLER-0300: Check if right side is a string
+                let is_string = self.is_string_base(right);
+
                 // Check if right side is a set based on type information
                 let is_set = self.is_set_expr(right) || self.is_set_var(right);
 
@@ -133,7 +138,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let needs_ref =
                     !matches!(left, HirExpr::Literal(Literal::String(_)) | HirExpr::Var(_));
 
-                if is_set {
+                if is_string || is_set {
+                    // Strings and Sets both use .contains()
                     if needs_ref {
                         Ok(parse_quote! { #right_expr.contains(&#left_expr) })
                     } else {
@@ -150,6 +156,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             BinOp::NotIn => {
                 // Convert "x not in container" to !container.method(&x)
+
+                // DEPYLER-0300: Check if right side is a string
+                let is_string = self.is_string_base(right);
+
                 // Check if right side is a set based on type information
                 let is_set = self.is_set_expr(right) || self.is_set_var(right);
 
@@ -157,7 +167,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let needs_ref =
                     !matches!(left, HirExpr::Literal(Literal::String(_)) | HirExpr::Var(_));
 
-                if is_set {
+                if is_string || is_set {
+                    // Strings and Sets both use .contains()
                     if needs_ref {
                         Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
                     } else {
