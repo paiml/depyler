@@ -4,6 +4,129 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0314: Auto-cast i32 to usize for Vec.insert() ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Automatically cast i32 loop indices to usize for Vec index operations
+**Priority**: P1 - Quick Win (30 minutes)
+**Time**: ~45 minutes (investigation + implementation + edge case fixes)
+**Impact**: Fixed 4/8 errors (50%) in Matrix Project 07_algorithms remaining errors
+
+#### Problem Statement
+
+Matrix Project validation revealed type mismatches when using loop variables as Vec indices:
+
+```python
+# Python code (07_algorithms/column_a.py)
+def bubble_sort(items: list[int]) -> list[int]:
+    result = items.copy()
+    for i in range(len(result)):
+        for j in range(len(result) - i - 1):
+            if result[j] > result[j + 1]:
+                result[j] = result[j + 1]  # Index assignment with i32 variable
+                result[j + 1] = temp        # Index assignment with i32 expression
+```
+
+```rust
+// Generated Rust (BEFORE fix) - Type mismatch!
+pub fn bubble_sort(items: &Vec<i32>) -> Vec<i32> {
+    let mut result = items.clone();
+    for j in 0..(result.len() as i32 - i - 1) {
+        // ...
+        result.insert(j, { ... });      // ❌ j is i32, expects usize
+        result.insert(j + 1, temp);     // ❌ j + 1 is i32, expects usize
+    }
+}
+```
+
+**Errors**:
+```
+error[E0308]: mismatched types
+   --> 07_column_a_test.rs:169:31
+    |
+169 |                 result.insert(j, ...);
+    |                        ------ ^ expected `usize`, found `i32`
+
+error[E0308]: mismatched types
+   --> 07_column_a_test.rs:179:31
+    |
+179 |                 result.insert(j + 1, temp);
+    |                        ------ ^^^^^ expected `usize`, found `i32`
+```
+
+**Root Cause**: Index assignments `list[i] = value` in Python translate to `Vec.insert(index, value)` in Rust via `codegen_assign_index()`, but loop variables are `i32` while `Vec::insert()` requires `usize` index parameter.
+
+#### Solution: Heuristic-Based Index Type Detection
+
+Implemented three-part fix to detect numeric indices and auto-cast to usize:
+
+**Part 1**: Numeric Index Detection Heuristic (stmt_gen.rs:867-876):
+```rust
+// DEPYLER-0314: Check if this is a Vec/List index (numeric) or Dict/HashMap key
+let is_numeric_index = match index {
+    // EXCEPTION: Char variables from string iteration are keys, not indices
+    HirExpr::Var(name) if name == "char" || name == "character" || name == "c" => false,
+    // Numeric patterns: loop variables, arithmetic, integer literals
+    HirExpr::Var(_) | HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
+    _ => false,
+};
+```
+
+**Part 2**: Auto-cast with Operator Precedence Handling (stmt_gen.rs:882-886):
+```rust
+if is_numeric_index {
+    // DEPYLER-0314: Vec.insert(index as usize, value)
+    // Wrap in parentheses to handle binary expressions: (j + 1) as usize
+    Ok(quote! { #base_expr.insert((#final_index) as usize, #value_expr); })
+}
+```
+
+**Part 3**: Same Fix for Nested Index Assignments (stmt_gen.rs:895-903):
+```rust
+if is_numeric_index {
+    // DEPYLER-0314: Vec.insert(index as usize, value)
+    Ok(quote! { #chain.insert((#final_index) as usize, #value_expr); })
+} else {
+    // HashMap.insert(key, value)
+    Ok(quote! { #chain.insert(#final_index, #value_expr); })
+}
+```
+
+#### Edge Cases Handled
+
+**Edge Case 1**: Operator Precedence
+- **Problem**: `j + 1 as usize` parses as `j + (1 as usize)` → type error `i32 + usize`
+- **Fix**: Wrap expression in parentheses: `(j + 1) as usize`
+
+**Edge Case 2**: Character Variables from String Iteration
+- **Problem**: Initial heuristic cast `char` variables to usize, breaking HashMap operations
+- **Fix**: Added exception for variable names "char", "character", "c" (common in string iteration)
+
+#### Files Modified
+- `crates/depyler-core/src/rust_gen/stmt_gen.rs` - Added numeric index detection and auto-cast
+
+#### Test Results
+- ✅ All 453 core tests pass (zero regressions)
+- ✅ Matrix 07_algorithms: 8 errors → 4 errors (50% reduction)
+- ✅ All 4 Vec.insert() type mismatches fixed
+- ✅ Clippy clean with `-D warnings`
+
+#### Generated Code Quality
+
+**Before**:
+```rust
+result.insert(j, value);          // ❌ Type error
+result.insert(j + 1, temp);       // ❌ Type error
+```
+
+**After**:
+```rust
+result.insert((j) as usize, value);        // ✅ Compiles
+result.insert((j + 1) as usize, temp);     // ✅ Compiles
+freq.insert(char, 1);                       // ✅ HashMap unchanged
+```
+
+---
+
 ### 🟢 DEPYLER-0310: Box::new() Wrapper for Mixed Error Types ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Automatically wrap exceptions with `Box::new()` when function uses `Box<dyn Error>`

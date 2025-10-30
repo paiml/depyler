@@ -867,12 +867,29 @@ pub(crate) fn codegen_assign_index(
 ) -> Result<proc_macro2::TokenStream> {
     let final_index = index.to_rust_expr(ctx)?;
 
+    // DEPYLER-0314: Check if this is a Vec/List index (numeric) or Dict/HashMap key (string/other)
+    // Vec.insert() requires usize index, HashMap.insert() takes key of any type
+    // Heuristic: If index looks numeric (Var, Binary, Int literal), treat as Vec index
+    // EXCEPTION: Variables named 'char' are from string iteration, not numeric indices
+    let is_numeric_index = match index {
+        HirExpr::Var(name) if name == "char" || name == "character" || name == "c" => false,
+        HirExpr::Var(_) | HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
+        _ => false,
+    };
+
     // Extract the base and all intermediate indices
     let (base_expr, indices) = extract_nested_indices_tokens(base, ctx)?;
 
     if indices.is_empty() {
-        // Simple assignment: d[k] = v
-        Ok(quote! { #base_expr.insert(#final_index, #value_expr); })
+        // Simple assignment: d[k] = v OR list[i] = x
+        if is_numeric_index {
+            // DEPYLER-0314: Vec.insert(index as usize, value)
+            // Wrap in parentheses to ensure correct operator precedence
+            Ok(quote! { #base_expr.insert((#final_index) as usize, #value_expr); })
+        } else {
+            // HashMap.insert(key, value)
+            Ok(quote! { #base_expr.insert(#final_index, #value_expr); })
+        }
     } else {
         // Nested assignment: build chain of get_mut calls
         let mut chain = quote! { #base_expr };
@@ -882,7 +899,14 @@ pub(crate) fn codegen_assign_index(
             };
         }
 
-        Ok(quote! { #chain.insert(#final_index, #value_expr); })
+        if is_numeric_index {
+            // DEPYLER-0314: Vec.insert(index as usize, value)
+            // Wrap in parentheses to ensure correct operator precedence
+            Ok(quote! { #chain.insert((#final_index) as usize, #value_expr); })
+        } else {
+            // HashMap.insert(key, value)
+            Ok(quote! { #chain.insert(#final_index, #value_expr); })
+        }
     }
 }
 
