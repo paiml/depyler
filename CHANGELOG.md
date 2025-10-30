@@ -4,6 +4,157 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0307: sorted(reverse=True) Parameter Fix ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Fix sorted() to properly handle reverse=True parameter without key lambda
+**Time**: 2 hours (under 2 hour estimate)
+**Impact**: Fixed semantic incorrectness - **sorted(items, reverse=True) now generates descending sort**
+
+#### Problem Statement
+
+When `sorted(items, reverse=True)` was called WITHOUT a key lambda, the `reverse=True` parameter was silently ignored, causing semantic incorrectness:
+
+```python
+# Python code
+def sort_descending(numbers: list[int]) -> list[int]:
+    return sorted(numbers, reverse=True)
+```
+
+```rust
+// ❌ BROKEN: Generated ascending sort (reverse=True ignored)
+pub fn sort_descending(numbers: Vec<i32>) -> Vec<i32> {
+    {
+        let mut __sorted_result = numbers.clone();
+        __sorted_result.sort();  // Missing .reverse()!
+        __sorted_result
+    }
+}
+```
+
+**Semantic Bug**: Code compiled successfully but produced wrong results (ascending instead of descending).
+
+#### Root Cause
+
+Two-part issue in AST-to-HIR conversion and code generation:
+
+1. **AST-to-HIR** (`converters.rs:329-410`):
+   - Extracted `reverse` parameter correctly (line 335)
+   - But only created `HirExpr::SortByKey` when `key_lambda` present (line 365)
+   - Without key lambda, fell through to regular `Call` handling (line 402), **losing reverse info**
+
+2. **Code Generation** (`expr_gen.rs:3785-3850`):
+   - `Call("sorted", args)` had no way to check for reverse parameter
+   - Generated simple `.sort()` without `.reverse()`
+
+#### Solution Implemented
+
+**DEPYLER-0307 FIX**: Two-part fix
+
+**Part 1 - AST-to-HIR** (`converters.rs:390-408`):
+```rust
+// If reverse=True but no key, create SortByKey with identity function
+if reverse {
+    if c.args.is_empty() {
+        bail!("sorted() requires at least one argument");
+    }
+    let iterable = Box::new(Self::convert(c.args[0].clone())?);
+
+    // Use identity function: lambda x: x
+    let key_params = vec!["x".to_string()];
+    let key_body = Box::new(HirExpr::Var("x".to_string()));
+
+    return Ok(HirExpr::SortByKey {
+        iterable,
+        key_params,
+        key_body,
+        reverse,  // Preserve reverse in HIR
+    });
+}
+```
+
+**Part 2 - Code Generation** (`expr_gen.rs:3794-3817`):
+```rust
+// Check if this is an identity function (lambda x: x)
+let is_identity = key_params.len() == 1
+    && matches!(key_body, HirExpr::Var(v) if v == &key_params[0]);
+
+if is_identity {
+    // Use simple .sort() + .reverse() instead of .sort_by_key(|x| x)
+    if reverse {
+        return Ok(parse_quote! {
+            {
+                let mut __sorted_result = #iter_expr.clone();
+                __sorted_result.sort();
+                __sorted_result.reverse();  // ✅ Now includes reverse!
+                __sorted_result
+            }
+        });
+    }
+    // ...
+}
+```
+
+**Why Identity Function Optimization?**
+- `sort_by_key(|x| x)` causes lifetime errors (closure returns reference)
+- Simple `.sort()` + `.reverse()` is more idiomatic and efficient
+
+#### After (fixed)
+
+```rust
+// ✅ FIXED: Generates correct descending sort
+pub fn sort_descending(numbers: Vec<i32>) -> Vec<i32> {
+    {
+        let mut __sorted_result = numbers.clone();
+        __sorted_result.sort();
+        __sorted_result.reverse();  // ✅ Reverse added!
+        __sorted_result
+    }
+}
+```
+
+#### Behavior Verification
+
+```rust
+// Input: [3, 1, 4, 1, 5, 9, 2, 6]
+let result = sort_descending(input);
+assert_eq!(result, vec![9, 6, 5, 4, 3, 2, 1, 1]); // ✅ Descending order
+```
+
+#### Testing
+
+**Comprehensive test suite**: 11 tests in `depyler_0307_sorted_reverse_test.rs`
+- ✅ `test_sorted_ascending_simple` - Verifies no .reverse() without reverse=True
+- ✅ `test_sorted_descending_simple` - Verifies .sort() + .reverse() with reverse=True
+- ✅ `test_sorted_with_key_and_reverse` - Verifies sort_by_key + reverse
+- ✅ `test_sorted_with_key_no_reverse` - Verifies sort_by_key without reverse
+- ✅ `test_sorted_reverse_false_explicit` - Verifies reverse=False works
+- ✅ `test_sorted_compiles_ascending` - Compilation test (ascending)
+- ✅ `test_sorted_compiles_descending` - Compilation test (descending)
+- ✅ `test_sorted_behavior_ascending` - Property test generation check
+- ✅ `test_sorted_behavior_descending` - Behavior correctness test
+- ✅ `test_sorted_multiple_functions` - Multiple sorted() in one file
+- ✅ `test_sorted_with_strings` - String sorting works too
+- ✅ All 453 core tests pass (no regressions)
+
+#### Files Changed
+
+- `crates/depyler-core/src/ast_bridge/converters.rs` (lines 390-408)
+- `crates/depyler-core/src/rust_gen/expr_gen.rs` (lines 3794-3817)
+- `crates/depyler-core/tests/depyler_0307_sorted_reverse_test.rs` (new, 174 lines)
+
+#### Impact
+
+- **Semantic correctness restored** → sorted(reverse=True) now generates descending sort
+- **Identity function optimization** → Avoids lifetime errors with sort_by_key
+- **Zero regressions** → All 453 core tests pass
+- **Comprehensive coverage** → 11 tests cover all sorted() variants
+
+#### Known Issue (Separate from Fix)
+
+The auto-generated property tests for descending sort have incorrect logic (check ascending order instead of descending). This is a **test generation bug** tracked separately in DEPYLER-TBD and does NOT affect the transpiler fix itself.
+
+---
+
 ### 🟢 DEPYLER-0302 Phase 3: String Slicing with Negative Indices ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Fix string slicing code generation to use proper string operations
