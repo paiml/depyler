@@ -729,6 +729,18 @@ pub(crate) fn codegen_assign_stmt(
                     ctx.var_types
                         .insert(var_name.clone(), Type::Custom(func.clone()));
                 }
+                // DEPYLER-0309: Track builtin collection constructors for proper method dispatch
+                // This enables correct HashSet.contains() vs HashMap.contains_key() selection
+                else if func == "set" {
+                    // Infer element type from type annotation or default to Int
+                    let elem_type = if let Some(Type::Set(elem)) = type_annotation {
+                        elem.as_ref().clone()
+                    } else {
+                        Type::Int // Default for untyped sets
+                    };
+                    ctx.var_types
+                        .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
+                }
             }
             HirExpr::Set(elements) | HirExpr::FrozenSet(elements) => {
                 // Track set type from literal for proper method dispatch (DEPYLER-0224)
