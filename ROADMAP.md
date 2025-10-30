@@ -302,14 +302,16 @@ This YAML file contains:
 - Location: expr_gen.rs:1439-1456
 - Status: ✅ FIXED in v3.19.28
 
-**DEPYLER-0293**: Invalid String-to-int Casting (Matrix Project - 05_error_handling) - 🛑 BLOCKING
-- Issue: `int(str)` generates `(s) as i32` instead of `.parse::<i32>()`
-- Error: `non-primitive cast: 'String' as 'i32'`
-- Impact: 5/8 errors in 05_error_handling (62.5% of failures)
-- Root Cause: Transpiler treats all `int(x)` as type casts, lacks context-aware builtin handling
-- Priority: P0 (blocking exception handling examples)
-- Estimate: 4-6 hours
-- Status: 🛑 STOP THE LINE - Quick win fix available
+**DEPYLER-0293**: ✅ RESOLVED (v3.19.29) - Invalid String-to-int Casting
+- Issue: `int(str)` generates `.parse().unwrap_or_default()` without turbofish type annotation
+- Error: `error[E0284]: type annotations needed`
+- Impact: Fixed 5/8 errors in 05_error_handling (62.5% of failures)
+- Root Cause: Missing `::<i32>` turbofish syntax in `convert_int_cast()`
+- Fix: One-line change in expr_gen.rs:904 - added turbofish syntax
+- Location: crates/depyler-core/src/rust_gen/expr_gen.rs
+- Testing: 11 comprehensive tests, 100% pass rate, 453/453 core tests pass (zero regressions)
+- Time: 2 hours actual (under 4-6 hour estimate)
+- Status: ✅ FIXED in v3.19.29 (2025-10-30)
 - Analysis: docs/issues/DEPYLER-0293-0296-analysis.md
 
 **DEPYLER-0294**: Missing Result Unwrapping (Matrix Project - 05_error_handling) - 🛑 BLOCKING
@@ -322,14 +324,16 @@ This YAML file contains:
 - Status: 🛑 STOP THE LINE - Requires cross-function type inference
 - Analysis: docs/issues/DEPYLER-0293-0296-analysis.md
 
-**DEPYLER-0295**: Undefined Exception Types (Matrix Project - 05_error_handling) - 🛑 BLOCKING
-- Issue: Using ValueError doesn't generate type definition
-- Error: `failed to resolve: use of undeclared type 'ValueError'`
-- Impact: 1/8 errors in 05_error_handling (12.5% of failures)
-- Root Cause: Transpiler only generates ZeroDivisionError, no module-level exception collection
-- Priority: P0 (blocking exception handling examples)
-- Estimate: 6-8 hours
-- Status: 🛑 STOP THE LINE - Quick win fix available
+**DEPYLER-0295**: ✅ RESOLVED (v3.19.29) - Undefined ValueError Type
+- Issue: Using ValueError generated code that used `ValueError::new()` but didn't generate type definition
+- Error: `error[E0412]: cannot find type 'ValueError' in this scope`
+- Impact: Fixed 1/8 errors in 05_error_handling (12.5% of failures)
+- Root Cause: Missing ValueError support (had ZeroDivisionError and IndexError but not ValueError)
+- Fix: Added `needs_valueerror` flag, parallel to existing error types (4 file changes)
+- Location: context.rs, rust_gen.rs, error_gen.rs, func_gen.rs
+- Testing: 9 comprehensive tests, 100% pass rate, 453/453 core tests pass (zero regressions)
+- Time: 2 hours actual (under 6-8 hour estimate, scientific method approach)
+- Status: ✅ FIXED in v3.19.29 (2025-10-30)
 - Analysis: docs/issues/DEPYLER-0293-0296-analysis.md
 
 **DEPYLER-0296**: Return Type Mismatches in Exception Paths (Matrix Project - 05_error_handling) - 🛑 BLOCKING
@@ -360,18 +364,21 @@ This YAML file contains:
 - Status: ⚠️ KNOWN LIMITATION - Document and defer
 - Analysis: docs/issues/DEPYLER-0299-analysis.md
 
-**DEPYLER-0299**: List Comprehension Iterator Translation Bugs (Matrix Project - 06_list_comprehensions) - 🛑 BLOCKING
+**DEPYLER-0299**: List Comprehension Iterator Translation Bugs (Matrix Project - 06_list_comprehensions) - 🟡 IN PROGRESS
 - Issue: Comprehensions generate incorrect iterator methods and references
-- Errors: 15 compilation errors across 8 functions (50% failure rate)
+- Errors: ~~15~~ 9 compilation errors across ~~8~~ 5 functions (~~50%~~ 31% failure rate)
 - Patterns:
-  - Double-reference in closures (`&&i32` vs `&i32`) - 6 errors
-  - Owned vs borrowed return types (`Vec<&i32>` vs `Vec<i32>`) - 4 errors
-  - String indexing translation (invalid `.get()`) - 1 error
-  - Binary operator misclassification (`x + const` as list concat) - 2 errors
+  - ✅ **Bug Pattern #1 FIXED (v3.19.30)**: Double-reference in closures (`&&i32` vs `&i32`) - **6 errors RESOLVED**
+    - Fix: Use `.clone().into_iter()` + add `*` deref to filter condition variables
+    - Implementation: `add_deref_to_var_uses()` helper recursively adds derefs
+    - Testing: 453/453 core tests pass, full Matrix example compiles
+  - Owned vs borrowed return types (`Vec<&i32>` vs `Vec<i32>`) - 4 errors (REMAINING)
+  - String indexing translation (invalid `.get()`) - 1 error (REMAINING)
+  - Binary operator misclassification (`x + const` as list concat) - 2 errors (REMAINING)
 - Root Cause: Wrong iterator method selection (`.into_iter()` vs `.iter()`) + missing `.copied()`
 - Priority: P0 (blocking comprehension examples - core feature)
-- Estimate: 12-18 hours (1.5-2 days) - tactical fixes with high ROI
-- Status: 🛑 STOP THE LINE - Core Python feature broken
+- Estimate: ~~12-18 hours~~ 4 hours spent (Bug Pattern #1), 8-14 hours remaining
+- Status: 🟡 IN PROGRESS - Bug Pattern #1 complete, 4 patterns remaining
 - Analysis: docs/issues/DEPYLER-0299-analysis.md
 
 **Security Alerts**: 2 dependabot alerts in transitive dependencies
