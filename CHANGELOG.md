@@ -243,6 +243,117 @@ if freq.contains_key(&char) {      // ✅ Compiles
 
 ---
 
+### 🟢 DEPYLER-0316: Iterator Type Unification for Conditional Ranges ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Fix iterator type mismatch in if/else branches for range expressions with step
+**Priority**: P2 - Medium Complexity (1-2 hours)
+**Time**: ~30 minutes (investigation + implementation + testing)
+**Impact**: Fixed 1/2 remaining errors (50%) in Matrix Project 07_algorithms
+
+#### Problem Statement
+
+Matrix Project validation revealed iterator type mismatch when range expressions with negative step used conditional logic:
+
+```python
+# Python code (07_algorithms/column_a.py)
+def reverse_list(items: list[int]) -> list[int]:
+    result = []
+    for i in range(len(items) - 1, -1, -1):  # Negative step
+        result.append(items[i])
+    return result
+```
+
+```rust
+// Generated Rust (BEFORE fix) - Type mismatch!
+for i in {
+    let step = (-1).abs() as usize;
+    if step == 0 {
+        panic!("range() arg 3 must not be zero");
+    }
+    if step == 1 {
+        (-1..n).rev()                    // Type: Rev<Range<i32>>
+    } else {
+        (-1..n).rev().step_by(step)      // Type: StepBy<Rev<Range<i32>>>  ❌
+    }
+} {
+    // ...
+}
+```
+
+**Error**:
+```
+error[E0308]: `if` and `else` have incompatible types
+   |
+217 |              (-1..n).rev()
+    |              ------------- expected because of this (Rev<Range<i32>>)
+...
+219 |              (-1..n).rev().step_by(step)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Rev<Range<i32>>`,
+    |                                          found `StepBy<Rev<Range<i32>>>`
+```
+
+**Root Cause**: Rust iterators have concrete types. `.rev()` returns `Rev<Range<T>>`, but `.step_by(n)` wraps it in `StepBy<Rev<Range<T>>>`. The conditional logic generated different types for `step == 1` vs `step != 1` cases, which Rust's type system rejects.
+
+#### Solution: Always Use step_by()
+
+Removed the conditional logic and **always** use `.step_by()`, relying on the fact that `.step_by(1)` is semantically identical to no step:
+
+**Before** (expr_gen.rs:1001-1005):
+```rust
+if step == 1 {
+    (#end..#start).rev()                 // Rev<Range<i32>>
+} else {
+    (#end..#start).rev().step_by(step)   // StepBy<Rev<Range<i32>>>  ❌
+}
+```
+
+**After** (expr_gen.rs:1001-1005):
+```rust
+// DEPYLER-0316: Always use .step_by() for consistent iterator type
+(#end..#start).rev().step_by(step.max(1))  // ✅ Always StepBy<Rev<Range<i32>>>
+```
+
+**Why This Works**:
+- `.step_by(1)` is equivalent to iterating every element (same as no step_by)
+- `step.max(1)` ensures step is never 0 (already validated above with panic check)
+- Consistent iterator type across all code paths
+- Zero performance impact (step_by(1) optimizes well)
+
+#### Files Modified
+- `crates/depyler-core/src/rust_gen/expr_gen.rs` - Removed conditional in `convert_range_negative_step()`
+
+#### Test Results
+- ✅ All 453 core tests pass (zero regressions)
+- ✅ Matrix 07_algorithms: 2 errors → 1 error (50% reduction)
+- ✅ Generated range iterators compile successfully
+- ✅ Clippy clean with `-D warnings`
+
+#### Generated Code Quality
+
+**Before**:
+```rust
+for i in {
+    let step = 1;
+    if step == 0 { panic!("..."); }
+    if step == 1 {
+        (-1..n).rev()              // ❌ Type error with else branch
+    } else {
+        (-1..n).rev().step_by(step)
+    }
+} { ... }
+```
+
+**After**:
+```rust
+for i in {
+    let step = 1;
+    if step == 0 { panic!("..."); }
+    (-1..n).rev().step_by(step.max(1))  // ✅ Compiles, consistent type
+} { ... }
+```
+
+---
+
 ### 🟢 DEPYLER-0310: Box::new() Wrapper for Mixed Error Types ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Automatically wrap exceptions with `Box::new()` when function uses `Box<dyn Error>`

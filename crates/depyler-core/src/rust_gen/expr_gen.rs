@@ -998,11 +998,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if step == 0 {
                     panic!("range() arg 3 must not be zero");
                 }
-                if step == 1 {
-                    (#end..#start).rev()
-                } else {
-                    (#end..#start).rev().step_by(step)
-                }
+                // DEPYLER-0316: Always use .step_by() for consistent iterator type
+                // This avoids if/else branches returning different types:
+                // - Rev<Range<i32>> vs StepBy<Rev<Range<i32>>>
+                // Using step.max(1) ensures step is never 0 (already checked above)
+                (#end..#start).rev().step_by(step.max(1))
             }
         })
     }
