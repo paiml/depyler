@@ -130,7 +130,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0303: Don't add & for string literals or simple variables
                 // String literals are already &str after conversion
                 // Variables (especially parameters) might already be &str, so let compiler infer
-                let needs_ref = !matches!(left, HirExpr::Literal(Literal::String(_)) | HirExpr::Var(_));
+                let needs_ref =
+                    !matches!(left, HirExpr::Literal(Literal::String(_)) | HirExpr::Var(_));
 
                 if is_set {
                     if needs_ref {
@@ -153,7 +154,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let is_set = self.is_set_expr(right) || self.is_set_var(right);
 
                 // DEPYLER-0303: Don't add & for string literals or simple variables (same as BinOp::In)
-                let needs_ref = !matches!(left, HirExpr::Literal(Literal::String(_)) | HirExpr::Var(_));
+                let needs_ref =
+                    !matches!(left, HirExpr::Literal(Literal::String(_)) | HirExpr::Var(_));
 
                 if is_set {
                     if needs_ref {
@@ -264,8 +266,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if we have string * integer or integer * string
                 let left_is_string = self.is_string_base(left);
                 let right_is_string = self.is_string_base(right);
-                let left_is_int = matches!(left, HirExpr::Literal(Literal::Int(_)) | HirExpr::Var(_));
-                let right_is_int = matches!(right, HirExpr::Literal(Literal::Int(_)) | HirExpr::Var(_));
+                let left_is_int =
+                    matches!(left, HirExpr::Literal(Literal::Int(_)) | HirExpr::Var(_));
+                let right_is_int =
+                    matches!(right, HirExpr::Literal(Literal::Int(_)) | HirExpr::Var(_));
 
                 if left_is_string && right_is_int {
                     // Pattern: s * n (string * integer)
@@ -1662,9 +1666,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             HirExpr::Literal(crate::hir::Literal::String(_)) | HirExpr::Var(_)
                         );
                     if needs_ref {
-                        Ok(parse_quote! { #object_expr.remove(&#key).expect("KeyError: key not found") })
+                        Ok(
+                            parse_quote! { #object_expr.remove(&#key).expect("KeyError: key not found") },
+                        )
                     } else {
-                        Ok(parse_quote! { #object_expr.remove(#key).expect("KeyError: key not found") })
+                        Ok(
+                            parse_quote! { #object_expr.remove(#key).expect("KeyError: key not found") },
+                        )
                     }
                 } else if arg_exprs.is_empty() {
                     // List.pop() with no arguments - remove last element
@@ -1696,9 +1704,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 HirExpr::Literal(crate::hir::Literal::String(_)) | HirExpr::Var(_)
                             );
                         if needs_ref {
-                            Ok(parse_quote! { #object_expr.remove(&#arg).expect("KeyError: key not found") })
+                            Ok(
+                                parse_quote! { #object_expr.remove(&#arg).expect("KeyError: key not found") },
+                            )
                         } else {
-                            Ok(parse_quote! { #object_expr.remove(#arg).expect("KeyError: key not found") })
+                            Ok(
+                                parse_quote! { #object_expr.remove(#arg).expect("KeyError: key not found") },
+                            )
                         }
                     }
                 }
@@ -1838,7 +1850,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(parse_quote! { #object_expr.get(#key_expr).cloned() })
                     } else {
                         // Unwrap with default for non-Optional returns
-                        Ok(parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or_default() })
+                        Ok(
+                            parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or_default() },
+                        )
                     }
                 } else if arg_exprs.len() == 2 {
                     let key = &arg_exprs[0];
@@ -2404,7 +2418,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // String methods
             // Note: "count" handled separately above with disambiguation logic
             "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
-            | "split" | "join" | "replace" | "find" | "isdigit" | "isalpha" | "isalnum" | "title" => {
+            | "split" | "join" | "replace" | "find" | "isdigit" | "isalpha" | "isalnum"
+            | "title" => {
                 self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
             }
 
@@ -2715,6 +2730,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     ) -> Result<syn::Expr> {
         let base_expr = base.to_rust_expr(self.ctx)?;
 
+        // DEPYLER-0302 Phase 3: Check if we're slicing a string
+        let is_string = self.is_string_base(base);
+
         // Convert slice parameters
         let start_expr = if let Some(s) = start {
             Some(s.to_rust_expr(self.ctx)?)
@@ -2734,7 +2752,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             None
         };
 
-        // Generate slice code based on the parameters
+        // DEPYLER-0302 Phase 3: Generate string-specific slice code
+        if is_string {
+            return self.convert_string_slice(base_expr, start_expr, stop_expr, step_expr);
+        }
+
+        // Generate slice code based on the parameters (for Vec/List)
         match (start_expr, stop_expr, step_expr) {
             // Full slice with step: base[::step]
             (None, None, Some(step)) => {
@@ -2901,6 +2924,214 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             .step_by(abs_step)
                             .cloned()
                             .collect::<Vec<_>>()
+                    }
+                }
+            }),
+        }
+    }
+
+    /// DEPYLER-0302 Phase 3: String-specific slice code generation
+    /// Handles string slicing with proper char boundaries and negative indices
+    fn convert_string_slice(
+        &mut self,
+        base_expr: syn::Expr,
+        start_expr: Option<syn::Expr>,
+        stop_expr: Option<syn::Expr>,
+        step_expr: Option<syn::Expr>,
+    ) -> Result<syn::Expr> {
+        match (start_expr, stop_expr, step_expr) {
+            // Full slice with step: s[::step]
+            (None, None, Some(step)) => {
+                Ok(parse_quote! {
+                    {
+                        let base = #base_expr;
+                        let step: i32 = #step;
+                        if step == 1 {
+                            base.to_string()
+                        } else if step > 0 {
+                            base.chars().step_by(step as usize).collect::<String>()
+                        } else if step == -1 {
+                            base.chars().rev().collect::<String>()
+                        } else {
+                            // Negative step with abs value
+                            let abs_step = step.abs() as usize;
+                            base.chars().rev().step_by(abs_step).collect::<String>()
+                        }
+                    }
+                })
+            }
+
+            // Start and stop: s[start:stop]
+            (Some(start), Some(stop), None) => Ok(parse_quote! {
+                {
+                    let base = #base_expr;
+                    let start_idx: i32 = #start;
+                    let stop_idx: i32 = #stop;
+                    let len = base.chars().count() as i32;
+
+                    // Handle negative indices
+                    let actual_start = if start_idx < 0 {
+                        (len + start_idx).max(0) as usize
+                    } else {
+                        start_idx.min(len) as usize
+                    };
+
+                    let actual_stop = if stop_idx < 0 {
+                        (len + stop_idx).max(0) as usize
+                    } else {
+                        stop_idx.min(len) as usize
+                    };
+
+                    if actual_start < actual_stop {
+                        base.chars().skip(actual_start).take(actual_stop - actual_start).collect::<String>()
+                    } else {
+                        String::new()
+                    }
+                }
+            }),
+
+            // Start only: s[start:]
+            (Some(start), None, None) => Ok(parse_quote! {
+                {
+                    let base = #base_expr;
+                    let start_idx: i32 = #start;
+                    let len = base.chars().count() as i32;
+
+                    // Handle negative index for s[-n:]
+                    let actual_start = if start_idx < 0 {
+                        (len + start_idx).max(0) as usize
+                    } else {
+                        start_idx.min(len) as usize
+                    };
+
+                    base.chars().skip(actual_start).collect::<String>()
+                }
+            }),
+
+            // Stop only: s[:stop]
+            (None, Some(stop), None) => Ok(parse_quote! {
+                {
+                    let base = #base_expr;
+                    let stop_idx: i32 = #stop;
+                    let len = base.chars().count() as i32;
+
+                    // Handle negative index for s[:-n]
+                    let actual_stop = if stop_idx < 0 {
+                        (len + stop_idx).max(0) as usize
+                    } else {
+                        stop_idx.min(len) as usize
+                    };
+
+                    base.chars().take(actual_stop).collect::<String>()
+                }
+            }),
+
+            // Full slice: s[:]
+            (None, None, None) => Ok(parse_quote! { #base_expr.to_string() }),
+
+            // Start, stop, and step: s[start:stop:step]
+            (Some(start), Some(stop), Some(step)) => {
+                Ok(parse_quote! {
+                    {
+                        let base = #base_expr;
+                        let start_idx: i32 = #start;
+                        let stop_idx: i32 = #stop;
+                        let step: i32 = #step;
+                        let len = base.chars().count() as i32;
+
+                        // Handle negative indices
+                        let actual_start = if start_idx < 0 {
+                            (len + start_idx).max(0) as usize
+                        } else {
+                            start_idx.min(len) as usize
+                        };
+
+                        let actual_stop = if stop_idx < 0 {
+                            (len + stop_idx).max(0) as usize
+                        } else {
+                            stop_idx.min(len) as usize
+                        };
+
+                        if step == 1 {
+                            if actual_start < actual_stop {
+                                base.chars().skip(actual_start).take(actual_stop - actual_start).collect::<String>()
+                            } else {
+                                String::new()
+                            }
+                        } else if step > 0 {
+                            base.chars()
+                                .skip(actual_start)
+                                .take(actual_stop.saturating_sub(actual_start))
+                                .step_by(step as usize)
+                                .collect::<String>()
+                        } else {
+                            // Negative step - collect range then reverse
+                            let abs_step = step.abs() as usize;
+                            if actual_start < actual_stop {
+                                base.chars()
+                                    .skip(actual_start)
+                                    .take(actual_stop - actual_start)
+                                    .rev()
+                                    .step_by(abs_step)
+                                    .collect::<String>()
+                            } else {
+                                String::new()
+                            }
+                        }
+                    }
+                })
+            }
+
+            // Start and step: s[start::step]
+            (Some(start), None, Some(step)) => Ok(parse_quote! {
+                {
+                    let base = #base_expr;
+                    let start_idx: i32 = #start;
+                    let step: i32 = #step;
+                    let len = base.chars().count() as i32;
+
+                    let actual_start = if start_idx < 0 {
+                        (len + start_idx).max(0) as usize
+                    } else {
+                        start_idx.min(len) as usize
+                    };
+
+                    if step == 1 {
+                        base.chars().skip(actual_start).collect::<String>()
+                    } else if step > 0 {
+                        base.chars().skip(actual_start).step_by(step as usize).collect::<String>()
+                    } else if step == -1 {
+                        base.chars().skip(actual_start).rev().collect::<String>()
+                    } else {
+                        let abs_step = step.abs() as usize;
+                        base.chars().skip(actual_start).rev().step_by(abs_step).collect::<String>()
+                    }
+                }
+            }),
+
+            // Stop and step: s[:stop:step]
+            (None, Some(stop), Some(step)) => Ok(parse_quote! {
+                {
+                    let base = #base_expr;
+                    let stop_idx: i32 = #stop;
+                    let step: i32 = #step;
+                    let len = base.chars().count() as i32;
+
+                    let actual_stop = if stop_idx < 0 {
+                        (len + stop_idx).max(0) as usize
+                    } else {
+                        stop_idx.min(len) as usize
+                    };
+
+                    if step == 1 {
+                        base.chars().take(actual_stop).collect::<String>()
+                    } else if step > 0 {
+                        base.chars().take(actual_stop).step_by(step as usize).collect::<String>()
+                    } else if step == -1 {
+                        base.chars().take(actual_stop).rev().collect::<String>()
+                    } else {
+                        let abs_step = step.abs() as usize;
+                        base.chars().take(actual_stop).rev().step_by(abs_step).collect::<String>()
                     }
                 }
             }),
