@@ -10,6 +10,24 @@ use crate::string_optimization::StringOptimizer;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 
+/// Error type classification for Result<T, E> return types
+///
+/// DEPYLER-0310: Tracks whether function uses Box<dyn Error> (mixed types)
+/// or a concrete error type (single type). This determines if raise statements
+/// need Box::new() wrapper.
+///
+/// # Complexity
+/// N/A (enum definition)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ErrorType {
+    /// Concrete error type (e.g., ValueError, ZeroDivisionError)
+    /// No wrapping needed: `return Err(ValueError::new(...))`
+    Concrete(String),
+    /// Box<dyn Error> - mixed or generic error types
+    /// Needs wrapping: `return Err(Box::new(ValueError::new(...)))`
+    DynBox,
+}
+
 /// Code generation context
 ///
 /// Maintains all state needed during Rust code generation including:
@@ -59,6 +77,9 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-0308: Track functions that return Result<bool, E>
     /// Used to auto-unwrap in boolean contexts (if/while conditions)
     pub result_bool_functions: HashSet<String>,
+    /// DEPYLER-0310: Current function's error type (for raise statement wrapping)
+    /// None if function doesn't return Result, Some(ErrorType) if it does
+    pub current_error_type: Option<ErrorType>,
 }
 
 impl<'a> CodeGenContext<'a> {

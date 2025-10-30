@@ -282,6 +282,8 @@ pub(crate) fn codegen_while_stmt(
 }
 
 /// Generate code for Raise (exception) statement
+///
+/// DEPYLER-0310: Wraps exceptions with Box::new() when error type is Box<dyn Error>
 #[inline]
 pub(crate) fn codegen_raise_stmt(
     exception: &Option<HirExpr>,
@@ -290,7 +292,19 @@ pub(crate) fn codegen_raise_stmt(
     // For V1, we'll implement basic error handling
     if let Some(exc) = exception {
         let exc_expr = exc.to_rust_expr(ctx)?;
-        Ok(quote! { return Err(#exc_expr); })
+
+        // DEPYLER-0310: Check if we need to wrap with Box::new()
+        // When error type is Box<dyn Error>, we must wrap concrete exceptions
+        let needs_boxing = matches!(
+            ctx.current_error_type,
+            Some(crate::rust_gen::context::ErrorType::DynBox)
+        );
+
+        if needs_boxing {
+            Ok(quote! { return Err(Box::new(#exc_expr)); })
+        } else {
+            Ok(quote! { return Err(#exc_expr); })
+        }
     } else {
         // Re-raise or bare raise - use generic error
         Ok(quote! { return Err("Exception raised".into()); })
