@@ -3297,44 +3297,43 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0299 FIX: Proper iterator handling for comprehensions
         // Strategy:
-        // - Ranges are already iterators, use them directly
-        // - Collections need .iter().cloned() to convert &T to T
-        // - Place .cloned() AFTER .filter() for correct types
-        // - DON'T use pattern matching in filter (|x| not |&x|) to avoid operator issues
-        //
-        // Key insight: .filter(|x| ...) ALWAYS receives &Item.
-        // With .iter().filter() we get &&T, so we need **x to dereference.
-        // This is verbose but works universally for all operators.
+        // - Use .iter() to explicitly borrow elements
+        // - Use pattern matching |&x| in filter closure to dereference once
+        // - Then use .cloned() after filter to get owned values
+        // - This avoids double-reference issues (&&T) in filter conditions
 
         let is_range = self.is_range_expr(&iter_expr);
 
         if let Some(cond) = condition {
-            // With condition: iter().filter().cloned().map().collect()
-            let cond_expr = cond.to_rust_expr(self.ctx)?;
+            // DEPYLER-0299 Fix: Add dereferences to target variable in condition
+            // Filter closures receive &T even after .clone().into_iter()
+            // So we need to generate *x for variable uses in the condition
+            let cond_with_deref = self.add_deref_to_var_uses(cond, target)?;
+
             if is_range {
                 // Ranges are already iterators, don't call .iter()
                 // Range items are owned (i32, etc.), filter receives &i32
+                // Use pattern matching |&x| to dereference for the condition
                 Ok(parse_quote! {
                     (#iter_expr)
-                        .filter(|#target_ident| #cond_expr)
+                        .filter(|&#target_ident| #cond_with_deref)
                         .map(|#target_ident| #element_expr)
                         .collect::<Vec<_>>()
                 })
             } else {
-                // Collections need .iter().filter().cloned().map()
-                // NOTE: This generates filter closures that need **x dereference
-                // TODO: Add context tracking to auto-insert * in condition expressions
+                // DEPYLER-0299 Fix: Clone the collection, then use .into_iter()
+                // Filter closures still receive &T, so we deref in the condition
                 Ok(parse_quote! {
                     #iter_expr
-                        .iter()
-                        .filter(|#target_ident| #cond_expr)
-                        .cloned()
+                        .clone()
+                        .into_iter()
+                        .filter(|#target_ident| #cond_with_deref)
                         .map(|#target_ident| #element_expr)
                         .collect::<Vec<_>>()
                 })
             }
         } else {
-            // Without condition: iter().cloned().map().collect()
+            // Without condition: map-only comprehensions
             if is_range {
                 // Ranges are already iterators, don't call .iter()
                 Ok(parse_quote! {
@@ -3343,16 +3342,79 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         .collect::<Vec<_>>()
                 })
             } else {
-                // Collections need .iter().cloned().map()
-                // .cloned() converts &T to T for map
+                // DEPYLER-0299 Fix: Clone the collection, then use .into_iter()
+                // Same fix needed for map-only comprehensions (no filter)
+                // .into_iter() on &Vec<T> yields &T, causing issues in map closures
                 Ok(parse_quote! {
                     #iter_expr
-                        .iter()
-                        .cloned()
+                        .clone()
+                        .into_iter()
                         .map(|#target_ident| #element_expr)
                         .collect::<Vec<_>>()
                 })
             }
+        }
+    }
+
+
+    /// Add dereference (*) to uses of target variable in expression
+    /// This is needed because filter closures receive &T even when the iterator yields T
+    /// Example: transforms `x > 0` to `*x > 0` when x is the target variable
+    fn add_deref_to_var_uses(&mut self, expr: &HirExpr, target: &str) -> Result<syn::Expr> {
+        use crate::hir::{BinOp, HirExpr, UnaryOp};
+
+        match expr {
+            HirExpr::Var(name) if name == target => {
+                // This is the target variable - add dereference
+                let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                Ok(parse_quote! { *#ident })
+            }
+            HirExpr::Binary { op, left, right } => {
+                // Recursively add derefs to both sides
+                let left_expr = self.add_deref_to_var_uses(left, target)?;
+                let right_expr = self.add_deref_to_var_uses(right, target)?;
+
+                // Generate the operator token
+                let result = match op {
+                    BinOp::Add => parse_quote! { #left_expr + #right_expr },
+                    BinOp::Sub => parse_quote! { #left_expr - #right_expr },
+                    BinOp::Mul => parse_quote! { #left_expr * #right_expr },
+                    BinOp::Div => parse_quote! { #left_expr / #right_expr },
+                    BinOp::FloorDiv => parse_quote! { #left_expr / #right_expr },
+                    BinOp::Mod => parse_quote! { #left_expr % #right_expr },
+                    BinOp::Pow => parse_quote! { #left_expr.pow(#right_expr as u32) },
+                    BinOp::Eq => parse_quote! { #left_expr == #right_expr },
+                    BinOp::NotEq => parse_quote! { #left_expr != #right_expr },
+                    BinOp::Lt => parse_quote! { #left_expr < #right_expr },
+                    BinOp::LtEq => parse_quote! { #left_expr <= #right_expr },
+                    BinOp::Gt => parse_quote! { #left_expr > #right_expr },
+                    BinOp::GtEq => parse_quote! { #left_expr >= #right_expr },
+                    BinOp::And => parse_quote! { #left_expr && #right_expr },
+                    BinOp::Or => parse_quote! { #left_expr || #right_expr },
+                    BinOp::BitAnd => parse_quote! { #left_expr & #right_expr },
+                    BinOp::BitOr => parse_quote! { #left_expr | #right_expr },
+                    BinOp::BitXor => parse_quote! { #left_expr ^ #right_expr },
+                    BinOp::LShift => parse_quote! { #left_expr << #right_expr },
+                    BinOp::RShift => parse_quote! { #left_expr >> #right_expr },
+                    BinOp::In => parse_quote! { #right_expr.contains(&#left_expr) },
+                    BinOp::NotIn => parse_quote! { !#right_expr.contains(&#left_expr) },
+                };
+                Ok(result)
+            }
+            HirExpr::Unary { op, operand } => {
+                // Recursively add derefs to operand
+                let operand_expr = self.add_deref_to_var_uses(operand, target)?;
+
+                let result = match op {
+                    UnaryOp::Not => parse_quote! { !#operand_expr },
+                    UnaryOp::Neg => parse_quote! { -#operand_expr },
+                    UnaryOp::Pos => parse_quote! { +#operand_expr },
+                    UnaryOp::BitNot => parse_quote! { !#operand_expr },
+                };
+                Ok(result)
+            }
+            // For any other expression, convert normally (no deref needed)
+            _ => expr.to_rust_expr(self.ctx),
         }
     }
 

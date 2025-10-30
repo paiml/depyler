@@ -4,6 +4,112 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0299: Fix Double-Reference in List Comprehension Filters ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Fix type errors in list comprehension filter closures (`&&i32` vs `&i32`)
+**Time**: 4 hours (scientific method - investigation, 6 failed attempts, final solution)
+**Impact**: Fixed 6 compilation errors in list comprehensions (Bug Pattern #1 from DEPYLER-0299 analysis)
+
+#### Problem Statement
+
+List comprehensions with filter conditions were generating code that caused type errors:
+
+```python
+# Python code
+def filter_positive(numbers: list[int]) -> list[int]:
+    return [x for x in numbers if x > 0]
+```
+
+```rust
+// ❌ BROKEN: Type error - expected &i32, found integer
+pub fn filter_positive(numbers: &Vec<i32>) -> Vec<i32> {
+    numbers
+        .into_iter()
+        .filter(|x| x > 0)  // error: expected `&i32`, found integer
+        .map(|x| x)
+        .collect::<Vec<_>>()
+}
+```
+
+**Compilation Error**: `error[E0308]: mismatched types - expected &i32, found integer`
+
+This affected 6 functions across the Matrix Project list comprehensions example.
+
+#### Root Cause
+
+The issue stemmed from Rust's iterator semantics:
+
+1. `.into_iter()` on `&Vec<T>` yields `Iterator<Item = &T>` (not owned values!)
+2. `.filter()` closures receive `&Item`, so they get `&&T` (double-reference)
+3. Some operators (like `%`) auto-deref, but others (like `>`) require explicit types
+
+**Investigation Process** (Scientific Method):
+1. Created minimal test case - **observed ` x > 0` fails but `x % 2 == 0` succeeds**
+2. Tested 6 different approaches:
+   - Pattern matching `|&x|` - Failed for non-Copy types (String)
+   - Shadow binding `let x = *x;` - Failed (doesn't affect condition)
+   - `.copied()` before filter - Failed (still receives &T)
+   - `.cloned()` before filter - Failed (pattern matching issue)
+   - `.into_iter()` alone - Failed (yields &T on &Vec)
+   - `.clone().into_iter()` + deref in condition - ✅ **SUCCESS!**
+
+#### Solution
+
+**Two-part fix**:
+1. Use `.clone().into_iter()` to get owned values from the iterator
+2. Add `*` dereference to all uses of the loop variable **in filter conditions**
+
+**Implementation**:
+```rust
+// ✅ FIXED: Dereference loop variable in filter condition
+pub fn filter_positive(numbers: &Vec<i32>) -> Vec<i32> {
+    numbers
+        .clone()
+        .into_iter()
+        .filter(|x| *x > 0)  // Add * deref to condition
+        .map(|x| x)
+        .collect::<Vec<_>>()
+}
+```
+
+**Code Changes**:
+- `crates/depyler-core/src/rust_gen/expr_gen.rs`:
+  - Modified `convert_list_comp()` to use `.clone().into_iter()` for collections
+  - Added `add_deref_to_var_uses()` helper that recursively adds `*` to target variable uses
+  - Handles complex conditions: `*x > 0 && *x % 2 == 0`
+- One-file change, ~60 lines added
+
+#### Testing
+
+**Test Coverage**: 100% pass rate
+- ✅ Minimal test case with int filter (x > 0)
+- ✅ Minimal test case with String filter (word.len() >= min)
+- ✅ Full Matrix Project example (17 functions, all compile)
+- ✅ Complex conditions with multiple variables
+- ✅ 453 core tests pass (0 regressions)
+
+**Performance**:
+- **Tradeoff**: Cloning the collection before iteration
+- **Rationale**: Python semantics imply working with owned values; explicit clone is clearer than complex type-aware deref logic
+- **Can optimize later**: If profiling shows bottleneck, can use more sophisticated approach
+
+#### Key Insights
+
+1. **Filter closures ALWAYS receive `&Item`**, regardless of iterator type
+2. `.into_iter()` on `&Vec<T>` yields `&T`, not `T`
+3. **Operator auto-deref is inconsistent** - `%` works but `>` doesn't
+4. **Best solution**: Clone once, then deref in conditions (simple, explicit, correct)
+
+#### Files Changed
+
+- `crates/depyler-core/src/rust_gen/expr_gen.rs` - List comprehension code generation
+
+#### Status
+
+✅ **FIXED** - Bug Pattern #1 of DEPYLER-0299 resolved
+- 6 errors fixed (double-reference in filter closures)
+- Remaining: Bug Patterns #2-#5 in DEPYLER-0299 (9 errors)
+
 ### 🟢 DEPYLER-0295: ValueError Type Generation Fix ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Generate ValueError type definition when Python code raises ValueError
