@@ -4,6 +4,94 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0302 Phase 3: String Slicing with Negative Indices ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Fix string slicing code generation to use proper string operations
+**Time**: 2 hours (under 3-4 hour estimate)
+**Impact**: Fixed 9 compilation errors - **Complete string slicing support**
+
+#### Problem Statement
+
+String slicing patterns like `s[-1]`, `s[-n:]`, `s[:-n]`, `s[::-1]` generated incorrect Rust code using Vec operations instead of string operations:
+
+```rust
+// ❌ BROKEN: Generated code used Vec operations on str
+base[start..].to_vec()        // Error: .to_vec() doesn't exist for str
+base.iter().rev()              // Error: .iter() doesn't exist for &str
+Vec::new()                     // Error: expected String, found Vec
+```
+
+**Compilation Errors**: 9 errors including E0599 (method not found) and E0308 (type mismatch)
+
+#### Root Cause
+
+The `convert_slice()` function (expr_gen.rs:2709-2916) generated Vec/List operations for all slice operations without distinguishing strings from lists. Strings require `.chars()` iterator and `.collect::<String>()` instead of `.iter()` and `.to_vec()`.
+
+#### Solution Implemented
+
+**DEPYLER-0302 Phase 3 FIX**: String-specific slice generation
+
+- **Detection**: Use existing `is_string_base()` heuristic to detect string types
+- **Implementation**: New `convert_string_slice()` function with all 8 slice pattern cases
+- **Code**: `crates/depyler-core/src/rust_gen/expr_gen.rs` lines 2718-2742, 2918-3124
+
+**Before** (broken):
+```rust
+// s[-n:] generated:
+base[start..].to_vec()  // ❌ Error: no method named 'to_vec' found for type 'str'
+Vec::new()              // ❌ Error: expected String, found Vec
+base.iter().rev()       // ❌ Error: no method named 'iter' found for reference '&str'
+```
+
+**After** (fixed):
+```rust
+// s[-n:] generates:
+let base = s;
+let start_idx: i32 = -n;
+let len = base.chars().count() as i32;
+let actual_start = if start_idx < 0 {
+    (len + start_idx).max(0) as usize
+} else {
+    start_idx.min(len) as usize
+};
+base.chars().skip(actual_start).collect::<String>()  // ✅ Correct string operations
+```
+
+#### String Slicing Patterns Implemented
+
+All 8 Python string slicing patterns now work correctly:
+
+1. **`s[-1]`** - Last character (existing index logic)
+2. **`s[-n:]`** - Last N characters → `.chars().skip(actual_start).collect()`
+3. **`s[:-n]`** - All but last N → `.chars().take(actual_stop).collect()`
+4. **`s[::-1]`** - Reverse string → `.chars().rev().collect()`
+5. **`s[start:stop]`** - Substring → `.chars().skip().take().collect()`
+6. **`s[::step]`** - Every Nth char → `.chars().step_by().collect()`
+7. **`s[start::step]`** - From start with step → `.chars().skip().step_by().collect()`
+8. **`s[:stop:step]`** - To stop with step → `.chars().take().step_by().collect()`
+
+#### Testing
+
+**Comprehensive test suite**: 12 tests in `depyler_0302_phase3_string_slicing_test.rs`
+- ✅ All 12 tests pass
+- ✅ All 453 core tests pass (no regressions)
+- ✅ Compilation test verifies generated Rust code compiles
+- ✅ Regression tests ensure Vec slicing and Phase 1/2 still work
+
+#### Files Changed
+
+- `crates/depyler-core/src/rust_gen/expr_gen.rs` (lines 2718-2742, 2918-3124)
+- `crates/depyler-core/tests/depyler_0302_phase3_string_slicing_test.rs` (new, 342 lines)
+
+#### Impact
+
+- **9 compilation errors fixed** → String slicing now generates valid Rust code
+- **8 slice patterns supported** → Complete Python string slicing semantics
+- **Zero regressions** → All existing tests pass (453/453)
+- **Production ready** → All generated code compiles and passes clippy
+
+---
+
 ### 🟢 DEPYLER-0306: Nested 2D Array Indexing Fix ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Fix malformed code generation for nested loops with 2D array indexing
