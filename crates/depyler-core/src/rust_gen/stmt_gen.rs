@@ -631,6 +631,21 @@ pub(crate) fn codegen_for_stmt(
     let needs_enumerate_cast = matches!(iter, HirExpr::Call { func, .. } if func == "enumerate")
         && matches!(target, AssignTarget::Tuple(targets) if !targets.is_empty());
 
+    // DEPYLER-0317: Handle string iteration char→String conversion
+    // When iterating over strings with .chars(), convert char to String for HashMap<String, _> compatibility
+    // Check if we're iterating over a string (will use .chars()) AND target is a simple symbol
+    let needs_char_to_string = matches!(iter, HirExpr::Var(name) if {
+        let n = name.as_str();
+        (n == "s" || n == "string" || n == "text" || n == "word" || n == "line")
+            || (n.starts_with("str") && !n.starts_with("strings"))
+            || (n.starts_with("word") && !n.starts_with("words"))
+            || (n.starts_with("text") && !n.starts_with("texts"))
+            || (n.ends_with("_str") && !n.ends_with("_strs"))
+            || (n.ends_with("_string") && !n.ends_with("_strings"))
+            || (n.ends_with("_word") && !n.ends_with("_words"))
+            || (n.ends_with("_text") && !n.ends_with("_texts"))
+    }) && matches!(target, AssignTarget::Symbol(_));
+
     if needs_enumerate_cast {
         // Get the first variable name from the tuple pattern (the index from enumerate)
         if let AssignTarget::Tuple(targets) = target {
@@ -650,6 +665,26 @@ pub(crate) fn codegen_for_stmt(
                     }
                 })
             }
+        } else {
+            Ok(quote! {
+                for #target_pattern in #iter_expr {
+                    #(#body_stmts)*
+                }
+            })
+        }
+    } else if needs_char_to_string {
+        // DEPYLER-0317: Convert char to String for HashMap<String, _> operations
+        // Python: for char in s: freq[char] = ...
+        // Rust: for _char in s.chars() { let char = _char.to_string(); ... }
+        if let AssignTarget::Symbol(var_name) = target {
+            let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+            let temp_ident = syn::Ident::new(&format!("_{}", var_name), proc_macro2::Span::call_site());
+            Ok(quote! {
+                for #temp_ident in #iter_expr {
+                    let #var_ident = #temp_ident.to_string();
+                    #(#body_stmts)*
+                }
+            })
         } else {
             Ok(quote! {
                 for #target_pattern in #iter_expr {
