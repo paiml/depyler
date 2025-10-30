@@ -900,7 +900,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     if let Some(var_type) = self.ctx.var_types.get(var_name) {
                         if matches!(var_type, Type::String) {
                             // String → int requires parsing, not casting
-                            return Ok(parse_quote! { #arg.parse().unwrap_or_default() });
+                            // DEPYLER-0293: Use turbofish syntax to specify target type
+                            return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
                         }
                     }
                     // Default: use as i32 cast for other types
