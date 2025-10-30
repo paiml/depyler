@@ -160,6 +160,66 @@ pub(crate) fn codegen_function_body(
 
 // ========== Phase 3a: Parameter Conversion ==========
 
+/// DEPYLER-0303: List of HashMap/Dict mutating methods that require `mut` keyword
+/// This includes both Rust method names and Python method names that translate to mutating operations
+const MUTATING_DICT_METHODS: &[&str] = &[
+    "insert", "remove", "clear", "extend", "drain",  // Rust methods
+    "pop", "update", "setdefault", "popitem",        // Python methods that mutate
+];
+
+/// DEPYLER-0303: Check if a statement contains a mutating method call on a parameter
+fn stmt_mutates_param_via_method(stmt: &HirStmt, param_name: &str) -> bool {
+    match stmt {
+        // Check expression statements for method calls
+        HirStmt::Expr(expr) => expr_mutates_param_via_method(expr, param_name),
+        // Check assignments where the value contains mutating method calls
+        HirStmt::Assign { value, .. } => expr_mutates_param_via_method(value, param_name),
+        HirStmt::If { condition, then_body, else_body } => {
+            expr_mutates_param_via_method(condition, param_name)
+                || then_body.iter().any(|s| stmt_mutates_param_via_method(s, param_name))
+                || else_body.iter().flatten().any(|s| stmt_mutates_param_via_method(s, param_name))
+        }
+        HirStmt::While { condition, body } => {
+            expr_mutates_param_via_method(condition, param_name)
+                || body.iter().any(|s| stmt_mutates_param_via_method(s, param_name))
+        }
+        HirStmt::For { iter, body, .. } => {
+            expr_mutates_param_via_method(iter, param_name)
+                || body.iter().any(|s| stmt_mutates_param_via_method(s, param_name))
+        }
+        _ => false,
+    }
+}
+
+/// DEPYLER-0303: Check if an expression contains a mutating method call on a parameter
+fn expr_mutates_param_via_method(expr: &HirExpr, param_name: &str) -> bool {
+    match expr {
+        // Direct method call on parameter: d.insert(...), d.clear()
+        HirExpr::MethodCall { object, method, .. } => {
+            if MUTATING_DICT_METHODS.contains(&method.as_str()) {
+                // Check if the object is the parameter
+                matches!(**object, HirExpr::Var(ref v) if v == param_name)
+            } else {
+                false
+            }
+        }
+        // Binary operations may contain mutating calls
+        HirExpr::Binary { left, right, .. } => {
+            expr_mutates_param_via_method(left, param_name)
+                || expr_mutates_param_via_method(right, param_name)
+        }
+        // Unary operations
+        HirExpr::Unary { operand, .. } => expr_mutates_param_via_method(operand, param_name),
+        // If expressions
+        HirExpr::IfExpr { test, body, orelse, .. } => {
+            expr_mutates_param_via_method(test, param_name)
+                || expr_mutates_param_via_method(body, param_name)
+                || expr_mutates_param_via_method(orelse, param_name)
+        }
+        _ => false,
+    }
+}
+
 /// Convert function parameters with lifetime and borrowing analysis
 #[inline]
 pub(crate) fn codegen_function_params(
@@ -182,13 +242,30 @@ fn codegen_single_param(
 ) -> Result<proc_macro2::TokenStream> {
     let param_ident = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
 
-    // Check if parameter is mutated
-    let is_param_mutated = matches!(
-        lifetime_result.borrowing_strategies.get(&param.name),
-        Some(crate::borrowing_context::BorrowingStrategy::TakeOwnership)
-    ) && func.body.iter().any(
+    // Check if parameter is mutated (DEPYLER-0303: Extended to include method calls)
+    let is_assigned = func.body.iter().any(
         |stmt| matches!(stmt, HirStmt::Assign { target: AssignTarget::Symbol(s), .. } if s == &param.name),
     );
+
+    // DEPYLER-0303: Check if parameter is mutated via subscript assignment (d[key] = value)
+    let has_index_assignment = func.body.iter().any(|stmt| {
+        matches!(stmt, HirStmt::Assign {
+            target: AssignTarget::Index { base, .. },
+            ..
+        } if matches!(**base, HirExpr::Var(ref v) if v == &param.name))
+    });
+
+    // DEPYLER-0303: Check if parameter is mutated via method calls (e.g., d.insert(), d.clear())
+    let has_mutating_method_call = func.body.iter().any(|stmt| stmt_mutates_param_via_method(stmt, &param.name));
+
+    // DEPYLER-0303: If parameter has mutating method calls OR assignments, it needs mut
+    // Check if ownership is taken (parameter is owned, not borrowed)
+    let takes_ownership = matches!(
+        lifetime_result.borrowing_strategies.get(&param.name),
+        Some(crate::borrowing_context::BorrowingStrategy::TakeOwnership) | None
+    );
+
+    let is_param_mutated = (is_assigned || has_index_assignment || has_mutating_method_call) && takes_ownership;
 
     // Get the inferred parameter info
     if let Some(inferred) = lifetime_result.param_lifetimes.get(&param.name) {

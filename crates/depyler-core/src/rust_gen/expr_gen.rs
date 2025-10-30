@@ -127,15 +127,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if right side is a set based on type information
                 let is_set = self.is_set_expr(right) || self.is_set_var(right);
 
-                // String literals are already &str, so don't add extra &
-                if is_set && matches!(left, HirExpr::Literal(Literal::String(_))) {
-                    Ok(parse_quote! { #right_expr.contains(#left_expr) })
-                } else if is_set {
-                    Ok(parse_quote! { #right_expr.contains(&#left_expr) })
-                } else if matches!(left, HirExpr::Literal(Literal::String(_))) {
-                    Ok(parse_quote! { #right_expr.contains_key(#left_expr) })
+                // DEPYLER-0303: Don't add & for string literals or simple variables
+                // String literals are already &str after conversion
+                // Variables (especially parameters) might already be &str, so let compiler infer
+                let needs_ref = !matches!(left, HirExpr::Literal(Literal::String(_)) | HirExpr::Var(_));
+
+                if is_set {
+                    if needs_ref {
+                        Ok(parse_quote! { #right_expr.contains(&#left_expr) })
+                    } else {
+                        Ok(parse_quote! { #right_expr.contains(#left_expr) })
+                    }
                 } else {
-                    Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                    // HashMap/dict
+                    if needs_ref {
+                        Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                    } else {
+                        Ok(parse_quote! { #right_expr.contains_key(#left_expr) })
+                    }
                 }
             }
             BinOp::NotIn => {
@@ -143,15 +152,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if right side is a set based on type information
                 let is_set = self.is_set_expr(right) || self.is_set_var(right);
 
-                // String literals are already &str, so don't add extra &
-                if is_set && matches!(left, HirExpr::Literal(Literal::String(_))) {
-                    Ok(parse_quote! { !#right_expr.contains(#left_expr) })
-                } else if is_set {
-                    Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
-                } else if matches!(left, HirExpr::Literal(Literal::String(_))) {
-                    Ok(parse_quote! { !#right_expr.contains_key(#left_expr) })
+                // DEPYLER-0303: Don't add & for string literals or simple variables (same as BinOp::In)
+                let needs_ref = !matches!(left, HirExpr::Literal(Literal::String(_)) | HirExpr::Var(_));
+
+                if is_set {
+                    if needs_ref {
+                        Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
+                    } else {
+                        Ok(parse_quote! { !#right_expr.contains(#left_expr) })
+                    }
                 } else {
-                    Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+                    // HashMap/dict
+                    if needs_ref {
+                        Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+                    } else {
+                        Ok(parse_quote! { !#right_expr.contains_key(#left_expr) })
+                    }
                 }
             }
             BinOp::Add => {
@@ -1535,7 +1551,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Only dict.pop(key, default) takes 2 arguments
                     let key = &arg_exprs[0];
                     let default = &arg_exprs[1];
-                    Ok(parse_quote! { #object_expr.remove(&#key).unwrap_or(#default) })
+                    // DEPYLER-0303: Don't add & for string literals or variables
+                    let needs_ref = !hir_args.is_empty()
+                        && !matches!(
+                            hir_args[0],
+                            HirExpr::Literal(crate::hir::Literal::String(_)) | HirExpr::Var(_)
+                        );
+                    if needs_ref {
+                        Ok(parse_quote! { #object_expr.remove(&#key).unwrap_or(#default) })
+                    } else {
+                        Ok(parse_quote! { #object_expr.remove(#key).unwrap_or(#default) })
+                    }
                 } else if arg_exprs.len() > 2 {
                     bail!("pop() takes at most 2 arguments");
                 } else if self.is_set_expr(object) {
@@ -1555,9 +1581,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         bail!("dict literal pop() requires exactly 1 argument (key)");
                     }
                     let key = &arg_exprs[0];
-                    Ok(
-                        parse_quote! { #object_expr.remove(&#key).expect("KeyError: key not found") },
-                    )
+                    // DEPYLER-0303: Don't add & for string literals or variables
+                    let needs_ref = !hir_args.is_empty()
+                        && !matches!(
+                            hir_args[0],
+                            HirExpr::Literal(crate::hir::Literal::String(_)) | HirExpr::Var(_)
+                        );
+                    if needs_ref {
+                        Ok(parse_quote! { #object_expr.remove(&#key).expect("KeyError: key not found") })
+                    } else {
+                        Ok(parse_quote! { #object_expr.remove(#key).expect("KeyError: key not found") })
+                    }
                 } else if arg_exprs.is_empty() {
                     // List.pop() with no arguments - remove last element
                     Ok(parse_quote! { #object_expr.pop().unwrap_or_default() })
@@ -1581,9 +1615,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(parse_quote! { #object_expr.remove(#arg as usize) })
                     } else {
                         // dict.pop(key) - HashMap::remove() takes &K by reference
-                        Ok(
-                            parse_quote! { #object_expr.remove(&#arg).expect("KeyError: key not found") },
-                        )
+                        // DEPYLER-0303: Don't add & for string literals or variables
+                        let needs_ref = !hir_args.is_empty()
+                            && !matches!(
+                                hir_args[0],
+                                HirExpr::Literal(crate::hir::Literal::String(_)) | HirExpr::Var(_)
+                            );
+                        if needs_ref {
+                            Ok(parse_quote! { #object_expr.remove(&#arg).expect("KeyError: key not found") })
+                        } else {
+                            Ok(parse_quote! { #object_expr.remove(#arg).expect("KeyError: key not found") })
+                        }
                     }
                 }
             }
