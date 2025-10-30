@@ -4,6 +4,57 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0303 Phase 2: Dict/HashMap Methods Medium Wins ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Fix medium-complexity dict/HashMap method issues
+**Time**: 2 hours (as estimated: 2-3 hours)
+**Impact**: Fixed 4 errors total across 3 distinct patterns (4/14 errors in DEPYLER-0303, 29% progress)
+
+#### Fixes Implemented
+
+**Fix #5: Cow<str> over-complication in parameters** (1 error fixed)
+- **Issue**: String parameters generated `Cow<'_, str>` when simple `&str` would suffice
+- **Error**: Unnecessary type complexity for read-only string parameters
+- **Root Cause**: Borrowing analysis incorrectly marked strings as "escaping" when used in operations that don't return the string itself (e.g., `key in dict` returns `bool`)
+- **Fix**: Modified `analyze_expression_for_return()` in `borrowing_context.rs` to NOT mark parameters as escaping when used in binary operations (comparisons, etc.)
+- **Code**: `crates/depyler-core/src/borrowing_context.rs` lines 562-587
+- **Before**: `pub fn has_key(d: &HashMap<String, i32>, key: Cow<'_, str>) -> bool`
+- **After**: `pub fn has_key(d: &HashMap<String, i32>, key: &str) -> bool`
+
+**Fix #3: Option unwrapping with None checks** (1 error fixed)
+- **Issue**: `dict.get(key)` without default called `.unwrap_or_default()` even when function returns `Option<T>`
+- **Error**: Generated code like `let result = d.get(key).cloned().unwrap_or_default()` followed by `if result.is_none()` - nonsensical since unwrapped value can't be None
+- **Root Cause**: Dict method handler always unwrapped `.get()` without checking function return type
+- **Fix**: Added return type check in `dict.get()` handler - if function returns `Option<T>`, return `.cloned()` directly; otherwise unwrap
+- **Code**: `crates/depyler-core/src/rust_gen/expr_gen.rs` lines 1755-1783
+- **Before**: `let result = d.get(key).cloned().unwrap_or_default();`
+- **After**: `let result = d.get(key).cloned();` (when returning `Option<T>`)
+
+**Fix #4: Iterator reference cloning in dict operations** (2 errors fixed)
+- **Issue**: For loop variables marked as unused (`_k`) when actually used in assignment targets like `d[k] = v`
+- **Error**: `error[E0425]: cannot find value 'k' in this scope` because loop pattern was `for (_k, v)` but body used `d.insert(k, v)`
+- **Root Cause**: Variable usage detection only checked assignment VALUES, not assignment TARGETS
+- **Fix**: Added `is_var_used_in_assign_target()` helper to recursively check if variables are used in `d[k]`, attribute access, etc.
+- **Code**: `crates/depyler-core/src/rust_gen/stmt_gen.rs` lines 437-491
+- **Logic**: Extended `is_var_used_in_stmt()` to check both target and value in assignments
+- **Before**: `for (_k, v) in d2.items()` with `d1.insert(k, v)` → compiler error
+- **After**: `for (k, v) in d2.items()` with `d1.insert(k, v)` → correct
+
+#### Testing
+- Created comprehensive test suite with 11 tests in `depyler_0303_phase2_test.rs`
+- All 453 existing tests continue to pass
+- Tests cover: Cow fix, Option unwrapping fix, iterator cloning fix, regression scenarios
+
+#### Files Modified
+- `crates/depyler-core/src/borrowing_context.rs` - Fixed escape analysis for binary operations
+- `crates/depyler-core/src/rust_gen/expr_gen.rs` - Added return type check for `dict.get()`
+- `crates/depyler-core/src/rust_gen/stmt_gen.rs` - Fixed variable usage detection in assignments
+- `crates/depyler-core/tests/depyler_0303_phase2_test.rs` - Added comprehensive test coverage
+
+**Next Steps**: DEPYLER-0303 Phase 3 (4 remaining medium wins) or move to high-priority items
+
+---
+
 ### 🟢 DEPYLER-0302 Phase 2: String Method Medium Wins ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Complete string method support with medium-complexity translations

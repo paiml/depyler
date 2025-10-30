@@ -434,10 +434,28 @@ fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
     }
 }
 
+/// Check if a variable is used in an assignment target
+fn is_var_used_in_assign_target(var_name: &str, target: &AssignTarget) -> bool {
+    match target {
+        AssignTarget::Symbol(s) => s == var_name,
+        AssignTarget::Index { base, index } => {
+            is_var_used_in_expr(var_name, base) || is_var_used_in_expr(var_name, index)
+        }
+        AssignTarget::Attribute { value, .. } => is_var_used_in_expr(var_name, value),
+        AssignTarget::Tuple(targets) => targets
+            .iter()
+            .any(|t| is_var_used_in_assign_target(var_name, t)),
+    }
+}
+
 /// Check if a variable is used in a statement
+/// DEPYLER-0303 Phase 2: Fixed to check assignment targets too (for `d[k] = v`)
 fn is_var_used_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
     match stmt {
-        HirStmt::Assign { value, .. } => is_var_used_in_expr(var_name, value),
+        HirStmt::Assign { target, value, .. } => {
+            // Check both target (e.g., d[k]) and value (e.g., v)
+            is_var_used_in_assign_target(var_name, target) || is_var_used_in_expr(var_name, value)
+        }
         HirStmt::If {
             condition,
             then_body,
