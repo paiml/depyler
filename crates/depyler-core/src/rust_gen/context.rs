@@ -43,6 +43,7 @@ pub struct CodeGenContext<'a> {
     pub mutable_vars: HashSet<String>,
     pub needs_zerodivisionerror: bool,
     pub needs_indexerror: bool,
+    pub needs_valueerror: bool,
     pub is_classmethod: bool,
     pub in_generator: bool,
     pub generator_state_vars: HashSet<String>,

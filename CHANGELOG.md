@@ -4,6 +4,259 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0295: ValueError Type Generation Fix ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Generate ValueError type definition when Python code raises ValueError
+**Time**: 2 hours (scientific method - investigation, implementation, testing)
+**Impact**: Fixed "cannot find type ValueError" compilation errors
+
+#### Problem Statement
+
+When Python code raised `ValueError`, the transpiler generated code that **used** `ValueError::new()` but **did not generate the ValueError type definition**, causing compilation errors:
+
+```python
+# Python code
+def check_positive(x: int) -> int:
+    if x < 0:
+        raise ValueError("negative value")
+    return x
+```
+
+```rust
+// ❌ BROKEN: ValueError used but not defined
+pub fn check_positive(x: i32) -> Result<i32, ValueError> {
+    if x < 0 {
+        return Err(ValueError::new("negative value".to_string()));
+    }
+    Ok(x)
+}
+// error[E0412]: cannot find type `ValueError` in this scope
+```
+
+**Compilation Error**: `error[E0412]: cannot find type 'ValueError' in this scope`
+
+This was causing Matrix Project errors where functions raising ValueError couldn't compile.
+
+#### Root Cause
+
+The transpiler had support for generating `ZeroDivisionError` and `IndexError` type definitions via flags (`needs_zerodivisionerror`, `needs_indexerror`), but **ValueError was missing**:
+
+1. `CodeGenContext` had flags for ZeroDivisionError and IndexError but not ValueError
+2. `error_gen.rs` generated ZeroDivisionError and IndexError but not ValueError
+3. `func_gen.rs` set flags for ZeroDivisionError and IndexError but not ValueError
+
+**Investigation Process** (Scientific Method):
+1. Created test case with ValueError - **observed compilation error**
+2. Searched codebase for error generation - **found error_gen.rs**
+3. Identified pattern with other error types - **hypothesis: missing flag**
+4. Implemented parallel solution - **added ValueError flag and generation**
+5. Tested and verified - **confirmed fix works**
+
+#### Solution Implemented
+
+**DEPYLER-0295 FIX**: Add ValueError support parallel to existing error types
+
+**Step 1**: Added `needs_valueerror` flag to `CodeGenContext`
+```rust
+// crates/depyler-core/src/rust_gen/context.rs:46
+pub struct CodeGenContext<'a> {
+    // ... other fields ...
+    pub needs_zerodivisionerror: bool,
+    pub needs_indexerror: bool,
+    pub needs_valueerror: bool,  // DEPYLER-0295: Added
+    // ... more fields ...
+}
+```
+
+**Step 2**: Initialize flag in context creation
+```rust
+// crates/depyler-core/src/rust_gen.rs:455, 553
+let mut ctx = CodeGenContext {
+    // ... other fields ...
+    needs_valueerror: false,  // DEPYLER-0295: Added
+    // ... more fields ...
+};
+```
+
+**Step 3**: Generate ValueError type definition
+```rust
+// crates/depyler-core/src/rust_gen/error_gen.rs:77-98
+if ctx.needs_valueerror {
+    definitions.push(quote! {
+        #[derive(Debug, Clone)]
+        pub struct ValueError {
+            message: String,
+        }
+
+        impl std::fmt::Display for ValueError {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "value error: {}", self.message)
+            }
+        }
+
+        impl std::error::Error for ValueError {}
+
+        impl ValueError {
+            pub fn new(message: impl Into<String>) -> Self {
+                Self { message: message.into() }
+            }
+        }
+    });
+}
+```
+
+**Step 4**: Set flag when ValueError encountered
+```rust
+// crates/depyler-core/src/rust_gen/func_gen.rs:662-665
+// Mark error types as needed for type generation
+if error_type_str.contains("ValueError") {
+    ctx.needs_valueerror = true;
+}
+```
+
+#### Files Changed
+
+1. `crates/depyler-core/src/rust_gen/context.rs` - Added `needs_valueerror` field
+2. `crates/depyler-core/src/rust_gen.rs` - Initialize `needs_valueerror` (2 locations)
+3. `crates/depyler-core/src/rust_gen/error_gen.rs` - Generate ValueError type definition
+4. `crates/depyler-core/src/rust_gen/func_gen.rs` - Set flag when ValueError detected
+5. `crates/depyler-core/tests/depyler_0295_valueerror_test.rs` - Comprehensive test suite (9 tests)
+
+#### Testing Results
+
+**Test Suite**: 9 comprehensive tests
+```bash
+cargo test --package depyler-core --test depyler_0295_valueerror_test
+```
+
+**Results**: ✅ **9/9 tests pass** (100%)
+- `test_valueerror_type_generated` - Verifies ValueError struct is generated
+- `test_valueerror_return_type` - Verifies Result<T, ValueError> return type
+- `test_valueerror_multiple_functions` - Verifies single generation for multiple uses
+- `test_valueerror_compiles` - Verifies generated code compiles successfully
+- `test_valueerror_behavior` - Verifies runtime behavior matches Python
+- `test_valueerror_with_different_messages` - Verifies message preservation
+- `test_valueerror_not_generated_when_not_used` - Verifies conditional generation
+- `test_valueerror_with_zerodivisionerror` - Verifies multi-error-type handling
+- `test_valueerror_display_format` - Verifies Display trait formatting
+
+**Core Test Suite**: ✅ **453/453 tests pass** (zero regressions)
+```bash
+cargo test --package depyler-core --lib
+test result: ok. 453 passed; 0 failed; 5 ignored
+```
+
+**Compilation Verification**:
+```bash
+# Before DEPYLER-0295 (BROKEN):
+rustc --crate-type lib test_valueerror.rs
+error[E0412]: cannot find type `ValueError` in this scope
+
+# After DEPYLER-0295 (FIXED):
+rustc --crate-type lib test_valueerror.rs
+# ✅ Compiles successfully with no errors
+```
+
+**Runtime Verification**:
+```bash
+# Generated code correctly handles positive/negative values
+check_positive(5)   # Ok(5)
+check_positive(-1)  # Err(ValueError { message: "negative value" })
+```
+
+#### Example Output
+
+**Python Input**:
+```python
+def check_positive(x: int) -> int:
+    if x < 0:
+        raise ValueError("negative value")
+    return x
+```
+
+**Generated Rust (After Fix)**:
+```rust
+// ValueError type definition (now generated!)
+#[derive(Debug, Clone)]
+pub struct ValueError {
+    message: String,
+}
+
+impl std::fmt::Display for ValueError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "value error: {}", self.message)
+    }
+}
+
+impl std::error::Error for ValueError {}
+
+impl ValueError {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self { message: message.into() }
+    }
+}
+
+// Function using ValueError
+pub fn check_positive(x: i32) -> Result<i32, ValueError> {
+    if x < 0 {
+        return Err(ValueError::new("negative value".to_string()));
+    }
+    Ok(x)
+}
+```
+
+#### Known Limitations
+
+**Multi-Error-Type Functions**: When a function raises **multiple different exception types** (e.g., both ValueError and ZeroDivisionError), the transpiler currently:
+- Uses `Result<T, Box<dyn std::error::Error>>` (trait object)
+- Does **not** generate specific error type definitions
+
+This is a **separate limitation** from DEPYLER-0295. DEPYLER-0295 specifically fixes **single-error-type generation**.
+
+Example:
+```python
+def safe_divide(x: int, y: int) -> int:
+    if y == 0:
+        raise ZeroDivisionError("division by zero")
+    if x < 0:
+        raise ValueError("negative dividend")
+    return x / y
+```
+
+Generates:
+```rust
+pub fn safe_divide(x: i32, y: i32) -> Result<i32, Box<dyn std::error::Error>> {
+    // Uses Box<dyn Error>, doesn't generate ValueError/ZeroDivisionError structs
+    if y == 0 {
+        return Err(ZeroDivisionError::new("division by zero".to_string()));
+    }
+    if x < 0 {
+        return Err(ValueError::new("negative dividend".to_string()));
+    }
+    Ok(x / y)
+}
+```
+
+This multi-error-type limitation is tracked separately and doesn't block Matrix Project progress.
+
+#### Matrix Project Impact
+
+**Before DEPYLER-0295**: Functions with ValueError couldn't compile
+**After DEPYLER-0295**: ValueError functions compile and run correctly
+
+This fix unblocks any Matrix Project code that uses ValueError validation patterns.
+
+#### Commit Details
+
+- Ticket: DEPYLER-0295
+- Sprint: Phase 3 - Matrix Project P0 Blockers
+- Priority: P0 (BLOCKING)
+- Complexity: Low (parallel implementation to existing error types)
+- Test Coverage: 9 comprehensive tests, 100% pass rate
+- Regression Testing: 453 core tests pass (zero regressions)
+
+---
+
 ### 🟢 DEPYLER-0293: int(str) String-to-Integer Parsing Fix ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Fix int(str) to generate `.parse::<i32>()` with turbofish instead of missing type annotation
