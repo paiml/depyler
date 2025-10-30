@@ -364,21 +364,23 @@ This YAML file contains:
 - Status: ⚠️ KNOWN LIMITATION - Document and defer
 - Analysis: docs/issues/DEPYLER-0299-analysis.md
 
-**DEPYLER-0299**: List Comprehension Iterator Translation Bugs (Matrix Project - 06_list_comprehensions) - 🟡 IN PROGRESS
-- Issue: Comprehensions generate incorrect iterator methods and references
-- Errors: ~~15~~ 9 compilation errors across ~~8~~ 5 functions (~~50%~~ 31% failure rate)
-- Patterns:
-  - ✅ **Bug Pattern #1 FIXED (v3.19.30)**: Double-reference in closures (`&&i32` vs `&i32`) - **6 errors RESOLVED**
+**DEPYLER-0299**: ✅ RESOLVED (v3.19.30) - List Comprehension Iterator Translation Bugs
+- Issue: Comprehensions generated incorrect iterator methods and references
+- Errors: ~~15~~ **0 errors** - ALL RESOLVED! (~~50%~~ 0% failure rate)
+- Resolution:
+  - ✅ **ALL Bug Patterns FIXED (v3.19.30)**: One fix resolved multiple issues!
     - Fix: Use `.clone().into_iter()` + add `*` deref to filter condition variables
     - Implementation: `add_deref_to_var_uses()` helper recursively adds derefs
-    - Testing: 453/453 core tests pass, full Matrix example compiles
-  - Owned vs borrowed return types (`Vec<&i32>` vs `Vec<i32>`) - 4 errors (REMAINING)
-  - String indexing translation (invalid `.get()`) - 1 error (REMAINING)
-  - Binary operator misclassification (`x + const` as list concat) - 2 errors (REMAINING)
-- Root Cause: Wrong iterator method selection (`.into_iter()` vs `.iter()`) + missing `.copied()`
-- Priority: P0 (blocking comprehension examples - core feature)
-- Estimate: ~~12-18 hours~~ 4 hours spent (Bug Pattern #1), 8-14 hours remaining
-- Status: 🟡 IN PROGRESS - Bug Pattern #1 complete, 4 patterns remaining
+    - Testing: 453/453 core tests pass, **full Matrix example compiles with ZERO errors**
+  - ✅ **Bug Pattern #1**: Double-reference in closures (`&&i32` vs `&i32`) - FIXED by deref in conditions
+  - ✅ **Bug Pattern #2**: Owned vs borrowed return types (`Vec<&i32>` vs `Vec<i32>`) - FIXED by `.clone().into_iter()` yielding owned values
+  - ✅ **Bug Pattern #3**: String indexing translation - Already working (uses range `.get(idx..=idx)`)
+  - ✅ **Bug Pattern #4**: Binary operator misclassification - Already working (correctly generates `x + constant`)
+- Root Cause: `.into_iter()` on `&Vec<T>` yields `&T`, and filter closures receive `&&T`
+- Solution: Two-part fix (clone + deref) elegantly solved all related issues
+- Priority: ~~P0~~ P✅ COMPLETE (core feature now fully working)
+- Time: 4 hours actual (under 12-18 hour estimate) - single fix resolved multiple patterns!
+- Status: ✅ **COMPLETELY RESOLVED** - Full Matrix Project 06_list_comprehensions example compiles
 - Analysis: docs/issues/DEPYLER-0299-analysis.md
 
 **Security Alerts**: 2 dependabot alerts in transitive dependencies
