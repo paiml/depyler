@@ -51,10 +51,18 @@ fn analyze_string_optimization(ctx: &mut CodeGenContext, functions: &[HirFunctio
 /// Populates ctx.mutable_vars with variables that are:
 /// 1. Reassigned after declaration (x = 1; x = 2)
 /// 2. Mutated via method calls (.push(), .extend(), .insert(), .remove(), .pop(), etc.)
+/// 3. DEPYLER-0312: Function parameters that are reassigned (requires mut)
 ///
 /// Complexity: 7 (stmt loop + match + if + expr scan + method match)
-fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
+fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[HirParam]) {
     let mut declared = HashSet::new();
+
+    // DEPYLER-0312: Pre-populate declared with function parameters
+    // This allows the reassignment detection logic below to catch parameter mutations
+    // Example: def gcd(a, b): a = temp  # Now detected as reassignment → mut a
+    for param in params {
+        declared.insert(param.name.clone());
+    }
 
     fn analyze_expr_for_mutations(
         expr: &HirExpr,

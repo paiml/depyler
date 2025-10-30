@@ -95,8 +95,7 @@ def safe_parse_int(s: str) -> int:
         .expect("Transpilation failed");
 
     // Write to temp file and compile
-    std::fs::write("/tmp/test_depyler_0293.rs", &rust_code)
-        .expect("Failed to write test file");
+    std::fs::write("/tmp/test_depyler_0293.rs", &rust_code).expect("Failed to write test file");
 
     let output = Command::new("rustc")
         .args(["--crate-type", "lib", "/tmp/test_depyler_0293.rs"])
