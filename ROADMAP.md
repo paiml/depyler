@@ -402,6 +402,22 @@ This YAML file contains:
 - Priority: ~~P0~~ P✅ COMPLETE
 - Status: ✅ **COMPLETELY RESOLVED** - Full Matrix Project 08_string_operations compiles
 
+**DEPYLER-0302**: ✅ RESOLVED (v3.19.32) - String Heuristic Regression - False Positive on Plurals
+- Issue: String detection heuristic from DEPYLER-0300 incorrectly treated plural variable names (`strings`) as string types
+- Errors: ~~1~~ **0 errors** - REGRESSION FIXED! (Matrix Project 13_builtin_functions)
+- Root Cause: Heuristic `name.ends_with("_string")` matched both "my_string" (singular, correct) and "strings" (plural, wrong)
+- Resolution:
+  - Added plural exclusion logic to string detection in stmt_gen.rs:552-566
+  - Now checks: `n.ends_with("_string") && !n.ends_with("_strings")`
+  - Distinguishes between singular (string type) vs plural (string collection)
+- Testing:
+  - ✅ Matrix Project 13_builtin_functions: 0 errors (was 1 regression from DEPYLER-0300)
+  - ✅ Matrix Project 08_string_operations: 0 errors (no regression)
+  - ✅ Core tests: 453/453 pass (zero regressions)
+- Time: 30 minutes actual (quick win)
+- Priority: ~~P0~~ P✅ COMPLETE (regression fix)
+- Status: ✅ **COMPLETELY RESOLVED** - Plural variable names now correctly identified as collections
+
 **Security Alerts**: 2 dependabot alerts in transitive dependencies
 - 1 critical (slab v0.4.10 - RUSTSEC-2025-0047)
 - 1 moderate
