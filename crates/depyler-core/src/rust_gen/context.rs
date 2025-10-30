@@ -56,6 +56,9 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-0271: Tracks if current statement is the final statement in its block
     /// Used to generate idiomatic expression-based returns (no `return` keyword)
     pub is_final_statement: bool,
+    /// DEPYLER-0308: Track functions that return Result<bool, E>
+    /// Used to auto-unwrap in boolean contexts (if/while conditions)
+    pub result_bool_functions: HashSet<String>,
 }
 
 impl<'a> CodeGenContext<'a> {

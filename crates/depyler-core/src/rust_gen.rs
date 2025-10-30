@@ -461,10 +461,19 @@ pub fn generate_rust_file(
         mutating_methods,
         tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
         is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
+        result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
     };
 
     // Analyze all functions first for string optimization
     analyze_string_optimization(&mut ctx, &module.functions);
+
+    // DEPYLER-0308: Populate Result<bool> functions map
+    // Functions that can_fail and return Bool need unwrapping in boolean contexts
+    for func in &module.functions {
+        if func.properties.can_fail && matches!(func.ret_type, Type::Bool) {
+            ctx.result_bool_functions.insert(func.name.clone());
+        }
+    }
 
     // Convert classes first (they might be used by functions)
     let classes = convert_classes_to_rust(&module.classes, ctx.type_mapper)?;
@@ -559,6 +568,7 @@ mod tests {
             mutating_methods: std::collections::HashMap::new(),
             tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
             is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
+            result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
         }
     }
 

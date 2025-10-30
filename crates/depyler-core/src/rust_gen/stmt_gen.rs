@@ -349,7 +349,20 @@ pub(crate) fn codegen_if_stmt(
     else_body: &Option<Vec<HirStmt>>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
-    let cond = condition.to_rust_expr(ctx)?;
+    let mut cond = condition.to_rust_expr(ctx)?;
+
+    // DEPYLER-0308: Auto-unwrap Result<bool> in if conditions
+    // When a function returns Result<bool, E> (like is_even with modulo),
+    // we need to unwrap it for use in boolean context
+    // Check if the condition is a Call to a function that returns Result<bool>
+    if let HirExpr::Call { func, .. } = condition {
+        if ctx.result_bool_functions.contains(func) {
+            // This function returns Result<bool>, so unwrap it
+            // Use .unwrap_or(false) to handle potential errors gracefully
+            cond = parse_quote! { #cond.unwrap_or(false) };
+        }
+    }
+
     ctx.enter_scope();
     let then_stmts: Vec<_> = then_body
         .iter()
