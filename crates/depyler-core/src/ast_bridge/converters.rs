@@ -386,6 +386,26 @@ impl ExprConverter {
                         reverse,
                     });
                 }
+
+                // DEPYLER-0307: If reverse=True but no key, create SortByKey with identity function
+                // This ensures the reverse parameter is preserved in the HIR
+                if reverse {
+                    if c.args.is_empty() {
+                        bail!("sorted() requires at least one argument");
+                    }
+                    let iterable = Box::new(Self::convert(c.args[0].clone())?);
+
+                    // Use identity function: lambda x: x
+                    let key_params = vec!["x".to_string()];
+                    let key_body = Box::new(HirExpr::Var("x".to_string()));
+
+                    return Ok(HirExpr::SortByKey {
+                        iterable,
+                        key_params,
+                        key_body,
+                        reverse,
+                    });
+                }
             }
         }
 
