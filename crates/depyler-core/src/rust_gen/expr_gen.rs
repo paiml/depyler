@@ -3790,6 +3790,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         reverse: bool,
     ) -> Result<syn::Expr> {
         let iter_expr = iterable.to_rust_expr(self.ctx)?;
+
+        // DEPYLER-0307: Check if this is an identity function (lambda x: x)
+        // If so, use simple .sort() instead of .sort_by_key()
+        let is_identity = key_params.len() == 1 && matches!(key_body, HirExpr::Var(v) if v == &key_params[0]);
+
+        if is_identity {
+            // Identity function: just sort() + optional reverse()
+            if reverse {
+                return Ok(parse_quote! {
+                    {
+                        let mut __sorted_result = #iter_expr.clone();
+                        __sorted_result.sort();
+                        __sorted_result.reverse();
+                        __sorted_result
+                    }
+                });
+            } else {
+                return Ok(parse_quote! {
+                    {
+                        let mut __sorted_result = #iter_expr.clone();
+                        __sorted_result.sort();
+                        __sorted_result
+                    }
+                });
+            }
+        }
+
+        // Non-identity key function: use sort_by_key
         let body_expr = key_body.to_rust_expr(self.ctx)?;
 
         // Create the closure parameter pattern
