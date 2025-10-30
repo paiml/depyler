@@ -659,6 +659,10 @@ pub(crate) fn codegen_return_type(
     if error_type_str.contains("IndexError") {
         ctx.needs_indexerror = true;
     }
+    // DEPYLER-0295: Add ValueError support
+    if error_type_str.contains("ValueError") {
+        ctx.needs_valueerror = true;
+    }
 
     let return_type = if matches!(rust_ret_type, crate::type_mapper::RustType::Unit) {
         if can_fail {

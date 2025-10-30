@@ -74,6 +74,29 @@ pub fn generate_error_type_definitions(ctx: &CodeGenContext) -> Vec<proc_macro2:
         });
     }
 
+    if ctx.needs_valueerror {
+        definitions.push(quote! {
+            #[derive(Debug, Clone)]
+            pub struct ValueError {
+                message: String,
+            }
+
+            impl std::fmt::Display for ValueError {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "value error: {}", self.message)
+                }
+            }
+
+            impl std::error::Error for ValueError {}
+
+            impl ValueError {
+                pub fn new(message: impl Into<String>) -> Self {
+                    Self { message: message.into() }
+                }
+            }
+        });
+    }
+
     definitions
 }
 
