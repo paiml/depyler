@@ -224,6 +224,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                 })
             }
+            // DEPYLER-0303 Phase 3 Fix #7: Dict merge operator |
+            // Python 3.9+ supports d1 | d2 for dictionary merge
+            // Translate to: { let mut result = d1; result.extend(d2); result }
+            BinOp::BitOr if self.is_dict_expr(left) || self.is_dict_expr(right) => {
+                self.ctx.needs_hashmap = true;
+                Ok(parse_quote! {
+                    {
+                        let mut __merge_result = #left_expr.clone();
+                        __merge_result.extend(#right_expr.iter().map(|(k, v)| (k.clone(), *v)));
+                        __merge_result
+                    }
+                })
+            }
             // Set operators - check if both operands are sets
             BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor
                 if self.is_set_expr(left) && self.is_set_expr(right) =>
@@ -530,6 +543,37 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
+            // DEPYLER-0303 Phase 3 Fix #8: Optimize sum(d.values()) and sum(d.keys())
+            // .values()/.keys() already return Vec, but we can optimize by using the iterator directly
+            // This avoids .collect::<Vec<_>>().iter() pattern
+            if let HirExpr::MethodCall {
+                object,
+                method,
+                args: method_args,
+            } = &args[0]
+            {
+                if (method == "values" || method == "keys") && method_args.is_empty() {
+                    let object_expr = object.to_rust_expr(self.ctx)?;
+
+                    let target_type = self
+                        .ctx
+                        .current_return_type
+                        .as_ref()
+                        .and_then(|t| match t {
+                            Type::Int => Some(quote! { i32 }),
+                            Type::Float => Some(quote! { f64 }),
+                            _ => None,
+                        })
+                        .unwrap_or_else(|| quote! { i32 });
+
+                    // Use .values().cloned().sum() directly - skip the .collect()
+                    let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                    return Ok(parse_quote! {
+                        #object_expr.#method_ident().cloned().sum::<#target_type>()
+                    });
+                }
+            }
+
             // Default: assume iterable that needs .iter()
             let iter_expr = args[0].to_rust_expr(self.ctx)?;
 
@@ -646,20 +690,35 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #items_expr.into_iter().enumerate() });
         }
 
-        // Handle zip(a, b, ...) → a.iter().zip(b.iter()).zip(c.iter())...
+        // Handle zip(a, b, ...) → a.into_iter().zip(b.into_iter())...
+        // DEPYLER-0303 Phase 3 Fix #6: Use .into_iter() for owned collections
+        // When zip() receives function parameters of type Vec<T>, we need to consume them
+        // to yield owned values, not references. This is critical for dict(zip(...)) patterns.
         if func == "zip" && args.len() >= 2 {
             let arg_exprs: Vec<syn::Expr> = args
                 .iter()
                 .map(|arg| arg.to_rust_expr(self.ctx))
                 .collect::<Result<Vec<_>>>()?;
 
-            // Start with first.iter()
+            // Determine if we should use .into_iter() or .iter()
+            // Use .into_iter() if all arguments are owned collections (Vec, not slices)
+            let use_into_iter = args.iter().all(|arg| self.is_owned_collection(arg));
+
+            // Start with first.into_iter() or first.iter()
             let first = &arg_exprs[0];
-            let mut chain: syn::Expr = parse_quote! { #first.iter() };
+            let mut chain: syn::Expr = if use_into_iter {
+                parse_quote! { #first.into_iter() }
+            } else {
+                parse_quote! { #first.iter() }
+            };
 
             // Chain .zip() for each subsequent argument
             for arg in &arg_exprs[1..] {
-                chain = parse_quote! { #chain.zip(#arg.iter()) };
+                chain = if use_into_iter {
+                    parse_quote! { #chain.zip(#arg.into_iter()) }
+                } else {
+                    parse_quote! { #chain.zip(#arg.iter()) }
+                };
             }
 
             return Ok(chain);
@@ -1802,12 +1861,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if !arg_exprs.is_empty() {
                     bail!("keys() takes no arguments");
                 }
+                // DEPYLER-0303 Phase 3 Fix #8: Return Vec for compatibility
+                // .keys() returns an iterator, but Python's dict.keys() returns a list-like view
+                // We collect to Vec for better ergonomics (indexing, len(), etc.)
                 Ok(parse_quote! { #object_expr.keys().cloned().collect::<Vec<_>>() })
             }
             "values" => {
                 if !arg_exprs.is_empty() {
                     bail!("values() takes no arguments");
                 }
+                // DEPYLER-0303 Phase 3 Fix #8: Return Vec for compatibility
+                // However, this causes redundant .collect().iter() in sum(d.values())
+                // TODO: Consider context-aware return type (Vec vs Iterator)
                 Ok(parse_quote! { #object_expr.values().cloned().collect::<Vec<_>>() })
             }
             "items" => {
@@ -3073,14 +3138,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-0303 Phase 3 Fix #7: Check if expression is a dict/HashMap
+    /// Used for dict merge operator (|) and other dict-specific operations
+    ///
+    /// # Complexity
+    /// 3 (match + type lookup + variant check)
     fn is_dict_expr(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Dict(_) => true,
             HirExpr::Call { func, .. } if func == "dict" => true,
-            HirExpr::Var(_name) => {
-                // For rust_gen, we're more conservative since we don't have type info
-                // Only treat explicit dict literals and calls as dicts
-                false
+            HirExpr::Var(name) => {
+                // Check var_types to see if this variable is a dict/HashMap
+                if let Some(var_type) = self.ctx.var_types.get(name) {
+                    matches!(var_type, Type::Dict(_, _))
+                } else {
+                    false
+                }
             }
             _ => false,
         }
@@ -3094,6 +3167,35 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // For rust_gen, we're more conservative since we don't have type info
                 // Only treat explicit list literals and calls as lists
                 false
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0303 Phase 3 Fix #6: Check if expression is an owned collection
+    /// Used to determine if zip() should use .into_iter() (owned) vs .iter() (borrowed)
+    ///
+    /// Returns true if:
+    /// - Expression is a Var with type List (Vec<T>) - function parameters are owned
+    /// - Expression is a list literal - always owned
+    /// - Expression is a list() call - creates owned Vec
+    ///
+    /// # Complexity
+    /// 3 (match + type lookup + variant check)
+    fn is_owned_collection(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // List literals are always owned
+            HirExpr::List(_) => true,
+            // list() calls create owned Vec
+            HirExpr::Call { func, .. } if func == "list" => true,
+            // Check if variable has List type (function parameters of type Vec<T>)
+            HirExpr::Var(name) => {
+                if let Some(ty) = self.ctx.var_types.get(name) {
+                    matches!(ty, Type::List(_))
+                } else {
+                    // No type info - conservative default is borrowed
+                    false
+                }
             }
             _ => false,
         }
