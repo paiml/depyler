@@ -788,7 +788,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "dict" if !is_user_class => self.convert_dict_builtin(&arg_exprs),
             "deque" if !is_user_class => self.convert_deque_builtin(&arg_exprs),
             "list" if !is_user_class => self.convert_list_builtin(&arg_exprs),
-            _ => self.convert_generic_call(func, &arg_exprs),
+            _ => self.convert_generic_call(func, args, &arg_exprs),
         }
     }
 
@@ -1282,7 +1282,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_generic_call(&self, func: &str, args: &[syn::Expr]) -> Result<syn::Expr> {
+    fn convert_generic_call(&self, func: &str, hir_args: &[HirExpr], args: &[syn::Expr]) -> Result<syn::Expr> {
         // Special case: Python print() → Rust println!()
         if func == "print" {
             return if args.is_empty() {
@@ -1348,22 +1348,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Regular function call
             let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
 
-            // DEPYLER-0287 Fix Part 1: Borrow Vec arguments for functions expecting &Vec
-            // When passing a local Vec to a function, automatically borrow it
+            // DEPYLER-0301 Fix: Auto-borrow Vec/List arguments when calling functions
+            // When passing a Vec variable to a function expecting &Vec, automatically borrow it
             // This handles cases like: sum_list_recursive(rest) where rest is Vec but param is &Vec
             //
-            // IMPORTANT: Only borrow expressions that create new Vecs (like .to_vec())
-            // Do NOT borrow simple identifiers or literals (those are Copy types like i32)
-            let borrowed_args: Vec<syn::Expr> = args
+            // Strategy:
+            // 1. Check if HIR arg is a Var with type List → borrow it
+            // 2. Check if syn expr contains .to_vec() → borrow it (existing heuristic)
+            // 3. Otherwise don't borrow (likely Copy types like i32)
+            let borrowed_args: Vec<syn::Expr> = hir_args
                 .iter()
-                .map(|arg_expr| {
-                    // Only borrow if the expression creates a new Vec via .to_vec()
-                    let expr_string = quote! { #arg_expr }.to_string();
-                    if expr_string.contains("to_vec") {
-                        // Borrow the Vec that's being created
+                .zip(args.iter())
+                .map(|(hir_arg, arg_expr)| {
+                    // Check if this is a List variable that should be borrowed
+                    let should_borrow = match hir_arg {
+                        HirExpr::Var(var_name) => {
+                            // Check if variable has List type in context
+                            if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                                matches!(var_type, Type::List(_))
+                            } else {
+                                false
+                            }
+                        }
+                        _ => {
+                            // Fallback: check if expression creates a Vec via .to_vec()
+                            let expr_string = quote! { #arg_expr }.to_string();
+                            expr_string.contains("to_vec")
+                        }
+                    };
+
+                    if should_borrow {
                         parse_quote! { &#arg_expr }
                     } else {
-                        // Don't borrow - it's likely a Copy type (i32, bool, etc.)
                         arg_expr.clone()
                     }
                 })
