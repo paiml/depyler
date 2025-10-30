@@ -132,26 +132,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if right side is a set based on type information
                 let is_set = self.is_set_expr(right) || self.is_set_var(right);
 
-                // DEPYLER-0303: Don't add & for string literals or simple variables
-                // String literals are already &str after conversion
-                // Variables (especially parameters) might already be &str, so let compiler infer
-                let needs_ref =
-                    !matches!(left, HirExpr::Literal(Literal::String(_)) | HirExpr::Var(_));
-
+                // DEPYLER-0315: .contains() and .contains_key() ALWAYS take &T references
+                // Even if the value is already a reference, Rust auto-derefs, so & is always safe
+                // This fixes errors like: seen.contains(item) → seen.contains(&item)
                 if is_string || is_set {
-                    // Strings and Sets both use .contains()
-                    if needs_ref {
-                        Ok(parse_quote! { #right_expr.contains(&#left_expr) })
-                    } else {
-                        Ok(parse_quote! { #right_expr.contains(#left_expr) })
-                    }
+                    // Strings and Sets both use .contains(&value)
+                    Ok(parse_quote! { #right_expr.contains(&#left_expr) })
                 } else {
-                    // HashMap/dict
-                    if needs_ref {
-                        Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
-                    } else {
-                        Ok(parse_quote! { #right_expr.contains_key(#left_expr) })
-                    }
+                    // HashMap/dict uses .contains_key(&key)
+                    Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
                 }
             }
             BinOp::NotIn => {
@@ -163,24 +152,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if right side is a set based on type information
                 let is_set = self.is_set_expr(right) || self.is_set_var(right);
 
-                // DEPYLER-0303: Don't add & for string literals or simple variables (same as BinOp::In)
-                let needs_ref =
-                    !matches!(left, HirExpr::Literal(Literal::String(_)) | HirExpr::Var(_));
-
+                // DEPYLER-0315: .contains() and .contains_key() ALWAYS take &T references
+                // Even if the value is already a reference, Rust auto-derefs, so & is always safe
+                // This fixes errors like: seen.contains(item) → seen.contains(&item)
                 if is_string || is_set {
-                    // Strings and Sets both use .contains()
-                    if needs_ref {
-                        Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
-                    } else {
-                        Ok(parse_quote! { !#right_expr.contains(#left_expr) })
-                    }
+                    // Strings and Sets both use .contains(&value)
+                    Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
                 } else {
-                    // HashMap/dict
-                    if needs_ref {
-                        Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
-                    } else {
-                        Ok(parse_quote! { !#right_expr.contains_key(#left_expr) })
-                    }
+                    // HashMap/dict uses .contains_key(&key)
+                    Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
                 }
             }
             BinOp::Add => {
