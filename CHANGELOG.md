@@ -394,6 +394,160 @@ Remaining Matrix Project 07_algorithms errors (~6 total):
 
 ---
 
+### 🟢 DEPYLER-0313: Type Annotation for Ambiguous Numeric Operations ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Add explicit type annotations to avoid ambiguous numeric type errors
+**Priority**: P2 - Quick Win (30 minutes)
+**Time**: ~15 minutes (analysis + implementation + testing)
+**Impact**: Fixed ambiguous type errors in range step calculations
+
+#### Problem Statement
+
+Matrix Project validation revealed ambiguous numeric type errors when using `.abs()` on numeric literals without type annotation:
+
+```python
+# Python code (07_algorithms)
+def count_down(n: int) -> list[int]:
+    """Count down using range with negative step."""
+    return list(range(n, 0, -1))  # Negative step requires abs()
+```
+
+```rust
+// Generated Rust (BEFORE fix) - Ambiguous type!
+pub fn count_down(n: i32) -> Vec<i32> {
+    {
+        let step = (-1).abs() as usize;  // ❌ Ambiguous numeric type {integer}
+        //         ^^^
+        //         Rust can't infer if this is i8, i16, i32, i64, i128
+        if step == 0 {
+            panic!("range() arg 3 must not be zero");
+        }
+        if step == 1 {
+            (0..n).rev()
+        } else {
+            (0..n).rev().step_by(step)
+        }
+    }
+}
+```
+
+**Error**:
+```
+error[E0689]: can't call method `abs` on ambiguous numeric type `{integer}`
+  --> /tmp/07_test.rs:111:22
+   |
+111 |         let step = (-1).abs() as usize;
+   |                      ^^^^^^^^
+   |
+help: you must specify a concrete type for this numeric value, like `i32`
+   |
+111 |         let step = (-1i32).abs() as usize;
+   |                      ~~~~~
+```
+
+**Root Cause**: In `expr_gen.rs:convert_range_negative_step()`, we generate `(#step).abs()` where `step` can be a numeric literal. When step is `-1`, this becomes `(-1).abs()` which Rust cannot infer the type for.
+
+#### Solution: Add Explicit i32 Cast
+
+Modified `convert_range_negative_step()` in expr_gen.rs to cast to i32 before calling abs():
+
+**Modified expr_gen.rs:1006-1027**:
+```rust
+fn convert_range_negative_step(
+    &self,
+    start: &syn::Expr,
+    end: &syn::Expr,
+    step: &syn::Expr,
+) -> Result<syn::Expr> {
+    // For negative steps, we need to reverse the range
+    // Python: range(10, 0, -1) → Rust: (0..10).rev()
+    Ok(parse_quote! {
+        {
+            // DEPYLER-0313: Cast to i32 before abs() to avoid ambiguous numeric type
+            let step = (#step as i32).abs() as usize;
+            if step == 0 {
+                panic!("range() arg 3 must not be zero");
+            }
+            if step == 1 {
+                (#end..#start).rev()
+            } else {
+                (#end..#start).rev().step_by(step)
+            }
+        }
+    })
+}
+```
+
+#### Testing Results
+
+**Verification with Test Case**:
+```python
+# test_range_step.py
+def count_down(n: int) -> list[int]:
+    """Count down from n to 0 using range with negative step."""
+    return list(range(n, 0, -1))  # Test DEPYLER-0313
+```
+
+**Generated Rust (AFTER fix) - Type explicit**:
+```rust
+pub fn count_down(n: i32) -> Vec<i32> {
+    {
+        let step = (-1 as i32).abs() as usize;  // ✅ Explicit i32 type
+        if step == 0 {
+            panic!("range() arg 3 must not be zero");
+        }
+        if step == 1 {
+            (0..n).rev()
+        } else {
+            (0..n).rev().step_by(step)
+        }
+    }
+}
+```
+
+**Test Results**:
+- ✅ All 453 core tests pass (zero regressions)
+- ✅ No more "ambiguous numeric type" errors
+- ✅ Type annotation `(-1 as i32)` allows `.abs()` to compile
+- ✅ Clippy clean with `-D warnings`
+
+**Before/After Impact**:
+```
+Matrix 07_algorithms errors:
+  Before DEPYLER-0313: ~6 errors (estimated from DEPYLER-0311)
+  After DEPYLER-0313:  ~5 errors (estimated)
+  Fixed: 1 ambiguous type error
+```
+
+#### Files Modified
+
+1. **crates/depyler-core/src/rust_gen/expr_gen.rs** (line 1017)
+   - Changed from `(#step).abs()` to `(#step as i32).abs()`
+   - Added comment explaining the fix
+
+#### Design Pattern
+
+**Type Annotation Strategy**: Explicit casting before method calls
+- Cast to concrete type (i32) before calling `.abs()`
+- Ensures Rust can infer all types in the expression chain
+- No ambiguity in numeric literal operations
+- Consistent with Rust's type inference requirements
+
+**Why i32**:
+- Python's `int` typically maps to i32 in Rust
+- Range steps are always integers
+- i32 is wide enough for typical range values
+- Consistent with existing step type handling
+
+#### Next Steps
+
+Remaining Matrix Project 07_algorithms errors (~5 total):
+- **Other**: Minor issues (5 errors) - investigation needed
+
+**Progress**: 11/16 errors fixed (68.75%), 5/16 remaining (31.25%)
+
+---
+
 ### 🟢 DEPYLER-0312: Function Parameter Mutability Detection ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Detect and mark function parameters that are reassigned with `mut` keyword

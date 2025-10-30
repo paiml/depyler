@@ -1013,7 +1013,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Python: range(10, 0, -1) → Rust: (0..10).rev()
         Ok(parse_quote! {
             {
-                let step = (#step).abs() as usize;
+                // DEPYLER-0313: Cast to i32 before abs() to avoid ambiguous numeric type
+                let step = (#step as i32).abs() as usize;
                 if step == 0 {
                     panic!("range() arg 3 must not be zero");
                 }
