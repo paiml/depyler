@@ -176,12 +176,15 @@ pub(crate) fn codegen_function_attrs(
 pub(crate) fn codegen_function_body(
     func: &HirFunction,
     can_fail: bool,
+    error_type: Option<crate::rust_gen::context::ErrorType>,
     ctx: &mut CodeGenContext,
 ) -> Result<Vec<proc_macro2::TokenStream>> {
     // Enter function scope and declare parameters
     ctx.enter_scope();
     ctx.current_function_can_fail = can_fail;
     ctx.current_return_type = Some(func.ret_type.clone());
+    // DEPYLER-0310: Set error type for raise statement wrapping
+    ctx.current_error_type = error_type;
 
     for param in &func.params {
         ctx.declare_var(&param.name);
@@ -559,12 +562,19 @@ pub(crate) fn return_type_expects_float(ty: &Type) -> bool {
 // ========== Phase 3b: Return Type Generation ==========
 
 /// Generate return type with Result wrapper and lifetime handling
+///
+/// DEPYLER-0310: Now returns ErrorType (4th tuple element) for raise statement wrapping
 #[inline]
 pub(crate) fn codegen_return_type(
     func: &HirFunction,
     lifetime_result: &crate::lifetime_analysis::LifetimeResult,
     ctx: &mut CodeGenContext,
-) -> Result<(proc_macro2::TokenStream, crate::type_mapper::RustType, bool)> {
+) -> Result<(
+    proc_macro2::TokenStream,
+    crate::type_mapper::RustType,
+    bool,
+    Option<crate::rust_gen::context::ErrorType>,
+)> {
     // Convert return type using annotation-aware mapping
     let mapped_ret_type = ctx
         .annotation_aware_mapper
@@ -611,6 +621,19 @@ pub(crate) fn codegen_return_type(
         }
     } else {
         "Box<dyn std::error::Error>".to_string()
+    };
+
+    // DEPYLER-0310: Determine ErrorType for raise statement wrapping
+    // If Box<dyn Error>, we need to wrap exceptions with Box::new()
+    // If concrete type, no wrapping needed
+    let error_type = if can_fail {
+        Some(if error_type_str.contains("Box<dyn") {
+            crate::rust_gen::context::ErrorType::DynBox
+        } else {
+            crate::rust_gen::context::ErrorType::Concrete(error_type_str.clone())
+        })
+    } else {
+        None
     };
 
     // Mark error types as needed for type generation
@@ -718,7 +741,7 @@ pub(crate) fn codegen_return_type(
         }
     };
 
-    Ok((return_type, rust_ret_type, can_fail))
+    Ok((return_type, rust_ret_type, can_fail, error_type))
 }
 
 // ========== Phase 3c: Generator Implementation ==========
@@ -757,11 +780,11 @@ impl RustCodeGen for HirFunction {
         let params = codegen_function_params(self, &lifetime_result, ctx)?;
 
         // Generate return type with Result wrapper and lifetime handling
-        let (return_type, rust_ret_type, can_fail) =
+        let (return_type, rust_ret_type, can_fail, error_type) =
             codegen_return_type(self, &lifetime_result, ctx)?;
 
         // Process function body with proper scoping
-        let body_stmts = codegen_function_body(self, can_fail, ctx)?;
+        let body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
 
         // Add documentation
         let attrs = codegen_function_attrs(&self.docstring, &self.properties);
