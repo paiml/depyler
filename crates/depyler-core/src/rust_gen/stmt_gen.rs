@@ -902,14 +902,40 @@ pub(crate) fn codegen_assign_index(
 ) -> Result<proc_macro2::TokenStream> {
     let final_index = index.to_rust_expr(ctx)?;
 
-    // DEPYLER-0314: Check if this is a Vec/List index (numeric) or Dict/HashMap key (string/other)
+    // DEPYLER-0304: Type-aware subscript assignment detection
+    // Check base variable type to determine if this is Vec or HashMap
     // Vec.insert() requires usize index, HashMap.insert() takes key of any type
-    // Heuristic: If index looks numeric (Var, Binary, Int literal), treat as Vec index
-    // EXCEPTION: Variables named 'char' are from string iteration, not numeric indices
-    let is_numeric_index = match index {
-        HirExpr::Var(name) if name == "char" || name == "character" || name == "c" => false,
-        HirExpr::Var(_) | HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
-        _ => false,
+    let is_numeric_index = if let HirExpr::Var(base_name) = base {
+        // Check if we have type information for this variable
+        if let Some(base_type) = ctx.var_types.get(base_name) {
+            // Type-based detection (most reliable)
+            match base_type {
+                Type::List(_) => true,  // List/Vec → numeric index
+                Type::Dict(_, _) => false,  // Dict/HashMap → key (not numeric)
+                _ => {
+                    // Fall back to index heuristic for other types
+                    match index {
+                        HirExpr::Var(name) if name == "char" || name == "character" || name == "c" => false,
+                        HirExpr::Var(_) | HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
+                        _ => false,
+                    }
+                }
+            }
+        } else {
+            // No type info - use heuristic
+            match index {
+                HirExpr::Var(name) if name == "char" || name == "character" || name == "c" => false,
+                HirExpr::Var(_) | HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
+                _ => false,
+            }
+        }
+    } else {
+        // Base is not a simple variable - use heuristic
+        match index {
+            HirExpr::Var(name) if name == "char" || name == "character" || name == "c" => false,
+            HirExpr::Var(_) | HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
+            _ => false,
+        }
     };
 
     // Extract the base and all intermediate indices
