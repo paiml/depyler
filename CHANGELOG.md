@@ -4,6 +4,175 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0312: Function Parameter Mutability Detection ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Detect and mark function parameters that are reassigned with `mut` keyword
+**Priority**: P1 - Quick Win (1 hour)
+**Time**: ~1 hour (analysis + implementation + testing)
+**Impact**: Fixed parameter reassignment errors (07_algorithms, gcd/swap patterns)
+
+#### Problem Statement
+
+Matrix Project validation of 07_algorithms revealed parameter reassignment errors:
+
+```python
+# Python code (07_algorithms)
+def gcd(a: int, b: int) -> int:
+    """Calculate GCD using Euclidean algorithm."""
+    while b != 0:
+        temp = b
+        b = a % b  # Reassigns parameter b
+        a = temp   # Reassigns parameter a
+    return a
+```
+
+```rust
+// Generated Rust (BEFORE fix)
+pub fn gcd(a: i32, b: i32) -> Result<i32, ZeroDivisionError> {
+//        ^       ^
+//        Should be `mut a`, `mut b`
+    while b != 0 {
+        let temp = b;
+        b = a % b;  // ❌ cannot assign to immutable argument `b`
+        a = temp;   // ❌ cannot assign to immutable argument `a`
+    }
+    Ok(a)
+}
+```
+
+**Error**:
+```
+error[E0384]: cannot assign to immutable argument `a`
+   --> /tmp/07_test.rs:229:9
+error[E0384]: cannot assign to immutable argument `b`
+   --> /tmp/07_test.rs:228:9
+```
+
+**Root Cause**: The `analyze_mutable_vars()` function only tracked local variables, not function parameters. Parameters that were reassigned weren't detected.
+
+#### Solution: Extend Mutability Analysis to Parameters
+
+Implemented three-part fix to detect parameter mutations:
+
+**Part 1**: Extended `analyze_mutable_vars` to accept parameters (rust_gen.rs:57):
+```rust
+fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[HirParam]) {
+    let mut declared = HashSet::new();
+
+    // DEPYLER-0312: Pre-populate declared with function parameters
+    // This allows the reassignment detection logic below to catch parameter mutations
+    // Example: def gcd(a, b): a = temp  # Now detected as reassignment → mut a
+    for param in params {
+        declared.insert(param.name.clone());
+    }
+
+    // ... existing analysis (now detects parameter reassignments)
+}
+```
+
+**Part 2**: Called analysis BEFORE generating parameters (func_gen.rs:837):
+```rust
+impl RustCodeGen for HirFunction {
+    fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<TokenStream> {
+        // ... lifetime analysis ...
+
+        // DEPYLER-0312: Analyze mutability BEFORE generating parameters
+        // This populates ctx.mutable_vars which codegen_single_param uses
+        analyze_mutable_vars(&self.body, ctx, &self.params);
+
+        // Convert parameters using lifetime analysis results
+        let params = codegen_function_params(self, &lifetime_result, ctx)?;
+        // ...
+    }
+}
+```
+
+**Part 3**: Simplified parameter mutation detection (func_gen.rs:326-338):
+```rust
+fn codegen_single_param(...) -> Result<TokenStream> {
+    // DEPYLER-0312: Use mutable_vars populated by analyze_mutable_vars
+    // This handles ALL mutation patterns: direct assignment, method calls, parameter reassignments
+    let is_mutated_in_body = ctx.mutable_vars.contains(&param.name);
+
+    // Only apply `mut` if ownership is taken (not borrowed)
+    let takes_ownership = matches!(
+        lifetime_result.borrowing_strategies.get(&param.name),
+        Some(BorrowingStrategy::TakeOwnership) | None
+    );
+
+    let is_param_mutated = is_mutated_in_body && takes_ownership;
+
+    Ok(if is_param_mutated {
+        quote! { mut #param_ident: #ty }
+    } else {
+        quote! { #param_ident: #ty }
+    })
+}
+```
+
+**Generated Code (AFTER fix)**:
+```rust
+pub fn gcd(mut a: i32, mut b: i32) -> Result<i32, ZeroDivisionError> {
+//        ^^^         ^^^
+//        Correctly marked as mutable!
+    while b != 0 {
+        let temp = b;
+        b = a % b;  // ✅ Now compiles!
+        a = temp;   // ✅ Now compiles!
+    }
+    Ok(a)
+}
+```
+
+#### Testing & Verification
+
+**Matrix Project Impact**:
+- 07_algorithms: 16 errors → 13 errors (13% reduction, 2 parameter errors fixed)
+- gcd function now compiles correctly
+- Pattern: All parameter reassignments (a = temp, b = a % b) now detected
+
+**Core Tests**:
+```bash
+$ cargo test --lib -p depyler-core
+test result: ok. 453 passed; 0 failed; 5 ignored
+```
+
+**Zero Regressions**: All existing functionality maintained
+
+**Error Elimination**:
+```bash
+# Before: 2 parameter mutability errors
+$ rustc --crate-type lib /tmp/07_test.rs 2>&1 | grep "cannot assign to immutable argument"
+error[E0384]: cannot assign to immutable argument `a`
+error[E0384]: cannot assign to immutable argument `b`
+
+# After: 0 parameter mutability errors
+$ rustc --crate-type lib /tmp/07_test_final.rs 2>&1 | grep "cannot assign to immutable argument" | wc -l
+0
+```
+
+#### Files Modified
+
+1. `crates/depyler-core/src/rust_gen.rs` - Extended `analyze_mutable_vars` signature (lines 57-65)
+2. `crates/depyler-core/src/rust_gen/func_gen.rs` - Call analysis before params + simplified detection (lines 194, 326-338, 837)
+
+#### Design Pattern
+
+Extended existing mutability analysis to include parameters. The key insight: parameters are just variables that are "pre-declared" at function entry. By pre-populating the `declared` HashSet with parameter names, the existing reassignment detection logic automatically catches parameter mutations.
+
+**Clean Architecture**: Single source of truth for mutability analysis (`analyze_mutable_vars`) used consistently throughout code generation, eliminating duplicate ad-hoc detection logic.
+
+#### Next Steps
+
+This fix is part of 07_algorithms bug campaign (DEPYLER-0309-0313). Remaining tickets:
+- DEPYLER-0310: Box::new() wrapper (2-3h, 8 errors) - High impact (50% of errors)
+- DEPYLER-0311: Vec slice concatenation (2h, 2 errors)
+- DEPYLER-0313: Type annotations (30min, 1 error)
+
+**Total Progress**: 3/16 errors fixed (19%), 13/16 remaining (estimated 5-6 hours)
+
+---
+
 ### 🟢 DEPYLER-0309: Track set() Constructor for Type Inference ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Track `set()` constructor calls in var_types for proper method dispatch

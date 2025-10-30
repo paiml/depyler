@@ -1282,7 +1282,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_generic_call(&self, func: &str, hir_args: &[HirExpr], args: &[syn::Expr]) -> Result<syn::Expr> {
+    fn convert_generic_call(
+        &self,
+        func: &str,
+        hir_args: &[HirExpr],
+        args: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         // Special case: Python print() → Rust println!()
         if func == "print" {
             return if args.is_empty() {
@@ -3403,7 +3408,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-
     /// Add dereference (*) to uses of target variable in expression
     /// This is needed because filter closures receive &T even when the iterator yields T
     /// Example: transforms `x > 0` to `*x > 0` when x is the target variable
@@ -3903,7 +3907,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0307: Check if this is an identity function (lambda x: x)
         // If so, use simple .sort() instead of .sort_by_key()
-        let is_identity = key_params.len() == 1 && matches!(key_body, HirExpr::Var(v) if v == &key_params[0]);
+        let is_identity =
+            key_params.len() == 1 && matches!(key_body, HirExpr::Var(v) if v == &key_params[0]);
 
         if is_identity {
             // Identity function: just sort() + optional reverse()
