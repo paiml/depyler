@@ -127,6 +127,122 @@ freq.insert(char, 1);                       // ✅ HashMap unchanged
 
 ---
 
+### 🟢 DEPYLER-0315: Auto-add Reference for .contains() Methods ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Automatically add `&` reference for `.contains()` and `.contains_key()` calls
+**Priority**: P1 - Quick Win (30 minutes)
+**Time**: ~20 minutes (investigation + implementation + testing)
+**Impact**: Fixed 2/4 remaining errors (50%) in Matrix Project 07_algorithms
+
+#### Problem Statement
+
+Matrix Project validation revealed missing `&` references for `.contains()` and `.contains_key()` calls:
+
+```python
+# Python code (07_algorithms/column_a.py)
+def remove_duplicates(items: list[int]) -> list[int]:
+    seen = set()
+    for item in items:
+        if item not in seen:  # Python: membership test
+            seen.add(item)
+    return result
+```
+
+```rust
+// Generated Rust (BEFORE fix) - Type mismatch!
+pub fn remove_duplicates(items: &Vec<i32>) -> Vec<i32> {
+    let mut seen = HashSet::new();
+    for item in items.iter().cloned() {
+        if !seen.contains(item) {  // ❌ expects &i32, found i32
+            //             ^^^^
+            seen.insert(item);
+        }
+    }
+}
+```
+
+**Errors**:
+```
+error[E0308]: mismatched types
+   --> 07_column_a_test.rs:300:27
+    |
+300 |         if !seen.contains(item) {
+    |                  -------- ^^^^ expected `&_`, found `i32`
+
+error[E0308]: mismatched types
+   --> 07_column_a_test.rs:415:30
+    |
+415 |         if freq.contains_key(char) {
+    |                 ------------ ^^^^ expected `&_`, found `char`
+```
+
+**Root Cause**: The `BinOp::In` and `BinOp::NotIn` handlers had conditional logic (DEPYLER-0303) that skipped adding `&` for variables, based on the assumption that "variables might already be references". This was incorrect for owned values from `.iter().cloned()` or other sources.
+
+#### Solution: Always Add Reference
+
+Simplified the logic to **ALWAYS** add `&` for `.contains()` and `.contains_key()` calls, relying on Rust's automatic dereferencing:
+
+**Before** (expr_gen.rs:135-155):
+```rust
+// DEPYLER-0303: Conditional logic
+let needs_ref = !matches!(left, HirExpr::Literal(Literal::String(_)) | HirExpr::Var(_));
+
+if is_string || is_set {
+    if needs_ref {
+        Ok(parse_quote! { #right_expr.contains(&#left_expr) })
+    } else {
+        Ok(parse_quote! { #right_expr.contains(#left_expr) })  // ❌ Missing &
+    }
+}
+```
+
+**After** (expr_gen.rs:135-144):
+```rust
+// DEPYLER-0315: ALWAYS add & - Rust auto-derefs if needed
+if is_string || is_set {
+    Ok(parse_quote! { #right_expr.contains(&#left_expr) })  // ✅ Always &
+} else {
+    Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })  // ✅ Always &
+}
+```
+
+**Why This Works**: Rust's automatic dereferencing means that if the value is already `&T`, then `&&T` auto-derefs to `&T`. This makes `&` safe to add unconditionally.
+
+#### Files Modified
+- `crates/depyler-core/src/rust_gen/expr_gen.rs` - Removed conditional `needs_ref` logic, always add `&`
+
+#### Test Results
+- ✅ All 453 core tests pass (zero regressions)
+- ✅ Matrix 07_algorithms: 4 errors → 2 errors (50% reduction)
+- ✅ `.contains()` and `.contains_key()` now always get `&` reference
+- ✅ Clippy clean with `-D warnings`
+
+#### Generated Code Quality
+
+**Before**:
+```rust
+if !seen.contains(item) {          // ❌ Type error: expected &i32
+    seen.insert(item);
+}
+
+if freq.contains_key(char) {       // ❌ Type error: expected &char
+    freq.insert(char, 1);
+}
+```
+
+**After**:
+```rust
+if !seen.contains(&item) {         // ✅ Compiles
+    seen.insert(item);
+}
+
+if freq.contains_key(&char) {      // ✅ Compiles
+    freq.insert(char, 1);
+}
+```
+
+---
+
 ### 🟢 DEPYLER-0310: Box::new() Wrapper for Mixed Error Types ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Automatically wrap exceptions with `Box::new()` when function uses `Box<dyn Error>`
