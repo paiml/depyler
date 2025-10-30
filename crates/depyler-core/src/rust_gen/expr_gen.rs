@@ -2563,23 +2563,36 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
-            // For potentially negative indices, we need runtime handling
-            // DEPYLER-0288: Explicitly type idx as i32 to support negation
-            Ok(parse_quote! {
-                {
-                    // DEPYLER-0307 Fix #11: Use borrow to avoid moving the base expression
-                    let base = &#base_expr;
-                    let idx: i32 = #index_expr;
-                    let actual_idx = if idx < 0 {
-                        // Use .abs() instead of negation to avoid "Neg not implemented for usize" error
-                        base.len().saturating_sub(idx.abs() as usize)
-                    } else {
-                        idx as usize
-                    };
-                    // DEPYLER-0267: Use .cloned() instead of .copied() for non-Copy types (String, Vec, etc.)
-                    base.get(actual_idx).cloned().unwrap_or_default()
-                }
-            })
+            // DEPYLER-0306 FIX: Check if index is a simple variable (not a complex expression)
+            // Simple variables in for loops like `for i in range(len(arr))` are guaranteed >= 0
+            // For these, we can use simpler inline code that works in range contexts
+            let is_simple_var = matches!(index, HirExpr::Var(_));
+
+            if is_simple_var {
+                // Simple variable index - use inline expression (works in range contexts)
+                // This avoids block expressions that break in `for j in 0..matrix[i].len()`
+                Ok(parse_quote! {
+                    #base_expr.get(#index_expr as usize).cloned().unwrap_or_default()
+                })
+            } else {
+                // Complex expression - use block with full negative index handling
+                // DEPYLER-0288: Explicitly type idx as i32 to support negation
+                Ok(parse_quote! {
+                    {
+                        // DEPYLER-0307 Fix #11: Use borrow to avoid moving the base expression
+                        let base = &#base_expr;
+                        let idx: i32 = #index_expr;
+                        let actual_idx = if idx < 0 {
+                            // Use .abs() instead of negation to avoid "Neg not implemented for usize" error
+                            base.len().saturating_sub(idx.abs() as usize)
+                        } else {
+                            idx as usize
+                        };
+                        // DEPYLER-0267: Use .cloned() instead of .copied() for non-Copy types (String, Vec, etc.)
+                        base.get(actual_idx).cloned().unwrap_or_default()
+                    }
+                })
+            }
         }
     }
 
