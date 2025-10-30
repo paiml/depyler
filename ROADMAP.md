@@ -383,6 +383,25 @@ This YAML file contains:
 - Status: ✅ **COMPLETELY RESOLVED** - Full Matrix Project 06_list_comprehensions example compiles
 - Analysis: docs/issues/DEPYLER-0299-analysis.md
 
+**DEPYLER-0300**: ✅ RESOLVED (v3.19.31) - String Operations Translation Bugs (Matrix Project 08_string_operations)
+- Issue: Python's `in` operator and `for char in str` generated wrong Rust methods
+- Errors: ~~3~~ **0 errors** - ALL RESOLVED! (100% success rate)
+- Resolution:
+  - ✅ **Bug #1**: `substring in s` generated `.contains_key()` instead of `.contains()`
+    - Root Cause: `BinOp::In` handler assumed non-sets are HashMaps
+    - Fix: Added `is_string_base()` check in expr_gen.rs:129-141
+  - ✅ **Bug #2**: `for char in s` generated `.iter().cloned()` instead of `.chars()`
+    - Root Cause: `codegen_for_stmt` applied collection iterator to all variables
+    - Fix: Added string detection in stmt_gen.rs:551-560
+- Location:
+  - `crates/depyler-core/src/rust_gen/expr_gen.rs` (BinOp::In and BinOp::NotIn)
+  - `crates/depyler-core/src/rust_gen/stmt_gen.rs` (codegen_for_stmt)
+- Testing: Matrix Project 08_string_operations compiles successfully (was 3 errors)
+- Core tests: 453/453 pass (zero regressions)
+- Time: 1.5 hours actual
+- Priority: ~~P0~~ P✅ COMPLETE
+- Status: ✅ **COMPLETELY RESOLVED** - Full Matrix Project 08_string_operations compiles
+
 **Security Alerts**: 2 dependabot alerts in transitive dependencies
 - 1 critical (slab v0.4.10 - RUSTSEC-2025-0047)
 - 1 moderate

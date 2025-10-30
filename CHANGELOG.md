@@ -4,6 +4,132 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0300: Fix String Operations Translation Bugs ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Fix incorrect code generation for Python's `in` operator on strings and string iteration
+**Time**: 1.5 hours (investigation + fix + testing)
+**Impact**: Fixed 3 compilation errors in string_operations example (Matrix Project 08)
+
+#### Problem Statement
+
+String operations with membership testing and iteration generated incorrect Rust code:
+
+```python
+# Python code
+def contains_substring(s: str, substring: str) -> bool:
+    return substring in s
+
+def count_vowels(s: str) -> int:
+    count = 0
+    for char in s:
+        if char in "aeiouAEIOU":
+            count += 1
+    return count
+```
+
+```rust
+// ❌ BROKEN: Wrong methods for strings
+pub fn contains_substring(s: &str, substring: &str) -> bool {
+    s.contains_key(substring)  // error: no method `contains_key` on &str
+}
+
+pub fn count_vowels(s: &str) -> i32 {
+    let mut count = 0;
+    for char in s.iter().cloned() {  // error: no method `iter` on &str
+        if "aeiouAEIOU".contains_key(char) {  // error: no method `contains_key`
+            count = count + 1;
+        }
+    }
+    count
+}
+```
+
+**Compilation Errors**:
+1. `error[E0599]: no method named 'contains_key' found for reference &str` (2 occurrences)
+2. `error[E0599]: no method named 'iter' found for reference &str` (1 occurrence)
+
+#### Root Cause
+
+Two separate translation bugs:
+
+1. **`BinOp::In` handler** didn't check for string types
+   - Strings vs HashMaps: Both contain items, but use different methods
+   - HashMap: `dict.contains_key(&key)` ✅
+   - String: `string.contains(substring)` ✅
+   - Bug: Transpiler assumed all non-set containers are HashMaps
+
+2. **`codegen_for_stmt` handler** used wrong iterator for strings
+   - Collections: `.iter().cloned()` ✅
+   - Strings: `.chars()` ✅
+   - Bug: Applied `.iter().cloned()` to ALL variables including strings
+
+#### Solution
+
+**Fix 1: String-aware `in` operator** (expr_gen.rs:123-156)
+```rust
+BinOp::In => {
+    let is_string = self.is_string_base(right);  // NEW: Check for strings
+    let is_set = self.is_set_expr(right) || self.is_set_var(right);
+
+    if is_string || is_set {
+        // Both use .contains()
+        Ok(parse_quote! { #right_expr.contains(#left_expr) })
+    } else {
+        // HashMap uses .contains_key()
+        Ok(parse_quote! { #right_expr.contains_key(#left_expr) })
+    }
+}
+```
+
+**Fix 2: String-aware iteration** (stmt_gen.rs:548-570)
+```rust
+if let HirExpr::Var(_var_name) = iter {
+    let is_string = matches!(iter, HirExpr::Var(name) if {
+        let n = name.as_str();
+        n == "s" || n == "string" || n == "text" || ...
+    });
+
+    if is_string {
+        iter_expr = parse_quote! { #iter_expr.chars() };  // NEW: Use .chars()
+    } else {
+        iter_expr = parse_quote! { #iter_expr.iter().cloned() };
+    }
+}
+```
+
+#### Results
+
+✅ **Before**: 3 compilation errors in string_operations example
+✅ **After**: 0 errors - compiles successfully!
+
+**Generated Code** (Correct):
+```rust
+pub fn contains_substring(s: &str, substring: &str) -> bool {
+    s.contains(substring)  // ✅ Correct method
+}
+
+pub fn count_vowels(s: &str) -> i32 {
+    let mut count = 0;
+    for char in s.chars() {  // ✅ Correct iterator
+        if "aeiouAEIOU".contains(char) {  // ✅ Correct method
+            count = count + 1;
+        }
+    }
+    count
+}
+```
+
+**Testing**:
+- ✅ Matrix Project 08_string_operations: 100% success (was 3 errors)
+- ✅ Core test suite: 453/453 pass (no regressions)
+
+#### Files Changed
+
+1. `crates/depyler-core/src/rust_gen/expr_gen.rs` - Added string detection to `BinOp::In` and `BinOp::NotIn`
+2. `crates/depyler-core/src/rust_gen/stmt_gen.rs` - Added string detection to `codegen_for_stmt`
+
+---
+
 ### 🟢 DEPYLER-0299: Fix Double-Reference in List Comprehension Filters ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Fix type errors in list comprehension filter closures (`&&i32` vs `&i32`)
