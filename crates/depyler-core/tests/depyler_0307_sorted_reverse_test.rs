@@ -51,7 +51,9 @@ def sort_descending(numbers: list[int]) -> list[int]:
 
     // Verify order: sort() must come before reverse()
     let sort_pos = rust_code.find(".sort()").expect("Should contain .sort()");
-    let reverse_pos = rust_code.find(".reverse()").expect("Should contain .reverse()");
+    let reverse_pos = rust_code
+        .find(".reverse()")
+        .expect("Should contain .reverse()");
     assert!(
         sort_pos < reverse_pos,
         ".sort() must come before .reverse()"
@@ -140,8 +142,7 @@ def sort_ascending(numbers: list[int]) -> list[int]:
         .expect("Transpilation failed");
 
     // Write to temp file and compile
-    std::fs::write("/tmp/test_sorted_asc.rs", &rust_code)
-        .expect("Failed to write test file");
+    std::fs::write("/tmp/test_sorted_asc.rs", &rust_code).expect("Failed to write test file");
 
     let output = Command::new("rustc")
         .args(["--crate-type", "lib", "/tmp/test_sorted_asc.rs"])
@@ -168,8 +169,7 @@ def sort_descending(numbers: list[int]) -> list[int]:
         .expect("Transpilation failed");
 
     // Write to temp file and compile
-    std::fs::write("/tmp/test_sorted_desc.rs", &rust_code)
-        .expect("Failed to write test file");
+    std::fs::write("/tmp/test_sorted_desc.rs", &rust_code).expect("Failed to write test file");
 
     let output = Command::new("rustc")
         .args(["--crate-type", "lib", "/tmp/test_sorted_desc.rs"])
@@ -263,7 +263,12 @@ mod tests {
 
     // Compile and run tests
     let output = Command::new("rustc")
-        .args(["--test", "/tmp/test_sorted_behavior_simple.rs", "-o", "/tmp/test_sorted_behavior_simple_bin"])
+        .args([
+            "--test",
+            "/tmp/test_sorted_behavior_simple.rs",
+            "-o",
+            "/tmp/test_sorted_behavior_simple_bin",
+        ])
         .output()
         .expect("Failed to compile test");
 
@@ -303,8 +308,7 @@ def sort_by_abs(numbers: list[int]) -> list[int]:
         .expect("Transpilation failed");
 
     // Write to temp file and compile
-    std::fs::write("/tmp/test_sorted_multiple.rs", &rust_code)
-        .expect("Failed to write test file");
+    std::fs::write("/tmp/test_sorted_multiple.rs", &rust_code).expect("Failed to write test file");
 
     let output = Command::new("rustc")
         .args(["--crate-type", "lib", "/tmp/test_sorted_multiple.rs"])
@@ -340,8 +344,7 @@ def sort_strings_reverse(words: list[str]) -> list[str]:
     );
 
     // Write to temp file and compile
-    std::fs::write("/tmp/test_sorted_strings.rs", &rust_code)
-        .expect("Failed to write test file");
+    std::fs::write("/tmp/test_sorted_strings.rs", &rust_code).expect("Failed to write test file");
 
     let output = Command::new("rustc")
         .args(["--crate-type", "lib", "/tmp/test_sorted_strings.rs"])
