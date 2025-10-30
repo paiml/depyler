@@ -707,6 +707,7 @@ pub(crate) fn codegen_assign_stmt(
     // DEPYLER-0232: Track variable types for class instances
     // This allows proper method dispatch for user-defined classes
     // DEPYLER-0224: Also track types for set/dict/list literals for proper method dispatch
+    // DEPYLER-0301: Track list/vec types from slicing operations
     if let AssignTarget::Symbol(var_name) = target {
         match value {
             HirExpr::Call { func, .. } => {
@@ -730,6 +731,22 @@ pub(crate) fn codegen_assign_stmt(
                 };
                 ctx.var_types
                     .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
+            }
+            HirExpr::Slice { base, .. } => {
+                // DEPYLER-0301: Track sliced lists as owned Vec types
+                // When rest = numbers[1:], mark rest as List(Int) so it gets borrowed on call
+                // Infer element type from base variable if available
+                let elem_type = if let HirExpr::Var(base_var) = base.as_ref() {
+                    if let Some(Type::List(elem)) = ctx.var_types.get(base_var) {
+                        elem.as_ref().clone()
+                    } else {
+                        Type::Int // Default to Int for untyped slices
+                    }
+                } else {
+                    Type::Int // Default to Int
+                };
+                ctx.var_types
+                    .insert(var_name.clone(), Type::List(Box::new(elem_type)));
             }
             _ => {}
         }
