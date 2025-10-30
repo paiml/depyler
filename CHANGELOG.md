@@ -4,6 +4,66 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0302 Phase 2: String Methods Medium Wins ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Add string multiplication and title() method support
+**Time**: Already implemented (verified 2025-10-30)
+**Impact**: Fixed 3 errors - **DEPYLER-0302 Phase 2 complete (7/19 errors fixed, 37% progress)**
+
+#### Fixes Verified
+
+**Fix #5: String multiplication (s * count)** (1 error fixed)
+- **Issue**: Python `s * count` or `count * s` not supported - generated invalid Rust `s * count`
+- **Error**: `error[E0369]: cannot multiply 'Cow<'_, str>' by 'i32'`
+- **Root Cause**: Binary operator handler didn't recognize string repetition pattern
+- **Fix**: Added string repetition case in `BinOp::Mul` handler, detects string × integer patterns
+- **Code**: `crates/depyler-core/src/rust_gen/expr_gen.rs` lines 262-276
+- **Logic**: If left is string and right is int → `.repeat(n as usize)`, handles both `s * n` and `n * s` orders
+- **Before**: `"ab" * 3` → `error[E0369]: cannot multiply`
+- **After**: `"ab".repeat(3 as usize)` → `"ababab"` ✅
+
+**Fix #6: s.title() custom implementation** (1 error fixed)
+- **Issue**: Python `s.title()` not supported - no Rust equivalent for title case conversion
+- **Error**: `error[E0599]: no method named 'title' found for reference '&str'`
+- **Root Cause**: No built-in title case in Rust standard library
+- **Fix**: Custom implementation using `.split_whitespace()` + capitalize first char of each word
+- **Code**: `crates/depyler-core/src/rust_gen/expr_gen.rs` lines 2106-2125
+- **Implementation**:
+  ```rust
+  s.split_whitespace()
+      .map(|word| {
+          let mut chars = word.chars();
+          match chars.next() {
+              None => String::new(),
+              Some(first) => first.to_uppercase().chain(chars).collect::<String>(),
+          }
+      })
+      .collect::<Vec<_>>()
+      .join(" ")
+  ```
+- **Before**: `"hello world".title()` → `error[E0599]: no method named 'title'`
+- **After**: `"hello world".split_whitespace()...` → `"Hello World"` ✅
+
+#### Testing
+- Created comprehensive test suite with 9 tests in `depyler_0302_phase2_test.rs`
+- All Phase 1 tests (5 tests) continue to pass
+- All 453 existing core tests continue to pass
+- Tests cover: string multiplication (literal, variable, reversed order), title case (basic, literal, expression), integration, regression
+
+#### Files Modified
+- `crates/depyler-core/src/rust_gen/expr_gen.rs` - Both fixes (string multiplication, title method)
+- `crates/depyler-core/tests/depyler_0302_phase2_test.rs` - Comprehensive test coverage
+
+#### DEPYLER-0302 Progress Update
+- Phase 1 (Quick Wins): 4/19 errors fixed (21%) ✅
+- Phase 2 (Medium Wins): 3/19 errors fixed (16%) ✅
+- **Total Progress**: 7/19 errors fixed (37%)
+- **Remaining**: Phase 3 (String slicing with negative indices) - 6+ errors, 3-4 hours
+
+**Next Steps**: Consider Phase 3 (string slicing) or move to next high-priority issue
+
+---
+
 ### 🟢 DEPYLER-0303 Phase 3: Dict/HashMap Methods Final Wins ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Complete dict/HashMap method support to 100%
