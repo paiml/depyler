@@ -190,15 +190,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if we're dealing with lists/vectors (explicit detection only)
                 let is_definitely_list = self.is_list_expr(left) || self.is_list_expr(right);
 
+                // DEPYLER-0311 FIX: Check if we're dealing with slice expressions
+                // Slices produce Vec via .to_vec(), so slice + slice needs extend pattern
+                let is_slice_concat = matches!(left, HirExpr::Slice { .. })
+                                   || matches!(right, HirExpr::Slice { .. });
+
                 // Check if we're dealing with strings (literals or type-inferred)
                 let is_definitely_string = matches!(left, HirExpr::Literal(Literal::String(_)))
                     || matches!(right, HirExpr::Literal(Literal::String(_)))
                     || matches!(self.ctx.current_return_type, Some(Type::String));
 
-                if is_definitely_list && !is_definitely_string {
-                    // List concatenation - use iterator chain
-                    // Convert: list1 + list2
-                    // To: list1.iter().chain(list2.iter()).cloned().collect()
+                if (is_definitely_list || is_slice_concat) && !is_definitely_string {
+                    // List/slice concatenation - use extend pattern
+                    // Convert: list1 + list2 OR items[k:] + items[:k]
+                    // To: { let mut __temp = left; __temp.extend(right); __temp }
+                    // This works because:
+                    // - list literals generate Vec directly
+                    // - slice expressions generate .to_vec() which is owned
                     Ok(parse_quote! {
                         {
                             let mut __temp = #left_expr.clone();
