@@ -277,9 +277,9 @@ def matrix_multiply(a: list[list[int]], b: list[list[int]]) -> list[list[int]]:
 
     // Should NOT contain block expressions in any range
     assert!(
-        !rust_code.contains("for i in 0..{") &&
-        !rust_code.contains("for j in 0..{") &&
-        !rust_code.contains("for k in 0..{"),
+        !rust_code.contains("for i in 0..{")
+            && !rust_code.contains("for j in 0..{")
+            && !rust_code.contains("for k in 0..{"),
         "Should NOT use block expressions in any range"
     );
 

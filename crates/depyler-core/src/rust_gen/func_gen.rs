@@ -163,8 +163,15 @@ pub(crate) fn codegen_function_body(
 /// DEPYLER-0303: List of HashMap/Dict mutating methods that require `mut` keyword
 /// This includes both Rust method names and Python method names that translate to mutating operations
 const MUTATING_DICT_METHODS: &[&str] = &[
-    "insert", "remove", "clear", "extend", "drain",  // Rust methods
-    "pop", "update", "setdefault", "popitem",        // Python methods that mutate
+    "insert",
+    "remove",
+    "clear",
+    "extend",
+    "drain", // Rust methods
+    "pop",
+    "update",
+    "setdefault",
+    "popitem", // Python methods that mutate
 ];
 
 /// DEPYLER-0303: Check if a statement contains a mutating method call on a parameter
@@ -174,18 +181,31 @@ fn stmt_mutates_param_via_method(stmt: &HirStmt, param_name: &str) -> bool {
         HirStmt::Expr(expr) => expr_mutates_param_via_method(expr, param_name),
         // Check assignments where the value contains mutating method calls
         HirStmt::Assign { value, .. } => expr_mutates_param_via_method(value, param_name),
-        HirStmt::If { condition, then_body, else_body } => {
+        HirStmt::If {
+            condition,
+            then_body,
+            else_body,
+        } => {
             expr_mutates_param_via_method(condition, param_name)
-                || then_body.iter().any(|s| stmt_mutates_param_via_method(s, param_name))
-                || else_body.iter().flatten().any(|s| stmt_mutates_param_via_method(s, param_name))
+                || then_body
+                    .iter()
+                    .any(|s| stmt_mutates_param_via_method(s, param_name))
+                || else_body
+                    .iter()
+                    .flatten()
+                    .any(|s| stmt_mutates_param_via_method(s, param_name))
         }
         HirStmt::While { condition, body } => {
             expr_mutates_param_via_method(condition, param_name)
-                || body.iter().any(|s| stmt_mutates_param_via_method(s, param_name))
+                || body
+                    .iter()
+                    .any(|s| stmt_mutates_param_via_method(s, param_name))
         }
         HirStmt::For { iter, body, .. } => {
             expr_mutates_param_via_method(iter, param_name)
-                || body.iter().any(|s| stmt_mutates_param_via_method(s, param_name))
+                || body
+                    .iter()
+                    .any(|s| stmt_mutates_param_via_method(s, param_name))
         }
         _ => false,
     }
@@ -211,7 +231,9 @@ fn expr_mutates_param_via_method(expr: &HirExpr, param_name: &str) -> bool {
         // Unary operations
         HirExpr::Unary { operand, .. } => expr_mutates_param_via_method(operand, param_name),
         // If expressions
-        HirExpr::IfExpr { test, body, orelse, .. } => {
+        HirExpr::IfExpr {
+            test, body, orelse, ..
+        } => {
             expr_mutates_param_via_method(test, param_name)
                 || expr_mutates_param_via_method(body, param_name)
                 || expr_mutates_param_via_method(orelse, param_name)
@@ -256,7 +278,10 @@ fn codegen_single_param(
     });
 
     // DEPYLER-0303: Check if parameter is mutated via method calls (e.g., d.insert(), d.clear())
-    let has_mutating_method_call = func.body.iter().any(|stmt| stmt_mutates_param_via_method(stmt, &param.name));
+    let has_mutating_method_call = func
+        .body
+        .iter()
+        .any(|stmt| stmt_mutates_param_via_method(stmt, &param.name));
 
     // DEPYLER-0303: If parameter has mutating method calls OR assignments, it needs mut
     // Check if ownership is taken (parameter is owned, not borrowed)
@@ -265,7 +290,8 @@ fn codegen_single_param(
         Some(crate::borrowing_context::BorrowingStrategy::TakeOwnership) | None
     );
 
-    let is_param_mutated = (is_assigned || has_index_assignment || has_mutating_method_call) && takes_ownership;
+    let is_param_mutated =
+        (is_assigned || has_index_assignment || has_mutating_method_call) && takes_ownership;
 
     // Get the inferred parameter info
     if let Some(inferred) = lifetime_result.param_lifetimes.get(&param.name) {
