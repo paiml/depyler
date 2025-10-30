@@ -4,6 +4,147 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0309: Track set() Constructor for Type Inference ✅ **COMPLETE** (2025-10-30)
+
+**Goal**: Track `set()` constructor calls in var_types for proper method dispatch
+**Priority**: P1 - Quick Win (1-2 hours)
+**Time**: ~1.5 hours (analysis + implementation + testing)
+**Impact**: Fixed HashSet.contains_key() error (07_algorithms, remove_duplicates pattern)
+
+#### Problem Statement
+
+Matrix Project validation of 07_algorithms revealed incorrect method dispatch for HashSet operations:
+
+```python
+# Python code (07_algorithms)
+def remove_duplicates(items: list[int]) -> list[int]:
+    seen = set()  # Creates HashSet
+    result = []
+    for item in items:
+        if item not in seen:  # BinOp::NotIn
+            seen.add(item)
+            result.append(item)
+    return result
+```
+
+```rust
+// Generated Rust (BEFORE fix)
+pub fn remove_duplicates(items: &Vec<i32>) -> Vec<i32> {
+    let mut seen = HashSet::new();
+    let mut result = vec![];
+    for item in items.iter().cloned() {
+        if !seen.contains_key(item) {  // ❌ HashSet doesn't have contains_key()!
+            seen.insert(item);
+            result.push(item);
+        }
+    }
+    result
+}
+```
+
+**Error**:
+```
+error[E0599]: no method named `contains_key` found for struct `HashSet` in the current scope
+   --> /tmp/07_test.rs:181:20
+    |
+181 |         if !seen.contains_key(item) {
+    |                    ^^^^^^^^^^^^ method not found in `HashSet<i32>`
+```
+
+**Root Cause**: The transpiler tracked user-defined class constructors in `var_types` but didn't track builtin constructors like `set()`, `dict()`, `list()`. This caused `seen` to have unknown type, falling through to HashMap method dispatch in `BinOp::In`.
+
+#### Solution: Extend Constructor Tracking to Builtins
+
+Implemented parallel tracking for `set()` constructor in `stmt_gen.rs:codegen_assign_stmt()`:
+
+**Implementation** (stmt_gen.rs:732-743):
+```rust
+match value {
+    HirExpr::Call { func, .. } => {
+        // Check if this is a user-defined class constructor
+        if ctx.class_names.contains(func) {
+            ctx.var_types.insert(var_name.clone(), Type::Custom(func.clone()));
+        }
+        // DEPYLER-0309: Track builtin collection constructors for proper method dispatch
+        // This enables correct HashSet.contains() vs HashMap.contains_key() selection
+        else if func == "set" {
+            // Infer element type from type annotation or default to Int
+            let elem_type = if let Some(Type::Set(elem)) = type_annotation {
+                elem.as_ref().clone()
+            } else {
+                Type::Int // Default for untyped sets
+            };
+            ctx.var_types.insert(var_name.clone(), Type::Set(Box::new(elem_type)));
+        }
+    }
+    // ... existing Set/FrozenSet literal tracking (DEPYLER-0224)
+}
+```
+
+**Generated Code (AFTER fix)**:
+```rust
+pub fn remove_duplicates(items: &Vec<i32>) -> Vec<i32> {
+    let mut seen = HashSet::new();
+    let mut result = vec![];
+    for item in items.iter().cloned() {
+        if !seen.contains(item) {  // ✅ Correct! HashSet.contains()
+            seen.insert(item);
+            result.push(item);
+        }
+    }
+    result
+}
+```
+
+#### Testing & Verification
+
+**Matrix Project Impact**:
+- 07_algorithms: 16 errors → 15 errors (6% reduction)
+- remove_duplicates function now compiles correctly
+- Pattern: `seen = set()` now tracked properly
+
+**Core Tests**:
+```bash
+$ cargo test --lib -p depyler-core
+test result: ok. 453 passed; 0 failed; 5 ignored
+```
+
+**Zero Regressions**: All existing functionality maintained
+
+#### Files Modified
+
+1. `crates/depyler-core/src/rust_gen/stmt_gen.rs` - Added set() tracking in codegen_assign_stmt (lines 732-743)
+
+#### Design Pattern
+
+Follows existing class constructor tracking pattern (DEPYLER-0232), extending it to builtin collections. The existing `BinOp::In` handler in `expr_gen.rs:123-147` already had correct logic - it just needed `var_types` populated correctly.
+
+**Parallel to Existing Code**:
+```rust
+// Existing: expr_gen.rs:123-147 (no changes needed!)
+BinOp::In => {
+    let is_set = self.is_set_expr(right) || self.is_set_var(right);
+
+    if is_set {
+        Ok(parse_quote! { #right_expr.contains(&#left_expr) })  // ✅ HashSet
+    } else {
+        Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })  // HashMap
+    }
+}
+```
+
+#### Next Steps
+
+This fix is part of 07_algorithms bug campaign (DEPYLER-0309-0313). Remaining quick wins:
+- DEPYLER-0312: Parameter mutability (1h, 2 errors) - Next recommended
+- DEPYLER-0310: Box::new() wrapper (2-3h, 8 errors) - High impact
+- DEPYLER-0311: Vec slice concatenation (2h, 2 errors)
+- DEPYLER-0313: Type annotations (30min, 1 error)
+
+**Total Progress**: 1/16 errors fixed (6%), 14/16 remaining (estimated 6-7 hours)
+
+---
+
 ### 🟢 DEPYLER-0308: Auto-Unwrap Result<bool> in Boolean Contexts ✅ **COMPLETE** (2025-10-30)
 
 **Goal**: Automatically unwrap `Result<bool>` when used in if/while conditions
