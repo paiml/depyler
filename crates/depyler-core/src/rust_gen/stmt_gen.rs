@@ -790,6 +790,7 @@ pub(crate) fn codegen_assign_stmt(
     // This allows proper method dispatch for user-defined classes
     // DEPYLER-0224: Also track types for set/dict/list literals for proper method dispatch
     // DEPYLER-0301: Track list/vec types from slicing operations
+    // DEPYLER-0327 Fix #1: Track String type from Vec<String>.get() method calls
     if let AssignTarget::Symbol(var_name) = target {
         match value {
             HirExpr::Call { func, .. } => {
@@ -841,6 +842,27 @@ pub(crate) fn codegen_assign_stmt(
                 };
                 ctx.var_types
                     .insert(var_name.clone(), Type::List(Box::new(elem_type)));
+            }
+            // DEPYLER-0327 Fix #1: Track types for method call results
+            // E.g., value_str = data.get(...) where data: Vec<String> → value_str: String
+            HirExpr::MethodCall { object, method, .. } => {
+                // Track .get() on Vec<String> returning String
+                if method == "get" {
+                    if let HirExpr::Var(obj_var) = object.as_ref() {
+                        if let Some(Type::List(elem_type)) = ctx.var_types.get(obj_var) {
+                            // .get() returns Option<&T>, but after .cloned().unwrap_or_default()
+                            // it becomes T, so track the element type
+                            ctx.var_types.insert(var_name.clone(), elem_type.as_ref().clone());
+                        }
+                    }
+                }
+                // String methods that return String
+                else if matches!(
+                    method.as_str(),
+                    "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "title" | "replace" | "format"
+                ) {
+                    ctx.var_types.insert(var_name.clone(), Type::String);
+                }
             }
             _ => {}
         }

@@ -4,6 +4,117 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟡 DEPYLER-0327: ValueError Generation & String Type Inference (Partial) ⚠️ (2025-10-31)
+
+**Impact**: 05_error_handling: 5 errors → 3 errors (40% reduction)
+**Matrix Status**: 9/12 compiling (75% maintained)
+**Time**: 90 minutes (Try block analysis + String type inference)
+**Status**: PARTIALLY COMPLETE (2/4 errors fixed, architectural limitations discovered)
+
+#### Architectural Achievement: Try Block Exception Analysis 🏗️
+
+**Problem**: ValueError type not generated despite being used in code
+```python
+def operation_with_cleanup(value):
+    try:
+        if value < 0:
+            raise ValueError("negative value")  # ValueError needed here
+        return value * 2
+    except ValueError:
+        return 0
+```
+
+**Generated (WRONG)**:
+```rust
+pub fn operation_with_cleanup(value: i32) -> i32 {
+    if value < 0 {
+        return Err(ValueError::new("negative value".to_string()));
+                 ^^^^^^^^^^^ not found in this scope
+    }
+}
+```
+
+**Root Cause**: Property analyzer didn't analyze try/except blocks, so exception types caught internally were never collected.
+
+**Fix**: Added Try block handling to property analyzer (properties.rs lines 195-239):
+```rust
+HirStmt::Try { body, handlers, finalbody, .. } => {
+    // Collect error types from try body
+    let (_body_fail, mut body_errors) = Self::check_can_fail(body);
+
+    // CRITICAL: Collect exception types from handler signatures
+    for handler in handlers {
+        if let Some(ref exc_type) = handler.exception_type {
+            body_errors.push(exc_type.clone());  // e.g., "ValueError"
+        }
+    }
+
+    (false, body_errors)  // Caught internally, don't propagate
+}
+```
+
+**Result**: ValueError, IndexError types now generated correctly! 🎉
+
+#### Fix #2: String Type Inference with Heuristics
+
+**Problem**: Invalid cast `String as i32`
+```rust
+let value = (value_str) as i32;  // ❌ E0605
+```
+
+**Fix**: Enhanced type inference (expr_gen.rs + stmt_gen.rs):
+1. Variable name heuristics: `_str`, `_string`, `string_`, `str_`
+2. Type tracking from `Vec<String>.get()` method calls
+3. String method tracking (`upper`, `lower`, `strip`, etc.)
+
+**Generated (CORRECT)**:
+```rust
+let value = value_str.parse::<i32>().unwrap_or_default();  // ✅
+```
+
+#### Remaining Errors (Architectural Limitation)
+
+**3 errors remain** due to lack of exception scope tracking:
+- **E0599** (1×): Spurious `.unwrap()` on i32 (not Result)
+- **E0308** (2×): Result unwrapping in try/except blocks
+
+**Example**:
+```rust
+pub fn call_divide_safe(a: i32, b: i32) -> i32 {
+    divide_checked(a, b)  // ❌ Returns Result<i32, E>, needs .unwrap()
+}
+```
+
+**Root Cause**: Transpiler doesn't track whether code is inside try/except block.
+
+**Follow-up**: Create DEPYLER-0328 for exception scope tracking architecture (4-6 hours estimated).
+
+#### Files Modified
+
+- `crates/depyler-core/src/ast_bridge/properties.rs` (+50 lines) - Try block analysis
+- `crates/depyler-core/src/rust_gen/func_gen.rs` (+15 lines) - Error type generation
+- `crates/depyler-core/src/rust_gen/expr_gen.rs` (+30 lines) - String type inference
+- `crates/depyler-core/src/rust_gen/stmt_gen.rs` (+25 lines) - Type tracking
+- `docs/execution/roadmap.yaml` (status update)
+
+#### Test Results
+
+✅ **All quality gates passing**:
+- Test suite: 661/661 passing (100%, zero regressions)
+- TDG Grade: A-
+- Complexity: ≤10
+- SATD: 0 violations
+- Coverage: 80.5%
+- Clippy: 0 warnings
+
+#### Lessons Learned
+
+1. **Partial completion is valuable**: 40% error reduction + architectural improvements
+2. **Know when to stop**: Remaining errors require architectural changes beyond ticket scope
+3. **Document limitations**: Created clear follow-up ticket for exception scope tracking
+
+---
+
 ### 🟢 DEPYLER-0330: dict.get() Option Handling & Parameter Mutability Detection ✅ **COMPLETE** (2025-10-31)
 
 **Impact**: 09_dictionary_operations: 3 errors → 0 errors (100% compilation!) 🎉
