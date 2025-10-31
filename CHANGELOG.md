@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🧪 DEPYLER-0327: Add Comprehensive Try Block Analysis Tests ✅ (2025-10-31)
+
+**Impact**: Test suite: 663 → 673 passing (+10 new tests)
+**Coverage**: Comprehensive validation of Try block exception type generation
+**Time**: 30 minutes (test creation + documentation)
+
+Added 11 integration tests validating DEPYLER-0327 improvements (10 passing, 1 ignored):
+
+**Test Coverage**:
+1. ✅ ValueError in try/except with internal catch
+2. ✅ Multiple exception types (ValueError + ZeroDivisionError)
+3. ✅ Try/except with finally blocks
+4. ✅ Nested try/except (ValueError inner, IndexError outer)
+5. ✅ Multiple functions sharing types (deduplication)
+6. ✅ Bare except clauses
+7. ✅ Exception re-raising
+8. ✅ IndexError from list access in except
+9. ✅ Integration with String type inference
+10. ✅ Propagated vs caught exceptions
+11. ⏸️  [IGNORED] Compilation test (requires DEPYLER-0333)
+
+**Key Validations**:
+- Exception types generated even when caught internally
+- Handler signature analysis (exception_type field) works correctly
+- Type deduplication across multiple functions
+- Integration between Try block + String inference features
+
+**Ignored Test**: `test_try_except_compiles_caught_exceptions` documents expected behavior after DEPYLER-0333 (exception scope tracking). Currently generates `return Err()` in non-Result functions, causing E0308.
+
+**Files Added**:
+- `crates/depyler-core/tests/depyler_0327_try_block_analysis_test.rs` (NEW, 244 lines)
+
+**Value**: Strengthens test coverage for recent architectural improvements, provides regression protection.
+
+---
+
 ### 📋 DEPYLER-0333: Exception Scope Tracking Ticket + Qualified Path Fix ✅ (2025-10-31)
 
 **Impact**: Test suite: 660 → 663 passing (+3 fixed tests)
