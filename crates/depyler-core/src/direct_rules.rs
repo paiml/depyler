@@ -836,6 +836,11 @@ fn convert_simple_type(rust_type: &RustType) -> Result<syn::Type> {
             // Handle special case for &Self (method returning self)
             if name == "&Self" {
                 parse_quote! { &Self }
+            } else if name.contains("::") {
+                // Handle qualified paths like "serde_json::Value"
+                let path: syn::Path = syn::parse_str(name)
+                    .unwrap_or_else(|_| panic!("Failed to parse type path: {}", name));
+                parse_quote! { #path }
             } else {
                 let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
                 parse_quote! { #ident }

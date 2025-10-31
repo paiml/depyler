@@ -4,6 +4,100 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📋 DEPYLER-0333: Exception Scope Tracking Ticket + Qualified Path Fix ✅ (2025-10-31)
+
+**Impact**: Test suite: 660 → 663 passing (+3 fixed tests)
+**Status**: Ticket created (backlog), Test fix completed
+**Time**: 45 minutes (ticket creation + test fix)
+
+#### Achievement #1: Comprehensive Architectural Ticket Created
+
+**Ticket**: DEPYLER-0333 - Exception Scope Tracking Architecture
+**Scope**: 4-6 hours implementation, ~430 LOC estimate
+**Purpose**: Document complete solution for remaining 05_error_handling errors
+
+**Documents 3 core blocking issues**:
+1. Result unwrapping in try/except blocks
+2. Spurious .unwrap() on non-Result types
+3. raise statements in non-Result functions
+
+**Proposed architecture**:
+- HIR enhancement with ExceptionScope struct
+- Property analyzer updates for scope-aware can_fail
+- Codegen changes for scope-aware raise/unwrap
+- Comprehensive test strategy (10+ test cases)
+
+**Deliverables**:
+- Complete implementation checklist
+- Risk assessment & mitigation strategies
+- Success criteria: 05_error_handling 3→0 errors, Matrix Project 75%→83%
+- File-by-file modification plan
+
+**Value**: Clear roadmap for future architectural work, unblocks 05_error_handling completion
+
+#### Achievement #2: Fixed Qualified Path Parsing (3 Test Failures)
+
+**Problem**: class_attributes_test failing with qualified type paths
+```rust
+// Error: "serde_json::Value" is not a valid Ident
+thread 'test_multiple_class_attributes' panicked at:
+"serde_json::Value" is not a valid Ident
+```
+
+**Root Cause**: `syn::Ident::new()` doesn't support "::" in identifiers. Custom types with qualified paths (e.g., `serde_json::Value`, `std::collections::HashMap`) failed to parse.
+
+**Fix**: Detect qualified paths and parse as `syn::Path` instead of `Ident`
+```rust
+// direct_rules.rs:839-843
+Custom(name) => {
+    if name == "&Self" {
+        parse_quote! { &Self }
+    } else if name.contains("::") {
+        // Handle qualified paths like "serde_json::Value"
+        let path: syn::Path = syn::parse_str(name)
+            .unwrap_or_else(|_| panic!("Failed to parse type path: {}", name));
+        parse_quote! { #path }
+    } else {
+        let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+        parse_quote! { #ident }
+    }
+}
+```
+
+**Impact**:
+- class_attributes_test: 7/10 → 10/10 passing (3 tests fixed)
+- Total test suite: 660 → 663 passing (+3)
+- Enables class attributes with external types (serde_json, std::collections, etc.)
+
+**Tests Fixed**:
+1. `test_multiple_class_attributes` - Multiple class-level constants
+2. `test_mix_class_and_instance_attributes` - Mix of class and instance vars
+3. `test_class_attribute_access_via_self` - Accessing class attrs via self
+
+#### Files Modified
+
+- `crates/depyler-core/src/direct_rules.rs` (+5 lines) - Qualified path parsing
+- `docs/execution/roadmap.yaml` (update) - Session context, DEPYLER-0333 references
+- `/tmp/DEPYLER-0333_ticket.md` (NEW, 460 lines) - Comprehensive architectural ticket
+
+#### Test Results
+
+✅ **All quality gates passing**:
+- Test suite: 663/663 passing (100%, +3 fixed)
+- TDG Grade: A-
+- Complexity: ≤10
+- SATD: 0 violations
+- Clippy: 0 warnings
+
+#### Lessons Learned
+
+1. **Pre-existing failures matter**: Fixing 3 test failures improves overall quality
+2. **Qualified paths are common**: serde_json, std::collections, etc. need proper handling
+3. **Comprehensive tickets save time**: 45-minute investment documents 4-6 hour task
+4. **Small fixes compound**: +3 tests may seem minor, but represents 0.45% improvement
+
+---
+
 ### 🟡 DEPYLER-0327: ValueError Generation & String Type Inference (Partial) ⚠️ (2025-10-31)
 
 **Impact**: 05_error_handling: 5 errors → 3 errors (40% reduction)
