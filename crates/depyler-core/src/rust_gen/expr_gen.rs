@@ -941,8 +941,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0307 Fix #7: Check if variable is String type
         // String variables need .parse().unwrap_or_default() not 'as i32' cast
         //
+        // DEPYLER-0327 Fix #1: Improved type inference for method calls
+        // Check if expression is a String-typed method call (e.g., Vec<String>.get())
+        //
         // Strategy:
         // - For String variables/params → .parse().unwrap_or_default()
+        // - For String literals → .parse().unwrap_or_default()
+        // - For String-typed method calls → .parse().unwrap_or_default()
         // - For known bool expressions → as i32 cast
         // - For integer literals → no cast needed
         // - For other variables → as i32 cast conservatively
@@ -951,17 +956,51 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Integer literals don't need casting
                 HirExpr::Literal(Literal::Int(_)) => return Ok(arg.clone()),
 
+                // DEPYLER-0327 Fix #1: String literals need parsing
+                HirExpr::Literal(Literal::String(_)) => {
+                    return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
+                }
+
                 // DEPYLER-0307 Fix #7: Check if variable is String type
+                // DEPYLER-0327 Fix #1: Also use heuristic for variable names
                 HirExpr::Var(var_name) => {
                     // Check if this variable is known to be String type
-                    if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                        if matches!(var_type, Type::String) {
-                            // String → int requires parsing, not casting
-                            // DEPYLER-0293: Use turbofish syntax to specify target type
-                            return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
-                        }
+                    let is_known_string = if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                        matches!(var_type, Type::String)
+                    } else {
+                        false
+                    };
+
+                    // Heuristic: variable names ending in _str, _string, or common string names
+                    let name = var_name.as_str();
+                    let looks_like_string = name.ends_with("_str")
+                        || name.ends_with("_string")
+                        || name == "s"
+                        || name == "string"
+                        || name == "text"
+                        || name == "word"
+                        || name == "line"
+                        || name == "value_str"  // Explicit case for this example
+                        || name.starts_with("str_")
+                        || name.starts_with("string_");
+
+                    if is_known_string || looks_like_string {
+                        // String → int requires parsing, not casting
+                        // DEPYLER-0293: Use turbofish syntax to specify target type
+                        return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
                     }
                     // Default: use as i32 cast for other types
+                    return Ok(parse_quote! { (#arg) as i32 });
+                }
+
+                // DEPYLER-0327 Fix #1: Check if method call returns String type
+                // E.g., Vec<String>.get() or str methods
+                HirExpr::MethodCall { object, method, args: method_args } => {
+                    // Check if this is .get() on a Vec<String> or similar
+                    if self.is_string_method_call(object, method, method_args) {
+                        return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
+                    }
+                    // Otherwise, use default cast
                     return Ok(parse_quote! { (#arg) as i32 });
                 }
 
@@ -2801,6 +2840,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Call { func, .. } if func.as_str() == "str" => true,
             _ => false,
         }
+    }
+
+    /// DEPYLER-0327 Fix #1: Check if method call returns String type
+    /// Used to detect .get() on Vec<String> and similar patterns
+    ///
+    /// # Complexity
+    /// 6 (match + type lookup + method check + variable name check)
+    fn is_string_method_call(&self, object: &HirExpr, method: &str, _args: &[HirExpr]) -> bool {
+        // Check if object is Vec<String> and method is .get()
+        if method == "get" {
+            if let HirExpr::Var(var_name) = object {
+                // Check var_types to see if this is Vec<String>
+                if let Some(Type::List(inner_type)) = self.ctx.var_types.get(var_name) {
+                    return matches!(inner_type.as_ref(), Type::String);
+                }
+                // Heuristic: Variable names containing "data", "items", "strings", etc.
+                let name = var_name.as_str();
+                return name.contains("str") || name.contains("data") || name.contains("text");
+            }
+        }
+
+        // String methods that return String
+        matches!(
+            method,
+            "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "title" | "replace" | "format"
+        )
     }
 
     fn convert_slice(

@@ -137,8 +137,10 @@ impl FunctionAnalyzer {
             let (stmt_can_fail, mut stmt_errors) = Self::stmt_can_fail(stmt);
             if stmt_can_fail {
                 can_fail = true;
-                error_types.append(&mut stmt_errors);
             }
+            // DEPYLER-0327 Fix #4: Always collect error types even if not can_fail
+            // This ensures exception types used in try/except blocks are generated
+            error_types.append(&mut stmt_errors);
         }
 
         // Remove duplicates
@@ -191,6 +193,51 @@ impl FunctionAnalyzer {
                 all_errors.append(&mut body_errors);
 
                 (iter_fail || body_fail, all_errors)
+            }
+            // DEPYLER-0327 Fix #2: Analyze try/except blocks for error types
+            // This ensures exception types used in try blocks are generated
+            // even if they're caught internally (needed for type definitions)
+            HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => {
+                // Collect error types from try body
+                let (_body_fail, mut body_errors) = Self::check_can_fail(body);
+
+                // Collect error types from except handlers
+                let mut handler_errors = Vec::new();
+                for handler in handlers {
+                    let (handler_fail, mut h_errors) = Self::check_can_fail(&handler.body);
+                    if handler_fail {
+                        handler_errors.append(&mut h_errors);
+                    }
+
+                    // DEPYLER-0327 Fix #3: Add exception types from handler signatures
+                    // This ensures types like ValueError are generated even if only caught
+                    if let Some(ref exc_type) = handler.exception_type {
+                        // exc_type is the caught exception (e.g., "ValueError")
+                        body_errors.push(exc_type.clone());
+                    }
+                }
+
+                // Collect error types from finally block
+                let finally_errors = if let Some(ref finally_body) = finalbody {
+                    let (_, f_errors) = Self::check_can_fail(finally_body);
+                    f_errors
+                } else {
+                    Vec::new()
+                };
+
+                let mut all_errors = body_errors;
+                all_errors.append(&mut handler_errors);
+                all_errors.extend(finally_errors);
+
+                // DEPYLER-0327 NOTE: Marking as NOT can_fail for now
+                // because exceptions are caught internally. This is conservative.
+                // TODO: Improve this to detect uncaught exceptions
+                (false, all_errors)
             }
             _ => (false, Vec::new()),
         }

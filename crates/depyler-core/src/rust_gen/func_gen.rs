@@ -645,16 +645,31 @@ pub(crate) fn codegen_return_type(
         None
     };
 
-    // Mark error types as needed for type generation
+    // DEPYLER-0327 Fix #5: Mark error types as needed for type generation
+    // Check BOTH error_type_str (for functions that return Result) AND
+    // func.properties.error_types (for types used in try/except blocks)
     if error_type_str.contains("ZeroDivisionError") {
         ctx.needs_zerodivisionerror = true;
     }
     if error_type_str.contains("IndexError") {
         ctx.needs_indexerror = true;
     }
-    // DEPYLER-0295: Add ValueError support
     if error_type_str.contains("ValueError") {
         ctx.needs_valueerror = true;
+    }
+
+    // Also check all error_types from properties (even if can_fail=false)
+    // This ensures types used in try/except blocks are generated
+    for err_type in &func.properties.error_types {
+        if err_type.contains("ZeroDivisionError") {
+            ctx.needs_zerodivisionerror = true;
+        }
+        if err_type.contains("IndexError") {
+            ctx.needs_indexerror = true;
+        }
+        if err_type.contains("ValueError") {
+            ctx.needs_valueerror = true;
+        }
     }
 
     let return_type = if matches!(rust_ret_type, crate::type_mapper::RustType::Unit) {
