@@ -132,15 +132,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if right side is a set based on type information
                 let is_set = self.is_set_expr(right) || self.is_set_var(right);
 
-                // DEPYLER-0315: .contains() and .contains_key() ALWAYS take &T references
-                // Even if the value is already a reference, Rust auto-derefs, so & is always safe
-                // This fixes errors like: seen.contains(item) → seen.contains(&item)
+                // DEPYLER-0304: Smart reference handling for HashMap.contains_key()
+                // HashMap.contains_key() takes &Q, so we pass the key directly
+                // without & to avoid double borrowing (&&str) when key is already &str
+                // Rust's auto-borrowing handles the conversion: &str → &str (no-op)
                 if is_string || is_set {
                     // Strings and Sets both use .contains(&value)
                     Ok(parse_quote! { #right_expr.contains(&#left_expr) })
                 } else {
-                    // HashMap/dict uses .contains_key(&key)
-                    Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                    // HashMap/dict uses .contains_key(key) - let Rust auto-borrow
+                    Ok(parse_quote! { #right_expr.contains_key(#left_expr) })
                 }
             }
             BinOp::NotIn => {
@@ -152,15 +153,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if right side is a set based on type information
                 let is_set = self.is_set_expr(right) || self.is_set_var(right);
 
-                // DEPYLER-0315: .contains() and .contains_key() ALWAYS take &T references
-                // Even if the value is already a reference, Rust auto-derefs, so & is always safe
-                // This fixes errors like: seen.contains(item) → seen.contains(&item)
+                // DEPYLER-0304: Smart reference handling for HashMap.contains_key()
+                // HashMap.contains_key() takes &Q, so we pass the key directly
+                // without & to avoid double borrowing (&&str) when key is already &str
                 if is_string || is_set {
                     // Strings and Sets both use .contains(&value)
                     Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
                 } else {
-                    // HashMap/dict uses .contains_key(&key)
-                    Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+                    // HashMap/dict uses .contains_key(key) - let Rust auto-borrow
+                    Ok(parse_quote! { !#right_expr.contains_key(#left_expr) })
                 }
             }
             BinOp::Add => {
@@ -1924,9 +1925,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("update() requires exactly one argument");
                 }
                 let arg = &arg_exprs[0];
+                // DEPYLER-0304 Phase 2B: Fix iterator reference handling
+                // When iterating over &HashMap<K, V>, iterator yields (&K, &V)
+                // but insert() expects (K, V), so we need to clone keys and deref values
                 Ok(parse_quote! {
                     for (k, v) in #arg {
-                        #object_expr.insert(k, v);
+                        #object_expr.insert(k.clone(), *v);
                     }
                 })
             }
