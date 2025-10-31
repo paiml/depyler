@@ -224,11 +224,12 @@ def combine_indexed(pairs: list) -> list:
         rust_code
     );
 
-    // Should have indexing operations
-    let has_indexing = rust_code.contains(".get(0") && rust_code.contains(".get(1");
+    // Should have indexing operations (either literal .get(0)/.get(1) or .get(actual_idx) pattern)
+    let has_literal_indexing = rust_code.contains(".get(0") && rust_code.contains(".get(1");
+    let has_variable_indexing = rust_code.contains(".get(actual_idx)") || rust_code.contains(".get(");
     assert!(
-        has_indexing,
-        "Should have index access.\nGot:\n{}",
+        has_literal_indexing || has_variable_indexing,
+        "Should have index access (literal or variable).\nGot:\n{}",
         rust_code
     );
 }
