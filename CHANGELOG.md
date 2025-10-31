@@ -4,6 +4,51 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🎉 Matrix Validation: 06_list_comprehensions - DEPYLER-0299 Already Fixed! (2025-10-31)
+
+**Discovery**: Retranspilation revealed DEPYLER-0299 fix already resolves list comprehension iterator dereferencing!
+**Impact**: 06_list_comprehensions: 5 errors → **0 errors** (100% compilation!)
+**Time**: 5 minutes (retranspilation only - no code changes needed!)
+
+#### Background
+
+Validated 06_list_comprehensions and found 5 errors: `.filter(|x| x % 2)` receiving `&&i32` instead of `i32`.
+
+**Analysis predicted**: Simple reordering fix needed (`.iter().cloned().filter()` vs `.iter().filter().cloned()`)
+
+**Reality discovered**: Transpiler ALREADY had comprehensive fix from DEPYLER-0299!
+
+#### The Fix (Already Present)
+
+**DEPYLER-0299** (implemented previously):
+- Uses `.clone().into_iter()` instead of `.iter().cloned()`
+- Adds `*x` deref in filter closures automatically
+- Handles all iterator dereferencing correctly
+
+**Generated Code (AFTER Retranspilation)**:
+```rust
+pub fn filter_even_numbers(numbers: &Vec<i32>) -> Vec<i32> {
+    numbers
+        .clone()
+        .into_iter()
+        .filter(|x| *x % 2 == 0)  // ✅ Automatic *x deref!
+        .map(|x| x)
+        .collect::<Vec<_>>()
+}
+```
+
+#### Results
+
+**06_list_comprehensions**:
+- **BEFORE**: 5 errors (outdated transpilation)
+- **AFTER**: **0 errors** ✅ (retranspiled with current transpiler)
+
+**Matrix Project**: 4/13 → **5/13 compiling** (38% pass rate)
+
+**Key Insight**: Examples may have outdated transpilation. Always retranspile before analysis!
+
+---
+
 ### 🟢 DEPYLER-0321: Fix `in` Operator for String Containment ✅ **COMPLETE** (2025-10-31)
 
 **Priority**: P1 - Critical
