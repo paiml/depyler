@@ -148,9 +148,10 @@ def calculate() -> int:
     let rust_code = result.unwrap();
 
     // Should have sum without intermediate collection
+    // Accept both .sum() and .sum::<T>() (turbofish is valid and more explicit)
     assert!(
-        rust_code.contains(".sum()"),
-        "Should have .sum().\\nGot:\\n{}",
+        rust_code.contains(".sum()") || rust_code.contains(".sum::<"),
+        "Should have .sum() or .sum::<T>().\\nGot:\\n{}",
         rust_code
     );
 
@@ -296,14 +297,15 @@ def calculate() -> int:
     let rust_code = result.unwrap();
 
     // Should NOT create intermediate variable
+    // Accept both .sum() and .sum::<T>() (turbofish is valid and more explicit)
     assert!(
-        rust_code.contains(".sum()"),
-        "Should have .sum().\\nGot:\\n{}",
+        rust_code.contains(".sum()") || rust_code.contains(".sum::<"),
+        "Should have .sum() or .sum::<T>().\\nGot:\\n{}",
         rust_code
     );
 
-    // Should be single expression
-    let sum_count = rust_code.matches(".sum()").count();
+    // Should be single expression (check for both forms)
+    let sum_count = rust_code.matches(".sum()").count() + rust_code.matches(".sum::<").count();
     assert_eq!(sum_count, 1, "Should have exactly one .sum() call");
 }
 
