@@ -136,13 +136,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // - String: .contains() method
                 // - Set: .contains() method
                 // - HashMap: .contains_key() method with smart reference handling
+
+                // DEPYLER-0329: Check if left is already a reference to avoid double-borrowing
+                // For variables with reference types (e.g., key: &str), don't add extra &
+                let needs_borrow = if let HirExpr::Var(var_name) = left {
+                    // Check if this variable is a parameter with reference type
+                    // For function params like `key: &str`, we don't need extra &
+                    !matches!(self.ctx.var_types.get(var_name), Some(Type::String))
+                } else {
+                    // Non-variables always need borrowing
+                    true
+                };
+
                 if is_string || is_set {
                     // Strings and Sets both use .contains(&value)
-                    Ok(parse_quote! { #right_expr.contains(&#left_expr) })
+                    if needs_borrow {
+                        Ok(parse_quote! { #right_expr.contains(&#left_expr) })
+                    } else {
+                        Ok(parse_quote! { #right_expr.contains(#left_expr) })
+                    }
                 } else {
                     // HashMap/dict uses .contains_key(&key)
                     // (DEPYLER-0326: Fix Phase 2A auto-borrowing in condition contexts)
-                    Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                    // (DEPYLER-0329: Avoid double-borrowing for reference-type parameters)
+                    if needs_borrow {
+                        Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                    } else {
+                        Ok(parse_quote! { #right_expr.contains_key(#left_expr) })
+                    }
                 }
             }
             BinOp::NotIn => {
@@ -156,13 +177,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // DEPYLER-0321 + DEPYLER-0304: Type-aware containment method selection
                 // Same logic as BinOp::In, but negated
+
+                // DEPYLER-0329: Check if left is already a reference to avoid double-borrowing
+                let needs_borrow = if let HirExpr::Var(var_name) = left {
+                    !matches!(self.ctx.var_types.get(var_name), Some(Type::String))
+                } else {
+                    true
+                };
+
                 if is_string || is_set {
                     // Strings and Sets both use .contains(&value)
-                    Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
+                    if needs_borrow {
+                        Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
+                    } else {
+                        Ok(parse_quote! { !#right_expr.contains(#left_expr) })
+                    }
                 } else {
                     // HashMap/dict uses .contains_key(&key)
                     // (DEPYLER-0326: Fix Phase 2A auto-borrowing in condition contexts)
-                    Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+                    // (DEPYLER-0329: Avoid double-borrowing for reference-type parameters)
+                    if needs_borrow {
+                        Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+                    } else {
+                        Ok(parse_quote! { !#right_expr.contains_key(#left_expr) })
+                    }
                 }
             }
             BinOp::Add => {
@@ -551,6 +589,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0303 Phase 3 Fix #8: Optimize sum(d.values()) and sum(d.keys())
             // .values()/.keys() already return Vec, but we can optimize by using the iterator directly
             // This avoids .collect::<Vec<_>>().iter() pattern
+            // DEPYLER-0328: Use element type for sum(), not return type
             if let HirExpr::MethodCall {
                 object,
                 method,
@@ -560,16 +599,33 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if (method == "values" || method == "keys") && method_args.is_empty() {
                     let object_expr = object.to_rust_expr(self.ctx)?;
 
-                    let target_type = self
-                        .ctx
-                        .current_return_type
-                        .as_ref()
-                        .and_then(|t| match t {
-                            Type::Int => Some(quote! { i32 }),
-                            Type::Float => Some(quote! { f64 }),
-                            _ => None,
-                        })
-                        .unwrap_or_else(|| quote! { i32 });
+                    // DEPYLER-0328: Infer sum type from collection element type, not return type
+                    // For d.values() where d: HashMap<K, i32>, sum should be .sum::<i32>()
+                    // even if function returns f64 (the cast happens after sum)
+                    let target_type = if method == "values" {
+                        // Try to get value type from HashMap
+                        if let HirExpr::Var(var_name) = object.as_ref() {
+                            if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                                match var_type {
+                                    Type::Dict(_key_type, value_type) => match value_type.as_ref() {
+                                        Type::Int => Some(quote! { i32 }),
+                                        Type::Float => Some(quote! { f64 }),
+                                        _ => None,
+                                    },
+                                    _ => None,
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        // For .keys(), always String → can't sum strings
+                        // Fall back to default (should not happen for keys)
+                        None
+                    }
+                    .unwrap_or_else(|| quote! { i32 });
 
                     // Use .values().cloned().sum() directly - skip the .collect()
                     let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
