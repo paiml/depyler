@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔧 DEPYLER-TBD: Fix Overly-Strict Generator Expression Test Assertions ✅ (2025-10-31)
+
+**Impact**: Test suite: 673 → 675 passing (+2 fixed tests)
+**Focus**: Test quality improvements, reduce false positives
+**Time**: 5 minutes (test assertion fixes + verification)
+
+**Fixed Test Status**:
+- `test_generator_expression_in_sum`: 18 passed, 2 failed → 20 passed, 0 failed ✅
+- `test_generator_expression_immediate_consume`: Fixed assertion
+
+**Root Cause**: Test assertions were too strict - required exact string `.sum()` but transpiler generates `.sum::<i32>()` (which is actually BETTER Rust code with explicit type turbofish).
+
+**Changes Made**:
+```rust
+// OLD (too strict):
+assert!(rust_code.contains(".sum()"), ...);
+
+// NEW (accepts both forms):
+assert!(
+    rust_code.contains(".sum()") || rust_code.contains(".sum::<"),
+    "Should have .sum() or .sum::<T>()...",
+    ...
+);
+```
+
+**Why This Is Correct**:
+- `.sum::<i32>()` is idiomatic Rust (explicit type annotation)
+- More type-safe than `.sum()` (relies on inference)
+- Transpiler is generating BETTER code than tests expected
+- Tests should validate behavior, not exact syntax
+
+**Value**: Eliminates false-positive test failures, validates correct transpilation behavior rather than exact string matching.
+
+**Files Modified**:
+- `crates/depyler-core/tests/generator_expression_test.rs` (relaxed 2 assertions)
+
+**Verification**:
+```bash
+cargo test -p depyler-core --test generator_expression_test
+# Result: ok. 20 passed; 0 failed; 0 ignored ✅ (was 18 passed, 2 failed)
+```
+
+---
+
 ### 📝 DEPYLER-TBD: Document Pre-existing F-String Blockers in Formatting Tests ✅ (2025-10-31)
 
 **Impact**: Test suite: 673 passing (2 tests now correctly ignored, documented)
