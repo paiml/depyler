@@ -4,6 +4,85 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0326: Fix HashMap .contains_key() Auto-Borrowing in Conditions ✅ **COMPLETE** (2025-10-31)
+
+**Impact**: 07_algorithms: 1 error → **0 errors** (100% compilation!)
+**Time**: 10 minutes (as estimated - trivial fix)
+**Matrix Project**: 7/13 → **8/13 compiling** (61.5% pass rate!)
+
+#### Problem
+
+DEPYLER-0304 Phase 2A implemented HashMap auto-borrowing but missed condition contexts:
+- `.get(&key)` worked ✅
+- `if key in dict` → `.contains_key(key)` failed ❌ (missing `&`)
+
+**Error**:
+```rust
+// Line 415 in 07_algorithms
+if freq.contains_key(char) {  // ❌ Expected &String, found String
+```
+
+#### Root Cause
+
+**expr_gen.rs** lines 145 and 165:
+```rust
+// OLD (WRONG):
+Ok(parse_quote! { #right_expr.contains_key(#left_expr) })  // ❌ Missing &
+
+// Comment said "let Rust auto-borrow" but we weren't borrowing!
+```
+
+#### Fix
+
+**crates/depyler-core/src/rust_gen/expr_gen.rs** (lines 145, 165):
+```rust
+// NEW (CORRECT):
+Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })  // ✅ Added &
+```
+
+**Changes**:
+1. `BinOp::In` → `.contains_key(&key)` (line 145)
+2. `BinOp::NotIn` → `.contains_key(&key)` (line 165)
+3. Updated comments to reflect DEPYLER-0326
+
+#### Verification
+
+**Python Source**:
+```python
+def count_char_frequency(s: str) -> dict[str, int]:
+    freq = {}
+    for char in s:
+        if char in freq:  # Pattern: "if key in dict"
+            freq[char] += 1
+```
+
+**Generated Rust (BEFORE)**:
+```rust
+if freq.contains_key(char) {  // ❌ Missing &
+```
+
+**Generated Rust (AFTER)**:
+```rust
+if freq.contains_key(&char) {  // ✅ Auto-borrow!
+```
+
+#### Results
+
+**07_algorithms**:
+- **BEFORE**: 1 error (`contains_key` missing `&`)
+- **AFTER**: **0 errors** ✅ (100% compilation!)
+
+**Matrix Project**:
+- **Pass Rate**: 7/13 → **8/13** (53.8% → **61.5%**)
+- **Milestone**: >60% pass rate achieved! 🎉
+
+**Broader Impact**:
+- ALL `if key in dict` patterns now compile
+- Completes DEPYLER-0304 Phase 2A auto-borrowing
+- No regressions in existing tests
+
+---
+
 ### 🎉 Matrix Validation: 06_list_comprehensions - DEPYLER-0299 Already Fixed! (2025-10-31)
 
 **Discovery**: Retranspilation revealed DEPYLER-0299 fix already resolves list comprehension iterator dereferencing!
