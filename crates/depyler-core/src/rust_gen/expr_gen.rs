@@ -126,41 +126,42 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // - HashSet: container.contains(&x)
                 // - HashMap/dict: container.contains_key(&x)
 
-                // DEPYLER-0300: Check if right side is a string
-                let is_string = self.is_string_base(right);
+                // DEPYLER-0321: Use type-aware string detection
+                let is_string = self.is_string_type(right);
 
                 // Check if right side is a set based on type information
                 let is_set = self.is_set_expr(right) || self.is_set_var(right);
 
-                // DEPYLER-0304: Smart reference handling for HashMap.contains_key()
-                // HashMap.contains_key() takes &Q, so we pass the key directly
-                // without & to avoid double borrowing (&&str) when key is already &str
-                // Rust's auto-borrowing handles the conversion: &str → &str (no-op)
+                // DEPYLER-0321 + DEPYLER-0304: Type-aware containment method selection
+                // - String: .contains() method
+                // - Set: .contains() method
+                // - HashMap: .contains_key() method with smart reference handling
                 if is_string || is_set {
                     // Strings and Sets both use .contains(&value)
                     Ok(parse_quote! { #right_expr.contains(&#left_expr) })
                 } else {
                     // HashMap/dict uses .contains_key(key) - let Rust auto-borrow
+                    // (DEPYLER-0304 Phase 2A: avoid double borrowing)
                     Ok(parse_quote! { #right_expr.contains_key(#left_expr) })
                 }
             }
             BinOp::NotIn => {
                 // Convert "x not in container" to !container.method(&x)
 
-                // DEPYLER-0300: Check if right side is a string
-                let is_string = self.is_string_base(right);
+                // DEPYLER-0321: Use type-aware string detection
+                let is_string = self.is_string_type(right);
 
                 // Check if right side is a set based on type information
                 let is_set = self.is_set_expr(right) || self.is_set_var(right);
 
-                // DEPYLER-0304: Smart reference handling for HashMap.contains_key()
-                // HashMap.contains_key() takes &Q, so we pass the key directly
-                // without & to avoid double borrowing (&&str) when key is already &str
+                // DEPYLER-0321 + DEPYLER-0304: Type-aware containment method selection
+                // Same logic as BinOp::In, but negated
                 if is_string || is_set {
                     // Strings and Sets both use .contains(&value)
                     Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
                 } else {
                     // HashMap/dict uses .contains_key(key) - let Rust auto-borrow
+                    // (DEPYLER-0304 Phase 2A: avoid double borrowing)
                     Ok(parse_quote! { !#right_expr.contains_key(#left_expr) })
                 }
             }
@@ -3483,6 +3484,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     matches!(var_type, Type::Set(_))
                 } else {
                     false
+                }
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0321: Check if expression is a string type
+    /// Used to distinguish string.contains() from HashMap.contains_key()
+    ///
+    /// # Complexity
+    /// 3 (match + type lookup + variant check)
+    fn is_string_type(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Literal(Literal::String(_)) => true,
+            HirExpr::Var(name) => {
+                // Check var_types to see if this variable is a string
+                if let Some(var_type) = self.ctx.var_types.get(name) {
+                    matches!(var_type, Type::String)
+                } else {
+                    // Fallback to heuristic for cases without type info
+                    self.is_string_base(expr)
                 }
             }
             _ => false,
