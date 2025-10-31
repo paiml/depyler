@@ -4,6 +4,113 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🟢 DEPYLER-0328 + DEPYLER-0329: Fix sum() Type Inference & Double-Borrowing ✅ **COMPLETE** (2025-10-31)
+
+**Impact**: 09_dictionary_operations: 4 errors → 3 errors (25% reduction)
+**Time**: 40 minutes (type inference + regression fix)
+
+#### DEPYLER-0328: sum() Type Inference from Collection Elements
+
+**Problem**: `sum(d.values())` where values are `i32` but function returns `f64` generated `.sum::<f64>()` causing type mismatch.
+
+**Error**:
+```
+error[E0277]: a value of type `f64` cannot be made by summing an iterator over elements of type `i32`
+199 |     Ok((d.values().cloned().sum::<f64>() as f64) / ...)
+    |                             ---   ^^^ value of type `f64` cannot be made by summing a `std::iter::Iterator<Item=i32>`
+```
+
+**Root Cause**: Transpiler inferred sum type from function return type instead of collection element type.
+
+**Fix**: Modified `expr_gen.rs` lines 564-590 to use Dict value_type for sum inference.
+
+```rust
+// OLD (WRONG): Used function return type
+let target_type = self.ctx.current_return_type
+    .and_then(|t| match t {
+        Type::Float => Some(quote! { f64 }),  // ❌ Wrong for i32 values
+        ...
+    })
+
+// NEW (CORRECT): Use collection element type
+let target_type = if method == "values" {
+    if let HirExpr::Var(var_name) = object.as_ref() {
+        if let Some(Type::Dict(_key, value_type)) = self.ctx.var_types.get(var_name) {
+            match value_type.as_ref() {
+                Type::Int => Some(quote! { i32 }),  // ✅ Correct!
+                ...
+            }
+        }
+    }
+}
+```
+
+**Generated Code**:
+```rust
+// BEFORE:
+d.values().cloned().sum::<f64>()  // ❌ Type error
+
+// AFTER:
+d.values().cloned().sum::<i32>() as f64  // ✅ Correct!
+```
+
+#### DEPYLER-0329: Fix Double-Borrowing Regression
+
+**Problem**: DEPYLER-0326 unconditionally added `&` to `.contains_key()`, causing `&&str` for reference-type parameters.
+
+**Error**:
+```
+error[E0277]: the trait bound `String: Borrow<&str>` is not satisfied
+59 |     let _cse_temp_0 = d.contains_key(&key);  // key: &str → &key = &&str
+   |                         ------------ ^^^^ expected `str`, found `&str`
+```
+
+**Root Cause**: DEPYLER-0326 didn't check if argument was already a reference before adding `&`.
+
+**Fix**: Added smart borrowing logic in `expr_gen.rs` lines 140-167, 181-204.
+
+```rust
+// Check if variable is already a reference type
+let needs_borrow = if let HirExpr::Var(var_name) = left {
+    // For params like `key: &str`, don't add extra &
+    !matches!(self.ctx.var_types.get(var_name), Some(Type::String))
+} else {
+    true  // Non-variables need borrowing
+};
+
+if needs_borrow {
+    Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+} else {
+    Ok(parse_quote! { #right_expr.contains_key(#left_expr) })  // ✅ No double-borrow
+}
+```
+
+**Generated Code**:
+```rust
+// Function signature: pop_entry(d: &HashMap<String, i32>, key: &str)
+
+// BEFORE (DEPYLER-0326 regression):
+d.contains_key(&key)  // ❌ &&str error
+
+// AFTER (DEPYLER-0329 fix):
+d.contains_key(key)   // ✅ Correct - key already &str
+```
+
+#### Results
+
+**09_dictionary_operations**:
+- **BEFORE**: 4 errors (sum type + 3 double-borrow)
+- **AFTER**: 3 errors (remaining: .is_none() + 2 .remove() mutability)
+- **Fixed**: 1 error (sum type) + resolved 2 regressions
+
+**Remaining Issues in 09_dictionary_operations** (separate tickets needed):
+1. `.is_none()` called on i32 (Option handling)
+2-3. `.remove()` needs `&mut HashMap` (parameter mutability detection)
+
+**Matrix Project**: Still 8/13 compiling (61.5%) - no change yet (3 errors remain in 09)
+
+---
+
 ### 🟢 DEPYLER-0326: Fix HashMap .contains_key() Auto-Borrowing in Conditions ✅ **COMPLETE** (2025-10-31)
 
 **Impact**: 07_algorithms: 1 error → **0 errors** (100% compilation!)
