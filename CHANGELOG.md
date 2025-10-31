@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔍 Matrix Project Validation: 08_string_operations Analysis (2025-10-31)
+
+**Campaign**: Systematic Matrix example validation continues
+**Example**: 08_string_operations (20 errors discovered)
+**Time**: 1 hour (validation + analysis + ticketing)
+**Result**: 5 NEW transpiler bug patterns identified
+
+#### Discovery Summary
+
+| Ticket | Pattern | Priority | Errors | Estimate |
+|--------|---------|----------|--------|----------|
+| DEPYLER-0321 | `in` operator → `.contains_key()` for strings | P1 - Critical | 2 | 30 min |
+| DEPYLER-0323 | `str.iter()` should be `.chars()` | P2 - High | 6 | 1 hour |
+| DEPYLER-0322 | String slicing → `.to_vec()` wrong | P2 - High | 6 | 45 min |
+| DEPYLER-0320 | Python string methods unmapped | P2 - High | 4 | 2-3 hours |
+| DEPYLER-0324 | String repetition `s * n` | P3 - Low | 1 | 30 min |
+
+**Quick Wins**: DEPYLER-0321 + DEPYLER-0323 (1.5 hours) → 40% error reduction
+
+---
+
 ### 🟢 DEPYLER-0304: HashMap Type Inference in 09_dictionary_operations (Phase 1/3) ✅ **PHASE 1 COMPLETE** (2025-10-30)
 
 **Goal**: Fix dictionary operations compilation errors through type-aware code generation
