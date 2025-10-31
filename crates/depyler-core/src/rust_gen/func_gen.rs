@@ -279,10 +279,19 @@ fn codegen_single_param(
             };
 
         update_import_needs(ctx, &actual_rust_type);
+
+        // DEPYLER-0330: Override needs_mut for borrowed parameters that are mutated
+        // If analyze_mutable_vars detected mutation (via .remove(), .clear(), etc.)
+        // and this parameter will be borrowed (&T), upgrade to &mut T
+        let mut inferred_with_mut = inferred.clone();
+        if is_mutated_in_body && inferred.should_borrow {
+            inferred_with_mut.needs_mut = true;
+        }
+
         let ty = apply_param_borrowing_strategy(
             &param.name,
             &actual_rust_type,
-            inferred,
+            &inferred_with_mut,
             lifetime_result,
             ctx,
         )?;

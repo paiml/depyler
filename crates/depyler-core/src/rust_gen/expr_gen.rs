@@ -1906,13 +1906,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "get" => {
                 if arg_exprs.len() == 1 {
                     let key = &arg_exprs[0];
-                    // DEPYLER-0303 Phase 2: Check if return type is Optional
-                    // If function returns Option<T>, dict.get() should return Option directly
-                    // Otherwise, unwrap with unwrap_or_default()
-                    let returns_option = matches!(
-                        self.ctx.current_return_type.as_ref(),
-                        Some(Type::Optional(_))
-                    );
+                    // DEPYLER-0330: Keep dict.get() as Option to support .is_none() checks
+                    // Python: result = d.get(key); if result is None: ...
+                    // Rust: let result = d.get(key).cloned(); if result.is_none() { ... }
 
                     // DEPYLER-0227: String literals need & prefix, but variables with &str type don't
                     // Check if key is a string literal that was converted to .to_string()
@@ -1925,15 +1921,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             parse_quote! { #key }
                         };
 
-                    if returns_option {
-                        // Return Option directly - don't unwrap
-                        Ok(parse_quote! { #object_expr.get(#key_expr).cloned() })
-                    } else {
-                        // Unwrap with default for non-Optional returns
-                        Ok(
-                            parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or_default() },
-                        )
-                    }
+                    // Return Option - downstream code will handle unwrapping if needed
+                    Ok(parse_quote! { #object_expr.get(#key_expr).cloned() })
                 } else if arg_exprs.len() == 2 {
                     let key = &arg_exprs[0];
                     let default = &arg_exprs[1];
