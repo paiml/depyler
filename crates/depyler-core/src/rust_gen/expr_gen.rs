@@ -140,9 +140,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Strings and Sets both use .contains(&value)
                     Ok(parse_quote! { #right_expr.contains(&#left_expr) })
                 } else {
-                    // HashMap/dict uses .contains_key(key) - let Rust auto-borrow
-                    // (DEPYLER-0304 Phase 2A: avoid double borrowing)
-                    Ok(parse_quote! { #right_expr.contains_key(#left_expr) })
+                    // HashMap/dict uses .contains_key(&key)
+                    // (DEPYLER-0326: Fix Phase 2A auto-borrowing in condition contexts)
+                    Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
                 }
             }
             BinOp::NotIn => {
@@ -160,9 +160,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Strings and Sets both use .contains(&value)
                     Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
                 } else {
-                    // HashMap/dict uses .contains_key(key) - let Rust auto-borrow
-                    // (DEPYLER-0304 Phase 2A: avoid double borrowing)
-                    Ok(parse_quote! { !#right_expr.contains_key(#left_expr) })
+                    // HashMap/dict uses .contains_key(&key)
+                    // (DEPYLER-0326: Fix Phase 2A auto-borrowing in condition contexts)
+                    Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
                 }
             }
             BinOp::Add => {
