@@ -1,32 +1,32 @@
 # PMAT Enforced Extreme YAML Roadmap
 # Schema Version: 1.0
-# Last Updated: 2025-10-27
+# Last Updated: 2025-10-31
 # Validation: pmat roadmap validate docs/execution/roadmap.yaml
 
 ---
 metadata:
   project_name: Depyler
-  current_version: v3.19.20
-  last_active: 2025-10-27
-  status: PUBLISHED
-  next_version: v3.19.21
+  current_version: v3.19.29
+  last_active: 2025-10-31
+  status: ACTIVE_DEVELOPMENT
+  next_version: v3.19.30
 
 session_context:
-  achievement: "🎉 v3.19.20 RELEASED - STOP THE LINE Campaign Complete + Production Ready - 2025-10-27"
-  latest_work: "STOP THE LINE BUG FIX CAMPAIGN COMPLETE: Released v3.19.20 fixing all 4 P0 BLOCKING bugs discovered during performance benchmarking. Bugs fixed: DEPYLER-0264 (DynamicType undefined for untyped collections), DEPYLER-0265 (iterator dereferencing in for loops), DEPYLER-0266 (boolean conversion for empty checks), DEPYLER-0267 (.copied() vs .cloned() for non-Copy types). Investigation: DEPYLER-0268 verified negative indexing works correctly (regression tests retained). Testing: 21 new regression tests (868 lines), all tests passing, zero regressions. Release: Published 8 crates to crates.io (depyler-annotations, depyler-core, depyler-analyzer, depyler-verify, depyler-quality, depyler-mcp, depyler-wasm, depyler v3.19.20). Production Status: 27/27 stdlib modules validated (100%), 151/151 tests passing (100% pass rate), PRODUCTION READY for validated stdlib subset."
+  achievement: "✅ DEPYLER-0304 Phase 2 COMPLETE - HashMap Reference Handling Fixed (50% error reduction) - 2025-10-31"
+  latest_work: "DEPYLER-0304 HashMap Type Inference Campaign - Phase 2 Complete: Fixed HashMap reference handling and iterator type issues in 09_dictionary_operations example. Phase 2A: Fixed double borrowing in .contains_key() by removing unnecessary & prefix for HashMap operations (3 errors fixed, lines 59/75/104). Phase 2B: Fixed iterator reference mismatches in dict.update() by adding clone/deref (k.clone(), *v) (2 errors fixed, lines 96/136). Results: 8 errors → 4 errors (50% total reduction), zero regressions (453/458 tests passing). Generated code now leverages Rust auto-borrowing idiomatically. Commits: c5762cb (Phase 1), 9893fa6 (Phase 2). Files: expr_gen.rs (lines 123-165, 1923-1936), stmt_gen.rs (lines 905-939), DEPYLER-0304-analysis.md, CHANGELOG.md. Quality: All gates passed (complexity ≤10, zero SATD, zero clippy warnings). Time: 3.5 hours (under 4-6 hour estimate). Remaining: 4 errors (1 Option confusion, 2 mutability, 1 type conversion)."
   recent_completions:
+    - "✅ PHASE 2: DEPYLER-0304 Phase 2A - HashMap double borrowing fixed (3 errors) (2025-10-31)"
+    - "✅ PHASE 2: DEPYLER-0304 Phase 2B - Iterator reference handling fixed (2 errors) (2025-10-31)"
+    - "✅ PHASE 1: DEPYLER-0304 Phase 1 - Dictionary subscript assignment fixed (2 errors) (2025-10-30)"
+    - "📊 TESTING: Zero regressions, 453/458 tests passing (98.9%) (2025-10-31)"
+    - "📝 DOCS: Updated DEPYLER-0304-analysis.md with Phase 2 report (2025-10-31)"
+    - "📝 DOCS: Updated CHANGELOG.md with Phase 1 and Phase 2 entries (2025-10-31)"
+    - "🔧 QUALITY: All quality gates passed (complexity ≤10, zero SATD, zero clippy warnings) (2025-10-31)"
     - "🐛 BUGFIX: DEPYLER-0264 - Fixed DynamicType undefined (2025-10-27)"
     - "🐛 BUGFIX: DEPYLER-0265 - Fixed iterator dereferencing (2025-10-27)"
     - "🐛 BUGFIX: DEPYLER-0266 - Fixed boolean conversion bug (2025-10-27)"
-    - "🐛 BUGFIX: DEPYLER-0267 - Fixed .copied() vs .cloned() (2025-10-27)"
-    - "🔬 INVESTIGATION: DEPYLER-0268 - Verified no bug exists (2025-10-27)"
-    - "🧪 TESTING: 21 new regression tests (868 lines) (2025-10-27)"
-    - "📦 RELEASE: v3.19.20 published to crates.io (8 crates) (2025-10-27)"
-    - "🎯 Git Tag: v3.19.20 created and pushed to GitHub (2025-10-27)"
-    - "✅ VALIDATION: 27/27 stdlib modules, 151/151 tests passing (2025-10-27)"
-    - "🚀 STATUS: PRODUCTION READY for validated stdlib subset (2025-10-27)"
-  next_focus: "Performance benchmarking continuation OR additional stdlib module validation"
-  current_status: "PRODUCTION_READY_VALIDATED_SUBSET"
+  next_focus: "DEPYLER-0304 Phase 3 (Option context analysis) OR quick wins (mutability/type conversion fixes) OR continue Matrix Project validation"
+  current_status: "ACTIVE_DEVELOPMENT_MATRIX_PROJECT"
 
 # ============================================================================
 # v3.18.0 MODULARIZATION PROJECT
