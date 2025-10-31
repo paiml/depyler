@@ -11,6 +11,105 @@ metadata:
   status: ACTIVE_DEVELOPMENT
   next_version: v3.19.30
 
+test_status:
+  total_tests: 690
+  passing: 690
+  failing: 0
+  ignored: 8
+  pass_rate: 100%
+  packages:
+    depyler_core: "453 passed, 0 failed, 5 ignored"
+    depyler_analyzer: "90 passed, 0 failed, 0 ignored"
+    depyler_verify: "76 passed, 0 failed, 1 ignored"
+    depyler_quality: "9 passed, 0 failed, 0 ignored"
+    depyler_mcp: "33 passed, 0 failed, 0 ignored"
+    depyler_integration: "29 passed, 0 failed, 2 ignored"
+
+matrix_project:
+  pass_rate: 75%
+  compiling: 9
+  failing: 3
+  total: 12
+
+  passing_examples:
+    - name: 01_basic_types
+      notes: "2 unused variable warnings"
+    - name: 02_control_flow
+      notes: "Clean compilation"
+    - name: 03_functions
+      notes: "Clean compilation"
+    - name: 06_list_comprehensions
+      notes: "DEPYLER-0299"
+    - name: 07_algorithms
+      notes: "DEPYLER-0326 (2025-10-31)"
+      milestone: "NEW"
+    - name: 08_string_operations
+      notes: "DEPYLER-0321"
+    - name: 09_dictionary_operations
+      notes: "DEPYLER-0330 (2025-10-31)"
+      milestone: "NEW"
+    - name: 12_control_flow
+      notes: "Clean compilation"
+    - name: 13_builtin_functions
+      notes: "Clean compilation"
+
+  failing_examples:
+    - name: 04_collections
+      error_count: 42
+      error_types: ["E0433"]
+      severity: LOW
+      category: "External dependency (serde_json)"
+      fix_time_minutes: 15
+      fix_complexity: TRIVIAL
+      recommendation: "Document as V1 limitation"
+      ticket: "DEPYLER-0331 (to be created)"
+
+    - name: 05_error_handling
+      error_count: 4
+      error_types: ["E0308 (2)", "E0433 (1)", "E0605 (1)"]
+      severity: MEDIUM
+      category: "Exception/Result handling"
+      fix_time_minutes: 75
+      fix_complexity: MEDIUM_HIGH
+      recommendation: "NEXT PRIORITY - Achieve 83% milestone"
+      ticket: "DEPYLER-0327 (documented)"
+      errors:
+        - type: E0308
+          count: 2
+          description: "Result<T> returned but T expected"
+          fix: "Add .unwrap() or adjust function signature"
+        - type: E0605
+          count: 1
+          description: "Invalid cast String as i32"
+          fix: "Use .parse::<i32>() instead"
+        - type: E0433
+          count: 1
+          description: "ValueError type not defined"
+          fix: "Generate ValueError exception type"
+
+    - name: 10_file_operations
+      error_count: 31
+      error_types: ["E0425 (29)", "E0412 (2)"]
+      severity: HIGH
+      category: "File I/O API translation"
+      fix_time_minutes: 150
+      fix_complexity: HIGH
+      recommendation: "Defer until after 05_error_handling"
+      ticket: "DEPYLER-0332 (to be created)"
+      errors:
+        - type: E0425
+          count: 26
+          description: "open() function not found"
+          fix: "Map Python open() to Rust File API"
+        - type: E0425
+          count: 3
+          description: "Variable scope issues (with-statement)"
+          fix: "Fix with-statement scope handling"
+        - type: E0412
+          count: 2
+          description: "bytes type not found"
+          fix: "Map bytes to Vec<u8>"
+
 session_context:
   achievement: "🎉 75% MILESTONE ACHIEVED - 09_dictionary_operations 100% COMPLETE - 2025-10-31"
   latest_work: "Matrix Project Sprint 3 COMPLETE: Fixed final 3 errors in 09_dictionary_operations achieving 100% compilation. DEPYLER-0326: Fixed HashMap .contains_key() auto-borrowing (1 error, 07_algorithms). DEPYLER-0328: Fixed sum() type inference from collection elements (1 error). DEPYLER-0329: Fixed double-borrowing regression (2 errors). DEPYLER-0330: Fixed dict.get() Option handling + parameter mutability detection (3 errors → 0 errors). Results: Matrix Project 8/12 → 9/12 compiling (75% pass rate - MILESTONE!). Zero test regressions (453 core tests passing). Quality: All gates passed (TDG A-, complexity ≤10, zero SATD, zero clippy warnings). Time: 3.5 hours total. Commits: 60f4b33 (DEPYLER-0326), a5c8505 (DEPYLER-0328+0329), 5a1f86c (DEPYLER-0330)."
