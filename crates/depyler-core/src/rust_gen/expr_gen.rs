@@ -3019,6 +3019,82 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert hmac module method calls
+    /// DEPYLER-STDLIB-HMAC: HMAC authentication
+    ///
+    /// Supports: new() with SHA256, compare_digest()
+    /// Returns hex digest for one-shot HMAC
+    ///
+    /// # Complexity
+    /// Cyclomatic: 3 (match with 2 functions + default)
+    #[inline]
+    fn try_convert_hmac_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Mark that we need hmac and related crates
+        self.ctx.needs_hmac = true;
+        self.ctx.needs_sha2 = true; // For SHA256
+        self.ctx.needs_hex = true;
+
+        let result = match method {
+            // HMAC creation - simplified to SHA256
+            "new" => {
+                if arg_exprs.len() < 2 {
+                    bail!("hmac.new() requires at least 2 arguments (key, message)");
+                }
+                let key = &arg_exprs[0];
+                let msg = &arg_exprs[1];
+
+                // TODO: Parse digestmod argument (arg_exprs[2]) to support multiple algorithms
+                // For now, hardcode SHA256 as most common
+
+                // hmac.new(key, msg, hashlib.sha256) → HMAC-SHA256 hex digest
+                parse_quote! {
+                    {
+                        use hmac::{Hmac, Mac};
+                        use sha2::Sha256;
+
+                        type HmacSha256 = Hmac<Sha256>;
+                        let mut mac = HmacSha256::new_from_slice(#key).expect("HMAC key error");
+                        mac.update(#msg);
+                        hex::encode(mac.finalize().into_bytes())
+                    }
+                }
+            }
+
+            // Timing-safe comparison
+            "compare_digest" => {
+                if arg_exprs.len() != 2 {
+                    bail!("hmac.compare_digest() requires exactly 2 arguments");
+                }
+                let a = &arg_exprs[0];
+                let b = &arg_exprs[1];
+
+                // hmac.compare_digest(a, b) → constant-time comparison
+                parse_quote! {
+                    {
+                        use subtle::ConstantTimeEq;
+                        #a.ct_eq(#b).into()
+                    }
+                }
+            }
+
+            _ => {
+                bail!("hmac.{} not implemented yet (try: new, compare_digest)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -3814,6 +3890,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-UUID: UUID generation (RFC 4122)
             if module_name == "uuid" {
                 return self.try_convert_uuid_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-HMAC: HMAC authentication
+            if module_name == "hmac" {
+                return self.try_convert_hmac_method(method, args);
             }
 
             let rust_name_opt = self

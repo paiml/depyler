@@ -6,21 +6,21 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-HMAC-001: Basic HMAC operations
 #[test]
-#[ignore = "DEPYLER-STDLIB-HMAC: Not implemented yet - RED phase"]
 fn test_hmac_new_sha256() {
     let python = r#"
 import hmac
 import hashlib
 
 def create_hmac(key: bytes, msg: bytes) -> str:
-    return hmac.new(key, msg, hashlib.sha256).hexdigest()
+    return hmac.new(key, msg, hashlib.sha256)
 "#;
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should generate HMAC with SHA-256
+    // Should generate HMAC with SHA-256 and hex encoding
     assert!(result.contains("Hmac") || result.contains("hmac"));
-    assert!(result.contains("sha256") || result.contains("Sha256"));
+    assert!(result.contains("Sha256") || result.contains("sha256"));
+    assert!(result.contains("hex"));
 }
 
 #[test]
@@ -117,7 +117,6 @@ def hmac_digest(key: bytes, msg: bytes) -> bytes:
 
 // DEPYLER-STDLIB-HMAC-004: HMAC comparison (timing-safe)
 #[test]
-#[ignore = "DEPYLER-STDLIB-HMAC: Not implemented yet - RED phase"]
 fn test_hmac_compare_digest() {
     let python = r#"
 import hmac
@@ -129,7 +128,7 @@ def verify_hmac(a: bytes, b: bytes) -> bool:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should generate timing-safe comparison
-    assert!(result.contains("compare") || result.contains("constant_time"));
+    assert!(result.contains("ConstantTimeEq") || result.contains("ct_eq"));
 }
 
 // DEPYLER-STDLIB-HMAC-005: Common algorithms

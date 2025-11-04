@@ -65,6 +65,7 @@ pub struct CodeGenContext<'a> {
     pub needs_blake2: bool,
     pub needs_hex: bool,
     pub needs_uuid: bool,
+    pub needs_hmac: bool,
     pub declared_vars: Vec<HashSet<String>>,
     pub current_function_can_fail: bool,
     pub current_return_type: Option<Type>,
