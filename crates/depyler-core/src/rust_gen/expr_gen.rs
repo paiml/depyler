@@ -1912,6 +1912,68 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert string module method calls
+    /// DEPYLER-STDLIB-STRING: String module utilities
+    ///
+    /// Maps Python string module functions to Rust equivalents:
+    /// - string.capwords() → split/capitalize/join
+    /// - string.Template → String formatting
+    ///
+    /// # Complexity
+    /// 2 (match with 2 branches)
+    #[inline]
+    fn try_convert_string_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // String utilities
+            "capwords" => {
+                if arg_exprs.is_empty() {
+                    bail!("string.capwords() requires at least 1 argument (text)");
+                }
+                let text = &arg_exprs[0];
+
+                // string.capwords(text) → text.split_whitespace().map(|w| {
+                //     let mut c = w.chars();
+                //     match c.next() {
+                //         None => String::new(),
+                //         Some(f) => f.to_uppercase().collect::<String>() + c.as_str()
+                //     }
+                // }).collect::<Vec<_>>().join(" ")
+                parse_quote! {
+                    #text.split_whitespace()
+                        .map(|w| {
+                            let mut chars = w.chars();
+                            match chars.next() {
+                                None => String::new(),
+                                Some(first) => {
+                                    let mut result = first.to_uppercase().collect::<String>();
+                                    result.push_str(&chars.as_str().to_lowercase());
+                                    result
+                                }
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                }
+            }
+
+            _ => {
+                bail!("string.{} not implemented yet", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -2666,6 +2728,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-RE: Regular expressions module
             if module_name == "re" {
                 return self.try_convert_re_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-STRING: String module utilities
+            if module_name == "string" {
+                return self.try_convert_string_method(method, args);
             }
 
             let rust_name_opt = self
@@ -4431,6 +4498,29 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     _ => {
                         // If it's not a recognized constant, it might be a typo
                         bail!("math.{} is not a recognized constant or method", attr);
+                    }
+                };
+                return Ok(result);
+            }
+
+            // DEPYLER-STDLIB-STRING: Handle string module constants
+            // string.ascii_letters → "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            // string.digits → "0123456789"
+            // string.punctuation → "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+            if module_name == "string" {
+                let result = match attr {
+                    "ascii_lowercase" => parse_quote! { "abcdefghijklmnopqrstuvwxyz" },
+                    "ascii_uppercase" => parse_quote! { "ABCDEFGHIJKLMNOPQRSTUVWXYZ" },
+                    "ascii_letters" => parse_quote! { "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" },
+                    "digits" => parse_quote! { "0123456789" },
+                    "hexdigits" => parse_quote! { "0123456789abcdefABCDEF" },
+                    "octdigits" => parse_quote! { "01234567" },
+                    "punctuation" => parse_quote! { "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~" },
+                    "whitespace" => parse_quote! { " \t\n\r\x0b\x0c" },
+                    "printable" => parse_quote! { "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ \t\n\r\x0b\x0c" },
+                    _ => {
+                        // Not a string constant - might be a method like capwords
+                        bail!("string.{} is not a recognized constant", attr);
                     }
                 };
                 return Ok(result);
