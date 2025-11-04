@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-SECRETS-001: Random number generation
 #[test]
-#[ignore = "DEPYLER-STDLIB-SECRETS: Not implemented yet - RED phase"]
 fn test_secrets_randbelow() {
     let python = r#"
 import secrets
@@ -22,7 +21,6 @@ def random_below(n: int) -> int:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-SECRETS: Not implemented yet - RED phase"]
 fn test_secrets_choice() {
     let python = r#"
 import secrets
@@ -39,7 +37,6 @@ def secure_choice(seq: list) -> object:
 
 // DEPYLER-STDLIB-SECRETS-002: Token generation
 #[test]
-#[ignore = "DEPYLER-STDLIB-SECRETS: Not implemented yet - RED phase"]
 fn test_secrets_token_bytes() {
     let python = r#"
 import secrets
@@ -55,7 +52,6 @@ def generate_token(nbytes: int) -> bytes:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-SECRETS: Not implemented yet - RED phase"]
 fn test_secrets_token_hex() {
     let python = r#"
 import secrets
@@ -71,7 +67,6 @@ def generate_hex_token(nbytes: int) -> str:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-SECRETS: Not implemented yet - RED phase"]
 fn test_secrets_token_urlsafe() {
     let python = r#"
 import secrets
