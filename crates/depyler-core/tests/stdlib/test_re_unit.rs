@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-RE-001: Pattern matching functions
 #[test]
-#[ignore = "DEPYLER-STDLIB-RE: Not implemented yet - RED phase"]
 fn test_re_search() {
     let python = r#"
 import re
@@ -23,7 +22,6 @@ def find_pattern(text: str) -> bool:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-RE: Not implemented yet - RED phase"]
 fn test_re_match() {
     let python = r#"
 import re
@@ -40,7 +38,6 @@ def check_start(text: str) -> bool:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-RE: Not implemented yet - RED phase"]
 fn test_re_findall() {
     let python = r#"
 import re
@@ -74,7 +71,6 @@ def find_matches(text: str) -> list:
 
 // DEPYLER-STDLIB-RE-002: String substitution functions
 #[test]
-#[ignore = "DEPYLER-STDLIB-RE: Not implemented yet - RED phase"]
 fn test_re_sub() {
     let python = r#"
 import re
@@ -107,7 +103,6 @@ def replace_and_count(text: str) -> tuple:
 
 // DEPYLER-STDLIB-RE-003: Pattern compilation
 #[test]
-#[ignore = "DEPYLER-STDLIB-RE: Not implemented yet - RED phase"]
 fn test_re_compile() {
     let python = r#"
 import re
@@ -142,7 +137,6 @@ def compile_case_insensitive():
 
 // DEPYLER-STDLIB-RE-004: String splitting
 #[test]
-#[ignore = "DEPYLER-STDLIB-RE: Not implemented yet - RED phase"]
 fn test_re_split() {
     let python = r#"
 import re
@@ -175,7 +169,6 @@ def split_limited(text: str) -> list:
 
 // DEPYLER-STDLIB-RE-005: Escaping special characters
 #[test]
-#[ignore = "DEPYLER-STDLIB-RE: Not implemented yet - RED phase"]
 fn test_re_escape() {
     let python = r#"
 import re
