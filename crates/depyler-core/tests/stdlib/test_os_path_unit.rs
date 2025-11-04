@@ -166,7 +166,6 @@ def check_is_absolute(path: str) -> bool:
 
 // DEPYLER-STDLIB-OSPATH-004: Path normalization
 #[test]
-#[ignore = "DEPYLER-STDLIB-OSPATH: Not implemented yet - RED phase"]
 fn test_ospath_abspath() {
     let python = r#"
 import os.path
@@ -215,7 +214,6 @@ def get_real_path(path: str) -> str:
 
 // DEPYLER-STDLIB-OSPATH-005: Path properties
 #[test]
-#[ignore = "DEPYLER-STDLIB-OSPATH: Not implemented yet - RED phase"]
 fn test_ospath_getsize() {
     let python = r#"
 import os.path
@@ -264,7 +262,6 @@ def get_created_time(path: str) -> float:
 
 // DEPYLER-STDLIB-OSPATH-006: Path expansion
 #[test]
-#[ignore = "DEPYLER-STDLIB-OSPATH: Not implemented yet - RED phase"]
 fn test_ospath_expanduser() {
     let python = r#"
 import os.path
