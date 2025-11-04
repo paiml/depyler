@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-OSPATH-001: Path construction and joining
 #[test]
-#[ignore = "DEPYLER-STDLIB-OSPATH: Not implemented yet - RED phase"]
 fn test_ospath_join() {
     let python = r#"
 import os.path
@@ -39,7 +38,6 @@ def join_two(a: str, b: str) -> str:
 
 // DEPYLER-STDLIB-OSPATH-002: Path decomposition
 #[test]
-#[ignore = "DEPYLER-STDLIB-OSPATH: Not implemented yet - RED phase"]
 fn test_ospath_basename() {
     let python = r#"
 import os.path
@@ -104,7 +102,6 @@ def split_extension(path: str) -> tuple:
 
 // DEPYLER-STDLIB-OSPATH-003: Path predicates
 #[test]
-#[ignore = "DEPYLER-STDLIB-OSPATH: Not implemented yet - RED phase"]
 fn test_ospath_exists() {
     let python = r#"
 import os.path
