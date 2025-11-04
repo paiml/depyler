@@ -2777,6 +2777,183 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert hashlib module method calls
+    /// DEPYLER-STDLIB-HASHLIB: Cryptographic hash functions
+    ///
+    /// Supports: md5, sha1, sha224, sha256, sha384, sha512, blake2b, blake2s
+    /// Returns hex digest directly (one-shot hashing pattern)
+    ///
+    /// # Complexity
+    /// Cyclomatic: 9 (match with 8 algorithms + default)
+    #[inline]
+    fn try_convert_hashlib_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // All hash functions need hex encoding
+        self.ctx.needs_hex = true;
+
+        let result = match method {
+            // MD5 hash
+            "md5" => {
+                if arg_exprs.len() != 1 {
+                    bail!("hashlib.md5() requires exactly 1 argument");
+                }
+                self.ctx.needs_md5 = true;
+                let data = &arg_exprs[0];
+
+                // hashlib.md5(data) → hex::encode(md5::compute(data))
+                parse_quote! {
+                    {
+                        use md5::Digest;
+                        let mut hasher = md5::Md5::new();
+                        hasher.update(#data);
+                        hex::encode(hasher.finalize())
+                    }
+                }
+            }
+
+            // SHA-1 hash
+            "sha1" => {
+                if arg_exprs.len() != 1 {
+                    bail!("hashlib.sha1() requires exactly 1 argument");
+                }
+                self.ctx.needs_sha2 = true;
+                let data = &arg_exprs[0];
+
+                parse_quote! {
+                    {
+                        use sha1::Digest;
+                        let mut hasher = sha1::Sha1::new();
+                        hasher.update(#data);
+                        hex::encode(hasher.finalize())
+                    }
+                }
+            }
+
+            // SHA-224 hash
+            "sha224" => {
+                if arg_exprs.len() != 1 {
+                    bail!("hashlib.sha224() requires exactly 1 argument");
+                }
+                self.ctx.needs_sha2 = true;
+                let data = &arg_exprs[0];
+
+                parse_quote! {
+                    {
+                        use sha2::Digest;
+                        let mut hasher = sha2::Sha224::new();
+                        hasher.update(#data);
+                        hex::encode(hasher.finalize())
+                    }
+                }
+            }
+
+            // SHA-256 hash
+            "sha256" => {
+                if arg_exprs.len() != 1 {
+                    bail!("hashlib.sha256() requires exactly 1 argument");
+                }
+                self.ctx.needs_sha2 = true;
+                let data = &arg_exprs[0];
+
+                parse_quote! {
+                    {
+                        use sha2::Digest;
+                        let mut hasher = sha2::Sha256::new();
+                        hasher.update(#data);
+                        hex::encode(hasher.finalize())
+                    }
+                }
+            }
+
+            // SHA-384 hash
+            "sha384" => {
+                if arg_exprs.len() != 1 {
+                    bail!("hashlib.sha384() requires exactly 1 argument");
+                }
+                self.ctx.needs_sha2 = true;
+                let data = &arg_exprs[0];
+
+                parse_quote! {
+                    {
+                        use sha2::Digest;
+                        let mut hasher = sha2::Sha384::new();
+                        hasher.update(#data);
+                        hex::encode(hasher.finalize())
+                    }
+                }
+            }
+
+            // SHA-512 hash
+            "sha512" => {
+                if arg_exprs.len() != 1 {
+                    bail!("hashlib.sha512() requires exactly 1 argument");
+                }
+                self.ctx.needs_sha2 = true;
+                let data = &arg_exprs[0];
+
+                parse_quote! {
+                    {
+                        use sha2::Digest;
+                        let mut hasher = sha2::Sha512::new();
+                        hasher.update(#data);
+                        hex::encode(hasher.finalize())
+                    }
+                }
+            }
+
+            // BLAKE2b hash
+            "blake2b" => {
+                if arg_exprs.len() != 1 {
+                    bail!("hashlib.blake2b() requires exactly 1 argument");
+                }
+                self.ctx.needs_blake2 = true;
+                let data = &arg_exprs[0];
+
+                parse_quote! {
+                    {
+                        use blake2::Digest;
+                        let mut hasher = blake2::Blake2b512::new();
+                        hasher.update(#data);
+                        hex::encode(hasher.finalize())
+                    }
+                }
+            }
+
+            // BLAKE2s hash
+            "blake2s" => {
+                if arg_exprs.len() != 1 {
+                    bail!("hashlib.blake2s() requires exactly 1 argument");
+                }
+                self.ctx.needs_blake2 = true;
+                let data = &arg_exprs[0];
+
+                parse_quote! {
+                    {
+                        use blake2::Digest;
+                        let mut hasher = blake2::Blake2s256::new();
+                        hasher.update(#data);
+                        hex::encode(hasher.finalize())
+                    }
+                }
+            }
+
+            _ => {
+                bail!("hashlib.{} not implemented yet (try: md5, sha1, sha224, sha256, sha384, sha512, blake2b, blake2s)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -3562,6 +3739,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-SECRETS: Cryptographically strong random operations
             if module_name == "secrets" {
                 return self.try_convert_secrets_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-HASHLIB: Cryptographic hash functions
+            if module_name == "hashlib" {
+                return self.try_convert_hashlib_method(method, args);
             }
 
             let rust_name_opt = self
