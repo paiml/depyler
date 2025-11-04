@@ -2549,6 +2549,127 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert base64 module method calls
+    /// DEPYLER-STDLIB-BASE64: Base64 and variants encoding/decoding
+    ///
+    /// Maps Python base64 module to Rust base64 crate:
+    /// - base64.b64encode() → base64::encode()
+    /// - base64.b64decode() → base64::decode()
+    /// - base64.urlsafe_b64encode() → URL-safe encoding
+    ///
+    /// # Complexity
+    /// 10 (match with 10 branches for different encodings)
+    #[inline]
+    fn try_convert_base64_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Mark that we need base64 crate
+        self.ctx.needs_base64 = true;
+
+        let result = match method {
+            // Standard Base64
+            "b64encode" => {
+                if arg_exprs.len() != 1 {
+                    bail!("base64.b64encode() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+
+                // base64.b64encode(data) → base64::engine::general_purpose::STANDARD.encode(data)
+                parse_quote! {
+                    base64::engine::general_purpose::STANDARD.encode(#data)
+                }
+            }
+
+            "b64decode" => {
+                if arg_exprs.len() != 1 {
+                    bail!("base64.b64decode() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+
+                // base64.b64decode(data) → base64::engine::general_purpose::STANDARD.decode(data).unwrap()
+                parse_quote! {
+                    base64::engine::general_purpose::STANDARD.decode(#data).unwrap()
+                }
+            }
+
+            // URL-safe Base64
+            "urlsafe_b64encode" => {
+                if arg_exprs.len() != 1 {
+                    bail!("base64.urlsafe_b64encode() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+
+                // base64.urlsafe_b64encode(data) → base64::engine::general_purpose::URL_SAFE.encode(data)
+                parse_quote! {
+                    base64::engine::general_purpose::URL_SAFE.encode(#data)
+                }
+            }
+
+            "urlsafe_b64decode" => {
+                if arg_exprs.len() != 1 {
+                    bail!("base64.urlsafe_b64decode() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+
+                // base64.urlsafe_b64decode(data) → base64::engine::general_purpose::URL_SAFE.decode(data).unwrap()
+                parse_quote! {
+                    base64::engine::general_purpose::URL_SAFE.decode(#data).unwrap()
+                }
+            }
+
+            // Base32 (note: base64 crate doesn't support base32, would need data-encoding crate)
+            "b32encode" | "b32decode" => {
+                // Simplified: note that full implementation needs data-encoding crate
+                bail!("base64.{} requires data-encoding crate (not yet integrated)", method);
+            }
+
+            // Base16 (Hex)
+            "b16encode" => {
+                if arg_exprs.len() != 1 {
+                    bail!("base64.b16encode() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+
+                // base64.b16encode(data) → hex::encode_upper(data)
+                parse_quote! {
+                    hex::encode_upper(#data)
+                }
+            }
+
+            "b16decode" => {
+                if arg_exprs.len() != 1 {
+                    bail!("base64.b16decode() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+
+                // base64.b16decode(data) → hex::decode(data).unwrap()
+                parse_quote! {
+                    hex::decode(#data).unwrap()
+                }
+            }
+
+            // Base85 (also needs additional crate)
+            "b85encode" | "b85decode" => {
+                // Simplified: note that full implementation needs additional crate
+                bail!("base64.{} requires base85 encoding crate (not yet integrated)", method);
+            }
+
+            _ => {
+                bail!("base64.{} not implemented yet", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -3324,6 +3445,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Note: This handles both "os.path" and potentially "os" with path attribute
             if module_name == "os.path" || module_name == "path" {
                 return self.try_convert_os_path_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-BASE64: Base64 encoding/decoding operations
+            if module_name == "base64" {
+                return self.try_convert_base64_method(method, args);
             }
 
             let rust_name_opt = self
