@@ -6,19 +6,19 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-UUID-001: UUID generation
 #[test]
-#[ignore = "DEPYLER-STDLIB-UUID: Not implemented yet - RED phase"]
 fn test_uuid_uuid1() {
     let python = r#"
 import uuid
 
 def generate_uuid1() -> str:
-    return str(uuid.uuid1())
+    return uuid.uuid1()
 "#;
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should generate UUID v1 (time-based)
+    // Should generate UUID v1 (time-based) and convert to string
     assert!(result.contains("uuid") || result.contains("Uuid"));
+    assert!(result.contains("to_string"));
 }
 
 #[test]
@@ -38,20 +38,20 @@ def generate_uuid3(namespace: uuid.UUID, name: str) -> str:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-UUID: Not implemented yet - RED phase"]
 fn test_uuid_uuid4() {
     let python = r#"
 import uuid
 
 def generate_uuid4() -> str:
-    return str(uuid.uuid4())
+    return uuid.uuid4()
 "#;
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should generate UUID v4 (random)
+    // Should generate UUID v4 (random) and convert to string
     assert!(result.contains("uuid") || result.contains("Uuid"));
-    assert!(result.contains("random") || result.contains("v4"));
+    assert!(result.contains("new_v4") || result.contains("v4"));
+    assert!(result.contains("to_string"));
 }
 
 #[test]
