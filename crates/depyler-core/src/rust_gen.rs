@@ -471,6 +471,7 @@ pub fn generate_rust_file(
         is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
         result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
         current_error_type: None, // DEPYLER-0310: Track error type for raise statement wrapping
+        exception_scopes: Vec::new(), // DEPYLER-0333: Exception scope tracking stack
     };
 
     // Analyze all functions first for string optimization
@@ -579,6 +580,7 @@ mod tests {
             is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
             result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
             current_error_type: None, // DEPYLER-0310: Track error type for raise statement wrapping
+            exception_scopes: Vec::new(), // DEPYLER-0333: Exception scope tracking stack
         }
     }
 
