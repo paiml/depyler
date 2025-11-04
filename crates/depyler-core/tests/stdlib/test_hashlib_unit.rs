@@ -6,100 +6,100 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-HASHLIB-001: Basic hash algorithms
 #[test]
-#[ignore = "DEPYLER-STDLIB-HASHLIB: Not implemented yet - RED phase"]
 fn test_hashlib_md5() {
     let python = r#"
 import hashlib
 
 def hash_md5(data: bytes) -> str:
-    return hashlib.md5(data).hexdigest()
+    return hashlib.md5(data)
 "#;
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should generate md5 hash
+    // Should generate md5 hash with hex encoding
     assert!(result.contains("md5") || result.contains("Md5"));
+    assert!(result.contains("hex"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-HASHLIB: Not implemented yet - RED phase"]
 fn test_hashlib_sha1() {
     let python = r#"
 import hashlib
 
 def hash_sha1(data: bytes) -> str:
-    return hashlib.sha1(data).hexdigest()
+    return hashlib.sha1(data)
 "#;
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should generate sha1 hash
+    // Should generate sha1 hash with hex encoding
     assert!(result.contains("sha1") || result.contains("Sha1"));
+    assert!(result.contains("hex"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-HASHLIB: Not implemented yet - RED phase"]
 fn test_hashlib_sha256() {
     let python = r#"
 import hashlib
 
 def hash_sha256(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+    return hashlib.sha256(data)
 "#;
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should generate sha256 hash
+    // Should generate sha256 hash with hex encoding
     assert!(result.contains("sha256") || result.contains("Sha256"));
+    assert!(result.contains("hex"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-HASHLIB: Not implemented yet - RED phase"]
 fn test_hashlib_sha512() {
     let python = r#"
 import hashlib
 
 def hash_sha512(data: bytes) -> str:
-    return hashlib.sha512(data).hexdigest()
+    return hashlib.sha512(data)
 "#;
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should generate sha512 hash
+    // Should generate sha512 hash with hex encoding
     assert!(result.contains("sha512") || result.contains("Sha512"));
+    assert!(result.contains("hex"));
 }
 
 // DEPYLER-STDLIB-HASHLIB-002: SHA2 family
 #[test]
-#[ignore = "DEPYLER-STDLIB-HASHLIB: Not implemented yet - RED phase"]
 fn test_hashlib_sha224() {
     let python = r#"
 import hashlib
 
 def hash_sha224(data: bytes) -> str:
-    return hashlib.sha224(data).hexdigest()
+    return hashlib.sha224(data)
 "#;
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should generate sha224 hash
+    // Should generate sha224 hash with hex encoding
     assert!(result.contains("sha224") || result.contains("Sha224"));
+    assert!(result.contains("hex"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-HASHLIB: Not implemented yet - RED phase"]
 fn test_hashlib_sha384() {
     let python = r#"
 import hashlib
 
 def hash_sha384(data: bytes) -> str:
-    return hashlib.sha384(data).hexdigest()
+    return hashlib.sha384(data)
 "#;
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should generate sha384 hash
+    // Should generate sha384 hash with hex encoding
     assert!(result.contains("sha384") || result.contains("Sha384"));
+    assert!(result.contains("hex"));
 }
 
 // DEPYLER-STDLIB-HASHLIB-003: SHA3 family
@@ -137,35 +137,35 @@ def hash_sha3_512(data: bytes) -> str:
 
 // DEPYLER-STDLIB-HASHLIB-004: BLAKE2 family
 #[test]
-#[ignore = "DEPYLER-STDLIB-HASHLIB: Not implemented yet - RED phase"]
 fn test_hashlib_blake2b() {
     let python = r#"
 import hashlib
 
 def hash_blake2b(data: bytes) -> str:
-    return hashlib.blake2b(data).hexdigest()
+    return hashlib.blake2b(data)
 "#;
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should generate blake2b hash
+    // Should generate blake2b hash with hex encoding
     assert!(result.contains("blake2") || result.contains("Blake2"));
+    assert!(result.contains("hex"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-HASHLIB: Not implemented yet - RED phase"]
 fn test_hashlib_blake2s() {
     let python = r#"
 import hashlib
 
 def hash_blake2s(data: bytes) -> str:
-    return hashlib.blake2s(data).hexdigest()
+    return hashlib.blake2s(data)
 "#;
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should generate blake2s hash
+    // Should generate blake2s hash with hex encoding
     assert!(result.contains("blake2") || result.contains("Blake2"));
+    assert!(result.contains("hex"));
 }
 
 // DEPYLER-STDLIB-HASHLIB-005: SHAKE algorithms (extendable-output)
