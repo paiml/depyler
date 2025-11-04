@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-STRING-001: String constants
 #[test]
-#[ignore = "DEPYLER-STDLIB-STRING: Not implemented yet - RED phase"]
 fn test_string_ascii_letters() {
     let python = r#"
 import string
@@ -22,7 +21,6 @@ def get_letters() -> str:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-STRING: Not implemented yet - RED phase"]
 fn test_string_ascii_lowercase() {
     let python = r#"
 import string
@@ -54,7 +52,6 @@ def get_uppercase() -> str:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-STRING: Not implemented yet - RED phase"]
 fn test_string_digits() {
     let python = r#"
 import string
@@ -102,7 +99,6 @@ def get_octdigits() -> str:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-STRING: Not implemented yet - RED phase"]
 fn test_string_punctuation() {
     let python = r#"
 import string
@@ -118,7 +114,6 @@ def get_punctuation() -> str:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-STRING: Not implemented yet - RED phase"]
 fn test_string_whitespace() {
     let python = r#"
 import string
@@ -186,7 +181,6 @@ def safe_format(template_str: str, data: dict) -> str:
 
 // DEPYLER-STDLIB-STRING-003: String utilities
 #[test]
-#[ignore = "DEPYLER-STDLIB-STRING: Not implemented yet - RED phase"]
 fn test_string_capwords() {
     let python = r#"
 import string
