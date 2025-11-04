@@ -1633,6 +1633,72 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// Try to convert json module method calls
+    /// DEPYLER-STDLIB-JSON: JSON serialization/deserialization support
+    #[inline]
+    fn try_convert_json_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Mark that we need serde_json crate
+        self.ctx.needs_serde_json = true;
+
+        let result = match method {
+            // String serialization/deserialization
+            "dumps" => {
+                if arg_exprs.len() != 1 {
+                    bail!("json.dumps() requires exactly 1 argument");
+                }
+                let obj = &arg_exprs[0];
+                // json.dumps(obj) → serde_json::to_string(&obj).unwrap()
+                parse_quote! { serde_json::to_string(&#obj).unwrap() }
+            }
+
+            "loads" => {
+                if arg_exprs.len() != 1 {
+                    bail!("json.loads() requires exactly 1 argument");
+                }
+                let s = &arg_exprs[0];
+                // json.loads(s) → serde_json::from_str(&s).unwrap()
+                // Returns serde_json::Value (dynamic JSON value)
+                parse_quote! { serde_json::from_str::<serde_json::Value>(&#s).unwrap() }
+            }
+
+            // File-based serialization/deserialization
+            "dump" => {
+                if arg_exprs.len() != 2 {
+                    bail!("json.dump() requires exactly 2 arguments (obj, file)");
+                }
+                let obj = &arg_exprs[0];
+                let file = &arg_exprs[1];
+                // json.dump(obj, file) → serde_json::to_writer(file, &obj).unwrap()
+                parse_quote! { serde_json::to_writer(#file, &#obj).unwrap() }
+            }
+
+            "load" => {
+                if arg_exprs.len() != 1 {
+                    bail!("json.load() requires exactly 1 argument (file)");
+                }
+                let file = &arg_exprs[0];
+                // json.load(file) → serde_json::from_reader(file).unwrap()
+                parse_quote! { serde_json::from_reader::<_, serde_json::Value>(#file).unwrap() }
+            }
+
+            _ => {
+                bail!("json.{} not implemented yet", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -2375,6 +2441,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // statistics.median(data) → sorted median calculation
             if module_name == "statistics" {
                 return self.try_convert_statistics_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-JSON: Handle json module functions
+            // json.dumps(obj) → serde_json::to_string(&obj)
+            // json.loads(s) → serde_json::from_str(&s)
+            if module_name == "json" {
+                return self.try_convert_json_method(method, args);
             }
 
             let rust_name_opt = self
