@@ -405,6 +405,32 @@ cargo clean
 - [ ] CHANGELOG updated
 - [ ] Version bump (semver)
 
+## 📅 Release Cadence (MANDATORY)
+
+**CRITICAL RULE**: NEVER release to crates.io until FRIDAY. We ONLY release once per week.
+
+**Release Schedule**:
+- **Release Day**: Friday only
+- **Frequency**: Once per week maximum
+- **No Exceptions**: Emergency fixes wait until Friday
+
+**Rationale**:
+- Allows full week for testing and validation
+- Prevents rushed releases
+- Ensures quality over speed
+- Gives users predictable update schedule
+
+**Process**:
+1. **Monday-Thursday**: Development, testing, bug fixes
+2. **Thursday EOD**: Freeze code, final validation
+3. **Friday**: Release to crates.io if all gates pass
+4. **Weekend**: Monitor for issues
+
+**Violations**:
+- ❌ NO mid-week releases
+- ❌ NO "hotfix" releases (wait for Friday)
+- ❌ NO multiple releases per week
+
 ---
 
 **Remember**: Perfect transpilation > feature-complete transpilation. Every line of generated Rust must be idiomatic. Ship nothing that doesn't meet these standards.
