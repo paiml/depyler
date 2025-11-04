@@ -1085,6 +1085,16 @@ pub(crate) fn codegen_try_stmt(
     finalbody: &Option<Vec<HirStmt>>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0333: Extract handled exception types for scope tracking
+    let handled_types: Vec<String> = handlers
+        .iter()
+        .filter_map(|h| h.exception_type.clone())
+        .collect();
+
+    // DEPYLER-0333: Enter try block scope with handled exception types
+    // Empty list means bare except (catches all exceptions)
+    ctx.enter_try_scope(handled_types);
+
     // Convert try body to statements
     ctx.enter_scope();
     let try_stmts: Vec<_> = body
@@ -1093,9 +1103,14 @@ pub(crate) fn codegen_try_stmt(
         .collect::<Result<Vec<_>>>()?;
     ctx.exit_scope();
 
+    // DEPYLER-0333: Exit try block scope
+    ctx.exit_exception_scope();
+
     // Generate except handler code
     let mut handler_tokens = Vec::new();
     for handler in handlers {
+        // DEPYLER-0333: Enter handler scope for each except clause
+        ctx.enter_handler_scope();
         ctx.enter_scope();
 
         // If there's a name binding, declare it in scope
@@ -1109,6 +1124,8 @@ pub(crate) fn codegen_try_stmt(
             .map(|s| s.to_rust_tokens(ctx))
             .collect::<Result<Vec<_>>>()?;
         ctx.exit_scope();
+        // DEPYLER-0333: Exit handler scope
+        ctx.exit_exception_scope();
 
         handler_tokens.push(quote! { #(#handler_stmts)* });
     }
