@@ -1633,6 +1633,237 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// Try to convert statistics module method calls
+    /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
+    #[inline]
+    fn try_convert_statistics_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Averages and central tendency
+            "mean" => {
+                if arg_exprs.len() != 1 {
+                    bail!("statistics.mean() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+                // statistics.mean(data) → data.iter().sum::<f64>() / data.len() as f64
+                parse_quote! {
+                    {
+                        let data = #data;
+                        data.iter().map(|&x| x as f64).sum::<f64>() / data.len() as f64
+                    }
+                }
+            }
+
+            "median" => {
+                if arg_exprs.len() != 1 {
+                    bail!("statistics.median() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+                // statistics.median(data) → sorted median calculation
+                parse_quote! {
+                    {
+                        let mut sorted = #data.clone();
+                        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        let len = sorted.len();
+                        if len % 2 == 0 {
+                            let mid = len / 2;
+                            ((sorted[mid - 1] as f64) + (sorted[mid] as f64)) / 2.0
+                        } else {
+                            sorted[len / 2] as f64
+                        }
+                    }
+                }
+            }
+
+            "mode" => {
+                if arg_exprs.len() != 1 {
+                    bail!("statistics.mode() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+                // statistics.mode(data) → find most common element
+                self.ctx.needs_hashmap = true;
+                parse_quote! {
+                    {
+                        let mut counts: HashMap<_, usize> = HashMap::new();
+                        for &item in #data.iter() {
+                            *counts.entry(item).or_insert(0) += 1;
+                        }
+                        *counts.iter().max_by_key(|(_, &count)| count).unwrap().0
+                    }
+                }
+            }
+
+            // Measures of spread
+            "variance" => {
+                if arg_exprs.len() != 1 {
+                    bail!("statistics.variance() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+                // statistics.variance(data) → sample variance (n-1 denominator)
+                parse_quote! {
+                    {
+                        let data = #data;
+                        let mean = data.iter().map(|&x| x as f64).sum::<f64>() / data.len() as f64;
+                        let sum_sq_diff: f64 = data.iter()
+                            .map(|&x| {
+                                let diff = (x as f64) - mean;
+                                diff * diff
+                            })
+                            .sum();
+                        sum_sq_diff / ((data.len() - 1) as f64)
+                    }
+                }
+            }
+
+            "pvariance" => {
+                if arg_exprs.len() != 1 {
+                    bail!("statistics.pvariance() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+                // statistics.pvariance(data) → population variance (n denominator)
+                parse_quote! {
+                    {
+                        let data = #data;
+                        let mean = data.iter().map(|&x| x as f64).sum::<f64>() / data.len() as f64;
+                        let sum_sq_diff: f64 = data.iter()
+                            .map(|&x| {
+                                let diff = (x as f64) - mean;
+                                diff * diff
+                            })
+                            .sum();
+                        sum_sq_diff / (data.len() as f64)
+                    }
+                }
+            }
+
+            "stdev" => {
+                if arg_exprs.len() != 1 {
+                    bail!("statistics.stdev() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+                // statistics.stdev(data) → sqrt(variance)
+                parse_quote! {
+                    {
+                        let data = #data;
+                        let mean = data.iter().map(|&x| x as f64).sum::<f64>() / data.len() as f64;
+                        let sum_sq_diff: f64 = data.iter()
+                            .map(|&x| {
+                                let diff = (x as f64) - mean;
+                                diff * diff
+                            })
+                            .sum();
+                        let variance = sum_sq_diff / ((data.len() - 1) as f64);
+                        variance.sqrt()
+                    }
+                }
+            }
+
+            "pstdev" => {
+                if arg_exprs.len() != 1 {
+                    bail!("statistics.pstdev() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+                // statistics.pstdev(data) → sqrt(pvariance)
+                parse_quote! {
+                    {
+                        let data = #data;
+                        let mean = data.iter().map(|&x| x as f64).sum::<f64>() / data.len() as f64;
+                        let sum_sq_diff: f64 = data.iter()
+                            .map(|&x| {
+                                let diff = (x as f64) - mean;
+                                diff * diff
+                            })
+                            .sum();
+                        let pvariance = sum_sq_diff / (data.len() as f64);
+                        pvariance.sqrt()
+                    }
+                }
+            }
+
+            // Additional means
+            "harmonic_mean" => {
+                if arg_exprs.len() != 1 {
+                    bail!("statistics.harmonic_mean() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+                // statistics.harmonic_mean(data) → n / sum(1/x for x in data)
+                parse_quote! {
+                    {
+                        let data = #data;
+                        let sum_reciprocals: f64 = data.iter()
+                            .map(|&x| 1.0 / (x as f64))
+                            .sum();
+                        (data.len() as f64) / sum_reciprocals
+                    }
+                }
+            }
+
+            "geometric_mean" => {
+                if arg_exprs.len() != 1 {
+                    bail!("statistics.geometric_mean() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+                // statistics.geometric_mean(data) → (product of all values) ^ (1/n)
+                parse_quote! {
+                    {
+                        let data = #data;
+                        let product: f64 = data.iter()
+                            .map(|&x| x as f64)
+                            .product();
+                        product.powf(1.0 / (data.len() as f64))
+                    }
+                }
+            }
+
+            // Quantiles (simplified implementation)
+            "quantiles" => {
+                // quantiles can take n= parameter, but we'll support basic case
+                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+                    bail!("statistics.quantiles() requires 1-2 arguments");
+                }
+                let data = &arg_exprs[0];
+                let n = if arg_exprs.len() == 2 {
+                    &arg_exprs[1]
+                } else {
+                    // Default n=4 (quartiles)
+                    &parse_quote! { 4 }
+                };
+                // Simplified quantiles implementation
+                parse_quote! {
+                    {
+                        let mut sorted = #data.clone();
+                        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        let n = #n as usize;
+                        let mut result = Vec::new();
+                        for i in 1..n {
+                            let pos = (i as f64) * (sorted.len() as f64) / (n as f64);
+                            let idx = pos.floor() as usize;
+                            if idx < sorted.len() {
+                                result.push(sorted[idx] as f64);
+                            }
+                        }
+                        result
+                    }
+                }
+            }
+
+            _ => {
+                bail!("statistics.{} not implemented yet", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert random module method calls
     /// DEPYLER-STDLIB-RANDOM: Comprehensive random module support
     #[inline]
@@ -2137,6 +2368,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // random.randint(a, b) → thread_rng().gen_range(a..=b)
             if module_name == "random" {
                 return self.try_convert_random_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-STATISTICS: Handle statistics module functions
+            // statistics.mean(data) → inline calculation
+            // statistics.median(data) → sorted median calculation
+            if module_name == "statistics" {
+                return self.try_convert_statistics_method(method, args);
             }
 
             let rust_name_opt = self
