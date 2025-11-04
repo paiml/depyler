@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-BASE64-001: Standard encoding
 #[test]
-#[ignore = "DEPYLER-STDLIB-BASE64: Not implemented yet - RED phase"]
 fn test_base64_b64encode() {
     let python = r#"
 import base64
@@ -39,7 +38,6 @@ def decode_base64(data: bytes) -> bytes:
 
 // DEPYLER-STDLIB-BASE64-002: URL-safe encoding
 #[test]
-#[ignore = "DEPYLER-STDLIB-BASE64: Not implemented yet - RED phase"]
 fn test_base64_urlsafe_b64encode() {
     let python = r#"
 import base64

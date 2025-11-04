@@ -58,6 +58,7 @@ pub struct CodeGenContext<'a> {
     pub needs_chrono: bool,
     pub needs_csv: bool,
     pub needs_rust_decimal: bool,
+    pub needs_base64: bool,
     pub declared_vars: Vec<HashSet<String>>,
     pub current_function_can_fail: bool,
     pub current_return_type: Option<Type>,
