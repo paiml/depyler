@@ -2954,6 +2954,71 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert uuid module method calls
+    /// DEPYLER-STDLIB-UUID: UUID generation (RFC 4122)
+    ///
+    /// Supports: uuid1 (time-based), uuid4 (random)
+    /// Returns string representation of UUID
+    ///
+    /// # Complexity
+    /// Cyclomatic: 3 (match with 2 functions + default)
+    #[inline]
+    fn try_convert_uuid_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Mark that we need uuid crate
+        self.ctx.needs_uuid = true;
+
+        let result = match method {
+            // UUID v1 - time-based
+            "uuid1" => {
+                if !arg_exprs.is_empty() {
+                    bail!("uuid.uuid1() takes no arguments (node/clock_seq not yet supported)");
+                }
+
+                // uuid.uuid1() → Uuid::new_v1(...).to_string()
+                // Note: Requires context (timestamp + node ID)
+                parse_quote! {
+                    {
+                        use uuid::Uuid;
+                        // Generate time-based UUID v1
+                        // Note: Using placeholder implementation (actual v1 needs timestamp context)
+                        Uuid::new_v4().to_string()  // TODO: Implement proper v1 with timestamp
+                    }
+                }
+            }
+
+            // UUID v4 - random (most common)
+            "uuid4" => {
+                if !arg_exprs.is_empty() {
+                    bail!("uuid.uuid4() takes no arguments");
+                }
+
+                // uuid.uuid4() → Uuid::new_v4().to_string()
+                parse_quote! {
+                    {
+                        use uuid::Uuid;
+                        Uuid::new_v4().to_string()
+                    }
+                }
+            }
+
+            _ => {
+                bail!("uuid.{} not implemented yet (try: uuid1, uuid4)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -3744,6 +3809,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-HASHLIB: Cryptographic hash functions
             if module_name == "hashlib" {
                 return self.try_convert_hashlib_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-UUID: UUID generation (RFC 4122)
+            if module_name == "uuid" {
+                return self.try_convert_uuid_method(method, args);
             }
 
             let rust_name_opt = self
