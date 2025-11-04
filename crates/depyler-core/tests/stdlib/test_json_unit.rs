@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-JSON-001: Serialization functions
 #[test]
-#[ignore = "DEPYLER-STDLIB-JSON: Not implemented yet - RED phase"]
 fn test_json_dumps() {
     let python = r#"
 import json
@@ -22,7 +21,6 @@ def serialize_data(data: dict) -> str:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-JSON: Not implemented yet - RED phase"]
 fn test_json_loads() {
     let python = r#"
 import json
