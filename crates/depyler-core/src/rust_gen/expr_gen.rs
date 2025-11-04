@@ -2670,6 +2670,113 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert secrets module method calls
+    /// DEPYLER-STDLIB-SECRETS: Cryptographically strong random operations
+    ///
+    /// Maps Python secrets module to Rust rand crate (cryptographic RNG):
+    /// - secrets.randbelow() → rand::thread_rng().gen_range()
+    /// - secrets.token_bytes() → Cryptographically secure random bytes
+    ///
+    /// # Complexity
+    /// 5 (match with 5 branches)
+    #[inline]
+    fn try_convert_secrets_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Mark that we need rand crate (ThreadRng is cryptographically secure)
+        self.ctx.needs_rand = true;
+        self.ctx.needs_base64 = true; // For token_urlsafe
+
+        let result = match method {
+            // Random number generation
+            "randbelow" => {
+                if arg_exprs.len() != 1 {
+                    bail!("secrets.randbelow() requires exactly 1 argument");
+                }
+                let n = &arg_exprs[0];
+
+                // secrets.randbelow(n) → rand::thread_rng().gen_range(0..n)
+                parse_quote! { rand::thread_rng().gen_range(0..#n) }
+            }
+
+            "choice" => {
+                if arg_exprs.len() != 1 {
+                    bail!("secrets.choice() requires exactly 1 argument");
+                }
+                let seq = &arg_exprs[0];
+
+                // secrets.choice(seq) → seq.choose(&mut rand::thread_rng()).unwrap()
+                parse_quote! { *#seq.choose(&mut rand::thread_rng()).unwrap() }
+            }
+
+            // Token generation
+            "token_bytes" => {
+                let nbytes = if arg_exprs.is_empty() {
+                    parse_quote! { 32 } // Default 32 bytes
+                } else {
+                    arg_exprs[0].clone()
+                };
+
+                // secrets.token_bytes(n) → generate n random bytes
+                parse_quote! {
+                    {
+                        let mut bytes = vec![0u8; #nbytes];
+                        rand::thread_rng().fill(&mut bytes[..]);
+                        bytes
+                    }
+                }
+            }
+
+            "token_hex" => {
+                let nbytes = if arg_exprs.is_empty() {
+                    parse_quote! { 32 }
+                } else {
+                    arg_exprs[0].clone()
+                };
+
+                // secrets.token_hex(n) → generate n random bytes and encode as hex
+                parse_quote! {
+                    {
+                        let mut bytes = vec![0u8; #nbytes];
+                        rand::thread_rng().fill(&mut bytes[..]);
+                        hex::encode(&bytes)
+                    }
+                }
+            }
+
+            "token_urlsafe" => {
+                let nbytes = if arg_exprs.is_empty() {
+                    parse_quote! { 32 }
+                } else {
+                    arg_exprs[0].clone()
+                };
+
+                // secrets.token_urlsafe(n) → generate n random bytes and encode as URL-safe base64
+                parse_quote! {
+                    {
+                        let mut bytes = vec![0u8; #nbytes];
+                        rand::thread_rng().fill(&mut bytes[..]);
+                        base64::engine::general_purpose::URL_SAFE.encode(&bytes)
+                    }
+                }
+            }
+
+            _ => {
+                bail!("secrets.{} not implemented yet", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -3450,6 +3557,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-BASE64: Base64 encoding/decoding operations
             if module_name == "base64" {
                 return self.try_convert_base64_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-SECRETS: Cryptographically strong random operations
+            if module_name == "secrets" {
+                return self.try_convert_secrets_method(method, args);
             }
 
             let rust_name_opt = self
