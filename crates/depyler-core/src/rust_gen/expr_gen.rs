@@ -1633,6 +1633,245 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// Try to convert random module method calls
+    /// DEPYLER-STDLIB-RANDOM: Comprehensive random module support
+    #[inline]
+    fn try_convert_random_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Mark that we need rand crate
+        self.ctx.needs_rand = true;
+
+        let result = match method {
+            // Basic random generation
+            "random" => {
+                if !arg_exprs.is_empty() {
+                    bail!("random.random() takes no arguments");
+                }
+                // random.random() → rand::random::<f64>()
+                parse_quote! { rand::random::<f64>() }
+            }
+
+            // Integer range functions
+            "randint" => {
+                if arg_exprs.len() != 2 {
+                    bail!("random.randint() requires exactly 2 arguments");
+                }
+                let a = &arg_exprs[0];
+                let b = &arg_exprs[1];
+                // random.randint(a, b) → rand::thread_rng().gen_range(a..=b)
+                // Python's randint is inclusive on both ends
+                parse_quote! { rand::thread_rng().gen_range(#a..=#b) }
+            }
+
+            "randrange" => {
+                // randrange can take 1, 2, or 3 arguments (like range)
+                if arg_exprs.is_empty() || arg_exprs.len() > 3 {
+                    bail!("random.randrange() requires 1-3 arguments");
+                }
+
+                if arg_exprs.len() == 1 {
+                    // randrange(stop) → gen_range(0..stop)
+                    let stop = &arg_exprs[0];
+                    parse_quote! { rand::thread_rng().gen_range(0..#stop) }
+                } else if arg_exprs.len() == 2 {
+                    // randrange(start, stop) → gen_range(start..stop)
+                    let start = &arg_exprs[0];
+                    let stop = &arg_exprs[1];
+                    parse_quote! { rand::thread_rng().gen_range(#start..#stop) }
+                } else {
+                    // randrange(start, stop, step) - complex, need to generate stepped range
+                    let start = &arg_exprs[0];
+                    let stop = &arg_exprs[1];
+                    let step = &arg_exprs[2];
+                    parse_quote! {
+                        {
+                            let start = #start;
+                            let stop = #stop;
+                            let step = #step;
+                            let num_steps = ((stop - start) / step).max(0);
+                            let offset = rand::thread_rng().gen_range(0..num_steps);
+                            start + offset * step
+                        }
+                    }
+                }
+            }
+
+            // Float range function
+            "uniform" => {
+                if arg_exprs.len() != 2 {
+                    bail!("random.uniform() requires exactly 2 arguments");
+                }
+                let a = &arg_exprs[0];
+                let b = &arg_exprs[1];
+                // random.uniform(a, b) → rand::thread_rng().gen_range(a..b)
+                parse_quote! { rand::thread_rng().gen_range((#a as f64)..=(#b as f64)) }
+            }
+
+            // Sequence functions
+            "choice" => {
+                if arg_exprs.len() != 1 {
+                    bail!("random.choice() requires exactly 1 argument");
+                }
+                let seq = &arg_exprs[0];
+                // random.choice(seq) → *seq.choose(&mut rand::thread_rng()).unwrap()
+                parse_quote! { *#seq.choose(&mut rand::thread_rng()).unwrap() }
+            }
+
+            "shuffle" => {
+                if arg_exprs.len() != 1 {
+                    bail!("random.shuffle() requires exactly 1 argument");
+                }
+                let seq = &arg_exprs[0];
+                // random.shuffle(seq) → seq.shuffle(&mut rand::thread_rng())
+                // Note: This mutates in place like Python
+                parse_quote! { #seq.shuffle(&mut rand::thread_rng()) }
+            }
+
+            "sample" => {
+                if arg_exprs.len() != 2 {
+                    bail!("random.sample() requires exactly 2 arguments");
+                }
+                let seq = &arg_exprs[0];
+                let k = &arg_exprs[1];
+                // random.sample(seq, k) → seq.choose_multiple(&mut rand::thread_rng(), k).cloned().collect()
+                parse_quote! {
+                    #seq.choose_multiple(&mut rand::thread_rng(), #k as usize)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                }
+            }
+
+            "choices" => {
+                if arg_exprs.len() < 1 {
+                    bail!("random.choices() requires at least 1 argument");
+                }
+                let seq = &arg_exprs[0];
+                let k = if arg_exprs.len() > 1 {
+                    &arg_exprs[1]
+                } else {
+                    // Default k=1 if not provided
+                    &parse_quote! { 1 }
+                };
+                // random.choices(seq, k=k) → (0..k).map(|_| seq.choose(&mut rng).cloned()).collect()
+                parse_quote! {
+                    {
+                        let mut rng = rand::thread_rng();
+                        (0..#k)
+                            .map(|_| #seq.choose(&mut rng).cloned().unwrap())
+                            .collect::<Vec<_>>()
+                    }
+                }
+            }
+
+            // Distribution functions
+            "gauss" | "normalvariate" => {
+                if arg_exprs.len() != 2 {
+                    bail!("random.{}() requires exactly 2 arguments", method);
+                }
+                let mu = &arg_exprs[0];
+                let sigma = &arg_exprs[1];
+                // Use rand_distr::Normal
+                parse_quote! {
+                    {
+                        use rand::distributions::Distribution;
+                        let normal = rand_distr::Normal::new(#mu as f64, #sigma as f64).unwrap();
+                        normal.sample(&mut rand::thread_rng())
+                    }
+                }
+            }
+
+            "expovariate" => {
+                if arg_exprs.len() != 1 {
+                    bail!("random.expovariate() requires exactly 1 argument");
+                }
+                let lambd = &arg_exprs[0];
+                // Use rand_distr::Exp
+                parse_quote! {
+                    {
+                        use rand::distributions::Distribution;
+                        let exp = rand_distr::Exp::new(#lambd as f64).unwrap();
+                        exp.sample(&mut rand::thread_rng())
+                    }
+                }
+            }
+
+            "betavariate" => {
+                if arg_exprs.len() != 2 {
+                    bail!("random.betavariate() requires exactly 2 arguments");
+                }
+                let alpha = &arg_exprs[0];
+                let beta = &arg_exprs[1];
+                parse_quote! {
+                    {
+                        use rand::distributions::Distribution;
+                        let beta_dist = rand_distr::Beta::new(#alpha as f64, #beta as f64).unwrap();
+                        beta_dist.sample(&mut rand::thread_rng())
+                    }
+                }
+            }
+
+            "gammavariate" => {
+                if arg_exprs.len() != 2 {
+                    bail!("random.gammavariate() requires exactly 2 arguments");
+                }
+                let alpha = &arg_exprs[0];
+                let beta = &arg_exprs[1];
+                parse_quote! {
+                    {
+                        use rand::distributions::Distribution;
+                        let gamma = rand_distr::Gamma::new(#alpha as f64, #beta as f64).unwrap();
+                        gamma.sample(&mut rand::thread_rng())
+                    }
+                }
+            }
+
+            // Seed function
+            "seed" => {
+                if arg_exprs.len() > 1 {
+                    bail!("random.seed() requires 0 or 1 argument");
+                }
+                if arg_exprs.is_empty() {
+                    // seed() with no args - use system entropy
+                    parse_quote! { /* No-op: thread_rng is already seeded */ () }
+                } else {
+                    let seed_val = &arg_exprs[0];
+                    // Note: thread_rng() cannot be seeded. We'd need to use StdRng::seed_from_u64()
+                    // For now, we'll generate a comment
+                    parse_quote! {
+                        {
+                            // Note: Seeding not fully implemented - use StdRng instead of thread_rng
+                            let _seed = #seed_val;
+                            ()
+                        }
+                    }
+                }
+            }
+
+            // Get/Set state (complex, simplified implementation)
+            "getstate" => {
+                bail!("random.getstate() not supported - Rust RNG state management differs from Python");
+            }
+            "setstate" => {
+                bail!("random.setstate() not supported - Rust RNG state management differs from Python");
+            }
+
+            _ => {
+                bail!("random.{} not implemented yet", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert math module method calls
     /// DEPYLER-STDLIB-MATH: Comprehensive math module support
     #[inline]
@@ -1891,6 +2130,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // math.pow(x, y) → x.powf(y)
             if module_name == "math" {
                 return self.try_convert_math_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-RANDOM: Handle random module functions
+            // random.random() → thread_rng().gen()
+            // random.randint(a, b) → thread_rng().gen_range(a..=b)
+            if module_name == "random" {
+                return self.try_convert_random_method(method, args);
             }
 
             let rust_name_opt = self
