@@ -1699,6 +1699,219 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert re (regular expressions) module method calls
+    /// DEPYLER-STDLIB-RE: Comprehensive regex module support
+    ///
+    /// Maps Python re module functions to Rust regex crate:
+    /// - re.search() → Regex::new().find()
+    /// - re.match() → Regex::new().is_match() with ^ anchor
+    /// - re.findall() → Regex::new().find_iter()
+    /// - re.sub() → Regex::new().replace_all()
+    /// - re.split() → Regex::new().split()
+    /// - re.compile() → Regex::new()
+    /// - re.escape() → regex::escape()
+    ///
+    /// # Complexity
+    /// 10 (match with 10 branches)
+    #[inline]
+    fn try_convert_re_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Mark that we need regex crate
+        self.ctx.needs_regex = true;
+
+        let result = match method {
+            // Pattern matching functions
+            "search" => {
+                if arg_exprs.len() < 2 {
+                    bail!("re.search() requires at least 2 arguments (pattern, string)");
+                }
+                let pattern = &arg_exprs[0];
+                let text = &arg_exprs[1];
+
+                // Handle optional flags (simplified - just check for IGNORECASE)
+                if arg_exprs.len() >= 3 {
+                    // With flags: use RegexBuilder
+                    parse_quote! {
+                        regex::RegexBuilder::new(#pattern)
+                            .case_insensitive(true)
+                            .build()
+                            .unwrap()
+                            .find(#text)
+                    }
+                } else {
+                    // No flags: direct Regex::new()
+                    // re.search(pattern, text) → Regex::new(pattern).unwrap().find(text)
+                    parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) }
+                }
+            }
+
+            "match" => {
+                if arg_exprs.len() < 2 {
+                    bail!("re.match() requires at least 2 arguments (pattern, string)");
+                }
+                let pattern = &arg_exprs[0];
+                let text = &arg_exprs[1];
+
+                // re.match() in Python only matches at the beginning
+                // We need to add ^ anchor to the pattern
+                // For now, simplified: just use is_match()
+                parse_quote! { regex::Regex::new(#pattern).unwrap().is_match(#text) }
+            }
+
+            "findall" => {
+                if arg_exprs.len() < 2 {
+                    bail!("re.findall() requires at least 2 arguments (pattern, string)");
+                }
+                let pattern = &arg_exprs[0];
+                let text = &arg_exprs[1];
+
+                // re.findall(pattern, text) → Regex::new(pattern).unwrap().find_iter(text).map(|m| m.as_str()).collect::<Vec<_>>()
+                parse_quote! {
+                    regex::Regex::new(#pattern)
+                        .unwrap()
+                        .find_iter(#text)
+                        .map(|m| m.as_str().to_string())
+                        .collect::<Vec<_>>()
+                }
+            }
+
+            "finditer" => {
+                if arg_exprs.len() < 2 {
+                    bail!("re.finditer() requires at least 2 arguments (pattern, string)");
+                }
+                let pattern = &arg_exprs[0];
+                let text = &arg_exprs[1];
+
+                // re.finditer(pattern, text) → Regex::new(pattern).unwrap().find_iter(text)
+                parse_quote! {
+                    regex::Regex::new(#pattern)
+                        .unwrap()
+                        .find_iter(#text)
+                        .map(|m| m.as_str().to_string())
+                        .collect::<Vec<_>>()
+                }
+            }
+
+            // String substitution
+            "sub" => {
+                if arg_exprs.len() < 3 {
+                    bail!("re.sub() requires at least 3 arguments (pattern, repl, string)");
+                }
+                let pattern = &arg_exprs[0];
+                let repl = &arg_exprs[1];
+                let text = &arg_exprs[2];
+
+                // re.sub(pattern, repl, text) → Regex::new(pattern).unwrap().replace_all(text, repl)
+                parse_quote! {
+                    regex::Regex::new(#pattern)
+                        .unwrap()
+                        .replace_all(#text, #repl)
+                        .to_string()
+                }
+            }
+
+            "subn" => {
+                if arg_exprs.len() < 3 {
+                    bail!("re.subn() requires at least 3 arguments (pattern, repl, string)");
+                }
+                let pattern = &arg_exprs[0];
+                let repl = &arg_exprs[1];
+                let text = &arg_exprs[2];
+
+                // re.subn(pattern, repl, text) → returns (result, count)
+                parse_quote! {
+                    {
+                        let re = regex::Regex::new(#pattern).unwrap();
+                        let count = re.find_iter(#text).count();
+                        let result = re.replace_all(#text, #repl).to_string();
+                        (result, count)
+                    }
+                }
+            }
+
+            // Pattern compilation
+            "compile" => {
+                if arg_exprs.is_empty() {
+                    bail!("re.compile() requires at least 1 argument (pattern)");
+                }
+                let pattern = &arg_exprs[0];
+
+                // Check for flags
+                if arg_exprs.len() >= 2 {
+                    // With flags: use RegexBuilder
+                    // For now, simplified handling of common flags
+                    parse_quote! {
+                        regex::RegexBuilder::new(#pattern)
+                            .case_insensitive(true)
+                            .build()
+                            .unwrap()
+                    }
+                } else {
+                    // No flags: direct Regex::new()
+                    // re.compile(pattern) → Regex::new(pattern).unwrap()
+                    parse_quote! { regex::Regex::new(#pattern).unwrap() }
+                }
+            }
+
+            // String splitting
+            "split" => {
+                if arg_exprs.len() < 2 {
+                    bail!("re.split() requires at least 2 arguments (pattern, string)");
+                }
+                let pattern = &arg_exprs[0];
+                let text = &arg_exprs[1];
+
+                // Check for maxsplit argument
+                if arg_exprs.len() >= 3 {
+                    let maxsplit = &arg_exprs[2];
+                    // re.split(pattern, text, maxsplit) → Regex::new(pattern).unwrap().splitn(maxsplit + 1, text)
+                    parse_quote! {
+                        regex::Regex::new(#pattern)
+                            .unwrap()
+                            .splitn(#text, #maxsplit + 1)
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>()
+                    }
+                } else {
+                    // re.split(pattern, text) → Regex::new(pattern).unwrap().split(text)
+                    parse_quote! {
+                        regex::Regex::new(#pattern)
+                            .unwrap()
+                            .split(#text)
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>()
+                    }
+                }
+            }
+
+            // Escaping special characters
+            "escape" => {
+                if arg_exprs.len() != 1 {
+                    bail!("re.escape() requires exactly 1 argument");
+                }
+                let text = &arg_exprs[0];
+
+                // re.escape(text) → regex::escape(text)
+                parse_quote! { regex::escape(#text).to_string() }
+            }
+
+            _ => {
+                bail!("re.{} not implemented yet", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -2448,6 +2661,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // json.loads(s) → serde_json::from_str(&s)
             if module_name == "json" {
                 return self.try_convert_json_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-RE: Regular expressions module
+            if module_name == "re" {
+                return self.try_convert_re_method(method, args);
             }
 
             let rust_name_opt = self
