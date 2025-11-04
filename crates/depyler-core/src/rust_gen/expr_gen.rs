@@ -3095,6 +3095,245 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert binascii module method calls
+    /// DEPYLER-STDLIB-BINASCII: Binary/ASCII conversions
+    ///
+    /// Supports: hexlify, unhexlify, b2a_hex, a2b_hex, b2a_base64, a2b_base64, crc32
+    /// Common encoding/decoding operations
+    ///
+    /// # Complexity
+    /// Cyclomatic: 8 (match with 7 functions + default)
+    #[inline]
+    fn try_convert_binascii_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Hex conversions
+            "hexlify" | "b2a_hex" => {
+                if arg_exprs.len() != 1 {
+                    bail!("binascii.{}() requires exactly 1 argument", method);
+                }
+                self.ctx.needs_hex = true;
+                let data = &arg_exprs[0];
+
+                // binascii.hexlify(data) → hex::encode(data) as bytes
+                parse_quote! {
+                    hex::encode(#data).into_bytes()
+                }
+            }
+
+            "unhexlify" | "a2b_hex" => {
+                if arg_exprs.len() != 1 {
+                    bail!("binascii.{}() requires exactly 1 argument", method);
+                }
+                self.ctx.needs_hex = true;
+                let data = &arg_exprs[0];
+
+                // binascii.unhexlify(data) → hex::decode(data)
+                parse_quote! {
+                    hex::decode(#data).expect("Invalid hex string")
+                }
+            }
+
+            // Base64 conversions
+            "b2a_base64" => {
+                if arg_exprs.len() != 1 {
+                    bail!("binascii.b2a_base64() requires exactly 1 argument");
+                }
+                self.ctx.needs_base64 = true;
+                let data = &arg_exprs[0];
+
+                // binascii.b2a_base64(data) → base64::encode(data) with newline
+                parse_quote! {
+                    {
+                        let mut result = base64::engine::general_purpose::STANDARD.encode(#data);
+                        result.push('\n');
+                        result.into_bytes()
+                    }
+                }
+            }
+
+            "a2b_base64" => {
+                if arg_exprs.len() != 1 {
+                    bail!("binascii.a2b_base64() requires exactly 1 argument");
+                }
+                self.ctx.needs_base64 = true;
+                let data = &arg_exprs[0];
+
+                // binascii.a2b_base64(data) → base64::decode(data)
+                parse_quote! {
+                    base64::engine::general_purpose::STANDARD.decode(#data).expect("Invalid base64 string")
+                }
+            }
+
+            // Quoted-printable encoding
+            "b2a_qp" => {
+                if arg_exprs.is_empty() {
+                    bail!("binascii.b2a_qp() requires at least 1 argument");
+                }
+                let data = &arg_exprs[0];
+
+                // Simplified implementation - basic quoted-printable
+                // TODO: Full RFC 1521 implementation
+                parse_quote! {
+                    {
+                        // Simple QP: replace special chars, preserve printable ASCII
+                        let bytes: &[u8] = #data;
+                        let mut result = Vec::new();
+                        for &b in bytes {
+                            if b >= 33 && b <= 126 && b != b'=' {
+                                result.push(b);
+                            } else {
+                                result.extend(format!("={:02X}", b).as_bytes());
+                            }
+                        }
+                        result
+                    }
+                }
+            }
+
+            "a2b_qp" => {
+                if arg_exprs.len() != 1 {
+                    bail!("binascii.a2b_qp() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+
+                // Simplified QP decoder
+                // TODO: Full RFC 1521 implementation
+                parse_quote! {
+                    {
+                        let s = std::str::from_utf8(#data).expect("Invalid UTF-8");
+                        let mut result = Vec::new();
+                        let mut chars = s.chars().peekable();
+                        while let Some(c) = chars.next() {
+                            if c == '=' {
+                                let h1 = chars.next().unwrap_or('0');
+                                let h2 = chars.next().unwrap_or('0');
+                                let hex = format!("{}{}", h1, h2);
+                                if let Ok(b) = u8::from_str_radix(&hex, 16) {
+                                    result.push(b);
+                                }
+                            } else {
+                                result.push(c as u8);
+                            }
+                        }
+                        result
+                    }
+                }
+            }
+
+            // UU encoding
+            "b2a_uu" => {
+                if arg_exprs.len() != 1 {
+                    bail!("binascii.b2a_uu() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+
+                // Simplified UU encoding (basic implementation)
+                // TODO: Full UU encoding with proper line wrapping
+                parse_quote! {
+                    {
+                        let bytes: &[u8] = #data;
+                        let len = bytes.len();
+                        let mut result = vec![(len as u8 + 32)]; // Length byte
+                        for chunk in bytes.chunks(3) {
+                            let mut val = 0u32;
+                            for (i, &b) in chunk.iter().enumerate() {
+                                val |= (b as u32) << (16 - i * 8);
+                            }
+                            for i in 0..4 {
+                                let b = ((val >> (18 - i * 6)) & 0x3F) as u8;
+                                result.push(b + 32);
+                            }
+                        }
+                        result.push(b'\n');
+                        result
+                    }
+                }
+            }
+
+            "a2b_uu" => {
+                if arg_exprs.len() != 1 {
+                    bail!("binascii.a2b_uu() requires exactly 1 argument");
+                }
+                let data = &arg_exprs[0];
+
+                // Simplified UU decoding (basic implementation)
+                // TODO: Full UU decoding
+                parse_quote! {
+                    {
+                        let bytes: &[u8] = #data;
+                        if bytes.is_empty() {
+                            Vec::new()
+                        } else {
+                            let len = (bytes[0].wrapping_sub(32)) as usize;
+                            let mut result = Vec::with_capacity(len);
+                            for chunk in bytes[1..].chunks(4) {
+                                if chunk.len() < 4 { break; }
+                                let mut val = 0u32;
+                                for (i, &b) in chunk.iter().enumerate() {
+                                    val |= ((b.wrapping_sub(32) & 0x3F) as u32) << (18 - i * 6);
+                                }
+                                for i in 0..3 {
+                                    if result.len() < len {
+                                        result.push((val >> (16 - i * 8)) as u8);
+                                    }
+                                }
+                            }
+                            result
+                        }
+                    }
+                }
+            }
+
+            // CRC32 checksum
+            "crc32" => {
+                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+                    bail!("binascii.crc32() requires 1 or 2 arguments");
+                }
+                self.ctx.needs_crc32 = true;
+                let data = &arg_exprs[0];
+
+                if arg_exprs.len() == 1 {
+                    // binascii.crc32(data) → crc32 checksum as u32
+                    parse_quote! {
+                        {
+                            use crc32fast::Hasher;
+                            let mut hasher = Hasher::new();
+                            hasher.update(#data);
+                            hasher.finalize() as i32
+                        }
+                    }
+                } else {
+                    // binascii.crc32(data, crc) → update existing crc
+                    let crc = &arg_exprs[1];
+                    parse_quote! {
+                        {
+                            use crc32fast::Hasher;
+                            let mut hasher = Hasher::new_with_initial(#crc as u32);
+                            hasher.update(#data);
+                            hasher.finalize() as i32
+                        }
+                    }
+                }
+            }
+
+            _ => {
+                bail!("binascii.{} not implemented yet (available: hexlify, unhexlify, b2a_hex, a2b_hex, b2a_base64, a2b_base64, b2a_qp, a2b_qp, b2a_uu, a2b_uu, crc32)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -3895,6 +4134,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-HMAC: HMAC authentication
             if module_name == "hmac" {
                 return self.try_convert_hmac_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-BINASCII: Binary/ASCII conversions
+            if module_name == "binascii" {
+                return self.try_convert_binascii_method(method, args);
             }
 
             let rust_name_opt = self
