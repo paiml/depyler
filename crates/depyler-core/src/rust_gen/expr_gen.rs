@@ -1633,6 +1633,244 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// Try to convert math module method calls
+    /// DEPYLER-STDLIB-MATH: Comprehensive math module support
+    #[inline]
+    fn try_convert_math_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Trigonometric functions - all take one f64 argument
+            "sin" | "cos" | "tan" | "asin" | "acos" | "atan" => {
+                if arg_exprs.len() != 1 {
+                    bail!("math.{}() requires exactly 1 argument", method);
+                }
+                let arg = &arg_exprs[0];
+                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                parse_quote! { (#arg as f64).#method_ident() }
+            }
+
+            // atan2 takes two arguments
+            "atan2" => {
+                if arg_exprs.len() != 2 {
+                    bail!("math.atan2() requires exactly 2 arguments");
+                }
+                let y = &arg_exprs[0];
+                let x = &arg_exprs[1];
+                parse_quote! { (#y as f64).atan2(#x as f64) }
+            }
+
+            // Hyperbolic functions
+            "sinh" | "cosh" | "tanh" | "asinh" | "acosh" | "atanh" => {
+                if arg_exprs.len() != 1 {
+                    bail!("math.{}() requires exactly 1 argument", method);
+                }
+                let arg = &arg_exprs[0];
+                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                parse_quote! { (#arg as f64).#method_ident() }
+            }
+
+            // Power and logarithmic functions
+            "sqrt" | "exp" | "ln" | "log2" | "log10" => {
+                if arg_exprs.len() != 1 {
+                    bail!("math.{}() requires exactly 1 argument", method);
+                }
+                let arg = &arg_exprs[0];
+                let method_name = if method == "ln" { "ln" } else { method };
+                let method_ident = syn::Ident::new(method_name, proc_macro2::Span::call_site());
+                parse_quote! { (#arg as f64).#method_ident() }
+            }
+
+            // log() can take 1 or 2 arguments (log(x) or log(x, base))
+            "log" => {
+                if arg_exprs.len() == 1 {
+                    let arg = &arg_exprs[0];
+                    // log(x) defaults to natural logarithm
+                    parse_quote! { (#arg as f64).ln() }
+                } else if arg_exprs.len() == 2 {
+                    let x = &arg_exprs[0];
+                    let base = &arg_exprs[1];
+                    // log(x, base) → x.log(base)
+                    parse_quote! { (#x as f64).log(#base as f64) }
+                } else {
+                    bail!("math.log() requires 1 or 2 arguments");
+                }
+            }
+
+            // pow() takes two arguments
+            "pow" => {
+                if arg_exprs.len() != 2 {
+                    bail!("math.pow() requires exactly 2 arguments");
+                }
+                let base = &arg_exprs[0];
+                let exp = &arg_exprs[1];
+                // Use powf for floating point exponents
+                parse_quote! { (#base as f64).powf(#exp as f64) }
+            }
+
+            // Rounding functions
+            "ceil" | "floor" | "trunc" | "round" => {
+                if arg_exprs.len() != 1 {
+                    bail!("math.{}() requires exactly 1 argument", method);
+                }
+                let arg = &arg_exprs[0];
+                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                // These return f64 in Rust, but Python's math.ceil/floor return int
+                // We'll cast to i32 for ceil and floor
+                if method == "ceil" || method == "floor" {
+                    parse_quote! { (#arg as f64).#method_ident() as i32 }
+                } else {
+                    parse_quote! { (#arg as f64).#method_ident() }
+                }
+            }
+
+            // Absolute value
+            "fabs" => {
+                if arg_exprs.len() != 1 {
+                    bail!("math.fabs() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { (#arg as f64).abs() }
+            }
+
+            // copysign
+            "copysign" => {
+                if arg_exprs.len() != 2 {
+                    bail!("math.copysign() requires exactly 2 arguments");
+                }
+                let x = &arg_exprs[0];
+                let y = &arg_exprs[1];
+                parse_quote! { (#x as f64).copysign(#y as f64) }
+            }
+
+            // Degree/Radian conversion
+            "degrees" => {
+                if arg_exprs.len() != 1 {
+                    bail!("math.degrees() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { (#arg as f64).to_degrees() }
+            }
+            "radians" => {
+                if arg_exprs.len() != 1 {
+                    bail!("math.radians() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { (#arg as f64).to_radians() }
+            }
+
+            // Special value checks
+            "isnan" => {
+                if arg_exprs.len() != 1 {
+                    bail!("math.isnan() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { (#arg as f64).is_nan() }
+            }
+            "isinf" => {
+                if arg_exprs.len() != 1 {
+                    bail!("math.isinf() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { (#arg as f64).is_infinite() }
+            }
+            "isfinite" => {
+                if arg_exprs.len() != 1 {
+                    bail!("math.isfinite() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { (#arg as f64).is_finite() }
+            }
+
+            // GCD - requires num crate for integers
+            "gcd" => {
+                if arg_exprs.len() != 2 {
+                    bail!("math.gcd() requires exactly 2 arguments");
+                }
+                let a = &arg_exprs[0];
+                let b = &arg_exprs[1];
+                // For now, implement simple Euclidean algorithm inline
+                // TODO: Use num_integer::gcd crate in the future
+                parse_quote! {
+                    {
+                        let mut a = (#a as i64).abs();
+                        let mut b = (#b as i64).abs();
+                        while b != 0 {
+                            let temp = b;
+                            b = a % b;
+                            a = temp;
+                        }
+                        a as i32
+                    }
+                }
+            }
+
+            // Factorial - compute inline for now
+            "factorial" => {
+                if arg_exprs.len() != 1 {
+                    bail!("math.factorial() requires exactly 1 argument");
+                }
+                let n = &arg_exprs[0];
+                parse_quote! {
+                    {
+                        let n = #n as i32;
+                        let mut result = 1i64;
+                        for i in 1..=n {
+                            result *= i as i64;
+                        }
+                        result as i32
+                    }
+                }
+            }
+
+            // ldexp and frexp - less common, basic implementation
+            "ldexp" => {
+                if arg_exprs.len() != 2 {
+                    bail!("math.ldexp() requires exactly 2 arguments");
+                }
+                let x = &arg_exprs[0];
+                let i = &arg_exprs[1];
+                // ldexp(x, i) = x * 2^i
+                parse_quote! { (#x as f64) * 2.0f64.powi(#i as i32) }
+            }
+
+            "frexp" => {
+                // frexp returns (mantissa, exponent) where x = mantissa * 2^exponent
+                // Rust doesn't have this built-in, so we'll implement it
+                if arg_exprs.len() != 1 {
+                    bail!("math.frexp() requires exactly 1 argument");
+                }
+                let x = &arg_exprs[0];
+                parse_quote! {
+                    {
+                        let x = #x as f64;
+                        if x == 0.0 {
+                            (0.0, 0)
+                        } else {
+                            let exp = x.abs().log2().floor() as i32 + 1;
+                            let mantissa = x / 2.0f64.powi(exp);
+                            (mantissa, exp)
+                        }
+                    }
+                }
+            }
+
+            _ => {
+                bail!("math.{} not implemented yet", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert module method call (e.g., os.getcwd())
     #[inline]
     fn try_convert_module_method(
@@ -1645,6 +1883,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0021: Handle struct module (pack, unpack, calcsize)
             if module_name == "struct" {
                 return self.try_convert_struct_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-MATH: Handle math module functions
+            // math.sqrt(x) → x.sqrt()
+            // math.sin(x) → x.sin()
+            // math.pow(x, y) → x.powf(y)
+            if module_name == "math" {
+                return self.try_convert_math_method(method, args);
             }
 
             let rust_name_opt = self
@@ -3395,6 +3641,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // Check if this is a module attribute access
         if let HirExpr::Var(module_name) = value {
+            // DEPYLER-STDLIB-MATH: Handle math module constants
+            // math.pi → std::f64::consts::PI
+            // math.e → std::f64::consts::E
+            // math.inf → f64::INFINITY
+            // math.nan → f64::NAN
+            if module_name == "math" {
+                let result = match attr {
+                    "pi" => parse_quote! { std::f64::consts::PI },
+                    "e" => parse_quote! { std::f64::consts::E },
+                    "tau" => parse_quote! { std::f64::consts::TAU },
+                    "inf" => parse_quote! { f64::INFINITY },
+                    "nan" => parse_quote! { f64::NAN },
+                    _ => {
+                        // If it's not a recognized constant, it might be a typo
+                        bail!("math.{} is not a recognized constant or method", attr);
+                    }
+                };
+                return Ok(result);
+            }
+
             let rust_name_opt = self
                 .ctx
                 .imported_modules
