@@ -2244,6 +2244,165 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert os.path module method calls
+    /// DEPYLER-STDLIB-OSPATH: Path manipulation and file system operations
+    ///
+    /// Maps Python os.path module to Rust std::path + std::fs:
+    /// - os.path.join() → PathBuf::new().join()
+    /// - os.path.basename() → Path::file_name()
+    /// - os.path.exists() → Path::exists()
+    ///
+    /// # Complexity
+    /// 10 (match with 10 primary branches - split into helper methods as needed)
+    #[inline]
+    fn try_convert_os_path_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Path construction
+            "join" => {
+                if arg_exprs.is_empty() {
+                    bail!("os.path.join() requires at least 1 argument");
+                }
+
+                // os.path.join(a, b, c, ...) → PathBuf::from(a).join(b).join(c)...
+                let first = &arg_exprs[0];
+                if arg_exprs.len() == 1 {
+                    parse_quote! { std::path::PathBuf::from(#first) }
+                } else {
+                    let mut result = parse_quote! { std::path::PathBuf::from(#first) };
+                    for part in &arg_exprs[1..] {
+                        result = parse_quote! { #result.join(#part) };
+                    }
+                    parse_quote! { #result.to_string_lossy().to_string() }
+                }
+            }
+
+            // Path decomposition
+            "basename" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.basename() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.basename(path) → Path::new(path).file_name()
+                parse_quote! {
+                    std::path::Path::new(#path)
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_string()
+                }
+            }
+
+            "dirname" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.dirname() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.dirname(path) → Path::new(path).parent()
+                parse_quote! {
+                    std::path::Path::new(#path)
+                        .parent()
+                        .and_then(|p| p.to_str())
+                        .unwrap_or("")
+                        .to_string()
+                }
+            }
+
+            "split" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.split() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.split(path) → (dirname, basename) tuple
+                parse_quote! {
+                    {
+                        let p = std::path::Path::new(#path);
+                        let dirname = p.parent().and_then(|p| p.to_str()).unwrap_or("").to_string();
+                        let basename = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+                        (dirname, basename)
+                    }
+                }
+            }
+
+            "splitext" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.splitext() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.splitext(path) → (stem, extension) tuple
+                parse_quote! {
+                    {
+                        let p = std::path::Path::new(#path);
+                        let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
+                        let ext = p.extension().and_then(|e| e.to_str()).map(|e| format!(".{}", e)).unwrap_or_default();
+                        (stem, ext)
+                    }
+                }
+            }
+
+            // Path predicates
+            "exists" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.exists() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.exists(path) → Path::new(path).exists()
+                parse_quote! { std::path::Path::new(#path).exists() }
+            }
+
+            "isfile" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.isfile() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.isfile(path) → Path::new(path).is_file()
+                parse_quote! { std::path::Path::new(#path).is_file() }
+            }
+
+            "isdir" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.isdir() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.isdir(path) → Path::new(path).is_dir()
+                parse_quote! { std::path::Path::new(#path).is_dir() }
+            }
+
+            "isabs" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.isabs() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.isabs(path) → Path::new(path).is_absolute()
+                parse_quote! { std::path::Path::new(#path).is_absolute() }
+            }
+
+            _ => {
+                // For functions not yet implemented, return None to allow fallback
+                return Ok(None);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -3013,6 +3172,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-CSV: CSV file operations
             if module_name == "csv" {
                 return self.try_convert_csv_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-OSPATH: os.path file system operations
+            // Note: This handles both "os.path" and potentially "os" with path attribute
+            if module_name == "os.path" || module_name == "path" {
+                return self.try_convert_os_path_method(method, args);
             }
 
             let rust_name_opt = self
