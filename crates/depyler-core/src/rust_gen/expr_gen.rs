@@ -1974,6 +1974,190 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert time module method calls
+    /// DEPYLER-STDLIB-TIME: Time measurement and manipulation
+    ///
+    /// Maps Python time module functions to Rust equivalents:
+    /// - time.time() → SystemTime::now()
+    /// - time.sleep() → thread::sleep()
+    /// - time.monotonic() → Instant::now()
+    ///
+    /// # Complexity
+    /// 7 (match with 7+ branches)
+    #[inline]
+    fn try_convert_time_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Basic time measurement
+            "time" => {
+                // time.time() → SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64()
+                parse_quote! {
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs_f64()
+                }
+            }
+
+            "monotonic" | "perf_counter" => {
+                // time.monotonic() → Instant::now() (returns Instant, need elapsed)
+                // For now, simplified: just generate the call
+                // In real usage, user would call .elapsed() later
+                parse_quote! { std::time::Instant::now() }
+            }
+
+            "process_time" => {
+                // time.process_time() → CPU time (requires platform-specific code)
+                // Simplified: use Instant as approximation
+                parse_quote! { std::time::Instant::now() }
+            }
+
+            "thread_time" => {
+                // time.thread_time() → thread-specific time
+                // Simplified: use Instant
+                parse_quote! { std::time::Instant::now() }
+            }
+
+            // Sleep function
+            "sleep" => {
+                if arg_exprs.len() != 1 {
+                    bail!("time.sleep() requires exactly 1 argument (seconds)");
+                }
+                let seconds = &arg_exprs[0];
+
+                // time.sleep(seconds) → thread::sleep(Duration::from_secs_f64(seconds))
+                parse_quote! {
+                    std::thread::sleep(std::time::Duration::from_secs_f64(#seconds))
+                }
+            }
+
+            // Time formatting (requires chrono for full support)
+            "ctime" => {
+                self.ctx.needs_chrono = true;
+                if arg_exprs.len() != 1 {
+                    bail!("time.ctime() requires exactly 1 argument (timestamp)");
+                }
+                let timestamp = &arg_exprs[0];
+
+                // time.ctime(timestamp) → chrono formatting
+                // Simplified: convert timestamp to DateTime
+                parse_quote! {
+                    {
+                        let secs = #timestamp as i64;
+                        let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
+                        chrono::DateTime::<chrono::Utc>::from_timestamp(secs, nanos)
+                            .unwrap()
+                            .to_string()
+                    }
+                }
+            }
+
+            "strftime" => {
+                self.ctx.needs_chrono = true;
+                if arg_exprs.len() < 2 {
+                    bail!("time.strftime() requires at least 2 arguments (format, time_tuple)");
+                }
+                let format = &arg_exprs[0];
+                let _time_tuple = &arg_exprs[1];
+
+                // time.strftime(format, time_tuple) → chrono formatting
+                // Simplified: assume current time for now
+                parse_quote! {
+                    chrono::Local::now().format(#format).to_string()
+                }
+            }
+
+            "strptime" => {
+                self.ctx.needs_chrono = true;
+                if arg_exprs.len() < 2 {
+                    bail!("time.strptime() requires at least 2 arguments (string, format)");
+                }
+                let time_str = &arg_exprs[0];
+                let format = &arg_exprs[1];
+
+                // time.strptime(string, format) → chrono parsing
+                parse_quote! {
+                    chrono::NaiveDateTime::parse_from_str(#time_str, #format).unwrap()
+                }
+            }
+
+            // Time conversion
+            "gmtime" => {
+                self.ctx.needs_chrono = true;
+                let timestamp = if arg_exprs.is_empty() {
+                    parse_quote! { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64() }
+                } else {
+                    arg_exprs[0].clone()
+                };
+
+                // time.gmtime(timestamp) → chrono UTC conversion
+                parse_quote! {
+                    {
+                        let secs = #timestamp as i64;
+                        let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
+                        chrono::DateTime::<chrono::Utc>::from_timestamp(secs, nanos).unwrap()
+                    }
+                }
+            }
+
+            "localtime" => {
+                self.ctx.needs_chrono = true;
+                let timestamp = if arg_exprs.is_empty() {
+                    parse_quote! { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64() }
+                } else {
+                    arg_exprs[0].clone()
+                };
+
+                // time.localtime(timestamp) → chrono Local conversion
+                parse_quote! {
+                    {
+                        let secs = #timestamp as i64;
+                        let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
+                        chrono::DateTime::<chrono::Local>::from_timestamp(secs, nanos).unwrap()
+                    }
+                }
+            }
+
+            "mktime" => {
+                self.ctx.needs_chrono = true;
+                if arg_exprs.len() != 1 {
+                    bail!("time.mktime() requires exactly 1 argument (time_tuple)");
+                }
+                let time_tuple = &arg_exprs[0];
+
+                // time.mktime(time_tuple) → timestamp conversion
+                // Simplified: assume time_tuple is a chrono DateTime
+                parse_quote! { #time_tuple.timestamp() as f64 }
+            }
+
+            "asctime" => {
+                self.ctx.needs_chrono = true;
+                if arg_exprs.len() != 1 {
+                    bail!("time.asctime() requires exactly 1 argument (time_tuple)");
+                }
+                let time_tuple = &arg_exprs[0];
+
+                // time.asctime(time_tuple) → ASCII time string
+                parse_quote! { #time_tuple.to_string() }
+            }
+
+            _ => {
+                bail!("time.{} not implemented yet", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -2733,6 +2917,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-STRING: String module utilities
             if module_name == "string" {
                 return self.try_convert_string_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-TIME: Time module
+            if module_name == "time" {
+                return self.try_convert_time_method(method, args);
             }
 
             let rust_name_opt = self
