@@ -2394,6 +2394,152 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! { std::path::Path::new(#path).is_absolute() }
             }
 
+            // Path normalization
+            "abspath" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.abspath() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.abspath(path) → std::fs::canonicalize() or manual absolute path
+                // Using canonicalize (resolves symlinks too, like realpath)
+                parse_quote! {
+                    std::fs::canonicalize(#path)
+                        .unwrap_or_else(|_| std::path::PathBuf::from(#path))
+                        .to_string_lossy()
+                        .to_string()
+                }
+            }
+
+            "normpath" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.normpath() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.normpath(path) → normalize path components
+                // Rust Path doesn't have direct normpath, but we can use PathBuf operations
+                parse_quote! {
+                    {
+                        let p = std::path::Path::new(#path);
+                        let mut components = Vec::new();
+                        for component in p.components() {
+                            match component {
+                                std::path::Component::CurDir => {},
+                                std::path::Component::ParentDir => {
+                                    components.pop();
+                                }
+                                _ => components.push(component),
+                            }
+                        }
+                        components.iter()
+                            .map(|c| c.as_os_str().to_string_lossy())
+                            .collect::<Vec<_>>()
+                            .join(std::path::MAIN_SEPARATOR_STR)
+                    }
+                }
+            }
+
+            "realpath" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.realpath() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.realpath(path) → std::fs::canonicalize()
+                parse_quote! {
+                    std::fs::canonicalize(#path)
+                        .unwrap_or_else(|_| std::path::PathBuf::from(#path))
+                        .to_string_lossy()
+                        .to_string()
+                }
+            }
+
+            // Path properties
+            "getsize" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.getsize() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.getsize(path) → std::fs::metadata().len()
+                parse_quote! {
+                    std::fs::metadata(#path).unwrap().len() as i64
+                }
+            }
+
+            "getmtime" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.getmtime() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.getmtime(path) → std::fs::metadata().modified()
+                parse_quote! {
+                    std::fs::metadata(#path)
+                        .unwrap()
+                        .modified()
+                        .unwrap()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs_f64()
+                }
+            }
+
+            "getctime" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.getctime() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.getctime(path) → std::fs::metadata().created()
+                // Note: On Unix, this is ctime (change time), but Rust only has created()
+                parse_quote! {
+                    std::fs::metadata(#path)
+                        .unwrap()
+                        .created()
+                        .unwrap()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs_f64()
+                }
+            }
+
+            // Path expansion
+            "expanduser" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.expanduser() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.expanduser(path) → expand ~ to home directory
+                parse_quote! {
+                    {
+                        let p = #path;
+                        if p.starts_with("~") {
+                            if let Some(home) = std::env::var_os("HOME") {
+                                format!("{}{}", home.to_string_lossy(), &p[1..])
+                            } else {
+                                p.to_string()
+                            }
+                        } else {
+                            p.to_string()
+                        }
+                    }
+                }
+            }
+
+            "expandvars" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.expandvars() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+
+                // os.path.expandvars(path) → expand environment variables
+                // Simplified: just return path as-is for now (full implementation complex)
+                parse_quote! { #path.to_string() }
+            }
+
             _ => {
                 // For functions not yet implemented, return None to allow fallback
                 return Ok(None);
