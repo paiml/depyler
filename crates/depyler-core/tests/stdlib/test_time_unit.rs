@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-TIME-001: Time measurement functions
 #[test]
-#[ignore = "DEPYLER-STDLIB-TIME: Not implemented yet - RED phase"]
 fn test_time_time() {
     let python = r#"
 import time
@@ -22,7 +21,6 @@ def get_current_time() -> float:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-TIME: Not implemented yet - RED phase"]
 fn test_time_monotonic() {
     let python = r#"
 import time
@@ -71,7 +69,6 @@ def get_process_time() -> float:
 
 // DEPYLER-STDLIB-TIME-002: Sleep functions
 #[test]
-#[ignore = "DEPYLER-STDLIB-TIME: Not implemented yet - RED phase"]
 fn test_time_sleep() {
     let python = r#"
 import time
@@ -137,7 +134,6 @@ def parse_time_string(time_str: str, pattern: str) -> tuple:
 
 // DEPYLER-STDLIB-TIME-004: Time conversion functions
 #[test]
-#[ignore = "DEPYLER-STDLIB-TIME: Not implemented yet - RED phase"]
 fn test_time_gmtime() {
     let python = r#"
 import time
@@ -153,7 +149,6 @@ def get_gmtime(timestamp: float) -> tuple:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-TIME: Not implemented yet - RED phase"]
 fn test_time_localtime() {
     let python = r#"
 import time
