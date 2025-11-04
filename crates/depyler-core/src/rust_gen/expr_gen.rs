@@ -2158,6 +2158,92 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert csv module method calls
+    /// DEPYLER-STDLIB-CSV: CSV file reading and writing
+    ///
+    /// Maps Python csv module to Rust csv crate:
+    /// - csv.reader() → csv::Reader::from_reader()
+    /// - csv.writer() → csv::Writer::from_writer()
+    /// - csv.DictReader → csv with headers
+    /// - csv.DictWriter → csv with headers
+    ///
+    /// # Complexity
+    /// 4 (match with 4 branches - simplified for core operations)
+    #[inline]
+    fn try_convert_csv_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Mark that we need csv crate
+        self.ctx.needs_csv = true;
+
+        let result = match method {
+            // CSV Reader
+            "reader" => {
+                if arg_exprs.is_empty() {
+                    bail!("csv.reader() requires at least 1 argument (file)");
+                }
+                let file = &arg_exprs[0];
+
+                // csv.reader(file) → csv::Reader::from_reader(file)
+                // Note: Real implementation needs more context for delimiter, etc.
+                parse_quote! { csv::Reader::from_reader(#file) }
+            }
+
+            // CSV Writer
+            "writer" => {
+                if arg_exprs.is_empty() {
+                    bail!("csv.writer() requires at least 1 argument (file)");
+                }
+                let file = &arg_exprs[0];
+
+                // csv.writer(file) → csv::Writer::from_writer(file)
+                parse_quote! { csv::Writer::from_writer(#file) }
+            }
+
+            // DictReader (simplified - actual implementation more complex)
+            "DictReader" => {
+                if arg_exprs.is_empty() {
+                    bail!("csv.DictReader() requires at least 1 argument (file)");
+                }
+                let file = &arg_exprs[0];
+
+                // csv.DictReader(file) → csv::ReaderBuilder::new().has_headers(true).from_reader(file)
+                parse_quote! {
+                    csv::ReaderBuilder::new()
+                        .has_headers(true)
+                        .from_reader(#file)
+                }
+            }
+
+            // DictWriter (simplified)
+            "DictWriter" => {
+                if arg_exprs.len() < 2 {
+                    bail!("csv.DictWriter() requires at least 2 arguments (file, fieldnames)");
+                }
+                let file = &arg_exprs[0];
+                let _fieldnames = &arg_exprs[1];
+
+                // csv.DictWriter(file, fieldnames) → csv::Writer::from_writer(file)
+                // Note: fieldnames handling requires more context
+                parse_quote! { csv::Writer::from_writer(#file) }
+            }
+
+            _ => {
+                bail!("csv.{} not implemented yet", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -2922,6 +3008,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-TIME: Time module
             if module_name == "time" {
                 return self.try_convert_time_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-CSV: CSV file operations
+            if module_name == "csv" {
+                return self.try_convert_csv_method(method, args);
             }
 
             let rust_name_opt = self

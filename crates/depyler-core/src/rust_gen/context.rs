@@ -56,6 +56,7 @@ pub struct CodeGenContext<'a> {
     pub needs_serde_json: bool,
     pub needs_regex: bool,
     pub needs_chrono: bool,
+    pub needs_csv: bool,
     pub declared_vars: Vec<HashSet<String>>,
     pub current_function_can_fail: bool,
     pub current_return_type: Option<Type>,

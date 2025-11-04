@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-CSV-001: CSV Reader functions
 #[test]
-#[ignore = "DEPYLER-STDLIB-CSV: Not implemented yet - RED phase"]
 fn test_csv_reader() {
     let python = r#"
 import csv
@@ -43,7 +42,6 @@ def read_csv_with_delimiter(filename: str, delim: str) -> list:
 
 // DEPYLER-STDLIB-CSV-002: CSV Writer functions
 #[test]
-#[ignore = "DEPYLER-STDLIB-CSV: Not implemented yet - RED phase"]
 fn test_csv_writer() {
     let python = r#"
 import csv
