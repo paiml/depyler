@@ -3480,6 +3480,116 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert fnmatch module method calls
+    /// DEPYLER-STDLIB-FNMATCH: Unix shell-style pattern matching
+    ///
+    /// Supports: fnmatch, fnmatchcase, filter, translate
+    /// Shell wildcard patterns: *, ?, [seq], [!seq]
+    ///
+    /// # Complexity
+    /// Cyclomatic: 5 (match with 4 functions + default)
+    #[inline]
+    fn try_convert_fnmatch_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // fnmatch needs regex crate for pattern matching
+        self.ctx.needs_regex = true;
+
+        let result = match method {
+            // Basic pattern matching
+            "fnmatch" | "fnmatchcase" => {
+                if arg_exprs.len() != 2 {
+                    bail!("fnmatch.{}() requires exactly 2 arguments", method);
+                }
+                let name = &arg_exprs[0];
+                let pattern = &arg_exprs[1];
+
+                // Simplified implementation: convert pattern to regex and match
+                // TODO: Proper fnmatch pattern translation with case sensitivity
+                parse_quote! {
+                    {
+                        // Convert fnmatch pattern to regex
+                        let pattern_str = #pattern;
+                        let regex_pattern = pattern_str
+                            .replace(".", "\\.")
+                            .replace("*", ".*")
+                            .replace("?", ".")
+                            .replace("[!", "[^");
+
+                        let regex = regex::Regex::new(&format!("^{}$", regex_pattern))
+                            .unwrap_or_else(|_| regex::Regex::new("^$").unwrap());
+
+                        regex.is_match(#name)
+                    }
+                }
+            }
+
+            // Filter list by pattern
+            "filter" => {
+                if arg_exprs.len() != 2 {
+                    bail!("fnmatch.filter() requires exactly 2 arguments");
+                }
+                let names = &arg_exprs[0];
+                let pattern = &arg_exprs[1];
+
+                // filter(names, pattern) → names matching pattern
+                parse_quote! {
+                    {
+                        let pattern_str = #pattern;
+                        let regex_pattern = pattern_str
+                            .replace(".", "\\.")
+                            .replace("*", ".*")
+                            .replace("?", ".")
+                            .replace("[!", "[^");
+
+                        let regex = regex::Regex::new(&format!("^{}$", regex_pattern))
+                            .unwrap_or_else(|_| regex::Regex::new("^$").unwrap());
+
+                        (#names).into_iter()
+                            .filter(|name| regex.is_match(&name.to_string()))
+                            .collect::<Vec<_>>()
+                    }
+                }
+            }
+
+            // Translate pattern to regex
+            "translate" => {
+                if arg_exprs.len() != 1 {
+                    bail!("fnmatch.translate() requires exactly 1 argument");
+                }
+                let pattern = &arg_exprs[0];
+
+                // translate(pattern) → regex string
+                parse_quote! {
+                    {
+                        let pattern_str = #pattern;
+                        let regex_pattern = pattern_str
+                            .replace(".", "\\.")
+                            .replace("*", ".*")
+                            .replace("?", ".")
+                            .replace("[!", "[^");
+
+                        format!("(?ms)^{}$", regex_pattern)
+                    }
+                }
+            }
+
+            _ => {
+                bail!("fnmatch.{} not implemented yet (available: fnmatch, fnmatchcase, filter, translate)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -4290,6 +4400,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-URLLIB-PARSE: URL parsing and encoding
             if module_name == "urllib.parse" || module_name == "parse" {
                 return self.try_convert_urllib_parse_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-FNMATCH: Unix shell-style pattern matching
+            if module_name == "fnmatch" {
+                return self.try_convert_fnmatch_method(method, args);
             }
 
             let rust_name_opt = self
