@@ -5,7 +5,7 @@
 //! the code generation pipeline.
 
 use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
-use crate::hir::Type;
+use crate::hir::{ExceptionScope, Type};
 use crate::string_optimization::StringOptimizer;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
@@ -52,6 +52,22 @@ pub struct CodeGenContext<'a> {
     pub needs_arc: bool,
     pub needs_rc: bool,
     pub needs_cow: bool,
+    pub needs_rand: bool,
+    pub needs_serde_json: bool,
+    pub needs_regex: bool,
+    pub needs_chrono: bool,
+    pub needs_csv: bool,
+    pub needs_rust_decimal: bool,
+    pub needs_base64: bool,
+    pub needs_md5: bool,
+    pub needs_sha2: bool,
+    pub needs_sha3: bool,
+    pub needs_blake2: bool,
+    pub needs_hex: bool,
+    pub needs_uuid: bool,
+    pub needs_hmac: bool,
+    pub needs_crc32: bool,
+    pub needs_url_encoding: bool,
     pub declared_vars: Vec<HashSet<String>>,
     pub current_function_can_fail: bool,
     pub current_return_type: Option<Type>,
@@ -80,6 +96,10 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-0310: Current function's error type (for raise statement wrapping)
     /// None if function doesn't return Result, Some(ErrorType) if it does
     pub current_error_type: Option<ErrorType>,
+    /// DEPYLER-0333: Stack of exception scopes for try/except tracking
+    /// Tracks whether code is inside try/except blocks to determine error handling strategy
+    /// Empty stack = Unhandled scope (exceptions propagate to caller)
+    pub exception_scopes: Vec<ExceptionScope>,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -132,6 +152,75 @@ impl<'a> CodeGenContext<'a> {
             self.generated_enums.push(enum_def);
         }
         enum_name
+    }
+
+    // ========================================================================
+    // DEPYLER-0333: Exception Scope Tracking
+    // ========================================================================
+
+    /// Get the current exception scope
+    ///
+    /// Returns the most recent scope from the stack, or Unhandled if stack is empty.
+    ///
+    /// # Complexity
+    /// 2 (last + unwrap_or)
+    pub fn current_exception_scope(&self) -> &ExceptionScope {
+        self.exception_scopes
+            .last()
+            .unwrap_or(&ExceptionScope::Unhandled)
+    }
+
+    /// Check if currently inside a try block
+    ///
+    /// # Complexity
+    /// 2 (current_exception_scope + matches)
+    pub fn is_in_try_block(&self) -> bool {
+        matches!(
+            self.current_exception_scope(),
+            ExceptionScope::TryCaught { .. }
+        )
+    }
+
+    /// Check if a specific exception type is handled by current try block
+    ///
+    /// Returns true if:
+    /// - Inside a try block with bare except (empty handled_types)
+    /// - Inside a try block that explicitly handles this exception type
+    ///
+    /// # Complexity
+    /// 4 (match + is_empty + contains + comparison)
+    pub fn is_exception_handled(&self, exception_type: &str) -> bool {
+        if let ExceptionScope::TryCaught { handled_types } = self.current_exception_scope() {
+            // Empty list = bare except (catches all)
+            handled_types.is_empty() || handled_types.contains(&exception_type.to_string())
+        } else {
+            false
+        }
+    }
+
+    /// Enter a try block scope with specified exception handlers
+    ///
+    /// # Complexity
+    /// 1 (simple push)
+    pub fn enter_try_scope(&mut self, handled_types: Vec<String>) {
+        self.exception_scopes
+            .push(ExceptionScope::TryCaught { handled_types });
+    }
+
+    /// Enter an exception handler scope
+    ///
+    /// # Complexity
+    /// 1 (simple push)
+    pub fn enter_handler_scope(&mut self) {
+        self.exception_scopes.push(ExceptionScope::Handler);
+    }
+
+    /// Exit the current exception scope
+    ///
+    /// # Complexity
+    /// 1 (simple pop)
+    pub fn exit_exception_scope(&mut self) {
+        self.exception_scopes.pop();
     }
 }
 
