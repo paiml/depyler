@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-PPRINT-001: Pretty printing
 #[test]
-#[ignore = "DEPYLER-STDLIB-PPRINT: Not implemented yet - RED phase"]
 fn test_pprint() {
     let python = r#"
 import pprint
@@ -17,8 +16,8 @@ def pretty_print(obj: object) -> None:
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should pretty print object
-    assert!(result.contains("print") || result.contains("debug") || result.contains("Display"));
+    // Should pretty print object using Debug formatting
+    assert!(result.contains("println!") && result.contains("{:#?}"));
 }
 
 // Total: 1 test for pprint module
