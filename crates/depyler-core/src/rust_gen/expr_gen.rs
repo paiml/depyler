@@ -857,6 +857,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "ord" => self.convert_ord_builtin(&arg_exprs),
             "hash" => self.convert_hash_builtin(&arg_exprs),
             "repr" => self.convert_repr_builtin(&arg_exprs),
+            // DEPYLER-STDLIB-50: next(), getattr(), iter(), type()
+            "next" => self.convert_next_builtin(&arg_exprs),
+            "getattr" => self.convert_getattr_builtin(&arg_exprs),
+            "iter" => self.convert_iter_builtin(&arg_exprs),
+            "type" => self.convert_type_builtin(&arg_exprs),
             _ => self.convert_generic_call(func, args, &arg_exprs),
         }
     }
@@ -1603,6 +1608,55 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
         let value = &args[0];
         Ok(parse_quote! { format!("{:?}", #value) })
+    }
+
+    // DEPYLER-STDLIB-50: next() - get next item from iterator
+    fn convert_next_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() || args.len() > 2 {
+            bail!("next() requires 1 or 2 arguments (iterator, optional default)");
+        }
+        let iterator = &args[0];
+        if args.len() == 2 {
+            let default = &args[1];
+            Ok(parse_quote! {
+                #iterator.next().unwrap_or(#default)
+            })
+        } else {
+            Ok(parse_quote! {
+                #iterator.next().expect("StopIteration: iterator is empty")
+            })
+        }
+    }
+
+    // DEPYLER-STDLIB-50: getattr() - get attribute by name
+    fn convert_getattr_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() < 2 || args.len() > 3 {
+            bail!("getattr() requires 2 or 3 arguments (object, name, optional default)");
+        }
+        // Note: This is a simplified implementation
+        // Full getattr() requires runtime attribute lookup which isn't possible in Rust
+        // For now, we'll bail as it needs special handling
+        bail!("getattr() requires dynamic attribute access not fully supported yet")
+    }
+
+    // DEPYLER-STDLIB-50: iter() - create iterator
+    fn convert_iter_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("iter() requires exactly 1 argument");
+        }
+        let iterable = &args[0];
+        Ok(parse_quote! { #iterable.into_iter() })
+    }
+
+    // DEPYLER-STDLIB-50: type() - get type name
+    fn convert_type_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("type() requires exactly 1 argument");
+        }
+        let value = &args[0];
+        // Return a string representation of the type name
+        // This is a simplified implementation - full Python type() is more complex
+        Ok(parse_quote! { std::any::type_name_of_val(&#value) })
     }
 
     /// Check if expression already ends with .collect()
@@ -6585,6 +6639,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     })
                 }
             }
+            // DEPYLER-STDLIB-50: clear() - remove all items
+            "clear" => {
+                if !arg_exprs.is_empty() {
+                    bail!("clear() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.clear() })
+            }
+            // DEPYLER-STDLIB-50: copy() - shallow copy
+            "copy" => {
+                if !arg_exprs.is_empty() {
+                    bail!("copy() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.clone() })
+            }
             _ => bail!("Unknown dict method: {}", method),
         }
     }
@@ -6933,6 +7001,106 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             format!("{}{}{}", sign, "0".repeat(width - s.len()), num)
                         }
                     }
+                })
+            }
+
+            // DEPYLER-STDLIB-50: capitalize() - capitalize first character
+            "capitalize" => {
+                if !arg_exprs.is_empty() {
+                    bail!("capitalize() takes no arguments");
+                }
+                Ok(parse_quote! {
+                    {
+                        let s = #object_expr;
+                        let mut chars = s.chars();
+                        match chars.next() {
+                            None => String::new(),
+                            Some(first) => first.to_uppercase().chain(chars).collect::<String>(),
+                        }
+                    }
+                })
+            }
+
+            // DEPYLER-STDLIB-50: swapcase() - swap upper/lower case
+            "swapcase" => {
+                if !arg_exprs.is_empty() {
+                    bail!("swapcase() takes no arguments");
+                }
+                Ok(parse_quote! {
+                    #object_expr.chars().map(|c| {
+                        if c.is_uppercase() {
+                            c.to_lowercase().to_string()
+                        } else {
+                            c.to_uppercase().to_string()
+                        }
+                    }).collect::<String>()
+                })
+            }
+
+            // DEPYLER-STDLIB-50: expandtabs() - expand tab characters
+            "expandtabs" => {
+                let tabsize = if arg_exprs.is_empty() {
+                    8
+                } else if arg_exprs.len() == 1 {
+                    // tabsize argument will be used at runtime
+                    return Ok(parse_quote! {
+                        #object_expr.replace("\t", &" ".repeat(#arg_exprs[0] as usize))
+                    });
+                } else {
+                    bail!("expandtabs() takes 0 or 1 arguments");
+                };
+                Ok(parse_quote! {
+                    #object_expr.replace("\t", &" ".repeat(#tabsize))
+                })
+            }
+
+            // DEPYLER-STDLIB-50: splitlines() - split by line breaks
+            "splitlines" => {
+                if !arg_exprs.is_empty() {
+                    bail!("splitlines() takes no arguments");
+                }
+                Ok(parse_quote! {
+                    #object_expr.lines().map(|s| s.to_string()).collect::<Vec<String>>()
+                })
+            }
+
+            // DEPYLER-STDLIB-50: partition() - partition by separator
+            "partition" => {
+                if arg_exprs.len() != 1 {
+                    bail!("partition() requires exactly 1 argument (separator)");
+                }
+                let sep = &arg_exprs[0];
+                Ok(parse_quote! {
+                    {
+                        let s = #object_expr;
+                        let sep_str = #sep;
+                        if let Some(pos) = s.find(sep_str) {
+                            let before = &s[..pos];
+                            let after = &s[pos + sep_str.len()..];
+                            (before.to_string(), sep_str.to_string(), after.to_string())
+                        } else {
+                            (s.to_string(), String::new(), String::new())
+                        }
+                    }
+                })
+            }
+
+            // DEPYLER-STDLIB-50: casefold() - aggressive lowercase for caseless matching
+            "casefold" => {
+                if !arg_exprs.is_empty() {
+                    bail!("casefold() takes no arguments");
+                }
+                // casefold() is like lower() but more aggressive for Unicode
+                Ok(parse_quote! { #object_expr.to_lowercase() })
+            }
+
+            // DEPYLER-STDLIB-50: isprintable() - check if all characters are printable
+            "isprintable" => {
+                if !arg_exprs.is_empty() {
+                    bail!("isprintable() takes no arguments");
+                }
+                Ok(parse_quote! {
+                    #object_expr.chars().all(|c| !c.is_control() || c == '\t' || c == '\n' || c == '\r')
                 })
             }
 
