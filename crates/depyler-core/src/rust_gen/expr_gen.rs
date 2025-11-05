@@ -834,6 +834,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "dict" if !is_user_class => self.convert_dict_builtin(&arg_exprs),
             "deque" if !is_user_class => self.convert_deque_builtin(&arg_exprs),
             "list" if !is_user_class => self.convert_list_builtin(&arg_exprs),
+            // DEPYLER-STDLIB-BUILTINS: Additional builtin functions
+            "all" => self.convert_all_builtin(&arg_exprs),
+            "any" => self.convert_any_builtin(&arg_exprs),
+            "divmod" => self.convert_divmod_builtin(&arg_exprs),
+            "enumerate" => self.convert_enumerate_builtin(&arg_exprs),
+            "zip" => self.convert_zip_builtin(&arg_exprs),
+            "reversed" => self.convert_reversed_builtin(&arg_exprs),
+            "sorted" => self.convert_sorted_builtin(&arg_exprs),
+            "filter" => self.convert_filter_builtin(args, &arg_exprs),
+            "sum" => self.convert_sum_builtin(&arg_exprs),
             _ => self.convert_generic_call(func, args, &arg_exprs),
         }
     }
@@ -1326,6 +1336,124 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         } else {
             bail!("list() takes at most 1 argument ({} given)", args.len())
+        }
+    }
+
+    // DEPYLER-STDLIB-BUILTINS: Additional builtin function converters
+
+    fn convert_all_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("all() requires exactly 1 argument");
+        }
+        let iterable = &args[0];
+        Ok(parse_quote! { #iterable.into_iter().all(|x| x) })
+    }
+
+    fn convert_any_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("any() requires exactly 1 argument");
+        }
+        let iterable = &args[0];
+        Ok(parse_quote! { #iterable.into_iter().any(|x| x) })
+    }
+
+    fn convert_divmod_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 2 {
+            bail!("divmod() requires exactly 2 arguments");
+        }
+        let a = &args[0];
+        let b = &args[1];
+        Ok(parse_quote! { (#a / #b, #a % #b) })
+    }
+
+    fn convert_enumerate_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() || args.len() > 2 {
+            bail!("enumerate() requires 1 or 2 arguments");
+        }
+        let iterable = &args[0];
+        if args.len() == 2 {
+            let start = &args[1];
+            Ok(parse_quote! { #iterable.into_iter().enumerate().map(|(i, x)| ((i + #start as usize) as i32, x)) })
+        } else {
+            Ok(parse_quote! { #iterable.into_iter().enumerate().map(|(i, x)| (i as i32, x)) })
+        }
+    }
+
+    fn convert_zip_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() < 2 {
+            bail!("zip() requires at least 2 arguments");
+        }
+        let first = &args[0];
+        let second = &args[1];
+        if args.len() == 2 {
+            Ok(parse_quote! { #first.into_iter().zip(#second.into_iter()) })
+        } else {
+            // For 3+ iterables, chain zip calls
+            let mut zip_expr: syn::Expr = parse_quote! { #first.into_iter().zip(#second.into_iter()) };
+            for iter in &args[2..] {
+                zip_expr = parse_quote! { #zip_expr.zip(#iter.into_iter()) };
+            }
+            Ok(zip_expr)
+        }
+    }
+
+    fn convert_reversed_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("reversed() requires exactly 1 argument");
+        }
+        let iterable = &args[0];
+        Ok(parse_quote! { #iterable.into_iter().rev() })
+    }
+
+    fn convert_sorted_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() || args.len() > 2 {
+            bail!("sorted() requires 1 or 2 arguments");
+        }
+        let iterable = &args[0];
+        // Simplified: ignore key/reverse parameters for now
+        Ok(parse_quote! {
+            {
+                let mut sorted_vec = #iterable.into_iter().collect::<Vec<_>>();
+                sorted_vec.sort();
+                sorted_vec
+            }
+        })
+    }
+
+    fn convert_filter_builtin(&self, hir_args: &[HirExpr], args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 2 {
+            bail!("filter() requires exactly 2 arguments");
+        }
+        // Check if first arg is lambda
+        if let HirExpr::Lambda { params, body } = &hir_args[0] {
+            if params.len() != 1 {
+                bail!("filter() lambda must have exactly 1 parameter");
+            }
+            let param_ident = syn::Ident::new(&params[0], proc_macro2::Span::call_site());
+            let body_expr = body.to_rust_expr(self.ctx)?;
+            let iterable = &args[1];
+            Ok(parse_quote! {
+                #iterable.into_iter().filter(|#param_ident| #body_expr)
+            })
+        } else {
+            let predicate = &args[0];
+            let iterable = &args[1];
+            Ok(parse_quote! {
+                #iterable.into_iter().filter(#predicate)
+            })
+        }
+    }
+
+    fn convert_sum_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() || args.len() > 2 {
+            bail!("sum() requires 1 or 2 arguments");
+        }
+        let iterable = &args[0];
+        if args.len() == 2 {
+            let start = &args[1];
+            Ok(parse_quote! { #iterable.into_iter().fold(#start, |acc, x| acc + x) })
+        } else {
+            Ok(parse_quote! { #iterable.into_iter().sum() })
         }
     }
 
