@@ -362,7 +362,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else {
                     // Regular division (int/int → int, float/float → float)
                     let rust_op = convert_binop(op)?;
-                    Ok(parse_quote! { #left_expr #rust_op #right_expr })
+                    // DEPYLER-0339: Construct syn::ExprBinary directly instead of using parse_quote!
+                    Ok(syn::Expr::Binary(syn::ExprBinary {
+                        attrs: vec![],
+                        left: Box::new(left_expr),
+                        op: rust_op,
+                        right: Box::new(right_expr),
+                    }))
                 }
             }
             BinOp::Pow => {
@@ -430,7 +436,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             _ => {
                 let rust_op = convert_binop(op)?;
-                Ok(parse_quote! { #left_expr #rust_op #right_expr })
+                // DEPYLER-0339: Construct syn::ExprBinary directly instead of using parse_quote!
+                // parse_quote! doesn't properly handle interpolated syn::BinOp values
+                Ok(syn::Expr::Binary(syn::ExprBinary {
+                    attrs: vec![],
+                    left: Box::new(left_expr),
+                    op: rust_op,
+                    right: Box::new(right_expr),
+                }))
             }
         }
     }
