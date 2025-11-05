@@ -2540,6 +2540,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! { #path.to_string() }
             }
 
+            // DEPYLER-STDLIB-OSPATH: relpath() - compute relative path
+            "relpath" => {
+                if arg_exprs.len() != 2 {
+                    bail!("os.path.relpath() requires exactly 2 arguments");
+                }
+                let path = &arg_exprs[0];
+                let start = &arg_exprs[1];
+
+                // os.path.relpath(path, start) → compute relative path from start to path
+                parse_quote! {
+                    {
+                        let path_obj = std::path::Path::new(#path);
+                        let start_obj = std::path::Path::new(#start);
+                        path_obj
+                            .strip_prefix(start_obj)
+                            .map(|p| p.to_string_lossy().to_string())
+                            .unwrap_or_else(|_| #path.to_string())
+                    }
+                }
+            }
+
             _ => {
                 // For functions not yet implemented, return None to allow fallback
                 return Ok(None);
