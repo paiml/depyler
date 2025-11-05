@@ -4454,8 +4454,68 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
+            // Drop while predicate is true
+            "dropwhile" => {
+                if arg_exprs.len() < 2 {
+                    bail!("itertools.dropwhile() requires at least 2 arguments");
+                }
+                let predicate = &arg_exprs[0];
+                let iterable = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        let pred = #predicate;
+                        let items = #iterable;
+                        items.into_iter().skip_while(pred)
+                    }
+                }
+            }
+
+            // Accumulate (running sum/product)
+            "accumulate" => {
+                if arg_exprs.is_empty() {
+                    bail!("itertools.accumulate() requires at least 1 argument");
+                }
+                let iterable = &arg_exprs[0];
+
+                // accumulate with default + operation
+                parse_quote! {
+                    {
+                        let items = #iterable;
+                        let mut acc = None;
+                        items.into_iter().map(|x| {
+                            acc = Some(match acc {
+                                None => x,
+                                Some(a) => a + x,
+                            });
+                            acc.unwrap()
+                        }).collect::<Vec<_>>()
+                    }
+                }
+            }
+
+            // Compress - filter by selector booleans
+            "compress" => {
+                if arg_exprs.len() < 2 {
+                    bail!("itertools.compress() requires at least 2 arguments");
+                }
+                let data = &arg_exprs[0];
+                let selectors = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        let items = #data;
+                        let sels = #selectors;
+                        items.into_iter()
+                            .zip(sels.into_iter())
+                            .filter_map(|(item, sel)| if sel { Some(item) } else { None })
+                            .collect::<Vec<_>>()
+                    }
+                }
+            }
+
             _ => {
-                bail!("itertools.{} not implemented yet (available: count, cycle, repeat, chain, islice, takewhile)", method);
+                bail!("itertools.{} not implemented yet (available: count, cycle, repeat, chain, islice, takewhile, dropwhile, accumulate, compress)", method);
             }
         };
 
