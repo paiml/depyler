@@ -6538,6 +6538,109 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 })
             }
 
+            // DEPYLER-STDLIB-STR: center() - center string in field
+            "center" => {
+                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+                    bail!("center() requires 1 or 2 arguments");
+                }
+                let width = &arg_exprs[0];
+                let fillchar = if arg_exprs.len() == 2 {
+                    &arg_exprs[1]
+                } else {
+                    &parse_quote!(" ")
+                };
+
+                Ok(parse_quote! {
+                    {
+                        let s = #object_expr;
+                        let width = #width as usize;
+                        let fillchar = #fillchar;
+                        if s.len() >= width {
+                            s.to_string()
+                        } else {
+                            let total_pad = width - s.len();
+                            let left_pad = total_pad / 2;
+                            let right_pad = total_pad - left_pad;
+                            format!("{}{}{}", fillchar.repeat(left_pad), s, fillchar.repeat(right_pad))
+                        }
+                    }
+                })
+            }
+
+            // DEPYLER-STDLIB-STR: ljust() - left justify string
+            "ljust" => {
+                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+                    bail!("ljust() requires 1 or 2 arguments");
+                }
+                let width = &arg_exprs[0];
+                let fillchar = if arg_exprs.len() == 2 {
+                    &arg_exprs[1]
+                } else {
+                    &parse_quote!(" ")
+                };
+
+                Ok(parse_quote! {
+                    {
+                        let s = #object_expr;
+                        let width = #width as usize;
+                        let fillchar = #fillchar;
+                        if s.len() >= width {
+                            s.to_string()
+                        } else {
+                            format!("{}{}", s, fillchar.repeat(width - s.len()))
+                        }
+                    }
+                })
+            }
+
+            // DEPYLER-STDLIB-STR: rjust() - right justify string
+            "rjust" => {
+                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+                    bail!("rjust() requires 1 or 2 arguments");
+                }
+                let width = &arg_exprs[0];
+                let fillchar = if arg_exprs.len() == 2 {
+                    &arg_exprs[1]
+                } else {
+                    &parse_quote!(" ")
+                };
+
+                Ok(parse_quote! {
+                    {
+                        let s = #object_expr;
+                        let width = #width as usize;
+                        let fillchar = #fillchar;
+                        if s.len() >= width {
+                            s.to_string()
+                        } else {
+                            format!("{}{}", fillchar.repeat(width - s.len()), s)
+                        }
+                    }
+                })
+            }
+
+            // DEPYLER-STDLIB-STR: zfill() - zero-fill numeric string
+            "zfill" => {
+                if arg_exprs.len() != 1 {
+                    bail!("zfill() requires exactly 1 argument");
+                }
+                let width = &arg_exprs[0];
+
+                Ok(parse_quote! {
+                    {
+                        let s = #object_expr;
+                        let width = #width as usize;
+                        if s.len() >= width {
+                            s.to_string()
+                        } else {
+                            let sign = if s.starts_with('-') || s.starts_with('+') { &s[0..1] } else { "" };
+                            let num = if !sign.is_empty() { &s[1..] } else { &s[..] };
+                            format!("{}{}{}", sign, "0".repeat(width - s.len()), num)
+                        }
+                    }
+                })
+            }
+
             _ => bail!("Unknown string method: {}", method),
         }
     }
@@ -6825,7 +6928,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Note: "count" handled separately above with disambiguation logic
             "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
             | "split" | "join" | "replace" | "find" | "index" | "rfind" | "rindex"
-            | "isdigit" | "isalpha" | "isalnum" | "title" => {
+            | "isdigit" | "isalpha" | "isalnum" | "title"
+            | "center" | "ljust" | "rjust" | "zfill" => {
                 self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
             }
 
