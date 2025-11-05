@@ -1451,7 +1451,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         })
     }
 
-    fn convert_filter_builtin(&self, hir_args: &[HirExpr], args: &[syn::Expr]) -> Result<syn::Expr> {
+    fn convert_filter_builtin(&mut self, hir_args: &[HirExpr], args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() != 2 {
             bail!("filter() requires exactly 2 arguments");
         }
@@ -2628,7 +2628,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() == 1 {
                     parse_quote! { std::path::PathBuf::from(#first) }
                 } else {
-                    let mut result = parse_quote! { std::path::PathBuf::from(#first) };
+                    let mut result: syn::Expr = parse_quote! { std::path::PathBuf::from(#first) };
                     for part in &arg_exprs[1..] {
                         result = parse_quote! { #result.join(#part) };
                     }
@@ -7083,19 +7083,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-STDLIB-50: expandtabs() - expand tab characters
             "expandtabs" => {
-                let tabsize = if arg_exprs.is_empty() {
-                    8
+                if arg_exprs.is_empty() {
+                    Ok(parse_quote! {
+                        #object_expr.replace("\t", &" ".repeat(8))
+                    })
                 } else if arg_exprs.len() == 1 {
                     // tabsize argument will be used at runtime
-                    return Ok(parse_quote! {
-                        #object_expr.replace("\t", &" ".repeat(#arg_exprs[0] as usize))
-                    });
+                    let tabsize_expr = &arg_exprs[0];
+                    Ok(parse_quote! {
+                        #object_expr.replace("\t", &" ".repeat(#tabsize_expr as usize))
+                    })
                 } else {
-                    bail!("expandtabs() takes 0 or 1 arguments");
-                };
-                Ok(parse_quote! {
-                    #object_expr.replace("\t", &" ".repeat(#tabsize))
-                })
+                    bail!("expandtabs() takes 0 or 1 arguments")
+                }
             }
 
             // DEPYLER-STDLIB-50: splitlines() - split by line breaks
@@ -7433,8 +7433,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // String methods
             // Note: "count" handled separately above with disambiguation logic
+            // Note: "index" handled in list methods above (lists take precedence)
             "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
-            | "split" | "join" | "replace" | "find" | "index" | "rfind" | "rindex"
+            | "split" | "join" | "replace" | "find" | "rfind" | "rindex"
             | "isdigit" | "isalpha" | "isalnum" | "title"
             | "center" | "ljust" | "rjust" | "zfill" => {
                 self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
