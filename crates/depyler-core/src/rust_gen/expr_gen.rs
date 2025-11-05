@@ -4053,6 +4053,187 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert heapq module method calls
+    /// DEPYLER-STDLIB-HEAPQ: Heap queue algorithm (priority queue)
+    ///
+    /// Supports: heapify, heappush, heappop, nlargest, nsmallest
+    /// Python heapq is a MIN heap (smallest item first)
+    ///
+    /// # Complexity
+    /// Cyclomatic: 6 (match with 5 functions + default)
+    #[inline]
+    fn try_convert_heapq_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Transform list into min-heap in-place
+            "heapify" => {
+                if arg_exprs.is_empty() {
+                    bail!("heapq.heapify() requires at least 1 argument");
+                }
+                let x = &arg_exprs[0];
+
+                parse_quote! {
+                    {
+                        let heap = &mut (#x);
+                        // Build min-heap using bottom-up heapify
+                        let len = heap.len();
+                        if len > 1 {
+                            for i in (0..len/2).rev() {
+                                let mut pos = i;
+                                loop {
+                                    let left = 2 * pos + 1;
+                                    let right = 2 * pos + 2;
+                                    let mut smallest = pos;
+
+                                    if left < len && heap[left] < heap[smallest] {
+                                        smallest = left;
+                                    }
+                                    if right < len && heap[right] < heap[smallest] {
+                                        smallest = right;
+                                    }
+
+                                    if smallest == pos {
+                                        break;
+                                    }
+
+                                    heap.swap(pos, smallest);
+                                    pos = smallest;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Push item onto min-heap
+            "heappush" => {
+                if arg_exprs.len() < 2 {
+                    bail!("heapq.heappush() requires at least 2 arguments");
+                }
+                let heap = &arg_exprs[0];
+                let item = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        let heap = &mut (#heap);
+                        let item = #item;
+                        heap.push(item);
+
+                        // Bubble up to maintain min-heap property
+                        let mut pos = heap.len() - 1;
+                        while pos > 0 {
+                            let parent = (pos - 1) / 2;
+                            if heap[pos] >= heap[parent] {
+                                break;
+                            }
+                            heap.swap(pos, parent);
+                            pos = parent;
+                        }
+                    }
+                }
+            }
+
+            // Pop and return smallest item from min-heap
+            "heappop" => {
+                if arg_exprs.is_empty() {
+                    bail!("heapq.heappop() requires at least 1 argument");
+                }
+                let heap = &arg_exprs[0];
+
+                parse_quote! {
+                    {
+                        let heap = &mut (#heap);
+                        if heap.is_empty() {
+                            panic!("heappop from empty heap");
+                        }
+
+                        let result = heap[0].clone();
+                        let last = heap.pop().unwrap();
+
+                        if !heap.is_empty() {
+                            heap[0] = last;
+
+                            // Bubble down to maintain min-heap property
+                            let mut pos = 0;
+                            loop {
+                                let left = 2 * pos + 1;
+                                let right = 2 * pos + 2;
+                                let mut smallest = pos;
+
+                                if left < heap.len() && heap[left] < heap[smallest] {
+                                    smallest = left;
+                                }
+                                if right < heap.len() && heap[right] < heap[smallest] {
+                                    smallest = right;
+                                }
+
+                                if smallest == pos {
+                                    break;
+                                }
+
+                                heap.swap(pos, smallest);
+                                pos = smallest;
+                            }
+                        }
+
+                        result
+                    }
+                }
+            }
+
+            // Return n largest elements
+            "nlargest" => {
+                if arg_exprs.len() < 2 {
+                    bail!("heapq.nlargest() requires at least 2 arguments");
+                }
+                let n = &arg_exprs[0];
+                let iterable = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        let n = #n as usize;
+                        let mut items = #iterable;
+                        items.sort_by(|a, b| b.cmp(a));  // Sort descending
+                        items.into_iter().take(n).collect::<Vec<_>>()
+                    }
+                }
+            }
+
+            // Return n smallest elements
+            "nsmallest" => {
+                if arg_exprs.len() < 2 {
+                    bail!("heapq.nsmallest() requires at least 2 arguments");
+                }
+                let n = &arg_exprs[0];
+                let iterable = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        let n = #n as usize;
+                        let mut items = #iterable;
+                        items.sort();  // Sort ascending
+                        items.into_iter().take(n).collect::<Vec<_>>()
+                    }
+                }
+            }
+
+            _ => {
+                bail!("heapq.{} not implemented yet (available: heapify, heappush, heappop, nlargest, nsmallest)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -4883,6 +5064,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-BISECT: Binary search for sorted sequences
             if module_name == "bisect" {
                 return self.try_convert_bisect_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-HEAPQ: Heap queue algorithm (priority queue)
+            if module_name == "heapq" {
+                return self.try_convert_heapq_method(method, args);
             }
 
             let rust_name_opt = self
