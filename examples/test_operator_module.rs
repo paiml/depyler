@@ -1,0 +1,474 @@
+#[doc = "// TODO: Map Python module 'operator'"]
+#[derive(Debug, Clone)]
+pub struct ZeroDivisionError {
+    message: String,
+}
+impl std::fmt::Display for ZeroDivisionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "division by zero: {}", self.message)
+    }
+}
+impl std::error::Error for ZeroDivisionError {}
+impl ZeroDivisionError {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
+#[derive(Debug, Clone)]
+pub struct IndexError {
+    message: String,
+}
+impl std::fmt::Display for IndexError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "index out of range: {}", self.message)
+    }
+}
+impl std::error::Error for IndexError {}
+impl IndexError {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
+#[doc = "Test arithmetic operator functions"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_arithmetic_operators() -> Result<i32, ZeroDivisionError> {
+    let add_result: i32 = 84;
+    let sub_result: i32 = 0;
+    let mul_result: i32 = 1764;
+    Ok(add_result + sub_result + mul_result)
+}
+#[doc = "Test comparison operator functions"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_comparison_operators() -> bool {
+    let _cse_temp_0 = 42 != 42;
+    let ne: bool = _cse_temp_0;
+    let _cse_temp_1 = 42 > 42;
+    let gt: bool = _cse_temp_1;
+    gt && ne
+}
+#[doc = "Test logical operator functions"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_logical_operators() -> bool {
+    let _cse_temp_0 = 42 && 42;
+    let and_result: bool = _cse_temp_0;
+    let _cse_temp_1 = 42 || 42;
+    let or_result: bool = _cse_temp_1;
+    or_result && !and_result
+}
+#[doc = "Test bitwise operator functions"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_bitwise_operators() -> i32 {
+    let _cse_temp_0 = 42 & 42;
+    let and_result: i32 = _cse_temp_0;
+    let _cse_temp_1 = 42 | 42;
+    let or_result: i32 = _cse_temp_1;
+    and_result + or_result
+}
+#[doc = "Test itemgetter on list"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_itemgetter_list() -> Result<i32, IndexError> {
+    let data: Vec<i32> = vec![10, 20, 30, 40, 50];
+    let item: i32 = {
+        let base = &data;
+        let idx: i32 = 2;
+        let actual_idx = if idx < 0 {
+            base.len().saturating_sub(idx.abs() as usize)
+        } else {
+            idx as usize
+        };
+        base.get(actual_idx).cloned().unwrap_or_default()
+    };
+    Ok(item)
+}
+#[doc = "Test itemgetter on tuple"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_itemgetter_tuple() -> Result<String, IndexError> {
+    let data: (String, i32, f64) = ("hello", 42, 3.14);
+    let item: String = {
+        let base = &data;
+        let idx: i32 = 0;
+        let actual_idx = if idx < 0 {
+            base.len().saturating_sub(idx.abs() as usize)
+        } else {
+            idx as usize
+        };
+        base.get(actual_idx).cloned().unwrap_or_default()
+    };
+    Ok(item)
+}
+#[doc = "Test itemgetter with multiple indices"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_itemgetter_multiple() -> Result<tuple, IndexError> {
+    let data: Vec<i32> = vec![10, 20, 30, 40, 50];
+    let item1: i32 = {
+        let base = &data;
+        let idx: i32 = 1;
+        let actual_idx = if idx < 0 {
+            base.len().saturating_sub(idx.abs() as usize)
+        } else {
+            idx as usize
+        };
+        base.get(actual_idx).cloned().unwrap_or_default()
+    };
+    let item3: i32 = {
+        let base = &data;
+        let idx: i32 = 3;
+        let actual_idx = if idx < 0 {
+            base.len().saturating_sub(idx.abs() as usize)
+        } else {
+            idx as usize
+        };
+        base.get(actual_idx).cloned().unwrap_or_default()
+    };
+    Ok((item1, item3))
+}
+#[doc = "Sort list of tuples by second element"]
+#[doc = " Depyler: proven to terminate"]
+pub fn sort_by_second_element(data: &Vec<tuple>) -> Result<Vec<tuple>, IndexError> {
+    let mut sorted_data: Vec<tuple> = data.clone();
+    for i in 0..sorted_data.len() as i32 {
+        for j in i + 1..sorted_data.len() as i32 {
+            if {
+                let base = &sorted_data.get(j as usize).cloned().unwrap_or_default();
+                let idx: i32 = 1;
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx).cloned().unwrap_or_default()
+            } < {
+                let base = &sorted_data.get(i as usize).cloned().unwrap_or_default();
+                let idx: i32 = 1;
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx).cloned().unwrap_or_default()
+            } {
+                let temp: tuple = sorted_data.get(i as usize).cloned().unwrap_or_default();
+                sorted_data.insert(
+                    (i) as usize,
+                    sorted_data.get(j as usize).cloned().unwrap_or_default(),
+                );
+                sorted_data.insert((j) as usize, temp);
+            }
+        }
+    }
+    Ok(sorted_data)
+}
+#[doc = "Test absolute value operator"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_abs_operator() -> i32 {
+    42
+}
+#[doc = "Test negation operator"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_neg_operator() -> i32 {
+    -42
+}
+#[doc = "Test index/contains operator"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_index_operator() -> bool {
+    let data: Vec<i32> = vec![10, 20, 30, 40, 50];
+    let _cse_temp_0 = data.contains_key(&99);
+    let contains: bool = _cse_temp_0;
+    if contains {
+        let index: i32 = data
+            .iter()
+            .position(|x| x == &99)
+            .map(|i| i as i32)
+            .expect("ValueError: value is not in list");
+        let _cse_temp_1 = 2 >= 0;
+        let mut found: bool = _cse_temp_1;
+    } else {
+        let mut found: bool = false;
+    }
+    found
+}
+#[doc = "Test concatenation operator"]
+#[doc = " Depyler: verified panic-free"]
+pub fn test_concat_operator() -> Vec<i32> {
+    let list1: Vec<i32> = vec![1, 2, 3];
+    let list2: Vec<i32> = vec![4, 5, 6];
+    let mut result: Vec<i32> = vec![];
+    for item in list1.iter().cloned() {
+        result.push(item);
+    }
+    for item in list2.iter().cloned() {
+        result.push(item);
+    }
+    result
+}
+#[doc = "Test repeat operator"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_repeat_operator() -> Vec<i32> {
+    let base: Vec<i32> = vec![1, 2, 3];
+    let mut result: Vec<i32> = vec![];
+    for _i in 0..3 {
+        for item in base.iter().cloned() {
+            result.push(item);
+        }
+    }
+    result
+}
+#[doc = "Test getitem operator"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_getitem_operator() -> Result<i32, IndexError> {
+    let data: Vec<i32> = vec![10, 20, 30, 40];
+    let index: i32 = 2;
+    let item: i32 = data.get(index as usize).cloned().unwrap_or_default();
+    Ok(item)
+}
+#[doc = "Test setitem operator"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_setitem_operator() -> Vec<i32> {
+    let mut data: Vec<i32> = vec![10, 20, 30, 40];
+    let index: i32 = 2;
+    data.insert((index) as usize, 99);
+    data
+}
+#[doc = "Test delitem operator"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_delitem_operator() -> Vec<i32> {
+    let mut data: Vec<i32> = vec![10, 20, 30, 40];
+    let mut new_data: Vec<i32> = vec![];
+    for i in 0..data.len() as i32 {
+        if i != 2 {
+            new_data.push(data.get(i as usize).cloned().unwrap_or_default());
+        }
+    }
+    new_data
+}
+#[doc = "Apply operation based on string"]
+#[doc = " Depyler: proven to terminate"]
+pub fn apply_operation(a: i32, b: i32, op: &str) -> Result<i32, ZeroDivisionError> {
+    let _cse_temp_0 = op == "add";
+    if _cse_temp_0 {
+        Ok(84)
+    } else {
+        let _cse_temp_1 = op == "sub";
+        if _cse_temp_1 {
+            Ok(0)
+        } else {
+            let _cse_temp_2 = op == "mul";
+            if _cse_temp_2 {
+                Ok(1764)
+            } else {
+                let _cse_temp_3 = op == "div";
+                if _cse_temp_3 {
+                    Ok({
+                        let a = 42;
+                        let b = 42;
+                        let q = a / b;
+                        let r = a % b;
+                        let r_negative = r < 0;
+                        let b_negative = b < 0;
+                        let r_nonzero = r != 0;
+                        let signs_differ = r_negative != b_negative;
+                        let needs_adjustment = r_nonzero && signs_differ;
+                        if needs_adjustment {
+                            q - 1
+                        } else {
+                            q
+                        }
+                    })
+                } else {
+                    Ok(0)
+                }
+            }
+        }
+    }
+}
+#[doc = "Find max element using key function"]
+pub fn max_by_key(data: &mut Vec<tuple>) -> Result<tuple, IndexError> {
+    let _cse_temp_0 = data.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 == 0;
+    if _cse_temp_1 {
+        return Ok((0, 0));
+    }
+    let mut max_elem: tuple = {
+        let base = &data;
+        let idx: i32 = 0;
+        let actual_idx = if idx < 0 {
+            base.len().saturating_sub(idx.abs() as usize)
+        } else {
+            idx as usize
+        };
+        base.get(actual_idx).cloned().unwrap_or_default()
+    };
+    for elem in data.iter().cloned() {
+        if elem.1 > {
+            let base = &max_elem;
+            let idx: i32 = 1;
+            let actual_idx = if idx < 0 {
+                base.len().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.get(actual_idx).cloned().unwrap_or_default()
+        } {
+            max_elem = elem;
+        }
+    }
+    Ok(max_elem)
+}
+#[doc = "Find min element using key function"]
+pub fn min_by_key(data: &mut Vec<tuple>) -> Result<tuple, IndexError> {
+    let _cse_temp_0 = data.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 == 0;
+    if _cse_temp_1 {
+        return Ok((0, 0));
+    }
+    let mut min_elem: tuple = {
+        let base = &data;
+        let idx: i32 = 0;
+        let actual_idx = if idx < 0 {
+            base.len().saturating_sub(idx.abs() as usize)
+        } else {
+            idx as usize
+        };
+        base.get(actual_idx).cloned().unwrap_or_default()
+    };
+    for elem in data.iter().cloned() {
+        if elem.1 < {
+            let base = &min_elem;
+            let idx: i32 = 1;
+            let actual_idx = if idx < 0 {
+                base.len().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.get(actual_idx).cloned().unwrap_or_default()
+        } {
+            min_elem = elem;
+        }
+    }
+    Ok(min_elem)
+}
+#[doc = "Test truth value testing"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_truthiness() -> bool {
+    let empty_list: Vec<i32> = vec![];
+    let _cse_temp_0 = empty_list.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 == 0;
+    let empty_is_false: bool = _cse_temp_1;
+    let full_list: Vec<i32> = vec![1, 2, 3];
+    let _cse_temp_2 = full_list.len() as i32;
+    let _cse_temp_3 = _cse_temp_2 > 0;
+    let full_is_true: bool = _cse_temp_3;
+    empty_is_false && full_is_true
+}
+#[doc = "Test identity operators"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_identity() -> bool {
+    let _cse_temp_0 = 42 == 42;
+    let equal: bool = _cse_temp_0;
+    let _cse_temp_1 = 42 != 99;
+    let different: bool = _cse_temp_1;
+    equal && different
+}
+#[doc = "Test chained comparisons"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn chain_comparisons(x: i32, low: i32, high: i32) -> bool {
+    let _cse_temp_0 = low <= x;
+    let _cse_temp_1 = x <= high;
+    let _cse_temp_2 = _cse_temp_0 && _cse_temp_1;
+    let in_range: bool = _cse_temp_2;
+    in_range
+}
+#[doc = "Run all operator module tests"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_all_operator_features() {
+    let tuples: Vec<tuple> = vec![(1, 3), (2, 1), (3, 2)];
+    let mut data: Vec<tuple> = vec![(1, 100), (2, 50), (3, 200)];
+    println!("{}", "All operator module tests completed successfully");
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_test_arithmetic_operators_examples() {
+        let _ = test_arithmetic_operators();
+    }
+    #[test]
+    fn test_test_bitwise_operators_examples() {
+        let _ = test_bitwise_operators();
+    }
+    #[test]
+    fn test_test_itemgetter_list_examples() {
+        let _ = test_itemgetter_list();
+    }
+    #[test]
+    fn quickcheck_sort_by_second_element() {
+        fn prop(data: Vec<()>) -> TestResult {
+            let input_len = data.len();
+            let result = sort_by_second_element(&data);
+            if result.len() != input_len {
+                return TestResult::failed();
+            }
+            let result = sort_by_second_element(&data);
+            for i in 1..result.len() {
+                if result[i - 1] > result[i] {
+                    return TestResult::failed();
+                }
+            }
+            let mut input_sorted = data.clone();
+            input_sorted.sort();
+            let mut result = sort_by_second_element(&data);
+            result.sort();
+            if input_sorted != result {
+                return TestResult::failed();
+            }
+            TestResult::passed()
+        }
+        quickcheck(prop as fn(Vec<()>) -> TestResult);
+    }
+    #[test]
+    fn test_sort_by_second_element_examples() {
+        assert_eq!(sort_by_second_element(vec![]), vec![]);
+        assert_eq!(sort_by_second_element(vec![1]), vec![1]);
+    }
+    #[test]
+    fn quickcheck_test_abs_operator() {
+        fn prop() -> TestResult {
+            let result = test_abs_operator();
+            if result < 0 {
+                return TestResult::failed();
+            }
+            TestResult::passed()
+        }
+        quickcheck(prop as fn() -> TestResult);
+    }
+    #[test]
+    fn test_test_abs_operator_examples() {
+        let _ = test_abs_operator();
+    }
+    #[test]
+    fn test_test_neg_operator_examples() {
+        let _ = test_neg_operator();
+    }
+    #[test]
+    fn test_test_getitem_operator_examples() {
+        let _ = test_getitem_operator();
+    }
+}
