@@ -263,7 +263,7 @@ pub fn compose_two_functions(data: Vec<i32>) -> Vec<i32> {
 }
 #[doc = "Apply multiple operations in sequence"]
 #[doc = " Depyler: verified panic-free"]
-pub fn apply_multiple_operations<'b, 'a>(
+pub fn apply_multiple_operations<'a, 'b>(
     data: &'a Vec<i32>,
     operations: &'b Vec<String>,
 ) -> Vec<i32> {

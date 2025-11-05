@@ -1647,22 +1647,37 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 return self.try_convert_struct_method(method, args);
             }
 
-            let rust_name_opt = self
-                .ctx
-                .imported_modules
-                .get(module_name)
-                .and_then(|mapping| mapping.item_map.get(method).cloned());
+            // DEPYLER-0335 FIX #2: Get rust_path and rust_name before converting args (avoid borrow conflict)
+            let module_info = self.ctx.imported_modules.get(module_name).and_then(|mapping| {
+                mapping.item_map.get(method).map(|rust_name| {
+                    (mapping.rust_path.clone(), rust_name.clone())
+                })
+            });
 
-            if let Some(rust_name) = rust_name_opt {
+            if let Some((rust_path, rust_name)) = module_info {
                 // Convert args
                 let arg_exprs: Vec<syn::Expr> = args
                     .iter()
                     .map(|arg| arg.to_rust_expr(self.ctx))
                     .collect::<Result<Vec<_>>>()?;
 
-                // Build the Rust function path
+                // DEPYLER-0335 FIX #2: Special handling for math module functions (use method syntax)
+                // Python: math.sqrt(x) → Rust: x.sqrt() or f64::sqrt(x)
+                if module_name == "math" && !arg_exprs.is_empty() {
+                    let receiver = &arg_exprs[0];
+                    let method_ident = syn::Ident::new(&rust_name, proc_macro2::Span::call_site());
+                    return Ok(Some(parse_quote! { (#receiver).#method_ident() }));
+                }
+
+                // DEPYLER-0335 FIX #2: Use rust_path from mapping instead of hardcoding "std"
+                // Build the Rust function path using the module's rust_path
                 let path_parts: Vec<&str> = rust_name.split("::").collect();
-                let mut path = quote! { std };
+
+                // Start with the module's rust_path instead of hardcoded "std"
+                let base_path: syn::Path = syn::parse_str(&rust_path)
+                    .unwrap_or_else(|_| parse_quote! { std });
+                let mut path = quote! { #base_path };
+
                 for part in path_parts {
                     let part_ident = syn::Ident::new(part, proc_macro2::Span::call_site());
                     path = quote! { #path::#part_ident };
@@ -3395,18 +3410,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // Check if this is a module attribute access
         if let HirExpr::Var(module_name) = value {
-            let rust_name_opt = self
-                .ctx
-                .imported_modules
-                .get(module_name)
-                .and_then(|mapping| mapping.item_map.get(attr).cloned());
+            // DEPYLER-0335 FIX #2: Get rust_path and rust_name (clone to avoid borrow issues)
+            let module_info = self.ctx.imported_modules.get(module_name).and_then(|mapping| {
+                mapping.item_map.get(attr).map(|rust_name| {
+                    (mapping.rust_path.clone(), rust_name.clone())
+                })
+            });
 
-            if let Some(rust_name) = rust_name_opt {
+            if let Some((rust_path, rust_name)) = module_info {
                 // Map to the Rust equivalent
                 let path_parts: Vec<&str> = rust_name.split("::").collect();
                 if path_parts.len() > 1 {
-                    // It's a path like "env::current_dir"
-                    let mut path = quote! { std };
+                    // DEPYLER-0335 FIX #2: Use rust_path from mapping instead of hardcoding "std"
+                    let base_path: syn::Path = syn::parse_str(&rust_path)
+                        .unwrap_or_else(|_| parse_quote! { std });
+                    let mut path = quote! { #base_path };
                     for part in path_parts {
                         let part_ident = syn::Ident::new(part, proc_macro2::Span::call_site());
                         path = quote! { #path::#part_ident };
