@@ -4234,6 +4234,59 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert copy module method calls
+    /// DEPYLER-STDLIB-COPY: Shallow and deep copy operations
+    ///
+    /// Supports: copy, deepcopy
+    /// Maps to Rust's .clone() for both (Rust clone is deep by default)
+    ///
+    /// # Complexity
+    /// Cyclomatic: 3 (match with 2 functions + default)
+    #[inline]
+    fn try_convert_copy_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Shallow copy - in Rust, clone() is typically deep for owned data
+            "copy" => {
+                if arg_exprs.is_empty() {
+                    bail!("copy.copy() requires at least 1 argument");
+                }
+                let obj = &arg_exprs[0];
+
+                parse_quote! {
+                    (#obj).clone()
+                }
+            }
+
+            // Deep copy - in Rust, clone() already performs deep copy
+            "deepcopy" => {
+                if arg_exprs.is_empty() {
+                    bail!("copy.deepcopy() requires at least 1 argument");
+                }
+                let obj = &arg_exprs[0];
+
+                parse_quote! {
+                    (#obj).clone()
+                }
+            }
+
+            _ => {
+                bail!("copy.{} not implemented yet (available: copy, deepcopy)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -5069,6 +5122,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-HEAPQ: Heap queue algorithm (priority queue)
             if module_name == "heapq" {
                 return self.try_convert_heapq_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-COPY: Shallow and deep copy operations
+            if module_name == "copy" {
+                return self.try_convert_copy_method(method, args);
             }
 
             let rust_name_opt = self
