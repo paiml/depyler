@@ -2,18 +2,13 @@
 members = [
     "crates/depyler-core",
     "crates/depyler-analyzer",
-    "crates/depyler-verify", 
+    "crates/depyler-verify",
     "crates/depyler-mcp",
     "crates/depyler-annotations",
     "crates/depyler-quality",
     "crates/depyler",
     "crates/depyler-wasm",
     "crates/depyler-ruchy",
-    "python-to-rust-conversion-examples/examples/02_control_flow/column_b",
-    "python-to-rust-conversion-examples/examples/03_functions/column_b",
-    "python-to-rust-conversion-examples/examples/04_collections/column_b",
-    "python-to-rust-conversion-examples/examples/05_error_handling/column_b",
-    "python-to-rust-conversion-examples/examples/06_list_comprehensions/column_b",
 ]
 resolver = "2"
 
