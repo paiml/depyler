@@ -542,7 +542,7 @@ impl ExprConverter {
             bail!("Compare expression must have at least one operator and comparator");
         }
 
-        // Special handling for 'is None' and 'is not None' patterns (single comparison only)
+        // Special handling for 'is None', 'is True', 'is False' patterns (single comparison only)
         if c.ops.len() == 1
             && c.comparators.len() == 1
             && matches!(c.ops[0], ast::CmpOp::Is | ast::CmpOp::IsNot)
@@ -564,6 +564,27 @@ impl ExprConverter {
                     object,
                     method,
                     args: vec![],
+                });
+            }
+
+            // Check if comparing with True or False
+            let is_bool_comparison = matches!(comparator, ast::Expr::Constant(ref cons)
+                    if matches!(cons.value, ast::Constant::Bool(_)));
+
+            if is_bool_comparison {
+                // Convert 'x is True' to x == true, 'x is False' to x == false
+                // Convert 'x is not True' to x != true, 'x is not False' to x != false
+                let left_hir = Box::new(Self::convert(*c.left)?);
+                let right_hir = Box::new(Self::convert(comparator.clone())?);
+                let op = if matches!(c.ops[0], ast::CmpOp::Is) {
+                    BinOp::Eq
+                } else {
+                    BinOp::NotEq
+                };
+                return Ok(HirExpr::Binary {
+                    op,
+                    left: left_hir,
+                    right: right_hir,
                 });
             }
         }
