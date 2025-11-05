@@ -1,7 +1,6 @@
 #[doc = "// Python import: random"]
 #[doc = "// Python import: math"]
 use std::collections::HashMap;
-use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
     message: String,
@@ -42,7 +41,7 @@ impl IndexError {
 pub fn roll_dice(num_dice: i32, num_sides: i32) -> i32 {
     let mut total: i32 = 0;
     for _i in 0..num_dice {
-        let roll: i32 = std::gen_range(1, num_sides);
+        let roll: i32 = rand::gen_range(1, num_sides);
         total = total + roll;
     }
     total
@@ -78,7 +77,7 @@ pub fn simulate_dice_rolls(
 pub fn coin_flip_sequence(num_flips: i32) -> Vec<String> {
     let mut flips: Vec<String> = vec![];
     for _i in 0..num_flips {
-        let flip: i32 = std::gen_range(0, 1);
+        let flip: i32 = rand::gen_range(0, 1);
         if flip == 0 {
             flips.push("H");
         } else {
@@ -152,8 +151,8 @@ pub fn count_streaks(sequence: &Vec<String>) -> Result<HashMap<String, i32>, Ind
 pub fn monte_carlo_pi_estimation(num_samples: i32) -> Result<(f64, f64), ZeroDivisionError> {
     let mut inside_circle: i32 = 0;
     for _i in 0..num_samples {
-        let x: f64 = std::random();
-        let y: f64 = std::random();
+        let x: f64 = rand::random();
+        let y: f64 = rand::random();
         let distance_squared: f64 = x * x + y * y;
         if distance_squared <= 1.0 {
             inside_circle = inside_circle + 1;
@@ -175,7 +174,7 @@ pub fn simulate_random_walk(num_steps: i32) -> (i32, i32) {
     let mut x: i32 = 0;
     let mut y: i32 = 0;
     for _step in 0..num_steps {
-        let direction: i32 = std::gen_range(0, 3);
+        let direction: i32 = rand::gen_range(0, 3);
         if direction == 0 {
             y = y + 1;
         } else {
@@ -215,7 +214,7 @@ pub fn calculate_walk_distance(position: (i32, i32)) -> Result<f64, IndexError> 
         };
         base.get(actual_idx).cloned().unwrap_or_default()
     };
-    let distance: f64 = std::sqrt((x * x + y * y) as f64);
+    let distance: f64 = ((x * x + y * y) as f64).sqrt();
     Ok(distance)
 }
 #[doc = "Simulate queue/service system"]
@@ -229,7 +228,7 @@ pub fn simulate_queue_system(
     let mut current_time: i32 = 0;
     for _customer in 0..num_customers {
         let arrival_time: i32 = current_time;
-        let service_time: i32 = std::gen_range(
+        let service_time: i32 = rand::gen_range(
             {
                 let base = &service_time_range;
                 let idx: i32 = 0;
@@ -294,8 +293,8 @@ pub fn simulate_card_game(num_games: i32) -> Result<HashMap<String, i32>, IndexE
         map
     };
     for _game in 0..num_games {
-        let player_card: i32 = std::gen_range(1, 13);
-        let dealer_card: i32 = std::gen_range(1, 13);
+        let player_card: i32 = rand::gen_range(1, 13);
+        let dealer_card: i32 = rand::gen_range(1, 13);
         if player_card > dealer_card {
             results.insert("wins", results.get("wins").cloned().unwrap_or_default() + 1);
         } else {
@@ -341,7 +340,7 @@ pub fn simulate_population_growth(
     let mut populations: Vec<i32> = vec![initial_population];
     let mut current_population: i32 = initial_population;
     for _generation in 0..num_generations {
-        let random_factor: f64 = std::random() * 0.2 - 0.1;
+        let random_factor: f64 = rand::random() * 0.2 - 0.1;
         let actual_growth: f64 = growth_rate + random_factor;
         let growth: i32 = ((current_population) as f64 * actual_growth) as i32;
         current_population = current_population + growth;

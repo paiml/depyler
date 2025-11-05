@@ -1,8 +1,6 @@
 #[doc = "// Python import: math"]
 #[doc = "// Python import: random"]
 use std::collections::HashMap;
-use std::collections::HashMap;
-use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
     message: String,
@@ -43,7 +41,7 @@ impl IndexError {
 pub fn generate_sample_data(size: i32, mean: f64, stddev: f64) -> Vec<f64> {
     let mut data: Vec<f64> = vec![];
     for _i in 0..size {
-        let value: f64 = std::random() * stddev + mean;
+        let value: f64 = rand::random() * stddev + mean;
         data.push(value);
     }
     data
@@ -80,7 +78,7 @@ pub fn calculate_statistics(
     let _cse_temp_4 = variance_sum / _cse_temp_2;
     let variance: f64 = _cse_temp_4;
     stats.insert("variance".to_string(), variance);
-    stats.insert("std_dev".to_string(), std::sqrt(variance));
+    stats.insert("std_dev".to_string(), (variance).sqrt());
     let mut min_val: f64 = {
         let base = &data;
         let idx: i32 = 0;
@@ -403,7 +401,7 @@ pub fn calculate_correlation<'b, 'a>(
         x_variance_sum = x_variance_sum + x_diff * x_diff;
         y_variance_sum = y_variance_sum + y_diff * y_diff;
     }
-    let denominator: f64 = std::sqrt(x_variance_sum * y_variance_sum);
+    let denominator: f64 = (x_variance_sum * y_variance_sum).sqrt();
     let _cse_temp_9 = denominator == 0.0;
     if _cse_temp_9 {
         return Ok(0.0);
@@ -431,7 +429,7 @@ pub fn normalize_data(mut data: Vec<f64>) -> Result<Vec<f64>, ZeroDivisionError>
         let diff: f64 = value - mean;
         variance_sum = variance_sum + diff * diff;
     }
-    let stddev: f64 = std::sqrt((variance_sum as f64) / ((data.len() as i32) as f64 as f64));
+    let stddev: f64 = ((variance_sum as f64) / ((data.len() as i32) as f64 as f64)).sqrt();
     let _cse_temp_4 = stddev == 0.0;
     if _cse_temp_4 {
         return Ok(data);
@@ -541,9 +539,9 @@ pub fn group_by_range<'b, 'a>(
 pub fn monte_carlo_simulation(num_trials: i32) -> HashMap<String, f64> {
     let mut results: Vec<f64> = vec![];
     for _trial in 0..num_trials {
-        let x: f64 = std::random() * 10.0;
-        let y: f64 = std::random() * 10.0;
-        let distance: f64 = std::sqrt(x * x + y * y);
+        let x: f64 = rand::random() * 10.0;
+        let y: f64 = rand::random() * 10.0;
+        let distance: f64 = (x * x + y * y).sqrt();
         results.push(distance);
     }
     let mut stats: HashMap<String, f64> = calculate_statistics(results);
