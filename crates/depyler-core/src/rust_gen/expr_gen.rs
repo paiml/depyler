@@ -5623,6 +5623,82 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
+            // DEPYLER-STDLIB-MATH: remainder() - IEEE remainder (different from fmod)
+            "remainder" => {
+                if arg_exprs.len() != 2 {
+                    bail!("math.remainder() requires exactly 2 arguments");
+                }
+                let x = &arg_exprs[0];
+                let y = &arg_exprs[1];
+                // IEEE remainder: x - n*y where n is closest integer to x/y
+                parse_quote! {
+                    {
+                        let x = #x as f64;
+                        let y = #y as f64;
+                        let n = (x / y).round();
+                        x - n * y
+                    }
+                }
+            }
+
+            // DEPYLER-STDLIB-MATH: comb() - combinations (nCr)
+            "comb" => {
+                if arg_exprs.len() != 2 {
+                    bail!("math.comb() requires exactly 2 arguments");
+                }
+                let n = &arg_exprs[0];
+                let k = &arg_exprs[1];
+                parse_quote! {
+                    {
+                        let n = #n as i64;
+                        let k = #k as i64;
+                        if k > n || k < 0 { 0 } else {
+                            let k = if k > n - k { n - k } else { k };
+                            let mut result = 1i64;
+                            for i in 0..k {
+                                result = result * (n - i) / (i + 1);
+                            }
+                            result as i32
+                        }
+                    }
+                }
+            }
+
+            // DEPYLER-STDLIB-MATH: perm() - permutations (nPr)
+            "perm" => {
+                if arg_exprs.len() < 1 || arg_exprs.len() > 2 {
+                    bail!("math.perm() requires 1 or 2 arguments");
+                }
+                let n = &arg_exprs[0];
+                let k = if arg_exprs.len() == 2 {
+                    &arg_exprs[1]
+                } else {
+                    n
+                };
+                parse_quote! {
+                    {
+                        let n = #n as i64;
+                        let k = #k as i64;
+                        if k > n || k < 0 { 0 } else {
+                            let mut result = 1i64;
+                            for i in 0..k {
+                                result *= n - i;
+                            }
+                            result as i32
+                        }
+                    }
+                }
+            }
+
+            // DEPYLER-STDLIB-MATH: expm1() - exp(x) - 1 (accurate for small x)
+            "expm1" => {
+                if arg_exprs.len() != 1 {
+                    bail!("math.expm1() requires exactly 1 argument");
+                }
+                let x = &arg_exprs[0];
+                parse_quote! { (#x as f64).exp_m1() }
+            }
+
             _ => {
                 bail!("math.{} not implemented yet", method);
             }
