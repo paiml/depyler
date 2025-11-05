@@ -507,6 +507,36 @@ pub enum ConstGeneric {
     Expression(String),
 }
 
+/// DEPYLER-0333: Exception scope tracking for try/except blocks
+///
+/// Tracks whether code is executing inside a try/except block to determine
+/// appropriate error handling strategy:
+/// - Unhandled: Exceptions propagate to caller (use ? operator or Result return)
+/// - TryCaught: Exceptions are caught by handlers (use .unwrap_or() or control flow)
+/// - Handler: Inside except/finally block (exceptions may propagate)
+///
+/// # Complexity
+/// N/A (enum definition)
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ExceptionScope {
+    /// Code outside any try/except block - exceptions propagate to caller
+    /// Functions with unhandled exceptions should return Result<T, E>
+    Unhandled,
+
+    /// Code inside try block - exceptions are caught by handlers
+    /// Contains list of exception types that are handled
+    /// e.g., `try: ... except ValueError: ...` → TryCaught { handled_types: ["ValueError"] }
+    TryCaught {
+        /// Exception types caught by handlers (e.g., ["ValueError", "ZeroDivisionError"])
+        /// Empty list means bare except clause (catches all)
+        handled_types: Vec<String>,
+    },
+
+    /// Code inside except or finally block
+    /// Exceptions in handlers may propagate to outer scope
+    Handler,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Type {
     Unknown,
