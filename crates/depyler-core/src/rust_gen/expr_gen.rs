@@ -2193,21 +2193,37 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             "find" => {
-                // DEPYLER-0197: str.find(sub) → .find(sub).map(|i| i as i32).unwrap_or(-1)
+                // DEPYLER-0197/0338: str.find(sub[, start]) → .find(sub).map(|i| i as i32).unwrap_or(-1)
                 // Python's find() returns -1 if not found, Rust's returns Option<usize>
-                if hir_args.len() != 1 {
-                    bail!("find() requires exactly one argument");
+                // Python supports optional start parameter: str.find(sub, start)
+                if hir_args.is_empty() || hir_args.len() > 2 {
+                    bail!("find() requires 1 or 2 arguments, got {}", hir_args.len());
                 }
+
                 // Extract bare string literal for Pattern trait compatibility
                 let substring = match &hir_args[0] {
                     HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
                     _ => arg_exprs[0].clone(),
                 };
-                Ok(parse_quote! {
-                    #object_expr.find(#substring)
-                        .map(|i| i as i32)
-                        .unwrap_or(-1)
-                })
+
+                if hir_args.len() == 2 {
+                    // Python: str.find(sub, start)
+                    // Rust: str[start..].find(sub).map(|i| (i + start) as i32).unwrap_or(-1)
+                    let start = &arg_exprs[1];
+                    Ok(parse_quote! {
+                        #object_expr[#start as usize..].find(#substring)
+                            .map(|i| (i + #start as usize) as i32)
+                            .unwrap_or(-1)
+                    })
+                } else {
+                    // Python: str.find(sub)
+                    // Rust: str.find(sub).map(|i| i as i32).unwrap_or(-1)
+                    Ok(parse_quote! {
+                        #object_expr.find(#substring)
+                            .map(|i| i as i32)
+                            .unwrap_or(-1)
+                    })
+                }
             }
             "count" => {
                 // DEPYLER-0198/0226: str.count(sub) → .matches(sub).count() as i32
