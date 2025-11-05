@@ -5225,6 +5225,33 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 bail!("random.setstate() not supported - Rust RNG state management differs from Python");
             }
 
+            // DEPYLER-STDLIB-RANDOM: Triangular distribution
+            "triangular" => {
+                if arg_exprs.len() < 2 || arg_exprs.len() > 3 {
+                    bail!("random.triangular() requires 2 or 3 arguments");
+                }
+                let low = &arg_exprs[0];
+                let high = &arg_exprs[1];
+                let mode = if arg_exprs.len() == 3 {
+                    &arg_exprs[2]
+                } else {
+                    // Default mode is midpoint
+                    &parse_quote! { ((#low + #high) / 2.0) }
+                };
+
+                parse_quote! {
+                    {
+                        use rand::distributions::Distribution;
+                        let triangular = rand_distr::Triangular::new(
+                            #low as f64,
+                            #high as f64,
+                            #mode as f64
+                        ).unwrap();
+                        triangular.sample(&mut rand::thread_rng())
+                    }
+                }
+            }
+
             _ => {
                 bail!("random.{} not implemented yet", method);
             }
