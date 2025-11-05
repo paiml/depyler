@@ -844,6 +844,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "sorted" => self.convert_sorted_builtin(&arg_exprs),
             "filter" => self.convert_filter_builtin(args, &arg_exprs),
             "sum" => self.convert_sum_builtin(&arg_exprs),
+            // DEPYLER-STDLIB-BUILTINS: Final batch for 50% milestone
+            "round" => self.convert_round_builtin(&arg_exprs),
+            "abs" => self.convert_abs_builtin(&arg_exprs),
+            "min" => self.convert_min_builtin(&arg_exprs),
+            "max" => self.convert_max_builtin(&arg_exprs),
+            "pow" => self.convert_pow_builtin(&arg_exprs),
+            "hex" => self.convert_hex_builtin(&arg_exprs),
+            "bin" => self.convert_bin_builtin(&arg_exprs),
+            "oct" => self.convert_oct_builtin(&arg_exprs),
+            "chr" => self.convert_chr_builtin(&arg_exprs),
+            "ord" => self.convert_ord_builtin(&arg_exprs),
+            "hash" => self.convert_hash_builtin(&arg_exprs),
+            "repr" => self.convert_repr_builtin(&arg_exprs),
             _ => self.convert_generic_call(func, args, &arg_exprs),
         }
     }
@@ -1455,6 +1468,141 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         } else {
             Ok(parse_quote! { #iterable.into_iter().sum() })
         }
+    }
+
+    // DEPYLER-STDLIB-BUILTINS: Final batch converters for 50% milestone
+
+    fn convert_round_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() || args.len() > 2 {
+            bail!("round() requires 1 or 2 arguments");
+        }
+        let value = &args[0];
+        // Simplified: ignore ndigits parameter
+        Ok(parse_quote! { (#value as f64).round() as i32 })
+    }
+
+    fn convert_abs_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("abs() requires exactly 1 argument");
+        }
+        let value = &args[0];
+        Ok(parse_quote! { (#value).abs() })
+    }
+
+    fn convert_min_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() {
+            bail!("min() requires at least 1 argument");
+        }
+        if args.len() == 1 {
+            // min(iterable)
+            let iterable = &args[0];
+            Ok(parse_quote! { #iterable.into_iter().min().unwrap() })
+        } else {
+            // min(a, b, c, ...)
+            let first = &args[0];
+            let mut min_expr = parse_quote! { #first };
+            for arg in &args[1..] {
+                min_expr = parse_quote! { #min_expr.min(#arg) };
+            }
+            Ok(min_expr)
+        }
+    }
+
+    fn convert_max_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() {
+            bail!("max() requires at least 1 argument");
+        }
+        if args.len() == 1 {
+            // max(iterable)
+            let iterable = &args[0];
+            Ok(parse_quote! { #iterable.into_iter().max().unwrap() })
+        } else {
+            // max(a, b, c, ...)
+            let first = &args[0];
+            let mut max_expr = parse_quote! { #first };
+            for arg in &args[1..] {
+                max_expr = parse_quote! { #max_expr.max(#arg) };
+            }
+            Ok(max_expr)
+        }
+    }
+
+    fn convert_pow_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() < 2 || args.len() > 3 {
+            bail!("pow() requires 2 or 3 arguments");
+        }
+        let base = &args[0];
+        let exp = &args[1];
+        // Simplified: ignore modulo parameter
+        Ok(parse_quote! { (#base as f64).powf(#exp as f64) as i32 })
+    }
+
+    fn convert_hex_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("hex() requires exactly 1 argument");
+        }
+        let value = &args[0];
+        Ok(parse_quote! { format!("0x{:x}", #value) })
+    }
+
+    fn convert_bin_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("bin() requires exactly 1 argument");
+        }
+        let value = &args[0];
+        Ok(parse_quote! { format!("0b{:b}", #value) })
+    }
+
+    fn convert_oct_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("oct() requires exactly 1 argument");
+        }
+        let value = &args[0];
+        Ok(parse_quote! { format!("0o{:o}", #value) })
+    }
+
+    fn convert_chr_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("chr() requires exactly 1 argument");
+        }
+        let code = &args[0];
+        Ok(parse_quote! {
+            char::from_u32(#code as u32).unwrap().to_string()
+        })
+    }
+
+    fn convert_ord_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("ord() requires exactly 1 argument");
+        }
+        let char_str = &args[0];
+        Ok(parse_quote! {
+            #char_str.chars().next().unwrap() as i32
+        })
+    }
+
+    fn convert_hash_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("hash() requires exactly 1 argument");
+        }
+        let value = &args[0];
+        Ok(parse_quote! {
+            {
+                use std::collections::hash_map::DefaultHasher;
+                use std::hash::{Hash, Hasher};
+                let mut hasher = DefaultHasher::new();
+                #value.hash(&mut hasher);
+                hasher.finish() as i64
+            }
+        })
+    }
+
+    fn convert_repr_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("repr() requires exactly 1 argument");
+        }
+        let value = &args[0];
+        Ok(parse_quote! { format!("{:?}", #value) })
     }
 
     /// Check if expression already ends with .collect()
