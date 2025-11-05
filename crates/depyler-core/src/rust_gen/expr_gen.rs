@@ -7628,6 +7628,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 return Ok(result);
             }
 
+            // DEPYLER-STDLIB-SYS: Handle sys module attributes
+            // sys.argv → std::env::args().collect()
+            // sys.platform → compile-time platform string
+            if module_name == "sys" {
+                let result = match attr {
+                    "argv" => parse_quote! { std::env::args().collect::<Vec<String>>() },
+                    "platform" => {
+                        // Return platform name based on target OS
+                        #[cfg(target_os = "linux")]
+                        let platform = "linux";
+                        #[cfg(target_os = "macos")]
+                        let platform = "darwin";
+                        #[cfg(target_os = "windows")]
+                        let platform = "win32";
+                        #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+                        let platform = "unknown";
+                        parse_quote! { #platform }
+                    }
+                    _ => {
+                        bail!("sys.{} is not a recognized attribute", attr);
+                    }
+                };
+                return Ok(result);
+            }
+
             let rust_name_opt = self
                 .ctx
                 .imported_modules
