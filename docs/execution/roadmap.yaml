@@ -4214,3 +4214,838 @@ lessons_learned_v3_19_x:
       - "Caught issues before they reached main"
     takeaway: "Automated quality gates work"
       - "Advanced iterators (zip, custom)"
+
+# ============================================================================
+# STDLIB COMPREHENSIVE TESTING CAMPAIGN (DEPYLER-0340 to DEPYLER-0412)
+# ============================================================================
+
+stdlib_testing_campaign:
+  name: "Python Standard Library Comprehensive Testing"
+  created: 2025-11-05
+  status: ACTIVE_PLANNING
+  priority: P1
+  goal: "100% validation of all feasible Python 3.12 stdlib modules"
+  documentation: "docs/stdlib/STDLIB_TESTING_ROADMAP.md"
+
+  overview:
+    total_modules_python_312: 200
+    currently_validated: 27
+    current_coverage_percent: 13.5
+    target_modules: 100
+    target_coverage_percent: 50.0
+    estimated_duration_months: 18
+
+  tier_1_foundation:
+    name: "Tier 1: Critical Foundation"
+    status: COMPLETE
+    modules: 27
+    pass_rate: 100%
+    completion_date: 2025-10-27
+    notes: "Data serialization, date/time, crypto, text, math, file system, data structures, functional programming"
+
+  tier_2_high_priority:
+    name: "Tier 2: High Priority - Next 20 Modules"
+    status: PLANNING
+    modules: 20
+    estimated_duration: "3-4 months"
+    start_date: 2025-11-05
+    target_completion: 2026-02-28
+
+    categories:
+      - category: "File Formats & Serialization"
+        modules: 5
+        tickets: [340, 341, 342, 343, 344]
+      - category: "Compression & Archives"
+        modules: 3
+        tickets: [345, 346, 347]
+      - category: "Internet Data Handling"
+        modules: 4
+        tickets: [348, 349, 350, 351]
+      - category: "Text Processing Extended"
+        modules: 4
+        tickets: [352, 353, 354, 355]
+      - category: "System Utilities"
+        modules: 4
+        tickets: [356, 357, 358, 359]
+
+    tickets:
+      DEPYLER-0340:
+        name: "pickle - Python object serialization"
+        priority: P1
+        complexity: MEDIUM
+        estimate_hours: "12-16"
+        tests_needed: "12-15"
+        features:
+          - dumps
+          - loads
+          - Pickler
+          - Unpickler
+          - protocol versions
+        rust_mapping: "bincode or serde"
+        value: "Essential for Python data interchange"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0341:
+        name: "xml.etree.ElementTree - XML processing"
+        priority: P1
+        complexity: HIGH
+        estimate_hours: "16-20"
+        tests_needed: "15-20"
+        features:
+          - parse
+          - fromstring
+          - Element
+          - SubElement
+          - tostring
+        rust_mapping: "quick-xml or roxmltree"
+        value: "Common in config files, APIs"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0342:
+        name: "json (extended) - Advanced JSON features"
+        priority: P2
+        complexity: LOW
+        estimate_hours: "4-6"
+        tests_needed: "8-10"
+        features:
+          - JSONEncoder custom
+          - JSONDecoder hooks
+          - object_pairs_hook
+        rust_mapping: "serde_json (already mapped)"
+        value: "Complete existing json support"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0343:
+        name: "configparser - Configuration file parser"
+        priority: P2
+        complexity: MEDIUM
+        estimate_hours: "8-12"
+        tests_needed: "10-12"
+        features:
+          - read
+          - write
+          - sections
+          - options
+          - interpolation
+        rust_mapping: "ini crate or custom"
+        value: "Common in legacy Python projects"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0344:
+        name: "tomllib - TOML file parser (Python 3.11+)"
+        priority: P1
+        complexity: LOW
+        estimate_hours: "4-6"
+        tests_needed: "8-10"
+        features:
+          - loads
+          - load
+        rust_mapping: "toml crate (native support!)"
+        value: "Modern config format, Rust-native"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0345:
+        name: "gzip - Gzip compression"
+        priority: P1
+        complexity: MEDIUM
+        estimate_hours: "8-12"
+        tests_needed: "10-12"
+        features:
+          - open
+          - compress
+          - decompress
+        rust_mapping: "flate2 crate"
+        value: "Common for log files, data storage"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0346:
+        name: "zipfile - ZIP archive handling"
+        priority: P1
+        complexity: HIGH
+        estimate_hours: "12-16"
+        tests_needed: "15-18"
+        features:
+          - ZipFile
+          - ZipInfo
+          - read
+          - write
+          - extractall
+        rust_mapping: "zip crate"
+        value: "Universal archive format"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0347:
+        name: "tarfile - TAR archive handling"
+        priority: P2
+        complexity: HIGH
+        estimate_hours: "12-16"
+        tests_needed: "12-15"
+        features:
+          - open
+          - add
+          - extract
+          - list
+        rust_mapping: "tar crate"
+        value: "Unix/Linux archives"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0348:
+        name: "urllib.parse (extended) - URL parsing"
+        priority: P1
+        complexity: LOW
+        estimate_hours: "6-8"
+        tests_needed: "10-12"
+        features:
+          - urlparse
+          - urljoin
+          - parse_qs
+          - urlunparse
+        rust_mapping: "url crate (already mapped)"
+        value: "Web scraping, API clients"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0349:
+        name: "email - Email message handling"
+        priority: P2
+        complexity: HIGH
+        estimate_hours: "16-20"
+        tests_needed: "15-20"
+        features:
+          - message_from_string
+          - EmailMessage
+          - headers
+        rust_mapping: "mailparse crate or lettre"
+        value: "Email processing automation"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0350:
+        name: "mimetypes - MIME type mapping"
+        priority: P2
+        complexity: LOW
+        estimate_hours: "4-6"
+        tests_needed: "6-8"
+        features:
+          - guess_type
+          - guess_extension
+        rust_mapping: "mime_guess crate"
+        value: "Web servers, file uploads"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0351:
+        name: "html.parser - HTML parser"
+        priority: P2
+        complexity: MEDIUM
+        estimate_hours: "10-12"
+        tests_needed: "12-15"
+        features:
+          - HTMLParser
+          - handle_starttag
+          - handle_data
+        rust_mapping: "html5ever or scraper"
+        value: "Web scraping"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0352:
+        name: "difflib - Helpers for computing deltas"
+        priority: P2
+        complexity: MEDIUM
+        estimate_hours: "8-12"
+        tests_needed: "10-12"
+        features:
+          - SequenceMatcher
+          - unified_diff
+          - get_close_matches
+        rust_mapping: "similar crate"
+        value: "Version control, testing"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0353:
+        name: "unicodedata - Unicode database"
+        priority: P2
+        complexity: MEDIUM
+        estimate_hours: "8-10"
+        tests_needed: "10-12"
+        features:
+          - normalize
+          - category
+          - name
+          - lookup
+        rust_mapping: "unicode-normalization crate"
+        value: "International text processing"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0354:
+        name: "codecs - Codec registry and base classes"
+        priority: P2
+        complexity: MEDIUM
+        estimate_hours: "8-12"
+        tests_needed: "10-12"
+        features:
+          - encode
+          - decode
+          - open
+          - getreader
+          - getwriter
+        rust_mapping: "encoding_rs crate"
+        value: "Character encoding conversion"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0355:
+        name: "locale - Internationalization services"
+        priority: P3
+        complexity: HIGH
+        estimate_hours: "12-16"
+        tests_needed: "10-12"
+        features:
+          - setlocale
+          - format_string
+          - currency
+        rust_mapping: "sys-locale + custom"
+        value: "Localization"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0356:
+        name: "shutil - High-level file operations"
+        priority: P1
+        complexity: MEDIUM
+        estimate_hours: "10-12"
+        tests_needed: "15-18"
+        features:
+          - copy
+          - copy2
+          - copytree
+          - rmtree
+          - move
+          - make_archive
+        rust_mapping: "fs_extra crate"
+        value: "Common file management tasks"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0357:
+        name: "glob - Unix style pathname patterns"
+        priority: P1
+        complexity: LOW
+        estimate_hours: "4-6"
+        tests_needed: "8-10"
+        features:
+          - glob
+          - iglob
+        rust_mapping: "glob crate"
+        value: "File system navigation"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0358:
+        name: "fnmatch - Unix filename pattern matching"
+        priority: P2
+        complexity: LOW
+        estimate_hours: "3-4"
+        tests_needed: "6-8"
+        features:
+          - fnmatch
+          - fnmatchcase
+          - filter
+          - translate
+        rust_mapping: "globset crate"
+        value: "Pattern matching"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+      DEPYLER-0359:
+        name: "tempfile (extended) - Temporary files"
+        priority: P2
+        complexity: LOW
+        estimate_hours: "4-6"
+        tests_needed: "8-10"
+        features:
+          - TemporaryFile
+          - SpooledTemporaryFile
+          - gettempdir
+        rust_mapping: "tempfile crate (already mapped)"
+        value: "Complete existing support"
+        status: PLANNED
+        sprint: TBD
+        dependencies: []
+
+  tier_3_medium_priority:
+    name: "Tier 3: Medium Priority - 30 Modules"
+    status: PLANNING
+    modules: 30
+    estimated_duration: "6-8 months"
+    start_date: 2026-03-01
+    target_completion: 2026-10-31
+
+    categories:
+      - category: "Data Types & Structures"
+        modules: 8
+        tickets: [360, 361, 362, 363, 364, 365, 366, 367]
+      - category: "Algorithms & Utilities"
+        modules: 5
+        tickets: [368, 369, 370, 371, 372]
+      - category: "File Processing"
+        modules: 5
+        tickets: [373, 374, 375, 376, 377]
+      - category: "Execution & Processes"
+        modules: 7
+        tickets: [378, 379, 380, 381, 382, 383, 384]
+      - category: "Runtime Services"
+        modules: 5
+        tickets: [385, 386, 387, 388, 389]
+
+    tickets:
+      DEPYLER-0360:
+        name: "heapq - Heap queue algorithm"
+        priority: P2
+        complexity: LOW
+        estimate_hours: "6-8"
+        tests_needed: "8-10"
+        features: ["heappush", "heappop", "heapify", "nlargest", "nsmallest"]
+        rust_mapping: "std::collections::BinaryHeap"
+        value: "Priority queues, algorithms"
+
+      DEPYLER-0361:
+        name: "bisect - Array bisection algorithm"
+        priority: P2
+        complexity: LOW
+        estimate_hours: "4-6"
+        tests_needed: "6-8"
+        features: ["bisect_left", "bisect_right", "insort_left", "insort_right"]
+        rust_mapping: "Vec::binary_search"
+        value: "Sorted collections"
+
+      DEPYLER-0362:
+        name: "queue - Synchronized queue classes"
+        priority: P2
+        complexity: MEDIUM
+        estimate_hours: "8-10"
+        tests_needed: "10-12"
+        features: ["Queue", "LifoQueue", "PriorityQueue"]
+        rust_mapping: "std::sync::mpsc or crossbeam"
+        value: "Thread-safe queues"
+
+      DEPYLER-0363:
+        name: "enum - Support for enumerations"
+        priority: P1
+        complexity: LOW
+        estimate_hours: "6-8"
+        tests_needed: "8-10"
+        features: ["Enum", "IntEnum", "Flag", "auto"]
+        rust_mapping: "Rust native enum (excellent match!)"
+        value: "Type-safe constants"
+
+      DEPYLER-0364:
+        name: "dataclasses (extended) - Data classes"
+        priority: P1
+        complexity: MEDIUM
+        estimate_hours: "8-12"
+        tests_needed: "12-15"
+        features: ["field", "asdict", "astuple", "replace"]
+        rust_mapping: "derive macros"
+        value: "Complete existing support"
+
+      DEPYLER-0365:
+        name: "types - Dynamic type creation"
+        priority: P3
+        complexity: EPIC
+        estimate_hours: "20-30"
+        tests_needed: "15-20"
+        features: ["FunctionType", "LambdaType", "GeneratorType"]
+        rust_mapping: "Custom traits"
+        value: "Advanced metaprogramming"
+
+      DEPYLER-0366:
+        name: "weakref - Weak references"
+        priority: P3
+        complexity: HIGH
+        estimate_hours: "12-16"
+        tests_needed: "10-12"
+        features: ["ref", "proxy", "WeakKeyDictionary", "WeakValueDictionary"]
+        rust_mapping: "std::rc::Weak, std::sync::Weak"
+        value: "Memory management patterns"
+
+      DEPYLER-0367:
+        name: "contextlib - Utilities for with-statement"
+        priority: P2
+        complexity: MEDIUM
+        estimate_hours: "8-12"
+        tests_needed: "10-12"
+        features: ["contextmanager", "closing", "suppress"]
+        rust_mapping: "RAII patterns"
+        value: "Resource management"
+
+      DEPYLER-0368:
+        name: "operator - Standard operators as functions"
+        priority: P2
+        complexity: LOW
+        estimate_hours: "6-8"
+        tests_needed: "10-12"
+        features: ["add", "sub", "mul", "itemgetter", "attrgetter"]
+        rust_mapping: "std::ops traits"
+        value: "Functional programming"
+
+      DEPYLER-0369:
+        name: "linecache - Random access to text lines"
+        priority: P3
+        complexity: LOW
+        estimate_hours: "4-6"
+        tests_needed: "6-8"
+        features: ["getline", "checkcache", "clearcache"]
+        rust_mapping: "Custom implementation"
+        value: "Error reporting"
+
+      DEPYLER-0370:
+        name: "reprlib - Alternate repr() implementation"
+        priority: P3
+        complexity: LOW
+        estimate_hours: "4-6"
+        tests_needed: "6-8"
+        features: ["repr", "recursive_repr"]
+        rust_mapping: "std::fmt::Debug"
+        value: "Debugging"
+
+      DEPYLER-0371:
+        name: "pprint - Data pretty printer"
+        priority: P2
+        complexity: MEDIUM
+        estimate_hours: "6-8"
+        tests_needed: "8-10"
+        features: ["pprint", "pformat", "isreadable"]
+        rust_mapping: "Debug + custom formatting"
+        value: "Debugging, logging"
+
+      DEPYLER-0372:
+        name: "traceback - Print or retrieve stack trace"
+        priority: P2
+        complexity: HIGH
+        estimate_hours: "12-16"
+        tests_needed: "10-12"
+        features: ["print_exception", "format_exception", "extract_tb"]
+        rust_mapping: "backtrace crate"
+        value: "Error reporting"
+
+      DEPYLER-0373:
+        name: "fileinput - Iterate over lines from multiple files"
+        priority: P2
+        complexity: MEDIUM
+        estimate_hours: "6-8"
+        tests_needed: "8-10"
+        features: ["input", "filename", "lineno", "filelineno"]
+        rust_mapping: "Custom iterator"
+        value: "Text processing scripts"
+
+      DEPYLER-0374:
+        name: "filecmp - File and directory comparisons"
+        priority: P3
+        complexity: LOW
+        estimate_hours: "6-8"
+        tests_needed: "8-10"
+        features: ["cmp", "cmpfiles", "dircmp"]
+        rust_mapping: "Custom implementation"
+        value: "Sync tools, testing"
+
+      DEPYLER-0375:
+        name: "stat - Interpreting stat() results"
+        priority: P2
+        complexity: LOW
+        estimate_hours: "4-6"
+        tests_needed: "6-8"
+        features: ["S_ISDIR", "S_ISREG", "filemode"]
+        rust_mapping: "std::fs::Permissions"
+        value: "File system metadata"
+
+      DEPYLER-0376:
+        name: "getpass - Portable password input"
+        priority: P3
+        complexity: LOW
+        estimate_hours: "4-6"
+        tests_needed: "4-6"
+        features: ["getpass", "getuser"]
+        rust_mapping: "rpassword crate"
+        value: "CLI tools"
+
+      DEPYLER-0377:
+        name: "io (extended) - Advanced I/O streams"
+        priority: P2
+        complexity: MEDIUM
+        estimate_hours: "8-12"
+        tests_needed: "10-12"
+        features: ["BufferedReader", "BufferedWriter", "TextIOWrapper"]
+        rust_mapping: "std::io::BufReader, BufWriter"
+        value: "Complete existing support"
+
+      DEPYLER-0378:
+        name: "subprocess - Subprocess management"
+        priority: P1
+        complexity: HIGH
+        estimate_hours: "16-20"
+        tests_needed: "15-20"
+        features: ["run", "Popen", "check_output", "PIPE"]
+        rust_mapping: "std::process::Command"
+        value: "Automation, CLI tools"
+
+      DEPYLER-0379:
+        name: "argparse - Command-line parsing"
+        priority: P1
+        complexity: HIGH
+        estimate_hours: "20-24"
+        tests_needed: "20-25"
+        features: ["ArgumentParser", "add_argument", "parse_args"]
+        rust_mapping: "clap crate"
+        value: "CLI tools (critical!)"
+
+      DEPYLER-0380:
+        name: "getopt - C-style parser for command line options"
+        priority: P3
+        complexity: LOW
+        estimate_hours: "4-6"
+        tests_needed: "6-8"
+        features: ["getopt", "gnu_getopt"]
+        rust_mapping: "getopts crate"
+        value: "Legacy CLI tools"
+
+      DEPYLER-0381:
+        name: "logging - Logging facility"
+        priority: P1
+        complexity: HIGH
+        estimate_hours: "16-20"
+        tests_needed: "15-20"
+        features: ["Logger", "Handler", "Formatter", "config"]
+        rust_mapping: "log + env_logger crates"
+        value: "Production applications"
+
+      DEPYLER-0382:
+        name: "warnings - Warning control"
+        priority: P2
+        complexity: MEDIUM
+        estimate_hours: "8-10"
+        tests_needed: "8-10"
+        features: ["warn", "filterwarnings", "catch_warnings"]
+        rust_mapping: "log::warn! + custom"
+        value: "Library development"
+
+      DEPYLER-0383:
+        name: "syslog - Unix syslog library routines"
+        priority: P3
+        complexity: MEDIUM
+        estimate_hours: "6-8"
+        tests_needed: "6-8"
+        features: ["syslog", "openlog", "closelog"]
+        rust_mapping: "syslog crate"
+        value: "Unix system integration"
+
+      DEPYLER-0384:
+        name: "signal - Set handlers for asynchronous events"
+        priority: P2
+        complexity: HIGH
+        estimate_hours: "12-16"
+        tests_needed: "10-12"
+        features: ["signal", "alarm", "pause"]
+        rust_mapping: "signal-hook crate"
+        value: "System programming"
+
+      DEPYLER-0385:
+        name: "atexit - Exit handlers"
+        priority: P2
+        complexity: LOW
+        estimate_hours: "4-6"
+        tests_needed: "6-8"
+        features: ["register", "unregister"]
+        rust_mapping: "Custom Drop implementation"
+        value: "Resource cleanup"
+
+      DEPYLER-0386:
+        name: "gc - Garbage collector interface"
+        priority: P3
+        complexity: EPIC
+        estimate_hours: "20-30"
+        tests_needed: "12-15"
+        features: ["collect", "disable", "get_count"]
+        rust_mapping: "N/A (Rust uses RAII)"
+        value: "Python compatibility"
+
+      DEPYLER-0387:
+        name: "inspect - Inspect live objects"
+        priority: P3
+        complexity: EPIC
+        estimate_hours: "24-30"
+        tests_needed: "15-20"
+        features: ["getmembers", "getsource", "signature"]
+        rust_mapping: "Custom reflection"
+        value: "Testing, debugging"
+
+      DEPYLER-0388:
+        name: "site - Site-specific configuration"
+        priority: P3
+        complexity: MEDIUM
+        estimate_hours: "8-10"
+        tests_needed: "6-8"
+        features: ["addsitedir", "getsitepackages"]
+        rust_mapping: "Custom implementation"
+        value: "Package management"
+
+      DEPYLER-0389:
+        name: "builtins (extended) - Built-in functions"
+        priority: P1
+        complexity: HIGH
+        estimate_hours: "20-24"
+        tests_needed: "25-30"
+        features: ["Complete all(), any(), filter(), map(), zip(), etc."]
+        rust_mapping: "Iterator methods"
+        value: "Core language support"
+
+  tier_4_lower_priority:
+    name: "Tier 4: Lower Priority - 23 Modules"
+    status: PLANNING
+    modules: 23
+    estimated_duration: "6-12 months"
+    start_date: 2026-11-01
+    target_completion: 2027-04-30
+
+    categories:
+      - category: "Development Tools"
+        modules: 6
+        tickets: [390, 391, 392, 393, 394, 395]
+      - category: "Security & Cryptography"
+        modules: 5
+        tickets: [396, 397, 398, 399, 400]
+      - category: "Internationalization"
+        modules: 3
+        tickets: [401, 402, 403]
+      - category: "Platform Utilities"
+        modules: 5
+        tickets: [404, 405, 406, 407, 408]
+      - category: "Miscellaneous"
+        modules: 4
+        tickets: [409, 410, 411, 412]
+
+    summary: "Development tools, security, i18n, platform utilities - see docs/stdlib/STDLIB_TESTING_ROADMAP.md for details"
+
+  not_feasible_modules:
+    name: "Modules Not Feasible for Transpilation"
+    count: 50
+    status: DOCUMENTED
+    reason: "Require runtime features incompatible with Rust's compile-time model"
+
+    categories:
+      - name: "Concurrency"
+        modules: ["threading", "multiprocessing", "concurrent.futures", "asyncio", "queue"]
+        recommendation: "Use native Rust equivalents (std::thread, tokio, async-std, crossbeam)"
+
+      - name: "Networking"
+        modules: ["socket", "http", "urllib", "ftplib", "poplib", "imaplib", "smtplib", "socketserver"]
+        recommendation: "Use tokio + reqwest/hyper"
+
+      - name: "GUI & Multimedia"
+        modules: ["tkinter", "turtle", "audioop", "wave", "chunk"]
+        recommendation: "Use native Rust GUI frameworks (egui, iced, druid)"
+
+      - name: "Database"
+        modules: ["sqlite3", "dbm"]
+        recommendation: "Use Rust database crates (sqlx, diesel, rusqlite)"
+
+      - name: "Internal/Meta"
+        modules: ["ast", "symtable", "parser", "dis", "zipimport", "pkgutil", "modulefinder", "importlib"]
+        recommendation: "Deferred until v4.0 or N/A"
+
+  sprint_planning:
+    cadence: "2-week sprints"
+    velocity_estimate: "5-10 modules per sprint"
+    release_cadence: "Monthly minor versions"
+
+    typical_sprint:
+      week_1: "3-5 simple modules (LOW complexity)"
+      week_2: "1-2 complex modules (MEDIUM/HIGH complexity)"
+
+  success_metrics:
+    - metric: "Modules Validated"
+      current: 27
+      q2_2025: 47
+      q4_2025: 77
+      q2_2026: 100
+
+    - metric: "Total Tests"
+      current: 151
+      q2_2025: 350
+      q4_2025: 650
+      q2_2026: 1000
+
+    - metric: "Pass Rate"
+      current: "100%"
+      target: "100%"
+      enforcement: "MANDATORY"
+
+    - metric: "Coverage Percentage"
+      current: 13.5
+      q2_2025: 23.5
+      q4_2025: 38.5
+      q2_2026: 50.0
+
+  quality_standards:
+    - standard: "Bug Discovery Rate"
+      target: "<10%"
+      current: "0% (Session 2)"
+
+    - standard: "Test Coverage"
+      target: "≥80% line coverage"
+      enforcement: "cargo llvm-cov"
+
+    - standard: "Complexity"
+      target: "≤10 cyclomatic/cognitive"
+      enforcement: "pmat analyze complexity"
+
+    - standard: "SATD"
+      target: "Zero tolerance"
+      enforcement: "pmat analyze satd"
+
+    - standard: "TDG Grade"
+      target: "A- minimum"
+      enforcement: "pmat analyze tdg"
+
+  tracking:
+    weekly_status: "Modules completed, bugs discovered/fixed, test pass rate, quality metrics"
+    monthly_review: "Sprint retrospective, roadmap adjustment, risk reassessment"
+    quarterly_release: "Version bump, CHANGELOG update, blog post, community feedback"
+
+  documentation:
+    primary: "docs/stdlib/STDLIB_TESTING_ROADMAP.md"
+    coverage: "docs/STDLIB_COVERAGE.md"
+    tdd_tests: "tdd-book/tests/"
+    examples: "examples/"
+    bugs: "docs/bugs/"
+
