@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-ITERTOOLS-ADDITIONAL-001: Dropwhile
 #[test]
-#[ignore = "DEPYLER-STDLIB-ITERTOOLS: Not implemented yet - RED phase"]
 fn test_dropwhile() {
     let python = r#"
 import itertools
@@ -18,12 +17,11 @@ def drop_negatives(items: list) -> itertools.dropwhile:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should drop while condition is true
-    assert!(result.contains("skip_while") || result.contains("dropwhile"));
+    assert!(result.contains("skip_while"));
 }
 
 // DEPYLER-STDLIB-ITERTOOLS-ADDITIONAL-002: Accumulate
 #[test]
-#[ignore = "DEPYLER-STDLIB-ITERTOOLS: Not implemented yet - RED phase"]
 fn test_accumulate() {
     let python = r#"
 import itertools
@@ -35,12 +33,11 @@ def cumulative_sum(items: list) -> itertools.accumulate:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should accumulate/scan values
-    assert!(result.contains("scan") || result.contains("accumulate"));
+    assert!(result.contains("map") && result.contains("acc"));
 }
 
 // DEPYLER-STDLIB-ITERTOOLS-ADDITIONAL-003: Compress
 #[test]
-#[ignore = "DEPYLER-STDLIB-ITERTOOLS: Not implemented yet - RED phase"]
 fn test_compress() {
     let python = r#"
 import itertools
@@ -52,7 +49,7 @@ def filter_by_mask(items: list, selectors: list) -> itertools.compress:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should filter items by selector boolean values
-    assert!(result.contains("zip") && result.contains("filter"));
+    assert!(result.contains("zip") && result.contains("filter_map"));
 }
 
 // Total: 3 tests for additional itertools functions
