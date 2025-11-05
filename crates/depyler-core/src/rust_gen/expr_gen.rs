@@ -4604,6 +4604,105 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert pickle module method calls
+    /// DEPYLER-STDLIB-PICKLE: Object serialization
+    ///
+    /// Supports: dumps, loads
+    /// Maps to serde/bincode for serialization (placeholder)
+    ///
+    /// # Complexity
+    /// Cyclomatic: 3 (match with 2 functions + default)
+    #[inline]
+    fn try_convert_pickle_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            "dumps" => {
+                if arg_exprs.is_empty() {
+                    bail!("pickle.dumps() requires at least 1 argument");
+                }
+                let obj = &arg_exprs[0];
+
+                // Placeholder: In real implementation, would use serde + bincode
+                parse_quote! {
+                    {
+                        // Note: Actual pickle serialization requires serde support
+                        format!("{:?}", #obj).into_bytes()
+                    }
+                }
+            }
+
+            "loads" => {
+                if arg_exprs.is_empty() {
+                    bail!("pickle.loads() requires at least 1 argument");
+                }
+                let data = &arg_exprs[0];
+
+                // Placeholder: In real implementation, would use serde + bincode
+                parse_quote! {
+                    {
+                        // Note: Actual pickle deserialization requires serde support
+                        String::from_utf8_lossy(#data).to_string()
+                    }
+                }
+            }
+
+            _ => {
+                bail!("pickle.{} not implemented yet (available: dumps, loads)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
+    /// Try to convert pprint module method calls
+    /// DEPYLER-STDLIB-PPRINT: Pretty printing
+    ///
+    /// Supports: pprint
+    /// Maps to Rust's Debug formatting
+    ///
+    /// # Complexity
+    /// Cyclomatic: 2 (match with 1 function + default)
+    #[inline]
+    fn try_convert_pprint_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            "pprint" => {
+                if arg_exprs.is_empty() {
+                    bail!("pprint.pprint() requires at least 1 argument");
+                }
+                let obj = &arg_exprs[0];
+
+                parse_quote! {
+                    println!("{:#?}", #obj)
+                }
+            }
+
+            _ => {
+                bail!("pprint.{} not implemented yet (available: pprint)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -5464,6 +5563,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-SYS: System-specific parameters and functions
             if module_name == "sys" {
                 return self.try_convert_sys_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-PICKLE: Object serialization
+            if module_name == "pickle" {
+                return self.try_convert_pickle_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-PPRINT: Pretty printing
+            if module_name == "pprint" {
+                return self.try_convert_pprint_method(method, args);
             }
 
             let rust_name_opt = self
