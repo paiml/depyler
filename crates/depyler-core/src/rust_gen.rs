@@ -499,6 +499,22 @@ pub fn generate_rust_file(
         needs_arc: false,
         needs_rc: false,
         needs_cow: false,
+        needs_rand: false,
+        needs_serde_json: false,
+        needs_regex: false,
+        needs_chrono: false,
+        needs_csv: false,
+        needs_rust_decimal: false,
+        needs_base64: false,
+        needs_md5: false,
+        needs_sha2: false,
+        needs_sha3: false,
+        needs_blake2: false,
+        needs_hex: false,
+        needs_uuid: false,
+        needs_hmac: false,
+        needs_crc32: false,
+        needs_url_encoding: false,
         declared_vars: vec![HashSet::new()],
         current_function_can_fail: false,
         current_return_type: None,
@@ -519,6 +535,7 @@ pub fn generate_rust_file(
         is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
         result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
         current_error_type: None, // DEPYLER-0310: Track error type for raise statement wrapping
+        exception_scopes: Vec::new(), // DEPYLER-0333: Exception scope tracking stack
     };
 
     // Analyze all functions first for string optimization
@@ -611,6 +628,22 @@ mod tests {
             needs_arc: false,
             needs_rc: false,
             needs_cow: false,
+            needs_rand: false,
+            needs_serde_json: false,
+            needs_regex: false,
+            needs_chrono: false,
+            needs_csv: false,
+            needs_rust_decimal: false,
+            needs_base64: false,
+            needs_md5: false,
+            needs_sha2: false,
+            needs_sha3: false,
+            needs_blake2: false,
+            needs_hex: false,
+            needs_uuid: false,
+            needs_hmac: false,
+            needs_crc32: false,
+            needs_url_encoding: false,
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -631,6 +664,7 @@ mod tests {
             is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
             result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
             current_error_type: None, // DEPYLER-0310: Track error type for raise statement wrapping
+            exception_scopes: Vec::new(), // DEPYLER-0333: Exception scope tracking stack
         }
     }
 
