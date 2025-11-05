@@ -5463,6 +5463,111 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
+            // LCM - least common multiple
+            "lcm" => {
+                if arg_exprs.len() != 2 {
+                    bail!("math.lcm() requires exactly 2 arguments");
+                }
+                let a = &arg_exprs[0];
+                let b = &arg_exprs[1];
+                // lcm(a, b) = abs(a * b) / gcd(a, b)
+                parse_quote! {
+                    {
+                        let a = (#a as i64).abs();
+                        let b = (#b as i64).abs();
+                        if a == 0 || b == 0 {
+                            0
+                        } else {
+                            // Compute GCD first
+                            let mut gcd_a = a;
+                            let mut gcd_b = b;
+                            while gcd_b != 0 {
+                                let temp = gcd_b;
+                                gcd_b = gcd_a % gcd_b;
+                                gcd_a = temp;
+                            }
+                            let gcd = gcd_a;
+                            ((a / gcd) * b) as i32
+                        }
+                    }
+                }
+            }
+
+            // isclose - floating point comparison with tolerance
+            "isclose" => {
+                if arg_exprs.len() < 2 {
+                    bail!("math.isclose() requires at least 2 arguments");
+                }
+                let a = &arg_exprs[0];
+                let b = &arg_exprs[1];
+                // Default rel_tol=1e-09, abs_tol=0.0
+                parse_quote! {
+                    {
+                        let a = #a as f64;
+                        let b = #b as f64;
+                        let rel_tol = 1e-9;
+                        let abs_tol = 0.0;
+                        let diff = (a - b).abs();
+                        diff <= abs_tol.max(rel_tol * a.abs().max(b.abs()))
+                    }
+                }
+            }
+
+            // modf - split into fractional and integer parts
+            "modf" => {
+                if arg_exprs.len() != 1 {
+                    bail!("math.modf() requires exactly 1 argument");
+                }
+                let x = &arg_exprs[0];
+                parse_quote! {
+                    {
+                        let x = #x as f64;
+                        let int_part = x.trunc();
+                        let frac_part = x - int_part;
+                        (frac_part, int_part)
+                    }
+                }
+            }
+
+            // fmod - floating point remainder
+            "fmod" => {
+                if arg_exprs.len() != 2 {
+                    bail!("math.fmod() requires exactly 2 arguments");
+                }
+                let x = &arg_exprs[0];
+                let y = &arg_exprs[1];
+                parse_quote! { (#x as f64) % (#y as f64) }
+            }
+
+            // hypot - Euclidean distance (hypotenuse)
+            "hypot" => {
+                if arg_exprs.len() != 2 {
+                    bail!("math.hypot() requires exactly 2 arguments");
+                }
+                let x = &arg_exprs[0];
+                let y = &arg_exprs[1];
+                parse_quote! { (#x as f64).hypot(#y as f64) }
+            }
+
+            // dist - distance between two points
+            "dist" => {
+                if arg_exprs.len() != 2 {
+                    bail!("math.dist() requires exactly 2 arguments (two points)");
+                }
+                let p = &arg_exprs[0];
+                let q = &arg_exprs[1];
+                // Simplified: assume 2D points
+                parse_quote! {
+                    {
+                        let p = #p;
+                        let q = #q;
+                        let dx = p[0] - q[0];
+                        let dy = p[1] - q[1];
+                        ((dx * dx + dy * dy) as f64).sqrt()
+                    }
+                }
+            }
+
             _ => {
                 bail!("math.{} not implemented yet", method);
             }
