@@ -1,8 +1,6 @@
 #[doc = "// TODO: Map Python module 'string'"]
 use std::collections::HashMap;
-use std::collections::HashMap;
 const STR_EMPTY: &'static str = "";
-use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
     message: String,

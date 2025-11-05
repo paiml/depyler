@@ -308,6 +308,37 @@ fn convert_functions_to_rust(
 ///
 /// Adds imports for collections and smart pointers as needed.
 /// Complexity: 1 (data-driven approach, well within ≤10 target)
+/// Deduplicate use statements to avoid E0252 errors
+///
+/// DEPYLER-0335 FIX #1: Multiple sources can generate the same import.
+/// For example, both generate_import_tokens and generate_conditional_imports
+/// might add `use std::collections::HashMap;`.
+///
+/// # Complexity
+/// ~6 (loop + if + string ops)
+fn deduplicate_use_statements(
+    items: Vec<proc_macro2::TokenStream>,
+) -> Vec<proc_macro2::TokenStream> {
+    let mut seen = std::collections::HashSet::new();
+    let mut deduped = Vec::new();
+
+    for item in items {
+        let item_str = item.to_string();
+        // Only deduplicate use statements
+        if item_str.starts_with("use ") {
+            if seen.insert(item_str) {
+                deduped.push(item);
+            }
+            // else: skip duplicate
+        } else {
+            // Non-import items: always keep
+            deduped.push(item);
+        }
+    }
+
+    deduped
+}
+
 fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenStream> {
     let mut imports = Vec::new();
 
@@ -364,8 +395,18 @@ fn generate_import_tokens(
         }
     }
 
-    // Add external imports
+    // DEPYLER-0335 FIX #1: Deduplicate imports using HashSet
+    // Multiple Python imports can map to same Rust type (e.g., defaultdict + Counter -> HashMap)
+    let mut seen_paths = std::collections::HashSet::new();
+
+    // Add external imports (deduplicated)
     for import in external_imports {
+        // Create unique key from path + alias
+        let key = format!("{}:{:?}", import.path, import.alias);
+        if !seen_paths.insert(key) {
+            continue; // Skip duplicate
+        }
+
         let path: syn::Path =
             syn::parse_str(&import.path).unwrap_or_else(|_| parse_quote! { unknown });
         if let Some(alias) = import.alias {
@@ -376,12 +417,19 @@ fn generate_import_tokens(
         }
     }
 
-    // Add standard library imports
+    // Add standard library imports (deduplicated)
     for import in std_imports {
         // Skip typing imports as they're handled by the type system
         if import.path.starts_with("::") || import.path.is_empty() {
             continue;
         }
+
+        // Create unique key from path + alias
+        let key = format!("{}:{:?}", import.path, import.alias);
+        if !seen_paths.insert(key) {
+            continue; // Skip duplicate
+        }
+
         let path: syn::Path = syn::parse_str(&import.path).unwrap_or_else(|_| parse_quote! { std });
         if let Some(alias) = import.alias {
             let alias_ident = syn::Ident::new(&alias, proc_macro2::Span::call_site());
@@ -502,6 +550,10 @@ pub fn generate_rust_file(
 
     // Add collection imports if needed
     items.extend(generate_conditional_imports(&ctx));
+
+    // DEPYLER-0335 FIX #1: Deduplicate imports across all sources
+    // Both generate_import_tokens and generate_conditional_imports can add HashMap
+    items = deduplicate_use_statements(items);
 
     // Add error type definitions if needed
     items.extend(generate_error_type_definitions(&ctx));
