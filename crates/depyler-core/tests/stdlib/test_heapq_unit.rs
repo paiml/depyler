@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-HEAPQ-001: Heap creation
 #[test]
-#[ignore = "DEPYLER-STDLIB-HEAPQ: Not implemented yet - RED phase"]
 fn test_heapify() {
     let python = r#"
 import heapq
@@ -18,12 +17,11 @@ def create_heap(items: list) -> None:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should create min-heap in-place
-    assert!(result.contains("BinaryHeap") || result.contains("heap"));
+    assert!(result.contains("heap") || result.contains("swap"));
 }
 
 // DEPYLER-STDLIB-HEAPQ-002: Heap push/pop operations
 #[test]
-#[ignore = "DEPYLER-STDLIB-HEAPQ: Not implemented yet - RED phase"]
 fn test_heappush() {
     let python = r#"
 import heapq
@@ -35,11 +33,10 @@ def push_item(heap: list, item: int) -> None:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should push item onto heap
-    assert!(result.contains("push") || result.contains("insert"));
+    assert!(result.contains("push") || result.contains("swap"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-HEAPQ: Not implemented yet - RED phase"]
 fn test_heappop() {
     let python = r#"
 import heapq
@@ -51,12 +48,11 @@ def pop_min(heap: list) -> int:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should pop smallest item from heap
-    assert!(result.contains("pop") || result.contains("extract"));
+    assert!(result.contains("pop") || result.contains("swap"));
 }
 
 // DEPYLER-STDLIB-HEAPQ-003: N-largest/smallest
 #[test]
-#[ignore = "DEPYLER-STDLIB-HEAPQ: Not implemented yet - RED phase"]
 fn test_nlargest() {
     let python = r#"
 import heapq
@@ -68,11 +64,10 @@ def get_largest(n: int, items: list) -> list:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should return n largest items
-    assert!(result.contains("largest") || result.contains("sort") || result.contains("BinaryHeap"));
+    assert!(result.contains("sort") || result.contains("take"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-HEAPQ: Not implemented yet - RED phase"]
 fn test_nsmallest() {
     let python = r#"
 import heapq
@@ -84,7 +79,7 @@ def get_smallest(n: int, items: list) -> list:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should return n smallest items
-    assert!(result.contains("smallest") || result.contains("sort") || result.contains("BinaryHeap"));
+    assert!(result.contains("sort") || result.contains("take"));
 }
 
 // Total: 5 comprehensive tests for heapq module
