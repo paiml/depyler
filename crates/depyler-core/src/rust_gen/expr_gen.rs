@@ -6341,6 +6341,55 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         .join(" ")
                 })
             }
+
+            // DEPYLER-STDLIB-STR: index() - find with panic if not found
+            "index" => {
+                if hir_args.len() != 1 {
+                    bail!("index() requires exactly one argument");
+                }
+                let substring = match &hir_args[0] {
+                    HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                    _ => arg_exprs[0].clone(),
+                };
+                Ok(parse_quote! {
+                    #object_expr.find(#substring)
+                        .map(|i| i as i32)
+                        .expect("substring not found")
+                })
+            }
+
+            // DEPYLER-STDLIB-STR: rfind() - find from right (last occurrence)
+            "rfind" => {
+                if hir_args.len() != 1 {
+                    bail!("rfind() requires exactly one argument");
+                }
+                let substring = match &hir_args[0] {
+                    HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                    _ => arg_exprs[0].clone(),
+                };
+                Ok(parse_quote! {
+                    #object_expr.rfind(#substring)
+                        .map(|i| i as i32)
+                        .unwrap_or(-1)
+                })
+            }
+
+            // DEPYLER-STDLIB-STR: rindex() - rfind with panic if not found
+            "rindex" => {
+                if hir_args.len() != 1 {
+                    bail!("rindex() requires exactly one argument");
+                }
+                let substring = match &hir_args[0] {
+                    HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                    _ => arg_exprs[0].clone(),
+                };
+                Ok(parse_quote! {
+                    #object_expr.rfind(#substring)
+                        .map(|i| i as i32)
+                        .expect("substring not found")
+                })
+            }
+
             _ => bail!("Unknown string method: {}", method),
         }
     }
@@ -6627,8 +6676,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // String methods
             // Note: "count" handled separately above with disambiguation logic
             "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
-            | "split" | "join" | "replace" | "find" | "isdigit" | "isalpha" | "isalnum"
-            | "title" => {
+            | "split" | "join" | "replace" | "find" | "index" | "rfind" | "rindex"
+            | "isdigit" | "isalpha" | "isalnum" | "title" => {
                 self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
             }
 
