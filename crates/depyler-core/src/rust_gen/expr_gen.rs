@@ -5280,6 +5280,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
+            // DEPYLER-STDLIB-RANDOM: randbytes() - generate random bytes
+            "randbytes" => {
+                if arg_exprs.len() != 1 {
+                    bail!("random.randbytes() requires exactly 1 argument");
+                }
+                let n = &arg_exprs[0];
+
+                parse_quote! {
+                    {
+                        use rand::Rng;
+                        let n = #n as usize;
+                        let mut rng = rand::thread_rng();
+                        (0..n).map(|_| rng.gen::<u8>()).collect::<Vec<u8>>()
+                    }
+                }
+            }
+
             _ => {
                 bail!("random.{} not implemented yet", method);
             }
