@@ -304,6 +304,7 @@ pub(crate) fn codegen_while_stmt(
 /// Generate code for Raise (exception) statement
 ///
 /// DEPYLER-0310: Wraps exceptions with Box::new() when error type is Box<dyn Error>
+/// DEPYLER-0333: Uses scope tracking to determine error handling strategy
 #[inline]
 pub(crate) fn codegen_raise_stmt(
     exception: &Option<HirExpr>,
@@ -313,21 +314,46 @@ pub(crate) fn codegen_raise_stmt(
     if let Some(exc) = exception {
         let exc_expr = exc.to_rust_expr(ctx)?;
 
-        // DEPYLER-0310: Check if we need to wrap with Box::new()
-        // When error type is Box<dyn Error>, we must wrap concrete exceptions
-        let needs_boxing = matches!(
-            ctx.current_error_type,
-            Some(crate::rust_gen::context::ErrorType::DynBox)
-        );
+        // DEPYLER-0333: Extract exception type to check if it's handled
+        let exception_type = extract_exception_type(exc);
 
-        if needs_boxing {
-            Ok(quote! { return Err(Box::new(#exc_expr)); })
+        // DEPYLER-0333: Check if exception is caught by current try block
+        if ctx.is_exception_handled(&exception_type) {
+            // Exception is caught - for now use panic! (control flow jump is complex)
+            // TODO: In future, implement proper control flow to jump to handler
+            Ok(quote! { panic!("{}", #exc_expr); })
+        } else if ctx.current_function_can_fail {
+            // Exception propagates to caller - use return Err
+            // DEPYLER-0310: Check if we need to wrap with Box::new()
+            let needs_boxing = matches!(
+                ctx.current_error_type,
+                Some(crate::rust_gen::context::ErrorType::DynBox)
+            );
+
+            if needs_boxing {
+                Ok(quote! { return Err(Box::new(#exc_expr)); })
+            } else {
+                Ok(quote! { return Err(#exc_expr); })
+            }
         } else {
-            Ok(quote! { return Err(#exc_expr); })
+            // Function doesn't return Result - use panic!
+            Ok(quote! { panic!("{}", #exc_expr); })
         }
     } else {
         // Re-raise or bare raise - use generic error
         Ok(quote! { return Err("Exception raised".into()); })
+    }
+}
+
+/// DEPYLER-0333: Extract exception type from raise statement expression
+///
+/// # Complexity
+/// 2 (match + clone)
+fn extract_exception_type(exception: &HirExpr) -> String {
+    match exception {
+        HirExpr::Call { func, .. } => func.clone(),
+        HirExpr::Var(name) => name.clone(),
+        _ => "Exception".to_string(),
     }
 }
 
@@ -1085,6 +1111,16 @@ pub(crate) fn codegen_try_stmt(
     finalbody: &Option<Vec<HirStmt>>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0333: Extract handled exception types for scope tracking
+    let handled_types: Vec<String> = handlers
+        .iter()
+        .filter_map(|h| h.exception_type.clone())
+        .collect();
+
+    // DEPYLER-0333: Enter try block scope with handled exception types
+    // Empty list means bare except (catches all exceptions)
+    ctx.enter_try_scope(handled_types);
+
     // Convert try body to statements
     ctx.enter_scope();
     let try_stmts: Vec<_> = body
@@ -1093,9 +1129,14 @@ pub(crate) fn codegen_try_stmt(
         .collect::<Result<Vec<_>>>()?;
     ctx.exit_scope();
 
+    // DEPYLER-0333: Exit try block scope
+    ctx.exit_exception_scope();
+
     // Generate except handler code
     let mut handler_tokens = Vec::new();
     for handler in handlers {
+        // DEPYLER-0333: Enter handler scope for each except clause
+        ctx.enter_handler_scope();
         ctx.enter_scope();
 
         // If there's a name binding, declare it in scope
@@ -1109,6 +1150,8 @@ pub(crate) fn codegen_try_stmt(
             .map(|s| s.to_rust_tokens(ctx))
             .collect::<Result<Vec<_>>>()?;
         ctx.exit_scope();
+        // DEPYLER-0333: Exit handler scope
+        ctx.exit_exception_scope();
 
         handler_tokens.push(quote! { #(#handler_stmts)* });
     }
