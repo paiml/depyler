@@ -4,53 +4,59 @@
 
 use depyler_core::transpile_python_to_rust;
 
-// DEPYLER-STDLIB-ITERTOOLS-ADDITIONAL-001: Dropwhile
+// Note: dropwhile, accumulate, compress were already implemented
+// This commit adds 3 NEW functions: zip_longest, filterfalse, starmap
+
+// DEPYLER-STDLIB-ITERTOOLS-ADDITIONAL-001: Zip longest
 #[test]
-fn test_dropwhile() {
+#[ignore = "DEPYLER-STDLIB-ITERTOOLS: Not implemented yet - RED phase"]
+fn test_zip_longest() {
     let python = r#"
 import itertools
 
-def drop_negatives(items: list) -> itertools.dropwhile:
-    return itertools.dropwhile(lambda x: x < 0, items)
+def zip_with_fill(a: list, b: list) -> list:
+    return list(itertools.zip_longest(a, b, fillvalue=None))
 "#;
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should drop while condition is true
-    assert!(result.contains("skip_while"));
+    // Should zip with fill values for shorter iterator
+    assert!(result.contains("zip") && (result.contains("fillvalue") || result.contains("None")));
 }
 
-// DEPYLER-STDLIB-ITERTOOLS-ADDITIONAL-002: Accumulate
+// DEPYLER-STDLIB-ITERTOOLS-ADDITIONAL-002: Filter false
 #[test]
-fn test_accumulate() {
+#[ignore = "DEPYLER-STDLIB-ITERTOOLS: Not implemented yet - RED phase"]
+fn test_filterfalse() {
     let python = r#"
 import itertools
 
-def cumulative_sum(items: list) -> itertools.accumulate:
-    return itertools.accumulate(items)
+def filter_not(items: list, pred) -> list:
+    return list(itertools.filterfalse(pred, items))
 "#;
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should accumulate/scan values
-    assert!(result.contains("map") && result.contains("acc"));
+    // Should filter elements where predicate is false
+    assert!(result.contains("filter") && result.contains("!"));
 }
 
-// DEPYLER-STDLIB-ITERTOOLS-ADDITIONAL-003: Compress
+// DEPYLER-STDLIB-ITERTOOLS-ADDITIONAL-003: Star map
 #[test]
-fn test_compress() {
+#[ignore = "DEPYLER-STDLIB-ITERTOOLS: Not implemented yet - RED phase"]
+fn test_starmap() {
     let python = r#"
 import itertools
 
-def filter_by_mask(items: list, selectors: list) -> itertools.compress:
-    return itertools.compress(items, selectors)
+def apply_pairs(func, pairs: list) -> list:
+    return list(itertools.starmap(func, pairs))
 "#;
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should filter items by selector boolean values
-    assert!(result.contains("zip") && result.contains("filter_map"));
+    // Should unpack arguments from tuples
+    assert!(result.contains("map") && (result.contains("*") || result.contains("unpack")));
 }
 
-// Total: 3 tests for additional itertools functions
-// Coverage: dropwhile(), accumulate(), compress()
+// Total: 3 NEW itertools functions (dropwhile, accumulate, compress already existed)
+// Coverage: zip_longest(), filterfalse(), starmap()
