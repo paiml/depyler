@@ -4523,6 +4523,87 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert warnings module method calls
+    /// DEPYLER-STDLIB-WARNINGS: Warning control
+    ///
+    /// Supports: warn
+    /// Maps to Rust's eprintln! macro for stderr output
+    ///
+    /// # Complexity
+    /// Cyclomatic: 2 (match with 1 function + default)
+    #[inline]
+    fn try_convert_warnings_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            "warn" => {
+                if arg_exprs.is_empty() {
+                    bail!("warnings.warn() requires at least 1 argument");
+                }
+                let message = &arg_exprs[0];
+
+                parse_quote! {
+                    eprintln!("Warning: {}", #message)
+                }
+            }
+
+            _ => {
+                bail!("warnings.{} not implemented yet (available: warn)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
+    /// Try to convert sys module method calls
+    /// DEPYLER-STDLIB-SYS: System-specific parameters and functions
+    ///
+    /// Supports: exit
+    /// Maps to Rust's std::process::exit
+    ///
+    /// # Complexity
+    /// Cyclomatic: 2 (match with 1 function + default)
+    #[inline]
+    fn try_convert_sys_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            "exit" => {
+                let code = if !arg_exprs.is_empty() {
+                    &arg_exprs[0]
+                } else {
+                    &parse_quote!(0)
+                };
+
+                parse_quote! {
+                    std::process::exit(#code)
+                }
+            }
+
+            _ => {
+                bail!("sys.{} not implemented yet (available: exit)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -5373,6 +5454,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-FUNCTOOLS: Higher-order functions
             if module_name == "functools" {
                 return self.try_convert_functools_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-WARNINGS: Warning control
+            if module_name == "warnings" {
+                return self.try_convert_warnings_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-SYS: System-specific parameters and functions
+            if module_name == "sys" {
+                return self.try_convert_sys_method(method, args);
             }
 
             let rust_name_opt = self
