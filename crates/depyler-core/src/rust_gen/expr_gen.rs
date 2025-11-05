@@ -3726,6 +3726,200 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert textwrap module method calls
+    /// DEPYLER-STDLIB-TEXTWRAP: Text wrapping and formatting
+    ///
+    /// Supports: wrap, fill, dedent, indent, shorten
+    /// Text formatting for display and documentation
+    ///
+    /// # Complexity
+    /// Cyclomatic: 6 (match with 5 functions + default)
+    #[inline]
+    fn try_convert_textwrap_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Wrap text into list of lines
+            "wrap" => {
+                if arg_exprs.len() < 2 {
+                    bail!("textwrap.wrap() requires at least 2 arguments (text, width)");
+                }
+                let text = &arg_exprs[0];
+                let width = &arg_exprs[1];
+
+                // Simple word-wrapping algorithm
+                parse_quote! {
+                    {
+                        let text = #text;
+                        let width = #width as usize;
+                        let mut lines = Vec::new();
+                        let mut current_line = String::new();
+                        let mut current_len = 0;
+
+                        for word in text.split_whitespace() {
+                            let word_len = word.len();
+                            if current_len == 0 {
+                                current_line = word.to_string();
+                                current_len = word_len;
+                            } else if current_len + 1 + word_len <= width {
+                                current_line.push(' ');
+                                current_line.push_str(word);
+                                current_len += 1 + word_len;
+                            } else {
+                                lines.push(current_line);
+                                current_line = word.to_string();
+                                current_len = word_len;
+                            }
+                        }
+
+                        if !current_line.is_empty() {
+                            lines.push(current_line);
+                        }
+
+                        lines
+                    }
+                }
+            }
+
+            // Wrap and join into single string
+            "fill" => {
+                if arg_exprs.len() < 2 {
+                    bail!("textwrap.fill() requires at least 2 arguments (text, width)");
+                }
+                let text = &arg_exprs[0];
+                let width = &arg_exprs[1];
+
+                // fill = wrap + join
+                parse_quote! {
+                    {
+                        let text = #text;
+                        let width = #width as usize;
+                        let mut lines = Vec::new();
+                        let mut current_line = String::new();
+                        let mut current_len = 0;
+
+                        for word in text.split_whitespace() {
+                            let word_len = word.len();
+                            if current_len == 0 {
+                                current_line = word.to_string();
+                                current_len = word_len;
+                            } else if current_len + 1 + word_len <= width {
+                                current_line.push(' ');
+                                current_line.push_str(word);
+                                current_len += 1 + word_len;
+                            } else {
+                                lines.push(current_line);
+                                current_line = word.to_string();
+                                current_len = word_len;
+                            }
+                        }
+
+                        if !current_line.is_empty() {
+                            lines.push(current_line);
+                        }
+
+                        lines.join("\n")
+                    }
+                }
+            }
+
+            // Remove common leading whitespace
+            "dedent" => {
+                if arg_exprs.len() != 1 {
+                    bail!("textwrap.dedent() requires exactly 1 argument");
+                }
+                let text = &arg_exprs[0];
+
+                parse_quote! {
+                    {
+                        let text = #text;
+                        let lines: Vec<&str> = text.lines().collect();
+
+                        // Find minimum indentation (excluding empty lines)
+                        let min_indent = lines.iter()
+                            .filter(|line| !line.trim().is_empty())
+                            .map(|line| line.chars().take_while(|c| c.is_whitespace()).count())
+                            .min()
+                            .unwrap_or(0);
+
+                        // Remove that many spaces from each line
+                        lines.iter()
+                            .map(|line| {
+                                if line.len() >= min_indent {
+                                    &line[min_indent..]
+                                } else {
+                                    line
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    }
+                }
+            }
+
+            // Add prefix to each line
+            "indent" => {
+                if arg_exprs.len() != 2 {
+                    bail!("textwrap.indent() requires exactly 2 arguments (text, prefix)");
+                }
+                let text = &arg_exprs[0];
+                let prefix = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        let text = #text;
+                        let prefix = #prefix;
+                        text.lines()
+                            .map(|line| format!("{}{}", prefix, line))
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    }
+                }
+            }
+
+            // Shorten text with ellipsis
+            "shorten" => {
+                if arg_exprs.len() < 2 {
+                    bail!("textwrap.shorten() requires at least 2 arguments (text, width)");
+                }
+                let text = &arg_exprs[0];
+                let width = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        let text = #text;
+                        let width = #width as usize;
+                        let placeholder = " [...]";
+
+                        if text.len() <= width {
+                            text.to_string()
+                        } else if width < placeholder.len() {
+                            text.chars().take(width).collect()
+                        } else {
+                            let max_len = width - placeholder.len();
+                            let truncated: String = text.chars().take(max_len).collect();
+                            format!("{}{}", truncated, placeholder)
+                        }
+                    }
+                }
+            }
+
+            _ => {
+                bail!("textwrap.{} not implemented yet (available: wrap, fill, dedent, indent, shorten)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -4546,6 +4740,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-SHLEX: Shell command line lexing
             if module_name == "shlex" {
                 return self.try_convert_shlex_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-TEXTWRAP: Text wrapping and formatting
+            if module_name == "textwrap" {
+                return self.try_convert_textwrap_method(method, args);
             }
 
             let rust_name_opt = self
