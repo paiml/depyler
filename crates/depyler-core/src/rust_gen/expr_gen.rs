@@ -6566,6 +6566,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                 })
             }
+            "pop" => {
+                // dict.pop(key, default=None) - remove and return value for key
+                // Python: dict.pop(key[, default]) removes key and returns value, or returns default
+                // Rust: remove() returns Option, use unwrap_or() for default
+                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+                    bail!("pop() requires 1 or 2 arguments (key, optional default)");
+                }
+                let key = &arg_exprs[0];
+                if arg_exprs.len() == 2 {
+                    let default = &arg_exprs[1];
+                    Ok(parse_quote! {
+                        #object_expr.remove(#key).unwrap_or(#default)
+                    })
+                } else {
+                    Ok(parse_quote! {
+                        #object_expr.remove(#key).expect("KeyError: key not found")
+                    })
+                }
+            }
             _ => bail!("Unknown dict method: {}", method),
         }
     }
