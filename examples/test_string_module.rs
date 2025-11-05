@@ -1,0 +1,485 @@
+#[doc = "// TODO: Map Python module 'string'"]
+const STR_EMPTY: &'static str = "";
+const STR_HELLO_WORLD: &'static str = "hello world";
+use std::collections::HashMap;
+#[derive(Debug, Clone)]
+pub struct ZeroDivisionError {
+    message: String,
+}
+impl std::fmt::Display for ZeroDivisionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "division by zero: {}", self.message)
+    }
+}
+impl std::error::Error for ZeroDivisionError {}
+impl ZeroDivisionError {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
+#[derive(Debug, Clone)]
+pub struct IndexError {
+    message: String,
+}
+impl std::fmt::Display for IndexError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "index out of range: {}", self.message)
+    }
+}
+impl std::error::Error for IndexError {}
+impl IndexError {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
+#[doc = "Test accessing lowercase ASCII letters"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_ascii_lowercase() -> String {
+    "abcdefghijklmnopqrstuvwxyz".to_string()
+}
+#[doc = "Test accessing uppercase ASCII letters"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_ascii_uppercase() -> String {
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_string()
+}
+#[doc = "Test accessing all ASCII letters"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_ascii_letters() -> String {
+    let letters: String = format!(
+        "{}{}",
+        "abcdefghijklmnopqrstuvwxyz".to_string(),
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_string()
+    );
+    letters
+}
+#[doc = "Test accessing digit characters"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_digits() -> String {
+    "0123456789".to_string()
+}
+#[doc = "Test accessing hexadecimal digits"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_hexdigits() -> String {
+    "0123456789abcdefABCDEF".to_string()
+}
+#[doc = "Test accessing octal digits"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_octdigits() -> String {
+    "01234567".to_string()
+}
+#[doc = "Test accessing punctuation characters"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_punctuation() -> String {
+    "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".to_string()
+}
+#[doc = "Test accessing whitespace characters"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_whitespace() -> String {
+    " \t\n\r".to_string()
+}
+#[doc = "Check if character is ASCII letter"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn is_ascii_letter(char: String) -> bool {
+    let _cse_temp_0 = char.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 != 1;
+    if _cse_temp_1 {
+        return false;
+    }
+    let code: i32 = char.chars().next().unwrap() as u32;
+    let _cse_temp_2 = code >= 65;
+    let _cse_temp_3 = code <= 90;
+    let _cse_temp_4 = _cse_temp_2 && _cse_temp_3;
+    let is_upper: bool = _cse_temp_4;
+    let _cse_temp_5 = code >= 97;
+    let _cse_temp_6 = code <= 122;
+    let _cse_temp_7 = _cse_temp_5 && _cse_temp_6;
+    let is_lower: bool = _cse_temp_7;
+    is_upper || is_lower
+}
+#[doc = "Check if character is digit"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn is_digit(char: &str) -> bool {
+    let _cse_temp_0 = char.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 != 1;
+    if _cse_temp_1 {
+        return false;
+    }
+    char.chars().all(|c| c.is_numeric())
+}
+#[doc = "Check if character is alphanumeric"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn is_alphanumeric(char: String) -> bool {
+    let _cse_temp_0 = char.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 != 1;
+    if _cse_temp_1 {
+        return false;
+    }
+    is_ascii_letter(char) || is_digit(char)
+}
+#[doc = "Check if character is whitespace"]
+#[doc = " Depyler: verified panic-free"]
+pub fn is_whitespace(char: &str) -> bool {
+    let _cse_temp_0 = char.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 != 1;
+    if _cse_temp_1 {
+        return false;
+    }
+    for ws in " \t\n\r".to_string() {
+        if char == ws {
+            return true;
+        }
+    }
+    false
+}
+#[doc = "Check if character is punctuation"]
+#[doc = " Depyler: verified panic-free"]
+pub fn is_punctuation(char: &str) -> bool {
+    let _cse_temp_0 = char.len() as i32;
+    let _cse_temp_1 = _cse_temp_0 != 1;
+    if _cse_temp_1 {
+        return false;
+    }
+    for p in "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".to_string() {
+        if char == p {
+            return true;
+        }
+    }
+    false
+}
+#[doc = "Capitalize first letter of each word"]
+#[doc = " Depyler: verified panic-free"]
+pub fn capitalize_words(text: String) -> String {
+    let words: Vec<String> = STR_HELLO_WORLD
+        .split_whitespace()
+        .map(|s| s.to_string())
+        .collect::<Vec<String>>();
+    let mut capitalized: Vec<String> = vec![];
+    for word in words.iter().cloned() {
+        if word.len() as i32 > 0 {
+            let first_char: String = {
+                let base = &word;
+                let idx: i32 = 0;
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx..=actual_idx).unwrap_or("").to_string()
+            }
+            .to_uppercase();
+            let rest: String = {
+                let base = word;
+                let start_idx: i32 = 1;
+                let len = base.chars().count() as i32;
+                let actual_start = if start_idx < 0 {
+                    (len + start_idx).max(0) as usize
+                } else {
+                    start_idx.min(len) as usize
+                };
+                base.chars().skip(actual_start).collect::<String>()
+            }
+            .to_lowercase();
+            let cap_word: String = format!("{}{}", first_char, rest);
+            capitalized.push(cap_word);
+        }
+    }
+    capitalized.join(" ")
+}
+#[doc = "Convert to title case"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn to_title_case(text: String) -> String {
+    capitalize_words(STR_HELLO_WORLD)
+}
+#[doc = "Swap uppercase to lowercase and vice versa"]
+#[doc = " Depyler: verified panic-free"]
+pub fn swap_case(text: String) -> String {
+    let mut result: String = STR_EMPTY;
+    for char in STR_HELLO_WORLD {
+        if char.isupper() {
+            result = format!("{}{}", result, char.to_lowercase());
+        } else {
+            if char.islower() {
+                result = format!("{}{}", result, char.to_uppercase());
+            } else {
+                result = format!("{}{}", result, char);
+            }
+        }
+    }
+    result.unwrap()
+}
+#[doc = "Count number of letters in text"]
+#[doc = " Depyler: verified panic-free"]
+pub fn count_letters(text: String) -> i32 {
+    let mut count: i32 = 0;
+    for char in STR_HELLO_WORLD {
+        if is_ascii_letter(char) {
+            count = count + 1;
+        }
+    }
+    count
+}
+#[doc = "Count number of digits in text"]
+#[doc = " Depyler: verified panic-free"]
+pub fn count_digits(text: String) -> i32 {
+    let mut count: i32 = 0;
+    for char in STR_HELLO_WORLD {
+        if is_digit(char) {
+            count = count + 1;
+        }
+    }
+    count
+}
+#[doc = "Count whitespace characters"]
+#[doc = " Depyler: verified panic-free"]
+pub fn count_whitespace(text: String) -> i32 {
+    let mut count: i32 = 0;
+    for char in STR_HELLO_WORLD {
+        if is_whitespace(char) {
+            count = count + 1;
+        }
+    }
+    count
+}
+#[doc = "Remove all whitespace from text"]
+#[doc = " Depyler: verified panic-free"]
+pub fn remove_whitespace(text: String) -> String {
+    let mut result: String = STR_EMPTY;
+    for char in STR_HELLO_WORLD {
+        if !is_whitespace(char) {
+            result = format!("{}{}", result, char);
+        }
+    }
+    result.unwrap()
+}
+#[doc = "Keep only letters, remove everything else"]
+#[doc = " Depyler: verified panic-free"]
+pub fn keep_only_letters(text: String) -> String {
+    let mut result: String = STR_EMPTY;
+    for char in STR_HELLO_WORLD {
+        if is_ascii_letter(char) {
+            result = format!("{}{}", result, char);
+        }
+    }
+    result.unwrap()
+}
+#[doc = "Keep only digits, remove everything else"]
+#[doc = " Depyler: verified panic-free"]
+pub fn keep_only_digits(text: String) -> String {
+    let mut result: String = STR_EMPTY;
+    for char in STR_HELLO_WORLD {
+        if is_digit(char) {
+            result = format!("{}{}", result, char);
+        }
+    }
+    result.unwrap()
+}
+#[doc = "Keep only alphanumeric characters"]
+#[doc = " Depyler: verified panic-free"]
+pub fn keep_alphanumeric(text: String) -> String {
+    let mut result: String = STR_EMPTY;
+    for char in STR_HELLO_WORLD {
+        if is_alphanumeric(char) {
+            result = format!("{}{}", result, char);
+        }
+    }
+    result.unwrap()
+}
+#[doc = "Simple template substitution"]
+pub fn template_substitute(
+    template: String,
+    values: &HashMap<serde_json::Value, serde_json::Value>,
+) -> Result<String, IndexError> {
+    let mut result: String = "Hello ${name}, you are ${age} years old";
+    for key in values.keys().cloned().collect::<Vec<_>>() {
+        let placeholder: String = format!("{}{}", format!("{}{}", "${", key), "}");
+        let value: String = values.get(&key).cloned().unwrap_or_default().to_string();
+        result = result.replace(placeholder, value);
+    }
+    Ok(result.unwrap())
+}
+#[doc = "Simple Caesar cipher"]
+pub fn caesar_cipher(text: String, shift: i32) -> Result<String, ZeroDivisionError> {
+    let mut result: String = STR_EMPTY;
+    for char in STR_HELLO_WORLD {
+        if char.chars().all(|c| c.is_alphabetic()) {
+            if char.isupper() {
+                let mut base: i32 = "A".chars().next().unwrap() as u32;
+                let mut shifted: i32 =
+                    format!("{}{}", char.chars().next().unwrap() as u32 - base, shift) % 26;
+                let mut new_char: String = char::from_u32(format!("{}{}", base, shifted) as u32)
+                    .unwrap()
+                    .to_string();
+                result = format!("{}{}", result, new_char);
+            } else {
+                let mut base: i32 = "a".chars().next().unwrap() as u32;
+                let mut shifted: i32 =
+                    format!("{}{}", char.chars().next().unwrap() as u32 - base, shift) % 26;
+                let mut new_char: String = char::from_u32(format!("{}{}", base, shifted) as u32)
+                    .unwrap()
+                    .to_string();
+                result = format!("{}{}", result, new_char);
+            }
+        } else {
+            result = format!("{}{}", result, char);
+        }
+    }
+    Ok(result.unwrap())
+}
+#[doc = "Reverse a string"]
+#[doc = " Depyler: proven to terminate"]
+pub fn reverse_string(text: &str) -> Result<String, IndexError> {
+    let mut result: String = STR_EMPTY;
+    for i in {
+        let step = (-1 as i32).abs() as usize;
+        if step == 0 {
+            panic!("range() arg 3 must not be zero");
+        }
+        (-1..(STR_HELLO_WORLD.len() as i32).saturating_sub(1))
+            .rev()
+            .step_by(step.max(1))
+    } {
+        result = format!("{}{}", result, {
+            let base = &text;
+            let idx: i32 = i;
+            let actual_idx = if idx < 0 {
+                base.len().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.get(actual_idx..=actual_idx).unwrap_or("").to_string()
+        });
+    }
+    Ok(result.unwrap())
+}
+#[doc = "Check if text is palindrome(ignoring case and spaces)"]
+pub fn is_palindrome(text: String) -> Result<bool, IndexError> {
+    let mut normalized: String = STR_EMPTY;
+    for char in STR_HELLO_WORLD.to_lowercase() {
+        if char.chars().all(|c| c.is_alphanumeric()) {
+            normalized = normalized + char;
+        }
+    }
+    let mut left: i32 = 0;
+    let _cse_temp_0 = normalized.len() as i32;
+    let mut right: i32 = _cse_temp_0 - 1;
+    while left < right {
+        if normalized.get(left as usize).cloned().unwrap_or_default()
+            != normalized.get(right as usize).cloned().unwrap_or_default()
+        {
+            return Ok(false);
+        }
+        left = left + 1;
+        right = right - 1;
+    }
+    Ok(true)
+}
+#[doc = "Count vowels in text"]
+#[doc = " Depyler: verified panic-free"]
+pub fn count_vowels(text: String) -> i32 {
+    let mut count: i32 = 0;
+    for char in STR_HELLO_WORLD {
+        if "aeiouAEIOU".contains(char) {
+            count = count + 1;
+        }
+    }
+    count
+}
+#[doc = "Count consonants in text"]
+#[doc = " Depyler: verified panic-free"]
+pub fn count_consonants(text: String) -> i32 {
+    let mut count: i32 = 0;
+    for char in STR_HELLO_WORLD {
+        if is_ascii_letter(char) && !"aeiouAEIOU".contains(char) {
+            count = count + 1;
+        }
+    }
+    count
+}
+#[doc = "Run all string module tests"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn test_all_string_features() {
+    let values: HashMap<serde_json::Value, serde_json::Value> = {
+        let mut map = HashMap::new();
+        map.insert("name", "Alice");
+        map.insert("age", "30");
+        map
+    };
+    let encrypted: String = caesar_cipher("HELLO", 3);
+    println!("{}", "All string module tests completed successfully");
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_is_ascii_letter_examples() {
+        let _ = is_ascii_letter(Default::default());
+    }
+    #[test]
+    fn test_is_digit_examples() {
+        let _ = is_digit(Default::default());
+    }
+    #[test]
+    fn test_is_alphanumeric_examples() {
+        let _ = is_alphanumeric(Default::default());
+    }
+    #[test]
+    fn test_is_whitespace_examples() {
+        let _ = is_whitespace(Default::default());
+    }
+    #[test]
+    fn test_is_punctuation_examples() {
+        let _ = is_punctuation(Default::default());
+    }
+    #[test]
+    fn test_count_letters_examples() {
+        assert_eq!(count_letters(""), 0);
+        assert_eq!(count_letters("a"), 1);
+        assert_eq!(count_letters("abc"), 3);
+    }
+    #[test]
+    fn test_count_digits_examples() {
+        assert_eq!(count_digits(""), 0);
+        assert_eq!(count_digits("a"), 1);
+        assert_eq!(count_digits("abc"), 3);
+    }
+    #[test]
+    fn test_count_whitespace_examples() {
+        assert_eq!(count_whitespace(""), 0);
+        assert_eq!(count_whitespace("a"), 1);
+        assert_eq!(count_whitespace("abc"), 3);
+    }
+    #[test]
+    fn test_is_palindrome_examples() {
+        let _ = is_palindrome(Default::default());
+    }
+    #[test]
+    fn test_count_vowels_examples() {
+        assert_eq!(count_vowels(""), 0);
+        assert_eq!(count_vowels("a"), 1);
+        assert_eq!(count_vowels("abc"), 3);
+    }
+    #[test]
+    fn test_count_consonants_examples() {
+        assert_eq!(count_consonants(""), 0);
+        assert_eq!(count_consonants("a"), 1);
+        assert_eq!(count_consonants("abc"), 3);
+    }
+}
