@@ -3334,6 +3334,152 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert urllib.parse module method calls
+    /// DEPYLER-STDLIB-URLLIB-PARSE: URL parsing and encoding
+    ///
+    /// Supports: quote, unquote, quote_plus, unquote_plus, urlencode, parse_qs
+    /// Common URL encoding/decoding operations
+    ///
+    /// # Complexity
+    /// Cyclomatic: 7 (match with 6 functions + default)
+    #[inline]
+    fn try_convert_urllib_parse_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Mark that we need URL encoding support
+        self.ctx.needs_url_encoding = true;
+
+        let result = match method {
+            // Percent encoding
+            "quote" => {
+                if arg_exprs.len() != 1 {
+                    bail!("urllib.parse.quote() requires exactly 1 argument");
+                }
+                let text = &arg_exprs[0];
+
+                // quote(text) → percent-encode URL component
+                parse_quote! {
+                    {
+                        use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+                        utf8_percent_encode(#text, NON_ALPHANUMERIC).to_string()
+                    }
+                }
+            }
+
+            "unquote" => {
+                if arg_exprs.len() != 1 {
+                    bail!("urllib.parse.unquote() requires exactly 1 argument");
+                }
+                let text = &arg_exprs[0];
+
+                // unquote(text) → percent-decode URL component
+                parse_quote! {
+                    {
+                        use percent_encoding::percent_decode_str;
+                        percent_decode_str(#text).decode_utf8_lossy().to_string()
+                    }
+                }
+            }
+
+            // Percent encoding with + for spaces (form encoding)
+            "quote_plus" => {
+                if arg_exprs.len() != 1 {
+                    bail!("urllib.parse.quote_plus() requires exactly 1 argument");
+                }
+                let text = &arg_exprs[0];
+
+                // quote_plus(text) → percent-encode with + for spaces
+                parse_quote! {
+                    {
+                        use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+                        utf8_percent_encode(#text, NON_ALPHANUMERIC)
+                            .to_string()
+                            .replace("%20", "+")
+                    }
+                }
+            }
+
+            "unquote_plus" => {
+                if arg_exprs.len() != 1 {
+                    bail!("urllib.parse.unquote_plus() requires exactly 1 argument");
+                }
+                let text = &arg_exprs[0];
+
+                // unquote_plus(text) → percent-decode with + as space
+                parse_quote! {
+                    {
+                        use percent_encoding::percent_decode_str;
+                        let replaced = (#text).replace("+", " ");
+                        percent_decode_str(&replaced).decode_utf8_lossy().to_string()
+                    }
+                }
+            }
+
+            // Query string encoding
+            "urlencode" => {
+                if arg_exprs.len() != 1 {
+                    bail!("urllib.parse.urlencode() requires exactly 1 argument");
+                }
+                let params = &arg_exprs[0];
+
+                // urlencode(dict) → key1=value1&key2=value2
+                parse_quote! {
+                    {
+                        use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
+                        #params.iter()
+                            .map(|(k, v)| {
+                                let key = utf8_percent_encode(&k.to_string(), NON_ALPHANUMERIC).to_string();
+                                let val = utf8_percent_encode(&v.to_string(), NON_ALPHANUMERIC).to_string();
+                                format!("{}={}", key, val)
+                            })
+                            .collect::<Vec<_>>()
+                            .join("&")
+                    }
+                }
+            }
+
+            // Query string parsing
+            "parse_qs" => {
+                if arg_exprs.len() != 1 {
+                    bail!("urllib.parse.parse_qs() requires exactly 1 argument");
+                }
+                let qs = &arg_exprs[0];
+
+                // parse_qs(qs) → HashMap<String, Vec<String>>
+                parse_quote! {
+                    {
+                        use percent_encoding::percent_decode_str;
+                        use std::collections::HashMap;
+
+                        let mut result: HashMap<String, Vec<String>> = HashMap::new();
+                        for pair in (#qs).split('&') {
+                            if let Some((key, value)) = pair.split_once('=') {
+                                let decoded_key = percent_decode_str(key).decode_utf8_lossy().to_string();
+                                let decoded_value = percent_decode_str(value).decode_utf8_lossy().to_string();
+                                result.entry(decoded_key).or_insert_with(Vec::new).push(decoded_value);
+                            }
+                        }
+                        result
+                    }
+                }
+            }
+
+            _ => {
+                bail!("urllib.parse.{} not implemented yet (available: quote, unquote, quote_plus, unquote_plus, urlencode, parse_qs)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -4139,6 +4285,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-BINASCII: Binary/ASCII conversions
             if module_name == "binascii" {
                 return self.try_convert_binascii_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-URLLIB-PARSE: URL parsing and encoding
+            if module_name == "urllib.parse" || module_name == "parse" {
+                return self.try_convert_urllib_parse_method(method, args);
             }
 
             let rust_name_opt = self
