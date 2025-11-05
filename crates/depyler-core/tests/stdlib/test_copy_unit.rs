@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-COPY-001: Shallow copy
 #[test]
-#[ignore = "DEPYLER-STDLIB-COPY: Not implemented yet - RED phase"]
 fn test_copy() {
     let python = r#"
 import copy
@@ -18,12 +17,11 @@ def shallow_copy(obj: list) -> list:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should create shallow copy
-    assert!(result.contains("clone") || result.contains("copy"));
+    assert!(result.contains("clone"));
 }
 
 // DEPYLER-STDLIB-COPY-002: Deep copy
 #[test]
-#[ignore = "DEPYLER-STDLIB-COPY: Not implemented yet - RED phase"]
 fn test_deepcopy() {
     let python = r#"
 import copy
@@ -35,7 +33,7 @@ def deep_copy(obj: list) -> list:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should create deep copy
-    assert!(result.contains("clone") || result.contains("copy"));
+    assert!(result.contains("clone"));
 }
 
 // Total: 2 comprehensive tests for copy module
