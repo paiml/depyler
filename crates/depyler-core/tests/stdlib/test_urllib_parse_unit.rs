@@ -40,7 +40,6 @@ def build_url(parts: tuple) -> str:
 
 // DEPYLER-STDLIB-URLLIB-PARSE-002: URL encoding/decoding
 #[test]
-#[ignore = "DEPYLER-STDLIB-URLLIB-PARSE: Not implemented yet - RED phase"]
 fn test_quote() {
     let python = r#"
 from urllib.parse import quote
@@ -51,12 +50,11 @@ def encode_url(text: str) -> str:
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should URL-encode text
-    assert!(result.contains("encode") || result.contains("percent"));
+    // Should URL-encode text using percent encoding
+    assert!(result.contains("percent_encoding") || result.contains("utf8_percent_encode"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-URLLIB-PARSE: Not implemented yet - RED phase"]
 fn test_unquote() {
     let python = r#"
 from urllib.parse import unquote
@@ -67,12 +65,11 @@ def decode_url(text: str) -> str:
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should URL-decode text
-    assert!(result.contains("decode") || result.contains("percent"));
+    // Should URL-decode text using percent decoding
+    assert!(result.contains("percent_decode") || result.contains("decode_utf8_lossy"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-URLLIB-PARSE: Not implemented yet - RED phase"]
 fn test_quote_plus() {
     let python = r#"
 from urllib.parse import quote_plus
@@ -84,11 +81,11 @@ def encode_form(text: str) -> str:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should URL-encode with + for spaces
-    assert!(result.contains("encode") || result.contains("replace"));
+    assert!(result.contains("percent_encoding"));
+    assert!(result.contains("replace"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-URLLIB-PARSE: Not implemented yet - RED phase"]
 fn test_unquote_plus() {
     let python = r#"
 from urllib.parse import unquote_plus
@@ -100,12 +97,12 @@ def decode_form(text: str) -> str:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should URL-decode with + as space
-    assert!(result.contains("decode") || result.contains("replace"));
+    assert!(result.contains("replace"));
+    assert!(result.contains("percent_decode"));
 }
 
 // DEPYLER-STDLIB-URLLIB-PARSE-003: Query string operations
 #[test]
-#[ignore = "DEPYLER-STDLIB-URLLIB-PARSE: Not implemented yet - RED phase"]
 fn test_urlencode() {
     let python = r#"
 from urllib.parse import urlencode
@@ -117,11 +114,11 @@ def encode_query(params: dict) -> str:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should encode dict to query string
-    assert!(result.contains("encode") || result.contains("join"));
+    assert!(result.contains("percent_encoding"));
+    assert!(result.contains("join"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-URLLIB-PARSE: Not implemented yet - RED phase"]
 fn test_parse_qs() {
     let python = r#"
 from urllib.parse import parse_qs
@@ -132,8 +129,9 @@ def parse_query(qs: str) -> dict:
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should parse query string to dict
-    assert!(result.contains("parse") || result.contains("split"));
+    // Should parse query string to dict (HashMap)
+    assert!(result.contains("HashMap") || result.contains("split"));
+    assert!(result.contains("percent_decode"));
 }
 
 #[test]
