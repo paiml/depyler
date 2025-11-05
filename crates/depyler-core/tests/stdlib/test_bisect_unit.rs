@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-BISECT-001: Binary search
 #[test]
-#[ignore = "DEPYLER-STDLIB-BISECT: Not implemented yet - RED phase"]
 fn test_bisect_left() {
     let python = r#"
 import bisect
@@ -22,7 +21,6 @@ def find_insert_left(a: list, x: int) -> int:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-BISECT: Not implemented yet - RED phase"]
 fn test_bisect_right() {
     let python = r#"
 import bisect
@@ -39,7 +37,6 @@ def find_insert_right(a: list, x: int) -> int:
 
 // DEPYLER-STDLIB-BISECT-002: Insertion
 #[test]
-#[ignore = "DEPYLER-STDLIB-BISECT: Not implemented yet - RED phase"]
 fn test_insort_left() {
     let python = r#"
 import bisect
@@ -55,7 +52,6 @@ def insert_left(a: list, x: int) -> None:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-BISECT: Not implemented yet - RED phase"]
 fn test_insort_right() {
     let python = r#"
 import bisect

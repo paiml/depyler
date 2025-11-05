@@ -3920,6 +3920,139 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert bisect module method calls
+    /// DEPYLER-STDLIB-BISECT: Binary search for sorted sequences
+    ///
+    /// Supports: bisect_left, bisect_right, insort_left, insort_right
+    /// Efficient O(log n) search and insertion
+    ///
+    /// # Complexity
+    /// Cyclomatic: 5 (match with 4 functions + default)
+    #[inline]
+    fn try_convert_bisect_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Find leftmost insertion point
+            "bisect_left" => {
+                if arg_exprs.len() < 2 {
+                    bail!("bisect.bisect_left() requires at least 2 arguments");
+                }
+                let a = &arg_exprs[0];
+                let x = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        let arr = #a;
+                        let val = &#x;
+                        match arr.binary_search(val) {
+                            Ok(mut pos) => {
+                                while pos > 0 && &arr[pos - 1] == val {
+                                    pos -= 1;
+                                }
+                                pos
+                            }
+                            Err(pos) => pos,
+                        }
+                    }
+                }
+            }
+
+            // Find rightmost insertion point
+            "bisect_right" | "bisect" => {
+                if arg_exprs.len() < 2 {
+                    bail!("bisect.{}() requires at least 2 arguments", method);
+                }
+                let a = &arg_exprs[0];
+                let x = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        let arr = #a;
+                        let val = &#x;
+                        match arr.binary_search(val) {
+                            Ok(mut pos) => {
+                                pos += 1;
+                                while pos < arr.len() && &arr[pos] == val {
+                                    pos += 1;
+                                }
+                                pos
+                            }
+                            Err(pos) => pos,
+                        }
+                    }
+                }
+            }
+
+            // Insert at leftmost position
+            "insort_left" => {
+                if arg_exprs.len() < 2 {
+                    bail!("bisect.insort_left() requires at least 2 arguments");
+                }
+                let a = &arg_exprs[0];
+                let x = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        let arr = &mut (#a);
+                        let val = #x;
+                        let pos = match arr.binary_search(&val) {
+                            Ok(mut pos) => {
+                                while pos > 0 && arr[pos - 1] == val {
+                                    pos -= 1;
+                                }
+                                pos
+                            }
+                            Err(pos) => pos,
+                        };
+                        arr.insert(pos, val);
+                    }
+                }
+            }
+
+            // Insert at rightmost position
+            "insort_right" | "insort" => {
+                if arg_exprs.len() < 2 {
+                    bail!("bisect.{}() requires at least 2 arguments", method);
+                }
+                let a = &arg_exprs[0];
+                let x = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        let arr = &mut (#a);
+                        let val = #x;
+                        let pos = match arr.binary_search(&val) {
+                            Ok(mut pos) => {
+                                pos += 1;
+                                while pos < arr.len() && arr[pos] == val {
+                                    pos += 1;
+                                }
+                                pos
+                            }
+                            Err(pos) => pos,
+                        };
+                        arr.insert(pos, val);
+                    }
+                }
+            }
+
+            _ => {
+                bail!("bisect.{} not implemented yet (available: bisect_left, bisect_right, insort_left, insort_right)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -4745,6 +4878,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-TEXTWRAP: Text wrapping and formatting
             if module_name == "textwrap" {
                 return self.try_convert_textwrap_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-BISECT: Binary search for sorted sequences
+            if module_name == "bisect" {
+                return self.try_convert_bisect_method(method, args);
             }
 
             let rust_name_opt = self
