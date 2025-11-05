@@ -4287,6 +4287,181 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert itertools module method calls
+    /// DEPYLER-STDLIB-ITERTOOLS: Iterator combinatorics and lazy evaluation
+    ///
+    /// Supports: count, cycle, repeat, chain, islice, takewhile
+    /// Maps to Rust's iterator adapters and std::iter methods
+    ///
+    /// # Complexity
+    /// Cyclomatic: 7 (match with 6 functions + default)
+    #[inline]
+    fn try_convert_itertools_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Infinite counter with optional step
+            "count" => {
+                let start = if !arg_exprs.is_empty() {
+                    &arg_exprs[0]
+                } else {
+                    &parse_quote!(0)
+                };
+                let step = if arg_exprs.len() >= 2 {
+                    &arg_exprs[1]
+                } else {
+                    &parse_quote!(1)
+                };
+
+                parse_quote! {
+                    {
+                        let start = #start;
+                        let step = #step;
+                        std::iter::successors(Some(start), move |&n| Some(n + step))
+                    }
+                }
+            }
+
+            // Cycle through iterable infinitely
+            "cycle" => {
+                if arg_exprs.is_empty() {
+                    bail!("itertools.cycle() requires at least 1 argument");
+                }
+                let iterable = &arg_exprs[0];
+
+                parse_quote! {
+                    {
+                        let items = #iterable;
+                        items.into_iter().cycle()
+                    }
+                }
+            }
+
+            // Repeat value n times (or infinitely if no count)
+            "repeat" => {
+                if arg_exprs.is_empty() {
+                    bail!("itertools.repeat() requires at least 1 argument");
+                }
+                let value = &arg_exprs[0];
+
+                if arg_exprs.len() >= 2 {
+                    let times = &arg_exprs[1];
+                    parse_quote! {
+                        {
+                            let val = #value;
+                            let n = #times as usize;
+                            std::iter::repeat(val).take(n)
+                        }
+                    }
+                } else {
+                    parse_quote! {
+                        {
+                            let val = #value;
+                            std::iter::repeat(val)
+                        }
+                    }
+                }
+            }
+
+            // Chain multiple iterables together
+            "chain" => {
+                if arg_exprs.len() < 2 {
+                    bail!("itertools.chain() requires at least 2 arguments");
+                }
+
+                // Chain first two, then fold the rest
+                let first = &arg_exprs[0];
+                let second = &arg_exprs[1];
+
+                if arg_exprs.len() == 2 {
+                    parse_quote! {
+                        {
+                            let a = #first;
+                            let b = #second;
+                            a.into_iter().chain(b.into_iter())
+                        }
+                    }
+                } else {
+                    // For more than 2, we need to chain them all
+                    let mut chain_expr: syn::Expr = parse_quote! {
+                        #first.into_iter().chain(#second.into_iter())
+                    };
+
+                    for item in &arg_exprs[2..] {
+                        chain_expr = parse_quote! {
+                            #chain_expr.chain(#item.into_iter())
+                        };
+                    }
+
+                    chain_expr
+                }
+            }
+
+            // Slice iterator with start, stop, step
+            "islice" => {
+                if arg_exprs.len() < 2 {
+                    bail!("itertools.islice() requires at least 2 arguments");
+                }
+                let iterable = &arg_exprs[0];
+
+                if arg_exprs.len() == 2 {
+                    // islice(iterable, stop)
+                    let stop = &arg_exprs[1];
+                    parse_quote! {
+                        {
+                            let items = #iterable;
+                            let n = #stop as usize;
+                            items.into_iter().take(n)
+                        }
+                    }
+                } else {
+                    // islice(iterable, start, stop)
+                    let start = &arg_exprs[1];
+                    let stop = &arg_exprs[2];
+                    parse_quote! {
+                        {
+                            let items = #iterable;
+                            let start_idx = #start as usize;
+                            let stop_idx = #stop as usize;
+                            items.into_iter().skip(start_idx).take(stop_idx - start_idx)
+                        }
+                    }
+                }
+            }
+
+            // Take while predicate is true
+            "takewhile" => {
+                if arg_exprs.len() < 2 {
+                    bail!("itertools.takewhile() requires at least 2 arguments");
+                }
+                let predicate = &arg_exprs[0];
+                let iterable = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        let pred = #predicate;
+                        let items = #iterable;
+                        items.into_iter().take_while(pred)
+                    }
+                }
+            }
+
+            _ => {
+                bail!("itertools.{} not implemented yet (available: count, cycle, repeat, chain, islice, takewhile)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -5127,6 +5302,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-COPY: Shallow and deep copy operations
             if module_name == "copy" {
                 return self.try_convert_copy_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-ITERTOOLS: Iterator combinatorics and lazy evaluation
+            if module_name == "itertools" {
+                return self.try_convert_itertools_method(method, args);
             }
 
             let rust_name_opt = self
