@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-ITERTOOLS-001: Infinite iterators
 #[test]
-#[ignore = "DEPYLER-STDLIB-ITERTOOLS: Not implemented yet - RED phase"]
 fn test_count() {
     let python = r#"
 import itertools
@@ -22,7 +21,6 @@ def get_counter(start: int, step: int) -> itertools.count:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-ITERTOOLS: Not implemented yet - RED phase"]
 fn test_cycle() {
     let python = r#"
 import itertools
@@ -38,7 +36,6 @@ def cycle_items(items: list) -> itertools.cycle:
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-ITERTOOLS: Not implemented yet - RED phase"]
 fn test_repeat() {
     let python = r#"
 import itertools
@@ -50,12 +47,11 @@ def repeat_value(value: int, times: int) -> itertools.repeat:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should create repeating iterator
-    assert!(result.contains("repeat") || result.contains("iter") || result.contains("take"));
+    assert!(result.contains("repeat") && result.contains("take"));
 }
 
 // DEPYLER-STDLIB-ITERTOOLS-002: Terminating iterators
 #[test]
-#[ignore = "DEPYLER-STDLIB-ITERTOOLS: Not implemented yet - RED phase"]
 fn test_chain() {
     let python = r#"
 import itertools
@@ -67,11 +63,10 @@ def chain_iterables(a: list, b: list) -> itertools.chain:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should chain multiple iterables
-    assert!(result.contains("chain") || result.contains("iter") || result.contains("extend"));
+    assert!(result.contains("chain") && result.contains("into_iter"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-ITERTOOLS: Not implemented yet - RED phase"]
 fn test_islice() {
     let python = r#"
 import itertools
@@ -83,11 +78,10 @@ def slice_iter(items: list, start: int, stop: int) -> itertools.islice:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should slice iterator
-    assert!(result.contains("skip") || result.contains("take") || result.contains("iter"));
+    assert!(result.contains("skip") && result.contains("take"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-ITERTOOLS: Not implemented yet - RED phase"]
 fn test_takewhile() {
     let python = r#"
 import itertools
@@ -99,7 +93,7 @@ def take_while_positive(items: list) -> itertools.takewhile:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should take while condition is true
-    assert!(result.contains("take_while") || result.contains("iter"));
+    assert!(result.contains("take_while"));
 }
 
 // Total: 6 comprehensive tests for itertools module
