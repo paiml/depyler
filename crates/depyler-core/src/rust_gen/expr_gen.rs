@@ -1653,12 +1653,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let result = match method {
             // String serialization/deserialization
             "dumps" => {
-                if arg_exprs.len() != 1 {
-                    bail!("json.dumps() requires exactly 1 argument");
+                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+                    bail!("json.dumps() requires 1 or 2 arguments");
                 }
                 let obj = &arg_exprs[0];
-                // json.dumps(obj) → serde_json::to_string(&obj).unwrap()
-                parse_quote! { serde_json::to_string(&#obj).unwrap() }
+
+                // Check if indent parameter is provided (keyword args handled in HIR)
+                if args.len() >= 2 {
+                    // json.dumps(obj, indent=n) → serde_json::to_string_pretty(&obj).unwrap()
+                    parse_quote! { serde_json::to_string_pretty(&#obj).unwrap() }
+                } else {
+                    // json.dumps(obj) → serde_json::to_string(&obj).unwrap()
+                    parse_quote! { serde_json::to_string(&#obj).unwrap() }
+                }
             }
 
             "loads" => {
