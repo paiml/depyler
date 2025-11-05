@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-FNMATCH-001: Pattern matching
 #[test]
-#[ignore = "DEPYLER-STDLIB-FNMATCH: Not implemented yet - RED phase"]
 fn test_fnmatch() {
     let python = r#"
 import fnmatch
@@ -17,12 +16,12 @@ def match_pattern(filename: str, pattern: str) -> bool:
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should match filename against Unix shell-style pattern
-    assert!(result.contains("fnmatch") || result.contains("glob"));
+    // Should match filename against Unix shell-style pattern using regex
+    assert!(result.contains("regex") || result.contains("Regex"));
+    assert!(result.contains("is_match"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-FNMATCH: Not implemented yet - RED phase"]
 fn test_fnmatchcase() {
     let python = r#"
 import fnmatch
@@ -33,13 +32,13 @@ def match_case_sensitive(filename: str, pattern: str) -> bool:
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should match case-sensitively
-    assert!(result.contains("fnmatch") || result.contains("case"));
+    // Should match case-sensitively using regex
+    assert!(result.contains("regex") || result.contains("Regex"));
+    assert!(result.contains("is_match"));
 }
 
 // DEPYLER-STDLIB-FNMATCH-002: Filtering
 #[test]
-#[ignore = "DEPYLER-STDLIB-FNMATCH: Not implemented yet - RED phase"]
 fn test_filter() {
     let python = r#"
 import fnmatch
@@ -50,13 +49,13 @@ def filter_files(names: list, pattern: str) -> list:
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should filter list by pattern
-    assert!(result.contains("filter") || result.contains("iter"));
+    // Should filter list by pattern using regex
+    assert!(result.contains("filter"));
+    assert!(result.contains("regex") || result.contains("Regex"));
 }
 
 // DEPYLER-STDLIB-FNMATCH-003: Pattern translation
 #[test]
-#[ignore = "DEPYLER-STDLIB-FNMATCH: Not implemented yet - RED phase"]
 fn test_translate() {
     let python = r#"
 import fnmatch
@@ -67,8 +66,8 @@ def translate_pattern(pattern: str) -> str:
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should translate shell pattern to regex
-    assert!(result.contains("translate") || result.contains("regex"));
+    // Should translate shell pattern to regex string
+    assert!(result.contains("format") || result.contains("replace"));
 }
 
 // Total: 4 comprehensive tests for fnmatch module
