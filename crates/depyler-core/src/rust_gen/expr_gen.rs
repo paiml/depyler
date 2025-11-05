@@ -3590,6 +3590,142 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert shlex module method calls
+    /// DEPYLER-STDLIB-SHLEX: Shell command line lexing
+    ///
+    /// Supports: split, quote, join
+    /// Security-critical: prevents shell injection
+    ///
+    /// # Complexity
+    /// Cyclomatic: 4 (match with 3 functions + default)
+    #[inline]
+    fn try_convert_shlex_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Shell-like split (respects quotes and escapes)
+            "split" => {
+                if arg_exprs.len() != 1 {
+                    bail!("shlex.split() requires exactly 1 argument");
+                }
+                let s = &arg_exprs[0];
+
+                // Simplified shell split (handles basic quotes)
+                // TODO: Use shell-words crate for full POSIX compliance
+                parse_quote! {
+                    {
+                        let input = #s;
+                        let mut result = Vec::new();
+                        let mut current = String::new();
+                        let mut in_single_quote = false;
+                        let mut in_double_quote = false;
+                        let mut escaped = false;
+
+                        for c in input.chars() {
+                            if escaped {
+                                current.push(c);
+                                escaped = false;
+                            } else if c == '\\' && !in_single_quote {
+                                escaped = true;
+                            } else if c == '\'' && !in_double_quote {
+                                in_single_quote = !in_single_quote;
+                            } else if c == '"' && !in_single_quote {
+                                in_double_quote = !in_double_quote;
+                            } else if c.is_whitespace() && !in_single_quote && !in_double_quote {
+                                if !current.is_empty() {
+                                    result.push(current.clone());
+                                    current.clear();
+                                }
+                            } else {
+                                current.push(c);
+                            }
+                        }
+
+                        if !current.is_empty() {
+                            result.push(current);
+                        }
+
+                        result
+                    }
+                }
+            }
+
+            // Shell-safe quoting
+            "quote" => {
+                if arg_exprs.len() != 1 {
+                    bail!("shlex.quote() requires exactly 1 argument");
+                }
+                let s = &arg_exprs[0];
+
+                // Quote string for safe shell usage
+                parse_quote! {
+                    {
+                        let input = #s;
+                        // Check if needs quoting
+                        let needs_quoting = input.chars().any(|c| {
+                            matches!(c, ' ' | '\t' | '\n' | '\'' | '"' | '\\' | '|' | '&' | ';' |
+                                     '(' | ')' | '<' | '>' | '`' | '$' | '*' | '?' | '[' | ']' |
+                                     '{' | '}' | '!' | '#' | '~')
+                        });
+
+                        if needs_quoting || input.is_empty() {
+                            // Use single quotes and escape any single quotes
+                            format!("'{}'", input.replace("'", "'\"'\"'"))
+                        } else {
+                            input.to_string()
+                        }
+                    }
+                }
+            }
+
+            // Join list with shell-safe quoting
+            "join" => {
+                if arg_exprs.len() != 1 {
+                    bail!("shlex.join() requires exactly 1 argument");
+                }
+                let args_list = &arg_exprs[0];
+
+                // Join args with proper quoting
+                parse_quote! {
+                    {
+                        let args = #args_list;
+                        args.iter()
+                            .map(|arg| {
+                                let s = arg.to_string();
+                                let needs_quoting = s.chars().any(|c| {
+                                    matches!(c, ' ' | '\t' | '\n' | '\'' | '"' | '\\' | '|' | '&' | ';' |
+                                             '(' | ')' | '<' | '>' | '`' | '$' | '*' | '?' | '[' | ']' |
+                                             '{' | '}' | '!' | '#' | '~')
+                                });
+
+                                if needs_quoting || s.is_empty() {
+                                    format!("'{}'", s.replace("'", "'\"'\"'"))
+                                } else {
+                                    s
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    }
+                }
+            }
+
+            _ => {
+                bail!("shlex.{} not implemented yet (available: split, quote, join)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -4405,6 +4541,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-FNMATCH: Unix shell-style pattern matching
             if module_name == "fnmatch" {
                 return self.try_convert_fnmatch_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-SHLEX: Shell command line lexing
+            if module_name == "shlex" {
+                return self.try_convert_shlex_method(method, args);
             }
 
             let rust_name_opt = self

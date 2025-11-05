@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-SHLEX-001: Shell splitting
 #[test]
-#[ignore = "DEPYLER-STDLIB-SHLEX: Not implemented yet - RED phase"]
 fn test_split() {
     let python = r#"
 import shlex
@@ -17,13 +16,13 @@ def split_shell(s: str) -> list:
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should split string like shell does
-    assert!(result.contains("split") || result.contains("parse"));
+    // Should split string like shell does (respects quotes)
+    assert!(result.contains("in_single_quote") || result.contains("in_double_quote"));
+    assert!(result.contains("escaped"));
 }
 
 // DEPYLER-STDLIB-SHLEX-002: Shell quoting
 #[test]
-#[ignore = "DEPYLER-STDLIB-SHLEX: Not implemented yet - RED phase"]
 fn test_quote() {
     let python = r#"
 import shlex
@@ -35,12 +34,12 @@ def quote_shell(s: str) -> str:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should quote string for safe shell usage
-    assert!(result.contains("quote") || result.contains("escape"));
+    assert!(result.contains("needs_quoting"));
+    assert!(result.contains("format"));
 }
 
 // DEPYLER-STDLIB-SHLEX-003: Shell joining
 #[test]
-#[ignore = "DEPYLER-STDLIB-SHLEX: Not implemented yet - RED phase"]
 fn test_join() {
     let python = r#"
 import shlex
@@ -52,7 +51,8 @@ def join_shell(args: list) -> str:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should join list with proper shell escaping
-    assert!(result.contains("join") || result.contains("quote"));
+    assert!(result.contains("needs_quoting"));
+    assert!(result.contains("join"));
 }
 
 // Total: 3 comprehensive tests for shlex module
