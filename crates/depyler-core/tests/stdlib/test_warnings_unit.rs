@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-WARNINGS-001: Warning emission
 #[test]
-#[ignore = "DEPYLER-STDLIB-WARNINGS: Not implemented yet - RED phase"]
 fn test_warn() {
     let python = r#"
 import warnings
@@ -18,7 +17,7 @@ def emit_warning(message: str) -> None:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should emit warning
-    assert!(result.contains("warn") || result.contains("eprintln"));
+    assert!(result.contains("eprintln"));
 }
 
 // Total: 1 test for warnings module
