@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-TEXTWRAP-001: Text wrapping
 #[test]
-#[ignore = "DEPYLER-STDLIB-TEXTWRAP: Not implemented yet - RED phase"]
 fn test_wrap() {
     let python = r#"
 import textwrap
@@ -18,11 +17,10 @@ def wrap_text(text: str, width: int) -> list:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should wrap text into list of lines
-    assert!(result.contains("wrap") || result.contains("split"));
+    assert!(result.contains("current_line") || result.contains("split_whitespace"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-TEXTWRAP: Not implemented yet - RED phase"]
 fn test_fill() {
     let python = r#"
 import textwrap
@@ -34,12 +32,12 @@ def fill_text(text: str, width: int) -> str:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should wrap and join into single string
-    assert!(result.contains("fill") || result.contains("join"));
+    assert!(result.contains("join"));
+    assert!(result.contains("current_line"));
 }
 
 // DEPYLER-STDLIB-TEXTWRAP-002: Indentation
 #[test]
-#[ignore = "DEPYLER-STDLIB-TEXTWRAP: Not implemented yet - RED phase"]
 fn test_dedent() {
     let python = r#"
 import textwrap
@@ -51,11 +49,11 @@ def remove_indent(text: str) -> str:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should remove common leading whitespace
-    assert!(result.contains("dedent") || result.contains("trim"));
+    assert!(result.contains("min_indent"));
+    assert!(result.contains("is_whitespace"));
 }
 
 #[test]
-#[ignore = "DEPYLER-STDLIB-TEXTWRAP: Not implemented yet - RED phase"]
 fn test_indent() {
     let python = r#"
 import textwrap
@@ -67,12 +65,12 @@ def add_indent(text: str, prefix: str) -> str:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should add prefix to each line
-    assert!(result.contains("indent") || result.contains("prefix"));
+    assert!(result.contains("prefix"));
+    assert!(result.contains("lines"));
 }
 
 // DEPYLER-STDLIB-TEXTWRAP-003: Text shortening
 #[test]
-#[ignore = "DEPYLER-STDLIB-TEXTWRAP: Not implemented yet - RED phase"]
 fn test_shorten() {
     let python = r#"
 import textwrap
@@ -83,8 +81,9 @@ def shorten_text(text: str, width: int) -> str:
 
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
-    // Should shorten text with ellipsis
-    assert!(result.contains("shorten") || result.contains("..."));
+    // Should shorten text with ellipsis placeholder
+    assert!(result.contains("placeholder"));
+    assert!(result.contains("[...]"));
 }
 
 // Total: 5 comprehensive tests for textwrap module
