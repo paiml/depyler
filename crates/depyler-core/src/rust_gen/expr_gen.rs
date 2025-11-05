@@ -4462,6 +4462,67 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert functools module method calls
+    /// DEPYLER-STDLIB-FUNCTOOLS: Higher-order functions
+    ///
+    /// Supports: reduce
+    /// Maps to Rust's Iterator::fold() method
+    ///
+    /// # Complexity
+    /// Cyclomatic: 2 (match with 1 function + default)
+    #[inline]
+    fn try_convert_functools_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Reduce/fold operation
+            "reduce" => {
+                if arg_exprs.len() < 2 {
+                    bail!("functools.reduce() requires at least 2 arguments");
+                }
+                let function = &arg_exprs[0];
+                let iterable = &arg_exprs[1];
+
+                if arg_exprs.len() >= 3 {
+                    // With initial value
+                    let initial = &arg_exprs[2];
+                    parse_quote! {
+                        {
+                            let func = #function;
+                            let items = #iterable;
+                            let init = #initial;
+                            items.into_iter().fold(init, func)
+                        }
+                    }
+                } else {
+                    // Without initial value - use first element
+                    parse_quote! {
+                        {
+                            let func = #function;
+                            let mut items = (#iterable).into_iter();
+                            let init = items.next().expect("reduce() of empty sequence with no initial value");
+                            items.fold(init, func)
+                        }
+                    }
+                }
+            }
+
+            _ => {
+                bail!("functools.{} not implemented yet (available: reduce)", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
@@ -5307,6 +5368,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-ITERTOOLS: Iterator combinatorics and lazy evaluation
             if module_name == "itertools" {
                 return self.try_convert_itertools_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-FUNCTOOLS: Higher-order functions
+            if module_name == "functools" {
+                return self.try_convert_functools_method(method, args);
             }
 
             let rust_name_opt = self

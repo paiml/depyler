@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-FUNCTOOLS-001: Reduce
 #[test]
-#[ignore = "DEPYLER-STDLIB-FUNCTOOLS: Not implemented yet - RED phase"]
 fn test_reduce() {
     let python = r#"
 import functools
@@ -18,7 +17,7 @@ def sum_all(numbers: list) -> int:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should reduce/fold over iterable
-    assert!(result.contains("fold") || result.contains("reduce") || result.contains("iter"));
+    assert!(result.contains("fold"));
 }
 
 // DEPYLER-STDLIB-FUNCTOOLS-002: Partial application
