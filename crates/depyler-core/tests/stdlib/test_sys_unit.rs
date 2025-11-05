@@ -6,7 +6,6 @@ use depyler_core::transpile_python_to_rust;
 
 // DEPYLER-STDLIB-SYS-001: Program termination
 #[test]
-#[ignore = "DEPYLER-STDLIB-SYS: Not implemented yet - RED phase"]
 fn test_exit() {
     let python = r#"
 import sys
@@ -18,7 +17,7 @@ def terminate(code: int) -> None:
     let result = transpile_python_to_rust(python).expect("Transpilation failed");
 
     // Should exit with code
-    assert!(result.contains("exit") || result.contains("process::exit"));
+    assert!(result.contains("process::exit"));
 }
 
 // DEPYLER-STDLIB-SYS-002: Standard streams
