@@ -790,6 +790,58 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(result);
         }
 
+        // DEPYLER-STDLIB-FRACTIONS: Handle Fraction() constructor
+        // Fraction(numerator, denominator) → Ratio::new(num, denom)
+        // Fraction("1/2") → Ratio::from_str("1/2") (simplified - needs parsing)
+        // Fraction(3.14) → Ratio::approximate_float(3.14)
+        if func == "Fraction" {
+            self.ctx.needs_num_rational = true;
+
+            if args.len() == 1 {
+                let arg = &args[0];
+                // Determine type and convert appropriately
+                let result = match arg {
+                    HirExpr::Literal(Literal::String(_)) => {
+                        let arg_expr = arg.to_rust_expr(self.ctx)?;
+                        // Parse "numerator/denominator" format
+                        parse_quote! {
+                            {
+                                let s = #arg_expr;
+                                let parts: Vec<&str> = s.split('/').collect();
+                                if parts.len() == 2 {
+                                    let num = parts[0].trim().parse::<i32>().unwrap();
+                                    let denom = parts[1].trim().parse::<i32>().unwrap();
+                                    num::rational::Ratio::new(num, denom)
+                                } else {
+                                    let num = s.parse::<i32>().unwrap();
+                                    num::rational::Ratio::from_integer(num)
+                                }
+                            }
+                        }
+                    }
+                    HirExpr::Literal(Literal::Int(_)) => {
+                        let arg_expr = arg.to_rust_expr(self.ctx)?;
+                        parse_quote! { num::rational::Ratio::from_integer(#arg_expr) }
+                    }
+                    HirExpr::Literal(Literal::Float(_)) => {
+                        let arg_expr = arg.to_rust_expr(self.ctx)?;
+                        parse_quote! { num::rational::Ratio::approximate_float(#arg_expr).unwrap() }
+                    }
+                    _ => {
+                        let arg_expr = arg.to_rust_expr(self.ctx)?;
+                        parse_quote! { num::rational::Ratio::approximate_float(#arg_expr as f64).unwrap() }
+                    }
+                };
+                return Ok(result);
+            } else if args.len() == 2 {
+                // Fraction(numerator, denominator)
+                let num_expr = args[0].to_rust_expr(self.ctx)?;
+                let denom_expr = args[1].to_rust_expr(self.ctx)?;
+                return Ok(parse_quote! { num::rational::Ratio::new(#num_expr, #denom_expr) });
+            }
+            bail!("Fraction() requires 1 or 2 arguments");
+        }
+
         // DEPYLER-STDLIB-PATHLIB: Handle Path() constructor
         // Path("/foo/bar") → PathBuf::from("/foo/bar")
         // Path(p) / "subdir" → p.join("subdir")
@@ -5260,6 +5312,60 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert fractions module method calls
+    /// DEPYLER-STDLIB-FRACTIONS: Comprehensive fractions module support
+    #[inline]
+    fn try_convert_fractions_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Mark that we need the num-rational crate
+        self.ctx.needs_num_rational = true;
+
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Fraction methods
+            "limit_denominator" => {
+                if arg_exprs.len() != 2 {
+                    bail!("Fraction.limit_denominator() requires exactly 2 arguments (self, max_denominator)");
+                }
+                let frac = &arg_exprs[0];
+                let max_denom = &arg_exprs[1];
+                // Simplified: if denominator within limit, return as-is
+                parse_quote! {
+                    {
+                        let f = #frac;
+                        let max_d = #max_denom as i32;
+                        if *f.denom() <= max_d {
+                            f
+                        } else {
+                            // Approximate by converting to float and back
+                            num::rational::Ratio::approximate_float(f.to_f64().unwrap()).unwrap_or(f)
+                        }
+                    }
+                }
+            }
+
+            "as_integer_ratio" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Fraction.as_integer_ratio() requires exactly 1 argument (self)");
+                }
+                let frac = &arg_exprs[0];
+                parse_quote! { (*#frac.numer(), *#frac.denom()) }
+            }
+
+            _ => return Ok(None), // Not a recognized fractions method
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert pathlib module method calls
     /// DEPYLER-STDLIB-PATHLIB: Comprehensive pathlib module support
     #[inline]
@@ -6721,6 +6827,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // statistics.median(data) → sorted median calculation
             if module_name == "statistics" {
                 return self.try_convert_statistics_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-FRACTIONS: Handle fractions module functions
+            // Fraction(1, 2) → Ratio::new(1, 2)
+            // f.limit_denominator(100) → approximate with max denominator
+            if module_name == "fractions" {
+                return self.try_convert_fractions_method(method, args);
             }
 
             // DEPYLER-STDLIB-PATHLIB: Handle pathlib module functions
@@ -9037,9 +9150,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-STDLIB-DATETIME: Handle datetime/date/time/timedelta properties
         // In chrono, properties are accessed as methods: dt.year → dt.year()
-        // This handles properties for pathlib, datetime, date, time, and timedelta instances
+        // This handles properties for fractions, pathlib, datetime, date, time, and timedelta instances
         let value_expr = value.to_rust_expr(self.ctx)?;
         match attr {
+            // DEPYLER-STDLIB-FRACTIONS: Fraction properties
+            "numerator" => {
+                // f.numerator → *f.numer()
+                return Ok(parse_quote! { *#value_expr.numer() });
+            }
+
+            "denominator" => {
+                // f.denominator → *f.denom()
+                return Ok(parse_quote! { *#value_expr.denom() });
+            }
+
             // DEPYLER-STDLIB-PATHLIB: Path properties
             "name" => {
                 // p.name → p.file_name().unwrap().to_str().unwrap().to_string()
