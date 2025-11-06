@@ -882,6 +882,7 @@ mod tests {
         use crate::hir::Literal;
 
         let mut ctx = create_test_context();
+        ctx.current_function_can_fail = true; // Function returns Result, so raise becomes return Err
         let exc = Some(HirExpr::Literal(Literal::String("Error".to_string())));
 
         let result = codegen_raise_stmt(&exc, &mut ctx).unwrap();
@@ -894,6 +895,7 @@ mod tests {
     #[test]
     fn test_codegen_raise_stmt_bare() {
         let mut ctx = create_test_context();
+        ctx.current_function_can_fail = true; // Function returns Result, so raise becomes return Err
 
         let result = codegen_raise_stmt(&None, &mut ctx).unwrap();
         assert_eq!(
