@@ -58,6 +58,7 @@ pub struct CodeGenContext<'a> {
     pub needs_chrono: bool,
     pub needs_csv: bool,
     pub needs_rust_decimal: bool,
+    pub needs_num_rational: bool,
     pub needs_base64: bool,
     pub needs_md5: bool,
     pub needs_sha2: bool,
