@@ -4,6 +4,88 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📋 DEPYLER-0281-0287: Translation Refinement Multi-Pass Architecture Specification (2025-11-06)
+
+**Impact**: Roadmap planning, future v4.0.0 features
+**Focus**: Research-driven architecture for idiomatic code generation
+**Source**: ACM CACM "Automatically Translating C to Rust" (Hong & Ryu, 2025)
+
+**Created Documents**:
+- `docs/specifications/translation-ideas-spec.md` (~1,000 lines)
+- Roadmap entries for DEPYLER-0281 through DEPYLER-0287
+
+**Key Insights from C-to-Rust Research**:
+1. **Multi-pass refinement**: Transform basic code → idiomatic code incrementally
+2. **Static analysis required**: Extract information implicit in source language
+3. **Composable passes**: Each pass targets specific unsafe feature or unidiomatic pattern
+4. **Hybrid approach**: Combine static analysis with LLM assistance
+
+**7-Phase Implementation Plan**:
+
+| Ticket | Phase | Focus | Hours | Priority |
+|--------|-------|-------|-------|----------|
+| DEPYLER-0281 | Infrastructure | RefinementPass trait, pass scheduler | 16-20 | P1 |
+| DEPYLER-0282 | Analysis | Dataflow, control flow, type flow | 24-30 | P1 |
+| DEPYLER-0283 | Output Params | list[T] params → Option<T>/tuple | 16-20 | P1 |
+| DEPYLER-0284 | Iterators | range(len(x)) → .iter() chains | 24-30 | P1 |
+| DEPYLER-0285 | RAII | Manual close() → Drop trait | 16-20 | P2 |
+| DEPYLER-0286 | Exceptions | Nested match → ? operator | 24-30 | P1 |
+| DEPYLER-0287 | LLM | Hybrid static+LLM translation | 32-40 | P2 |
+
+**Total Estimate**: 152-190 hours across v4.0.0 development cycle
+
+**Five Priority Translation Patterns**:
+
+1. **Output Parameters → Direct Returns**
+   - Current: `fn divide(a, b, result: &mut Vec<i32>) -> bool`
+   - Target: `fn divide(a: i32, b: i32) -> Option<i32>`
+   - Impact: ~15% of functions
+
+2. **Index Loops → Iterators**
+   - Current: `for i in 0..items.len() { process(items[i]); }`
+   - Target: `for item in items.iter() { process(item); }`
+   - Impact: ~30% of loops
+
+3. **Manual Cleanup → RAII**
+   - Current: `let f = File::open(path)?; ...; drop(f);`
+   - Target: `let f = File::open(path)?; // auto-drop`
+   - Impact: ~10% of functions
+
+4. **Exception Handling → Result/?**
+   - Current: Nested `match` statements
+   - Target: Flat `?` operator chains
+   - Impact: ~20% use manual `unwrap()`
+
+5. **List Comprehensions → Iterator Chains**
+   - Current: Loop + push
+   - Target: `.filter().map().collect()`
+   - Impact: All comprehensions
+
+**Quality Targets for v4.0.0**:
+
+| Metric | Baseline (v3.19.x) | Target (v4.0.0) |
+|--------|-------------------|-----------------|
+| Clippy warnings | ~10 per 1000 LOC | 0 per 1000 LOC |
+| Index-based loops | ~30% | <5% |
+| Output parameters | ~15% | 0% |
+| Manual unwrap() | ~20% | <5% |
+
+**Related Work**:
+- Hong & Ryu (ACM CACM 2025): C-to-Rust translation techniques
+- Emre et al. (OOPSLA 2021): Translating C to safer Rust
+- Hong & Ryu (PLDI 2024): Output parameter elimination
+- Zhang et al. (CAV 2023): Ownership-guided translation
+
+**Next Steps**:
+1. Team review of specification document
+2. Prioritize Phase 1 (DEPYLER-0281) for v4.0.0-alpha
+3. Begin RefinementPass trait design
+4. Establish benchmarks for measuring improvements
+
+**Value**: Provides research-backed roadmap for generating idiomatic Rust code that developers will want to maintain, not just code that compiles. Combines academic rigor with practical engineering.
+
+---
+
 ### 🔧 DEPYLER-TBD: Fix Overly-Strict Map Test Assertion ✅ (2025-10-31)
 
 **Impact**: Test suite: 675 → 676 passing (+1 fixed test)
