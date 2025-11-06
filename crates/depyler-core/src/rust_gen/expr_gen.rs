@@ -758,6 +758,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #value_expr != 0 });
         }
 
+        // DEPYLER-STDLIB-DECIMAL: Handle Decimal() constructor
+        // Decimal("123.45") → Decimal::from_str("123.45").unwrap()
+        // Decimal(123) → Decimal::from(123)
+        // Decimal(3.14) → Decimal::from_f64_retain(3.14).unwrap()
+        if func == "Decimal" && args.len() == 1 {
+            self.ctx.needs_rust_decimal = true;
+            let arg = &args[0];
+
+            // Determine the conversion based on argument type
+            let result = match arg {
+                HirExpr::Literal(Literal::String(_)) => {
+                    let arg_expr = arg.to_rust_expr(self.ctx)?;
+                    parse_quote! { rust_decimal::Decimal::from_str(&#arg_expr).unwrap() }
+                }
+                HirExpr::Literal(Literal::Int(_)) => {
+                    let arg_expr = arg.to_rust_expr(self.ctx)?;
+                    parse_quote! { rust_decimal::Decimal::from(#arg_expr) }
+                }
+                HirExpr::Literal(Literal::Float(_)) => {
+                    let arg_expr = arg.to_rust_expr(self.ctx)?;
+                    parse_quote! { rust_decimal::Decimal::from_f64_retain(#arg_expr).unwrap() }
+                }
+                _ => {
+                    // Generic case: try from_str for variables
+                    let arg_expr = arg.to_rust_expr(self.ctx)?;
+                    parse_quote! { rust_decimal::Decimal::from_str(&(#arg_expr).to_string()).unwrap() }
+                }
+            };
+
+            return Ok(result);
+        }
+
         // Handle enumerate(items) → items.into_iter().enumerate()
         if func == "enumerate" && args.len() == 1 {
             let items_expr = args[0].to_rust_expr(self.ctx)?;
@@ -5137,6 +5169,158 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
+    fn try_convert_decimal_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Mark that we need the rust_decimal crate
+        self.ctx.needs_rust_decimal = true;
+
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Mathematical operations
+            "sqrt" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.sqrt() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { #arg.sqrt().unwrap() }
+            }
+
+            "exp" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.exp() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { #arg.exp() }
+            }
+
+            "ln" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.ln() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { #arg.ln() }
+            }
+
+            "log10" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.log10() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { #arg.log10() }
+            }
+
+            // Rounding and quantization
+            "quantize" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.quantize() requires exactly 1 argument");
+                }
+                let value = &arg_exprs[0];
+                // quantize(Decimal("0.01")) → round to 2 decimal places
+                // For now, we'll use round_dp(2) as a simple approximation
+                // TODO: More sophisticated quantization based on quantum value
+                parse_quote! { #value.round_dp(2) }
+            }
+
+            "to_integral" | "to_integral_value" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.to_integral() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { #arg.trunc() }
+            }
+
+            // Predicates
+            "is_nan" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.is_nan() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                // rust_decimal doesn't have NaN, always returns false
+                parse_quote! { false }
+            }
+
+            "is_infinite" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.is_infinite() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                // rust_decimal doesn't have infinity, always returns false
+                parse_quote! { false }
+            }
+
+            "is_finite" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.is_finite() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                // rust_decimal doesn't have infinity/NaN, always returns true
+                parse_quote! { true }
+            }
+
+            "is_signed" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.is_signed() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { #arg.is_sign_negative() }
+            }
+
+            "is_zero" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.is_zero() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { #arg.is_zero() }
+            }
+
+            // Sign operations
+            "copy_sign" | "copysign" => {
+                if arg_exprs.len() != 2 {
+                    bail!("Decimal.copy_sign() requires exactly 2 arguments");
+                }
+                let value = &arg_exprs[0];
+                let other = &arg_exprs[1];
+                // Copy sign: if other is negative, return -abs(value), else abs(value)
+                parse_quote! {
+                    if #other.is_sign_negative() {
+                        -#value.abs()
+                    } else {
+                        #value.abs()
+                    }
+                }
+            }
+
+            // Comparison
+            "compare" => {
+                if arg_exprs.len() != 2 {
+                    bail!("Decimal.compare() requires exactly 2 arguments");
+                }
+                let a = &arg_exprs[0];
+                let b = &arg_exprs[1];
+                // compare() returns -1, 0, or 1
+                parse_quote! {
+                    match #a.cmp(&#b) {
+                        std::cmp::Ordering::Less => -1,
+                        std::cmp::Ordering::Equal => 0,
+                        std::cmp::Ordering::Greater => 1,
+                    }
+                }
+            }
+
+            _ => return Ok(None), // Not a recognized decimal method
+        };
+
+        Ok(Some(result))
+    }
+
     fn try_convert_statistics_method(
         &mut self,
         method: &str,
@@ -6101,6 +6285,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // statistics.median(data) → sorted median calculation
             if module_name == "statistics" {
                 return self.try_convert_statistics_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-DECIMAL: Handle decimal module functions
+            // decimal.Decimal("123.45") → Decimal::from_str("123.45")
+            // Note: Decimal() constructor is handled separately in convert_call
+            if module_name == "decimal" {
+                return self.try_convert_decimal_method(method, args);
             }
 
             // DEPYLER-STDLIB-JSON: Handle json module functions
