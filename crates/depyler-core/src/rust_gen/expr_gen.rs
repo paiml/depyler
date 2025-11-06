@@ -758,6 +758,132 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #value_expr != 0 });
         }
 
+        // DEPYLER-STDLIB-DECIMAL: Handle Decimal() constructor
+        // Decimal("123.45") → Decimal::from_str("123.45").unwrap()
+        // Decimal(123) → Decimal::from(123)
+        // Decimal(3.14) → Decimal::from_f64_retain(3.14).unwrap()
+        if func == "Decimal" && args.len() == 1 {
+            self.ctx.needs_rust_decimal = true;
+            let arg = &args[0];
+
+            // Determine the conversion based on argument type
+            let result = match arg {
+                HirExpr::Literal(Literal::String(_)) => {
+                    let arg_expr = arg.to_rust_expr(self.ctx)?;
+                    parse_quote! { rust_decimal::Decimal::from_str(&#arg_expr).unwrap() }
+                }
+                HirExpr::Literal(Literal::Int(_)) => {
+                    let arg_expr = arg.to_rust_expr(self.ctx)?;
+                    parse_quote! { rust_decimal::Decimal::from(#arg_expr) }
+                }
+                HirExpr::Literal(Literal::Float(_)) => {
+                    let arg_expr = arg.to_rust_expr(self.ctx)?;
+                    parse_quote! { rust_decimal::Decimal::from_f64_retain(#arg_expr).unwrap() }
+                }
+                _ => {
+                    // Generic case: try from_str for variables
+                    let arg_expr = arg.to_rust_expr(self.ctx)?;
+                    parse_quote! { rust_decimal::Decimal::from_str(&(#arg_expr).to_string()).unwrap() }
+                }
+            };
+
+            return Ok(result);
+        }
+
+        // DEPYLER-STDLIB-PATHLIB: Handle Path() constructor
+        // Path("/foo/bar") → PathBuf::from("/foo/bar")
+        // Path(p) / "subdir" → p.join("subdir")
+        if func == "Path" && args.len() == 1 {
+            let path_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { std::path::PathBuf::from(#path_expr) });
+        }
+
+        // DEPYLER-STDLIB-DATETIME: Handle datetime constructors
+        // datetime(year, month, day) → NaiveDate::from_ymd_opt(y, m, d).unwrap().and_hms_opt(0, 0, 0).unwrap()
+        // datetime(year, month, day, hour, minute, second) → NaiveDate::from_ymd_opt(...).and_hms_opt(...)
+        if func == "datetime" {
+            self.ctx.needs_chrono = true;
+
+            if args.len() >= 3 {
+                let year = args[0].to_rust_expr(self.ctx)?;
+                let month = args[1].to_rust_expr(self.ctx)?;
+                let day = args[2].to_rust_expr(self.ctx)?;
+
+                if args.len() == 3 {
+                    // datetime(year, month, day) - default time to 00:00:00
+                    return Ok(parse_quote! {
+                        chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
+                            .unwrap()
+                            .and_hms_opt(0, 0, 0)
+                            .unwrap()
+                    });
+                } else if args.len() >= 6 {
+                    // datetime(year, month, day, hour, minute, second)
+                    let hour = args[3].to_rust_expr(self.ctx)?;
+                    let minute = args[4].to_rust_expr(self.ctx)?;
+                    let second = args[5].to_rust_expr(self.ctx)?;
+                    return Ok(parse_quote! {
+                        chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
+                            .unwrap()
+                            .and_hms_opt(#hour as u32, #minute as u32, #second as u32)
+                            .unwrap()
+                    });
+                }
+            }
+            bail!("datetime() requires at least 3 arguments (year, month, day)");
+        }
+
+        // date(year, month, day) → NaiveDate::from_ymd_opt(y, m, d).unwrap()
+        if func == "date" && args.len() == 3 {
+            self.ctx.needs_chrono = true;
+            let year = args[0].to_rust_expr(self.ctx)?;
+            let month = args[1].to_rust_expr(self.ctx)?;
+            let day = args[2].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! {
+                chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).unwrap()
+            });
+        }
+
+        // time(hour, minute, second) → NaiveTime::from_hms_opt(h, m, s).unwrap()
+        if func == "time" && args.len() >= 2 {
+            self.ctx.needs_chrono = true;
+            let hour = args[0].to_rust_expr(self.ctx)?;
+            let minute = args[1].to_rust_expr(self.ctx)?;
+
+            if args.len() == 2 {
+                return Ok(parse_quote! {
+                    chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, 0).unwrap()
+                });
+            } else if args.len() >= 3 {
+                let second = args[2].to_rust_expr(self.ctx)?;
+                return Ok(parse_quote! {
+                    chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, #second as u32).unwrap()
+                });
+            }
+        }
+
+        // timedelta(days=..., seconds=...) → Duration::days(...) + Duration::seconds(...)
+        // Note: Python timedelta uses keyword args, but we'll support positional for now
+        if func == "timedelta" {
+            self.ctx.needs_chrono = true;
+
+            if args.is_empty() {
+                // timedelta() with no args → zero duration
+                return Ok(parse_quote! { chrono::Duration::zero() });
+            } else if args.len() == 1 {
+                // Assume days parameter
+                let days = args[0].to_rust_expr(self.ctx)?;
+                return Ok(parse_quote! { chrono::Duration::days(#days as i64) });
+            } else if args.len() == 2 {
+                // Assume days, seconds parameters
+                let days = args[0].to_rust_expr(self.ctx)?;
+                let seconds = args[1].to_rust_expr(self.ctx)?;
+                return Ok(parse_quote! {
+                    chrono::Duration::days(#days as i64) + chrono::Duration::seconds(#seconds as i64)
+                });
+            }
+        }
+
         // Handle enumerate(items) → items.into_iter().enumerate()
         if func == "enumerate" && args.len() == 1 {
             let items_expr = args[0].to_rust_expr(self.ctx)?;
@@ -5134,9 +5260,503 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert pathlib module method calls
+    /// DEPYLER-STDLIB-PATHLIB: Comprehensive pathlib module support
+    #[inline]
+    fn try_convert_pathlib_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Path queries
+            "exists" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Path.exists() requires exactly 1 argument (self)");
+                }
+                let path = &arg_exprs[0];
+                parse_quote! { #path.exists() }
+            }
+
+            "is_file" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Path.is_file() requires exactly 1 argument (self)");
+                }
+                let path = &arg_exprs[0];
+                parse_quote! { #path.is_file() }
+            }
+
+            "is_dir" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Path.is_dir() requires exactly 1 argument (self)");
+                }
+                let path = &arg_exprs[0];
+                parse_quote! { #path.is_dir() }
+            }
+
+            "is_absolute" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Path.is_absolute() requires exactly 1 argument (self)");
+                }
+                let path = &arg_exprs[0];
+                parse_quote! { #path.is_absolute() }
+            }
+
+            // Path transformations
+            "absolute" | "resolve" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Path.{}() requires exactly 1 argument (self)", method);
+                }
+                let path = &arg_exprs[0];
+                // Both absolute() and resolve() → canonicalize()
+                parse_quote! { #path.canonicalize().unwrap() }
+            }
+
+            "with_name" => {
+                if arg_exprs.len() != 2 {
+                    bail!("Path.with_name() requires exactly 2 arguments (self, name)");
+                }
+                let path = &arg_exprs[0];
+                let name = &arg_exprs[1];
+                parse_quote! { #path.with_file_name(#name) }
+            }
+
+            "with_suffix" => {
+                if arg_exprs.len() != 2 {
+                    bail!("Path.with_suffix() requires exactly 2 arguments (self, suffix)");
+                }
+                let path = &arg_exprs[0];
+                let suffix = &arg_exprs[1];
+                parse_quote! { #path.with_extension(#suffix.trim_start_matches('.')) }
+            }
+
+            // Directory operations
+            "mkdir" => {
+                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+                    bail!("Path.mkdir() requires 1-2 arguments");
+                }
+                let path = &arg_exprs[0];
+
+                // Check if parents=True was passed (simplified - assumes second arg is parents)
+                if arg_exprs.len() == 2 {
+                    // mkdir(parents=True) → create_dir_all
+                    parse_quote! { std::fs::create_dir_all(#path).unwrap() }
+                } else {
+                    // mkdir() → create_dir
+                    parse_quote! { std::fs::create_dir(#path).unwrap() }
+                }
+            }
+
+            "rmdir" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Path.rmdir() requires exactly 1 argument (self)");
+                }
+                let path = &arg_exprs[0];
+                parse_quote! { std::fs::remove_dir(#path).unwrap() }
+            }
+
+            "iterdir" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Path.iterdir() requires exactly 1 argument (self)");
+                }
+                let path = &arg_exprs[0];
+                parse_quote! {
+                    std::fs::read_dir(#path)
+                        .unwrap()
+                        .map(|e| e.unwrap().path())
+                        .collect::<Vec<_>>()
+                }
+            }
+
+            // File operations
+            "read_text" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Path.read_text() requires exactly 1 argument (self)");
+                }
+                let path = &arg_exprs[0];
+                parse_quote! { std::fs::read_to_string(#path).unwrap() }
+            }
+
+            "read_bytes" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Path.read_bytes() requires exactly 1 argument (self)");
+                }
+                let path = &arg_exprs[0];
+                parse_quote! { std::fs::read(#path).unwrap() }
+            }
+
+            "write_text" => {
+                if arg_exprs.len() != 2 {
+                    bail!("Path.write_text() requires exactly 2 arguments (self, content)");
+                }
+                let path = &arg_exprs[0];
+                let content = &arg_exprs[1];
+                parse_quote! { std::fs::write(#path, #content).unwrap() }
+            }
+
+            "write_bytes" => {
+                if arg_exprs.len() != 2 {
+                    bail!("Path.write_bytes() requires exactly 2 arguments (self, content)");
+                }
+                let path = &arg_exprs[0];
+                let content = &arg_exprs[1];
+                parse_quote! { std::fs::write(#path, #content).unwrap() }
+            }
+
+            "unlink" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Path.unlink() requires exactly 1 argument (self)");
+                }
+                let path = &arg_exprs[0];
+                parse_quote! { std::fs::remove_file(#path).unwrap() }
+            }
+
+            "rename" => {
+                if arg_exprs.len() != 2 {
+                    bail!("Path.rename() requires exactly 2 arguments (self, target)");
+                }
+                let path = &arg_exprs[0];
+                let target = &arg_exprs[1];
+                parse_quote! { { std::fs::rename(&#path, #target).unwrap(); std::path::PathBuf::from(#target) } }
+            }
+
+            // Conversions
+            "as_posix" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Path.as_posix() requires exactly 1 argument (self)");
+                }
+                let path = &arg_exprs[0];
+                parse_quote! { #path.to_str().unwrap().to_string() }
+            }
+
+            _ => return Ok(None), // Not a recognized pathlib method
+        };
+
+        Ok(Some(result))
+    }
+
+    /// Try to convert datetime module method calls
+    /// DEPYLER-STDLIB-DATETIME: Comprehensive datetime module support
+    #[inline]
+    fn try_convert_datetime_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Mark that we need the chrono crate
+        self.ctx.needs_chrono = true;
+
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // datetime.datetime.now() → Local::now()
+            "now" => {
+                if arg_exprs.is_empty() {
+                    parse_quote! { chrono::Local::now().naive_local() }
+                } else {
+                    bail!("datetime.now() takes no arguments");
+                }
+            }
+
+            // datetime.datetime.utcnow() → Utc::now()
+            "utcnow" => {
+                if arg_exprs.is_empty() {
+                    parse_quote! { chrono::Utc::now().naive_utc() }
+                } else {
+                    bail!("datetime.utcnow() takes no arguments");
+                }
+            }
+
+            // datetime.datetime.today() → Local::now().date()
+            "today" => {
+                if arg_exprs.is_empty() {
+                    parse_quote! { chrono::Local::now().date_naive() }
+                } else {
+                    bail!("datetime.today() takes no arguments");
+                }
+            }
+
+            // datetime.datetime.strftime(format) → dt.format(format).to_string()
+            "strftime" => {
+                if arg_exprs.len() != 2 {
+                    bail!("strftime() requires exactly 2 arguments (self, format)");
+                }
+                let dt = &arg_exprs[0];
+                let fmt = &arg_exprs[1];
+                parse_quote! { #dt.format(#fmt).to_string() }
+            }
+
+            // datetime.datetime.strptime(string, format) → NaiveDateTime::parse_from_str(string, format)
+            "strptime" => {
+                if arg_exprs.len() != 2 {
+                    bail!("strptime() requires exactly 2 arguments (string, format)");
+                }
+                let s = &arg_exprs[0];
+                let fmt = &arg_exprs[1];
+                parse_quote! {
+                    chrono::NaiveDateTime::parse_from_str(#s, #fmt).unwrap()
+                }
+            }
+
+            // datetime.datetime.isoformat() → dt.to_rfc3339()
+            "isoformat" => {
+                if arg_exprs.len() != 1 {
+                    bail!("isoformat() requires exactly 1 argument (self)");
+                }
+                let dt = &arg_exprs[0];
+                parse_quote! { #dt.to_string() }
+            }
+
+            // datetime.datetime.timestamp() → dt.timestamp()
+            "timestamp" => {
+                if arg_exprs.len() != 1 {
+                    bail!("timestamp() requires exactly 1 argument (self)");
+                }
+                let dt = &arg_exprs[0];
+                parse_quote! { #dt.and_utc().timestamp() as f64 }
+            }
+
+            // datetime.datetime.fromtimestamp(ts) → NaiveDateTime::from_timestamp(ts, 0)
+            "fromtimestamp" => {
+                if arg_exprs.len() != 1 {
+                    bail!("fromtimestamp() requires exactly 1 argument (timestamp)");
+                }
+                let ts = &arg_exprs[0];
+                parse_quote! {
+                    chrono::DateTime::from_timestamp(#ts as i64, 0)
+                        .unwrap()
+                        .naive_local()
+                }
+            }
+
+            // date.weekday() → dt.weekday().num_days_from_monday()
+            "weekday" => {
+                if arg_exprs.len() != 1 {
+                    bail!("weekday() requires exactly 1 argument (self)");
+                }
+                let dt = &arg_exprs[0];
+                parse_quote! { #dt.weekday().num_days_from_monday() as i32 }
+            }
+
+            // date.isoweekday() → dt.weekday().number_from_monday()
+            "isoweekday" => {
+                if arg_exprs.len() != 1 {
+                    bail!("isoweekday() requires exactly 1 argument (self)");
+                }
+                let dt = &arg_exprs[0];
+                // ISO weekday: Monday=1, Sunday=7
+                parse_quote! { (#dt.weekday().num_days_from_monday() + 1) as i32 }
+            }
+
+            // timedelta.total_seconds() → duration.num_seconds() as f64
+            "total_seconds" => {
+                if arg_exprs.len() != 1 {
+                    bail!("total_seconds() requires exactly 1 argument (self)");
+                }
+                let td = &arg_exprs[0];
+                parse_quote! { #td.num_seconds() as f64 }
+            }
+
+            // datetime.date() → extract date part
+            "date" => {
+                if arg_exprs.len() != 1 {
+                    bail!("date() requires exactly 1 argument (self)");
+                }
+                let dt = &arg_exprs[0];
+                parse_quote! { #dt.date() }
+            }
+
+            // datetime.time() → extract time part
+            "time" => {
+                if arg_exprs.len() != 1 {
+                    bail!("time() requires exactly 1 argument (self)");
+                }
+                let dt = &arg_exprs[0];
+                parse_quote! { #dt.time() }
+            }
+
+            // datetime.replace(year=..., month=..., day=..., ...)
+            "replace" => {
+                if arg_exprs.len() != 2 {
+                    bail!("replace() not fully implemented (requires keyword args)");
+                }
+                // Simplified: assume single year replacement
+                let dt = &arg_exprs[0];
+                let new_year = &arg_exprs[1];
+                parse_quote! { #dt.with_year(#new_year as i32).unwrap() }
+            }
+
+            _ => return Ok(None), // Not a recognized datetime method
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert statistics module method calls
     /// DEPYLER-STDLIB-STATISTICS: Comprehensive statistics module support
     #[inline]
+    fn try_convert_decimal_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Mark that we need the rust_decimal crate
+        self.ctx.needs_rust_decimal = true;
+
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // Mathematical operations
+            "sqrt" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.sqrt() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { #arg.sqrt().unwrap() }
+            }
+
+            "exp" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.exp() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { #arg.exp() }
+            }
+
+            "ln" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.ln() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { #arg.ln() }
+            }
+
+            "log10" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.log10() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { #arg.log10() }
+            }
+
+            // Rounding and quantization
+            "quantize" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.quantize() requires exactly 1 argument");
+                }
+                let value = &arg_exprs[0];
+                // quantize(Decimal("0.01")) → round to 2 decimal places
+                // For now, we'll use round_dp(2) as a simple approximation
+                // TODO: More sophisticated quantization based on quantum value
+                parse_quote! { #value.round_dp(2) }
+            }
+
+            "to_integral" | "to_integral_value" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.to_integral() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { #arg.trunc() }
+            }
+
+            // Predicates
+            "is_nan" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.is_nan() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                // rust_decimal doesn't have NaN, always returns false
+                parse_quote! { false }
+            }
+
+            "is_infinite" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.is_infinite() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                // rust_decimal doesn't have infinity, always returns false
+                parse_quote! { false }
+            }
+
+            "is_finite" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.is_finite() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                // rust_decimal doesn't have infinity/NaN, always returns true
+                parse_quote! { true }
+            }
+
+            "is_signed" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.is_signed() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { #arg.is_sign_negative() }
+            }
+
+            "is_zero" => {
+                if arg_exprs.len() != 1 {
+                    bail!("Decimal.is_zero() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                parse_quote! { #arg.is_zero() }
+            }
+
+            // Sign operations
+            "copy_sign" | "copysign" => {
+                if arg_exprs.len() != 2 {
+                    bail!("Decimal.copy_sign() requires exactly 2 arguments");
+                }
+                let value = &arg_exprs[0];
+                let other = &arg_exprs[1];
+                // Copy sign: if other is negative, return -abs(value), else abs(value)
+                parse_quote! {
+                    if #other.is_sign_negative() {
+                        -#value.abs()
+                    } else {
+                        #value.abs()
+                    }
+                }
+            }
+
+            // Comparison
+            "compare" => {
+                if arg_exprs.len() != 2 {
+                    bail!("Decimal.compare() requires exactly 2 arguments");
+                }
+                let a = &arg_exprs[0];
+                let b = &arg_exprs[1];
+                // compare() returns -1, 0, or 1
+                parse_quote! {
+                    match #a.cmp(&#b) {
+                        std::cmp::Ordering::Less => -1,
+                        std::cmp::Ordering::Equal => 0,
+                        std::cmp::Ordering::Greater => 1,
+                    }
+                }
+            }
+
+            _ => return Ok(None), // Not a recognized decimal method
+        };
+
+        Ok(Some(result))
+    }
+
     fn try_convert_statistics_method(
         &mut self,
         method: &str,
@@ -6101,6 +6721,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // statistics.median(data) → sorted median calculation
             if module_name == "statistics" {
                 return self.try_convert_statistics_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-PATHLIB: Handle pathlib module functions
+            // Path("/foo/bar").exists() → PathBuf::from("/foo/bar").exists()
+            // Path("/foo").join("bar") → PathBuf::from("/foo").join("bar")
+            if module_name == "pathlib" {
+                return self.try_convert_pathlib_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-DATETIME: Handle datetime module functions
+            // datetime.datetime.now() → Local::now().naive_local()
+            // datetime.datetime.utcnow() → Utc::now().naive_utc()
+            // datetime.date.today() → Local::now().date_naive()
+            if module_name == "datetime" {
+                return self.try_convert_datetime_method(method, args);
+            }
+
+            // DEPYLER-STDLIB-DECIMAL: Handle decimal module functions
+            // decimal.Decimal("123.45") → Decimal::from_str("123.45")
+            // Note: Decimal() constructor is handled separately in convert_call
+            if module_name == "decimal" {
+                return self.try_convert_decimal_method(method, args);
             }
 
             // DEPYLER-STDLIB-JSON: Handle json module functions
@@ -8393,8 +9035,81 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
-        // Default behavior for non-module attributes
+        // DEPYLER-STDLIB-DATETIME: Handle datetime/date/time/timedelta properties
+        // In chrono, properties are accessed as methods: dt.year → dt.year()
+        // This handles properties for pathlib, datetime, date, time, and timedelta instances
         let value_expr = value.to_rust_expr(self.ctx)?;
+        match attr {
+            // DEPYLER-STDLIB-PATHLIB: Path properties
+            "name" => {
+                // p.name → p.file_name().unwrap().to_str().unwrap().to_string()
+                return Ok(parse_quote! {
+                    #value_expr.file_name().unwrap().to_str().unwrap().to_string()
+                });
+            }
+
+            "stem" => {
+                // p.stem → p.file_stem().unwrap().to_str().unwrap().to_string()
+                return Ok(parse_quote! {
+                    #value_expr.file_stem().unwrap().to_str().unwrap().to_string()
+                });
+            }
+
+            "suffix" => {
+                // p.suffix → p.extension().map(|e| format!(".{}", e.to_str().unwrap())).unwrap_or_default()
+                return Ok(parse_quote! {
+                    #value_expr.extension()
+                        .map(|e| format!(".{}", e.to_str().unwrap()))
+                        .unwrap_or_default()
+                });
+            }
+
+            "parent" => {
+                // p.parent → p.parent().unwrap().to_path_buf()
+                return Ok(parse_quote! {
+                    #value_expr.parent().unwrap().to_path_buf()
+                });
+            }
+
+            "parts" => {
+                // p.parts → p.components().map(|c| c.as_os_str().to_str().unwrap().to_string()).collect()
+                return Ok(parse_quote! {
+                    #value_expr.components()
+                        .map(|c| c.as_os_str().to_str().unwrap().to_string())
+                        .collect::<Vec<_>>()
+                });
+            }
+
+            // datetime/date properties (require method calls in chrono)
+            "year" | "month" | "day" | "hour" | "minute" | "second" | "microsecond" => {
+                // Check if this might be a datetime/date/time object
+                // We convert: dt.year → dt.year()
+                let method_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+                return Ok(parse_quote! { #value_expr.#method_ident() as i32 });
+            }
+
+            // timedelta properties
+            "days" => {
+                // td.days → td.num_days()
+                return Ok(parse_quote! { #value_expr.num_days() as i32 });
+            }
+
+            "seconds" => {
+                // td.seconds → td.num_seconds() % 86400 (seconds within the day)
+                return Ok(parse_quote! { (#value_expr.num_seconds() % 86400) as i32 });
+            }
+
+            "microseconds" => {
+                // td.microseconds → (td.num_microseconds() % 1_000_000)
+                return Ok(parse_quote! { (#value_expr.num_microseconds().unwrap() % 1_000_000) as i32 });
+            }
+
+            _ => {
+                // Not a datetime property, continue with default handling
+            }
+        }
+
+        // Default behavior for non-module attributes
         // DEPYLER-0306 FIX: Use raw identifiers for attributes that are Rust keywords
         let attr_ident = if Self::is_rust_keyword(attr) {
             syn::Ident::new_raw(attr, proc_macro2::Span::call_site())
