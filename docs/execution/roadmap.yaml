@@ -4143,6 +4143,568 @@ DEPYLER-0278:
     complexity: "✅ ≤10 all functions"
 
 # ============================================================================
+# Translation Refinement: Multi-Pass Architecture (DEPYLER-0281 through DEPYLER-0287)
+# Based on: ACM CACM "Automatically Translating C to Rust" (Hong & Ryu, 2025)
+# Specification: docs/specifications/translation-ideas-spec.md
+# ============================================================================
+
+# DEPYLER-0281: Refinement Pass Infrastructure
+# ============================================================================
+
+DEPYLER-0281:
+  title: "Build Refinement Pass Infrastructure"
+  type: "infrastructure"
+  priority: "P1"
+  status: PLANNED
+  phase: "Phase 1"
+  complexity: MEDIUM
+  estimate_hours: "16-20"
+  sprint: "v4.0.0-alpha"
+  dependencies: []
+
+  problem: |
+    Current transpilation generates basic Rust code but doesn't apply idiomatic
+    transformations. Need infrastructure for multiple refinement passes to improve
+    code quality incrementally.
+
+  goal: |
+    Create composable refinement pass architecture that allows incremental
+    improvement of generated Rust code through specialized transformation passes.
+
+  approach: |
+    Design RefinementPass trait with three phases:
+    1. analyze() - Static analysis to gather information
+    2. transform() - Code transformation based on analysis
+    3. verify() - Check semantic equivalence preserved
+
+  tasks:
+    - name: "Design RefinementPass trait"
+      estimate: "4 hours"
+      deliverable: "crates/depyler-refine/src/pass.rs"
+
+    - name: "Implement pass registry and scheduler"
+      estimate: "6 hours"
+      deliverable: "Pass execution engine with ordering"
+
+    - name: "Add pass verification framework"
+      estimate: "4 hours"
+      deliverable: "Behavioral equivalence checking"
+
+    - name: "Create pass testing harness"
+      estimate: "4 hours"
+      deliverable: "Test utilities for pass development"
+
+  deliverables:
+    - "crates/depyler-refine/ module"
+    - "RefinementPass trait"
+    - "Pass execution engine"
+    - "Pass testing utilities"
+    - "20+ tests"
+
+  quality_gates:
+    - "Complexity ≤10 all functions"
+    - "80%+ test coverage"
+    - "TDG grade A-"
+    - "Zero clippy warnings"
+    - "Zero SATD"
+
+  related_work:
+    - "C2Rust multi-pass refinement architecture"
+    - "Compiler optimization passes"
+    - "Decompiler abstraction recovery"
+
+# ============================================================================
+# DEPYLER-0282: Basic Static Analyses
+# ============================================================================
+
+DEPYLER-0282:
+  title: "Implement Foundational Static Analyses"
+  type: "analysis_infrastructure"
+  priority: "P1"
+  status: PLANNED
+  phase: "Phase 2"
+  complexity: HIGH
+  estimate_hours: "24-30"
+  sprint: "v4.0.0-alpha"
+  dependencies: ["DEPYLER-0281"]
+
+  problem: |
+    Refinement passes require deep understanding of program behavior. Need
+    static analyses to extract information not explicit in Python code.
+
+  goal: |
+    Build static analysis infrastructure to support refinement passes:
+    - Dataflow analysis (def-use chains)
+    - Control flow analysis (CFG construction)
+    - Type flow analysis (Option vs Result)
+    - Mutation analysis (which variables modified where)
+
+  approach: |
+    Implement classic static analysis techniques adapted for Python→Rust:
+    1. Build control flow graph from HIR
+    2. Compute dataflow facts (reaching definitions, liveness)
+    3. Track type constraints through computation
+    4. Analyze mutation patterns
+
+  tasks:
+    - name: "Dataflow analysis (def-use chains)"
+      estimate: "8 hours"
+      deliverable: "DataflowAnalysis struct + tests"
+
+    - name: "Control flow graph construction"
+      estimate: "8 hours"
+      deliverable: "ControlFlowGraph with path analysis"
+
+    - name: "Type flow analysis"
+      estimate: "6 hours"
+      deliverable: "TypeFlowAnalysis for Option/Result inference"
+
+    - name: "Mutation analysis"
+      estimate: "6 hours"
+      deliverable: "Track which variables modified where"
+
+  deliverables:
+    - "crates/depyler-analysis/ module"
+    - "DataflowAnalysis implementation"
+    - "ControlFlowGraph implementation"
+    - "TypeFlowAnalysis implementation"
+    - "MutationAnalysis implementation"
+    - "60+ tests"
+
+  quality_gates:
+    - "Complexity ≤10 all functions"
+    - "80%+ test coverage"
+    - "TDG grade A-"
+    - "Zero clippy warnings"
+    - "Property-based tests for analyses"
+
+  related_work:
+    - "Classic dataflow analysis (Aho, Lam, Sethi, Ullman)"
+    - "SSA form construction"
+    - "Type and effect systems"
+
+# ============================================================================
+# DEPYLER-0283: Output Parameter to Direct Return Pass
+# ============================================================================
+
+DEPYLER-0283:
+  title: "Convert Output Parameters to Direct Returns"
+  type: "refinement_pass"
+  priority: "P1"
+  status: PLANNED
+  phase: "Phase 3"
+  complexity: MEDIUM
+  estimate_hours: "16-20"
+  sprint: "v4.0.0-alpha"
+  dependencies: ["DEPYLER-0281", "DEPYLER-0282"]
+
+  problem: |
+    Python functions using list parameters for output translate to unidiomatic
+    Rust with &mut parameters. This pattern is error-prone and unclear.
+
+    Example:
+      Python: def divide(a, b, result: list[int]) -> bool
+      Current: fn divide(a: i32, b: i32, result: &mut Vec<i32>) -> bool
+      Idiomatic: fn divide(a: i32, b: i32) -> Option<i32>
+
+  goal: |
+    Replace output parameters with direct returns:
+    - Single output → Option<T> (for partial functions) or T
+    - Multiple outputs → (T, U) tuple
+    - Partial functions → Option or Result
+
+  approach: |
+    1. Detect output parameters (written but not read)
+    2. Determine if function is partial (bool/int return code)
+    3. Choose return type (Option vs tuple vs Result)
+    4. Transform function signature and update call sites
+
+  analysis_required:
+    - "Output parameter detection (dataflow)"
+    - "Partial function detection (control flow)"
+    - "Return value semantics (True/False → Some/None)"
+
+  transformation_rules:
+    - "Parameter written once + bool return → Option<T>"
+    - "Multiple output params → (T, U, V) tuple"
+    - "Error return codes → Result<T, E>"
+
+  tasks:
+    - name: "Implement output parameter detection"
+      estimate: "6 hours"
+      deliverable: "Analysis to identify output params"
+
+    - name: "Determine Option vs tuple return types"
+      estimate: "4 hours"
+      deliverable: "Return type inference logic"
+
+    - name: "Transform function signatures"
+      estimate: "4 hours"
+      deliverable: "Signature rewriting"
+
+    - name: "Update call sites"
+      estimate: "4 hours"
+      deliverable: "Call site transformation (if let, destructuring)"
+
+  deliverables:
+    - "OutputParameterPass implementation"
+    - "50+ test cases"
+    - "Pattern catalog documentation"
+
+  quality_gates:
+    - "Complexity ≤10"
+    - "80%+ coverage"
+    - "TDG A-"
+    - "Zero clippy warnings"
+    - "Behavioral equivalence verified"
+
+  impact:
+    current_percentage: "~15% of functions use output parameters"
+    target_percentage: "0%"
+    affected_examples: ["Matrix project functions", "Stdlib methods"]
+
+  related_work:
+    - "Hong & Ryu PLDI 2024: Output parameter elimination"
+
+# ============================================================================
+# DEPYLER-0284: Index-Based Loop to Iterator Pass
+# ============================================================================
+
+DEPYLER-0284:
+  title: "Convert Index-Based Loops to Iterators"
+  type: "refinement_pass"
+  priority: "P1"
+  status: PLANNED
+  phase: "Phase 4"
+  complexity: MEDIUM_HIGH
+  estimate_hours: "24-30"
+  sprint: "v4.0.0-beta"
+  dependencies: ["DEPYLER-0281", "DEPYLER-0282"]
+
+  problem: |
+    Python loops using range(len(x)) translate to unidiomatic Rust with
+    index-based access, which can panic and is verbose.
+
+    Example:
+      Python: for i in range(len(items)): process(items[i])
+      Current: for i in 0..items.len() { process(items[i]); }
+      Idiomatic: for item in items.iter() { process(item); }
+
+  goal: |
+    Replace index-based loops with iterator patterns:
+    - Simple iteration → .iter()
+    - Filter + map → .filter().map().collect()
+    - Accumulation → .fold() or .sum()
+
+  approach: |
+    1. Detect range(len(x)) patterns
+    2. Analyze loop body (only uses x[i]?)
+    3. Check for mutations during iteration
+    4. Map to appropriate iterator methods
+
+  analysis_required:
+    - "Loop pattern recognition"
+    - "Index usage analysis (only x[i]?)"
+    - "Mutation analysis (array modified?)"
+    - "Operation identification (filter/map/fold)"
+
+  transformation_rules:
+    - "for i in range(len(x)) + x[i] → .iter()"
+    - "List comprehension → .filter().map().collect()"
+    - "Accumulation loops → .fold() or .sum()"
+    - "Early break → .take_while()"
+
+  tasks:
+    - name: "Detect range-based loop patterns"
+      estimate: "6 hours"
+      deliverable: "Pattern recognition in CFG"
+
+    - name: "Analyze loop body operations"
+      estimate: "8 hours"
+      deliverable: "Map to iterator methods"
+
+    - name: "Handle mutation cases"
+      estimate: "6 hours"
+      deliverable: "Detect when iterator can't be used"
+
+    - name: "Generate iterator chains"
+      estimate: "6 hours"
+      deliverable: "Idiomatic iterator code"
+
+  deliverables:
+    - "IteratorPass implementation"
+    - "40+ test cases"
+    - "Pattern catalog (10+ patterns)"
+
+  quality_gates:
+    - "Complexity ≤10"
+    - "80%+ coverage"
+    - "TDG A-"
+    - "Zero clippy warnings"
+    - "No out-of-bounds panics introduced"
+
+  impact:
+    current_percentage: "~30% of loops are index-based"
+    target_percentage: "<5%"
+    affected_examples: ["List processing", "String operations", "Algorithms"]
+
+  related_work:
+    - "Rust iterator adapters"
+    - "Functional programming patterns"
+
+# ============================================================================
+# DEPYLER-0285: Manual Resource Cleanup to RAII Pass
+# ============================================================================
+
+DEPYLER-0285:
+  title: "Convert Manual Cleanup to RAII/Drop"
+  type: "refinement_pass"
+  priority: "P2"
+  status: PLANNED
+  phase: "Phase 5"
+  complexity: MEDIUM
+  estimate_hours: "16-20"
+  sprint: "v4.0.0-beta"
+  dependencies: ["DEPYLER-0281", "DEPYLER-0282"]
+
+  problem: |
+    Python try/finally patterns with explicit close() translate to manual
+    drop() calls, which are unidiomatic and easy to forget.
+
+    Example:
+      Python: f = open(path); try: data = f.read(); finally: f.close()
+      Current: let f = File::open(path)?; ...; drop(f);
+      Idiomatic: let f = File::open(path)?; // auto-drop
+
+  goal: |
+    Eliminate manual resource cleanup by relying on RAII:
+    - Remove explicit drop() calls
+    - Rely on scope-based cleanup
+    - Use RAII types (File, Mutex, etc.)
+
+  approach: |
+    1. Identify resource types (File, connections, locks)
+    2. Track cleanup calls (close, free, etc.)
+    3. Analyze control flow (all paths clean up?)
+    4. Remove manual cleanup, rely on Drop trait
+
+  analysis_required:
+    - "Resource type identification"
+    - "Cleanup call tracking"
+    - "Control flow analysis (all paths?)"
+    - "RAII-able pattern detection"
+
+  transformation_rules:
+    - "try/finally + close() → Remove finally"
+    - "Manual drop() → Rely on scope end"
+    - "with statement → Scoped binding"
+
+  tasks:
+    - name: "Identify resource types"
+      estimate: "4 hours"
+      deliverable: "Resource type catalog"
+
+    - name: "Track cleanup patterns"
+      estimate: "6 hours"
+      deliverable: "Cleanup analysis"
+
+    - name: "Verify all paths clean up"
+      estimate: "4 hours"
+      deliverable: "Control flow verification"
+
+    - name: "Remove manual cleanup"
+      estimate: "4 hours"
+      deliverable: "Code transformation"
+
+  deliverables:
+    - "RaiiPass implementation"
+    - "30+ test cases"
+
+  quality_gates:
+    - "Complexity ≤10"
+    - "80%+ coverage"
+    - "TDG A-"
+    - "Zero clippy warnings"
+    - "No resource leaks introduced"
+
+  impact:
+    current_percentage: "Manual cleanup in ~10% of functions"
+    target_percentage: "0%"
+    affected_examples: ["File I/O", "Context managers"]
+
+  related_work:
+    - "RAII pattern (Stroustrup)"
+    - "Rust Drop trait"
+
+# ============================================================================
+# DEPYLER-0286: Exception Handling to Result/Option Pass
+# ============================================================================
+
+DEPYLER-0286:
+  title: "Idiomatic Result/Option Usage"
+  type: "refinement_pass"
+  priority: "P1"
+  status: PLANNED
+  phase: "Phase 6"
+  complexity: HIGH
+  estimate_hours: "24-30"
+  sprint: "v4.0.0-rc"
+  dependencies: ["DEPYLER-0281", "DEPYLER-0282", "DEPYLER-0333"]
+
+  problem: |
+    Python exception handling translates to verbose nested match statements
+    instead of idiomatic ? operator and error propagation.
+
+    Example:
+      Python: try: x = op1(); y = op2(x); return op3(y); except: ...
+      Current: match op1() { Ok(x) => match op2(x) { Ok(y) => ... } }
+      Idiomatic: let x = op1()?; let y = op2(x)?; op3(y)
+
+  goal: |
+    Generate idiomatic error handling:
+    - Nested try/except → Flat ? chains
+    - Multiple exception types → Box<dyn Error>
+    - None checking → Pattern matching
+
+  approach: |
+    1. Map exception types to Result/Option
+    2. Convert try/except to ? operator
+    3. Flatten nested error handling
+    4. Generate custom error types (advanced)
+
+  analysis_required:
+    - "Exception type mapping"
+    - "Error propagation analysis"
+    - "Exception scope tracking (DEPYLER-0333)"
+
+  transformation_rules:
+    - "try/except → ? operator"
+    - "Multiple except clauses → Box<dyn Error>"
+    - "raise → return Err()"
+    - "if x is None → if let Some()"
+
+  tasks:
+    - name: "Map exception types to Result/Option"
+      estimate: "8 hours"
+      deliverable: "Exception → Rust error type mapping"
+
+    - name: "Convert try/except to ? operator"
+      estimate: "8 hours"
+      deliverable: "Error propagation transformation"
+
+    - name: "Flatten nested error handling"
+      estimate: "6 hours"
+      deliverable: "Nested match → flat ?"
+
+    - name: "Generate custom error types"
+      estimate: "6 hours"
+      deliverable: "Error enum generation"
+
+  deliverables:
+    - "ExceptionPass implementation"
+    - "60+ test cases"
+
+  quality_gates:
+    - "Complexity ≤10"
+    - "80%+ coverage"
+    - "TDG A-"
+    - "Zero clippy warnings"
+    - "Error semantics preserved"
+
+  impact:
+    current_percentage: "~20% use manual unwrap()"
+    target_percentage: "<5%"
+    affected_examples: ["Error handling patterns", "File I/O", "Parsing"]
+
+  blockers:
+    - "DEPYLER-0333 (exception scope tracking) must be complete"
+
+  related_work:
+    - "Rust error handling best practices"
+    - "? operator and From trait"
+
+# ============================================================================
+# DEPYLER-0287: LLM-Assisted Translation Integration
+# ============================================================================
+
+DEPYLER-0287:
+  title: "Hybrid Static Analysis + LLM Translation"
+  type: "experimental_feature"
+  priority: "P2"
+  status: PLANNED
+  phase: "Phase 7"
+  complexity: HIGH
+  estimate_hours: "32-40"
+  sprint: "v4.1.0"
+  dependencies: ["DEPYLER-0281", "DEPYLER-0282"]
+
+  problem: |
+    Static analysis produces correct but sometimes verbose code. LLMs can
+    generate more developer-friendly code but often make errors. Combining
+    both approaches could leverage their complementary strengths.
+
+  goal: |
+    Integrate LLM-assisted translation with static analysis verification:
+    - Use analysis results to guide LLM
+    - Verify LLM output with static checks
+    - Fall back to static analysis if LLM fails
+    - Split-Translate-Check-Fix workflow
+
+  approach: |
+    1. Run static analysis to extract program properties
+    2. Augment context with analysis results
+    3. LLM generates Rust code
+    4. Verify correctness (compile + test)
+    5. If incorrect, apply static fixes or retry
+
+  tasks:
+    - name: "Design LLM integration API"
+      estimate: "8 hours"
+      deliverable: "LlmTranslationPipeline trait"
+
+    - name: "Implement context augmentation"
+      estimate: "8 hours"
+      deliverable: "Analysis results → LLM context"
+
+    - name: "Build verification pipeline"
+      estimate: "10 hours"
+      deliverable: "Compile + test verification"
+
+    - name: "Create fix-it loop"
+      estimate: "10 hours"
+      deliverable: "Iterative refinement with LLM"
+
+  deliverables:
+    - "depyler-llm module"
+    - "Prompt templates"
+    - "Evaluation framework"
+    - "20+ test cases"
+
+  quality_gates:
+    - "Correctness: 100% (verified by compilation + tests)"
+    - "Idiomaticity: Evaluated on benchmark suite"
+    - "Performance: <5s per function"
+
+  evaluation:
+    benchmark: "GNU packages + competitive programming solutions"
+    metrics:
+      - "Compilation success rate"
+      - "Test pass rate"
+      - "Clippy warnings per 1000 LOC"
+      - "Developer preference (subjective)"
+
+  risks:
+    - "LLM API costs"
+    - "Rate limiting"
+    - "Non-deterministic output"
+    - "Privacy concerns (code sent to LLM)"
+
+  related_work:
+    - "Syzygy (Shetty et al. 2024): C→Rust with dynamic analysis"
+    - "VERT (Yang et al. 2024): Verified equivalent transpilation"
+    - "C2SaferRust (Nitin et al. 2025): LLM + verification"
+
+# ============================================================================
 # Known Remaining Issues (Post v3.19.3)
 # ============================================================================
 
