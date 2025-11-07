@@ -206,9 +206,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             BinOp::Add => {
                 // DEPYLER-0290 FIX: Special handling for list concatenation
                 // DEPYLER-0299 Pattern #4 FIX: Don't assume all Var + Var is list concatenation
+                // DEPYLER-0271 FIX: Check variable types for list concatenation
 
                 // Check if we're dealing with lists/vectors (explicit detection only)
                 let is_definitely_list = self.is_list_expr(left) || self.is_list_expr(right);
+
+                // DEPYLER-0271 FIX: Also check if variables have List type
+                let is_list_var = match (left, right) {
+                    (HirExpr::Var(name), _) | (_, HirExpr::Var(name)) => {
+                        self.ctx.var_types.get(name).map(|t| matches!(t, Type::List(_))).unwrap_or(false)
+                    }
+                    _ => false
+                };
 
                 // DEPYLER-0311 FIX: Check if we're dealing with slice expressions
                 // Slices produce Vec via .to_vec(), so slice + slice needs extend pattern
@@ -220,19 +229,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     || matches!(right, HirExpr::Literal(Literal::String(_)))
                     || matches!(self.ctx.current_return_type, Some(Type::String));
 
-                if (is_definitely_list || is_slice_concat) && !is_definitely_string {
-                    // List/slice concatenation - use extend pattern
-                    // Convert: list1 + list2 OR items[k:] + items[:k]
-                    // To: { let mut __temp = left; __temp.extend(right); __temp }
-                    // This works because:
-                    // - list literals generate Vec directly
-                    // - slice expressions generate .to_vec() which is owned
+                if (is_definitely_list || is_slice_concat || is_list_var) && !is_definitely_string {
+                    // List/slice concatenation - use chain pattern for references
+                    // Convert: list1 + list2 (where both are &Vec or Vec)
+                    // To: list1.iter().chain(list2.iter()).cloned().collect()
                     Ok(parse_quote! {
-                        {
-                            let mut __temp = #left_expr.clone();
-                            __temp.extend(#right_expr.iter().cloned());
-                            __temp
-                        }
+                        #left_expr.iter().chain(#right_expr.iter()).cloned().collect::<Vec<_>>()
                     })
                 } else if is_definitely_string {
                     // This is string concatenation - use format! to handle references properly
@@ -1901,12 +1903,52 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // print() with no arguments → println!()
                 Ok(parse_quote! { println!() })
             } else if args.len() == 1 {
-                // print(x) → println!("{}", x)
+                // DEPYLER-0272 FIX: Use {:?} for collections that don't implement Display
+                // Check if arg is a collection type (Vec, HashMap, HashSet)
+                let needs_debug = if let Some(hir_arg) = hir_args.get(0) {
+                    match hir_arg {
+                        HirExpr::Var(name) => {
+                            // Check variable type
+                            self.ctx.var_types.get(name).map(|t| {
+                                matches!(t, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                            }).unwrap_or(false)
+                        }
+                        HirExpr::List(_) | HirExpr::Dict(_) | HirExpr::Set(_) | HirExpr::FrozenSet(_) => true,
+                        HirExpr::Binary { op: BinOp::Add, left, right } => {
+                            // Result of list concatenation
+                            self.is_list_expr(left) || self.is_list_expr(right)
+                        }
+                        _ => false
+                    }
+                } else {
+                    false
+                };
+
                 let arg = &args[0];
-                Ok(parse_quote! { println!("{}", #arg) })
+                if needs_debug {
+                    Ok(parse_quote! { println!("{:?}", #arg) })
+                } else {
+                    Ok(parse_quote! { println!("{}", #arg) })
+                }
             } else {
-                // print(a, b, c) → println!("{} {} {}", a, b, c)
-                let format_str = vec!["{}"; args.len()].join(" ");
+                // print(a, b, c) → println!("{} {} {}", a, b, c) or with {:?} for collections
+                // DEPYLER-0272 FIX: Use {:?} for each collection argument
+                let format_specs: Vec<&str> = hir_args.iter().map(|hir_arg| {
+                    let needs_debug = match hir_arg {
+                        HirExpr::Var(name) => {
+                            self.ctx.var_types.get(name).map(|t| {
+                                matches!(t, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                            }).unwrap_or(false)
+                        }
+                        HirExpr::List(_) | HirExpr::Dict(_) | HirExpr::Set(_) | HirExpr::FrozenSet(_) => true,
+                        HirExpr::Binary { op: BinOp::Add, left, right } => {
+                            self.is_list_expr(left) || self.is_list_expr(right)
+                        }
+                        _ => false
+                    };
+                    if needs_debug { "{:?}" } else { "{}" }
+                }).collect();
+                let format_str = format_specs.join(" ");
                 Ok(parse_quote! { println!(#format_str, #(#args),*) })
             };
         }
