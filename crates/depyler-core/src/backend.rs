@@ -71,20 +71,15 @@ pub trait TranspilationBackend: Send + Sync {
 }
 
 /// Transpilation target enumeration
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TranspilationTarget {
     /// Generate idiomatic Rust code (default)
+    #[default]
     Rust,
 
     /// Generate Ruchy script format
     #[cfg(feature = "ruchy")]
     Ruchy,
-}
-
-impl Default for TranspilationTarget {
-    fn default() -> Self {
-        Self::Rust
-    }
 }
 
 impl fmt::Display for TranspilationTarget {
