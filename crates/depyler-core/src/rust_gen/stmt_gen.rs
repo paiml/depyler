@@ -838,6 +838,36 @@ pub(crate) fn codegen_assign_stmt(
                         .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
                 }
             }
+            HirExpr::List(elements) => {
+                // DEPYLER-0269: Track list type from literal for auto-borrowing
+                // When v = [1, 2], mark v as List(Int) so it gets borrowed when calling f(&v)
+                let elem_type = if let Some(Type::List(elem)) = type_annotation {
+                    elem.as_ref().clone()
+                } else if !elements.is_empty() {
+                    // Infer from first element (assume homogeneous list)
+                    // For int literals, use Int type
+                    Type::Int
+                } else {
+                    Type::Unknown
+                };
+                ctx.var_types
+                    .insert(var_name.clone(), Type::List(Box::new(elem_type)));
+            }
+            HirExpr::Dict(items) => {
+                // DEPYLER-0269: Track dict type from literal for auto-borrowing
+                // When info = {"a": 1}, mark info as Dict(String, Int) so it gets borrowed
+                let (key_type, val_type) = if let Some(Type::Dict(k, v)) = type_annotation {
+                    (k.as_ref().clone(), v.as_ref().clone())
+                } else if !items.is_empty() {
+                    // Infer from first item (assume homogeneous dict)
+                    // For string literal keys and int values
+                    (Type::String, Type::Int)
+                } else {
+                    (Type::Unknown, Type::Unknown)
+                };
+                ctx.var_types
+                    .insert(var_name.clone(), Type::Dict(Box::new(key_type), Box::new(val_type)));
+            }
             HirExpr::Set(elements) | HirExpr::FrozenSet(elements) => {
                 // Track set type from literal for proper method dispatch (DEPYLER-0224)
                 // Use type annotation if available, otherwise infer from elements
