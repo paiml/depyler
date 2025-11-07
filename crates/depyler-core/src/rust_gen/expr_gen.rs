@@ -5784,7 +5784,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("Decimal.is_nan() requires exactly 1 argument");
                 }
-                let arg = &arg_exprs[0];
+                let _arg = &arg_exprs[0];
                 // rust_decimal doesn't have NaN, always returns false
                 parse_quote! { false }
             }
@@ -5793,7 +5793,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("Decimal.is_infinite() requires exactly 1 argument");
                 }
-                let arg = &arg_exprs[0];
+                let _arg = &arg_exprs[0];
                 // rust_decimal doesn't have infinity, always returns false
                 parse_quote! { false }
             }
@@ -5802,7 +5802,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("Decimal.is_finite() requires exactly 1 argument");
                 }
-                let arg = &arg_exprs[0];
+                let _arg = &arg_exprs[0];
                 // rust_decimal doesn't have infinity/NaN, always returns true
                 parse_quote! { true }
             }
@@ -6209,7 +6209,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             "choices" => {
-                if arg_exprs.len() < 1 {
+                if arg_exprs.is_empty() {
                     bail!("random.choices() requires at least 1 argument");
                 }
                 let seq = &arg_exprs[0];
@@ -6752,7 +6752,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-STDLIB-MATH: perm() - permutations (nPr)
             "perm" => {
-                if arg_exprs.len() < 1 || arg_exprs.len() > 2 {
+                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
                     bail!("math.perm() requires 1 or 2 arguments");
                 }
                 let n = &arg_exprs[0];
@@ -8314,22 +8314,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         } else if is_string_base {
             // DEPYLER-0299 Pattern #3: String character access with numeric index
-            // Strings cannot use .get(usize), must use .chars().nth() or byte slicing
+            // Strings cannot use .get(usize), must use .chars().nth()
             let index_expr = index.to_rust_expr(self.ctx)?;
 
-            // For string indexing, we use .chars().nth() which returns Option<char>
-            // Then convert char to String
+            // DEPYLER-0267 FIX: Use .chars().nth() for proper character access
+            // This returns Option<char>, then convert to String
             Ok(parse_quote! {
                 {
                     // DEPYLER-0307 Fix #11: Use borrow to avoid moving the base expression
                     let base = &#base_expr;
                     let idx: i32 = #index_expr;
                     let actual_idx = if idx < 0 {
-                        base.len().saturating_sub(idx.abs() as usize)
+                        base.chars().count().saturating_sub(idx.abs() as usize)
                     } else {
                         idx as usize
                     };
-                    base.get(actual_idx..=actual_idx).unwrap_or("").to_string()
+                    base.chars().nth(actual_idx).map(|c| c.to_string()).unwrap_or_default()
                 }
             })
         } else {
@@ -8469,20 +8469,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match expr {
             HirExpr::Literal(Literal::String(_)) => true,
             HirExpr::Var(sym) => {
+                // DEPYLER-0267 FIX: Only match singular string-like names, NOT plurals
+                // "words" (plural) is likely list[str], not str!
+                // "word" (singular) without 's' ending is likely str
                 let name = sym.as_str();
-                // Common string variable names
-                name == "word"
-                    || name == "text"
+                // Only match if: singular AND string-like name
+                let is_singular = !name.ends_with('s');
+                name == "text"
                     || name == "s"
                     || name == "string"
                     || name == "line"
-                    || name.starts_with("word")
-                    || name.starts_with("text")
-                    || name.starts_with("str")
-                    || name.ends_with("_str")
-                    || name.ends_with("_string")
-                    || name.ends_with("_word")
-                    || name.ends_with("_text")
+                    || (name == "word" && is_singular)
+                    || (name.starts_with("text") && is_singular)
+                    || (name.starts_with("str") && is_singular)
+                    || (name.ends_with("_str") && is_singular)
+                    || (name.ends_with("_string") && is_singular)
+                    || (name.ends_with("_word") && is_singular)
+                    || (name.ends_with("_text") && is_singular)
             }
             HirExpr::MethodCall { method, .. }
                 if method.as_str().contains("upper")
