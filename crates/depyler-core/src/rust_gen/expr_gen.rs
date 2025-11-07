@@ -1961,23 +1961,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
 
             // DEPYLER-0301 Fix: Auto-borrow Vec/List arguments when calling functions
-            // When passing a Vec variable to a function expecting &Vec, automatically borrow it
+            // DEPYLER-0269 Fix: Auto-borrow Dict/HashMap/Set arguments when calling functions
+            // When passing a Vec/HashMap/HashSet variable to a function expecting &Vec/&HashMap/&HashSet, automatically borrow it
             // This handles cases like: sum_list_recursive(rest) where rest is Vec but param is &Vec
             //
             // Strategy:
-            // 1. Check if HIR arg is a Var with type List → borrow it
+            // 1. Check if HIR arg is a Var with type List, Dict, or Set → borrow it
             // 2. Check if syn expr contains .to_vec() → borrow it (existing heuristic)
             // 3. Otherwise don't borrow (likely Copy types like i32)
             let borrowed_args: Vec<syn::Expr> = hir_args
                 .iter()
                 .zip(args.iter())
                 .map(|(hir_arg, arg_expr)| {
-                    // Check if this is a List variable that should be borrowed
+                    // Check if this is a List, Dict, or Set variable that should be borrowed
                     let should_borrow = match hir_arg {
                         HirExpr::Var(var_name) => {
-                            // Check if variable has List type in context
+                            // Check if variable has List, Dict, or Set type in context
                             if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                                matches!(var_type, Type::List(_))
+                                matches!(var_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
                             } else {
                                 false
                             }
@@ -8946,9 +8947,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_list(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
+        // DEPYLER-0269 FIX: Convert string literals to owned Strings
+        // List literals with string elements should use Vec<String> not Vec<&str>
+        // This ensures they can be passed to functions expecting &Vec<String>
         let elt_exprs: Vec<syn::Expr> = elts
             .iter()
-            .map(|e| e.to_rust_expr(self.ctx))
+            .map(|e| {
+                let mut expr = e.to_rust_expr(self.ctx)?;
+                // Check if element is a string literal
+                if matches!(e, HirExpr::Literal(Literal::String(_))) {
+                    expr = parse_quote! { #expr.to_string() };
+                }
+                Ok(expr)
+            })
             .collect::<Result<Vec<_>>>()?;
 
         // Always use vec! for now to ensure mutability works
@@ -8959,19 +8970,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn convert_dict(&mut self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
         self.ctx.needs_hashmap = true;
 
-        // Check if return type is Dict with String keys
-        let needs_owned_keys = matches!(
-            &self.ctx.current_return_type,
-            Some(Type::Dict(key_type, _)) if **key_type == Type::String
-        );
-
         let mut insert_stmts = Vec::new();
         for (key, value) in items {
             let mut key_expr = key.to_rust_expr(self.ctx)?;
             let val_expr = value.to_rust_expr(self.ctx)?;
 
-            // If function returns HashMap<String, V>, convert &str keys to String
-            if needs_owned_keys && matches!(key, HirExpr::Literal(Literal::String(_))) {
+            // DEPYLER-0270 FIX: ALWAYS convert string literal keys to owned Strings
+            // Dict literals should use HashMap<String, V> not HashMap<&str, V>
+            // This ensures they can be passed to functions expecting HashMap<String, V>
+            if matches!(key, HirExpr::Literal(Literal::String(_))) {
                 key_expr = parse_quote! { #key_expr.to_string() };
             }
 
