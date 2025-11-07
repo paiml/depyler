@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🛑 DEPYLER-0269/0270: STOP THE LINE - Test Failures Blocking Release (2025-11-07)
+
+**Status**: 🔴 ACTIVE - P0 BLOCKER - 3 test failures
+**Impact**: Release blocked until 100% test pass rate achieved
+**Progress**: 7/10 tests fixed (70%), 3 remaining (30%)
+
+**Tickets**: DEPYLER-0269 (function borrowing), DEPYLER-0270 (Result unwrapping)
+
+#### Fixes Completed (Commit db3224f)
+
+1. **Result<(), E> Return Type** - Add `Ok(())` to main functions
+   - File: `crates/depyler-core/src/rust_gen/func_gen.rs:813-818`
+   - Impact: Partially fixes DEPYLER-0270 tests
+
+2. **Type Tracking for Annotations** - Track List/Dict/Set from type annotations
+   - File: `crates/depyler-core/src/rust_gen/stmt_gen.rs:821-831`
+   - Impact: Foundation for Display trait fixes
+
+3. **Vec Concatenation** (Previous commit dd751e2)
+   - File: `crates/depyler-core/src/rust_gen/expr_gen.rs:206-248`
+   - Impact: Fixed list + list concatenation
+
+#### Remaining Issues (BLOCKING)
+
+1. **Display Trait for Function Returns** - `println!` needs `{:?}` for Vec results
+2. **Result<(), E> Edge Case** - `Ok(())` not added in some main() functions
+3. **Auto-Borrowing Conflict** - Type mismatch between function signature and call site
+
+**Next Actions**: See `STOP_THE_LINE_STATUS.md` for detailed analysis and action plan
+
+---
+
 ### 📋 DEPYLER-0281-0287: Translation Refinement Multi-Pass Architecture Specification (2025-11-06)
 
 **Impact**: Roadmap planning, future v4.0.0 features
