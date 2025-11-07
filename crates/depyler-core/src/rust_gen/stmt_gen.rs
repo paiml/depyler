@@ -818,6 +818,18 @@ pub(crate) fn codegen_assign_stmt(
     // DEPYLER-0301: Track list/vec types from slicing operations
     // DEPYLER-0327 Fix #1: Track String type from Vec<String>.get() method calls
     if let AssignTarget::Symbol(var_name) = target {
+        // DEPYLER-0272: Track type from type annotation for function return values
+        // This enables correct {:?} vs {} selection in println! for collections
+        // Example: result = merge(&a, &b) where merge returns Vec<i32>
+        if let Some(annot_type) = type_annotation {
+            match annot_type {
+                Type::List(_) | Type::Dict(_, _) | Type::Set(_) => {
+                    ctx.var_types.insert(var_name.clone(), annot_type.clone());
+                }
+                _ => {}
+            }
+        }
+
         match value {
             HirExpr::Call { func, .. } => {
                 // Check if this is a user-defined class constructor

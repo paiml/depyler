@@ -808,7 +808,14 @@ impl RustCodeGen for HirFunction {
             codegen_return_type(self, &lifetime_result, ctx)?;
 
         // Process function body with proper scoping
-        let body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
+        let mut body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
+
+        // DEPYLER-0270: Add Ok(()) for functions with Result<(), E> return type
+        // When Python function has `-> None` but uses fallible operations (e.g., indexing),
+        // the Rust return type becomes `Result<(), IndexError>` and needs Ok(()) at the end
+        if can_fail && matches!(self.ret_type, Type::None) {
+            body_stmts.push(parse_quote! { Ok(()) });
+        }
 
         // Add documentation
         let attrs = codegen_function_attrs(&self.docstring, &self.properties);
