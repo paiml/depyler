@@ -2004,23 +2004,35 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-0301 Fix: Auto-borrow Vec/List arguments when calling functions
             // DEPYLER-0269 Fix: Auto-borrow Dict/HashMap/Set arguments when calling functions
+            // DEPYLER-0270 Fix: Check function signature before auto-borrowing
             // When passing a Vec/HashMap/HashSet variable to a function expecting &Vec/&HashMap/&HashSet, automatically borrow it
             // This handles cases like: sum_list_recursive(rest) where rest is Vec but param is &Vec
             //
             // Strategy:
-            // 1. Check if HIR arg is a Var with type List, Dict, or Set → borrow it
-            // 2. Check if syn expr contains .to_vec() → borrow it (existing heuristic)
-            // 3. Otherwise don't borrow (likely Copy types like i32)
+            // 1. Look up function signature to see which params are borrowed
+            // 2. Only borrow if: (a) arg is List/Dict/Set AND (b) function expects borrow
+            // 3. Otherwise pass as-is (either owned or primitive)
             let borrowed_args: Vec<syn::Expr> = hir_args
                 .iter()
                 .zip(args.iter())
-                .map(|(hir_arg, arg_expr)| {
-                    // Check if this is a List, Dict, or Set variable that should be borrowed
+                .enumerate()
+                .map(|(param_idx, (hir_arg, arg_expr))| {
+                    // Check if this param should be borrowed by looking up function signature
                     let should_borrow = match hir_arg {
                         HirExpr::Var(var_name) => {
-                            // Check if variable has List, Dict, or Set type in context
+                            // Check if variable has List, Dict, or Set type
                             if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                                matches!(var_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                                if matches!(var_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_)) {
+                                    // Check if function param expects a borrow
+                                    self.ctx
+                                        .function_param_borrows
+                                        .get(func)
+                                        .and_then(|borrows| borrows.get(param_idx))
+                                        .copied()
+                                        .unwrap_or(true) // Default to borrow if unknown
+                                } else {
+                                    false
+                                }
                             } else {
                                 false
                             }

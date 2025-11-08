@@ -849,6 +849,14 @@ pub(crate) fn codegen_assign_stmt(
                     ctx.var_types
                         .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
                 }
+                // DEPYLER-0269: Track user-defined function return types
+                // Lookup function return type and track it for Display trait selection
+                // Enables: result = merge(&a, &b) where merge returns list[int]
+                else if let Some(ret_type) = ctx.function_return_types.get(func) {
+                    if matches!(ret_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_)) {
+                        ctx.var_types.insert(var_name.clone(), ret_type.clone());
+                    }
+                }
             }
             HirExpr::List(elements) => {
                 // DEPYLER-0269: Track list type from literal for auto-borrowing

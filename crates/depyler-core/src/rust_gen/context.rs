@@ -85,6 +85,14 @@ pub struct CodeGenContext<'a> {
     pub var_types: HashMap<String, Type>,
     pub class_names: HashSet<String>,
     pub mutating_methods: HashMap<String, HashSet<String>>,
+    /// DEPYLER-0269: Track function return types for Display trait selection
+    /// Maps function name -> return type, populated during function generation
+    /// Used to track types of variables assigned from function calls
+    pub function_return_types: HashMap<String, Type>,
+    /// DEPYLER-0270: Track function parameter borrowing for auto-borrow decisions
+    /// Maps function name -> Vec of booleans (true if param is borrowed, false if owned)
+    /// Used to determine whether to add & when passing List/Dict/Set arguments
+    pub function_param_borrows: HashMap<String, Vec<bool>>,
     /// DEPYLER-0307 Fix #9: Track variables that iterate over tuples (from zip())
     /// Used to generate tuple field access syntax (tuple.0, tuple.1) instead of vector indexing
     pub tuple_iter_vars: HashSet<String>,

@@ -18,7 +18,7 @@ impl ZeroDivisionError {
 #[doc = "Generate a number in range(simplified without random)."]
 #[doc = " Depyler: proven to terminate"]
 pub fn generate_number(min_val: i32, max_val: i32) -> Result<i32, ZeroDivisionError> {
-    let _cse_temp_0 = {
+    Ok({
         let a = min_val + max_val;
         let b = 2;
         let q = a / b;
@@ -33,8 +33,7 @@ pub fn generate_number(min_val: i32, max_val: i32) -> Result<i32, ZeroDivisionEr
         } else {
             q
         }
-    };
-    return Ok(_cse_temp_0 as i32);
+    })
 }
 #[doc = "Provide a hint based on the guess."]
 #[doc = " Depyler: verified panic-free"]
@@ -42,13 +41,13 @@ pub fn generate_number(min_val: i32, max_val: i32) -> Result<i32, ZeroDivisionEr
 pub fn get_hint(guess: i32, target: i32) -> String {
     let _cse_temp_0 = guess < target;
     if _cse_temp_0 {
-        return "Marco!(Too low)".to_string();
+        "Marco!(Too low)".to_string()
     } else {
         let _cse_temp_1 = guess > target;
         if _cse_temp_1 {
-            return "Marco!(Too high)".to_string();
+            "Marco!(Too high)".to_string()
         } else {
-            return "Polo!".to_string();
+            "Polo!".to_string()
         }
     }
 }
@@ -58,7 +57,7 @@ pub fn get_hint(guess: i32, target: i32) -> String {
 pub fn calculate_score(attempts: i32, rounds: i32) -> i32 {
     let _cse_temp_0 = rounds == 0;
     if _cse_temp_0 {
-        return 0 as i32;
+        return 0;
     }
     let _cse_temp_1 = 100 * rounds;
     let base_score = _cse_temp_1;
@@ -67,9 +66,9 @@ pub fn calculate_score(attempts: i32, rounds: i32) -> i32 {
     let score = base_score - penalty;
     let _cse_temp_3 = score < 0;
     if _cse_temp_3 {
-        return 0 as i32;
+        return 0;
     }
-    return score as i32;
+    score
 }
 #[doc = "Get difficulty name from level."]
 #[doc = " Depyler: verified panic-free"]
@@ -77,17 +76,17 @@ pub fn calculate_score(attempts: i32, rounds: i32) -> i32 {
 pub fn get_difficulty_name(level: i32) -> &'a str {
     let _cse_temp_0 = level == 1;
     if _cse_temp_0 {
-        return "Easy".to_string();
+        "Easy".to_string()
     } else {
         let _cse_temp_1 = level == 2;
         if _cse_temp_1 {
-            return "Medium".to_string();
+            "Medium".to_string()
         } else {
             let _cse_temp_2 = level == 3;
             if _cse_temp_2 {
-                return "Hard".to_string();
+                "Hard".to_string()
             } else {
-                return "Unknown".to_string();
+                "Unknown".to_string()
             }
         }
     }
@@ -99,8 +98,7 @@ pub fn calculate_average(total: i32, count: i32) -> Result<f64, ZeroDivisionErro
     if _cse_temp_0 {
         return Ok(0.0);
     }
-    let _cse_temp_1 = (total as f64) / (count as f64);
-    return Ok(_cse_temp_1);
+    Ok((total as f64) / (count as f64))
 }
 #[doc = "Format game statistics as string."]
 #[doc = " Depyler: verified panic-free"]
@@ -117,7 +115,7 @@ pub fn format_statistics(score: i32, attempts: i32, rounds: i32) -> String {
     let _cse_temp_4 = avg.to_string();
     let _cse_temp_5 = format!("{}{}", format!("{}{}", result, "Average: "), _cse_temp_4);
     result = format!("{}{}", _cse_temp_5, "\n");
-    return result;
+    result.unwrap()
 }
 #[doc = "Check if guess is in valid range."]
 #[doc = " Depyler: verified panic-free"]
@@ -131,7 +129,7 @@ pub fn validate_guess(guess: i32, min_val: i32, max_val: i32) -> bool {
     if _cse_temp_1 {
         return false;
     }
-    return true;
+    true
 }
 #[doc = "Simulate a round with fixed guesses."]
 #[doc = " Depyler: verified panic-free"]
@@ -141,7 +139,7 @@ pub fn play_simple_round(target: i32, max_attempts: i32) -> i32 {
     while attempts < max_attempts {
         attempts = attempts + 1;
         if guess == target {
-            return attempts as i32;
+            return attempts;
         } else {
             if guess < target {
                 guess = guess + 10;
@@ -150,7 +148,7 @@ pub fn play_simple_round(target: i32, max_attempts: i32) -> i32 {
             }
         }
     }
-    return attempts as i32;
+    attempts
 }
 #[cfg(test)]
 mod tests {
@@ -162,22 +160,12 @@ mod tests {
         assert_eq!(generate_number(1, 2), 3);
         assert_eq!(generate_number(-1, 1), 0);
     }
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use quickcheck::{quickcheck, TestResult};
     #[test]
     fn test_calculate_score_examples() {
         assert_eq!(calculate_score(0, 0), 0);
         assert_eq!(calculate_score(1, 2), 3);
         assert_eq!(calculate_score(-1, 1), 0);
     }
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use quickcheck::{quickcheck, TestResult};
     #[test]
     fn test_play_simple_round_examples() {
         assert_eq!(play_simple_round(0, 0), 0);
