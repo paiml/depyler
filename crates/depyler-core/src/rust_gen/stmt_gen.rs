@@ -696,14 +696,27 @@ pub(crate) fn codegen_for_stmt(
         // Get the first variable name from the tuple pattern (the index from enumerate)
         if let AssignTarget::Tuple(targets) = target {
             if let Some(AssignTarget::Symbol(index_var)) = targets.first() {
-                // Add a cast statement at the beginning of the loop body
-                let index_ident = syn::Ident::new(index_var, proc_macro2::Span::call_site());
-                Ok(quote! {
-                    for #target_pattern in #iter_expr {
-                        let #index_ident = #index_ident as i32;
-                        #(#body_stmts)*
-                    }
-                })
+                // DEPYLER-0272 Fix: Only add cast if index variable is actually used
+                // If unused, it will be prefixed with _ in target_pattern, so no cast needed
+                let is_index_used = body.iter().any(|stmt| is_var_used_in_stmt(index_var, stmt));
+
+                if is_index_used {
+                    // Add a cast statement at the beginning of the loop body
+                    let index_ident = syn::Ident::new(index_var, proc_macro2::Span::call_site());
+                    Ok(quote! {
+                        for #target_pattern in #iter_expr {
+                            let #index_ident = #index_ident as i32;
+                            #(#body_stmts)*
+                        }
+                    })
+                } else {
+                    // Index is unused - don't generate cast statement
+                    Ok(quote! {
+                        for #target_pattern in #iter_expr {
+                            #(#body_stmts)*
+                        }
+                    })
+                }
             } else {
                 Ok(quote! {
                     for #target_pattern in #iter_expr {
