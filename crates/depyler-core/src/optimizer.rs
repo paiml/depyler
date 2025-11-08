@@ -412,6 +412,16 @@ impl Optimizer {
                 // This fixes property writes like `b.size = 20` where `b` is used on LHS
                 self.collect_used_vars_assign_target(target, used);
                 self.collect_used_vars_expr(value, used);
+
+                // DEPYLER-0270 Fix #1: Mark assignment target as used if value contains indexing
+                // Indexing operations (e.g., list[0], dict["key"]) can fail and trigger Result returns,
+                // so assignments with indexing have side effects and should not be eliminated
+                // even if the target variable is never used afterward.
+                if self.expr_contains_index(value) {
+                    if let AssignTarget::Symbol(name) = target {
+                        used.insert(name.clone(), true);
+                    }
+                }
             }
             HirStmt::Return(Some(expr)) => {
                 self.collect_used_vars_expr(expr, used);
@@ -447,6 +457,42 @@ impl Optimizer {
                 self.collect_used_vars_expr(expr, used);
             }
             _ => {}
+        }
+    }
+
+    /// DEPYLER-0270 Fix #1: Check if expression contains indexing operations
+    /// Returns true if the expression tree contains any Index nodes, which indicate
+    /// operations that can fail (e.g., list[0], dict["key"]) and have side effects.
+    ///
+    /// # Complexity
+    /// 5 (recursive expression traversal with early return)
+    fn expr_contains_index(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Index { .. } => true,
+            HirExpr::Binary { left, right, .. } => {
+                self.expr_contains_index(left) || self.expr_contains_index(right)
+            }
+            HirExpr::Unary { operand, .. } => self.expr_contains_index(operand),
+            HirExpr::Call { args, .. } => args.iter().any(|arg| self.expr_contains_index(arg)),
+            HirExpr::List(items) | HirExpr::Tuple(items) => {
+                items.iter().any(|item| self.expr_contains_index(item))
+            }
+            HirExpr::Dict(pairs) => pairs
+                .iter()
+                .any(|(k, v)| self.expr_contains_index(k) || self.expr_contains_index(v)),
+            HirExpr::Set(items) => items.iter().any(|item| self.expr_contains_index(item)),
+            HirExpr::MethodCall { object, args, .. } => {
+                self.expr_contains_index(object)
+                    || args.iter().any(|arg| self.expr_contains_index(arg))
+            }
+            HirExpr::Attribute { value, .. } => self.expr_contains_index(value),
+            HirExpr::Slice { base, start, stop, step } => {
+                self.expr_contains_index(base)
+                    || start.as_ref().is_some_and(|e| self.expr_contains_index(e))
+                    || stop.as_ref().is_some_and(|e| self.expr_contains_index(e))
+                    || step.as_ref().is_some_and(|e| self.expr_contains_index(e))
+            }
+            _ => false,
         }
     }
 

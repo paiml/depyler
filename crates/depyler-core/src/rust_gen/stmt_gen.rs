@@ -946,6 +946,17 @@ pub(crate) fn codegen_assign_stmt(
 
     let mut value_expr = value.to_rust_expr(ctx)?;
 
+    // DEPYLER-0270: Auto-unwrap Result-returning function calls in assignments
+    // When assigning from a function that returns Result<T, E> in a non-Result context,
+    // we need to unwrap it. NOTE: expr_gen.rs already adds `?` for Result contexts,
+    // so we ONLY add .unwrap() for non-Result contexts to avoid double unwrapping (??).
+    if let HirExpr::Call { func, .. } = value {
+        if ctx.result_returning_functions.contains(func) && !ctx.current_function_can_fail {
+            // Current function doesn't return Result - add .unwrap() to extract the value
+            value_expr = parse_quote! { #value_expr.unwrap() };
+        }
+    }
+
     // If there's a type annotation, handle type conversions
     let type_annotation_tokens = if let Some(target_type) = type_annotation {
         let target_rust_type = ctx.type_mapper.map_type(target_type);
