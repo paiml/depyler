@@ -385,43 +385,66 @@ impl Optimizer {
     }
 
     fn eliminate_dead_code_function(&self, func: &mut HirFunction) {
-        // Collect used variables
+        // Collect truly used variables (referenced after assignment)
         let mut used_vars = HashMap::new();
         for stmt in &func.body {
-            self.collect_used_vars_stmt(stmt, &mut used_vars);
+            self.collect_truly_used_vars_stmt(stmt, &mut used_vars);
         }
 
-        // Remove assignments to unused variables
+        // Collect assignments with side effects (indexing) that need to be preserved
+        let mut side_effect_vars = HashSet::new();
+        for stmt in &func.body {
+            if let HirStmt::Assign { target, value, .. } = stmt {
+                if self.expr_contains_index(value) {
+                    if let AssignTarget::Symbol(name) = target {
+                        side_effect_vars.insert(name.clone());
+                    }
+                }
+            }
+        }
+
+        // Rename variables that have side effects but aren't actually used to `_varname`
+        // This prevents Rust's unused_variables warning while preserving the side effect
+        for stmt in &mut func.body {
+            if let HirStmt::Assign {
+                target: AssignTarget::Symbol(name),
+                ..
+            } = stmt
+            {
+                if side_effect_vars.contains(name) && !used_vars.contains_key(name) {
+                    *name = format!("_{}", name);
+                }
+            }
+        }
+
+        // Remove truly dead assignments (not used and no side effects)
         func.body.retain(|stmt| {
             if let HirStmt::Assign {
                 target: AssignTarget::Symbol(name),
                 ..
             } = stmt
             {
+                // Keep if: truly used OR has side effects (including renamed _varname)
                 used_vars.contains_key(name)
+                    || side_effect_vars.contains(name.trim_start_matches('_'))
             } else {
                 true
             }
         });
     }
 
-    fn collect_used_vars_stmt(&self, stmt: &HirStmt, used: &mut HashMap<String, bool>) {
+    /// DEPYLER-0270 Fix #1 (Updated): Collect truly used variables (referenced, not just assigned)
+    /// This version does NOT mark side-effect assignments as used - that's handled separately
+    /// in eliminate_dead_code_function to allow renaming them to `_varname`.
+    fn collect_truly_used_vars_stmt(&self, stmt: &HirStmt, used: &mut HashMap<String, bool>) {
         match stmt {
             HirStmt::Assign { target, value, .. } => {
                 // DEPYLER-0235 FIX: Collect variables from assignment targets
                 // This fixes property writes like `b.size = 20` where `b` is used on LHS
                 self.collect_used_vars_assign_target(target, used);
                 self.collect_used_vars_expr(value, used);
-
-                // DEPYLER-0270 Fix #1: Mark assignment target as used if value contains indexing
-                // Indexing operations (e.g., list[0], dict["key"]) can fail and trigger Result returns,
-                // so assignments with indexing have side effects and should not be eliminated
-                // even if the target variable is never used afterward.
-                if self.expr_contains_index(value) {
-                    if let AssignTarget::Symbol(name) = target {
-                        used.insert(name.clone(), true);
-                    }
-                }
+                // NOTE: We do NOT mark side-effect assignments as used here
+                // That's now handled in eliminate_dead_code_function
             }
             HirStmt::Return(Some(expr)) => {
                 self.collect_used_vars_expr(expr, used);
@@ -433,24 +456,24 @@ impl Optimizer {
             } => {
                 self.collect_used_vars_expr(condition, used);
                 for s in then_body {
-                    self.collect_used_vars_stmt(s, used);
+                    self.collect_truly_used_vars_stmt(s, used);
                 }
                 if let Some(else_stmts) = else_body {
                     for s in else_stmts {
-                        self.collect_used_vars_stmt(s, used);
+                        self.collect_truly_used_vars_stmt(s, used);
                     }
                 }
             }
             HirStmt::While { condition, body } => {
                 self.collect_used_vars_expr(condition, used);
                 for s in body {
-                    self.collect_used_vars_stmt(s, used);
+                    self.collect_truly_used_vars_stmt(s, used);
                 }
             }
             HirStmt::For { iter, body, .. } => {
                 self.collect_used_vars_expr(iter, used);
                 for s in body {
-                    self.collect_used_vars_stmt(s, used);
+                    self.collect_truly_used_vars_stmt(s, used);
                 }
             }
             HirStmt::Expr(expr) => {
@@ -459,6 +482,7 @@ impl Optimizer {
             _ => {}
         }
     }
+
 
     /// DEPYLER-0270 Fix #1: Check if expression contains indexing operations
     /// Returns true if the expression tree contains any Index nodes, which indicate
