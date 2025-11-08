@@ -186,25 +186,24 @@ pub(crate) fn codegen_return_stmt(
         let is_optional_return =
             matches!(ctx.current_return_type.as_ref(), Some(Type::Optional(_)));
 
-        // DEPYLER-0330: Unwrap Option-typed variables when returning from non-Optional function
-        // This handles: result = d.get(key); if result.is_none(): return X; return result
-        // After the None check, we know result is Some, so unwrap it
-        if !is_optional_return {
-            if let HirExpr::Var(var_name) = e {
-                // Use heuristic: only unwrap variables named "result" when return type is primitive
-                // This avoids unwrapping HashMap/Vec which use "result" as a variable name
-                let is_primitive_return = matches!(
-                    ctx.current_return_type.as_ref(),
-                    Some(Type::Int | Type::Float | Type::Bool | Type::String)
-                );
-
-                if ctx.is_final_statement && var_name == "result" && is_primitive_return {
-                    // Final return of "result" variable with primitive return type
-                    // Likely from dict.get() pattern - safe to unwrap after None check
-                    expr_tokens = parse_quote! { #expr_tokens.unwrap() };
-                }
-            }
-        }
+        // DEPYLER-0330: DISABLED - Heuristic too broad, breaks plain int variables named "result"
+        // Original logic: Unwrap Option-typed variables when returning from non-Optional function
+        // Problem: Can't distinguish between:
+        //   1. result = d.get(key)  # Option<T> - needs unwrap
+        //   2. result = 0           # i32 - breaks with unwrap
+        // TODO: Re-enable when HIR has type tracking to detect actual Option variables
+        //
+        // if !is_optional_return {
+        //     if let HirExpr::Var(var_name) = e {
+        //         let is_primitive_return = matches!(
+        //             ctx.current_return_type.as_ref(),
+        //             Some(Type::Int | Type::Float | Type::Bool | Type::String)
+        //         );
+        //         if ctx.is_final_statement && var_name == "result" && is_primitive_return {
+        //             expr_tokens = parse_quote! { #expr_tokens.unwrap() };
+        //         }
+        //     }
+        // }
 
         // Check if the expression is None literal
         let is_none_literal = matches!(e, HirExpr::Literal(Literal::None));
