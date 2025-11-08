@@ -102,6 +102,9 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-0308: Track functions that return Result<bool, E>
     /// Used to auto-unwrap in boolean contexts (if/while conditions)
     pub result_bool_functions: HashSet<String>,
+    /// DEPYLER-0270: Track ALL functions that return Result<T, E>
+    /// Used to auto-unwrap at call sites in non-Result functions
+    pub result_returning_functions: HashSet<String>,
     /// DEPYLER-0310: Current function's error type (for raise statement wrapping)
     /// None if function doesn't return Result, Some(ErrorType) if it does
     pub current_error_type: Option<ErrorType>,
