@@ -1905,7 +1905,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             } else if args.len() == 1 {
                 // DEPYLER-0272 FIX: Use {:?} for collections that don't implement Display
                 // Check if arg is a collection type (Vec, HashMap, HashSet)
-                let needs_debug = if let Some(hir_arg) = hir_args.get(0) {
+                let needs_debug = if let Some(hir_arg) = hir_args.first() {
                     match hir_arg {
                         HirExpr::Var(name) => {
                             // Check variable type
