@@ -432,7 +432,7 @@ def safe_divide(a: int, b: int) -> int:
     std::fs::write(&rust_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
-        .args(&[
+        .args([
             "--crate-type",
             "lib",
             "--edition",

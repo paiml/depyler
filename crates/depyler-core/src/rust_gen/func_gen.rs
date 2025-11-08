@@ -254,9 +254,9 @@ fn is_param_used_in_body(body: &[HirStmt], param_name: &str) -> bool {
             }
             HirExpr::Slice { base, start, stop, step } => {
                 check_expr(base, param_name)
-                    || start.as_ref().map_or(false, |e| check_expr(e, param_name))
-                    || stop.as_ref().map_or(false, |e| check_expr(e, param_name))
-                    || step.as_ref().map_or(false, |e| check_expr(e, param_name))
+                    || start.as_ref().is_some_and(|e| check_expr(e, param_name))
+                    || stop.as_ref().is_some_and(|e| check_expr(e, param_name))
+                    || step.as_ref().is_some_and(|e| check_expr(e, param_name))
             }
             HirExpr::Attribute { value, .. } => check_expr(value, param_name),
             HirExpr::List(elems) | HirExpr::Tuple(elems) | HirExpr::Set(elems) | HirExpr::FrozenSet(elems) => {
@@ -269,7 +269,7 @@ fn is_param_used_in_body(body: &[HirStmt], param_name: &str) -> bool {
             HirExpr::ListComp { element, iter, condition, .. } => {
                 check_expr(element, param_name)
                     || check_expr(iter, param_name)
-                    || condition.as_ref().map_or(false, |c| check_expr(c, param_name))
+                    || condition.as_ref().is_some_and(|c| check_expr(c, param_name))
             }
             _ => false,
         }
@@ -283,7 +283,7 @@ fn is_param_used_in_body(body: &[HirStmt], param_name: &str) -> bool {
             HirStmt::If { condition, then_body, else_body } => {
                 check_expr(condition, param_name)
                     || then_body.iter().any(|s| check_stmt(s, param_name))
-                    || else_body.as_ref().map_or(false, |stmts| stmts.iter().any(|s| check_stmt(s, param_name)))
+                    || else_body.as_ref().is_some_and(|stmts| stmts.iter().any(|s| check_stmt(s, param_name)))
             }
             HirStmt::For { iter, body, .. } => {
                 check_expr(iter, param_name) || body.iter().any(|s| check_stmt(s, param_name))
@@ -292,8 +292,8 @@ fn is_param_used_in_body(body: &[HirStmt], param_name: &str) -> bool {
                 check_expr(condition, param_name) || body.iter().any(|s| check_stmt(s, param_name))
             }
             HirStmt::Raise { exception, cause } => {
-                exception.as_ref().map_or(false, |e| check_expr(e, param_name))
-                    || cause.as_ref().map_or(false, |c| check_expr(c, param_name))
+                exception.as_ref().is_some_and(|e| check_expr(e, param_name))
+                    || cause.as_ref().is_some_and(|c| check_expr(c, param_name))
             }
             HirStmt::With { context, body, .. } => {
                 check_expr(context, param_name) || body.iter().any(|s| check_stmt(s, param_name))
@@ -301,11 +301,11 @@ fn is_param_used_in_body(body: &[HirStmt], param_name: &str) -> bool {
             HirStmt::Try { body, handlers, orelse, finalbody } => {
                 body.iter().any(|s| check_stmt(s, param_name))
                     || handlers.iter().any(|h| h.body.iter().any(|s| check_stmt(s, param_name)))
-                    || orelse.as_ref().map_or(false, |stmts| stmts.iter().any(|s| check_stmt(s, param_name)))
-                    || finalbody.as_ref().map_or(false, |stmts| stmts.iter().any(|s| check_stmt(s, param_name)))
+                    || orelse.as_ref().is_some_and(|stmts| stmts.iter().any(|s| check_stmt(s, param_name)))
+                    || finalbody.as_ref().is_some_and(|stmts| stmts.iter().any(|s| check_stmt(s, param_name)))
             }
             HirStmt::Assert { test, msg } => {
-                check_expr(test, param_name) || msg.as_ref().map_or(false, |m| check_expr(m, param_name))
+                check_expr(test, param_name) || msg.as_ref().is_some_and(|m| check_expr(m, param_name))
             }
             _ => false,
         }
