@@ -400,6 +400,59 @@ pub(crate) fn codegen_with_stmt(
 // Complex handlers extracted from HirStmt::to_rust_tokens
 // ============================================================================
 
+/// Apply Python truthiness conversion to a condition expression
+///
+/// In Python, any value can be used in a boolean context. This function
+/// converts non-boolean expressions to boolean using Python semantics:
+/// - String: !expr.is_empty()
+/// - List/Dict/Set: !expr.is_empty()
+/// - Optional: expr.is_some()
+/// - Int: expr != 0
+/// - Float: expr != 0.0
+/// - Bool: expr (no conversion)
+///
+/// # DEPYLER-0339
+/// Fixes: `if val` where `val: String` failing to compile
+fn apply_truthiness_conversion(
+    condition: &HirExpr,
+    cond_expr: syn::Expr,
+    ctx: &CodeGenContext,
+) -> syn::Expr {
+    // Check if this is a variable reference that needs truthiness conversion
+    if let HirExpr::Var(var_name) = condition {
+        if let Some(var_type) = ctx.var_types.get(var_name) {
+            return match var_type {
+                // Already boolean - no conversion needed
+                Type::Bool => cond_expr,
+
+                // String/List/Dict/Set - check if empty
+                Type::String | Type::List(_) | Type::Dict(_, _) | Type::Set(_) => {
+                    parse_quote! { !#cond_expr.is_empty() }
+                }
+
+                // Optional - check if Some
+                Type::Optional(_) => {
+                    parse_quote! { #cond_expr.is_some() }
+                }
+
+                // Numeric types - check if non-zero
+                Type::Int => {
+                    parse_quote! { #cond_expr != 0 }
+                }
+                Type::Float => {
+                    parse_quote! { #cond_expr != 0.0 }
+                }
+
+                // Unknown or other types - use as-is (may fail compilation)
+                _ => cond_expr,
+            };
+        }
+    }
+
+    // Not a variable or no type info - use as-is
+    cond_expr
+}
+
 /// Generate code for If statement with optional else clause
 #[inline]
 pub(crate) fn codegen_if_stmt(
@@ -421,6 +474,10 @@ pub(crate) fn codegen_if_stmt(
             cond = parse_quote! { #cond.unwrap_or(false) };
         }
     }
+
+    // DEPYLER-0339: Apply Python truthiness conversion
+    // Convert non-boolean expressions to boolean (e.g., `if val` where val: String)
+    cond = apply_truthiness_conversion(condition, cond, ctx);
 
     ctx.enter_scope();
     let then_stmts: Vec<_> = then_body
@@ -652,10 +709,55 @@ pub(crate) fn codegen_for_stmt(
     }
 
     ctx.enter_scope();
-    // Declare all variables from the target pattern
-    match target {
-        AssignTarget::Symbol(name) => ctx.declare_var(name),
-        AssignTarget::Tuple(targets) => {
+
+    // DEPYLER-0339: Track loop variable types for truthiness conversion
+    // Extract element type from iterator and add to var_types
+    let element_type = match iter {
+        HirExpr::Var(var_name) => {
+            // Simple case: for x in items
+            // Look up items type, extract element type
+            ctx.var_types.get(var_name).and_then(|t| match t {
+                Type::List(elem_t) => Some(*elem_t.clone()),
+                Type::Set(elem_t) => Some(*elem_t.clone()),
+                Type::Dict(key_t, _) => Some(*key_t.clone()), // dict iteration yields keys
+                _ => None,
+            })
+        }
+        HirExpr::Call { func, args } if func == "enumerate" => {
+            // enumerate(items) yields (int, elem_type)
+            if let Some(HirExpr::Var(var_name)) = args.first() {
+                ctx.var_types.get(var_name).and_then(|t| match t {
+                    Type::List(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
+                    Type::Set(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
+                    _ => None,
+                })
+            } else {
+                None
+            }
+        }
+        _ => None,
+    };
+
+    // Declare all variables from the target pattern and set their types
+    match (target, element_type) {
+        (AssignTarget::Symbol(name), Some(elem_type)) => {
+            ctx.declare_var(name);
+            ctx.var_types.insert(name.clone(), elem_type);
+        }
+        (AssignTarget::Symbol(name), None) => {
+            ctx.declare_var(name);
+        }
+        (AssignTarget::Tuple(targets), Some(Type::Tuple(elem_types))) if targets.len() == elem_types.len() => {
+            // Tuple unpacking with type info: (i, val) from enumerate
+            for (t, typ) in targets.iter().zip(elem_types.iter()) {
+                if let AssignTarget::Symbol(s) = t {
+                    ctx.declare_var(s);
+                    ctx.var_types.insert(s.clone(), typ.clone());
+                }
+            }
+        }
+        (AssignTarget::Tuple(targets), _) => {
+            // Tuple unpacking without type info
             for t in targets {
                 if let AssignTarget::Symbol(s) = t {
                     ctx.declare_var(s);
