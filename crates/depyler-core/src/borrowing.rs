@@ -223,13 +223,49 @@ impl BorrowingContext {
     }
 
     fn find_params_in_expr(&mut self, expr: &HirExpr) {
-        if let HirExpr::Var(name) = expr {
-            if self.read_only_params.contains(name)
-                || self.mutated_params.contains(name)
-                || self.escaping_params.contains(name)
-            {
-                self.loop_used_params.insert(name.clone());
+        match expr {
+            HirExpr::Var(name) => {
+                if self.read_only_params.contains(name)
+                    || self.mutated_params.contains(name)
+                    || self.escaping_params.contains(name)
+                {
+                    self.loop_used_params.insert(name.clone());
+                }
             }
+            // Recursively traverse binary expressions
+            HirExpr::Binary { left, right, .. } => {
+                self.find_params_in_expr(left);
+                self.find_params_in_expr(right);
+            }
+            // Recursively traverse unary expressions
+            HirExpr::Unary { operand, .. } => {
+                self.find_params_in_expr(operand);
+            }
+            // Recursively traverse function call arguments
+            HirExpr::Call { args, .. } => {
+                for arg in args {
+                    self.find_params_in_expr(arg);
+                }
+            }
+            // Recursively traverse collections
+            HirExpr::List(elts) | HirExpr::Tuple(elts) | HirExpr::Set(elts) => {
+                for elt in elts {
+                    self.find_params_in_expr(elt);
+                }
+            }
+            // Recursively traverse dict items
+            HirExpr::Dict(items) => {
+                for (key, value) in items {
+                    self.find_params_in_expr(key);
+                    self.find_params_in_expr(value);
+                }
+            }
+            // Recursively traverse index expressions
+            HirExpr::Index { base, index } => {
+                self.find_params_in_expr(base);
+                self.find_params_in_expr(index);
+            }
+            _ => {}
         }
     }
 
@@ -656,6 +692,220 @@ mod tests {
         assert!(
             !ctx.is_copyable(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))),
             "Dict should NOT be copyable"
+        );
+    }
+
+    // ========================================================================
+    // PHASE 2: Expression Analysis Tests (Target: 60% → 75% coverage)
+    // ========================================================================
+
+    /// Unit Test: Binary expression analysis
+    ///
+    /// Verifies: Lines 154, 164-167 - analyze_binary processes both operands
+    #[test]
+    fn test_analyze_binary_expression() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("x".to_string());
+        ctx.read_only_params.insert("y".to_string());
+
+        // Binary expression: x + y
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Var("y".to_string())),
+        };
+
+        ctx.analyze_expr(&expr);
+
+        // Both params should remain read-only (just being read, not mutated)
+        assert!(
+            ctx.read_only_params.contains("x"),
+            "Binary operand x should be tracked"
+        );
+        assert!(
+            ctx.read_only_params.contains("y"),
+            "Binary operand y should be tracked"
+        );
+    }
+
+    /// Unit Test: Unary expression analysis
+    ///
+    /// Verifies: Line 155 - analyze_expr handles unary operations
+    #[test]
+    fn test_analyze_unary_expression() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("value".to_string());
+
+        // Unary expression: -value
+        let expr = HirExpr::Unary {
+            op: crate::hir::UnaryOp::Neg,
+            operand: Box::new(HirExpr::Var("value".to_string())),
+        };
+
+        ctx.analyze_expr(&expr);
+
+        assert!(
+            ctx.read_only_params.contains("value"),
+            "Unary operand should be tracked"
+        );
+    }
+
+    /// Unit Test: Function call argument analysis
+    ///
+    /// Verifies: Lines 156, 169-173 - analyze_call processes all arguments
+    #[test]
+    fn test_analyze_call_arguments() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("a".to_string());
+        ctx.read_only_params.insert("b".to_string());
+
+        // Call expression: func(a, b)
+        let expr = HirExpr::Call {
+            func: "func".to_string(),
+            args: vec![
+                HirExpr::Var("a".to_string()),
+                HirExpr::Var("b".to_string()),
+            ],
+        };
+
+        ctx.analyze_expr(&expr);
+
+        assert!(
+            ctx.read_only_params.contains("a"),
+            "Call argument a should be tracked"
+        );
+        assert!(
+            ctx.read_only_params.contains("b"),
+            "Call argument b should be tracked"
+        );
+    }
+
+    /// Unit Test: List collection analysis
+    ///
+    /// Verifies: Lines 157, 175-179 - analyze_collection processes list elements
+    #[test]
+    fn test_analyze_list_collection() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("item1".to_string());
+        ctx.read_only_params.insert("item2".to_string());
+
+        // List expression: [item1, item2]
+        let expr = HirExpr::List(vec![
+            HirExpr::Var("item1".to_string()),
+            HirExpr::Var("item2".to_string()),
+        ]);
+
+        ctx.analyze_expr(&expr);
+
+        assert!(
+            ctx.read_only_params.contains("item1"),
+            "List element item1 should be tracked"
+        );
+        assert!(
+            ctx.read_only_params.contains("item2"),
+            "List element item2 should be tracked"
+        );
+    }
+
+    /// Unit Test: Dict analysis with key-value pairs
+    ///
+    /// Verifies: Lines 158, 181-186 - analyze_dict processes keys and values
+    #[test]
+    fn test_analyze_dict_items() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("key1".to_string());
+        ctx.read_only_params.insert("val1".to_string());
+
+        // Dict expression: {key1: val1}
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Var("key1".to_string()),
+            HirExpr::Var("val1".to_string()),
+        )]);
+
+        ctx.analyze_expr(&expr);
+
+        assert!(
+            ctx.read_only_params.contains("key1"),
+            "Dict key should be tracked"
+        );
+        assert!(
+            ctx.read_only_params.contains("val1"),
+            "Dict value should be tracked"
+        );
+    }
+
+    /// Unit Test: Index expression analysis
+    ///
+    /// Verifies: Lines 159, 188-191 - analyze_index processes base and index
+    #[test]
+    fn test_analyze_index_expression() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("arr".to_string());
+        ctx.read_only_params.insert("idx".to_string());
+
+        // Index expression: arr[idx]
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Var("idx".to_string())),
+        };
+
+        ctx.analyze_expr(&expr);
+
+        assert!(
+            ctx.read_only_params.contains("arr"),
+            "Index base should be tracked"
+        );
+        assert!(
+            ctx.read_only_params.contains("idx"),
+            "Index subscript should be tracked"
+        );
+    }
+
+    /// Unit Test: Escaping parameters in tuple return
+    ///
+    /// Verifies: Lines 199-206 - check_escaping_expr marks tuple elements as escaping
+    #[test]
+    fn test_check_escaping_tuple_elements() {
+        let mut ctx = BorrowingContext::new();
+
+        // Tuple expression with parameters: (x, y)
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Var("x".to_string()),
+            HirExpr::Var("y".to_string()),
+        ]);
+
+        ctx.check_escaping_expr(&expr);
+
+        assert!(
+            ctx.escaping_params.contains("x"),
+            "Tuple element x should be marked as escaping"
+        );
+        assert!(
+            ctx.escaping_params.contains("y"),
+            "Tuple element y should be marked as escaping"
+        );
+    }
+
+    /// Unit Test: Loop parameter tracking
+    ///
+    /// Verifies: Lines 211-234 - mark_loop_params and find_params_in_expr
+    #[test]
+    fn test_mark_loop_params_tracking() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("counter".to_string());
+
+        // Loop body: counter + 1
+        let body = vec![HirStmt::Expr(HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Var("counter".to_string())),
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        })];
+
+        ctx.mark_loop_params(&body);
+
+        assert!(
+            ctx.loop_used_params.contains("counter"),
+            "Parameter used in loop should be tracked"
         );
     }
 }
