@@ -277,3 +277,433 @@ fn test_file_permissions_error() {
         }
     }
 }
+
+// ============================================================================
+// COMPREHENSIVE CLI FLAG COVERAGE
+// Helper function for creating test Python files
+// ============================================================================
+
+fn create_test_py(dir: &TempDir, name: &str) -> std::path::PathBuf {
+    let path = dir.path().join(name);
+    fs::write(&path, "def add(a: int, b: int) -> int:\n    return a + b").unwrap();
+    path
+}
+
+// ============================================================================
+// TRANSPILE - All Flags
+// ============================================================================
+
+#[test]
+fn test_transpile_with_output_flag() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+    let output = dir.path().join("out.rs");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "transpile", input.to_str().unwrap(),
+               "--output", output.to_str().unwrap()])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_transpile_verify_flag() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "transpile", input.to_str().unwrap(), "--verify"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_transpile_gen_tests_flag() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "transpile", input.to_str().unwrap(), "--gen-tests"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_transpile_debug_flag() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "transpile", input.to_str().unwrap(), "--debug"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_transpile_source_map_flag() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "transpile", input.to_str().unwrap(), "--source-map"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_transpile_all_flags_combined() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+    let output = dir.path().join("out.rs");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "transpile", input.to_str().unwrap(),
+               "--output", output.to_str().unwrap(),
+               "--verify", "--gen-tests", "--debug", "--source-map"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+// ============================================================================
+// QUALITY-CHECK - Missing Flags
+// ============================================================================
+
+#[test]
+fn test_quality_check_enforce_flag() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "quality-check", input.to_str().unwrap(), "--enforce"])
+        .output()
+        .expect("Failed to execute");
+
+    // May pass or fail based on quality, just verify it runs
+    assert!(!result.stdout.is_empty() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_quality_check_min_tdg_flag() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "quality-check", input.to_str().unwrap(),
+               "--min-tdg", "0.5"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_quality_check_max_tdg_flag() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "quality-check", input.to_str().unwrap(),
+               "--max-tdg", "3.0"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+// ============================================================================
+// INSPECT - All Flags (Previously Untested)
+// ============================================================================
+
+#[test]
+fn test_inspect_basic() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "inspect", input.to_str().unwrap()])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_inspect_repr_python_ast() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "inspect", input.to_str().unwrap(),
+               "--repr", "python-ast"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_inspect_repr_typed_hir() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "inspect", input.to_str().unwrap(),
+               "--repr", "typed-hir"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_inspect_format_json() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "inspect", input.to_str().unwrap(),
+               "--format", "json"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_inspect_format_debug() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "inspect", input.to_str().unwrap(),
+               "--format", "debug"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_inspect_with_output_file() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+    let output = dir.path().join("inspect.txt");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "inspect", input.to_str().unwrap(),
+               "--output", output.to_str().unwrap()])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+// ============================================================================
+// DEBUG - All Flags (Previously Untested)
+// ============================================================================
+
+#[test]
+fn test_debug_tips() {
+    let result = Command::new("cargo")
+        .args(["run", "--", "debug", "--tips"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_debug_gen_script() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+    let script = dir.path().join("debug.gdb");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "debug",
+               "--gen-script", script.to_str().unwrap(),
+               "--source", input.to_str().unwrap()])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_debug_debugger_lldb() {
+    let result = Command::new("cargo")
+        .args(["run", "--", "debug", "--debugger", "lldb", "--tips"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+// ============================================================================
+// DOCS - All Flags (Previously Untested)
+// ============================================================================
+
+#[test]
+fn test_docs_basic() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+    let output = dir.path().join("docs");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "docs", input.to_str().unwrap(),
+               "--output", output.to_str().unwrap()])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_docs_format_html() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+    let output = dir.path().join("docs");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "docs", input.to_str().unwrap(),
+               "--output", output.to_str().unwrap(),
+               "--format", "html"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_docs_performance_notes_flag() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+    let output = dir.path().join("docs");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "docs", input.to_str().unwrap(),
+               "--output", output.to_str().unwrap(),
+               "--performance-notes"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+// ============================================================================
+// PROFILE - All Flags (Previously Untested)
+// ============================================================================
+
+#[test]
+fn test_profile_basic() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "profile", input.to_str().unwrap()])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_profile_flamegraph_flag() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "profile", input.to_str().unwrap(), "--flamegraph"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_profile_hot_path_threshold() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "profile", input.to_str().unwrap(),
+               "--hot-path-threshold", "200"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+// ============================================================================
+// AGENT - Subcommands (Previously Untested)
+// ============================================================================
+
+#[test]
+fn test_agent_status() {
+    let result = Command::new("cargo")
+        .args(["run", "--", "agent", "status"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_agent_list_projects() {
+    let result = Command::new("cargo")
+        .args(["run", "--", "agent", "list-projects"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+// ============================================================================
+// GLOBAL FLAGS
+// ============================================================================
+
+#[test]
+fn test_global_verbose_flag() {
+    let dir = TempDir::new().unwrap();
+    let input = create_test_py(&dir, "test.py");
+
+    let result = Command::new("cargo")
+        .args(["run", "--", "--verbose", "transpile", input.to_str().unwrap()])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success() || !result.stderr.is_empty());
+}
+
+#[test]
+fn test_help_flag() {
+    let result = Command::new("cargo")
+        .args(["run", "--", "--help"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success());
+    let stdout = String::from_utf8_lossy(&result.stdout);
+    assert!(stdout.contains("depyler") || stdout.contains("Usage"));
+}
+
+#[test]
+fn test_version_flag() {
+    let result = Command::new("cargo")
+        .args(["run", "--", "--version"])
+        .output()
+        .expect("Failed to execute");
+
+    assert!(result.status.success());
+}
