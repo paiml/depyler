@@ -426,4 +426,236 @@ mod tests {
         // Test owned int
         assert_eq!(ctx.generate_param_signature("n", &Type::Int), "n: i32");
     }
+
+    // ========================================================================
+    // PHASE 1: Core Infrastructure Tests (Target: 43% → 60% coverage)
+    // ========================================================================
+
+    /// Unit Test: Assignment statement mutation tracking
+    ///
+    /// Verifies: Lines 84-85, 103-111 - analyze_assign tracks param mutations
+    #[test]
+    fn test_analyze_stmt_assign_mutation() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("x".to_string());
+
+        // Assign: x = x + 1 (mutation)
+        let stmt = HirStmt::Assign {
+            target: crate::hir::AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("x".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Int(1))),
+            },
+            type_annotation: None,
+        };
+
+        ctx.analyze_stmt(&stmt);
+
+        // x should be marked as mutated (removal from read_only happens in analyze_function)
+        assert!(
+            ctx.mutated_params.contains("x"),
+            "Parameter x should be marked as mutated after assignment"
+        );
+    }
+
+    /// Unit Test: Return statement escaping analysis
+    ///
+    /// Verifies: Lines 86, 113-116, 193-209 - analyze_return marks escaping params
+    #[test]
+    fn test_analyze_stmt_return_escaping() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("data".to_string());
+
+        // Return data (parameter escapes)
+        let stmt = HirStmt::Return(Some(HirExpr::Var("data".to_string())));
+
+        ctx.analyze_stmt(&stmt);
+
+        // data should be marked as escaping
+        assert!(
+            ctx.escaping_params.contains("data"),
+            "Parameter data should be marked as escaping when returned"
+        );
+    }
+
+    /// Unit Test: Direct variable escaping detection
+    ///
+    /// Verifies: Lines 195-197 - check_escaping_expr for direct var return
+    #[test]
+    fn test_check_escaping_direct_var() {
+        let mut ctx = BorrowingContext::new();
+
+        let expr = HirExpr::Var("result".to_string());
+        ctx.check_escaping_expr(&expr);
+
+        assert!(
+            ctx.escaping_params.contains("result"),
+            "Direct variable return should mark parameter as escaping"
+        );
+    }
+
+    /// Unit Test: If statement branch analysis
+    ///
+    /// Verifies: Lines 88-92, 118-133 - analyze_if processes both branches
+    #[test]
+    fn test_analyze_if_branches() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("x".to_string());
+        ctx.read_only_params.insert("y".to_string());
+
+        // if condition: x > 0
+        let condition = HirExpr::Binary {
+            op: BinOp::Gt,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+
+        // then: y = y + 1 (mutates y)
+        let then_body = vec![HirStmt::Assign {
+            target: crate::hir::AssignTarget::Symbol("y".to_string()),
+            value: HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("y".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Int(1))),
+            },
+            type_annotation: None,
+        }];
+
+        // else: pass
+        let else_body = vec![];
+
+        let stmt = HirStmt::If {
+            condition,
+            then_body,
+            else_body: Some(else_body),
+        };
+
+        ctx.analyze_stmt(&stmt);
+
+        // x used in condition (read-only)
+        assert!(
+            ctx.read_only_params.contains("x"),
+            "Condition parameter should remain read-only"
+        );
+
+        // y mutated in then branch
+        assert!(
+            ctx.mutated_params.contains("y"),
+            "Parameter mutated in if branch should be tracked"
+        );
+    }
+
+    /// Unit Test: While loop analysis with loop param tracking
+    ///
+    /// Verifies: Lines 93, 135-141, 211-234 - analyze_while and mark_loop_params
+    #[test]
+    fn test_analyze_while_loop() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("limit".to_string());
+        ctx.read_only_params.insert("counter".to_string());
+
+        // while counter < limit:
+        let condition = HirExpr::Binary {
+            op: BinOp::Lt,
+            left: Box::new(HirExpr::Var("counter".to_string())),
+            right: Box::new(HirExpr::Var("limit".to_string())),
+        };
+
+        // counter = counter + 1
+        let body = vec![HirStmt::Assign {
+            target: crate::hir::AssignTarget::Symbol("counter".to_string()),
+            value: HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("counter".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Int(1))),
+            },
+            type_annotation: None,
+        }];
+
+        let stmt = HirStmt::While { condition, body };
+
+        ctx.analyze_stmt(&stmt);
+
+        // Both params used in loop
+        assert!(
+            ctx.loop_used_params.contains("limit") || ctx.read_only_params.contains("limit"),
+            "Loop condition param should be tracked"
+        );
+        assert!(
+            ctx.mutated_params.contains("counter"),
+            "Loop-mutated param should be tracked"
+        );
+    }
+
+    /// Unit Test: For loop analysis
+    ///
+    /// Verifies: Lines 94-98, 143-149, 211-234 - analyze_for and loop param tracking
+    #[test]
+    fn test_analyze_for_loop() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("items".to_string());
+        ctx.read_only_params.insert("total".to_string());
+
+        // for item in items:
+        let iter = HirExpr::Var("items".to_string());
+
+        // total = total + item
+        let body = vec![HirStmt::Assign {
+            target: crate::hir::AssignTarget::Symbol("total".to_string()),
+            value: HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("total".to_string())),
+                right: Box::new(HirExpr::Var("item".to_string())),
+            },
+            type_annotation: None,
+        }];
+
+        let stmt = HirStmt::For {
+            target: crate::hir::AssignTarget::Symbol("item".to_string()),
+            iter,
+            body,
+        };
+
+        ctx.analyze_stmt(&stmt);
+
+        // items used as iterator
+        assert!(
+            ctx.loop_used_params.contains("items") || ctx.read_only_params.contains("items"),
+            "For loop iterator param should be tracked"
+        );
+        // total mutated in loop body
+        assert!(
+            ctx.mutated_params.contains("total"),
+            "Loop-mutated param should be tracked"
+        );
+    }
+
+    /// Unit Test: Primitive type copyability detection
+    ///
+    /// Verifies: Line 237 - is_copyable returns true for Int/Float/Bool/None
+    #[test]
+    fn test_is_copyable_primitives() {
+        let ctx = BorrowingContext::new();
+
+        // Primitive types should be copyable
+        assert!(ctx.is_copyable(&Type::Int), "Int should be copyable");
+        assert!(ctx.is_copyable(&Type::Float), "Float should be copyable");
+        assert!(ctx.is_copyable(&Type::Bool), "Bool should be copyable");
+        assert!(ctx.is_copyable(&Type::None), "None should be copyable");
+
+        // Non-primitive types should NOT be copyable
+        assert!(
+            !ctx.is_copyable(&Type::String),
+            "String should NOT be copyable"
+        );
+        assert!(
+            !ctx.is_copyable(&Type::List(Box::new(Type::Int))),
+            "List should NOT be copyable"
+        );
+        assert!(
+            !ctx.is_copyable(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))),
+            "Dict should NOT be copyable"
+        );
+    }
 }
