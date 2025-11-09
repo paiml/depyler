@@ -908,4 +908,179 @@ mod tests {
             "Parameter used in loop should be tracked"
         );
     }
+
+    // ========================================================================
+    // PHASE 3: Type Conversion Tests (Target: 75% → 85% coverage)
+    // ========================================================================
+
+    /// Unit Test: Primitive type conversions
+    ///
+    /// Verifies: Lines 294-304 - primitive_type_to_rust handles all primitives
+    #[test]
+    fn test_primitive_type_conversions() {
+        let ctx = BorrowingContext::new();
+
+        assert_eq!(ctx.primitive_type_to_rust(&Type::Unknown), "serde_json::Value");
+        assert_eq!(ctx.primitive_type_to_rust(&Type::Int), "i32");
+        assert_eq!(ctx.primitive_type_to_rust(&Type::Float), "f64");
+        assert_eq!(ctx.primitive_type_to_rust(&Type::String), "String");
+        assert_eq!(ctx.primitive_type_to_rust(&Type::Bool), "bool");
+        assert_eq!(ctx.primitive_type_to_rust(&Type::None), "()");
+    }
+
+    /// Unit Test: List type conversion
+    ///
+    /// Verifies: Lines 308, 316-318 - list_type_to_rust generates Vec<T>
+    #[test]
+    fn test_list_type_conversion() {
+        let ctx = BorrowingContext::new();
+
+        let list_type = Type::List(Box::new(Type::Int));
+        let result = ctx.type_to_rust_string(&list_type);
+
+        assert_eq!(result, "Vec<i32>", "List of int should map to Vec<i32>");
+    }
+
+    /// Unit Test: Dict type conversion
+    ///
+    /// Verifies: Lines 309, 328-334 - dict_type_to_rust generates HashMap<K, V>
+    #[test]
+    fn test_dict_type_conversion() {
+        let ctx = BorrowingContext::new();
+
+        let dict_type = Type::Dict(Box::new(Type::String), Box::new(Type::Int));
+        let result = ctx.type_to_rust_string(&dict_type);
+
+        assert_eq!(
+            result, "HashMap<String, i32>",
+            "Dict[str, int] should map to HashMap<String, i32>"
+        );
+    }
+
+    /// Unit Test: Set type conversion
+    ///
+    /// Verifies: Lines 310, 320-322 - set_type_to_rust generates HashSet<T>
+    #[test]
+    fn test_set_type_conversion() {
+        let ctx = BorrowingContext::new();
+
+        let set_type = Type::Set(Box::new(Type::String));
+        let result = ctx.type_to_rust_string(&set_type);
+
+        assert_eq!(
+            result, "HashSet<String>",
+            "Set[str] should map to HashSet<String>"
+        );
+    }
+
+    /// Unit Test: Array type conversion
+    ///
+    /// Verifies: Lines 311, 324-326 - array_type_to_rust generates Array<T>
+    #[test]
+    fn test_array_type_conversion() {
+        let ctx = BorrowingContext::new();
+
+        let array_type = Type::Array {
+            element_type: Box::new(Type::Float),
+            size: crate::hir::ConstGeneric::Literal(10),
+        };
+        let result = ctx.type_to_rust_string(&array_type);
+
+        assert_eq!(result, "Array<f64>", "Array of float should map to Array<f64>");
+    }
+
+    /// Unit Test: Tuple type conversion
+    ///
+    /// Verifies: Lines 285, 336-344 - tuple_type_to_rust handles empty and non-empty tuples
+    #[test]
+    fn test_tuple_type_conversion() {
+        let ctx = BorrowingContext::new();
+
+        // Empty tuple
+        let empty_tuple = Type::Tuple(vec![]);
+        assert_eq!(
+            ctx.type_to_rust_string(&empty_tuple),
+            "()",
+            "Empty tuple should map to unit ()"
+        );
+
+        // Non-empty tuple
+        let tuple_type = Type::Tuple(vec![Type::Int, Type::String, Type::Bool]);
+        let result = ctx.type_to_rust_string(&tuple_type);
+
+        assert_eq!(
+            result, "(i32, String, bool)",
+            "Tuple[int, str, bool] should map to (i32, String, bool)"
+        );
+    }
+
+    /// Unit Test: Optional type conversion
+    ///
+    /// Verifies: Lines 286, 346-348 - optional_type_to_rust generates Option<T>
+    #[test]
+    fn test_optional_type_conversion() {
+        let ctx = BorrowingContext::new();
+
+        let optional_type = Type::Optional(Box::new(Type::Int));
+        let result = ctx.type_to_rust_string(&optional_type);
+
+        assert_eq!(
+            result, "Option<i32>",
+            "Optional[int] should map to Option<i32>"
+        );
+    }
+
+    /// Unit Test: Complex type conversions (Custom, TypeVar, Generic, Function, Union)
+    ///
+    /// Verifies: Lines 287-290 - type_to_rust_string handles special types
+    #[test]
+    fn test_complex_type_conversions() {
+        let ctx = BorrowingContext::new();
+
+        // Custom type
+        let custom = Type::Custom("MyClass".to_string());
+        assert_eq!(
+            ctx.type_to_rust_string(&custom),
+            "MyClass",
+            "Custom type should preserve name"
+        );
+
+        // TypeVar
+        let typevar = Type::TypeVar("T".to_string());
+        assert_eq!(
+            ctx.type_to_rust_string(&typevar),
+            "T",
+            "TypeVar should preserve name"
+        );
+
+        // Generic type
+        let generic = Type::Generic {
+            base: "Vec".to_string(),
+            params: vec![Type::Int],
+        };
+        assert_eq!(
+            ctx.type_to_rust_string(&generic),
+            "Vec",
+            "Generic type should use base name"
+        );
+
+        // Function type
+        let function = Type::Function {
+            params: vec![Type::Int],
+            ret: Box::new(Type::String),
+        };
+        assert_eq!(
+            ctx.type_to_rust_string(&function),
+            "/* function */",
+            "Function type should return comment"
+        );
+
+        // Union type
+        let union = Type::Union(vec![Type::Int, Type::String]);
+        assert_eq!(
+            ctx.type_to_rust_string(&union),
+            "Union",
+            "Union type should return 'Union'"
+        );
+    }
 }
