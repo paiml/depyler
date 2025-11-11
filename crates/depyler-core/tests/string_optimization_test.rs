@@ -29,20 +29,23 @@ def print_message():
 fn test_returned_string_uses_appropriate_type() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
-def get_greeting():
+def get_greeting() -> str:
     return "Hello!"
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
     println!("Generated code for get_greeting:\n{}", rust_code);
 
-    // When returning a string literal, it should use appropriate ownership
-    // Current implementation uses DynamicType or String
+    // DEPYLER-0357: Returns String for string literals
+    // Note: Python source updated to include return type annotation (-> str)
+    // to ensure proper Rust type generation
     assert!(
-        rust_code.contains("String")
-            || rust_code.contains("Cow")
-            || rust_code.contains("DynamicType"),
-        "Should handle string return appropriately"
+        rust_code.contains("-> String"),
+        "Should have String return type"
+    );
+    assert!(
+        rust_code.contains("to_string()"),
+        "String literal should be converted to String"
     );
 }
 
@@ -57,10 +60,15 @@ def concat_strings(a: str, b: str) -> str:
     let rust_code = pipeline.transpile(python_code).unwrap();
     println!("Generated code for concat_strings:\n{}", rust_code);
 
-    // String concatenation should work
+    // DEPYLER-0357: String concatenation uses format! for borrowed strings
+    // This is more idiomatic than + operator when both operands are &str
     assert!(
-        rust_code.contains("+"),
-        "Should contain concatenation operator"
+        rust_code.contains("format!") || rust_code.contains("+"),
+        "Should contain concatenation via format! or +"
+    );
+    assert!(
+        rust_code.contains("-> String"),
+        "Concatenation should return String"
     );
 }
 
@@ -170,14 +178,25 @@ def concat(x: str, y: str) -> str:
         #[test]
         fn prop_string_parameters_use_references(param_name in "[a-z]{1,10}") {
             // Property: String parameters should prefer &str over String
-            // Filter out Rust keywords to avoid parsing errors
+            // Filter out Python AND Rust keywords to avoid parsing errors
             let rust_keywords = ["as", "break", "const", "continue", "crate", "do", "else",
                                  "enum", "extern", "false", "fn", "for", "if", "impl", "in",
                                  "let", "loop", "match", "mod", "move", "mut", "pub", "ref",
                                  "return", "self", "Self", "static", "struct", "super", "trait",
-                                 "true", "type", "unsafe", "use", "where", "while"];
+                                 "true", "type", "unsafe", "use", "where", "while", "async",
+                                 "await", "dyn", "abstract", "become", "box", "final", "macro",
+                                 "override", "priv", "typeof", "unsized", "virtual", "yield",
+                                 "try"];
+
+            // Python keywords that would cause parse errors
+            let python_keywords = ["and", "as", "assert", "async", "await", "break", "class",
+                                  "continue", "def", "del", "elif", "else", "except", "finally",
+                                  "for", "from", "global", "if", "import", "in", "is", "lambda",
+                                  "nonlocal", "not", "or", "pass", "raise", "return", "try",
+                                  "while", "with", "yield"];
 
             prop_assume!(!rust_keywords.contains(&param_name.as_str()));
+            prop_assume!(!python_keywords.contains(&param_name.as_str()));
 
             let pipeline = DepylerPipeline::new();
             let python_code = format!(r#"
