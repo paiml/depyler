@@ -1361,7 +1361,76 @@ pub(crate) fn codegen_try_stmt(
 
     // DEPYLER-0333: Enter try block scope with handled exception types
     // Empty list means bare except (catches all exceptions)
-    ctx.enter_try_scope(handled_types);
+    ctx.enter_try_scope(handled_types.clone());
+
+    // DEPYLER-0360: Check for floor division with ZeroDivisionError handler BEFORE generating try_stmts
+    let has_zero_div_handler = handlers
+        .iter()
+        .any(|h| h.exception_type.as_deref() == Some("ZeroDivisionError"));
+
+    if has_zero_div_handler && body.len() == 1 {
+        if let HirStmt::Return(Some(expr)) = &body[0] {
+            if contains_floor_div(expr) {
+                // Extract divisor from floor division
+                let divisor_expr = extract_divisor_from_floor_div(expr)?;
+                let divisor_tokens = divisor_expr.to_rust_expr(ctx)?;
+
+                // Find ZeroDivisionError handler
+                let zero_div_handler_idx = handlers
+                    .iter()
+                    .position(|h| h.exception_type.as_deref() == Some("ZeroDivisionError"))
+                    .unwrap();
+
+                // Generate handler body
+                ctx.enter_scope();
+                // DEPYLER-0360: Ensure return keyword is included in handler
+                let old_is_final = ctx.is_final_statement;
+                ctx.is_final_statement = false;
+                let handler_stmts: Vec<_> = handlers[zero_div_handler_idx]
+                    .body
+                    .iter()
+                    .map(|s| s.to_rust_tokens(ctx))
+                    .collect::<Result<Vec<_>>>()?;
+                ctx.is_final_statement = old_is_final;
+                ctx.exit_scope();
+
+                // Generate try block expression (with params shadowing)
+                let floor_div_result = expr.to_rust_expr(ctx)?;
+
+                // DEPYLER-0333: Exit try block scope
+                ctx.exit_exception_scope();
+
+                // Generate: if divisor == 0 { handler } else { floor_div_result }
+                if let Some(finalbody) = finalbody {
+                    ctx.enter_scope();
+                    let finally_stmts: Vec<_> = finalbody
+                        .iter()
+                        .map(|s| s.to_rust_tokens(ctx))
+                        .collect::<Result<Vec<_>>>()?;
+                    ctx.exit_scope();
+
+                    return Ok(quote! {
+                        {
+                            if #divisor_tokens == 0 {
+                                #(#handler_stmts)*
+                            } else {
+                                return #floor_div_result;
+                            }
+                            #(#finally_stmts)*
+                        }
+                    });
+                } else {
+                    return Ok(quote! {
+                        if #divisor_tokens == 0 {
+                            #(#handler_stmts)*
+                        } else {
+                            return #floor_div_result;
+                        }
+                    });
+                }
+            }
+        }
+    }
 
     // Convert try body to statements
     ctx.enter_scope();
@@ -1632,99 +1701,23 @@ pub(crate) fn codegen_try_stmt(
                     }
                 }
 
-                // Check if we have ZeroDivisionError and/or TypeError handlers
-                let has_zero_div_handler = handlers
-                    .iter()
-                    .any(|h| h.exception_type.as_deref() == Some("ZeroDivisionError"));
-
-                // If we have a ZeroDivisionError handler and the try block contains division,
-                // we need to generate a check for zero before dividing
-                if has_zero_div_handler && body.len() == 1 {
-                    if let HirStmt::Return(Some(expr)) = &body[0] {
-                        // Check if expression contains floor division
-                        if contains_floor_div(expr) {
-                            // Generate conditional logic: check for zero, execute handler if true
-                            // Otherwise execute try block
-                            let zero_div_handler_idx = handlers
-                                .iter()
-                                .position(|h| h.exception_type.as_deref() == Some("ZeroDivisionError"))
-                                .unwrap();
-                            let zero_div_handler = &handler_tokens[zero_div_handler_idx];
-
-                            // For now, generate both try and handler sequentially
-                            // TODO: Add proper conditional logic based on divisor == 0
-                            if let Some(finally_code) = finally_stmts {
-                                Ok(quote! {
-                                    {
-                                        #(#try_stmts)*
-                                        #zero_div_handler
-                                        #finally_code
-                                    }
-                                })
-                            } else {
-                                Ok(quote! {
-                                    {
-                                        #(#try_stmts)*
-                                        #zero_div_handler
-                                    }
-                                })
-                            }
-                        } else {
-                            // Multiple handlers but no special cases - include all handlers
-                            if let Some(finally_code) = finally_stmts {
-                                Ok(quote! {
-                                    {
-                                        #(#try_stmts)*
-                                        #(#handler_tokens)*
-                                        #finally_code
-                                    }
-                                })
-                            } else {
-                                Ok(quote! {
-                                    {
-                                        #(#try_stmts)*
-                                        #(#handler_tokens)*
-                                    }
-                                })
-                            }
+                // DEPYLER-0359: Multiple handlers - include them all
+                // Note: Floor division with ZeroDivisionError is handled earlier (line 1366)
+                if let Some(finally_code) = finally_stmts {
+                    Ok(quote! {
+                        {
+                            #(#try_stmts)*
+                            #(#handler_tokens)*
+                            #finally_code
                         }
-                    } else {
-                        // Multiple handlers, include them all
-                        if let Some(finally_code) = finally_stmts {
-                            Ok(quote! {
-                                {
-                                    #(#try_stmts)*
-                                    #(#handler_tokens)*
-                                    #finally_code
-                                }
-                            })
-                        } else {
-                            Ok(quote! {
-                                {
-                                    #(#try_stmts)*
-                                    #(#handler_tokens)*
-                                }
-                            })
-                        }
-                    }
+                    })
                 } else {
-                    // Multiple handlers without special cases - include them all
-                    if let Some(finally_code) = finally_stmts {
-                        Ok(quote! {
-                            {
-                                #(#try_stmts)*
-                                #(#handler_tokens)*
-                                #finally_code
-                            }
-                        })
-                    } else {
-                        Ok(quote! {
-                            {
-                                #(#try_stmts)*
-                                #(#handler_tokens)*
-                            }
-                        })
-                    }
+                    Ok(quote! {
+                        {
+                            #(#try_stmts)*
+                            #(#handler_tokens)*
+                        }
+                    })
                 }
             }
         }
@@ -1751,6 +1744,29 @@ fn contains_floor_div(expr: &HirExpr) -> bool {
             elements.iter().any(contains_floor_div)
         }
         _ => false,
+    }
+}
+
+/// DEPYLER-0360: Extract the divisor (right operand) from a floor division expression
+fn extract_divisor_from_floor_div(expr: &HirExpr) -> Result<&HirExpr> {
+    match expr {
+        HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            right,
+            ..
+        } => Ok(right),
+        HirExpr::Binary { left, right, .. } => {
+            // Recursively search for floor division
+            if contains_floor_div(left) {
+                extract_divisor_from_floor_div(left)
+            } else if contains_floor_div(right) {
+                extract_divisor_from_floor_div(right)
+            } else {
+                bail!("No floor division found in expression")
+            }
+        }
+        HirExpr::Unary { operand, .. } => extract_divisor_from_floor_div(operand),
+        _ => bail!("No floor division found in expression"),
     }
 }
 
