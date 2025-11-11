@@ -845,8 +845,8 @@ impl RustCodeGen for HirFunction {
                 // Prepend the struct to function body
                 body_stmts.insert(0, args_struct);
 
-                // TODO: Filter out ArgumentParser-related statements
-                // TODO: Transform parse_args() calls to Args::parse()
+                // Note: ArgumentParser-related statements are filtered in stmt_gen.rs
+                // parse_args() calls are transformed in stmt_gen.rs::codegen_assign_stmt
             }
 
             // Clear tracker for next function
