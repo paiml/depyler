@@ -150,6 +150,26 @@ pub(crate) fn codegen_expr_stmt(
     expr: &HirExpr,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0363: Detect parser.add_argument(...) method calls
+    // Pattern: parser.add_argument("files", nargs="+", ...)
+    if let HirExpr::MethodCall { object, method, args } = expr {
+        if method == "add_argument" {
+            if let HirExpr::Var(parser_var) = object.as_ref() {
+                if let Some(_parser_info) = ctx.argparser_tracker.get_parser_mut(parser_var) {
+                    // Extract argument information from the call
+                    // For now, create a placeholder argument
+                    // TODO: Parse args to extract name, nargs, type, action, help, etc.
+                    if let Some(first_arg) = args.first() {
+                        if let HirExpr::Literal(crate::hir::Literal::String(arg_name)) = first_arg {
+                            let arg = crate::rust_gen::argparse_transform::ArgParserArgument::new(arg_name.clone());
+                            _parser_info.add_argument(arg);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let expr_tokens = expr.to_rust_expr(ctx)?;
     Ok(quote! { #expr_tokens; })
 }
@@ -919,6 +939,29 @@ pub(crate) fn codegen_assign_stmt(
     type_annotation: &Option<Type>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0363: Detect ArgumentParser patterns for clap transformation
+    // Pattern 1: parser = argparse.ArgumentParser(...)
+    if let AssignTarget::Symbol(var_name) = target {
+        if let HirExpr::Call { func, .. } = value {
+            if func.contains("ArgumentParser") {
+                // Register this as an ArgumentParser instance
+                let info = crate::rust_gen::argparse_transform::ArgParserInfo::new(var_name.clone());
+                ctx.argparser_tracker.register_parser(var_name.clone(), info);
+            }
+        }
+        // Pattern 2: args = parser.parse_args()
+        if let HirExpr::MethodCall { object, method, .. } = value {
+            if method == "parse_args" {
+                if let HirExpr::Var(parser_var) = object.as_ref() {
+                    // Mark this as the args variable for the parser
+                    if let Some(parser_info) = ctx.argparser_tracker.get_parser_mut(parser_var) {
+                        parser_info.set_args_var(var_name.clone());
+                    }
+                }
+            }
+        }
+    }
+
     // DEPYLER-0279: Detect and handle dict augmented assignment pattern
     // If we have dict[key] += value, avoid borrow-after-move by evaluating old value first
     if is_dict_augassign_pattern(target, value) {

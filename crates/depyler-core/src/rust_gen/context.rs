@@ -112,6 +112,10 @@ pub struct CodeGenContext<'a> {
     /// Tracks whether code is inside try/except blocks to determine error handling strategy
     /// Empty stack = Unhandled scope (exceptions propagate to caller)
     pub exception_scopes: Vec<ExceptionScope>,
+    /// DEPYLER-0363: Track ArgumentParser patterns for clap transformation
+    /// Accumulates ArgumentParser instances and add_argument calls
+    /// to generate #[derive(Parser)] struct definitions
+    pub argparser_tracker: crate::rust_gen::argparse_transform::ArgParserTracker,
 }
 
 impl<'a> CodeGenContext<'a> {

@@ -483,6 +483,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_call(&mut self, func: &str, args: &[HirExpr]) -> Result<syn::Expr> {
+        // DEPYLER-0363: Handle ArgumentParser() → Skip for now, will be replaced with struct generation
+        // ArgumentParser pattern requires complex transformation:
+        // - Accumulate add_argument() calls
+        // - Generate #[derive(Parser)] struct
+        // - Replace parse_args() with Args::parse()
+        // For now, return unit to make code compile while transformation is implemented
+        if func.contains("ArgumentParser") {
+            // TODO: Full implementation - generate Args struct with clap derives
+            // For now, just return unit to allow compilation
+            return Ok(parse_quote! { () });
+        }
+
         // Handle classmethod cls(args) → Self::new(args)
         if func == "cls" && self.ctx.is_classmethod {
             let arg_exprs: Vec<syn::Expr> = args
@@ -8167,6 +8179,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         arg_exprs: &[syn::Expr],
         hir_args: &[HirExpr],
     ) -> Result<syn::Expr> {
+        // DEPYLER-0363: Handle parse_args() → Skip for now, will be replaced with Args::parse()
+        // ArgumentParser.parse_args() requires full struct transformation
+        // For now, return unit to allow compilation
+        if method == "parse_args" {
+            // TODO: Full implementation - Args::parse() call
+            return Ok(parse_quote! { () });
+        }
+
+        // DEPYLER-0363: Handle add_argument() → Skip for now, will be accumulated for struct generation
+        if method == "add_argument" {
+            // TODO: Accumulate these calls to generate struct fields
+            return Ok(parse_quote! { () });
+        }
+
         // DEPYLER-0232 FIX: Check for user-defined class instances FIRST
         // User-defined classes can have methods with names like "add" that conflict with
         // built-in collection methods. We must prioritize user-defined methods.
