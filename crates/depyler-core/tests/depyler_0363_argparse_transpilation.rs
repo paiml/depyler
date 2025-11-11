@@ -3,14 +3,14 @@
 //
 // Tests verify that Python argparse code transpiles to compiling Rust clap code.
 
-use depyler_core::{transpile_module, CompilerOptions};
+use depyler_core::DepylerPipeline;
 use std::process::Command;
 use tempfile::NamedTempFile;
 use std::io::Write;
 
 fn transpile(python_code: &str) -> String {
-    let opts = CompilerOptions::default();
-    match transpile_module(python_code, &opts) {
+    let pipeline = DepylerPipeline::new();
+    match pipeline.transpile(python_code) {
         Ok(rust_code) => rust_code,
         Err(e) => panic!("Transpilation failed: {:?}", e),
     }
@@ -51,6 +51,8 @@ def main():
 "#;
 
     let rust = transpile(python);
+
+    eprintln!("Generated Rust code:\n{}\n", rust);
 
     // Must NOT contain Python artifacts
     assert!(!rust.contains("argparse"), "Should not contain 'argparse' in Rust output");
