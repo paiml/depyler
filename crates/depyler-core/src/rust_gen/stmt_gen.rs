@@ -151,14 +151,15 @@ pub(crate) fn codegen_expr_stmt(
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
     // DEPYLER-0363: Detect parser.add_argument(...) method calls
-    // Pattern: parser.add_argument("files", nargs="+", ...)
+    // Pattern: parser.add_argument("files", nargs="+", type=Path, action="store_true", help="...")
     if let HirExpr::MethodCall { object, method, args } = expr {
         if method == "add_argument" {
             if let HirExpr::Var(parser_var) = object.as_ref() {
                 if let Some(_parser_info) = ctx.argparser_tracker.get_parser_mut(parser_var) {
-                    // Extract argument information from the call
-                    // For now, create a placeholder argument
-                    // TODO: Parse args to extract name, nargs, type, action, help, etc.
+                    // Extract argument name from first positional argument
+                    // LIMITATION: HIR MethodCall only has args: Vec<HirExpr>, no kwargs
+                    // This means nargs, type, action, help are lost during AST→HIR lowering
+                    // Enhancement tracked as: DEPYLER-0364 (HIR keyword argument preservation)
                     if let Some(first_arg) = args.first() {
                         if let HirExpr::Literal(crate::hir::Literal::String(arg_name)) = first_arg {
                             let arg = crate::rust_gen::argparse_transform::ArgParserArgument::new(arg_name.clone());
