@@ -944,9 +944,11 @@ pub(crate) fn codegen_assign_stmt(
 ) -> Result<proc_macro2::TokenStream> {
     // DEPYLER-0363: Detect ArgumentParser patterns for clap transformation
     // Pattern 1: parser = argparse.ArgumentParser(...)
+    // Note: ArgumentParser is a MethodCall (argparse.ArgumentParser), not a plain Call
     if let AssignTarget::Symbol(var_name) = target {
-        if let HirExpr::Call { func, .. } = value {
-            if func.contains("ArgumentParser") {
+        if let HirExpr::MethodCall { method, object, .. } = value {
+            // Pattern 1a: ArgumentParser constructor
+            if method == "ArgumentParser" {
                 // Register this as an ArgumentParser instance
                 let info = crate::rust_gen::argparse_transform::ArgParserInfo::new(var_name.clone());
                 ctx.argparser_tracker.register_parser(var_name.clone(), info);
@@ -954,15 +956,12 @@ pub(crate) fn codegen_assign_stmt(
                 // Skip generating this statement - it will be replaced by Args struct
                 return Ok(quote! {});
             }
-        }
-        // Pattern 2: args = parser.parse_args()
-        if let HirExpr::MethodCall { object, method, .. } = value {
+
+            // Pattern 2: args = parser.parse_args()
             if method == "parse_args" {
                 if let HirExpr::Var(parser_var) = object.as_ref() {
-                    // Mark this as the args variable for the parser
-                    if let Some(parser_info) = ctx.argparser_tracker.get_parser_mut(parser_var) {
-                        parser_info.set_args_var(var_name.clone());
-
+                    // Check if this parser is tracked
+                    if ctx.argparser_tracker.get_parser(parser_var).is_some() {
                         // Generate Args::parse() instead
                         return Ok(quote! {
                             let args = Args::parse();
