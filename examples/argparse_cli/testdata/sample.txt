@@ -1,0 +1,7 @@
+The quick brown fox jumps over the lazy dog.
+This is a test file for word count demonstration.
+It contains multiple lines of text.
+
+Python is a great programming language.
+Rust is fast and safe.
+Depyler converts Python to Rust.
