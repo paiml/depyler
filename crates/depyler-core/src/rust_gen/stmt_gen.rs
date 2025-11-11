@@ -944,6 +944,7 @@ pub(crate) fn codegen_assign_stmt(
 ) -> Result<proc_macro2::TokenStream> {
     // DEPYLER-0363: Detect ArgumentParser patterns for clap transformation
     // Pattern 1: parser = argparse.ArgumentParser(...)
+    // Pattern 2: args = parser.parse_args()
     // Note: ArgumentParser is a MethodCall (argparse.ArgumentParser), not a plain Call
     if let AssignTarget::Symbol(var_name) = target {
         if let HirExpr::MethodCall { method, object, .. } = value {

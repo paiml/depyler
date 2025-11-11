@@ -73,6 +73,7 @@ import argparse
 def main():
     parser = argparse.ArgumentParser(description="Test program")
     args = parser.parse_args()
+    print(args)
     return 0
 "#;
 
