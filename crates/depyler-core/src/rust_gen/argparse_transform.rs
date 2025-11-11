@@ -145,6 +145,9 @@ pub struct ArgParserArgument {
 
     /// Whether this is a required positional argument
     pub is_positional: bool,
+
+    /// DEPYLER-0367: Whether this flag is required (required=True)
+    pub required: Option<bool>,
 }
 
 impl ArgParserArgument {
@@ -163,6 +166,7 @@ impl ArgParserArgument {
             default: None,
             help: None,
             is_positional,
+            required: None,
         }
     }
 
@@ -310,9 +314,36 @@ pub fn generate_args_struct(parser_info: &ArgParserInfo) -> proc_macro2::TokenSt
         .map(|arg| {
             let field_name = syn::Ident::new(&arg.rust_field_name(), proc_macro2::Span::call_site());
 
-            // Parse the type string into syn::Type
-            let field_type: syn::Type = syn::parse_str(&arg.rust_type())
-                .unwrap_or_else(|_| parse_quote! { String });
+            // DEPYLER-0367: Determine if field should be Option<T>
+            let base_type_str = arg.rust_type();
+
+            // Don't wrap in Option if:
+            // - Already Option (nargs="?")
+            // - Has a default value (will use default_value attribute)
+            // - Is required=True
+            // - Is positional
+            // - Has action with implicit default (store_true/false/count → bool/u8)
+            // - Has nargs="+" (required, 1 or more)
+            let has_implicit_default = matches!(
+                arg.action.as_deref(),
+                Some("store_true") | Some("store_false") | Some("count")
+            );
+            let is_required_nargs = arg.nargs.as_deref() == Some("+");
+
+            let field_type: syn::Type = if !arg.is_positional
+                && arg.required != Some(true)
+                && arg.default.is_none()
+                && !base_type_str.starts_with("Option<")
+                && !has_implicit_default
+                && !is_required_nargs
+            {
+                // Wrap in Option for optional flags
+                syn::parse_str(&format!("Option<{}>", base_type_str))
+                    .unwrap_or_else(|_| parse_quote! { Option<String> })
+            } else {
+                syn::parse_str(&base_type_str)
+                    .unwrap_or_else(|_| parse_quote! { String })
+            };
 
             // Generate clap attributes
             let mut attrs = vec![];
@@ -343,6 +374,25 @@ pub fn generate_args_struct(parser_info: &ArgParserInfo) -> proc_macro2::TokenSt
                     if let Some(short) = short_str.chars().next() {
                         attrs.push(quote! {
                             #[arg(short = #short)]
+                        });
+                    }
+                }
+            }
+
+            // DEPYLER-0367: Add default value if present
+            if let Some(ref default_val) = arg.default {
+                // Convert HIR literal to string for default_value attribute
+                if let crate::hir::HirExpr::Literal(lit) = default_val {
+                    let default_str_opt = match lit {
+                        crate::hir::Literal::Int(n) => Some(n.to_string()),
+                        crate::hir::Literal::Float(f) => Some(f.to_string()),
+                        crate::hir::Literal::String(s) => Some(s.clone()),
+                        crate::hir::Literal::Bool(b) => Some(b.to_string()),
+                        _ => None,  // Skip complex defaults
+                    };
+                    if let Some(default_str) = default_str_opt {
+                        attrs.push(quote! {
+                            #[arg(default_value = #default_str)]
                         });
                     }
                 }

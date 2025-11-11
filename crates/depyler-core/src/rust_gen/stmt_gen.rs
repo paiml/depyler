@@ -180,12 +180,12 @@ pub(crate) fn codegen_expr_stmt(
                                     }
                                 }
                                 "type" => {
-                                    // TODO: Map Python type to Rust Type
-                                    // For now, just detect common types by variable name
+                                    // DEPYLER-0367: Map Python types to Rust types
                                     if let HirExpr::Var(type_name) = kw_value {
                                         match type_name.as_str() {
                                             "str" => arg.arg_type = Some(crate::hir::Type::String),
                                             "int" => arg.arg_type = Some(crate::hir::Type::Int),
+                                            "float" => arg.arg_type = Some(crate::hir::Type::Float),
                                             "Path" => {
                                                 // Path needs to map to PathBuf
                                                 arg.arg_type = Some(crate::hir::Type::Custom("PathBuf".to_string()));
@@ -207,8 +207,14 @@ pub(crate) fn codegen_expr_stmt(
                                 "default" => {
                                     arg.default = Some(kw_value.clone());
                                 }
+                                "required" => {
+                                    // DEPYLER-0367: Handle required=True/False
+                                    if let HirExpr::Literal(crate::hir::Literal::Bool(req)) = kw_value {
+                                        arg.required = Some(*req);
+                                    }
+                                }
                                 _ => {
-                                    // Ignore other kwargs for now (e.g., dest, required, choices)
+                                    // Ignore other kwargs for now (e.g., dest, choices)
                                 }
                             }
                         }
