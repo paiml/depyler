@@ -361,18 +361,45 @@ Generate random argparse configurations and verify all transpile without syntax 
 
 ## Implementation Checklist
 
-- [ ] Add regression tests (RED phase)
-- [ ] Implement ArgParse → Clap mapping
-- [ ] Implement Path method mapping
-- [ ] Implement string method mapping
+- [x] Add regression tests (RED phase) - 13 tests added
+- [x] Implement ArgParse module mapping - Partial (import generation fixed)
+- [x] Fix import generation for whole-module imports - `import argparse` now generates `use clap::Parser;`
+- [ ] Implement ArgumentParser structural transformation (6-8 hours remaining)
+  - [ ] Pattern detection in HIR for `parser = ArgumentParser()`
+  - [ ] Accumulate `add_argument()` calls
+  - [ ] Generate `#[derive(Parser)] struct Args { ... }`
+  - [ ] Transform `parse_args()` to `Args::parse()`
+- [ ] Implement Path method mapping (`read_text()` → `fs::read_to_string()`)
+- [ ] Implement string method mapping (`splitlines()` → `.lines()`, `split()` → `.split_whitespace()`)
 - [ ] Fix try/except block generation
-- [ ] Improve import tracking
-- [ ] Run regression tests (GREEN phase)
+- [ ] Run regression tests (GREEN phase) - 1/13 passing
 - [ ] Transpile wordcount.py successfully
 - [ ] Verify compiled binary matches Python output
 - [ ] Run clippy and fix warnings (REFACTOR phase)
 - [ ] Update examples with working transpilation
 - [ ] Document ArgParse mapping in book
+
+## Current Status (2025-11-11)
+
+**Phase**: GREEN (partial)
+**Tests Passing**: 1/13 (test_depyler_0363_argparse_basic_import)
+**Commits**: 3 (RED phase + partial GREEN)
+
+### Completed Work
+1. ✅ Bug documentation (642 lines)
+2. ✅ Regression test suite (13 tests)
+3. ✅ Import generation fix - `import argparse` now correctly generates `use clap::Parser;`
+
+### Remaining Work
+The ArgumentParser transformation is more complex than initially estimated. It requires:
+
+**Architectural Changes Needed**:
+1. **HIR Pattern Analysis**: Detect ArgumentParser() assignment patterns and track the variable
+2. **Method Call Accumulation**: Collect all `.add_argument()` calls and extract parameters
+3. **Struct Generation**: Create `#[derive(Parser)] struct Args` with fields from arguments
+4. **Call Site Transformation**: Replace `parser.parse_args()` with `Args::parse()`
+
+**Estimated Remaining Effort**: 6-8 hours for full implementation
 
 ## Estimated Effort
 
