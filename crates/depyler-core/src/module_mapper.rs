@@ -333,6 +333,24 @@ impl ModuleMapper {
             },
         );
 
+        // DEPYLER-0363: Map argparse to clap
+        // Note: This requires special handling in codegen for structural transformation
+        module_map.insert(
+            "argparse".to_string(),
+            ModuleMapping {
+                rust_path: "clap".to_string(),
+                is_external: true,
+                version: Some("4.5".to_string()),
+                item_map: HashMap::from([
+                    ("ArgumentParser".to_string(), "Parser".to_string()),
+                    // These require special codegen handling:
+                    // - ArgumentParser() → #[derive(Parser)] struct
+                    // - add_argument() → struct fields with #[arg] attributes
+                    // - parse_args() → Args::parse()
+                ]),
+            },
+        );
+
         Self { module_map }
     }
 
