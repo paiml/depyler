@@ -8310,6 +8310,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Regex methods
             "findall" => self.convert_regex_method(object_expr, method, arg_exprs),
 
+            // Path instance methods (DEPYLER-0363)
+            "read_text" => {
+                // filepath.read_text() → std::fs::read_to_string(filepath).unwrap()
+                if !arg_exprs.is_empty() {
+                    bail!("Path.read_text() takes no arguments");
+                }
+                Ok(parse_quote! { std::fs::read_to_string(#object_expr).unwrap() })
+            }
+
             // Default: generic method call
             _ => {
                 // DEPYLER-0306 FIX: Use raw identifiers for method names that are Rust keywords
