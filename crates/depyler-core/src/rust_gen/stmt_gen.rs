@@ -157,9 +157,19 @@ pub(crate) fn codegen_expr_stmt(
         if method == "add_argument" {
             if let HirExpr::Var(parser_var) = object.as_ref() {
                 if let Some(_parser_info) = ctx.argparser_tracker.get_parser_mut(parser_var) {
-                    // Extract argument name from first positional argument
-                    if let Some(HirExpr::Literal(crate::hir::Literal::String(arg_name))) = args.first() {
-                        let mut arg = crate::rust_gen::argparse_transform::ArgParserArgument::new(arg_name.clone());
+                    // DEPYLER-0365 Phase 5: Extract argument names (can be multiple: "-o", "--output")
+                    // First arg is required, second is optional (for dual short+long flags)
+                    if let Some(HirExpr::Literal(crate::hir::Literal::String(first_arg))) = args.first() {
+                        let mut arg = crate::rust_gen::argparse_transform::ArgParserArgument::new(first_arg.clone());
+
+                        // Check for second argument (long flag name in dual short+long pattern)
+                        if let Some(HirExpr::Literal(crate::hir::Literal::String(second_arg))) = args.get(1) {
+                            // Pattern: add_argument("-o", "--output")
+                            // First is short, second is long
+                            if second_arg.starts_with("--") {
+                                arg.long = Some(second_arg.clone());
+                            }
+                        }
 
                         // DEPYLER-0364: Extract keyword arguments from HIR
                         for (kw_name, kw_value) in kwargs {
