@@ -144,9 +144,11 @@ fn test_integration_transpilation_pipeline() {
             rust_code.contains("i32"),
             "Should contain Rust integer type"
         );
+        // DEPYLER-0271: Transpiler uses implicit return for final statements (idiomatic Rust)
+        // Accept either "return" (early returns) or "n * n" (implicit return)
         assert!(
-            rust_code.contains("return"),
-            "Should contain return statement"
+            rust_code.contains("return") || rust_code.contains("n * n"),
+            "Should contain return statement (explicit or implicit)"
         );
     }
 
