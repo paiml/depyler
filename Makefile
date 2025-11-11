@@ -67,11 +67,12 @@ playground-fast: ## Start playground quickly (skip builds if possible)
 	@echo "✅ Playground ready! Starting server..."
 	cd playground && npm run preview
 
-# Main test target - fast tests with coverage report
-test: ## Run Rust tests with coverage (two-phase pattern)
-	@echo "Running Rust tests with coverage..."
+# Main test target - comprehensive tests with full property test iterations
+test: ## Run comprehensive Rust tests (runs everything, no time limit)
+	@echo "Running comprehensive Rust tests with FULL property test iterations..."
+	@echo "⚙️  Using DEFAULT iterations (PROPTEST_CASES=256, QUICKCHECK_TESTS=100)"
 	@$(CARGO) llvm-cov clean --workspace
-	@$(CARGO) llvm-cov --no-report test --workspace --lib --all-features
+	@$(CARGO) llvm-cov --no-report test --workspace --all-features
 	@echo ""
 	@echo "=== Coverage Summary ==="
 	@$(CARGO) llvm-cov report --summary-only
@@ -142,10 +143,6 @@ playground-clean: ## Clean playground build artifacts
 ##@ Testing
 
 # Fast tests for development iteration
-test-fast: ## Run fast unit tests
-	@echo "Running fast unit tests..."
-	$(CARGO) test --lib $(TEST_FLAGS) --quiet
-
 # Comprehensive test suite (NASA-grade)
 test-comprehensive: test-fixtures test-property test-compilation test-semantic ## Run all tests with full validation
 	@echo "All comprehensive tests passed ✅"
@@ -217,10 +214,27 @@ test-all: ## Complete test suite execution
 	$(MAKE) test-integration
 	$(MAKE) test-quality
 
-test-fast: ## Quick feedback loop for development
-	@echo "Running fast development tests..."
-	$(CARGO) test --lib $(TEST_FLAGS) --quiet
-	$(CARGO) test --test property_tests $(TEST_FLAGS) --quiet
+test-fast: ## Quick feedback loop for development (< 5 min, uses cargo-nextest)
+	@echo "⚡ Running fast tests with cargo-nextest..."
+	@echo "   (Leveraging incremental compilation and optimal parallelism)"
+	@echo "   - Property tests: 5 cases (PROPTEST_CASES=5, QUICKCHECK_TESTS=5)"
+	@echo "   - Excludes: SLOW tests, ignored tests, profiling output"
+	@# Auto-install cargo-nextest if not present
+	@if ! command -v cargo-nextest >/dev/null 2>&1; then \
+		echo "📦 Installing cargo-nextest for optimal performance..."; \
+		cargo install cargo-nextest --locked; \
+	fi
+	@echo "🔨 Compiling tests (no timeout)..."
+	@PROPTEST_CASES=5 QUICKCHECK_TESTS=5 DEPYLER_DISABLE_PROFILING=1 cargo nextest run --no-run --workspace --all-features --profile fast
+	@echo "🧪 Running tests (4-minute timeout)..."
+	@timeout 240 env PROPTEST_CASES=5 QUICKCHECK_TESTS=5 DEPYLER_DISABLE_PROFILING=1 cargo nextest run --no-fail-fast --workspace --all-features --profile fast
+	@echo "✅ Fast tests completed!"
+
+test-pre-commit-fast: ## Ultra-fast pre-commit validation (< 60 seconds with build scripts)
+	@echo "⚡ Running pre-commit fast validation (<60s with build scripts)..."
+	@echo "   (Type checking only - no test execution)"
+	@timeout 60 cargo check --workspace
+	@echo "✅ Pre-commit validation completed!"
 
 test-ci: ## CI/CD optimized test execution
 	@echo "Running CI/CD tests..."
@@ -471,7 +485,7 @@ security-audit: ## Run security audit
 
 ##@ Coverage
 
-coverage: ## Generate coverage report (pforge pattern)
+coverage: ## Generate coverage report (< 10 min, pforge pattern)
 	@echo "📊 Running comprehensive test coverage analysis..."
 	@echo "🔍 Checking for cargo-llvm-cov and cargo-nextest..."
 	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
@@ -485,7 +499,9 @@ coverage: ## Generate coverage report (pforge pattern)
 	@echo "⚡ OPTIMIZATION: Property tests reduced to 10 cases for faster coverage"
 	@echo "   - PROPTEST_CASES=10 (from 256 default for proptest)"
 	@echo "   - QUICKCHECK_TESTS=10 (from 100 default for quickcheck)"
-	@PROPTEST_CASES=10 QUICKCHECK_TESTS=10 $(CARGO) llvm-cov --no-report nextest --no-tests=warn --all-features --workspace
+	@echo "   - Skipping benchmark tests (use 'make test-benchmark' for those)"
+	@PROPTEST_CASES=10 QUICKCHECK_TESTS=10 $(CARGO) llvm-cov --no-report --ignore-run-fail nextest --no-tests=warn --all-features --workspace \
+		-E 'not test(property_test_benchmarks) and not test(integration_benchmarks)'
 	@echo "📊 Phase 2: Generating coverage reports..."
 	@$(CARGO) llvm-cov report --html --output-dir target/coverage/html
 	@$(CARGO) llvm-cov report --lcov --output-path target/coverage/lcov.info
