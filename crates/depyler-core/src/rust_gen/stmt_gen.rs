@@ -1312,9 +1312,12 @@ pub(crate) fn codegen_try_stmt(
     // DEPYLER-0358: Detect simple try-except pattern for optimization
     // Pattern: try { return int(str_var) } except ValueError { return literal }
     // We can optimize this to: s.parse::<i32>().unwrap_or(literal)
+    // DEPYLER-0359: Exclude patterns with exception binding (except E as e:)
+    // Those need proper match with Err(e) binding
     let simple_pattern_info = if body.len() == 1
         && handlers.len() == 1
         && handlers[0].body.len() == 1
+        && handlers[0].name.is_none()  // No exception variable binding
     {
         // Check if handler body is a Return statement with a simple value
         match &handlers[0].body[0] {
@@ -1488,6 +1491,47 @@ pub(crate) fn codegen_try_stmt(
             // DEPYLER-0357: Non-simple patterns - use original concatenation logic
             // Execute try block statements, then if we have a single handler, use it
             if handlers.len() == 1 {
+                // DEPYLER-0359: Check if handler has exception binding for proper match generation
+                if handlers[0].name.is_some() && body.len() == 1 {
+                    if let HirStmt::Return(Some(HirExpr::Call { func, args })) = &body[0] {
+                        if func == "int" && args.len() == 1 {
+                            // Single handler with exception binding - use match with Err(e)
+                            let arg_expr = args[0].to_rust_expr(ctx)?;
+                            let handler_body = &handler_tokens[0];
+                            let err_var = handlers[0].name.as_ref().map(|s| {
+                                syn::Ident::new(s, proc_macro2::Span::call_site())
+                            }).unwrap();
+
+                            if let Some(finally_body) = finalbody {
+                                let finally_stmts: Vec<_> = finally_body
+                                    .iter()
+                                    .map(|s| s.to_rust_tokens(ctx))
+                                    .collect::<Result<Vec<_>>>()?;
+                                return Ok(quote! {
+                                    {
+                                        match #arg_expr.parse::<i32>() {
+                                            Ok(__value) => __value,
+                                            Err(#err_var) => {
+                                                #handler_body
+                                            }
+                                        }
+                                        #(#finally_stmts)*
+                                    }
+                                });
+                            } else {
+                                return Ok(quote! {
+                                    match #arg_expr.parse::<i32>() {
+                                        Ok(__value) => __value,
+                                        Err(#err_var) => {
+                                            #handler_body
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+
                 let handler_code = &handler_tokens[0];
 
                 if let Some(finally_code) = finally_stmts {
@@ -1510,23 +1554,203 @@ pub(crate) fn codegen_try_stmt(
                     })
                 }
             } else {
-                // Multiple handlers - for now just execute try block
-                if let Some(finally_code) = finally_stmts {
-                    Ok(quote! {
-                        {
-                            #(#try_stmts)*
-                            #finally_code
+                // DEPYLER-0359: Multiple handlers - generate conditional error handling
+                // For operations like int(data) with multiple exception types, we need proper
+                // match-based error handling instead of simple unwrap_or
+
+                // Check if try block is simple return with parse operation
+                if body.len() == 1 {
+                    if let HirStmt::Return(Some(HirExpr::Call { func, args })) = &body[0] {
+                        if func == "int" && args.len() == 1 {
+                            let arg_expr = args[0].to_rust_expr(ctx)?;
+
+                            // Check if any handler binds the exception variable
+                            let has_exception_binding = handlers.iter().any(|h| h.name.is_some());
+
+                            if has_exception_binding && handlers.len() == 1 {
+                                // Single handler with exception binding - use match with Err(e)
+                                let handler_body = &handler_tokens[0];
+                                let err_var = handlers[0].name.as_ref().map(|s| {
+                                    syn::Ident::new(s, proc_macro2::Span::call_site())
+                                }).unwrap();
+
+                                if let Some(finally_code) = finally_stmts {
+                                    return Ok(quote! {
+                                        {
+                                            match #arg_expr.parse::<i32>() {
+                                                Ok(__value) => __value,
+                                                Err(#err_var) => {
+                                                    #handler_body
+                                                }
+                                            }
+                                            #finally_code
+                                        }
+                                    });
+                                } else {
+                                    return Ok(quote! {
+                                        match #arg_expr.parse::<i32>() {
+                                            Ok(__value) => __value,
+                                            Err(#err_var) => {
+                                                #handler_body
+                                            }
+                                        }
+                                    });
+                                }
+                            } else if handlers.len() >= 2 {
+                                // Multiple handlers for int() - generate proper match Result handling
+                                // Convert: try { return int(data) } except ValueError {...} except TypeError {...}
+                                // To: if let Ok(v) = data.parse::<i32>() { v } else { /* handler */ }
+
+                                // For now, use simple if-let chain for error handling
+                                // TODO: Improve to dispatch based on actual error type
+                                let first_handler = &handler_tokens[0];
+
+                                if let Some(finally_code) = finally_stmts {
+                                    return Ok(quote! {
+                                        {
+                                            if let Ok(__parse_result) = #arg_expr.parse::<i32>() {
+                                                __parse_result
+                                            } else {
+                                                #first_handler
+                                            }
+                                            #finally_code
+                                        }
+                                    });
+                                } else {
+                                    return Ok(quote! {
+                                        {
+                                            if let Ok(__parse_result) = #arg_expr.parse::<i32>() {
+                                                __parse_result
+                                            } else {
+                                                #first_handler
+                                            }
+                                        }
+                                    });
+                                }
+                            }
                         }
-                    })
+                    }
+                }
+
+                // Check if we have ZeroDivisionError and/or TypeError handlers
+                let has_zero_div_handler = handlers
+                    .iter()
+                    .any(|h| h.exception_type.as_deref() == Some("ZeroDivisionError"));
+
+                // If we have a ZeroDivisionError handler and the try block contains division,
+                // we need to generate a check for zero before dividing
+                if has_zero_div_handler && body.len() == 1 {
+                    if let HirStmt::Return(Some(expr)) = &body[0] {
+                        // Check if expression contains floor division
+                        if contains_floor_div(expr) {
+                            // Generate conditional logic: check for zero, execute handler if true
+                            // Otherwise execute try block
+                            let zero_div_handler_idx = handlers
+                                .iter()
+                                .position(|h| h.exception_type.as_deref() == Some("ZeroDivisionError"))
+                                .unwrap();
+                            let zero_div_handler = &handler_tokens[zero_div_handler_idx];
+
+                            // For now, generate both try and handler sequentially
+                            // TODO: Add proper conditional logic based on divisor == 0
+                            if let Some(finally_code) = finally_stmts {
+                                Ok(quote! {
+                                    {
+                                        #(#try_stmts)*
+                                        #zero_div_handler
+                                        #finally_code
+                                    }
+                                })
+                            } else {
+                                Ok(quote! {
+                                    {
+                                        #(#try_stmts)*
+                                        #zero_div_handler
+                                    }
+                                })
+                            }
+                        } else {
+                            // Multiple handlers but no special cases - include all handlers
+                            if let Some(finally_code) = finally_stmts {
+                                Ok(quote! {
+                                    {
+                                        #(#try_stmts)*
+                                        #(#handler_tokens)*
+                                        #finally_code
+                                    }
+                                })
+                            } else {
+                                Ok(quote! {
+                                    {
+                                        #(#try_stmts)*
+                                        #(#handler_tokens)*
+                                    }
+                                })
+                            }
+                        }
+                    } else {
+                        // Multiple handlers, include them all
+                        if let Some(finally_code) = finally_stmts {
+                            Ok(quote! {
+                                {
+                                    #(#try_stmts)*
+                                    #(#handler_tokens)*
+                                    #finally_code
+                                }
+                            })
+                        } else {
+                            Ok(quote! {
+                                {
+                                    #(#try_stmts)*
+                                    #(#handler_tokens)*
+                                }
+                            })
+                        }
+                    }
                 } else {
-                    Ok(quote! {
-                        {
-                            #(#try_stmts)*
-                        }
-                    })
+                    // Multiple handlers without special cases - include them all
+                    if let Some(finally_code) = finally_stmts {
+                        Ok(quote! {
+                            {
+                                #(#try_stmts)*
+                                #(#handler_tokens)*
+                                #finally_code
+                            }
+                        })
+                    } else {
+                        Ok(quote! {
+                            {
+                                #(#try_stmts)*
+                                #(#handler_tokens)*
+                            }
+                        })
+                    }
                 }
             }
         }
+    }
+}
+
+/// DEPYLER-0359: Check if an expression contains floor division operation
+fn contains_floor_div(expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            ..
+        } => true,
+        HirExpr::Binary { left, right, .. } => {
+            contains_floor_div(left) || contains_floor_div(right)
+        }
+        HirExpr::Unary { operand, .. } => contains_floor_div(operand),
+        HirExpr::Call { args, .. } => args.iter().any(contains_floor_div),
+        HirExpr::MethodCall { object, args, .. } => {
+            contains_floor_div(object) || args.iter().any(contains_floor_div)
+        }
+        HirExpr::Index { base, index } => contains_floor_div(base) || contains_floor_div(index),
+        HirExpr::List(elements) | HirExpr::Tuple(elements) | HirExpr::Set(elements) => {
+            elements.iter().any(contains_floor_div)
+        }
+        _ => false,
     }
 }
 
