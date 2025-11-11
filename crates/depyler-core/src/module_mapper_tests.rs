@@ -129,6 +129,7 @@ fn test_map_whole_module_import() {
     let mapper = ModuleMapper::new();
 
     // Test "import os" style
+    // DEPYLER-0363: Now generates actual use statement with alias
     let import = Import {
         module: "os".to_string(),
         items: vec![],
@@ -136,7 +137,9 @@ fn test_map_whole_module_import() {
 
     let rust_imports = mapper.map_import(&import);
     assert_eq!(rust_imports.len(), 1);
-    assert!(rust_imports[0].path.contains("Python import: os"));
+    assert_eq!(rust_imports[0].path, "std");
+    assert_eq!(rust_imports[0].alias, Some("os".to_string()));
+    assert!(!rust_imports[0].is_external);
 }
 
 #[test]
