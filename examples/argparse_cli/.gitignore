@@ -1,0 +1,19 @@
+# Python test artifacts
+.coverage
+coverage.json
+htmlcov/
+.pytest_cache/
+.hypothesis/
+__pycache__/
+*.pyc
+
+# Rust build artifacts
+rust/target/
+rust/Cargo.lock
+
+# Benchmark results
+benchmarks/results/
+
+# IDE
+.vscode/
+.idea/
