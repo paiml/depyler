@@ -1,0 +1,24 @@
+# Nextest configuration for Depyler
+# See: https://nexte.st/docs/configuration/
+
+[profile.default]
+# Default test configuration - runs all tests including ignored ones
+slow-timeout = { period = "60s", grace-period = "10s" }
+retries = 0
+
+[profile.fast]
+# Fast profile for development iteration - optimized for speed
+# Target: < 5 minutes for quick feedback during development
+# Excludes SLOW tests, benchmark tests, and integration benchmarks
+# Note: Property test case reduction handled by Makefile via env vars
+filter-expr = "not test(#[ignore]) and not test(~SLOW) and not test(~benchmark) and not test(property_test_benchmarks) and not test(integration_benchmarks)"
+slow-timeout = { period = "30s", grace-period = "5s" }
+retries = 1
+test-threads = "num-cpus"
+
+[profile.ci]
+# CI profile - comprehensive but time-bounded
+# Note: Property test case reduction handled by CI environment
+slow-timeout = { period = "120s", grace-period = "15s" }
+retries = 2
+test-threads = "num-cpus"
