@@ -12,36 +12,51 @@
 
 A Python-to-Rust transpiler with semantic verification and memory safety analysis. Depyler translates annotated Python code into idiomatic Rust, preserving program semantics while providing compile-time safety guarantees.
 
-## 🎉 Current Release: v3.19.14 - 100% Stdlib Collection Coverage!
+## 🎉 Current Release: v3.19.30 - Production-Ready ArgumentParser Support!
 
-**Major Milestone Achieved** - Complete coverage of Python stdlib collection methods:
+**Major Feature** - Python CLI tools with argparse can now transpile to idiomatic Rust with clap derive macros!
 
-### What's New in v3.19.14
+### What's New in v3.19.30
 
-**Stdlib Coverage: 100% (40/40 methods)**
-- ✅ **List methods** (11/11): append, extend, insert, remove, pop, clear, index, count, sort, reverse, copy
-- ✅ **Dict methods** (10/10): get, keys, values, items, pop, clear, update, setdefault, popitem, copy
-- ✅ **Set methods** (8/8): add, remove, discard, pop, clear, union, intersection, difference
-- ✅ **String methods** (11/11): upper, lower, strip, startswith, endswith, split, join, find, replace, count, isdigit, isalpha
+**ArgumentParser → Clap Transpilation** (DEPYLER-0364, DEPYLER-0365)
+- ✅ **nargs mapping**: `"+"`, `"*"`, `"?"` → `Vec<T>`, `Option<T>`
+- ✅ **action mapping**: `store_true`, `store_false`, `count` → `bool`, `u8`
+- ✅ **type mapping**: `int`, `str`, `Path` → `i32`, `String`, `PathBuf`
+- ✅ **Flag detection**: Short (`-v`), long (`--debug`), dual (`-o --output`)
+- ✅ **Real-world validation**: Successfully transpiled production CLI tool (`wordcount.py`)
 
-**Bugs Fixed (4)**
-- DEPYLER-0222: dict.get() without default value
-- DEPYLER-0223: dict.update() and set.update() routing
-- DEPYLER-0225: str.split(sep) Pattern trait error
-- DEPYLER-0226: str.count() routing disambiguation
+**Example:**
+```python
+# Python with argparse
+parser = argparse.ArgumentParser(description="Word counter")
+parser.add_argument("files", nargs="+", type=Path)
+parser.add_argument("-l", "--lines", action="store_true")
+args = parser.parse_args()
+```
+
+**Transpiles to:**
+```rust
+#[derive(clap::Parser)]
+#[command(about = "Word counter")]
+struct Args {
+    files: Vec<PathBuf>,
+    #[arg(short = 'l', long)]
+    lines: bool,
+}
+let args = Args::parse();
+```
 
 **Quality Metrics**
-- Tests: 443/443 passing (100%)
+- Tests: 3,140/3,140 passing (100%)
 - Clippy: Zero warnings
-- Coverage: 80%+
-- Zero regressions
+- Real-world validation: ✅ Production CLI tools transpile correctly
 
 **Installation**
 ```bash
 cargo install depyler
 ```
 
-See [CHANGELOG.md](CHANGELOG.md) for complete details and [GitHub Release](https://github.com/paiml/depyler/releases/tag/v3.19.14).
+See [CHANGELOG.md](CHANGELOG.md) for complete details.
 
 ## Installation
 
