@@ -378,13 +378,33 @@ impl ModuleMapper {
         if let Some(mapping) = self.module_map.get(&import.module) {
             // If no specific items, it's a whole module import
             if import.items.is_empty() {
-                // For whole module imports, we need to map to appropriate Rust module
-                // For now, add a comment indicating module-level import
-                rust_imports.push(RustImport {
-                    path: format!("// Python import: {}", import.module),
-                    alias: None,
-                    is_external: false,
-                });
+                // DEPYLER-0363: For mapped modules, emit the Rust equivalent
+                // For argparse, this means `use clap::Parser;`
+                if !mapping.rust_path.is_empty() {
+                    // For external crates like argparse->clap, import the main trait/type
+                    if import.module == "argparse" {
+                        // ArgumentParser needs the Parser derive trait
+                        rust_imports.push(RustImport {
+                            path: format!("{}::Parser", mapping.rust_path),
+                            alias: None,
+                            is_external: mapping.is_external,
+                        });
+                    } else {
+                        // For other modules, just import the module path
+                        rust_imports.push(RustImport {
+                            path: mapping.rust_path.clone(),
+                            alias: Some(import.module.clone()),
+                            is_external: mapping.is_external,
+                        });
+                    }
+                } else {
+                    // Empty rust_path means no direct mapping (like typing module)
+                    rust_imports.push(RustImport {
+                        path: format!("// Python import: {} (no Rust equivalent)", import.module),
+                        alias: None,
+                        is_external: false,
+                    });
+                }
             } else {
                 // Handle each imported item
                 for item in &import.items {
