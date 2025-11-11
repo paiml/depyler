@@ -18,7 +18,7 @@ use depyler_core::DepylerPipeline;
 ///
 /// Verifies: Unused parameters are prefixed with _ to suppress warnings
 #[test]
-fn test_DEPYLER_0270_unused_parameter_prefix() {
+fn test_depyler_0270_unused_parameter_prefix() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def unused_param(x: int, y: int) -> int:
@@ -35,7 +35,7 @@ def unused_param(x: int, y: int) -> int:
 ///
 /// Verifies: Used parameters are NOT prefixed with _
 #[test]
-fn test_DEPYLER_0270_all_parameters_used() {
+fn test_depyler_0270_all_parameters_used() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def all_used(x: int, y: int) -> int:
@@ -50,7 +50,7 @@ def all_used(x: int, y: int) -> int:
 ///
 /// Verifies: Parameters that are reassigned get `mut` keyword
 #[test]
-fn test_DEPYLER_0312_mutable_parameter_ownership() {
+fn test_depyler_0312_mutable_parameter_ownership() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def mutate_param(x: int) -> int:
@@ -68,7 +68,7 @@ def mutate_param(x: int) -> int:
 ///
 /// Verifies: Borrowed parameters that are mutated get &mut T
 #[test]
-fn test_DEPYLER_0330_borrowed_parameter_mutation() {
+fn test_depyler_0330_borrowed_parameter_mutation() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def mutate_list(items: list[int]) -> list[int]:
@@ -85,7 +85,7 @@ def mutate_list(items: list[int]) -> list[int]:
 ///
 /// Verifies: Multiple mutation methods upgrade to &mut
 #[test]
-fn test_DEPYLER_0330_multiple_mutations() {
+fn test_depyler_0330_multiple_mutations() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def multi_mutate(items: list[int]) -> list[int]:
@@ -103,7 +103,7 @@ def multi_mutate(items: list[int]) -> list[int]:
 ///
 /// Verifies: When no lifetime parameters exist, lifetimes are elided
 #[test]
-fn test_DEPYLER_0275_lifetime_elision() {
+fn test_depyler_0275_lifetime_elision() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def simple_borrow(s: str) -> int:
@@ -119,7 +119,7 @@ def simple_borrow(s: str) -> int:
 ///
 /// Verifies: Parameters should NEVER use 'static lifetime
 #[test]
-fn test_DEPYLER_0282_no_static_lifetime_params() {
+fn test_depyler_0282_no_static_lifetime_params() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def process_string(text: str) -> str:

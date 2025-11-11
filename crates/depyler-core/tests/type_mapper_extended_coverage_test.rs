@@ -18,7 +18,7 @@ use depyler_core::DepylerPipeline;
 ///
 /// Verifies: Unknown → serde_json::Value (line 124)
 #[test]
-fn test_DEPYLER_0264_unknown_type_mapping() {
+fn test_depyler_0264_unknown_type_mapping() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def process_any(data) -> int:

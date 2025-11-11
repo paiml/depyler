@@ -24,7 +24,7 @@ use depyler_core::simplified_hir::*;
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0347_hir_construction() {
+fn test_depyler_0347_hir_construction() {
     let hir = Hir {
         root: HirExpr::Literal(HirLiteral::Integer(42)),
         metadata: HirMetadata::default(),
@@ -36,7 +36,7 @@ fn test_DEPYLER_0347_hir_construction() {
 }
 
 #[test]
-fn test_DEPYLER_0347_hir_metadata_default() {
+fn test_depyler_0347_hir_metadata_default() {
     let metadata = HirMetadata::default();
 
     assert!(metadata.source_file.is_none());
@@ -44,7 +44,7 @@ fn test_DEPYLER_0347_hir_metadata_default() {
 }
 
 #[test]
-fn test_DEPYLER_0347_hir_metadata_with_values() {
+fn test_depyler_0347_hir_metadata_with_values() {
     let metadata = HirMetadata {
         source_file: Some("test.py".to_string()),
         module_name: Some("test_module".to_string()),
@@ -59,27 +59,27 @@ fn test_DEPYLER_0347_hir_metadata_with_values() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0347_literal_integer() {
+fn test_depyler_0347_literal_integer() {
     let lit = HirLiteral::Integer(42);
     assert_eq!(lit, HirLiteral::Integer(42));
     assert_ne!(lit, HirLiteral::Integer(43));
 }
 
 #[test]
-fn test_DEPYLER_0347_literal_float() {
+fn test_depyler_0347_literal_float() {
     let lit = HirLiteral::Float(3.14);
     let lit2 = lit.clone();
     assert_eq!(lit, lit2);
 }
 
 #[test]
-fn test_DEPYLER_0347_literal_string() {
+fn test_depyler_0347_literal_string() {
     let lit = HirLiteral::String("hello".to_string());
     assert_eq!(lit, HirLiteral::String("hello".to_string()));
 }
 
 #[test]
-fn test_DEPYLER_0347_literal_bool() {
+fn test_depyler_0347_literal_bool() {
     let lit_true = HirLiteral::Bool(true);
     let lit_false = HirLiteral::Bool(false);
 
@@ -89,7 +89,7 @@ fn test_DEPYLER_0347_literal_bool() {
 }
 
 #[test]
-fn test_DEPYLER_0347_literal_none() {
+fn test_depyler_0347_literal_none() {
     let lit = HirLiteral::None;
     assert_eq!(lit, HirLiteral::None);
 }
@@ -99,20 +99,20 @@ fn test_DEPYLER_0347_literal_none() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0347_expr_literal() {
+fn test_depyler_0347_expr_literal() {
     let expr = HirExpr::Literal(HirLiteral::Integer(42));
     assert!(matches!(expr, HirExpr::Literal(_)));
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_identifier() {
+fn test_depyler_0347_expr_identifier() {
     let expr = HirExpr::Identifier("x".to_string());
     assert!(matches!(expr, HirExpr::Identifier(_)));
     assert_eq!(expr, HirExpr::Identifier("x".to_string()));
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_binary() {
+fn test_depyler_0347_expr_binary() {
     let expr = HirExpr::Binary {
         left: Box::new(HirExpr::Literal(HirLiteral::Integer(1))),
         op: HirBinaryOp::Add,
@@ -124,7 +124,7 @@ fn test_DEPYLER_0347_expr_binary() {
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_unary() {
+fn test_depyler_0347_expr_unary() {
     let expr = HirExpr::Unary {
         op: HirUnaryOp::Negate,
         operand: Box::new(HirExpr::Literal(HirLiteral::Integer(5))),
@@ -134,17 +134,14 @@ fn test_DEPYLER_0347_expr_unary() {
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_call() {
-    let expr = HirExpr::Call {
-        func: Box::new(HirExpr::Identifier("print".to_string())),
-        args: vec![HirExpr::Literal(HirLiteral::String("hello".to_string()))],
-    };
+fn test_depyler_0347_expr_call() {
+    let expr = HirExpr::Call { func: Box::new(HirExpr::Identifier("print".to_string())), args: vec![HirExpr::Literal(HirLiteral::String("hello".to_string()))] };
 
     assert!(matches!(expr, HirExpr::Call { .. }));
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_if() {
+fn test_depyler_0347_expr_if() {
     let expr = HirExpr::If {
         condition: Box::new(HirExpr::Literal(HirLiteral::Bool(true))),
         then_branch: Box::new(HirExpr::Literal(HirLiteral::Integer(1))),
@@ -155,7 +152,7 @@ fn test_DEPYLER_0347_expr_if() {
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_if_without_else() {
+fn test_depyler_0347_expr_if_without_else() {
     let expr = HirExpr::If {
         condition: Box::new(HirExpr::Literal(HirLiteral::Bool(true))),
         then_branch: Box::new(HirExpr::Literal(HirLiteral::Integer(1))),
@@ -166,7 +163,7 @@ fn test_DEPYLER_0347_expr_if_without_else() {
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_block() {
+fn test_depyler_0347_expr_block() {
     let expr = HirExpr::Block(vec![
         HirStatement::Let {
             name: "x".to_string(),
@@ -179,7 +176,7 @@ fn test_DEPYLER_0347_expr_block() {
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_list() {
+fn test_depyler_0347_expr_list() {
     let expr = HirExpr::List(vec![
         HirExpr::Literal(HirLiteral::Integer(1)),
         HirExpr::Literal(HirLiteral::Integer(2)),
@@ -190,7 +187,7 @@ fn test_DEPYLER_0347_expr_list() {
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_function() {
+fn test_depyler_0347_expr_function() {
     let expr = HirExpr::Function {
         name: "add".to_string(),
         params: vec![
@@ -218,7 +215,7 @@ fn test_DEPYLER_0347_expr_function() {
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_async_function() {
+fn test_depyler_0347_expr_async_function() {
     let expr = HirExpr::Function {
         name: "fetch".to_string(),
         params: vec![],
@@ -235,7 +232,7 @@ fn test_DEPYLER_0347_expr_async_function() {
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_lambda() {
+fn test_depyler_0347_expr_lambda() {
     let expr = HirExpr::Lambda {
         params: vec![HirParam {
             name: "x".to_string(),
@@ -249,7 +246,7 @@ fn test_DEPYLER_0347_expr_lambda() {
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_for() {
+fn test_depyler_0347_expr_for() {
     let expr = HirExpr::For {
         var: "i".to_string(),
         iter: Box::new(HirExpr::List(vec![])),
@@ -260,7 +257,7 @@ fn test_DEPYLER_0347_expr_for() {
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_while() {
+fn test_depyler_0347_expr_while() {
     let expr = HirExpr::While {
         condition: Box::new(HirExpr::Literal(HirLiteral::Bool(true))),
         body: Box::new(HirExpr::Block(vec![])),
@@ -270,47 +267,44 @@ fn test_DEPYLER_0347_expr_while() {
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_return_with_value() {
+fn test_depyler_0347_expr_return_with_value() {
     let expr = HirExpr::Return(Some(Box::new(HirExpr::Literal(HirLiteral::Integer(42)))));
     assert!(matches!(expr, HirExpr::Return(Some(_))));
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_return_without_value() {
+fn test_depyler_0347_expr_return_without_value() {
     let expr = HirExpr::Return(None);
     assert!(matches!(expr, HirExpr::Return(None)));
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_break_with_label() {
+fn test_depyler_0347_expr_break_with_label() {
     let expr = HirExpr::Break(Some("outer".to_string()));
     assert!(matches!(expr, HirExpr::Break(Some(_))));
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_break_without_label() {
+fn test_depyler_0347_expr_break_without_label() {
     let expr = HirExpr::Break(None);
     assert!(matches!(expr, HirExpr::Break(None)));
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_continue_with_label() {
+fn test_depyler_0347_expr_continue_with_label() {
     let expr = HirExpr::Continue(Some("outer".to_string()));
     assert!(matches!(expr, HirExpr::Continue(Some(_))));
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_continue_without_label() {
+fn test_depyler_0347_expr_continue_without_label() {
     let expr = HirExpr::Continue(None);
     assert!(matches!(expr, HirExpr::Continue(None)));
 }
 
 #[test]
-fn test_DEPYLER_0347_expr_await() {
-    let expr = HirExpr::Await(Box::new(HirExpr::Call {
-        func: Box::new(HirExpr::Identifier("fetch".to_string())),
-        args: vec![],
-    }));
+fn test_depyler_0347_expr_await() {
+    let expr = HirExpr::Await(Box::new(HirExpr::Call { func: Box::new(HirExpr::Identifier("fetch".to_string())), args: vec![] }));
 
     assert!(matches!(expr, HirExpr::Await(_)));
 }
@@ -320,7 +314,7 @@ fn test_DEPYLER_0347_expr_await() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0347_statement_let_immutable() {
+fn test_depyler_0347_statement_let_immutable() {
     let stmt = HirStatement::Let {
         name: "x".to_string(),
         value: Box::new(HirExpr::Literal(HirLiteral::Integer(10))),
@@ -335,7 +329,7 @@ fn test_DEPYLER_0347_statement_let_immutable() {
 }
 
 #[test]
-fn test_DEPYLER_0347_statement_let_mutable() {
+fn test_depyler_0347_statement_let_mutable() {
     let stmt = HirStatement::Let {
         name: "x".to_string(),
         value: Box::new(HirExpr::Literal(HirLiteral::Integer(10))),
@@ -350,11 +344,8 @@ fn test_DEPYLER_0347_statement_let_mutable() {
 }
 
 #[test]
-fn test_DEPYLER_0347_statement_expression() {
-    let stmt = HirStatement::Expression(Box::new(HirExpr::Call {
-        func: Box::new(HirExpr::Identifier("print".to_string())),
-        args: vec![],
-    }));
+fn test_depyler_0347_statement_expression() {
+    let stmt = HirStatement::Expression(Box::new(HirExpr::Call { func: Box::new(HirExpr::Identifier("print".to_string())), args: vec![] }));
 
     assert!(matches!(stmt, HirStatement::Expression(_)));
 }
@@ -364,7 +355,7 @@ fn test_DEPYLER_0347_statement_expression() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0347_param_with_type() {
+fn test_depyler_0347_param_with_type() {
     let param = HirParam {
         name: "x".to_string(),
         typ: Some(HirType::Int),
@@ -377,7 +368,7 @@ fn test_DEPYLER_0347_param_with_type() {
 }
 
 #[test]
-fn test_DEPYLER_0347_param_with_default() {
+fn test_depyler_0347_param_with_default() {
     let param = HirParam {
         name: "x".to_string(),
         typ: Some(HirType::Int),
@@ -388,7 +379,7 @@ fn test_DEPYLER_0347_param_with_default() {
 }
 
 #[test]
-fn test_DEPYLER_0347_param_without_type() {
+fn test_depyler_0347_param_without_type() {
     let param = HirParam {
         name: "x".to_string(),
         typ: None,
@@ -403,7 +394,7 @@ fn test_DEPYLER_0347_param_without_type() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0347_binary_op_arithmetic() {
+fn test_depyler_0347_binary_op_arithmetic() {
     assert_eq!(HirBinaryOp::Add, HirBinaryOp::Add);
     assert_ne!(HirBinaryOp::Add, HirBinaryOp::Subtract);
 
@@ -423,7 +414,7 @@ fn test_DEPYLER_0347_binary_op_arithmetic() {
 }
 
 #[test]
-fn test_DEPYLER_0347_binary_op_comparison() {
+fn test_depyler_0347_binary_op_comparison() {
     let ops = vec![
         HirBinaryOp::Equal,
         HirBinaryOp::NotEqual,
@@ -439,14 +430,14 @@ fn test_DEPYLER_0347_binary_op_comparison() {
 }
 
 #[test]
-fn test_DEPYLER_0347_binary_op_logical() {
+fn test_depyler_0347_binary_op_logical() {
     assert_eq!(HirBinaryOp::And, HirBinaryOp::And);
     assert_eq!(HirBinaryOp::Or, HirBinaryOp::Or);
     assert_ne!(HirBinaryOp::And, HirBinaryOp::Or);
 }
 
 #[test]
-fn test_DEPYLER_0347_binary_op_bitwise() {
+fn test_depyler_0347_binary_op_bitwise() {
     let ops = vec![
         HirBinaryOp::BitwiseAnd,
         HirBinaryOp::BitwiseOr,
@@ -465,19 +456,19 @@ fn test_DEPYLER_0347_binary_op_bitwise() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0347_unary_op_not() {
+fn test_depyler_0347_unary_op_not() {
     let op = HirUnaryOp::Not;
     assert_eq!(op, HirUnaryOp::Not);
 }
 
 #[test]
-fn test_DEPYLER_0347_unary_op_negate() {
+fn test_depyler_0347_unary_op_negate() {
     let op = HirUnaryOp::Negate;
     assert_eq!(op, HirUnaryOp::Negate);
 }
 
 #[test]
-fn test_DEPYLER_0347_unary_op_bitwise_not() {
+fn test_depyler_0347_unary_op_bitwise_not() {
     let op = HirUnaryOp::BitwiseNot;
     assert_eq!(op, HirUnaryOp::BitwiseNot);
     assert_ne!(op, HirUnaryOp::Not);
@@ -488,7 +479,7 @@ fn test_DEPYLER_0347_unary_op_bitwise_not() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0347_type_primitives() {
+fn test_depyler_0347_type_primitives() {
     let types = vec![
         HirType::Int,
         HirType::Float,
@@ -504,7 +495,7 @@ fn test_DEPYLER_0347_type_primitives() {
 }
 
 #[test]
-fn test_DEPYLER_0347_type_list() {
+fn test_depyler_0347_type_list() {
     let typ = HirType::List(Box::new(HirType::Int));
     assert!(matches!(typ, HirType::List(_)));
 
@@ -514,7 +505,7 @@ fn test_DEPYLER_0347_type_list() {
 }
 
 #[test]
-fn test_DEPYLER_0347_type_optional() {
+fn test_depyler_0347_type_optional() {
     let typ = HirType::Optional(Box::new(HirType::String));
     assert!(matches!(typ, HirType::Optional(_)));
 
@@ -522,7 +513,7 @@ fn test_DEPYLER_0347_type_optional() {
 }
 
 #[test]
-fn test_DEPYLER_0347_type_named() {
+fn test_depyler_0347_type_named() {
     let typ = HirType::Named("MyClass".to_string());
     assert_eq!(typ, HirType::Named("MyClass".to_string()));
 }
@@ -532,7 +523,7 @@ fn test_DEPYLER_0347_type_named() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0347_serde_literal() {
+fn test_depyler_0347_serde_literal() {
     let lit = HirLiteral::Integer(42);
     let json = serde_json::to_string(&lit).unwrap();
     let deserialized: HirLiteral = serde_json::from_str(&json).unwrap();
@@ -541,7 +532,7 @@ fn test_DEPYLER_0347_serde_literal() {
 }
 
 #[test]
-fn test_DEPYLER_0347_serde_expr() {
+fn test_depyler_0347_serde_expr() {
     let expr = HirExpr::Binary {
         left: Box::new(HirExpr::Literal(HirLiteral::Integer(1))),
         op: HirBinaryOp::Add,
@@ -555,7 +546,7 @@ fn test_DEPYLER_0347_serde_expr() {
 }
 
 #[test]
-fn test_DEPYLER_0347_serde_hir() {
+fn test_depyler_0347_serde_hir() {
     let hir = Hir {
         root: HirExpr::Literal(HirLiteral::String("hello".to_string())),
         metadata: HirMetadata {
@@ -575,7 +566,7 @@ fn test_DEPYLER_0347_serde_hir() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0347_complex_nested_expr() {
+fn test_depyler_0347_complex_nested_expr() {
     // (a + b) * (c - d)
     let expr = HirExpr::Binary {
         left: Box::new(HirExpr::Binary {
@@ -596,7 +587,7 @@ fn test_DEPYLER_0347_complex_nested_expr() {
 }
 
 #[test]
-fn test_DEPYLER_0347_complex_function_with_body() {
+fn test_depyler_0347_complex_function_with_body() {
     let expr = HirExpr::Function {
         name: "calculate".to_string(),
         params: vec![
