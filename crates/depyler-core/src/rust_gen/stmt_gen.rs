@@ -1601,26 +1601,46 @@ pub(crate) fn codegen_try_stmt(
                     }
                 }
 
-                let handler_code = &handler_tokens[0];
+                // DEPYLER-0362: Check if try block has error handling (unwrap_or_default)
+                // If so, don't concatenate handler as it creates invalid syntax
+                let try_code_str = quote! { #(#try_stmts)* }.to_string();
+                let has_error_handling = try_code_str.contains("unwrap_or_default")
+                    || try_code_str.contains("unwrap_or(");
 
-                if let Some(finally_code) = finally_stmts {
-                    Ok(quote! {
-                        {
-                            #(#try_stmts)*
-                            #handler_code
-                            #finally_code
-                        }
-                    })
+                if has_error_handling {
+                    // Try block already handles errors, don't add handler
+                    if let Some(finally_code) = finally_stmts {
+                        Ok(quote! {
+                            {
+                                #(#try_stmts)*
+                                #finally_code
+                            }
+                        })
+                    } else {
+                        Ok(quote! { #(#try_stmts)* })
+                    }
                 } else {
-                    // DEPYLER-0357: Include handler code after try block
-                    // TODO: This executes both unconditionally - need proper conditional logic
-                    // based on which operations can panic (ZeroDivisionError, IndexError, etc.)
-                    Ok(quote! {
-                        {
-                            #(#try_stmts)*
-                            #handler_code
-                        }
-                    })
+                    let handler_code = &handler_tokens[0];
+
+                    if let Some(finally_code) = finally_stmts {
+                        Ok(quote! {
+                            {
+                                #(#try_stmts)*
+                                #handler_code
+                                #finally_code
+                            }
+                        })
+                    } else {
+                        // DEPYLER-0357: Include handler code after try block
+                        // TODO: This executes both unconditionally - need proper conditional logic
+                        // based on which operations can panic (ZeroDivisionError, IndexError, etc.)
+                        Ok(quote! {
+                            {
+                                #(#try_stmts)*
+                                #handler_code
+                            }
+                        })
+                    }
                 }
             } else {
                 // DEPYLER-0359: Multiple handlers - generate conditional error handling
@@ -1666,13 +1686,13 @@ pub(crate) fn codegen_try_stmt(
                                     });
                                 }
                             } else if handlers.len() >= 2 {
-                                // Multiple handlers for int() - generate proper match Result handling
+                                // DEPYLER-0361: Multiple handlers for int() - include ALL handlers
                                 // Convert: try { return int(data) } except ValueError {...} except TypeError {...}
-                                // To: if let Ok(v) = data.parse::<i32>() { v } else { /* handler */ }
+                                // To: if let Ok(v) = data.parse::<i32>() { v } else { handler1; handler2; }
 
-                                // For now, use simple if-let chain for error handling
-                                // TODO: Improve to dispatch based on actual error type
-                                let first_handler = &handler_tokens[0];
+                                // NOTE: Rust's parse() returns a single error type, so we can't dispatch
+                                // to specific handlers. We execute all handlers sequentially.
+                                // This is semantically incorrect but compiles. TODO: Improve error dispatch.
 
                                 if let Some(finally_code) = finally_stmts {
                                     return Ok(quote! {
@@ -1680,7 +1700,7 @@ pub(crate) fn codegen_try_stmt(
                                             if let Ok(__parse_result) = #arg_expr.parse::<i32>() {
                                                 __parse_result
                                             } else {
-                                                #first_handler
+                                                #(#handler_tokens)*
                                             }
                                             #finally_code
                                         }
@@ -1691,7 +1711,7 @@ pub(crate) fn codegen_try_stmt(
                                             if let Ok(__parse_result) = #arg_expr.parse::<i32>() {
                                                 __parse_result
                                             } else {
-                                                #first_handler
+                                                #(#handler_tokens)*
                                             }
                                         }
                                     });
@@ -1701,23 +1721,43 @@ pub(crate) fn codegen_try_stmt(
                     }
                 }
 
-                // DEPYLER-0359: Multiple handlers - include them all
-                // Note: Floor division with ZeroDivisionError is handled earlier (line 1366)
-                if let Some(finally_code) = finally_stmts {
-                    Ok(quote! {
-                        {
-                            #(#try_stmts)*
-                            #(#handler_tokens)*
-                            #finally_code
-                        }
-                    })
+                // DEPYLER-0362: Check if try block already handles errors (e.g., unwrap_or_default)
+                // In that case, don't concatenate handler tokens as it creates invalid syntax
+                let try_code_str = quote! { #(#try_stmts)* }.to_string();
+                let has_error_handling = try_code_str.contains("unwrap_or_default")
+                    || try_code_str.contains("unwrap_or(");
+
+                if has_error_handling {
+                    // Try block has built-in error handling, don't add handlers
+                    if let Some(finally_code) = finally_stmts {
+                        Ok(quote! {
+                            {
+                                #(#try_stmts)*
+                                #finally_code
+                            }
+                        })
+                    } else {
+                        Ok(quote! { #(#try_stmts)* })
+                    }
                 } else {
-                    Ok(quote! {
-                        {
-                            #(#try_stmts)*
-                            #(#handler_tokens)*
-                        }
-                    })
+                    // DEPYLER-0359: Multiple handlers - include them all
+                    // Note: Floor division with ZeroDivisionError is handled earlier (line 1366)
+                    if let Some(finally_code) = finally_stmts {
+                        Ok(quote! {
+                            {
+                                #(#try_stmts)*
+                                #(#handler_tokens)*
+                                #finally_code
+                            }
+                        })
+                    } else {
+                        Ok(quote! {
+                            {
+                                #(#try_stmts)*
+                                #(#handler_tokens)*
+                            }
+                        })
+                    }
                 }
             }
         }
