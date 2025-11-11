@@ -34,7 +34,8 @@ impl Default for OptimizerConfig {
             // then dead code elimination removes assignments, leaving undefined variables.
             // TODO: Fix inlining logic in v3.19.0, then re-enable this optimization.
             inline_functions: false,
-            eliminate_dead_code: true,
+            // DEPYLER-0363: Temporarily disable dead code elimination to debug argparse issue
+            eliminate_dead_code: false,
             propagate_constants: true,
             eliminate_common_subexpressions: true,
             inline_threshold: 20,
