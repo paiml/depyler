@@ -7,6 +7,7 @@ use std::collections::{HashMap, HashSet};
 use syn::{self, parse_quote};
 
 // Module declarations for rust_gen refactoring (v3.18.0 Phases 2-7)
+mod argparse_transform;
 mod context;
 mod error_gen;
 mod expr_gen;
@@ -540,6 +541,7 @@ pub fn generate_rust_file(
         result_returning_functions: HashSet::new(), // DEPYLER-0270: Track ALL Result-returning functions
         current_error_type: None, // DEPYLER-0310: Track error type for raise statement wrapping
         exception_scopes: Vec::new(), // DEPYLER-0333: Exception scope tracking stack
+        argparser_tracker: argparse_transform::ArgParserTracker::new(), // DEPYLER-0363: Track ArgumentParser patterns
     };
 
     // Analyze all functions first for string optimization
@@ -681,6 +683,7 @@ mod tests {
             result_returning_functions: HashSet::new(), // DEPYLER-0270: Track ALL Result-returning functions
             current_error_type: None, // DEPYLER-0310: Track error type for raise statement wrapping
             exception_scopes: Vec::new(), // DEPYLER-0333: Exception scope tracking stack
+            argparser_tracker: argparse_transform::ArgParserTracker::new(), // DEPYLER-0363: Track ArgumentParser patterns
         }
     }
 
