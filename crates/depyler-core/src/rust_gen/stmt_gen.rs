@@ -212,7 +212,22 @@ pub(crate) fn codegen_return_stmt(
         // Early returns (not final) keep the `return` keyword
         let use_return_keyword = !ctx.is_final_statement;
 
-        if ctx.current_function_can_fail {
+        // DEPYLER-0357: Check if function returns void (None in Python -> () in Rust)
+        // Must check this BEFORE is_optional_return to avoid false positive
+        // Python `-> None` maps to Rust `()`, not `Option<T>`
+        let is_void_return = matches!(ctx.current_return_type.as_ref(), Some(Type::None));
+
+        if is_void_return {
+            // Void functions (Python -> None): no return value
+            if use_return_keyword {
+                // Early return from void function: use empty return
+                Ok(quote! { return; })
+            } else {
+                // Final statement in void function: use unit value ()
+                // Cannot use None; because it requires type annotations
+                Ok(quote! { () })
+            }
+        } else if ctx.current_function_can_fail {
             if is_optional_return && !is_none_literal {
                 // Wrap value in Some() for Optional return types
                 if use_return_keyword {
@@ -367,11 +382,19 @@ pub(crate) fn codegen_with_stmt(
     // Convert context expression
     let context_expr = context.to_rust_expr(ctx)?;
 
+    // DEPYLER-0357: Save and restore is_final_statement flag so return statements
+    // in with blocks get the explicit 'return' keyword (not treated as final statement)
+    let saved_is_final = ctx.is_final_statement;
+    ctx.is_final_statement = false;
+
     // Convert body statements
     let body_stmts: Vec<_> = body
         .iter()
         .map(|stmt| stmt.to_rust_tokens(ctx))
         .collect::<Result<_>>()?;
+
+    // Restore is_final_statement flag
+    ctx.is_final_statement = saved_is_final;
 
     // Generate code that calls __enter__() and binds the result
     // Note: __exit__() is not yet called (Drop trait implementation pending)
@@ -1286,6 +1309,47 @@ pub(crate) fn codegen_try_stmt(
     finalbody: &Option<Vec<HirStmt>>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0358: Detect simple try-except pattern for optimization
+    // Pattern: try { return int(str_var) } except ValueError { return literal }
+    // We can optimize this to: s.parse::<i32>().unwrap_or(literal)
+    let simple_pattern_info = if body.len() == 1
+        && handlers.len() == 1
+        && handlers[0].body.len() == 1
+    {
+        // Check if handler body is a Return statement with a simple value
+        match &handlers[0].body[0] {
+            // Direct literal: return 42, return "error", etc.
+            HirStmt::Return(Some(HirExpr::Literal(lit))) => {
+                Some((format!("{}", match lit {
+                    Literal::Int(n) => n.to_string(),
+                    Literal::Float(f) => f.to_string(),
+                    Literal::String(s) => format!("\"{}\"", s),
+                    Literal::Bool(b) => b.to_string(),
+                    _ => "Default::default()".to_string(),
+                }), handlers[0].exception_type.clone()))
+            }
+            // Unary negation: return -1, return -42, etc.
+            HirStmt::Return(Some(HirExpr::Unary { op, operand })) => {
+                if let HirExpr::Literal(lit) = &**operand {
+                    match (op, lit) {
+                        (crate::hir::UnaryOp::Neg, Literal::Int(n)) => {
+                            Some((format!("-{}", n), handlers[0].exception_type.clone()))
+                        }
+                        (crate::hir::UnaryOp::Neg, Literal::Float(f)) => {
+                            Some((format!("-{}", f), handlers[0].exception_type.clone()))
+                        }
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    } else {
+        None
+    };
+
     // DEPYLER-0333: Extract handled exception types for scope tracking
     let handled_types: Vec<String> = handlers
         .iter()
@@ -1319,11 +1383,20 @@ pub(crate) fn codegen_try_stmt(
             ctx.declare_var(var_name);
         }
 
+        // DEPYLER-0357: Handler statements should include 'return' keyword
+        // Save and temporarily disable is_final_statement so return statements
+        // in handlers get the explicit 'return' keyword (needed for proper exception handling)
+        let saved_is_final = ctx.is_final_statement;
+        ctx.is_final_statement = false;
+
         let handler_stmts: Vec<_> = handler
             .body
             .iter()
             .map(|s| s.to_rust_tokens(ctx))
             .collect::<Result<Vec<_>>>()?;
+
+        // Restore is_final_statement flag
+        ctx.is_final_statement = saved_is_final;
         ctx.exit_scope();
         // DEPYLER-0333: Exit handler scope
         ctx.exit_exception_scope();
@@ -1356,31 +1429,104 @@ pub(crate) fn codegen_try_stmt(
             // Just try block
             Ok(quote! { #(#try_stmts)* })
         }
-    } else if !handlers.is_empty() {
-        // DEPYLER-0257 REFACTOR v3: Simplified try/except for value-returning functions
-        // Result-based pattern breaks functions with return statements
-        // For now: just execute try block directly, except handlers are dead code
-        // TODO: Add actual exception catching when operations return Result
-        if let Some(finally_code) = finally_stmts {
-            Ok(quote! {
-                {
-                    #(#try_stmts)*
-                    #finally_code
-                }
-            })
-        } else {
-            // Simple case: try/except without finally
-            // Just execute try block statements
-            Ok(quote! {
-                {
-                    #(#try_stmts)*
-                }
-            })
-        }
     } else {
-        // No handlers - this should be handled by handlers.is_empty() check above
-        // This branch should never be reached
-        bail!("Internal error: try/except with no handlers should be handled earlier")
+        // DEPYLER-0358: Handle simple try-except-return pattern
+        // If we detected a simple pattern (try returns, except returns literal),
+        // fix the unwrap_or_default() to use the actual exception value
+        if let Some((exception_value_str, _exception_type)) = simple_pattern_info {
+            // Convert try_stmts to string to post-process
+            let try_code = quote! { #(#try_stmts)* };
+            let try_str = try_code.to_string();
+
+            // DEPYLER-0358: Replace unwrap_or_default() with unwrap_or(exception_value)
+            // This handles the case where int(str) generates .parse().unwrap_or_default()
+            // but we want .parse().unwrap_or(-1) based on the except clause
+            if try_str.contains("unwrap_or_default") {
+                // Parse the try code and replace unwrap_or_default with unwrap_or(value)
+                // Handle both "unwrap_or_default ()" and "unwrap_or_default()"
+                let fixed_code = try_str
+                    .replace("unwrap_or_default ()", &format!("unwrap_or ({})", exception_value_str))
+                    .replace("unwrap_or_default()", &format!("unwrap_or({})", exception_value_str));
+
+                // Parse back to token stream
+                let fixed_tokens: proc_macro2::TokenStream = fixed_code.parse()
+                    .unwrap_or(try_code);
+
+                if let Some(finally_code) = finally_stmts {
+                    Ok(quote! {
+                        {
+                            #fixed_tokens
+                            #finally_code
+                        }
+                    })
+                } else {
+                    Ok(fixed_tokens)
+                }
+            } else {
+                // Pattern matched but no unwrap_or_default found
+                // This means it's not a parse operation, so fall through to normal concatenation
+                // to include the exception handler code
+                let handler_code = &handler_tokens[0];
+                if let Some(finally_code) = finally_stmts {
+                    Ok(quote! {
+                        {
+                            #(#try_stmts)*
+                            #handler_code
+                            #finally_code
+                        }
+                    })
+                } else {
+                    Ok(quote! {
+                        {
+                            #(#try_stmts)*
+                            #handler_code
+                        }
+                    })
+                }
+            }
+        } else {
+            // DEPYLER-0357: Non-simple patterns - use original concatenation logic
+            // Execute try block statements, then if we have a single handler, use it
+            if handlers.len() == 1 {
+                let handler_code = &handler_tokens[0];
+
+                if let Some(finally_code) = finally_stmts {
+                    Ok(quote! {
+                        {
+                            #(#try_stmts)*
+                            #handler_code
+                            #finally_code
+                        }
+                    })
+                } else {
+                    // DEPYLER-0357: Include handler code after try block
+                    // TODO: This executes both unconditionally - need proper conditional logic
+                    // based on which operations can panic (ZeroDivisionError, IndexError, etc.)
+                    Ok(quote! {
+                        {
+                            #(#try_stmts)*
+                            #handler_code
+                        }
+                    })
+                }
+            } else {
+                // Multiple handlers - for now just execute try block
+                if let Some(finally_code) = finally_stmts {
+                    Ok(quote! {
+                        {
+                            #(#try_stmts)*
+                            #finally_code
+                        }
+                    })
+                } else {
+                    Ok(quote! {
+                        {
+                            #(#try_stmts)*
+                        }
+                    })
+                }
+            }
+        }
     }
 }
 
