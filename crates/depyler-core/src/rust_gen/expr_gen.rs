@@ -728,10 +728,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #iter_expr.iter().all(|&x| x) });
         }
 
-        // DEPYLER-0251: Handle round(value) → value.round()
+        // DEPYLER-0251: Handle round(value) → value.round() as i32
+        // DEPYLER-0357: Add `as i32` cast because Python round() returns int
+        // but Rust f64::round() returns f64
         if func == "round" && args.len() == 1 {
             let value_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #value_expr.round() });
+            return Ok(parse_quote! { #value_expr.round() as i32 });
         }
 
         // DEPYLER-0252: Handle pow(base, exp) → base.pow(exp as u32)
@@ -748,10 +750,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { char::from_u32(#code_expr as u32).unwrap().to_string() });
         }
 
-        // DEPYLER-0254: Handle ord(char) → char.chars().next().unwrap() as u32
+        // DEPYLER-0254: Handle ord(char) → char.chars().next().unwrap() as i32
+        // DEPYLER-0357: Python ord() returns int (i32), not unsigned
         if func == "ord" && args.len() == 1 {
             let char_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #char_expr.chars().next().unwrap() as u32 });
+            return Ok(parse_quote! { #char_expr.chars().next().unwrap() as i32 });
         }
 
         // DEPYLER-0255: Handle bool(value) → value != 0
@@ -2036,6 +2039,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             } else {
                                 false
                             }
+                        }
+                        // DEPYLER-0359: Auto-borrow list/dict/set literals when calling functions
+                        // List literal [1, 2, 3] should be passed as &vec![1, 2, 3]
+                        HirExpr::List(_) | HirExpr::Dict(_) | HirExpr::Set(_) => {
+                            // Check if function param expects a borrow
+                            self.ctx
+                                .function_param_borrows
+                                .get(func)
+                                .and_then(|borrows| borrows.get(param_idx))
+                                .copied()
+                                .unwrap_or(true) // Default to borrow if unknown
                         }
                         _ => {
                             // Fallback: check if expression creates a Vec via .to_vec()
@@ -7420,11 +7434,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let arg = &arg_exprs[0];
                 // DEPYLER-0304 Phase 2B: Fix iterator reference handling
-                // When iterating over &HashMap<K, V>, iterator yields (&K, &V)
-                // but insert() expects (K, V), so we need to clone keys and deref values
+                // DEPYLER-0357: When iterating over owned HashMap<K, V>, iterator yields (K, V)
+                // insert() expects (K, V), so we just use the values directly
                 Ok(parse_quote! {
                     for (k, v) in #arg {
-                        #object_expr.insert(k.clone(), *v);
+                        #object_expr.insert(k, v);
                     }
                 })
             }
@@ -8411,6 +8425,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
+            // DEPYLER-0357: Check if index is a positive integer literal
+            // For literal indices like p[0], generate simple inline code: .get(0)
+            // This avoids unnecessary temporary variables and runtime checks
+            if let HirExpr::Literal(Literal::Int(n)) = index {
+                let idx_value = *n as usize;
+                return Ok(parse_quote! {
+                    #base_expr.get(#idx_value).cloned().unwrap_or_default()
+                });
+            }
+
             // DEPYLER-0306 FIX: Check if index is a simple variable (not a complex expression)
             // Simple variables in for loops like `for i in range(len(arr))` are guaranteed >= 0
             // For these, we can use simpler inline code that works in range contexts
@@ -9229,12 +9253,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // DEPYLER-STDLIB-PATHLIB: Path properties
-            "name" => {
-                // p.name → p.file_name().unwrap().to_str().unwrap().to_string()
-                return Ok(parse_quote! {
-                    #value_expr.file_name().unwrap().to_str().unwrap().to_string()
-                });
-            }
+            // DEPYLER-0357: Removed overly-aggressive "name" special case
+            // The .name attribute should only map to .file_name() for Path types
+            // For generic objects (like in sorted(people, key=lambda p: p.name)),
+            // .name should be preserved as-is and fall through to default handling
 
             "stem" => {
                 // p.stem → p.file_stem().unwrap().to_str().unwrap().to_string()
@@ -10251,11 +10273,10 @@ fn literal_to_rust_expr(
             parse_quote! { #lit }
         }
         Literal::None => {
-            // Python None maps to Rust unit type ()
-            // This is correct for both:
-            // 1. Functions returning None (-> None becomes -> () implicitly)
-            // 2. Optional types (Option<T> uses None, but that's handled separately)
-            parse_quote! { () }
+            // DEPYLER-0357: Python None maps to Rust None (for Option types)
+            // When Python code uses None explicitly (e.g., in ternary expressions),
+            // it should become Rust's None, not ()
+            parse_quote! { None }
         }
     }
 }
