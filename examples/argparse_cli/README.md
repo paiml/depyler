@@ -42,14 +42,29 @@ cargo build --release
 ./target/release/wordcount ../testdata/sample.txt
 ```
 
-## Performance Expectations
+## Performance Metrics
 
-| Metric | Python | Rust (Debug) | Rust (Release) | Rust (PGO) |
-|--------|--------|--------------|----------------|------------|
-| Execution Time | 50ms | 5ms | 2ms | 1.5ms |
-| Binary Size | N/A | 8MB | 2MB | 2.1MB |
-| Memory Usage | 15MB | 2MB | 1.5MB | 1.5MB |
-| Startup Time | 80ms | <1ms | <1ms | <1ms |
+**🚨 ANTI-HALLUCINATION PROTOCOL**: All metrics MUST be generated programmatically.
+
+To generate real performance metrics:
+
+```bash
+# Step 1: Build release binary
+cargo build --release --example wordcount
+
+# Step 2: Run programmatic benchmarks
+cd examples
+make benchmark
+
+# Step 3: View results
+cat benchmarks/results/latest/runtime.md
+cat benchmarks/results/latest/binary_metrics.json
+ls benchmarks/results/latest/*.png  # View charts
+```
+
+**NEVER** manually type performance numbers. Always run `make benchmark` and extract from JSON output.
+
+Performance results will be available in `benchmarks/results/<timestamp>/` after running the above commands.
 
 ## Implementation Status
 
