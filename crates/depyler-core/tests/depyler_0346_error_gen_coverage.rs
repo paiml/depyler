@@ -20,7 +20,7 @@ use depyler_core::DepylerPipeline;
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0346_zero_division_error_generation() {
+fn test_depyler_0346_zero_division_error_generation() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def divide(a: int, b: int) -> int:
@@ -40,7 +40,7 @@ def divide(a: int, b: int) -> int:
 }
 
 #[test]
-fn test_DEPYLER_0346_implicit_zero_division() {
+fn test_depyler_0346_implicit_zero_division() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def compute(x: int) -> int:
@@ -63,7 +63,7 @@ def compute(x: int) -> int:
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0346_index_error_generation() {
+fn test_depyler_0346_index_error_generation() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def get_item(items: list, index: int) -> int:
@@ -83,7 +83,7 @@ def get_item(items: list, index: int) -> int:
 }
 
 #[test]
-fn test_DEPYLER_0346_list_indexing_error() {
+fn test_depyler_0346_list_indexing_error() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def access_list(data: list) -> int:
@@ -105,7 +105,7 @@ def access_list(data: list) -> int:
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0346_value_error_generation() {
+fn test_depyler_0346_value_error_generation() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def validate(x: int) -> int:
@@ -125,7 +125,7 @@ def validate(x: int) -> int:
 }
 
 #[test]
-fn test_DEPYLER_0346_explicit_value_error() {
+fn test_depyler_0346_explicit_value_error() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def check_range(n: int) -> int:
@@ -149,7 +149,7 @@ def check_range(n: int) -> int:
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0346_multiple_error_types() {
+fn test_depyler_0346_multiple_error_types() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def complex_operation(a: int, b: int, items: list) -> int:
@@ -179,7 +179,7 @@ def complex_operation(a: int, b: int, items: list) -> int:
 }
 
 #[test]
-fn test_DEPYLER_0346_no_error_types_needed() {
+fn test_depyler_0346_no_error_types_needed() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def simple_add(a: int, b: int) -> int:
@@ -202,7 +202,7 @@ def simple_add(a: int, b: int) -> int:
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0346_error_type_implements_error_trait() {
+fn test_depyler_0346_error_type_implements_error_trait() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def fails() -> int:
@@ -221,7 +221,7 @@ def fails() -> int:
 }
 
 #[test]
-fn test_DEPYLER_0346_error_type_with_message() {
+fn test_depyler_0346_error_type_with_message() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def validate_positive(n: int) -> int:
@@ -311,7 +311,7 @@ def access_at_index(items: list) -> int:
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0346_nested_error_handling() {
+fn test_depyler_0346_nested_error_handling() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def nested(x: int, y: int) -> int:
@@ -333,7 +333,7 @@ def nested(x: int, y: int) -> int:
 }
 
 #[test]
-fn test_DEPYLER_0346_error_in_loop() {
+fn test_depyler_0346_error_in_loop() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def process_items(items: list) -> int:
@@ -356,7 +356,7 @@ def process_items(items: list) -> int:
 }
 
 #[test]
-fn test_DEPYLER_0346_conditional_error_raising() {
+fn test_depyler_0346_conditional_error_raising() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def conditional_error(x: int, strict: bool) -> int:
