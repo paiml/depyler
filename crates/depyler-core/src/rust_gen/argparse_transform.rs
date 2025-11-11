@@ -317,20 +317,27 @@ pub fn generate_args_struct(parser_info: &ArgParserInfo) -> proc_macro2::TokenSt
             let mut attrs = vec![];
 
             if !arg.is_positional {
-                // Optional flags need #[arg] attribute
+                // DEPYLER-0365 Phase 5: Proper flag detection
+                // Three cases:
+                // 1. Both short and long: "-o" + "--output" → #[arg(short = 'o', long)]
+                // 2. Long only: "--debug" → #[arg(long)]
+                // 3. Short only: "-v" → #[arg(short = 'v')]
+
                 if arg.long.is_some() {
-                    let short_char = arg.name.trim_start_matches('-').chars().next();
-                    if let Some(short) = short_char {
+                    // Case 1: Both short and long flags
+                    let short_str = arg.name.trim_start_matches('-');
+                    if let Some(short) = short_str.chars().next() {
                         attrs.push(quote! {
                             #[arg(short = #short, long)]
                         });
-                    } else {
-                        attrs.push(quote! {
-                            #[arg(long)]
-                        });
                     }
+                } else if arg.name.starts_with("--") {
+                    // Case 2: Long flag only (--debug)
+                    attrs.push(quote! {
+                        #[arg(long)]
+                    });
                 } else {
-                    // Only short flag
+                    // Case 3: Short flag only (-v)
                     let short_str = arg.name.trim_start_matches('-');
                     if let Some(short) = short_str.chars().next() {
                         attrs.push(quote! {
