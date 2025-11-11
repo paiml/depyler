@@ -146,7 +146,7 @@ fn test_analyze_trivial_function() {
     };
 
     let decisions = analyzer.analyze_program(&program);
-    let decision = decisions.get("add_one").unwrap();
+    let _decision = decisions.get("add_one").unwrap();
 
     // Document actual behavior (inlining decision is made by analyzer)
     // The analyzer has specific rules about what makes a function trivial
@@ -185,7 +185,7 @@ fn test_analyze_large_function() {
     };
 
     let decisions = analyzer.analyze_program(&program);
-    let decision = decisions.get("large_func").unwrap();
+    let _decision = decisions.get("large_func").unwrap();
 
     // Large functions should not be inlined
     assert!(!decision.should_inline);
@@ -210,10 +210,7 @@ fn test_call_graph_simple_call() {
         name: "caller".to_string(),
         params: smallvec![],
         ret_type: Type::Int,
-        body: vec![HirStmt::Return(Some(HirExpr::Call {
-            func: "helper".to_string(),
-            args: vec![],
-        }))],
+        body: vec![HirStmt::Return(Some(HirExpr::Call { func: "helper".to_string(), args: vec![], kwargs: vec![] }))],
         properties: FunctionProperties::default(),
         annotations: TranspilationAnnotations::default(),
         docstring: None,

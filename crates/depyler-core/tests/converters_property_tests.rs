@@ -271,7 +271,7 @@ proptest! {
         });
 
         match ExprConverter::convert(call_expr) {
-            Ok(HirExpr::Call { func, args: hir_args }) => {
+            Ok(HirExpr::Call { func, args: hir_args, .. }) => {
                 prop_assert_eq!(func, func_name);
                 prop_assert_eq!(hir_args.len(), args.len());
             }

@@ -297,7 +297,6 @@ fn test_inferred_param_mutable_borrow() {
 #[test]
 fn test_lifetime_result_empty() {
     use indexmap::IndexMap;
-    use depyler_core::borrowing_context::BorrowingStrategy;
 
     let result = LifetimeResult {
         param_lifetimes: IndexMap::new(),
@@ -317,7 +316,6 @@ fn test_lifetime_result_empty() {
 fn test_lifetime_result_with_params() {
     use indexmap::IndexMap;
     use depyler_core::type_mapper::RustType;
-    use depyler_core::borrowing_context::BorrowingStrategy;
 
     let mut param_lifetimes = IndexMap::new();
     param_lifetimes.insert(
@@ -347,7 +345,6 @@ fn test_lifetime_result_with_params() {
 #[test]
 fn test_lifetime_result_with_bounds() {
     use indexmap::IndexMap;
-    use depyler_core::borrowing_context::BorrowingStrategy;
 
     let result = LifetimeResult {
         param_lifetimes: IndexMap::new(),

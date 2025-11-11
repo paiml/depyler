@@ -26,7 +26,7 @@ use smallvec::smallvec;
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0351_index_class_with_methods() {
+fn test_depyler_0351_index_class_with_methods() {
     let mut ide = IdeIntegration::new();
 
     let method = HirMethod {
@@ -75,7 +75,7 @@ fn test_DEPYLER_0351_index_class_with_methods() {
 }
 
 #[test]
-fn test_DEPYLER_0351_index_class_with_fields() {
+fn test_depyler_0351_index_class_with_fields() {
     let mut ide = IdeIntegration::new();
 
     let field = HirField {
@@ -116,7 +116,7 @@ fn test_DEPYLER_0351_index_class_with_fields() {
 }
 
 #[test]
-fn test_DEPYLER_0351_index_multiple_methods() {
+fn test_depyler_0351_index_multiple_methods() {
     let mut ide = IdeIntegration::new();
 
     let method1 = HirMethod {
@@ -173,7 +173,7 @@ fn test_DEPYLER_0351_index_multiple_methods() {
 }
 
 #[test]
-fn test_DEPYLER_0351_index_empty_module() {
+fn test_depyler_0351_index_empty_module() {
     let mut ide = IdeIntegration::new();
 
     let module = HirModule {
@@ -195,7 +195,7 @@ fn test_DEPYLER_0351_index_empty_module() {
 }
 
 #[test]
-fn test_DEPYLER_0351_index_module_with_functions_and_classes() {
+fn test_depyler_0351_index_module_with_functions_and_classes() {
     let mut ide = IdeIntegration::new();
 
     let func = HirFunction {
@@ -233,7 +233,7 @@ fn test_DEPYLER_0351_index_module_with_functions_and_classes() {
 }
 
 #[test]
-fn test_DEPYLER_0351_index_function_with_multiple_params() {
+fn test_depyler_0351_index_function_with_multiple_params() {
     let mut ide = IdeIntegration::new();
 
     let func = HirFunction {
@@ -270,7 +270,7 @@ fn test_DEPYLER_0351_index_function_with_multiple_params() {
 }
 
 #[test]
-fn test_DEPYLER_0351_index_method_detail_format() {
+fn test_depyler_0351_index_method_detail_format() {
     let mut ide = IdeIntegration::new();
 
     let method = HirMethod {
@@ -315,7 +315,7 @@ fn test_DEPYLER_0351_index_method_detail_format() {
 }
 
 #[test]
-fn test_DEPYLER_0351_index_field_type_annotation() {
+fn test_depyler_0351_index_field_type_annotation() {
     let mut ide = IdeIntegration::new();
 
     let field = HirField {
@@ -357,7 +357,7 @@ fn test_DEPYLER_0351_index_field_type_annotation() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0351_symbol_at_position_found() {
+fn test_depyler_0351_symbol_at_position_found() {
     let mut ide = IdeIntegration::new();
 
     let func = HirFunction {
@@ -387,7 +387,7 @@ fn test_DEPYLER_0351_symbol_at_position_found() {
 }
 
 #[test]
-fn test_DEPYLER_0351_symbol_at_position_not_found() {
+fn test_depyler_0351_symbol_at_position_not_found() {
     let mut ide = IdeIntegration::new();
 
     let func = HirFunction {
@@ -416,7 +416,7 @@ fn test_DEPYLER_0351_symbol_at_position_not_found() {
 }
 
 #[test]
-fn test_DEPYLER_0351_find_references_single() {
+fn test_depyler_0351_find_references_single() {
     let mut ide = IdeIntegration::new();
 
     let func = HirFunction {
@@ -445,7 +445,7 @@ fn test_DEPYLER_0351_find_references_single() {
 }
 
 #[test]
-fn test_DEPYLER_0351_find_references_none() {
+fn test_depyler_0351_find_references_none() {
     let ide = IdeIntegration::new();
 
     let refs = ide.find_references("nonexistent");
@@ -461,7 +461,7 @@ fn test_DEPYLER_0351_find_references_none() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0351_completions_empty_prefix() {
+fn test_depyler_0351_completions_empty_prefix() {
     let mut ide = IdeIntegration::new();
 
     let func1 = HirFunction {
@@ -498,7 +498,7 @@ fn test_DEPYLER_0351_completions_empty_prefix() {
 }
 
 #[test]
-fn test_DEPYLER_0351_completions_no_matches() {
+fn test_depyler_0351_completions_no_matches() {
     let mut ide = IdeIntegration::new();
 
     let func = HirFunction {
@@ -526,7 +526,7 @@ fn test_DEPYLER_0351_completions_no_matches() {
 }
 
 #[test]
-fn test_DEPYLER_0351_completions_prefix_filtering() {
+fn test_depyler_0351_completions_prefix_filtering() {
     let mut ide = IdeIntegration::new();
 
     let func1 = HirFunction {
@@ -565,7 +565,7 @@ fn test_DEPYLER_0351_completions_prefix_filtering() {
 }
 
 #[test]
-fn test_DEPYLER_0351_completions_different_kinds() {
+fn test_depyler_0351_completions_different_kinds() {
     let mut ide = IdeIntegration::new();
 
     let func = HirFunction {
@@ -610,7 +610,7 @@ fn test_DEPYLER_0351_completions_different_kinds() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0351_add_diagnostic() {
+fn test_depyler_0351_add_diagnostic() {
     let mut ide = IdeIntegration::new();
 
     let diagnostic = Diagnostic {
@@ -628,7 +628,7 @@ fn test_DEPYLER_0351_add_diagnostic() {
 }
 
 #[test]
-fn test_DEPYLER_0351_diagnostics_retrieval() {
+fn test_depyler_0351_diagnostics_retrieval() {
     let mut ide = IdeIntegration::new();
 
     assert_eq!(
@@ -663,7 +663,7 @@ fn test_DEPYLER_0351_diagnostics_retrieval() {
 }
 
 #[test]
-fn test_DEPYLER_0351_add_error_from_error_kind() {
+fn test_depyler_0351_add_error_from_error_kind() {
     let mut ide = IdeIntegration::new();
 
     use depyler_core::error::ErrorKind;
@@ -680,7 +680,7 @@ fn test_DEPYLER_0351_add_error_from_error_kind() {
 }
 
 #[test]
-fn test_DEPYLER_0351_add_warning() {
+fn test_depyler_0351_add_warning() {
     let mut ide = IdeIntegration::new();
 
     let message = "Unused variable 'x'".to_string();
@@ -695,7 +695,7 @@ fn test_DEPYLER_0351_add_warning() {
 }
 
 #[test]
-fn test_DEPYLER_0351_multiple_diagnostics_accumulate() {
+fn test_depyler_0351_multiple_diagnostics_accumulate() {
     let mut ide = IdeIntegration::new();
 
     use depyler_core::error::ErrorKind;
@@ -722,7 +722,7 @@ fn test_DEPYLER_0351_multiple_diagnostics_accumulate() {
 }
 
 #[test]
-fn test_DEPYLER_0351_diagnostic_severity_levels() {
+fn test_depyler_0351_diagnostic_severity_levels() {
     let range = TextRange::new(TextSize::from(0), TextSize::from(10));
 
     let error = Diagnostic {
@@ -767,7 +767,7 @@ fn test_DEPYLER_0351_diagnostic_severity_levels() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0351_create_ide_integration() {
+fn test_depyler_0351_create_ide_integration() {
     let func = HirFunction {
         name: "main".to_string(),
         params: smallvec![],
@@ -795,16 +795,13 @@ fn test_DEPYLER_0351_create_ide_integration() {
 
 #[test]
 
-#[test]
-
-#[test]
 
 // ============================================================================
 // EDGE CASES
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0351_empty_ide_integration() {
+fn test_depyler_0351_empty_ide_integration() {
     let ide = IdeIntegration::new();
 
     assert_eq!(ide.diagnostics().len(), 0);
@@ -820,7 +817,7 @@ fn test_DEPYLER_0351_empty_ide_integration() {
 }
 
 #[test]
-fn test_DEPYLER_0351_symbol_boundary_position() {
+fn test_depyler_0351_symbol_boundary_position() {
     let mut ide = IdeIntegration::new();
 
     let func = HirFunction {
@@ -861,7 +858,7 @@ fn test_DEPYLER_0351_symbol_boundary_position() {
 }
 
 #[test]
-fn test_DEPYLER_0351_class_with_multiple_fields() {
+fn test_depyler_0351_class_with_multiple_fields() {
     let mut ide = IdeIntegration::new();
 
     let field1 = HirField {

@@ -43,7 +43,7 @@ def test():
 /// Verifies: Function params that are reassigned must be mut
 /// Lines: rust_gen.rs:60-65 - pre-populate declared with params
 #[test]
-fn test_DEPYLER_0312_parameter_reassignment_requires_mut() {
+fn test_depyler_0312_parameter_reassignment_requires_mut() {
     let pipeline = DepylerPipeline::new();
 
     let python_code = r#"
