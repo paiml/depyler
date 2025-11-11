@@ -380,21 +380,19 @@ pub fn generate_args_struct(parser_info: &ArgParserInfo) -> proc_macro2::TokenSt
             }
 
             // DEPYLER-0367: Add default value if present
-            if let Some(ref default_val) = arg.default {
+            if let Some(crate::hir::HirExpr::Literal(lit)) = arg.default.as_ref() {
                 // Convert HIR literal to string for default_value attribute
-                if let crate::hir::HirExpr::Literal(lit) = default_val {
-                    let default_str_opt = match lit {
-                        crate::hir::Literal::Int(n) => Some(n.to_string()),
-                        crate::hir::Literal::Float(f) => Some(f.to_string()),
-                        crate::hir::Literal::String(s) => Some(s.clone()),
-                        crate::hir::Literal::Bool(b) => Some(b.to_string()),
-                        _ => None,  // Skip complex defaults
-                    };
-                    if let Some(default_str) = default_str_opt {
-                        attrs.push(quote! {
-                            #[arg(default_value = #default_str)]
-                        });
-                    }
+                let default_str_opt = match lit {
+                    crate::hir::Literal::Int(n) => Some(n.to_string()),
+                    crate::hir::Literal::Float(f) => Some(f.to_string()),
+                    crate::hir::Literal::String(s) => Some(s.clone()),
+                    crate::hir::Literal::Bool(b) => Some(b.to_string()),
+                    _ => None,  // Skip complex defaults
+                };
+                if let Some(default_str) = default_str_opt {
+                    attrs.push(quote! {
+                        #[arg(default_value = #default_str)]
+                    });
                 }
             }
 

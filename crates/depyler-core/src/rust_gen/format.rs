@@ -293,7 +293,7 @@ mod tests {
             ("fn test() ->i32", "fn test() -> i32"),
         ];
 
-        for (input, expected) in test_cases {
+        for (input, _expected) in test_cases {
             let output = apply_string_replacements(input.to_string());
             assert!(
                 output.contains(" -> "),
