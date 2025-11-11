@@ -4,6 +4,99 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.19.30] - 2025-11-11
+
+### ✨ Features: Production-Ready ArgumentParser → Clap Transpilation
+
+**Tickets**: DEPYLER-0364, DEPYLER-0365 Phase 5
+**Impact**: Python CLI tools with argparse can now transpile to idiomatic Rust with clap derive macros
+**Test Status**: ✅ 3,140 tests passing (0 failures)
+
+#### DEPYLER-0364: nargs & action Mapping (Commit f16b66a)
+
+**Phase 3: nargs Parameter Support**
+- ✅ `nargs="+"` → `Vec<T>` (one or more arguments)
+- ✅ `nargs="*"` → `Vec<T>` (zero or more arguments)
+- ✅ `nargs="?"` → `Option<T>` (optional single argument)
+
+**Phase 4: action Parameter Support**
+- ✅ `action="store_true"` → `bool` (flag sets to true)
+- ✅ `action="store_false"` → `bool` (flag sets to false)
+- ✅ `action="count"` → `u8` (NEW: counts occurrences: `-v -v -v` → 3)
+
+**Files Modified**:
+- `crates/depyler-core/src/rust_gen/stmt_gen.rs` - kwargs extraction from add_argument()
+- `crates/depyler-core/src/rust_gen/argparse_transform.rs` - type mapping logic
+
+#### DEPYLER-0365 Phase 5: Flag Detection Fixes (Commit bc10ed0)
+
+**Fixed Two Critical Bugs**:
+
+1. **Long flags incorrectly detected as short**
+   - Before: `--debug` → `#[arg(short = 'd')]` ❌
+   - After: `--debug` → `#[arg(long)]` ✅
+
+2. **Dual short+long flags not handled**
+   - Before: `-o --output` → only `-o` read, field name=`o` ❌
+   - After: `-o --output` → `#[arg(short = 'o', long)]`, field name=`output` ✅
+
+**Implementation**:
+- Added `args.get(1)` to handle second argument (long flag) in `stmt_gen.rs:160-172`
+- Three-case flag detection logic in `argparse_transform.rs:319-348`
+
+#### Real-World Validation
+
+Successfully transpiled `examples/argparse_cli/python/wordcount.py` - a production-quality CLI tool with:
+- Positional arguments with nargs
+- Multiple dual short+long flags
+- Type mapping (Path → PathBuf)
+- help text and descriptions
+
+**Generated Code Example**:
+```rust
+#[derive(clap::Parser)]
+#[command(about = "Count lines, words, and characters in files")]
+#[command(after_help = "Similar to wc(1) Unix command")]
+struct Args {
+    #[doc = "Files to process"]
+    files: Vec<PathBuf>,
+
+    #[arg(short = 'l', long)]
+    #[doc = "Show only line count"]
+    lines: bool,
+
+    #[arg(short = 'w', long)]
+    #[doc = "Show only word count"]
+    words: bool,
+}
+```
+
+#### ArgumentParser Support Status
+
+| Feature | Status | Example |
+|---------|--------|---------|
+| Positional args | ✅ Complete | `"input_file"` → `input_file: PathBuf` |
+| Short flags | ✅ Complete | `"-v"` → `#[arg(short = 'v')]` |
+| Long flags | ✅ Complete | `"--debug"` → `#[arg(long)]` |
+| Dual flags | ✅ Complete | `"-o", "--output"` → `#[arg(short = 'o', long)]` |
+| Type mapping | ✅ Complete | `type=int` → `i32`, `type=Path` → `PathBuf` |
+| nargs | ✅ Complete | `nargs="+"` → `Vec<T>` |
+| action | ✅ Complete | `action="count"` → `u8` |
+| help text | ✅ Complete | `help="..."` → `#[doc = "..."]` |
+| description | ✅ Complete | `description="..."` → `#[command(about = "...")]` |
+| epilog | ✅ Complete | `epilog="..."` → `#[command(after_help = "...")]` |
+
+### 🐛 Bug Fixes
+
+- Fixed redundant closures in argparse_transform.rs (clippy::redundant_closure)
+- Fixed collapsible if let in stmt_gen.rs (clippy::collapsible_match)
+- Fixed useless format! at stmt_gen.rs:1444
+
+### 📚 Documentation
+
+- Updated `docs/bugs/DEPYLER-0364-hir-kwargs-support.md` with implementation details
+- Updated `docs/bugs/DEPYLER-0365-argparse-production-roadmap.md` with Phase 5 completion
+
 ### 🛑 DEPYLER-0269/0270: STOP THE LINE - Test Failures Blocking Release (2025-11-07)
 
 **Status**: 🔴 ACTIVE - P0 BLOCKER - 3 test failures
