@@ -20,7 +20,7 @@ use depyler_core::DepylerPipeline;
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0345_try_with_except_and_finally() {
+fn test_depyler_0345_try_with_except_and_finally() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_exception() -> int:
@@ -44,7 +44,7 @@ def test_exception() -> int:
 }
 
 #[test]
-fn test_DEPYLER_0345_try_with_except_no_finally() {
+fn test_depyler_0345_try_with_except_no_finally() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_exception() -> int:
@@ -66,7 +66,7 @@ def test_exception() -> int:
 }
 
 #[test]
-fn test_DEPYLER_0345_try_with_finally_no_except() {
+fn test_depyler_0345_try_with_finally_no_except() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_finally() -> int:
@@ -89,7 +89,7 @@ def test_finally() -> int:
 
 #[test]
 #[ignore = "Nested exception handling not yet fully implemented"]
-fn test_DEPYLER_0345_nested_try_except() {
+fn test_depyler_0345_nested_try_except() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_nested() -> int:
@@ -117,7 +117,7 @@ def test_nested() -> int:
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0345_list_comp_with_condition() {
+fn test_depyler_0345_list_comp_with_condition() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_comp(nums: list) -> list:
@@ -135,7 +135,7 @@ def test_comp(nums: list) -> list:
 }
 
 #[test]
-fn test_DEPYLER_0345_set_comp_with_condition() {
+fn test_depyler_0345_set_comp_with_condition() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_set_comp(items: list) -> set:
@@ -153,7 +153,7 @@ def test_set_comp(items: list) -> set:
 }
 
 #[test]
-fn test_DEPYLER_0345_dict_comp_with_condition() {
+fn test_depyler_0345_dict_comp_with_condition() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_dict_comp(items: list) -> dict:
@@ -171,7 +171,7 @@ def test_dict_comp(items: list) -> dict:
 }
 
 #[test]
-fn test_DEPYLER_0345_comp_complex_condition() {
+fn test_depyler_0345_comp_complex_condition() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_complex(nums: list) -> list:
@@ -190,7 +190,7 @@ def test_complex(nums: list) -> list:
 
 #[test]
 #[ignore = "Nested comprehensions with conditions not fully tested"]
-fn test_DEPYLER_0345_nested_comp_with_condition() {
+fn test_depyler_0345_nested_comp_with_condition() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_nested(matrix: list) -> list:
@@ -212,7 +212,7 @@ def test_nested(matrix: list) -> list:
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0345_dict_type_conversion() {
+fn test_depyler_0345_dict_type_conversion() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_dict(data: dict) -> dict:
@@ -230,7 +230,7 @@ def test_dict(data: dict) -> dict:
 }
 
 #[test]
-fn test_DEPYLER_0345_set_type_conversion() {
+fn test_depyler_0345_set_type_conversion() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_set(items: set) -> set:
@@ -248,7 +248,7 @@ def test_set(items: set) -> set:
 }
 
 #[test]
-fn test_DEPYLER_0345_tuple_type_conversion() {
+fn test_depyler_0345_tuple_type_conversion() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_tuple(pair: tuple) -> tuple:
@@ -266,7 +266,7 @@ def test_tuple(pair: tuple) -> tuple:
 }
 
 #[test]
-fn test_DEPYLER_0345_float_type_conversion() {
+fn test_depyler_0345_float_type_conversion() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_float(x: float) -> float:
@@ -284,7 +284,7 @@ def test_float(x: float) -> float:
 }
 
 #[test]
-fn test_DEPYLER_0345_none_type_conversion() {
+fn test_depyler_0345_none_type_conversion() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_none() -> None:
@@ -306,7 +306,7 @@ def test_none() -> None:
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0345_ternary_expression() {
+fn test_depyler_0345_ternary_expression() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_ternary(x: int) -> int:
@@ -324,7 +324,7 @@ def test_ternary(x: int) -> int:
 }
 
 #[test]
-fn test_DEPYLER_0345_set_literal() {
+fn test_depyler_0345_set_literal() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_set() -> set:
@@ -342,7 +342,7 @@ def test_set() -> set:
 }
 
 #[test]
-fn test_DEPYLER_0345_frozenset_literal() {
+fn test_depyler_0345_frozenset_literal() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_frozenset() -> frozenset:
@@ -361,7 +361,7 @@ def test_frozenset() -> frozenset:
 
 #[test]
 #[ignore = "Async/await not yet fully implemented"]
-fn test_DEPYLER_0345_await_expression() {
+fn test_depyler_0345_await_expression() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 async def test_await() -> int:
@@ -381,7 +381,7 @@ async def test_await() -> int:
 
 #[test]
 #[ignore = "Generator expressions with yield not yet implemented"]
-fn test_DEPYLER_0345_yield_expression() {
+fn test_depyler_0345_yield_expression() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_generator():
@@ -400,7 +400,7 @@ def test_generator():
 }
 
 #[test]
-fn test_DEPYLER_0345_sorted_with_key() {
+fn test_depyler_0345_sorted_with_key() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_sorted(items: list) -> list:
@@ -418,7 +418,7 @@ def test_sorted(items: list) -> list:
 }
 
 #[test]
-fn test_DEPYLER_0345_sorted_with_reverse() {
+fn test_depyler_0345_sorted_with_reverse() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_sorted_reverse(nums: list) -> list:
@@ -440,7 +440,7 @@ def test_sorted_reverse(nums: list) -> list:
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0345_float_literal() {
+fn test_depyler_0345_float_literal() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_float() -> float:
@@ -458,7 +458,7 @@ def test_float() -> float:
 }
 
 #[test]
-fn test_DEPYLER_0345_bytes_literal() {
+fn test_depyler_0345_bytes_literal() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_bytes() -> bytes:
@@ -476,7 +476,7 @@ def test_bytes() -> bytes:
 }
 
 #[test]
-fn test_DEPYLER_0345_none_literal() {
+fn test_depyler_0345_none_literal() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_none(x: int):
@@ -502,7 +502,7 @@ def test_none(x: int):
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0345_bitwise_and() {
+fn test_depyler_0345_bitwise_and() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_bitwise(a: int, b: int) -> int:
@@ -520,7 +520,7 @@ def test_bitwise(a: int, b: int) -> int:
 }
 
 #[test]
-fn test_DEPYLER_0345_bitwise_or() {
+fn test_depyler_0345_bitwise_or() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_bitwise(a: int, b: int) -> int:
@@ -538,7 +538,7 @@ def test_bitwise(a: int, b: int) -> int:
 }
 
 #[test]
-fn test_DEPYLER_0345_bitwise_xor() {
+fn test_depyler_0345_bitwise_xor() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_bitwise(a: int, b: int) -> int:
@@ -556,7 +556,7 @@ def test_bitwise(a: int, b: int) -> int:
 }
 
 #[test]
-fn test_DEPYLER_0345_bitwise_shift_left() {
+fn test_depyler_0345_bitwise_shift_left() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_shift(x: int) -> int:
@@ -574,7 +574,7 @@ def test_shift(x: int) -> int:
 }
 
 #[test]
-fn test_DEPYLER_0345_bitwise_shift_right() {
+fn test_depyler_0345_bitwise_shift_right() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
 def test_shift(x: int) -> int:

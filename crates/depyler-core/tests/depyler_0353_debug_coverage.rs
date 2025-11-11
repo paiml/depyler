@@ -23,7 +23,7 @@ use std::path::PathBuf;
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0353_debug_info_generator_new_none_level() {
+fn test_depyler_0353_debug_info_generator_new_none_level() {
     let source = PathBuf::from("test.py");
     let target = PathBuf::from("test.rs");
     let generator = DebugInfoGenerator::new(source.clone(), target.clone(), DebugLevel::None);
@@ -35,7 +35,7 @@ fn test_DEPYLER_0353_debug_info_generator_new_none_level() {
 }
 
 #[test]
-fn test_DEPYLER_0353_debug_info_generator_new_basic_level() {
+fn test_depyler_0353_debug_info_generator_new_basic_level() {
     let source = PathBuf::from("src/main.py");
     let target = PathBuf::from("src/main.rs");
     let generator = DebugInfoGenerator::new(source.clone(), target.clone(), DebugLevel::Basic);
@@ -46,7 +46,7 @@ fn test_DEPYLER_0353_debug_info_generator_new_basic_level() {
 }
 
 #[test]
-fn test_DEPYLER_0353_debug_info_generator_new_full_level() {
+fn test_depyler_0353_debug_info_generator_new_full_level() {
     let source = PathBuf::from("module/code.py");
     let target = PathBuf::from("build/code.rs");
     let generator = DebugInfoGenerator::new(source.clone(), target.clone(), DebugLevel::Full);
@@ -56,7 +56,7 @@ fn test_DEPYLER_0353_debug_info_generator_new_full_level() {
 }
 
 #[test]
-fn test_DEPYLER_0353_debug_info_generator_empty_paths() {
+fn test_depyler_0353_debug_info_generator_empty_paths() {
     let source = PathBuf::from("");
     let target = PathBuf::from("");
     let generator = DebugInfoGenerator::new(source, target, DebugLevel::Basic);
@@ -70,7 +70,7 @@ fn test_DEPYLER_0353_debug_info_generator_empty_paths() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0353_add_mapping_basic() {
+fn test_depyler_0353_add_mapping_basic() {
     let mut generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -84,7 +84,7 @@ fn test_DEPYLER_0353_add_mapping_basic() {
 }
 
 #[test]
-fn test_DEPYLER_0353_add_mapping_without_symbol() {
+fn test_depyler_0353_add_mapping_without_symbol() {
     let mut generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -98,7 +98,7 @@ fn test_DEPYLER_0353_add_mapping_without_symbol() {
 }
 
 #[test]
-fn test_DEPYLER_0353_add_mapping_multiple() {
+fn test_depyler_0353_add_mapping_multiple() {
     let mut generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -114,7 +114,7 @@ fn test_DEPYLER_0353_add_mapping_multiple() {
 }
 
 #[test]
-fn test_DEPYLER_0353_add_mapping_large_line_numbers() {
+fn test_depyler_0353_add_mapping_large_line_numbers() {
     let mut generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -128,7 +128,7 @@ fn test_DEPYLER_0353_add_mapping_large_line_numbers() {
 }
 
 #[test]
-fn test_DEPYLER_0353_add_mapping_zero_coordinates() {
+fn test_depyler_0353_add_mapping_zero_coordinates() {
     let mut generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -146,7 +146,7 @@ fn test_DEPYLER_0353_add_mapping_zero_coordinates() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0353_new_line_increments_tracking() {
+fn test_depyler_0353_new_line_increments_tracking() {
     let mut generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -164,7 +164,7 @@ fn test_DEPYLER_0353_new_line_increments_tracking() {
 }
 
 #[test]
-fn test_DEPYLER_0353_new_line_many_times() {
+fn test_depyler_0353_new_line_many_times() {
     let mut generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -185,7 +185,7 @@ fn test_DEPYLER_0353_new_line_many_times() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0353_add_function_mapping_basic() {
+fn test_depyler_0353_add_function_mapping_basic() {
     let mut generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -210,7 +210,7 @@ fn test_DEPYLER_0353_add_function_mapping_basic() {
 }
 
 #[test]
-fn test_DEPYLER_0353_add_function_mapping_async_function() {
+fn test_depyler_0353_add_function_mapping_async_function() {
     let mut generator = DebugInfoGenerator::new(
         PathBuf::from("async.py"),
         PathBuf::from("async.rs"),
@@ -234,7 +234,7 @@ fn test_DEPYLER_0353_add_function_mapping_async_function() {
 }
 
 #[test]
-fn test_DEPYLER_0353_add_function_mapping_with_docstring() {
+fn test_depyler_0353_add_function_mapping_with_docstring() {
     let mut generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -258,7 +258,7 @@ fn test_DEPYLER_0353_add_function_mapping_with_docstring() {
 }
 
 #[test]
-fn test_DEPYLER_0353_add_function_mapping_zero_rust_line() {
+fn test_depyler_0353_add_function_mapping_zero_rust_line() {
     let mut generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -286,7 +286,7 @@ fn test_DEPYLER_0353_add_function_mapping_zero_rust_line() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0353_generate_function_debug_basic() {
+fn test_depyler_0353_generate_function_debug_basic() {
     let generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -311,7 +311,7 @@ fn test_DEPYLER_0353_generate_function_debug_basic() {
 }
 
 #[test]
-fn test_DEPYLER_0353_generate_function_debug_async() {
+fn test_depyler_0353_generate_function_debug_async() {
     let generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -333,7 +333,7 @@ fn test_DEPYLER_0353_generate_function_debug_async() {
 }
 
 #[test]
-fn test_DEPYLER_0353_generate_function_debug_none_level() {
+fn test_depyler_0353_generate_function_debug_none_level() {
     let generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -361,7 +361,7 @@ fn test_DEPYLER_0353_generate_function_debug_none_level() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0353_generate_debug_print_int() {
+fn test_depyler_0353_generate_debug_print_int() {
     let generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -375,7 +375,7 @@ fn test_DEPYLER_0353_generate_debug_print_int() {
 }
 
 #[test]
-fn test_DEPYLER_0353_generate_debug_print_string() {
+fn test_depyler_0353_generate_debug_print_string() {
     let generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -387,7 +387,7 @@ fn test_DEPYLER_0353_generate_debug_print_string() {
 }
 
 #[test]
-fn test_DEPYLER_0353_generate_debug_print_bool() {
+fn test_depyler_0353_generate_debug_print_bool() {
     let generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -399,7 +399,7 @@ fn test_DEPYLER_0353_generate_debug_print_bool() {
 }
 
 #[test]
-fn test_DEPYLER_0353_generate_debug_print_float() {
+fn test_depyler_0353_generate_debug_print_float() {
     let generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -411,7 +411,7 @@ fn test_DEPYLER_0353_generate_debug_print_float() {
 }
 
 #[test]
-fn test_DEPYLER_0353_generate_debug_print_list() {
+fn test_depyler_0353_generate_debug_print_list() {
     let generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -423,7 +423,7 @@ fn test_DEPYLER_0353_generate_debug_print_list() {
 }
 
 #[test]
-fn test_DEPYLER_0353_generate_debug_print_none_level() {
+fn test_depyler_0353_generate_debug_print_none_level() {
     let generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -441,7 +441,7 @@ fn test_DEPYLER_0353_generate_debug_print_none_level() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0353_debug_runtime_breakpoint() {
+fn test_depyler_0353_debug_runtime_breakpoint() {
     let breakpoint_code = DebugRuntime::breakpoint();
 
     // Should return valid Rust code for breakpoint
@@ -450,7 +450,7 @@ fn test_DEPYLER_0353_debug_runtime_breakpoint() {
 }
 
 #[test]
-fn test_DEPYLER_0353_debug_runtime_breakpoint_static() {
+fn test_depyler_0353_debug_runtime_breakpoint_static() {
     // Verify it's a static method (can call without instance)
     let code1 = DebugRuntime::breakpoint();
     let code2 = DebugRuntime::breakpoint();
@@ -464,7 +464,7 @@ fn test_DEPYLER_0353_debug_runtime_breakpoint_static() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0353_debug_runtime_debug_assert_basic() {
+fn test_depyler_0353_debug_runtime_debug_assert_basic() {
     let assert_code = DebugRuntime::debug_assert("x > 0", "x must be positive");
 
     assert!(!assert_code.is_empty());
@@ -472,7 +472,7 @@ fn test_DEPYLER_0353_debug_runtime_debug_assert_basic() {
 }
 
 #[test]
-fn test_DEPYLER_0353_debug_runtime_debug_assert_complex_condition() {
+fn test_depyler_0353_debug_runtime_debug_assert_complex_condition() {
     let condition = "index >= 0 && index < len";
     let message = "index out of bounds";
     let assert_code = DebugRuntime::debug_assert(condition, message);
@@ -481,14 +481,14 @@ fn test_DEPYLER_0353_debug_runtime_debug_assert_complex_condition() {
 }
 
 #[test]
-fn test_DEPYLER_0353_debug_runtime_debug_assert_empty_message() {
+fn test_depyler_0353_debug_runtime_debug_assert_empty_message() {
     let assert_code = DebugRuntime::debug_assert("true", "");
 
     assert!(!assert_code.is_empty());
 }
 
 #[test]
-fn test_DEPYLER_0353_debug_runtime_debug_assert_special_chars() {
+fn test_depyler_0353_debug_runtime_debug_assert_special_chars() {
     let condition = "x != \"test\"";
     let message = "Value shouldn't be 'test'";
     let assert_code = DebugRuntime::debug_assert(condition, message);
@@ -501,28 +501,28 @@ fn test_DEPYLER_0353_debug_runtime_debug_assert_special_chars() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0353_debug_runtime_trace_point_basic() {
+fn test_depyler_0353_debug_runtime_trace_point_basic() {
     let trace_code = DebugRuntime::trace_point("main.py:42");
 
     assert!(!trace_code.is_empty());
 }
 
 #[test]
-fn test_DEPYLER_0353_debug_runtime_trace_point_function_location() {
+fn test_depyler_0353_debug_runtime_trace_point_function_location() {
     let trace_code = DebugRuntime::trace_point("calculate_sum() at line 100");
 
     assert!(!trace_code.is_empty());
 }
 
 #[test]
-fn test_DEPYLER_0353_debug_runtime_trace_point_empty_location() {
+fn test_depyler_0353_debug_runtime_trace_point_empty_location() {
     let trace_code = DebugRuntime::trace_point("");
 
     assert!(!trace_code.is_empty() || trace_code.is_empty());
 }
 
 #[test]
-fn test_DEPYLER_0353_debug_runtime_trace_point_special_chars() {
+fn test_depyler_0353_debug_runtime_trace_point_special_chars() {
     let trace_code = DebugRuntime::trace_point("file/path/with spaces.py:123");
 
     assert!(trace_code.len() >= 0);
@@ -533,7 +533,7 @@ fn test_DEPYLER_0353_debug_runtime_trace_point_special_chars() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0353_debugger_integration_new_gdb() {
+fn test_depyler_0353_debugger_integration_new_gdb() {
     let integration = DebuggerIntegration::new(DebuggerType::Gdb);
 
     // Should create GDB integration (we can't inspect internals, but shouldn't panic)
@@ -541,14 +541,14 @@ fn test_DEPYLER_0353_debugger_integration_new_gdb() {
 }
 
 #[test]
-fn test_DEPYLER_0353_debugger_integration_new_lldb() {
+fn test_depyler_0353_debugger_integration_new_lldb() {
     let integration = DebuggerIntegration::new(DebuggerType::Lldb);
 
     assert!(true); // Constructor succeeds
 }
 
 #[test]
-fn test_DEPYLER_0353_debugger_integration_new_rustgdb() {
+fn test_depyler_0353_debugger_integration_new_rustgdb() {
     let integration = DebuggerIntegration::new(DebuggerType::RustGdb);
 
     assert!(true); // Constructor succeeds
@@ -559,7 +559,7 @@ fn test_DEPYLER_0353_debugger_integration_new_rustgdb() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0353_generate_init_script_gdb() {
+fn test_depyler_0353_generate_init_script_gdb() {
     let integration = DebuggerIntegration::new(DebuggerType::Gdb);
     let source_map = SourceMap {
         source_file: PathBuf::from("test.py"),
@@ -575,7 +575,7 @@ fn test_DEPYLER_0353_generate_init_script_gdb() {
 }
 
 #[test]
-fn test_DEPYLER_0353_generate_init_script_lldb() {
+fn test_depyler_0353_generate_init_script_lldb() {
     let integration = DebuggerIntegration::new(DebuggerType::Lldb);
     let source_map = SourceMap {
         source_file: PathBuf::from("test.py"),
@@ -590,7 +590,7 @@ fn test_DEPYLER_0353_generate_init_script_lldb() {
 }
 
 #[test]
-fn test_DEPYLER_0353_generate_init_script_rustgdb() {
+fn test_depyler_0353_generate_init_script_rustgdb() {
     let integration = DebuggerIntegration::new(DebuggerType::RustGdb);
     let source_map = SourceMap {
         source_file: PathBuf::from("main.py"),
@@ -605,7 +605,7 @@ fn test_DEPYLER_0353_generate_init_script_rustgdb() {
 }
 
 #[test]
-fn test_DEPYLER_0353_generate_init_script_with_mappings() {
+fn test_depyler_0353_generate_init_script_with_mappings() {
     let integration = DebuggerIntegration::new(DebuggerType::Gdb);
     let source_map = SourceMap {
         source_file: PathBuf::from("code.py"),
@@ -635,7 +635,7 @@ fn test_DEPYLER_0353_generate_init_script_with_mappings() {
 }
 
 #[test]
-fn test_DEPYLER_0353_generate_init_script_empty_mappings() {
+fn test_depyler_0353_generate_init_script_empty_mappings() {
     let integration = DebuggerIntegration::new(DebuggerType::Lldb);
     let source_map = SourceMap {
         source_file: PathBuf::from("empty.py"),
@@ -655,14 +655,14 @@ fn test_DEPYLER_0353_generate_init_script_empty_mappings() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0353_generate_debug_macros_basic() {
+fn test_depyler_0353_generate_debug_macros_basic() {
     let macros = generate_debug_macros();
 
     assert!(!macros.is_empty());
 }
 
 #[test]
-fn test_DEPYLER_0353_generate_debug_macros_contains_macro_definitions() {
+fn test_depyler_0353_generate_debug_macros_contains_macro_definitions() {
     let macros = generate_debug_macros();
 
     // Should contain macro_rules! or similar Rust macro syntax
@@ -670,7 +670,7 @@ fn test_DEPYLER_0353_generate_debug_macros_contains_macro_definitions() {
 }
 
 #[test]
-fn test_DEPYLER_0353_generate_debug_macros_deterministic() {
+fn test_depyler_0353_generate_debug_macros_deterministic() {
     let macros1 = generate_debug_macros();
     let macros2 = generate_debug_macros();
 
@@ -683,7 +683,7 @@ fn test_DEPYLER_0353_generate_debug_macros_deterministic() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0353_full_debug_workflow() {
+fn test_depyler_0353_full_debug_workflow() {
     // Create generator
     let mut generator = DebugInfoGenerator::new(
         PathBuf::from("example.py"),
@@ -723,7 +723,7 @@ fn test_DEPYLER_0353_full_debug_workflow() {
 }
 
 #[test]
-fn test_DEPYLER_0353_debugger_integration_workflow() {
+fn test_depyler_0353_debugger_integration_workflow() {
     // Create source map
     let source_map = SourceMap {
         source_file: PathBuf::from("app.py"),
@@ -760,7 +760,7 @@ fn test_DEPYLER_0353_debugger_integration_workflow() {
 }
 
 #[test]
-fn test_DEPYLER_0353_debug_runtime_all_methods() {
+fn test_depyler_0353_debug_runtime_all_methods() {
     let breakpoint = DebugRuntime::breakpoint();
     let assert_code = DebugRuntime::debug_assert("x == 42", "expected 42");
     let trace = DebugRuntime::trace_point("test.py:10");
@@ -775,7 +775,7 @@ fn test_DEPYLER_0353_debug_runtime_all_methods() {
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0353_source_map_large_file() {
+fn test_depyler_0353_source_map_large_file() {
     let mut generator = DebugInfoGenerator::new(
         PathBuf::from("large.py"),
         PathBuf::from("large.rs"),
@@ -792,7 +792,7 @@ fn test_DEPYLER_0353_source_map_large_file() {
 }
 
 #[test]
-fn test_DEPYLER_0353_debug_print_complex_type() {
+fn test_depyler_0353_debug_print_complex_type() {
     let generator = DebugInfoGenerator::new(
         PathBuf::from("test.py"),
         PathBuf::from("test.rs"),
@@ -810,7 +810,7 @@ fn test_DEPYLER_0353_debug_print_complex_type() {
 }
 
 #[test]
-fn test_DEPYLER_0353_debug_assert_multiline_condition() {
+fn test_depyler_0353_debug_assert_multiline_condition() {
     let condition = "x > 0 &&\n    y > 0 &&\n    z > 0";
     let message = "All coordinates must be positive";
 
@@ -819,7 +819,7 @@ fn test_DEPYLER_0353_debug_assert_multiline_condition() {
 }
 
 #[test]
-fn test_DEPYLER_0353_debugger_script_path_with_spaces() {
+fn test_depyler_0353_debugger_script_path_with_spaces() {
     let integration = DebuggerIntegration::new(DebuggerType::Gdb);
     let source_map = SourceMap {
         source_file: PathBuf::from("my code/test file.py"),
@@ -835,7 +835,7 @@ fn test_DEPYLER_0353_debugger_script_path_with_spaces() {
 }
 
 #[test]
-fn test_DEPYLER_0353_multiple_generators_independent() {
+fn test_depyler_0353_multiple_generators_independent() {
     let mut gen1 = DebugInfoGenerator::new(
         PathBuf::from("test1.py"),
         PathBuf::from("test1.rs"),

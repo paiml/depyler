@@ -157,10 +157,7 @@ fn test_is_mutating_method_all_methods() {
             name: "test".to_string(),
             params: vec![HirParam::new("s".to_string(), Type::String)].into(),
             ret_type: Type::None,
-            body: vec![HirStmt::Expr(HirExpr::Call {
-                func: method.to_string(),
-                args: vec![HirExpr::Var("s".to_string())],
-            })],
+            body: vec![HirStmt::Expr(HirExpr::Call { func: method.to_string(), args: vec![HirExpr::Var("s".to_string())], kwargs: vec![] })],
             properties: FunctionProperties::default(),
             annotations: Default::default(),
             docstring: None,
@@ -370,14 +367,8 @@ fn test_is_string_expr_call_functions() {
         ret_type: Type::String,
         body: vec![HirStmt::Return(Some(HirExpr::Binary {
             op: BinOp::Add,
-            left: Box::new(HirExpr::Call {
-                func: "str".to_string(),
-                args: vec![HirExpr::Literal(Literal::Int(42))],
-            }),
-            right: Box::new(HirExpr::Call {
-                func: "format".to_string(),
-                args: vec![],
-            }),
+            left: Box::new(HirExpr::Call { func: "str".to_string(), args: vec![HirExpr::Literal(Literal::Int(42))], kwargs: vec![] }),
+            right: Box::new(HirExpr::Call { func: "format".to_string(), args: vec![], kwargs: vec![] }),
         }))],
         properties: FunctionProperties::default(),
         annotations: Default::default(),
@@ -680,10 +671,7 @@ fn test_mutation_mixed_usage_detection() {
         name: "test".to_string(),
         params: vec![HirParam::new("s".to_string(), Type::String)].into(),
         ret_type: Type::Int,
-        body: vec![HirStmt::Return(Some(HirExpr::Call {
-            func: "len".to_string(),
-            args: vec![HirExpr::Var("s".to_string())],
-        }))],
+        body: vec![HirStmt::Return(Some(HirExpr::Call { func: "len".to_string(), args: vec![HirExpr::Var("s".to_string())], kwargs: vec![] }))],
         properties: FunctionProperties::default(),
         annotations: Default::default(),
         docstring: None,
