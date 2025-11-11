@@ -25,6 +25,8 @@ fn compile_rust_as_bin(rust_code: &str) -> Result<(), String> {
         .arg("bin")
         .arg("--edition")
         .arg("2021")
+        .arg("--crate-name")
+        .arg("test_transpiled")
         .arg(temp_file.path())
         .output()
         .map_err(|e| e.to_string())?;
@@ -75,6 +77,8 @@ def main():
 "#;
 
     let rust = transpile(python);
+
+    eprintln!("Generated Rust code:\n{}\n", rust);
 
     // Should contain clap usage
     assert!(rust.contains("clap"), "Should use clap crate");
