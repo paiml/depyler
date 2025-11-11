@@ -175,11 +175,12 @@ impl ArgParserArgument {
             // Positional arguments keep their name
             self.name.clone()
         } else if let Some(ref long) = self.long {
-            // Use long flag without --
+            // Use long flag without -- (convert hyphens to underscores)
             long.trim_start_matches("--").replace('-', "_")
         } else {
-            // Use short flag without -
-            self.name.trim_start_matches('-').to_string()
+            // Use flag name without leading hyphens (convert hyphens to underscores)
+            // DEPYLER-0366: Handle flags like --no-color → no_color
+            self.name.trim_start_matches('-').replace('-', "_")
         }
     }
 
