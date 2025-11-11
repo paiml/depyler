@@ -234,86 +234,6 @@ pub(crate) fn codegen_function_params(
         .collect()
 }
 
-/// Check if a parameter is used in the function body
-fn is_param_used_in_body(body: &[HirStmt], param_name: &str) -> bool {
-    use crate::hir::{HirExpr, HirStmt};
-
-    fn check_expr(expr: &HirExpr, param_name: &str) -> bool {
-        match expr {
-            HirExpr::Var(name) => name == param_name,
-            HirExpr::Binary { left, right, .. } => {
-                check_expr(left, param_name) || check_expr(right, param_name)
-            }
-            HirExpr::Unary { operand, .. } => check_expr(operand, param_name),
-            HirExpr::Call { args, .. } => args.iter().any(|arg| check_expr(arg, param_name)),
-            HirExpr::MethodCall { object, args, .. } => {
-                check_expr(object, param_name) || args.iter().any(|arg| check_expr(arg, param_name))
-            }
-            HirExpr::Index { base, index } => {
-                check_expr(base, param_name) || check_expr(index, param_name)
-            }
-            HirExpr::Slice { base, start, stop, step } => {
-                check_expr(base, param_name)
-                    || start.as_ref().is_some_and(|e| check_expr(e, param_name))
-                    || stop.as_ref().is_some_and(|e| check_expr(e, param_name))
-                    || step.as_ref().is_some_and(|e| check_expr(e, param_name))
-            }
-            HirExpr::Attribute { value, .. } => check_expr(value, param_name),
-            HirExpr::List(elems) | HirExpr::Tuple(elems) | HirExpr::Set(elems) | HirExpr::FrozenSet(elems) => {
-                elems.iter().any(|e| check_expr(e, param_name))
-            }
-            HirExpr::Dict(pairs) => {
-                pairs.iter().any(|(k, v)| check_expr(k, param_name) || check_expr(v, param_name))
-            }
-            HirExpr::Borrow { expr, .. } => check_expr(expr, param_name),
-            HirExpr::ListComp { element, iter, condition, .. } => {
-                check_expr(element, param_name)
-                    || check_expr(iter, param_name)
-                    || condition.as_ref().is_some_and(|c| check_expr(c, param_name))
-            }
-            _ => false,
-        }
-    }
-
-    fn check_stmt(stmt: &HirStmt, param_name: &str) -> bool {
-        match stmt {
-            HirStmt::Assign { value, .. } => check_expr(value, param_name),
-            HirStmt::Return(Some(expr)) => check_expr(expr, param_name),
-            HirStmt::Expr(expr) => check_expr(expr, param_name),
-            HirStmt::If { condition, then_body, else_body } => {
-                check_expr(condition, param_name)
-                    || then_body.iter().any(|s| check_stmt(s, param_name))
-                    || else_body.as_ref().is_some_and(|stmts| stmts.iter().any(|s| check_stmt(s, param_name)))
-            }
-            HirStmt::For { iter, body, .. } => {
-                check_expr(iter, param_name) || body.iter().any(|s| check_stmt(s, param_name))
-            }
-            HirStmt::While { condition, body } => {
-                check_expr(condition, param_name) || body.iter().any(|s| check_stmt(s, param_name))
-            }
-            HirStmt::Raise { exception, cause } => {
-                exception.as_ref().is_some_and(|e| check_expr(e, param_name))
-                    || cause.as_ref().is_some_and(|c| check_expr(c, param_name))
-            }
-            HirStmt::With { context, body, .. } => {
-                check_expr(context, param_name) || body.iter().any(|s| check_stmt(s, param_name))
-            }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
-                body.iter().any(|s| check_stmt(s, param_name))
-                    || handlers.iter().any(|h| h.body.iter().any(|s| check_stmt(s, param_name)))
-                    || orelse.as_ref().is_some_and(|stmts| stmts.iter().any(|s| check_stmt(s, param_name)))
-                    || finalbody.as_ref().is_some_and(|stmts| stmts.iter().any(|s| check_stmt(s, param_name)))
-            }
-            HirStmt::Assert { test, msg } => {
-                check_expr(test, param_name) || msg.as_ref().is_some_and(|m| check_expr(m, param_name))
-            }
-            _ => false,
-        }
-    }
-
-    body.iter().any(|stmt| check_stmt(stmt, param_name))
-}
-
 /// Convert a single parameter with all borrowing strategies
 fn codegen_single_param(
     param: &HirParam,
@@ -321,14 +241,10 @@ fn codegen_single_param(
     lifetime_result: &crate::lifetime_analysis::LifetimeResult,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
-    // DEPYLER-0270: Prefix unused parameters with _ to suppress warnings
-    // Check if parameter is used in function body
-    let param_is_used = is_param_used_in_body(&func.body, &param.name);
-    let param_name = if param_is_used {
-        param.name.clone()
-    } else {
-        format!("_{}", param.name)
-    };
+    // Use parameter name directly to ensure signature matches body references
+    // DEPYLER-0357: Removed underscore prefixing logic that was causing compilation errors
+    // Parameter names in signature must match exactly how they're referenced in function body
+    let param_name = param.name.clone();
     let param_ident = syn::Ident::new(&param_name, proc_macro2::Span::call_site());
 
     // DEPYLER-0312: Use mutable_vars populated by analyze_mutable_vars
