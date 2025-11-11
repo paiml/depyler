@@ -88,14 +88,10 @@ fn test_escaping_parameter_takes_ownership() {
     let result = ctx.analyze_function(&func, &type_mapper);
     let strategy = result.param_strategies.get("value").unwrap();
 
-    // When a string parameter escapes through return, we use Cow for flexibility
-    // This allows both borrowed and owned strings to be passed in
-    assert_eq!(
-        *strategy,
-        BorrowingStrategy::UseCow {
-            lifetime: "'static".to_string()
-        }
-    );
+    // DEPYLER-0357: When a string parameter escapes through return, we take ownership
+    // Previous behavior used Cow<'static> but this created impossible lifetime constraints
+    // New behavior: Use owned String for simplicity and correctness
+    assert_eq!(*strategy, BorrowingStrategy::TakeOwnership);
 }
 
 #[test]
@@ -121,12 +117,11 @@ fn test_string_concatenation_uses_cow() {
     let result = ctx.analyze_function(&func, &type_mapper);
     let strategy = result.param_strategies.get("prefix").unwrap();
 
-    // Should use Cow for flexibility when string escapes but isn't mutated in place
+    // DEPYLER-0357: When string is used in concatenation (not directly returned),
+    // we can borrow it immutably since the concatenation creates a new String
     assert_eq!(
         *strategy,
-        BorrowingStrategy::UseCow {
-            lifetime: "'static".to_string()
-        }
+        BorrowingStrategy::BorrowImmutable { lifetime: None }
     );
 }
 

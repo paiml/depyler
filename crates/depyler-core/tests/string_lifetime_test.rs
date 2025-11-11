@@ -13,16 +13,15 @@ def process_string(s: str) -> int:
     let rust_code = pipeline.transpile(python_code).unwrap();
     println!("Generated code:\n{}", rust_code);
 
-    // Should generate a function with lifetime parameter
+    // DEPYLER-0357: Uses lifetime elision (&str) instead of explicit lifetimes
+    // String doesn't escape, so we can borrow immutably
     assert!(
-        rust_code.contains("pub fn process_string<'a>")
-            || rust_code.contains("pub fn process_string<'b>")
-            || rust_code.contains("pub fn process_string<'"),
-        "Function should have lifetime parameter"
+        rust_code.contains("s: &str"),
+        "Should use &str with lifetime elision"
     );
     assert!(
-        rust_code.contains("&'") || rust_code.contains("& '"),
-        "Parameter should use lifetime annotation"
+        rust_code.contains("-> i32"),
+        "Should return i32"
     );
 }
 
@@ -37,14 +36,11 @@ def identity(s: str) -> str:
     let rust_code = pipeline.transpile(python_code).unwrap();
     println!("Generated code for identity:\n{}", rust_code);
 
-    // Should use Cow for maximum flexibility
+    // DEPYLER-0357: Uses String instead of Cow for escaping strings
+    // Previous Cow<'static> behavior caused lifetime mismatch compilation errors
     assert!(
-        rust_code.contains("Cow"),
-        "Should use Cow for string that escapes"
-    );
-    assert!(
-        rust_code.contains("use std::borrow::Cow"),
-        "Should import Cow"
+        rust_code.contains("s: String") && rust_code.contains("-> String"),
+        "Should use String for string that escapes through return"
     );
 }
 
@@ -62,11 +58,15 @@ def select_string(s1: str, s2: str, use_first: bool) -> str:
     let rust_code = pipeline.transpile(python_code).unwrap();
     println!("Generated code for select_string:\n{}", rust_code);
 
-    // Should have lifetime parameters
-    assert!(rust_code.contains("<'"), "Should have lifetime parameters");
+    // DEPYLER-0357: Parameters that escape take ownership
+    // Multiple string params that escape both use String
     assert!(
-        rust_code.contains("Cow"),
-        "Should use Cow for flexible ownership"
+        rust_code.contains("s1: String") && rust_code.contains("s2: String"),
+        "String parameters that escape should take ownership"
+    );
+    assert!(
+        rust_code.contains("-> String"),
+        "Should return String"
     );
 }
 

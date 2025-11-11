@@ -755,12 +755,13 @@ impl BorrowingContext {
             return BorrowingStrategy::TakeOwnership;
         }
 
-        // If string escapes, we need to check lifetime requirements
+        // If string escapes, we need to take ownership to avoid lifetime issues
+        // DEPYLER-0357: Fixed Cow lifetime mismatch bug
+        // Previous behavior: Generated Cow<'static, str> which creates impossible
+        // lifetime constraints when returning borrowed parameters
+        // New behavior: Use owned String for simplicity and correctness
         if usage.escapes_through_return {
-            // Use Cow for maximum flexibility
-            return BorrowingStrategy::UseCow {
-                lifetime: "'static".to_string(),
-            };
+            return BorrowingStrategy::TakeOwnership;
         }
 
         // For read-only strings, prefer borrowing
