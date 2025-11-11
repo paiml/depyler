@@ -36,6 +36,32 @@
 use crate::hir::{HirExpr, Type};
 use std::collections::HashMap;
 
+/// Convert HIR Type to Rust type string for argparse arguments
+///
+/// # DEPYLER-0364: Type Mapping
+/// Maps Python types to idiomatic Rust types for CLI arguments:
+/// - int → i32
+/// - str → String
+/// - Path → PathBuf
+/// - bool → bool
+/// - float → f64
+///
+/// # Complexity
+/// 3 (pattern match on Type enum)
+fn type_to_rust_string(ty: &Type) -> String {
+    match ty {
+        Type::Int => "i32".to_string(),
+        Type::Float => "f64".to_string(),
+        Type::String => "String".to_string(),
+        Type::Bool => "bool".to_string(),
+        Type::Custom(name) if name == "PathBuf" => "PathBuf".to_string(),
+        Type::Custom(name) => name.clone(),
+        Type::List(inner) => format!("Vec<{}>", type_to_rust_string(inner)),
+        Type::Optional(inner) => format!("Option<{}>", type_to_rust_string(inner)),
+        _ => "String".to_string(), // Default fallback
+    }
+}
+
 /// Tracks an ArgumentParser instance being built
 ///
 /// # Complexity
@@ -160,7 +186,7 @@ impl ArgParserArgument {
     /// Get the Rust type for this argument
     ///
     /// # Complexity
-    /// 6 (multiple match + string checks)
+    /// 7 (multiple match + string checks)
     pub fn rust_type(&self) -> String {
         // action="store_true" → bool
         if self.action.as_deref() == Some("store_true")
@@ -168,10 +194,15 @@ impl ArgParserArgument {
             return "bool".to_string();
         }
 
+        // action="count" → u8 (counts occurrences: -v -v -v → 3)
+        if self.action.as_deref() == Some("count") {
+            return "u8".to_string();
+        }
+
         // nargs="+" or nargs="*" → Vec<T>
         if self.nargs.as_deref() == Some("+") || self.nargs.as_deref() == Some("*") {
             let inner_type = self.arg_type.as_ref()
-                .map(|t| format!("{:?}", t))
+                .map(type_to_rust_string)
                 .unwrap_or_else(|| "String".to_string());
             return format!("Vec<{}>", inner_type);
         }
@@ -179,14 +210,14 @@ impl ArgParserArgument {
         // nargs="?" → Option<T>
         if self.nargs.as_deref() == Some("?") {
             let inner_type = self.arg_type.as_ref()
-                .map(|t| format!("{:?}", t))
+                .map(type_to_rust_string)
                 .unwrap_or_else(|| "String".to_string());
             return format!("Option<{}>", inner_type);
         }
 
         // Use explicit type or default to String
         self.arg_type.as_ref()
-            .map(|t| format!("{:?}", t))
+            .map(type_to_rust_string)
             .unwrap_or_else(|| "String".to_string())
     }
 }
