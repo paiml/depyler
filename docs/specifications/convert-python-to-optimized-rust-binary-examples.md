@@ -849,6 +849,277 @@ All examples MUST include comprehensive scientific benchmarking with:
 - **Visualization**: Charts and graphs for all metrics
 - **100% Test Coverage**: Both Python and Rust versions
 
+### 🚨 ANTI-HALLUCINATION: PROGRAMMATIC MEASUREMENT ONLY
+
+**ABSOLUTE REQUIREMENT**: ALL metrics MUST be programmatically generated. ZERO tolerance for manual entry or hallucinated numbers.
+
+#### Enforcement Rules
+
+1. **NO MANUAL METRICS** ❌
+   - Never type performance numbers directly into documentation
+   - Never estimate or guess benchmark results
+   - Never copy numbers from previous runs without verification
+   - Never use placeholder values like "~50ms" or "approximately 10x"
+
+2. **PROGRAMMATIC GENERATION ONLY** ✅
+   - All metrics captured by automation scripts
+   - Output in machine-readable formats (JSON, CSV, YAML)
+   - Scripts check exit codes and validate tool execution
+   - Results include timestamps and environment metadata
+
+3. **REPRODUCIBILITY MANDATORY** ✅
+   - `make benchmark` regenerates ALL metrics from scratch
+   - Scripts output to `benchmarks/results/<timestamp>/` directories
+   - Environment captured: CPU model, RAM, kernel version, compiler versions
+   - Seed values recorded for property tests
+
+4. **VERIFICATION GATES** ✅
+   - CI/CD runs benchmarks and fails if tools not available
+   - Pre-commit hook validates benchmark JSON schemas
+   - Documentation build fails if metrics files missing
+   - Visualization scripts error if data files not found
+
+#### Implementation Template
+
+```bash
+#!/usr/bin/env bash
+# benchmarks/run_all.sh - Programmatic benchmark automation
+
+set -euo pipefail
+
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+RESULTS_DIR="benchmarks/results/${TIMESTAMP}"
+mkdir -p "${RESULTS_DIR}"
+
+# Capture environment metadata
+cat > "${RESULTS_DIR}/environment.json" <<EOF
+{
+  "timestamp": "$(date -Iseconds)",
+  "hostname": "$(hostname)",
+  "cpu_model": "$(lscpu | grep 'Model name' | cut -d: -f2 | xargs)",
+  "cpu_cores": "$(nproc)",
+  "ram_gb": "$(free -g | awk '/^Mem:/{print $2}')",
+  "kernel": "$(uname -r)",
+  "rustc_version": "$(rustc --version)",
+  "python_version": "$(python3 --version)",
+  "cargo_version": "$(cargo --version)"
+}
+EOF
+
+# Runtime benchmarking (hyperfine)
+echo "==> Running hyperfine benchmarks..."
+hyperfine \
+    --warmup 3 \
+    --min-runs 50 \
+    --export-json "${RESULTS_DIR}/runtime.json" \
+    --export-markdown "${RESULTS_DIR}/runtime.md" \
+    'python3 examples/argparse_cli/python/wordcount.py examples/argparse_cli/testdata/sample.txt' \
+    './target/release/examples/wordcount examples/argparse_cli/testdata/sample.txt' \
+    || { echo "ERROR: hyperfine failed"; exit 1; }
+
+# Memory profiling (valgrind massif)
+echo "==> Running memory profiling..."
+valgrind --tool=massif \
+    --massif-out-file="${RESULTS_DIR}/memory_rust.massif" \
+    ./target/release/examples/wordcount examples/argparse_cli/testdata/sample.txt \
+    2>&1 | tee "${RESULTS_DIR}/memory_rust.log" \
+    || { echo "ERROR: valgrind failed"; exit 1; }
+
+# Parse massif output to JSON
+ms_print "${RESULTS_DIR}/memory_rust.massif" | \
+    awk '/peak/ {print $6}' > "${RESULTS_DIR}/memory_rust_peak_mb.txt"
+
+# CPU profiling (perf)
+echo "==> Running CPU profiling..."
+perf record -F 99 -g -o "${RESULTS_DIR}/perf_rust.data" \
+    ./target/release/examples/wordcount examples/argparse_cli/testdata/sample.txt \
+    || { echo "ERROR: perf failed"; exit 1; }
+
+perf report -i "${RESULTS_DIR}/perf_rust.data" --stdio \
+    > "${RESULTS_DIR}/perf_rust_report.txt"
+
+# Binary metrics
+echo "==> Collecting binary metrics..."
+cat > "${RESULTS_DIR}/binary_metrics.json" <<EOF
+{
+  "size_bytes": $(stat -c%s ./target/release/examples/wordcount),
+  "size_mb": $(echo "scale=2; $(stat -c%s ./target/release/examples/wordcount) / 1024 / 1024" | bc),
+  "stripped_size_bytes": $(strip --strip-all -o /tmp/wordcount_stripped ./target/release/examples/wordcount && stat -c%s /tmp/wordcount_stripped && rm /tmp/wordcount_stripped)
+}
+EOF
+
+# Test coverage (must be 100%)
+echo "==> Running test coverage..."
+cargo llvm-cov --json --output-path "${RESULTS_DIR}/coverage_rust.json" \
+    --all-features --workspace \
+    || { echo "ERROR: Coverage collection failed"; exit 1; }
+
+pytest --cov=wordcount \
+    --cov-report=json:"${RESULTS_DIR}/coverage_python.json" \
+    examples/argparse_cli/tests/ \
+    || { echo "ERROR: Python tests failed"; exit 1; }
+
+# Validation: Ensure all required files exist
+REQUIRED_FILES=(
+    "environment.json"
+    "runtime.json"
+    "runtime.md"
+    "memory_rust.massif"
+    "perf_rust.data"
+    "binary_metrics.json"
+    "coverage_rust.json"
+    "coverage_python.json"
+)
+
+for file in "${REQUIRED_FILES[@]}"; do
+    if [[ ! -f "${RESULTS_DIR}/${file}" ]]; then
+        echo "ERROR: Required file missing: ${file}"
+        exit 1
+    fi
+done
+
+echo "==> SUCCESS: All benchmarks completed"
+echo "Results directory: ${RESULTS_DIR}"
+echo "Generate visualizations with: python3 benchmarks/visualize.py ${RESULTS_DIR}"
+```
+
+#### Visualization Template
+
+```python
+#!/usr/bin/env python3
+"""
+benchmarks/visualize.py - Programmatic chart generation from benchmark data
+"""
+import json
+import sys
+from pathlib import Path
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def load_benchmark_data(results_dir: Path) -> dict:
+    """Load all benchmark JSON files"""
+    data = {}
+
+    # Runtime data (hyperfine)
+    with open(results_dir / "runtime.json") as f:
+        runtime = json.load(f)
+        data["runtime"] = runtime
+
+    # Memory data
+    with open(results_dir / "memory_rust_peak_mb.txt") as f:
+        data["memory_peak_mb"] = float(f.read().strip())
+
+    # Binary metrics
+    with open(results_dir / "binary_metrics.json") as f:
+        data["binary"] = json.load(f)
+
+    # Coverage
+    with open(results_dir / "coverage_rust.json") as f:
+        data["coverage_rust"] = json.load(f)
+
+    with open(results_dir / "coverage_python.json") as f:
+        data["coverage_python"] = json.load(f)
+
+    return data
+
+def generate_charts(data: dict, output_dir: Path):
+    """Generate all visualization charts"""
+    sns.set_style("whitegrid")
+
+    # Chart 1: Runtime comparison
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    python_time = data["runtime"]["results"][0]["mean"]
+    rust_time = data["runtime"]["results"][1]["mean"]
+
+    bars = ax.bar(["Python", "Rust"], [python_time * 1000, rust_time * 1000])
+    bars[0].set_color("#3776ab")  # Python blue
+    bars[1].set_color("#ce422b")  # Rust orange
+
+    ax.set_ylabel("Execution Time (ms)")
+    ax.set_title("Runtime Performance: Python vs Rust")
+
+    # Add speedup annotation
+    speedup = python_time / rust_time
+    ax.text(0.5, max(python_time, rust_time) * 500,
+            f"{speedup:.1f}x faster",
+            ha='center', fontsize=14, fontweight='bold')
+
+    plt.tight_layout()
+    plt.savefig(output_dir / "runtime_comparison.png", dpi=300)
+    plt.close()
+
+    # Chart 2: Memory usage
+    # Chart 3: Binary size
+    # Chart 4: Test coverage
+    # Chart 5: Speedup across file sizes
+    # Chart 6: CPU profiling flamegraph
+
+    print(f"✅ Generated charts in {output_dir}")
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python3 visualize.py <results_dir>")
+        sys.exit(1)
+
+    results_dir = Path(sys.argv[1])
+    if not results_dir.exists():
+        print(f"ERROR: Results directory not found: {results_dir}")
+        sys.exit(1)
+
+    data = load_benchmark_data(results_dir)
+    generate_charts(data, results_dir)
+```
+
+#### Makefile Integration
+
+```makefile
+# examples/Makefile
+
+.PHONY: benchmark benchmark-ci verify-benchmark-tools
+
+# Check that all benchmark tools are installed
+verify-benchmark-tools:
+	@command -v hyperfine >/dev/null || { echo "ERROR: hyperfine not installed"; exit 1; }
+	@command -v valgrind >/dev/null || { echo "ERROR: valgrind not installed"; exit 1; }
+	@command -v perf >/dev/null || { echo "ERROR: perf not installed"; exit 1; }
+	@command -v cargo-llvm-cov >/dev/null || { echo "ERROR: cargo-llvm-cov not installed"; exit 1; }
+	@python3 -c "import matplotlib, seaborn" || { echo "ERROR: Python visualization libs not installed"; exit 1; }
+
+# Run all benchmarks programmatically
+benchmark: verify-benchmark-tools
+	@echo "==> Building release binaries..."
+	cargo build --release --examples
+	@echo "==> Running programmatic benchmarks..."
+	./benchmarks/run_all.sh
+	@echo "==> Generating visualizations..."
+	python3 benchmarks/visualize.py benchmarks/results/latest
+
+# CI/CD integration (fails if tools unavailable)
+benchmark-ci: verify-benchmark-tools benchmark
+	@echo "==> Validating benchmark results..."
+	@test -f benchmarks/results/latest/runtime.json || { echo "ERROR: runtime.json missing"; exit 1; }
+	@test -f benchmarks/results/latest/coverage_rust.json || { echo "ERROR: coverage missing"; exit 1; }
+	@echo "✅ All benchmark validations passed"
+```
+
+#### Anti-Hallucination Checklist
+
+Before committing ANY performance claims:
+
+- [ ] ✅ Ran `make benchmark` successfully
+- [ ] ✅ Verified `benchmarks/results/<timestamp>/` contains JSON files
+- [ ] ✅ Checked `environment.json` matches current system
+- [ ] ✅ All charts generated from data files (not manual creation)
+- [ ] ✅ Numbers in documentation pulled from JSON programmatically
+- [ ] ✅ Cross-validation script confirms Rust = Python output
+- [ ] ✅ CI/CD pipeline re-runs benchmarks (reproducibility check)
+- [ ] ❌ NO manual typing of performance numbers
+- [ ] ❌ NO "approximately" or "around" wording
+- [ ] ❌ NO placeholder values waiting to be "filled in later"
+
+**SACRED RULE**: If you can't run the benchmark tool and capture JSON output, you CANNOT claim the metric exists.
+
 ### Benchmark Harness (Criterion.rs)
 
 ```rust

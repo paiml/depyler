@@ -4,11 +4,11 @@ Comprehensive examples demonstrating real-world Python to Rust conversion patter
 
 ## Example Suite
 
-| Example | Description | Status | Expected Speedup |
-|---------|-------------|--------|------------------|
-| [argparse_cli](argparse_cli/) | CLI tool with argument parsing | 🟡 In Progress | 10-50x |
-| [generator_pipeline](generator_pipeline/) | Text processing with generators | 🔴 Not Started | 20-100x |
-| [multifile_project](multifile_project/) | Multi-module project with CLI | 🔴 Not Started | 10-50x |
+| Example | Description | Status | Benchmark Results |
+|---------|-------------|--------|-------------------|
+| [argparse_cli](argparse_cli/) | CLI tool with argument parsing | 🟡 In Progress | Run `make benchmark` |
+| [generator_pipeline](generator_pipeline/) | Text processing with generators | 🔴 Not Started | Run `make benchmark` |
+| [multifile_project](multifile_project/) | Multi-module project with CLI | 🔴 Not Started | Run `make benchmark` |
 
 ## Quick Start
 
