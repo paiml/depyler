@@ -836,6 +836,23 @@ impl RustCodeGen for HirFunction {
         // Process function body with proper scoping
         let mut body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
 
+        // DEPYLER-0363: Check if ArgumentParser was detected and generate Args struct
+        if ctx.argparser_tracker.has_parsers() {
+            if let Some(parser_info) = ctx.argparser_tracker.get_first_parser() {
+                // Generate the Args struct definition
+                let args_struct = crate::rust_gen::argparse_transform::generate_args_struct(parser_info);
+
+                // Prepend the struct to function body
+                body_stmts.insert(0, args_struct);
+
+                // TODO: Filter out ArgumentParser-related statements
+                // TODO: Transform parse_args() calls to Args::parse()
+            }
+
+            // Clear tracker for next function
+            ctx.argparser_tracker.clear();
+        }
+
         // DEPYLER-0270: Add Ok(()) for functions with Result<(), E> return type
         // When Python function has `-> None` but uses fallible operations (e.g., indexing),
         // the Rust return type becomes `Result<(), IndexError>` and needs Ok(()) at the end

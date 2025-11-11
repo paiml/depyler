@@ -165,6 +165,9 @@ pub(crate) fn codegen_expr_stmt(
                             _parser_info.add_argument(arg);
                         }
                     }
+
+                    // Skip generating this statement - arguments will be in Args struct
+                    return Ok(quote! {});
                 }
             }
         }
@@ -947,6 +950,9 @@ pub(crate) fn codegen_assign_stmt(
                 // Register this as an ArgumentParser instance
                 let info = crate::rust_gen::argparse_transform::ArgParserInfo::new(var_name.clone());
                 ctx.argparser_tracker.register_parser(var_name.clone(), info);
+
+                // Skip generating this statement - it will be replaced by Args struct
+                return Ok(quote! {});
             }
         }
         // Pattern 2: args = parser.parse_args()
@@ -956,6 +962,11 @@ pub(crate) fn codegen_assign_stmt(
                     // Mark this as the args variable for the parser
                     if let Some(parser_info) = ctx.argparser_tracker.get_parser_mut(parser_var) {
                         parser_info.set_args_var(var_name.clone());
+
+                        // Generate Args::parse() instead
+                        return Ok(quote! {
+                            let args = Args::parse();
+                        });
                     }
                 }
             }
