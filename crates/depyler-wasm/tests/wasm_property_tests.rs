@@ -4,6 +4,7 @@ use proptest::prelude::*;
 // Property: WasmTranspileOptions setters always work correctly
 proptest! {
     #[test]
+    #[cfg_attr(not(target_arch = "wasm32"), ignore = "wasm-bindgen functions only work on wasm32")]
     fn test_options_setters_preserve_values(
         verify in any::<bool>(),
         optimize in any::<bool>(),
@@ -29,6 +30,7 @@ proptest! {
 // Property: Options are independent - setting one doesn't affect others
 proptest! {
     #[test]
+    #[cfg_attr(not(target_arch = "wasm32"), ignore = "wasm-bindgen functions only work on wasm32")]
     fn test_options_independence(
         verify1 in any::<bool>(),
         verify2 in any::<bool>(),
@@ -57,6 +59,7 @@ proptest! {
 // Property: DepylerWasm handles various Python code inputs
 proptest! {
     #[test]
+    #[cfg_attr(not(target_arch = "wasm32"), ignore = "wasm-bindgen functions only work on wasm32")]
     fn test_transpilation_doesnt_panic(
         func_name in "[a-zA-Z_][a-zA-Z0-9_]*",
         param_name in "[a-zA-Z_][a-zA-Z0-9_]*",
@@ -79,6 +82,7 @@ proptest! {
 // Property: Valid Python functions always produce deterministic results
 proptest! {
     #[test]
+    #[cfg_attr(not(target_arch = "wasm32"), ignore = "wasm-bindgen functions only work on wasm32")]
     fn test_deterministic_transpilation(
         func_name in "[a-zA-Z_][a-zA-Z0-9_]*",
         iterations in 2usize..5,
@@ -113,6 +117,7 @@ proptest! {
 // Property: Analysis always produces valid JSON
 proptest! {
     #[test]
+    #[cfg_attr(not(target_arch = "wasm32"), ignore = "wasm-bindgen functions only work on wasm32")]
     fn test_analysis_produces_valid_json(
         code_content in "[a-zA-Z0-9\n ]{10,100}",
     ) {
@@ -138,6 +143,7 @@ proptest! {
 // Property: Benchmark always returns consistent structure
 proptest! {
     #[test]
+    #[cfg_attr(not(target_arch = "wasm32"), ignore = "wasm-bindgen functions only work on wasm32")]
     fn test_benchmark_consistency(
         iterations in 1u32..10,
     ) {
@@ -161,6 +167,7 @@ proptest! {
 // Property: Transpilation results have valid metrics
 proptest! {
     #[test]
+    #[cfg_attr(not(target_arch = "wasm32"), ignore = "wasm-bindgen functions only work on wasm32")]
     fn test_transpilation_metrics_validity(
         num_lines in 1usize..20,
     ) {
@@ -211,6 +218,7 @@ proptest! {
 // Property: Empty or whitespace-only code handles gracefully
 proptest! {
     #[test]
+    #[cfg_attr(not(target_arch = "wasm32"), ignore = "wasm-bindgen functions only work on wasm32")]
     fn test_empty_code_handling(
         whitespace in prop::string::string_regex(" *\n*\t*").unwrap(),
     ) {

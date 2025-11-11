@@ -103,8 +103,12 @@ pub fn calculate_average(total: i32, count: i32) -> Result<f64, ZeroDivisionErro
 #[doc = "Format game statistics as string."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn format_statistics(score: i32, attempts: i32, rounds: i32) -> String {
-    let avg = calculate_average(attempts, rounds).unwrap();
+pub fn format_statistics(
+    score: i32,
+    attempts: i32,
+    rounds: i32,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let avg = calculate_average(attempts, rounds)?;
     let mut result = "Game Statistics:\n";
     let _cse_temp_0 = score.to_string();
     let _cse_temp_1 = format!("{}{}", format!("{}{}", result, "Score: "), _cse_temp_0);
@@ -115,7 +119,7 @@ pub fn format_statistics(score: i32, attempts: i32, rounds: i32) -> String {
     let _cse_temp_4 = avg.to_string();
     let _cse_temp_5 = format!("{}{}", format!("{}{}", result, "Average: "), _cse_temp_4);
     result = format!("{}{}", _cse_temp_5, "\n");
-    result
+    Ok(result)
 }
 #[doc = "Check if guess is in valid range."]
 #[doc = " Depyler: verified panic-free"]
