@@ -66,11 +66,11 @@ mod test_local_strings {{
 
     #[test]
     fn test_with_local_strings() {{
-        // This should work now that parameters use Cow<'_, str> (not 'static)
-        // Cow can accept either owned String or borrowed &str via .into()
+        // DEPYLER-0357: Parameters use &str (not Cow), so we pass borrowed references
+        // This works because &str accepts both &String and &'static str
         let a = String::from("hello");
         let b = String::from("world");
-        let _result = concatenate(a.into(), &b);
+        let _result = concatenate(&a, &b);
     }}
 }}
 "#,
