@@ -148,6 +148,18 @@ pub struct ArgParserArgument {
 
     /// DEPYLER-0367: Whether this flag is required (required=True)
     pub required: Option<bool>,
+
+    /// DEPYLER-0371: Custom destination variable name (dest="var_name")
+    pub dest: Option<String>,
+
+    /// DEPYLER-0372: Metavar for help display (metavar="FILE")
+    pub metavar: Option<String>,
+
+    /// DEPYLER-0373: Restricted value choices (choices=["a", "b", "c"])
+    pub choices: Option<Vec<String>>,
+
+    /// DEPYLER-0374: Constant value for action="store_const" or nargs="?" with const
+    pub const_value: Option<HirExpr>,
 }
 
 impl ArgParserArgument {
@@ -167,6 +179,10 @@ impl ArgParserArgument {
             help: None,
             is_positional,
             required: None,
+            dest: None,
+            metavar: None,
+            choices: None,
+            const_value: None,
         }
     }
 
@@ -174,7 +190,13 @@ impl ArgParserArgument {
     ///
     /// # Complexity
     /// 3 (string operations)
+    /// # DEPYLER-0371: Use dest parameter if present
     pub fn rust_field_name(&self) -> String {
+        // DEPYLER-0371: If dest is specified, use that as the field name
+        if let Some(ref dest) = self.dest {
+            return dest.replace('-', "_");
+        }
+
         if self.is_positional {
             // Positional arguments keep their name
             self.name.clone()
@@ -193,9 +215,11 @@ impl ArgParserArgument {
     /// # Complexity
     /// 7 (multiple match + string checks)
     pub fn rust_type(&self) -> String {
-        // action="store_true" → bool
+        // action="store_true"/"store_false"/"store_const" → bool
+        // DEPYLER-0375: action="store_const" also maps to bool
         if self.action.as_deref() == Some("store_true")
-            || self.action.as_deref() == Some("store_false") {
+            || self.action.as_deref() == Some("store_false")
+            || self.action.as_deref() == Some("store_const") {
             return "bool".to_string();
         }
 
@@ -220,7 +244,18 @@ impl ArgParserArgument {
             return format!("Vec<{}>", inner_type);
         }
 
+        // DEPYLER-0370: nargs=N (specific number) → Vec<T>
+        if let Some(nargs_str) = self.nargs.as_deref() {
+            if nargs_str.parse::<usize>().is_ok() {
+                let inner_type = self.arg_type.as_ref()
+                    .map(type_to_rust_string)
+                    .unwrap_or_else(|| "String".to_string());
+                return format!("Vec<{}>", inner_type);
+            }
+        }
+
         // nargs="?" → Option<T>
+        // DEPYLER-0374: Handle const parameter with nargs="?" separately in generate_args_struct
         if self.nargs.as_deref() == Some("?") {
             let inner_type = self.arg_type.as_ref()
                 .map(type_to_rust_string)
@@ -333,11 +368,14 @@ pub fn generate_args_struct(parser_info: &ArgParserInfo) -> proc_macro2::TokenSt
             // - Has action with implicit default (store_true/false/count → bool/u8)
             // - Has nargs="+" (required, 1 or more)
             // - DEPYLER-0368: Has action="append" (Vec handles absence as empty)
+            // - DEPYLER-0375: Has action="store_const" (bool with implicit default)
             let has_implicit_default = matches!(
                 arg.action.as_deref(),
-                Some("store_true") | Some("store_false") | Some("count") | Some("append")
+                Some("store_true") | Some("store_false") | Some("count") | Some("append") | Some("store_const")
             );
-            let is_required_nargs = arg.nargs.as_deref() == Some("+");
+            // DEPYLER-0370: nargs="+" or nargs=N (specific number) are required
+            let is_required_nargs = arg.nargs.as_deref() == Some("+") ||
+                arg.nargs.as_deref().map(|s| s.parse::<usize>().is_ok()).unwrap_or(false);
 
             let field_type: syn::Type = if !arg.is_positional
                 && arg.required != Some(true)
@@ -358,25 +396,42 @@ pub fn generate_args_struct(parser_info: &ArgParserInfo) -> proc_macro2::TokenSt
             let mut attrs = vec![];
 
             if !arg.is_positional {
-                // DEPYLER-0365 Phase 5: Proper flag detection
+                // DEPYLER-0365 Phase 5 + DEPYLER-0371: Proper flag detection with dest support
                 // Three cases:
                 // 1. Both short and long: "-o" + "--output" → #[arg(short = 'o', long)]
                 // 2. Long only: "--debug" → #[arg(long)]
                 // 3. Short only: "-v" → #[arg(short = 'v')]
+                // DEPYLER-0371: If dest is present, use long = "flag_name"
 
                 if arg.long.is_some() {
                     // Case 1: Both short and long flags
                     let short_str = arg.name.trim_start_matches('-');
                     if let Some(short) = short_str.chars().next() {
-                        attrs.push(quote! {
-                            #[arg(short = #short, long)]
-                        });
+                        // DEPYLER-0371: If dest is present, specify long name explicitly
+                        if arg.dest.is_some() {
+                            let long_name = arg.long.as_ref().unwrap().trim_start_matches("--");
+                            attrs.push(quote! {
+                                #[arg(short = #short, long = #long_name)]
+                            });
+                        } else {
+                            attrs.push(quote! {
+                                #[arg(short = #short, long)]
+                            });
+                        }
                     }
                 } else if arg.name.starts_with("--") {
                     // Case 2: Long flag only (--debug)
-                    attrs.push(quote! {
-                        #[arg(long)]
-                    });
+                    // DEPYLER-0371: If dest is present, specify long name explicitly
+                    if arg.dest.is_some() {
+                        let long_name = arg.name.trim_start_matches("--");
+                        attrs.push(quote! {
+                            #[arg(long = #long_name)]
+                        });
+                    } else {
+                        attrs.push(quote! {
+                            #[arg(long)]
+                        });
+                    }
                 } else {
                     // Case 3: Short flag only (-v)
                     let short_str = arg.name.trim_start_matches('-');
@@ -401,6 +456,65 @@ pub fn generate_args_struct(parser_info: &ArgParserInfo) -> proc_macro2::TokenSt
                 if let Some(default_str) = default_str_opt {
                     attrs.push(quote! {
                         #[arg(default_value = #default_str)]
+                    });
+                }
+            }
+
+            // DEPYLER-0374: Add default_missing_value for const + nargs="?"
+            if arg.nargs.as_deref() == Some("?") && arg.const_value.is_some() {
+                if let Some(crate::hir::HirExpr::Literal(lit)) = arg.const_value.as_ref() {
+                    let const_str_opt = match lit {
+                        crate::hir::Literal::Int(n) => Some(n.to_string()),
+                        crate::hir::Literal::Float(f) => Some(f.to_string()),
+                        crate::hir::Literal::String(s) => Some(s.clone()),
+                        crate::hir::Literal::Bool(b) => Some(b.to_string()),
+                        _ => None,
+                    };
+                    if let Some(const_str) = const_str_opt {
+                        attrs.push(quote! {
+                            #[arg(default_missing_value = #const_str, num_args = 0..=1)]
+                        });
+                    }
+                }
+            }
+
+            // DEPYLER-0370: Add num_args for nargs=N (specific number)
+            if let Some(nargs_str) = arg.nargs.as_deref() {
+                if let Ok(n) = nargs_str.parse::<usize>() {
+                    // Create a literal integer token
+                    let n_lit = syn::LitInt::new(&format!("{}", n), proc_macro2::Span::call_site());
+                    attrs.push(quote! {
+                        #[arg(num_args = #n_lit)]
+                    });
+                }
+            }
+
+            // DEPYLER-0372: Add value_name for metavar
+            if let Some(ref metavar) = arg.metavar {
+                attrs.push(quote! {
+                    #[arg(value_name = #metavar)]
+                });
+            }
+
+            // DEPYLER-0373: Add value_parser for choices
+            if let Some(ref choices) = arg.choices {
+                let choice_strs: Vec<_> = choices.iter().collect();
+                attrs.push(quote! {
+                    #[arg(value_parser = [#(#choice_strs),*])]
+                });
+            }
+
+            // DEPYLER-0369/0375: Add default_value_t for store_false/store_const
+            if arg.action.as_deref() == Some("store_false") {
+                // store_false means default is true, becomes false when present
+                attrs.push(quote! {
+                    #[arg(default_value_t = true)]
+                });
+            } else if arg.action.as_deref() == Some("store_const") && arg.const_value.is_some() {
+                // store_const: default is false, becomes const value when present
+                if let Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Bool(_val))) = arg.const_value.as_ref() {
+                    attrs.push(quote! {
+                        #[arg(default_value_t = false)]
                     });
                 }
             }
