@@ -8,6 +8,8 @@
 //! This test suite complements the existing 6 module tests with additional coverage for:
 //! - Constructor methods (new, with_base_mapper, Default)
 //! - needs_reference_with_annotations() for all ownership models
+
+#![allow(clippy::field_reassign_with_default)]
 //! - Conservative string strategy
 //! - Borrowed/Shared ownership variants for collections
 //! - Nested type mapping
@@ -62,9 +64,11 @@ fn test_depyler_0356_with_base_mapper() {
 #[test]
 fn test_depyler_0356_conservative_string_borrowed() {
     let mapper = AnnotationAwareTypeMapper::new();
-    let mut annotations = TranspilationAnnotations::default();
-    annotations.string_strategy = StringStrategy::Conservative;
-    annotations.ownership_model = OwnershipModel::Borrowed;
+    let annotations = TranspilationAnnotations {
+        string_strategy: StringStrategy::Conservative,
+        ownership_model: OwnershipModel::Borrowed,
+        ..Default::default()
+    };
 
     let rust_type = mapper.map_type_with_annotations(&PythonType::String, &annotations);
     assert_eq!(
@@ -78,9 +82,11 @@ fn test_depyler_0356_conservative_string_borrowed() {
 #[test]
 fn test_depyler_0356_conservative_string_owned() {
     let mapper = AnnotationAwareTypeMapper::new();
-    let mut annotations = TranspilationAnnotations::default();
-    annotations.string_strategy = StringStrategy::Conservative;
-    annotations.ownership_model = OwnershipModel::Owned;
+    let annotations = TranspilationAnnotations {
+        string_strategy: StringStrategy::Conservative,
+        ownership_model: OwnershipModel::Owned,
+        ..Default::default()
+    };
 
     let rust_type = mapper.map_type_with_annotations(&PythonType::String, &annotations);
     assert_eq!(rust_type, RustType::String);
@@ -117,9 +123,11 @@ fn test_depyler_0356_list_shared_no_thread_safety() {
 #[test]
 fn test_depyler_0356_list_shared_with_thread_safety() {
     let mapper = AnnotationAwareTypeMapper::new();
-    let mut annotations = TranspilationAnnotations::default();
-    annotations.ownership_model = OwnershipModel::Shared;
-    annotations.thread_safety = ThreadSafety::Required;
+    let annotations = TranspilationAnnotations {
+        ownership_model: OwnershipModel::Shared,
+        thread_safety: ThreadSafety::Required,
+        ..Default::default()
+    };
 
     let list_type = PythonType::List(Box::new(PythonType::Int));
     let rust_type = mapper.map_type_with_annotations(&list_type, &annotations);
@@ -161,9 +169,11 @@ fn test_depyler_0356_dict_borrowed() {
 #[test]
 fn test_depyler_0356_dict_shared_thread_safe() {
     let mapper = AnnotationAwareTypeMapper::new();
-    let mut annotations = TranspilationAnnotations::default();
-    annotations.ownership_model = OwnershipModel::Shared;
-    annotations.thread_safety = ThreadSafety::Required;
+    let annotations = TranspilationAnnotations {
+        ownership_model: OwnershipModel::Shared,
+        thread_safety: ThreadSafety::Required,
+        ..Default::default()
+    };
 
     let dict_type = PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::Bool));
     let rust_type = mapper.map_type_with_annotations(&dict_type, &annotations);
@@ -410,9 +420,11 @@ fn test_depyler_0356_nested_optional_dict() {
 #[test]
 fn test_depyler_0356_zero_copy_borrowed_list() {
     let mapper = AnnotationAwareTypeMapper::new();
-    let mut annotations = TranspilationAnnotations::default();
-    annotations.string_strategy = StringStrategy::ZeroCopy;
-    annotations.ownership_model = OwnershipModel::Borrowed;
+    let annotations = TranspilationAnnotations {
+        string_strategy: StringStrategy::ZeroCopy,
+        ownership_model: OwnershipModel::Borrowed,
+        ..Default::default()
+    };
 
     let list_of_strings = PythonType::List(Box::new(PythonType::String));
     let rust_type = mapper.map_type_with_annotations(&list_of_strings, &annotations);
@@ -461,9 +473,11 @@ fn test_depyler_0356_result_type_optional_string() {
 #[test]
 fn test_depyler_0356_shared_thread_safe_nested_dict() {
     let mapper = AnnotationAwareTypeMapper::new();
-    let mut annotations = TranspilationAnnotations::default();
-    annotations.ownership_model = OwnershipModel::Shared;
-    annotations.thread_safety = ThreadSafety::Required;
+    let annotations = TranspilationAnnotations {
+        ownership_model: OwnershipModel::Shared,
+        thread_safety: ThreadSafety::Required,
+        ..Default::default()
+    };
 
     let nested_dict = PythonType::Dict(
         Box::new(PythonType::String),
@@ -667,9 +681,11 @@ mod property_tests {
 #[test]
 fn test_depyler_0356_integration_api_response_type() {
     let mapper = AnnotationAwareTypeMapper::new();
-    let mut annotations = TranspilationAnnotations::default();
-    annotations.ownership_model = OwnershipModel::Owned;
-    annotations.error_strategy = ErrorStrategy::ResultType;
+    let annotations = TranspilationAnnotations {
+        ownership_model: OwnershipModel::Owned,
+        error_strategy: ErrorStrategy::ResultType,
+        ..Default::default()
+    };
 
     // Simulate API response: Optional<Dict<String, List<String>>>
     let api_response_type = PythonType::Optional(Box::new(PythonType::Dict(
@@ -692,9 +708,11 @@ fn test_depyler_0356_integration_api_response_type() {
 #[test]
 fn test_depyler_0356_integration_zero_copy_parser() {
     let mapper = AnnotationAwareTypeMapper::new();
-    let mut annotations = TranspilationAnnotations::default();
-    annotations.string_strategy = StringStrategy::ZeroCopy;
-    annotations.ownership_model = OwnershipModel::Borrowed;
+    let annotations = TranspilationAnnotations {
+        string_strategy: StringStrategy::ZeroCopy,
+        ownership_model: OwnershipModel::Borrowed,
+        ..Default::default()
+    };
 
     // Simulate parser return: Dict<String, String>
     let parser_return = PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::String));
@@ -714,9 +732,11 @@ fn test_depyler_0356_integration_zero_copy_parser() {
 #[test]
 fn test_depyler_0356_integration_thread_safe_cache() {
     let mapper = AnnotationAwareTypeMapper::new();
-    let mut annotations = TranspilationAnnotations::default();
-    annotations.ownership_model = OwnershipModel::Shared;
-    annotations.thread_safety = ThreadSafety::Required;
+    let annotations = TranspilationAnnotations {
+        ownership_model: OwnershipModel::Shared,
+        thread_safety: ThreadSafety::Required,
+        ..Default::default()
+    };
 
     // Simulate thread-safe cache: Dict<String, Optional<List<Int>>>
     let cache_type = PythonType::Dict(

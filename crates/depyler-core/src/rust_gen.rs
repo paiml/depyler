@@ -358,6 +358,7 @@ fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenS
         (ctx.needs_arc, quote! { use std::sync::Arc; }),
         (ctx.needs_rc, quote! { use std::rc::Rc; }),
         (ctx.needs_cow, quote! { use std::borrow::Cow; }),
+        (ctx.needs_serde_json, quote! { use serde_json; }),
     ];
 
     // Add imports where needed
