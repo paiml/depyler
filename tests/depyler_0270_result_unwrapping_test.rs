@@ -115,7 +115,8 @@ fn test_DEPYLER_0270_multiple_result_accesses_compiles() {
 def get_data(items: list[str]) -> dict[str, int]:
     """Returns dict with indexed values."""
     first = items[0]  # Triggers Result wrapper
-    return {"a": 1, "b": 2, "c": 3}
+    first_len = len(first)  # Use the variable
+    return {"a": 1, "b": 2, "c": first_len}
 
 def main() -> None:
     """Access multiple dict keys."""
@@ -180,9 +181,10 @@ fn test_DEPYLER_0270_chained_dict_access_compiles() {
     let python = r#"
 def get_config() -> dict[str, str]:
     """Returns config dict."""
-    defaults = {"name": "default"}
+    defaults = {"name": "default", "other": "value2"}
     first_key = list(defaults.keys())[0]  # Indexing triggers Result
-    return {"name": "value", "path": "/tmp"}
+    key_len = len(first_key)  # Use the variable (avoid type issues)
+    return {"name": "value", "path": "/tmp", "len": str(key_len)}
 
 def main() -> None:
     """Immediately access dict key."""

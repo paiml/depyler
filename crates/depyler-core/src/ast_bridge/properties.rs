@@ -250,7 +250,7 @@ impl FunctionAnalyzer {
                 op: BinOp::Div | BinOp::FloorDiv | BinOp::Mod,
                 ..
             } => (true, vec!["ZeroDivisionError".to_string()]),
-            HirExpr::Call { func, args } => {
+            HirExpr::Call { func, args , ..} => {
                 // DEPYLER-0217 FIX: Check if function can fail based on context
                 // int() only fails when parsing strings, not when casting typed values
                 let func_errors = match func.as_str() {

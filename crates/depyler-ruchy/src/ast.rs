@@ -385,7 +385,7 @@ impl RuchyAstBuilder {
                 operand: Box::new(self.convert_hir_expr(operand)?),
             }),
 
-            HirExpr::Call { func, args } => Ok(RuchyExpr::Call {
+            HirExpr::Call { func, args , ..} => Ok(RuchyExpr::Call {
                 func: Box::new(self.convert_hir_expr(func)?),
                 args: args
                     .iter()

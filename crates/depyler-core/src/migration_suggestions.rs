@@ -268,7 +268,7 @@ fn modify_list(mut lst: Vec<i32>) -> Vec<i32> {
         line: usize,
     ) {
         // Check for enumerate pattern
-        if let HirExpr::Call { func: fname, args } = iter {
+        if let HirExpr::Call { func: fname, args , ..} = iter {
             if fname == "enumerate" && !args.is_empty() {
                 self.add_suggestion(MigrationSuggestion {
                     category: SuggestionCategory::Iterator,
@@ -827,7 +827,7 @@ mod tests {
             target: AssignTarget::Symbol("i".to_string()),
             iter: HirExpr::Call {
                 func: "enumerate".to_string(),
-                args: vec![HirExpr::Var("items".to_string())],
+                args: vec![HirExpr::Var("items".to_string())], kwargs: vec![]
             },
             body: vec![HirStmt::Expr(HirExpr::Var("i".to_string()))],
         }];
@@ -852,11 +852,11 @@ mod tests {
                 args: vec![
                     HirExpr::Var("value".to_string()),
                     HirExpr::Var("str".to_string()),
-                ],
+                ], kwargs: vec![]
             },
             then_body: vec![HirStmt::Expr(HirExpr::Call {
                 func: "process_string".to_string(),
-                args: vec![HirExpr::Var("value".to_string())],
+                args: vec![HirExpr::Var("value".to_string())], kwargs: vec![]
             })],
             else_body: None,
         }];
@@ -888,11 +888,11 @@ mod tests {
             },
             then_body: vec![HirStmt::Expr(HirExpr::Call {
                 func: "process".to_string(),
-                args: vec![HirExpr::Var("value".to_string())],
+                args: vec![HirExpr::Var("value".to_string())], kwargs: vec![]
             })],
             else_body: Some(vec![HirStmt::Expr(HirExpr::Call {
                 func: "handle_none".to_string(),
-                args: vec![],
+                args: vec![], kwargs: vec![]
             })]),
         }];
 
@@ -952,7 +952,7 @@ mod tests {
             body: vec![HirStmt::Expr(HirExpr::MethodCall {
                 object: Box::new(HirExpr::Var("lst".to_string())),
                 method: "append".to_string(),
-                args: vec![HirExpr::Literal(Literal::Int(42))],
+                args: vec![HirExpr::Literal(Literal::Int(42))], kwargs: vec![]
             })],
             properties: FunctionProperties::default(),
             annotations: Default::default(),
@@ -980,15 +980,16 @@ mod tests {
             body: vec![HirStmt::If {
                 condition: HirExpr::Call {
                     func: "condition".to_string(),
-                    args: vec![HirExpr::Var("item".to_string())],
+                    args: vec![HirExpr::Var("item".to_string())], kwargs: vec![]
                 },
                 then_body: vec![HirStmt::Expr(HirExpr::MethodCall {
                     object: Box::new(HirExpr::Var("result".to_string())),
                     method: "append".to_string(),
                     args: vec![HirExpr::Call {
                         func: "transform".to_string(),
-                        args: vec![HirExpr::Var("item".to_string())],
+                        args: vec![HirExpr::Var("item".to_string())], kwargs: vec![]
                     }],
+                    kwargs: vec![],
                 })],
                 else_body: None,
             }],
@@ -1133,7 +1134,7 @@ mod tests {
             target: AssignTarget::Symbol("result".to_string()),
             value: HirExpr::Call {
                 func: "list".to_string(),
-                args: vec![HirExpr::List(vec![])],
+                args: vec![HirExpr::List(vec![])], kwargs: vec![]
             },
             type_annotation: None,
         }];
@@ -1194,7 +1195,7 @@ mod tests {
                     args: vec![
                         HirExpr::Var("x".to_string()),
                         HirExpr::Var("int".to_string()),
-                    ],
+                    ], kwargs: vec![]
                 },
                 then_body: vec![],
                 else_body: None,
@@ -1247,7 +1248,7 @@ mod tests {
                 body: vec![HirStmt::Expr(HirExpr::MethodCall {
                     object: Box::new(HirExpr::Var("result".to_string())),
                     method: "append".to_string(),
-                    args: vec![HirExpr::Var("item".to_string())],
+                    args: vec![HirExpr::Var("item".to_string())], kwargs: vec![]
                 })],
             },
         ];

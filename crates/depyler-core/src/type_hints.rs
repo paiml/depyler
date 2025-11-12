@@ -318,11 +318,12 @@ impl TypeHintProvider {
     fn analyze_expr(&mut self, expr: &HirExpr) -> Result<()> {
         match expr {
             HirExpr::Binary { left, right, op } => self.analyze_binary_op(left, right, *op),
-            HirExpr::Call { func, args } => self.analyze_call(func, args),
+            HirExpr::Call { func, args , ..} => self.analyze_call(func, args),
             HirExpr::MethodCall {
                 object,
                 method,
                 args,
+                ..
             } => self.analyze_method_call(object, method, args),
             HirExpr::Index { base, index } => self.analyze_indexing(base, index),
             _ => Ok(()),
@@ -961,7 +962,7 @@ mod tests {
             body: vec![HirStmt::Expr(HirExpr::MethodCall {
                 object: Box::new(HirExpr::Var("text".to_string())),
                 method: "upper".to_string(),
-                args: vec![],
+                args: vec![], kwargs: vec![]
             })],
             properties: FunctionProperties::default(),
             annotations: Default::default(),

@@ -83,12 +83,19 @@ impl Optimizer {
             self.collect_mutated_vars_function(func, &mut mutated_vars);
         }
 
-        // Second pass: collect constants (but skip mutated variables)
+        // DEPYLER-0269 Fix: Second pass - collect all variable READS
+        let mut read_vars = HashSet::new();
         for func in &program.functions {
-            self.collect_constants_function(func, &mut constants, &mutated_vars);
+            self.collect_read_vars_function(func, &mut read_vars);
         }
 
-        // Third pass: propagate constants
+        // Third pass: collect constants (but skip mutated OR read variables)
+        // DEPYLER-0269: Only propagate constants for dead code (assigned but never read)
+        for func in &program.functions {
+            self.collect_constants_function(func, &mut constants, &mutated_vars, &read_vars);
+        }
+
+        // Fourth pass: propagate constants
         for func in &mut program.functions {
             self.propagate_constants_function(func, &constants);
         }
@@ -109,6 +116,100 @@ impl Optimizer {
             if count > 1 {
                 mutated_vars.insert(var);
             }
+        }
+    }
+
+    /// DEPYLER-0269: Collect all variables that are actually USED (read)
+    fn collect_read_vars_function(&self, func: &HirFunction, read_vars: &mut HashSet<String>) {
+        for stmt in &func.body {
+            self.collect_read_vars_stmt(stmt, read_vars);
+        }
+    }
+
+    /// DEPYLER-0269: Recursively collect variable reads from statements
+    fn collect_read_vars_stmt(&self, stmt: &HirStmt, read_vars: &mut HashSet<String>) {
+        match stmt {
+            HirStmt::Assign { value, .. } => {
+                // Variable reads in the RHS of assignment
+                self.collect_read_vars_expr(value, read_vars);
+            }
+            HirStmt::Expr(expr) => {
+                self.collect_read_vars_expr(expr, read_vars);
+            }
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
+                self.collect_read_vars_expr(condition, read_vars);
+                for s in then_body {
+                    self.collect_read_vars_stmt(s, read_vars);
+                }
+                if let Some(else_stmts) = else_body {
+                    for s in else_stmts {
+                        self.collect_read_vars_stmt(s, read_vars);
+                    }
+                }
+            }
+            HirStmt::While { condition, body } => {
+                self.collect_read_vars_expr(condition, read_vars);
+                for s in body {
+                    self.collect_read_vars_stmt(s, read_vars);
+                }
+            }
+            HirStmt::For { iter, body, .. } => {
+                self.collect_read_vars_expr(iter, read_vars);
+                for s in body {
+                    self.collect_read_vars_stmt(s, read_vars);
+                }
+            }
+            HirStmt::Return(Some(expr)) => {
+                self.collect_read_vars_expr(expr, read_vars);
+            }
+            _ => {}
+        }
+    }
+
+    /// DEPYLER-0269: Recursively collect variable reads from expressions
+    fn collect_read_vars_expr(&self, expr: &HirExpr, read_vars: &mut HashSet<String>) {
+        match expr {
+            HirExpr::Var(name) => {
+                // This is a variable READ - mark as used
+                read_vars.insert(name.clone());
+            }
+            HirExpr::Binary { left, right, .. } => {
+                self.collect_read_vars_expr(left, read_vars);
+                self.collect_read_vars_expr(right, read_vars);
+            }
+            HirExpr::Unary { operand, .. } => {
+                self.collect_read_vars_expr(operand, read_vars);
+            }
+            HirExpr::List(items) => {
+                for item in items {
+                    self.collect_read_vars_expr(item, read_vars);
+                }
+            }
+            HirExpr::Dict(pairs) => {
+                for (k, v) in pairs {
+                    self.collect_read_vars_expr(k, read_vars);
+                    self.collect_read_vars_expr(v, read_vars);
+                }
+            }
+            HirExpr::Call { args, .. } => {
+                for arg in args {
+                    self.collect_read_vars_expr(arg, read_vars);
+                }
+            }
+            HirExpr::MethodCall { object, args, .. } => {
+                self.collect_read_vars_expr(object, read_vars);
+                for arg in args {
+                    self.collect_read_vars_expr(arg, read_vars);
+                }
+            }
+            HirExpr::Lambda { body, .. } => {
+                self.collect_read_vars_expr(body, read_vars);
+            }
+            _ => {}
         }
     }
 
@@ -152,9 +253,10 @@ impl Optimizer {
         func: &HirFunction,
         constants: &mut HashMap<String, HirExpr>,
         mutated_vars: &HashSet<String>,
+        used_vars: &HashSet<String>,
     ) {
         for stmt in &func.body {
-            self.collect_constants_stmt(stmt, constants, mutated_vars);
+            self.collect_constants_stmt(stmt, constants, mutated_vars, used_vars);
         }
     }
 
@@ -163,6 +265,7 @@ impl Optimizer {
         stmt: &HirStmt,
         constants: &mut HashMap<String, HirExpr>,
         mutated_vars: &HashSet<String>,
+        used_vars: &HashSet<String>,
     ) {
         match stmt {
             HirStmt::Assign {
@@ -170,8 +273,15 @@ impl Optimizer {
                 value,
                 ..
             } => {
-                // Only treat as constant if variable is never mutated AND value is constant
-                if !mutated_vars.contains(name) && self.is_constant_expr(value) {
+                // DEPYLER-0269 Fix: Only propagate constants for dead code
+                // Skip variables that are:
+                // 1. Mutated (assigned more than once) - already checked
+                // 2. Actually USED (read anywhere) - NEW CHECK
+                // This prevents unused variable warnings for user-defined constants
+                if !mutated_vars.contains(name)
+                    && !used_vars.contains(name)  // DEPYLER-0269: Skip used variables!
+                    && self.is_constant_expr(value)
+                {
                     constants.insert(name.clone(), value.clone());
                 }
             }
@@ -182,17 +292,17 @@ impl Optimizer {
                 ..
             } => {
                 for s in then_body {
-                    self.collect_constants_stmt(s, constants, mutated_vars);
+                    self.collect_constants_stmt(s, constants, mutated_vars, used_vars);
                 }
                 if let Some(else_stmts) = else_body {
                     for s in else_stmts {
-                        self.collect_constants_stmt(s, constants, mutated_vars);
+                        self.collect_constants_stmt(s, constants, mutated_vars, used_vars);
                     }
                 }
             }
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
                 for s in body {
-                    self.collect_constants_stmt(s, constants, mutated_vars);
+                    self.collect_constants_stmt(s, constants, mutated_vars, used_vars);
                 }
             }
             _ => {}
@@ -718,7 +828,7 @@ impl Optimizer {
                     (new_expr, extra_stmts)
                 }
             }
-            HirExpr::Call { func, args } if self.is_pure_function(func) => {
+            HirExpr::Call { func, args , ..} if self.is_pure_function(func) => {
                 // Process arguments
                 let mut new_args = Vec::new();
                 for arg in args {
@@ -728,10 +838,8 @@ impl Optimizer {
                     new_args.push(new_arg);
                 }
 
-                let new_expr = HirExpr::Call {
-                    func: func.clone(),
-                    args: new_args,
-                };
+                let new_expr = HirExpr::Call { func: func.clone(), args: new_args,
+                 kwargs: vec![] };
 
                 let hash = self.hash_expr(&new_expr);
 
@@ -829,7 +937,7 @@ fn hash_expr_recursive_inner<H: Hasher>(expr: &HirExpr, hasher: &mut H) {
             hash_expr_recursive_inner(left, hasher);
             hash_expr_recursive_inner(right, hasher);
         }
-        HirExpr::Call { func, args } => {
+        HirExpr::Call { func, args , ..} => {
             "call".hash(hasher);
             func.hash(hasher);
             for arg in args {
@@ -885,7 +993,7 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
                 collect_used_vars_expr_inner(v, used);
             }
         }
-        HirExpr::Call { func, args } => {
+        HirExpr::Call { func, args , ..} => {
             // Mark the function name as used (important for lambda variables)
             used.insert(func.clone(), true);
             for arg in args {
