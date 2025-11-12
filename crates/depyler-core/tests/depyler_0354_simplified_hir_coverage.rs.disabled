@@ -255,7 +255,7 @@ fn test_depyler_0354_unary_op_bitwise_not() {
 
 #[test]
 fn test_depyler_0354_unary_op_all_variants_distinct() {
-    let ops = vec![
+    let ops = [
         HirUnaryOp::Not,
         HirUnaryOp::Negate,
         HirUnaryOp::BitwiseNot,

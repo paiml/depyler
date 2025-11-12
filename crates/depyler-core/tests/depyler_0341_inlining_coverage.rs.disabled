@@ -185,7 +185,7 @@ fn test_analyze_large_function() {
     };
 
     let decisions = analyzer.analyze_program(&program);
-    let _decision = decisions.get("large_func").unwrap();
+    let decision = decisions.get("large_func").unwrap();
 
     // Large functions should not be inlined
     assert!(!decision.should_inline);

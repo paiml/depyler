@@ -67,7 +67,7 @@ fn test_depyler_0347_literal_integer() {
 
 #[test]
 fn test_depyler_0347_literal_float() {
-    let lit = HirLiteral::Float(3.14);
+    let lit = HirLiteral::Float(std::f64::consts::PI);
     let lit2 = lit.clone();
     assert_eq!(lit, lit2);
 }
@@ -425,7 +425,7 @@ fn test_depyler_0347_binary_op_comparison() {
     ];
 
     for op in ops {
-        let _cloned = op.clone();
+        let _cloned = op;
     }
 }
 
