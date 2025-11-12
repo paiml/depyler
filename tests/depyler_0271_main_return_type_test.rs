@@ -281,6 +281,8 @@ def main() -> None:
     msg = get_message()
     nums = get_list()
     print(sum_val)
+    print(msg)
+    print(len(nums))
 "#;
 
     let pipeline = DepylerPipeline::new();

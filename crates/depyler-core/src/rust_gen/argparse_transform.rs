@@ -504,6 +504,26 @@ pub fn generate_args_struct(parser_info: &ArgParserInfo) -> proc_macro2::TokenSt
                 });
             }
 
+            // DEPYLER-0378: Add action attributes for special actions
+            match arg.action.as_deref() {
+                Some("count") => {
+                    attrs.push(quote! {
+                        #[arg(action = clap::ArgAction::Count)]
+                    });
+                }
+                Some("store_true") => {
+                    attrs.push(quote! {
+                        #[arg(action = clap::ArgAction::SetTrue)]
+                    });
+                }
+                Some("store_false") => {
+                    attrs.push(quote! {
+                        #[arg(action = clap::ArgAction::SetFalse)]
+                    });
+                }
+                _ => {}
+            }
+
             // DEPYLER-0369/0375: Add default_value_t for store_false/store_const
             if arg.action.as_deref() == Some("store_false") {
                 // store_false means default is true, becomes false when present
