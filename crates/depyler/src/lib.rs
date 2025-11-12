@@ -72,6 +72,7 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 pub mod agent;
+pub mod compile_cmd;
 pub mod debug_cmd;
 pub mod docs_cmd;
 pub mod interactive;
@@ -114,6 +115,20 @@ pub enum Commands {
         /// Generate source map
         #[arg(long)]
         source_map: bool,
+    },
+
+    /// Compile Python to standalone binary (DEPYLER-0380)
+    Compile {
+        /// Input Python file
+        input: PathBuf,
+
+        /// Output binary path (defaults to input name without extension)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Cargo build profile (debug, release)
+        #[arg(long, default_value = "release")]
+        profile: String,
     },
 
     /// Analyze Python code complexity and metrics
@@ -489,6 +504,28 @@ pub enum LambdaCommands {
         #[arg(long)]
         dry_run: bool,
     },
+}
+
+/// Handle compile command (DEPYLER-0380)
+/// Complexity: 3 (within ≤10 target)
+pub fn compile_command(
+    input: PathBuf,
+    output: Option<PathBuf>,
+    profile: String,
+    verbose: bool,
+) -> Result<()> {
+    if verbose {
+        println!("🔨 Compiling {} to native binary...", input.display());
+    }
+
+    let binary_path = compile_cmd::compile_python_to_binary(
+        &input,
+        output.as_deref(),
+        Some(&profile),
+    )?;
+
+    println!("✅ Binary created: {}", binary_path.display());
+    Ok(())
 }
 
 pub fn transpile_command(

@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 use depyler::{
     agent_logs_command, agent_restart_command, agent_start_command, agent_status_command,
-    agent_stop_command, analyze_command, check_command, debug_command,
+    agent_stop_command, analyze_command, check_command, compile_command, debug_command,
     docs_cmd::handle_docs_command, inspect_command, interactive_command, lambda_analyze_command,
     lambda_build_command, lambda_convert_command, lambda_deploy_command, lambda_test_command,
     lsp_command, profile_cmd::handle_profile_command, quality_check_command, transpile_command,
@@ -127,6 +127,14 @@ async fn handle_command(command: Commands) -> Result<()> {
             debug,
             source_map,
         } => transpile_command(input, output, verify, gen_tests, debug, source_map),
+        Commands::Compile {
+            input,
+            output,
+            profile,
+        } => {
+            let cli = Cli::parse();
+            compile_command(input, output, profile, cli.verbose)
+        }
         Commands::Analyze { input, format } => analyze_command(input, format),
         Commands::Check { input } => check_command(input),
         Commands::QualityCheck {

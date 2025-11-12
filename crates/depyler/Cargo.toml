@@ -59,6 +59,8 @@ quote.workspace = true
 smallvec.workspace = true
 rand.workspace = true
 md5.workspace = true
+assert_cmd = "2.0"
+predicates = "3.0"
 
 [[test]]
 name = "functional_tests"
