@@ -415,11 +415,26 @@ impl ExprConverter {
             .map(Self::convert)
             .collect::<Result<Vec<_>>>()?;
 
+        // DEPYLER-0364: Extract keyword arguments from Python AST
+        let kwargs: Vec<(String, HirExpr)> = c
+            .keywords
+            .into_iter()
+            .filter_map(|kw| {
+                // Only process keywords with explicit names (not **kwargs unpacking)
+                if let Some(arg_name) = kw.arg {
+                    let value = Self::convert(kw.value).ok()?;
+                    Some((arg_name.to_string(), value))
+                } else {
+                    None // Skip **kwargs unpacking for now
+                }
+            })
+            .collect();
+
         match &*c.func {
             ast::Expr::Name(n) => {
                 // Simple function call
                 let func = n.id.to_string();
-                Ok(HirExpr::Call { func, args })
+                Ok(HirExpr::Call { func, args, kwargs })
             }
             ast::Expr::Attribute(attr) => {
                 // Method call
@@ -429,6 +444,7 @@ impl ExprConverter {
                     object,
                     method,
                     args,
+                    kwargs,
                 })
             }
             _ => bail!("Unsupported function call type"),
@@ -564,6 +580,7 @@ impl ExprConverter {
                     object,
                     method,
                     args: vec![],
+                    kwargs: vec![],
                 });
             }
 

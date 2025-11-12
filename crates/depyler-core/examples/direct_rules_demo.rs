@@ -87,6 +87,7 @@ fn create_factorial_function() -> HirFunction {
                         left: Box::new(HirExpr::Var("n".to_string())),
                         right: Box::new(HirExpr::Literal(Literal::Int(1))),
                     }],
+                    kwargs: vec![],
                 }),
             }))]),
         }],
@@ -120,6 +121,7 @@ fn create_fibonacci_function() -> HirFunction {
                 iter: HirExpr::Call {
                     func: "range".to_string(),
                     args: vec![HirExpr::Var("n".to_string())],
+                    kwargs: vec![],
                 },
                 body: vec![
                     // temp = b
