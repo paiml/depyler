@@ -1,0 +1,14 @@
+[workspace]
+# This is a standalone package, not part of the main workspace
+
+[package]
+name = "test_heterogeneous_dict"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "test_heterogeneous_dict"
+path = "main.rs"
+
+[dependencies]
+serde_json = "1.0"

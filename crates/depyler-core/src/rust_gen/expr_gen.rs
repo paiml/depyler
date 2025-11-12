@@ -9082,6 +9082,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_dict(&mut self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
+        // DEPYLER-0376: Detect heterogeneous dicts (mixed value types)
+        // For mixed types, use serde_json::json! instead of HashMap
+        let has_mixed_types = self.dict_has_mixed_types(items)?;
+
+        if has_mixed_types {
+            // Use serde_json::json! for heterogeneous dicts
+            self.ctx.needs_serde_json = true;
+            let mut entries = Vec::new();
+            for (key, value) in items {
+                let key_str = match key {
+                    HirExpr::Literal(Literal::String(s)) => s.clone(),
+                    _ => bail!("Dict keys for JSON output must be string literals"),
+                };
+                let val_expr = value.to_rust_expr(self.ctx)?;
+                entries.push(quote! { #key_str: #val_expr });
+            }
+
+            return Ok(parse_quote! {
+                serde_json::json!({
+                    #(#entries),*
+                })
+            });
+        }
+
+        // Homogeneous dict: use HashMap
         self.ctx.needs_hashmap = true;
 
         let mut insert_stmts = Vec::new();
@@ -9117,6 +9142,43 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             })
         }
+    }
+
+    /// DEPYLER-0376: Check if dict has heterogeneous value types
+    fn dict_has_mixed_types(&self, items: &[(HirExpr, HirExpr)]) -> Result<bool> {
+        if items.len() <= 1 {
+            return Ok(false); // Single type or empty
+        }
+
+        // STRATEGY 1: Check for obvious mixing of literal types
+        let mut has_bool_or_int_literal = false;
+        let mut has_string_literal = false;
+
+        for (_key, value) in items {
+            match value {
+                HirExpr::Literal(Literal::Bool(_)) | HirExpr::Literal(Literal::Int(_)) => {
+                    has_bool_or_int_literal = true;
+                }
+                HirExpr::Literal(Literal::String(_)) => {
+                    has_string_literal = true;
+                }
+                _ => {}
+            }
+        }
+
+        if has_bool_or_int_literal && has_string_literal {
+            return Ok(true); // Definitely mixed
+        }
+
+        // STRATEGY 2: If dict has many non-literal values (Attribute/Var),
+        // assume it might have mixed types (conservative approach)
+        // This catches cases like: {"a": args.bool_field, "b": args.string_field}
+        let non_literal_count = items.iter().filter(|(_k, v)| {
+            matches!(v, HirExpr::Attribute { .. } | HirExpr::Var(_))
+        }).count();
+
+        // If >50% of entries are dynamic (non-literal), use json! to be safe
+        Ok(non_literal_count > items.len() / 2)
     }
 
     fn convert_tuple(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
