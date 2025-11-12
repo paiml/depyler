@@ -175,8 +175,15 @@ pub(crate) fn codegen_expr_stmt(
                         for (kw_name, kw_value) in kwargs {
                             match kw_name.as_str() {
                                 "nargs" => {
-                                    if let HirExpr::Literal(crate::hir::Literal::String(nargs_val)) = kw_value {
-                                        arg.nargs = Some(nargs_val.clone());
+                                    // DEPYLER-0370: Handle both string and int nargs
+                                    match kw_value {
+                                        HirExpr::Literal(crate::hir::Literal::String(nargs_val)) => {
+                                            arg.nargs = Some(nargs_val.clone());
+                                        }
+                                        HirExpr::Literal(crate::hir::Literal::Int(n)) => {
+                                            arg.nargs = Some(n.to_string());
+                                        }
+                                        _ => {}
                                     }
                                 }
                                 "type" => {
@@ -213,8 +220,38 @@ pub(crate) fn codegen_expr_stmt(
                                         arg.required = Some(*req);
                                     }
                                 }
+                                "dest" => {
+                                    // DEPYLER-0371: Handle dest="var_name"
+                                    if let HirExpr::Literal(crate::hir::Literal::String(dest_name)) = kw_value {
+                                        arg.dest = Some(dest_name.clone());
+                                    }
+                                }
+                                "metavar" => {
+                                    // DEPYLER-0372: Handle metavar="FILE"
+                                    if let HirExpr::Literal(crate::hir::Literal::String(metavar_name)) = kw_value {
+                                        arg.metavar = Some(metavar_name.clone());
+                                    }
+                                }
+                                "choices" => {
+                                    // DEPYLER-0373: Handle choices=["a", "b", "c"]
+                                    if let HirExpr::List(items) = kw_value {
+                                        let mut choices = Vec::new();
+                                        for item in items {
+                                            if let HirExpr::Literal(crate::hir::Literal::String(s)) = item {
+                                                choices.push(s.clone());
+                                            }
+                                        }
+                                        if !choices.is_empty() {
+                                            arg.choices = Some(choices);
+                                        }
+                                    }
+                                }
+                                "const" => {
+                                    // DEPYLER-0374/0375: Handle const value
+                                    arg.const_value = Some(kw_value.clone());
+                                }
                                 _ => {
-                                    // Ignore other kwargs for now (e.g., dest, choices)
+                                    // Ignore other kwargs (e.g., prog, formatter_class)
                                 }
                             }
                         }
