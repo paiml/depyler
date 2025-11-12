@@ -204,6 +204,14 @@ impl ArgParserArgument {
             return "u8".to_string();
         }
 
+        // DEPYLER-0368: action="append" → Vec<T> (collects multiple flag uses)
+        if self.action.as_deref() == Some("append") {
+            let inner_type = self.arg_type.as_ref()
+                .map(type_to_rust_string)
+                .unwrap_or_else(|| "String".to_string());
+            return format!("Vec<{}>", inner_type);
+        }
+
         // nargs="+" or nargs="*" → Vec<T>
         if self.nargs.as_deref() == Some("+") || self.nargs.as_deref() == Some("*") {
             let inner_type = self.arg_type.as_ref()
@@ -324,9 +332,10 @@ pub fn generate_args_struct(parser_info: &ArgParserInfo) -> proc_macro2::TokenSt
             // - Is positional
             // - Has action with implicit default (store_true/false/count → bool/u8)
             // - Has nargs="+" (required, 1 or more)
+            // - DEPYLER-0368: Has action="append" (Vec handles absence as empty)
             let has_implicit_default = matches!(
                 arg.action.as_deref(),
-                Some("store_true") | Some("store_false") | Some("count")
+                Some("store_true") | Some("store_false") | Some("count") | Some("append")
             );
             let is_required_nargs = arg.nargs.as_deref() == Some("+");
 

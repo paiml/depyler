@@ -141,7 +141,7 @@ fn test_convert_call_simple() {
     let expr = parse_expr("print('hello')");
     let result = ExprConverter::convert(expr).unwrap();
     match result {
-        HirExpr::Call { func, args } => {
+        HirExpr::Call { func, args , ..} => {
             assert_eq!(func, "print");
             assert_eq!(args.len(), 1);
             match &args[0] {
@@ -161,7 +161,7 @@ fn test_convert_method_call() {
         HirExpr::MethodCall {
             object,
             method,
-            args,
+            args, ..
         } => {
             assert!(matches!(*object, HirExpr::Var(ref name) if name == "obj"));
             assert_eq!(method, "method");
@@ -724,7 +724,7 @@ fn test_is_none_converts_to_method_call() {
         HirExpr::MethodCall {
             object,
             method,
-            args,
+            args, ..
         } => {
             assert_eq!(method, "is_none");
             assert!(args.is_empty());
@@ -744,7 +744,7 @@ fn test_is_not_none_converts_to_is_some() {
         HirExpr::MethodCall {
             object,
             method,
-            args,
+            args, ..
         } => {
             assert_eq!(method, "is_some");
             assert!(args.is_empty());

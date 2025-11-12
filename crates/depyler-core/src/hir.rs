@@ -347,11 +347,19 @@ pub enum HirExpr {
     Call {
         func: Symbol,
         args: Vec<HirExpr>,
+        /// DEPYLER-0364: Keyword arguments preserved from Python AST
+        /// Format: Vec<(arg_name, value_expr)>
+        /// Empty for calls without kwargs
+        kwargs: Vec<(Symbol, HirExpr)>,
     },
     MethodCall {
         object: Box<HirExpr>,
         method: Symbol,
         args: Vec<HirExpr>,
+        /// DEPYLER-0364: Keyword arguments preserved from Python AST
+        /// Format: Vec<(arg_name, value_expr)>
+        /// Empty for calls without kwargs
+        kwargs: Vec<(Symbol, HirExpr)>,
     },
     Index {
         base: Box<HirExpr>,

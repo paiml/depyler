@@ -221,7 +221,7 @@ impl TypeInferencer {
             HirExpr::Var(name) => Ok(self.infer_variable(name)),
             HirExpr::Binary { op, left, right } => self.infer_binary(op, left, right),
             HirExpr::Unary { op, operand } => self.infer_unary(op, operand),
-            HirExpr::Call { func, args } => self.infer_call(func, args),
+            HirExpr::Call { func, args , ..} => self.infer_call(func, args),
             HirExpr::Index { base, index } => self.infer_index(base, index),
             HirExpr::List(elts) => self.infer_list(elts),
             HirExpr::Dict(items) => self.infer_dict(items),
@@ -812,7 +812,7 @@ mod tests {
 
     #[test]
     fn test_infer_expr_call_arm_kill_mutation() {
-        // Target: Line 190 - delete match arm HirExpr::Call{func, args}
+        // Target: Line 190 - delete match arm HirExpr::Call{func, args, ..}
         let mut inferencer = TypeInferencer::new();
         let result = inferencer
             .infer_call(

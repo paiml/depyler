@@ -744,7 +744,7 @@ mod tests {
                 target: AssignTarget::Symbol("i".to_string()),
                 iter: HirExpr::Call {
                     func: "range".to_string(),
-                    args: vec![HirExpr::Literal(Literal::Int(10))],
+                    args: vec![HirExpr::Literal(Literal::Int(10))], kwargs: vec![]
                 },
                 body: vec![HirStmt::Expr(HirExpr::Var("i".to_string()))],
             }],
@@ -775,13 +775,13 @@ mod tests {
                 target: AssignTarget::Symbol("i".to_string()),
                 iter: HirExpr::Call {
                     func: "range".to_string(),
-                    args: vec![HirExpr::Literal(Literal::Int(1000))],
+                    args: vec![HirExpr::Literal(Literal::Int(1000))], kwargs: vec![]
                 },
                 body: vec![HirStmt::For {
                     target: AssignTarget::Symbol("j".to_string()),
                     iter: HirExpr::Call {
                         func: "range".to_string(),
-                        args: vec![HirExpr::Literal(Literal::Int(1000))],
+                        args: vec![HirExpr::Literal(Literal::Int(1000))], kwargs: vec![]
                     },
                     body: vec![HirStmt::Expr(HirExpr::Binary {
                         op: BinOp::Add,
@@ -815,7 +815,7 @@ mod tests {
                     args: vec![
                         HirExpr::Var("x".to_string()),
                         HirExpr::Var("int".to_string()),
-                    ],
+                    ], kwargs: vec![]
                 },
                 then_body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
                 else_body: None,
