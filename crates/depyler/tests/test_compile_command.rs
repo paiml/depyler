@@ -1,4 +1,4 @@
-//! DEPYLER-0380: Compile Command Tests - RED Phase
+//! DEPYLER-0380: Compile Command Tests - GREEN Phase
 //!
 //! **EXTREME TDD Protocol**
 //!
@@ -12,10 +12,12 @@
 //! TDG Score: A (≤2.0)
 //! Complexity: ≤10 per function
 
-use assert_cmd::Command;
+use assert_cmd::cargo::CommandCargoExt;
+use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 use tempfile::TempDir;
 
 /// Helper to create a temp directory with a Python file
@@ -30,11 +32,10 @@ fn setup_python_file(filename: &str, content: &str) -> (TempDir, PathBuf) {
 fn test_depyler_0380_compile_command_exists() {
     // Test Case: `depyler compile --help` should work
     // Expected: Help text mentioning compile subcommand
-    // Bug: Command doesn't exist yet (RED phase)
 
     Command::cargo_bin("depyler")
         .expect("Failed to find depyler binary")
-        .args(&["compile", "--help"])
+        .args(["compile", "--help"])
         .assert()
         .success()
         .stdout(predicate::str::contains("compile"));
@@ -59,7 +60,7 @@ if __name__ == '__main__':
     // Run depyler compile
     Command::cargo_bin("depyler")
         .expect("Failed to find depyler binary")
-        .args(&["compile", python_file.to_str().unwrap()])
+        .args(["compile", python_file.to_str().unwrap()])
         .assert()
         .success();
 
@@ -102,7 +103,7 @@ if __name__ == '__main__':
     // Compile
     Command::cargo_bin("depyler")
         .expect("Failed to find depyler binary")
-        .args(&["compile", python_file.to_str().unwrap()])
+        .args(["compile", python_file.to_str().unwrap()])
         .assert()
         .success();
 
@@ -135,7 +136,7 @@ if __name__ == '__main__':
 
     Command::cargo_bin("depyler")
         .expect("Failed to find depyler binary")
-        .args(&[
+        .args([
             "compile",
             python_file.to_str().unwrap(),
             "-o",
@@ -176,7 +177,7 @@ if __name__ == '__main__':
 
     Command::cargo_bin("depyler")
         .expect("Failed to find depyler binary")
-        .args(&[
+        .args([
             "compile",
             python_file.to_str().unwrap(),
             "--profile",
@@ -201,7 +202,7 @@ fn test_depyler_0380_compile_missing_file_error() {
 
     Command::cargo_bin("depyler")
         .expect("Failed to find depyler binary")
-        .args(&["compile", "/nonexistent/file.py"])
+        .args(["compile", "/nonexistent/file.py"])
         .assert()
         .failure()
         .stderr(predicate::str::contains("not found").or(predicate::str::contains("No such file")));
@@ -221,7 +222,7 @@ def main(
 
     Command::cargo_bin("depyler")
         .expect("Failed to find depyler binary")
-        .args(&["compile", python_file.to_str().unwrap()])
+        .args(["compile", python_file.to_str().unwrap()])
         .assert()
         .failure()
         .stderr(predicate::str::contains("parse").or(predicate::str::contains("syntax")));
