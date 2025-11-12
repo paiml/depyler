@@ -2261,8 +2261,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let obj = &arg_exprs[0];
 
-                // Check if indent parameter is provided (keyword args handled in HIR)
-                if args.len() >= 2 {
+                // DEPYLER-0377: Check if indent parameter is provided
+                // json.dumps(result, indent=2) has 2 arguments after HIR conversion
+                // (keyword args become positional args in HIR)
+                if arg_exprs.len() >= 2 {
                     // json.dumps(obj, indent=n) → serde_json::to_string_pretty(&obj).unwrap()
                     parse_quote! { serde_json::to_string_pretty(&#obj).unwrap() }
                 } else {
@@ -9145,40 +9147,37 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-0376: Check if dict has heterogeneous value types
+    /// DEPYLER-0270 FIX: Only flag as heterogeneous when we have strong evidence
     fn dict_has_mixed_types(&self, items: &[(HirExpr, HirExpr)]) -> Result<bool> {
         if items.len() <= 1 {
             return Ok(false); // Single type or empty
         }
 
         // STRATEGY 1: Check for obvious mixing of literal types
-        let mut has_bool_or_int_literal = false;
+        let mut has_bool_literal = false;
+        let mut has_int_literal = false;
+        let mut has_float_literal = false;
         let mut has_string_literal = false;
 
         for (_key, value) in items {
             match value {
-                HirExpr::Literal(Literal::Bool(_)) | HirExpr::Literal(Literal::Int(_)) => {
-                    has_bool_or_int_literal = true;
-                }
-                HirExpr::Literal(Literal::String(_)) => {
-                    has_string_literal = true;
-                }
+                HirExpr::Literal(Literal::Bool(_)) => has_bool_literal = true,
+                HirExpr::Literal(Literal::Int(_)) => has_int_literal = true,
+                HirExpr::Literal(Literal::Float(_)) => has_float_literal = true,
+                HirExpr::Literal(Literal::String(_)) => has_string_literal = true,
                 _ => {}
             }
         }
 
-        if has_bool_or_int_literal && has_string_literal {
-            return Ok(true); // Definitely mixed
-        }
+        // Count how many distinct literal types we have
+        let distinct_types = [has_bool_literal, has_int_literal, has_float_literal, has_string_literal]
+            .iter()
+            .filter(|&&b| b)
+            .count();
 
-        // STRATEGY 2: If dict has many non-literal values (Attribute/Var),
-        // assume it might have mixed types (conservative approach)
-        // This catches cases like: {"a": args.bool_field, "b": args.string_field}
-        let non_literal_count = items.iter().filter(|(_k, v)| {
-            matches!(v, HirExpr::Attribute { .. } | HirExpr::Var(_))
-        }).count();
-
-        // If >50% of entries are dynamic (non-literal), use json! to be safe
-        Ok(non_literal_count > items.len() / 2)
+        // Only use json! if we have 2+ distinct literal types
+        // This avoids false positives from dicts with uniform types but variable values
+        Ok(distinct_types >= 2)
     }
 
     fn convert_tuple(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
@@ -10008,13 +10007,72 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         body: &HirExpr,
         orelse: &HirExpr,
     ) -> Result<syn::Expr> {
-        let test_expr = test.to_rust_expr(self.ctx)?;
+        // DEPYLER-0377: Optimize `x if x else default` pattern
+        // Python: `args.include if args.include else []` (check if list is non-empty)
+        // Rust: Just `args.include` (clap initializes Vec to empty, so redundant check)
+        // This pattern is common with argparse + Vec/Option fields
+        if test == body {
+            // Pattern: `x if x else y` → just use `x` (the condition is redundant)
+            // This avoids type errors where Vec/Option can't be used as bool
+            return body.to_rust_expr(self.ctx);
+        }
+
+        let mut test_expr = test.to_rust_expr(self.ctx)?;
         let body_expr = body.to_rust_expr(self.ctx)?;
         let orelse_expr = orelse.to_rust_expr(self.ctx)?;
+
+        // DEPYLER-0377: Apply Python truthiness conversion to ternary expressions
+        // Python: `val if val else default` where val is String/List/Dict/Set/Optional/Int/Float
+        // Without conversion: `if val` fails (expected bool, found Vec/String/etc)
+        // With conversion: `if !val.is_empty()` / `if val.is_some()` / `if val != 0`
+        test_expr = Self::apply_truthiness_conversion(test, test_expr, self.ctx);
 
         Ok(parse_quote! {
             if #test_expr { #body_expr } else { #orelse_expr }
         })
+    }
+
+    /// Apply Python truthiness conversion to non-boolean conditions
+    /// Python: `if val:` where val is String/List/Dict/Set/Optional/Int/Float
+    /// Rust: `if !val.is_empty()` / `if val.is_some()` / `if val != 0`
+    fn apply_truthiness_conversion(
+        condition: &HirExpr,
+        cond_expr: syn::Expr,
+        ctx: &CodeGenContext,
+    ) -> syn::Expr {
+        // Check if this is a variable reference that needs truthiness conversion
+        if let HirExpr::Var(var_name) = condition {
+            if let Some(var_type) = ctx.var_types.get(var_name) {
+                return match var_type {
+                    // Already boolean - no conversion needed
+                    Type::Bool => cond_expr,
+
+                    // String/List/Dict/Set - check if empty
+                    Type::String | Type::List(_) | Type::Dict(_, _) | Type::Set(_) => {
+                        parse_quote! { !#cond_expr.is_empty() }
+                    }
+
+                    // Optional - check if Some
+                    Type::Optional(_) => {
+                        parse_quote! { #cond_expr.is_some() }
+                    }
+
+                    // Numeric types - check if non-zero
+                    Type::Int => {
+                        parse_quote! { #cond_expr != 0 }
+                    }
+                    Type::Float => {
+                        parse_quote! { #cond_expr != 0.0 }
+                    }
+
+                    // Unknown or other types - use as-is (may fail compilation)
+                    _ => cond_expr,
+                };
+            }
+        }
+
+        // Not a variable or no type info - use as-is
+        cond_expr
     }
 
     fn convert_sort_by_key(
