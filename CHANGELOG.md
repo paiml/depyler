@@ -4,6 +4,78 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.20.0] - 2025-11-12
+
+### ✨ Features: Single-Shot Compile Command (DEPYLER-0380)
+
+**Ticket**: DEPYLER-0380
+**Impact**: Python scripts can now be compiled to standalone native binaries with a single command
+**Test Status**: ✅ 7/7 integration tests passing
+**Quality Gates**: ✅ TDG Score 95.5/100 (A+), Complexity ≤10, Clippy clean
+
+#### New `depyler compile` Command
+
+Compile Python scripts to standalone native executables in one command, similar to `deno compile` or `uv compile`:
+
+```bash
+# Basic compilation
+depyler compile script.py
+
+# Custom output path
+depyler compile script.py -o my_binary
+
+# Debug profile for faster builds
+depyler compile script.py --profile debug
+```
+
+**4-Phase Compilation Pipeline**:
+1. **Transpile**: Python → Rust using DepylerPipeline
+2. **Generate**: Creates temporary Cargo project structure
+3. **Build**: Compiles with cargo (release or debug profile)
+4. **Finalize**: Copies binary to desired location with executable permissions
+
+**Features**:
+- ✅ Cross-platform support (Windows/Unix)
+- ✅ Visual progress bar with 4-step feedback
+- ✅ Custom output path via `-o/--output` flag
+- ✅ Configurable build profiles (`--profile release/debug`)
+- ✅ Comprehensive error handling (missing files, invalid Python syntax)
+- ✅ Automatic executable permissions on Unix systems
+
+**Files Added**:
+- `crates/depyler/src/compile_cmd.rs` - Core compilation logic (232 lines, complexity 2-8)
+- `crates/depyler/tests/test_compile_command.rs` - Integration tests (229 lines)
+- `docs/specifications/single-shot-compile-spec.md` - Complete specification (1728 lines)
+
+**Files Modified**:
+- `crates/depyler/src/lib.rs` - Added `Compile` command variant and handler
+- `crates/depyler/src/main.rs` - Wired up command dispatch
+- `crates/depyler/Cargo.toml` - Added test dependencies (assert_cmd, predicates)
+
+**EXTREME TDD Compliance**:
+- RED Phase: 7 failing integration tests committed first
+- GREEN Phase: Minimal implementation to pass all tests
+- REFACTOR Phase: Fixed clippy warnings, verified quality gates
+
+**Test Coverage** (7 integration tests):
+1. `test_depyler_0380_compile_command_exists` - Help text verification ✅
+2. `test_depyler_0380_compile_hello_world` - Basic compilation + execution ✅
+3. `test_depyler_0380_compile_with_args` - Command-line arguments handling ✅
+4. `test_depyler_0380_compile_with_output_flag` - Custom output path ✅
+5. `test_depyler_0380_compile_with_profile_release` - Release optimization ✅
+6. `test_depyler_0380_compile_missing_file_error` - Error handling ✅
+7. `test_depyler_0380_compile_invalid_python_error` - Parse error handling ✅
+
+**Complexity Analysis**:
+- `compile_python_to_binary()`: 8 (within ≤10 target)
+- `create_cargo_project()`: 3 (within ≤10 target)
+- `build_cargo_project()`: 2 (within ≤10 target)
+- `finalize_binary()`: 4 (within ≤10 target)
+
+**Git Commits**:
+- `69dd8d2` [REFACTOR] DEPYLER-0380: Fix clippy warnings and verify quality gates
+- `c880b08` [RED] DEPYLER-0380: Add failing tests for compile command (EXTREME TDD Phase 1)
+
 ## [3.19.30] - 2025-11-11
 
 ### ✨ Features: Production-Ready ArgumentParser → Clap Transpilation

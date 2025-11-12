@@ -12,44 +12,42 @@
 
 A Python-to-Rust transpiler with semantic verification and memory safety analysis. Depyler translates annotated Python code into idiomatic Rust, preserving program semantics while providing compile-time safety guarantees.
 
-## 🎉 Current Release: v3.19.30 - Production-Ready ArgumentParser Support!
+## 🎉 Current Release: v3.20.0 - Single-Shot Compile Command!
 
-**Major Feature** - Python CLI tools with argparse can now transpile to idiomatic Rust with clap derive macros!
+**Major Feature** - Compile Python scripts to standalone native binaries with a single command!
 
-### What's New in v3.19.30
+### What's New in v3.20.0
 
-**ArgumentParser → Clap Transpilation** (DEPYLER-0364, DEPYLER-0365)
-- ✅ **nargs mapping**: `"+"`, `"*"`, `"?"` → `Vec<T>`, `Option<T>`
-- ✅ **action mapping**: `store_true`, `store_false`, `count` → `bool`, `u8`
-- ✅ **type mapping**: `int`, `str`, `Path` → `i32`, `String`, `PathBuf`
-- ✅ **Flag detection**: Short (`-v`), long (`--debug`), dual (`-o --output`)
-- ✅ **Real-world validation**: Successfully transpiled production CLI tool (`wordcount.py`)
+**`depyler compile` Command** (DEPYLER-0380)
+- ✅ **Single-command compilation**: Python → Native binary in one step
+- ✅ **Cross-platform**: Works on Windows, Linux, macOS
+- ✅ **Build profiles**: `--profile release` (optimized) or `debug` (fast builds)
+- ✅ **Custom output**: `-o` flag for custom binary location
+- ✅ **Visual feedback**: Progress bar showing 4-phase compilation pipeline
 
 **Example:**
-```python
-# Python with argparse
-parser = argparse.ArgumentParser(description="Word counter")
-parser.add_argument("files", nargs="+", type=Path)
-parser.add_argument("-l", "--lines", action="store_true")
-args = parser.parse_args()
+```bash
+# Basic compilation - creates ./script binary
+depyler compile script.py
+
+# Custom output path
+depyler compile script.py -o my_app
+
+# Debug build (faster compilation)
+depyler compile script.py --profile debug
 ```
 
-**Transpiles to:**
-```rust
-#[derive(clap::Parser)]
-#[command(about = "Word counter")]
-struct Args {
-    files: Vec<PathBuf>,
-    #[arg(short = 'l', long)]
-    lines: bool,
-}
-let args = Args::parse();
-```
+**4-Phase Pipeline:**
+1. **Transpile** - Python → Rust
+2. **Generate** - Creates Cargo project
+3. **Build** - Compiles with cargo
+4. **Finalize** - Copies binary with executable permissions
 
 **Quality Metrics**
-- Tests: 3,140/3,140 passing (100%)
+- Tests: 7/7 integration tests passing (100%)
+- TDG Score: 95.5/100 (A+)
+- Complexity: All functions ≤10
 - Clippy: Zero warnings
-- Real-world validation: ✅ Production CLI tools transpile correctly
 
 **Installation**
 ```bash
@@ -57,6 +55,18 @@ cargo install depyler
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for complete details.
+
+---
+
+### Previous Release: v3.19.30 - Production-Ready ArgumentParser Support
+
+Python CLI tools with argparse now transpile to idiomatic Rust with clap derive macros!
+
+**Features:**
+- ✅ **nargs mapping**: `"+"`, `"*"`, `"?"` → `Vec<T>`, `Option<T>`
+- ✅ **action mapping**: `store_true`, `store_false`, `count` → `bool`, `u8`
+- ✅ **type mapping**: `int`, `str`, `Path` → `i32`, `String`, `PathBuf`
+- ✅ **Flag detection**: Short (`-v`), long (`--debug`), dual (`-o --output`)
 
 ## Installation
 
@@ -71,6 +81,18 @@ cargo install depyler
 
 ## Usage
 
+### Quick Start - Compile to Binary
+
+The fastest way to use Depyler is with the `compile` command:
+
+```bash
+# Compile Python to a standalone binary
+depyler compile script.py
+
+# Run the compiled binary
+./script
+```
+
 ### Basic Transpilation
 
 ```bash
@@ -82,6 +104,19 @@ depyler transpile example.py --verify
 
 # Analyze migration complexity
 depyler analyze example.py
+```
+
+### Compilation Options
+
+```bash
+# Compile with custom output name
+depyler compile script.py -o my_app
+
+# Compile with debug profile (faster builds, less optimization)
+depyler compile script.py --profile debug
+
+# Compile with release profile (default, optimized)
+depyler compile script.py --profile release
 ```
 
 ### Example
