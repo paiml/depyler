@@ -4,6 +4,12 @@
 
 ---
 
+# Getting Started
+
+- [CLI Usage Guide](./cli-usage.md)
+
+---
+
 # Python Standard Library
 
 ## Core Data Types
