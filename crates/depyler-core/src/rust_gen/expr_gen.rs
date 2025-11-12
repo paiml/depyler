@@ -621,6 +621,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 object,
                 method,
                 args: method_args,
+                ..
             } = &args[0]
             {
                 if (method == "values" || method == "keys") && method_args.is_empty() {
@@ -1231,7 +1232,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // DEPYLER-0327 Fix #1: Check if method call returns String type
                 // E.g., Vec<String>.get() or str methods
-                HirExpr::MethodCall { object, method, args: method_args } => {
+                HirExpr::MethodCall { object, method, args: method_args , ..} => {
                     // Check if this is .get() on a Vec<String> or similar
                     if self.is_string_method_call(object, method, method_args) {
                         return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
@@ -9864,7 +9865,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// Check if an expression is a len() call
     fn is_len_call(&self, expr: &HirExpr) -> bool {
-        matches!(expr, HirExpr::Call { func, args } if func == "len" && args.len() == 1)
+        matches!(expr, HirExpr::Call { func, args , ..} if func == "len" && args.len() == 1)
     }
 
     fn convert_await(&mut self, value: &HirExpr) -> Result<syn::Expr> {
@@ -10180,11 +10181,11 @@ impl ToRustExpr for HirExpr {
             HirExpr::Var(name) => converter.convert_variable(name),
             HirExpr::Binary { op, left, right } => converter.convert_binary(*op, left, right),
             HirExpr::Unary { op, operand } => converter.convert_unary(op, operand),
-            HirExpr::Call { func, args } => converter.convert_call(func, args),
+            HirExpr::Call { func, args , ..} => converter.convert_call(func, args),
             HirExpr::MethodCall {
                 object,
                 method,
-                args,
+                args, ..
             } => converter.convert_method_call(object, method, args),
             HirExpr::Index { base, index } => converter.convert_index(base, index),
             HirExpr::Slice {

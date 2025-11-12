@@ -78,6 +78,7 @@ fn create_accumulator_function() -> HirFunction {
                                 object: Box::new(HirExpr::Var("result".to_string())),
                                 method: "append".to_string(),
                                 args: vec![HirExpr::Var("num".to_string())],
+                                kwargs: vec![],
                             }),
                         ],
                         else_body: None,
@@ -108,6 +109,7 @@ fn create_type_check_function() -> HirFunction {
                         HirExpr::Var("value".to_string()),
                         HirExpr::Var("str".to_string()),
                     ],
+                    kwargs: vec![],
                 },
                 then_body: vec![
                     // return value.upper()
@@ -115,6 +117,7 @@ fn create_type_check_function() -> HirFunction {
                         object: Box::new(HirExpr::Var("value".to_string())),
                         method: "upper".to_string(),
                         args: vec![],
+                        kwargs: vec![],
                     })),
                 ],
                 else_body: Some(vec![
@@ -126,6 +129,7 @@ fn create_type_check_function() -> HirFunction {
                                 HirExpr::Var("value".to_string()),
                                 HirExpr::Var("int".to_string()),
                             ],
+                            kwargs: vec![],
                         },
                         then_body: vec![
                             // return value * 2
@@ -164,6 +168,7 @@ fn create_while_true_function() -> HirFunction {
                         condition: HirExpr::Call {
                             func: "should_stop".to_string(),
                             args: vec![],
+                            kwargs: vec![],
                         },
                         then_body: vec![
                             // break
@@ -175,6 +180,7 @@ fn create_while_true_function() -> HirFunction {
                     HirStmt::Expr(HirExpr::Call {
                         func: "process_request".to_string(),
                         args: vec![],
+                        kwargs: vec![],
                     }),
                 ],
             },
@@ -200,6 +206,7 @@ fn create_mutable_param_function() -> HirFunction {
                 object: Box::new(HirExpr::Var("items".to_string())),
                 method: "append".to_string(),
                 args: vec![HirExpr::Var("new_item".to_string())],
+                kwargs: vec![],
             }),
             // return items
             HirStmt::Return(Some(HirExpr::Var("items".to_string()))),

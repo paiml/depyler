@@ -914,7 +914,7 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             let op_tokens = unaryop_to_rust_tokens(op);
             Ok(quote! { (#op_tokens #operand_tokens) })
         }
-        HirExpr::Call { func, args } => call_expr_to_rust_tokens(func, args),
+        HirExpr::Call { func, args , ..} => call_expr_to_rust_tokens(func, args),
         HirExpr::Index { base, index } => {
             let base_tokens = expr_to_rust_tokens(base)?;
             let index_tokens = expr_to_rust_tokens(index)?;
@@ -932,7 +932,7 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
         HirExpr::MethodCall {
             object,
             method,
-            args,
+            args, ..
         } => method_call_to_rust_tokens(object, method, args),
         HirExpr::Slice {
             base,
@@ -1171,7 +1171,7 @@ fn prettify_rust_code(code: String) -> String {
 
 /// Check if an expression is a len() call
 fn is_len_call(expr: &HirExpr) -> bool {
-    matches!(expr, HirExpr::Call { func, args } if func == "len" && args.len() == 1)
+    matches!(expr, HirExpr::Call { func, args , ..} if func == "len" && args.len() == 1)
 }
 
 #[cfg(test)]
@@ -1320,10 +1320,8 @@ mod tests {
 
     #[test]
     fn test_function_call_generation() {
-        let call = HirExpr::Call {
-            func: "len".to_string(),
-            args: vec![HirExpr::List(vec![HirExpr::Literal(Literal::Int(1))])],
-        };
+        let call = HirExpr::Call { func: "len".to_string(), args: vec![HirExpr::List(vec![HirExpr::Literal(Literal::Int(1))])],
+         kwargs: vec![] };
 
         let tokens = expr_to_rust_tokens(&call).unwrap();
         let code = tokens.to_string();
@@ -1521,10 +1519,8 @@ mod tests {
         let mut scope = ScopeTracker::new();
         let stmt = HirStmt::If {
             condition: HirExpr::Var("flag".to_string()),
-            then_body: vec![HirStmt::Expr(HirExpr::Call {
-                func: "print".to_string(),
-                args: vec![HirExpr::Literal(Literal::String("yes".to_string()))],
-            })],
+            then_body: vec![HirStmt::Expr(HirExpr::Call { func: "print".to_string(), args: vec![HirExpr::Literal(Literal::String("yes".to_string()))],
+             kwargs: vec![] })],
             else_body: None,
         };
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
@@ -1579,10 +1575,8 @@ mod tests {
         let mut scope = ScopeTracker::new();
         let stmt = HirStmt::For {
             target: AssignTarget::Symbol("i".to_string()),
-            iter: HirExpr::Call {
-                func: "range".to_string(),
-                args: vec![HirExpr::Literal(Literal::Int(5))],
-            },
+            iter: HirExpr::Call { func: "range".to_string(), args: vec![HirExpr::Literal(Literal::Int(5))],
+             kwargs: vec![] },
             body: vec![HirStmt::Expr(HirExpr::Var("i".to_string()))],
         };
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
@@ -1597,10 +1591,8 @@ mod tests {
     #[test]
     fn test_expr_statement() {
         let mut scope = ScopeTracker::new();
-        let stmt = HirStmt::Expr(HirExpr::Call {
-            func: "println".to_string(),
-            args: vec![HirExpr::Literal(Literal::String("hello".to_string()))],
-        });
+        let stmt = HirStmt::Expr(HirExpr::Call { func: "println".to_string(), args: vec![HirExpr::Literal(Literal::String("hello".to_string()))],
+         kwargs: vec![] });
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
         let code = tokens.to_string();
         assert!(code.contains("println"));
@@ -1688,15 +1680,11 @@ mod tests {
     fn test_with_statement_with_target() {
         let mut scope = ScopeTracker::new();
         let stmt = HirStmt::With {
-            context: HirExpr::Call {
-                func: "open".to_string(),
-                args: vec![HirExpr::Literal(Literal::String("file.txt".to_string()))],
-            },
+            context: HirExpr::Call { func: "open".to_string(), args: vec![HirExpr::Literal(Literal::String("file.txt".to_string()))],
+             kwargs: vec![] },
             target: Some("f".to_string()),
-            body: vec![HirStmt::Expr(HirExpr::Call {
-                func: "read".to_string(),
-                args: vec![HirExpr::Var("f".to_string())],
-            })],
+            body: vec![HirStmt::Expr(HirExpr::Call { func: "read".to_string(), args: vec![HirExpr::Var("f".to_string())],
+             kwargs: vec![] })],
         };
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
         let code = tokens.to_string();
@@ -1711,10 +1699,8 @@ mod tests {
     fn test_with_statement_without_target() {
         let mut scope = ScopeTracker::new();
         let stmt = HirStmt::With {
-            context: HirExpr::Call {
-                func: "lock".to_string(),
-                args: vec![],
-            },
+            context: HirExpr::Call { func: "lock".to_string(), args: vec![],
+             kwargs: vec![] },
             target: None,
             body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String(
                 "critical".to_string(),

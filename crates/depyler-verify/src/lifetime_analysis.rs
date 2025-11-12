@@ -208,13 +208,13 @@ impl LifetimeAnalyzer {
             HirExpr::Binary { left, right, .. } => {
                 self.analyze_binary_expr(left, right, scope_depth)
             }
-            HirExpr::Call { func, args } => self.analyze_call_expr(func, args, scope_depth),
+            HirExpr::Call { func, args, .. } => self.analyze_call_expr(func, args, scope_depth),
             HirExpr::Index { base, index } => self.analyze_index_expr(base, index, scope_depth),
             HirExpr::MethodCall {
                 object,
                 method,
                 args,
-            } => self.analyze_method_call_expr(object, method, args, scope_depth),
+                .. } => self.analyze_method_call_expr(object, method, args, scope_depth),
             HirExpr::Attribute { value, .. } => self.analyze_expr(value, scope_depth),
             _ => {}
         }
@@ -464,7 +464,7 @@ impl LifetimeAnalyzer {
     }
 
     fn modifies_collection(&self, stmt: &HirStmt, collection_name: &str) -> bool {
-        if let HirStmt::Expr(HirExpr::Call { func, args }) = stmt {
+        if let HirStmt::Expr(HirExpr::Call { func, args, .. }) = stmt {
             // Check for methods that modify collections
             if matches!(
                 func.as_str(),
@@ -554,13 +554,10 @@ mod tests {
             body: vec![HirStmt::For {
                 target: AssignTarget::Symbol("item".to_string()),
                 iter: HirExpr::Var("items".to_string()),
-                body: vec![HirStmt::Expr(HirExpr::Call {
-                    func: "append".to_string(),
-                    args: vec![
+                body: vec![HirStmt::Expr(HirExpr::Call { func: "append".to_string(), args: vec![
                         HirExpr::Var("items".to_string()),
                         HirExpr::Literal(Literal::Int(42)),
-                    ],
-                })],
+                    ], kwargs: vec![] })],
             }],
             properties: FunctionProperties::default(),
             annotations: Default::default(),

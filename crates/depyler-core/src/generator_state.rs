@@ -285,7 +285,7 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn test_DEPYLER_0258_type_inference_from_literal_values() {
+    fn test_depyler_0258_type_inference_from_literal_values() {
         // BUG #1: DynamicType inference should infer from value expressions
         // Current: i = 0 (no type annotation) → Type::Unknown
         // Expected: i = 0 (no type annotation) → Type::Int

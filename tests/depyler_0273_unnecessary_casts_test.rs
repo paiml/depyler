@@ -96,11 +96,7 @@ fn test_array_length_should_cast() {
         name: "array_len".to_string(),
         params: vec![HirParam::new("arr".to_string(), Type::List(Box::new(Type::Int)))].into(),
         ret_type: Type::Int,
-        body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
-            object: Box::new(HirExpr::Var("arr".to_string())),
-            method: "len".to_string(),
-            args: vec![],
-        }))],
+        body: vec![HirStmt::Return(Some(HirExpr::MethodCall { object: Box::new(HirExpr::Var("arr".to_string())), method: "len".to_string(), args: vec![], kwargs: vec![] }))],
         properties: FunctionProperties::default(),
         annotations: depyler_annotations::TranspilationAnnotations::default(),
         docstring: None,
@@ -241,11 +237,7 @@ fn test_count_method_should_cast() {
         ]
         .into(),
         ret_type: Type::Int,
-        body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
-            object: Box::new(HirExpr::Var("items".to_string())),
-            method: "count".to_string(),
-            args: vec![HirExpr::Var("value".to_string())],
-        }))],
+        body: vec![HirStmt::Return(Some(HirExpr::MethodCall { object: Box::new(HirExpr::Var("items".to_string())), method: "count".to_string(), args: vec![HirExpr::Var("value".to_string())], kwargs: vec![] }))],
         properties: FunctionProperties::default(),
         annotations: depyler_annotations::TranspilationAnnotations::default(),
         docstring: None,

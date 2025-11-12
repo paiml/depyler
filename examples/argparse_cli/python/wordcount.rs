@@ -24,7 +24,7 @@ result
 }
 #[doc = "Main entry point"] #[doc = " Depyler: verified panic-free"] pub fn main () -> i32 {
     #[derive(clap::Parser)] struct Args {
-    files: String, #[arg(short = 'l')] l: String, #[arg(short = 'w')] w: String, #[arg(short = 'c')] c: String
+    #[doc = "Files to process"] files: String, #[arg(short = 'l')] #[doc = "Show only line count"] l: bool, #[arg(short = 'w')] #[doc = "Show only word count"] w: bool, #[arg(short = 'c')] #[doc = "Show only character count"] c: bool
 }
 let args = Args::parse();
     let mut total_lines = 0;

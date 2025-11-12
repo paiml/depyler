@@ -286,7 +286,7 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn test_DEPYLER_0262_simple_yield_detection() {
+    fn test_depyler_0262_simple_yield_detection() {
         // Test: Single yield in function body
         let func = HirFunction {
             name: "simple".to_string(),
@@ -312,7 +312,7 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn test_DEPYLER_0262_loop_with_yield() {
+    fn test_depyler_0262_loop_with_yield() {
         // Test: Yield inside a while loop (the main bug scenario)
         let func = HirFunction {
             name: "counter".to_string(),
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    fn test_DEPYLER_0262_multiple_yields() {
+    fn test_depyler_0262_multiple_yields() {
         // Test: Multiple sequential yields
         let func = HirFunction {
             name: "multi".to_string(),
