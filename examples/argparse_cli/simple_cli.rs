@@ -3,7 +3,9 @@ use clap::Parser;
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> i32 {
     #[derive(clap::Parser)]
+    #[command(about = "A simple CLI tool example")]
     struct Args {
+        #[doc = "Your name"]
         name: String,
     }
     let args = Args::parse();
