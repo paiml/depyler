@@ -103,6 +103,10 @@ name = "dict_assignment_test"
 path = "../../tests/dict_assignment_test.rs"
 
 [[test]]
+name = "constants_test"
+path = "../../tests/constants_test.rs"
+
+[[test]]
 name = "semantic_equivalence"
 path = "../../tests/integration/semantic_equivalence.rs"
 

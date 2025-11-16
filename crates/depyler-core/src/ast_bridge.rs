@@ -166,6 +166,7 @@ impl AstBridge {
         let mut type_aliases = Vec::new();
         let mut protocols = Vec::new();
         let mut classes = Vec::new();
+        let mut constants = Vec::new();
 
         for stmt in module.body {
             match stmt {
@@ -193,18 +194,26 @@ impl AstBridge {
                     }
                 }
                 ast::Stmt::Assign(assign) => {
-                    // Try to parse as type alias
+                    // Try to parse as type alias first
                     if let Some(type_alias) = self.try_convert_type_alias(&assign)? {
                         type_aliases.push(type_alias);
+                    } else {
+                        // Otherwise, treat as module-level constant
+                        if let Some(constant) = self.try_convert_constant(&assign)? {
+                            constants.push(constant);
+                        }
                     }
-                    // Otherwise skip regular assignments at module level
                 }
                 ast::Stmt::AnnAssign(ann_assign) => {
-                    // Try to parse annotated assignment as type alias
+                    // Try to parse annotated assignment as type alias first
                     if let Some(type_alias) = self.try_convert_annotated_type_alias(&ann_assign)? {
                         type_aliases.push(type_alias);
+                    } else {
+                        // Otherwise, treat as annotated module-level constant
+                        if let Some(constant) = self.try_convert_annotated_constant(&ann_assign)? {
+                            constants.push(constant);
+                        }
                     }
-                    // Otherwise skip regular annotated assignments at module level
                 }
                 _ => {
                     // Skip other statements for now
@@ -222,6 +231,7 @@ impl AstBridge {
             type_aliases,
             protocols,
             classes,
+            constants,
         })
     }
 
@@ -435,6 +445,55 @@ impl AstBridge {
             }))
         } else {
             Ok(None) // No value assigned
+        }
+    }
+
+    /// Try to convert a simple assignment to a module-level constant
+    fn try_convert_constant(&self, assign: &ast::StmtAssign) -> Result<Option<HirConstant>> {
+        // Only handle single assignment targets
+        if assign.targets.len() != 1 {
+            return Ok(None);
+        }
+
+        let name = match &assign.targets[0] {
+            ast::Expr::Name(n) => n.id.to_string(),
+            _ => return Ok(None), // Skip complex assignment targets
+        };
+
+        // Convert the value expression
+        let value = convert_expr(*assign.value.clone())?;
+
+        Ok(Some(HirConstant {
+            name,
+            value,
+            type_annotation: None,
+        }))
+    }
+
+    /// Try to convert an annotated assignment to a module-level constant
+    fn try_convert_annotated_constant(
+        &self,
+        ann_assign: &ast::StmtAnnAssign,
+    ) -> Result<Option<HirConstant>> {
+        let name = match ann_assign.target.as_ref() {
+            ast::Expr::Name(n) => n.id.to_string(),
+            _ => return Ok(None), // Skip complex assignment targets
+        };
+
+        // Extract type annotation
+        let type_annotation = Some(TypeExtractor::extract_type(&ann_assign.annotation)?);
+
+        // Get the value (annotated assignments at module level should have values)
+        if let Some(value_expr) = &ann_assign.value {
+            let value = convert_expr(*value_expr.clone())?;
+
+            Ok(Some(HirConstant {
+                name,
+                value,
+                type_annotation,
+            }))
+        } else {
+            Ok(None) // No value, skip it
         }
     }
 

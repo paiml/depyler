@@ -458,6 +458,52 @@ fn generate_interned_string_tokens(optimizer: &StringOptimizer) -> Vec<proc_macr
         .collect()
 }
 
+/// Generate module-level constant tokens
+///
+/// Generates `pub const` declarations for module-level constants.
+/// For simple literal values (int, float, string, bool), generates const.
+/// For complex expressions, may need to use static or lazy_static.
+fn generate_constant_tokens(
+    constants: &[HirConstant],
+    ctx: &mut CodeGenContext,
+) -> Result<Vec<proc_macro2::TokenStream>> {
+    use crate::rust_gen::context::ToRustExpr;
+    
+    let mut items = Vec::new();
+
+    for constant in constants {
+        let name_ident = syn::Ident::new(&constant.name, proc_macro2::Span::call_site());
+        
+        // Generate the value expression
+        let value_expr = constant.value.to_rust_expr(ctx)?;
+
+        // Generate type annotation - required for Rust const
+        let type_annotation = if let Some(ref ty) = constant.type_annotation {
+            let rust_type = ctx.type_mapper.map_type(ty);
+            let syn_type = type_gen::rust_type_to_syn(&rust_type)?;
+            quote! { : #syn_type }
+        } else {
+            // Infer type from the literal value
+            let inferred_type = match &constant.value {
+                HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
+                HirExpr::Literal(Literal::Float(_)) => quote! { : f64 },
+                HirExpr::Literal(Literal::String(_)) => quote! { : &str },
+                HirExpr::Literal(Literal::Bool(_)) => quote! { : bool },
+                _ => quote! { : i32 }, // Default fallback
+            };
+            inferred_type
+        };
+
+        // Generate the constant declaration
+        // Use pub const for module-level visibility
+        items.push(quote! {
+            pub const #name_ident #type_annotation = #value_expr;
+        });
+    }
+
+    Ok(items)
+}
+
 /// Generate a complete Rust file from HIR module
 pub fn generate_rust_file(
     module: &HirModule,
@@ -581,6 +627,9 @@ pub fn generate_rust_file(
 
     // Add interned string constants
     items.extend(generate_interned_string_tokens(&ctx.string_optimizer));
+
+    // Add module-level constants
+    items.extend(generate_constant_tokens(&module.constants, &mut ctx)?);
 
     // Add collection imports if needed
     items.extend(generate_conditional_imports(&ctx));
