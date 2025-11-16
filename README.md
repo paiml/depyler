@@ -102,6 +102,15 @@ depyler transpile example.py
 # Transpile with semantic verification
 depyler transpile example.py --verify
 
+# Show transpilation trace (pipeline phases)
+depyler transpile example.py --trace
+
+# Explain transformation decisions
+depyler transpile example.py --explain
+
+# Combine flags for detailed diagnostics
+depyler transpile example.py --verify --trace --explain
+
 # Analyze migration complexity
 depyler analyze example.py
 ```
