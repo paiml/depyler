@@ -959,7 +959,7 @@ mod tests {
         let mut ctx = create_test_context();
         let value_expr = syn::parse_quote! { 42 };
 
-        let result = codegen_assign_symbol("x", value_expr, None, &mut ctx).unwrap();
+        let result = codegen_assign_symbol("x", value_expr, None, false, &mut ctx).unwrap();
         assert!(result.to_string().contains("let x = 42"));
     }
 
@@ -969,7 +969,7 @@ mod tests {
         let value_expr = syn::parse_quote! { 42 };
         let type_ann = Some(quote! { : i32 });
 
-        let result = codegen_assign_symbol("x", value_expr, type_ann, &mut ctx).unwrap();
+        let result = codegen_assign_symbol("x", value_expr, type_ann, false, &mut ctx).unwrap();
         assert!(result.to_string().contains("let x : i32 = 42"));
     }
 
@@ -979,7 +979,7 @@ mod tests {
         ctx.declare_var("x");
         let value_expr = syn::parse_quote! { 100 };
 
-        let result = codegen_assign_symbol("x", value_expr, None, &mut ctx).unwrap();
+        let result = codegen_assign_symbol("x", value_expr, None, false, &mut ctx).unwrap();
         assert_eq!(result.to_string(), "x = 100 ;");
     }
 
@@ -1082,7 +1082,8 @@ mod tests {
         // when x is a bool variable: int(flag1) + int(flag2) → flag1 + flag2 (ERROR!)
         let call_expr = HirExpr::Call {
             func: "int".to_string(),
-            args: vec![HirExpr::Var("x".to_string())], kwargs: vec![]
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
         };
 
         let mut ctx = create_test_context();
@@ -1103,7 +1104,8 @@ mod tests {
         // Python: float(x) → Rust: (x) as f64
         let call_expr = HirExpr::Call {
             func: "float".to_string(),
-            args: vec![HirExpr::Var("y".to_string())], kwargs: vec![]
+            args: vec![HirExpr::Var("y".to_string())],
+            kwargs: vec![],
         };
 
         let mut ctx = create_test_context();
@@ -1122,7 +1124,8 @@ mod tests {
         // Python: str(x) → Rust: x.to_string()
         let call_expr = HirExpr::Call {
             func: "str".to_string(),
-            args: vec![HirExpr::Var("value".to_string())], kwargs: vec![]
+            args: vec![HirExpr::Var("value".to_string())],
+            kwargs: vec![],
         };
 
         let mut ctx = create_test_context();
@@ -1145,7 +1148,8 @@ mod tests {
         // Python: bool(x) → Rust: (x) as bool
         let call_expr = HirExpr::Call {
             func: "bool".to_string(),
-            args: vec![HirExpr::Var("flag".to_string())], kwargs: vec![]
+            args: vec![HirExpr::Var("flag".to_string())],
+            kwargs: vec![],
         };
 
         let mut ctx = create_test_context();
@@ -1176,7 +1180,8 @@ mod tests {
 
         let call_expr = HirExpr::Call {
             func: "int".to_string(),
-            args: vec![division], kwargs: vec![]
+            args: vec![division],
+            kwargs: vec![],
         };
 
         let mut ctx = create_test_context();
@@ -1259,7 +1264,8 @@ mod tests {
             body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
                 object: Box::new(HirExpr::Var("text".to_string())),
                 method: "upper".to_string(),
-                args: vec![], kwargs: vec![]
+                args: vec![],
+                kwargs: vec![],
             }))],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
@@ -1291,7 +1297,8 @@ mod tests {
             body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
                 object: Box::new(HirExpr::Var("text".to_string())),
                 method: "lower".to_string(),
-                args: vec![], kwargs: vec![]
+                args: vec![],
+                kwargs: vec![],
             }))],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
@@ -1316,7 +1323,8 @@ mod tests {
             body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
                 object: Box::new(HirExpr::Var("text".to_string())),
                 method: "strip".to_string(),
-                args: vec![], kwargs: vec![]
+                args: vec![],
+                kwargs: vec![],
             }))],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
