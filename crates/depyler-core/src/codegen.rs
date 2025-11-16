@@ -198,6 +198,7 @@ fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
             let inner_type = type_to_rust_type(inner);
             quote! { Option<#inner_type> }
         }
+        Type::Final(inner) => type_to_rust_type(inner), // Unwrap Final to get the actual type
         Type::Function { params, ret } => {
             let param_types: Vec<_> = params.iter().map(type_to_rust_type).collect();
             let ret_type = type_to_rust_type(ret);

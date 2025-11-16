@@ -1263,24 +1263,30 @@ pub(crate) fn codegen_assign_stmt(
     }
 
     // If there's a type annotation, handle type conversions
-    let type_annotation_tokens = if let Some(target_type) = type_annotation {
-        let target_rust_type = ctx.type_mapper.map_type(target_type);
+    let (type_annotation_tokens, is_final) = if let Some(target_type) = type_annotation {
+        // Check if this is a Final type annotation
+        let (actual_type, is_const) = match target_type {
+            Type::Final(inner) => (inner.as_ref(), true),
+            _ => (target_type, false),
+        };
+
+        let target_rust_type = ctx.type_mapper.map_type(actual_type);
         let target_syn_type = rust_type_to_syn(&target_rust_type)?;
 
         // DEPYLER-0272: Check if we need type conversion (e.g., usize to i32)
         // Pass the value expression to determine if cast is actually needed
-        if needs_type_conversion(target_type, value) {
-            value_expr = apply_type_conversion(value_expr, target_type);
+        if needs_type_conversion(actual_type, value) {
+            value_expr = apply_type_conversion(value_expr, actual_type);
         }
 
-        Some(quote! { : #target_syn_type })
+        (Some(quote! { : #target_syn_type }), is_const)
     } else {
-        None
+        (None, false)
     };
 
     match target {
         AssignTarget::Symbol(symbol) => {
-            codegen_assign_symbol(symbol, value_expr, type_annotation_tokens, ctx)
+            codegen_assign_symbol(symbol, value_expr, type_annotation_tokens, is_final, ctx)
         }
         AssignTarget::Index { base, index } => codegen_assign_index(base, index, value_expr, ctx),
         AssignTarget::Attribute { value, attr } => {
@@ -1298,6 +1304,7 @@ pub(crate) fn codegen_assign_symbol(
     symbol: &str,
     value_expr: syn::Expr,
     type_annotation_tokens: Option<proc_macro2::TokenStream>,
+    is_final: bool,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
     // DEPYLER-0023: Use safe_ident to escape Rust keywords (match, type, impl, etc.)
@@ -1307,6 +1314,14 @@ pub(crate) fn codegen_assign_symbol(
     if ctx.in_generator && ctx.generator_state_vars.contains(symbol) {
         // State variable assignment: self.field = value
         Ok(quote! { self.#target_ident = #value_expr; })
+    } else if is_final {
+        // Final type annotation - generate const instead of let
+        if let Some(type_ann) = type_annotation_tokens {
+            Ok(quote! { const #target_ident #type_ann = #value_expr; })
+        } else {
+            // Final without explicit type annotation - shouldn't happen, but handle gracefully
+            Ok(quote! { const #target_ident = #value_expr; })
+        }
     } else if ctx.is_declared(symbol) {
         // Variable already exists, just assign
         Ok(quote! { #target_ident = #value_expr; })

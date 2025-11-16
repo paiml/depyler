@@ -577,6 +577,8 @@ pub enum Type {
         element_type: Box<Type>,
         size: ConstGeneric,
     },
+    /// Final type annotation from typing.Final[T] - marks constants
+    Final(Box<Type>),
 }
 
 impl Type {
