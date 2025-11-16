@@ -41,6 +41,7 @@ pub struct TranspilationAnnotations {
     pub pattern: Option<String>,
     // Lambda-specific annotations
     pub lambda_annotations: Option<LambdaAnnotations>,
+    pub custom_attributes: Vec<String>,
 }
 
 impl Default for TranspilationAnnotations {
@@ -68,6 +69,7 @@ impl Default for TranspilationAnnotations {
             compatibility_layer: None,
             pattern: None,
             lambda_annotations: None,
+            custom_attributes: Vec::new(),
         }
     }
 }
@@ -490,7 +492,13 @@ impl AnnotationParser {
             if let Some(captures) = self.pattern.captures(line) {
                 let key = captures.get(1).unwrap().as_str().to_string();
                 let value = captures.get(2).unwrap().as_str().trim_matches('"').trim();
-                parsed_values.insert(key, value.to_string());
+
+                // Special handling for rust_attribute - accumulate instead of replace
+                if key == "rust_attribute" {
+                    annotations.custom_attributes.push(value.to_string());
+                } else {
+                    parsed_values.insert(key, value.to_string());
+                }
             }
         }
 
@@ -1540,5 +1548,72 @@ def handler(event, context):
             lambda_annotations.runtime,
             LambdaRuntime::Custom("rust-runtime-1.0".to_string())
         );
+    }
+
+    #[test]
+    fn test_custom_rust_attribute_single() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: rust_attribute = "inline"
+def my_function():
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.custom_attributes.len(), 1);
+        assert_eq!(annotations.custom_attributes[0], "inline");
+    }
+
+    #[test]
+    fn test_custom_rust_attribute_multiple() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: rust_attribute = "inline"
+# @depyler: rust_attribute = "must_use"
+# @depyler: rust_attribute = "cold"
+def my_function():
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.custom_attributes.len(), 3);
+        assert_eq!(annotations.custom_attributes[0], "inline");
+        assert_eq!(annotations.custom_attributes[1], "must_use");
+        assert_eq!(annotations.custom_attributes[2], "cold");
+    }
+
+    #[test]
+    fn test_custom_rust_attribute_with_other_annotations() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+# @depyler: optimization_level = "aggressive"
+# @depyler: rust_attribute = "inline(always)"
+# @depyler: performance_critical = "true"
+def hot_function():
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(
+            annotations.optimization_level,
+            OptimizationLevel::Aggressive
+        );
+        assert_eq!(annotations.custom_attributes.len(), 1);
+        assert_eq!(annotations.custom_attributes[0], "inline(always)");
+        assert!(annotations
+            .performance_hints
+            .contains(&PerformanceHint::PerformanceCritical));
+    }
+
+    #[test]
+    fn test_custom_rust_attribute_empty() {
+        let parser = AnnotationParser::new();
+        let source = r#"
+def my_function():
+    pass
+        "#;
+
+        let annotations = parser.parse_annotations(source).unwrap();
+        assert_eq!(annotations.custom_attributes.len(), 0);
     }
 }
