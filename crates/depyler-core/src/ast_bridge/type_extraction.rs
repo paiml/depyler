@@ -114,6 +114,7 @@ impl TypeExtractor {
             "Optional" => Self::extract_optional_type(s),
             "Union" => Self::extract_union_type(s),
             "Generic" => Self::extract_parameterized_generic(s),
+            "Final" => Self::extract_final_type(s),
             // Lowercase (PEP 585 - Python 3.9+ built-in generics)
             "list" => Self::extract_list_type(s),
             "dict" => Self::extract_dict_type(s),
@@ -180,6 +181,11 @@ impl TypeExtractor {
     fn extract_optional_type(s: &ast::ExprSubscript) -> Result<Type> {
         let inner = Self::extract_type(s.slice.as_ref())?;
         Ok(Type::Optional(Box::new(inner)))
+    }
+
+    fn extract_final_type(s: &ast::ExprSubscript) -> Result<Type> {
+        let inner = Self::extract_type(s.slice.as_ref())?;
+        Ok(Type::Final(Box::new(inner)))
     }
 
     fn extract_union_type(s: &ast::ExprSubscript) -> Result<Type> {
