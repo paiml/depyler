@@ -5,6 +5,7 @@
         test-compilation test-semantic validate quality-gate coverage \
         clean-test lint lint-rust lint-frontend clippy fmt format fmt-check fmt-fix fmt-rust fmt-frontend fmt-docs \
         check bench install-deps help \
+        profile profile-transpiler profile-tests profile-cargo-toml \
         book-test book-test-fast book-build book-serve book-clean book-validate book-check
 
 # Configuration
@@ -254,6 +255,42 @@ test-profile: ## Performance profiling and analysis
 	@echo "Running performance profiling..."
 	$(CARGO) test --test performance_profiling $(TEST_FLAGS)
 	./scripts/run_performance_suite.sh
+
+##@ Renacer Profiling (https://github.com/paiml/renacer)
+
+profile: ## Profile transpiler with Renacer (requires: cargo install renacer)
+	@if ! command -v renacer >/dev/null 2>&1; then \
+		echo "❌ Renacer not found! Install with: cargo install renacer"; \
+		exit 1; \
+	fi
+	@echo "🔍 Profiling transpiler with Renacer..."
+	@./scripts/profile_transpiler.sh examples/matrix_testing_project/07_algorithms/algorithms.py
+
+profile-transpiler: ## Profile transpiler on a specific file (use FILE=path/to/file.py)
+	@if ! command -v renacer >/dev/null 2>&1; then \
+		echo "❌ Renacer not found! Install with: cargo install renacer"; \
+		exit 1; \
+	fi
+	@if [ -z "$(FILE)" ]; then \
+		echo "Usage: make profile-transpiler FILE=examples/script.py"; \
+		exit 1; \
+	fi
+	@./scripts/profile_transpiler.sh $(FILE)
+
+profile-tests: ## Find slow tests using Renacer (shows tests >100ms)
+	@if ! command -v renacer >/dev/null 2>&1; then \
+		echo "❌ Renacer not found! Install with: cargo install renacer"; \
+		exit 1; \
+	fi
+	@echo "🐌 Finding slow tests (>100ms)..."
+	@./scripts/profile_tests.sh --slow-only
+
+profile-cargo-toml: ## Profile DEPYLER-0384 Cargo.toml generation overhead
+	@if ! command -v renacer >/dev/null 2>&1; then \
+		echo "❌ Renacer not found! Install with: cargo install renacer"; \
+		exit 1; \
+	fi
+	@./scripts/profile_cargo_toml_gen.sh
 
 test-memory: ## Memory usage validation
 	@echo "Running memory tests..."
