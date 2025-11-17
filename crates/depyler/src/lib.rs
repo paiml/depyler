@@ -604,7 +604,8 @@ pub fn transpile_command(
         eprintln!("  - Parsing Python source...");
     }
 
-    let rust_code = pipeline.transpile(&python_source)?;
+    // DEPYLER-0384: Use transpile_with_dependencies to get both code and dependencies
+    let (rust_code, dependencies) = pipeline.transpile_with_dependencies(&python_source)?;
     let parse_time = parse_start.elapsed();
 
     // Trace: Transpilation complete
@@ -612,6 +613,7 @@ pub fn transpile_command(
         eprintln!("  - Parse time: {:.2}ms", parse_time.as_millis());
         eprintln!("\nPhase 3: Code Generation");
         eprintln!("  - Generated Rust code: {} bytes", rust_code.len());
+        eprintln!("  - Dependencies detected: {}", dependencies.len());
         eprintln!("  - Generation complete");
         eprintln!();
     }
@@ -647,6 +649,32 @@ pub fn transpile_command(
     });
 
     fs::write(&output_path, &rust_code)?;
+
+    // DEPYLER-0384: Generate and write Cargo.toml if dependencies exist
+    if !dependencies.is_empty() {
+        // Extract package name from output file stem (e.g., "example_stdlib" from "example_stdlib.rs")
+        let package_name = output_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("transpiled_package");
+
+        // Generate Cargo.toml content
+        let cargo_toml_content = depyler_core::cargo_toml_gen::generate_cargo_toml(
+            package_name,
+            &dependencies,
+        );
+
+        // Write Cargo.toml to the same directory as the output file
+        let mut cargo_toml_path = output_path.clone();
+        cargo_toml_path.set_file_name("Cargo.toml");
+
+        fs::write(&cargo_toml_path, &cargo_toml_content)?;
+
+        if trace {
+            eprintln!("  - Generated Cargo.toml: {}", cargo_toml_path.display());
+        }
+    }
+
     pb.inc(1);
 
     pb.finish_and_clear();
@@ -668,6 +696,14 @@ pub fn transpile_command(
         output_path.display(),
         rust_code.len()
     );
+
+    // DEPYLER-0384: Show Cargo.toml generation
+    if !dependencies.is_empty() {
+        let mut cargo_toml_path = output_path.clone();
+        cargo_toml_path.set_file_name("Cargo.toml");
+        println!("📦 Cargo.toml: {} ({} dependencies)", cargo_toml_path.display(), dependencies.len());
+    }
+
     println!("⏱️  Parse time: {:.2}ms", parse_time.as_millis());
     println!("📊 Throughput: {throughput:.1} KB/s");
     println!("⏱️  Total time: {:.2}ms", total_time.as_millis());

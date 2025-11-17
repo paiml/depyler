@@ -447,7 +447,7 @@ fn test_array_length_subtraction_safety() {
     };
 
     let type_mapper = TypeMapper::default();
-    let result = generate_rust_file(&module, &type_mapper).unwrap();
+    let (result, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // Verify that saturating_sub is used
     assert!(
@@ -484,7 +484,7 @@ fn test_regular_subtraction_unchanged() {
     };
 
     let type_mapper = TypeMapper::default();
-    let result = generate_rust_file(&module, &type_mapper).unwrap();
+    let (result, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // Verify regular subtraction doesn't use saturating_sub
     assert!(
@@ -525,7 +525,7 @@ fn test_len_variable_subtraction_safety() {
     };
 
     let type_mapper = TypeMapper::default();
-    let result = generate_rust_file(&module, &type_mapper).unwrap();
+    let (result, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // Should use saturating_sub for len() - variable
     assert!(

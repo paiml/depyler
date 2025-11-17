@@ -55,7 +55,7 @@ mod baseline_tests {
 
         assert!(result.is_ok(), "Empty module should generate valid code");
 
-        if let Ok(code) = result {
+        if let Ok((code, _dependencies)) = result {
             let parse_result = syn::parse_file(&code);
             assert!(
                 parse_result.is_ok(),
@@ -74,7 +74,7 @@ mod baseline_tests {
         let output2 = generate_rust_file(&module, &type_mapper);
 
         assert_eq!(output1.is_ok(), output2.is_ok());
-        if let (Ok(code1), Ok(code2)) = (output1, output2) {
+        if let (Ok((code1, _deps1)), Ok((code2, _deps2))) = (output1, output2) {
             assert_eq!(code1, code2, "Output must be deterministic");
         }
     }
@@ -109,7 +109,7 @@ mod simple_function_tests {
             "Simple function should transpile successfully"
         );
 
-        if let Ok(code) = result {
+        if let Ok((code, _dependencies)) = result {
             assert!(syn::parse_file(&code).is_ok(), "Code must be valid Rust");
             assert!(code.contains("fn "), "Should contain function declaration");
         }
@@ -126,7 +126,7 @@ mod simple_function_tests {
 
         assert!(result.is_ok());
 
-        if let Ok(code) = result {
+        if let Ok((code, _dependencies)) = result {
             assert!(
                 code.contains(func_name),
                 "Function name '{}' should appear in output",
@@ -146,7 +146,7 @@ mod simple_function_tests {
         let output2 = generate_rust_file(&module, &type_mapper);
 
         assert_eq!(output1.is_ok(), output2.is_ok());
-        if let (Ok(code1), Ok(code2)) = (output1, output2) {
+        if let (Ok((code1, _deps1)), Ok((code2, _deps2))) = (output1, output2) {
             assert_eq!(code1, code2, "Output must be deterministic");
         }
     }
@@ -170,7 +170,7 @@ mod multiple_functions_tests {
 
         assert!(result.is_ok());
 
-        if let Ok(code) = result {
+        if let Ok((code, _dependencies)) = result {
             assert!(code.contains("fn func1"));
             assert!(code.contains("fn func2"));
             assert!(code.contains("fn func3"));
@@ -192,7 +192,7 @@ mod multiple_functions_tests {
         let output2 = generate_rust_file(&module, &type_mapper);
 
         assert_eq!(output1.is_ok(), output2.is_ok());
-        if let (Ok(code1), Ok(code2)) = (output1, output2) {
+        if let (Ok((code1, _deps1)), Ok((code2, _deps2))) = (output1, output2) {
             assert_eq!(code1, code2);
         }
     }
@@ -221,7 +221,7 @@ mod function_with_params_tests {
 
         assert!(result.is_ok(), "Function with param should transpile");
 
-        if let Ok(code) = result {
+        if let Ok((code, _dependencies)) = result {
             assert!(code.contains("fn add_one"));
             assert!(syn::parse_file(&code).is_ok());
         }
@@ -256,7 +256,7 @@ mod function_with_params_tests {
             "Function with multiple params should transpile"
         );
 
-        if let Ok(code) = result {
+        if let Ok((code, _dependencies)) = result {
             assert!(code.contains("fn add"));
             assert!(syn::parse_file(&code).is_ok());
         }
@@ -291,7 +291,7 @@ mod regression_tests {
 
         for module in test_cases {
             let result = generate_rust_file(&module, &type_mapper);
-            if let Ok(code) = result {
+            if let Ok((code, _dependencies)) = result {
                 assert!(
                     syn::parse_file(&code).is_ok(),
                     "All generated code must parse as valid Rust"

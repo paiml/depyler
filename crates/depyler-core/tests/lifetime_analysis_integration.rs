@@ -32,7 +32,7 @@ fn test_lifetime_inference_for_string_parameter() {
     };
 
     let type_mapper = TypeMapper::new();
-    let rust_code = generate_rust_file(&module, &type_mapper).unwrap();
+    let (rust_code, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // The generated code should use a reference for the string parameter
     assert!(
@@ -108,7 +108,7 @@ fn test_lifetime_inference_with_multiple_parameters() {
     };
 
     let type_mapper = TypeMapper::new();
-    let rust_code = generate_rust_file(&module, &type_mapper).unwrap();
+    let (rust_code, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // Both parameters should be borrowed
     assert!(rust_code.contains("pub fn concat_strings"));
