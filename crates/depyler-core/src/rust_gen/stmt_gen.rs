@@ -1386,10 +1386,10 @@ pub(crate) fn codegen_assign_stmt(
         // When assigning a string literal to a String typed variable, add .to_string()
         // Example: `let version: String = "Python 3.x"` should become
         //          `let version: String = "Python 3.x".to_string()`
-        if matches!(value, HirExpr::Literal(Literal::String(_))) {
-            if matches!(target_rust_type, crate::type_mapper::RustType::String) {
-                value_expr = parse_quote! { #value_expr.to_string() };
-            }
+        if matches!(value, HirExpr::Literal(Literal::String(_)))
+            && matches!(target_rust_type, crate::type_mapper::RustType::String)
+        {
+            value_expr = parse_quote! { #value_expr.to_string() };
         }
 
         Some(quote! { : #target_syn_type })

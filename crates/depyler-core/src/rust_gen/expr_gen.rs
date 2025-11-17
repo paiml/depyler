@@ -3542,19 +3542,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let result = match method {
             // MD5 hash
             "md5" => {
-                if arg_exprs.len() != 1 {
-                    bail!("hashlib.md5() requires exactly 1 argument");
+                if arg_exprs.len() > 1 {
+                    bail!("hashlib.md5() accepts 0 or 1 arguments");
                 }
                 self.ctx.needs_md5 = true;
-                let data = &arg_exprs[0];
 
                 // hashlib.md5(data) → hex::encode(md5::compute(data))
-                parse_quote! {
-                    {
-                        use md5::Digest;
-                        let mut hasher = md5::Md5::new();
-                        hasher.update(#data);
-                        hex::encode(hasher.finalize())
+                // If no arguments, use empty bytes (Python default: data=b'')
+                if arg_exprs.is_empty() {
+                    parse_quote! {
+                        {
+                            use md5::Digest;
+                            let mut hasher = md5::Md5::new();
+                            hex::encode(hasher.finalize())
+                        }
+                    }
+                } else {
+                    let data = &arg_exprs[0];
+                    parse_quote! {
+                        {
+                            use md5::Digest;
+                            let mut hasher = md5::Md5::new();
+                            hasher.update(#data);
+                            hex::encode(hasher.finalize())
+                        }
                     }
                 }
             }
@@ -3597,18 +3608,29 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // SHA-256 hash
             "sha256" => {
-                if arg_exprs.len() != 1 {
-                    bail!("hashlib.sha256() requires exactly 1 argument");
+                if arg_exprs.len() > 1 {
+                    bail!("hashlib.sha256() accepts 0 or 1 arguments");
                 }
                 self.ctx.needs_sha2 = true;
-                let data = &arg_exprs[0];
 
-                parse_quote! {
-                    {
-                        use sha2::Digest;
-                        let mut hasher = sha2::Sha256::new();
-                        hasher.update(#data);
-                        hex::encode(hasher.finalize())
+                // If no arguments, use empty bytes (Python default: data=b'')
+                if arg_exprs.is_empty() {
+                    parse_quote! {
+                        {
+                            use sha2::Digest;
+                            let mut hasher = sha2::Sha256::new();
+                            hex::encode(hasher.finalize())
+                        }
+                    }
+                } else {
+                    let data = &arg_exprs[0];
+                    parse_quote! {
+                        {
+                            use sha2::Digest;
+                            let mut hasher = sha2::Sha256::new();
+                            hasher.update(#data);
+                            hex::encode(hasher.finalize())
+                        }
                     }
                 }
             }
@@ -7085,8 +7107,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // DEPYLER-STDLIB-OSPATH: os.path file system operations
-            // Note: This handles both "os.path" and potentially "os" with path attribute
-            if module_name == "os.path" || module_name == "path" {
+            // Only match the actual module "os.path", not variables named "path"
+            // Variables named "path" are typically PathBuf instances from Path() constructor
+            if module_name == "os.path" {
                 return self.try_convert_os_path_method(method, args);
             }
 

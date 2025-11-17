@@ -100,6 +100,55 @@ impl StmtConverter {
     }
 
     fn convert_while(w: ast::StmtWhile) -> Result<HirStmt> {
+        // DEPYLER-0383: Detect walrus operator (NamedExpr) in while condition
+        // Python: while chunk := f.read(8192):
+        // Rust: loop { let chunk = f.read(8192); if chunk.is_empty() { break; } ... }
+        if let ast::Expr::NamedExpr(named) = *w.test {
+            // Extract variable name from target
+            let var_name = if let ast::Expr::Name(n) = *named.target {
+                n.id.to_string()
+            } else {
+                bail!("Walrus operator target must be a simple variable name");
+            };
+
+            // Convert the value expression
+            let value_expr = super::convert_expr(*named.value)?;
+
+            // Convert the body
+            let body = convert_body(w.body)?;
+
+            // Prepend the assignment and truthiness check to the body
+            // loop { let var = expr; if !truthiness { break; } ...body... }
+            let assign = HirStmt::Assign {
+                target: AssignTarget::Symbol(var_name.clone()),
+                value: value_expr.clone(),
+                type_annotation: None,
+            };
+
+            // Create truthiness check: if chunk.is_empty() { break; }
+            // For now, use simple .is_empty() check (works for Vec, String)
+            let truthiness_check = HirStmt::If {
+                condition: HirExpr::MethodCall {
+                    object: Box::new(HirExpr::Var(var_name.clone())),
+                    method: "is_empty".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                },
+                then_body: vec![HirStmt::Break { label: None }],
+                else_body: None,
+            };
+
+            // Prepend assignment and check to body
+            let mut loop_body = vec![assign, truthiness_check];
+            loop_body.extend(body);
+
+            // Convert to While(true) { ... } which is equivalent to loop { ... }
+            return Ok(HirStmt::While {
+                condition: HirExpr::Literal(crate::hir::Literal::Bool(true)),
+                body: loop_body,
+            });
+        }
+
         let condition = super::convert_expr(*w.test)?;
         let body = convert_body(w.body)?;
         Ok(HirStmt::While { condition, body })
