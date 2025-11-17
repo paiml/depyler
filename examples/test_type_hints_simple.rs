@@ -30,7 +30,7 @@ pub fn process_text(text: &str) {
     result
 }
 #[doc = "Calculate average - should infer list of numbers."]
-pub fn calculate_average(numbers: &serde_json::Value) -> Result<(), ZeroDivisionError> {
+pub fn calculate_average(numbers: &serde_json::Value) -> Result<i32, ZeroDivisionError> {
     let mut total = 0;
     let mut count = 0;
     for num in numbers.iter().cloned() {

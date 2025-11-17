@@ -410,12 +410,15 @@ impl DepylerPipeline {
                 }
 
                 // Apply return type hints
+                // DEPYLER-0400: Accept Medium confidence for return types from explicit returns
                 if matches!(func.ret_type, hir::Type::Unknown) {
                     for hint in &hints {
                         if matches!(hint.target, type_hints::HintTarget::Return)
                             && matches!(
                                 hint.confidence,
-                                type_hints::Confidence::High | type_hints::Confidence::Certain
+                                type_hints::Confidence::Medium
+                                    | type_hints::Confidence::High
+                                    | type_hints::Confidence::Certain
                             )
                         {
                             func.ret_type = hint.suggested_type.clone();
@@ -544,12 +547,15 @@ impl DepylerPipeline {
                 }
 
                 // Apply return type hints
+                // DEPYLER-0400: Accept Medium confidence for return types from explicit returns
                 if matches!(func.ret_type, hir::Type::Unknown) {
                     for hint in &hints {
                         if matches!(hint.target, type_hints::HintTarget::Return)
                             && matches!(
                                 hint.confidence,
-                                type_hints::Confidence::High | type_hints::Confidence::Certain
+                                type_hints::Confidence::Medium
+                                    | type_hints::Confidence::High
+                                    | type_hints::Confidence::Certain
                             )
                         {
                             func.ret_type = hint.suggested_type.clone();

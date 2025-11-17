@@ -18,7 +18,7 @@ impl IndexError {
 }
 #[doc = "Shows accumulator pattern."]
 #[doc = " Depyler: verified panic-free"]
-pub fn accumulator_example(items: &serde_json::Value) {
+pub fn accumulator_example(items: &serde_json::Value) -> Vec<serde_json::Value> {
     let mut result = vec![];
     for item in items.iter().cloned() {
         result.push(item * 2);
@@ -27,10 +27,10 @@ pub fn accumulator_example(items: &serde_json::Value) {
 }
 #[doc = "Shows inefficient string building."]
 #[doc = " Depyler: verified panic-free"]
-pub fn string_concat_example(values: &serde_json::Value) {
+pub fn string_concat_example(values: &serde_json::Value) -> String {
     let mut output = "";
     for val in values.iter().cloned() {
-        output = output + val.to_string();
+        output = format!("{}{}", output, val.to_string());
     }
     output
 }
@@ -47,7 +47,7 @@ pub fn enumerate_example(data: &serde_json::Value) -> Result<(), IndexError> {
 }
 #[doc = "Shows while True pattern."]
 #[doc = " Depyler: verified panic-free"]
-pub fn while_true_example() {
+pub fn while_true_example() -> i32 {
     let mut count = 0;
     while true {
         count = count + 1;
@@ -56,4 +56,13 @@ pub fn while_true_example() {
         }
     }
     count
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_while_true_example_examples() {
+        let _ = while_true_example();
+    }
 }

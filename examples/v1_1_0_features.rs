@@ -76,7 +76,7 @@ pub fn test_power_operator() {
 }
 #[doc = "Break and continue in loops"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_break_continue() -> Result<(), ZeroDivisionError> {
+pub fn test_break_continue() -> Result<i32, ZeroDivisionError> {
     for i in 0..10 {
         if i == 5 {
             break;
@@ -90,4 +90,13 @@ pub fn test_break_continue() -> Result<(), ZeroDivisionError> {
         count = count + 1;
     }
     Ok(count)
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_test_break_continue_examples() {
+        let _ = test_break_continue();
+    }
 }

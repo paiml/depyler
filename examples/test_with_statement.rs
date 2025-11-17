@@ -1,3 +1,4 @@
+use serde_json;
 #[derive(Debug, Clone)]
 pub struct FileManager {
     pub filename: String,
@@ -41,10 +42,19 @@ pub fn test_simple_with() {
 #[doc = "Test with built-in open"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_with_builtin() {
+pub fn test_with_builtin() -> i32 {
     {
         let f = std::fs::File::create("test.txt".to_string())?;
         f.write("Hello, World!".to_string());
     }
     1
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_test_with_builtin_examples() {
+        let _ = test_with_builtin();
+    }
 }

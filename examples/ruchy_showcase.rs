@@ -92,7 +92,7 @@ else {
 #[doc = "Process text data."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn process_text(text: & str) -> String {
     text.to_uppercase()
 }
-#[doc = "Example that could be transformed to match expression."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn pattern_matching_example(value: & serde_json::Value) {
+#[doc = "Example that could be transformed to match expression."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn pattern_matching_example(value: & serde_json::Value) -> String {
     if true {
     format!("Integer: {:?}", value)
 }

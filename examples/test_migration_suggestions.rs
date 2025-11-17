@@ -1,7 +1,7 @@
 use serde_json;
 #[doc = "Pattern: accumulator - should suggest iterator methods."]
 #[doc = " Depyler: verified panic-free"]
-pub fn accumulator_pattern(items: &serde_json::Value) {
+pub fn accumulator_pattern(items: &serde_json::Value) -> Vec<serde_json::Value> {
     let mut result = vec![];
     for item in items.iter().cloned() {
         if item > 0 {
@@ -47,18 +47,10 @@ pub fn type_checking_pattern(value: &str) {
 }
 #[doc = "Pattern: string concatenation - should suggest efficient methods."]
 #[doc = " Depyler: verified panic-free"]
-pub fn inefficient_string_building(items: &serde_json::Value) {
+pub fn inefficient_string_building(items: &serde_json::Value) -> String {
     let mut result = "";
     for item in items.iter().cloned() {
-        result = format!(
-            "{}{}",
-            result
-                .iter()
-                .chain(item.to_string().iter())
-                .cloned()
-                .collect::<Vec<_>>(),
-            ", "
-        );
+        result = format!("{}{}", format!("{}{}", result, item.to_string()), ", ");
     }
     result
 }
@@ -79,7 +71,7 @@ pub fn enumerate_pattern(items: &serde_json::Value) {
 }
 #[doc = "Pattern: filter + map in loop - should suggest filter_map."]
 #[doc = " Depyler: verified panic-free"]
-pub fn filter_map_pattern(data: &mut serde_json::Value) {
+pub fn filter_map_pattern(data: &mut serde_json::Value) -> Vec<serde_json::Value> {
     let mut output = vec![];
     for x in data.iter().cloned() {
         if x > 0 {
@@ -90,7 +82,7 @@ pub fn filter_map_pattern(data: &mut serde_json::Value) {
 }
 #[doc = "Pattern: while True - should suggest loop."]
 #[doc = " Depyler: verified panic-free"]
-pub fn while_true_pattern() {
+pub fn while_true_pattern() -> i32 {
     let mut counter = 0;
     while true {
         counter = counter + 1;
@@ -127,13 +119,17 @@ pub fn process(x: serde_json::Value) {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn default_value() {
+pub fn default_value() -> i32 {
     0
 }
 #[cfg(test)]
 mod tests {
     use super::*;
     use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_while_true_pattern_examples() {
+        let _ = while_true_pattern();
+    }
     #[test]
     fn quickcheck_process() {
         fn prop(x: ()) -> TestResult {
@@ -144,5 +140,9 @@ mod tests {
             TestResult::passed()
         }
         quickcheck(prop as fn(()) -> TestResult);
+    }
+    #[test]
+    fn test_default_value_examples() {
+        let _ = default_value();
     }
 }
