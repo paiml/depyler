@@ -116,8 +116,8 @@ fn extract_nested_indices(
 ///         HirFunction {
 ///             name: "add".to_string(),
 ///             params: smallvec![
-///                 ("a".to_string(), Type::Int),
-///                 ("b".to_string(), Type::Int)
+///                 HirParam { name: "a".to_string(), ty: Type::Int, default: None },
+///                 HirParam { name: "b".to_string(), ty: Type::Int, default: None }
 ///             ],
 ///             ret_type: Type::Int,
 ///             body: vec![
