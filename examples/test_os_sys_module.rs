@@ -1,7 +1,7 @@
 use std as os;
 use std as sys;
-const STR__: &'static str = "/";
 const STR_EMPTY: &'static str = "";
+const STR__: &'static str = "/";
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct IndexError {
@@ -31,14 +31,14 @@ pub fn test_sys_argv() -> Vec<String> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sys_version_info() -> String {
-    let version: String = "Python 3.x";
+    let version: String = "Python 3.x".to_string();
     version
 }
 #[doc = "Test platform detection"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sys_platform() -> String {
-    let platform: String = "linux";
+    let platform: String = "linux".to_string();
     platform
 }
 #[doc = "Test exit code handling(without actually exiting)"]
@@ -56,15 +56,16 @@ pub fn test_sys_exit_code() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_env_variable_access() -> String {
-    let home: String = std::env::var("HOME".to_string(), "/home/user");
+    let home: String =
+        std::env::var("HOME".to_string()).unwrap_or_else(|_| "/home/user".to_string());
     home
 }
 #[doc = "Test if environment variable exists"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_env_variable_exists() -> bool {
-    let var_name: String = "PATH";
-    let _cse_temp_0 = std::env::vars.contains_key(&var_name);
+    let var_name: String = "PATH".to_string();
+    let _cse_temp_0 = std::env::var(var_name).is_ok();
     let exists: bool = _cse_temp_0;
     exists
 }
@@ -82,9 +83,9 @@ pub fn test_current_directory() -> String {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_path_join() -> String {
-    let base: String = "/home/user";
-    let relative: String = "documents";
-    let filename: String = "file.txt";
+    let base: String = "/home/user".to_string();
+    let relative: String = "documents".to_string();
+    let filename: String = "file.txt".to_string();
     let _cse_temp_0 = format!("{}{}", format!("{}{}", base, STR__), relative);
     let _cse_temp_1 = format!("{}{}", format!("{}{}", _cse_temp_0, STR__), filename);
     let full_path: String = _cse_temp_1;
@@ -93,7 +94,7 @@ pub fn test_path_join() -> String {
 #[doc = "Test extracting basename from path"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_path_basename() -> Result<String, IndexError> {
-    let path: String = "/home/user/documents/file.txt";
+    let path: String = "/home/user/documents/file.txt".to_string();
     let mut last_slash: i32 = -1;
     for i in {
         let step = (-1 as i32).abs() as usize;
@@ -129,7 +130,7 @@ pub fn test_path_basename() -> Result<String, IndexError> {
 #[doc = "Test extracting directory name from path"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_path_dirname() -> Result<String, IndexError> {
-    let path: String = "/home/user/documents/file.txt";
+    let path: String = "/home/user/documents/file.txt".to_string();
     let mut last_slash: i32 = -1;
     for i in {
         let step = (-1 as i32).abs() as usize;
@@ -154,14 +155,14 @@ pub fn test_path_dirname() -> Result<String, IndexError> {
             base[..stop.min(base.len())].to_vec()
         };
     } else {
-        dirname = STR__;
+        dirname = STR__.to_string();
     }
     Ok(dirname)
 }
 #[doc = "Test splitting path into directory and basename"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_path_split() -> Result<(), IndexError> {
-    let path: String = "/home/user/documents/file.txt";
+    let path: String = "/home/user/documents/file.txt".to_string();
     let mut last_slash: i32 = -1;
     for i in {
         let step = (-1 as i32).abs() as usize;
@@ -196,7 +197,7 @@ pub fn test_path_split() -> Result<(), IndexError> {
             }
         };
     } else {
-        dirname = STR_EMPTY;
+        dirname = STR_EMPTY.to_string();
         basename = path;
     }
     Ok((dirname, basename))
@@ -204,7 +205,7 @@ pub fn test_path_split() -> Result<(), IndexError> {
 #[doc = "Test splitting path into name and extension"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_path_splitext() -> Result<(), IndexError> {
-    let path: String = "document.txt";
+    let path: String = "document.txt".to_string();
     let mut last_dot: i32 = -1;
     for i in {
         let step = (-1 as i32).abs() as usize;
@@ -221,8 +222,8 @@ pub fn test_path_splitext() -> Result<(), IndexError> {
         }
     }
     let _cse_temp_0 = last_dot > 0;
-    let mut ext: String;
     let mut name: String;
+    let mut ext: String;
     if _cse_temp_0 {
         name = {
             let base = path;
@@ -240,14 +241,14 @@ pub fn test_path_splitext() -> Result<(), IndexError> {
         };
     } else {
         name = path;
-        ext = STR_EMPTY;
+        ext = STR_EMPTY.to_string();
     }
     Ok((name, ext))
 }
 #[doc = "Test if path is absolute"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_path_isabs() -> Result<bool, IndexError> {
-    let path: String = "/home/user/file.txt";
+    let path: String = "/home/user/file.txt".to_string();
     let _cse_temp_0 = path.len() as i32;
     let _cse_temp_1 = _cse_temp_0 > 0;
     let _cse_temp_2 = path.get(0usize).cloned().unwrap_or_default() == STR__;
@@ -259,7 +260,7 @@ pub fn test_path_isabs() -> Result<bool, IndexError> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_path_normpath() -> String {
-    let path: String = "/home//user/../user/./documents";
+    let path: String = "/home//user/../user/./documents".to_string();
     let normalized: String = path.replace("//", "/");
     normalized
 }
@@ -294,7 +295,7 @@ pub fn get_file_extension(filename: &str) -> Result<String, IndexError> {
             }
         };
     } else {
-        extension = STR_EMPTY;
+        extension = STR_EMPTY.to_string();
     }
     Ok(extension)
 }
@@ -342,7 +343,7 @@ pub fn test_listdir_simulation() -> Vec<String> {
 }
 #[doc = "Filter files by extension"]
 #[doc = " Depyler: verified panic-free"]
-pub fn filter_by_extension<'b, 'a>(
+pub fn filter_by_extension<'a, 'b>(
     files: &'a Vec<String>,
     ext: &'b mut str,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
@@ -394,8 +395,8 @@ pub fn test_path_traversal(path: &mut str, max_depth: i32) -> i32 {
 #[doc = "Remove invalid characters from filename"]
 #[doc = " Depyler: verified panic-free"]
 pub fn sanitize_filename(filename: &str) -> String {
-    let invalid_chars: String = "<>:\"|?*";
-    let mut sanitized: String = STR_EMPTY;
+    let invalid_chars: String = "<>:\"|?*".to_string();
+    let mut sanitized: String = STR_EMPTY.to_string();
     for char in filename.iter().cloned() {
         let mut is_invalid: bool = false;
         for invalid in invalid_chars.iter().cloned() {

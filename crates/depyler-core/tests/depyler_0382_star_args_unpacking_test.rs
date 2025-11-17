@@ -119,7 +119,15 @@ mod property_tests {
         }
 
         let parts_str = parts.iter()
-            .map(|s| format!("\"{}\"", s.replace("\"", "\\\"")))
+            .map(|s| {
+                let escaped = s
+                    .replace("\\", "\\\\")  // Backslash first
+                    .replace("\"", "\\\"")  // Double quotes
+                    .replace("\n", "\\n")   // Newlines
+                    .replace("\r", "\\r")   // Carriage returns
+                    .replace("\t", "\\t");  // Tabs
+                format!("\"{}\"", escaped)
+            })
             .collect::<Vec<_>>()
             .join(", ");
 

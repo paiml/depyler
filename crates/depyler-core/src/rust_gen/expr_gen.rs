@@ -505,6 +505,37 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_call(&mut self, func: &str, args: &[HirExpr]) -> Result<syn::Expr> {
+        // DEPYLER-0382: Handle os.path.join(*parts) starred unpacking
+        if func == "__os_path_join_starred" {
+            if args.len() != 1 {
+                bail!("__os_path_join_starred expects exactly 1 argument");
+            }
+            let parts = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! {
+                if #parts.is_empty() {
+                    String::new()
+                } else {
+                    #parts.join(std::path::MAIN_SEPARATOR_STR)
+                }
+            });
+        }
+
+        // DEPYLER-0382: Handle print(*items) starred unpacking
+        if func == "__print_starred" {
+            if args.len() != 1 {
+                bail!("__print_starred expects exactly 1 argument");
+            }
+            let items = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! {
+                {
+                    for item in #items {
+                        print!("{} ", item);
+                    }
+                    println!();
+                }
+            });
+        }
+
         // DEPYLER-0363: Handle ArgumentParser() → Skip for now, will be replaced with struct generation
         // ArgumentParser pattern requires complex transformation:
         // - Accumulate add_argument() calls

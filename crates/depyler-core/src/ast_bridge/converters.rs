@@ -288,6 +288,9 @@ impl ExprConverter {
             ast::Expr::Yield(y) => Self::convert_yield(y),
             ast::Expr::JoinedStr(js) => Self::convert_fstring(js),
             ast::Expr::IfExp(i) => Self::convert_ifexp(i),
+            // DEPYLER-0382: Handle starred expressions (e.g., *args in function calls)
+            // When used as a regular argument, just unwrap and pass the inner expression
+            ast::Expr::Starred(s) => Self::convert(*s.value),
             _ => bail!("Expression type not yet supported"),
         }
     }
@@ -407,6 +410,62 @@ impl ExprConverter {
                     });
                 }
             }
+        }
+
+        // DEPYLER-0382: Handle *args unpacking for supported functions
+        // Check if any args use the Starred expression (unpacking operator)
+        let has_starred = c.args.iter().any(|arg| matches!(arg, ast::Expr::Starred(_)));
+
+        if has_starred {
+            // Special handling for os.path.join(*parts)
+            if let ast::Expr::Attribute(attr) = &*c.func {
+                // Check if this is os.path.join
+                if let ast::Expr::Attribute(inner_attr) = &*attr.value {
+                    if let ast::Expr::Name(module_name) = &*inner_attr.value {
+                        if module_name.id.as_str() == "os"
+                            && inner_attr.attr.as_str() == "path"
+                            && attr.attr.as_str() == "join"
+                        {
+                            // Extract the starred argument
+                            if let Some(ast::Expr::Starred(starred)) = c.args.iter().find(|arg| matches!(arg, ast::Expr::Starred(_))) {
+                                let parts_expr = Self::convert(*starred.value.clone())?;
+
+                                // Create a method call: parts.join(MAIN_SEPARATOR_STR)
+                                // We'll represent this as a special Call that the Rust generator knows how to handle
+                                return Ok(HirExpr::Call {
+                                    func: "__os_path_join_starred".to_string(),
+                                    args: vec![parts_expr],
+                                    kwargs: vec![],
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Special handling for print(*items)
+            if let ast::Expr::Name(name) = &*c.func {
+                if name.id.as_str() == "print" {
+                    // Extract the starred argument
+                    if let Some(ast::Expr::Starred(starred)) = c.args.iter().find(|arg| matches!(arg, ast::Expr::Starred(_))) {
+                        let items_expr = Self::convert(*starred.value.clone())?;
+
+                        // Create a special Call that the Rust generator knows how to handle
+                        return Ok(HirExpr::Call {
+                            func: "__print_starred".to_string(),
+                            args: vec![items_expr],
+                            kwargs: vec![],
+                        });
+                    }
+                }
+            }
+
+            // General case: For user-defined functions with *args, just pass the argument directly
+            // Python: func(*items) where func is user-defined
+            // Rust: func(items) where func accepts &[T] or Vec<T>
+            // This allows forwarding variadic arguments without special handling
+            // DEPYLER-0382: General forwarding for user-defined variadic functions
+            // We don't need to bail - just convert the starred args to regular args by unwrapping them
         }
 
         let args = c
