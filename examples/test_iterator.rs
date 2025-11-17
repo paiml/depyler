@@ -27,7 +27,7 @@ impl Range {
 }
 #[doc = "Test custom iterator"]
 #[doc = " Depyler: verified panic-free"]
-pub fn test_custom_iterator() {
+pub fn test_custom_iterator() -> i32 {
     let mut r = Range::new(0, 5);
     let mut total = 0;
     let mut value = r.__next__();
@@ -39,11 +39,24 @@ pub fn test_custom_iterator() {
 }
 #[doc = "Test for loop with iterator"]
 #[doc = " Depyler: verified panic-free"]
-pub fn test_for_with_iterator() {
+pub fn test_for_with_iterator() -> i32 {
     let mut r = Range::new(0, 5);
     let mut total = 0;
     for i in r.iter().cloned() {
         total = total + i;
     }
     total
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_test_custom_iterator_examples() {
+        let _ = test_custom_iterator();
+    }
+    #[test]
+    fn test_test_for_with_iterator_examples() {
+        let _ = test_for_with_iterator();
+    }
 }
