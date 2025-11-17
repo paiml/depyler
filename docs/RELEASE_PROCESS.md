@@ -138,7 +138,7 @@ Quality Metrics:
 - Tests: 100% passing
 - Clippy: 0 warnings
 
-🤖 Generated with [Claude Code](https://claude.ai/code)
+🤖 Generated with Claude Code
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
 

@@ -400,4 +400,4 @@ kubectl logs -f deployment/depyler-agent
 
 ---
 
-For more Docker examples and configurations, see the [`/docker`](./docker/) directory in the repository.
+For more Docker examples and configurations, check the repository for additional resources.
