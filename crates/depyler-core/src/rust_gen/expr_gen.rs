@@ -1119,6 +1119,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "ord" => self.convert_ord_builtin(&arg_exprs),
             "hash" => self.convert_hash_builtin(&arg_exprs),
             "repr" => self.convert_repr_builtin(&arg_exprs),
+            // DEPYLER-0387: File I/O builtin
+            "open" => self.convert_open_builtin(args, &arg_exprs),
             // DEPYLER-STDLIB-50: next(), getattr(), iter(), type()
             "next" => self.convert_next_builtin(&arg_exprs),
             "getattr" => self.convert_getattr_builtin(&arg_exprs),
@@ -1846,6 +1848,65 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! {
             #char_str.chars().next().unwrap() as i32
         })
+    }
+
+    /// Convert Python open() to Rust file I/O
+    /// DEPYLER-0387: File I/O builtin for context managers
+    ///
+    /// Maps Python open() to Rust std::fs:
+    /// - open(path) or open(path, 'r') → std::fs::File::open(path)?
+    /// - open(path, 'w') → std::fs::File::create(path)?
+    /// - open(path, 'a') → std::fs::OpenOptions::new().append(true).open(path)?
+    ///
+    /// # Complexity
+    /// ≤10 (match with 3 branches)
+    fn convert_open_builtin(
+        &self,
+        hir_args: &[HirExpr],
+        args: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        if args.is_empty() || args.len() > 2 {
+            bail!("open() requires 1 or 2 arguments");
+        }
+
+        let path = &args[0];
+
+        // Determine mode from second argument (default is 'r')
+        let mode = if args.len() == 2 {
+            // Try to extract string literal from HIR
+            if let Some(HirExpr::Literal(Literal::String(mode_str))) = hir_args.get(1) {
+                mode_str.as_str()
+            } else {
+                // If not a literal, default to read mode
+                "r"
+            }
+        } else {
+            "r" // Default mode
+        };
+
+        match mode {
+            "r" | "rb" => {
+                // Read mode → std::fs::File::open(path)?
+                Ok(parse_quote! { std::fs::File::open(#path)? })
+            }
+            "w" | "wb" => {
+                // Write mode → std::fs::File::create(path)?
+                Ok(parse_quote! { std::fs::File::create(#path)? })
+            }
+            "a" | "ab" => {
+                // Append mode → OpenOptions with append
+                Ok(parse_quote! {
+                    std::fs::OpenOptions::new()
+                        .append(true)
+                        .create(true)
+                        .open(#path)?
+                })
+            }
+            _ => {
+                // Unsupported mode, default to read
+                Ok(parse_quote! { std::fs::File::open(#path)? })
+            }
+        }
     }
 
     fn convert_hash_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
