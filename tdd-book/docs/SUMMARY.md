@@ -61,6 +61,5 @@
 
 # Development Guide
 
-- [Testing Examples](./testing.md)
-- [Contributing](./contributing.md)
-- [Quality Standards](./quality.md)
+- [Contributing](../../CONTRIBUTING.md)
+- [Quality Standards](../../CLAUDE.md)

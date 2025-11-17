@@ -589,7 +589,6 @@ depyler --version
 ## See Also
 
 - [Python Standard Library Modules](./modules/) - Supported stdlib modules
-- [Contributing Guide](./contributing.md) - How to contribute
-- [Quality Standards](./quality.md) - Code quality requirements
+- [Contributing Guide](../../CONTRIBUTING.md) - How to contribute
+- [Quality Standards](../../CLAUDE.md) - Code quality requirements
 - [GitHub Repository](https://github.com/paiml/depyler) - Source code
-- [Crates.io](https://crates.io/crates/depyler) - Package page
