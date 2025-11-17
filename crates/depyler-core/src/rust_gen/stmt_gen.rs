@@ -592,7 +592,52 @@ fn apply_truthiness_conversion(
     cond_expr
 }
 
+/// DEPYLER-0379: Extract all simple symbol assignments from a statement block
+///
+/// Returns a set of variable names that are assigned (not reassigned) in the block.
+/// Only captures simple symbol assignments like `x = value`, not `x[i] = value` or `x.attr = value`.
+///
+/// # Complexity
+/// 4 (recursive traversal with set operations)
+fn extract_assigned_symbols(stmts: &[HirStmt]) -> std::collections::HashSet<String> {
+    use std::collections::HashSet;
+    let mut symbols = HashSet::new();
+
+    for stmt in stmts {
+        match stmt {
+            HirStmt::Assign { target: AssignTarget::Symbol(name), .. } => {
+                symbols.insert(name.clone());
+            }
+            // Recursively check nested if/else, while, for, try blocks
+            HirStmt::If { then_body, else_body, .. } => {
+                symbols.extend(extract_assigned_symbols(then_body));
+                if let Some(else_stmts) = else_body {
+                    symbols.extend(extract_assigned_symbols(else_stmts));
+                }
+            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                symbols.extend(extract_assigned_symbols(body));
+            }
+            HirStmt::Try { body, handlers, finalbody, .. } => {
+                symbols.extend(extract_assigned_symbols(body));
+                for handler in handlers {
+                    symbols.extend(extract_assigned_symbols(&handler.body));
+                }
+                if let Some(finally) = finalbody {
+                    symbols.extend(extract_assigned_symbols(finally));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    symbols
+}
+
 /// Generate code for If statement with optional else clause
+///
+/// DEPYLER-0379: Implements variable hoisting for if/else blocks to fix scope issues.
+/// Variables assigned in BOTH if and else branches are hoisted before the if statement.
 #[inline]
 pub(crate) fn codegen_if_stmt(
     condition: &HirExpr,
@@ -600,6 +645,8 @@ pub(crate) fn codegen_if_stmt(
     else_body: &Option<Vec<HirStmt>>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    use std::collections::HashSet;
+
     let mut cond = condition.to_rust_expr(ctx)?;
 
     // DEPYLER-0308: Auto-unwrap Result<bool> in if conditions
@@ -618,6 +665,44 @@ pub(crate) fn codegen_if_stmt(
     // Convert non-boolean expressions to boolean (e.g., `if val` where val: String)
     cond = apply_truthiness_conversion(condition, cond, ctx);
 
+    // DEPYLER-0379: Variable hoisting - find variables assigned in BOTH branches
+    let hoisted_vars: HashSet<String> = if let Some(else_stmts) = else_body {
+        let then_vars = extract_assigned_symbols(then_body);
+        let else_vars = extract_assigned_symbols(else_stmts);
+        then_vars.intersection(&else_vars).cloned().collect()
+    } else {
+        HashSet::new()
+    };
+
+    // DEPYLER-0379: Generate hoisted variable declarations
+    let mut hoisted_decls = Vec::new();
+    for var_name in &hoisted_vars {
+        // Find the variable's type from the first assignment in either branch
+        let var_type = find_variable_type(var_name, then_body)
+            .or_else(|| {
+                if let Some(else_stmts) = else_body {
+                    find_variable_type(var_name, else_stmts)
+                } else {
+                    None
+                }
+            });
+
+        let var_ident = safe_ident(var_name); // DEPYLER-0023
+
+        if let Some(ty) = var_type {
+            let rust_type = ctx.type_mapper.map_type(&ty);
+            let syn_type = rust_type_to_syn(&rust_type)?;
+            hoisted_decls.push(quote! { let mut #var_ident: #syn_type; });
+        } else {
+            // No type annotation - use type inference placeholder
+            // Rust will infer the type from the assignments in the branches
+            hoisted_decls.push(quote! { let mut #var_ident; });
+        }
+
+        // Mark variable as declared so assignments use `var = value` not `let var = value`
+        ctx.declare_var(var_name);
+    }
+
     ctx.enter_scope();
     let then_stmts: Vec<_> = then_body
         .iter()
@@ -633,6 +718,7 @@ pub(crate) fn codegen_if_stmt(
             .collect::<Result<Vec<_>>>()?;
         ctx.exit_scope();
         Ok(quote! {
+            #(#hoisted_decls)*
             if #cond {
                 #(#then_stmts)*
             } else {
@@ -646,6 +732,29 @@ pub(crate) fn codegen_if_stmt(
             }
         })
     }
+}
+
+/// DEPYLER-0379: Find the type annotation for a variable in a statement block
+///
+/// Searches for the first Assign statement that assigns to the given variable
+/// and returns its type annotation if present.
+///
+/// # Complexity
+/// 3 (linear search with recursive check)
+fn find_variable_type(var_name: &str, stmts: &[HirStmt]) -> Option<Type> {
+    for stmt in stmts {
+        match stmt {
+            HirStmt::Assign {
+                target: AssignTarget::Symbol(name),
+                type_annotation,
+                ..
+            } if name == var_name => {
+                return type_annotation.clone();
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 /// Check if a variable is used in an expression
