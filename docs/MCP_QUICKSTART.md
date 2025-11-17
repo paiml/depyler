@@ -355,7 +355,7 @@ The AI will automatically:
 
 ## 🎓 Learning Resources
 
-- **Tutorial**: [Python to Rust Migration Guide](../docs/MIGRATION.md)
+- **Tutorial**: [Migration Guide](./migration-guide.md)
 - **Examples**: [examples/showcase/](../examples/showcase/)
 - **API Docs**: [docs.rs/depyler](https://docs.rs/depyler)
 - **Full Agent Docs**: [AGENT.md](../AGENT.md)
