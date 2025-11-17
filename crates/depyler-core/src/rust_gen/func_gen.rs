@@ -842,8 +842,14 @@ impl RustCodeGen for HirFunction {
                 // DEPYLER-0384: Set flag to include clap dependency in Cargo.toml
                 ctx.needs_clap = true;
 
+                // DEPYLER-0399: Generate Commands enum if subcommands exist
+                let commands_enum = crate::rust_gen::argparse_transform::generate_commands_enum(&ctx.argparser_tracker);
+                if !commands_enum.is_empty() {
+                    body_stmts.insert(0, commands_enum);
+                }
+
                 // Generate the Args struct definition
-                let args_struct = crate::rust_gen::argparse_transform::generate_args_struct(parser_info);
+                let args_struct = crate::rust_gen::argparse_transform::generate_args_struct(parser_info, &ctx.argparser_tracker);
 
                 // Prepend the struct to function body
                 body_stmts.insert(0, args_struct);

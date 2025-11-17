@@ -658,9 +658,16 @@ pub fn transpile_command(
             .and_then(|s| s.to_str())
             .unwrap_or("transpiled_package");
 
+        // Extract source file name for [[bin]] path (DEPYLER-0392)
+        let source_file_name = output_path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("main.rs");
+
         // Generate Cargo.toml content
         let cargo_toml_content = depyler_core::cargo_toml_gen::generate_cargo_toml(
             package_name,
+            source_file_name,
             &dependencies,
         );
 

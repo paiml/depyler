@@ -270,6 +270,44 @@ impl ArgParserArgument {
     }
 }
 
+/// DEPYLER-0399: Information about a subparser collection (from add_subparsers())
+///
+/// # Complexity
+/// N/A (data structure)
+#[derive(Debug, Clone, PartialEq)]
+pub struct SubparserInfo {
+    /// Parent parser variable name
+    pub parser_var: String,
+
+    /// Destination field name (from dest= parameter)
+    pub dest_field: String,
+
+    /// Whether subcommand is required
+    pub required: bool,
+
+    /// Help text for subparsers group
+    pub help: Option<String>,
+}
+
+/// DEPYLER-0399: Information about a single subcommand
+///
+/// # Complexity
+/// N/A (data structure)
+#[derive(Debug, Clone, PartialEq)]
+pub struct SubcommandInfo {
+    /// Subcommand name (e.g., "clone")
+    pub name: String,
+
+    /// Help text for this subcommand
+    pub help: Option<String>,
+
+    /// Arguments specific to this subcommand
+    pub arguments: Vec<ArgParserArgument>,
+
+    /// Parent subparsers variable
+    pub subparsers_var: String,
+}
+
 /// Container for ArgumentParser tracking in CodeGenContext
 ///
 /// # Complexity
@@ -278,6 +316,19 @@ impl ArgParserArgument {
 pub struct ArgParserTracker {
     /// Currently active ArgumentParser instances (keyed by variable name)
     pub parsers: HashMap<String, ArgParserInfo>,
+
+    /// DEPYLER-0396: Map argument group variables to their parent parser
+    /// e.g., "input_group" → "parser"
+    /// This allows tracking add_argument() calls on groups
+    pub group_to_parser: HashMap<String, String>,
+
+    /// DEPYLER-0399: Subparser collections (variable → info)
+    /// Maps subparsers variable name to parent parser info
+    pub subparsers: HashMap<String, SubparserInfo>,
+
+    /// DEPYLER-0399: Subcommands (parser variable → info)
+    /// Maps subcommand parser variable (e.g., "parser_clone") to subcommand details
+    pub subcommands: HashMap<String, SubcommandInfo>,
 
     /// Whether we've generated the Args struct for current function
     pub struct_generated: bool,
@@ -319,10 +370,104 @@ impl ArgParserTracker {
     /// Clear all parser tracking (e.g., when entering new function)
     ///
     /// # Complexity
-    /// 1 (hashmap clear)
+    /// 2 (hashmap clears)
     pub fn clear(&mut self) {
         self.parsers.clear();
+        self.group_to_parser.clear(); // DEPYLER-0396
+        self.subparsers.clear(); // DEPYLER-0399
+        self.subcommands.clear(); // DEPYLER-0399
         self.struct_generated = false;
+    }
+
+    /// DEPYLER-0396: Register an argument group variable
+    /// Maps group variable name to its parent parser
+    ///
+    /// # Complexity
+    /// 1 (hashmap insert)
+    pub fn register_group(&mut self, group_var: String, parser_var: String) {
+        self.group_to_parser.insert(group_var, parser_var);
+    }
+
+    /// DEPYLER-0396: Get parser variable name for a group variable
+    /// Returns the parent parser if this variable is an argument group
+    /// Recursively resolves nested groups (e.g., format_group → output_group → parser)
+    ///
+    /// # Complexity
+    /// O(depth) where depth is the nesting level of groups (typically 1-3)
+    pub fn get_parser_for_group(&self, group_var: &str) -> Option<String> {
+        let mut current = group_var;
+        let mut visited = std::collections::HashSet::new();
+
+        // Follow the chain until we find a parser or hit a cycle
+        loop {
+            // Prevent infinite loops from circular references
+            if !visited.insert(current) {
+                return None;
+            }
+
+            // Check if current is a group that maps to something
+            if let Some(parent) = self.group_to_parser.get(current) {
+                // Check if parent is a parser (ultimate target)
+                if self.parsers.contains_key(parent) {
+                    return Some(parent.clone());
+                }
+                // Parent is another group, continue following the chain
+                current = parent;
+            } else {
+                // Not found in group mapping
+                return None;
+            }
+        }
+    }
+
+    /// DEPYLER-0399: Register a subparser collection
+    /// Pattern: subparsers = parser.add_subparsers(dest="command", required=True)
+    ///
+    /// # Complexity
+    /// 1 (hashmap insert)
+    pub fn register_subparsers(&mut self, subparsers_var: String, info: SubparserInfo) {
+        self.subparsers.insert(subparsers_var, info);
+    }
+
+    /// DEPYLER-0399: Get subparser collection info
+    ///
+    /// # Complexity
+    /// 1 (hashmap lookup)
+    pub fn get_subparsers(&self, subparsers_var: &str) -> Option<&SubparserInfo> {
+        self.subparsers.get(subparsers_var)
+    }
+
+    /// DEPYLER-0399: Get mutable subparser collection info
+    ///
+    /// # Complexity
+    /// 1 (hashmap lookup)
+    pub fn get_subparsers_mut(&mut self, subparsers_var: &str) -> Option<&mut SubparserInfo> {
+        self.subparsers.get_mut(subparsers_var)
+    }
+
+    /// DEPYLER-0399: Register a subcommand
+    /// Pattern: parser_clone = subparsers.add_parser("clone", help="...")
+    ///
+    /// # Complexity
+    /// 1 (hashmap insert)
+    pub fn register_subcommand(&mut self, subcommand_var: String, info: SubcommandInfo) {
+        self.subcommands.insert(subcommand_var, info);
+    }
+
+    /// DEPYLER-0399: Get subcommand info
+    ///
+    /// # Complexity
+    /// 1 (hashmap lookup)
+    pub fn get_subcommand(&self, subcommand_var: &str) -> Option<&SubcommandInfo> {
+        self.subcommands.get(subcommand_var)
+    }
+
+    /// DEPYLER-0399: Get mutable subcommand info
+    ///
+    /// # Complexity
+    /// 1 (hashmap lookup)
+    pub fn get_subcommand_mut(&mut self, subcommand_var: &str) -> Option<&mut SubcommandInfo> {
+        self.subcommands.get_mut(subcommand_var)
     }
 
     /// Check if any ArgumentParser was detected
@@ -340,18 +485,108 @@ impl ArgParserTracker {
     pub fn get_first_parser(&self) -> Option<&ArgParserInfo> {
         self.parsers.values().next()
     }
+
+    /// DEPYLER-0399: Check if any subcommands are defined
+    ///
+    /// # Complexity
+    /// 1 (hashmap empty check)
+    pub fn has_subcommands(&self) -> bool {
+        !self.subcommands.is_empty()
+    }
+}
+
+/// DEPYLER-0399: Generate Commands enum from subcommands
+///
+/// # Complexity
+/// 8 (iteration + quote operations)
+pub fn generate_commands_enum(tracker: &ArgParserTracker) -> proc_macro2::TokenStream {
+    use quote::{quote, format_ident};
+
+    if tracker.subcommands.is_empty() {
+        return quote! {};
+    }
+
+    let variants: Vec<proc_macro2::TokenStream> = tracker.subcommands.values().map(|subcommand| {
+        // Convert "clone" -> "Clone" (PascalCase)
+        let variant_name = format_ident!("{}", to_pascal_case(&subcommand.name));
+
+        // Generate help attribute if present
+        let help_attr = if let Some(ref help) = subcommand.help {
+            quote! { #[command(about = #help)] }
+        } else {
+            quote! {}
+        };
+
+        // Generate fields from subcommand arguments
+        let fields: Vec<proc_macro2::TokenStream> = subcommand.arguments.iter().map(|arg| {
+            let field_name = format_ident!("{}", arg.rust_field_name());
+            let type_str = arg.rust_type();
+            let field_type: syn::Type = syn::parse_str(&type_str).unwrap_or_else(|_| syn::parse_quote! { String });
+
+            // Generate help attribute
+            let help_attr = if let Some(ref help) = arg.help {
+                quote! { #[doc = #help] }
+            } else {
+                quote! {}
+            };
+
+            // Generate positional vs flag attributes
+            if arg.is_positional {
+                quote! {
+                    #help_attr
+                    #field_name: #field_type
+                }
+            } else {
+                quote! {
+                    #[arg(long)]
+                    #help_attr
+                    #field_name: #field_type
+                }
+            }
+        }).collect();
+
+        quote! {
+            #help_attr
+            #variant_name {
+                #(#fields),*
+            }
+        }
+    }).collect();
+
+    quote! {
+        #[derive(clap::Subcommand)]
+        enum Commands {
+            #(#variants),*
+        }
+    }
+}
+
+/// Convert string to PascalCase (e.g., "clone" -> "Clone", "git-pull" -> "GitPull")
+///
+/// # Complexity
+/// 5 (string operations)
+fn to_pascal_case(s: &str) -> String {
+    s.split(&['-', '_'][..])
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+            }
+        })
+        .collect()
 }
 
 /// Generate clap Args struct definition from ArgumentParser info
 ///
 /// # Complexity
 /// 8 (multiple loops and quote operations)
-pub fn generate_args_struct(parser_info: &ArgParserInfo) -> proc_macro2::TokenStream {
+pub fn generate_args_struct(parser_info: &ArgParserInfo, tracker: &ArgParserTracker) -> proc_macro2::TokenStream {
     use quote::quote;
     use syn::parse_quote;
 
     // Generate struct fields from arguments
-    let fields: Vec<proc_macro2::TokenStream> = parser_info
+    let mut fields: Vec<proc_macro2::TokenStream> = parser_info
         .arguments
         .iter()
         .map(|arg| {
@@ -552,6 +787,14 @@ pub fn generate_args_struct(parser_info: &ArgParserInfo) -> proc_macro2::TokenSt
             }
         })
         .collect();
+
+    // DEPYLER-0399: Add command field if subcommands exist
+    if tracker.has_subcommands() {
+        fields.push(quote! {
+            #[command(subcommand)]
+            command: Commands
+        });
+    }
 
     // Generate command-level attributes
     let mut command_attrs = vec![];

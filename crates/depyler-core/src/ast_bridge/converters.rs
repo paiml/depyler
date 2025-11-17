@@ -42,7 +42,18 @@ impl StmtConverter {
             ast::Stmt::Try(t) => Self::convert_try(t),
             ast::Stmt::Assert(a) => Self::convert_assert(a),
             ast::Stmt::Pass(_) => Self::convert_pass(),
-            _ => bail!("Statement type not yet supported"),
+            ast::Stmt::FunctionDef(_) => bail!("Statement type not yet supported: FunctionDef (nested functions)"),
+            ast::Stmt::ClassDef(_) => bail!("Statement type not yet supported: ClassDef (classes)"),
+            ast::Stmt::Delete(_) => bail!("Statement type not yet supported: Delete"),
+            ast::Stmt::Import(_) => bail!("Statement type not yet supported: Import"),
+            ast::Stmt::ImportFrom(_) => bail!("Statement type not yet supported: ImportFrom"),
+            ast::Stmt::Global(_) => bail!("Statement type not yet supported: Global"),
+            ast::Stmt::Nonlocal(_) => bail!("Statement type not yet supported: Nonlocal"),
+            ast::Stmt::Match(_) => bail!("Statement type not yet supported: Match"),
+            ast::Stmt::AsyncFunctionDef(_) => bail!("Statement type not yet supported: AsyncFunctionDef"),
+            ast::Stmt::AsyncFor(_) => bail!("Statement type not yet supported: AsyncFor"),
+            ast::Stmt::AsyncWith(_) => bail!("Statement type not yet supported: AsyncWith"),
+            _ => bail!("Statement type not yet supported: unknown"),
         }
     }
 

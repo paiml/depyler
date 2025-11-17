@@ -154,9 +154,85 @@ pub(crate) fn codegen_expr_stmt(
     // DEPYLER-0363: Detect parser.add_argument(...) method calls
     // Pattern: parser.add_argument("files", nargs="+", type=Path, action="store_true", help="...")
     if let HirExpr::MethodCall { object, method, args, kwargs } = expr {
-        if method == "add_argument" {
-            if let HirExpr::Var(parser_var) = object.as_ref() {
-                if let Some(_parser_info) = ctx.argparser_tracker.get_parser_mut(parser_var) {
+        // DEPYLER-0394: Skip ALL parser method calls when using clap derive
+        // ArgumentParser methods that should be ignored:
+        // - add_argument() → accumulated into Args struct
+        // - add_argument_group() → not needed with clap (uses struct fields)
+        // - set_defaults() → not needed (use field defaults)
+        // - add_mutually_exclusive_group() → use clap group attributes
+        if let HirExpr::Var(var_name) = object.as_ref() {
+            // DEPYLER-0399: Check if this is a subcommand parser first (highest priority)
+            if let Some(subcommand_info) = ctx.argparser_tracker.get_subcommand_mut(var_name) {
+                // This is a subcommand parser - route add_argument to subcommand
+                if method == "add_argument" {
+                    // Extract argument details (same as main parser)
+                    if let Some(HirExpr::Literal(crate::hir::Literal::String(first_arg))) = args.first() {
+                        let mut arg = crate::rust_gen::argparse_transform::ArgParserArgument::new(first_arg.clone());
+
+                        // Check for second argument (long flag)
+                        if let Some(HirExpr::Literal(crate::hir::Literal::String(second_arg))) = args.get(1) {
+                            if second_arg.starts_with("--") {
+                                arg.long = Some(second_arg.clone());
+                            }
+                        }
+
+                        // Extract kwargs (same extraction logic as main parser)
+                        for (kw_name, kw_value) in kwargs {
+                            match kw_name.as_str() {
+                                "help" => {
+                                    if let HirExpr::Literal(crate::hir::Literal::String(help_val)) = kw_value {
+                                        arg.help = Some(help_val.clone());
+                                    }
+                                }
+                                "type" => {
+                                    if let HirExpr::Var(type_name) = kw_value {
+                                        match type_name.as_str() {
+                                            "str" => arg.arg_type = Some(crate::hir::Type::String),
+                                            "int" => arg.arg_type = Some(crate::hir::Type::Int),
+                                            "float" => arg.arg_type = Some(crate::hir::Type::Float),
+                                            "Path" => arg.arg_type = Some(crate::hir::Type::Custom("PathBuf".to_string())),
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                                "action" => {
+                                    if let HirExpr::Literal(crate::hir::Literal::String(action_val)) = kw_value {
+                                        arg.action = Some(action_val.clone());
+                                    }
+                                }
+                                "required" => {
+                                    if let HirExpr::Literal(crate::hir::Literal::Bool(req)) = kw_value {
+                                        arg.required = Some(*req);
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+
+                        subcommand_info.arguments.push(arg);
+                    }
+                    return Ok(quote! {});
+                }
+            }
+
+            // DEPYLER-0396: Check if this variable is a tracked ArgumentParser OR an argument group
+            // If it's a group, resolve to the parent parser (recursively for nested groups)
+            let parser_var = if ctx.argparser_tracker.get_parser(var_name).is_some() {
+                var_name.clone()
+            } else if let Some(parent_parser) = ctx.argparser_tracker.get_parser_for_group(var_name) {
+                parent_parser  // Already returns owned String
+            } else {
+                // Not a parser, group, or subcommand - fall through to normal code generation
+                let expr_tokens = expr.to_rust_expr(ctx)?;
+                return Ok(quote! { #expr_tokens; });
+            };
+
+            // Check if this is a parser configuration method
+            if ctx.argparser_tracker.get_parser(&parser_var).is_some() {
+                match method.as_str() {
+                    "add_argument" => {
+                        // Process add_argument to extract argument details
+                        if let Some(_parser_info) = ctx.argparser_tracker.get_parser_mut(&parser_var) {
                     // DEPYLER-0365 Phase 5: Extract argument names (can be multiple: "-o", "--output")
                     // First arg is required, second is optional (for dual short+long flags)
                     if let Some(HirExpr::Literal(crate::hir::Literal::String(first_arg))) = args.first() {
@@ -259,8 +335,20 @@ pub(crate) fn codegen_expr_stmt(
                         _parser_info.add_argument(arg);
                     }
 
-                    // Skip generating this statement - arguments will be in Args struct
-                    return Ok(quote! {});
+                        // Skip generating this statement - arguments will be in Args struct
+                        return Ok(quote! {});
+                        }
+                    }
+                    "add_argument_group" | "add_mutually_exclusive_group" | "set_defaults" => {
+                        // DEPYLER-0394: Skip these parser configuration methods
+                        // With clap derive, argument groups are handled by struct field organization
+                        // Mutually exclusive groups use #[group] attributes
+                        // Defaults use field default values
+                        return Ok(quote! {});
+                    }
+                    _ => {
+                        // Other parser methods - fall through to normal code generation
+                    }
                 }
             }
         }
@@ -442,7 +530,32 @@ pub(crate) fn codegen_raise_stmt(
 ) -> Result<proc_macro2::TokenStream> {
     // For V1, we'll implement basic error handling
     if let Some(exc) = exception {
-        let exc_expr = exc.to_rust_expr(ctx)?;
+        // DEPYLER-0398: Handle argparse.ArgumentTypeError specially
+        // Pattern: raise argparse.ArgumentTypeError("message")
+        // Extract message and use directly in panic!/error
+        let exc_expr = match exc {
+            // Pattern 1: argparse.ArgumentTypeError(msg)
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+                ..
+            } if matches!(object.as_ref(), HirExpr::Var(v) if v == "argparse")
+                && method == "ArgumentTypeError"
+                && !args.is_empty() =>
+            {
+                // Extract the message argument and use it directly
+                args[0].to_rust_expr(ctx)?
+            }
+            // Pattern 2: ArgumentTypeError(msg) - if imported
+            HirExpr::Call { func, args, .. }
+                if func == "ArgumentTypeError" && !args.is_empty() =>
+            {
+                args[0].to_rust_expr(ctx)?
+            }
+            // Default: use exception as-is
+            _ => exc.to_rust_expr(ctx)?,
+        };
 
         // DEPYLER-0333: Extract exception type to check if it's handled
         let exception_type = extract_exception_type(exc);
@@ -667,6 +780,13 @@ pub(crate) fn codegen_if_stmt(
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
     use std::collections::HashSet;
+
+    // DEPYLER-0399: Detect subcommand dispatch pattern and convert to match
+    if ctx.argparser_tracker.has_subcommands() {
+        if let Some(match_stmt) = try_generate_subcommand_match(condition, then_body, else_body, ctx)? {
+            return Ok(match_stmt);
+        }
+    }
 
     let mut cond = condition.to_rust_expr(ctx)?;
 
@@ -1205,11 +1325,30 @@ pub(crate) fn codegen_assign_stmt(
     type_annotation: &Option<Type>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0399: Transform CSE assignments for subcommand comparisons
+    // When we have subcommands, assignments like `_cse_temp_0 = args.command == "clone"`
+    // would try to compare Commands enum to string (won't compile).
+    // Transform into a match expression that returns bool:
+    // let _cse_temp_0 = matches!(args.command, Commands::Clone { .. });
+    if ctx.argparser_tracker.has_subcommands() {
+        if let Some(cmd_name) = is_subcommand_check(value) {
+            if let AssignTarget::Symbol(cse_var) = target {
+                use quote::{quote, format_ident};
+                let variant_name = format_ident!("{}", to_pascal_case_subcommand(&cmd_name));
+                let var_ident = safe_ident(cse_var);
+
+                return Ok(quote! {
+                    let #var_ident = matches!(args.command, Commands::#variant_name { .. });
+                });
+            }
+        }
+    }
+
     // DEPYLER-0363: Detect ArgumentParser patterns for clap transformation
     // Pattern 1: parser = argparse.ArgumentParser(...) [MethodCall with object=argparse]
     // Pattern 2: args = parser.parse_args() [MethodCall with object=parser]
     if let AssignTarget::Symbol(var_name) = target {
-        if let HirExpr::MethodCall { method, object, kwargs, .. } = value {
+        if let HirExpr::MethodCall { method, object, args, kwargs, .. } = value {
             // Pattern 1: ArgumentParser constructor
             if method == "ArgumentParser" {
                 if let HirExpr::Var(module_name) = object.as_ref() {
@@ -1251,6 +1390,87 @@ pub(crate) fn codegen_assign_stmt(
                         return Ok(quote! {
                             let #var_ident = Args::parse();
                         });
+                    }
+                }
+            }
+
+            // DEPYLER-0394/0396: Skip assignments to parser configuration method results
+            // Pattern: group = parser.add_argument_group(...)
+            //      OR: nested_group = group.add_mutually_exclusive_group(...)
+            // These methods aren't needed with clap derive - skip the assignment
+            if matches!(method.as_str(), "add_argument_group" | "add_mutually_exclusive_group" | "set_defaults") {
+                if let HirExpr::Var(parent_var) = object.as_ref() {
+                    // Check if parent_var is a parser OR a group
+                    let is_parser_or_group = ctx.argparser_tracker.get_parser(parent_var).is_some()
+                        || ctx.argparser_tracker.get_parser_for_group(parent_var).is_some();
+
+                    if is_parser_or_group {
+                        // DEPYLER-0396: Register the group variable so we can track
+                        // add_argument() calls on it later (e.g., input_group.add_argument())
+                        // This handles both:
+                        //   - group = parser.add_argument_group() → register group → parser
+                        //   - nested = group.add_mutually_exclusive_group() → register nested → group
+                        // Recursive resolution will handle nested → group → parser chain
+                        if let AssignTarget::Symbol(group_var) = target {
+                            ctx.argparser_tracker.register_group(group_var.clone(), parent_var.clone());
+                        }
+                        // Skip this assignment - not needed with clap
+                        return Ok(quote! {});
+                    }
+                }
+            }
+
+            // DEPYLER-0399: Detect subparsers = parser.add_subparsers(dest="command", required=True)
+            if method == "add_subparsers" {
+                if let HirExpr::Var(parser_var) = object.as_ref() {
+                    if ctx.argparser_tracker.get_parser(parser_var).is_some() {
+                        // Extract dest and required from kwargs
+                        let dest_field = extract_kwarg_string(kwargs, "dest").unwrap_or_else(|| "command".to_string());
+                        let required = extract_kwarg_bool(kwargs, "required").unwrap_or(false);
+                        let help = extract_kwarg_string(kwargs, "help");
+
+                        if let AssignTarget::Symbol(subparsers_var) = target {
+                            use crate::rust_gen::argparse_transform::SubparserInfo;
+                            ctx.argparser_tracker.register_subparsers(
+                                subparsers_var.clone(),
+                                SubparserInfo {
+                                    parser_var: parser_var.clone(),
+                                    dest_field,
+                                    required,
+                                    help,
+                                }
+                            );
+                        }
+                        // Skip this assignment - not needed with clap
+                        return Ok(quote! {});
+                    }
+                }
+            }
+
+            // DEPYLER-0399: Detect parser_clone = subparsers.add_parser("clone", help="...")
+            if method == "add_parser" {
+                if let HirExpr::Var(subparsers_var) = object.as_ref() {
+                    if ctx.argparser_tracker.get_subparsers(subparsers_var).is_some() {
+                        // Extract command name from first positional arg
+                        if !args.is_empty() {
+                            let command_name = extract_string_literal(&args[0]);
+                            let help = extract_kwarg_string(kwargs, "help");
+
+                            if let AssignTarget::Symbol(subcommand_var) = target {
+                                use crate::rust_gen::argparse_transform::SubcommandInfo;
+                                ctx.argparser_tracker.register_subcommand(
+                                    subcommand_var.clone(),
+                                    SubcommandInfo {
+                                        name: command_name,
+                                        help,
+                                        arguments: vec![],
+                                        subparsers_var: subparsers_var.clone(),
+                                    }
+                                );
+                            }
+                        }
+                        // Skip this assignment - not needed with clap
+                        return Ok(quote! {});
                     }
                 }
             }
@@ -1782,12 +2002,21 @@ pub(crate) fn codegen_try_stmt(
     }
 
     // Convert try body to statements
+    // DEPYLER-0395: Try block statements should include 'return' keyword
+    // Save and temporarily disable is_final_statement so return statements
+    // in try blocks get the explicit 'return' keyword (needed for proper exception handling)
+    let saved_is_final = ctx.is_final_statement;
+    ctx.is_final_statement = false;
+
     ctx.enter_scope();
     let try_stmts: Vec<_> = body
         .iter()
         .map(|s| s.to_rust_tokens(ctx))
         .collect::<Result<Vec<_>>>()?;
     ctx.exit_scope();
+
+    // Restore is_final_statement flag
+    ctx.is_final_statement = saved_is_final;
 
     // DEPYLER-0333: Exit try block scope
     ctx.exit_exception_scope();
@@ -2157,6 +2386,183 @@ fn extract_divisor_from_floor_div(expr: &HirExpr) -> Result<&HirExpr> {
         HirExpr::Unary { operand, .. } => extract_divisor_from_floor_div(operand),
         _ => bail!("No floor division found in expression"),
     }
+}
+
+/// DEPYLER-0399: Extract string literal from HirExpr
+///
+/// # Complexity
+/// 2 (pattern match + string clone)
+fn extract_string_literal(expr: &HirExpr) -> String {
+    match expr {
+        HirExpr::Literal(Literal::String(s)) => s.clone(),
+        _ => String::new(),
+    }
+}
+
+/// DEPYLER-0399: Extract string value from kwarg by name
+///
+/// # Complexity
+/// 4 (iterator + filter + match)
+fn extract_kwarg_string(kwargs: &[(String, HirExpr)], key: &str) -> Option<String> {
+    kwargs.iter()
+        .find(|(k, _)| k == key)
+        .and_then(|(_, v)| match v {
+            HirExpr::Literal(Literal::String(s)) => Some(s.clone()),
+            _ => None,
+        })
+}
+
+/// DEPYLER-0399: Extract boolean value from kwarg by name
+///
+/// # Complexity
+/// 4 (iterator + filter + match)
+fn extract_kwarg_bool(kwargs: &[(String, HirExpr)], key: &str) -> Option<bool> {
+    kwargs.iter()
+        .find(|(k, _)| k == key)
+        .and_then(|(_, v)| match v {
+            HirExpr::Var(s) if s == "True" => Some(true),
+            HirExpr::Var(s) if s == "False" => Some(false),
+            _ => None,
+        })
+}
+
+/// DEPYLER-0399: Try to generate a match statement for subcommand dispatch
+///
+/// Detects patterns like:
+/// ```python
+/// if args.command == "clone":
+///     handle_clone(args)
+/// elif args.command == "push":
+///     handle_push(args)
+/// ```
+///
+/// And converts to:
+/// ```rust
+/// match args.command {
+///     Commands::Clone { url } => {
+///         handle_clone(args);
+///     }
+///     Commands::Push { remote } => {
+///         handle_push(args);
+///     }
+/// }
+/// ```
+fn try_generate_subcommand_match(
+    condition: &HirExpr,
+    then_body: &[HirStmt],
+    else_body: &Option<Vec<HirStmt>>,
+    ctx: &mut CodeGenContext,
+) -> Result<Option<proc_macro2::TokenStream>> {
+    use quote::{quote, format_ident};
+
+    // Check if condition matches: args.command == "string"
+    let command_name = match is_subcommand_check(condition) {
+        Some(name) => name,
+        None => return Ok(None),
+    };
+
+    // Collect all branches (if + elif chain)
+    let mut branches = vec![(command_name, then_body)];
+
+    // Check if else is another if statement (elif pattern)
+    let mut current_else = else_body;
+    while let Some(else_stmts) = current_else {
+        // Check if else body is a single If statement
+        if else_stmts.len() == 1 {
+            if let HirStmt::If { condition: elif_cond, then_body: elif_then, else_body: elif_else } = &else_stmts[0] {
+                if let Some(elif_name) = is_subcommand_check(elif_cond) {
+                    branches.push((elif_name, elif_then.as_slice()));
+                    current_else = elif_else;
+                    continue;
+                }
+            }
+        }
+        // Not an elif pattern, stop collecting
+        break;
+    }
+
+    // Generate match arms
+    let arms: Vec<proc_macro2::TokenStream> = branches.iter().map(|(cmd_name, body)| {
+        // Convert command name to PascalCase variant
+        let variant_name = format_ident!("{}", to_pascal_case_subcommand(cmd_name));
+
+        // Get subcommand info to extract fields
+        let subcommand_info = ctx.argparser_tracker.subcommands.values()
+            .find(|sc| sc.name == *cmd_name);
+
+        // Generate field bindings
+        let field_bindings: Vec<_> = if let Some(sc) = subcommand_info {
+            sc.arguments.iter().map(|arg| {
+                format_ident!("{}", arg.rust_field_name())
+            }).collect()
+        } else {
+            vec![]
+        };
+
+        // Generate body statements
+        ctx.enter_scope();
+        let body_stmts: Vec<_> = body.iter()
+            .map(|s| s.to_rust_tokens(ctx))
+            .collect::<Result<Vec<_>>>().unwrap_or_default();
+        ctx.exit_scope();
+
+        if field_bindings.is_empty() {
+            quote! {
+                Commands::#variant_name => {
+                    #(#body_stmts)*
+                }
+            }
+        } else {
+            quote! {
+                Commands::#variant_name { #(#field_bindings),* } => {
+                    #(#body_stmts)*
+                }
+            }
+        }
+    }).collect();
+
+    Ok(Some(quote! {
+        match args.command {
+            #(#arms)*
+        }
+    }))
+}
+
+/// DEPYLER-0399: Check if expression is a subcommand check pattern
+///
+/// Returns the command name if pattern matches: args.command == "string"
+fn is_subcommand_check(expr: &HirExpr) -> Option<String> {
+    match expr {
+        HirExpr::Binary { op, left, right } if matches!(op, BinOp::Eq) => {
+            // Check if left side is args.command
+            let is_command_attr = matches!(
+                left.as_ref(),
+                HirExpr::Attribute { attr, .. } if attr == "command"
+            );
+
+            // Check if right side is a string literal
+            if is_command_attr {
+                if let HirExpr::Literal(Literal::String(cmd_name)) = right.as_ref() {
+                    return Some(cmd_name.clone());
+                }
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+/// DEPYLER-0399: Convert string to PascalCase for enum variants
+fn to_pascal_case_subcommand(s: &str) -> String {
+    s.split(&['-', '_'][..])
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+            }
+        })
+        .collect()
 }
 
 impl RustCodeGen for HirStmt {
