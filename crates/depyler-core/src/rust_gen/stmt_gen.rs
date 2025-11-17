@@ -940,10 +940,49 @@ pub(crate) fn codegen_for_stmt(
 
     let mut iter_expr = iter.to_rust_expr(ctx)?;
 
+    // DEPYLER-0388: Handle sys.stdin iteration
+    // Python: for line in sys.stdin:
+    // Rust: for line in std::io::stdin().lock().lines()
+    let is_stdin_iter = matches!(iter, HirExpr::Attribute { value, attr }
+        if matches!(&**value, HirExpr::Var(m) if m == "sys") && attr == "stdin");
+
+    // DEPYLER-0388: Handle File object iteration from open()
+    // Python: for line in f: (where f = open(...))
+    // Rust: use BufReader for efficient line-by-line reading
+    // Check if this variable might be a File object
+    // Heuristic: variables named 'f', 'file', 'input', 'output', or ending in '_file'
+    let is_file_iter = if let HirExpr::Var(var_name) = iter {
+        var_name == "f"
+            || var_name == "file"
+            || var_name == "input"
+            || var_name == "output"
+            || var_name.ends_with("_file")
+            || var_name.starts_with("file_")
+    } else {
+        false
+    };
+
+    if is_stdin_iter {
+        // Wrap stdin with .lines() to get line iterator
+        // Stdin::lines() method provides buffered line-by-line reading
+        // Returns Iterator<Item = Result<String, io::Error>>
+        // We map to unwrap_or_default() to handle errors gracefully
+        iter_expr = parse_quote! { #iter_expr.lines().map(|l| l.unwrap_or_default()) };
+    } else if is_file_iter {
+        // Use BufReader::new(f).lines() for File iteration
+        // This is the idiomatic Rust way to iterate over file lines
+        iter_expr = parse_quote! {
+            std::io::BufRead::lines(std::io::BufReader::new(#iter_expr))
+                .map(|l| l.unwrap_or_default())
+        };
+    }
+
     // Check if we're iterating over a borrowed collection
     // If iter is a simple variable that refers to a borrowed collection (e.g., &Vec<T>),
     // we need to add .iter() to properly iterate over it
-    if let HirExpr::Var(_var_name) = iter {
+    // Skip this for stdin/file iterators which are already properly wrapped
+    if !is_stdin_iter && !is_file_iter {
+      if let HirExpr::Var(_var_name) = iter {
         // DEPYLER-0300/0302: Check if we're iterating over a string
         // Strings use .chars() instead of .iter().cloned()
         // DEPYLER-0302: Exclude plurals (strings, words, etc.) which are collections
@@ -975,6 +1014,7 @@ pub(crate) fn codegen_for_stmt(
             // This matches Python semantics where loop variables are values, not references.
             iter_expr = parse_quote! { #iter_expr.iter().cloned() };
         }
+      }
     }
 
     ctx.enter_scope();
