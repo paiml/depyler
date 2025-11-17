@@ -1,42 +1,37 @@
-#[doc = "Numeric operations suggest int/float types."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn process_numbers<'b, 'a>(a: & 'a DynamicType, b: & 'b DynamicType)  -> DynamicType {
+use serde_json;
+#[doc = "Numeric operations suggest int/float types."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn process_numbers<'b, 'a>(a: &'a serde_json::Value, b: &'b serde_json::Value) {
     let mut result = a + b;
     let _cse_temp_0 = result * 2;
     result = _cse_temp_0;
-    return result;
-   
+    result
 }
-#[doc = "String methods suggest str type."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn handle_text<'a>(message: & 'a str)  -> DynamicType {
+#[doc = "String methods suggest str type."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn handle_text(message: &str) {
     let formatted = message.to_uppercase();
-    return formatted;
-   
+    formatted
 }
-#[doc = "List operations suggest list type."] #[doc = " Depyler: verified panic-free"] pub fn work_with_list<'a>(data: & 'a DynamicType)  -> DynamicType {
+#[doc = "List operations suggest list type."]
+#[doc = " Depyler: verified panic-free"]
+pub fn work_with_list(data: &mut serde_json::Value) {
     data.push(100);
     let mut total = 0;
-    for item in data.iter() {
-    total = total + item;
-   
+    for item in data.iter().cloned() {
+        total = total + item;
+    }
+    total
 }
-return total;
-   
-}
-#[doc = "Boolean context suggests bool type."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn check_condition<'a>(flag: & 'a DynamicType)  -> i32 {
+#[doc = "Boolean context suggests bool type."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn check_condition(flag: &serde_json::Value) -> i32 {
     if flag {
-    return 1;
-   
-}
-else {
-    return 0;
-   
-}
-} #[cfg(test)] mod tests {
-    use super::*;
-    use quickcheck::{
-    quickcheck, TestResult };
-    #[test] fn test_check_condition_examples() {
-    assert_eq !(check_condition(0), 0);
-    assert_eq !(check_condition(1), 1);
-    assert_eq !(check_condition(- 1), - 1);
-   
-}
+        1
+    } else {
+        0
+    }
 }
