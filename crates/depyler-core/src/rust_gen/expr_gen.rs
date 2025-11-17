@@ -2962,6 +2962,56 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert os.environ method calls
+    /// DEPYLER-0386: os.environ dictionary-like interface for environment variables
+    ///
+    /// Maps Python os.environ methods to Rust std::env:
+    /// - os.environ.get(key) → std::env::var(key).ok()
+    /// - os.environ.get(key, default) → std::env::var(key).unwrap_or_else(|_| default.to_string())
+    ///
+    /// # Complexity
+    /// ≤10 (match with few branches)
+    #[inline]
+    fn try_convert_os_environ_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            "get" => {
+                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+                    bail!("os.environ.get() requires 1 or 2 arguments");
+                }
+
+                if arg_exprs.len() == 1 {
+                    // os.environ.get("KEY") → std::env::var("KEY").ok()
+                    // Returns Option<String>: Some(value) if exists, None otherwise
+                    let key = &arg_exprs[0];
+                    parse_quote! { std::env::var(#key).ok() }
+                } else {
+                    // os.environ.get("KEY", "default") → std::env::var("KEY").unwrap_or_else(|_| "default".to_string())
+                    // Returns String: value if exists, default otherwise
+                    let key = &arg_exprs[0];
+                    let default = &arg_exprs[1];
+                    parse_quote! {
+                        std::env::var(#key).unwrap_or_else(|_| #default.to_string())
+                    }
+                }
+            }
+            _ => {
+                return Ok(None);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert os.path module method calls
     /// DEPYLER-STDLIB-OSPATH: Path manipulation and file system operations
     ///
@@ -7013,6 +7063,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
+        // DEPYLER-0386: Handle os.environ.get() and other os.environ methods
+        // os.environ.get('VAR') → std::env::var('VAR').ok()
+        // os.environ.get('VAR', 'default') → std::env::var('VAR').unwrap_or_else(|_| 'default'.to_string())
+        if let HirExpr::Attribute { value, attr } = object {
+            if let HirExpr::Var(module_name) = &**value {
+                if module_name == "os" && attr == "environ" {
+                    return self.try_convert_os_environ_method(method, args);
+                }
+            }
+        }
+
         if let HirExpr::Var(module_name) = object {
             // DEPYLER-0021: Handle struct module (pack, unpack, calcsize)
             if module_name == "struct" {
@@ -8584,6 +8645,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
+        // DEPYLER-0386: Handle os.environ['VAR'] → std::env::var('VAR').unwrap_or_default()
+        // Must check this before evaluating base_expr to avoid trying to convert os.environ
+        if let HirExpr::Attribute { value, attr } = base {
+            if let HirExpr::Var(module_name) = &**value {
+                if module_name == "os" && attr == "environ" {
+                    let index_expr = index.to_rust_expr(self.ctx)?;
+                    return Ok(parse_quote! { std::env::var(#index_expr).unwrap_or_default() });
+                }
+            }
+        }
+
         let base_expr = base.to_rust_expr(self.ctx)?;
 
         // DEPYLER-0307 Fix #9: Handle tuple indexing with integer literals
