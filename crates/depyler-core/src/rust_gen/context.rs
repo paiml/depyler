@@ -56,6 +56,7 @@ pub struct CodeGenContext<'a> {
     pub needs_serde_json: bool,
     pub needs_regex: bool,
     pub needs_chrono: bool,
+    pub needs_clap: bool, // DEPYLER-0384: Track clap dependency for ArgumentParser
     pub needs_csv: bool,
     pub needs_rust_decimal: bool,
     pub needs_num_rational: bool,

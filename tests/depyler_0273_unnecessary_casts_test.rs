@@ -30,7 +30,7 @@ fn test_simple_variable_return_should_not_cast() {
     };
 
     let type_mapper = TypeMapper::default();
-    let generated = generate_rust_file(&module, &type_mapper).unwrap();
+    let (generated, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // RED Phase: Currently this FAILS because code contains "x as i32"
     // GREEN Phase: After fix, should PASS (no cast)
@@ -73,7 +73,7 @@ fn test_binary_expression_return_should_not_cast() {
     };
 
     let type_mapper = TypeMapper::default();
-    let generated = generate_rust_file(&module, &type_mapper).unwrap();
+    let (generated, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // RED Phase: Currently this FAILS because code contains cast
     // GREEN Phase: After fix, should PASS (no cast on result)
@@ -110,7 +110,7 @@ fn test_array_length_should_cast() {
     };
 
     let type_mapper = TypeMapper::default();
-    let generated = generate_rust_file(&module, &type_mapper).unwrap();
+    let (generated, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // This should ALWAYS pass - len() returns usize, needs cast
     assert!(
@@ -177,7 +177,7 @@ fn test_conditional_return_should_not_cast() {
     };
 
     let type_mapper = TypeMapper::default();
-    let generated = generate_rust_file(&module, &type_mapper).unwrap();
+    let (generated, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // RED Phase: Currently FAILS because both returns have casts
     // GREEN Phase: After fix, should PASS (no casts)
@@ -212,7 +212,7 @@ fn test_literal_return_should_not_cast() {
     };
 
     let type_mapper = TypeMapper::default();
-    let generated = generate_rust_file(&module, &type_mapper).unwrap();
+    let (generated, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // RED Phase: Currently FAILS because literal has cast
     // GREEN Phase: After fix, should PASS (no cast)
@@ -251,7 +251,7 @@ fn test_count_method_should_cast() {
     };
 
     let type_mapper = TypeMapper::default();
-    let generated = generate_rust_file(&module, &type_mapper).unwrap();
+    let (generated, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // This should ALWAYS pass - count() returns usize, needs cast
     assert!(
