@@ -2487,10 +2487,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let pattern = &arg_exprs[0];
                 let text = &arg_exprs[1];
 
-                // re.match() in Python only matches at the beginning
-                // We need to add ^ anchor to the pattern
-                // For now, simplified: just use is_match()
-                parse_quote! { regex::Regex::new(#pattern).unwrap().is_match(#text) }
+                // DEPYLER-0389: re.match() in Python only matches at the beginning
+                // Returns Option<Match> to support .group() calls
+                // TODO: Add start-of-string constraint (check match.start() == 0 or prepend ^)
+                // For now, using .find() like search() - compatible with Match object usage
+                parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) }
             }
 
             "findall" => {
