@@ -64,7 +64,7 @@ Found an issue? Want to add examples?
 3. Meet quality standards (REFACTOR)
 4. Update book documentation
 
-See [Contributing Guide](./contributing.md) for details.
+See the main [CONTRIBUTING.md](../../CONTRIBUTING.md) for details.
 
 ## Toyota Way Principles
 
