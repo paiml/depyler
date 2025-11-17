@@ -512,18 +512,39 @@ pub(crate) fn codegen_with_stmt(
     // Restore is_final_statement flag
     ctx.is_final_statement = saved_is_final;
 
-    // Generate code that calls __enter__() and binds the result
+    // DEPYLER-0387: Detect if context is from open() builtin
+    // open() returns std::fs::File which doesn't have __enter__() method
+    // For File objects, bind directly; for custom context managers, call __enter__()
+    let is_file_open = matches!(
+        context,
+        HirExpr::Call { func, .. } if func.as_str() == "open"
+    );
+
+    // Generate code that calls __enter__() for custom context managers
+    // or binds File directly for open() calls
     // Note: __exit__() is not yet called (Drop trait implementation pending)
     if let Some(var_name) = target {
         let var_ident = safe_ident(var_name); // DEPYLER-0023
         ctx.declare_var(var_name);
-        Ok(quote! {
-            {
-                let _context = #context_expr;
-                let #var_ident = _context.__enter__();
-                #(#body_stmts)*
-            }
-        })
+
+        if is_file_open {
+            // DEPYLER-0387: For open() calls, bind File directly (no __enter__)
+            Ok(quote! {
+                {
+                    let #var_ident = #context_expr;
+                    #(#body_stmts)*
+                }
+            })
+        } else {
+            // For custom context managers, call __enter__()
+            Ok(quote! {
+                {
+                    let _context = #context_expr;
+                    let #var_ident = _context.__enter__();
+                    #(#body_stmts)*
+                }
+            })
+        }
     } else {
         Ok(quote! {
             {
