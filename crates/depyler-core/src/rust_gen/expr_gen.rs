@@ -10547,7 +10547,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     template.push_str(s);
                 }
                 FStringPart::Expr(expr) => {
-                    template.push_str("{}");
+                    // DEPYLER-0397: Use {:?} debug formatting for all f-string expressions
+                    // This handles Vec<T>, Option<T>, and other types that don't implement Display
+                    // Trade-off: Strings will show with quotes, but this ensures compilation
+                    template.push_str("{:?}");
                     let arg_expr = expr.to_rust_expr(self.ctx)?;
                     args.push(arg_expr);
                 }

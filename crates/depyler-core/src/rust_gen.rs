@@ -575,6 +575,7 @@ pub fn generate_rust_file(
     // Convert all functions to detect what imports we need
     let functions = convert_functions_to_rust(&module.functions, &mut ctx)?;
 
+
     // Build items list with all generated code
     let mut items = Vec::new();
 
@@ -616,10 +617,28 @@ pub fn generate_rust_file(
         #(#items)*
     };
 
-    // DEPYLER-0384: Extract dependencies from context
-    let dependencies = cargo_toml_gen::extract_dependencies(&ctx);
+    // DEPYLER-0384: Extract dependencies from context (BEFORE post-processing)
+    let mut dependencies = cargo_toml_gen::extract_dependencies(&ctx);
 
-    Ok((format_rust_code(file.to_string()), dependencies))
+    // Format the code first (this is when tokens become readable strings)
+    let mut formatted_code = format_rust_code(file.to_string());
+
+    // DEPYLER-0393: Post-process FORMATTED code to detect missed dependencies
+    // TokenStreams don't have literal strings - must scan AFTER formatting
+    if formatted_code.contains("serde_json::") && !ctx.needs_serde_json {
+        // Add missing import at the beginning
+        formatted_code = format!("use serde_json;\n{}", formatted_code);
+        // Add missing Cargo.toml dependencies
+        dependencies.push(cargo_toml_gen::Dependency::new("serde_json", "1.0"));
+        dependencies.push(
+            cargo_toml_gen::Dependency::new("serde", "1.0")
+                .with_features(vec!["derive".to_string()]),
+        );
+        // Re-format to ensure imports are properly ordered
+        formatted_code = format_rust_code(formatted_code);
+    }
+
+    Ok((formatted_code, dependencies))
 }
 
 #[cfg(test)]

@@ -101,8 +101,12 @@ fn create_cargo_project(
     // Create project structure
     fs::create_dir_all(project_dir.join("src")).context("Failed to create src directory")?;
 
-    // DEPYLER-0384: Generate Cargo.toml with automatic dependencies
-    let cargo_toml = depyler_core::cargo_toml_gen::generate_cargo_toml(project_name, dependencies);
+    // DEPYLER-0384, DEPYLER-0392: Generate Cargo.toml with automatic dependencies and [[bin]] section
+    let cargo_toml = depyler_core::cargo_toml_gen::generate_cargo_toml(
+        project_name,
+        "src/main.rs",  // DEPYLER-0392: Path to binary source
+        dependencies
+    );
     fs::write(project_dir.join("Cargo.toml"), cargo_toml)
         .context("Failed to write Cargo.toml")?;
 
