@@ -8,7 +8,7 @@
 //! ### As a Library
 //!
 //! ```rust,no_run
-//! use depyler_core::{DepylerPipeline, TranspileOptions};
+//! use depyler_core::DepylerPipeline;
 //!
 //! let pipeline = DepylerPipeline::new();
 //! let python_code = r#"
