@@ -67,7 +67,7 @@ pub fn demo_with_statement() {
 }
 #[doc = "Demonstrate iterator protocol"]
 #[doc = " Depyler: verified panic-free"]
-pub fn demo_iterator() {
+pub fn demo_iterator() -> i32 {
     let mut counter = Counter::new(3);
     let mut total = 0;
     let mut val = counter.__next__();
@@ -84,4 +84,13 @@ pub fn main() {
     let with_result = demo_with_statement();
     let iter_result = demo_iterator();
     with_result + iter_result
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_demo_iterator_examples() {
+        let _ = demo_iterator();
+    }
 }

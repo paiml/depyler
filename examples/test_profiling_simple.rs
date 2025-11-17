@@ -57,7 +57,7 @@ pub fn simple_function(x: i32, y: i32) -> i32 {
 #[doc = "Function with hot nested loops."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn hot_loop() {
+pub fn hot_loop() -> i32 {
     let mut total = 0;
     for i in 0..100 {
         for j in 0..100 {
@@ -108,5 +108,9 @@ mod tests {
         assert_eq!(simple_function(0, 0), 0);
         assert_eq!(simple_function(1, 2), 3);
         assert_eq!(simple_function(-1, 1), 0);
+    }
+    #[test]
+    fn test_hot_loop_examples() {
+        let _ = hot_loop();
     }
 }

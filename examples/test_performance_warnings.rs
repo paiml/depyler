@@ -19,16 +19,16 @@ impl IndexError {
 }
 #[doc = "String concatenation in loop - O(n²) complexity."]
 #[doc = " Depyler: verified panic-free"]
-pub fn string_concat_in_loop(items: &serde_json::Value) {
+pub fn string_concat_in_loop(items: &serde_json::Value) -> String {
     let mut result = "";
     for item in items.iter().cloned() {
-        result = result + item.to_string();
+        result = format!("{}{}", result, item.to_string());
     }
     result
 }
 #[doc = "Deeply nested loops - O(n³) complexity."]
 #[doc = " Depyler: proven to terminate"]
-pub fn nested_loops_cubic(matrix: &serde_json::Value) -> Result<(), IndexError> {
+pub fn nested_loops_cubic(matrix: &serde_json::Value) -> Result<i32, IndexError> {
     let mut total = 0;
     for i in 0..matrix.len() as i32 {
         for j in 0..matrix.get(i as usize).cloned().unwrap_or_default().len() as i32 {
@@ -59,7 +59,7 @@ pub fn nested_loops_cubic(matrix: &serde_json::Value) -> Result<(), IndexError> 
 }
 #[doc = "Expensive operations in loop."]
 #[doc = " Depyler: verified panic-free"]
-pub fn repeated_expensive_computation(data: serde_json::Value) {
+pub fn repeated_expensive_computation(data: serde_json::Value) -> Vec<serde_json::Value> {
     let mut results = vec![];
     for item in data.iter().cloned() {
         let sorted_data = {
@@ -88,7 +88,7 @@ pub fn inefficient_list_operations(items: &mut serde_json::Value) {
 #[doc = "Creating large objects in loops."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn large_list_in_loop(n: serde_json::Value) {
+pub fn large_list_in_loop(n: serde_json::Value) -> Vec<serde_json::Value> {
     let mut results = vec![];
     for _i in 0..n {
         let temp = (0..1000).map(|j| j).collect::<Vec<_>>();
@@ -98,10 +98,10 @@ pub fn large_list_in_loop(n: serde_json::Value) {
 }
 #[doc = "Linear search in nested loop - O(n²)."]
 #[doc = " Depyler: verified panic-free"]
-pub fn linear_search_in_loop<'b, 'a>(
+pub fn linear_search_in_loop<'a, 'b>(
     items: &'a mut serde_json::Value,
     targets: &'b serde_json::Value,
-) {
+) -> Vec<serde_json::Value> {
     let mut found = vec![];
     for target in targets.iter().cloned() {
         if items.contains_key(&target) {
@@ -117,7 +117,7 @@ pub fn linear_search_in_loop<'b, 'a>(
 }
 #[doc = "Expensive math operations in loop."]
 #[doc = " Depyler: verified panic-free"]
-pub fn power_in_tight_loop(values: &serde_json::Value) {
+pub fn power_in_tight_loop(values: &serde_json::Value) -> Vec<serde_json::Value> {
     let mut results = vec![];
     for x in values.iter().cloned() {
         let mut result = (x as f64).powf(3.5);
@@ -134,7 +134,7 @@ pub fn range_len_antipattern(items: &mut serde_json::Value) -> Result<(), IndexE
 }
 #[doc = "Computing aggregates repeatedly."]
 #[doc = " Depyler: verified panic-free"]
-pub fn aggregate_in_nested_loop(matrix: &serde_json::Value) {
+pub fn aggregate_in_nested_loop(matrix: &serde_json::Value) -> i32 {
     let mut result = 0;
     for row in matrix.iter().cloned() {
         for col in row.iter().cloned() {
