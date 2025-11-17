@@ -532,8 +532,7 @@ through intermediate variables in loops.
 
 ## Questions?
 
-- Open a [Discussion](https://github.com/paiml/depyler/discussions) for general
-  questions
+- Open an [Issue](https://github.com/paiml/depyler/issues) for questions
 - Join our community channels (coming soon)
 - Check the [Documentation](./docs/)
 
