@@ -3074,6 +3074,166 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Convert subprocess.run() to std::process::Command
+    /// DEPYLER-0391: Subprocess module for executing system commands
+    ///
+    /// Maps Python subprocess.run() to Rust std::process::Command:
+    /// - subprocess.run(cmd) → Command::new(cmd[0]).args(&cmd[1..]).status()
+    /// - capture_output=True → .output() instead of .status()
+    /// - cwd=path → .current_dir(path)
+    /// - check=True → verify exit status (TODO: add error handling)
+    ///
+    /// Returns anonymous struct with: returncode, stdout, stderr
+    ///
+    /// # Complexity
+    /// ≤10 (linear processing of kwargs)
+    #[inline]
+    fn convert_subprocess_run(
+        &mut self,
+        args: &[HirExpr],
+        kwargs: &[(Symbol, HirExpr)],
+    ) -> Result<syn::Expr> {
+        if args.is_empty() {
+            bail!("subprocess.run() requires at least 1 argument (command list)");
+        }
+
+        // First argument is the command list
+        let cmd_expr = args[0].to_rust_expr(self.ctx)?;
+
+        // Parse keyword arguments
+        let mut capture_output = false;
+        let mut _text = false;
+        let mut cwd_expr: Option<syn::Expr> = None;
+        let mut _check = false;
+
+        for (key, value) in kwargs {
+            match key.as_str() {
+                "capture_output" => {
+                    if let HirExpr::Literal(Literal::Bool(b)) = value {
+                        capture_output = *b;
+                    }
+                }
+                "text" => {
+                    if let HirExpr::Literal(Literal::Bool(b)) = value {
+                        _text = *b;
+                    }
+                }
+                "cwd" => {
+                    cwd_expr = Some(value.to_rust_expr(self.ctx)?);
+                }
+                "check" => {
+                    if let HirExpr::Literal(Literal::Bool(b)) = value {
+                        _check = *b;
+                    }
+                }
+                _ => {} // Ignore unknown kwargs for now
+            }
+        }
+
+        // Build the Command construction
+        // Python: subprocess.run(["echo", "hello"], capture_output=True, cwd="/tmp")
+        // Rust: {
+        //   let mut cmd = std::process::Command::new(&cmd_list[0]);
+        //   cmd.args(&cmd_list[1..]);
+        //   if cwd { cmd.current_dir(cwd); }
+        //   let output = cmd.output()?;
+        //   // Create result struct
+        //   SubprocessResult {
+        //     returncode: output.status.code().unwrap_or(-1),
+        //     stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+        //     stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        //   }
+        // }
+
+        let result = if capture_output {
+            // Use .output() to capture stdout/stderr
+            if let Some(cwd) = cwd_expr {
+                parse_quote! {
+                    {
+                        let cmd_list = #cmd_expr;
+                        let mut cmd = std::process::Command::new(&cmd_list[0]);
+                        cmd.args(&cmd_list[1..]);
+                        cmd.current_dir(#cwd);
+                        let output = cmd.output().expect("subprocess.run() failed");
+                        struct SubprocessResult {
+                            returncode: i32,
+                            stdout: String,
+                            stderr: String,
+                        }
+                        SubprocessResult {
+                            returncode: output.status.code().unwrap_or(-1),
+                            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                        }
+                    }
+                }
+            } else {
+                parse_quote! {
+                    {
+                        let cmd_list = #cmd_expr;
+                        let mut cmd = std::process::Command::new(&cmd_list[0]);
+                        cmd.args(&cmd_list[1..]);
+                        let output = cmd.output().expect("subprocess.run() failed");
+                        struct SubprocessResult {
+                            returncode: i32,
+                            stdout: String,
+                            stderr: String,
+                        }
+                        SubprocessResult {
+                            returncode: output.status.code().unwrap_or(-1),
+                            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                        }
+                    }
+                }
+            }
+        } else {
+            // Use .status() for exit code only (no capture)
+            if let Some(cwd) = cwd_expr {
+                parse_quote! {
+                    {
+                        let cmd_list = #cmd_expr;
+                        let mut cmd = std::process::Command::new(&cmd_list[0]);
+                        cmd.args(&cmd_list[1..]);
+                        cmd.current_dir(#cwd);
+                        let status = cmd.status().expect("subprocess.run() failed");
+                        struct SubprocessResult {
+                            returncode: i32,
+                            stdout: String,
+                            stderr: String,
+                        }
+                        SubprocessResult {
+                            returncode: status.code().unwrap_or(-1),
+                            stdout: String::new(),
+                            stderr: String::new(),
+                        }
+                    }
+                }
+            } else {
+                parse_quote! {
+                    {
+                        let cmd_list = #cmd_expr;
+                        let mut cmd = std::process::Command::new(&cmd_list[0]);
+                        cmd.args(&cmd_list[1..]);
+                        let status = cmd.status().expect("subprocess.run() failed");
+                        struct SubprocessResult {
+                            returncode: i32,
+                            stdout: String,
+                            stderr: String,
+                        }
+                        SubprocessResult {
+                            returncode: status.code().unwrap_or(-1),
+                            stdout: String::new(),
+                            stderr: String::new(),
+                        }
+                    }
+                }
+            }
+        };
+
+        Ok(result)
+    }
+
     /// Try to convert os.path module method calls
     /// DEPYLER-STDLIB-OSPATH: Path manipulation and file system operations
     ///
@@ -10674,8 +10834,20 @@ impl ToRustExpr for HirExpr {
             HirExpr::MethodCall {
                 object,
                 method,
-                args, ..
-            } => converter.convert_method_call(object, method, args),
+                args,
+                kwargs,
+            } => {
+                // DEPYLER-0391: Handle subprocess.run() with keyword arguments
+                // subprocess.run(cmd, capture_output=True, cwd=cwd, check=check)
+                // Must handle kwargs here before they're lost
+                if let HirExpr::Var(module_name) = &**object {
+                    if module_name == "subprocess" && method == "run" {
+                        return converter.convert_subprocess_run(args, kwargs);
+                    }
+                }
+
+                converter.convert_method_call(object, method, args)
+            }
             HirExpr::Index { base, index } => converter.convert_index(base, index),
             HirExpr::Slice {
                 base,
