@@ -46,6 +46,69 @@ Depyler is a Python-to-Rust transpiler focusing on energy-efficient, safe code g
 4. QUANTIFY IMPROVEMENTS - before/after
 5. DOCUMENT EVIDENCE - reproducible steps
 
+## Debugging Toolkit
+**MANDATORY: Use system-level tracing for runtime behavior analysis**
+
+### Renacer - Pure Rust System Call Tracer
+**Location**: `/home/noah/src/renacer/target/debug/renacer`
+
+**Use Cases**:
+- Debug transpiled Rust binary runtime behavior
+- Identify syscall issues in generated code
+- Correlate syscalls with source code (DWARF debug info)
+- Profile syscall timing and frequency
+
+**Basic Usage**:
+```bash
+# Trace all syscalls
+/home/noah/src/renacer/target/debug/renacer -- ./target/debug/my_binary
+
+# Filter specific syscalls (file operations)
+/home/noah/src/renacer/target/debug/renacer -e trace=file -- ./target/debug/my_binary
+
+# Show syscall timing
+/home/noah/src/renacer/target/debug/renacer -T -- ./target/debug/my_binary
+
+# Statistics summary
+/home/noah/src/renacer/target/debug/renacer -c -- ./target/debug/my_binary
+
+# Source correlation (with debug info)
+/home/noah/src/renacer/target/debug/renacer -s -- ./target/debug/my_binary
+
+# JSON output for parsing
+/home/noah/src/renacer/target/debug/renacer --format json -- ./target/debug/my_binary
+```
+
+**Debugging Workflow**:
+1. Transpile Python to Rust with debug info: `depyler transpile --debug <file.py>`
+2. Build Rust binary: `rustc -g <output.rs>` or `cargo build`
+3. Trace execution: `renacer -s -T -- ./binary`
+4. Analyze syscalls to identify runtime issues
+5. Fix transpiler based on findings
+
+**Quick Alias** (add to shell):
+```bash
+alias renacer='/home/noah/src/renacer/target/debug/renacer'
+```
+
+**Example - Debug transpiled code**:
+```bash
+# Transpile Python
+depyler transpile my_script.py -o my_script.rs
+
+# Compile with debug info
+rustc -g my_script.rs -o my_script
+
+# Trace execution with timing
+renacer -T -- ./my_script
+
+# Get statistics summary
+renacer -c -- ./my_script
+
+# Focus on file operations
+renacer -e trace=file -- ./my_script
+```
+
 ## QDD (Quality-Driven Development)
 **Quality Metrics FIRST**:
 ```bash
