@@ -64,7 +64,7 @@ fn test_DEPYLER_0260_simple_generator_compiles() {
 
     // Generate Rust code
     let type_mapper = TypeMapper::default();
-    let rust_code = generate_rust_file(&module, &type_mapper)
+    let (rust_code, _dependencies) = generate_rust_file(&module, &type_mapper)
         .expect("DEPYLER-0260: Code generation should not fail");
 
     // Write to temp file
@@ -136,7 +136,7 @@ fn test_DEPYLER_0260_generator_no_dynamictype() {
     };
 
     let type_mapper = TypeMapper::default();
-    let rust_code = generate_rust_file(&module, &type_mapper)
+    let (rust_code, _dependencies) = generate_rust_file(&module, &type_mapper)
         .expect("Code generation should not fail");
 
     // ASSERT: Generated code must NOT contain "DynamicType"
@@ -231,7 +231,7 @@ fn test_DEPYLER_0260_fibonacci_generator_compiles() {
     };
 
     let type_mapper = TypeMapper::default();
-    let rust_code = generate_rust_file(&module, &type_mapper)
+    let (rust_code, _dependencies) = generate_rust_file(&module, &type_mapper)
         .expect("Code generation should not fail");
 
     let temp_file = "/tmp/test_depyler_0260_fibonacci.rs";
