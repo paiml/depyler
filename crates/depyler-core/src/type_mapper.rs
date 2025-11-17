@@ -163,6 +163,10 @@ impl TypeMapper {
                             "serde_json::Value".to_string(),
                         ))),
                         "Set" => RustType::HashSet(Box::new(RustType::String)),
+                        // DEPYLER-0379: Handle generic tuple annotation
+                        // Python `-> tuple` (without type parameters) maps to empty Rust tuple `()`
+                        // This is a fallback - ideally type should be inferred from return value
+                        "tuple" => RustType::Tuple(vec![]),
                         _ => RustType::Custom(name.clone()),
                     }
                 }
