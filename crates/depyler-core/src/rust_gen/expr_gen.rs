@@ -8701,6 +8701,40 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // DEPYLER-0389: Handle regex Match.group() method
+        // Python: match.group(0) or match.group(n)
+        // Rust: match.as_str() for group(0), or handle numbered groups
+        if method == "group" {
+            if arg_exprs.is_empty() || hir_args.is_empty() {
+                // match.group() with no args defaults to group(0) in Python
+                return Ok(parse_quote! { #object_expr.as_str() });
+            }
+
+            // Check if argument is literal 0
+            if let HirExpr::Literal(Literal::Int(n)) = &hir_args[0] {
+                if *n == 0 {
+                    // match.group(0) → match.as_str()
+                    return Ok(parse_quote! { #object_expr.as_str() });
+                } else {
+                    // match.group(n) → match.get(n).map(|m| m.as_str()).unwrap_or("")
+                    let idx = &arg_exprs[0];
+                    return Ok(parse_quote! {
+                        #object_expr.get(#idx).map(|m| m.as_str()).unwrap_or("")
+                    });
+                }
+            }
+
+            // Non-literal argument - use runtime check
+            let idx = &arg_exprs[0];
+            return Ok(parse_quote! {
+                if #idx == 0 {
+                    #object_expr.as_str()
+                } else {
+                    #object_expr.get(#idx).map(|m| m.as_str()).unwrap_or("")
+                }
+            });
+        }
+
         // DEPYLER-0232 FIX: Check for user-defined class instances FIRST
         // User-defined classes can have methods with names like "add" that conflict with
         // built-in collection methods. We must prioritize user-defined methods.
