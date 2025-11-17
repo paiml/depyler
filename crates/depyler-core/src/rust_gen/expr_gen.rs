@@ -126,6 +126,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // - HashSet: container.contains(&x)
                 // - HashMap/dict: container.contains_key(&x)
 
+                // DEPYLER-0380 Bug #3: Handle `var in os.environ`
+                // os.environ in Python is like a dict, but in Rust we check with std::env::var().is_ok()
+                if let HirExpr::Attribute { value, attr } = right {
+                    if let HirExpr::Var(module_name) = &**value {
+                        if module_name == "os" && attr == "environ" {
+                            // var in os.environ → std::env::var(var).is_ok()
+                            return Ok(parse_quote! { std::env::var(#left_expr).is_ok() });
+                        }
+                    }
+                }
+
                 // DEPYLER-0321: Use type-aware string detection
                 let is_string = self.is_string_type(right);
 
@@ -168,6 +179,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             BinOp::NotIn => {
                 // Convert "x not in container" to !container.method(&x)
+
+                // DEPYLER-0380 Bug #3: Handle `var not in os.environ`
+                // os.environ in Python is like a dict, but in Rust we check with !std::env::var().is_ok()
+                if let HirExpr::Attribute { value, attr } = right {
+                    if let HirExpr::Var(module_name) = &**value {
+                        if module_name == "os" && attr == "environ" {
+                            // var not in os.environ → !std::env::var(var).is_ok()
+                            return Ok(parse_quote! { !std::env::var(#left_expr).is_ok() });
+                        }
+                    }
+                }
 
                 // DEPYLER-0321: Use type-aware string detection
                 let is_string = self.is_string_type(right);
@@ -2850,6 +2872,59 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             _ => {
                 bail!("csv.{} not implemented yet", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
+    /// Try to convert os module method calls
+    /// DEPYLER-0380-BUG-2: os.getenv() with default values
+    ///
+    /// Maps Python os module to Rust std::env:
+    /// - os.getenv(key) → std::env::var(key)?
+    /// - os.getenv(key, default) → std::env::var(key).unwrap_or_else(|_| default.to_string())
+    ///
+    /// # Complexity
+    /// ≤10 (match with few branches)
+    #[inline]
+    fn try_convert_os_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            "getenv" => {
+                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+                    bail!("os.getenv() requires 1 or 2 arguments");
+                }
+
+                if arg_exprs.len() == 1 {
+                    // os.getenv("KEY") → std::env::var("KEY")?
+                    let key = &arg_exprs[0];
+                    parse_quote! { std::env::var(#key)? }
+                } else {
+                    // os.getenv("KEY", "default") → std::env::var("KEY").unwrap_or_else(|_| "default".to_string())
+                    let key = &arg_exprs[0];
+                    let default = &arg_exprs[1];
+
+                    // DEPYLER-0380: Handle default value properly
+                    // Python's os.getenv() always returns str, so the default must be converted to String.
+                    // The unwrap_or_else closure must return String, so we always add .to_string()
+                    // to ensure the default value is owned.
+                    parse_quote! {
+                        std::env::var(#key).unwrap_or_else(|_| #default.to_string())
+                    }
+                }
+            }
+            _ => {
+                return Ok(None);
             }
         };
 
@@ -6969,6 +7044,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 return self.try_convert_csv_method(method, args);
             }
 
+            // DEPYLER-0380: os module operations (getenv, etc.)
+            // Must be checked before os.path to handle non-path os functions
+            if module_name == "os" {
+                if let Some(result) = self.try_convert_os_method(method, args)? {
+                    return Ok(Some(result));
+                }
+                // Fall through to os.path handler if method not recognized
+            }
+
             // DEPYLER-STDLIB-OSPATH: os.path file system operations
             // Note: This handles both "os.path" and potentially "os" with path attribute
             if module_name == "os.path" || module_name == "path" {
@@ -8172,6 +8256,80 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-0381: Convert sys I/O stream method calls
+    /// sys.stdout.write(msg) → writeln!(std::io::stdout(), "{}", msg).unwrap()
+    /// sys.stdin.read() → { let mut s = String::new(); std::io::stdin().read_to_string(&mut s).unwrap(); s }
+    /// sys.stdout.flush() → std::io::stdout().flush().unwrap()
+    #[inline]
+    fn convert_sys_io_method(
+        &self,
+        stream: &str,
+        method: &str,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        let stream_fn = match stream {
+            "stdin" => quote! { std::io::stdin() },
+            "stdout" => quote! { std::io::stdout() },
+            "stderr" => quote! { std::io::stderr() },
+            _ => bail!("Unknown I/O stream: {}", stream),
+        };
+
+        let result = match (stream, method) {
+            // stdout/stderr write methods
+            ("stdout" | "stderr", "write") => {
+                if arg_exprs.is_empty() {
+                    bail!("{}.write() requires an argument", stream);
+                }
+                let msg = &arg_exprs[0];
+                // Use writeln! macro for cleaner code and automatic newline handling
+                // If the message already has \n, use write! instead
+                parse_quote! {
+                    {
+                        use std::io::Write;
+                        write!(#stream_fn, "{}", #msg).unwrap();
+                    }
+                }
+            }
+
+            // flush method
+            (_, "flush") => {
+                parse_quote! {
+                    {
+                        use std::io::Write;
+                        #stream_fn.flush().unwrap()
+                    }
+                }
+            }
+
+            // stdin read methods
+            ("stdin", "read") => {
+                parse_quote! {
+                    {
+                        use std::io::Read;
+                        let mut buffer = String::new();
+                        #stream_fn.read_to_string(&mut buffer).unwrap();
+                        buffer
+                    }
+                }
+            }
+
+            ("stdin", "readline") => {
+                parse_quote! {
+                    {
+                        use std::io::BufRead;
+                        let mut line = String::new();
+                        #stream_fn.lock().read_line(&mut line).unwrap();
+                        line
+                    }
+                }
+            }
+
+            _ => bail!("{}.{}() is not yet supported", stream, method),
+        };
+
+        Ok(result)
+    }
+
     /// Convert instance method calls (main dispatcher)
     #[inline]
     fn convert_instance_method(
@@ -8194,6 +8352,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if method == "add_argument" {
             // TODO: Accumulate these calls to generate struct fields
             return Ok(parse_quote! { () });
+        }
+
+        // DEPYLER-0381: Handle sys I/O stream method calls
+        // Check if object is a sys I/O stream (sys.stdin(), sys.stdout(), sys.stderr())
+        if let HirExpr::Attribute { value, attr } = object {
+            if let HirExpr::Var(module) = &**value {
+                if module == "sys" && matches!(attr.as_str(), "stdin" | "stdout" | "stderr") {
+                    return self.convert_sys_io_method(attr, method, arg_exprs);
+                }
+            }
         }
 
         // DEPYLER-0232 FIX: Check for user-defined class instances FIRST
@@ -9283,11 +9451,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-SYS: Handle sys module attributes
             // sys.argv → std::env::args().collect()
             // sys.platform → compile-time platform string
+            // DEPYLER-0381: sys.stdin/stdout/stderr → std::io::stdin()/stdout()/stderr()
             if module_name == "sys" {
                 let result = match attr {
                     "argv" => parse_quote! { std::env::args().collect::<Vec<String>>() },
                     "platform" => {
-                        // Return platform name based on target OS
+                        // Return platform name based on target OS as String
                         #[cfg(target_os = "linux")]
                         let platform = "linux";
                         #[cfg(target_os = "macos")]
@@ -9296,7 +9465,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         let platform = "win32";
                         #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
                         let platform = "unknown";
-                        parse_quote! { #platform }
+                        parse_quote! { #platform.to_string() }
+                    }
+                    // DEPYLER-0381: I/O stream attributes (functions in Rust, not objects)
+                    "stdin" => parse_quote! { std::io::stdin() },
+                    "stdout" => parse_quote! { std::io::stdout() },
+                    "stderr" => parse_quote! { std::io::stderr() },
+                    // DEPYLER-0381: version_info as a tuple (major, minor)
+                    // Note: Python's sys.version_info is a 5-tuple (major, minor, micro, releaselevel, serial)
+                    // but most comparisons use only (major, minor), so we return a 2-tuple for compatibility
+                    "version_info" => {
+                        // Rust doesn't have runtime version info by default
+                        // Return a compile-time constant tuple matching Python 3.11
+                        parse_quote! { (3, 11) }
                     }
                     _ => {
                         bail!("sys.{} is not a recognized attribute", attr);
