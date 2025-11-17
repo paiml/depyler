@@ -348,7 +348,6 @@ hyperfine --warmup 3 \
 | **Lines of Code** | 25 | 45 | 30 | 28 | - |
 | **Test Lines** | 80 | 120 | 95 | 110 | - |
 | **Performance** | baseline | 2.3x faster | 0.98x | 1.8x faster | - |
-| **Artifacts** | [📁](examples/01_binary_search/A_python) | [📁](examples/01_binary_search/B_python_to_rust) | [📁](examples/01_binary_search/C_rust_to_python_purified) | [📁](examples/01_binary_search/D_python_to_ruchy) | [📊](examples/01_binary_search/VALIDATION.md) |
 
 ---
 
@@ -658,36 +657,36 @@ make report
 
 ### Core Language Features
 
-| Feature | A: Python | B: Py→Rust | C: Rust→Py | D: Py→Ruchy | Status | Report |
-|---------|-----------|------------|------------|-------------|--------|--------|
-| **Basic Types** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>95% mut | ✅ 100%<br>90% mut | ✅ 100%<br>A- | ✅ | [📊](examples/01_basic_types/VALIDATION.md) |
-| **Collections** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>93% mut | ✅ 100%<br>88% mut | ✅ 100%<br>A- | ✅ | [📊](examples/02_collections/VALIDATION.md) |
-| **Control Flow** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>97% mut | ✅ 100%<br>92% mut | ✅ 100%<br>A | ✅ | [📊](examples/03_control_flow/VALIDATION.md) |
-| **Functions** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>94% mut | ✅ 100%<br>89% mut | ✅ 100%<br>A- | ✅ | [📊](examples/04_functions/VALIDATION.md) |
-| **Error Handling** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>91% mut | ✅ 100%<br>85% mut | ✅ 100%<br>A- | ✅ | [📊](examples/05_error_handling/VALIDATION.md) |
-| **List Comprehensions** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>96% mut | ✅ 100%<br>93% mut | ✅ 100%<br>A | ✅ | [📊](examples/06_list_comprehensions/VALIDATION.md) |
+| Feature | A: Python | B: Py→Rust | C: Rust→Py | D: Py→Ruchy | Status |
+|---------|-----------|------------|------------|-------------|--------|
+| **Basic Types** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>95% mut | ✅ 100%<br>90% mut | ✅ 100%<br>A- | ✅ |
+| **Collections** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>93% mut | ✅ 100%<br>88% mut | ✅ 100%<br>A- | ✅ |
+| **Control Flow** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>97% mut | ✅ 100%<br>92% mut | ✅ 100%<br>A | ✅ |
+| **Functions** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>94% mut | ✅ 100%<br>89% mut | ✅ 100%<br>A- | ✅ |
+| **Error Handling** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>91% mut | ✅ 100%<br>85% mut | ✅ 100%<br>A- | ✅ |
+| **List Comprehensions** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>96% mut | ✅ 100%<br>93% mut | ✅ 100%<br>A | ✅ |
 
 ### Advanced Features
 
-| Feature | A: Python | B: Py→Rust | C: Rust→Py | D: Py→Ruchy | Status | Report |
-|---------|-----------|------------|------------|-------------|--------|--------|
-| **Classes** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>89% mut | ✅ 100%<br>82% mut | ✅ 100%<br>B+ | ✅ | [📊](examples/07_classes/VALIDATION.md) |
-| **Iterators/Generators** | ✅ 100%<br>mypy ✅ | ⚠️ 98%<br>87% mut | ✅ 100%<br>84% mut | ✅ 100%<br>A- | ⚠️ | [📊](examples/08_iterators/VALIDATION.md) |
-| **Decorators** | ✅ 100%<br>mypy ✅ | 🚧 WIP | 🚧 WIP | ✅ 100%<br>A- | 🚧 | [📊](examples/09_decorators/VALIDATION.md) |
-| **Context Managers** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>92% mut | ✅ 100%<br>87% mut | ✅ 100%<br>A- | ✅ | [📊](examples/10_context_managers/VALIDATION.md) |
-| **Pattern Matching** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>95% mut | ✅ 100%<br>91% mut | ✅ 100%<br>A | ✅ | [📊](examples/11_pattern_matching/VALIDATION.md) |
-| **Async/Await** | ✅ 100%<br>mypy ✅ | 🚧 WIP | 🚧 WIP | ✅ 100%<br>A- | 🚧 | [📊](examples/12_async_await/VALIDATION.md) |
+| Feature | A: Python | B: Py→Rust | C: Rust→Py | D: Py→Ruchy | Status |
+|---------|-----------|------------|------------|-------------|--------|
+| **Classes** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>89% mut | ✅ 100%<br>82% mut | ✅ 100%<br>B+ | ✅ |
+| **Iterators/Generators** | ✅ 100%<br>mypy ✅ | ⚠️ 98%<br>87% mut | ✅ 100%<br>84% mut | ✅ 100%<br>A- | ⚠️ |
+| **Decorators** | ✅ 100%<br>mypy ✅ | 🚧 WIP | 🚧 WIP | ✅ 100%<br>A- | 🚧 |
+| **Context Managers** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>92% mut | ✅ 100%<br>87% mut | ✅ 100%<br>A- | ✅ |
+| **Pattern Matching** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>95% mut | ✅ 100%<br>91% mut | ✅ 100%<br>A | ✅ |
+| **Async/Await** | ✅ 100%<br>mypy ✅ | 🚧 WIP | 🚧 WIP | ✅ 100%<br>A- | 🚧 |
 
 ### Real-World Algorithms
 
-| Example | A: Python | B: Py→Rust | C: Rust→Py | D: Py→Ruchy | Status | Report |
-|---------|-----------|------------|------------|-------------|--------|--------|
-| **Binary Search** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>95% mut | ✅ 100%<br>85% mut | ✅ 100%<br>A- | ✅ | [📊](examples/binary_search/VALIDATION.md) |
-| **Fibonacci** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>98% mut | ✅ 100%<br>94% mut | ✅ 100%<br>A | ✅ | [📊](examples/fibonacci/VALIDATION.md) |
-| **Merge Sort** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>93% mut | ✅ 100%<br>89% mut | ✅ 100%<br>A- | ✅ | [📊](examples/merge_sort/VALIDATION.md) |
-| **Graph Traversal** | ✅ 100%<br>mypy ✅ | ⚠️ 97%<br>88% mut | ✅ 100%<br>83% mut | ✅ 100%<br>A- | ⚠️ | [📊](examples/graph_traversal/VALIDATION.md) |
-| **JSON Parser** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>91% mut | ✅ 100%<br>86% mut | ✅ 100%<br>A- | ✅ | [📊](examples/json_parser/VALIDATION.md) |
-| **HTTP Client** | ✅ 100%<br>mypy ✅ | 🚧 WIP | 🚧 WIP | ✅ 100%<br>A | 🚧 | [📊](examples/http_client/VALIDATION.md) |
+| Example | A: Python | B: Py→Rust | C: Rust→Py | D: Py→Ruchy | Status |
+|---------|-----------|------------|------------|-------------|--------|
+| **Binary Search** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>95% mut | ✅ 100%<br>85% mut | ✅ 100%<br>A- | ✅ |
+| **Fibonacci** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>98% mut | ✅ 100%<br>94% mut | ✅ 100%<br>A | ✅ |
+| **Merge Sort** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>93% mut | ✅ 100%<br>89% mut | ✅ 100%<br>A- | ✅ |
+| **Graph Traversal** | ✅ 100%<br>mypy ✅ | ⚠️ 97%<br>88% mut | ✅ 100%<br>83% mut | ✅ 100%<br>A- | ⚠️ |
+| **JSON Parser** | ✅ 100%<br>mypy ✅ | ✅ 100%<br>91% mut | ✅ 100%<br>86% mut | ✅ 100%<br>A- | ✅ |
+| **HTTP Client** | ✅ 100%<br>mypy ✅ | 🚧 WIP | 🚧 WIP | ✅ 100%<br>A | 🚧 |
 
 ## Overall Statistics
 
@@ -751,7 +750,7 @@ python scripts/generate_matrix.py > README.md
 
 ## Contributing
 
-See [CONVERSION_GUIDE.md](docs/CONVERSION_GUIDE.md) for how to add new examples.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md) for how to contribute to the project.
 
 ## License
 
