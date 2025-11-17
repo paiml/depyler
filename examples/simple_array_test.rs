@@ -1,22 +1,30 @@
-#[derive(Debug, Clone)] pub struct IndexError {
-    message: String ,
+#[derive(Debug, Clone)]
+pub struct IndexError {
+    message: String,
 }
 impl std::fmt::Display for IndexError {
-    fn fmt(& self, f: & mut std::fmt::Formatter<'_>)  -> std::fmt::Result {
-    write !(f, "index out of range: {}", self.message)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "index out of range: {}", self.message)
+    }
 }
-} impl std::error::Error for IndexError {
-   
-}
+impl std::error::Error for IndexError {}
 impl IndexError {
-    pub fn new(message: impl Into<String>)  -> Self {
-    Self {
-    message: message.into()
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
 }
-}
-}
-#[doc = " Depyler: proven to terminate"] pub fn test_arrays()  -> Result<DynamicType, IndexError>{
-    let _cse_temp_0 = arr1.get(0 as usize).copied().unwrap_or_default() + arr1.get(1 as usize).copied().unwrap_or_default();
-    let sum_val = _cse_temp_0;
-    return Ok(sum_val)
+#[doc = " Depyler: proven to terminate"]
+pub fn test_arrays() -> Result<(), IndexError> {
+    let arr1 = vec![1, 2, 3, 4, 5];
+    let arr2 = vec![0, 0, 0, 0];
+    let _cse_temp_0 = [0; 10];
+    let zeros = _cse_temp_0;
+    let _cse_temp_1 = [1; 5];
+    let ones = _cse_temp_1;
+    let _cse_temp_2 = arr1.get(0usize).cloned().unwrap_or_default()
+        + arr1.get(1usize).cloned().unwrap_or_default();
+    let sum_val = _cse_temp_2;
+    Ok(sum_val)
 }
