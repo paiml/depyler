@@ -138,8 +138,12 @@ pub fn extract_dependencies(ctx: &CodeGenContext) -> Vec<Dependency> {
 }
 
 /// Generate complete Cargo.toml content
+///
+/// DEPYLER-0392: Now includes [[bin]] section to ensure generated manifests
+/// are complete and can be built by Cargo without manual editing.
 pub fn generate_cargo_toml(
     package_name: &str,
+    source_file_path: &str,
     dependencies: &[Dependency],
 ) -> String {
     let mut toml = String::new();
@@ -149,6 +153,12 @@ pub fn generate_cargo_toml(
     toml.push_str(&format!("name = \"{}\"\n", package_name));
     toml.push_str("version = \"0.1.0\"\n");
     toml.push_str("edition = \"2021\"\n");
+    toml.push('\n');
+
+    // Binary section (DEPYLER-0392: Required for cargo build to work)
+    toml.push_str("[[bin]]\n");
+    toml.push_str(&format!("name = \"{}\"\n", package_name));
+    toml.push_str(&format!("path = \"{}\"\n", source_file_path));
     toml.push('\n');
 
     // Dependencies section
@@ -185,10 +195,13 @@ mod tests {
 
     #[test]
     fn test_generate_cargo_toml_empty() {
-        let toml = generate_cargo_toml("test_pkg", &[]);
+        let toml = generate_cargo_toml("test_pkg", "test_pkg.rs", &[]);
         assert!(toml.contains("name = \"test_pkg\""));
         assert!(toml.contains("version = \"0.1.0\""));
         assert!(toml.contains("edition = \"2021\""));
+        // DEPYLER-0392: Verify [[bin]] section exists
+        assert!(toml.contains("[[bin]]"));
+        assert!(toml.contains("path = \"test_pkg.rs\""));
     }
 
     #[test]
@@ -198,8 +211,9 @@ mod tests {
             Dependency::new("clap", "4.5")
                 .with_features(vec!["derive".to_string()]),
         ];
-        let toml = generate_cargo_toml("test_pkg", &deps);
+        let toml = generate_cargo_toml("test_pkg", "main.rs", &deps);
 
+        assert!(toml.contains("[[bin]]"));
         assert!(toml.contains("[dependencies]"));
         assert!(toml.contains("serde_json = \"1.0\""));
         assert!(toml.contains("clap = { version = \"4.5\", features = [\"derive\"] }"));
@@ -230,7 +244,7 @@ mod tests {
         ];
 
         for (deps, desc) in test_cases {
-            let toml = generate_cargo_toml("test_pkg", &deps);
+            let toml = generate_cargo_toml("test_pkg", "test_pkg.rs", &deps);
 
             // Property: Must parse as valid TOML
             let parsed: Result<toml::Value, _> = toml::from_str(&toml);
@@ -243,17 +257,18 @@ mod tests {
         }
     }
 
-    /// Property Test: Package name must appear exactly once in [package] section
+    /// Property Test: Package name must appear in both [package] and [[bin]] sections
     #[test]
     fn test_property_package_name_uniqueness() {
-        let toml = generate_cargo_toml("my_app", &[]);
+        let toml = generate_cargo_toml("my_app", "my_app.rs", &[]);
 
-        // Property: Package name appears exactly once
+        // Property: Package name appears exactly twice (once in [package], once in [[bin]])
         let count = toml.matches("name = \"my_app\"").count();
-        assert_eq!(count, 1, "Package name must appear exactly once");
+        assert_eq!(count, 2, "Package name must appear in [package] and [[bin]] sections");
 
-        // Property: Package section exists
+        // Property: Required sections exist
         assert!(toml.contains("[package]"), "Must have [package] section");
+        assert!(toml.contains("[[bin]]"), "Must have [[bin]] section");
     }
 
     /// Property Test: All dependencies must be in [dependencies] section
@@ -263,7 +278,7 @@ mod tests {
             Dependency::new("serde", "1.0"),
             Dependency::new("tokio", "1.0"),
         ];
-        let toml = generate_cargo_toml("test", &deps);
+        let toml = generate_cargo_toml("test", "test.rs", &deps);
 
         // Property: [dependencies] appears before any dependency
         let deps_idx = toml.find("[dependencies]");
