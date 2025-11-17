@@ -897,4 +897,4 @@ For full features, use the Depyler CLI tool.
 ---
 
 This guide will continue to evolve as Depyler develops. For the latest
-information, see our [documentation](../) and [release notes](../CHANGELOG.md).
+information, see our documentation and [release notes](../CHANGELOG.md).

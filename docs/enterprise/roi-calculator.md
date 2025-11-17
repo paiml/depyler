@@ -484,8 +484,7 @@ print(f"Payback period: {result['payback_months']:.1f} months")
 
 ### Excel Template
 
-Download our comprehensive Excel template for detailed ROI analysis:
-- **[Depyler ROI Calculator.xlsx](https://github.com/paiml/depyler/releases/latest/download/depyler-roi-calculator.xlsx)**
+Contact [enterprise@paiml.com](mailto:enterprise@paiml.com) for our comprehensive Excel template for detailed ROI analysis.
 
 Features:
 - Interactive input forms
@@ -501,13 +500,11 @@ Features:
 
 ### Free ROI Assessment
 
-Schedule a complimentary 1-hour session with our ROI specialists:
+Email [enterprise@paiml.com](mailto:enterprise@paiml.com) to schedule a complimentary 1-hour session with our ROI specialists:
 - **Detailed cost analysis** of your current environment
 - **Custom performance projections** based on your workloads
 - **Risk assessment** and mitigation strategies
 - **Implementation roadmap** with timeline and milestones
-
-**[Schedule Your Free Assessment](https://calendly.com/depyler-roi-assessment)**
 
 ### Enterprise ROI Services
 

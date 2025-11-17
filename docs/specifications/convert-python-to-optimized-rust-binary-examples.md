@@ -1931,10 +1931,8 @@ cargo run --example calculator -- -f expressions.txt -v
 
 ## References
 
-1. [Compiled Rust Benchmarking Spec](../compiled-rust-benchmarking/docs/specifications/compiled-binary-rust-size-speedup-benchmarking-spec.md)
-2. [PMAT Quality Framework](https://github.com/paiml/pmat)
-3. [Rust Performance Book](https://nnethercote.github.io/perf-book/)
-4. [Profile-Guided Optimization](https://doc.rust-lang.org/rustc/profile-guided-optimization.html)
+1. [Rust Performance Book](https://nnethercote.github.io/perf-book/)
+2. [Profile-Guided Optimization](https://doc.rust-lang.org/rustc/profile-guided-optimization.html)
 
 ---
 

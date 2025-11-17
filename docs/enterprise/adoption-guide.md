@@ -632,9 +632,9 @@ gantt
 
 ### Next Steps for Enterprise Adoption
 
-1. **Schedule Assessment Call**: [Book a consultation](https://calendly.com/depyler-enterprise)
+1. **Contact Us**: Email [enterprise@paiml.com](mailto:enterprise@paiml.com) for assessment
 2. **Download Enterprise Evaluation**: [Request access](https://github.com/paiml/depyler/releases)
-3. **Join Enterprise Program**: [Apply here](https://forms.gle/depyler-enterprise)
+3. **Join Enterprise Program**: Email [enterprise@paiml.com](mailto:enterprise@paiml.com) to apply
 
 ### Evaluation Checklist
 

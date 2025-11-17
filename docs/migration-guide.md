@@ -532,7 +532,6 @@ After successful migration:
 For migration support:
 
 - 🐛 **Issues**: [GitHub Issues](https://github.com/paiml/depyler/issues)
-- 💬 **Community**: [Discussions](https://github.com/paiml/depyler/discussions)
 - 📧 **Enterprise**: [enterprise@paiml.com](mailto:enterprise@paiml.com)
 
 ---

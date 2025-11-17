@@ -8418,14 +8418,7 @@ Fixed critical bug where all async methods in classes were being generated as sy
 
 **Solution**:
 - Changed line 653 from hardcoded `asyncness: None` to conditional check
-- Now checks `method.is_async` and generates appropriate token:
-  ```rust
-  asyncness: if method.is_async {
-      Some(syn::Token![async](...))
-  } else {
-      None
-  }
-  ```
+- Now checks `method.is_async` and generates appropriate async token
 
 **Files Modified**:
 - `crates/depyler-core/src/direct_rules.rs:653-657` - Added async keyword support
@@ -13802,8 +13795,6 @@ None - all changes are additive and maintain backward compatibility.
 ## [0.3.0] - 2025-01-06
 
 **Interactive Playground & Enterprise-Ready Quality Improvements**
-
-[Full Release Notes](./RELEASE_NOTES_v0.3.0.md)
 
 ### Added
 

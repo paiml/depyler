@@ -1070,7 +1070,6 @@ For detailed methodology and raw data:
 
 - **[Benchmark Source Code](https://github.com/paiml/depyler/tree/main/benchmarks)**
 - **[Raw Results](https://github.com/paiml/depyler/tree/main/benchmarks/results)**
-- **[Statistical Analysis](https://github.com/paiml/depyler/tree/main/benchmarks/analysis)**
 
 ---
 

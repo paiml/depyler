@@ -113,5 +113,5 @@ MIT
 ## References
 
 - [Python Standard Library](https://docs.python.org/3/library/)
-- [Depyler Transpiler](https://github.com/yourusername/depyler)
+- [Depyler Transpiler](https://github.com/paiml/depyler)
 - [Hypothesis Testing](https://hypothesis.readthedocs.io/)

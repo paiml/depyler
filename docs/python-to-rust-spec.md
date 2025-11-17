@@ -736,7 +736,6 @@ For the latest specification updates and implementation details, see:
 
 - **[GitHub Repository](https://github.com/paiml/depyler)**
 - **[API Documentation](https://docs.rs/depyler)**
-- **[Community Discussions](https://github.com/paiml/depyler/discussions)**
 
 ---
 
