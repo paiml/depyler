@@ -459,6 +459,173 @@ cargo clean
 8. COVERAGE: ≥80% (`cargo llvm-cov`)
 9. COMMIT: With ticket reference (only if ALL gates pass)
 
+## 🔍 Renacer Debugging Integration (Performance Profiling)
+
+**Tool**: [Renacer v0.2.0+](https://github.com/paiml/renacer) - Syscall tracer and function profiler
+**Install**: `cargo install renacer`
+
+### When to Use Renacer
+
+**MANDATORY** for performance-critical work:
+- ❌ NEVER optimize without profiling first (no guessing!)
+- ✅ ALWAYS profile before claiming "performance improvement"
+- ✅ REQUIRED for any commit mentioning "optimization", "faster", or "performance"
+
+### Quick Start Scripts
+
+**Profile Transpiler**:
+```bash
+# Basic profiling
+./scripts/profile_transpiler.sh examples/benchmark.py
+
+# Generate flamegraph
+./scripts/profile_transpiler.sh examples/matrix_testing_project/07_algorithms/algorithms.py --flamegraph
+
+# Find I/O bottlenecks only
+./scripts/profile_transpiler.sh examples/example_stdlib.py --io-only
+```
+
+**Profile Tests**:
+```bash
+# Find slow tests (>100ms)
+./scripts/profile_tests.sh --slow-only
+
+# Profile specific test
+./scripts/profile_tests.sh cargo_toml_gen
+
+# Full test suite profiling
+./scripts/profile_tests.sh
+```
+
+**Profile DEPYLER-0384 (Cargo.toml Generation)**:
+```bash
+# Comprehensive profiling of automatic dependency tracking
+./scripts/profile_cargo_toml_gen.sh
+```
+
+### Performance Thresholds (ENFORCED)
+
+**Transpilation Performance**:
+- Parse phase: <50ms for typical scripts
+- Codegen phase: <100ms for typical scripts
+- Total transpilation: <200ms for typical scripts
+
+**I/O Thresholds**:
+- File read: <10ms (use buffering if exceeded)
+- File write: <5ms (acceptable for Cargo.toml generation)
+- Temp file operations: <1ms per operation
+
+**Test Performance**:
+- Unit tests: <10ms each
+- Property tests: <100ms total (1000 iterations)
+- Integration tests: <500ms each (compilation allowed)
+
+### Profiling Workflow (Scientific Method)
+
+**MANDATORY steps for optimization commits**:
+
+1. **BASELINE** - Establish current performance
+   ```bash
+   renacer --function-time -- cargo run --release -- transpile script.py > baseline.txt
+   ```
+
+2. **IDENTIFY** - Find hot functions (>5% total time)
+   ```bash
+   ./scripts/profile_transpiler.sh script.py --hot-functions
+   ```
+
+3. **HYPOTHESIZE** - Form optimization hypothesis
+   - Example: "Caching type lookups will reduce parser time by 30%"
+
+4. **OPTIMIZE** - Apply targeted optimization
+   - ONLY optimize hot paths identified in step 2
+   - NEVER optimize without profiling data
+
+5. **MEASURE** - Verify improvement
+   ```bash
+   renacer --function-time -- cargo run --release -- transpile script.py > optimized.txt
+   diff baseline.txt optimized.txt
+   ```
+
+6. **VALIDATE** - Ensure correctness maintained
+   ```bash
+   cargo test --workspace
+   cargo clippy -- -D warnings
+   ```
+
+### Commit Message Requirements
+
+For performance-related commits, MUST include:
+```
+[DEPYLER-XXXX] Optimize parser caching (30% speedup)
+
+Performance Metrics (Renacer v0.2.0):
+  Baseline:
+    - parse_python: 45.3ms (23%)
+    - Total: 196ms
+
+  Optimized:
+    - parse_python: 31.7ms (16%) [-30%]
+    - Total: 167ms [-15%]
+
+  I/O Bottlenecks:
+    - Before: File read 12.3ms
+    - After: Buffered read 2.1ms [-83%]
+
+Verification:
+  - Tests: 690/690 passing ✅
+  - Flamegraph: attached (depyler_optimized.svg)
+  - No regressions ✅
+```
+
+### Example: DEPYLER-0384 Profiling
+
+```bash
+# Profile Cargo.toml generation overhead
+./scripts/profile_cargo_toml_gen.sh
+
+# Expected results:
+#   - extract_dependencies: <0.2ms
+#   - generate_cargo_toml: <0.1ms
+#   - Total overhead: <1% of transpilation time ✅
+```
+
+### Flamegraph Best Practices
+
+**Prerequisites**:
+```bash
+git clone https://github.com/brendangregg/FlameGraph
+export PATH=$PATH:$PWD/FlameGraph
+```
+
+**Generate flamegraph**:
+```bash
+renacer --function-time -- cargo run --release -- transpile large_script.py | \
+    flamegraph.pl > transpile_flame.svg
+```
+
+**Attach to commits**: Include flamegraphs in optimization PRs
+
+### Debugging Scenarios
+
+**Slow transpilation**:
+```bash
+./scripts/profile_transpiler.sh slow_script.py --flamegraph
+depyler transpile slow_script.py --trace  # See pipeline phases
+```
+
+**Compilation timeout**:
+```bash
+renacer --function-time -- depyler compile timeout_script.py
+```
+
+**Test regression**:
+```bash
+./scripts/profile_tests.sh failing_test
+```
+
+**Full Documentation**: [docs/debugging/renacer-debugging-guide.md](docs/debugging/renacer-debugging-guide.md)
+
 ## Release Checklist
 - [ ] All examples transpile and run
 - [ ] Property tests 100% coverage on supported features

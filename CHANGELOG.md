@@ -4,6 +4,80 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### ✨ Features: Automatic Cargo.toml Generation (DEPYLER-0384)
+
+**Ticket**: DEPYLER-0384
+**Impact**: Transpiled Rust code now includes complete Cargo.toml with all dependencies
+**Test Status**: ✅ 12/12 property tests passing (100%)
+**Quality Gates**: ✅ TDG Score A-, Complexity ≤10, Clippy clean
+
+#### Automatic Dependency Tracking and Cargo.toml Generation
+
+When transpiling Python code, Depyler now automatically generates a valid `Cargo.toml` file alongside the `.rs` output, including all required dependencies based on Python stdlib usage.
+
+**Example:**
+```bash
+# Transpile Python script
+depyler transpile script.py
+
+# Output files:
+# - script.rs (Rust code)
+# - Cargo.toml (with auto-detected dependencies)
+```
+
+**Features**:
+- ✅ **Automatic dependency detection** from 20+ CodeGenContext flags
+- ✅ **Valid TOML generation** verified by property tests
+- ✅ **CLI integration** writes Cargo.toml alongside .rs files
+- ✅ **New API method** `transpile_with_dependencies()` returns (code, dependencies)
+- ✅ **Comprehensive tracking** for stdlib modules (serde, clap, chrono, regex, etc.)
+
+**Dependency Mapping Examples**:
+- `json.loads/dumps` → `serde_json = "1.0"` + `serde = { version = "1.0", features = ["derive"] }`
+- `argparse.ArgumentParser` → `clap = { version = "4.5", features = ["derive"] }`
+- `hashlib.md5/sha256` → `md-5 = "0.10"` / `sha2 = "0.10"` + `hex = "0.4"`
+- `re.compile/match` → `regex = "1.10"`
+- `datetime` → `chrono = "0.4"`
+
+**Toyota Way 自働化 (Jidoka) - Stop The Line**:
+- **Bug discovered**: clap dependency missing from Cargo.toml despite ArgumentParser usage
+- **Root cause**: `argparser_tracker.parsers` HashMap cleared after each function
+- **Fix**: Added persistent `needs_clap: bool` flag to CodeGenContext
+- **Impact**: example_stdlib now generates Cargo.toml with 6 dependencies including clap
+
+**Extreme TDD - Property Testing** (8 comprehensive tests):
+1. `test_property_generated_toml_is_valid` - TOML parses with toml crate ✅
+2. `test_property_package_name_uniqueness` - Package name appears exactly once ✅
+3. `test_property_dependencies_in_correct_section` - Dependencies after [dependencies] header ✅
+4. `test_property_extract_dependencies_idempotent` - Multiple calls return same result ✅
+5. `test_property_no_duplicate_dependencies` - No duplicate crate names ✅
+6. `test_integration_serde_json_implies_serde` - Invariant verification ✅
+7. `test_integration_clap_has_derive_feature` - Feature verification ✅
+8. `test_dependency_to_toml_*` - Unit tests for TOML formatting ✅
+
+**Files Added**:
+- `crates/depyler-core/src/cargo_toml_gen.rs` - Core generation logic (603 lines, complexity ≤10)
+
+**Files Modified**:
+- `crates/depyler-core/src/lib.rs` - Added `transpile_with_dependencies()` public API
+- `crates/depyler-core/src/rust_gen.rs` - Export ArgParserTracker, return (String, Vec<Dependency>)
+- `crates/depyler-core/src/rust_gen/context.rs` - Added `needs_clap` field
+- `crates/depyler-core/src/rust_gen/func_gen.rs` - Set `needs_clap = true` when ArgumentParser detected
+- `crates/depyler/src/lib.rs` - CLI Cargo.toml generation and writing
+- `crates/depyler-core/Cargo.toml` - Added `toml = "1.0"` dev dependency
+- 7 test files - Updated 31 call sites to handle tuple return type
+
+**Scientific Method - Evidence**:
+- **Before**: Manual Cargo.toml creation required, dependencies often missing
+- **After**: Automatic generation with 20+ dependency mappings tracked
+- **Verification**: Property tests ensure TOML validity, no duplicates, idempotence
+- **Impact**: Matrix Testing Project examples now transpile with complete dependencies
+
+**Git Commits**:
+- `e9cdafb` [DEPYLER-0384] Implement automatic Cargo.toml generation with dependency tracking
+
+---
+
 ## [3.20.0] - 2025-11-12
 
 ### ✨ Features: Single-Shot Compile Command (DEPYLER-0380)
