@@ -34,7 +34,7 @@ fn test_simple_union_type_int_or_none() {
     };
 
     let type_mapper = TypeMapper::default();
-    let generated = generate_rust_file(&module, &type_mapper).unwrap();
+    let (generated, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // RED Phase: Currently this should work because we're using Type::Optional directly
     // The issue is in the PARSING of `int | None` syntax, not the HIR generation
@@ -73,7 +73,7 @@ fn test_union_return_type() {
     };
 
     let type_mapper = TypeMapper::default();
-    let generated = generate_rust_file(&module, &type_mapper).unwrap();
+    let (generated, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // Verify Option<i32> return type
     assert!(
@@ -122,7 +122,7 @@ fn test_optional_default_parameter() {
     };
 
     let type_mapper = TypeMapper::default();
-    let generated = generate_rust_file(&module, &type_mapper).unwrap();
+    let (generated, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
     // Verify Option<i32> parameter
     assert!(

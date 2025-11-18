@@ -16,7 +16,8 @@
 /// Formatted Rust code that passes rustfmt --check
 ///
 /// # Example
-/// ```
+/// ```ignore
+/// use depyler_core::rust_gen::format::format_rust_code;
 /// let code = "fn main ( ) { println ! ( \"Hello\" ) ; }".to_string();
 /// let formatted = format_rust_code(code);
 /// // Returns properly formatted Rust code

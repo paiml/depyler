@@ -24,7 +24,7 @@ def test_basic():
 
     // Generate Rust code
     let type_mapper = TypeMapper::default();
-    let result = generate_rust_file(&module, &type_mapper).expect("Failed to generate Rust");
+    let (result, _dependencies) = generate_rust_file(&module, &type_mapper).expect("Failed to generate Rust");
 
     assert!(result.contains("d.insert"));
     assert!(result.contains(r#""key".to_string()"#));
@@ -52,7 +52,7 @@ def test_nested():
 
     // Generate Rust code
     let type_mapper = TypeMapper::default();
-    let result = generate_rust_file(&module, &type_mapper).expect("Failed to generate Rust");
+    let (result, _dependencies) = generate_rust_file(&module, &type_mapper).expect("Failed to generate Rust");
 
     assert!(result.contains("get_mut"));
     assert!(result.contains("unwrap()"));
@@ -80,7 +80,7 @@ def test_deep():
 
     // Generate Rust code
     let type_mapper = TypeMapper::default();
-    let result = generate_rust_file(&module, &type_mapper).expect("Failed to generate Rust");
+    let (result, _dependencies) = generate_rust_file(&module, &type_mapper).expect("Failed to generate Rust");
 
     // Should have two get_mut calls for the deepest assignment
     let get_mut_count = result.matches("get_mut").count();
@@ -108,7 +108,7 @@ def test_tuple_keys():
 
     // Generate Rust code
     let type_mapper = TypeMapper::default();
-    let result = generate_rust_file(&module, &type_mapper).expect("Failed to generate Rust");
+    let (result, _dependencies) = generate_rust_file(&module, &type_mapper).expect("Failed to generate Rust");
 
     assert!(result.contains("(0, 0)"));
     assert!(result.contains("(1, 2)"));
