@@ -361,6 +361,75 @@ Control fallback behavior for complex constructs.
           self.config = {}
   ```
 
+### 10. Custom Rust Attributes
+
+Add custom Rust attributes directly to generated code.
+
+#### `custom_attribute`
+
+- **Values**: Any valid Rust attribute string
+- **Default**: None
+- **Description**: Adds custom Rust attributes to the generated function or class. Can be specified multiple times to add multiple attributes. Supports simple attributes (e.g., `inline`, `must_use`) and attributes with parameters (e.g., `inline(always)`, `repr(C)`).
+- **Examples**:
+  ```python
+  # Simple attribute
+  # @depyler: custom_attribute = "inline"
+  def fast_function(x: int) -> int:
+      return x * 2
+  
+  # Generated Rust:
+  # #[inline]
+  # pub fn fast_function(x: i32) -> i32 {
+  #     x * 2
+  # }
+  
+  # Attribute with parameters
+  # @depyler: custom_attribute = "inline(always)"
+  def critical_path(x: int) -> int:
+      return x + 1
+  
+  # Generated Rust:
+  # #[inline(always)]
+  # pub fn critical_path(x: i32) -> i32 {
+  #     x + 1
+  # }
+  
+  # Multiple attributes
+  # @depyler: custom_attribute = "inline"
+  # @depyler: custom_attribute = "must_use"
+  def important_calc(x: int) -> int:
+      return x * 2
+  
+  # Generated Rust:
+  # #[inline]
+  # #[must_use]
+  # pub fn important_calc(x: i32) -> i32 {
+  #     x * 2
+  # }
+  
+  # Cold function hint
+  # @depyler: custom_attribute = "cold"
+  def error_handler(msg: str) -> None:
+      print(f"Error: {msg}")
+  
+  # Generated Rust:
+  # #[cold]
+  # pub fn error_handler(msg: &str) {
+  #     println!("Error: {}", msg);
+  # }
+  ```
+
+**Common Rust Attributes**:
+- `inline` - Hint to inline the function
+- `inline(always)` - Force function inlining
+- `inline(never)` - Prevent function inlining
+- `must_use` - Warn if function result is not used
+- `cold` - Mark function as rarely executed (for error paths)
+- `repr(C)` - Use C representation (for structs)
+- `derive(Debug, Clone)` - Derive traits (for structs/enums)
+- `allow(unused_variables)` - Suppress specific warnings
+- `cfg(test)` - Compile only in test mode
+
 ## Annotation Placement Rules
 
 1. **Function Annotations**: Place directly above the function definition
@@ -478,6 +547,45 @@ def extract_fields(data: str, delimiter: str = ",") -> List[str]:
         start = end + 1
     
     return fields
+```
+
+### Example 4: Custom Rust Attributes for Performance
+
+```python
+# @depyler: custom_attribute = "inline(always)"
+# @depyler: custom_attribute = "must_use"
+# @depyler: performance_critical = "true"
+def compute_hash(data: bytes) -> int:
+    """Fast hash computation for hot path."""
+    hash_val = 0
+    for byte in data:
+        hash_val = (hash_val * 31 + byte) % (2**32)
+    return hash_val
+
+# @depyler: custom_attribute = "cold"
+# @depyler: error_strategy = "result_type"
+def handle_error(error_code: int, message: str) -> None:
+    """Error handler - rarely executed."""
+    print(f"ERROR {error_code}: {message}")
+    # Log to file, send alert, etc.
+```
+
+Generated Rust:
+```rust
+#[inline(always)]
+#[must_use]
+pub fn compute_hash(data: &[u8]) -> i32 {
+    let mut hash_val = 0i32;
+    for byte in data {
+        hash_val = (hash_val.wrapping_mul(31).wrapping_add(*byte as i32)) % (2i32.pow(32));
+    }
+    hash_val
+}
+
+#[cold]
+pub fn handle_error(error_code: i32, message: &str) {
+    println!("ERROR {}: {}", error_code, message);
+}
 ```
 
 ## Future Extensions
