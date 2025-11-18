@@ -7644,7 +7644,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("append() requires exactly one argument");
                 }
                 let arg = &arg_exprs[0];
-                Ok(parse_quote! { #object_expr.push(#arg) })
+
+                // DEPYLER-0422 Fix #7: Convert &str literals to String when pushing to Vec<String>
+                // Five-Whys Root Cause:
+                // 1. Why: expected String, found &str
+                // 2. Why: String literal "X" is &str, but Vec<String>.push() needs String
+                // 3. Why: Transpiler generates "X" without .to_string()
+                // 4. Why: append method doesn't check element type
+                // 5. ROOT CAUSE: Missing .to_string() for literals in Vec<String>
+                let needs_to_string = if !hir_args.is_empty() {
+                    // Check if argument is a string literal
+                    let is_str_literal = matches!(&hir_args[0], HirExpr::Literal(Literal::String(_)));
+
+                    // Check if object is a Vec<String> by examining variable type
+                    let is_vec_string = if let HirExpr::Var(var_name) = object {
+                        matches!(
+                            self.ctx.var_types.get(var_name),
+                            Some(Type::List(element_type)) if matches!(**element_type, Type::String)
+                        )
+                    } else {
+                        false
+                    };
+
+                    is_str_literal && is_vec_string
+                } else {
+                    false
+                };
+
+                if needs_to_string {
+                    Ok(parse_quote! { #object_expr.push(#arg.to_string()) })
+                } else {
+                    Ok(parse_quote! { #object_expr.push(#arg) })
+                }
             }
             "extend" => {
                 // DEPYLER-0292: Handle iterator conversion for extend()
@@ -9932,6 +9963,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     syn::Ident::new(attr, proc_macro2::Span::call_site())
                 };
                 return Ok(parse_quote! { Self::#attr_ident });
+            }
+
+            // DEPYLER-0422 Fix #11: Detect enum constant access patterns
+            // TypeName.CONSTANT → TypeName::CONSTANT
+            // Five-Whys Root Cause:
+            // 1. Why: E0423 - expected value, found struct 'Color'
+            // 2. Why: Code generates Color.RED (field access) instead of Color::RED
+            // 3. Why: Default attribute access uses dot syntax
+            // 4. Why: No detection for type constant access vs field access
+            // 5. ROOT CAUSE: Need to use :: for type-level constants
+            //
+            // Heuristic: If name starts with uppercase and attr is ALL_CAPS, it's likely an enum constant
+            let first_char = var_name.chars().next().unwrap_or('a');
+            let is_type_name = first_char.is_uppercase();
+            let is_constant = attr.chars().all(|c| c.is_uppercase() || c == '_');
+
+            if is_type_name && is_constant {
+                let type_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+                return Ok(parse_quote! { #type_ident::#attr_ident });
             }
         }
 
