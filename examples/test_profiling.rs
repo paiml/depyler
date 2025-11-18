@@ -103,7 +103,7 @@ pub fn type_check_heavy(values: &Vec<object>) -> i32 {
 }
 #[doc = "Matrix multiplication - triple nested loop."]
 #[doc = " Depyler: proven to terminate"]
-pub fn matrix_multiply<'a, 'b>(
+pub fn matrix_multiply<'b, 'a>(
     a: &'a mut Vec<Vec<f64>>,
     b: &'b mut Vec<Vec<f64>>,
 ) -> Result<Vec<Vec<f64>>, IndexError> {

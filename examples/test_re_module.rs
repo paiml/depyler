@@ -250,13 +250,13 @@ pub fn normalize_whitespace(text: &str) -> String {
 #[doc = "Check if text starts with pattern"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn starts_with_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
+pub fn starts_with_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
     text.starts_with(pattern)
 }
 #[doc = "Check if text ends with pattern"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn ends_with_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
+pub fn ends_with_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
     text.ends_with(pattern)
 }
 #[doc = "Case-insensitive pattern matching"]
@@ -272,7 +272,7 @@ pub fn case_insensitive_match<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
 #[doc = "Find text between two markers"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn find_between<'c, 'b, 'a>(
+pub fn find_between<'b, 'c, 'a>(
     text: &'a str,
     start_marker: &'b str,
     end_marker: &'c str,
@@ -319,7 +319,7 @@ pub fn find_between<'c, 'b, 'a>(
     result
 }
 #[doc = "Replace multiple patterns"]
-pub fn replace_multiple<'b, 'a>(
+pub fn replace_multiple<'a, 'b>(
     text: &'a str,
     replacements: &'b Vec<()>,
 ) -> Result<String, IndexError> {
@@ -375,7 +375,7 @@ pub fn extract_numbers_from_text(text: &str) -> Vec<i32> {
 }
 #[doc = "Simple wildcard matching(* means any sequence)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn wildcard_match_simple<'b, 'a>(text: &'a str, pattern: &'b str) -> Result<bool, IndexError> {
+pub fn wildcard_match_simple<'a, 'b>(text: &'a str, pattern: &'b str) -> Result<bool, IndexError> {
     let _cse_temp_0 = !pattern.contains(&"*");
     if _cse_temp_0 {
         return Ok(text == pattern);

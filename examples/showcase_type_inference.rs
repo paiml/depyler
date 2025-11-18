@@ -62,7 +62,7 @@ pub fn list_processing(items: &mut serde_json::Value) -> Vec<serde_json::Value> 
     result
 }
 #[doc = "Multiple inference sources for better confidence."]
-pub fn mixed_inference<'b, 'a>(
+pub fn mixed_inference<'a, 'b>(
     data: &'a serde_json::Value,
     multiplier: &'b serde_json::Value,
 ) -> Result<i32, ZeroDivisionError> {
@@ -90,7 +90,7 @@ pub fn type_conversions_hint(value: serde_json::Value) -> (String, i32, f64) {
 #[doc = "Boolean operations suggest bool type."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn boolean_logic<'a, 'b, 'c>(
+pub fn boolean_logic<'a, 'c, 'b>(
     a: &'a serde_json::Value,
     b: &'b serde_json::Value,
     c: &'c serde_json::Value,
