@@ -344,7 +344,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // Special case: [value] * n or n * [value] creates an array
                 match (left, right) {
-                    // Pattern: [x] * n
+                    // Pattern: [x] * n (small arrays)
                     (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size)))
                         if elts.len() == 1 && *size > 0 && *size <= 32 =>
                     {
@@ -353,7 +353,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
                         Ok(parse_quote! { [#elem; #size_lit] })
                     }
-                    // Pattern: n * [x]
+                    // DEPYLER-0420: Pattern: [x] * n (large arrays → Vec)
+                    (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size)))
+                        if elts.len() == 1 && *size > 32 =>
+                    {
+                        let elem = elts[0].to_rust_expr(self.ctx)?;
+                        let size_lit =
+                            syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                        Ok(parse_quote! { vec![#elem; #size_lit] })
+                    }
+                    // Pattern: n * [x] (small arrays)
                     (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elts))
                         if elts.len() == 1 && *size > 0 && *size <= 32 =>
                     {
@@ -361,6 +370,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         let size_lit =
                             syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
                         Ok(parse_quote! { [#elem; #size_lit] })
+                    }
+                    // DEPYLER-0420: Pattern: n * [x] (large arrays → Vec)
+                    (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elts))
+                        if elts.len() == 1 && *size > 32 =>
+                    {
+                        let elem = elts[0].to_rust_expr(self.ctx)?;
+                        let size_lit =
+                            syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                        Ok(parse_quote! { vec![#elem; #size_lit] })
                     }
                     // Default multiplication
                     _ => {
