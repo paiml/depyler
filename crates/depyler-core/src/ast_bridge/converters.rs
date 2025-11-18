@@ -555,7 +555,7 @@ impl ExprConverter {
                     kwargs,
                 })
             }
-            _ => bail!("Unsupported function call type"),
+            _ => bail!("Unsupported function call type: {:?}", c.func),
         }
     }
 
