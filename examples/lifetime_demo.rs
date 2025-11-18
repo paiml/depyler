@@ -28,7 +28,7 @@ pub fn first_word(s: &str) -> Result<String, IndexError> {
         .split_whitespace()
         .map(|s| s.to_string())
         .collect::<Vec<String>>();
-    if words {
+    if !words.is_empty() {
         return Ok(words.get(0usize).cloned().unwrap_or_default());
     }
     Ok("".to_string())
