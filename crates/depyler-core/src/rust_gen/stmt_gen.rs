@@ -499,13 +499,20 @@ pub(crate) fn codegen_return_stmt(
 }
 
 /// Generate code for While loop statement
+///
+/// DEPYLER-0421: Applies Python truthiness conversion to the condition
 #[inline]
 pub(crate) fn codegen_while_stmt(
     condition: &HirExpr,
     body: &[HirStmt],
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
-    let cond = condition.to_rust_expr(ctx)?;
+    let mut cond = condition.to_rust_expr(ctx)?;
+
+    // DEPYLER-0421: Apply Python truthiness conversion for while loops
+    // Convert non-boolean expressions to boolean (e.g., `while queue` where queue: VecDeque)
+    cond = apply_truthiness_conversion(condition, cond, ctx);
+
     ctx.enter_scope();
     let body_stmts: Vec<_> = body
         .iter()
@@ -1627,6 +1634,12 @@ pub(crate) fn codegen_assign_stmt(
                             ctx.var_types.insert(var_name.clone(), elem_type.as_ref().clone());
                         }
                     }
+                }
+                // DEPYLER-0421: String methods that return Vec<String> (for truthiness)
+                // Track .split() and .split_whitespace() as List(String) for truthiness conversion
+                else if matches!(method.as_str(), "split" | "split_whitespace" | "splitlines") {
+                    ctx.var_types
+                        .insert(var_name.clone(), Type::List(Box::new(Type::String)));
                 }
                 // String methods that return String
                 else if matches!(
