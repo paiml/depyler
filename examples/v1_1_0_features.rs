@@ -1,3 +1,4 @@
+use serde_json;
 use std::collections::HashMap;
 use std::collections::HashSet;
 #[derive(Debug, Clone)]
@@ -20,7 +21,7 @@ impl ZeroDivisionError {
 #[doc = "Nested dictionary assignment"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_dictionary_assignment() {
+pub fn test_dictionary_assignment() -> HashMap<serde_json::Value, serde_json::Value> {
     let mut d = {
         let map = HashMap::new();
         map
@@ -43,7 +44,7 @@ pub fn test_dictionary_assignment() {
 #[doc = "Set operations with operators"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_operations() -> (String, String) {
+pub fn test_set_operations() -> (HashSet<i32>, HashSet<i32>) {
     let set1 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -73,7 +74,7 @@ pub fn test_set_operations() -> (String, String) {
 #[doc = "Power operator examples"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_power_operator() {
+pub fn test_power_operator() -> i32 {
     let _cse_temp_0 = (2 as i32)
         .checked_pow(3 as u32)
         .expect("Power operation overflowed");

@@ -1,3 +1,4 @@
+use serde_json;
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct IndexError {
@@ -17,7 +18,10 @@ impl IndexError {
     }
 }
 #[doc = "Simple S3 Lambda handler for testing."]
-pub fn lambda_handler(event: &str, context: String) -> Result<HashMap<String, i32>, IndexError> {
+pub fn lambda_handler(
+    event: &serde_json::Value,
+    context: serde_json::Value,
+) -> Result<HashMap<String, i32>, IndexError> {
     for record in event.get("Records").cloned().unwrap_or_default() {
         let bucket = record
             .get("s3")

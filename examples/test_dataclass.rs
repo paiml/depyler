@@ -1,3 +1,4 @@
+use serde_json;
 #[doc = "// TODO: Map Python module 'dataclasses'"]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Point {
@@ -12,7 +13,7 @@ impl Point {
         self.x = self.x + dx;
         self.y = self.y + dy;
     }
-    pub fn distance_to(&self, other: String) -> f64 {
+    pub fn distance_to(&self, other: serde_json::Value) -> f64 {
         let mut dx = self.x - other.x;
         let mut dy = self.y - other.y;
         return (dx * dx + dy * dy as f64).powf(0.5 as f64);
@@ -29,7 +30,7 @@ impl Point {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_point() -> (String, String) {
+pub fn test_point() -> (serde_json::Value, serde_json::Value) {
     let mut p1 = Point::new(0, 0);
     let p2 = Point::new(3, 4);
     p1.move_by(1, 1);

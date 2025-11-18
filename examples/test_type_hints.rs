@@ -1,3 +1,4 @@
+use serde_json;
 #[derive(Debug, Clone)] pub struct ZeroDivisionError {
     message: String ,
 }
@@ -32,7 +33,7 @@ impl IndexError {
 }
 }
 }
-#[doc = "Process a list of numbers."] pub fn process_numbers(data: & str) -> Result<i32, ZeroDivisionError>{
+#[doc = "Process a list of numbers."] pub fn process_numbers(data: & serde_json::Value) -> Result<i32, ZeroDivisionError>{
     let mut total = 0;
     for num in data.iter().cloned() {
     total = total + num;
@@ -48,7 +49,7 @@ Ok(total / data.len() as i32)
 }
 result.trim().to_string()
 }
-#[doc = "Mixed numeric operations."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn mixed_operations<'b, 'a>(x: & 'a str, y: & 'b str) {
+#[doc = "Mixed numeric operations."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn mixed_operations<'a, 'b>(x: & 'a serde_json::Value, y: & 'b serde_json::Value) {
     let sum_val = x + y;
     let _cse_temp_0 = x * y;
     let product = _cse_temp_0;
@@ -59,7 +60,7 @@ result.trim().to_string()
 else {
     product
 }
-} #[doc = "Operations on containers."] #[doc = " Depyler: proven to terminate"] pub fn container_operations(items: &mut str) -> Result <(), IndexError>{
+} #[doc = "Operations on containers."] #[doc = " Depyler: proven to terminate"] pub fn container_operations(items: &mut serde_json::Value) -> Result <(), IndexError>{
     let _cse_temp_0 = items.len() as i32;
     let _cse_temp_1 = _cse_temp_0>0;
     if _cse_temp_1 {
@@ -70,17 +71,17 @@ else {
 }
 () Ok(())
 }
-#[doc = "Function with inferable return type."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn inferred_return_types() {
+#[doc = "Function with inferable return type."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn inferred_return_types() -> i32 {
     let x = 10;
     let y = 20;
     x + y
 }
-#[doc = "String formatting with mixed types."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn string_formatting<'a, 'b>(name: & 'a str, age: & 'b str) -> String {
+#[doc = "String formatting with mixed types."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn string_formatting<'a, 'b>(name: & 'a str, age: & 'b serde_json::Value) -> String {
     let formatted_name = name.to_uppercase();
     let next_age = age + 1;
     format!("{:?} will be {:?} next year", formatted_name, next_age)
 }
-#[doc = "Using variables as iterators."] #[doc = " Depyler: verified panic-free"] pub fn iterator_usage(collection: & str, predicate: String) -> Vec<String>{
+#[doc = "Using variables as iterators."] #[doc = " Depyler: verified panic-free"] pub fn iterator_usage(collection: & serde_json::Value, predicate: serde_json::Value) -> Vec<serde_json::Value>{
     let mut results = vec! [];
     for item in collection.iter().cloned() {
     if predicate(item) {
@@ -89,16 +90,16 @@ else {
 }
 } results
 }
-#[doc = "Type conversion hints."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn type_conversions(value: String) -> (String, String, String) {
+#[doc = "Type conversion hints."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn type_conversions(value: serde_json::Value) -> (String, i32, f64) {
     let _cse_temp_0 = value.to_string();
     let text = _cse_temp_0;
-    let _cse_temp_1  = (value) as i32;
+    let _cse_temp_1 = (value) as i32;
     let number = _cse_temp_1;
-    let _cse_temp_2  = (value) as f64;
+    let _cse_temp_2 = (value) as f64;
     let decimal = _cse_temp_2;
-   (text, number, decimal)
+  (text, number, decimal)
 }
-#[doc = "Only some parameters have annotations."] #[doc = " Depyler: verified panic-free"] pub fn partial_annotations<'b, 'a>(data: & 'a Vec<String>, multiplier: & 'b str) -> Vec<String>{
+#[doc = "Only some parameters have annotations."] #[doc = " Depyler: verified panic-free"] pub fn partial_annotations<'b, 'a>(data: & 'a Vec<serde_json::Value>, multiplier: & 'b serde_json::Value) -> Vec<serde_json::Value>{
     let mut result = vec! [];
     for item in data.iter().cloned() {
     result.push(item * multiplier);

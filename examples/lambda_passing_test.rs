@@ -1,6 +1,7 @@
+use serde_json;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn apply_func(x: i32, f: String) -> i32 {
+pub fn apply_func(x: i32, f: serde_json::Value) -> i32 {
     f(x)
 }
 #[doc = " Depyler: verified panic-free"]

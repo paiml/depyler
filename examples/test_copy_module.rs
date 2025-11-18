@@ -179,7 +179,7 @@ pub fn test_reference_vs_copy() -> bool {
     let _cse_temp_3 = reference.len() as i32;
     let _cse_temp_4 = _cse_temp_3 == _cse_temp_1;
     let reference_same: bool = _cse_temp_4;
-    copy_different && reference_same
+    (copy_different) && (reference_same)
 }
 #[doc = "Clone list and apply transformation"]
 #[doc = " Depyler: verified panic-free"]
@@ -208,7 +208,7 @@ pub fn clone_dict_with_filter(
     Ok(filtered)
 }
 #[doc = "Merge two dictionaries by copying"]
-pub fn merge_copied_dicts<'a, 'b>(
+pub fn merge_copied_dicts<'b, 'a>(
     dict1: &'a HashMap<String, i32>,
     dict2: &'b HashMap<String, i32>,
 ) -> Result<HashMap<String, i32>, IndexError> {

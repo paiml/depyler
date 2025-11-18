@@ -6,13 +6,13 @@ use std::collections::HashMap;
 #[doc = "Parse JSON from string"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn parse_json(text: &str) -> HashMap<String, String> {
+pub fn parse_json(text: &str) -> HashMap<String, serde_json::Value> {
     serde_json::from_str::<serde_json::Value>(&text).unwrap()
 }
 #[doc = "Convert dictionary to JSON string"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn serialize_json(data: &HashMap<String, String>) -> String {
+pub fn serialize_json(data: &HashMap<String, serde_json::Value>) -> String {
     serde_json::to_string(&data).unwrap()
 }
 #[doc = "Get environment variable"]

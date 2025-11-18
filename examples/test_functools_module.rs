@@ -224,7 +224,7 @@ pub fn test_reduce_with_initial(numbers: &Vec<i32>, initial: i32) -> i32 {
 pub fn test_reduce_boolean_all(values: &Vec<bool>) -> bool {
     let mut result: bool = true;
     for val in values.iter().cloned() {
-        result = result && val;
+        result = (result) && (val);
         if !result {
             break;
         }
@@ -236,7 +236,7 @@ pub fn test_reduce_boolean_all(values: &Vec<bool>) -> bool {
 pub fn test_reduce_boolean_any(values: &Vec<bool>) -> bool {
     let mut result: bool = false;
     for val in values.iter().cloned() {
-        result = result || val;
+        result = (result) || (val);
         if result {
             break;
         }

@@ -112,8 +112,8 @@ pub fn test_urlencode_basic() {
     };
     let result = urlencode(&params);
     assert!(
-        result.contains_key(&"name=John+Doe".to_string())
-            || result.contains_key(&"name=John%20Doe".to_string())
+        (result.contains_key(&"name=John+Doe".to_string()))
+            || (result.contains_key(&"name=John%20Doe".to_string()))
     );
     assert!(result.contains_key(&"age=30".to_string()));
     println!("{}", "PASS: test_urlencode_basic");

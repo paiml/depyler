@@ -1,3 +1,4 @@
+use serde_json;
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct IndexError {
@@ -18,7 +19,7 @@ impl IndexError {
 }
 #[doc = "String concatenation in loop - O(n²) complexity."]
 #[doc = " Depyler: verified panic-free"]
-pub fn string_concat_in_loop(items: &str) -> String {
+pub fn string_concat_in_loop(items: &serde_json::Value) -> String {
     let mut result = "";
     for item in items.iter().cloned() {
         result = format!("{}{}", result, item.to_string());
@@ -27,7 +28,7 @@ pub fn string_concat_in_loop(items: &str) -> String {
 }
 #[doc = "Deeply nested loops - O(n³) complexity."]
 #[doc = " Depyler: proven to terminate"]
-pub fn nested_loops_cubic(matrix: &str) -> Result<i32, IndexError> {
+pub fn nested_loops_cubic(matrix: &serde_json::Value) -> Result<i32, IndexError> {
     let mut total = 0;
     for i in 0..matrix.len() as i32 {
         for j in 0..matrix.get(i as usize).cloned().unwrap_or_default().len() as i32 {
@@ -58,7 +59,7 @@ pub fn nested_loops_cubic(matrix: &str) -> Result<i32, IndexError> {
 }
 #[doc = "Expensive operations in loop."]
 #[doc = " Depyler: verified panic-free"]
-pub fn repeated_expensive_computation(data: String) -> Vec<String> {
+pub fn repeated_expensive_computation(data: serde_json::Value) -> Vec<serde_json::Value> {
     let mut results = vec![];
     for item in data.iter().cloned() {
         let sorted_data = {
@@ -72,7 +73,7 @@ pub fn repeated_expensive_computation(data: String) -> Vec<String> {
 }
 #[doc = "Inefficient list operations."]
 #[doc = " Depyler: verified panic-free"]
-pub fn inefficient_list_operations(items: &mut str) {
+pub fn inefficient_list_operations(items: &mut serde_json::Value) {
     while items.len() as i32 > 0 {
         if let Some(pos) = items
             .iter()
@@ -87,7 +88,7 @@ pub fn inefficient_list_operations(items: &mut str) {
 #[doc = "Creating large objects in loops."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn large_list_in_loop(n: String) -> Vec<String> {
+pub fn large_list_in_loop(n: serde_json::Value) -> Vec<serde_json::Value> {
     let mut results = vec![];
     for _i in 0..n {
         let temp = (0..1000).map(|j| j).collect::<Vec<_>>();
@@ -97,7 +98,10 @@ pub fn large_list_in_loop(n: String) -> Vec<String> {
 }
 #[doc = "Linear search in nested loop - O(n²)."]
 #[doc = " Depyler: verified panic-free"]
-pub fn linear_search_in_loop<'b, 'a>(items: &'a mut str, targets: &'b str) -> Vec<String> {
+pub fn linear_search_in_loop<'b, 'a>(
+    items: &'a mut serde_json::Value,
+    targets: &'b serde_json::Value,
+) -> Vec<serde_json::Value> {
     let mut found = vec![];
     for target in targets.iter().cloned() {
         if items.contains_key(&target) {
@@ -113,7 +117,7 @@ pub fn linear_search_in_loop<'b, 'a>(items: &'a mut str, targets: &'b str) -> Ve
 }
 #[doc = "Expensive math operations in loop."]
 #[doc = " Depyler: verified panic-free"]
-pub fn power_in_tight_loop(values: &str) -> Vec<String> {
+pub fn power_in_tight_loop(values: &serde_json::Value) -> Vec<serde_json::Value> {
     let mut results = vec![];
     for x in values.iter().cloned() {
         let mut result = (x as f64).powf(3.5 as f64);
@@ -123,14 +127,14 @@ pub fn power_in_tight_loop(values: &str) -> Vec<String> {
 }
 #[doc = "Using range(len()) instead of enumerate."]
 #[doc = " Depyler: proven to terminate"]
-pub fn range_len_antipattern(items: &mut str) -> Result<(), IndexError> {
+pub fn range_len_antipattern(items: &mut serde_json::Value) -> Result<(), IndexError> {
     for i in 0..items.len() as i32 {
         process_item(i, items.get(i as usize).cloned().unwrap_or_default())?;
     }
 }
 #[doc = "Computing aggregates repeatedly."]
 #[doc = " Depyler: verified panic-free"]
-pub fn aggregate_in_nested_loop(matrix: &str) -> i32 {
+pub fn aggregate_in_nested_loop(matrix: &serde_json::Value) -> i32 {
     let mut result = 0;
     for row in matrix.iter().cloned() {
         for col in row.iter().cloned() {
@@ -144,11 +148,11 @@ pub fn aggregate_in_nested_loop(matrix: &str) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn large_parameter_by_value<'a, 'b>(
-    huge_list: &'a Vec<String>,
-    huge_dict: &'b HashMap<String, String>,
+    huge_list: &'a Vec<serde_json::Value>,
+    huge_dict: &'b HashMap<serde_json::Value, serde_json::Value>,
 ) -> i32 {
     huge_list.len() as i32 + huge_dict.len() as i32 as i32
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn process_item(idx: String, item: String) {}
+pub fn process_item(idx: serde_json::Value, item: serde_json::Value) {}

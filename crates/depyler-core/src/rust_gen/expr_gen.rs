@@ -480,6 +480,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                 }
             }
+            // DEPYLER-0422: Logical operators need Python truthiness conversion
+            // Python: `if a and b:` where a, b are strings/lists/etc.
+            // Rust: `if (!a.is_empty()) && (!b.is_empty())`
+            BinOp::And | BinOp::Or => {
+                // Apply truthiness conversion to both operands
+                let left_converted = Self::apply_truthiness_conversion(left, left_expr, self.ctx);
+                let right_converted = Self::apply_truthiness_conversion(right, right_expr, self.ctx);
+
+                // Generate the logical operator
+                match op {
+                    BinOp::And => Ok(parse_quote! { (#left_converted) && (#right_converted) }),
+                    BinOp::Or => Ok(parse_quote! { (#left_converted) || (#right_converted) }),
+                    _ => unreachable!(),
+                }
+            }
             _ => {
                 let rust_op = convert_binop(op)?;
                 // DEPYLER-0339: Construct syn::ExprBinary directly instead of using parse_quote!

@@ -1,3 +1,4 @@
+use serde_json;
 use std as os;
 use std as sys;
 #[doc = "Get current working directory"]
@@ -12,7 +13,7 @@ pub fn get_current_directory() -> String {
 #[doc = "Get command line arguments"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_args() -> Vec<String> {
+pub fn get_args() -> Vec<serde_json::Value> {
     std::env::args().collect::<Vec<String>>()
 }
 #[doc = "Exit program with code"]

@@ -1,3 +1,4 @@
+use serde_json;
 #[derive(Debug, Clone)]
 pub struct ResourceManager {
     pub name: String,
@@ -14,7 +15,12 @@ impl ResourceManager {
         self.is_open = true;
         return self;
     }
-    pub fn __exit__(&mut self, exc_type: String, exc_val: String, exc_tb: String) {
+    pub fn __exit__(
+        &mut self,
+        exc_type: serde_json::Value,
+        exc_val: serde_json::Value,
+        exc_tb: serde_json::Value,
+    ) {
         self.is_open = false;
         return false;
     }

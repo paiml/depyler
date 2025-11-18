@@ -16,7 +16,7 @@ impl IndexError {
     }
 }
 #[doc = " Depyler: proven to terminate"]
-pub fn test_arrays() -> Result<(), IndexError> {
+pub fn test_arrays() -> Result<i32, IndexError> {
     let arr1 = vec![1, 2, 3, 4, 5];
     let arr2 = vec![0, 0, 0, 0];
     let _cse_temp_0 = [0; 10];

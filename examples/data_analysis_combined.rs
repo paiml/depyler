@@ -275,7 +275,7 @@ pub fn detect_outliers(mut data: Vec<f64>) -> Result<Vec<f64>, IndexError> {
     let upper_bound: f64 = q3 + _cse_temp_2;
     let mut outliers: Vec<f64> = vec![];
     for value in data.iter().cloned() {
-        if value < lower_bound || value > upper_bound {
+        if (value < lower_bound) || (value > upper_bound) {
             outliers.push(value);
         }
     }
@@ -289,7 +289,7 @@ pub fn bin_data(
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     let _cse_temp_2 = num_bins <= 0;
-    let _cse_temp_3 = _cse_temp_1 || _cse_temp_2;
+    let _cse_temp_3 = (_cse_temp_1) || (_cse_temp_2);
     if _cse_temp_3 {
         return Ok({
             let map = HashMap::new();
@@ -331,7 +331,7 @@ pub fn bin_data(
 }
 #[doc = "Calculate Pearson correlation coefficient"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_correlation<'a, 'b>(
+pub fn calculate_correlation<'b, 'a>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
@@ -339,7 +339,7 @@ pub fn calculate_correlation<'a, 'b>(
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
     let _cse_temp_3 = _cse_temp_0 == 0;
-    let _cse_temp_4 = _cse_temp_2 || _cse_temp_3;
+    let _cse_temp_4 = (_cse_temp_2) || (_cse_temp_3);
     if _cse_temp_4 {
         return Ok(0.0);
     }
@@ -426,8 +426,8 @@ pub fn group_by_range<'a, 'b>(
     for value in data.iter().cloned() {
         for i in 0..ranges.len() as i32 {
             let mut range_tuple: (f64, f64) = ranges.get(i as usize).cloned().unwrap_or_default();
-            if value >= range_tuple.get(0usize).cloned().unwrap_or_default()
-                && value < range_tuple.get(1usize).cloned().unwrap_or_default()
+            if (value >= range_tuple.get(0usize).cloned().unwrap_or_default())
+                && (value < range_tuple.get(1usize).cloned().unwrap_or_default())
             {
                 let mut range_key: String = format!(
                     "{:?}-{:?}",

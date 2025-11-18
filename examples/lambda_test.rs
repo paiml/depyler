@@ -1,6 +1,7 @@
+use serde_json;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_simple_lambdas() -> (String, String, String) {
+pub fn test_simple_lambdas() -> (serde_json::Value, serde_json::Value, serde_json::Value) {
     let add = |x, y| x + y;
     let square = |x| x * x;
     let constant = || 42;
@@ -11,7 +12,11 @@ pub fn test_simple_lambdas() -> (String, String, String) {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_lambda_with_list_operations() -> (String, String, String) {
+pub fn test_lambda_with_list_operations() -> (
+    Vec<serde_json::Value>,
+    Vec<serde_json::Value>,
+    serde_json::Value,
+) {
     let numbers = vec![1, 2, 3, 4, 5];
     let squares = numbers.iter().map(|x| x * x).collect::<Vec<_>>();
     let evens = numbers
@@ -24,7 +29,7 @@ pub fn test_lambda_with_list_operations() -> (String, String, String) {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_lambda_in_expressions() -> (String, String) {
+pub fn test_lambda_in_expressions() -> (serde_json::Value, serde_json::Value) {
     let get_operation = |is_add| if is_add { |x, y| x + y } else { |x, y| x - y };
     let add_op = get_operation(true);
     let sub_op = get_operation(false);

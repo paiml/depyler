@@ -73,7 +73,7 @@ pub fn safe_access(items: &Vec<i32>, index: i32) -> Result<Option<i32>, IndexErr
     let _cse_temp_0 = 0 <= index;
     let _cse_temp_1 = items.len() as i32;
     let _cse_temp_2 = index < _cse_temp_1;
-    let _cse_temp_3 = _cse_temp_0 && _cse_temp_2;
+    let _cse_temp_3 = (_cse_temp_0) && (_cse_temp_2);
     if _cse_temp_3 {
         return Ok(Some(items.get(index as usize).cloned().unwrap_or_default()));
     }

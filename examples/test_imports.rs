@@ -16,7 +16,7 @@ pub fn get_current_dir() -> String {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn parse_json(data: String) -> HashMap<String, String> {
+pub fn parse_json(data: String) -> HashMap<String, serde_json::Value> {
     serde_json::from_str(data)
 }
 #[doc = " Depyler: verified panic-free"]
@@ -29,7 +29,7 @@ pub fn join_paths(base: &str) -> String {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn find_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> Vec<String> {
+pub fn find_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> Vec<String> {
     let regex = regex::Regex::new(pattern).unwrap();
     regex
         .find_iter(text)

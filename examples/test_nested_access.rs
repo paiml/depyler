@@ -18,7 +18,7 @@ impl IndexError {
 }
 #[doc = "Test reading nested dictionary values"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_nested_access() -> Result<(), IndexError> {
+pub fn test_nested_access() -> Result<i32, IndexError> {
     let d = {
         let mut map = HashMap::new();
         map.insert("outer".to_string(), {
