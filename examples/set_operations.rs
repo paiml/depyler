@@ -17,7 +17,7 @@ pub fn test_set_creation() -> HashSet<i32> {
         set.insert(5);
         set
     };
-    let empty = HashSet::new();
+    let empty = HashSet::<i32>::new();
     s1
 }
 #[doc = "Test set operators"]
@@ -38,19 +38,31 @@ pub fn test_set_operators() -> HashSet<i32> {
         set.insert(5);
         set
     };
-    let _cse_temp_0 = s1.union(&s2).cloned().collect();
+    let _cse_temp_0 = s1
+        .union(&s2)
+        .cloned()
+        .collect::<std::collections::HashSet<_>>();
     let union = _cse_temp_0;
-    let _cse_temp_1 = s1.intersection(&s2).cloned().collect();
+    let _cse_temp_1 = s1
+        .intersection(&s2)
+        .cloned()
+        .collect::<std::collections::HashSet<_>>();
     let intersection = _cse_temp_1;
-    let diff = s1.difference(&s2).cloned().collect();
-    let _cse_temp_2 = s1.symmetric_difference(&s2).cloned().collect();
+    let diff = s1
+        .difference(&s2)
+        .cloned()
+        .collect::<std::collections::HashSet<_>>();
+    let _cse_temp_2 = s1
+        .symmetric_difference(&s2)
+        .cloned()
+        .collect::<std::collections::HashSet<_>>();
     let sym_diff = _cse_temp_2;
     union
 }
 #[doc = "Test set mutation methods"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_methods() {
+pub fn test_set_methods() -> HashSet<i32> {
     let mut s = {
         let mut set = HashSet::new();
         set.insert(1);

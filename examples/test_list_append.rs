@@ -1,7 +1,6 @@
-use serde_json;
 #[derive(Debug, Clone)]
 pub struct Logger {
-    pub messages: Vec<serde_json::Value>,
+    pub messages: Vec<String>,
 }
 impl Logger {
     pub fn new() -> Self {

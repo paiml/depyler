@@ -38,16 +38,18 @@ impl IndexError {
 #[doc = "Tokenize text into words using string operations"]
 #[doc = " Depyler: verified panic-free"]
 pub fn tokenize_text(text: &str) -> Vec<String> {
-    let mut cleaned: String = STR_EMPTY;
+    let mut cleaned: String = STR_EMPTY.to_string();
+    let punctuation: String = ".,!?;:\"'()[]{}—-".to_string();
     for _char in text.chars() {
         let char = _char.to_string();
         let mut is_punct: bool = false;
-        for p in ".,!?;:\"'()[]{}—-" {
+        for p in punctuation.iter().cloned() {
             if char == p {
                 is_punct = true;
                 break;
             }
         }
+        let mut cleaned;
         if !is_punct {
             cleaned = cleaned + char;
         } else {
@@ -71,14 +73,14 @@ pub fn count_word_frequencies(words: &Vec<String>) -> Result<HashMap<String, i32
         map
     };
     for word in words.iter().cloned() {
-        if frequencies.contains_key(&word) {
+        if frequencies.contains_key(word) {
             {
                 let _key = word;
                 let _old_val = frequencies.get(&_key).cloned().unwrap_or_default();
                 frequencies.insert(_key, _old_val + 1);
             }
         } else {
-            frequencies.insert((word) as usize, 1);
+            frequencies.insert(word, 1);
         }
     }
     Ok(frequencies)
@@ -95,79 +97,33 @@ pub fn get_most_common_words(
     }
     for i in 0..word_counts.len() as i32 {
         for j in i + 1..word_counts.len() as i32 {
-            if {
-                let base = &{
-                    let base = &word_counts;
-                    let idx: i32 = j;
-                    let actual_idx = if idx < 0 {
-                        base.len().saturating_sub(idx.abs() as usize)
-                    } else {
-                        idx as usize
-                    };
-                    base.get(actual_idx..=actual_idx).unwrap_or("").to_string()
-                };
-                let idx: i32 = 1;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            } > {
-                let base = &{
-                    let base = &word_counts;
-                    let idx: i32 = i;
-                    let actual_idx = if idx < 0 {
-                        base.len().saturating_sub(idx.abs() as usize)
-                    } else {
-                        idx as usize
-                    };
-                    base.get(actual_idx..=actual_idx).unwrap_or("").to_string()
-                };
-                let idx: i32 = 1;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            } {
-                let temp: (String, i32) = {
-                    let base = &word_counts;
-                    let idx: i32 = i;
-                    let actual_idx = if idx < 0 {
-                        base.len().saturating_sub(idx.abs() as usize)
-                    } else {
-                        idx as usize
-                    };
-                    base.get(actual_idx..=actual_idx).unwrap_or("").to_string()
-                };
-                word_counts.insert((i) as usize, {
-                    let base = &word_counts;
-                    let idx: i32 = j;
-                    let actual_idx = if idx < 0 {
-                        base.len().saturating_sub(idx.abs() as usize)
-                    } else {
-                        idx as usize
-                    };
-                    base.get(actual_idx..=actual_idx).unwrap_or("").to_string()
-                });
+            if word_counts
+                .get(j as usize)
+                .cloned()
+                .unwrap_or_default()
+                .get(1usize)
+                .cloned()
+                .unwrap_or_default()
+                > word_counts
+                    .get(i as usize)
+                    .cloned()
+                    .unwrap_or_default()
+                    .get(1usize)
+                    .cloned()
+                    .unwrap_or_default()
+            {
+                let temp: (String, i32) = word_counts.get(i as usize).cloned().unwrap_or_default();
+                word_counts.insert(
+                    (i) as usize,
+                    word_counts.get(j as usize).cloned().unwrap_or_default(),
+                );
                 word_counts.insert((j) as usize, temp);
             }
         }
     }
     let mut result: Vec<(String, i32)> = vec![];
     for i in 0..std::cmp::min(n, word_counts.len() as i32) {
-        result.push({
-            let base = &word_counts;
-            let idx: i32 = i;
-            let actual_idx = if idx < 0 {
-                base.len().saturating_sub(idx.abs() as usize)
-            } else {
-                idx as usize
-            };
-            base.get(actual_idx..=actual_idx).unwrap_or("").to_string()
-        });
+        result.push(word_counts.get(i as usize).cloned().unwrap_or_default());
     }
     Ok(result)
 }
@@ -223,7 +179,7 @@ pub fn analyze_character_distribution(text: &str) -> Result<HashMap<String, i32>
 #[doc = " Depyler: verified panic-free"]
 pub fn extract_sentences(text: &str) -> Vec<String> {
     let mut sentences: Vec<String> = vec![];
-    let mut current_sentence: String = STR_EMPTY;
+    let mut current_sentence: String = STR_EMPTY.to_string();
     for _char in text.chars() {
         let char = _char.to_string();
         current_sentence = current_sentence + char;
@@ -289,7 +245,7 @@ pub fn group_words_by_length(words: &Vec<String>) -> HashMap<i32, Vec<String>> {
     for word in words.iter().cloned() {
         let length: i32 = word.len() as i32 as i32;
         if !groups.contains_key(&length) {
-            groups.insert((length) as usize, vec![]);
+            groups.insert(length, vec![]);
         }
         groups
             .get(length as usize)
@@ -313,11 +269,14 @@ pub fn find_word_patterns(words: &Vec<String>) -> Result<HashMap<String, Vec<Str
             let base = &word;
             let idx: i32 = 0;
             let actual_idx = if idx < 0 {
-                base.len().saturating_sub(idx.abs() as usize)
+                base.chars().count().saturating_sub(idx.abs() as usize)
             } else {
                 idx as usize
             };
-            base.get(actual_idx..=actual_idx).unwrap_or("").to_string()
+            base.chars()
+                .nth(actual_idx)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
         } == "a"
         {
             patterns
@@ -370,7 +329,7 @@ pub fn create_ngrams(words: &Vec<String>, n: i32) -> Vec<String> {
                 } else {
                     idx as usize
                 };
-                base.get(actual_idx..=actual_idx).unwrap_or("").to_string()
+                base.get(actual_idx).cloned().unwrap_or_default()
             });
         }
         let ngram: String = ngram_words.join(" ");
@@ -390,7 +349,7 @@ pub fn calculate_word_diversity(words: &Vec<String>) -> Result<f64, ZeroDivision
         map
     };
     for word in words.iter().cloned() {
-        unique_words.insert((word) as usize, true);
+        unique_words.insert(word, true);
     }
     let _cse_temp_2 = unique_words.len() as i32;
     let _cse_temp_3 = (_cse_temp_2) as f64;
@@ -403,7 +362,7 @@ pub fn calculate_word_diversity(words: &Vec<String>) -> Result<f64, ZeroDivision
 pub fn find_palindromes(words: &Vec<String>) -> Result<Vec<String>, IndexError> {
     let mut palindromes: Vec<String> = vec![];
     for word in words.iter().cloned() {
-        let mut reversed_word: String = STR_EMPTY;
+        let mut reversed_word: String = STR_EMPTY.to_string();
         for i in {
             let step = (-1 as i32).abs() as usize;
             if step == 0 {
@@ -417,11 +376,14 @@ pub fn find_palindromes(words: &Vec<String>) -> Result<Vec<String>, IndexError> 
                 let base = &word;
                 let idx: i32 = i;
                 let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
+                    base.chars().count().saturating_sub(idx.abs() as usize)
                 } else {
                     idx as usize
                 };
-                base.get(actual_idx..=actual_idx).unwrap_or("").to_string()
+                base.chars()
+                    .nth(actual_idx)
+                    .map(|c| c.to_string())
+                    .unwrap_or_default()
             };
         }
         if word == reversed_word && word.len() as i32 > 1 {
@@ -443,12 +405,13 @@ pub fn find_palindromes(words: &Vec<String>) -> Result<Vec<String>, IndexError> 
 pub fn analyze_vowel_consonant_ratio(
     text: &str,
 ) -> Result<HashMap<String, f64>, ZeroDivisionError> {
+    let vowels: String = "aeiouAEIOU".to_string();
     let mut vowel_count: i32 = 0;
     let mut consonant_count: i32 = 0;
     for _char in text.chars() {
         let char = _char.to_string();
         if char.chars().all(|c| c.is_alphabetic()) {
-            if "aeiouAEIOU".contains(&char) {
+            if vowels.contains_key(&char) {
                 vowel_count = vowel_count + 1;
             } else {
                 consonant_count = consonant_count + 1;
@@ -482,37 +445,47 @@ pub fn analyze_vowel_consonant_ratio(
 #[doc = "Main text processing pipeline"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn process_text_pipeline() {
+pub fn process_text_pipeline() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "=== Comprehensive Text Processing Demo ===");
-    let words: Vec<String>= tokenize_text("\n    The quick brown fox jumps over the lazy dog. This is a sample text\n    for demonstrating text processing capabilities. Python is amazing!\n    We can analyze words, count frequencies, and find patterns easily.\n    ");
-    println!("{}", format!("Total words: {}", words.len() as i32));
-    let mut frequencies: HashMap<String, i32> = count_word_frequencies(&words);
-    println!("{}", format!("Unique words: {}", frequencies.len() as i32));
-    println!("{}", format!("Top 5 words: {}", top_words.len() as i32));
+    let sample_text: String = "\n    The quick brown fox jumps over the lazy dog. This is a sample text\n    for demonstrating text processing capabilities. Python is amazing!\n    We can analyze words, count frequencies, and find patterns easily.\n    ".to_string();
+    let words: Vec<String> = tokenize_text(sample_text)?;
+    println!("{}", format!("Total words: {:?}", words.len() as i32));
+    let mut frequencies: HashMap<String, i32> = count_word_frequencies(&words)?;
+    println!(
+        "{}",
+        format!("Unique words: {:?}", frequencies.len() as i32)
+    );
+    let top_words: Vec<(String, i32)> = get_most_common_words(&frequencies, 5)?;
+    println!("{}", format!("Top 5 words: {:?}", top_words.len() as i32));
+    let char_dist: HashMap<String, i32> = analyze_character_distribution(sample_text)?;
     println!(
         "{}",
         format!(
-            "Letters: {}, Digits: {}",
+            "Letters: {:?}, Digits: {:?}",
             char_dist.get("letters").cloned().unwrap_or_default(),
             char_dist.get("digits").cloned().unwrap_or_default()
         )
     );
-    println!("{}", format!("Sentences: {}", sentences.len() as i32));
+    let mut sentences: Vec<String> = extract_sentences(sample_text)?;
+    println!("{}", format!("Sentences: {:?}", sentences.len() as i32));
+    let mut metrics: HashMap<String, f64> = calculate_readability_metrics(sample_text)?;
     println!(
         "{}",
         format!(
-            "Avg word length: {}",
+            "Avg word length: {:?}",
             metrics.get("avg_word_length").cloned().unwrap_or_default()
         )
     );
+    let length_groups: HashMap<i32, Vec<String>> = group_words_by_length(&words)?;
     println!(
         "{}",
-        format!("Length groups: {}", length_groups.len() as i32)
+        format!("Length groups: {:?}", length_groups.len() as i32)
     );
+    let patterns: HashMap<String, Vec<String>> = find_word_patterns(&words)?;
     println!(
         "{}",
         format!(
-            "Words starting with 'a': {}",
+            "Words starting with 'a': {:?}",
             patterns
                 .get("starts_with_a")
                 .cloned()
@@ -520,20 +493,25 @@ pub fn process_text_pipeline() {
                 .len() as i32
         )
     );
-    println!("{}", format!("Bigrams created: {}", bigrams.len() as i32));
-    println!("{}", format!("Lexical diversity: {}", diversity));
+    let bigrams: Vec<String> = create_ngrams(&words, 2)?;
+    println!("{}", format!("Bigrams created: {:?}", bigrams.len() as i32));
+    let diversity: f64 = calculate_word_diversity(&words)?;
+    println!("{}", format!("Lexical diversity: {:?}", diversity));
+    let mut palindromes: Vec<String> = find_palindromes(&words)?;
     println!(
         "{}",
-        format!("Palindromes found: {}", palindromes.len() as i32)
+        format!("Palindromes found: {:?}", palindromes.len() as i32)
     );
+    let ratios: HashMap<String, f64> = analyze_vowel_consonant_ratio(sample_text)?;
     println!(
         "{}",
         format!(
-            "Vowel ratio: {}",
+            "Vowel ratio: {:?}",
             ratios.get("vowel_ratio").cloned().unwrap_or_default()
         )
     );
     println!("{}", "=== Processing Complete ===");
+    Ok(())
 }
 #[cfg(test)]
 mod tests {

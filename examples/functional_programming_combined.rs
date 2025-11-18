@@ -82,9 +82,9 @@ pub fn reduce_product(data: &Vec<i32>) -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn chain_operations(data: Vec<i32>) -> i32 {
     let mapped: Vec<i32> = map_transform(&data, 2);
-    let filtered: Vec<i32> = filter_predicate(mapped, 10);
-    let mut result: i32 = reduce_sum(filtered);
-    result.unwrap()
+    let filtered: Vec<i32> = filter_predicate(&mapped, 10);
+    let mut result: i32 = reduce_sum(&filtered);
+    result
 }
 #[doc = "Zip two lists together"]
 #[doc = " Depyler: verified panic-free"]
@@ -127,7 +127,7 @@ pub fn group_by_property(
     for item in items.iter().cloned() {
         let key: i32 = item % modulo;
         if !groups.contains_key(&key) {
-            groups.insert((key) as usize, vec![]);
+            groups.insert(key, vec![]);
         }
         groups.get(&key).cloned().unwrap_or_default().push(item);
     }
@@ -300,7 +300,7 @@ pub fn map_reduce_pattern(data: &Vec<i32>) -> i32 {
     for item in data.iter().cloned() {
         mapped.push(item * item);
     }
-    let reduced: i32 = reduce_sum(mapped);
+    let reduced: i32 = reduce_sum(&mapped);
     reduced
 }
 #[doc = "Filter-Map-Reduce pipeline"]
@@ -308,8 +308,8 @@ pub fn map_reduce_pattern(data: &Vec<i32>) -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn filter_map_reduce_pattern(data: Vec<i32>, threshold: i32) -> i32 {
     let filtered: Vec<i32> = filter_predicate(&data, threshold);
-    let mut mapped: Vec<i32> = map_transform(filtered, 3);
-    let reduced: i32 = reduce_sum(mapped);
+    let mut mapped: Vec<i32> = map_transform(&filtered, 3);
+    let reduced: i32 = reduce_sum(&mapped);
     reduced
 }
 #[doc = "Get unique elements(set-like operation)"]
@@ -322,7 +322,7 @@ pub fn unique_elements(data: &Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for item in data.iter().cloned() {
         if !seen.contains_key(&item) {
-            seen.insert((item) as usize, true);
+            seen.insert(item, true);
             result.push(item);
         }
     }
@@ -342,7 +342,7 @@ pub fn count_by_value(data: &Vec<i32>) -> Result<HashMap<i32, i32>, IndexError> 
                 counts.insert(_key, _old_val + 1);
             }
         } else {
-            counts.insert((item) as usize, 1);
+            counts.insert(item, 1);
         }
     }
     Ok(counts)
@@ -353,25 +353,21 @@ pub fn sorted_by_key(items: &Vec<(String, i32)>) -> Result<Vec<(String, i32)>, I
     let mut result: Vec<(String, i32)> = items.clone();
     for i in 0..result.len() as i32 {
         for j in i + 1..result.len() as i32 {
-            if {
-                let base = &result.get(j as usize).cloned().unwrap_or_default();
-                let idx: i32 = 1;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            } < {
-                let base = &result.get(i as usize).cloned().unwrap_or_default();
-                let idx: i32 = 1;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            } {
+            if result
+                .get(j as usize)
+                .cloned()
+                .unwrap_or_default()
+                .get(1usize)
+                .cloned()
+                .unwrap_or_default()
+                < result
+                    .get(i as usize)
+                    .cloned()
+                    .unwrap_or_default()
+                    .get(1usize)
+                    .cloned()
+                    .unwrap_or_default()
+            {
                 let temp: (String, i32) = result.get(i as usize).cloned().unwrap_or_default();
                 result.insert(
                     (i) as usize,
@@ -386,103 +382,123 @@ pub fn sorted_by_key(items: &Vec<(String, i32)>) -> Result<Vec<(String, i32)>, I
 #[doc = "Demonstrate functional programming patterns"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn demonstrate_functional_patterns() {
+pub fn demonstrate_functional_patterns() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "=== Functional Programming Patterns Demo ===");
     let data: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     println!("{}", "\n1. Map Pattern");
+    let doubled: Vec<i32> = map_transform(&data, 2)?;
     println!(
         "{}",
-        format!("   Doubled: {} elements", doubled.len() as i32)
+        format!("   Doubled: {:?} elements", doubled.len() as i32)
     );
     println!("{}", "\n2. Filter Pattern");
+    let filtered: Vec<i32> = filter_predicate(&data, 5)?;
     println!(
         "{}",
-        format!("   Filtered(>5): {} elements", filtered.len() as i32)
+        format!("   Filtered(>5): {:?} elements", filtered.len() as i32)
     );
     println!("{}", "\n3. Reduce Pattern");
-    println!("{}", format!("   Sum: {}", total));
+    let mut total: i32 = reduce_sum(&data)?;
+    println!("{}", format!("   Sum: {:?}", total));
     println!("{}", "\n4. Chained Operations");
-    println!("{}", format!("   Result: {}", chained));
+    let chained: i32 = chain_operations(data)?;
+    println!("{}", format!("   Result: {:?}", chained));
     println!("{}", "\n5. Zip Pattern");
-    let labels: Vec<String> = vec!["a", "b", "c", "d", "e"];
-    println!("{}", format!("   Zipped: {} pairs", zipped.len() as i32));
+    let labels: Vec<String> = vec![
+        "a".to_string(),
+        "b".to_string(),
+        "c".to_string(),
+        "d".to_string(),
+        "e".to_string(),
+    ];
+    let zipped: Vec<(i32, String)> = zip_lists(
+        &{
+            let base = data;
+            let stop = (5).max(0) as usize;
+            base[..stop.min(base.len())].to_vec()
+        },
+        &labels,
+    )?;
+    println!("{}", format!("   Zipped: {:?} pairs", zipped.len() as i32));
     println!("{}", "\n6. Group By Pattern");
+    let mut groups: HashMap<i32, Vec<i32>> = group_by_property(&data, 3)?;
     println!(
         "{}",
-        format!("   Groups(mod 3): {} groups", groups.len() as i32)
+        format!("   Groups(mod 3): {:?} groups", groups.len() as i32)
     );
     println!("{}", "\n7. Partition Pattern");
+    let parts: (Vec<i32>, Vec<i32>) = partition_by_predicate(&data, 6)?;
     println!(
         "{}",
         format!(
-            "   Partition: {} passed, {} failed",
-            {
-                let base = &parts;
-                let idx: i32 = 0;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            }
-            .len() as i32,
-            {
-                let base = &parts;
-                let idx: i32 = 1;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            }
-            .len() as i32
+            "   Partition: {:?} passed, {:?} failed",
+            parts.get(0usize).cloned().unwrap_or_default().len() as i32,
+            parts.get(1usize).cloned().unwrap_or_default().len() as i32
         )
     );
     println!("{}", "\n8. Accumulate Pattern");
+    let running_sums: Vec<i32> = accumulate_running_sum(&data)?;
     println!(
         "{}",
-        format!("   Running sums: {} values", running_sums.len() as i32)
+        format!("   Running sums: {:?} values", running_sums.len() as i32)
     );
     println!("{}", "\n9. Flatten Pattern");
     let nested: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6]];
+    let flattened: Vec<i32> = flatten_nested_list(&nested)?;
     println!(
         "{}",
-        format!("   Flattened: {} elements", flattened.len() as i32)
+        format!("   Flattened: {:?} elements", flattened.len() as i32)
     );
     println!("{}", "\n10. Cartesian Product");
     let list1: Vec<i32> = vec![1, 2, 3];
     let list2: Vec<i32> = vec![10, 20];
+    let mut product: Vec<(i32, i32)> = cartesian_product(&list1, &list2)?;
     println!(
         "{}",
-        format!("   Product: {} combinations", product.len() as i32)
+        format!("   Product: {:?} combinations", product.len() as i32)
     );
     println!("{}", "\n11. Take While Pattern");
+    let taken: Vec<i32> = take_while_condition(&data, 6)?;
     println!(
         "{}",
-        format!("   Taken(while <6): {} elements", taken.len() as i32)
+        format!("   Taken(while <6): {:?} elements", taken.len() as i32)
     );
     println!("{}", "\n12. Pairwise Iteration");
-    println!("{}", format!("   Pairs: {} pairs", pairs.len() as i32));
+    let pairs: Vec<(i32, i32)> = pairwise_iteration(&data)?;
+    println!("{}", format!("   Pairs: {:?} pairs", pairs.len() as i32));
     println!("{}", "\n13. Sliding Window");
+    let windows: Vec<Vec<i32>> = sliding_window(&data, 3)?;
     println!(
         "{}",
-        format!("   Windows(size 3): {} windows", windows.len() as i32)
+        format!("   Windows(size 3): {:?} windows", windows.len() as i32)
     );
     println!("{}", "\n14. Function Composition");
+    let composed: Vec<i32> = compose_two_functions(vec![1, 2, 3])?;
     println!(
         "{}",
-        format!("   Composed result: {} elements", composed.len() as i32)
+        format!("   Composed result: {:?} elements", composed.len() as i32)
     );
     println!("{}", "\n15. Map-Reduce Pattern");
-    println!("{}", format!("   Map-Reduce sum of squares: {}", mr_result));
+    let mr_result: i32 = map_reduce_pattern(&vec![1, 2, 3, 4])?;
+    println!(
+        "{}",
+        format!("   Map-Reduce sum of squares: {:?}", mr_result)
+    );
     println!("{}", "\n16. Filter-Map-Reduce");
-    println!("{}", format!("   Filter-Map-Reduce result: {}", fmr_result));
+    let fmr_result: i32 = filter_map_reduce_pattern(data, 5)?;
+    println!(
+        "{}",
+        format!("   Filter-Map-Reduce result: {:?}", fmr_result)
+    );
     println!("{}", "\n17. Unique Elements");
     let duplicates: Vec<i32> = vec![1, 2, 2, 3, 3, 3, 4, 4, 4, 4];
-    println!("{}", format!("   Unique elements: {}", unique.len() as i32));
+    let unique: Vec<i32> = unique_elements(&duplicates)?;
+    println!(
+        "{}",
+        format!("   Unique elements: {:?}", unique.len() as i32)
+    );
     println!("{}", "\n=== All Patterns Demonstrated ===");
+    Ok(())
 }
 #[cfg(test)]
 mod tests {

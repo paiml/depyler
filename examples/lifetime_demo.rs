@@ -58,7 +58,7 @@ pub fn longest(x: String, y: String) -> String {
 #[doc = " Depyler: proven to terminate"]
 pub fn modify_string(mut s: String) {
     s = format!("{}{}", s, " modified");
-    None
+    ()
 }
 #[cfg(test)]
 mod tests {

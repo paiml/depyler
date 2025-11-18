@@ -1,6 +1,6 @@
-#[doc = "// Python import: math"]
-#[doc = "// Python import: random"]
+use rand as random;
 use std::collections::HashMap;
+use std::f64 as math;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
     message: String,
@@ -41,7 +41,7 @@ impl IndexError {
 pub fn generate_sample_data(size: i32, mean: f64, stddev: f64) -> Vec<f64> {
     let mut data: Vec<f64> = vec![];
     for _i in 0..size {
-        let value: f64 = rand::random() * stddev + mean;
+        let value: f64 = rand::random::<f64>() * stddev + mean;
         data.push(value);
     }
     data
@@ -78,27 +78,9 @@ pub fn calculate_statistics(
     let _cse_temp_4 = variance_sum / _cse_temp_2;
     let variance: f64 = _cse_temp_4;
     stats.insert("variance".to_string(), variance);
-    stats.insert("std_dev".to_string(), (variance).sqrt());
-    let mut min_val: f64 = {
-        let base = &data;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    };
-    let mut max_val: f64 = {
-        let base = &data;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    };
+    stats.insert("std_dev".to_string(), (variance as f64).sqrt());
+    let mut min_val: f64 = data.get(0usize).cloned().unwrap_or_default();
+    let mut max_val: f64 = data.get(0usize).cloned().unwrap_or_default();
     for value in data.iter().cloned() {
         if value < min_val {
             min_val = value;
@@ -314,26 +296,8 @@ pub fn bin_data(
             map
         });
     }
-    let mut min_val: f64 = {
-        let base = &data;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    };
-    let mut max_val: f64 = {
-        let base = &data;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    };
+    let mut min_val: f64 = data.get(0usize).cloned().unwrap_or_default();
+    let mut max_val: f64 = data.get(0usize).cloned().unwrap_or_default();
     for value in data.iter().cloned() {
         if value < min_val {
             min_val = value;
@@ -343,17 +307,17 @@ pub fn bin_data(
         }
     }
     let _cse_temp_4 = (num_bins) as f64;
-    let _cse_temp_5 = max_val - min_val / _cse_temp_4;
+    let _cse_temp_5 = (max_val - min_val) / _cse_temp_4;
     let bin_width: f64 = _cse_temp_5;
     let mut bins: HashMap<i32, i32> = {
         let map = HashMap::new();
         map
     };
     for i in 0..num_bins {
-        bins.insert((i) as usize, 0);
+        bins.insert(i, 0);
     }
     for value in data.iter().cloned() {
-        let mut bin_index: i32 = (value - min_val / bin_width) as i32;
+        let mut bin_index: i32 = ((value - min_val) / bin_width) as i32;
         if bin_index >= num_bins {
             bin_index = num_bins - 1;
         }
@@ -367,7 +331,7 @@ pub fn bin_data(
 }
 #[doc = "Calculate Pearson correlation coefficient"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_correlation<'b, 'a>(
+pub fn calculate_correlation<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
@@ -401,7 +365,7 @@ pub fn calculate_correlation<'b, 'a>(
         x_variance_sum = x_variance_sum + x_diff * x_diff;
         y_variance_sum = y_variance_sum + y_diff * y_diff;
     }
-    let denominator: f64 = (x_variance_sum * y_variance_sum).sqrt();
+    let denominator: f64 = (x_variance_sum * y_variance_sum as f64).sqrt();
     let _cse_temp_9 = denominator == 0.0;
     if _cse_temp_9 {
         return Ok(0.0);
@@ -429,7 +393,7 @@ pub fn normalize_data(mut data: Vec<f64>) -> Result<Vec<f64>, ZeroDivisionError>
         let diff: f64 = value - mean;
         variance_sum = variance_sum + diff * diff;
     }
-    let stddev: f64 = ((variance_sum as f64) / ((data.len() as i32) as f64 as f64)).sqrt();
+    let stddev: f64 = ((variance_sum as f64) / ((data.len() as i32) as f64 as f64) as f64).sqrt();
     let _cse_temp_4 = stddev == 0.0;
     if _cse_temp_4 {
         return Ok(data);
@@ -442,7 +406,7 @@ pub fn normalize_data(mut data: Vec<f64>) -> Result<Vec<f64>, ZeroDivisionError>
     Ok(normalized)
 }
 #[doc = "Group data by ranges using collections"]
-pub fn group_by_range<'b, 'a>(
+pub fn group_by_range<'a, 'b>(
     data: &'a mut Vec<f64>,
     ranges: &'b Vec<(f64, f64)>,
 ) -> Result<HashMap<String, Vec<f64>>, IndexError> {
@@ -453,74 +417,22 @@ pub fn group_by_range<'b, 'a>(
     for i in 0..ranges.len() as i32 {
         let mut range_tuple: (f64, f64) = ranges.get(i as usize).cloned().unwrap_or_default();
         let mut range_key: String = format!(
-            "{}-{}",
-            {
-                let base = &range_tuple;
-                let idx: i32 = 0;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            },
-            {
-                let base = &range_tuple;
-                let idx: i32 = 1;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            }
+            "{:?}-{:?}",
+            range_tuple.get(0usize).cloned().unwrap_or_default(),
+            range_tuple.get(1usize).cloned().unwrap_or_default()
         );
-        groups.insert((range_key) as usize, vec![]);
+        groups.insert(range_key, vec![]);
     }
     for value in data.iter().cloned() {
         for i in 0..ranges.len() as i32 {
             let mut range_tuple: (f64, f64) = ranges.get(i as usize).cloned().unwrap_or_default();
-            if value >= {
-                let base = &range_tuple;
-                let idx: i32 = 0;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            } && value < {
-                let base = &range_tuple;
-                let idx: i32 = 1;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            } {
+            if value >= range_tuple.get(0usize).cloned().unwrap_or_default()
+                && value < range_tuple.get(1usize).cloned().unwrap_or_default()
+            {
                 let mut range_key: String = format!(
-                    "{}-{}",
-                    {
-                        let base = &range_tuple;
-                        let idx: i32 = 0;
-                        let actual_idx = if idx < 0 {
-                            base.len().saturating_sub(idx.abs() as usize)
-                        } else {
-                            idx as usize
-                        };
-                        base.get(actual_idx).cloned().unwrap_or_default()
-                    },
-                    {
-                        let base = &range_tuple;
-                        let idx: i32 = 1;
-                        let actual_idx = if idx < 0 {
-                            base.len().saturating_sub(idx.abs() as usize)
-                        } else {
-                            idx as usize
-                        };
-                        base.get(actual_idx).cloned().unwrap_or_default()
-                    }
+                    "{:?}-{:?}",
+                    range_tuple.get(0usize).cloned().unwrap_or_default(),
+                    range_tuple.get(1usize).cloned().unwrap_or_default()
                 );
                 groups
                     .get(&range_key)
@@ -536,69 +448,84 @@ pub fn group_by_range<'b, 'a>(
 #[doc = "Monte Carlo simulation combining random + math + statistics"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn monte_carlo_simulation(num_trials: i32) -> HashMap<String, f64> {
+pub fn monte_carlo_simulation(
+    num_trials: i32,
+) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
     let mut results: Vec<f64> = vec![];
     for _trial in 0..num_trials {
-        let x: f64 = rand::random() * 10.0;
-        let y: f64 = rand::random() * 10.0;
-        let distance: f64 = (x * x + y * y).sqrt();
+        let x: f64 = rand::random::<f64>() * 10.0;
+        let y: f64 = rand::random::<f64>() * 10.0;
+        let distance: f64 = (x * x + y * y as f64).sqrt();
         results.push(distance);
     }
-    let mut stats: HashMap<String, f64> = calculate_statistics(results);
-    stats
+    let mut stats: HashMap<String, f64> = calculate_statistics(&results)?;
+    Ok(stats)
 }
 #[doc = "Main analysis pipeline combining all modules"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn analyze_dataset() {
+pub fn analyze_dataset() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "=== Comprehensive Data Analysis Demo ===");
-    random.seed(42);
-    let dataset: Vec<f64> = generate_sample_data(100, 50.0, 10.0);
+    {
+        let _seed = 42;
+        ()
+    };
+    let sample_size: i32 = 100;
+    let dataset: Vec<f64> = generate_sample_data(sample_size, 50.0, 10.0)?;
+    let mut stats: HashMap<String, f64> = calculate_statistics(&dataset)?;
     println!(
         "{}",
         format!(
-            "Mean: {}, StdDev: {}",
+            "Mean: {:?}, StdDev: {:?}",
             stats.get("mean").cloned().unwrap_or_default(),
             stats.get("std_dev").cloned().unwrap_or_default()
         )
     );
+    let mut percentiles: HashMap<String, f64> = calculate_percentiles(&dataset)?;
     println!(
         "{}",
         format!(
-            "Q1: {}, Median: {}, Q3: {}",
+            "Q1: {:?}, Median: {:?}, Q3: {:?}",
             percentiles.get("q1").cloned().unwrap_or_default(),
             percentiles.get("q2").cloned().unwrap_or_default(),
             percentiles.get("q3").cloned().unwrap_or_default()
         )
     );
-    println!("{}", format!("Outliers found: {}", outliers.len() as i32));
+    let mut outliers: Vec<f64> = detect_outliers(dataset)?;
+    println!("{}", format!("Outliers found: {:?}", outliers.len() as i32));
+    let histogram: HashMap<i32, i32> = bin_data(&dataset, 10)?;
     println!(
         "{}",
-        format!("Histogram bins created: {}", histogram.len() as i32)
+        format!("Histogram bins created: {:?}", histogram.len() as i32)
     );
-    let mut normalized: Vec<f64> = normalize_data(dataset);
+    let mut normalized: Vec<f64> = normalize_data(dataset)?;
+    let normalized_stats: HashMap<String, f64> = calculate_statistics(&normalized)?;
     println!(
         "{}",
         format!(
-            "Normalized mean: {}",
+            "Normalized mean: {:?}",
             normalized_stats.get("mean").cloned().unwrap_or_default()
         )
     );
-    let dataset2: Vec<f64> = generate_sample_data(100, 60.0, 12.0);
-    println!("{}", format!("Correlation: {}", corr));
+    let dataset2: Vec<f64> = generate_sample_data(sample_size, 60.0, 12.0)?;
+    let corr: f64 = calculate_correlation(&dataset, &dataset2)?;
+    println!("{}", format!("Correlation: {:?}", corr));
     let ranges: Vec<(f64, f64)> = vec![(0.0, 25.0), (25.0, 50.0), (50.0, 75.0), (75.0, 100.0)];
+    let mut groups: HashMap<String, Vec<f64>> = group_by_range(&dataset, &ranges)?;
     println!(
         "{}",
-        format!("Range groups created: {}", groups.len() as i32)
+        format!("Range groups created: {:?}", groups.len() as i32)
     );
+    let mc_stats: HashMap<String, f64> = monte_carlo_simulation(1000)?;
     println!(
         "{}",
         format!(
-            "Monte Carlo mean: {}",
+            "Monte Carlo mean: {:?}",
             mc_stats.get("mean").cloned().unwrap_or_default()
         )
     );
     println!("{}", "=== Analysis Complete ===");
+    Ok(())
 }
 #[cfg(test)]
 mod tests {

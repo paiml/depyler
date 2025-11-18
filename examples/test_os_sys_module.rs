@@ -1,7 +1,7 @@
 use std as os;
 use std as sys;
-const STR_EMPTY: &'static str = "";
 const STR__: &'static str = "/";
+const STR_EMPTY: &'static str = "";
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct IndexError {
@@ -222,8 +222,8 @@ pub fn test_path_splitext() -> Result<(), IndexError> {
         }
     }
     let _cse_temp_0 = last_dot > 0;
-    let mut name: String;
     let mut ext: String;
+    let mut name: String;
     if _cse_temp_0 {
         name = {
             let base = path;
@@ -343,7 +343,7 @@ pub fn test_listdir_simulation() -> Vec<String> {
 }
 #[doc = "Filter files by extension"]
 #[doc = " Depyler: verified panic-free"]
-pub fn filter_by_extension<'a, 'b>(
+pub fn filter_by_extension<'b, 'a>(
     files: &'a Vec<String>,
     ext: &'b mut str,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {

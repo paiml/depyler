@@ -1,4 +1,4 @@
-#[doc = "// Python import: math"]
+use std::f64 as math;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
     message: String,
@@ -37,47 +37,48 @@ impl IndexError {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_basic_math_functions() -> f64 {
-    let sqrt_result: f64 = std::sqrt(16.0);
-    let pow_result: f64 = math.pow(2.0, 3.0);
-    let floor_result: f64 = math.floor(3.7);
-    let ceil_result: f64 = math.ceil(3.2);
-    let abs_result: f64 = math.fabs(-5.5);
+    let sqrt_result: f64 = (16.0 as f64).sqrt();
+    let pow_result: f64 = (2.0 as f64).powf(3.0 as f64);
+    let floor_result: f64 = (3.7 as f64).floor() as i32;
+    let ceil_result: f64 = (3.2 as f64).ceil() as i32;
+    let abs_result: f64 = (-5.5 as f64).abs();
     sqrt_result + pow_result + floor_result + ceil_result + abs_result
 }
 #[doc = "Test trigonometric functions"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_trigonometric_functions() -> Result<f64, ZeroDivisionError> {
-    let _cse_temp_0 = (std::consts::PI as f64) / (4.0 as f64);
+    let _cse_temp_0 = (std::f64::consts::PI as f64) / (4.0 as f64);
     let angle: f64 = _cse_temp_0;
-    let sin_result: f64 = std::sin(angle);
-    let cos_result: f64 = std::cos(angle);
-    let tan_result: f64 = std::tan(angle);
+    let sin_result: f64 = (angle as f64).sin();
+    let cos_result: f64 = (angle as f64).cos();
+    let tan_result: f64 = (angle as f64).tan();
     Ok(sin_result + cos_result + tan_result)
 }
 #[doc = "Test logarithmic and exponential functions"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_logarithmic_functions() -> f64 {
-    let ln_result: f64 = math.log(std::consts::E);
-    let log10_result: f64 = math.log10(100.0);
-    let exp_result: f64 = math.exp(1.0);
+    let ln_result: f64 = (std::f64::consts::E as f64).ln();
+    let log10_result: f64 = (100.0 as f64).log10();
+    let exp_result: f64 = (1.0 as f64).exp();
     ln_result + log10_result + exp_result
 }
 #[doc = "Test various rounding operations"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_rounding_functions() -> f64 {
-    let floored: f64 = math.floor(3.14159);
-    let ceiled: f64 = math.ceil(3.14159);
-    let truncated: f64 = math.trunc(3.14159);
+    let value: f64 = 3.14159;
+    let floored: f64 = (value as f64).floor() as i32;
+    let ceiled: f64 = (value as f64).ceil() as i32;
+    let truncated: f64 = (value as f64).trunc();
     floored + ceiled + truncated
 }
 #[doc = "Test mathematical constants"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_constants() -> f64 {
-    let pi_value: f64 = std::consts::PI;
-    let e_value: f64 = std::consts::E;
+    let pi_value: f64 = std::f64::consts::PI;
+    let e_value: f64 = std::f64::consts::E;
     let _cse_temp_0 = pi_value * 5.0;
     let _cse_temp_1 = _cse_temp_0 * 5.0;
     let circle_area: f64 = _cse_temp_1;
@@ -89,26 +90,44 @@ pub fn test_constants() -> f64 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_hyperbolic_functions() -> f64 {
-    let sinh_result: f64 = math.sinh(1.0);
-    let cosh_result: f64 = math.cosh(1.0);
-    let tanh_result: f64 = math.tanh(1.0);
+    let x: f64 = 1.0;
+    let sinh_result: f64 = (x as f64).sinh();
+    let cosh_result: f64 = (x as f64).cosh();
+    let tanh_result: f64 = (x as f64).tanh();
     sinh_result + cosh_result + tanh_result
 }
 #[doc = "Test special mathematical functions"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_special_functions() -> f64 {
-    let fact_5: i32 = math.factorial(5);
-    let gcd_result: i32 = math.gcd(48, 18);
+    let fact_5: i32 = {
+        let n = 5 as i32;
+        let mut result = 1i64;
+        for i in 1..=n {
+            result *= i as i64;
+        }
+        result as i32
+    };
+    let gcd_result: i32 = {
+        let mut a = (48 as i64).abs();
+        let mut b = (18 as i64).abs();
+        while b != 0 {
+            let temp = b;
+            b = a % b;
+            a = temp;
+        }
+        a as i32
+    };
     (fact_5 + gcd_result) as f64
 }
 #[doc = "Test degree/radian conversions"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_angle_conversions() -> f64 {
-    let radians: f64 = std::consts::PI;
-    let deg_to_rad: f64 = math.radians(180.0);
-    let rad_to_deg: f64 = math.degrees(radians);
+    let degrees: f64 = 180.0;
+    let radians: f64 = std::f64::consts::PI;
+    let deg_to_rad: f64 = (degrees as f64).to_radians();
+    let rad_to_deg: f64 = (radians as f64).to_degrees();
     deg_to_rad + rad_to_deg
 }
 #[doc = "Calculate Euclidean distance between two points"]
@@ -117,22 +136,22 @@ pub fn test_angle_conversions() -> f64 {
 pub fn calculate_distance(x1: f64, y1: f64, x2: f64, y2: f64) -> f64 {
     let dx: f64 = x2 - x1;
     let dy: f64 = y2 - y1;
-    let distance: f64 = std::sqrt(dx * dx + dy * dy);
+    let distance: f64 = (dx * dx + dy * dy as f64).sqrt();
     distance
 }
 #[doc = "Calculate hypotenuse using Pythagorean theorem"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn calculate_hypotenuse(a: f64, b: f64) -> f64 {
-    std::sqrt(468)
+    (a * a + b * b as f64).sqrt()
 }
 #[doc = "Test various power operations"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_power_operations() -> f64 {
-    let basic_pow: f64 = math.pow(2.0, 8.0);
-    let sqrt_as_pow: f64 = math.pow(25.0, 0.5);
-    let cube_root: f64 = math.pow(27.0, 0.3333333333333333);
+    let basic_pow: f64 = (2.0 as f64).powf(8.0 as f64);
+    let sqrt_as_pow: f64 = (25.0 as f64).powf(0.5 as f64);
+    let cube_root: f64 = (27.0 as f64).powf(0.3333333333333333 as f64);
     basic_pow + sqrt_as_pow + cube_root
 }
 #[doc = "Test min/max with math operations"]
@@ -142,26 +161,8 @@ pub fn test_comparison_functions(values: &Vec<f64>) -> Result<f64, IndexError> {
     if _cse_temp_1 {
         return Ok(0.0);
     }
-    let mut min_val: f64 = {
-        let base = &values;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    };
-    let mut max_val: f64 = {
-        let base = &values;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    };
+    let mut min_val: f64 = values.get(0usize).cloned().unwrap_or_default();
+    let mut max_val: f64 = values.get(0usize).cloned().unwrap_or_default();
     for val in values.iter().cloned() {
         if val < min_val {
             min_val = val;
@@ -171,7 +172,7 @@ pub fn test_comparison_functions(values: &Vec<f64>) -> Result<f64, IndexError> {
         }
     }
     let value_range: f64 = max_val - min_val;
-    let geometric_mean: f64 = std::sqrt(min_val * max_val);
+    let geometric_mean: f64 = (min_val * max_val as f64).sqrt();
     Ok(value_range + geometric_mean)
 }
 #[doc = "Calculate statistical values using math operations"]
@@ -195,37 +196,89 @@ pub fn test_statistical_math(numbers: &Vec<f64>) -> Result<f64, ZeroDivisionErro
     }
     let _cse_temp_4 = (variance_sum as f64) / (_cse_temp_2 as f64);
     let variance: f64 = _cse_temp_4;
-    let std_dev: f64 = std::sqrt(variance);
+    let std_dev: f64 = (variance as f64).sqrt();
     Ok(mean + std_dev)
 }
 #[doc = "Test sign-related functions"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sign_and_copysign() -> f64 {
-    let abs1: f64 = math.fabs(-10.5);
-    let abs2: f64 = math.fabs(7.3);
-    let result1: f64 = math.copysign(5.0, -1.0);
-    let result2: f64 = math.copysign(5.0, 1.0);
+    let abs1: f64 = (-10.5 as f64).abs();
+    let abs2: f64 = (7.3 as f64).abs();
+    let result1: f64 = (5.0 as f64).copysign(-1.0 as f64);
+    let result2: f64 = (5.0 as f64).copysign(1.0 as f64);
     abs1 + abs2 + result1 + result2
 }
 #[doc = "Test modulo and remainder operations"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_remainder_operations() -> f64 {
-    let mod_result: f64 = math.fmod(10.5, 3.0);
-    let remainder: f64 = math.remainder(10.0, 3.0);
+    let mod_result: f64 = (10.5 as f64) % (3.0 as f64);
+    let remainder: f64 = {
+        let x = 10.0 as f64;
+        let y = 3.0 as f64;
+        let n = (x / y).round();
+        x - n * y
+    };
     mod_result + remainder
 }
 #[doc = "Test integer-specific math operations"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_integer_operations() -> Result<i32, ZeroDivisionError> {
-    let fact: i32 = math.factorial(6);
-    let gcd1: i32 = math.gcd(48, 18);
-    let gcd2: i32 = math.gcd(math.gcd(24, 36), 48);
-    let _cse_temp_0 = 216.abs();
-    let _cse_temp_1 = {
-        let a = _cse_temp_0;
-        let b = math.gcd(12, 18);
+    let fact: i32 = {
+        let n = 6 as i32;
+        let mut result = 1i64;
+        for i in 1..=n {
+            result *= i as i64;
+        }
+        result as i32
+    };
+    let gcd1: i32 = {
+        let mut a = (48 as i64).abs();
+        let mut b = (18 as i64).abs();
+        while b != 0 {
+            let temp = b;
+            b = a % b;
+            a = temp;
+        }
+        a as i32
+    };
+    let gcd2: i32 = {
+        let mut a = ({
+            let mut a = (24 as i64).abs();
+            let mut b = (36 as i64).abs();
+            while b != 0 {
+                let temp = b;
+                b = a % b;
+                a = temp;
+            }
+            a as i32
+        } as i64)
+            .abs();
+        let mut b = (48 as i64).abs();
+        while b != 0 {
+            let temp = b;
+            b = a % b;
+            a = temp;
+        }
+        a as i32
+    };
+    let a: i32 = 12;
+    let b: i32 = 18;
+    let _cse_temp_0 = a * b;
+    let _cse_temp_1 = _cse_temp_0.abs();
+    let _cse_temp_2 = {
+        let a = _cse_temp_1;
+        let b = {
+            let mut a = (a as i64).abs();
+            let mut b = (b as i64).abs();
+            while b != 0 {
+                let temp = b;
+                b = a % b;
+                a = temp;
+            }
+            a as i32
+        };
         let q = a / b;
         let r = a % b;
         let r_negative = r < 0;
@@ -239,15 +292,32 @@ pub fn test_integer_operations() -> Result<i32, ZeroDivisionError> {
             q
         }
     };
-    let lcm: i32 = _cse_temp_1;
+    let lcm: i32 = _cse_temp_2;
     Ok(fact + gcd1 + gcd2 + lcm)
 }
 #[doc = "Run all math module tests"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_all_math_features() {
+pub fn test_all_math_features() -> Result<(), Box<dyn std::error::Error>> {
+    let basic_result: f64 = test_basic_math_functions()?;
+    let trig_result: f64 = test_trigonometric_functions()?;
+    let log_result: f64 = test_logarithmic_functions()?;
+    let round_result: f64 = test_rounding_functions()?;
+    let const_result: f64 = test_constants()?;
+    let hyper_result: f64 = test_hyperbolic_functions()?;
+    let special_result: f64 = test_special_functions()?;
+    let angle_result: f64 = test_angle_conversions()?;
+    let dist: f64 = calculate_distance(0.0, 0.0, 3.0, 4.0)?;
+    let hyp: f64 = calculate_hypotenuse(3.0, 4.0)?;
+    let power_result: f64 = test_power_operations()?;
     let sample_values: Vec<f64> = vec![1.5, 2.7, 3.2, 4.8, 5.1];
+    let comp_result: f64 = test_comparison_functions(&sample_values)?;
+    let stat_result: f64 = test_statistical_math(&sample_values)?;
+    let sign_result: f64 = test_sign_and_copysign()?;
+    let remainder_result: f64 = test_remainder_operations()?;
+    let int_result: i32 = test_integer_operations()?;
     println!("{}", "All math module tests completed successfully");
+    Ok(())
 }
 #[cfg(test)]
 mod tests {

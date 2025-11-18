@@ -1,4 +1,4 @@
-#[doc = "// Python import: itertools"]
+use itertools;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
     message: String,
@@ -40,8 +40,10 @@ pub fn test_chain_iterables() -> Vec<i32> {
     let list1: Vec<i32> = vec![1, 2, 3];
     let list2: Vec<i32> = vec![4, 5, 6];
     let list3: Vec<i32> = vec![7, 8, 9];
-    let chained: Vec<i32> = itertools::chain(list1, list2, list3)
+    let chained: Vec<i32> = list1
         .into_iter()
+        .chain(list2.into_iter())
+        .chain(list3.into_iter())
         .collect::<Vec<_>>();
     chained
 }
@@ -50,15 +52,28 @@ pub fn test_chain_iterables() -> Vec<i32> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zip_iterables() -> Vec<(i32, String)> {
     let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
-    let letters: Vec<String> = vec!["a", "b", "c", "d", "e"];
-    let zipped: Vec<(i32, String)> = numbers.iter().zip(letters.iter()).collect::<Vec<_>>();
+    let letters: Vec<String> = vec![
+        "a".to_string(),
+        "b".to_string(),
+        "c".to_string(),
+        "d".to_string(),
+        "e".to_string(),
+    ];
+    let zipped: Vec<(i32, String)> = numbers
+        .into_iter()
+        .zip(letters.into_iter())
+        .collect::<Vec<_>>();
     zipped
 }
 #[doc = "Test enumerate for indexed iteration"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_enumerate() -> Vec<(i32, String)> {
-    let items: Vec<String> = vec!["apple", "banana", "cherry"];
+    let items: Vec<String> = vec![
+        "apple".to_string(),
+        "banana".to_string(),
+        "cherry".to_string(),
+    ];
     let enumerated: Vec<(i32, String)> = items.into_iter().enumerate().collect::<Vec<_>>();
     enumerated
 }
@@ -103,7 +118,7 @@ pub fn test_cycle(items: &Vec<String>, num_items: i32) -> Result<Vec<String>, Ze
     let mut idx: i32 = 0;
     for _i in 0..num_items {
         result.push(items.get(idx as usize).cloned().unwrap_or_default());
-        idx = idx + 1 % items.len() as i32;
+        idx = (idx + 1) % items.len() as i32;
     }
     Ok(result)
 }
@@ -200,28 +215,10 @@ pub fn test_groupby_manual(items: &Vec<i32>) -> Result<Vec<(bool, Vec<i32>)>, Ze
     if _cse_temp_1 {
         return Ok(groups);
     }
-    let _cse_temp_2 = {
-        let base = &items;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    } % 2;
+    let _cse_temp_2 = items.get(0usize).cloned().unwrap_or_default() % 2;
     let _cse_temp_3 = _cse_temp_2 == 0;
     let mut current_is_even: bool = _cse_temp_3;
-    let mut current_group: Vec<i32> = vec![{
-        let base = &items;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    }];
+    let mut current_group: Vec<i32> = vec![items.get(0usize).cloned().unwrap_or_default()];
     for i in 1..items.len() as i32 {
         let item_is_even: bool = items.get(i as usize).cloned().unwrap_or_default() % 2 == 0;
         if item_is_even == current_is_even {
@@ -237,7 +234,7 @@ pub fn test_groupby_manual(items: &Vec<i32>) -> Result<Vec<(bool, Vec<i32>)>, Ze
 }
 #[doc = "Test compress() to filter data by selectors"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_compress<'a, 'b>(
+pub fn test_compress<'b, 'a>(
     data: &'a Vec<String>,
     selectors: &'b Vec<bool>,
 ) -> Result<Vec<String>, IndexError> {
@@ -273,7 +270,7 @@ pub fn flatten_nested_lists(nested: &Vec<Vec<i32>>) -> Vec<i32> {
 }
 #[doc = "Manual implementation of Cartesian product"]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product_manual<'b, 'a>(
+pub fn cartesian_product_manual<'a, 'b>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
 ) -> Vec<(i32, i32)> {
@@ -359,16 +356,7 @@ pub fn test_unique_justseen(items: &Vec<i32>) -> Result<Vec<i32>, IndexError> {
     if _cse_temp_1 {
         return Ok(vec![]);
     }
-    let mut result: Vec<i32> = vec![{
-        let base = &items;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    }];
+    let mut result: Vec<i32> = vec![items.get(0usize).cloned().unwrap_or_default()];
     for i in 1..items.len() as i32 {
         if items.get(i as usize).cloned().unwrap_or_default() != {
             let base = &items;
@@ -404,16 +392,7 @@ pub fn test_all_equal(items: &Vec<i32>) -> Result<bool, IndexError> {
     if _cse_temp_1 {
         return Ok(true);
     }
-    let first: i32 = {
-        let base = &items;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    };
+    let first: i32 = items.get(0usize).cloned().unwrap_or_default();
     for item in items.iter().cloned() {
         if item != first {
             return Ok(false);
@@ -435,21 +414,57 @@ pub fn test_quantify(items: &Vec<i32>, threshold: i32) -> i32 {
 #[doc = "Run all itertools tests"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_all_itertools_features() {
-    let colors: Vec<String> = vec!["red", "green", "blue"];
+pub fn test_all_itertools_features() -> Result<(), Box<dyn std::error::Error>> {
+    let chained: Vec<i32> = test_chain_iterables()?;
+    let numbers: Vec<i32> = vec![1, 2, 3];
+    let letters: Vec<String> = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+    let zipped: Vec<(i32, String)> = test_zip_iterables()?;
+    let items: Vec<String> = vec!["x".to_string(), "y".to_string(), "z".to_string()];
+    let enumerated: Vec<(i32, String)> = test_enumerate()?;
+    let mut evens: Vec<i32> = test_filter()?;
+    let mut squared: Vec<i32> = test_map()?;
+    let counted: Vec<i32> = test_count(0, 2, 5)?;
+    let colors: Vec<String> = vec!["red".to_string(), "green".to_string(), "blue".to_string()];
+    let cycled: Vec<String> = test_cycle(&colors, 10)?;
+    let repeated: Vec<i32> = test_repeat(42, 5)?;
     let data: Vec<i32> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let sliced: Vec<i32> = test_islice(&data, 2, 7)?;
     let numbers2: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
-    let data_str: Vec<String> = vec!["a", "b", "c", "d", "e"];
+    let taken: Vec<i32> = test_takewhile(&numbers2, 5)?;
+    let dropped: Vec<i32> = test_dropwhile(&numbers2, 5)?;
+    let accumulated: Vec<i32> = test_accumulate(&vec![1, 2, 3, 4, 5])?;
+    let pairs: Vec<(i32, i32)> = test_pairwise(&vec![1, 2, 3, 4, 5])?;
+    let grouped: Vec<(bool, Vec<i32>)> = test_groupby_manual(&vec![1, 1, 2, 2, 2, 3, 4, 4])?;
+    let data_str: Vec<String> = vec![
+        "a".to_string(),
+        "b".to_string(),
+        "c".to_string(),
+        "d".to_string(),
+        "e".to_string(),
+    ];
     let selectors: Vec<bool> = vec![true, false, true, false, true];
+    let compressed: Vec<String> = test_compress(&data_str, &selectors)?;
     let nested: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6]];
+    let mut flattened: Vec<i32> = test_chain_from_iterable(&nested)?;
+    let flattened2: Vec<i32> = flatten_nested_lists(&nested)?;
     let list1: Vec<i32> = vec![1, 2, 3];
     let list2: Vec<i32> = vec![10, 20];
+    let product: Vec<(i32, i32)> = cartesian_product_manual(&list1, &list2)?;
     let short_list: Vec<i32> = vec![1, 2, 3];
     let long_list: Vec<i32> = vec![10, 20, 30, 40, 50];
+    let zip_long: Vec<(i32, i32)> = test_zip_longest(&short_list, &long_list, 0)?;
     let batch_data: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let mut batches: Vec<Vec<i32>> = test_batching(&batch_data, 3)?;
     let window_data: Vec<i32> = vec![1, 2, 3, 4, 5];
+    let mut windows: Vec<Vec<i32>> = test_sliding_window(&window_data, 3)?;
     let duplicates: Vec<i32> = vec![1, 1, 2, 2, 2, 3, 3, 4, 4, 4, 4, 5];
+    let unique: Vec<i32> = test_unique_justseen(&duplicates)?;
+    let nth: i32 = test_nth_item(&vec![10, 20, 30, 40, 50], 2, -1)?;
+    let all_same: bool = test_all_equal(&vec![5, 5, 5, 5])?;
+    let not_same: bool = test_all_equal(&vec![1, 2, 3])?;
+    let above_threshold: i32 = test_quantify(&vec![1, 5, 10, 3, 8, 2, 15], 5)?;
     println!("{}", "All itertools tests completed successfully");
+    Ok(())
 }
 #[cfg(test)]
 mod tests {

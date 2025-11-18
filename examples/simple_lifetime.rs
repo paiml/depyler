@@ -1,36 +1,34 @@
-#[doc = "Get string length"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn get_len<'a>(s: & 'a str)  -> i32 {
-    let _cse_temp_0 = s.len();
-    return _cse_temp_0;
-   
+#[doc = "Get string length"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn get_len(s: &str) -> i32 {
+    s.len() as i32 as i32
 }
-#[doc = "Return the input unchanged"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn identity<'static>(x: Cow<'static, str>)  -> Cow<'static, str>{
-    return x;
-   
+#[doc = "Return the input unchanged"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn identity(x: String) -> String {
+    x
 }
-#[cfg(test)] mod tests {
+#[cfg(test)]
+mod tests {
     use super::*;
-    use quickcheck::{
-    quickcheck, TestResult };
-    #[test] fn test_get_len_examples() {
-    assert_eq !(get_len(0), 0);
-    assert_eq !(get_len(1), 1);
-    assert_eq !(get_len(- 1), - 1);
-   
-}
-} #[cfg(test)] mod tests {
-    use super::*;
-    use quickcheck::{
-    quickcheck, TestResult };
-    #[test] fn quickcheck_identity() {
-    fn prop(x: String)  -> TestResult {
-    let result = identity(x.clone());
-    if result != x {
-    return TestResult::failed();
-   
-}
-TestResult::passed()
-}
-quickcheck(prop as fn(String)  -> TestResult);
-   
-}
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_get_len_examples() {
+        assert_eq!(get_len(""), 0);
+        assert_eq!(get_len("a"), 1);
+        assert_eq!(get_len("abc"), 3);
+    }
+    #[test]
+    fn quickcheck_identity() {
+        fn prop(x: String) -> TestResult {
+            let result = identity((&*x).into());
+            if result != x {
+                return TestResult::failed();
+            }
+            TestResult::passed()
+        }
+        quickcheck(prop as fn(String) -> TestResult);
+    }
 }

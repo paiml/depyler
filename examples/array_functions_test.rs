@@ -16,7 +16,7 @@ impl IndexError {
     }
 }
 #[doc = " Depyler: proven to terminate"]
-pub fn test_array_functions() -> Result<(), IndexError> {
+pub fn test_array_functions() -> Result<i32, IndexError> {
     let z1 = [0; 5];
     let o1 = [1; 10];
     let f1 = [42; 8];

@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_creation() {
-    let s1 = HashSet::new();
+pub fn test_set_creation() -> HashSet<i32> {
+    let s1 = HashSet::<i32>::new();
     let s2 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -26,7 +26,7 @@ pub fn test_set_creation() {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_with_duplicates() {
+pub fn test_set_with_duplicates() -> HashSet<i32> {
     let s = {
         let mut set = HashSet::new();
         set.insert(1);

@@ -43,7 +43,7 @@ pub fn test_dictionary_assignment() {
 #[doc = "Set operations with operators"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_operations() {
+pub fn test_set_operations() -> (String, String) {
     let set1 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -58,9 +58,15 @@ pub fn test_set_operations() {
         set.insert(4);
         set
     };
-    let _cse_temp_0 = set1.intersection(&set2).cloned().collect();
+    let _cse_temp_0 = set1
+        .intersection(&set2)
+        .cloned()
+        .collect::<std::collections::HashSet<_>>();
     let intersection = _cse_temp_0;
-    let _cse_temp_1 = set1.union(&set2).cloned().collect();
+    let _cse_temp_1 = set1
+        .union(&set2)
+        .cloned()
+        .collect::<std::collections::HashSet<_>>();
     let union = _cse_temp_1;
     (intersection, union)
 }
@@ -68,9 +74,13 @@ pub fn test_set_operations() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_power_operator() {
-    let _cse_temp_0 = 2.checked_pow(3 as u32).expect("Power operation overflowed");
+    let _cse_temp_0 = (2 as i32)
+        .checked_pow(3 as u32)
+        .expect("Power operation overflowed");
     let x = _cse_temp_0;
-    let _cse_temp_1 = 5.checked_pow(2 as u32).expect("Power operation overflowed");
+    let _cse_temp_1 = (5 as i32)
+        .checked_pow(2 as u32)
+        .expect("Power operation overflowed");
     let y = _cse_temp_1;
     x + y
 }
