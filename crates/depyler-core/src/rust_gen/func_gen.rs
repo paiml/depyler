@@ -723,6 +723,42 @@ fn infer_expr_type_with_env(
             ) {
                 return Type::Bool;
             }
+
+            // DEPYLER-0420: Detect array repeat patterns: [elem] * n or n * [elem]
+            if matches!(op, BinOp::Mul) {
+                match (left.as_ref(), right.as_ref()) {
+                    // Pattern: [elem] * n
+                    (&HirExpr::List(ref elems), &HirExpr::Literal(Literal::Int(size)))
+                        if elems.len() == 1 && size > 0 =>
+                    {
+                        let elem_type = infer_expr_type_with_env(&elems[0], var_types);
+                        return if size <= 32 {
+                            Type::Array {
+                                element_type: Box::new(elem_type),
+                                size: ConstGeneric::Literal(size as usize),
+                            }
+                        } else {
+                            Type::List(Box::new(elem_type))
+                        };
+                    }
+                    // Pattern: n * [elem]
+                    (&HirExpr::Literal(Literal::Int(size)), &HirExpr::List(ref elems))
+                        if elems.len() == 1 && size > 0 =>
+                    {
+                        let elem_type = infer_expr_type_with_env(&elems[0], var_types);
+                        return if size <= 32 {
+                            Type::Array {
+                                element_type: Box::new(elem_type),
+                                size: ConstGeneric::Literal(size as usize),
+                            }
+                        } else {
+                            Type::List(Box::new(elem_type))
+                        };
+                    }
+                    _ => {}
+                }
+            }
+
             let left_type = infer_expr_type_with_env(left, var_types);
             let right_type = infer_expr_type_with_env(right, var_types);
             if matches!(left_type, Type::Float) || matches!(right_type, Type::Float) {
@@ -740,6 +776,14 @@ fn infer_expr_type_with_env(
             } else {
                 infer_expr_type_with_env(orelse, var_types)
             }
+        }
+        // DEPYLER-0420: Handle tuples with environment for variable lookups
+        HirExpr::Tuple(elems) => {
+            let elem_types: Vec<Type> = elems
+                .iter()
+                .map(|e| infer_expr_type_with_env(e, var_types))
+                .collect();
+            Type::Tuple(elem_types)
         }
         // For other cases, use the simple version
         _ => infer_expr_type_simple(expr),
@@ -799,6 +843,42 @@ fn infer_expr_type_simple(expr: &HirExpr) -> Type {
             ) {
                 return Type::Bool;
             }
+
+            // DEPYLER-0420: Detect array repeat patterns: [elem] * n or n * [elem]
+            if matches!(op, BinOp::Mul) {
+                match (left.as_ref(), right.as_ref()) {
+                    // Pattern: [elem] * n
+                    (&HirExpr::List(ref elems), &HirExpr::Literal(Literal::Int(size)))
+                        if elems.len() == 1 && size > 0 =>
+                    {
+                        let elem_type = infer_expr_type_simple(&elems[0]);
+                        return if size <= 32 {
+                            Type::Array {
+                                element_type: Box::new(elem_type),
+                                size: ConstGeneric::Literal(size as usize),
+                            }
+                        } else {
+                            Type::List(Box::new(elem_type))
+                        };
+                    }
+                    // Pattern: n * [elem]
+                    (&HirExpr::Literal(Literal::Int(size)), &HirExpr::List(ref elems))
+                        if elems.len() == 1 && size > 0 =>
+                    {
+                        let elem_type = infer_expr_type_simple(&elems[0]);
+                        return if size <= 32 {
+                            Type::Array {
+                                element_type: Box::new(elem_type),
+                                size: ConstGeneric::Literal(size as usize),
+                            }
+                        } else {
+                            Type::List(Box::new(elem_type))
+                        };
+                    }
+                    _ => {}
+                }
+            }
+
             // For arithmetic, infer from operands
             let left_type = infer_expr_type_simple(left);
             let right_type = infer_expr_type_simple(right);
@@ -981,7 +1061,12 @@ pub(crate) fn codegen_return_type(
     Option<crate::rust_gen::context::ErrorType>,
 )> {
     // DEPYLER-0410: Infer return type from body when annotation is Unknown
-    let effective_ret_type = if matches!(func.ret_type, Type::Unknown) {
+    // DEPYLER-0420: Also infer when tuple/list contains Unknown elements
+    let should_infer = matches!(func.ret_type, Type::Unknown)
+        || matches!(&func.ret_type, Type::Tuple(elems) if elems.iter().any(|t| matches!(t, Type::Unknown)))
+        || matches!(&func.ret_type, Type::List(elem) if matches!(**elem, Type::Unknown));
+
+    let effective_ret_type = if should_infer {
         // Try to infer from return statements in body
         if let Some(inferred) = infer_return_type_from_body(&func.body) {
             inferred
