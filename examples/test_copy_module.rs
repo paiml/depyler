@@ -265,7 +265,7 @@ pub fn test_all_copy_features() -> Result<(), Box<dyn std::error::Error>> {
         map.insert("x".to_string(), 10);
         map.insert("y".to_string(), 20);
         map
-    });
+    })?;
     let manual_deep: Vec<Vec<i32>> = manual_deep_copy_nested_list(&vec![vec![1, 2], vec![3, 4]]);
     let is_independent: bool = test_copy_with_modification();
     let ref_vs_copy: bool = test_reference_vs_copy();
@@ -278,7 +278,7 @@ pub fn test_all_copy_features() -> Result<(), Box<dyn std::error::Error>> {
         map.insert("charlie".to_string(), 95);
         map
     };
-    let mut filtered: HashMap<String, i32> = clone_dict_with_filter(&scores, 80);
+    let mut filtered: HashMap<String, i32> = clone_dict_with_filter(&scores, 80)?;
     let d1: HashMap<String, i32> = {
         let mut map = HashMap::new();
         map.insert("a".to_string(), 1);
@@ -291,7 +291,7 @@ pub fn test_all_copy_features() -> Result<(), Box<dyn std::error::Error>> {
         map.insert("d".to_string(), 4);
         map
     };
-    let mut merged: HashMap<String, i32> = merge_copied_dicts(&d1, &d2);
+    let mut merged: HashMap<String, i32> = merge_copied_dicts(&d1, &d2)?;
     let empty_sizes: () = test_copy_empty_collections();
     let single_values: () = test_copy_single_element();
     println!("{}", "All copy module tests completed successfully");

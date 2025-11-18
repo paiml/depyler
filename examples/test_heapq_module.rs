@@ -459,27 +459,27 @@ pub fn find_median_using_heaps(data: &Vec<i32>) -> Result<f64, Box<dyn std::erro
 #[doc = "Run all heapq module tests"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_heapq_features() -> Result<(), IndexError> {
-    let mut heap: Vec<i32> = test_heap_push_pop();
-    let heapified: Vec<i32> = test_heapify();
-    let min_val: i32 = test_heap_pop_min();
-    let peek_val: i32 = test_heap_peek();
+    let mut heap: Vec<i32> = test_heap_push_pop()?;
+    let heapified: Vec<i32> = test_heapify()?;
+    let min_val: i32 = test_heap_pop_min()?;
+    let peek_val: i32 = test_heap_peek()?;
     let data: Vec<i32> = vec![5, 2, 8, 1, 9, 3, 7];
-    let smallest_3: Vec<i32> = test_nsmallest(&data, 3);
-    let largest_3: Vec<i32> = test_nlargest(&data, 3);
+    let smallest_3: Vec<i32> = test_nsmallest(&data, 3)?;
+    let largest_3: Vec<i32> = test_nlargest(&data, 3)?;
     let mut h: Vec<i32> = vec![];
-    h = manual_heap_insert(&h, 5);
-    h = manual_heap_insert(&h, 3);
-    h = manual_heap_insert(&h, 7);
-    let extract_result: () = manual_heap_extract_min(&h);
+    h = manual_heap_insert(&h, 5)?;
+    h = manual_heap_insert(&h, 3)?;
+    h = manual_heap_insert(&h, 7)?;
+    let extract_result: () = manual_heap_extract_min(&h)?;
     let extracted: i32 = extract_result.get(0usize).cloned().unwrap_or_default();
     let remaining: Vec<i32> = extract_result.get(1usize).cloned().unwrap_or_default();
-    let mut priorities: Vec<i32> = priority_queue_simulation();
+    let mut priorities: Vec<i32> = priority_queue_simulation()?;
     let lists: Vec<Vec<i32>> = vec![vec![1, 4, 7], vec![2, 5, 8], vec![3, 6, 9]];
-    let merged: Vec<i32> = merge_sorted_lists(&lists);
+    let merged: Vec<i32> = merge_sorted_lists(&lists)?;
     let sample: Vec<i32> = vec![7, 10, 4, 3, 20, 15];
-    let kth: i32 = find_kth_smallest(&sample, 3);
+    let kth: i32 = find_kth_smallest(&sample, 3)?;
     let median_data: Vec<i32> = vec![1, 2, 3, 4, 5];
-    let mut median: f64 = find_median_using_heaps(&median_data);
+    let mut median: f64 = find_median_using_heaps(&median_data)?;
     println!("{}", "All heapq module tests completed successfully");
     Ok(())
 }

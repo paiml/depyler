@@ -340,10 +340,10 @@ pub fn caesar_cipher(text: &str, shift: i32) -> Result<String, ZeroDivisionError
         let char = _char.to_string();
         let mut result;
         if char.chars().all(|c| c.is_alphabetic()) {
-            let mut base: i32;
-            let mut result;
             let mut new_char: String;
+            let mut base: i32;
             let mut shifted: i32;
+            let mut result;
             if char.isupper() {
                 base = "A".chars().next().unwrap() as i32;
                 shifted = format!("{}{}", char.chars().next().unwrap() as i32 - base, shift) % 26;
@@ -478,12 +478,12 @@ pub fn test_all_string_features() -> Result<(), Box<dyn std::error::Error>> {
         map.insert("age".to_string(), "30");
         map
     };
-    let substituted: String = template_substitute(template, &values);
+    let substituted: String = template_substitute(template, &values)?;
     let message: String = "HELLO".to_string();
-    let encrypted: String = caesar_cipher(message, 3);
-    let decrypted: String = caesar_cipher(encrypted, -3);
-    let reversed_text: String = reverse_string("hello");
-    let is_palin: bool = is_palindrome("A man a plan a canal Panama");
+    let encrypted: String = caesar_cipher(message, 3)?;
+    let decrypted: String = caesar_cipher(encrypted, -3)?;
+    let reversed_text: String = reverse_string("hello")?;
+    let is_palin: bool = is_palindrome("A man a plan a canal Panama")?;
     let vowel_count: i32 = count_vowels("hello world");
     let consonant_count: i32 = count_consonants("hello world");
     println!("{}", "All string module tests completed successfully");

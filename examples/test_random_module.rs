@@ -321,16 +321,16 @@ pub fn test_all_random_features() -> Result<(), Box<dyn std::error::Error>> {
     let range_result: i32 = test_random_range();
     let dice: i32 = simulate_dice_roll();
     let coin: String = simulate_coin_flip();
-    let password: String = generate_random_password(8);
+    let password: String = generate_random_password(8)?;
     let items: Vec<String> = vec![
         "common".to_string(),
         "uncommon".to_string(),
         "rare".to_string(),
     ];
     let weights: Vec<i32> = vec![70, 25, 5];
-    let weighted: String = weighted_random_choice(&items, &weights);
-    let pi_est: f64 = monte_carlo_pi_estimation(1000);
-    let bool_dist: f64 = test_random_boolean_distribution(100);
+    let weighted: String = weighted_random_choice(&items, &weights)?;
+    let pi_est: f64 = monte_carlo_pi_estimation(1000)?;
+    let bool_dist: f64 = test_random_boolean_distribution(100)?;
     let mut deck: Vec<String> = shuffle_deck();
     let gauss_result: f64 = test_gauss_distribution();
     let tri_result: f64 = test_triangular_distribution();

@@ -1,7 +1,7 @@
 use std as os;
 use std as sys;
-const STR__: &'static str = "/";
 const STR_EMPTY: &'static str = "";
+const STR__: &'static str = "/";
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct IndexError {
@@ -222,8 +222,8 @@ pub fn test_path_splitext() -> Result<(), IndexError> {
         }
     }
     let _cse_temp_0 = last_dot > 0;
-    let mut ext: String;
     let mut name: String;
+    let mut ext: String;
     if _cse_temp_0 {
         name = {
             let base = path;
@@ -343,13 +343,13 @@ pub fn test_listdir_simulation() -> Vec<String> {
 }
 #[doc = "Filter files by extension"]
 #[doc = " Depyler: verified panic-free"]
-pub fn filter_by_extension<'a, 'b>(
+pub fn filter_by_extension<'b, 'a>(
     files: &'a Vec<String>,
     ext: &'b mut str,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut filtered: Vec<String> = vec![];
     for file in files.iter().cloned() {
-        let file_ext: String = get_file_extension(file);
+        let file_ext: String = get_file_extension(file)?;
         if file_ext == ext {
             filtered.push(file);
         }
@@ -363,7 +363,7 @@ pub fn count_files_by_extension(files: &Vec<String>) -> Result<HashMap<String, i
         map
     };
     for file in files.iter().cloned() {
-        let mut ext: String = get_file_extension(file);
+        let mut ext: String = get_file_extension(file)?;
         if ext == STR_EMPTY {
             ext = "no_extension";
         }
@@ -423,23 +423,23 @@ pub fn test_all_os_sys_features() -> Result<(), Box<dyn std::error::Error>> {
     let env_exists: bool = test_env_variable_exists();
     let cwd: String = test_current_directory();
     let joined: String = test_path_join();
-    let mut basename: String = test_path_basename();
-    let mut dirname: String = test_path_dirname();
-    let split_result: () = test_path_split();
-    let splitext_result: () = test_path_splitext();
-    let is_abs: bool = test_path_isabs();
+    let mut basename: String = test_path_basename()?;
+    let mut dirname: String = test_path_dirname()?;
+    let split_result: () = test_path_split()?;
+    let splitext_result: () = test_path_splitext()?;
+    let is_abs: bool = test_path_isabs()?;
     let normalized: String = test_path_normpath();
-    let mut ext: String = get_file_extension("document.txt");
-    let hidden: bool = is_hidden_file(".gitignore");
+    let mut ext: String = get_file_extension("document.txt")?;
+    let hidden: bool = is_hidden_file(".gitignore")?;
     let parts: Vec<String> = vec![
         "home".to_string(),
         "user".to_string(),
         "documents".to_string(),
     ];
-    let built_path: String = build_path_from_parts(&parts);
+    let built_path: String = build_path_from_parts(&parts)?;
     let files: Vec<String> = test_listdir_simulation();
-    let txt_files: Vec<String> = filter_by_extension(&files, "txt");
-    let file_counts: HashMap<String, i32> = count_files_by_extension(&files);
+    let txt_files: Vec<String> = filter_by_extension(&files, "txt")?;
+    let file_counts: HashMap<String, i32> = count_files_by_extension(&files)?;
     let mut depth: i32 = test_path_traversal("/home/user/docs", 5);
     let safe_name: String = sanitize_filename("file<>name.txt");
     println!("{}", "All os/sys module tests completed successfully");

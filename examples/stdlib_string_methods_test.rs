@@ -1,5 +1,5 @@
-const STR_HELLO: &'static str = "hello";
 const STR_HELLO_WORLD: &'static str = "hello world";
+const STR_HELLO: &'static str = "hello";
 #[doc = "Test str.upper() method"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
