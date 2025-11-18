@@ -33,9 +33,9 @@ pub fn test_array_init_functions() -> (Vec<i32>, Vec<i32>, Vec<i32>) {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_large_arrays() -> (Vec<i32>, Vec<i32>, [i32; 10]) {
-    let _cse_temp_0 = vec![0] * 50;
+    let _cse_temp_0 = vec![0; 50];
     let large = _cse_temp_0;
-    let _cse_temp_1 = vec![1] * 100;
+    let _cse_temp_1 = vec![1; 100];
     let very_large = _cse_temp_1;
     let x = 5;
     let _cse_temp_2 = [x; 10];
