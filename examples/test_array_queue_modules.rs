@@ -136,7 +136,7 @@ pub fn test_array_remove() -> Vec<i32> {
 #[doc = "Test popping from array"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_array_pop() -> tuple {
+pub fn test_array_pop() -> () {
     let mut arr: Vec<i32> = vec![1, 2, 3, 4, 5];
     let popped: i32 = arr.pop().unwrap_or_default();
     (popped, arr)
@@ -283,6 +283,23 @@ pub fn test_deque_simulation() -> Vec<i32> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_array_queue_features() {
+    let mut arr: Vec<i32> = test_array_creation();
+    let appended: Vec<i32> = test_array_append();
+    let extended: Vec<i32> = test_array_extend();
+    let inserted: Vec<i32> = test_array_insert();
+    let removed: Vec<i32> = test_array_remove();
+    let pop_result: () = test_array_pop();
+    let idx: i32 = test_array_index();
+    let count: i32 = test_array_count();
+    let reversed_arr: Vec<i32> = test_array_reverse();
+    let as_list: Vec<i32> = test_array_tolist();
+    let fifo_result: Vec<i32> = test_queue_fifo();
+    let lifo_result: Vec<i32> = test_stack_lifo();
+    let size: i32 = test_queue_size();
+    let top: i32 = test_stack_peek();
+    let priority_result: Vec<String> = test_priority_queue();
+    let circular: Vec<i32> = test_circular_buffer(3);
+    let deque_result: Vec<i32> = test_deque_simulation();
     println!(
         "{}",
         "All array and queue module tests completed successfully"

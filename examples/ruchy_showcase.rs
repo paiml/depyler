@@ -1,4 +1,3 @@
-use serde_json;
 #[derive(Debug, Clone)] pub struct IndexError {
     message: String ,
 }
@@ -50,7 +49,7 @@ fibonacci(n - 1) + fibonacci(n - 2)
 let pivot = arr.get(0usize).cloned().unwrap_or_default();
     let less = {
     let base = arr;
-    let start = (1).max(0) as usize;
+    let start  = (1).max(0) as usize;
     if start<base.len() {
     base [start..].to_vec()
 }
@@ -60,7 +59,7 @@ else {
 }.clone().into_iter().filter(| x | * x<pivot).map(| x | x).collect::<Vec<_>>();
     let greater = {
     let base = arr;
-    let start = (1).max(0) as usize;
+    let start  = (1).max(0) as usize;
     if start<base.len() {
     base [start..].to_vec()
 }
@@ -92,7 +91,7 @@ else {
 #[doc = "Process text data."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn process_text(text: & str) -> String {
     text.to_uppercase()
 }
-#[doc = "Example that could be transformed to match expression."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn pattern_matching_example(value: & serde_json::Value) -> String {
+#[doc = "Example that could be transformed to match expression."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn pattern_matching_example(value: & str) -> String {
     if true {
     format!("Integer: {:?}", value)
 }

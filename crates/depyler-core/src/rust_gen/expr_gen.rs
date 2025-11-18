@@ -8918,6 +8918,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return self.convert_string_method(object, &object_expr, method, &arg_exprs, args);
         }
 
+        // DEPYLER-0416: Check if this is a static method call on a class (e.g., Point.origin())
+        // Convert to ClassName::method(args)
+        if let HirExpr::Var(class_name) = object {
+            if class_name
+                .chars()
+                .next()
+                .map(|c| c.is_uppercase())
+                .unwrap_or(false)
+            {
+                // This is likely a static method call - convert to ClassName::method(args)
+                let class_ident = syn::Ident::new(class_name, proc_macro2::Span::call_site());
+                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| arg.to_rust_expr(self.ctx))
+                    .collect::<Result<Vec<_>>>()?;
+                return Ok(parse_quote! { #class_ident::#method_ident(#(#arg_exprs),*) });
+            }
+        }
+
         // Try classmethod handling first
         if let Some(result) = self.try_convert_classmethod(object, method, args)? {
             return Ok(result);

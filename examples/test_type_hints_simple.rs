@@ -1,4 +1,3 @@
-use serde_json;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
     message: String,
@@ -19,7 +18,7 @@ impl ZeroDivisionError {
 #[doc = "Add two numbers - should infer numeric types."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn add_numbers<'a, 'b>(a: &'a serde_json::Value, b: &'b serde_json::Value) {
+pub fn add_numbers<'b, 'a>(a: &'a str, b: &'b str) {
     a + b
 }
 #[doc = "Process text - should infer string type."]
@@ -30,7 +29,7 @@ pub fn process_text(text: &str) {
     result
 }
 #[doc = "Calculate average - should infer list of numbers."]
-pub fn calculate_average(numbers: &serde_json::Value) -> Result<i32, ZeroDivisionError> {
+pub fn calculate_average(numbers: &str) -> Result<i32, ZeroDivisionError> {
     let mut total = 0;
     let mut count = 0;
     for num in numbers.iter().cloned() {
@@ -55,7 +54,7 @@ pub fn string_checker(s: &str) -> bool {
 #[doc = "Perform list operations."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn list_operations(items: &mut serde_json::Value) {
+pub fn list_operations(items: &mut str) -> i32 {
     items.push(42);
     items.len() as i32
 }

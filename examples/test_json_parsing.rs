@@ -1,1 +1,38 @@
-Error: Statement type not yet supported
+use serde_json as json;
+use serde_json;
+use std::collections::HashMap;
+#[doc = "Parse JSON from string"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn parse_json_string(json_str: &str) -> HashMap<String, String> {
+    serde_json::from_str::<serde_json::Value>(&json_str).unwrap()
+}
+#[doc = "Convert data to JSON string"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn to_json_string(data: &HashMap<String, String>) -> String {
+    serde_json::to_string(&data).unwrap()
+}
+#[doc = "Parse JSON with a default value on error"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn parse_json_with_default(
+    json_str: &str,
+    default: HashMap<String, String>,
+) -> HashMap<String, String> {
+    {
+        return serde_json::from_str::<serde_json::Value>(&json_str).unwrap();
+        return default;
+    }
+}
+#[doc = "Merge two JSON strings into one dictionary"]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn merge_json_objects<'b, 'a>(json1: &'a str, json2: &'b str) -> HashMap<String, String> {
+    let mut obj1 = serde_json::from_str::<serde_json::Value>(&json1).unwrap();
+    let obj2 = serde_json::from_str::<serde_json::Value>(&json2).unwrap();
+    for (k, v) in obj2 {
+        obj1.insert(k, v);
+    }
+    obj1
+}

@@ -1,4 +1,3 @@
-use serde_json;
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -37,7 +36,7 @@ pub fn factorial(n: i32) -> i32 {
     result
 }
 #[doc = "Find maximum in a list"]
-pub fn find_max(numbers: &Vec<serde_json::Value>) -> Result<i32, IndexError> {
+pub fn find_max(numbers: &Vec<String>) -> Result<i32, IndexError> {
     if numbers.is_empty() {
         return Ok(0);
     }
