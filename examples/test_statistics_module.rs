@@ -393,7 +393,7 @@ pub fn standardize_data(data: Vec<f64>) -> Result<Vec<f64>, ZeroDivisionError> {
 }
 #[doc = "Calculate covariance between two datasets"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_covariance<'b, 'a>(
+pub fn calculate_covariance<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
