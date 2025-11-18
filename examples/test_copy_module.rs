@@ -208,7 +208,7 @@ pub fn clone_dict_with_filter(
     Ok(filtered)
 }
 #[doc = "Merge two dictionaries by copying"]
-pub fn merge_copied_dicts<'b, 'a>(
+pub fn merge_copied_dicts<'a, 'b>(
     dict1: &'a HashMap<String, i32>,
     dict2: &'b HashMap<String, i32>,
 ) -> Result<HashMap<String, i32>, IndexError> {

@@ -98,7 +98,7 @@ pub fn large_list_in_loop(n: serde_json::Value) -> Vec<serde_json::Value> {
 }
 #[doc = "Linear search in nested loop - O(n²)."]
 #[doc = " Depyler: verified panic-free"]
-pub fn linear_search_in_loop<'b, 'a>(
+pub fn linear_search_in_loop<'a, 'b>(
     items: &'a mut serde_json::Value,
     targets: &'b serde_json::Value,
 ) -> Vec<serde_json::Value> {

@@ -89,7 +89,7 @@ pub fn chain_operations(data: Vec<i32>) -> i32 {
 #[doc = "Zip two lists together"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_lists<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
+pub fn zip_lists<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
     let mut result: Vec<(i32, String)> = vec![];
     let _cse_temp_0 = list1.len() as i32;
     let _cse_temp_1 = list2.len() as i32;
@@ -353,20 +353,8 @@ pub fn sorted_by_key(items: &Vec<(String, i32)>) -> Result<Vec<(String, i32)>, I
     let mut result: Vec<(String, i32)> = items.clone();
     for i in 0..result.len() as i32 {
         for j in i + 1..result.len() as i32 {
-            if result
-                .get(j as usize)
-                .cloned()
-                .unwrap_or_default()
-                .get(1usize)
-                .cloned()
-                .unwrap_or_default()
-                < result
-                    .get(i as usize)
-                    .cloned()
-                    .unwrap_or_default()
-                    .get(1usize)
-                    .cloned()
-                    .unwrap_or_default()
+            if result.get(j as usize).cloned().unwrap_or_default().1
+                < result.get(i as usize).cloned().unwrap_or_default().1
             {
                 let temp: (String, i32) = result.get(i as usize).cloned().unwrap_or_default();
                 result.insert(

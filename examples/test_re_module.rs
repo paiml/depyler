@@ -1,7 +1,7 @@
 use regex as re;
+const STR_EMPTY: &'static str = "";
 const STR_HELLO_WORLD: &'static str = "Hello World";
 const STR_HELLO: &'static str = "Hello";
-const STR_EMPTY: &'static str = "";
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -262,7 +262,7 @@ pub fn ends_with_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
 #[doc = "Case-insensitive pattern matching"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn case_insensitive_match<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
+pub fn case_insensitive_match<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
     let text_lower: String = text.to_lowercase();
     let pattern_lower: String = pattern.to_lowercase();
     let _cse_temp_0 = text_lower.contains(pattern_lower);
@@ -272,7 +272,7 @@ pub fn case_insensitive_match<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
 #[doc = "Find text between two markers"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn find_between<'b, 'c, 'a>(
+pub fn find_between<'a, 'b, 'c>(
     text: &'a str,
     start_marker: &'b str,
     end_marker: &'c str,
@@ -319,7 +319,7 @@ pub fn find_between<'b, 'c, 'a>(
     result
 }
 #[doc = "Replace multiple patterns"]
-pub fn replace_multiple<'a, 'b>(
+pub fn replace_multiple<'b, 'a>(
     text: &'a str,
     replacements: &'b Vec<()>,
 ) -> Result<String, IndexError> {
@@ -333,7 +333,7 @@ pub fn replace_multiple<'a, 'b>(
 }
 #[doc = "Count occurrences of a word"]
 #[doc = " Depyler: verified panic-free"]
-pub fn count_word_occurrences<'a, 'b>(text: &'a str, word: &'b str) -> i32 {
+pub fn count_word_occurrences<'b, 'a>(text: &'a str, word: &'b str) -> i32 {
     let words: Vec<String> = text
         .split_whitespace()
         .map(|s| s.to_string())

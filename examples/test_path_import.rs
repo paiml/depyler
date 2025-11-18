@@ -47,7 +47,7 @@ pub fn normalize_path(path: &str) -> String {
 #[doc = "Get relative path from start to path"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_relative_path<'b, 'a>(path: &'a str, start: &'b str) -> String {
+pub fn get_relative_path<'a, 'b>(path: &'a str, start: &'b str) -> String {
     std::path::Path.relpath(path, start)
 }
 #[cfg(test)]

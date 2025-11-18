@@ -294,7 +294,7 @@ pub fn find_closest_value(arr: Vec<i32>, target: i32) -> Result<i32, IndexError>
     }
 }
 #[doc = "Merge two sorted arrays"]
-pub fn merge_sorted_arrays<'a, 'b>(
+pub fn merge_sorted_arrays<'b, 'a>(
     arr1: &'a Vec<i32>,
     arr2: &'b Vec<i32>,
 ) -> Result<Vec<i32>, IndexError> {

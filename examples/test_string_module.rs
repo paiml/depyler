@@ -340,10 +340,10 @@ pub fn caesar_cipher(text: &str, shift: i32) -> Result<String, ZeroDivisionError
         let char = _char.to_string();
         let mut result;
         if char.chars().all(|c| c.is_alphabetic()) {
-            let mut result;
-            let mut shifted: i32;
             let mut new_char: String;
+            let mut shifted: i32;
             let mut base: i32;
+            let mut result;
             if char.isupper() {
                 base = "A".chars().next().unwrap() as i32;
                 shifted = format!("{}{}", char.chars().next().unwrap() as i32 - base, shift) % 26;
