@@ -129,7 +129,7 @@ pub fn power_in_tight_loop(values: &serde_json::Value) -> Vec<serde_json::Value>
 #[doc = " Depyler: proven to terminate"]
 pub fn range_len_antipattern(items: &mut serde_json::Value) -> Result<(), IndexError> {
     for i in 0..items.len() as i32 {
-        process_item(i, items.get(i as usize).cloned().unwrap_or_default())?;
+        process_item(i, items.get(i as usize).cloned().unwrap_or_default());
     }
 }
 #[doc = "Computing aggregates repeatedly."]
@@ -147,7 +147,7 @@ pub fn aggregate_in_nested_loop(matrix: &serde_json::Value) -> i32 {
 #[doc = "Large parameters passed by value."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn large_parameter_by_value<'b, 'a>(
+pub fn large_parameter_by_value<'a, 'b>(
     huge_list: &'a Vec<serde_json::Value>,
     huge_dict: &'b HashMap<serde_json::Value, serde_json::Value>,
 ) -> i32 {

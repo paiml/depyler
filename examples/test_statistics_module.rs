@@ -302,15 +302,15 @@ pub fn calculate_percentile(
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn calculate_quartiles(data: Vec<f64>) -> Result<(), Box<dyn std::error::Error>> {
-    let q1: f64 = calculate_percentile(&data, 25)?;
-    let q2: f64 = calculate_percentile(&data, 50)?;
-    let q3: f64 = calculate_percentile(&data, 75)?;
+    let q1: f64 = calculate_percentile(&data, 25);
+    let q2: f64 = calculate_percentile(&data, 50);
+    let q3: f64 = calculate_percentile(&data, 75);
     Ok((q1, q2, q3))
 }
 #[doc = "Calculate interquartile range(IQR)"]
 #[doc = " Depyler: proven to terminate"]
 pub fn calculate_iqr(data: Vec<f64>) -> Result<f64, IndexError> {
-    let quartiles: () = calculate_quartiles(data)?;
+    let quartiles: () = calculate_quartiles(data);
     let q1: f64 = quartiles.get(0usize).cloned().unwrap_or_default();
     let q3: f64 = quartiles.get(2usize).cloned().unwrap_or_default();
     let iqr: f64 = q3 - q1;
@@ -318,7 +318,7 @@ pub fn calculate_iqr(data: Vec<f64>) -> Result<f64, IndexError> {
 }
 #[doc = "Detect outliers using IQR method"]
 pub fn detect_outliers(data: Vec<f64>) -> Result<Vec<f64>, IndexError> {
-    let quartiles: () = calculate_quartiles(data)?;
+    let quartiles: () = calculate_quartiles(data);
     let q1: f64 = quartiles.get(0usize).cloned().unwrap_or_default();
     let q3: f64 = quartiles.get(2usize).cloned().unwrap_or_default();
     let iqr: f64 = q3 - q1;
@@ -393,7 +393,7 @@ pub fn standardize_data(data: Vec<f64>) -> Result<Vec<f64>, ZeroDivisionError> {
 }
 #[doc = "Calculate covariance between two datasets"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_covariance<'a, 'b>(
+pub fn calculate_covariance<'b, 'a>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
@@ -437,7 +437,7 @@ pub fn calculate_correlation(x: Vec<f64>, y: Vec<f64>) -> Result<f64, ZeroDivisi
     if _cse_temp_4 {
         return Ok(0.0);
     }
-    let cov: f64 = calculate_covariance(&x, &y)?;
+    let cov: f64 = calculate_covariance(&x, &y);
     let mut x_total: f64 = 0.0;
     for val in x.iter().cloned() {
         x_total = x_total + val;
@@ -480,28 +480,28 @@ pub fn calculate_correlation(x: Vec<f64>, y: Vec<f64>) -> Result<f64, ZeroDivisi
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_statistics_features() -> Result<(), Box<dyn std::error::Error>> {
     let data: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    let mean: f64 = test_mean()?;
-    let median_odd: f64 = test_median_odd()?;
-    let median_even: f64 = test_median_even()?;
+    let mean: f64 = test_mean();
+    let median_odd: f64 = test_median_odd();
+    let median_even: f64 = test_median_even();
     let mode_data: Vec<i32> = vec![1, 2, 2, 3, 3, 3];
-    let mode: i32 = test_mode()?;
-    let variance: f64 = test_variance()?;
-    let stdev: f64 = test_stdev()?;
-    let minmax: () = test_min_max()?;
-    let data_range: f64 = test_range()?;
-    let mut total: f64 = test_sum()?;
+    let mode: i32 = test_mode();
+    let variance: f64 = test_variance();
+    let stdev: f64 = test_stdev();
+    let minmax: () = test_min_max();
+    let data_range: f64 = test_range();
+    let mut total: f64 = test_sum();
     let sample: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
-    let p50: f64 = calculate_percentile(&sample, 50)?;
-    let quartiles: () = calculate_quartiles(sample)?;
-    let iqr: f64 = calculate_iqr(sample)?;
+    let p50: f64 = calculate_percentile(&sample, 50);
+    let quartiles: () = calculate_quartiles(sample);
+    let iqr: f64 = calculate_iqr(sample);
     let outlier_data: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 100.0];
-    let mut outliers: Vec<f64> = detect_outliers(outlier_data)?;
-    let mut normalized: Vec<f64> = normalize_data(sample)?;
-    let mut standardized: Vec<f64> = standardize_data(sample)?;
+    let mut outliers: Vec<f64> = detect_outliers(outlier_data);
+    let mut normalized: Vec<f64> = normalize_data(sample);
+    let mut standardized: Vec<f64> = standardize_data(sample);
     let x_data: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
     let y_data: Vec<f64> = vec![2.0, 4.0, 6.0, 8.0, 10.0];
-    let cov: f64 = calculate_covariance(&x_data, &y_data)?;
-    let corr: f64 = calculate_correlation(x_data, y_data)?;
+    let cov: f64 = calculate_covariance(&x_data, &y_data);
+    let corr: f64 = calculate_correlation(x_data, y_data);
     println!("{}", "All statistics module tests completed successfully");
     Ok(())
 }

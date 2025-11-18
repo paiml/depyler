@@ -58,7 +58,7 @@ pub fn simulate_dice_rolls(
         map
     };
     for _trial in 0..num_trials {
-        let mut total: i32 = roll_dice(num_dice, num_sides)?;
+        let mut total: i32 = roll_dice(num_dice, num_sides);
         if results.contains_key(&total) {
             {
                 let _key = total;
@@ -377,15 +377,15 @@ pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
         ()
     };
     println!("{}", "\n1. Dice Rolling Simulation");
-    let dice_results: HashMap<i32, i32> = simulate_dice_rolls(2, 6, 1000)?;
+    let dice_results: HashMap<i32, i32> = simulate_dice_rolls(2, 6, 1000);
     println!("{}", format!("   Simulated {:?} rolls of 2d6", 1000));
     println!(
         "{}",
         format!("   Unique outcomes: {:?}", dice_results.len() as i32)
     );
     println!("{}", "\n2. Coin Flip Sequence");
-    let mut flips: Vec<String> = coin_flip_sequence(100)?;
-    let streaks: HashMap<String, i32> = count_streaks(&flips)?;
+    let mut flips: Vec<String> = coin_flip_sequence(100);
+    let streaks: HashMap<String, i32> = count_streaks(&flips);
     println!(
         "{}",
         format!(
@@ -394,7 +394,7 @@ pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
         )
     );
     println!("{}", "\n3. Monte Carlo Pi Estimation");
-    let pi_result: (f64, f64) = monte_carlo_pi_estimation(10000)?;
+    let pi_result: (f64, f64) = monte_carlo_pi_estimation(10000);
     println!(
         "{}",
         format!(
@@ -404,8 +404,8 @@ pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
         )
     );
     println!("{}", "\n4. Random Walk Simulation");
-    let final_pos: (i32, i32) = simulate_random_walk(1000)?;
-    let distance: f64 = calculate_walk_distance(final_pos)?;
+    let final_pos: (i32, i32) = simulate_random_walk(1000);
+    let distance: f64 = calculate_walk_distance(final_pos);
     println!(
         "{}",
         format!(
@@ -416,7 +416,7 @@ pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
         )
     );
     println!("{}", "\n5. Queue System Simulation");
-    let queue_stats: HashMap<String, f64> = simulate_queue_system(100, (1, 5))?;
+    let queue_stats: HashMap<String, f64> = simulate_queue_system(100, (1, 5));
     println!(
         "{}",
         format!(
@@ -425,8 +425,8 @@ pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
         )
     );
     println!("{}", "\n6. Card Game Simulation");
-    let game_results: HashMap<String, i32> = simulate_card_game(1000)?;
-    let win_rate: f64 = calculate_win_rate(&game_results)?;
+    let game_results: HashMap<String, i32> = simulate_card_game(1000);
+    let win_rate: f64 = calculate_win_rate(&game_results);
     println!(
         "{}",
         format!(
@@ -436,8 +436,8 @@ pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
         )
     );
     println!("{}", "\n7. Population Growth Simulation");
-    let mut populations: Vec<i32> = simulate_population_growth(100, 0.1, 20)?;
-    let pop_analysis: HashMap<String, f64> = analyze_population_trend(&populations)?;
+    let mut populations: Vec<i32> = simulate_population_growth(100, 0.1, 20);
+    let pop_analysis: HashMap<String, f64> = analyze_population_trend(&populations);
     println!(
         "{}",
         format!(

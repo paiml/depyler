@@ -68,7 +68,7 @@ else {
     Vec::new()
 }
 }.clone().into_iter().filter(| x | * x>= pivot).map(| x | x).collect::<Vec<_>>();
-    Ok(quicksort(less) ?.iter().chain (vec! [pivot].iter()).cloned().collect::<Vec<_>>() + quicksort(greater) ?)
+    Ok(quicksort(less).iter().chain (vec! [pivot].iter()).cloned().collect::<Vec<_>>() + quicksort(greater))
 }
 #[doc = "Process data using functional pipeline style."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn process_data(numbers: & Vec<i32>) -> Vec<i32>{
     let result = numbers.clone().into_iter().filter(| x | * x>0).map(| x | x * 2).collect::<Vec<_>>();
@@ -110,23 +110,23 @@ else {
 }
 }
 } #[doc = "Main entry point."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn main () -> Result <(), Box<dyn std::error::Error>>{
-    println!("{}", format!("Fibonacci(10) = {:?}", fibonacci(10) ?));
+    println!("{}", format!("Fibonacci(10) = {:?}", fibonacci(10)));
     let arr = vec! [64, 34, 25, 12, 22, 11, 90];
-    let sorted_arr = quicksort(arr) ?;
+    let sorted_arr = quicksort(arr);
     println!("{}", format!("Sorted array: {:?}", sorted_arr));
     let numbers = vec! [1, - 2, 3, - 4, 5];
-    let processed = process_data(& numbers) ?;
+    let processed = process_data(& numbers);
     println!("{}", format!("Processed: {:?}", processed));
-    println!("{}", greet("Alice") ?);
-    println!("{}", greet("Bob", "Dr.") ?);
+    println!("{}", greet("Alice"));
+    println!("{}", greet("Bob", "Dr."));
     let processor = DataProcessor::new();
     let data = vec! [5, 10, 15, 20, 25];
     let filtered = processor.filter_data(data);
     let transformed = processor.transform_data(filtered);
     println!("{}", format!("Filtered and transformed: {:?}", transformed));
-    println!("{}", pattern_matching_example(42) ?);
-    println!("{}", pattern_matching_example("hello") ?);
-    println!("{}", pattern_matching_example(& vec! [1, 2, 3]) ?);
+    println!("{}", pattern_matching_example(42));
+    println!("{}", pattern_matching_example("hello"));
+    println!("{}", pattern_matching_example(& vec! [1, 2, 3]));
    
 }
 #[cfg(test)] mod tests {
