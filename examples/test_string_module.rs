@@ -321,7 +321,7 @@ pub fn keep_alphanumeric(text: &str) -> String {
     result
 }
 #[doc = "Simple template substitution"]
-pub fn template_substitute<'a, 'b>(
+pub fn template_substitute<'b, 'a>(
     template: &'a str,
     values: &'b HashMap<serde_json::Value, serde_json::Value>,
 ) -> Result<String, IndexError> {
@@ -340,8 +340,8 @@ pub fn caesar_cipher(text: &str, shift: i32) -> Result<String, ZeroDivisionError
         let char = _char.to_string();
         let mut result;
         if char.chars().all(|c| c.is_alphabetic()) {
-            let mut new_char: String;
             let mut shifted: i32;
+            let mut new_char: String;
             let mut base: i32;
             let mut result;
             if char.isupper() {

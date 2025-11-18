@@ -331,7 +331,7 @@ pub fn bin_data(
 }
 #[doc = "Calculate Pearson correlation coefficient"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_correlation<'b, 'a>(
+pub fn calculate_correlation<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
@@ -406,7 +406,7 @@ pub fn normalize_data(mut data: Vec<f64>) -> Result<Vec<f64>, ZeroDivisionError>
     Ok(normalized)
 }
 #[doc = "Group data by ranges using collections"]
-pub fn group_by_range<'a, 'b>(
+pub fn group_by_range<'b, 'a>(
     data: &'a mut Vec<f64>,
     ranges: &'b Vec<(f64, f64)>,
 ) -> Result<HashMap<String, Vec<f64>>, IndexError> {
