@@ -84,7 +84,7 @@ pub fn test_median_odd() -> Result<f64, Box<dyn std::error::Error>> {
         }
     };
     let mid: i32 = _cse_temp_1;
-    let median: f64 = sorted_data.get(&mid).cloned().unwrap_or_default();
+    let median: f64 = sorted_data.get(mid as usize).cloned().unwrap_or_default();
     Ok(median)
 }
 #[doc = "Test median with even number of elements"]
@@ -133,7 +133,7 @@ pub fn test_median_even() -> Result<f64, Box<dyn std::error::Error>> {
             idx as usize
         };
         base.get(actual_idx).cloned().unwrap_or_default()
-    } + sorted_data.get(&mid).cloned().unwrap_or_default();
+    } + sorted_data.get(mid as usize).cloned().unwrap_or_default();
     let _cse_temp_3 = (_cse_temp_2 as f64) / (2.0 as f64);
     let median: f64 = _cse_temp_3;
     Ok(median)
@@ -393,7 +393,7 @@ pub fn standardize_data(data: Vec<f64>) -> Result<Vec<f64>, ZeroDivisionError> {
 }
 #[doc = "Calculate covariance between two datasets"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_covariance<'a, 'b>(
+pub fn calculate_covariance<'b, 'a>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
