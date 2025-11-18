@@ -1,4 +1,5 @@
 use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
+use crate::cargo_toml_gen; // DEPYLER-0384: Cargo.toml generation
 use crate::hir::*;
 use crate::string_optimization::StringOptimizer;
 use anyhow::Result;
@@ -32,6 +33,7 @@ use stmt_gen::{
 };
 
 // Public re-exports for external modules (union_enum_gen, etc.)
+pub use argparse_transform::ArgParserTracker; // DEPYLER-0384: Export for testing
 pub use context::{CodeGenContext, RustCodeGen, ToRustExpr};
 pub use type_gen::rust_type_to_syn;
 
@@ -462,7 +464,7 @@ fn generate_interned_string_tokens(optimizer: &StringOptimizer) -> Vec<proc_macr
 pub fn generate_rust_file(
     module: &HirModule,
     type_mapper: &crate::type_mapper::TypeMapper,
-) -> Result<String> {
+) -> Result<(String, Vec<cargo_toml_gen::Dependency>)> {
     let module_mapper = crate::module_mapper::ModuleMapper::new();
 
     // Process imports to populate the context
@@ -507,6 +509,7 @@ pub fn generate_rust_file(
         needs_serde_json: false,
         needs_regex: false,
         needs_chrono: false,
+        needs_clap: false,
         needs_csv: false,
         needs_rust_decimal: false,
         needs_num_rational: false,
@@ -613,7 +616,10 @@ pub fn generate_rust_file(
         #(#items)*
     };
 
-    Ok(format_rust_code(file.to_string()))
+    // DEPYLER-0384: Extract dependencies from context
+    let dependencies = cargo_toml_gen::extract_dependencies(&ctx);
+
+    Ok((format_rust_code(file.to_string()), dependencies))
 }
 
 #[cfg(test)]
@@ -649,6 +655,7 @@ mod tests {
             needs_serde_json: false,
             needs_regex: false,
             needs_chrono: false,
+            needs_clap: false,
             needs_csv: false,
             needs_rust_decimal: false,
             needs_num_rational: false,
