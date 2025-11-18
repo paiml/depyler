@@ -87,7 +87,7 @@ pub fn process_strings(strings: &Vec<String>) -> String {
 }
 #[doc = "Function with frequent dictionary lookups."]
 #[doc = " Depyler: verified panic-free"]
-pub fn lookup_values<'b, 'a>(data: &'a HashMap<String, i32>, keys: &'b Vec<String>) -> Vec<i32> {
+pub fn lookup_values<'a, 'b>(data: &'a HashMap<String, i32>, keys: &'b Vec<String>) -> Vec<i32> {
     let mut results = vec![];
     for key in keys.iter().cloned() {
         if data.contains_key(key) {
