@@ -413,19 +413,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         } else {
                             // Positive integer exponent: use .pow() with u32
                             // Add checked_pow for overflow safety
+                            // DEPYLER-0405: Cast to i32 to give literal a concrete type
                             Ok(parse_quote! {
-                                #left_expr.checked_pow(#right_expr as u32)
+                                (#left_expr as i32).checked_pow(#right_expr as u32)
                                     .expect("Power operation overflowed")
                             })
                         }
                     }
                     // Float literal base: always use .powf()
+                    // DEPYLER-0408: Cast float literal to f64 for concrete type
                     (HirExpr::Literal(Literal::Float(_)), _) => Ok(parse_quote! {
-                        #left_expr.powf(#right_expr as f64)
+                        (#left_expr as f64).powf(#right_expr as f64)
                     }),
                     // Any base with float exponent: use .powf()
+                    // DEPYLER-0408: Cast float literal exponent to f64 for concrete type
                     (_, HirExpr::Literal(Literal::Float(_))) => Ok(parse_quote! {
-                        (#left_expr as f64).powf(#right_expr)
+                        (#left_expr as f64).powf(#right_expr as f64)
                     }),
                     // Variables or complex expressions: generate type-safe code
                     _ => {
@@ -443,11 +446,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             })
                             .unwrap_or_else(|| quote! { i32 });
 
+                        // DEPYLER-0405: Cast both sides to i64 for type-safe comparison
                         Ok(parse_quote! {
                             {
                                 // Try integer power first if exponent can be u32
-                                if #right_expr >= 0 && #right_expr <= u32::MAX as i64 {
-                                    #left_expr.checked_pow(#right_expr as u32)
+                                if #right_expr >= 0 && (#right_expr as i64) <= (u32::MAX as i64) {
+                                    (#left_expr as i32).checked_pow(#right_expr as u32)
                                         .expect("Power operation overflowed")
                                 } else {
                                     // Fall back to float power for negative or large exponents
@@ -1497,7 +1501,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         self.ctx.needs_hashset = true;
         if args.is_empty() {
             // Empty set: set()
-            Ok(parse_quote! { HashSet::new() })
+            // DEPYLER-0409: Use default type i32 to avoid "type annotations needed" error
+            // when the variable is unused or type can't be inferred from context
+            Ok(parse_quote! { HashSet::<i32>::new() })
         } else if args.len() == 1 {
             // Set from iterable: set([1, 2, 3])
             let arg = &args[0];
@@ -1514,7 +1520,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if args.is_empty() {
             // Empty frozenset: frozenset()
             // In Rust, we can use Arc<HashSet> to make it immutable
-            Ok(parse_quote! { std::sync::Arc::new(HashSet::new()) })
+            // DEPYLER-0409: Use default type i32 for empty sets
+            Ok(parse_quote! { std::sync::Arc::new(HashSet::<i32>::new()) })
         } else if args.len() == 1 {
             // Frozenset from iterable: frozenset([1, 2, 3])
             let arg = &args[0];
@@ -8735,7 +8742,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             });
         }
 
-        // DEPYLER-0232 FIX: Check for user-defined class instances FIRST
+        // DEPYLER-0413: Handle string methods FIRST before class instance check
+        // String methods like upper/lower should be converted even for method parameters
+        // that might be typed as class instances (due to how we track types)
+        if matches!(
+            method,
+            "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
+                | "split" | "splitlines" | "join" | "replace" | "find" | "rfind" | "rindex"
+                | "isdigit" | "isalpha" | "isalnum" | "title"
+                | "center" | "ljust" | "rjust" | "zfill" | "format"
+        ) {
+            return self.convert_string_method(object, object_expr, method, arg_exprs, hir_args);
+        }
+
+        // DEPYLER-0232 FIX: Check for user-defined class instances
         // User-defined classes can have methods with names like "add" that conflict with
         // built-in collection methods. We must prioritize user-defined methods.
         if self.is_class_instance(object) {
@@ -8880,6 +8900,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         method: &str,
         args: &[HirExpr],
     ) -> Result<syn::Expr> {
+        // DEPYLER-0413: Handle string methods FIRST before any other checks
+        // This ensures string methods like upper/lower are converted even when
+        // inside class methods where parameters might be mistyped as class instances
+        if matches!(
+            method,
+            "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
+                | "split" | "splitlines" | "join" | "replace" | "find" | "rfind" | "rindex"
+                | "isdigit" | "isalpha" | "isalnum" | "title"
+                | "center" | "ljust" | "rjust" | "zfill" | "format"
+        ) {
+            let object_expr = object.to_rust_expr(self.ctx)?;
+            let arg_exprs: Vec<syn::Expr> = args
+                .iter()
+                .map(|arg| arg.to_rust_expr(self.ctx))
+                .collect::<Result<Vec<_>>>()?;
+            return self.convert_string_method(object, &object_expr, method, &arg_exprs, args);
+        }
+
         // Try classmethod handling first
         if let Some(result) = self.try_convert_classmethod(object, method, args)? {
             return Ok(result);
@@ -10311,18 +10349,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         left: syn::Expr,
         right: syn::Expr,
     ) -> Result<syn::Expr> {
+        // DEPYLER-0412: Add explicit type annotation to collect() for set operations
         match op {
             BinOp::BitAnd => Ok(parse_quote! {
-                #left.intersection(&#right).cloned().collect()
+                #left.intersection(&#right).cloned().collect::<std::collections::HashSet<_>>()
             }),
             BinOp::BitOr => Ok(parse_quote! {
-                #left.union(&#right).cloned().collect()
+                #left.union(&#right).cloned().collect::<std::collections::HashSet<_>>()
             }),
             BinOp::Sub => Ok(parse_quote! {
-                #left.difference(&#right).cloned().collect()
+                #left.difference(&#right).cloned().collect::<std::collections::HashSet<_>>()
             }),
             BinOp::BitXor => Ok(parse_quote! {
-                #left.symmetric_difference(&#right).cloned().collect()
+                #left.symmetric_difference(&#right).cloned().collect::<std::collections::HashSet<_>>()
             }),
             _ => bail!("Invalid set operator"),
         }

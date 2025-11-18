@@ -572,6 +572,264 @@ pub(crate) fn return_type_expects_float(ty: &Type) -> bool {
     }
 }
 
+// ========== DEPYLER-0410: Return Type Inference from Body ==========
+
+/// Infer return type from function body when no annotation is provided
+/// Returns None if type cannot be inferred or there are no return statements
+fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
+    let mut return_types = Vec::new();
+    collect_return_types(body, &mut return_types);
+
+    // DEPYLER-0412: Also check for trailing expression (implicit return)
+    // If the last statement is an expression without return, it's an implicit return
+    if let Some(last_stmt) = body.last() {
+        if let HirStmt::Expr(expr) = last_stmt {
+            let trailing_type = infer_expr_type_simple(expr);
+            if !matches!(trailing_type, Type::Unknown) {
+                return_types.push(trailing_type);
+            }
+        }
+    }
+
+    if return_types.is_empty() {
+        return None;
+    }
+
+    // If all return types are the same (ignoring Unknown), use that type
+    let first_known = return_types.iter().find(|t| !matches!(t, Type::Unknown));
+    if let Some(first) = first_known {
+        if return_types.iter().all(|t| matches!(t, Type::Unknown) || t == first) {
+            return Some(first.clone());
+        }
+    }
+
+    // If all are Unknown, we can't infer
+    if return_types.iter().all(|t| matches!(t, Type::Unknown)) {
+        return None;
+    }
+
+    // Mixed types - return the first known type
+    first_known.cloned()
+}
+
+/// Recursively collect return expression types from statements
+fn collect_return_types(stmts: &[HirStmt], types: &mut Vec<Type>) {
+    for stmt in stmts {
+        match stmt {
+            HirStmt::Return(Some(expr)) => {
+                types.push(infer_expr_type_simple(expr));
+            }
+            HirStmt::Return(None) => {
+                // Explicit return with no value
+                types.push(Type::None);
+            }
+            HirStmt::If { then_body, else_body, .. } => {
+                collect_return_types(then_body, types);
+                if let Some(else_stmts) = else_body {
+                    collect_return_types(else_stmts, types);
+                }
+            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                collect_return_types(body, types);
+            }
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
+                collect_return_types(body, types);
+                for handler in handlers {
+                    collect_return_types(&handler.body, types);
+                }
+                if let Some(orelse_stmts) = orelse {
+                    collect_return_types(orelse_stmts, types);
+                }
+                if let Some(finally_stmts) = finalbody {
+                    collect_return_types(finally_stmts, types);
+                }
+            }
+            HirStmt::With { body, .. } => {
+                collect_return_types(body, types);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Simple expression type inference without context
+/// Handles common cases like literals, comparisons, and arithmetic
+fn infer_expr_type_simple(expr: &HirExpr) -> Type {
+    match expr {
+        HirExpr::Literal(lit) => literal_to_type(lit),
+        HirExpr::Binary { op, left, right } => {
+            // Comparison operators always return bool
+            if matches!(op,
+                BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq |
+                BinOp::Gt | BinOp::GtEq | BinOp::In | BinOp::NotIn
+            ) {
+                return Type::Bool;
+            }
+            // For arithmetic, infer from operands
+            let left_type = infer_expr_type_simple(left);
+            let right_type = infer_expr_type_simple(right);
+            // Float takes precedence
+            if matches!(left_type, Type::Float) || matches!(right_type, Type::Float) {
+                Type::Float
+            } else if !matches!(left_type, Type::Unknown) {
+                left_type
+            } else {
+                right_type
+            }
+        }
+        HirExpr::Unary { op, operand } => {
+            if matches!(op, UnaryOp::Not) {
+                Type::Bool
+            } else {
+                infer_expr_type_simple(operand)
+            }
+        }
+        HirExpr::List(elems) => {
+            if elems.is_empty() {
+                Type::List(Box::new(Type::Unknown))
+            } else {
+                Type::List(Box::new(infer_expr_type_simple(&elems[0])))
+            }
+        }
+        HirExpr::Tuple(elems) => {
+            let elem_types: Vec<Type> = elems.iter().map(infer_expr_type_simple).collect();
+            Type::Tuple(elem_types)
+        }
+        HirExpr::Set(elems) => {
+            if elems.is_empty() {
+                Type::Set(Box::new(Type::Unknown))
+            } else {
+                Type::Set(Box::new(infer_expr_type_simple(&elems[0])))
+            }
+        }
+        HirExpr::Dict(pairs) => {
+            if pairs.is_empty() {
+                Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown))
+            } else {
+                let key_type = infer_expr_type_simple(&pairs[0].0);
+                let val_type = infer_expr_type_simple(&pairs[0].1);
+                Type::Dict(Box::new(key_type), Box::new(val_type))
+            }
+        }
+        HirExpr::IfExpr { body, orelse, .. } => {
+            // Try to infer from either branch
+            let body_type = infer_expr_type_simple(body);
+            if !matches!(body_type, Type::Unknown) {
+                body_type
+            } else {
+                infer_expr_type_simple(orelse)
+            }
+        }
+        // DEPYLER-0414: Add Index expression type inference
+        HirExpr::Index { base, .. } => {
+            // For arr[i], return element type of the container
+            match infer_expr_type_simple(base) {
+                Type::List(elem) => *elem,
+                Type::Tuple(elems) => elems.first().cloned().unwrap_or(Type::Unknown),
+                Type::Dict(_, val) => *val,
+                Type::String => Type::String, // string indexing returns char/string
+                _ => Type::Int, // Default to Int for array-like indexing
+            }
+        }
+        // DEPYLER-0414: Add Slice expression type inference
+        HirExpr::Slice { base, .. } => {
+            // Slicing returns same container type
+            infer_expr_type_simple(base)
+        }
+        // DEPYLER-0414: Add FString type inference (always String)
+        HirExpr::FString { .. } => Type::String,
+        // DEPYLER-0414: Add Call expression type inference
+        HirExpr::Call { func, .. } => {
+            // Common builtin functions with known return types
+            match func.as_str() {
+                "len" | "int" | "abs" | "ord" | "hash" => Type::Int,
+                "float" => Type::Float,
+                "str" | "repr" | "chr" | "input" => Type::String,
+                "bool" => Type::Bool,
+                "list" => Type::List(Box::new(Type::Unknown)),
+                "dict" => Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)),
+                "set" => Type::Set(Box::new(Type::Unknown)),
+                "tuple" => Type::Tuple(vec![]),
+                "range" => Type::List(Box::new(Type::Int)),
+                "sum" | "min" | "max" => Type::Int, // Common numeric aggregations
+                "zeros" | "ones" | "full" => Type::List(Box::new(Type::Int)),
+                _ => Type::Unknown,
+            }
+        }
+        // DEPYLER-0414: Add MethodCall expression type inference
+        HirExpr::MethodCall { object, method, .. } => {
+            match method.as_str() {
+                // String methods that return String
+                "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace"
+                | "title" | "capitalize" | "join" | "format" => Type::String,
+                // String methods that return bool
+                "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum"
+                | "isupper" | "islower" => Type::Bool,
+                // String methods that return int
+                "find" | "rfind" | "index" | "rindex" | "count" => Type::Int,
+                // String methods that return list
+                "split" | "splitlines" => Type::List(Box::new(Type::String)),
+                // List/Dict methods
+                "get" => {
+                    // dict.get() returns element type
+                    match infer_expr_type_simple(object) {
+                        Type::Dict(_, val) => *val,
+                        Type::List(elem) => *elem,
+                        _ => Type::Unknown,
+                    }
+                }
+                "pop" => {
+                    match infer_expr_type_simple(object) {
+                        Type::List(elem) => *elem,
+                        Type::Dict(_, val) => *val,
+                        _ => Type::Unknown,
+                    }
+                }
+                "keys" => Type::List(Box::new(Type::Unknown)),
+                "values" => Type::List(Box::new(Type::Unknown)),
+                "items" => Type::List(Box::new(Type::Tuple(vec![Type::Unknown, Type::Unknown]))),
+                _ => Type::Unknown,
+            }
+        }
+        // DEPYLER-0414: Add ListComp type inference
+        HirExpr::ListComp { element, .. } => {
+            Type::List(Box::new(infer_expr_type_simple(element)))
+        }
+        // DEPYLER-0414: Add SetComp type inference
+        HirExpr::SetComp { element, .. } => {
+            Type::Set(Box::new(infer_expr_type_simple(element)))
+        }
+        // DEPYLER-0414: Add DictComp type inference
+        HirExpr::DictComp { key, value, .. } => {
+            Type::Dict(
+                Box::new(infer_expr_type_simple(key)),
+                Box::new(infer_expr_type_simple(value)),
+            )
+        }
+        // DEPYLER-0414: Add Attribute type inference
+        HirExpr::Attribute { attr, .. } => {
+            // Common attributes with known types
+            match attr.as_str() {
+                "real" | "imag" => Type::Float,
+                _ => Type::Unknown,
+            }
+        }
+        _ => Type::Unknown,
+    }
+}
+
+/// Convert literal to type
+fn literal_to_type(lit: &Literal) -> Type {
+    match lit {
+        Literal::Int(_) => Type::Int,
+        Literal::Float(_) => Type::Float,
+        Literal::String(_) => Type::String,
+        Literal::Bool(_) => Type::Bool,
+        Literal::None => Type::None,
+        Literal::Bytes(_) => Type::Unknown, // No direct Bytes type in Type enum
+    }
+}
+
 // ========== Phase 3b: Return Type Generation ==========
 
 /// Generate return type with Result wrapper and lifetime handling
@@ -588,10 +846,22 @@ pub(crate) fn codegen_return_type(
     bool,
     Option<crate::rust_gen::context::ErrorType>,
 )> {
+    // DEPYLER-0410: Infer return type from body when annotation is Unknown
+    let effective_ret_type = if matches!(func.ret_type, Type::Unknown) {
+        // Try to infer from return statements in body
+        if let Some(inferred) = infer_return_type_from_body(&func.body) {
+            inferred
+        } else {
+            func.ret_type.clone()
+        }
+    } else {
+        func.ret_type.clone()
+    };
+
     // Convert return type using annotation-aware mapping
     let mapped_ret_type = ctx
         .annotation_aware_mapper
-        .map_return_type_with_annotations(&func.ret_type, &func.annotations);
+        .map_return_type_with_annotations(&effective_ret_type, &func.annotations);
 
     // Check if this is a placeholder Union enum that needs proper generation
     let rust_ret_type = if let crate::type_mapper::RustType::Enum { name, .. } = &mapped_ret_type {
