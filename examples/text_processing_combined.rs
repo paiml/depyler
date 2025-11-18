@@ -73,7 +73,7 @@ pub fn count_word_frequencies(words: &Vec<String>) -> Result<HashMap<String, i32
         map
     };
     for word in words.iter().cloned() {
-        if frequencies.contains_key(word) {
+        if frequencies.contains_key(&word) {
             {
                 let _key = word;
                 let _old_val = frequencies.get(&_key).cloned().unwrap_or_default();

@@ -77,7 +77,7 @@ pub fn test_counter_basic() -> Result<HashMap<String, i32>, IndexError> {
         map
     };
     for item in items.iter().cloned() {
-        if counts.contains_key(item) {
+        if counts.contains_key(&item) {
             {
                 let _key = item;
                 let _old_val = counts.get(&_key).cloned().unwrap_or_default();
@@ -99,7 +99,7 @@ pub fn test_counter_most_common(
         map
     };
     for item in items.iter().cloned() {
-        if counts.contains_key(item) {
+        if counts.contains_key(&item) {
             {
                 let _key = item;
                 let _old_val = counts.get(&_key).cloned().unwrap_or_default();
@@ -247,7 +247,7 @@ pub fn test_ordereddict_move_to_end() -> Vec<String> {
 }
 #[doc = "Test ChainMap-like lookup(manual)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_chainmap<'b, 'a>(
+pub fn test_chainmap<'a, 'b>(
     dict1: &'a HashMap<String, i32>,
     dict2: &'b HashMap<String, i32>,
 ) -> Result<i32, IndexError> {
@@ -275,7 +275,7 @@ pub fn word_frequency_counter(text: &str) -> Result<HashMap<String, i32>, IndexE
         map
     };
     for word in words.iter().cloned() {
-        if freq.contains_key(word) {
+        if freq.contains_key(&word) {
             {
                 let _key = word;
                 let _old_val = freq.get(&_key).cloned().unwrap_or_default();

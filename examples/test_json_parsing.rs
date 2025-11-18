@@ -28,7 +28,7 @@ pub fn parse_json_with_default(
 #[doc = "Merge two JSON strings into one dictionary"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn merge_json_objects<'b, 'a>(
+pub fn merge_json_objects<'a, 'b>(
     json1: &'a str,
     json2: &'b str,
 ) -> HashMap<String, serde_json::Value> {

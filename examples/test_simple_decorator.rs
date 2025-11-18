@@ -6,7 +6,7 @@ pub fn simple_function(x: i32) -> i32 {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_no_decorator() {
+pub fn test_no_decorator() -> i32 {
     let result = simple_function(5);
     result
 }
