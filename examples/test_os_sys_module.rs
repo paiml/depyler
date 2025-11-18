@@ -179,8 +179,8 @@ pub fn test_path_split() -> Result<(), IndexError> {
         }
     }
     let _cse_temp_0 = last_slash >= 0;
-    let mut basename: String;
     let mut dirname: String;
+    let mut basename: String;
     if _cse_temp_0 {
         dirname = {
             let base = path;
@@ -343,7 +343,7 @@ pub fn test_listdir_simulation() -> Vec<String> {
 }
 #[doc = "Filter files by extension"]
 #[doc = " Depyler: verified panic-free"]
-pub fn filter_by_extension<'a, 'b>(
+pub fn filter_by_extension<'b, 'a>(
     files: &'a Vec<String>,
     ext: &'b mut str,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
