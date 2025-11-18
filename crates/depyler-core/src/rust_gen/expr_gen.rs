@@ -9024,22 +9024,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         let base_expr = base.to_rust_expr(self.ctx)?;
 
-        // DEPYLER-0422 Fix #3: Handle tuple indexing with actual type information
+        // DEPYLER-0422 Fix #3 & #4: Handle tuple indexing with actual type information
         // Python: tuple[0], tuple[1] → Rust: tuple.0, tuple.1
-        // Check actual type from context first, fallback to name heuristics
+        // Also handles chained indexing: list_of_tuples[i][j] → list_of_tuples.get(i).0
         let should_use_tuple_syntax = if let HirExpr::Literal(Literal::Int(idx)) = index {
             if *idx >= 0 {
                 if let HirExpr::Var(var_name) = base {
-                    // DEPYLER-0422: Check actual type from context (preferred)
+                    // Case 1: Direct variable access (e.g., position[0] where position: Tuple)
                     if let Some(var_type) = self.ctx.var_types.get(var_name) {
                         matches!(var_type, Type::Tuple(_))
                     } else {
                         // Fallback heuristic: variable names suggesting tuple iteration
-                        // Common tuple iteration variable names: pair, entry, item, elem, tuple, row
                         matches!(
                             var_name.as_str(),
                             "pair" | "entry" | "item" | "elem" | "tuple" | "row"
                         )
+                    }
+                } else if let HirExpr::Index { base: inner_base, .. } = base {
+                    // DEPYLER-0422 Fix #4: Case 2: Chained indexing (e.g., word_counts[j][1])
+                    // Check if we're indexing into a List[Tuple]
+                    if let HirExpr::Var(var_name) = &**inner_base {
+                        if let Some(Type::List(element_type)) = self.ctx.var_types.get(var_name) {
+                            // If the list contains tuples, second index is tuple field access
+                            matches!(**element_type, Type::Tuple(_))
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
                     }
                 } else {
                     false

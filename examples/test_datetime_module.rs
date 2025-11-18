@@ -145,7 +145,7 @@ pub fn calculate_age<'a, 'b>(
 #[doc = "Calculate days until a future event"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn days_until_event<'a, 'b>(event_date: &'a date, current_date: &'b date) -> i32 {
+pub fn days_until_event<'b, 'a>(event_date: &'a date, current_date: &'b date) -> i32 {
     let _cse_temp_0 = event_date < current_date;
     if _cse_temp_0 {
         return 0;
@@ -246,7 +246,7 @@ pub fn test_date_comparison() -> bool {
 }
 #[doc = "Calculate working days between two dates(excluding weekends)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn working_days_between<'a, 'b>(
+pub fn working_days_between<'b, 'a>(
     start: &'a date,
     end: &'b date,
 ) -> Result<i32, ZeroDivisionError> {

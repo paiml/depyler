@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::collections::IndexMap;
 use std::collections::VecDeque;
-const STR_B: &'static str = "b";
 const STR_APPLE: &'static str = "apple";
 const STR_A: &'static str = "a";
+const STR_B: &'static str = "b";
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -116,20 +116,8 @@ pub fn test_counter_most_common(
     }
     for i in 0..count_list.len() as i32 {
         for j in i + 1..count_list.len() as i32 {
-            if count_list
-                .get(j as usize)
-                .cloned()
-                .unwrap_or_default()
-                .get(1usize)
-                .cloned()
-                .unwrap_or_default()
-                > count_list
-                    .get(i as usize)
-                    .cloned()
-                    .unwrap_or_default()
-                    .get(1usize)
-                    .cloned()
-                    .unwrap_or_default()
+            if count_list.get(j as usize).cloned().unwrap_or_default().1
+                > count_list.get(i as usize).cloned().unwrap_or_default().1
             {
                 let temp: (String, i32) = count_list.get(i as usize).cloned().unwrap_or_default();
                 count_list.insert(
@@ -259,7 +247,7 @@ pub fn test_ordereddict_move_to_end() -> Vec<String> {
 }
 #[doc = "Test ChainMap-like lookup(manual)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_chainmap<'b, 'a>(
+pub fn test_chainmap<'a, 'b>(
     dict1: &'a HashMap<String, i32>,
     dict2: &'b HashMap<String, i32>,
 ) -> Result<i32, IndexError> {

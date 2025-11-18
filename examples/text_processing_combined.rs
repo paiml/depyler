@@ -97,20 +97,8 @@ pub fn get_most_common_words(
     }
     for i in 0..word_counts.len() as i32 {
         for j in i + 1..word_counts.len() as i32 {
-            if word_counts
-                .get(j as usize)
-                .cloned()
-                .unwrap_or_default()
-                .get(1usize)
-                .cloned()
-                .unwrap_or_default()
-                > word_counts
-                    .get(i as usize)
-                    .cloned()
-                    .unwrap_or_default()
-                    .get(1usize)
-                    .cloned()
-                    .unwrap_or_default()
+            if word_counts.get(j as usize).cloned().unwrap_or_default().1
+                > word_counts.get(i as usize).cloned().unwrap_or_default().1
             {
                 let temp: (String, i32) = word_counts.get(i as usize).cloned().unwrap_or_default();
                 word_counts.insert(
