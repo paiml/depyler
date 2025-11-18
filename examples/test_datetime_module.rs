@@ -40,55 +40,70 @@ impl IndexError {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_current_datetime() -> String {
-    let now: datetime = datetime.now();
-    let result: String = format!("{}-{}-{} {}:{}:{}", year, month, day, hour, minute, second);
-    result.unwrap()
+    let now: datetime = chrono::Local::now().naive_local();
+    let year: i32 = now.year() as i32;
+    let month: i32 = now.month() as i32;
+    let day: i32 = now.day() as i32;
+    let hour: i32 = now.hour() as i32;
+    let minute: i32 = now.minute() as i32;
+    let second: i32 = now.second() as i32;
+    let result: String = format!(
+        "{:?}-{:?}-{:?} {:?}:{:?}:{:?}",
+        year, month, day, hour, minute, second
+    );
+    result
 }
 #[doc = "Test creating specific dates"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_date_creation() -> date {
-    let birthday: date = chrono::NaiveDate(1990, 5, 15);
+    let birthday: date = chrono::NaiveDate::from_ymd_opt(1990 as i32, 5 as u32, 15 as u32).unwrap();
     birthday
 }
 #[doc = "Test creating specific times"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_time_creation() -> time {
-    let meeting_time: time = chrono::NaiveTime(14, 30, 0);
+    let meeting_time: time =
+        chrono::NaiveTime::from_hms_opt(14 as u32, 30 as u32, 0 as u32).unwrap();
     meeting_time
 }
 #[doc = "Test creating specific datetime objects"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_datetime_creation() -> datetime {
-    let event: datetime = chrono::DateTime(2025, 12, 31, 23, 59, 59);
+    let event: datetime = chrono::NaiveDate::from_ymd_opt(2025 as i32, 12 as u32, 31 as u32)
+        .unwrap()
+        .and_hms_opt(23 as u32, 59 as u32, 59 as u32)
+        .unwrap();
     event
 }
 #[doc = "Test date arithmetic operations"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_date_arithmetic() -> i32 {
-    let start_date: date = chrono::NaiveDate(2025, 1, 1);
-    let end_date: date = chrono::NaiveDate(2025, 12, 31);
+    let start_date: date =
+        chrono::NaiveDate::from_ymd_opt(2025 as i32, 1 as u32, 1 as u32).unwrap();
+    let end_date: date =
+        chrono::NaiveDate::from_ymd_opt(2025 as i32, 12 as u32, 31 as u32).unwrap();
     let difference: timedelta = end_date - start_date;
-    let num_days: i32 = difference.days;
+    let num_days: i32 = difference.num_days() as i32;
     num_days
 }
 #[doc = "Test creating and using timedelta objects"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_timedelta_creation() -> timedelta {
-    let one_week: timedelta = chrono::Duration();
-    let duration: timedelta = chrono::Duration();
+    let one_week: timedelta = chrono::Duration::zero();
+    let duration: timedelta = chrono::Duration::zero();
     one_week + duration
 }
 #[doc = "Test adding timedelta to dates"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_date_addition() -> date {
-    let today: date = chrono::NaiveDate(2025, 11, 5);
-    let one_week: timedelta = chrono::Duration();
+    let today: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 5 as u32).unwrap();
+    let one_week: timedelta = chrono::Duration::zero();
     let next_week: date = today + one_week;
     next_week
 }
@@ -96,8 +111,8 @@ pub fn test_date_addition() -> date {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_date_subtraction() -> date {
-    let today: date = chrono::NaiveDate(2025, 11, 5);
-    let one_month: timedelta = chrono::Duration();
+    let today: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 5 as u32).unwrap();
+    let one_month: timedelta = chrono::Duration::zero();
     let last_month: date = today - one_month;
     last_month
 }
@@ -109,7 +124,7 @@ pub fn calculate_age<'b, 'a>(
 ) -> Result<i32, ZeroDivisionError> {
     let diff: timedelta = current_date - birth_date;
     let _cse_temp_0 = {
-        let a = diff.days;
+        let a = diff.num_days() as i32;
         let b = 365;
         let q = a / b;
         let r = a % b;
@@ -136,7 +151,7 @@ pub fn days_until_event<'b, 'a>(event_date: &'a date, current_date: &'b date) ->
         return 0;
     }
     let diff: timedelta = event_date - current_date;
-    diff.days
+    diff.num_days() as i32
 }
 #[doc = "Check if a year is a leap year"]
 #[doc = " Depyler: proven to terminate"]
@@ -188,29 +203,43 @@ pub fn days_in_month(year: i32, month: i32) -> Result<i32, IndexError> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_timedelta_components() -> String {
-    let duration: timedelta = chrono::Duration();
+    let duration: timedelta = chrono::Duration::zero();
+    let days: i32 = duration.num_days() as i32;
+    let seconds: i32 = (duration.num_seconds() % 86400) as i32;
+    let _cse_temp_0 = (duration.total_seconds()) as i32;
+    let total_seconds: i32 = _cse_temp_0;
     let result: String = format!(
-        "Days: {}, Seconds: {}, Total: {}",
+        "Days: {:?}, Seconds: {:?}, Total: {:?}",
         days, seconds, total_seconds
     );
-    result.unwrap()
+    result
 }
 #[doc = "Test comparing datetime objects"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_datetime_comparison() -> bool {
-    let dt1: datetime = chrono::DateTime(2025, 1, 1, 0, 0, 0);
-    let dt2: datetime = chrono::DateTime(2025, 12, 31, 23, 59, 59);
+    let dt1: datetime = chrono::NaiveDate::from_ymd_opt(2025 as i32, 1 as u32, 1 as u32)
+        .unwrap()
+        .and_hms_opt(0 as u32, 0 as u32, 0 as u32)
+        .unwrap();
+    let dt2: datetime = chrono::NaiveDate::from_ymd_opt(2025 as i32, 12 as u32, 31 as u32)
+        .unwrap()
+        .and_hms_opt(23 as u32, 59 as u32, 59 as u32)
+        .unwrap();
     let _cse_temp_0 = dt1 < dt2;
     let is_before: bool = _cse_temp_0;
+    let _cse_temp_1 = dt1 > dt2;
+    let is_after: bool = _cse_temp_1;
+    let _cse_temp_2 = dt1 == dt2;
+    let is_equal: bool = _cse_temp_2;
     is_before
 }
 #[doc = "Test comparing date objects"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_date_comparison() -> bool {
-    let d1: date = chrono::NaiveDate(2025, 1, 1);
-    let d2: date = chrono::NaiveDate(2025, 12, 31);
+    let d1: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 1 as u32, 1 as u32).unwrap();
+    let d2: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 12 as u32, 31 as u32).unwrap();
     let _cse_temp_0 = d1 < d2;
     let is_before: bool = _cse_temp_0;
     is_before
@@ -225,8 +254,10 @@ pub fn working_days_between<'a, 'b>(
     if _cse_temp_0 {
         return Ok(0);
     }
+    let count: i32 = 0;
+    let current: date = start;
     let diff: timedelta = end - start;
-    let total_days: i32 = diff.days;
+    let total_days: i32 = diff.num_days() as i32;
     let _cse_temp_1 = total_days * 5;
     let _cse_temp_2 = {
         let a = _cse_temp_1;
@@ -250,16 +281,42 @@ pub fn working_days_between<'a, 'b>(
 #[doc = "Add business days to a date(simplified)"]
 #[doc = " Depyler: proven to terminate"]
 pub fn add_business_days(start_date: &date, num_days: i32) -> Result<date, ZeroDivisionError> {
-    let _cse_temp_0 = start_date + chrono::Duration();
-    let result: date = _cse_temp_0;
+    let _cse_temp_0 = num_days * 7;
+    let _cse_temp_1 = {
+        let a = _cse_temp_0;
+        let b = 5;
+        let q = a / b;
+        let r = a % b;
+        let r_negative = r < 0;
+        let b_negative = b < 0;
+        let r_nonzero = r != 0;
+        let signs_differ = r_negative != b_negative;
+        let needs_adjustment = r_nonzero && signs_differ;
+        if needs_adjustment {
+            q - 1
+        } else {
+            q
+        }
+    };
+    let calendar_days: i32 = _cse_temp_1;
+    let _cse_temp_2 = start_date + chrono::Duration::zero();
+    let result: date = _cse_temp_2;
     Ok(result)
 }
 #[doc = "Test datetime string formatting"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_datetime_formatting() -> String {
-    let dt: datetime = chrono::DateTime(2025, 11, 5, 14, 30, 0);
-    let formatted: String = format!("{}-{}-{} {}:{}", year, month, day, hour, minute);
+    let dt: datetime = chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 5 as u32)
+        .unwrap()
+        .and_hms_opt(14 as u32, 30 as u32, 0 as u32)
+        .unwrap();
+    let year: i32 = dt.year() as i32;
+    let month: i32 = dt.month() as i32;
+    let day: i32 = dt.day() as i32;
+    let hour: i32 = dt.hour() as i32;
+    let minute: i32 = dt.minute() as i32;
+    let formatted: String = format!("{:?}-{:?}-{:?} {:?}:{:?}", year, month, day, hour, minute);
     formatted
 }
 #[doc = "Generate list of dates in range"]
@@ -267,7 +324,7 @@ pub fn test_datetime_formatting() -> String {
 pub fn test_date_range<'a, 'b>(start: &'a date, end: &'b date) -> Vec<date> {
     let mut dates: Vec<date> = vec![];
     let mut current: date = start;
-    let one_day: timedelta = chrono::Duration();
+    let one_day: timedelta = chrono::Duration::zero();
     while current <= end {
         dates.push(current);
         current = current + one_day;
@@ -277,11 +334,13 @@ pub fn test_date_range<'a, 'b>(start: &'a date, end: &'b date) -> Vec<date> {
 #[doc = "Test time calculations using timedelta"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_time_arithmetic() -> Result<i32, ZeroDivisionError> {
-    let meeting_start: time = chrono::NaiveTime(9, 0, 0);
-    let _cse_temp_0 = meeting_start.hour * 60;
-    let _cse_temp_1 = _cse_temp_0 + meeting_start.minute;
+    let meeting_start: time =
+        chrono::NaiveTime::from_hms_opt(9 as u32, 0 as u32, 0 as u32).unwrap();
+    let _cse_temp_0 = meeting_start.hour() as i32 * 60;
+    let _cse_temp_1 = _cse_temp_0 + meeting_start.minute() as i32;
     let start_minutes: i32 = _cse_temp_1;
-    let end_minutes: i32 = start_minutes + 150;
+    let duration_minutes: i32 = 150;
+    let end_minutes: i32 = start_minutes + duration_minutes;
     let _cse_temp_2 = {
         let a = end_minutes;
         let b = 60;
@@ -305,7 +364,7 @@ pub fn test_time_arithmetic() -> Result<i32, ZeroDivisionError> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn quarter_of_year(d: &date) -> i32 {
-    let month: i32 = d.month;
+    let month: i32 = d.month() as i32;
     let _cse_temp_0 = month <= 3;
     if _cse_temp_0 {
         1
@@ -326,15 +385,41 @@ pub fn quarter_of_year(d: &date) -> i32 {
 #[doc = "Run all datetime module tests"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_all_datetime_features() {
-    let birth: date = chrono::NaiveDate(1990, 5, 15);
-    let today: date = chrono::NaiveDate(2025, 11, 5);
-    let event: date = chrono::NaiveDate(2025, 12, 31);
-    let start: date = chrono::NaiveDate(2025, 1, 1);
-    let end: date = chrono::NaiveDate(2025, 12, 31);
-    let range_start: date = chrono::NaiveDate(2025, 11, 1);
-    let range_end: date = chrono::NaiveDate(2025, 11, 7);
+pub fn test_all_datetime_features() -> Result<(), Box<dyn std::error::Error>> {
+    let current_str: String = test_current_datetime()?;
+    let my_date: date = test_date_creation()?;
+    let my_time: time = test_time_creation()?;
+    let my_datetime: datetime = test_datetime_creation()?;
+    let days_diff: i32 = test_date_arithmetic()?;
+    let delta: timedelta = test_timedelta_creation()?;
+    let future_date: date = test_date_addition()?;
+    let past_date: date = test_date_subtraction()?;
+    let birth: date = chrono::NaiveDate::from_ymd_opt(1990 as i32, 5 as u32, 15 as u32).unwrap();
+    let today: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 5 as u32).unwrap();
+    let age: i32 = calculate_age(birth, today)?;
+    let event: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 12 as u32, 31 as u32).unwrap();
+    let days_left: i32 = days_until_event(event, today)?;
+    let is_leap_2024: bool = is_leap_year(2024)?;
+    let is_leap_2025: bool = is_leap_year(2025)?;
+    let days_feb_2024: i32 = days_in_month(2024, 2)?;
+    let days_feb_2025: i32 = days_in_month(2025, 2)?;
+    let delta_str: String = test_timedelta_components()?;
+    let cmp_dt: bool = test_datetime_comparison()?;
+    let cmp_date: bool = test_date_comparison()?;
+    let start: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 1 as u32, 1 as u32).unwrap();
+    let end: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 12 as u32, 31 as u32).unwrap();
+    let work_days: i32 = working_days_between(start, end)?;
+    let future: date = add_business_days(today, 10)?;
+    let formatted: String = test_datetime_formatting()?;
+    let range_start: date =
+        chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 1 as u32).unwrap();
+    let range_end: date =
+        chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 7 as u32).unwrap();
+    let date_list: Vec<date> = test_date_range(range_start, range_end)?;
+    let meeting_end: i32 = test_time_arithmetic()?;
+    let q: i32 = quarter_of_year(today)?;
     println!("{}", "All datetime module tests completed successfully");
+    Ok(())
 }
 #[cfg(test)]
 mod tests {

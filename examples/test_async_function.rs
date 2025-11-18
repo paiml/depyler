@@ -1,25 +1,24 @@
-#[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn fetch_data(url: String)  -> String {
+#[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn fetch_data(url: String) -> String {
     async_sleep(1).await;
-    return format !("Data from {}", url);
-   
+    format!("Data from {:?}", url)
 }
-#[doc = " Depyler: verified panic-free"] pub async fn process_urls<'a>(urls: & 'a Vec<String>)  -> Vec<String>{
-    let results = vec ! [];
-    for url in urls.iter() {
+#[doc = " Depyler: verified panic-free"] pub async fn process_urls(urls: & Vec<String>) -> Vec<String>{
+    let mut results = vec! [];
+    for _url in urls.iter().cloned() {
     let data = fetch_data(url).await;
     results.push(data);
    
 }
-return results;
-   
+results
 }
 #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_sleep(seconds: i32) {
    
 }
 #[doc = " Depyler: verified panic-free"] pub async fn main () {
-    let results = process_urls(urls).await;
-    for result in results.iter() {
-    print(result);
+    let urls = vec! ["http://api.example.com".to_string(), "http://api2.example.com".to_string()];
+    let mut results = process_urls(& urls).await;
+    for result in results.iter().cloned() {
+    println!("{}", result);
    
 }
 } #[cfg(test)] mod tests {
@@ -27,8 +26,8 @@ return results;
     use quickcheck::{
     quickcheck, TestResult };
     #[test] fn test_process_urls_examples() {
-    assert_eq !(process_urls(vec ! []), vec ! []);
-    assert_eq !(process_urls(vec ! [1]), vec ! [1]);
+    assert_eq!(process_urls(vec! []), vec! []);
+    assert_eq!(process_urls(vec! [1]), vec! [1]);
    
 }
 }

@@ -13,6 +13,8 @@ use std::collections::HashMap;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_urlparse_basic() {
+    let url = "https://example.com/path/page.html";
+    let result = url::Url::parse(url);
     assert!(result.scheme == "https".to_string());
     assert!(result.netloc == "example.com".to_string());
     assert!(result.path == "/path/page.html".to_string());
@@ -22,6 +24,8 @@ pub fn test_urlparse_basic() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_urlparse_with_query() {
+    let url = "https://example.com/search?q=python&lang=en";
+    let result = url::Url::parse(url);
     assert!(result.scheme == "https".to_string());
     assert!(result.netloc == "example.com".to_string());
     assert!(result.path == "/search".to_string());
@@ -32,6 +36,8 @@ pub fn test_urlparse_with_query() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_urlparse_with_fragment() {
+    let url = "https://example.com/page#section1";
+    let result = url::Url::parse(url);
     assert!(result.scheme == "https".to_string());
     assert!(result.path == "/page".to_string());
     assert!(result.fragment == "section1".to_string());
@@ -41,6 +47,8 @@ pub fn test_urlparse_with_fragment() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_urlparse_full() {
+    let url = "https://user:pass@example.com:8080/path?query=value#fragment";
+    let result = url::Url::parse(url);
     assert!(result.scheme == "https".to_string());
     assert!(result.netloc == "user:pass@example.com:8080".to_string());
     assert!(result.path == "/path".to_string());
@@ -52,15 +60,21 @@ pub fn test_urlparse_full() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_parse_qs_basic() {
-    assert!(result.get("name").cloned().unwrap_or_default() == vec!["John".to_string()]);
-    assert!(result.get("age").cloned().unwrap_or_default() == vec!["30"]);
-    assert!(result.get("city").cloned().unwrap_or_default() == vec!["NYC".to_string()]);
+    let query = "name=John&age=30&city=NYC";
+    let result = parse_qs(query);
+    assert!(
+        result.get("name").cloned().unwrap_or_default() == vec!["John".to_string().to_string()]
+    );
+    assert!(result.get("age").cloned().unwrap_or_default() == vec!["30".to_string()]);
+    assert!(result.get("city").cloned().unwrap_or_default() == vec!["NYC".to_string().to_string()]);
     println!("{}", "PASS: test_parse_qs_basic");
 }
 #[doc = "Test query string with multiple values."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_parse_qs_multiple_values() {
+    let query = "tag=python&tag=rust&tag=programming";
+    let result = parse_qs(query);
     assert!(result.get("tag").cloned().unwrap_or_default().len() as i32 == 3);
     assert!(result
         .get("tag")
@@ -78,6 +92,8 @@ pub fn test_parse_qs_multiple_values() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_parse_qsl_tuples() {
+    let query = "a=1&b=2&c=3";
+    let result = parse_qsl(query);
     assert!(result.len() as i32 == 3);
     assert!(result.contains_key(&("a".to_string(), "1".to_string())));
     assert!(result.contains_key(&("b".to_string(), "2".to_string())));
@@ -90,10 +106,11 @@ pub fn test_parse_qsl_tuples() {
 pub fn test_urlencode_basic() {
     let params = {
         let mut map = HashMap::new();
-        map.insert("name", "John Doe");
-        map.insert("age", "30");
+        map.insert("name".to_string(), "John Doe");
+        map.insert("age".to_string(), "30");
         map
     };
+    let result = urlencode(&params);
     assert!(
         result.contains_key(&"name=John+Doe".to_string())
             || result.contains_key(&"name=John%20Doe".to_string())
@@ -105,27 +122,36 @@ pub fn test_urlencode_basic() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_quote_string() {
-    assert!(result == "Hello%20World%21".to_string());
+    let text = "Hello World!";
+    let result = url::percent_encoding::percent_encode(text);
+    assert!(result == "Hello%20World%21");
     println!("{}", "PASS: test_quote_string");
 }
 #[doc = "Test URL unquoting/decoding."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_unquote_string() {
-    assert!(result == "Hello World!".to_string());
+    let encoded = "Hello%20World%21";
+    let result = url::percent_encoding::percent_decode(encoded);
+    assert!(result == "Hello World!");
     println!("{}", "PASS: test_unquote_string");
 }
 #[doc = "Test URL quoting with safe characters."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_quote_safe_chars() {
-    assert!(result == "/path/to/file".to_string());
+    let path = "/path/to/file";
+    let result = url::percent_encoding::percent_encode(path);
+    assert!(result == "/path/to/file");
     println!("{}", "PASS: test_quote_safe_chars");
 }
 #[doc = "Test joining URLs."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_urljoin_basic() {
+    let base = "https://example.com/dir/";
+    let relative = "page.html";
+    let result = url::Url::join(base, relative);
     assert!(result == "https://example.com/dir/page.html".to_string());
     println!("{}", "PASS: test_urljoin_basic");
 }
@@ -133,13 +159,18 @@ pub fn test_urljoin_basic() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_urljoin_absolute() {
-    assert!(result == "https://other.com/page.html".to_string());
+    let base = "https://example.com/dir/";
+    let absolute = "https://other.com/page.html";
+    let result = url::Url::join(base, absolute);
+    assert!(result == "https://other.com/page.html");
     println!("{}", "PASS: test_urljoin_absolute");
 }
 #[doc = "Test URL splitting(similar to urlparse)."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_urlsplit_basic() {
+    let url = "https://example.com/path?query=value#fragment";
+    let result = urlsplit(url);
     assert!(result.scheme == "https".to_string());
     assert!(result.netloc == "example.com".to_string());
     assert!(result.path == "/path".to_string());

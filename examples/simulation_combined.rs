@@ -1,6 +1,6 @@
-#[doc = "// Python import: random"]
-#[doc = "// Python import: math"]
+use rand as random;
 use std::collections::HashMap;
+use std::f64 as math;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
     message: String,
@@ -41,7 +41,7 @@ impl IndexError {
 pub fn roll_dice(num_dice: i32, num_sides: i32) -> i32 {
     let mut total: i32 = 0;
     for _i in 0..num_dice {
-        let roll: i32 = rand::gen_range(1, num_sides);
+        let roll: i32 = rand::thread_rng().gen_range(1..=num_sides);
         total = total + roll;
     }
     total
@@ -66,7 +66,7 @@ pub fn simulate_dice_rolls(
                 results.insert(_key, _old_val + 1);
             }
         } else {
-            results.insert((total) as usize, 1);
+            results.insert(total, 1);
         }
     }
     Ok(results)
@@ -77,7 +77,7 @@ pub fn simulate_dice_rolls(
 pub fn coin_flip_sequence(num_flips: i32) -> Vec<String> {
     let mut flips: Vec<String> = vec![];
     for _i in 0..num_flips {
-        let flip: i32 = rand::gen_range(0, 1);
+        let flip: i32 = rand::thread_rng().gen_range(0..=1);
         if flip == 0 {
             flips.push("H");
         } else {
@@ -100,17 +100,9 @@ pub fn count_streaks(sequence: &Vec<String>) -> Result<HashMap<String, i32>, Ind
     let mut max_heads_streak: i32 = 0;
     let mut max_tails_streak: i32 = 0;
     let mut current_streak: i32 = 1;
-    let mut current_type: String = {
-        let base = &sequence;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    };
+    let mut current_type: String = sequence.get(0usize).cloned().unwrap_or_default();
     for i in 1..sequence.len() as i32 {
+        let mut current_streak;
         if sequence.get(i as usize).cloned().unwrap_or_default() == current_type {
             current_streak = current_streak + 1;
         } else {
@@ -151,8 +143,8 @@ pub fn count_streaks(sequence: &Vec<String>) -> Result<HashMap<String, i32>, Ind
 pub fn monte_carlo_pi_estimation(num_samples: i32) -> Result<(f64, f64), ZeroDivisionError> {
     let mut inside_circle: i32 = 0;
     for _i in 0..num_samples {
-        let x: f64 = rand::random();
-        let y: f64 = rand::random();
+        let x: f64 = rand::random::<f64>();
+        let y: f64 = rand::random::<f64>();
         let distance_squared: f64 = x * x + y * y;
         if distance_squared <= 1.0 {
             inside_circle = inside_circle + 1;
@@ -163,7 +155,8 @@ pub fn monte_carlo_pi_estimation(num_samples: i32) -> Result<(f64, f64), ZeroDiv
     let _cse_temp_2 = (num_samples) as f64;
     let _cse_temp_3 = (_cse_temp_1 as f64) / (_cse_temp_2 as f64);
     let pi_estimate: f64 = _cse_temp_3;
-    let _cse_temp_4 = pi_estimate - 3.14159265359.abs();
+    let actual_pi: f64 = 3.14159265359;
+    let _cse_temp_4 = pi_estimate - actual_pi.abs();
     let error: f64 = _cse_temp_4;
     Ok((pi_estimate, error))
 }
@@ -174,10 +167,12 @@ pub fn simulate_random_walk(num_steps: i32) -> (i32, i32) {
     let mut x: i32 = 0;
     let mut y: i32 = 0;
     for _step in 0..num_steps {
-        let direction: i32 = rand::gen_range(0, 3);
+        let direction: i32 = rand::thread_rng().gen_range(0..=3);
+        let mut y;
         if direction == 0 {
             y = y + 1;
         } else {
+            let mut x;
             if direction == 1 {
                 x = x + 1;
             } else {
@@ -194,27 +189,9 @@ pub fn simulate_random_walk(num_steps: i32) -> (i32, i32) {
 #[doc = "Calculate Euclidean distance from origin"]
 #[doc = " Depyler: proven to terminate"]
 pub fn calculate_walk_distance(position: (i32, i32)) -> Result<f64, IndexError> {
-    let mut x: i32 = {
-        let base = &position;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    };
-    let mut y: i32 = {
-        let base = &position;
-        let idx: i32 = 1;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    };
-    let distance: f64 = ((x * x + y * y) as f64).sqrt();
+    let mut x: i32 = position.get(0usize).cloned().unwrap_or_default();
+    let mut y: i32 = position.get(1usize).cloned().unwrap_or_default();
+    let distance: f64 = ((x * x + y * y) as f64 as f64).sqrt();
     Ok(distance)
 }
 #[doc = "Simulate queue/service system"]
@@ -228,27 +205,9 @@ pub fn simulate_queue_system(
     let mut current_time: i32 = 0;
     for _customer in 0..num_customers {
         let arrival_time: i32 = current_time;
-        let service_time: i32 = rand::gen_range(
-            {
-                let base = &service_time_range;
-                let idx: i32 = 0;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            },
-            {
-                let base = &service_time_range;
-                let idx: i32 = 1;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            },
+        let service_time: i32 = rand::thread_rng().gen_range(
+            service_time_range.get(0usize).cloned().unwrap_or_default()
+                ..=service_time_range.get(1usize).cloned().unwrap_or_default(),
         );
         let wait_time: i32 = queue_length;
         wait_times.push(wait_time);
@@ -293,8 +252,8 @@ pub fn simulate_card_game(num_games: i32) -> Result<HashMap<String, i32>, IndexE
         map
     };
     for _game in 0..num_games {
-        let player_card: i32 = rand::gen_range(1, 13);
-        let dealer_card: i32 = rand::gen_range(1, 13);
+        let player_card: i32 = rand::thread_rng().gen_range(1..=13);
+        let dealer_card: i32 = rand::thread_rng().gen_range(1..=13);
         if player_card > dealer_card {
             results.insert("wins", results.get("wins").cloned().unwrap_or_default() + 1);
         } else {
@@ -340,7 +299,7 @@ pub fn simulate_population_growth(
     let mut populations: Vec<i32> = vec![initial_population];
     let mut current_population: i32 = initial_population;
     for _generation in 0..num_generations {
-        let random_factor: f64 = rand::random() * 0.2 - 0.1;
+        let random_factor: f64 = rand::random::<f64>() * 0.2 - 0.1;
         let actual_growth: f64 = growth_rate + random_factor;
         let growth: i32 = ((current_population) as f64 * actual_growth) as i32;
         current_population = current_population + growth;
@@ -387,16 +346,7 @@ pub fn analyze_population_trend(
     } else {
         0.0
     };
-    let mut peak: i32 = {
-        let base = &populations;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    };
+    let mut peak: i32 = populations.get(0usize).cloned().unwrap_or_default();
     for pop in populations.iter().cloned() {
         if pop > peak {
             peak = pop;
@@ -422,104 +372,78 @@ pub fn analyze_population_trend(
 #[doc = "Run comprehensive simulation suite"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn run_simulations() {
+pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "=== Comprehensive Simulation Demo ===");
-    random.seed(42);
+    {
+        let _seed = 42;
+        ()
+    };
     println!("{}", "\n1. Dice Rolling Simulation");
-    println!("{}", format!("   Simulated {} rolls of 2d6", 1000));
+    let dice_results: HashMap<i32, i32> = simulate_dice_rolls(2, 6, 1000)?;
+    println!("{}", format!("   Simulated {:?} rolls of 2d6", 1000));
     println!(
         "{}",
-        format!("   Unique outcomes: {}", dice_results.len() as i32)
+        format!("   Unique outcomes: {:?}", dice_results.len() as i32)
     );
     println!("{}", "\n2. Coin Flip Sequence");
-    let mut flips: Vec<String> = coin_flip_sequence(100);
+    let mut flips: Vec<String> = coin_flip_sequence(100)?;
+    let streaks: HashMap<String, i32> = count_streaks(&flips)?;
     println!(
         "{}",
         format!(
-            "   100 flips, max heads streak: {}",
+            "   100 flips, max heads streak: {:?}",
             streaks.get("max_heads").cloned().unwrap_or_default()
         )
     );
     println!("{}", "\n3. Monte Carlo Pi Estimation");
+    let pi_result: (f64, f64) = monte_carlo_pi_estimation(10000)?;
     println!(
         "{}",
         format!(
-            "   Pi estimate: {}, Error: {}",
-            {
-                let base = &pi_result;
-                let idx: i32 = 0;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            },
-            {
-                let base = &pi_result;
-                let idx: i32 = 1;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            }
+            "   Pi estimate: {:?}, Error: {:?}",
+            pi_result.get(0usize).cloned().unwrap_or_default(),
+            pi_result.get(1usize).cloned().unwrap_or_default()
         )
     );
     println!("{}", "\n4. Random Walk Simulation");
-    let final_pos: (i32, i32) = simulate_random_walk(1000);
+    let final_pos: (i32, i32) = simulate_random_walk(1000)?;
+    let distance: f64 = calculate_walk_distance(final_pos)?;
     println!(
         "{}",
         format!(
-            "   Final position:({}, {}), Distance: {}",
-            {
-                let base = &final_pos;
-                let idx: i32 = 0;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            },
-            {
-                let base = &final_pos;
-                let idx: i32 = 1;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            },
+            "   Final position:({:?}, {:?}), Distance: {:?}",
+            final_pos.get(0usize).cloned().unwrap_or_default(),
+            final_pos.get(1usize).cloned().unwrap_or_default(),
             distance
         )
     );
     println!("{}", "\n5. Queue System Simulation");
+    let queue_stats: HashMap<String, f64> = simulate_queue_system(100, (1, 5))?;
     println!(
         "{}",
         format!(
-            "   Avg wait time: {}",
+            "   Avg wait time: {:?}",
             queue_stats.get("avg_wait").cloned().unwrap_or_default()
         )
     );
     println!("{}", "\n6. Card Game Simulation");
-    let game_results: HashMap<String, i32> = simulate_card_game(1000);
+    let game_results: HashMap<String, i32> = simulate_card_game(1000)?;
+    let win_rate: f64 = calculate_win_rate(&game_results)?;
     println!(
         "{}",
         format!(
-            "   Win rate: {}, Wins: {}",
+            "   Win rate: {:?}, Wins: {:?}",
             win_rate,
             game_results.get("wins").cloned().unwrap_or_default()
         )
     );
     println!("{}", "\n7. Population Growth Simulation");
-    let mut populations: Vec<i32> = simulate_population_growth(100, 0.1, 20);
+    let mut populations: Vec<i32> = simulate_population_growth(100, 0.1, 20)?;
+    let pop_analysis: HashMap<String, f64> = analyze_population_trend(&populations)?;
     println!(
         "{}",
         format!(
-            "   Final population: {}",
+            "   Final population: {:?}",
             pop_analysis
                 .get("final_population")
                 .cloned()
@@ -527,6 +451,7 @@ pub fn run_simulations() {
         )
     );
     println!("{}", "\n=== All Simulations Complete ===");
+    Ok(())
 }
 #[cfg(test)]
 mod tests {

@@ -1,7 +1,6 @@
-use serde_json;
 #[doc = "Pattern: accumulator - should suggest iterator methods."]
 #[doc = " Depyler: verified panic-free"]
-pub fn accumulator_pattern(items: &serde_json::Value) -> Vec<serde_json::Value> {
+pub fn accumulator_pattern(items: &str) -> Vec<String> {
     let mut result = vec![];
     for item in items.iter().cloned() {
         if item > 0 {
@@ -13,7 +12,7 @@ pub fn accumulator_pattern(items: &serde_json::Value) -> Vec<serde_json::Value> 
 #[doc = "Pattern: returning None for errors - should suggest Result."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn error_with_none(value: serde_json::Value) {
+pub fn error_with_none(value: String) {
     if !validate(value) {
         return;
     }
@@ -26,7 +25,7 @@ pub fn error_with_none(value: serde_json::Value) {
 #[doc = "Pattern: mutating parameters - should suggest ownership patterns."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn mutating_parameter(mut data: serde_json::Value) {
+pub fn mutating_parameter(mut data: String) {
     data.push(42);
     data.sort();
     data
@@ -34,7 +33,7 @@ pub fn mutating_parameter(mut data: serde_json::Value) {
 #[doc = "Pattern: runtime type checking - should suggest enums."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn type_checking_pattern(value: &str) {
+pub fn type_checking_pattern(value: &str) -> String {
     if true {
         value.to_uppercase()
     } else {
@@ -47,7 +46,7 @@ pub fn type_checking_pattern(value: &str) {
 }
 #[doc = "Pattern: string concatenation - should suggest efficient methods."]
 #[doc = " Depyler: verified panic-free"]
-pub fn inefficient_string_building(items: &serde_json::Value) -> String {
+pub fn inefficient_string_building(items: &str) -> String {
     let mut result = "";
     for item in items.iter().cloned() {
         result = format!("{}{}", format!("{}{}", result, item.to_string()), ", ");
@@ -57,7 +56,7 @@ pub fn inefficient_string_building(items: &serde_json::Value) -> String {
 #[doc = "Pattern: range(len()) - should suggest enumerate."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn enumerate_pattern(items: &serde_json::Value) {
+pub fn enumerate_pattern(items: &str) {
     for _i in 0..items.len() as i32 {
         println!(
             "{}",
@@ -71,7 +70,7 @@ pub fn enumerate_pattern(items: &serde_json::Value) {
 }
 #[doc = "Pattern: filter + map in loop - should suggest filter_map."]
 #[doc = " Depyler: verified panic-free"]
-pub fn filter_map_pattern(data: &mut serde_json::Value) -> Vec<serde_json::Value> {
+pub fn filter_map_pattern(data: &mut str) -> Vec<String> {
     let mut output = vec![];
     for x in data.iter().cloned() {
         if x > 0 {
@@ -95,7 +94,7 @@ pub fn while_true_pattern() -> i32 {
 #[doc = "Pattern: None checking - should suggest pattern matching."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn none_checking_pattern(optional_value: serde_json::Value) {
+pub fn none_checking_pattern(optional_value: String) {
     if optional_value.is_some() {
         process(optional_value)
     } else {
@@ -104,17 +103,17 @@ pub fn none_checking_pattern(optional_value: serde_json::Value) {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn validate(x: &serde_json::Value) {
+pub fn validate(x: &str) -> bool {
     x > 0
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn process_data(x: &serde_json::Value) {
+pub fn process_data(x: &str) -> i32 {
     x * 2
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn process(x: serde_json::Value) {
+pub fn process(x: String) {
     x
 }
 #[doc = " Depyler: verified panic-free"]

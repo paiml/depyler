@@ -1,4 +1,3 @@
-use serde_json;
 #[derive(Debug, Clone)]
 pub struct ResourceManager {
     pub name: String,
@@ -15,12 +14,7 @@ impl ResourceManager {
         self.is_open = true;
         return self;
     }
-    pub fn __exit__(
-        &mut self,
-        exc_type: serde_json::Value,
-        exc_val: serde_json::Value,
-        exc_tb: serde_json::Value,
-    ) {
+    pub fn __exit__(&mut self, exc_type: String, exc_val: String, exc_tb: String) {
         self.is_open = false;
         return false;
     }
@@ -58,11 +52,9 @@ impl Counter {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_with_statement() {
-    {
-        let _context = ResourceManager::new("test".to_string().to_string());
-        let rm = _context.__enter__();
-        let result = rm.use_resource();
-    }
+    let _context = ResourceManager::new("test".to_string().to_string());
+    let rm = _context.__enter__();
+    let result = rm.use_resource();
     result
 }
 #[doc = "Demonstrate iterator protocol"]
