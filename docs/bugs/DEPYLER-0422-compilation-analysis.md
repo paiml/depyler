@@ -186,20 +186,26 @@ For each fix:
 - Errors: 1297 → 1166 (-131 errors, -10.1%)
 - Committed: 9c5188a
 
-### E0277 Analysis (In Progress)
+### 2025-11-18: DEPYLER-0422 Fix #2 COMPLETED
+**Index Type Casting - Remove Overly Broad 'data' Heuristic**
+
 **Root Cause (Five-Whys):**
-1. Why: `.get()` receives `&i32` instead of `usize`
-2. Why: Method call generation doesn't check type requirements
-3. Why: No special handling for `.get()` on Vec/slice
-4. Why: Line 8875-8876 routes all `.get()` calls to dict handler
-5. **ROOT CAUSE:** List/Vec `.get()` needs special case to cast integer indices to `usize`
+1. Why: `sorted_data.get(&mid)` generates `&i32` instead of `usize`
+2. Why: `is_string_index()` returns true for `sorted_data[mid]`
+3. Why: Variable name contains 'data' (line 9187)
+4. Why: Heuristic assumes 'data' suggests HashMap
+5. **ROOT CAUSE:** Overly broad heuristic catches list variables like `sorted_data`, `dataset`, etc.
 
-**Solution:** Add list `.get()` handler before line 8875 that:
-- Checks if object is list/Vec (not dict)
-- Casts integer arguments to `usize`
-- Generates: `.get(index as usize)` instead of `.get(&index)`
+✅ **Implemented:**
+- Removed 'data' from dict detection heuristic in `is_string_index()` (expr_gen.rs:9184-9187)
+- Keep only 'dict' and 'map' which are more specific to HashMap variables
+- List variables like `sorted_data` now correctly classified as Vec/List
 
-**Files Affected:** Many (data_analysis_combined.rs shows typical case)
+✅ **Impact:**
+- Errors: 1166 → 1162 (-4 errors, -0.3%)
+- Fixed E0277 list indexing errors in data_analysis_combined.rs
+- Generated code: `sorted_data.get(mid as usize)` instead of `.get(&mid)`
+- Committed: e5a7dac
 
 ## Notes
 
