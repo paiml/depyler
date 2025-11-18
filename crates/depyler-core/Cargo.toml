@@ -33,6 +33,11 @@ default = []
 wasm = ["web-time"]
 deterministic = []
 ruchy = []
+# Chaos engineering features (renacer pattern)
+chaos-basic = []
+chaos-network = ["chaos-basic"]
+chaos-byzantine = ["chaos-basic"]
+chaos-full = ["chaos-network", "chaos-byzantine"]
 
 [dependencies.web-time]
 workspace = true
