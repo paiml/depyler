@@ -243,3 +243,68 @@ For each fix:
 1. Implement E0277 fix (index casting) - HIGH IMPACT
 2. Implement E0308-C (&str → String) - MEDIUM IMPACT
 3. Consider numpy/trueno integration - COMPLEX
+
+### 2025-11-18 Session 2: DEPYLER-0422 Fixes #10-12 COMPLETED
+
+#### Fix #10: Method Return Type Inference
+**Root Cause (Five-Whys):**
+1. Why: `__exit__` methods have wrong return type `-> ()`
+2. Why: Method return type defaults to Type::None when not annotated
+3. Why: No return type inference for methods (only functions)
+4. Why: infer_function_return_type only used in func_gen.rs
+5. **ROOT CAUSE:** Method code generation doesn't use return type inference
+
+✅ **Implemented:**
+- Added `infer_method_return_type()` in direct_rules.rs (lines 644-818)
+- Similar logic to function inference, analyzes method body return statements
+- Applied when method return type is Type::Unknown or Type::None
+
+✅ **Impact:**
+- Errors: 947 → 945 (-2 errors)
+- Committed: 829e61b
+
+---
+
+#### Fix #11: IntEnum/Enum Constant Generation
+**Root Cause (Five-Whys):**
+1. Why: E0423 - expected value, found struct 'Color'
+2. Why: Code generates `Color.RED` (field access) instead of `Color::RED`
+3. Why: Python IntEnum members not extracted as const fields
+4. Why: ast_bridge skips simple assignments in enum classes
+5. **ROOT CAUSE:** Two bugs - (a) enum members not extracted, (b) attribute access uses dot instead of ::
+
+✅ **Implemented:**
+- Part 1: ast_bridge.rs (lines 577-623) - Extract IntEnum members as `pub const` fields
+- Part 2: expr_gen.rs (lines 9968-9986) - Detect TypeName.CONSTANT → TypeName::CONSTANT
+
+✅ **Impact:**
+- E0423 errors: 55 → 4 (-51 errors, -93%)
+- Committed: 0578642
+
+---
+
+#### Fix #12: HashMap Borrowing
+**Root Cause (Five-Whys):**
+1. Why: E0308 - expected `&_`, found `String` for contains_key(item)
+2. Why: Transpiler doesn't add & when item is owned
+3. Why: needs_borrow returns false when type is Type::String
+4. Why: Logic is inverted: !matches!(...Type::String) returns false for owned String
+5. **ROOT CAUSE:** Borrowing detection logic backwards + HIR Type::String doesn't distinguish owned vs borrowed
+
+✅ **Implemented:**
+- Simplified needs_borrow to always return true (expr_gen.rs:151-163)
+- Always add & for HashMap methods since HIR can't distinguish owned vs borrowed
+
+✅ **Impact:**
+- 61 files changed (+1678 -808 lines)
+- HashMap E0308 borrowing errors eliminated
+- Committed: 98064a0
+
+**Session 2 Final Status:**
+- Files compiling: 44/186 (24%)
+- Total errors: 1328
+  - E0308: 313
+  - E0433: 181 (external crates - not transpiler bugs)
+  - E0599: 171
+  - E0423: 6
+

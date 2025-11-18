@@ -987,3 +987,57 @@ deploy-status: ## Show deployment status for all platforms
 	@echo "⏳ Homebrew:     Not yet submitted"
 	@echo "⏳ AUR:          Not yet submitted"
 	@echo "✅ GitHub:       https://github.com/paiml/depyler"
+##@ Chaos Engineering & Fuzz Testing (Renacer Pattern)
+
+.PHONY: tier1 tier2 tier3 chaos-test fuzz chaos-gentle chaos-aggressive chaos-full
+
+tier1: ## Fast tests (<5s) - Format, clippy, unit tests
+	@echo "🔬 Tier 1: Fast validation (<5s)"
+	@$(CARGO) fmt --check
+	@$(CARGO) clippy --all-targets --all-features -- -D warnings
+	@$(CARGO) test --lib --quiet
+
+tier2: tier1 ## Integration tests (<30s) - Tier1 + integration
+	@echo "🔬 Tier 2: Integration tests (<30s)"
+	@$(CARGO) test --tests --quiet
+
+tier3: tier2 ## Full validation (<5m) - Tier2 + all features
+	@echo "🔬 Tier 3: Full validation (<5m)"
+	@$(CARGO) test --all-targets --all-features --quiet
+
+chaos-test: ## Chaos engineering tests (basic)
+	@echo "💥 Running chaos engineering tests..."
+	@$(CARGO) test -p depyler-core --test chaos_tests --features chaos-basic
+
+chaos-gentle: ## Gentle chaos testing (development)
+	@echo "💥 Running gentle chaos tests..."
+	@$(CARGO) test --features chaos-basic -- --nocapture chaos_tests::test_gentle_preset
+
+chaos-aggressive: ## Aggressive chaos testing (CI/CD)
+	@echo "💥 Running aggressive chaos tests..."
+	@$(CARGO) test --features chaos-basic -- --nocapture chaos_tests::test_aggressive_preset
+
+chaos-full: ## Full chaos testing (network + byzantine)
+	@echo "💥 Running full chaos test suite..."
+	@$(CARGO) test --features chaos-full --quiet
+
+fuzz: ## Fuzz testing (60s) - Requires nightly Rust
+	@if ! rustup toolchain list | grep -q nightly; then \
+		echo "❌ Nightly Rust not found! Install with: rustup install nightly"; \
+		exit 1; \
+	fi
+	@echo "🎲 Running fuzz testing (60s)..."
+	@$(CARGO) +nightly fuzz run fuzz_target_1 -- -max_total_time=60
+
+fuzz-long: ## Fuzz testing (10 minutes)
+	@echo "🎲 Running extended fuzz testing (10m)..."
+	@$(CARGO) +nightly fuzz run fuzz_target_1 -- -max_total_time=600
+
+fuzz-coverage: ## Fuzz with coverage report
+	@echo "🎲 Running fuzz testing with coverage..."
+	@$(CARGO) +nightly fuzz coverage fuzz_target_1
+	@$(CARGO) +nightly cov -- show target/*/release/fuzz_target_1 \
+		--format=html -instr-profile=fuzz/coverage/fuzz_target_1/coverage.profdata \
+		> fuzz-coverage.html
+	@echo "✅ Coverage report: fuzz-coverage.html"
+
