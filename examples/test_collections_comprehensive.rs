@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::collections::IndexMap;
 use std::collections::VecDeque;
+const STR_A: &'static str = "a";
 const STR_B: &'static str = "b";
 const STR_APPLE: &'static str = "apple";
-const STR_A: &'static str = "a";
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -247,7 +247,7 @@ pub fn test_ordereddict_move_to_end() -> Vec<String> {
 }
 #[doc = "Test ChainMap-like lookup(manual)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_chainmap<'a, 'b>(
+pub fn test_chainmap<'b, 'a>(
     dict1: &'a HashMap<String, i32>,
     dict2: &'b HashMap<String, i32>,
 ) -> Result<i32, IndexError> {
@@ -384,7 +384,7 @@ pub fn test_all_collections_features() -> Result<(), Box<dyn std::error::Error>>
     let deque_pops: (i32, i32) = test_deque_pop();
     let deque_extended: Vec<i32> = test_deque_extend();
     let deque_rotated: Vec<i32> = test_deque_rotate();
-    let mut counts: HashMap<String, i32> = test_counter_basic();
+    let mut counts: HashMap<String, i32> = test_counter_basic()?;
     let items: Vec<String> = vec![
         STR_A.to_string(),
         STR_B.to_string(),
@@ -395,10 +395,10 @@ pub fn test_all_collections_features() -> Result<(), Box<dyn std::error::Error>>
         "d".to_string(),
         STR_A.to_string(),
     ];
-    let most_common: Vec<(String, i32)> = test_counter_most_common(&items, 2);
-    let merged: HashMap<String, i32> = test_counter_arithmetic();
+    let most_common: Vec<(String, i32)> = test_counter_most_common(&items, 2)?;
+    let merged: HashMap<String, i32> = test_counter_arithmetic()?;
     let int_default: HashMap<String, i32> = test_defaultdict_int();
-    let list_default: HashMap<String, Vec<i32>> = test_defaultdict_list();
+    let list_default: HashMap<String, Vec<i32>> = test_defaultdict_list()?;
     let ordered: Vec<(String, i32)> = test_ordereddict_basic();
     let moved: Vec<String> = test_ordereddict_move_to_end();
     let d1: HashMap<String, i32> = {
@@ -413,9 +413,9 @@ pub fn test_all_collections_features() -> Result<(), Box<dyn std::error::Error>>
         map.insert("z".to_string(), 4);
         map
     };
-    let chain_result: i32 = test_chainmap(&d1, &d2);
+    let chain_result: i32 = test_chainmap(&d1, &d2)?;
     let text: String = "hello world hello python world".to_string();
-    let mut freq: HashMap<String, i32> = word_frequency_counter(text);
+    let mut freq: HashMap<String, i32> = word_frequency_counter(text)?;
     let words: Vec<String> = vec![
         STR_APPLE.to_string(),
         "banana".to_string(),
@@ -423,7 +423,7 @@ pub fn test_all_collections_features() -> Result<(), Box<dyn std::error::Error>>
         "blueberry".to_string(),
         "cherry".to_string(),
     ];
-    let grouped: HashMap<String, Vec<String>> = group_by_first_letter(&words);
+    let grouped: HashMap<String, Vec<String>> = group_by_first_letter(&words)?;
     let stack_result: Vec<i32> = test_deque_as_stack();
     let queue_result: Vec<i32> = test_deque_as_queue();
     let lru_result: Vec<i32> = test_lru_cache_manual(3);

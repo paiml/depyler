@@ -396,27 +396,27 @@ pub fn test_all_datetime_features() -> Result<(), Box<dyn std::error::Error>> {
     let past_date: date = test_date_subtraction();
     let birth: date = chrono::NaiveDate::from_ymd_opt(1990 as i32, 5 as u32, 15 as u32).unwrap();
     let today: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 5 as u32).unwrap();
-    let age: i32 = calculate_age(birth, today);
+    let age: i32 = calculate_age(birth, today)?;
     let event: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 12 as u32, 31 as u32).unwrap();
     let days_left: i32 = days_until_event(event, today);
-    let is_leap_2024: bool = is_leap_year(2024);
-    let is_leap_2025: bool = is_leap_year(2025);
-    let days_feb_2024: i32 = days_in_month(2024, 2);
-    let days_feb_2025: i32 = days_in_month(2025, 2);
+    let is_leap_2024: bool = is_leap_year(2024)?;
+    let is_leap_2025: bool = is_leap_year(2025)?;
+    let days_feb_2024: i32 = days_in_month(2024, 2)?;
+    let days_feb_2025: i32 = days_in_month(2025, 2)?;
     let delta_str: String = test_timedelta_components();
     let cmp_dt: bool = test_datetime_comparison();
     let cmp_date: bool = test_date_comparison();
     let start: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 1 as u32, 1 as u32).unwrap();
     let end: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 12 as u32, 31 as u32).unwrap();
-    let work_days: i32 = working_days_between(start, end);
-    let future: date = add_business_days(today, 10);
+    let work_days: i32 = working_days_between(start, end)?;
+    let future: date = add_business_days(today, 10)?;
     let formatted: String = test_datetime_formatting();
     let range_start: date =
         chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 1 as u32).unwrap();
     let range_end: date =
         chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 7 as u32).unwrap();
     let date_list: Vec<date> = test_date_range(range_start, range_end);
-    let meeting_end: i32 = test_time_arithmetic();
+    let meeting_end: i32 = test_time_arithmetic()?;
     let q: i32 = quarter_of_year(today);
     println!("{}", "All datetime module tests completed successfully");
     Ok(())
