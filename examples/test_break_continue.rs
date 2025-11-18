@@ -42,7 +42,7 @@ pub fn test_simple_continue() -> Result<(), ZeroDivisionError> {
 pub fn test_nested_break() {
     for i in 0..3 {
         for j in 0..3 {
-            if i == 1 && j == 1 {
+            if (i == 1) && (j == 1) {
                 break;
             }
             println!("{} {}", i, j);

@@ -211,7 +211,7 @@ pub fn binary_search_contains(arr: Vec<i32>, target: i32) -> Result<bool, IndexE
     let _cse_temp_0 = arr.len() as i32;
     let _cse_temp_1 = position < _cse_temp_0;
     let _cse_temp_2 = arr.get(position as usize).cloned().unwrap_or_default() == target;
-    let _cse_temp_3 = _cse_temp_1 && _cse_temp_2;
+    let _cse_temp_3 = (_cse_temp_1) && (_cse_temp_2);
     if _cse_temp_3 {
         Ok(true)
     } else {
@@ -238,7 +238,7 @@ pub fn find_range(arr: Vec<i32>, target: i32) -> Result<(), IndexError> {
     let _cse_temp_0 = arr.len() as i32;
     let _cse_temp_1 = start < _cse_temp_0;
     let _cse_temp_2 = arr.get(start as usize).cloned().unwrap_or_default() == target;
-    let _cse_temp_3 = _cse_temp_1 && _cse_temp_2;
+    let _cse_temp_3 = (_cse_temp_1) && (_cse_temp_2);
     if _cse_temp_3 {
         Ok((start, end - 1))
     } else {
@@ -301,7 +301,7 @@ pub fn merge_sorted_arrays<'a, 'b>(
     let mut result: Vec<i32> = vec![];
     let mut i: i32 = 0;
     let mut j: i32 = 0;
-    while i < arr1.len() as i32 && j < arr2.len() as i32 {
+    while (i < arr1.len() as i32) && (j < arr2.len() as i32) {
         if arr1.get(i as usize).cloned().unwrap_or_default()
             <= arr2.get(j as usize).cloned().unwrap_or_default()
         {

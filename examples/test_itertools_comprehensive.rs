@@ -167,7 +167,7 @@ pub fn test_dropwhile(numbers: &Vec<i32>, threshold: i32) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     let mut dropping: bool = true;
     for num in numbers.iter().cloned() {
-        if dropping && num < threshold {
+        if (dropping) && (num < threshold) {
             continue;
         }
         dropping = false;
@@ -234,7 +234,7 @@ pub fn test_groupby_manual(items: &Vec<i32>) -> Result<Vec<(bool, Vec<i32>)>, Ze
 }
 #[doc = "Test compress() to filter data by selectors"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_compress<'b, 'a>(
+pub fn test_compress<'a, 'b>(
     data: &'a Vec<String>,
     selectors: &'b Vec<bool>,
 ) -> Result<Vec<String>, IndexError> {
@@ -270,7 +270,7 @@ pub fn flatten_nested_lists(nested: &Vec<Vec<i32>>) -> Vec<i32> {
 }
 #[doc = "Manual implementation of Cartesian product"]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product_manual<'a, 'b>(
+pub fn cartesian_product_manual<'b, 'a>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
 ) -> Vec<(i32, i32)> {
@@ -379,7 +379,7 @@ pub fn test_nth_item(items: &Vec<i32>, n: i32, default: i32) -> Result<i32, Inde
     let _cse_temp_0 = n < 0;
     let _cse_temp_1 = items.len() as i32;
     let _cse_temp_2 = n >= _cse_temp_1;
-    let _cse_temp_3 = _cse_temp_0 || _cse_temp_2;
+    let _cse_temp_3 = (_cse_temp_0) || (_cse_temp_2);
     if _cse_temp_3 {
         return Ok(default);
     }

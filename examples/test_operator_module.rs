@@ -91,7 +91,7 @@ pub fn test_comparison_operators() -> bool {
     let gt: bool = _cse_temp_4;
     let _cse_temp_5 = a >= b;
     let ge: bool = _cse_temp_5;
-    gt && ne
+    (gt) && (ne)
 }
 #[doc = "Test logical operator functions"]
 #[doc = " Depyler: verified panic-free"]
@@ -99,12 +99,12 @@ pub fn test_comparison_operators() -> bool {
 pub fn test_logical_operators() -> bool {
     let a: bool = true;
     let b: bool = false;
-    let _cse_temp_0 = a && b;
+    let _cse_temp_0 = (a) && (b);
     let and_result: bool = _cse_temp_0;
-    let _cse_temp_1 = a || b;
+    let _cse_temp_1 = (a) || (b);
     let or_result: bool = _cse_temp_1;
     let not_result: bool = !a;
-    or_result && !and_result
+    (or_result) && (!and_result)
 }
 #[doc = "Test bitwise operator functions"]
 #[doc = " Depyler: verified panic-free"]
@@ -359,7 +359,7 @@ pub fn test_truthiness() -> bool {
     let _cse_temp_2 = full_list.len() as i32;
     let _cse_temp_3 = _cse_temp_2 > 0;
     let full_is_true: bool = _cse_temp_3;
-    empty_is_false && full_is_true
+    (empty_is_false) && (full_is_true)
 }
 #[doc = "Test identity operators"]
 #[doc = " Depyler: verified panic-free"]
@@ -372,7 +372,7 @@ pub fn test_identity() -> bool {
     let equal: bool = _cse_temp_0;
     let _cse_temp_1 = a != c;
     let different: bool = _cse_temp_1;
-    equal && different
+    (equal) && (different)
 }
 #[doc = "Test chained comparisons"]
 #[doc = " Depyler: verified panic-free"]
@@ -380,7 +380,7 @@ pub fn test_identity() -> bool {
 pub fn chain_comparisons(x: i32, low: i32, high: i32) -> bool {
     let _cse_temp_0 = low <= x;
     let _cse_temp_1 = x <= high;
-    let _cse_temp_2 = _cse_temp_0 && _cse_temp_1;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
     let in_range: bool = _cse_temp_2;
     in_range
 }
