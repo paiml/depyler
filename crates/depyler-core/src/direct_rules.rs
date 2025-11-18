@@ -641,6 +641,115 @@ fn stmt_mutates_self(stmt: &HirStmt) -> bool {
     }
 }
 
+/// DEPYLER-0422 Fix #10: Infer return type from method body
+/// Similar to infer_return_type_from_body in func_gen.rs
+fn infer_method_return_type(body: &[HirStmt]) -> Option<Type> {
+    let mut return_types = Vec::new();
+    collect_method_return_types(body, &mut return_types);
+
+    if return_types.is_empty() {
+        return None;
+    }
+
+    // If all return types are the same (ignoring Unknown), use that type
+    let first_known = return_types.iter().find(|t| !matches!(t, Type::Unknown));
+    if let Some(first) = first_known {
+        if return_types
+            .iter()
+            .all(|t| matches!(t, Type::Unknown) || t == first)
+        {
+            return Some(first.clone());
+        }
+    }
+
+    // Mixed types - return first known
+    first_known.cloned()
+}
+
+/// Collect return types from method body statements
+fn collect_method_return_types(stmts: &[HirStmt], types: &mut Vec<Type>) {
+    for stmt in stmts {
+        match stmt {
+            HirStmt::Return(Some(expr)) => {
+                types.push(infer_expr_type(expr));
+            }
+            HirStmt::Return(None) => {
+                types.push(Type::None);
+            }
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                collect_method_return_types(then_body, types);
+                if let Some(else_stmts) = else_body {
+                    collect_method_return_types(else_stmts, types);
+                }
+            }
+            HirStmt::For { body, .. } | HirStmt::While { body, .. } => {
+                collect_method_return_types(body, types);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Infer type from expression
+fn infer_expr_type(expr: &HirExpr) -> Type {
+    match expr {
+        HirExpr::Literal(lit) => match lit {
+            Literal::Int(_) => Type::Int,
+            Literal::Float(_) => Type::Float,
+            Literal::String(_) => Type::String,
+            Literal::Bool(_) => Type::Bool,
+            Literal::None => Type::None,
+            Literal::Bytes(_) => Type::Unknown,
+        },
+        HirExpr::Binary { op, left, right } => {
+            // Comparison operators return bool
+            if matches!(
+                op,
+                BinOp::Eq
+                    | BinOp::NotEq
+                    | BinOp::Lt
+                    | BinOp::LtEq
+                    | BinOp::Gt
+                    | BinOp::GtEq
+                    | BinOp::In
+                    | BinOp::NotIn
+            ) {
+                return Type::Bool;
+            }
+            // For arithmetic, infer from operands
+            let left_type = infer_expr_type(left);
+            if !matches!(left_type, Type::Unknown) {
+                left_type
+            } else {
+                infer_expr_type(right)
+            }
+        }
+        HirExpr::Unary { op, operand } => {
+            if matches!(op, UnaryOp::Not) {
+                Type::Bool
+            } else {
+                infer_expr_type(operand)
+            }
+        }
+        HirExpr::List(elems) => {
+            if elems.is_empty() {
+                Type::List(Box::new(Type::Unknown))
+            } else {
+                Type::List(Box::new(infer_expr_type(&elems[0])))
+            }
+        }
+        HirExpr::Tuple(elems) => {
+            let elem_types: Vec<Type> = elems.iter().map(infer_expr_type).collect();
+            Type::Tuple(elem_types)
+        }
+        _ => Type::Unknown,
+    }
+}
+
 fn convert_method_to_impl_item(
     method: &HirMethod,
     type_mapper: &TypeMapper,
@@ -694,8 +803,20 @@ fn convert_method_to_impl_item(
         }));
     }
 
-    // Convert return type
-    let rust_ret_type = type_mapper.map_type(&method.ret_type);
+    // Convert return type - infer if Unknown or None (DEPYLER-0422 Fix #10)
+    // Five-Whys Root Cause:
+    // 1. Why: expected `()`, found `bool` in __exit__ method
+    // 2. Why: Method has no return type annotation, so ret_type is Unknown/None
+    // 3. Why: convert_method_to_impl_item uses type_mapper.map_type directly
+    // 4. Why: No return type inference is applied to class methods
+    // 5. ROOT CAUSE: direct_rules.rs doesn't infer return type for methods
+    let effective_ret_type = if matches!(method.ret_type, Type::Unknown | Type::None) {
+        // Try to infer from body - if we find a typed return, use it
+        infer_method_return_type(&method.body).unwrap_or_else(|| method.ret_type.clone())
+    } else {
+        method.ret_type.clone()
+    };
+    let rust_ret_type = type_mapper.map_type(&effective_ret_type);
     let ret_type = rust_type_to_syn_type(&rust_ret_type)?;
 
     // Convert method body
@@ -726,7 +847,7 @@ fn convert_method_to_impl_item(
             paren_token: syn::token::Paren::default(),
             inputs,
             variadic: None,
-            output: if matches!(method.ret_type, Type::None) {
+            output: if matches!(effective_ret_type, Type::None) {
                 syn::ReturnType::Default
             } else {
                 syn::ReturnType::Type(
