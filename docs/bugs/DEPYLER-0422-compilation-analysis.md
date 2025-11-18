@@ -171,13 +171,47 @@ For each fix:
 - **Phase 2 Target:** 96/142 files compiling (68%)
 - **Phase 3 Target:** 142/142 files compiling (100%)
 
+## Progress Log
+
+### 2025-11-18: DEPYLER-0422 Fix #1 COMPLETED
+**Logical Operators Truthiness Conversion**
+
+✅ **Implemented:**
+- Added truthiness conversion for `BinOp::And` and `BinOp::Or` in expr_gen.rs:483-497
+- Reuses existing `apply_truthiness_conversion()` helper
+- Converts non-bool operands: String/List/Dict/Set → `!expr.is_empty()`, Int → `expr != 0`, etc.
+
+✅ **Impact:**
+- Files compiling: 46 → 47 (+1 file, +0.6%)
+- Errors: 1297 → 1166 (-131 errors, -10.1%)
+- Committed: 9c5188a
+
+### E0277 Analysis (In Progress)
+**Root Cause (Five-Whys):**
+1. Why: `.get()` receives `&i32` instead of `usize`
+2. Why: Method call generation doesn't check type requirements
+3. Why: No special handling for `.get()` on Vec/slice
+4. Why: Line 8875-8876 routes all `.get()` calls to dict handler
+5. **ROOT CAUSE:** List/Vec `.get()` needs special case to cast integer indices to `usize`
+
+**Solution:** Add list `.get()` handler before line 8875 that:
+- Checks if object is list/Vec (not dict)
+- Casts integer arguments to `usize`
+- Generates: `.get(index as usize)` instead of `.get(&index)`
+
+**Files Affected:** Many (data_analysis_combined.rs shows typical case)
+
 ## Notes
 
 - Skip E0433/E0432 (external crate imports) - not transpiler bugs
 - Focus on systematic patterns, not one-off fixes
 - Each fix should help multiple files compile
 - Use five-whys for root cause, not symptoms
+- 16+ files have exactly 1 error (quick wins after major fixes)
 
 ---
 
-**Next Steps:** Implement Phase 1 fixes systematically, starting with logical operators truthiness conversion.
+**Next Steps:**
+1. Implement E0277 fix (index casting) - HIGH IMPACT
+2. Implement E0308-C (&str → String) - MEDIUM IMPACT
+3. Consider numpy/trueno integration - COMPLEX
