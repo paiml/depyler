@@ -20,13 +20,19 @@ impl Iterator for SimpleGeneratorState {
     fn next(&mut self) -> Option<Self::Item> {
         match self.state {
             0 => {
-                self.state = 1;
                 self.i = 0;
-                while self.i < self.n {
-                    return Some(self.i);
+                self.state = 1;
+                self.next()
+            }
+            1 => {
+                if self.i < self.n {
+                    let result = self.i;
                     self.i = self.i + 1;
+                    return Some(result);
+                } else {
+                    self.state = 2;
+                    None
                 }
-                None
             }
             _ => None,
         }
@@ -54,15 +60,21 @@ impl Iterator for FibonacciGeneratorState {
     fn next(&mut self) -> Option<Self::Item> {
         match self.state {
             0 => {
-                self.state = 1;
                 let (mut a, mut b) = (0, 1);
                 self.count = 0;
-                while self.count < self.n {
-                    return Some(a);
+                self.state = 1;
+                self.next()
+            }
+            1 => {
+                if self.count < self.n {
+                    let result = a;
                     (a, b) = (b, a + b);
                     self.count = self.count + 1;
+                    return Some(result);
+                } else {
+                    self.state = 2;
+                    None
                 }
-                None
             }
             _ => None,
         }
@@ -72,7 +84,7 @@ impl Iterator for FibonacciGeneratorState {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_generator() -> i32 {
-    return 42 as i32;
+    42
 }
 #[cfg(test)]
 mod tests {
@@ -84,22 +96,12 @@ mod tests {
         assert_eq!(simple_generator(1), 1);
         assert_eq!(simple_generator(-1), -1);
     }
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use quickcheck::{quickcheck, TestResult};
     #[test]
     fn test_fibonacci_generator_examples() {
         assert_eq!(fibonacci_generator(0), 0);
         assert_eq!(fibonacci_generator(1), 1);
         assert_eq!(fibonacci_generator(-1), -1);
     }
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use quickcheck::{quickcheck, TestResult};
     #[test]
     fn test_test_generator_examples() {
         let _ = test_generator();

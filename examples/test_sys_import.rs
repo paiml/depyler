@@ -19,7 +19,7 @@ pub fn get_command_args() -> Vec<String> {
 pub fn exit_with_error(message: String, code: i32) {
     {
         use std::io::Write;
-        write!(std::io::stderr(), "{}", format!("Error: {}\n", message)).unwrap();
+        write!(std::io::stderr(), "{}", format!("Error: {:?}\n", message)).unwrap();
     };
     std::process::exit(code);
 }

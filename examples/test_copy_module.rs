@@ -22,7 +22,7 @@ impl IndexError {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_shallow_copy_list() -> Vec<i32> {
     let original: Vec<i32> = vec![1, 2, 3, 4, 5];
-    let mut copied: Vec<i32> = original.clone();
+    let mut copied: Vec<i32> = (original).clone();
     copied.push(6);
     copied
 }
@@ -37,7 +37,7 @@ pub fn test_shallow_copy_dict() -> HashMap<String, i32> {
         map.insert("c".to_string(), 3);
         map
     };
-    let mut copied: HashMap<String, i32> = original.clone();
+    let mut copied: HashMap<String, i32> = (original).clone();
     copied.insert("d", 4);
     copied
 }
@@ -61,7 +61,7 @@ pub fn test_dict_copy_method() -> HashMap<String, String> {
         map
     };
     let mut copied: HashMap<String, String> = original.clone();
-    copied.insert("key3".to_string(), "value3");
+    copied.insert("key3".to_string(), "value3".to_string());
     copied
 }
 #[doc = "Test shallow copy behavior with nested lists"]
@@ -69,7 +69,7 @@ pub fn test_dict_copy_method() -> HashMap<String, String> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_nested_list_shallow_copy() -> Vec<Vec<i32>> {
     let original: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6]];
-    let mut copied: Vec<Vec<i32>> = original.clone();
+    let mut copied: Vec<Vec<i32>> = (original).clone();
     copied.push(vec![7, 8]);
     copied
 }
@@ -78,21 +78,11 @@ pub fn test_nested_list_shallow_copy() -> Vec<Vec<i32>> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_deep_copy_nested_list() -> Vec<Vec<i32>> {
     let original: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6]];
-    let mut copied: Vec<Vec<i32>> = copy.deepcopy(original);
+    let mut copied: Vec<Vec<i32>> = (original).clone();
     let _cse_temp_0 = copied.len() as i32;
     let _cse_temp_1 = _cse_temp_0 > 0;
     if _cse_temp_1 {
-        {
-            let base = &copied;
-            let idx: i32 = 0;
-            let actual_idx = if idx < 0 {
-                base.len().saturating_sub(idx.abs() as usize)
-            } else {
-                idx as usize
-            };
-            base.get(actual_idx).cloned().unwrap_or_default()
-        }
-        .push(99);
+        copied.get(0usize).cloned().unwrap_or_default().push(99);
     }
     copied
 }
@@ -116,7 +106,7 @@ pub fn test_deep_copy_nested_dict() -> HashMap<String, HashMap<String, i32>> {
         });
         map
     };
-    let mut copied: HashMap<String, HashMap<String, i32>> = copy.deepcopy(original);
+    let mut copied: HashMap<String, HashMap<String, i32>> = (original).clone();
     let _cse_temp_0 = copied.contains_key(&"group1");
     if _cse_temp_0 {
         copied
@@ -144,10 +134,7 @@ pub fn manual_shallow_copy_dict(
         map
     };
     for key in original.keys().cloned().collect::<Vec<_>>() {
-        copied.insert(
-            (key) as usize,
-            original.get(&key).cloned().unwrap_or_default(),
-        );
+        copied.insert(key, original.get(&key).cloned().unwrap_or_default());
     }
     Ok(copied)
 }
@@ -169,7 +156,7 @@ pub fn manual_deep_copy_nested_list(original: &Vec<Vec<i32>>) -> Vec<Vec<i32>> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_copy_with_modification() -> bool {
     let mut original: Vec<i32> = vec![1, 2, 3];
-    let mut copied: Vec<i32> = original.clone();
+    let mut copied: Vec<i32> = (original).clone();
     original.push(4);
     let _cse_temp_0 = copied.len() as i32;
     let _cse_temp_1 = original.len() as i32;
@@ -182,7 +169,7 @@ pub fn test_copy_with_modification() -> bool {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_reference_vs_copy() -> bool {
     let mut original: Vec<i32> = vec![1, 2, 3];
-    let mut copied: Vec<i32> = original.clone();
+    let mut copied: Vec<i32> = (original).clone();
     let reference: Vec<i32> = original;
     original.push(4);
     let _cse_temp_0 = copied.len() as i32;
@@ -215,7 +202,7 @@ pub fn clone_dict_with_filter(
     for key in original.keys().cloned().collect::<Vec<_>>() {
         let value: i32 = original.get(&key).cloned().unwrap_or_default();
         if value > threshold {
-            filtered.insert((key) as usize, value);
+            filtered.insert(key, value);
         }
     }
     Ok(filtered)
@@ -225,76 +212,90 @@ pub fn merge_copied_dicts<'a, 'b>(
     dict1: &'a HashMap<String, i32>,
     dict2: &'b HashMap<String, i32>,
 ) -> Result<HashMap<String, i32>, IndexError> {
-    let mut merged: HashMap<String, i32> = dict1.clone();
+    let mut merged: HashMap<String, i32> = (dict1).clone();
     for key in dict2.keys().cloned().collect::<Vec<_>>() {
-        merged.insert((key) as usize, dict2.get(&key).cloned().unwrap_or_default());
+        merged.insert(key, dict2.get(&key).cloned().unwrap_or_default());
     }
     Ok(merged)
 }
 #[doc = "Test copying empty collections"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_copy_empty_collections() -> tuple {
+pub fn test_copy_empty_collections() -> () {
     let empty_list: Vec<i32> = vec![];
     let empty_dict: HashMap<String, i32> = {
         let map = HashMap::new();
         map
     };
-    let copied_list: Vec<i32> = empty_list.clone();
-    let copied_dict: HashMap<String, i32> = empty_dict.clone();
+    let copied_list: Vec<i32> = (empty_list).clone();
+    let copied_dict: HashMap<String, i32> = (empty_dict).clone();
     (copied_list.len() as i32, copied_dict.len() as i32)
 }
 #[doc = "Test copying single-element collections"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_copy_single_element() -> tuple {
+pub fn test_copy_single_element() -> () {
     let single_list: Vec<i32> = vec![42];
     let single_dict: HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("answer", 42);
+        map.insert("answer".to_string(), 42);
         map
     };
-    let copied_list: Vec<i32> = single_list.clone();
-    let copied_dict: HashMap<String, i32> = single_dict.clone();
+    let copied_list: Vec<i32> = (single_list).clone();
+    let copied_dict: HashMap<String, i32> = (single_dict).clone();
     (
-        {
-            let base = &copied_list;
-            let idx: i32 = 0;
-            let actual_idx = if idx < 0 {
-                base.len().saturating_sub(idx.abs() as usize)
-            } else {
-                idx as usize
-            };
-            base.get(actual_idx).cloned().unwrap_or_default()
-        },
+        copied_list.get(0usize).cloned().unwrap_or_default(),
         copied_dict.get("answer").cloned().unwrap_or_default(),
     )
 }
 #[doc = "Run all copy module tests"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_all_copy_features() {
+pub fn test_all_copy_features() -> Result<(), Box<dyn std::error::Error>> {
+    let list_copy: Vec<i32> = test_shallow_copy_list()?;
+    let dict_copy: HashMap<String, i32> = test_shallow_copy_dict()?;
+    let list_method: Vec<i32> = test_list_copy_method()?;
+    let dict_method: HashMap<String, String> = test_dict_copy_method()?;
+    let nested_shallow: Vec<Vec<i32>> = test_nested_list_shallow_copy()?;
+    let nested_deep_list: Vec<Vec<i32>> = test_deep_copy_nested_list()?;
+    let nested_deep_dict: HashMap<String, HashMap<String, i32>> = test_deep_copy_nested_dict()?;
+    let manual_list: Vec<i32> = manual_shallow_copy_list(&vec![1, 2, 3])?;
+    let manual_dict: HashMap<String, i32> = manual_shallow_copy_dict(&{
+        let mut map = HashMap::new();
+        map.insert("x".to_string(), 10);
+        map.insert("y".to_string(), 20);
+        map
+    })?;
+    let manual_deep: Vec<Vec<i32>> = manual_deep_copy_nested_list(&vec![vec![1, 2], vec![3, 4]])?;
+    let is_independent: bool = test_copy_with_modification()?;
+    let ref_vs_copy: bool = test_reference_vs_copy()?;
     let data: Vec<i32> = vec![1, 2, 3, 4, 5];
+    let transformed: Vec<i32> = clone_list_with_transform(&data, 2)?;
     let scores: HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("alice", 85);
-        map.insert("bob", 72);
-        map.insert("charlie", 95);
+        map.insert("alice".to_string(), 85);
+        map.insert("bob".to_string(), 72);
+        map.insert("charlie".to_string(), 95);
         map
     };
+    let mut filtered: HashMap<String, i32> = clone_dict_with_filter(&scores, 80)?;
     let d1: HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("a", 1);
-        map.insert("b", 2);
+        map.insert("a".to_string(), 1);
+        map.insert("b".to_string(), 2);
         map
     };
     let d2: HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("c", 3);
-        map.insert("d", 4);
+        map.insert("c".to_string(), 3);
+        map.insert("d".to_string(), 4);
         map
     };
+    let mut merged: HashMap<String, i32> = merge_copied_dicts(&d1, &d2)?;
+    let empty_sizes: () = test_copy_empty_collections()?;
+    let single_values: () = test_copy_single_element()?;
     println!("{}", "All copy module tests completed successfully");
+    Ok(())
 }
 #[cfg(test)]
 mod tests {

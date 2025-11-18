@@ -18,11 +18,11 @@ impl Counter {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_counter() {
+pub fn test_counter() -> (String, String) {
     let mut c = Counter::new();
     c.increment();
     c.increment();
     let val = c.get_value();
-    let c2 = Counter.create_with_value(10);
+    let c2 = Counter::create_with_value(10);
     (val, c2.value)
 }

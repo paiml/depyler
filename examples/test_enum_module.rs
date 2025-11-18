@@ -33,8 +33,10 @@ pub fn test_enum_basic_access() -> i32 {
 pub fn test_enum_comparison() -> bool {
     let color1: i32 = Color.RED;
     let color2: i32 = Color.GREEN;
-    let _cse_temp_0 = color1 != color2;
-    let are_different: bool = _cse_temp_0;
+    let _cse_temp_0 = color1 == color2;
+    let are_equal: bool = _cse_temp_0;
+    let _cse_temp_1 = color1 != color2;
+    let are_different: bool = _cse_temp_1;
     are_different
 }
 #[doc = "Test getting enum name(simplified)"]
@@ -42,11 +44,13 @@ pub fn test_enum_comparison() -> bool {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_enum_to_name() -> String {
     let color: i32 = Color.BLUE;
-    let mut name: String = "";
+    let mut name: String = "".to_string();
     let _cse_temp_0 = color == Color.RED;
+    let mut name;
     if _cse_temp_0 {
         name = "RED";
     } else {
+        let mut name;
         if _cse_temp_0 {
             name = "GREEN";
         } else {
@@ -72,12 +76,13 @@ pub fn test_enum_from_value(value: i32) -> i32 {
     let _cse_temp_0 = value == Color.RED;
     let _cse_temp_1 = _cse_temp_0 || _cse_temp_0;
     let _cse_temp_2 = _cse_temp_1 || _cse_temp_0;
+    let mut result: i32;
     if _cse_temp_2 {
-        let mut result: i32 = value;
+        result = value;
     } else {
-        let mut result: i32 = Color.RED;
+        result = Color.RED;
     }
-    result.unwrap()
+    result
 }
 #[doc = "Test status enumeration"]
 #[doc = " Depyler: verified panic-free"]
@@ -96,12 +101,15 @@ pub fn test_status_enum() -> i32 {
 pub fn test_direction_enum() -> i32 {
     let mut current: i32 = Direction.NORTH;
     let _cse_temp_0 = current == Direction.NORTH;
+    let mut current;
     if _cse_temp_0 {
         current = Direction.EAST;
     } else {
+        let mut current;
         if _cse_temp_0 {
             current = Direction.SOUTH;
         } else {
+            let mut current;
             if _cse_temp_0 {
                 current = Direction.WEST;
             } else {
@@ -199,7 +207,7 @@ pub fn test_enum_count() -> i32 {
 #[doc = "Convert color enum to RGB values"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn color_to_rgb(color: i32) -> tuple {
+pub fn color_to_rgb(color: i32) -> () {
     let _cse_temp_0 = color == Color.RED;
     if _cse_temp_0 {
         (255, 0, 0)
@@ -253,12 +261,15 @@ pub fn process_by_status(mut status: i32, value: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_enum_flags() -> bool {
-    let _cse_temp_0 = 1 | 2;
+    let READ: i32 = 1;
+    let WRITE: i32 = 2;
+    let EXECUTE: i32 = 4;
+    let _cse_temp_0 = READ | WRITE;
     let permissions: i32 = _cse_temp_0;
-    let _cse_temp_1 = permissions & 1;
+    let _cse_temp_1 = permissions & READ;
     let _cse_temp_2 = _cse_temp_1 != 0;
     let has_read: bool = _cse_temp_2;
-    let _cse_temp_3 = permissions & 4;
+    let _cse_temp_3 = permissions & EXECUTE;
     let _cse_temp_4 = _cse_temp_3 != 0;
     let has_execute: bool = _cse_temp_4;
     has_read && !has_execute
@@ -287,7 +298,25 @@ pub fn validate_enum_value(value: i32, min_val: i32, max_val: i32) -> bool {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_enum_features() {
+    let color: i32 = test_enum_basic_access();
+    let is_different: bool = test_enum_comparison();
+    let mut name: String = test_enum_to_name();
+    let value: i32 = test_enum_to_value();
+    let from_value: i32 = test_enum_from_value(2);
     let mut status: i32 = test_status_enum();
+    let msg: String = status_to_message(status);
+    let direction: i32 = test_direction_enum();
+    let rotated: i32 = rotate_direction(Direction.NORTH, true);
+    let opposite: i32 = opposite_direction(Direction.NORTH);
+    let is_horiz: bool = is_horizontal(Direction.EAST);
+    let is_vert: bool = is_vertical(Direction.NORTH);
+    let colors: Vec<i32> = test_enum_iteration();
+    let count: i32 = test_enum_count();
+    let rgb: () = color_to_rgb(Color.RED);
+    let processed: i32 = process_by_status(Status.APPROVED, 10);
+    let has_perms: bool = test_enum_flags();
+    let dir_range: Vec<i32> = test_enum_range();
+    let is_valid: bool = validate_enum_value(2, 0, 3);
     println!("{}", "All enum module tests completed successfully");
 }
 #[cfg(test)]

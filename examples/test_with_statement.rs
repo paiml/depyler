@@ -1,4 +1,3 @@
-use serde_json;
 #[derive(Debug, Clone)]
 pub struct FileManager {
     pub filename: String,
@@ -15,12 +14,7 @@ impl FileManager {
         self.file = self.filename;
         return self;
     }
-    pub fn __exit__(
-        &mut self,
-        exc_type: serde_json::Value,
-        exc_val: serde_json::Value,
-        exc_tb: serde_json::Value,
-    ) {
+    pub fn __exit__(&mut self, exc_type: String, exc_val: String, exc_tb: String) {
         self.file = ();
         return false;
     }
@@ -32,21 +26,17 @@ impl FileManager {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_simple_with() {
-    {
-        let _context = FileManager::new("test.txt".to_string().to_string());
-        let fm = _context.__enter__();
-        let result = fm.write("Hello, World!".to_string());
-    }
+    let _context = FileManager::new("test.txt".to_string().to_string());
+    let fm = _context.__enter__();
+    let result = fm.write("Hello, World!".to_string());
     result
 }
 #[doc = "Test with built-in open"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_with_builtin() -> i32 {
-    {
-        let f = std::fs::File::create("test.txt".to_string())?;
-        f.write("Hello, World!".to_string());
-    }
+    let f = std::fs::File::create("test.txt".to_string())?;
+    f.write("Hello, World!".to_string());
     1
 }
 #[cfg(test)]

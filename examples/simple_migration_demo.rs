@@ -1,4 +1,3 @@
-use serde_json;
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -18,7 +17,7 @@ impl IndexError {
 }
 #[doc = "Shows accumulator pattern."]
 #[doc = " Depyler: verified panic-free"]
-pub fn accumulator_example(items: &serde_json::Value) -> Vec<serde_json::Value> {
+pub fn accumulator_example(items: &str) -> Vec<String> {
     let mut result = vec![];
     for item in items.iter().cloned() {
         result.push(item * 2);
@@ -27,7 +26,7 @@ pub fn accumulator_example(items: &serde_json::Value) -> Vec<serde_json::Value> 
 }
 #[doc = "Shows inefficient string building."]
 #[doc = " Depyler: verified panic-free"]
-pub fn string_concat_example(values: &serde_json::Value) -> String {
+pub fn string_concat_example(values: &str) -> String {
     let mut output = "";
     for val in values.iter().cloned() {
         output = format!("{}{}", output, val.to_string());
@@ -36,7 +35,7 @@ pub fn string_concat_example(values: &serde_json::Value) -> String {
 }
 #[doc = "Shows range(len()) antipattern."]
 #[doc = " Depyler: proven to terminate"]
-pub fn enumerate_example(data: &serde_json::Value) -> Result<(), IndexError> {
+pub fn enumerate_example(data: &str) -> Result<(), IndexError> {
     for i in 0..data.len() as i32 {
         println!(
             "{} {}",

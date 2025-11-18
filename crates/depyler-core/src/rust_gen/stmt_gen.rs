@@ -642,28 +642,25 @@ pub(crate) fn codegen_with_stmt(
 
         if is_file_open {
             // DEPYLER-0387: For open() calls, bind File directly (no __enter__)
+            // DEPYLER-0417: No block wrapper - Python allows accessing variables from with blocks
             Ok(quote! {
-                {
-                    let #var_ident = #context_expr;
-                    #(#body_stmts)*
-                }
+                let #var_ident = #context_expr;
+                #(#body_stmts)*
             })
         } else {
             // For custom context managers, call __enter__()
+            // DEPYLER-0417: No block wrapper - Python allows accessing variables from with blocks
             Ok(quote! {
-                {
-                    let _context = #context_expr;
-                    let #var_ident = _context.__enter__();
-                    #(#body_stmts)*
-                }
+                let _context = #context_expr;
+                let #var_ident = _context.__enter__();
+                #(#body_stmts)*
             })
         }
     } else {
+        // DEPYLER-0417: No block wrapper - Python allows accessing variables from with blocks
         Ok(quote! {
-            {
-                let _context = #context_expr;
-                #(#body_stmts)*
-            }
+            let _context = #context_expr;
+            #(#body_stmts)*
         })
     }
 }
@@ -1775,6 +1772,60 @@ pub(crate) fn codegen_assign_index(
 
     // Extract the base and all intermediate indices
     let (base_expr, indices) = extract_nested_indices_tokens(base, ctx)?;
+
+    // DEPYLER-0403: Convert string literals to String for Dict<String, String> values
+    // Check if value_expr is a string literal and the dict value type is String
+    let value_expr = if !is_numeric_index {
+        // Get the base variable name to look up its type
+        let base_name = match base {
+            HirExpr::Var(name) => Some(name.as_str()),
+            HirExpr::Index { base: inner_base, .. } => {
+                // For nested subscripts, get the root variable
+                fn get_root_var(expr: &HirExpr) -> Option<&str> {
+                    match expr {
+                        HirExpr::Var(name) => Some(name.as_str()),
+                        HirExpr::Index { base, .. } => get_root_var(base),
+                        _ => None,
+                    }
+                }
+                get_root_var(inner_base)
+            }
+            _ => None,
+        };
+
+        // Check if we need to convert string literal to String
+        let needs_string_conversion = if let Some(name) = base_name {
+            if let Some(base_type) = ctx.var_types.get(name) {
+                // Navigate through nested Dict types to find the innermost value type
+                let depth = indices.len() + 1; // +1 for the final index
+                let mut current_type = base_type.clone();
+                for _ in 0..depth {
+                    if let Type::Dict(_, val_type) = current_type {
+                        current_type = (*val_type).clone();
+                    } else {
+                        break;
+                    }
+                }
+                // Check if innermost value type is String
+                matches!(current_type, Type::String)
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        // Check if value_expr is a string literal
+        let is_string_literal = matches!(&value_expr, syn::Expr::Lit(lit) if matches!(&lit.lit, syn::Lit::Str(_)));
+
+        if needs_string_conversion && is_string_literal {
+            parse_quote! { #value_expr.to_string() }
+        } else {
+            value_expr
+        }
+    } else {
+        value_expr
+    };
 
     if indices.is_empty() {
         // Simple assignment: d[k] = v OR list[i] = x

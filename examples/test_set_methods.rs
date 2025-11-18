@@ -46,7 +46,7 @@ pub fn test_set_discard() -> HashSet<i32> {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_clear() {
+pub fn test_set_clear() -> bool {
     let mut s = {
         let mut set = HashSet::new();
         set.insert(1);

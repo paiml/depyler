@@ -62,7 +62,7 @@ pub fn test_rectangle() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_static() {
-    let zero = Point.origin();
+    let zero = Point::origin();
     zero
 }
 #[doc = "Run all tests"]

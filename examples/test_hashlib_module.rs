@@ -1,10 +1,18 @@
-#[doc = "// Python import: hashlib"]
+use sha2 as hashlib;
 const STR__: &'static str = "=";
 #[doc = "Test basic SHA256 hashing."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sha256_basic() {
-    let hash_obj = sha2::Sha256(b"deterministic test");
+    let data = b"Hello, World!";
+    let hash_obj = {
+        use sha2::Digest;
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(data);
+        hex::encode(hasher.finalize())
+    };
+    let result = hash_obj.hexdigest();
+    let expected = "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f";
     assert!(result == expected);
     println!("{}", "PASS: test_sha256_basic");
 }
@@ -12,7 +20,15 @@ pub fn test_sha256_basic() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sha256_empty() {
-    let hash_obj = sha2::Sha256(b"deterministic test");
+    let data = b"";
+    let hash_obj = {
+        use sha2::Digest;
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(data);
+        hex::encode(hasher.finalize())
+    };
+    let result = hash_obj.hexdigest();
+    let expected = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     assert!(result == expected);
     println!("{}", "PASS: test_sha256_empty");
 }
@@ -20,13 +36,19 @@ pub fn test_sha256_empty() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sha256_update() {
-    let mut hash_obj = sha2::Sha256();
+    let mut hash_obj = {
+        use sha2::Digest;
+        let mut hasher = sha2::Sha256::new();
+        hex::encode(hasher.finalize())
+    };
     for (k, v) in b"Hello, " {
-        hash_obj.insert(k.clone(), *v);
+        hash_obj.insert(k, v);
     }
     for (k, v) in b"World!" {
-        hash_obj.insert(k.clone(), *v);
+        hash_obj.insert(k, v);
     }
+    let result = hash_obj.hexdigest();
+    let expected = "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f";
     assert!(result == expected);
     println!("{}", "PASS: test_sha256_update");
 }
@@ -34,7 +56,15 @@ pub fn test_sha256_update() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sha1_basic() {
-    let mut hash_obj = sha2::Sha1(b"deterministic test");
+    let data = b"test data";
+    let mut hash_obj = {
+        use sha1::Digest;
+        let mut hasher = sha1::Sha1::new();
+        hasher.update(data);
+        hex::encode(hasher.finalize())
+    };
+    let result = hash_obj.hexdigest();
+    let expected = "f48dd853820860816c75d54d0f584dc863327a7c";
     assert!(result == expected);
     println!("{}", "PASS: test_sha1_basic");
 }
@@ -42,7 +72,15 @@ pub fn test_sha1_basic() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_md5_basic() {
-    let mut hash_obj = sha2::Md5(b"deterministic test");
+    let data = b"test";
+    let mut hash_obj = {
+        use md5::Digest;
+        let mut hasher = md5::Md5::new();
+        hasher.update(data);
+        hex::encode(hasher.finalize())
+    };
+    let result = hash_obj.hexdigest();
+    let expected = "098f6bcd4621d373cade4e832627b4f6";
     assert!(result == expected);
     println!("{}", "PASS: test_md5_basic");
 }
@@ -50,7 +88,14 @@ pub fn test_md5_basic() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sha256_binary_data() {
-    let mut hash_obj = sha2::Sha256(b"deterministic test");
+    let data = bytes(0..256);
+    let mut hash_obj = {
+        use sha2::Digest;
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(data);
+        hex::encode(hasher.finalize())
+    };
+    let result = hash_obj.hexdigest();
     assert!(result.len() as i32 == 64);
     assert!(result
         .iter()
@@ -63,7 +108,15 @@ pub fn test_sha256_binary_data() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sha256_large_data() {
-    let mut hash_obj = sha2::Sha256(b"deterministic test");
+    let _cse_temp_0 = b"A" * 10000;
+    let data = _cse_temp_0;
+    let mut hash_obj = {
+        use sha2::Digest;
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(data);
+        hex::encode(hasher.finalize())
+    };
+    let result = hash_obj.hexdigest();
     assert!(result.len() as i32 == 64);
     assert!(result
         .iter()
@@ -76,6 +129,20 @@ pub fn test_sha256_large_data() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_hash_different_data() {
+    let hash1 = {
+        use sha2::Digest;
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(b"data1");
+        hex::encode(hasher.finalize())
+    }
+    .hexdigest();
+    let hash2 = {
+        use sha2::Digest;
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(b"data2");
+        hex::encode(hasher.finalize())
+    }
+    .hexdigest();
     assert!(hash1 != hash2);
     println!("{}", "PASS: test_hash_different_data");
 }
@@ -83,6 +150,21 @@ pub fn test_hash_different_data() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_hash_deterministic() {
+    let data = b"deterministic test";
+    let hash1 = {
+        use sha2::Digest;
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(data);
+        hex::encode(hasher.finalize())
+    }
+    .hexdigest();
+    let hash2 = {
+        use sha2::Digest;
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(data);
+        hex::encode(hasher.finalize())
+    }
+    .hexdigest();
     assert!(hash1 == hash2);
     println!("{}", "PASS: test_hash_deterministic");
 }
@@ -90,7 +172,15 @@ pub fn test_hash_deterministic() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sha256_text() {
-    let mut hash_obj = sha2::Sha256(b"deterministic test");
+    let text = "Hello, 世界!";
+    let data = text.encode("utf-8".to_string());
+    let mut hash_obj = {
+        use sha2::Digest;
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(data);
+        hex::encode(hasher.finalize())
+    };
+    let result = hash_obj.hexdigest();
     assert!(result.len() as i32 == 64);
     assert!(result
         .iter()

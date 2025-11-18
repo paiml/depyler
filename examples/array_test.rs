@@ -1,6 +1,6 @@
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_array_literals() {
+pub fn test_array_literals() -> (Vec<i32>, Vec<i32>, Vec<bool>, Vec<i32>) {
     let arr1 = vec![1, 2, 3, 4, 5];
     let arr2 = vec![0, 0, 0, 0];
     let arr3 = vec![true, false, true];
@@ -9,7 +9,7 @@ pub fn test_array_literals() {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_array_multiplication() {
+pub fn test_array_multiplication() -> (String, String, String, String, String) {
     let _cse_temp_0 = [0; 10];
     let zeros = _cse_temp_0;
     let _cse_temp_1 = [1; 5];
@@ -24,7 +24,7 @@ pub fn test_array_multiplication() {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_array_init_functions() {
+pub fn test_array_init_functions() -> (String, String, String) {
     let z = [0; 10];
     let o = [1; 5];
     let f = [42; 8];
@@ -32,7 +32,7 @@ pub fn test_array_init_functions() {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_large_arrays() {
+pub fn test_large_arrays() -> (String, String, String) {
     let _cse_temp_0 = vec![0] * 50;
     let large = _cse_temp_0;
     let _cse_temp_1 = vec![1] * 100;
@@ -44,7 +44,7 @@ pub fn test_large_arrays() {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_nested_arrays() {
+pub fn test_nested_arrays() -> (Vec<Vec<i32>>, Vec<Vec<i32>>) {
     let matrix = vec![vec![0, 0], vec![0, 0], vec![0, 0]];
     let identity = vec![vec![1, 0, 0], vec![0, 1, 0], vec![0, 0, 1]];
     (matrix, identity)

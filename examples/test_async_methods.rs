@@ -2,21 +2,21 @@
     pub value: i32
 }
 impl AsyncCounter {
-    pub fn new(start: i32)  -> Self {
+    pub fn new(start: i32) -> Self {
     Self {
     value: 0
 }
-} pub fn increment(& mut self)  -> i32 {
+} pub async fn increment(&mut self) -> i32 {
     self._simulate_delay().await;
     self.value = self.value + 1;
     return self.value;
    
 }
-pub fn get_value(& self)  -> i32 {
+pub async fn get_value(&self) -> i32 {
     return self.value;
    
 }
-pub fn _simulate_delay(& self) {
+pub async fn _simulate_delay(&self) {
     {
 }
 }
@@ -25,16 +25,16 @@ pub fn _simulate_delay(& self) {
    
 }
 impl AsyncDataProcessor {
-    pub fn new()  -> Self {
+    pub fn new() -> Self {
     Self {
    
 }
-} pub fn process(& self, data: String)  -> String {
+} pub async fn process(&self, data: String) -> String {
     self._async_work().await;
-    return data.upper();
+    return data.to_uppercase();
    
 }
-pub fn _async_work(& self) {
+pub async fn _async_work(&self) {
     {
 }
 } }

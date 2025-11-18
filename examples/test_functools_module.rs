@@ -41,7 +41,7 @@ pub fn test_reduce_sum(numbers: &Vec<i32>) -> i32 {
     for num in numbers.iter().cloned() {
         result = result + num;
     }
-    result.unwrap()
+    result
 }
 #[doc = "Test reduce for calculating product"]
 #[doc = " Depyler: verified panic-free"]
@@ -55,7 +55,7 @@ pub fn test_reduce_product(numbers: &Vec<i32>) -> i32 {
     for num in numbers.iter().cloned() {
         result = result * num;
     }
-    result.unwrap()
+    result
 }
 #[doc = "Test reduce to find maximum"]
 pub fn test_reduce_max(numbers: &Vec<i32>) -> Result<i32, IndexError> {
@@ -64,22 +64,13 @@ pub fn test_reduce_max(numbers: &Vec<i32>) -> Result<i32, IndexError> {
     if _cse_temp_1 {
         return Ok(0);
     }
-    let mut result: i32 = {
-        let base = &numbers;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    };
+    let mut result: i32 = numbers.get(0usize).cloned().unwrap_or_default();
     for num in numbers.iter().cloned() {
         if num > result {
             result = num;
         }
     }
-    Ok(result.unwrap())
+    Ok(result)
 }
 #[doc = "Test reduce to find minimum"]
 pub fn test_reduce_min(numbers: &Vec<i32>) -> Result<i32, IndexError> {
@@ -88,31 +79,22 @@ pub fn test_reduce_min(numbers: &Vec<i32>) -> Result<i32, IndexError> {
     if _cse_temp_1 {
         return Ok(0);
     }
-    let mut result: i32 = {
-        let base = &numbers;
-        let idx: i32 = 0;
-        let actual_idx = if idx < 0 {
-            base.len().saturating_sub(idx.abs() as usize)
-        } else {
-            idx as usize
-        };
-        base.get(actual_idx).cloned().unwrap_or_default()
-    };
+    let mut result: i32 = numbers.get(0usize).cloned().unwrap_or_default();
     for num in numbers.iter().cloned() {
         if num < result {
             result = num;
         }
     }
-    Ok(result.unwrap())
+    Ok(result)
 }
 #[doc = "Test reduce for string concatenation"]
 #[doc = " Depyler: verified panic-free"]
 pub fn test_reduce_concatenate(strings: &Vec<String>) -> String {
-    let mut result: String = "";
+    let mut result: String = "".to_string();
     for s in strings.iter().cloned() {
         result = format!("{}{}", result, s);
     }
-    result.unwrap()
+    result
 }
 #[doc = "Helper function for partial application"]
 #[doc = " Depyler: verified panic-free"]
@@ -124,15 +106,16 @@ pub fn multiply_by_two(x: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn multiply_by(multiplier: i32, x: i32) -> i32 {
-    3 * x
+    multiplier * x
 }
 #[doc = "Test partial function application(manual)"]
 #[doc = " Depyler: verified panic-free"]
 pub fn test_partial_application() -> Vec<i32> {
+    let multiplier: i32 = 3;
     let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
     let mut results: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
-        let mut result: i32 = multiply_by(3, num);
+        let mut result: i32 = multiply_by(multiplier, num);
         results.push(result);
     }
     results
@@ -147,8 +130,11 @@ pub fn add_three_numbers(a: i32, b: i32, c: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_partial_multiple_args() -> i32 {
-    let mut result: i32 = add_three_numbers(10, 20, 5);
-    result.unwrap()
+    let fixed_a: i32 = 10;
+    let fixed_b: i32 = 20;
+    let variable_c: i32 = 5;
+    let mut result: i32 = add_three_numbers(fixed_a, fixed_b, variable_c);
+    result
 }
 #[doc = "Test function composition"]
 #[doc = " Depyler: verified panic-free"]
@@ -205,7 +191,7 @@ pub fn memoize_factorial(n: i32) -> i32 {
     for i in 2..n + 1 {
         result = result * i;
     }
-    result.unwrap()
+    result
 }
 #[doc = "Test currying pattern(manual)"]
 #[doc = " Depyler: verified panic-free"]
@@ -231,7 +217,7 @@ pub fn test_reduce_with_initial(numbers: &Vec<i32>, initial: i32) -> i32 {
     for num in numbers.iter().cloned() {
         result = result + num;
     }
-    result.unwrap()
+    result
 }
 #[doc = "Test reduce for 'all' logic"]
 #[doc = " Depyler: verified panic-free"]
@@ -243,7 +229,7 @@ pub fn test_reduce_boolean_all(values: &Vec<bool>) -> bool {
             break;
         }
     }
-    result.unwrap()
+    result
 }
 #[doc = "Test reduce for 'any' logic"]
 #[doc = " Depyler: verified panic-free"]
@@ -255,7 +241,7 @@ pub fn test_reduce_boolean_any(values: &Vec<bool>) -> bool {
             break;
         }
     }
-    result.unwrap()
+    result
 }
 #[doc = "Test reduce to flatten nested lists"]
 #[doc = " Depyler: verified panic-free"]
@@ -287,11 +273,13 @@ pub fn test_reduce_group_by(items: &Vec<i32>) -> Result<Vec<Vec<i32>>, ZeroDivis
 pub fn pipeline(value: i32, operations: &Vec<String>) -> i32 {
     let mut result: i32 = value;
     for op in operations.iter().cloned() {
+        let mut result;
         if op == "double" {
             result = result * 2;
         } else {
+            let mut result;
             if op == "increment" {
-                result = result + 1;
+                result = result.iter().chain(1.iter()).cloned().collect::<Vec<_>>();
             } else {
                 if op == "square" {
                     result = result * result;
@@ -299,7 +287,7 @@ pub fn pipeline(value: i32, operations: &Vec<String>) -> i32 {
             }
         }
     }
-    result.unwrap()
+    result
 }
 #[doc = "Test memoization with Fibonacci"]
 #[doc = " Depyler: verified panic-free"]
@@ -321,13 +309,45 @@ pub fn test_memoization_fibonacci(n: i32) -> i32 {
 #[doc = "Run all functools module tests"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_all_functools_features() {
+pub fn test_all_functools_features() -> Result<(), Box<dyn std::error::Error>> {
     let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
-    let strings: Vec<String> = vec!["Hello", " ", "World", "!"];
+    let sum_result: i32 = test_reduce_sum(&numbers)?;
+    let product_result: i32 = test_reduce_product(&numbers)?;
+    let max_result: i32 = test_reduce_max(&numbers)?;
+    let min_result: i32 = test_reduce_min(&numbers)?;
+    let strings: Vec<String> = vec![
+        "Hello".to_string(),
+        " ".to_string(),
+        "World".to_string(),
+        "!".to_string(),
+    ];
+    let concat_result: String = test_reduce_concatenate(&strings)?;
+    let partial_result: Vec<i32> = test_partial_application()?;
+    let partial_multi: i32 = test_partial_multiple_args()?;
+    let composed: i32 = test_compose_functions(5)?;
+    let map_reduce: i32 = test_map_reduce_pattern(&vec![1, 2, 3, 4, 5])?;
+    let filter_reduce: i32 = test_filter_reduce_pattern(&vec![1, 2, 3, 4, 5, 6])?;
+    let fact: i32 = memoize_factorial(5)?;
+    let fib: i32 = test_memoization_fibonacci(10)?;
+    let curried: i32 = test_currying(1, 2, 3)?;
+    let accumulated: Vec<i32> = accumulate_with_function(&vec![1, 2, 3, 4, 5])?;
+    let with_initial: i32 = test_reduce_with_initial(&vec![1, 2, 3], 10)?;
+    let all_true: bool = test_reduce_boolean_all(&vec![true, true, true])?;
+    let all_false: bool = test_reduce_boolean_all(&vec![true, false, true])?;
+    let any_true: bool = test_reduce_boolean_any(&vec![false, true, false])?;
+    let any_false: bool = test_reduce_boolean_any(&vec![false, false, false])?;
     let nested: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6]];
+    let flattened: Vec<i32> = test_reduce_flatten(&nested)?;
     let items: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
-    let ops: Vec<String> = vec!["double", "increment", "square"];
+    let grouped: Vec<Vec<i32>> = test_reduce_group_by(&items)?;
+    let ops: Vec<String> = vec![
+        "double".to_string(),
+        "increment".to_string(),
+        "square".to_string(),
+    ];
+    let piped: i32 = pipeline(3, &ops)?;
     println!("{}", "All functools module tests completed successfully");
+    Ok(())
 }
 #[cfg(test)]
 mod tests {
@@ -362,6 +382,23 @@ mod tests {
         assert_eq!(multiply_by_two(0), 0);
         assert_eq!(multiply_by_two(1), 1);
         assert_eq!(multiply_by_two(-1), -1);
+    }
+    #[test]
+    fn quickcheck_multiply_by() {
+        fn prop(multiplier: i32, x: i32) -> TestResult {
+            if (multiplier > 0 && x > i32::MAX - multiplier)
+                || (multiplier < 0 && x < i32::MIN - multiplier)
+            {
+                return TestResult::discard();
+            }
+            let result1 = multiply_by(multiplier.clone(), x.clone());
+            let result2 = multiply_by(x.clone(), multiplier.clone());
+            if result1 != result2 {
+                return TestResult::failed();
+            }
+            TestResult::passed()
+        }
+        quickcheck(prop as fn(i32, i32) -> TestResult);
     }
     #[test]
     fn test_multiply_by_examples() {

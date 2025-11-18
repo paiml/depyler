@@ -1,4 +1,3 @@
-use serde_json;
 #[doc = "Trivial function - should be inlined."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
@@ -50,7 +49,7 @@ pub fn recursive_factorial(n: i32) -> i32 {
 }
 #[doc = "Contains loop - may not be inlined depending on config."]
 #[doc = " Depyler: verified panic-free"]
-pub fn has_loop(items: &Vec<serde_json::Value>) -> i32 {
+pub fn has_loop(items: &Vec<String>) -> i32 {
     let mut total = 0;
     for item in items.iter().cloned() {
         total = total + item;
