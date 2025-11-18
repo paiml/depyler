@@ -207,6 +207,28 @@ For each fix:
 - Generated code: `sorted_data.get(mid as usize)` instead of `.get(&mid)`
 - Committed: e5a7dac
 
+### 2025-11-18: DEPYLER-0422 Fix #5 COMPLETED
+**Numpy-Style Array Initialization Functions (zeros, ones, full)**
+
+**Root Cause (Five-Whys):**
+1. Why: Type mismatch - expected `Vec<i32>`, found `[i32; 10]`
+2. Why: Function returns arrays but signature says Vec
+3. Why: `zeros(10)` generates `[0; 10]` but return type inference says Vec
+4. Why: `zeros()`, `ones()`, `full()` function calls not recognized
+5. **ROOT CAUSE:** No mapping for numpy-style functions → Vec constructors
+
+✅ **Implemented:**
+- Added handlers in `convert_call()` for numpy-style functions (expr_gen.rs:576-594)
+- `zeros(n)` → `vec![0; n as usize]`
+- `ones(n)` → `vec![1; n as usize]`
+- `full(n, val)` → `vec![val; n as usize]`
+
+✅ **Impact:**
+- Fixed E0308 type mismatch errors in array_test.rs (3 errors eliminated)
+- Fixed E0308 errors in 25 files using numpy-style functions
+- Generated code now matches return type expectations (Vec instead of array)
+- Committed: [pending]
+
 ## Notes
 
 - Skip E0433/E0432 (external crate imports) - not transpiler bugs

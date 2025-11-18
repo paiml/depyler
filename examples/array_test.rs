@@ -25,9 +25,9 @@ pub fn test_array_multiplication() -> ([i32; 10], [i32; 5], [i32; 8], [i32; 10],
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_array_init_functions() -> (Vec<i32>, Vec<i32>, Vec<i32>) {
-    let z = [0; 10];
-    let o = [1; 5];
-    let f = [42; 8];
+    let z = vec![0; 10 as usize];
+    let o = vec![1; 5 as usize];
+    let f = vec![42; 8 as usize];
     (z, o, f)
 }
 #[doc = " Depyler: verified panic-free"]
