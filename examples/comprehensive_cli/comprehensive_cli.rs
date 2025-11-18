@@ -1,5 +1,7 @@
 use clap::Parser;
 use serde_json as json;
+use serde_json;
+use std::collections::HashMap;
 use std::path::PathBuf;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
@@ -101,6 +103,27 @@ pub fn main() {
         speed: bool,
     }
     let args = Args::parse();
-    let result = serde_json::json!({ "input_file": args.input_file, "debug": args.debug, "output": args.output, "quiet": args.quiet, "color": args.color, "verbosity": args.V, "includes": args.include, "extras": args.extras, "config": args.config, "count": args.count, "rate": args.rate, "timeout": args.timeout, "threshold": args.threshold, "name": args.name, "api_key": args.api_key, "format": args.format, "mode": args.mode, "speed": args.speed });
-    println!("{}", serde_json::to_string_pretty(&result).unwrap());
+    let result = {
+        let mut map = HashMap::new();
+        map.insert("input_file".to_string(), args.input_file);
+        map.insert("debug".to_string(), args.debug);
+        map.insert("output".to_string(), args.output);
+        map.insert("quiet".to_string(), args.quiet);
+        map.insert("color".to_string(), args.color);
+        map.insert("verbosity".to_string(), args.V);
+        map.insert("includes".to_string(), args.include);
+        map.insert("extras".to_string(), args.extras);
+        map.insert("config".to_string(), args.config);
+        map.insert("count".to_string(), args.count);
+        map.insert("rate".to_string(), args.rate);
+        map.insert("timeout".to_string(), args.timeout);
+        map.insert("threshold".to_string(), args.threshold);
+        map.insert("name".to_string(), args.name);
+        map.insert("api_key".to_string(), args.api_key);
+        map.insert("format".to_string(), args.format);
+        map.insert("mode".to_string(), args.mode);
+        map.insert("speed".to_string(), args.speed);
+        map
+    };
+    println!("{}", serde_json::to_string(&result).unwrap());
 }

@@ -1,24 +1,24 @@
-#[doc = "Read file using with statement."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn read_file(filename: String)  -> String {
-    { let mut f = open(filename);
+#[doc = "Read file using with statement."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn read_file(filename: String) -> String {
+    let f = std::fs::File::open(filename)?;
     let content = f.read();
-   
+    content
 }
-return content;
-   
-}
-#[doc = "Write file using with statement."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn write_file<'a>(filename: String, content: & 'a str) {
-    { let mut f = open(filename, "w".to_string());
+#[doc = "Write file using with statement."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn write_file(filename: String, content: &str) {
+    let f = std::fs::File::create(filename)?;
     f.write(content);
-   
 }
-} #[doc = "Process file with multiple with statements."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn process_file(input_file: String, output_file: String) {
-    { let mut fin = open(input_file);
+#[doc = "Process file with multiple with statements."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn process_file(input_file: String, output_file: String) {
+    let fin = std::fs::File::open(input_file)?;
     let data = fin.read();
-   
-}
-{
-    let mut fout = open(output_file, "w".to_string());
+    let fout = std::fs::File::create(output_file)?;
     fout.write(data.to_uppercase());
-   
-}
 }

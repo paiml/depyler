@@ -1,3 +1,37 @@
+#[derive(Debug, Clone)]
+pub struct ZeroDivisionError {
+    message: String,
+}
+impl std::fmt::Display for ZeroDivisionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "division by zero: {}", self.message)
+    }
+}
+impl std::error::Error for ZeroDivisionError {}
+impl ZeroDivisionError {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
+#[derive(Debug, Clone)]
+pub struct IndexError {
+    message: String,
+}
+impl std::fmt::Display for IndexError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "index out of range: {}", self.message)
+    }
+}
+impl std::error::Error for IndexError {}
+impl IndexError {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
 #[doc = "Find target in sorted array, return -1 if not found."]
 pub fn binary_search(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut left: i32 = 0;
@@ -20,30 +54,10 @@ pub fn binary_search(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::er
                 q
             }
         };
-        if {
-            let base = arr;
-            let idx = mid;
-            let actual_idx = if idx < 0 {
-                base.len().saturating_sub((-idx) as usize)
-            } else {
-                idx as usize
-            };
-            base.get(actual_idx).cloned().unwrap_or_default()
-        } == target
-        {
+        if arr.get(mid as usize).cloned().unwrap_or_default() == target {
             return Ok(mid);
         } else {
-            if {
-                let base = arr;
-                let idx = mid;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub((-idx) as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            } < target
-            {
+            if arr.get(mid as usize).cloned().unwrap_or_default() < target {
                 left = mid + 1;
             } else {
                 right = mid - 1;

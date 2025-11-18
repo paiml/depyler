@@ -37,7 +37,7 @@ pub fn test_lambda_in_expressions() -> (serde_json::Value, serde_json::Value) {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_lambda_with_closure() {
+pub fn test_lambda_with_closure() -> i32 {
     let multiplier = 3;
     let scale = |x| x * multiplier;
     let result = scale(7);
