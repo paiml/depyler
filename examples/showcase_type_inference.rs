@@ -90,7 +90,7 @@ pub fn type_conversions_hint(value: serde_json::Value) -> (String, i32, f64) {
 #[doc = "Boolean operations suggest bool type."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn boolean_logic<'a, 'c, 'b>(
+pub fn boolean_logic<'b, 'c, 'a>(
     a: &'a serde_json::Value,
     b: &'b serde_json::Value,
     c: &'c serde_json::Value,
@@ -135,7 +135,7 @@ pub fn function_composition(
 #[doc = "Demonstrates different confidence levels."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn confidence_levels_demo<'b, 'a, 'c>(
+pub fn confidence_levels_demo<'a, 'b, 'c>(
     certain_str: &'a str,
     probable_num: &'b serde_json::Value,
     possible_container: &'c serde_json::Value,
