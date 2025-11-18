@@ -9024,20 +9024,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         let base_expr = base.to_rust_expr(self.ctx)?;
 
-        // DEPYLER-0307 Fix #9: Handle tuple indexing with integer literals
+        // DEPYLER-0422 Fix #3: Handle tuple indexing with actual type information
         // Python: tuple[0], tuple[1] → Rust: tuple.0, tuple.1
-        // HEURISTIC: Use tuple syntax for variables with tuple-suggesting names
-        // This is a temporary solution until proper type tracking is implemented
-        // Common tuple iteration variable names: pair, entry, item, elem, tuple, row
+        // Check actual type from context first, fallback to name heuristics
         let should_use_tuple_syntax = if let HirExpr::Literal(Literal::Int(idx)) = index {
             if *idx >= 0 {
                 if let HirExpr::Var(var_name) = base {
-                    // Heuristic: Check if variable name suggests tuple iteration
-                    // TODO: Replace with proper type tracking via ctx.var_types
-                    matches!(
-                        var_name.as_str(),
-                        "pair" | "entry" | "item" | "elem" | "tuple" | "row"
-                    )
+                    // DEPYLER-0422: Check actual type from context (preferred)
+                    if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                        matches!(var_type, Type::Tuple(_))
+                    } else {
+                        // Fallback heuristic: variable names suggesting tuple iteration
+                        // Common tuple iteration variable names: pair, entry, item, elem, tuple, row
+                        matches!(
+                            var_name.as_str(),
+                            "pair" | "entry" | "item" | "elem" | "tuple" | "row"
+                        )
+                    }
                 } else {
                     false
                 }

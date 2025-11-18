@@ -189,8 +189,8 @@ pub fn simulate_random_walk(num_steps: i32) -> (i32, i32) {
 #[doc = "Calculate Euclidean distance from origin"]
 #[doc = " Depyler: proven to terminate"]
 pub fn calculate_walk_distance(position: (i32, i32)) -> Result<f64, IndexError> {
-    let mut x: i32 = position.get(0usize).cloned().unwrap_or_default();
-    let mut y: i32 = position.get(1usize).cloned().unwrap_or_default();
+    let mut x: i32 = position.0;
+    let mut y: i32 = position.1;
     let distance: f64 = ((x * x + y * y) as f64 as f64).sqrt();
     Ok(distance)
 }
@@ -205,10 +205,8 @@ pub fn simulate_queue_system(
     let mut current_time: i32 = 0;
     for _customer in 0..num_customers {
         let arrival_time: i32 = current_time;
-        let service_time: i32 = rand::thread_rng().gen_range(
-            service_time_range.get(0usize).cloned().unwrap_or_default()
-                ..=service_time_range.get(1usize).cloned().unwrap_or_default(),
-        );
+        let service_time: i32 =
+            rand::thread_rng().gen_range(service_time_range.0..=service_time_range.1);
         let wait_time: i32 = queue_length;
         wait_times.push(wait_time);
         queue_length = queue_length + service_time;

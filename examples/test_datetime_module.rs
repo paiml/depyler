@@ -118,7 +118,7 @@ pub fn test_date_subtraction() -> date {
 }
 #[doc = "Calculate age in years given birth date"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_age<'b, 'a>(
+pub fn calculate_age<'a, 'b>(
     birth_date: &'a date,
     current_date: &'b date,
 ) -> Result<i32, ZeroDivisionError> {
@@ -321,7 +321,7 @@ pub fn test_datetime_formatting() -> String {
 }
 #[doc = "Generate list of dates in range"]
 #[doc = " Depyler: verified panic-free"]
-pub fn test_date_range<'b, 'a>(start: &'a date, end: &'b date) -> Vec<date> {
+pub fn test_date_range<'a, 'b>(start: &'a date, end: &'b date) -> Vec<date> {
     let mut dates: Vec<date> = vec![];
     let mut current: date = start;
     let one_day: timedelta = chrono::Duration::zero();

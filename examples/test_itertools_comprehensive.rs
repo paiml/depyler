@@ -234,7 +234,7 @@ pub fn test_groupby_manual(items: &Vec<i32>) -> Result<Vec<(bool, Vec<i32>)>, Ze
 }
 #[doc = "Test compress() to filter data by selectors"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_compress<'a, 'b>(
+pub fn test_compress<'b, 'a>(
     data: &'a Vec<String>,
     selectors: &'b Vec<bool>,
 ) -> Result<Vec<String>, IndexError> {
@@ -285,7 +285,7 @@ pub fn cartesian_product_manual<'b, 'a>(
 }
 #[doc = "Manual implementation of zip_longest"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_zip_longest<'b, 'a>(
+pub fn test_zip_longest<'a, 'b>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
     fillvalue: i32,

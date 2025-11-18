@@ -326,7 +326,9 @@ pub fn max_by_key(data: &mut Vec<()>) -> Result<(), IndexError> {
     }
     let mut max_elem: () = data.get(0usize).cloned().unwrap_or_default();
     for elem in data.iter().cloned() {
-        if elem.1 > max_elem.get(1usize).cloned().unwrap_or_default() {
+        if elem.get(1usize).cloned().unwrap_or_default()
+            > max_elem.get(1usize).cloned().unwrap_or_default()
+        {
             max_elem = elem;
         }
     }
@@ -341,7 +343,9 @@ pub fn min_by_key(data: &mut Vec<()>) -> Result<(), IndexError> {
     }
     let mut min_elem: () = data.get(0usize).cloned().unwrap_or_default();
     for elem in data.iter().cloned() {
-        if elem.1 < min_elem.get(1usize).cloned().unwrap_or_default() {
+        if elem.get(1usize).cloned().unwrap_or_default()
+            < min_elem.get(1usize).cloned().unwrap_or_default()
+        {
             min_elem = elem;
         }
     }

@@ -1,7 +1,7 @@
 use std as os;
 use std as sys;
-const STR_EMPTY: &'static str = "";
 const STR__: &'static str = "/";
+const STR_EMPTY: &'static str = "";
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct IndexError {

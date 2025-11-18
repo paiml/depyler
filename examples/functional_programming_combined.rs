@@ -89,7 +89,7 @@ pub fn chain_operations(data: Vec<i32>) -> i32 {
 #[doc = "Zip two lists together"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_lists<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
+pub fn zip_lists<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
     let mut result: Vec<(i32, String)> = vec![];
     let _cse_temp_0 = list1.len() as i32;
     let _cse_temp_1 = list2.len() as i32;
@@ -263,7 +263,7 @@ pub fn compose_two_functions(data: Vec<i32>) -> Vec<i32> {
 }
 #[doc = "Apply multiple operations in sequence"]
 #[doc = " Depyler: verified panic-free"]
-pub fn apply_multiple_operations<'b, 'a>(
+pub fn apply_multiple_operations<'a, 'b>(
     data: &'a Vec<i32>,
     operations: &'b Vec<String>,
 ) -> Vec<i32> {
