@@ -2,6 +2,9 @@
 #[derive(Debug, Clone)]
 pub struct Color {}
 impl Color {
+    pub const RED: i32 = 1;
+    pub const GREEN: i32 = 2;
+    pub const BLUE: i32 = 3;
     pub fn new() -> Self {
         Self {}
     }
@@ -9,6 +12,9 @@ impl Color {
 #[derive(Debug, Clone)]
 pub struct Status {}
 impl Status {
+    pub const PENDING: i32 = auto();
+    pub const APPROVED: i32 = auto();
+    pub const REJECTED: i32 = auto();
     pub fn new() -> Self {
         Self {}
     }
@@ -16,6 +22,10 @@ impl Status {
 #[derive(Debug, Clone)]
 pub struct Direction {}
 impl Direction {
+    pub const NORTH: i32 = 0;
+    pub const EAST: i32 = 1;
+    pub const SOUTH: i32 = 2;
+    pub const WEST: i32 = 3;
     pub fn new() -> Self {
         Self {}
     }
@@ -24,15 +34,15 @@ impl Direction {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_enum_basic_access() -> i32 {
-    let color: i32 = Color.RED;
+    let color: i32 = Color::RED;
     color
 }
 #[doc = "Test enum comparison"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_enum_comparison() -> bool {
-    let color1: i32 = Color.RED;
-    let color2: i32 = Color.GREEN;
+    let color1: i32 = Color::RED;
+    let color2: i32 = Color::GREEN;
     let _cse_temp_0 = color1 == color2;
     let are_equal: bool = _cse_temp_0;
     let _cse_temp_1 = color1 != color2;
@@ -43,9 +53,9 @@ pub fn test_enum_comparison() -> bool {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_enum_to_name() -> String {
-    let color: i32 = Color.BLUE;
+    let color: i32 = Color::BLUE;
     let mut name: String = "".to_string();
-    let _cse_temp_0 = color == Color.RED;
+    let _cse_temp_0 = color == Color::RED;
     let mut name;
     if _cse_temp_0 {
         name = "RED";
@@ -65,7 +75,7 @@ pub fn test_enum_to_name() -> String {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_enum_to_value() -> i32 {
-    let color: i32 = Color.RED;
+    let color: i32 = Color::RED;
     let value: i32 = color;
     value
 }
@@ -73,14 +83,14 @@ pub fn test_enum_to_value() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_enum_from_value(value: i32) -> i32 {
-    let _cse_temp_0 = value == Color.RED;
+    let _cse_temp_0 = value == Color::RED;
     let _cse_temp_1 = (_cse_temp_0) || (_cse_temp_0);
     let _cse_temp_2 = (_cse_temp_1) || (_cse_temp_0);
     let mut result: i32;
     if _cse_temp_2 {
         result = value;
     } else {
-        result = Color.RED;
+        result = Color::RED;
     }
     result
 }
@@ -88,10 +98,10 @@ pub fn test_enum_from_value(value: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_status_enum() -> i32 {
-    let mut status: i32 = Status.PENDING;
-    let _cse_temp_0 = status == Status.PENDING;
+    let mut status: i32 = Status::PENDING;
+    let _cse_temp_0 = status == Status::PENDING;
     if _cse_temp_0 {
-        status = Status.APPROVED;
+        status = Status::APPROVED;
     }
     status
 }
@@ -99,22 +109,22 @@ pub fn test_status_enum() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_direction_enum() -> i32 {
-    let mut current: i32 = Direction.NORTH;
-    let _cse_temp_0 = current == Direction.NORTH;
+    let mut current: i32 = Direction::NORTH;
+    let _cse_temp_0 = current == Direction::NORTH;
     let mut current;
     if _cse_temp_0 {
-        current = Direction.EAST;
+        current = Direction::EAST;
     } else {
         let mut current;
         if _cse_temp_0 {
-            current = Direction.SOUTH;
+            current = Direction::SOUTH;
         } else {
             let mut current;
             if _cse_temp_0 {
-                current = Direction.WEST;
+                current = Direction::WEST;
             } else {
                 if _cse_temp_0 {
-                    current = Direction.NORTH;
+                    current = Direction::NORTH;
                 }
             }
         }
@@ -126,32 +136,32 @@ pub fn test_direction_enum() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn rotate_direction(direction: i32, clockwise: bool) -> i32 {
     if clockwise {
-        let _cse_temp_0 = direction == Direction.NORTH;
+        let _cse_temp_0 = direction == Direction::NORTH;
         if _cse_temp_0 {
-            Direction.EAST
+            Direction::EAST
         } else {
             if _cse_temp_0 {
-                Direction.SOUTH
+                Direction::SOUTH
             } else {
                 if _cse_temp_0 {
-                    Direction.WEST
+                    Direction::WEST
                 } else {
-                    Direction.NORTH
+                    Direction::NORTH
                 }
             }
         }
     } else {
-        let _cse_temp_1 = direction == Direction.NORTH;
+        let _cse_temp_1 = direction == Direction::NORTH;
         if _cse_temp_1 {
-            Direction.WEST
+            Direction::WEST
         } else {
             if _cse_temp_1 {
-                Direction.SOUTH
+                Direction::SOUTH
             } else {
                 if _cse_temp_1 {
-                    Direction.EAST
+                    Direction::EAST
                 } else {
-                    Direction.NORTH
+                    Direction::NORTH
                 }
             }
         }
@@ -161,17 +171,17 @@ pub fn rotate_direction(direction: i32, clockwise: bool) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn opposite_direction(direction: i32) -> i32 {
-    let _cse_temp_0 = direction == Direction.NORTH;
+    let _cse_temp_0 = direction == Direction::NORTH;
     if _cse_temp_0 {
-        Direction.SOUTH
+        Direction::SOUTH
     } else {
         if _cse_temp_0 {
-            Direction.NORTH
+            Direction::NORTH
         } else {
             if _cse_temp_0 {
-                Direction.WEST
+                Direction::WEST
             } else {
-                Direction.EAST
+                Direction::EAST
             }
         }
     }
@@ -180,26 +190,26 @@ pub fn opposite_direction(direction: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn is_horizontal(direction: i32) -> bool {
-    (direction == Direction.EAST) || (direction == Direction.WEST)
+    (direction == Direction::EAST) || (direction == Direction::WEST)
 }
 #[doc = "Check if direction is vertical"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn is_vertical(direction: i32) -> bool {
-    (direction == Direction.NORTH) || (direction == Direction.SOUTH)
+    (direction == Direction::NORTH) || (direction == Direction::SOUTH)
 }
 #[doc = "Test iterating over enum values"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_enum_iteration() -> Vec<i32> {
-    let colors: Vec<i32> = vec![Color.RED, Color.GREEN, Color.BLUE];
+    let colors: Vec<i32> = vec![Color::RED, Color::GREEN, Color::BLUE];
     colors
 }
 #[doc = "Test counting enum members"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_enum_count() -> i32 {
-    let colors: Vec<i32> = vec![Color.RED, Color.GREEN, Color.BLUE];
+    let colors: Vec<i32> = vec![Color::RED, Color::GREEN, Color::BLUE];
     let _cse_temp_0 = colors.len() as i32;
     let count: i32 = _cse_temp_0;
     count
@@ -208,7 +218,7 @@ pub fn test_enum_count() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn color_to_rgb(color: i32) -> () {
-    let _cse_temp_0 = color == Color.RED;
+    let _cse_temp_0 = color == Color::RED;
     if _cse_temp_0 {
         (255, 0, 0)
     } else {
@@ -227,7 +237,7 @@ pub fn color_to_rgb(color: i32) -> () {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn status_to_message(mut status: i32) -> String {
-    let _cse_temp_0 = status == Status.PENDING;
+    let _cse_temp_0 = status == Status::PENDING;
     if _cse_temp_0 {
         "Waiting for approval".to_string()
     } else {
@@ -246,7 +256,7 @@ pub fn status_to_message(mut status: i32) -> String {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn process_by_status(mut status: i32, value: i32) -> i32 {
-    let _cse_temp_0 = status == Status.APPROVED;
+    let _cse_temp_0 = status == Status::APPROVED;
     if _cse_temp_0 {
         value * 2
     } else {
@@ -306,14 +316,14 @@ pub fn test_all_enum_features() {
     let mut status: i32 = test_status_enum();
     let msg: String = status_to_message(status);
     let direction: i32 = test_direction_enum();
-    let rotated: i32 = rotate_direction(Direction.NORTH, true);
-    let opposite: i32 = opposite_direction(Direction.NORTH);
-    let is_horiz: bool = is_horizontal(Direction.EAST);
-    let is_vert: bool = is_vertical(Direction.NORTH);
+    let rotated: i32 = rotate_direction(Direction::NORTH, true);
+    let opposite: i32 = opposite_direction(Direction::NORTH);
+    let is_horiz: bool = is_horizontal(Direction::EAST);
+    let is_vert: bool = is_vertical(Direction::NORTH);
     let colors: Vec<i32> = test_enum_iteration();
     let count: i32 = test_enum_count();
-    let rgb: () = color_to_rgb(Color.RED);
-    let processed: i32 = process_by_status(Status.APPROVED, 10);
+    let rgb: () = color_to_rgb(Color::RED);
+    let processed: i32 = process_by_status(Status::APPROVED, 10);
     let has_perms: bool = test_enum_flags();
     let dir_range: Vec<i32> = test_enum_range();
     let is_valid: bool = validate_enum_value(2, 0, 3);

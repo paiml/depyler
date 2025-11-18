@@ -18,7 +18,7 @@ impl ZeroDivisionError {
 }
 #[doc = "Infers numeric types from arithmetic operations."]
 #[doc = " Depyler: proven to terminate"]
-pub fn numeric_operations(x: i32, y: i32) -> Result<(), ZeroDivisionError> {
+pub fn numeric_operations(x: i32, y: i32) -> Result<i32, ZeroDivisionError> {
     let sum_val = x + y;
     let diff = x - y;
     let _cse_temp_0 = x * y;
@@ -62,7 +62,7 @@ pub fn list_processing(items: &mut serde_json::Value) -> Vec<serde_json::Value> 
     result
 }
 #[doc = "Multiple inference sources for better confidence."]
-pub fn mixed_inference<'a, 'b>(
+pub fn mixed_inference<'b, 'a>(
     data: &'a serde_json::Value,
     multiplier: &'b serde_json::Value,
 ) -> Result<i32, ZeroDivisionError> {
@@ -135,7 +135,7 @@ pub fn function_composition(
 #[doc = "Demonstrates different confidence levels."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn confidence_levels_demo<'c, 'a, 'b>(
+pub fn confidence_levels_demo<'a, 'b, 'c>(
     certain_str: &'a str,
     probable_num: &'b serde_json::Value,
     possible_container: &'c serde_json::Value,

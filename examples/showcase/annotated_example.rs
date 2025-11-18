@@ -88,25 +88,9 @@ pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, ZeroDivisionError> {
 pub fn dot_product<'a, 'b>(v1: &'a Vec<f64>, v2: &'b Vec<f64>) -> Result<f64, IndexError> {
     let mut result = 0.0;
     for i in 0..v1.len() as i32 {
-        result = result + {
-            let base = v1;
-            let idx = i;
-            let actual_idx = if idx < 0 {
-                base.len().saturating_sub((-idx) as usize)
-            } else {
-                idx as usize
-            };
-            base.get(actual_idx).cloned().unwrap_or_default()
-        } * {
-            let base = v2;
-            let idx = i;
-            let actual_idx = if idx < 0 {
-                base.len().saturating_sub((-idx) as usize)
-            } else {
-                idx as usize
-            };
-            base.get(actual_idx).cloned().unwrap_or_default()
-        };
+        result = result
+            + v1.get(i as usize).cloned().unwrap_or_default()
+                * v2.get(i as usize).cloned().unwrap_or_default();
     }
     Ok(result)
 }
@@ -116,8 +100,8 @@ mod tests {
     use quickcheck::{quickcheck, TestResult};
     #[test]
     fn test_parallel_sum_examples() {
-        assert_eq!(parallel_sum(0), 0);
-        assert_eq!(parallel_sum(1), 1);
-        assert_eq!(parallel_sum(-1), -1);
+        assert_eq!(parallel_sum(&vec![]), 0);
+        assert_eq!(parallel_sum(&vec![1]), 1);
+        assert_eq!(parallel_sum(&vec![1, 2, 3]), 6);
     }
 }

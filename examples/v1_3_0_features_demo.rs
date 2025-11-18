@@ -20,7 +20,7 @@ impl ResourceManager {
         exc_type: serde_json::Value,
         exc_val: serde_json::Value,
         exc_tb: serde_json::Value,
-    ) {
+    ) -> bool {
         self.is_open = false;
         return false;
     }
@@ -57,7 +57,7 @@ impl Counter {
 #[doc = "Demonstrate with statement support"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn demo_with_statement() {
+pub fn demo_with_statement() -> i32 {
     let _context = ResourceManager::new("test".to_string().to_string());
     let rm = _context.__enter__();
     let result = rm.use_resource();
@@ -78,7 +78,7 @@ pub fn demo_iterator() -> i32 {
 #[doc = "Run all v1.3.0 feature demos"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn main() {
+pub fn main() -> i32 {
     let with_result = demo_with_statement();
     let iter_result = demo_iterator();
     with_result + iter_result
