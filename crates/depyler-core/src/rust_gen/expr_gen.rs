@@ -2253,16 +2253,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 })
                 .collect();
 
-            // DEPYLER-0287 Fix Part 2: Add `?` operator for recursive calls in Result-returning functions
-            // If we're in a function that can fail (returns Result), and we're calling another
-            // function (potentially recursive), propagate errors with `?` operator.
-            // This is needed for recursive functions that perform operations like list indexing
-            // which return Result<T, E>.
-            if self.ctx.current_function_can_fail {
-                Ok(parse_quote! { #func_ident(#(#borrowed_args),*)? })
-            } else {
-                Ok(parse_quote! { #func_ident(#(#borrowed_args),*) })
-            }
+            // DEPYLER-0422 Fix #6: Remove automatic `?` operator for function calls
+            // DEPYLER-0287 was too broad - it added `?` to ALL function calls when inside a Result-returning function.
+            // This caused E0277 errors (279 errors!) when calling functions that return plain types (i32, Vec, etc.).
+            //
+            // Root Cause Analysis:
+            // 1. Why: `?` operator applied to i32/Vec (non-Result types)
+            // 2. Why: Transpiler adds `?` to all function calls inside Result-returning functions
+            // 3. Why: DEPYLER-0287 unconditionally adds `?` when current_function_can_fail is true
+            // 4. Why: No check if the CALLED function actually returns Result
+            // 5. ROOT CAUSE: Overly aggressive error propagation heuristic
+            //
+            // Solution: Don't automatically add `?` to function calls. Let explicit error handling
+            // in Python (try/except) determine when Result types are needed.
+            // If specific cases need `?` for recursive calls, those should be handled specially.
+            Ok(parse_quote! { #func_ident(#(#borrowed_args),*) })
         }
     }
 

@@ -184,7 +184,7 @@ pub fn days_in_month(year: i32, month: i32) -> Result<i32, IndexError> {
         return Ok(0);
     }
     let _cse_temp_3 = month == 2;
-    let _cse_temp_4 = (_cse_temp_3) && (is_leap_year(year)?);
+    let _cse_temp_4 = (_cse_temp_3) && (is_leap_year(year));
     if _cse_temp_4 {
         return Ok(29);
     }
@@ -321,7 +321,7 @@ pub fn test_datetime_formatting() -> String {
 }
 #[doc = "Generate list of dates in range"]
 #[doc = " Depyler: verified panic-free"]
-pub fn test_date_range<'b, 'a>(start: &'a date, end: &'b date) -> Vec<date> {
+pub fn test_date_range<'a, 'b>(start: &'a date, end: &'b date) -> Vec<date> {
     let mut dates: Vec<date> = vec![];
     let mut current: date = start;
     let one_day: timedelta = chrono::Duration::zero();
@@ -386,38 +386,38 @@ pub fn quarter_of_year(d: &date) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_datetime_features() -> Result<(), Box<dyn std::error::Error>> {
-    let current_str: String = test_current_datetime()?;
-    let my_date: date = test_date_creation()?;
-    let my_time: time = test_time_creation()?;
-    let my_datetime: datetime = test_datetime_creation()?;
-    let days_diff: i32 = test_date_arithmetic()?;
-    let delta: timedelta = test_timedelta_creation()?;
-    let future_date: date = test_date_addition()?;
-    let past_date: date = test_date_subtraction()?;
+    let current_str: String = test_current_datetime();
+    let my_date: date = test_date_creation();
+    let my_time: time = test_time_creation();
+    let my_datetime: datetime = test_datetime_creation();
+    let days_diff: i32 = test_date_arithmetic();
+    let delta: timedelta = test_timedelta_creation();
+    let future_date: date = test_date_addition();
+    let past_date: date = test_date_subtraction();
     let birth: date = chrono::NaiveDate::from_ymd_opt(1990 as i32, 5 as u32, 15 as u32).unwrap();
     let today: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 5 as u32).unwrap();
-    let age: i32 = calculate_age(birth, today)?;
+    let age: i32 = calculate_age(birth, today);
     let event: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 12 as u32, 31 as u32).unwrap();
-    let days_left: i32 = days_until_event(event, today)?;
-    let is_leap_2024: bool = is_leap_year(2024)?;
-    let is_leap_2025: bool = is_leap_year(2025)?;
-    let days_feb_2024: i32 = days_in_month(2024, 2)?;
-    let days_feb_2025: i32 = days_in_month(2025, 2)?;
-    let delta_str: String = test_timedelta_components()?;
-    let cmp_dt: bool = test_datetime_comparison()?;
-    let cmp_date: bool = test_date_comparison()?;
+    let days_left: i32 = days_until_event(event, today);
+    let is_leap_2024: bool = is_leap_year(2024);
+    let is_leap_2025: bool = is_leap_year(2025);
+    let days_feb_2024: i32 = days_in_month(2024, 2);
+    let days_feb_2025: i32 = days_in_month(2025, 2);
+    let delta_str: String = test_timedelta_components();
+    let cmp_dt: bool = test_datetime_comparison();
+    let cmp_date: bool = test_date_comparison();
     let start: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 1 as u32, 1 as u32).unwrap();
     let end: date = chrono::NaiveDate::from_ymd_opt(2025 as i32, 12 as u32, 31 as u32).unwrap();
-    let work_days: i32 = working_days_between(start, end)?;
-    let future: date = add_business_days(today, 10)?;
-    let formatted: String = test_datetime_formatting()?;
+    let work_days: i32 = working_days_between(start, end);
+    let future: date = add_business_days(today, 10);
+    let formatted: String = test_datetime_formatting();
     let range_start: date =
         chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 1 as u32).unwrap();
     let range_end: date =
         chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 7 as u32).unwrap();
-    let date_list: Vec<date> = test_date_range(range_start, range_end)?;
-    let meeting_end: i32 = test_time_arithmetic()?;
-    let q: i32 = quarter_of_year(today)?;
+    let date_list: Vec<date> = test_date_range(range_start, range_end);
+    let meeting_end: i32 = test_time_arithmetic();
+    let q: i32 = quarter_of_year(today);
     println!("{}", "All datetime module tests completed successfully");
     Ok(())
 }

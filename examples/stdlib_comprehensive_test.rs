@@ -1,5 +1,5 @@
-const STR_A: &'static str = "a";
 const STR_B: &'static str = "b";
+const STR_A: &'static str = "a";
 use std::collections::HashMap;
 use std::collections::HashSet;
 #[derive(Debug, Clone)]

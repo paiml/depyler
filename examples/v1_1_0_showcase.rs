@@ -215,15 +215,15 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "{} {}",
         "Dictionary Assignment:",
-        showcase_dictionary_assignment()?
+        showcase_dictionary_assignment()
     );
-    println!("{} {}", "Set Operations:", showcase_set_operations()?);
+    println!("{} {}", "Set Operations:", showcase_set_operations());
     println!(
         "{} {}",
         "Set Comprehensions:",
-        showcase_set_comprehensions()?
+        showcase_set_comprehensions()
     );
-    println!("{} {}", "Frozen Sets:", showcase_frozen_sets()?);
-    println!("{} {}", "Control Flow:", showcase_control_flow()?);
-    println!("{} {}", "Power Operator:", showcase_power_operator()?);
+    println!("{} {}", "Frozen Sets:", showcase_frozen_sets());
+    println!("{} {}", "Control Flow:", showcase_control_flow());
+    println!("{} {}", "Power Operator:", showcase_power_operator());
 }

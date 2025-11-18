@@ -305,35 +305,35 @@ pub fn test_triangular_distribution() -> f64 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_random_features() -> Result<(), Box<dyn std::error::Error>> {
-    let int_result: i32 = test_random_integers()?;
-    let float_result: f64 = test_random_floats()?;
+    let int_result: i32 = test_random_integers();
+    let float_result: f64 = test_random_floats();
     let colors: Vec<String> = vec![
         "red".to_string(),
         "green".to_string(),
         "blue".to_string(),
         "yellow".to_string(),
     ];
-    let chosen_color: String = test_random_choice(&colors)?;
+    let chosen_color: String = test_random_choice(&colors);
     let numbers: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    let sampled: Vec<i32> = test_random_sample(&numbers, 3)?;
-    let shuffled: Vec<i32> = test_shuffle_list(&numbers)?;
-    let seeded_results: Vec<i32> = test_random_seed()?;
-    let range_result: i32 = test_random_range()?;
-    let dice: i32 = simulate_dice_roll()?;
-    let coin: String = simulate_coin_flip()?;
-    let password: String = generate_random_password(8)?;
+    let sampled: Vec<i32> = test_random_sample(&numbers, 3);
+    let shuffled: Vec<i32> = test_shuffle_list(&numbers);
+    let seeded_results: Vec<i32> = test_random_seed();
+    let range_result: i32 = test_random_range();
+    let dice: i32 = simulate_dice_roll();
+    let coin: String = simulate_coin_flip();
+    let password: String = generate_random_password(8);
     let items: Vec<String> = vec![
         "common".to_string(),
         "uncommon".to_string(),
         "rare".to_string(),
     ];
     let weights: Vec<i32> = vec![70, 25, 5];
-    let weighted: String = weighted_random_choice(&items, &weights)?;
-    let pi_est: f64 = monte_carlo_pi_estimation(1000)?;
-    let bool_dist: f64 = test_random_boolean_distribution(100)?;
-    let mut deck: Vec<String> = shuffle_deck()?;
-    let gauss_result: f64 = test_gauss_distribution()?;
-    let tri_result: f64 = test_triangular_distribution()?;
+    let weighted: String = weighted_random_choice(&items, &weights);
+    let pi_est: f64 = monte_carlo_pi_estimation(1000);
+    let bool_dist: f64 = test_random_boolean_distribution(100);
+    let mut deck: Vec<String> = shuffle_deck();
+    let gauss_result: f64 = test_gauss_distribution();
+    let tri_result: f64 = test_triangular_distribution();
     println!("{}", "All random module tests completed successfully");
     Ok(())
 }

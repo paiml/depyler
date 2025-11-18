@@ -163,13 +163,13 @@ pub fn simple_function(x: i32, y: i32) -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     for i in 0..5 {
-        fibonacci_recursive(i)?;
+        fibonacci_recursive(i);
     }
-    fibonacci_iterative(30)?;
+    fibonacci_iterative(30);
     let test_list = (0..100).collect::<Vec<_>>();
-    process_list(test_list)?;
-    string_concatenation_in_loop(100)?;
-    allocate_many_lists(50)?;
+    process_list(test_list);
+    string_concatenation_in_loop(100);
+    allocate_many_lists(50);
     let mixed_values = vec![
         1,
         "hello".to_string(),
@@ -177,11 +177,11 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         42,
         "world".to_string(),
     ];
-    type_check_heavy(&mixed_values)?;
+    type_check_heavy(&mixed_values);
     let mat_a = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
     let mat_b = vec![vec![5.0, 6.0], vec![7.0, 8.0]];
-    matrix_multiply(&mat_a, &mat_b)?;
-    simple_function(10, 20)?;
+    matrix_multiply(&mat_a, &mat_b);
+    simple_function(10, 20);
 }
 #[cfg(test)]
 mod tests {

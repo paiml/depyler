@@ -392,30 +392,30 @@ pub fn chain_comparisons(x: i32, low: i32, high: i32) -> bool {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_operator_features() -> Result<(), Box<dyn std::error::Error>> {
-    let arith_result: i32 = test_arithmetic_operators()?;
-    let comp_result: bool = test_comparison_operators()?;
-    let logic_result: bool = test_logical_operators()?;
-    let bit_result: i32 = test_bitwise_operators()?;
-    let list_item: i32 = test_itemgetter_list()?;
-    let tuple_item: String = test_itemgetter_tuple()?;
-    let multi_items: () = test_itemgetter_multiple()?;
+    let arith_result: i32 = test_arithmetic_operators();
+    let comp_result: bool = test_comparison_operators();
+    let logic_result: bool = test_logical_operators();
+    let bit_result: i32 = test_bitwise_operators();
+    let list_item: i32 = test_itemgetter_list();
+    let tuple_item: String = test_itemgetter_tuple();
+    let multi_items: () = test_itemgetter_multiple();
     let tuples: Vec<()> = vec![(1, 3), (2, 1), (3, 2)];
-    let sorted_tuples: Vec<()> = sort_by_second_element(&tuples)?;
-    let abs_val: i32 = test_abs_operator()?;
-    let neg_val: i32 = test_neg_operator()?;
-    let contains: bool = test_index_operator()?;
-    let concatenated: Vec<i32> = test_concat_operator()?;
-    let repeated: Vec<i32> = test_repeat_operator()?;
-    let get_item: i32 = test_getitem_operator()?;
-    let set_result: Vec<i32> = test_setitem_operator()?;
-    let del_result: Vec<i32> = test_delitem_operator()?;
-    let op_result: i32 = apply_operation(10, 5, "add")?;
+    let sorted_tuples: Vec<()> = sort_by_second_element(&tuples);
+    let abs_val: i32 = test_abs_operator();
+    let neg_val: i32 = test_neg_operator();
+    let contains: bool = test_index_operator();
+    let concatenated: Vec<i32> = test_concat_operator();
+    let repeated: Vec<i32> = test_repeat_operator();
+    let get_item: i32 = test_getitem_operator();
+    let set_result: Vec<i32> = test_setitem_operator();
+    let del_result: Vec<i32> = test_delitem_operator();
+    let op_result: i32 = apply_operation(10, 5, "add");
     let mut data: Vec<()> = vec![(1, 100), (2, 50), (3, 200)];
-    let mut max_elem: () = max_by_key(&data)?;
-    let mut min_elem: () = min_by_key(&data)?;
-    let truth: bool = test_truthiness()?;
-    let identity: bool = test_identity()?;
-    let chained: bool = chain_comparisons(5, 1, 10)?;
+    let mut max_elem: () = max_by_key(&data);
+    let mut min_elem: () = min_by_key(&data);
+    let truth: bool = test_truthiness();
+    let identity: bool = test_identity();
+    let chained: bool = chain_comparisons(5, 1, 10);
     println!("{}", "All operator module tests completed successfully");
     Ok(())
 }
