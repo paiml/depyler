@@ -1657,12 +1657,27 @@ pub(crate) fn codegen_assign_stmt(
 
     // DEPYLER-0270: Auto-unwrap Result-returning function calls in assignments
     // When assigning from a function that returns Result<T, E> in a non-Result context,
-    // we need to unwrap it. NOTE: expr_gen.rs already adds `?` for Result contexts,
-    // so we ONLY add .unwrap() for non-Result contexts to avoid double unwrapping (??).
+    // we need to unwrap it.
+    //
+    // DEPYLER-0422 Fix #8: Also add `?` when BOTH caller and callee return Result
+    // Fix #6 removed automatic `?` from expr_gen.rs, so we need to add it here at the
+    // statement level where we know the variable type context.
+    //
+    // Five-Whys Root Cause:
+    // 1. Why: expected `i32`, found `Result<i32, Box<dyn Error>>`
+    // 2. Why: Variable `position: i32` assigned Result-returning function without unwrap
+    // 3. Why: Neither `?` nor `.unwrap()` added to function call
+    // 4. Why: Fix #6 removed `?` from expr_gen, and DEPYLER-0270 only adds `.unwrap()` for non-Result callers
+    // 5. ROOT CAUSE: Missing `?` for Result→Result propagation after Fix #6
     if let HirExpr::Call { func, .. } = value {
-        if ctx.result_returning_functions.contains(func) && !ctx.current_function_can_fail {
-            // Current function doesn't return Result - add .unwrap() to extract the value
-            value_expr = parse_quote! { #value_expr.unwrap() };
+        if ctx.result_returning_functions.contains(func) {
+            if ctx.current_function_can_fail {
+                // Current function also returns Result - add ? to propagate error
+                value_expr = parse_quote! { #value_expr? };
+            } else {
+                // Current function doesn't return Result - add .unwrap() to extract the value
+                value_expr = parse_quote! { #value_expr.unwrap() };
+            }
         }
     }
 
