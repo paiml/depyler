@@ -247,6 +247,24 @@ fn codegen_single_param(
     let param_name = param.name.clone();
     let param_ident = syn::Ident::new(&param_name, proc_macro2::Span::call_site());
 
+    // DEPYLER-0424: Check if this parameter is the argparse args variable
+    // If so, type it as &Args instead of default type mapping
+    let is_argparse_args = ctx
+        .argparser_tracker
+        .parsers
+        .values()
+        .any(|parser_info| {
+            parser_info
+                .args_var
+                .as_ref()
+                .map_or(false, |args_var| args_var == &param.name)
+        });
+
+    if is_argparse_args {
+        // Use &Args for argparse result parameters
+        return Ok(quote! { #param_ident: &Args });
+    }
+
     // DEPYLER-0312: Use mutable_vars populated by analyze_mutable_vars
     // This handles ALL mutation patterns: direct assignment, method calls, and parameter reassignments
     // The analyze_mutable_vars function already checked all mutation patterns in codegen_function_body
@@ -602,7 +620,10 @@ fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
     // If all return types are the same (ignoring Unknown), use that type
     let first_known = return_types.iter().find(|t| !matches!(t, Type::Unknown));
     if let Some(first) = first_known {
-        if return_types.iter().all(|t| matches!(t, Type::Unknown) || t == first) {
+        if return_types
+            .iter()
+            .all(|t| matches!(t, Type::Unknown) || t == first)
+        {
             return Some(first.clone());
         }
     }
@@ -644,7 +665,11 @@ fn build_var_type_env(stmts: &[HirStmt], var_types: &mut std::collections::HashM
                     }
                 }
             }
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 build_var_type_env(then_body, var_types);
                 if let Some(else_stmts) = else_body {
                     build_var_type_env(else_stmts, var_types);
@@ -653,7 +678,12 @@ fn build_var_type_env(stmts: &[HirStmt], var_types: &mut std::collections::HashM
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
                 build_var_type_env(body, var_types);
             }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
                 build_var_type_env(body, var_types);
                 for handler in handlers {
                     build_var_type_env(&handler.body, var_types);
@@ -687,7 +717,11 @@ fn collect_return_types_with_env(
             HirStmt::Return(None) => {
                 types.push(Type::None);
             }
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 collect_return_types_with_env(then_body, types, var_types);
                 if let Some(else_stmts) = else_body {
                     collect_return_types_with_env(else_stmts, types, var_types);
@@ -696,7 +730,12 @@ fn collect_return_types_with_env(
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
                 collect_return_types_with_env(body, types, var_types);
             }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
                 collect_return_types_with_env(body, types, var_types);
                 for handler in handlers {
                     collect_return_types_with_env(&handler.body, types, var_types);
@@ -723,15 +762,20 @@ fn infer_expr_type_with_env(
 ) -> Type {
     match expr {
         // DEPYLER-0415: Look up variable types in the environment
-        HirExpr::Var(name) => {
-            var_types.get(name).cloned().unwrap_or(Type::Unknown)
-        }
+        HirExpr::Var(name) => var_types.get(name).cloned().unwrap_or(Type::Unknown),
         // For other expressions, delegate to the simple version
         // but recurse with environment for nested expressions
         HirExpr::Binary { op, left, right } => {
-            if matches!(op,
-                BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq |
-                BinOp::Gt | BinOp::GtEq | BinOp::In | BinOp::NotIn
+            if matches!(
+                op,
+                BinOp::Eq
+                    | BinOp::NotEq
+                    | BinOp::Lt
+                    | BinOp::LtEq
+                    | BinOp::Gt
+                    | BinOp::GtEq
+                    | BinOp::In
+                    | BinOp::NotIn
             ) {
                 return Type::Bool;
             }
@@ -813,7 +857,11 @@ fn collect_return_types(stmts: &[HirStmt], types: &mut Vec<Type>) {
                 // Explicit return with no value
                 types.push(Type::None);
             }
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 collect_return_types(then_body, types);
                 if let Some(else_stmts) = else_body {
                     collect_return_types(else_stmts, types);
@@ -822,7 +870,12 @@ fn collect_return_types(stmts: &[HirStmt], types: &mut Vec<Type>) {
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
                 collect_return_types(body, types);
             }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
                 collect_return_types(body, types);
                 for handler in handlers {
                     collect_return_types(&handler.body, types);
@@ -849,9 +902,16 @@ fn infer_expr_type_simple(expr: &HirExpr) -> Type {
         HirExpr::Literal(lit) => literal_to_type(lit),
         HirExpr::Binary { op, left, right } => {
             // Comparison operators always return bool
-            if matches!(op,
-                BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq |
-                BinOp::Gt | BinOp::GtEq | BinOp::In | BinOp::NotIn
+            if matches!(
+                op,
+                BinOp::Eq
+                    | BinOp::NotEq
+                    | BinOp::Lt
+                    | BinOp::LtEq
+                    | BinOp::Gt
+                    | BinOp::GtEq
+                    | BinOp::In
+                    | BinOp::NotIn
             ) {
                 return Type::Bool;
             }
@@ -954,7 +1014,7 @@ fn infer_expr_type_simple(expr: &HirExpr) -> Type {
                 Type::Tuple(elems) => elems.first().cloned().unwrap_or(Type::Unknown),
                 Type::Dict(_, val) => *val,
                 Type::String => Type::String, // string indexing returns char/string
-                _ => Type::Int, // Default to Int for array-like indexing
+                _ => Type::Int,               // Default to Int for array-like indexing
             }
         }
         // DEPYLER-0414: Add Slice expression type inference
@@ -986,11 +1046,11 @@ fn infer_expr_type_simple(expr: &HirExpr) -> Type {
         HirExpr::MethodCall { object, method, .. } => {
             match method.as_str() {
                 // String methods that return String
-                "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace"
-                | "title" | "capitalize" | "join" | "format" => Type::String,
+                "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "title"
+                | "capitalize" | "join" | "format" => Type::String,
                 // String methods that return bool
-                "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum"
-                | "isupper" | "islower" => Type::Bool,
+                "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum" | "isupper"
+                | "islower" => Type::Bool,
                 // String methods that return int
                 "find" | "rfind" | "index" | "rindex" | "count" => Type::Int,
                 // String methods that return list
@@ -1004,13 +1064,11 @@ fn infer_expr_type_simple(expr: &HirExpr) -> Type {
                         _ => Type::Unknown,
                     }
                 }
-                "pop" => {
-                    match infer_expr_type_simple(object) {
-                        Type::List(elem) => *elem,
-                        Type::Dict(_, val) => *val,
-                        _ => Type::Unknown,
-                    }
-                }
+                "pop" => match infer_expr_type_simple(object) {
+                    Type::List(elem) => *elem,
+                    Type::Dict(_, val) => *val,
+                    _ => Type::Unknown,
+                },
                 "keys" => Type::List(Box::new(Type::Unknown)),
                 "values" => Type::List(Box::new(Type::Unknown)),
                 "items" => Type::List(Box::new(Type::Tuple(vec![Type::Unknown, Type::Unknown]))),
@@ -1018,20 +1076,14 @@ fn infer_expr_type_simple(expr: &HirExpr) -> Type {
             }
         }
         // DEPYLER-0414: Add ListComp type inference
-        HirExpr::ListComp { element, .. } => {
-            Type::List(Box::new(infer_expr_type_simple(element)))
-        }
+        HirExpr::ListComp { element, .. } => Type::List(Box::new(infer_expr_type_simple(element))),
         // DEPYLER-0414: Add SetComp type inference
-        HirExpr::SetComp { element, .. } => {
-            Type::Set(Box::new(infer_expr_type_simple(element)))
-        }
+        HirExpr::SetComp { element, .. } => Type::Set(Box::new(infer_expr_type_simple(element))),
         // DEPYLER-0414: Add DictComp type inference
-        HirExpr::DictComp { key, value, .. } => {
-            Type::Dict(
-                Box::new(infer_expr_type_simple(key)),
-                Box::new(infer_expr_type_simple(value)),
-            )
-        }
+        HirExpr::DictComp { key, value, .. } => Type::Dict(
+            Box::new(infer_expr_type_simple(key)),
+            Box::new(infer_expr_type_simple(value)),
+        ),
         // DEPYLER-0414: Add Attribute type inference
         HirExpr::Attribute { attr, .. } => {
             // Common attributes with known types
@@ -1338,29 +1390,34 @@ impl RustCodeGen for HirFunction {
         let mut body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
 
         // DEPYLER-0363: Check if ArgumentParser was detected and generate Args struct
+        // DEPYLER-0424: Store Args struct and Commands enum in context for module-level emission
+        // (hoisted outside function to make Args accessible to handler functions)
         if ctx.argparser_tracker.has_parsers() {
             if let Some(parser_info) = ctx.argparser_tracker.get_first_parser() {
                 // DEPYLER-0384: Set flag to include clap dependency in Cargo.toml
                 ctx.needs_clap = true;
 
                 // DEPYLER-0399: Generate Commands enum if subcommands exist
-                let commands_enum = crate::rust_gen::argparse_transform::generate_commands_enum(&ctx.argparser_tracker);
+                let commands_enum = crate::rust_gen::argparse_transform::generate_commands_enum(
+                    &ctx.argparser_tracker,
+                );
                 if !commands_enum.is_empty() {
-                    body_stmts.insert(0, commands_enum);
+                    ctx.generated_commands_enum = Some(commands_enum);
                 }
 
                 // Generate the Args struct definition
-                let args_struct = crate::rust_gen::argparse_transform::generate_args_struct(parser_info, &ctx.argparser_tracker);
-
-                // Prepend the struct to function body
-                body_stmts.insert(0, args_struct);
+                let args_struct = crate::rust_gen::argparse_transform::generate_args_struct(
+                    parser_info,
+                    &ctx.argparser_tracker,
+                );
+                ctx.generated_args_struct = Some(args_struct);
 
                 // Note: ArgumentParser-related statements are filtered in stmt_gen.rs
                 // parse_args() calls are transformed in stmt_gen.rs::codegen_assign_stmt
             }
 
-            // Clear tracker for next function
-            ctx.argparser_tracker.clear();
+            // DO NOT clear tracker yet - we need it for parameter type resolution
+            // It will be cleared after all functions are generated
         }
 
         // DEPYLER-0270: Add Ok(()) for functions with Result<(), E> return type
