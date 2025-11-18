@@ -340,10 +340,10 @@ pub fn caesar_cipher(text: &str, shift: i32) -> Result<String, ZeroDivisionError
         let char = _char.to_string();
         let mut result;
         if char.chars().all(|c| c.is_alphabetic()) {
-            let mut shifted: i32;
-            let mut new_char: String;
             let mut base: i32;
             let mut result;
+            let mut new_char: String;
+            let mut shifted: i32;
             if char.isupper() {
                 base = "A".chars().next().unwrap() as i32;
                 shifted = format!("{}{}", char.chars().next().unwrap() as i32 - base, shift) % 26;
@@ -446,31 +446,31 @@ pub fn count_consonants(text: &str) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_string_features() -> Result<(), Box<dyn std::error::Error>> {
-    let lowercase: String = test_ascii_lowercase()?;
-    let uppercase: String = test_ascii_uppercase()?;
-    let letters: String = test_ascii_letters()?;
-    let digits: String = test_digits()?;
-    let hexdigits: String = test_hexdigits()?;
-    let octdigits: String = test_octdigits()?;
-    let punct: String = test_punctuation()?;
-    let ws: String = test_whitespace()?;
-    let is_letter: bool = is_ascii_letter("a")?;
-    let is_num: bool = is_digit("5")?;
-    let is_alnum: bool = is_alphanumeric("a")?;
-    let is_ws: bool = is_whitespace(" ")?;
-    let is_punct: bool = is_punctuation("!")?;
+    let lowercase: String = test_ascii_lowercase();
+    let uppercase: String = test_ascii_uppercase();
+    let letters: String = test_ascii_letters();
+    let digits: String = test_digits();
+    let hexdigits: String = test_hexdigits();
+    let octdigits: String = test_octdigits();
+    let punct: String = test_punctuation();
+    let ws: String = test_whitespace();
+    let is_letter: bool = is_ascii_letter("a");
+    let is_num: bool = is_digit("5");
+    let is_alnum: bool = is_alphanumeric("a");
+    let is_ws: bool = is_whitespace(" ");
+    let is_punct: bool = is_punctuation("!");
     let text: String = "hello world".to_string();
-    let mut capitalized: String = capitalize_words(text)?;
-    let title: String = to_title_case(text)?;
-    let swapped: String = swap_case(text)?;
+    let mut capitalized: String = capitalize_words(text);
+    let title: String = to_title_case(text);
+    let swapped: String = swap_case(text);
     let sample: String = "Hello World 123!".to_string();
-    let letter_count: i32 = count_letters(sample)?;
-    let digit_count: i32 = count_digits(sample)?;
-    let ws_count: i32 = count_whitespace(sample)?;
-    let no_ws: String = remove_whitespace(sample)?;
-    let only_letters: String = keep_only_letters(sample)?;
-    let only_digits: String = keep_only_digits(sample)?;
-    let only_alnum: String = keep_alphanumeric(sample)?;
+    let letter_count: i32 = count_letters(sample);
+    let digit_count: i32 = count_digits(sample);
+    let ws_count: i32 = count_whitespace(sample);
+    let no_ws: String = remove_whitespace(sample);
+    let only_letters: String = keep_only_letters(sample);
+    let only_digits: String = keep_only_digits(sample);
+    let only_alnum: String = keep_alphanumeric(sample);
     let template: String = "Hello ${name}, you are ${age} years old".to_string();
     let values: HashMap<serde_json::Value, serde_json::Value> = {
         let mut map = HashMap::new();
@@ -478,14 +478,14 @@ pub fn test_all_string_features() -> Result<(), Box<dyn std::error::Error>> {
         map.insert("age".to_string(), "30");
         map
     };
-    let substituted: String = template_substitute(template, &values)?;
+    let substituted: String = template_substitute(template, &values);
     let message: String = "HELLO".to_string();
-    let encrypted: String = caesar_cipher(message, 3)?;
-    let decrypted: String = caesar_cipher(encrypted, -3)?;
-    let reversed_text: String = reverse_string("hello")?;
-    let is_palin: bool = is_palindrome("A man a plan a canal Panama")?;
-    let vowel_count: i32 = count_vowels("hello world")?;
-    let consonant_count: i32 = count_consonants("hello world")?;
+    let encrypted: String = caesar_cipher(message, 3);
+    let decrypted: String = caesar_cipher(encrypted, -3);
+    let reversed_text: String = reverse_string("hello");
+    let is_palin: bool = is_palindrome("A man a plan a canal Panama");
+    let vowel_count: i32 = count_vowels("hello world");
+    let consonant_count: i32 = count_consonants("hello world");
     println!("{}", "All string module tests completed successfully");
     Ok(())
 }

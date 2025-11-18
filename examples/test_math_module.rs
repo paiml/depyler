@@ -299,23 +299,23 @@ pub fn test_integer_operations() -> Result<i32, ZeroDivisionError> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_math_features() -> Result<(), Box<dyn std::error::Error>> {
-    let basic_result: f64 = test_basic_math_functions()?;
-    let trig_result: f64 = test_trigonometric_functions()?;
-    let log_result: f64 = test_logarithmic_functions()?;
-    let round_result: f64 = test_rounding_functions()?;
-    let const_result: f64 = test_constants()?;
-    let hyper_result: f64 = test_hyperbolic_functions()?;
-    let special_result: f64 = test_special_functions()?;
-    let angle_result: f64 = test_angle_conversions()?;
-    let dist: f64 = calculate_distance(0.0, 0.0, 3.0, 4.0)?;
-    let hyp: f64 = calculate_hypotenuse(3.0, 4.0)?;
-    let power_result: f64 = test_power_operations()?;
+    let basic_result: f64 = test_basic_math_functions();
+    let trig_result: f64 = test_trigonometric_functions();
+    let log_result: f64 = test_logarithmic_functions();
+    let round_result: f64 = test_rounding_functions();
+    let const_result: f64 = test_constants();
+    let hyper_result: f64 = test_hyperbolic_functions();
+    let special_result: f64 = test_special_functions();
+    let angle_result: f64 = test_angle_conversions();
+    let dist: f64 = calculate_distance(0.0, 0.0, 3.0, 4.0);
+    let hyp: f64 = calculate_hypotenuse(3.0, 4.0);
+    let power_result: f64 = test_power_operations();
     let sample_values: Vec<f64> = vec![1.5, 2.7, 3.2, 4.8, 5.1];
-    let comp_result: f64 = test_comparison_functions(&sample_values)?;
-    let stat_result: f64 = test_statistical_math(&sample_values)?;
-    let sign_result: f64 = test_sign_and_copysign()?;
-    let remainder_result: f64 = test_remainder_operations()?;
-    let int_result: i32 = test_integer_operations()?;
+    let comp_result: f64 = test_comparison_functions(&sample_values);
+    let stat_result: f64 = test_statistical_math(&sample_values);
+    let sign_result: f64 = test_sign_and_copysign();
+    let remainder_result: f64 = test_remainder_operations();
+    let int_result: i32 = test_integer_operations();
     println!("{}", "All math module tests completed successfully");
     Ok(())
 }

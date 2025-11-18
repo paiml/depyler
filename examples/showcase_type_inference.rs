@@ -62,7 +62,7 @@ pub fn list_processing(items: &mut serde_json::Value) -> Vec<serde_json::Value> 
     result
 }
 #[doc = "Multiple inference sources for better confidence."]
-pub fn mixed_inference<'a, 'b>(
+pub fn mixed_inference<'b, 'a>(
     data: &'a serde_json::Value,
     multiplier: &'b serde_json::Value,
 ) -> Result<i32, ZeroDivisionError> {
@@ -135,7 +135,7 @@ pub fn function_composition(
 #[doc = "Demonstrates different confidence levels."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn confidence_levels_demo<'a, 'c, 'b>(
+pub fn confidence_levels_demo<'b, 'c, 'a>(
     certain_str: &'a str,
     probable_num: &'b serde_json::Value,
     possible_container: &'c serde_json::Value,
