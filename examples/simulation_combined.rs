@@ -106,10 +106,10 @@ pub fn count_streaks(sequence: &Vec<String>) -> Result<HashMap<String, i32>, Ind
         if sequence.get(i as usize).cloned().unwrap_or_default() == current_type {
             current_streak = current_streak + 1;
         } else {
-            if current_type == "H" && current_streak > max_heads_streak {
+            if (current_type == "H") && (current_streak > max_heads_streak) {
                 max_heads_streak = current_streak;
             } else {
-                if current_type == "T" && current_streak > max_tails_streak {
+                if (current_type == "T") && (current_streak > max_tails_streak) {
                     max_tails_streak = current_streak;
                 }
             }
@@ -119,13 +119,13 @@ pub fn count_streaks(sequence: &Vec<String>) -> Result<HashMap<String, i32>, Ind
     }
     let _cse_temp_2 = current_type == "H";
     let _cse_temp_3 = current_streak > max_heads_streak;
-    let _cse_temp_4 = _cse_temp_2 && _cse_temp_3;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
     if _cse_temp_4 {
         max_heads_streak = current_streak;
     } else {
         let _cse_temp_5 = current_type == "T";
         let _cse_temp_6 = current_streak > max_tails_streak;
-        let _cse_temp_7 = _cse_temp_5 && _cse_temp_6;
+        let _cse_temp_7 = (_cse_temp_5) && (_cse_temp_6);
         if _cse_temp_7 {
             max_tails_streak = current_streak;
         }

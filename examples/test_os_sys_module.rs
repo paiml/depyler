@@ -1,7 +1,7 @@
 use std as os;
 use std as sys;
-const STR__: &'static str = "/";
 const STR_EMPTY: &'static str = "";
+const STR__: &'static str = "/";
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct IndexError {
@@ -222,8 +222,8 @@ pub fn test_path_splitext() -> Result<(), IndexError> {
         }
     }
     let _cse_temp_0 = last_dot > 0;
-    let mut ext: String;
     let mut name: String;
+    let mut ext: String;
     if _cse_temp_0 {
         name = {
             let base = path;
@@ -252,7 +252,7 @@ pub fn test_path_isabs() -> Result<bool, IndexError> {
     let _cse_temp_0 = path.len() as i32;
     let _cse_temp_1 = _cse_temp_0 > 0;
     let _cse_temp_2 = path.get(0usize).cloned().unwrap_or_default() == STR__;
-    let _cse_temp_3 = _cse_temp_1 && _cse_temp_2;
+    let _cse_temp_3 = (_cse_temp_1) && (_cse_temp_2);
     let is_absolute: bool = _cse_temp_3;
     Ok(is_absolute)
 }
@@ -343,7 +343,7 @@ pub fn test_listdir_simulation() -> Vec<String> {
 }
 #[doc = "Filter files by extension"]
 #[doc = " Depyler: verified panic-free"]
-pub fn filter_by_extension<'b, 'a>(
+pub fn filter_by_extension<'a, 'b>(
     files: &'a Vec<String>,
     ext: &'b mut str,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
@@ -383,7 +383,7 @@ pub fn count_files_by_extension(files: &Vec<String>) -> Result<HashMap<String, i
 #[doc = " Depyler: verified panic-free"]
 pub fn test_path_traversal(path: &mut str, max_depth: i32) -> i32 {
     let mut depth: i32 = 0;
-    for char in path.iter().cloned() {
+    for char in path.chars() {
         if char == STR__ {
             depth = depth + 1;
         }
@@ -397,7 +397,7 @@ pub fn test_path_traversal(path: &mut str, max_depth: i32) -> i32 {
 pub fn sanitize_filename(filename: &str) -> String {
     let invalid_chars: String = "<>:\"|?*".to_string();
     let mut sanitized: String = STR_EMPTY.to_string();
-    for char in filename.iter().cloned() {
+    for char in filename.chars() {
         let mut is_invalid: bool = false;
         for invalid in invalid_chars.iter().cloned() {
             if char == invalid {

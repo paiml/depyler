@@ -226,15 +226,15 @@ pub fn manual_heap_extract_min(heap: &mut Vec<i32>) -> Result<(), IndexError> {
         let left: i32 = 2 * index + 1;
         let right: i32 = 2 * index + 2;
         let mut smallest: i32 = index;
-        if left < new_heap.len() as i32
-            && new_heap.get(left as usize).cloned().unwrap_or_default()
-                < new_heap.get(smallest as usize).cloned().unwrap_or_default()
+        if (left < new_heap.len() as i32)
+            && (new_heap.get(left as usize).cloned().unwrap_or_default()
+                < new_heap.get(smallest as usize).cloned().unwrap_or_default())
         {
             smallest = left;
         }
-        if right < new_heap.len() as i32
-            && new_heap.get(right as usize).cloned().unwrap_or_default()
-                < new_heap.get(smallest as usize).cloned().unwrap_or_default()
+        if (right < new_heap.len() as i32)
+            && (new_heap.get(right as usize).cloned().unwrap_or_default()
+                < new_heap.get(smallest as usize).cloned().unwrap_or_default())
         {
             smallest = right;
         }
@@ -333,7 +333,7 @@ pub fn find_kth_smallest(data: &Vec<i32>, k: i32) -> Result<i32, IndexError> {
     let _cse_temp_0 = k > 0;
     let _cse_temp_1 = sorted_data.len() as i32;
     let _cse_temp_2 = k <= _cse_temp_1;
-    let _cse_temp_3 = _cse_temp_0 && _cse_temp_2;
+    let _cse_temp_3 = (_cse_temp_0) && (_cse_temp_2);
     if _cse_temp_3 {
         Ok({
             let base = &sorted_data;

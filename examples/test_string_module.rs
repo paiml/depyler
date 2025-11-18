@@ -1,3 +1,4 @@
+use serde_json;
 #[doc = "// TODO: Map Python module 'string'"]
 const STR_EMPTY: &'static str = "";
 use std::collections::HashMap;
@@ -105,13 +106,13 @@ pub fn is_ascii_letter(char: String) -> bool {
     let code: i32 = char.chars().next().unwrap() as i32;
     let _cse_temp_2 = code >= 65;
     let _cse_temp_3 = code <= 90;
-    let _cse_temp_4 = _cse_temp_2 && _cse_temp_3;
+    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
     let is_upper: bool = _cse_temp_4;
     let _cse_temp_5 = code >= 97;
     let _cse_temp_6 = code <= 122;
-    let _cse_temp_7 = _cse_temp_5 && _cse_temp_6;
+    let _cse_temp_7 = (_cse_temp_5) && (_cse_temp_6);
     let is_lower: bool = _cse_temp_7;
-    is_upper || is_lower
+    (is_upper) || (is_lower)
 }
 #[doc = "Check if character is digit"]
 #[doc = " Depyler: verified panic-free"]
@@ -133,7 +134,7 @@ pub fn is_alphanumeric(char: String) -> bool {
     if _cse_temp_1 {
         return false;
     }
-    is_ascii_letter(char) || is_digit(char)
+    (is_ascii_letter(char)) || (is_digit(char))
 }
 #[doc = "Check if character is whitespace"]
 #[doc = " Depyler: verified panic-free"]
@@ -322,7 +323,7 @@ pub fn keep_alphanumeric(text: &str) -> String {
 #[doc = "Simple template substitution"]
 pub fn template_substitute<'b, 'a>(
     template: &'a str,
-    values: &'b HashMap<String, String>,
+    values: &'b HashMap<serde_json::Value, serde_json::Value>,
 ) -> Result<String, IndexError> {
     let mut result: String = template;
     for key in values.keys().cloned().collect::<Vec<_>>() {
@@ -339,10 +340,10 @@ pub fn caesar_cipher(text: &str, shift: i32) -> Result<String, ZeroDivisionError
         let char = _char.to_string();
         let mut result;
         if char.chars().all(|c| c.is_alphabetic()) {
-            let mut result;
-            let mut base: i32;
-            let mut new_char: String;
             let mut shifted: i32;
+            let mut result;
+            let mut new_char: String;
+            let mut base: i32;
             if char.isupper() {
                 base = "A".chars().next().unwrap() as i32;
                 shifted = format!("{}{}", char.chars().next().unwrap() as i32 - base, shift) % 26;
@@ -435,7 +436,7 @@ pub fn count_consonants(text: &str) -> i32 {
     let mut count: i32 = 0;
     for _char in text.chars() {
         let char = _char.to_string();
-        if is_ascii_letter(char) && !vowels.contains_key(char) {
+        if (is_ascii_letter(char)) && (!vowels.contains_key(char)) {
             count = count + 1;
         }
     }
@@ -471,7 +472,7 @@ pub fn test_all_string_features() -> Result<(), Box<dyn std::error::Error>> {
     let only_digits: String = keep_only_digits(sample)?;
     let only_alnum: String = keep_alphanumeric(sample)?;
     let template: String = "Hello ${name}, you are ${age} years old".to_string();
-    let values: HashMap<String, String> = {
+    let values: HashMap<serde_json::Value, serde_json::Value> = {
         let mut map = HashMap::new();
         map.insert("name".to_string(), "Alice");
         map.insert("age".to_string(), "30");

@@ -1,3 +1,4 @@
+use serde_json;
 use std::collections::HashMap;
 use std::collections::HashSet;
 #[derive(Debug, Clone)]
@@ -21,8 +22,8 @@ impl ZeroDivisionError {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn showcase_dictionary_assignment() -> (
-    HashMap<String, HashMap<String, HashMap<String, String>>>,
-    String,
+    HashMap<String, HashMap<String, HashMap<serde_json::Value, serde_json::Value>>>,
+    HashMap<serde_json::Value, serde_json::Value>,
 ) {
     let mut d = {
         let map = HashMap::new();
@@ -58,7 +59,13 @@ pub fn showcase_dictionary_assignment() -> (
 #[doc = "Showcase comprehensive set support"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn showcase_set_operations() -> (String, String, String, String, HashSet<i32>) {
+pub fn showcase_set_operations() -> (
+    HashSet<i32>,
+    HashSet<i32>,
+    HashSet<i32>,
+    HashSet<i32>,
+    HashSet<i32>,
+) {
     let set1 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -113,7 +120,11 @@ pub fn showcase_set_operations() -> (String, String, String, String, HashSet<i32
 #[doc = "Showcase set comprehensions"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn showcase_set_comprehensions() -> (String, String, String) {
+pub fn showcase_set_comprehensions() -> (
+    HashSet<serde_json::Value>,
+    HashSet<serde_json::Value>,
+    HashSet<String>,
+) {
     let squares = (0..10).map(|x| x * x).collect::<HashSet<_>>();
     let even_squares = (0..10)
         .filter(|x| x % 2 == 0)
@@ -131,7 +142,7 @@ pub fn showcase_set_comprehensions() -> (String, String, String) {
 #[doc = "Showcase frozen set support"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn showcase_frozen_sets() -> (String, HashMap<String, String>) {
+pub fn showcase_frozen_sets() -> (serde_json::Value, HashMap<serde_json::Value, String>) {
     let immutable1 = std::sync::Arc::new(vec![1, 2, 3, 4].into_iter().collect::<HashSet<_>>());
     let immutable2 = std::sync::Arc::new(3..6.into_iter().collect::<HashSet<_>>());
     let _cse_temp_0 = immutable1 & immutable2;
@@ -146,8 +157,14 @@ pub fn showcase_frozen_sets() -> (String, HashMap<String, String>) {
 }
 #[doc = "Showcase break and continue statements"]
 #[doc = " Depyler: proven to terminate"]
-pub fn showcase_control_flow() -> Result<(Vec<String>, Vec<String>, Vec<String>), ZeroDivisionError>
-{
+pub fn showcase_control_flow() -> Result<
+    (
+        Vec<serde_json::Value>,
+        Vec<serde_json::Value>,
+        Vec<serde_json::Value>,
+    ),
+    ZeroDivisionError,
+> {
     let mut result1 = vec![];
     for i in 0..10 {
         if i == 5 {
@@ -165,7 +182,7 @@ pub fn showcase_control_flow() -> Result<(Vec<String>, Vec<String>, Vec<String>)
     let mut result3 = vec![];
     for i in 0..3 {
         for j in 0..3 {
-            if i == 1 && j == 1 {
+            if (i == 1) && (j == 1) {
                 break;
             }
             result3.push((i, j));
@@ -176,7 +193,7 @@ pub fn showcase_control_flow() -> Result<(Vec<String>, Vec<String>, Vec<String>)
 #[doc = "Showcase power operator support"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn showcase_power_operator() -> (String, String, String, String) {
+pub fn showcase_power_operator() -> (i32, f64, i32, i32) {
     let _cse_temp_0 = (2 as i32)
         .checked_pow(10 as u32)
         .expect("Power operation overflowed");

@@ -1,7 +1,7 @@
 use regex as re;
-const STR_HELLO: &'static str = "Hello";
-const STR_EMPTY: &'static str = "";
 const STR_HELLO_WORLD: &'static str = "Hello World";
+const STR_EMPTY: &'static str = "";
+const STR_HELLO: &'static str = "Hello";
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -170,7 +170,7 @@ pub fn validate_phone_simple(phone: &str) -> bool {
         .replace(")", "");
     let _cse_temp_0 = cleaned.len() as i32;
     let _cse_temp_1 = _cse_temp_0 >= 10;
-    let _cse_temp_2 = cleaned.chars().all(|c| c.is_numeric()) && _cse_temp_1;
+    let _cse_temp_2 = (cleaned.chars().all(|c| c.is_numeric())) && (_cse_temp_1);
     let is_valid: bool = _cse_temp_2;
     is_valid
 }
@@ -250,7 +250,7 @@ pub fn normalize_whitespace(text: &str) -> String {
 #[doc = "Check if text starts with pattern"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn starts_with_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
+pub fn starts_with_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
     text.starts_with(pattern)
 }
 #[doc = "Check if text ends with pattern"]
@@ -272,7 +272,7 @@ pub fn case_insensitive_match<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
 #[doc = "Find text between two markers"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn find_between<'c, 'a, 'b>(
+pub fn find_between<'c, 'b, 'a>(
     text: &'a str,
     start_marker: &'b str,
     end_marker: &'c str,
@@ -319,7 +319,7 @@ pub fn find_between<'c, 'a, 'b>(
     result
 }
 #[doc = "Replace multiple patterns"]
-pub fn replace_multiple<'a, 'b>(
+pub fn replace_multiple<'b, 'a>(
     text: &'a str,
     replacements: &'b Vec<()>,
 ) -> Result<String, IndexError> {
@@ -403,7 +403,7 @@ pub fn wildcard_match_simple<'b, 'a>(text: &'a str, pattern: &'b str) -> Result<
     if _cse_temp_6 {
         has_suffix = text.ends_with(suffix);
     }
-    Ok(has_prefix && has_suffix)
+    Ok((has_prefix) && (has_suffix))
 }
 #[doc = "Run all regex module tests"]
 #[doc = " Depyler: verified panic-free"]

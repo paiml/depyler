@@ -17,7 +17,7 @@ impl ZeroDivisionError {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_integer_power() -> (String, String, String, String) {
+pub fn test_integer_power() -> (i32, i32, i32, i32) {
     let _cse_temp_0 = (2 as i32)
         .checked_pow(3 as u32)
         .expect("Power operation overflowed");
@@ -45,7 +45,7 @@ pub fn test_integer_power() -> (String, String, String, String) {
     (a, b, c, d)
 }
 #[doc = " Depyler: proven to terminate"]
-pub fn test_float_power() -> Result<(String, String, String, String), ZeroDivisionError> {
+pub fn test_float_power() -> Result<(f64, f64, f64, i32), ZeroDivisionError> {
     let _cse_temp_0 = (2.5 as f64).powf(2 as f64);
     let a = _cse_temp_0;
     let _cse_temp_1 = (10.0 as f64).powf(3 as f64);
@@ -60,7 +60,7 @@ pub fn test_float_power() -> Result<(String, String, String, String), ZeroDivisi
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_negative_exponent() -> (String, String, String) {
+pub fn test_negative_exponent() -> (i32, i32, i32) {
     let _cse_temp_0 = (2 as f64).powf(-1 as f64);
     let a = _cse_temp_0;
     let _cse_temp_1 = (10 as f64).powf(-2 as f64);
@@ -71,7 +71,7 @@ pub fn test_negative_exponent() -> (String, String, String) {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_large_powers() -> (String, String, String) {
+pub fn test_large_powers() -> (i32, i32, i32) {
     let _cse_temp_0 = (2 as i32)
         .checked_pow(10 as u32)
         .expect("Power operation overflowed");
@@ -88,7 +88,7 @@ pub fn test_large_powers() -> (String, String, String) {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_mixed_operations() -> (String, String, String, String) {
+pub fn test_mixed_operations() -> (i32, i32, i32, i32) {
     let _cse_temp_0 = (3 as i32)
         .checked_pow(2 as u32)
         .expect("Power operation overflowed");

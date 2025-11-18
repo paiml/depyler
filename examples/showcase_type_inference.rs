@@ -1,3 +1,4 @@
+use serde_json;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
     message: String,
@@ -44,7 +45,7 @@ pub fn string_manipulation(text: &str) -> String {
 }
 #[doc = "Infers list type from list operations."]
 #[doc = " Depyler: verified panic-free"]
-pub fn list_processing(items: &mut str) -> Vec<String> {
+pub fn list_processing(items: &mut serde_json::Value) -> Vec<serde_json::Value> {
     items.push("new item".to_string());
     items.extend(
         vec![
@@ -61,10 +62,10 @@ pub fn list_processing(items: &mut str) -> Vec<String> {
     result
 }
 #[doc = "Multiple inference sources for better confidence."]
-pub fn mixed_inference<'a, 'b>(
-    data: &'a str,
-    multiplier: &'b str,
-) -> Result<(), ZeroDivisionError> {
+pub fn mixed_inference<'b, 'a>(
+    data: &'a serde_json::Value,
+    multiplier: &'b serde_json::Value,
+) -> Result<i32, ZeroDivisionError> {
     let mut total = 0;
     for value in data.iter().cloned() {
         total = total + value * multiplier;
@@ -77,7 +78,7 @@ pub fn mixed_inference<'a, 'b>(
 #[doc = "Type conversion functions provide strong hints."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn type_conversions_hint(value: String) -> (String, String, String) {
+pub fn type_conversions_hint(value: serde_json::Value) -> (String, i32, f64) {
     let _cse_temp_0 = value.to_string();
     let as_string = _cse_temp_0;
     let _cse_temp_1 = (value) as i32;
@@ -89,12 +90,16 @@ pub fn type_conversions_hint(value: String) -> (String, String, String) {
 #[doc = "Boolean operations suggest bool type."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn boolean_logic<'c, 'a, 'b>(a: &'a str, b: &'b str, c: &'c str) -> bool {
-    let _cse_temp_0 = a && b;
+pub fn boolean_logic<'a, 'b, 'c>(
+    a: &'a serde_json::Value,
+    b: &'b serde_json::Value,
+    c: &'c serde_json::Value,
+) -> bool {
+    let _cse_temp_0 = (a) && (b);
     if _cse_temp_0 {
         true
     } else {
-        let _cse_temp_1 = b || c;
+        let _cse_temp_1 = (b) || (c);
         if _cse_temp_1 {
             false
         } else {
@@ -105,7 +110,7 @@ pub fn boolean_logic<'c, 'a, 'b>(a: &'a str, b: &'b str, c: &'c str) -> bool {
 #[doc = "Dictionary method usage."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn dictionary_operations(mapping: &str) {
+pub fn dictionary_operations(mapping: &serde_json::Value) {
     let keys = mapping.keys().cloned().collect::<Vec<_>>();
     let values = mapping.values().cloned().collect::<Vec<_>>();
     let _cse_temp_0 = mapping.contains_key(&"key");
@@ -116,7 +121,10 @@ pub fn dictionary_operations(mapping: &str) {
 }
 #[doc = "Using parameters as callables."]
 #[doc = " Depyler: verified panic-free"]
-pub fn function_composition(transform: String, data: &str) -> Vec<String> {
+pub fn function_composition(
+    transform: serde_json::Value,
+    data: &serde_json::Value,
+) -> Vec<serde_json::Value> {
     let mut result = vec![];
     for item in data.iter().cloned() {
         let transformed = transform(item);
@@ -127,11 +135,11 @@ pub fn function_composition(transform: String, data: &str) -> Vec<String> {
 #[doc = "Demonstrates different confidence levels."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn confidence_levels_demo<'a, 'b, 'c>(
+pub fn confidence_levels_demo<'b, 'a, 'c>(
     certain_str: &'a str,
-    probable_num: &'b str,
-    possible_container: &'c str,
-) -> (String, String, String) {
+    probable_num: &'b serde_json::Value,
+    possible_container: &'c serde_json::Value,
+) -> (String, i32, i32) {
     let processed = certain_str
         .to_uppercase()
         .trim()

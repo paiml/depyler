@@ -183,7 +183,7 @@ pub fn extract_sentences(text: &str) -> Vec<String> {
     for _char in text.chars() {
         let char = _char.to_string();
         current_sentence = current_sentence + char;
-        if char == "." || char == "!" || char == "?" {
+        if ((char == ".") || (char == "!")) || (char == "?") {
             let trimmed: String = current_sentence.trim().to_string();
             if trimmed.len() as i32 > 0 {
                 sentences.push(trimmed);
@@ -265,19 +265,20 @@ pub fn find_word_patterns(words: &Vec<String>) -> Result<HashMap<String, Vec<Str
         map
     };
     for word in words.iter().cloned() {
-        if word.len() as i32 > 0 && {
-            let base = &word;
-            let idx: i32 = 0;
-            let actual_idx = if idx < 0 {
-                base.chars().count().saturating_sub(idx.abs() as usize)
-            } else {
-                idx as usize
-            };
-            base.chars()
-                .nth(actual_idx)
-                .map(|c| c.to_string())
-                .unwrap_or_default()
-        } == "a"
+        if (word.len() as i32 > 0)
+            && ({
+                let base = &word;
+                let idx: i32 = 0;
+                let actual_idx = if idx < 0 {
+                    base.chars().count().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.chars()
+                    .nth(actual_idx)
+                    .map(|c| c.to_string())
+                    .unwrap_or_default()
+            } == "a")
         {
             patterns
                 .get("starts_with_a")
@@ -285,17 +286,18 @@ pub fn find_word_patterns(words: &Vec<String>) -> Result<HashMap<String, Vec<Str
                 .unwrap_or_default()
                 .push(word);
         }
-        if word.len() as i32 >= 3 && {
-            let base = word;
-            let start_idx: i32 = -3;
-            let len = base.chars().count() as i32;
-            let actual_start = if start_idx < 0 {
-                (len + start_idx).max(0) as usize
-            } else {
-                start_idx.min(len) as usize
-            };
-            base.chars().skip(actual_start).collect::<String>()
-        } == "ing"
+        if (word.len() as i32 >= 3)
+            && ({
+                let base = word;
+                let start_idx: i32 = -3;
+                let len = base.chars().count() as i32;
+                let actual_start = if start_idx < 0 {
+                    (len + start_idx).max(0) as usize
+                } else {
+                    start_idx.min(len) as usize
+                };
+                base.chars().skip(actual_start).collect::<String>()
+            } == "ing")
         {
             patterns
                 .get("ends_with_ing")
@@ -386,7 +388,7 @@ pub fn find_palindromes(words: &Vec<String>) -> Result<Vec<String>, IndexError> 
                     .unwrap_or_default()
             };
         }
-        if word == reversed_word && word.len() as i32 > 1 {
+        if (word == reversed_word) && (word.len() as i32 > 1) {
             let mut found: bool = false;
             for p in palindromes.iter().cloned() {
                 if p == word {
