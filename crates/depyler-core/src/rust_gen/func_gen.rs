@@ -839,6 +839,9 @@ impl RustCodeGen for HirFunction {
         // DEPYLER-0363: Check if ArgumentParser was detected and generate Args struct
         if ctx.argparser_tracker.has_parsers() {
             if let Some(parser_info) = ctx.argparser_tracker.get_first_parser() {
+                // DEPYLER-0384: Set flag to include clap dependency in Cargo.toml
+                ctx.needs_clap = true;
+
                 // Generate the Args struct definition
                 let args_struct = crate::rust_gen::argparse_transform::generate_args_struct(parser_info);
 

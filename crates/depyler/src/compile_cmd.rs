@@ -49,20 +49,20 @@ pub fn compile_python_to_binary(
             .progress_chars("█▓▒░ "),
     );
 
-    // Step 1: Transpile Python → Rust
+    // Step 1: Transpile Python → Rust (DEPYLER-0384: with dependency tracking)
     pb.set_message("Transpiling Python to Rust...");
     let python_code = fs::read_to_string(input)
         .with_context(|| format!("Failed to read input file: {}", input.display()))?;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline
-        .transpile(&python_code)
+    let (rust_code, dependencies) = pipeline
+        .transpile_with_dependencies(&python_code)
         .context("Failed to transpile Python to Rust")?;
     pb.inc(1);
 
-    // Step 2: Create Cargo project
+    // Step 2: Create Cargo project (DEPYLER-0384: with automatic dependencies)
     pb.set_message("Creating Cargo project...");
-    let project_dir = create_cargo_project(input, &rust_code)?;
+    let project_dir = create_cargo_project(input, &rust_code, &dependencies)?;
     pb.inc(1);
 
     // Step 3: Build binary
@@ -82,8 +82,14 @@ pub fn compile_python_to_binary(
 
 /// Create a Cargo project with the transpiled Rust code
 ///
+/// DEPYLER-0384: Now accepts dependencies for automatic Cargo.toml generation
+///
 /// Complexity: 3 (within ≤10 target)
-fn create_cargo_project(input: &Path, rust_code: &str) -> Result<PathBuf> {
+fn create_cargo_project(
+    input: &Path,
+    rust_code: &str,
+    dependencies: &[depyler_core::cargo_toml_gen::Dependency],
+) -> Result<PathBuf> {
     let project_name = input
         .file_stem()
         .and_then(|s| s.to_str())
@@ -95,17 +101,8 @@ fn create_cargo_project(input: &Path, rust_code: &str) -> Result<PathBuf> {
     // Create project structure
     fs::create_dir_all(project_dir.join("src")).context("Failed to create src directory")?;
 
-    // Write Cargo.toml
-    let cargo_toml = format!(
-        r#"[package]
-name = "{}"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-"#,
-        project_name
-    );
+    // DEPYLER-0384: Generate Cargo.toml with automatic dependencies
+    let cargo_toml = depyler_core::cargo_toml_gen::generate_cargo_toml(project_name, dependencies);
     fs::write(project_dir.join("Cargo.toml"), cargo_toml)
         .context("Failed to write Cargo.toml")?;
 
@@ -209,13 +206,20 @@ mod tests {
         let input = temp.path().join("test.py");
         fs::write(&input, "").unwrap();
 
-        let project_dir = create_cargo_project(&input, rust_code).unwrap();
+        // DEPYLER-0384: Empty dependencies list for basic test
+        let dependencies = vec![];
+        let project_dir = create_cargo_project(&input, rust_code, &dependencies).unwrap();
 
         assert!(project_dir.join("Cargo.toml").exists());
         assert!(project_dir.join("src/main.rs").exists());
 
         let main_content = fs::read_to_string(project_dir.join("src/main.rs")).unwrap();
         assert!(main_content.contains("test"));
+
+        // DEPYLER-0384: Verify Cargo.toml has package section
+        let cargo_content = fs::read_to_string(project_dir.join("Cargo.toml")).unwrap();
+        assert!(cargo_content.contains("[package]"));
+        assert!(cargo_content.contains("name = \"test\""));
     }
 
     #[test]

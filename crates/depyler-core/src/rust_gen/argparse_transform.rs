@@ -14,7 +14,7 @@
 //! ```
 //!
 //! Rust clap uses declarative struct:
-//! ```rust
+//! ```rust,ignore
 //! #[derive(Parser)]
 //! #[command(about = "...")]
 //! struct Args {

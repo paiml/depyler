@@ -8,7 +8,7 @@
 //! ### As a Library
 //!
 //! ```rust,no_run
-//! use depyler_core::{DepylerPipeline, TranspileOptions};
+//! use depyler_core::DepylerPipeline;
 //!
 //! let pipeline = DepylerPipeline::new();
 //! let python_code = r#"
@@ -115,6 +115,14 @@ pub enum Commands {
         /// Generate source map
         #[arg(long)]
         source_map: bool,
+
+        /// Show transpilation trace (AST → HIR → Rust phases)
+        #[arg(long)]
+        trace: bool,
+
+        /// Explain transformation decisions in detail
+        #[arg(long)]
+        explain: bool,
     },
 
     /// Compile Python to standalone binary (DEPYLER-0380)
@@ -528,6 +536,7 @@ pub fn compile_command(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn transpile_command(
     input: PathBuf,
     output: Option<PathBuf>,
@@ -535,6 +544,8 @@ pub fn transpile_command(
     gen_tests: bool,
     debug: bool,
     source_map: bool,
+    trace: bool,
+    explain: bool,
 ) -> Result<()> {
     let start = Instant::now();
 
@@ -573,11 +584,53 @@ pub fn transpile_command(
     }
     pb.inc(1);
 
+    // Trace: Pipeline initialization
+    if trace {
+        eprintln!("\n=== TRANSPILATION TRACE ===");
+        eprintln!("Phase 1: Pipeline Initialization");
+        eprintln!("  - Verification: {}", if verify { "enabled" } else { "disabled" });
+        eprintln!("  - Debug mode: {}", if debug { "enabled" } else { "disabled" });
+        eprintln!("  - Source map: {}", if source_map { "enabled" } else { "disabled" });
+        eprintln!();
+    }
     // Parse Python
     pb.set_message("Parsing Python source...");
     let parse_start = Instant::now();
-    let rust_code = pipeline.transpile(&python_source)?;
+
+    // Trace: AST parsing
+    if trace {
+        eprintln!("Phase 2: AST Parsing");
+        eprintln!("  - Input size: {} bytes", source_size);
+        eprintln!("  - Parsing Python source...");
+    }
+
+    // DEPYLER-0384: Use transpile_with_dependencies to get both code and dependencies
+    let (rust_code, dependencies) = pipeline.transpile_with_dependencies(&python_source)?;
     let parse_time = parse_start.elapsed();
+
+    // Trace: Transpilation complete
+    if trace {
+        eprintln!("  - Parse time: {:.2}ms", parse_time.as_millis());
+        eprintln!("\nPhase 3: Code Generation");
+        eprintln!("  - Generated Rust code: {} bytes", rust_code.len());
+        eprintln!("  - Dependencies detected: {}", dependencies.len());
+        eprintln!("  - Generation complete");
+        eprintln!();
+    }
+
+    // Explain: Transformation decisions
+    if explain {
+        eprintln!("\n=== TRANSPILATION EXPLANATION ===");
+        eprintln!("Transformation Decisions:");
+        eprintln!("  1. Python AST -> HIR: Converted Python constructs to type-safe HIR");
+        eprintln!("  2. HIR -> Rust: Generated idiomatic Rust code with:");
+        eprintln!("     - Type inference for local variables");
+        eprintln!("     - Ownership and borrowing semantics");
+        eprintln!("     - Memory safety guarantees");
+        eprintln!("  3. Module mapping: Applied Python->Rust standard library mappings");
+        eprintln!();
+    }
+
     pb.inc(1);
 
     // Analyze if requested
@@ -596,6 +649,32 @@ pub fn transpile_command(
     });
 
     fs::write(&output_path, &rust_code)?;
+
+    // DEPYLER-0384: Generate and write Cargo.toml if dependencies exist
+    if !dependencies.is_empty() {
+        // Extract package name from output file stem (e.g., "example_stdlib" from "example_stdlib.rs")
+        let package_name = output_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("transpiled_package");
+
+        // Generate Cargo.toml content
+        let cargo_toml_content = depyler_core::cargo_toml_gen::generate_cargo_toml(
+            package_name,
+            &dependencies,
+        );
+
+        // Write Cargo.toml to the same directory as the output file
+        let mut cargo_toml_path = output_path.clone();
+        cargo_toml_path.set_file_name("Cargo.toml");
+
+        fs::write(&cargo_toml_path, &cargo_toml_content)?;
+
+        if trace {
+            eprintln!("  - Generated Cargo.toml: {}", cargo_toml_path.display());
+        }
+    }
+
     pb.inc(1);
 
     pb.finish_and_clear();
@@ -617,6 +696,14 @@ pub fn transpile_command(
         output_path.display(),
         rust_code.len()
     );
+
+    // DEPYLER-0384: Show Cargo.toml generation
+    if !dependencies.is_empty() {
+        let mut cargo_toml_path = output_path.clone();
+        cargo_toml_path.set_file_name("Cargo.toml");
+        println!("📦 Cargo.toml: {} ({} dependencies)", cargo_toml_path.display(), dependencies.len());
+    }
+
     println!("⏱️  Parse time: {:.2}ms", parse_time.as_millis());
     println!("📊 Throughput: {throughput:.1} KB/s");
     println!("⏱️  Total time: {:.2}ms", total_time.as_millis());
@@ -1722,7 +1809,7 @@ mod tests {
     fn test_transpile_command_basic() {
         let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
 
-        let result = transpile_command(input_path, None, false, false, false, false);
+        let result = transpile_command(input_path, None, false, false, false, false, false, false);
         assert!(result.is_ok());
     }
 
@@ -1734,6 +1821,8 @@ mod tests {
         let result = transpile_command(
             input_path,
             Some(output_path.clone()),
+            false,
+            false,
             false,
             false,
             false,

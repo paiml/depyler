@@ -50,6 +50,7 @@ pub mod ast_bridge;
 pub mod backend;
 pub mod borrowing;
 pub mod borrowing_context;
+pub mod cargo_toml_gen;
 pub mod codegen;
 pub mod const_generic_inference;
 pub mod debug;
@@ -340,6 +341,150 @@ impl DepylerPipeline {
     /// - Unsupported Python constructs are used
     /// - Type inference fails
     /// - Verification fails (if enabled)
+    ///
+    /// Transpiles Python source code and returns both Rust code and Cargo dependencies
+    ///
+    /// DEPYLER-0384: This method returns the generated Rust code along with the list
+    /// of Cargo dependencies needed to build it. Use this when you need to generate
+    /// a complete Cargo project with Cargo.toml.
+    ///
+    /// # Returns
+    ///
+    /// Returns a tuple of (rust_code, dependencies) or an error if transpilation fails.
+    pub fn transpile_with_dependencies(&self, python_source: &str) -> Result<(String, Vec<cargo_toml_gen::Dependency>)> {
+        // Parse Python source
+        let ast = self.parse_python(python_source)?;
+
+        // Convert to HIR with annotation support
+        let mut hir = ast_bridge::AstBridge::new()
+            .with_source(python_source.to_string())
+            .python_to_hir(ast)?;
+
+        // Apply const generic inference
+        let mut const_inferencer = const_generic_inference::ConstGenericInferencer::new();
+        const_inferencer.analyze_module(&mut hir)?;
+
+        // Apply type inference hints
+        if self.analyzer.type_inference_enabled {
+            let mut type_hint_provider = type_hints::TypeHintProvider::new();
+
+            // Analyze all functions and collect hints
+            let mut function_hints = Vec::new();
+            for (idx, func) in hir.functions.iter().enumerate() {
+                if let Ok(hints) = type_hint_provider.analyze_function(func) {
+                    if !hints.is_empty() {
+                        eprintln!("Type inference hints:");
+                        eprintln!("{}", type_hint_provider.format_hints(&hints));
+                        function_hints.push((idx, hints));
+                    }
+                }
+            }
+
+            // Apply high-confidence hints to the HIR
+            for (func_idx, hints) in function_hints {
+                let func = &mut hir.functions[func_idx];
+
+                // Apply parameter type hints
+                for param in &mut func.params {
+                    if matches!(param.ty, hir::Type::Unknown) {
+                        // Find hint for this parameter
+                        for hint in &hints {
+                            if let type_hints::HintTarget::Parameter(hint_param) = &hint.target {
+                                if hint_param == &param.name
+                                    && matches!(
+                                        hint.confidence,
+                                        type_hints::Confidence::High
+                                            | type_hints::Confidence::Certain
+                                    )
+                                {
+                                    param.ty = hint.suggested_type.clone();
+                                    eprintln!(
+                                        "Applied type hint: {} -> {:?}",
+                                        param.name, param.ty
+                                    );
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Apply return type hints
+                if matches!(func.ret_type, hir::Type::Unknown) {
+                    for hint in &hints {
+                        if matches!(hint.target, type_hints::HintTarget::Return)
+                            && matches!(
+                                hint.confidence,
+                                type_hints::Confidence::High | type_hints::Confidence::Certain
+                            )
+                        {
+                            func.ret_type = hint.suggested_type.clone();
+                            eprintln!("Applied return type hint: {:?}", func.ret_type);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Apply optimization passes based on annotations
+        optimization::optimize_module(&mut hir);
+
+        // Convert HirModule to HirProgram for the new optimizer
+        let hir_program = hir::HirProgram {
+            functions: hir.functions,
+            classes: hir.classes,
+            imports: hir.imports,
+        };
+
+        // Apply the new general-purpose optimizer
+        let mut optimizer = optimizer::Optimizer::new(optimizer::OptimizerConfig::default());
+        let optimized_program = optimizer.optimize_program(hir_program.clone());
+
+        // Run migration suggestions analysis
+        if self.analyzer.metrics_enabled {
+            let mut migration_analyzer = migration_suggestions::MigrationAnalyzer::new(
+                migration_suggestions::MigrationConfig::default(),
+            );
+            let suggestions = migration_analyzer.analyze_program(&hir_program);
+            if !suggestions.is_empty() {
+                eprintln!("{}", migration_analyzer.format_suggestions(&suggestions));
+            }
+        }
+
+        // Run performance warnings analysis
+        if self.analyzer.metrics_enabled {
+            let mut perf_analyzer = performance_warnings::PerformanceAnalyzer::new(
+                performance_warnings::PerformanceConfig::default(),
+            );
+            let warnings = perf_analyzer.analyze_program(&hir_program);
+            if !warnings.is_empty() {
+                eprintln!("{}", perf_analyzer.format_warnings(&warnings));
+            }
+        }
+
+        // Run profiling analysis if enabled
+        if self.analyzer.metrics_enabled {
+            let mut profiler = profiling::Profiler::new(profiling::ProfileConfig::default());
+            let profile_report = profiler.analyze_program(&hir_program);
+            if !profile_report.metrics.is_empty() {
+                eprintln!("{}", profile_report.format_report());
+            }
+        }
+
+        // Convert back to HirModule
+        let optimized_hir = hir::HirModule {
+            functions: optimized_program.functions,
+            imports: optimized_program.imports,
+            type_aliases: hir.type_aliases,
+            protocols: hir.protocols,
+            classes: optimized_program.classes,
+        };
+
+        // Generate Rust code with dependencies
+        rust_gen::generate_rust_file(&optimized_hir, &self.transpiler.type_mapper)
+    }
+
     pub fn transpile(&self, python_source: &str) -> Result<String> {
         // Parse Python source
         let ast = self.parse_python(python_source)?;
@@ -471,7 +616,8 @@ impl DepylerPipeline {
         };
 
         // Generate Rust code using the unified generation system
-        let rust_code = rust_gen::generate_rust_file(&optimized_hir, &self.transpiler.type_mapper)?;
+        // DEPYLER-0384: generate_rust_file now returns (code, dependencies)
+        let (rust_code, _dependencies) = rust_gen::generate_rust_file(&optimized_hir, &self.transpiler.type_mapper)?;
 
         Ok(rust_code)
     }

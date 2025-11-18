@@ -47,7 +47,7 @@ macro_rules! param_with_default {
 /// Creating a HIR module manually:
 ///
 /// ```rust
-/// use depyler_core::hir::{HirModule, HirFunction, Type, FunctionProperties};
+/// use depyler_core::hir::{HirModule, HirFunction, HirParam, Type, FunctionProperties};
 /// use depyler_annotations::TranspilationAnnotations;
 /// use smallvec::smallvec;
 ///
