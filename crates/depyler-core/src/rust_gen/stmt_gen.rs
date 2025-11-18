@@ -1099,12 +1099,16 @@ pub(crate) fn codegen_for_stmt(
     // we need to add .iter() to properly iterate over it
     // Skip this for stdin/file iterators which are already properly wrapped
     if !is_stdin_iter && !is_file_iter {
-      if let HirExpr::Var(_var_name) = iter {
-        // DEPYLER-0300/0302: Check if we're iterating over a string
+      if let HirExpr::Var(var_name) = iter {
+        // DEPYLER-0419: First check type information from context
+        // This is more reliable than name heuristics
+        let is_string_type = ctx.var_types.get(var_name).map_or(false, |t| matches!(t, Type::String));
+
+        // DEPYLER-0300/0302: Fall back to name-based heuristics if type not available
         // Strings use .chars() instead of .iter().cloned()
         // DEPYLER-0302: Exclude plurals (strings, words, etc.) which are collections
-        let is_string = matches!(iter, HirExpr::Var(name) if {
-            let n = name.as_str();
+        let is_string_name = {
+            let n = var_name.as_str();
             // Exact matches (singular forms only)
             (n == "s" || n == "string" || n == "text" || n == "word" || n == "line"
                 || n == "char" || n == "character")
@@ -1117,9 +1121,9 @@ pub(crate) fn codegen_for_stmt(
             || (n.ends_with("_string") && !n.ends_with("_strings"))
             || (n.ends_with("_word") && !n.ends_with("_words"))
             || (n.ends_with("_text") && !n.ends_with("_texts"))
-        });
+        };
 
-        if is_string {
+        if is_string_type || is_string_name {
             // For strings, use .chars() to iterate over characters
             iter_expr = parse_quote! { #iter_expr.chars() };
         } else {

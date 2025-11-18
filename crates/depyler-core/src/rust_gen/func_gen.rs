@@ -577,14 +577,18 @@ pub(crate) fn return_type_expects_float(ty: &Type) -> bool {
 /// Infer return type from function body when no annotation is provided
 /// Returns None if type cannot be inferred or there are no return statements
 fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
+    // DEPYLER-0415: Build type environment from variable assignments
+    let mut var_types: std::collections::HashMap<String, Type> = std::collections::HashMap::new();
+    build_var_type_env(body, &mut var_types);
+
     let mut return_types = Vec::new();
-    collect_return_types(body, &mut return_types);
+    collect_return_types_with_env(body, &mut return_types, &var_types);
 
     // DEPYLER-0412: Also check for trailing expression (implicit return)
     // If the last statement is an expression without return, it's an implicit return
     if let Some(last_stmt) = body.last() {
         if let HirStmt::Expr(expr) = last_stmt {
-            let trailing_type = infer_expr_type_simple(expr);
+            let trailing_type = infer_expr_type_with_env(expr, &var_types);
             if !matches!(trailing_type, Type::Unknown) {
                 return_types.push(trailing_type);
             }
@@ -610,6 +614,136 @@ fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
 
     // Mixed types - return the first known type
     first_known.cloned()
+}
+
+// ========== DEPYLER-0415: Variable Type Environment ==========
+
+/// Build a type environment by collecting variable assignments
+fn build_var_type_env(stmts: &[HirStmt], var_types: &mut std::collections::HashMap<String, Type>) {
+    for stmt in stmts {
+        match stmt {
+            HirStmt::Assign { target, value, .. } => {
+                // Extract variable name from target
+                if let crate::hir::AssignTarget::Symbol(name) = target {
+                    // DEPYLER-0415: Use the environment we're building for lookups
+                    let value_type = infer_expr_type_with_env(value, var_types);
+                    if !matches!(value_type, Type::Unknown) {
+                        var_types.insert(name.clone(), value_type);
+                    }
+                }
+            }
+            HirStmt::If { then_body, else_body, .. } => {
+                build_var_type_env(then_body, var_types);
+                if let Some(else_stmts) = else_body {
+                    build_var_type_env(else_stmts, var_types);
+                }
+            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                build_var_type_env(body, var_types);
+            }
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
+                build_var_type_env(body, var_types);
+                for handler in handlers {
+                    build_var_type_env(&handler.body, var_types);
+                }
+                if let Some(orelse_stmts) = orelse {
+                    build_var_type_env(orelse_stmts, var_types);
+                }
+                if let Some(finally_stmts) = finalbody {
+                    build_var_type_env(finally_stmts, var_types);
+                }
+            }
+            HirStmt::With { body, .. } => {
+                build_var_type_env(body, var_types);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Collect return types with access to variable type environment
+fn collect_return_types_with_env(
+    stmts: &[HirStmt],
+    types: &mut Vec<Type>,
+    var_types: &std::collections::HashMap<String, Type>,
+) {
+    for stmt in stmts {
+        match stmt {
+            HirStmt::Return(Some(expr)) => {
+                types.push(infer_expr_type_with_env(expr, var_types));
+            }
+            HirStmt::Return(None) => {
+                types.push(Type::None);
+            }
+            HirStmt::If { then_body, else_body, .. } => {
+                collect_return_types_with_env(then_body, types, var_types);
+                if let Some(else_stmts) = else_body {
+                    collect_return_types_with_env(else_stmts, types, var_types);
+                }
+            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                collect_return_types_with_env(body, types, var_types);
+            }
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
+                collect_return_types_with_env(body, types, var_types);
+                for handler in handlers {
+                    collect_return_types_with_env(&handler.body, types, var_types);
+                }
+                if let Some(orelse_stmts) = orelse {
+                    collect_return_types_with_env(orelse_stmts, types, var_types);
+                }
+                if let Some(finally_stmts) = finalbody {
+                    collect_return_types_with_env(finally_stmts, types, var_types);
+                }
+            }
+            HirStmt::With { body, .. } => {
+                collect_return_types_with_env(body, types, var_types);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Infer expression type with access to variable type environment
+fn infer_expr_type_with_env(
+    expr: &HirExpr,
+    var_types: &std::collections::HashMap<String, Type>,
+) -> Type {
+    match expr {
+        // DEPYLER-0415: Look up variable types in the environment
+        HirExpr::Var(name) => {
+            var_types.get(name).cloned().unwrap_or(Type::Unknown)
+        }
+        // For other expressions, delegate to the simple version
+        // but recurse with environment for nested expressions
+        HirExpr::Binary { op, left, right } => {
+            if matches!(op,
+                BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq |
+                BinOp::Gt | BinOp::GtEq | BinOp::In | BinOp::NotIn
+            ) {
+                return Type::Bool;
+            }
+            let left_type = infer_expr_type_with_env(left, var_types);
+            let right_type = infer_expr_type_with_env(right, var_types);
+            if matches!(left_type, Type::Float) || matches!(right_type, Type::Float) {
+                Type::Float
+            } else if !matches!(left_type, Type::Unknown) {
+                left_type
+            } else {
+                right_type
+            }
+        }
+        HirExpr::IfExpr { body, orelse, .. } => {
+            let body_type = infer_expr_type_with_env(body, var_types);
+            if !matches!(body_type, Type::Unknown) {
+                body_type
+            } else {
+                infer_expr_type_with_env(orelse, var_types)
+            }
+        }
+        // For other cases, use the simple version
+        _ => infer_expr_type_simple(expr),
+    }
 }
 
 /// Recursively collect return expression types from statements
