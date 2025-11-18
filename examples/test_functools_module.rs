@@ -311,41 +311,41 @@ pub fn test_memoization_fibonacci(n: i32) -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_functools_features() -> Result<(), Box<dyn std::error::Error>> {
     let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
-    let sum_result: i32 = test_reduce_sum(&numbers)?;
-    let product_result: i32 = test_reduce_product(&numbers)?;
-    let max_result: i32 = test_reduce_max(&numbers)?;
-    let min_result: i32 = test_reduce_min(&numbers)?;
+    let sum_result: i32 = test_reduce_sum(&numbers);
+    let product_result: i32 = test_reduce_product(&numbers);
+    let max_result: i32 = test_reduce_max(&numbers);
+    let min_result: i32 = test_reduce_min(&numbers);
     let strings: Vec<String> = vec![
         "Hello".to_string(),
         " ".to_string(),
         "World".to_string(),
         "!".to_string(),
     ];
-    let concat_result: String = test_reduce_concatenate(&strings)?;
-    let partial_result: Vec<i32> = test_partial_application()?;
-    let partial_multi: i32 = test_partial_multiple_args()?;
-    let composed: i32 = test_compose_functions(5)?;
-    let map_reduce: i32 = test_map_reduce_pattern(&vec![1, 2, 3, 4, 5])?;
-    let filter_reduce: i32 = test_filter_reduce_pattern(&vec![1, 2, 3, 4, 5, 6])?;
-    let fact: i32 = memoize_factorial(5)?;
-    let fib: i32 = test_memoization_fibonacci(10)?;
-    let curried: i32 = test_currying(1, 2, 3)?;
-    let accumulated: Vec<i32> = accumulate_with_function(&vec![1, 2, 3, 4, 5])?;
-    let with_initial: i32 = test_reduce_with_initial(&vec![1, 2, 3], 10)?;
-    let all_true: bool = test_reduce_boolean_all(&vec![true, true, true])?;
-    let all_false: bool = test_reduce_boolean_all(&vec![true, false, true])?;
-    let any_true: bool = test_reduce_boolean_any(&vec![false, true, false])?;
-    let any_false: bool = test_reduce_boolean_any(&vec![false, false, false])?;
+    let concat_result: String = test_reduce_concatenate(&strings);
+    let partial_result: Vec<i32> = test_partial_application();
+    let partial_multi: i32 = test_partial_multiple_args();
+    let composed: i32 = test_compose_functions(5);
+    let map_reduce: i32 = test_map_reduce_pattern(&vec![1, 2, 3, 4, 5]);
+    let filter_reduce: i32 = test_filter_reduce_pattern(&vec![1, 2, 3, 4, 5, 6]);
+    let fact: i32 = memoize_factorial(5);
+    let fib: i32 = test_memoization_fibonacci(10);
+    let curried: i32 = test_currying(1, 2, 3);
+    let accumulated: Vec<i32> = accumulate_with_function(&vec![1, 2, 3, 4, 5]);
+    let with_initial: i32 = test_reduce_with_initial(&vec![1, 2, 3], 10);
+    let all_true: bool = test_reduce_boolean_all(&vec![true, true, true]);
+    let all_false: bool = test_reduce_boolean_all(&vec![true, false, true]);
+    let any_true: bool = test_reduce_boolean_any(&vec![false, true, false]);
+    let any_false: bool = test_reduce_boolean_any(&vec![false, false, false]);
     let nested: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6]];
-    let flattened: Vec<i32> = test_reduce_flatten(&nested)?;
+    let flattened: Vec<i32> = test_reduce_flatten(&nested);
     let items: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
-    let grouped: Vec<Vec<i32>> = test_reduce_group_by(&items)?;
+    let grouped: Vec<Vec<i32>> = test_reduce_group_by(&items);
     let ops: Vec<String> = vec![
         "double".to_string(),
         "increment".to_string(),
         "square".to_string(),
     ];
-    let piped: i32 = pipeline(3, &ops)?;
+    let piped: i32 = pipeline(3, &ops);
     println!("{}", "All functools module tests completed successfully");
     Ok(())
 }

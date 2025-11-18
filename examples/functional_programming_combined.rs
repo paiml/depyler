@@ -89,7 +89,7 @@ pub fn chain_operations(data: Vec<i32>) -> i32 {
 #[doc = "Zip two lists together"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_lists<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
+pub fn zip_lists<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
     let mut result: Vec<(i32, String)> = vec![];
     let _cse_temp_0 = list1.len() as i32;
     let _cse_temp_1 = list2.len() as i32;
@@ -374,22 +374,22 @@ pub fn demonstrate_functional_patterns() -> Result<(), Box<dyn std::error::Error
     println!("{}", "=== Functional Programming Patterns Demo ===");
     let data: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     println!("{}", "\n1. Map Pattern");
-    let doubled: Vec<i32> = map_transform(&data, 2)?;
+    let doubled: Vec<i32> = map_transform(&data, 2);
     println!(
         "{}",
         format!("   Doubled: {:?} elements", doubled.len() as i32)
     );
     println!("{}", "\n2. Filter Pattern");
-    let filtered: Vec<i32> = filter_predicate(&data, 5)?;
+    let filtered: Vec<i32> = filter_predicate(&data, 5);
     println!(
         "{}",
         format!("   Filtered(>5): {:?} elements", filtered.len() as i32)
     );
     println!("{}", "\n3. Reduce Pattern");
-    let mut total: i32 = reduce_sum(&data)?;
+    let mut total: i32 = reduce_sum(&data);
     println!("{}", format!("   Sum: {:?}", total));
     println!("{}", "\n4. Chained Operations");
-    let chained: i32 = chain_operations(data)?;
+    let chained: i32 = chain_operations(data);
     println!("{}", format!("   Result: {:?}", chained));
     println!("{}", "\n5. Zip Pattern");
     let labels: Vec<String> = vec![
@@ -406,16 +406,16 @@ pub fn demonstrate_functional_patterns() -> Result<(), Box<dyn std::error::Error
             base[..stop.min(base.len())].to_vec()
         },
         &labels,
-    )?;
+    );
     println!("{}", format!("   Zipped: {:?} pairs", zipped.len() as i32));
     println!("{}", "\n6. Group By Pattern");
-    let mut groups: HashMap<i32, Vec<i32>> = group_by_property(&data, 3)?;
+    let mut groups: HashMap<i32, Vec<i32>> = group_by_property(&data, 3);
     println!(
         "{}",
         format!("   Groups(mod 3): {:?} groups", groups.len() as i32)
     );
     println!("{}", "\n7. Partition Pattern");
-    let parts: (Vec<i32>, Vec<i32>) = partition_by_predicate(&data, 6)?;
+    let parts: (Vec<i32>, Vec<i32>) = partition_by_predicate(&data, 6);
     println!(
         "{}",
         format!(
@@ -425,14 +425,14 @@ pub fn demonstrate_functional_patterns() -> Result<(), Box<dyn std::error::Error
         )
     );
     println!("{}", "\n8. Accumulate Pattern");
-    let running_sums: Vec<i32> = accumulate_running_sum(&data)?;
+    let running_sums: Vec<i32> = accumulate_running_sum(&data);
     println!(
         "{}",
         format!("   Running sums: {:?} values", running_sums.len() as i32)
     );
     println!("{}", "\n9. Flatten Pattern");
     let nested: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6]];
-    let flattened: Vec<i32> = flatten_nested_list(&nested)?;
+    let flattened: Vec<i32> = flatten_nested_list(&nested);
     println!(
         "{}",
         format!("   Flattened: {:?} elements", flattened.len() as i32)
@@ -440,47 +440,47 @@ pub fn demonstrate_functional_patterns() -> Result<(), Box<dyn std::error::Error
     println!("{}", "\n10. Cartesian Product");
     let list1: Vec<i32> = vec![1, 2, 3];
     let list2: Vec<i32> = vec![10, 20];
-    let mut product: Vec<(i32, i32)> = cartesian_product(&list1, &list2)?;
+    let mut product: Vec<(i32, i32)> = cartesian_product(&list1, &list2);
     println!(
         "{}",
         format!("   Product: {:?} combinations", product.len() as i32)
     );
     println!("{}", "\n11. Take While Pattern");
-    let taken: Vec<i32> = take_while_condition(&data, 6)?;
+    let taken: Vec<i32> = take_while_condition(&data, 6);
     println!(
         "{}",
         format!("   Taken(while <6): {:?} elements", taken.len() as i32)
     );
     println!("{}", "\n12. Pairwise Iteration");
-    let pairs: Vec<(i32, i32)> = pairwise_iteration(&data)?;
+    let pairs: Vec<(i32, i32)> = pairwise_iteration(&data);
     println!("{}", format!("   Pairs: {:?} pairs", pairs.len() as i32));
     println!("{}", "\n13. Sliding Window");
-    let windows: Vec<Vec<i32>> = sliding_window(&data, 3)?;
+    let windows: Vec<Vec<i32>> = sliding_window(&data, 3);
     println!(
         "{}",
         format!("   Windows(size 3): {:?} windows", windows.len() as i32)
     );
     println!("{}", "\n14. Function Composition");
-    let composed: Vec<i32> = compose_two_functions(vec![1, 2, 3])?;
+    let composed: Vec<i32> = compose_two_functions(vec![1, 2, 3]);
     println!(
         "{}",
         format!("   Composed result: {:?} elements", composed.len() as i32)
     );
     println!("{}", "\n15. Map-Reduce Pattern");
-    let mr_result: i32 = map_reduce_pattern(&vec![1, 2, 3, 4])?;
+    let mr_result: i32 = map_reduce_pattern(&vec![1, 2, 3, 4]);
     println!(
         "{}",
         format!("   Map-Reduce sum of squares: {:?}", mr_result)
     );
     println!("{}", "\n16. Filter-Map-Reduce");
-    let fmr_result: i32 = filter_map_reduce_pattern(data, 5)?;
+    let fmr_result: i32 = filter_map_reduce_pattern(data, 5);
     println!(
         "{}",
         format!("   Filter-Map-Reduce result: {:?}", fmr_result)
     );
     println!("{}", "\n17. Unique Elements");
     let duplicates: Vec<i32> = vec![1, 2, 2, 3, 3, 3, 4, 4, 4, 4];
-    let unique: Vec<i32> = unique_elements(&duplicates)?;
+    let unique: Vec<i32> = unique_elements(&duplicates);
     println!(
         "{}",
         format!("   Unique elements: {:?}", unique.len() as i32)

@@ -100,7 +100,7 @@ pub fn binary_search_right(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn s
 pub fn test_bisect_left() -> Result<i32, Box<dyn std::error::Error>> {
     let data: Vec<i32> = vec![1, 3, 3, 3, 5, 7, 9];
     let target: i32 = 3;
-    let position: i32 = binary_search_left(&data, target)?;
+    let position: i32 = binary_search_left(&data, target);
     Ok(position)
 }
 #[doc = "Test finding insertion point(rightmost)"]
@@ -109,7 +109,7 @@ pub fn test_bisect_left() -> Result<i32, Box<dyn std::error::Error>> {
 pub fn test_bisect_right() -> Result<i32, Box<dyn std::error::Error>> {
     let data: Vec<i32> = vec![1, 3, 3, 3, 5, 7, 9];
     let target: i32 = 3;
-    let position: i32 = binary_search_right(&data, target)?;
+    let position: i32 = binary_search_right(&data, target);
     Ok(position)
 }
 #[doc = "Test bisect_left with value not in list"]
@@ -118,7 +118,7 @@ pub fn test_bisect_right() -> Result<i32, Box<dyn std::error::Error>> {
 pub fn test_bisect_not_found_left() -> Result<i32, Box<dyn std::error::Error>> {
     let data: Vec<i32> = vec![1, 3, 5, 7, 9];
     let target: i32 = 4;
-    let position: i32 = binary_search_left(&data, target)?;
+    let position: i32 = binary_search_left(&data, target);
     Ok(position)
 }
 #[doc = "Test bisect_right with value not in list"]
@@ -127,14 +127,14 @@ pub fn test_bisect_not_found_left() -> Result<i32, Box<dyn std::error::Error>> {
 pub fn test_bisect_not_found_right() -> Result<i32, Box<dyn std::error::Error>> {
     let data: Vec<i32> = vec![1, 3, 5, 7, 9];
     let target: i32 = 4;
-    let position: i32 = binary_search_right(&data, target)?;
+    let position: i32 = binary_search_right(&data, target);
     Ok(position)
 }
 #[doc = "Insert value maintaining sort order(leftmost position)"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn insort_left(arr: Vec<i32>, value: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let position: i32 = binary_search_left(&arr, value)?;
+    let position: i32 = binary_search_left(&arr, value);
     let mut new_arr: Vec<i32> = vec![];
     for i in 0..arr.len() as i32 {
         if i == position {
@@ -153,7 +153,7 @@ pub fn insort_left(arr: Vec<i32>, value: i32) -> Result<Vec<i32>, Box<dyn std::e
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn insort_right(arr: Vec<i32>, value: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let position: i32 = binary_search_right(&arr, value)?;
+    let position: i32 = binary_search_right(&arr, value);
     let mut new_arr: Vec<i32> = vec![];
     for i in 0..arr.len() as i32 {
         if i == position {
@@ -174,7 +174,7 @@ pub fn insort_right(arr: Vec<i32>, value: i32) -> Result<Vec<i32>, Box<dyn std::
 pub fn test_insort_left() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let data: Vec<i32> = vec![1, 3, 5, 7, 9];
     let value: i32 = 4;
-    let result: Vec<i32> = insort_left(data, value)?;
+    let result: Vec<i32> = insort_left(data, value);
     Ok(result)
 }
 #[doc = "Test inserting with insort_right"]
@@ -183,7 +183,7 @@ pub fn test_insort_left() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
 pub fn test_insort_right() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let data: Vec<i32> = vec![1, 3, 5, 7, 9];
     let value: i32 = 4;
-    let result: Vec<i32> = insort_right(data, value)?;
+    let result: Vec<i32> = insort_right(data, value);
     Ok(result)
 }
 #[doc = "Test inserting duplicate with insort_left"]
@@ -192,7 +192,7 @@ pub fn test_insort_right() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
 pub fn test_insort_duplicate_left() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let data: Vec<i32> = vec![1, 3, 3, 3, 5];
     let value: i32 = 3;
-    let result: Vec<i32> = insort_left(data, value)?;
+    let result: Vec<i32> = insort_left(data, value);
     Ok(result)
 }
 #[doc = "Test inserting duplicate with insort_right"]
@@ -201,13 +201,13 @@ pub fn test_insort_duplicate_left() -> Result<Vec<i32>, Box<dyn std::error::Erro
 pub fn test_insort_duplicate_right() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let data: Vec<i32> = vec![1, 3, 3, 3, 5];
     let value: i32 = 3;
-    let result: Vec<i32> = insort_right(data, value)?;
+    let result: Vec<i32> = insort_right(data, value);
     Ok(result)
 }
 #[doc = "Check if value exists in sorted array"]
 #[doc = " Depyler: proven to terminate"]
 pub fn binary_search_contains(arr: Vec<i32>, target: i32) -> Result<bool, IndexError> {
-    let position: i32 = binary_search_left(&arr, target)?;
+    let position: i32 = binary_search_left(&arr, target);
     let _cse_temp_0 = arr.len() as i32;
     let _cse_temp_1 = position < _cse_temp_0;
     let _cse_temp_2 = arr.get(position as usize).cloned().unwrap_or_default() == target;
@@ -225,16 +225,16 @@ pub fn count_occurrences_sorted(
     arr: Vec<i32>,
     target: i32,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut left: i32 = binary_search_left(&arr, target)?;
-    let mut right: i32 = binary_search_right(&arr, target)?;
+    let mut left: i32 = binary_search_left(&arr, target);
+    let mut right: i32 = binary_search_right(&arr, target);
     let count: i32 = right - left;
     Ok(count)
 }
 #[doc = "Find start and end indices of target in sorted array"]
 #[doc = " Depyler: proven to terminate"]
 pub fn find_range(arr: Vec<i32>, target: i32) -> Result<(), IndexError> {
-    let start: i32 = binary_search_left(&arr, target)?;
-    let end: i32 = binary_search_right(&arr, target)?;
+    let start: i32 = binary_search_left(&arr, target);
+    let end: i32 = binary_search_right(&arr, target);
     let _cse_temp_0 = arr.len() as i32;
     let _cse_temp_1 = start < _cse_temp_0;
     let _cse_temp_2 = arr.get(start as usize).cloned().unwrap_or_default() == target;
@@ -253,7 +253,7 @@ pub fn find_closest_value(arr: Vec<i32>, target: i32) -> Result<i32, IndexError>
     if _cse_temp_1 {
         return Ok(-1);
     }
-    let position: i32 = binary_search_left(&arr, target)?;
+    let position: i32 = binary_search_left(&arr, target);
     let _cse_temp_2 = position == 0;
     if _cse_temp_2 {
         return Ok(arr.get(0usize).cloned().unwrap_or_default());
@@ -329,7 +329,7 @@ pub fn maintain_sorted_list(operations: &Vec<()>) -> Result<Vec<i32>, IndexError
         let operation_type: String = op.get(0usize).cloned().unwrap_or_default();
         let value: i32 = op.get(1usize).cloned().unwrap_or_default();
         if operation_type == STR_INSERT {
-            sorted_list = insort_right(sorted_list, value)?;
+            sorted_list = insort_right(sorted_list, value);
         }
     }
     Ok(sorted_list)
@@ -338,7 +338,7 @@ pub fn maintain_sorted_list(operations: &Vec<()>) -> Result<Vec<i32>, IndexError
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn find_insertion_point(arr: Vec<i32>, value: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let position: i32 = binary_search_left(&arr, value)?;
+    let position: i32 = binary_search_left(&arr, value);
     Ok(position)
 }
 #[doc = "Test bisect with edge cases"]
@@ -346,17 +346,17 @@ pub fn find_insertion_point(arr: Vec<i32>, value: i32) -> Result<i32, Box<dyn st
 #[doc = " Depyler: proven to terminate"]
 pub fn test_bisect_edge_cases() -> Result<(), Box<dyn std::error::Error>> {
     let empty: Vec<i32> = vec![];
-    let empty_pos: i32 = binary_search_left(&empty, 5)?;
+    let empty_pos: i32 = binary_search_left(&empty, 5);
     let single: Vec<i32> = vec![5];
-    let single_before: i32 = binary_search_left(&single, 3)?;
-    let single_after: i32 = binary_search_left(&single, 7)?;
-    let single_equal: i32 = binary_search_left(&single, 5)?;
+    let single_before: i32 = binary_search_left(&single, 3);
+    let single_after: i32 = binary_search_left(&single, 7);
+    let single_equal: i32 = binary_search_left(&single, 5);
     Ok((empty_pos, single_before, single_after, single_equal))
 }
 #[doc = "Find floor and ceiling values for target"]
 #[doc = " Depyler: proven to terminate"]
 pub fn find_floor_ceiling(arr: Vec<i32>, target: i32) -> Result<(), IndexError> {
-    let position: i32 = binary_search_left(&arr, target)?;
+    let position: i32 = binary_search_left(&arr, target);
     let mut floor_val: i32 = -1;
     let mut ceiling_val: i32 = -1;
     let _cse_temp_0 = position > 0;
@@ -384,32 +384,32 @@ pub fn find_floor_ceiling(arr: Vec<i32>, target: i32) -> Result<(), IndexError> 
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_bisect_features() -> Result<(), Box<dyn std::error::Error>> {
     let sorted_data: Vec<i32> = vec![1, 3, 3, 3, 5, 7, 9];
-    let left_pos: i32 = test_bisect_left()?;
-    let right_pos: i32 = test_bisect_right()?;
-    let not_found_left: i32 = test_bisect_not_found_left()?;
-    let not_found_right: i32 = test_bisect_not_found_right()?;
-    let insorted_left: Vec<i32> = test_insort_left()?;
-    let insorted_right: Vec<i32> = test_insort_right()?;
-    let dup_left: Vec<i32> = test_insort_duplicate_left()?;
-    let dup_right: Vec<i32> = test_insort_duplicate_right()?;
-    let contains: bool = binary_search_contains(vec![1, 3, 5, 7, 9], 5)?;
-    let not_contains: bool = binary_search_contains(vec![1, 3, 5, 7, 9], 4)?;
-    let count: i32 = count_occurrences_sorted(vec![1, 3, 3, 3, 5], 3)?;
-    let data_range: () = find_range(vec![1, 3, 3, 3, 5], 3)?;
-    let closest: i32 = find_closest_value(vec![1, 3, 5, 7, 9], 4)?;
+    let left_pos: i32 = test_bisect_left();
+    let right_pos: i32 = test_bisect_right();
+    let not_found_left: i32 = test_bisect_not_found_left();
+    let not_found_right: i32 = test_bisect_not_found_right();
+    let insorted_left: Vec<i32> = test_insort_left();
+    let insorted_right: Vec<i32> = test_insort_right();
+    let dup_left: Vec<i32> = test_insort_duplicate_left();
+    let dup_right: Vec<i32> = test_insort_duplicate_right();
+    let contains: bool = binary_search_contains(vec![1, 3, 5, 7, 9], 5);
+    let not_contains: bool = binary_search_contains(vec![1, 3, 5, 7, 9], 4);
+    let count: i32 = count_occurrences_sorted(vec![1, 3, 3, 3, 5], 3);
+    let data_range: () = find_range(vec![1, 3, 3, 3, 5], 3);
+    let closest: i32 = find_closest_value(vec![1, 3, 5, 7, 9], 4);
     let arr1: Vec<i32> = vec![1, 3, 5];
     let arr2: Vec<i32> = vec![2, 4, 6];
-    let merged: Vec<i32> = merge_sorted_arrays(&arr1, &arr2)?;
+    let merged: Vec<i32> = merge_sorted_arrays(&arr1, &arr2);
     let operations: Vec<()> = vec![
         (STR_INSERT, 5),
         (STR_INSERT, 2),
         (STR_INSERT, 8),
         (STR_INSERT, 1),
     ];
-    let maintained: Vec<i32> = maintain_sorted_list(&operations)?;
-    let insert_pos: i32 = find_insertion_point(vec![1, 3, 5, 7], 4)?;
-    let edge_results: () = test_bisect_edge_cases()?;
-    let floor_ceil: () = find_floor_ceiling(vec![1, 3, 5, 7, 9], 4)?;
+    let maintained: Vec<i32> = maintain_sorted_list(&operations);
+    let insert_pos: i32 = find_insertion_point(vec![1, 3, 5, 7], 4);
+    let edge_results: () = test_bisect_edge_cases();
+    let floor_ceil: () = find_floor_ceiling(vec![1, 3, 5, 7, 9], 4);
     println!("{}", "All bisect module tests completed successfully");
     Ok(())
 }

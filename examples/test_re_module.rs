@@ -1,7 +1,7 @@
 use regex as re;
-const STR_HELLO_WORLD: &'static str = "Hello World";
-const STR_HELLO: &'static str = "Hello";
 const STR_EMPTY: &'static str = "";
+const STR_HELLO: &'static str = "Hello";
+const STR_HELLO_WORLD: &'static str = "Hello World";
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -250,7 +250,7 @@ pub fn normalize_whitespace(text: &str) -> String {
 #[doc = "Check if text starts with pattern"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn starts_with_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
+pub fn starts_with_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
     text.starts_with(pattern)
 }
 #[doc = "Check if text ends with pattern"]
@@ -262,7 +262,7 @@ pub fn ends_with_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
 #[doc = "Case-insensitive pattern matching"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn case_insensitive_match<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
+pub fn case_insensitive_match<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
     let text_lower: String = text.to_lowercase();
     let pattern_lower: String = pattern.to_lowercase();
     let _cse_temp_0 = text_lower.contains(pattern_lower);
@@ -272,7 +272,7 @@ pub fn case_insensitive_match<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
 #[doc = "Find text between two markers"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn find_between<'a, 'b, 'c>(
+pub fn find_between<'a, 'c, 'b>(
     text: &'a str,
     start_marker: &'b str,
     end_marker: &'c str,
@@ -375,7 +375,7 @@ pub fn extract_numbers_from_text(text: &str) -> Vec<i32> {
 }
 #[doc = "Simple wildcard matching(* means any sequence)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn wildcard_match_simple<'b, 'a>(text: &'a str, pattern: &'b str) -> Result<bool, IndexError> {
+pub fn wildcard_match_simple<'a, 'b>(text: &'a str, pattern: &'b str) -> Result<bool, IndexError> {
     let _cse_temp_0 = !pattern.contains(&"*");
     if _cse_temp_0 {
         return Ok(text == pattern);
@@ -409,43 +409,43 @@ pub fn wildcard_match_simple<'b, 'a>(text: &'a str, pattern: &'b str) -> Result<
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_re_features() -> Result<(), Box<dyn std::error::Error>> {
-    let matches: bool = test_simple_match()?;
-    let contains: bool = test_contains_pattern()?;
-    let position: i32 = test_find_pattern_position()?;
-    let mut count: i32 = test_count_occurrences()?;
-    let replaced: String = test_replace_pattern()?;
-    let split_result: Vec<String> = test_split_by_pattern()?;
-    let is_digit: bool = test_match_digit()?;
-    let is_alpha: bool = test_match_alpha()?;
-    let is_alnum: bool = test_match_alphanumeric()?;
+    let matches: bool = test_simple_match();
+    let contains: bool = test_contains_pattern();
+    let position: i32 = test_find_pattern_position();
+    let mut count: i32 = test_count_occurrences();
+    let replaced: String = test_replace_pattern();
+    let split_result: Vec<String> = test_split_by_pattern();
+    let is_digit: bool = test_match_digit();
+    let is_alpha: bool = test_match_alpha();
+    let is_alnum: bool = test_match_alphanumeric();
     let text: String = "abc123def456".to_string();
-    let mut digits: String = extract_digits(text)?;
-    let mut letters: String = extract_letters(text)?;
+    let mut digits: String = extract_digits(text);
+    let mut letters: String = extract_letters(text);
     let sentence: String = "Hello world from Python".to_string();
-    let words: Vec<String> = find_all_words(sentence)?;
-    let email_valid: bool = validate_email_simple("user@example.com")?;
-    let email_invalid: bool = validate_email_simple("notanemail")?;
-    let phone_valid: bool = validate_phone_simple("555-123-4567")?;
-    let phone_invalid: bool = validate_phone_simple("abc")?;
+    let words: Vec<String> = find_all_words(sentence);
+    let email_valid: bool = validate_email_simple("user@example.com");
+    let email_invalid: bool = validate_email_simple("notanemail");
+    let phone_valid: bool = validate_phone_simple("555-123-4567");
+    let phone_invalid: bool = validate_phone_simple("abc");
     let mut url: String = "https://www.example.com/path/page.html".to_string();
-    let mut domain: String = extract_url_domain(url)?;
+    let mut domain: String = extract_url_domain(url);
     let punct_text: String = "Hello, World!".to_string();
-    let no_punct: String = remove_punctuation(punct_text)?;
+    let no_punct: String = remove_punctuation(punct_text);
     let spaces: String = "Hello    World  !".to_string();
-    let normalized: String = normalize_whitespace(spaces)?;
-    let starts: bool = starts_with_pattern(STR_HELLO_WORLD, STR_HELLO)?;
-    let ends: bool = ends_with_pattern(STR_HELLO_WORLD, "World")?;
-    let case_match: bool = case_insensitive_match(STR_HELLO, "hello")?;
+    let normalized: String = normalize_whitespace(spaces);
+    let starts: bool = starts_with_pattern(STR_HELLO_WORLD, STR_HELLO);
+    let ends: bool = ends_with_pattern(STR_HELLO_WORLD, "World");
+    let case_match: bool = case_insensitive_match(STR_HELLO, "hello");
     let tagged: String = "<tag>content</tag>".to_string();
-    let content: String = find_between(tagged, "<tag>", "</tag>")?;
+    let content: String = find_between(tagged, "<tag>", "</tag>");
     let replacements: Vec<()> = vec![("a", "x"), ("b", "y")];
-    let multi_replace: String = replace_multiple("aabbcc", &replacements)?;
+    let multi_replace: String = replace_multiple("aabbcc", &replacements);
     let para: String = "the quick brown fox jumps over the lazy dog".to_string();
-    let the_count: i32 = count_word_occurrences(para, "the")?;
+    let the_count: i32 = count_word_occurrences(para, "the");
     let mixed: String = "I have 2 apples and 5 oranges".to_string();
-    let nums: Vec<i32> = extract_numbers_from_text(mixed)?;
-    let wildcard1: bool = wildcard_match_simple("hello.txt", "*.txt")?;
-    let wildcard2: bool = wildcard_match_simple("test_file.py", "test_*")?;
+    let nums: Vec<i32> = extract_numbers_from_text(mixed);
+    let wildcard1: bool = wildcard_match_simple("hello.txt", "*.txt");
+    let wildcard2: bool = wildcard_match_simple("test_file.py", "test_*");
     println!("{}", "All regex module tests completed successfully");
     Ok(())
 }
