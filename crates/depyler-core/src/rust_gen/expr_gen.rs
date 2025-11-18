@@ -8871,8 +8871,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
+            // DEPYLER-0422: Disambiguate .get() for list vs dict
+            // List/Vec .get() takes usize by value, Dict .get() takes &K by reference
+            "get" => {
+                // Only use list handler when we're CERTAIN it's a list (not dict)
+                // Default to dict handler for uncertain types (dict.get() supports 1 or 2 args)
+                if self.is_list_expr(object) && !self.is_dict_expr(object) {
+                    // List/Vec .get() - cast index to usize (must be exactly 1 arg)
+                    if arg_exprs.len() != 1 {
+                        bail!("list.get() requires exactly one argument");
+                    }
+                    let index = &arg_exprs[0];
+                    // Cast integer index to usize (Vec/slice .get() requires usize, not &i32)
+                    Ok(parse_quote! { #object_expr.get(#index as usize).cloned() })
+                } else {
+                    // Dict .get() - use existing dict handler (supports 1 or 2 args)
+                    self.convert_dict_method(object_expr, method, arg_exprs, hir_args)
+                }
+            }
+
             // Dict methods (for variables without type info)
-            "get" | "keys" | "values" | "items" | "setdefault" | "popitem" => {
+            "keys" | "values" | "items" | "setdefault" | "popitem" => {
                 self.convert_dict_method(object_expr, method, arg_exprs, hir_args)
             }
 
@@ -9162,10 +9181,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // For parameters, we can check the function signature
             // For local variables, this is harder without full type inference
             //
-            // Heuristic: If the symbol name contains "dict" or "data" or "map"
-            // and index doesn't look numeric, assume HashMap
+            // DEPYLER-0422: Removed "data" from heuristic - too broad, catches sorted_data, dataset, etc.
+            // Only use "dict" or "map" which are more specific to HashMap variables
             let name = sym.as_str();
-            if (name.contains("dict") || name.contains("data") || name.contains("map"))
+            if (name.contains("dict") || name.contains("map"))
                 && !self.is_numeric_index(index)
             {
                 return Ok(true);

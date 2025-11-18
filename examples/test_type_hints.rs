@@ -49,7 +49,7 @@ Ok(total / data.len() as i32)
 }
 result.trim().to_string()
 }
-#[doc = "Mixed numeric operations."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn mixed_operations<'a, 'b>(x: & 'a serde_json::Value, y: & 'b serde_json::Value) {
+#[doc = "Mixed numeric operations."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn mixed_operations<'b, 'a>(x: & 'a serde_json::Value, y: & 'b serde_json::Value) {
     let sum_val = x + y;
     let _cse_temp_0 = x * y;
     let product = _cse_temp_0;
@@ -99,7 +99,7 @@ else {
     let decimal = _cse_temp_2;
   (text, number, decimal)
 }
-#[doc = "Only some parameters have annotations."] #[doc = " Depyler: verified panic-free"] pub fn partial_annotations<'b, 'a>(data: & 'a Vec<serde_json::Value>, multiplier: & 'b serde_json::Value) -> Vec<serde_json::Value>{
+#[doc = "Only some parameters have annotations."] #[doc = " Depyler: verified panic-free"] pub fn partial_annotations<'a, 'b>(data: & 'a Vec<serde_json::Value>, multiplier: & 'b serde_json::Value) -> Vec<serde_json::Value>{
     let mut result = vec! [];
     for item in data.iter().cloned() {
     result.push(item * multiplier);
