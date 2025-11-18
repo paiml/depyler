@@ -49,7 +49,7 @@ Ok(total / data.len() as i32)
 }
 result.trim().to_string()
 }
-#[doc = "Mixed numeric operations."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn mixed_operations<'b, 'a>(x: & 'a serde_json::Value, y: & 'b serde_json::Value) {
+#[doc = "Mixed numeric operations."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn mixed_operations<'a, 'b>(x: & 'a serde_json::Value, y: & 'b serde_json::Value) -> i32 {
     let sum_val = x + y;
     let _cse_temp_0 = x * y;
     let product = _cse_temp_0;
@@ -76,7 +76,7 @@ else {
     let y = 20;
     x + y
 }
-#[doc = "String formatting with mixed types."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn string_formatting<'a, 'b>(name: & 'a str, age: & 'b serde_json::Value) -> String {
+#[doc = "String formatting with mixed types."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn string_formatting<'b, 'a>(name: & 'a str, age: & 'b serde_json::Value) -> String {
     let formatted_name = name.to_uppercase();
     let next_age = age + 1;
     format!("{:?} will be {:?} next year", formatted_name, next_age)

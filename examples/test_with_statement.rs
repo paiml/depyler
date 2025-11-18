@@ -20,7 +20,7 @@ impl FileManager {
         exc_type: serde_json::Value,
         exc_val: serde_json::Value,
         exc_tb: serde_json::Value,
-    ) {
+    ) -> bool {
         self.file = ();
         return false;
     }
@@ -31,7 +31,7 @@ impl FileManager {
 #[doc = "Test basic with statement"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_simple_with() {
+pub fn test_simple_with() -> i32 {
     let _context = FileManager::new("test.txt".to_string().to_string());
     let fm = _context.__enter__();
     let result = fm.write("Hello, World!".to_string());

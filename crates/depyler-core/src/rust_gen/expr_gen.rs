@@ -148,16 +148,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // - Set: .contains() method
                 // - HashMap: .contains_key() method with smart reference handling
 
-                // DEPYLER-0329: Check if left is already a reference to avoid double-borrowing
-                // For variables with reference types (e.g., key: &str), don't add extra &
-                let needs_borrow = if let HirExpr::Var(var_name) = left {
-                    // Check if this variable is a parameter with reference type
-                    // For function params like `key: &str`, we don't need extra &
-                    !matches!(self.ctx.var_types.get(var_name), Some(Type::String))
-                } else {
-                    // Non-variables always need borrowing
-                    true
-                };
+                // DEPYLER-0422 Fix #12: HashMap borrowing for owned values
+                // Five-Whys Root Cause:
+                // 1. Why: E0308 - expected `&_`, found `String` for contains_key(item)
+                // 2. Why: The transpiler doesn't add & when item is owned
+                // 3. Why: needs_borrow returns false when type is Type::String
+                // 4. Why: Logic is inverted: !matches!(...Type::String) returns false for owned String
+                // 5. ROOT CAUSE: The borrowing detection logic is backwards
+                //
+                // Always add & for HashMap methods. The HIR Type::String doesn't
+                // distinguish between owned String and borrowed &str, so we can't reliably
+                // detect when to skip the borrow. Since most cases (iterators with .cloned(),
+                // owned variables) need the borrow, we default to always borrowing.
+                let needs_borrow = true;
 
                 if is_string || is_set {
                     // Strings and Sets both use .contains(&value)

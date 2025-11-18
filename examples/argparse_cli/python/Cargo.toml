@@ -1,0 +1,11 @@
+[package]
+name = "wordcount"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "wordcount"
+path = "wordcount.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }

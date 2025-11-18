@@ -15,37 +15,34 @@ impl ZeroDivisionError {
         }
     }
 }
+#[derive(Debug, Clone)]
+pub struct IndexError {
+    message: String,
+}
+impl std::fmt::Display for IndexError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "index out of range: {}", self.message)
+    }
+}
+impl std::error::Error for IndexError {}
+impl IndexError {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
 #[doc = "\n    Binary search implementation with contracts.\n    \n    @requires items is not None\n    @requires all(items[i] <= items[i+1] for i in range(len(items)-1))\n    @ensures result>= -1\n    @ensures result<len(items)\n    @invariant low <= high\n    "]
 pub fn binary_search(items: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut low = 0;
     let _cse_temp_0 = items.len() as i32;
     let mut high = _cse_temp_0 - 1;
     while low <= high {
-        let mid = (low + high / 2) as i32;
-        if {
-            let base = items;
-            let idx = mid;
-            let actual_idx = if idx < 0 {
-                base.len().saturating_sub((-idx) as usize)
-            } else {
-                idx as usize
-            };
-            base.get(actual_idx).cloned().unwrap_or_default()
-        } == target
-        {
+        let mid = ((low + high) / 2) as i32;
+        if items.get(mid as usize).cloned().unwrap_or_default() == target {
             return Ok(mid);
         } else {
-            if {
-                let base = items;
-                let idx = mid;
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub((-idx) as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            } < target
-            {
+            if items.get(mid as usize).cloned().unwrap_or_default() < target {
                 low = mid + 1;
             } else {
                 high = mid - 1;

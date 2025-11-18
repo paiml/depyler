@@ -270,7 +270,7 @@ pub fn flatten_nested_lists(nested: &Vec<Vec<i32>>) -> Vec<i32> {
 }
 #[doc = "Manual implementation of Cartesian product"]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product_manual<'b, 'a>(
+pub fn cartesian_product_manual<'a, 'b>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
 ) -> Vec<(i32, i32)> {
@@ -285,7 +285,7 @@ pub fn cartesian_product_manual<'b, 'a>(
 }
 #[doc = "Manual implementation of zip_longest"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_zip_longest<'a, 'b>(
+pub fn test_zip_longest<'b, 'a>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
     fillvalue: i32,

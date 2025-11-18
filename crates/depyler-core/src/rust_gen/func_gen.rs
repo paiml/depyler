@@ -607,9 +607,21 @@ fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
         }
     }
 
-    // If all are Unknown, we can't infer
+    // DEPYLER-0422 Fix #9: When we have return statements with values but can't infer type,
+    // default to i32 instead of falling back to Unknown/().
+    // Five-Whys Root Cause:
+    // 1. Why: expected `()`, found `i32`
+    // 2. Why: Return type mapped to () for Unknown
+    // 3. Why: Can't infer return type from lambda call expressions
+    // 4. Why: Lambda closures don't have tracked return types
+    // 5. ROOT CAUSE: Falling back to Unknown when return has value expression
+    //
+    // Heuristic: Most unannotated Python functions returning values return numbers
     if return_types.iter().all(|t| matches!(t, Type::Unknown)) {
-        return None;
+        // We have return statements but all returned Unknown types
+        // This likely means we have value-returning expressions we can't type
+        // Default to Int rather than Unit
+        return Some(Type::Int);
     }
 
     // Mixed types - return the first known type

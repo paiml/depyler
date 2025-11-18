@@ -222,8 +222,8 @@ pub fn test_path_splitext() -> Result<(), IndexError> {
         }
     }
     let _cse_temp_0 = last_dot > 0;
-    let mut name: String;
     let mut ext: String;
+    let mut name: String;
     if _cse_temp_0 {
         name = {
             let base = path;
@@ -367,7 +367,7 @@ pub fn count_files_by_extension(files: &Vec<String>) -> Result<HashMap<String, i
         if ext == STR_EMPTY {
             ext = "no_extension";
         }
-        if counts.contains_key(ext) {
+        if counts.contains_key(&ext) {
             {
                 let _key = ext;
                 let _old_val = counts.get(&_key).cloned().unwrap_or_default();

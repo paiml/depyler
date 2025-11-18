@@ -9,6 +9,6 @@ pub fn main() -> i32 {
         name: String,
     }
     let args = Args::parse();
-    println!("{}", format!("Hello, {}!", args.name));
+    println!("{}", format!("Hello, {:?}!", args.name));
     0
 }

@@ -26,7 +26,7 @@ pub fn error_with_none(value: serde_json::Value) {
 #[doc = "Pattern: mutating parameters - should suggest ownership patterns."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn mutating_parameter(mut data: serde_json::Value) {
+pub fn mutating_parameter(mut data: serde_json::Value) -> i32 {
     data.push(42);
     data.sort();
     data
@@ -95,7 +95,7 @@ pub fn while_true_pattern() -> i32 {
 #[doc = "Pattern: None checking - should suggest pattern matching."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn none_checking_pattern(optional_value: serde_json::Value) {
+pub fn none_checking_pattern(optional_value: serde_json::Value) -> i32 {
     if optional_value.is_some() {
         process(optional_value)
     } else {
@@ -114,7 +114,7 @@ pub fn process_data(x: &serde_json::Value) -> i32 {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn process(x: serde_json::Value) {
+pub fn process(x: serde_json::Value) -> i32 {
     x
 }
 #[doc = " Depyler: verified panic-free"]

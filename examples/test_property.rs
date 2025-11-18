@@ -13,7 +13,7 @@ impl Point {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_property() {
+pub fn test_property() -> i32 {
     let p = Point::new(3, 4);
     let m = p.magnitude;
     m

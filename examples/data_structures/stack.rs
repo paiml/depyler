@@ -1,88 +1,100 @@
-#[derive(Debug, Clone)] pub struct IndexError {
-    message: String ,
+use std::collections::HashMap;
+#[derive(Debug, Clone)]
+pub struct IndexError {
+    message: String,
 }
 impl std::fmt::Display for IndexError {
-    fn fmt(& self, f: & mut std::fmt::Formatter<'_>)  -> std::fmt::Result {
-    write !(f, "index out of range: {}", self.message)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "index out of range: {}", self.message)
+    }
 }
-} impl std::error::Error for IndexError {
-   
-}
+impl std::error::Error for IndexError {}
 impl IndexError {
-    pub fn new(message: impl Into<String>)  -> Self {
-    Self {
-    message: message.into()
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
 }
-}
-}
-#[derive(Debug, Clone)] pub struct Stack {
-   
-}
+#[derive(Debug, Clone)]
+pub struct Stack {}
 impl Stack {
-    pub fn new()  -> Self {
-    Self {
-   
+    pub fn new() -> Self {
+        Self {}
+    }
+    pub fn push(&self, item: i32) {
+        self._items.push(item);
+    }
+    pub fn pop(&self) -> Option<i32> {
+        if self.is_empty() {
+            return ();
+        };
+        return self._items.pop().unwrap_or_default();
+    }
+    pub fn peek(&self) -> Option<i32> {
+        if self.is_empty() {
+            return ();
+        };
+        return self._items[-1 as usize];
+    }
+    pub fn is_empty(&self) -> bool {
+        return self._items.len() == 0;
+    }
+    pub fn size(&self) -> i32 {
+        return self._items.len();
+    }
 }
-} pub fn push(& self, item: i32) {
-    self._items.push(item);
-   
+#[doc = "Check if parentheses are balanced using a stack"]
+pub fn balanced_parentheses(expression: &str) -> Result<bool, IndexError> {
+    let mut stack = Stack::new();
+    let opening = "({[";
+    let closing = ")}]";
+    let pairs = {
+        let mut map = HashMap::new();
+        map.insert("(".to_string(), ")");
+        map.insert("{".to_string(), "}");
+        map.insert("[".to_string(), "]");
+        map
+    };
+    for char in expression.chars() {
+        if opening.contains_key(&char) {
+            stack.push(char.chars().next().unwrap() as i32);
+        } else {
+            if closing.contains_key(&char) {
+                if stack.is_empty() {
+                    return Ok(false);
+                }
+                let last = stack.pop();
+                if last.is_none() {
+                    return Ok(false);
+                }
+                let expected = {
+                    let base = &pairs;
+                    let idx: i32 = char::from_u32(last as u32).unwrap().to_string();
+                    let actual_idx = if idx < 0 {
+                        base.len().saturating_sub(idx.abs() as usize)
+                    } else {
+                        idx as usize
+                    };
+                    base.get(actual_idx).cloned().unwrap_or_default()
+                }
+                .chars()
+                .next()
+                .unwrap() as i32;
+                if char.chars().next().unwrap() as i32 != expected {
+                    return Ok(false);
+                }
+            }
+        }
+    }
+    Ok(stack.is_empty())
 }
-pub fn pop(& self)  -> Option<i32>{
-    if self.is_empty() {
-    return()
-};
-    return self._items.pop().unwrap_or_default();
-   
-}
-pub fn peek(& self)  -> Option<i32>{
-    if self.is_empty() {
-    return()
-};
-    return self._items [- 1 as usize];
-   
-}
-pub fn is_empty(& self)  -> bool {
-    return self._items.len() == 0;
-   
-}
-pub fn size(& self)  -> i32 {
-    return self._items.len();
-   
-}
-} #[doc = "Check if parentheses are balanced using a stack"] pub fn balanced_parentheses<'a>(expression: & 'a str)  -> Result<bool, IndexError>{
-    let stack = Stack::new();
-    for char in expression.iter() {
-    if "({[".contains_key(& char) {
-    stack.push(ord(char));
-   
-}
-else {
-    if ")}]".contains_key(& char) {
-    if stack.is_empty() {
-    return Ok(false);
-   
-}
-let last = stack.pop().unwrap_or_default();
-    if last.is_none() {
-    return Ok(false);
-   
-}
-let expected = ord(pairs.get(chr(last) as usize).copied().unwrap_or_default());
-    if ord(char) != expected {
-    return Ok(false);
-   
-}
-}
-}
-} return Ok(stack.is_empty());
-   
-}
-#[cfg(test)] mod tests {
+#[cfg(test)]
+mod tests {
     use super::*;
-    use quickcheck::{
-    quickcheck, TestResult };
-    #[test] fn test_balanced_parentheses_examples() {
-    let _ = balanced_parentheses(Default::default());
-   
-}
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_balanced_parentheses_examples() {
+        let _ = balanced_parentheses(Default::default());
+    }
 }

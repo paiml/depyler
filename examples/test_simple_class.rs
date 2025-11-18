@@ -20,7 +20,7 @@ impl Point {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_point() {
+pub fn test_point() -> i32 {
     let mut p1 = Point::new(0, 0);
     let p2 = Point::new(3, 4);
     p1.move_by(1, 1);

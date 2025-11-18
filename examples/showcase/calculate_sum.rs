@@ -13,8 +13,8 @@ mod tests {
     use quickcheck::{quickcheck, TestResult};
     #[test]
     fn test_calculate_sum_examples() {
-        assert_eq!(calculate_sum(0), 0);
-        assert_eq!(calculate_sum(1), 1);
-        assert_eq!(calculate_sum(-1), -1);
+        assert_eq!(calculate_sum(&vec![]), 0);
+        assert_eq!(calculate_sum(&vec![1]), 1);
+        assert_eq!(calculate_sum(&vec![1, 2, 3]), 6);
     }
 }
