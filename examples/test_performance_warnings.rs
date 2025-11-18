@@ -98,7 +98,7 @@ pub fn large_list_in_loop(n: serde_json::Value) -> Vec<serde_json::Value> {
 }
 #[doc = "Linear search in nested loop - O(n²)."]
 #[doc = " Depyler: verified panic-free"]
-pub fn linear_search_in_loop<'b, 'a>(
+pub fn linear_search_in_loop<'a, 'b>(
     items: &'a mut serde_json::Value,
     targets: &'b serde_json::Value,
 ) -> Vec<serde_json::Value> {
@@ -147,7 +147,7 @@ pub fn aggregate_in_nested_loop(matrix: &serde_json::Value) -> i32 {
 #[doc = "Large parameters passed by value."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn large_parameter_by_value<'a, 'b>(
+pub fn large_parameter_by_value<'b, 'a>(
     huge_list: &'a Vec<serde_json::Value>,
     huge_dict: &'b HashMap<serde_json::Value, serde_json::Value>,
 ) -> i32 {
