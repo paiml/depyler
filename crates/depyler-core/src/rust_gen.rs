@@ -548,6 +548,8 @@ pub fn generate_rust_file(
         current_error_type: None, // DEPYLER-0310: Track error type for raise statement wrapping
         exception_scopes: Vec::new(), // DEPYLER-0333: Exception scope tracking stack
         argparser_tracker: argparse_transform::ArgParserTracker::new(), // DEPYLER-0363: Track ArgumentParser patterns
+        generated_args_struct: None, // DEPYLER-0424: Args struct (hoisted to module level)
+        generated_commands_enum: None, // DEPYLER-0424: Commands enum (hoisted to module level)
     };
 
     // Analyze all functions first for string optimization
@@ -575,7 +577,6 @@ pub fn generate_rust_file(
     // Convert all functions to detect what imports we need
     let functions = convert_functions_to_rust(&module.functions, &mut ctx)?;
 
-
     // Build items list with all generated code
     let mut items = Vec::new();
 
@@ -601,6 +602,15 @@ pub fn generate_rust_file(
 
     // Add classes
     items.extend(classes);
+
+    // DEPYLER-0424: Add ArgumentParser-generated structs at module level
+    // (before functions so handler functions can reference Args type)
+    if let Some(ref commands_enum) = ctx.generated_commands_enum {
+        items.push(commands_enum.clone());
+    }
+    if let Some(ref args_struct) = ctx.generated_args_struct {
+        items.push(args_struct.clone());
+    }
 
     // Add all functions
     items.extend(functions);
@@ -1108,7 +1118,8 @@ mod tests {
         // when x is a bool variable: int(flag1) + int(flag2) → flag1 + flag2 (ERROR!)
         let call_expr = HirExpr::Call {
             func: "int".to_string(),
-            args: vec![HirExpr::Var("x".to_string())], kwargs: vec![]
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
         };
 
         let mut ctx = create_test_context();
@@ -1129,7 +1140,8 @@ mod tests {
         // Python: float(x) → Rust: (x) as f64
         let call_expr = HirExpr::Call {
             func: "float".to_string(),
-            args: vec![HirExpr::Var("y".to_string())], kwargs: vec![]
+            args: vec![HirExpr::Var("y".to_string())],
+            kwargs: vec![],
         };
 
         let mut ctx = create_test_context();
@@ -1148,7 +1160,8 @@ mod tests {
         // Python: str(x) → Rust: x.to_string()
         let call_expr = HirExpr::Call {
             func: "str".to_string(),
-            args: vec![HirExpr::Var("value".to_string())], kwargs: vec![]
+            args: vec![HirExpr::Var("value".to_string())],
+            kwargs: vec![],
         };
 
         let mut ctx = create_test_context();
@@ -1171,7 +1184,8 @@ mod tests {
         // Python: bool(x) → Rust: (x) as bool
         let call_expr = HirExpr::Call {
             func: "bool".to_string(),
-            args: vec![HirExpr::Var("flag".to_string())], kwargs: vec![]
+            args: vec![HirExpr::Var("flag".to_string())],
+            kwargs: vec![],
         };
 
         let mut ctx = create_test_context();
@@ -1202,7 +1216,8 @@ mod tests {
 
         let call_expr = HirExpr::Call {
             func: "int".to_string(),
-            args: vec![division], kwargs: vec![]
+            args: vec![division],
+            kwargs: vec![],
         };
 
         let mut ctx = create_test_context();
@@ -1285,7 +1300,8 @@ mod tests {
             body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
                 object: Box::new(HirExpr::Var("text".to_string())),
                 method: "upper".to_string(),
-                args: vec![], kwargs: vec![]
+                args: vec![],
+                kwargs: vec![],
             }))],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
@@ -1317,7 +1333,8 @@ mod tests {
             body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
                 object: Box::new(HirExpr::Var("text".to_string())),
                 method: "lower".to_string(),
-                args: vec![], kwargs: vec![]
+                args: vec![],
+                kwargs: vec![],
             }))],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
@@ -1342,7 +1359,8 @@ mod tests {
             body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
                 object: Box::new(HirExpr::Var("text".to_string())),
                 method: "strip".to_string(),
-                args: vec![], kwargs: vec![]
+                args: vec![],
+                kwargs: vec![],
             }))],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),

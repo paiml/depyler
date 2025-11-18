@@ -117,6 +117,12 @@ pub struct CodeGenContext<'a> {
     /// Accumulates ArgumentParser instances and add_argument calls
     /// to generate #[derive(Parser)] struct definitions
     pub argparser_tracker: crate::rust_gen::argparse_transform::ArgParserTracker,
+    /// DEPYLER-0424: Generated Args struct for ArgumentParser (emitted at module level)
+    /// Stored here so it can be hoisted outside main() function
+    pub generated_args_struct: Option<proc_macro2::TokenStream>,
+    /// DEPYLER-0424: Generated Commands enum for subcommands (emitted at module level)
+    /// Stored here so it can be hoisted outside main() function
+    pub generated_commands_enum: Option<proc_macro2::TokenStream>,
 }
 
 impl<'a> CodeGenContext<'a> {
