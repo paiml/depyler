@@ -51,6 +51,7 @@ pub mod backend;
 pub mod borrowing;
 pub mod borrowing_context;
 pub mod cargo_toml_gen;
+pub mod chaos;
 pub mod codegen;
 pub mod const_generic_inference;
 pub mod debug;
@@ -351,7 +352,10 @@ impl DepylerPipeline {
     /// # Returns
     ///
     /// Returns a tuple of (rust_code, dependencies) or an error if transpilation fails.
-    pub fn transpile_with_dependencies(&self, python_source: &str) -> Result<(String, Vec<cargo_toml_gen::Dependency>)> {
+    pub fn transpile_with_dependencies(
+        &self,
+        python_source: &str,
+    ) -> Result<(String, Vec<cargo_toml_gen::Dependency>)> {
         // Parse Python source
         let ast = self.parse_python(python_source)?;
 
@@ -623,7 +627,8 @@ impl DepylerPipeline {
 
         // Generate Rust code using the unified generation system
         // DEPYLER-0384: generate_rust_file now returns (code, dependencies)
-        let (rust_code, _dependencies) = rust_gen::generate_rust_file(&optimized_hir, &self.transpiler.type_mapper)?;
+        let (rust_code, _dependencies) =
+            rust_gen::generate_rust_file(&optimized_hir, &self.transpiler.type_mapper)?;
 
         Ok(rust_code)
     }
