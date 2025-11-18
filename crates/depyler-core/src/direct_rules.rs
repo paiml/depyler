@@ -1798,26 +1798,30 @@ impl<'a> ExprConverter<'a> {
                         }
                     }
                     // Float literal base: always use .powf()
+                    // DEPYLER-0408: Cast float literal to f64 for concrete type
                     (HirExpr::Literal(Literal::Float(_)), _) => Ok(parse_quote! {
-                        #left_expr.powf(#right_expr as f64)
+                        (#left_expr as f64).powf(#right_expr as f64)
                     }),
                     // Any base with float exponent: use .powf()
+                    // DEPYLER-0408: Cast float literal exponent to f64 for concrete type
                     (_, HirExpr::Literal(Literal::Float(_))) => Ok(parse_quote! {
-                        (#left_expr as f64).powf(#right_expr)
+                        (#left_expr as f64).powf(#right_expr as f64)
                     }),
                     // Variables or complex expressions: generate type-safe code
                     _ => {
                         // For non-literal expressions, we need runtime type checking
                         // This is a conservative approach that works for common cases
+                        // DEPYLER-0405: Cast both sides to i64 for type-safe comparison
                         Ok(parse_quote! {
                             {
                                 // Try integer power first if exponent can be u32
-                                if #right_expr >= 0 && #right_expr <= u32::MAX as i64 {
-                                    #left_expr.checked_pow(#right_expr as u32)
+                                if #right_expr >= 0 && (#right_expr as i64) <= (u32::MAX as i64) {
+                                    (#left_expr as i32).checked_pow(#right_expr as u32)
                                         .expect("Power operation overflowed")
                                 } else {
                                     // Fall back to float power for negative or large exponents
-                                    (#left_expr as f64).powf(#right_expr as f64) as i64
+                                    // DEPYLER-0401: Use i32 to match common Python int mapping
+                                    (#left_expr as f64).powf(#right_expr as f64) as i32
                                 }
                             }
                         })
@@ -1966,7 +1970,9 @@ impl<'a> ExprConverter<'a> {
     fn convert_set_constructor(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.is_empty() {
             // Empty set: set()
-            Ok(parse_quote! { HashSet::new() })
+            // DEPYLER-0409: Use default type i32 to avoid "type annotations needed" error
+            // when the variable is unused or type can't be inferred from context
+            Ok(parse_quote! { HashSet::<i32>::new() })
         } else if args.len() == 1 {
             // Set from iterable: set([1, 2, 3])
             let arg = &args[0];
@@ -1981,7 +1987,8 @@ impl<'a> ExprConverter<'a> {
     fn convert_frozenset_constructor(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.is_empty() {
             // Empty frozenset: frozenset()
-            Ok(parse_quote! { std::sync::Arc::new(HashSet::new()) })
+            // DEPYLER-0409: Use default type i32 for empty sets
+            Ok(parse_quote! { std::sync::Arc::new(HashSet::<i32>::new()) })
         } else if args.len() == 1 {
             // Frozenset from iterable: frozenset([1, 2, 3])
             let arg = &args[0];
@@ -2296,6 +2303,109 @@ impl<'a> ExprConverter<'a> {
                         Ok(parse_quote! { #object_expr.remove(#idx as usize) })
                     }
                 }
+            }
+
+            // String methods - DEPYLER-0413
+            "upper" => {
+                if !arg_exprs.is_empty() {
+                    bail!("upper() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.to_uppercase() })
+            }
+            "lower" => {
+                if !arg_exprs.is_empty() {
+                    bail!("lower() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.to_lowercase() })
+            }
+            "strip" => {
+                if !arg_exprs.is_empty() {
+                    bail!("strip() with arguments not supported");
+                }
+                Ok(parse_quote! { #object_expr.trim().to_string() })
+            }
+            "lstrip" => {
+                if !arg_exprs.is_empty() {
+                    bail!("lstrip() with arguments not supported");
+                }
+                Ok(parse_quote! { #object_expr.trim_start().to_string() })
+            }
+            "rstrip" => {
+                if !arg_exprs.is_empty() {
+                    bail!("rstrip() with arguments not supported");
+                }
+                Ok(parse_quote! { #object_expr.trim_end().to_string() })
+            }
+            "startswith" => {
+                if arg_exprs.len() != 1 {
+                    bail!("startswith() requires exactly one argument");
+                }
+                let prefix = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.starts_with(#prefix) })
+            }
+            "endswith" => {
+                if arg_exprs.len() != 1 {
+                    bail!("endswith() requires exactly one argument");
+                }
+                let suffix = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.ends_with(#suffix) })
+            }
+            "split" => {
+                if arg_exprs.is_empty() {
+                    Ok(parse_quote! { #object_expr.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() })
+                } else if arg_exprs.len() == 1 {
+                    let sep = &arg_exprs[0];
+                    Ok(parse_quote! { #object_expr.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() })
+                } else {
+                    bail!("split() with maxsplit not supported");
+                }
+            }
+            "join" => {
+                if arg_exprs.len() != 1 {
+                    bail!("join() requires exactly one argument");
+                }
+                let iterable = &arg_exprs[0];
+                Ok(parse_quote! { #iterable.join(#object_expr) })
+            }
+            "replace" => {
+                if arg_exprs.len() != 2 {
+                    bail!("replace() requires exactly two arguments");
+                }
+                let old = &arg_exprs[0];
+                let new = &arg_exprs[1];
+                Ok(parse_quote! { #object_expr.replace(#old, #new) })
+            }
+            "find" => {
+                if arg_exprs.len() != 1 {
+                    bail!("find() requires exactly one argument");
+                }
+                let substring = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.find(#substring).map(|i| i as i64).unwrap_or(-1) })
+            }
+            "rfind" => {
+                if arg_exprs.len() != 1 {
+                    bail!("rfind() requires exactly one argument");
+                }
+                let substring = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.rfind(#substring).map(|i| i as i64).unwrap_or(-1) })
+            }
+            "isdigit" => {
+                if !arg_exprs.is_empty() {
+                    bail!("isdigit() takes no arguments");
+                }
+                Ok(parse_quote! { !#object_expr.is_empty() && #object_expr.chars().all(|c| c.is_ascii_digit()) })
+            }
+            "isalpha" => {
+                if !arg_exprs.is_empty() {
+                    bail!("isalpha() takes no arguments");
+                }
+                Ok(parse_quote! { !#object_expr.is_empty() && #object_expr.chars().all(|c| c.is_alphabetic()) })
+            }
+            "isalnum" => {
+                if !arg_exprs.is_empty() {
+                    bail!("isalnum() takes no arguments");
+                }
+                Ok(parse_quote! { !#object_expr.is_empty() && #object_expr.chars().all(|c| c.is_alphanumeric()) })
             }
 
             // Generic method call fallback
