@@ -1,3 +1,4 @@
+use serde_json;
 #[doc = "Multiple uses of the same complex expression."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
@@ -55,7 +56,7 @@ pub fn conditional_cse(flag: bool, a: i32, b: i32) -> i32 {
 }
 #[doc = "Expressions that don't change in loops."]
 #[doc = " Depyler: verified panic-free"]
-pub fn loop_invariant_expressions(items: &Vec<String>) -> i32 {
+pub fn loop_invariant_expressions(items: &Vec<serde_json::Value>) -> i32 {
     let x = 10;
     let y = 20;
     let mut total = 0;

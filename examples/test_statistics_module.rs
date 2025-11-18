@@ -327,7 +327,7 @@ pub fn detect_outliers(data: Vec<f64>) -> Result<Vec<f64>, IndexError> {
     let upper_bound: f64 = q3 + _cse_temp_0;
     let mut outliers: Vec<f64> = vec![];
     for value in data.iter().cloned() {
-        if value < lower_bound || value > upper_bound {
+        if (value < lower_bound) || (value > upper_bound) {
             outliers.push(value);
         }
     }
@@ -401,7 +401,7 @@ pub fn calculate_covariance<'a, 'b>(
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
     let _cse_temp_3 = _cse_temp_0 == 0;
-    let _cse_temp_4 = _cse_temp_2 || _cse_temp_3;
+    let _cse_temp_4 = (_cse_temp_2) || (_cse_temp_3);
     if _cse_temp_4 {
         return Ok(0.0);
     }
@@ -433,7 +433,7 @@ pub fn calculate_correlation(x: Vec<f64>, y: Vec<f64>) -> Result<f64, ZeroDivisi
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
     let _cse_temp_3 = _cse_temp_0 == 0;
-    let _cse_temp_4 = _cse_temp_2 || _cse_temp_3;
+    let _cse_temp_4 = (_cse_temp_2) || (_cse_temp_3);
     if _cse_temp_4 {
         return Ok(0.0);
     }
@@ -466,7 +466,7 @@ pub fn calculate_correlation(x: Vec<f64>, y: Vec<f64>) -> Result<f64, ZeroDivisi
     let y_stdev: f64 = ((y_var_sum as f64) / ((y.len() as i32) as f64 as f64) as f64).sqrt();
     let _cse_temp_9 = x_stdev == 0.0;
     let _cse_temp_10 = y_stdev == 0.0;
-    let _cse_temp_11 = _cse_temp_9 || _cse_temp_10;
+    let _cse_temp_11 = (_cse_temp_9) || (_cse_temp_10);
     if _cse_temp_11 {
         return Ok(0.0);
     }

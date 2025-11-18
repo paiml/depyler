@@ -1,3 +1,4 @@
+use serde_json;
 #[derive(Debug, Clone)]
 pub struct FileManager {
     pub filename: String,
@@ -14,7 +15,12 @@ impl FileManager {
         self.file = self.filename;
         return self;
     }
-    pub fn __exit__(&mut self, exc_type: String, exc_val: String, exc_tb: String) {
+    pub fn __exit__(
+        &mut self,
+        exc_type: serde_json::Value,
+        exc_val: serde_json::Value,
+        exc_tb: serde_json::Value,
+    ) {
         self.file = ();
         return false;
     }

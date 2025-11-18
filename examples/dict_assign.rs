@@ -1,8 +1,9 @@
+use serde_json;
 use std::collections::HashMap;
 #[doc = "Test dictionary subscript assignment"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_dict_assignment() {
+pub fn test_dict_assignment() -> HashMap<serde_json::Value, serde_json::Value> {
     let mut d = {
         let map = HashMap::new();
         map

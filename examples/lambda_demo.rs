@@ -80,7 +80,7 @@ pub fn lambda_handler(
                 .unwrap_or(0);
             let mut file_type = "unknown";
             let mut file_type;
-            if key.ends_with(".jpg") || key.ends_with(".jpeg") {
+            if (key.ends_with(".jpg")) || (key.ends_with(".jpeg")) {
                 file_type = "image/jpeg";
             } else {
                 let mut file_type;

@@ -74,8 +74,8 @@ pub fn test_enum_to_value() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_enum_from_value(value: i32) -> i32 {
     let _cse_temp_0 = value == Color.RED;
-    let _cse_temp_1 = _cse_temp_0 || _cse_temp_0;
-    let _cse_temp_2 = _cse_temp_1 || _cse_temp_0;
+    let _cse_temp_1 = (_cse_temp_0) || (_cse_temp_0);
+    let _cse_temp_2 = (_cse_temp_1) || (_cse_temp_0);
     let mut result: i32;
     if _cse_temp_2 {
         result = value;
@@ -180,13 +180,13 @@ pub fn opposite_direction(direction: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn is_horizontal(direction: i32) -> bool {
-    direction == Direction.EAST || direction == Direction.WEST
+    (direction == Direction.EAST) || (direction == Direction.WEST)
 }
 #[doc = "Check if direction is vertical"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn is_vertical(direction: i32) -> bool {
-    direction == Direction.NORTH || direction == Direction.SOUTH
+    (direction == Direction.NORTH) || (direction == Direction.SOUTH)
 }
 #[doc = "Test iterating over enum values"]
 #[doc = " Depyler: verified panic-free"]
@@ -272,7 +272,7 @@ pub fn test_enum_flags() -> bool {
     let _cse_temp_3 = permissions & EXECUTE;
     let _cse_temp_4 = _cse_temp_3 != 0;
     let has_execute: bool = _cse_temp_4;
-    has_read && !has_execute
+    (has_read) && (!has_execute)
 }
 #[doc = "Test enum value ranges"]
 #[doc = " Depyler: verified panic-free"]
@@ -290,7 +290,7 @@ pub fn test_enum_range() -> Vec<i32> {
 pub fn validate_enum_value(value: i32, min_val: i32, max_val: i32) -> bool {
     let _cse_temp_0 = value >= min_val;
     let _cse_temp_1 = value <= max_val;
-    let _cse_temp_2 = _cse_temp_0 && _cse_temp_1;
+    let _cse_temp_2 = (_cse_temp_0) && (_cse_temp_1);
     let is_valid: bool = _cse_temp_2;
     is_valid
 }

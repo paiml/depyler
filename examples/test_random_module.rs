@@ -164,7 +164,7 @@ pub fn generate_random_password(length: i32) -> Result<String, IndexError> {
     Ok(password)
 }
 #[doc = "Simulate weighted random choice(manual implementation)"]
-pub fn weighted_random_choice<'a, 'b>(
+pub fn weighted_random_choice<'b, 'a>(
     items: &'a Vec<String>,
     weights: &'b Vec<i32>,
 ) -> Result<String, IndexError> {
@@ -172,7 +172,7 @@ pub fn weighted_random_choice<'a, 'b>(
     let _cse_temp_1 = _cse_temp_0 == 0;
     let _cse_temp_2 = weights.len() as i32;
     let _cse_temp_3 = _cse_temp_0 != _cse_temp_2;
-    let _cse_temp_4 = _cse_temp_1 || _cse_temp_3;
+    let _cse_temp_4 = (_cse_temp_1) || (_cse_temp_3);
     if _cse_temp_4 {
         return Ok("".to_string());
     }

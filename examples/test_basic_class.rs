@@ -1,3 +1,4 @@
+use serde_json;
 #[doc = "// TODO: Map Python module 'dataclasses'"]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Counter {}
@@ -18,7 +19,7 @@ impl Counter {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_counter() -> (String, String) {
+pub fn test_counter() -> (serde_json::Value, serde_json::Value) {
     let mut c = Counter::new();
     c.increment();
     c.increment();
