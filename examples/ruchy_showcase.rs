@@ -112,7 +112,7 @@ else {
 } #[doc = "Main entry point."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn main () -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", format!("Fibonacci(10) = {:?}", fibonacci(10)));
     let arr = vec! [64, 34, 25, 12, 22, 11, 90];
-    let sorted_arr = quicksort(arr);
+    let sorted_arr = quicksort(arr) ?;
     println!("{}", format!("Sorted array: {:?}", sorted_arr));
     let numbers = vec! [1, - 2, 3, - 4, 5];
     let processed = process_data(& numbers);

@@ -261,7 +261,7 @@ pub fn calculate_percentiles(
 }
 #[doc = "Detect outliers using IQR method(combines statistics + collections)"]
 pub fn detect_outliers(mut data: Vec<f64>) -> Result<Vec<f64>, IndexError> {
-    let mut percentiles: HashMap<String, f64> = calculate_percentiles(&data);
+    let mut percentiles: HashMap<String, f64> = calculate_percentiles(&data)?;
     let _cse_temp_0 = percentiles.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -406,7 +406,7 @@ pub fn normalize_data(mut data: Vec<f64>) -> Result<Vec<f64>, ZeroDivisionError>
     Ok(normalized)
 }
 #[doc = "Group data by ranges using collections"]
-pub fn group_by_range<'b, 'a>(
+pub fn group_by_range<'a, 'b>(
     data: &'a mut Vec<f64>,
     ranges: &'b Vec<(f64, f64)>,
 ) -> Result<HashMap<String, Vec<f64>>, IndexError> {
@@ -458,7 +458,7 @@ pub fn monte_carlo_simulation(
         let distance: f64 = (x * x + y * y as f64).sqrt();
         results.push(distance);
     }
-    let mut stats: HashMap<String, f64> = calculate_statistics(&results);
+    let mut stats: HashMap<String, f64> = calculate_statistics(&results)?;
     Ok(stats)
 }
 #[doc = "Main analysis pipeline combining all modules"]
@@ -472,7 +472,7 @@ pub fn analyze_dataset() -> Result<(), Box<dyn std::error::Error>> {
     };
     let sample_size: i32 = 100;
     let dataset: Vec<f64> = generate_sample_data(sample_size, 50.0, 10.0);
-    let mut stats: HashMap<String, f64> = calculate_statistics(&dataset);
+    let mut stats: HashMap<String, f64> = calculate_statistics(&dataset)?;
     println!(
         "{}",
         format!(
@@ -481,7 +481,7 @@ pub fn analyze_dataset() -> Result<(), Box<dyn std::error::Error>> {
             stats.get("std_dev").cloned().unwrap_or_default()
         )
     );
-    let mut percentiles: HashMap<String, f64> = calculate_percentiles(&dataset);
+    let mut percentiles: HashMap<String, f64> = calculate_percentiles(&dataset)?;
     println!(
         "{}",
         format!(
@@ -491,15 +491,15 @@ pub fn analyze_dataset() -> Result<(), Box<dyn std::error::Error>> {
             percentiles.get("q3").cloned().unwrap_or_default()
         )
     );
-    let mut outliers: Vec<f64> = detect_outliers(dataset);
+    let mut outliers: Vec<f64> = detect_outliers(dataset)?;
     println!("{}", format!("Outliers found: {:?}", outliers.len() as i32));
-    let histogram: HashMap<i32, i32> = bin_data(&dataset, 10);
+    let histogram: HashMap<i32, i32> = bin_data(&dataset, 10)?;
     println!(
         "{}",
         format!("Histogram bins created: {:?}", histogram.len() as i32)
     );
-    let mut normalized: Vec<f64> = normalize_data(dataset);
-    let normalized_stats: HashMap<String, f64> = calculate_statistics(&normalized);
+    let mut normalized: Vec<f64> = normalize_data(dataset)?;
+    let normalized_stats: HashMap<String, f64> = calculate_statistics(&normalized)?;
     println!(
         "{}",
         format!(
@@ -508,15 +508,15 @@ pub fn analyze_dataset() -> Result<(), Box<dyn std::error::Error>> {
         )
     );
     let dataset2: Vec<f64> = generate_sample_data(sample_size, 60.0, 12.0);
-    let corr: f64 = calculate_correlation(&dataset, &dataset2);
+    let corr: f64 = calculate_correlation(&dataset, &dataset2)?;
     println!("{}", format!("Correlation: {:?}", corr));
     let ranges: Vec<(f64, f64)> = vec![(0.0, 25.0), (25.0, 50.0), (50.0, 75.0), (75.0, 100.0)];
-    let mut groups: HashMap<String, Vec<f64>> = group_by_range(&dataset, &ranges);
+    let mut groups: HashMap<String, Vec<f64>> = group_by_range(&dataset, &ranges)?;
     println!(
         "{}",
         format!("Range groups created: {:?}", groups.len() as i32)
     );
-    let mc_stats: HashMap<String, f64> = monte_carlo_simulation(1000);
+    let mc_stats: HashMap<String, f64> = monte_carlo_simulation(1000)?;
     println!(
         "{}",
         format!(

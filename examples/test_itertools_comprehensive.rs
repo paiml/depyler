@@ -270,7 +270,7 @@ pub fn flatten_nested_lists(nested: &Vec<Vec<i32>>) -> Vec<i32> {
 }
 #[doc = "Manual implementation of Cartesian product"]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product_manual<'a, 'b>(
+pub fn cartesian_product_manual<'b, 'a>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
 ) -> Vec<(i32, i32)> {
@@ -421,11 +421,11 @@ pub fn test_all_itertools_features() -> Result<(), Box<dyn std::error::Error>> {
     let zipped: Vec<(i32, String)> = test_zip_iterables();
     let items: Vec<String> = vec!["x".to_string(), "y".to_string(), "z".to_string()];
     let enumerated: Vec<(i32, String)> = test_enumerate();
-    let mut evens: Vec<i32> = test_filter();
+    let mut evens: Vec<i32> = test_filter()?;
     let mut squared: Vec<i32> = test_map();
     let counted: Vec<i32> = test_count(0, 2, 5);
     let colors: Vec<String> = vec!["red".to_string(), "green".to_string(), "blue".to_string()];
-    let cycled: Vec<String> = test_cycle(&colors, 10);
+    let cycled: Vec<String> = test_cycle(&colors, 10)?;
     let repeated: Vec<i32> = test_repeat(42, 5);
     let data: Vec<i32> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     let sliced: Vec<i32> = test_islice(&data, 2, 7);
@@ -434,7 +434,7 @@ pub fn test_all_itertools_features() -> Result<(), Box<dyn std::error::Error>> {
     let dropped: Vec<i32> = test_dropwhile(&numbers2, 5);
     let accumulated: Vec<i32> = test_accumulate(&vec![1, 2, 3, 4, 5]);
     let pairs: Vec<(i32, i32)> = test_pairwise(&vec![1, 2, 3, 4, 5]);
-    let grouped: Vec<(bool, Vec<i32>)> = test_groupby_manual(&vec![1, 1, 2, 2, 2, 3, 4, 4]);
+    let grouped: Vec<(bool, Vec<i32>)> = test_groupby_manual(&vec![1, 1, 2, 2, 2, 3, 4, 4])?;
     let data_str: Vec<String> = vec![
         "a".to_string(),
         "b".to_string(),
@@ -443,7 +443,7 @@ pub fn test_all_itertools_features() -> Result<(), Box<dyn std::error::Error>> {
         "e".to_string(),
     ];
     let selectors: Vec<bool> = vec![true, false, true, false, true];
-    let compressed: Vec<String> = test_compress(&data_str, &selectors);
+    let compressed: Vec<String> = test_compress(&data_str, &selectors)?;
     let nested: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6]];
     let mut flattened: Vec<i32> = test_chain_from_iterable(&nested);
     let flattened2: Vec<i32> = flatten_nested_lists(&nested);
@@ -452,16 +452,16 @@ pub fn test_all_itertools_features() -> Result<(), Box<dyn std::error::Error>> {
     let product: Vec<(i32, i32)> = cartesian_product_manual(&list1, &list2);
     let short_list: Vec<i32> = vec![1, 2, 3];
     let long_list: Vec<i32> = vec![10, 20, 30, 40, 50];
-    let zip_long: Vec<(i32, i32)> = test_zip_longest(&short_list, &long_list, 0);
+    let zip_long: Vec<(i32, i32)> = test_zip_longest(&short_list, &long_list, 0)?;
     let batch_data: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let mut batches: Vec<Vec<i32>> = test_batching(&batch_data, 3);
     let window_data: Vec<i32> = vec![1, 2, 3, 4, 5];
     let mut windows: Vec<Vec<i32>> = test_sliding_window(&window_data, 3);
     let duplicates: Vec<i32> = vec![1, 1, 2, 2, 2, 3, 3, 4, 4, 4, 4, 5];
-    let unique: Vec<i32> = test_unique_justseen(&duplicates);
-    let nth: i32 = test_nth_item(&vec![10, 20, 30, 40, 50], 2, -1);
-    let all_same: bool = test_all_equal(&vec![5, 5, 5, 5]);
-    let not_same: bool = test_all_equal(&vec![1, 2, 3]);
+    let unique: Vec<i32> = test_unique_justseen(&duplicates)?;
+    let nth: i32 = test_nth_item(&vec![10, 20, 30, 40, 50], 2, -1)?;
+    let all_same: bool = test_all_equal(&vec![5, 5, 5, 5])?;
+    let not_same: bool = test_all_equal(&vec![1, 2, 3])?;
     let above_threshold: i32 = test_quantify(&vec![1, 5, 10, 3, 8, 2, 15], 5);
     println!("{}", "All itertools tests completed successfully");
     Ok(())

@@ -1,7 +1,7 @@
 use regex as re;
+const STR_HELLO_WORLD: &'static str = "Hello World";
 const STR_EMPTY: &'static str = "";
 const STR_HELLO: &'static str = "Hello";
-const STR_HELLO_WORLD: &'static str = "Hello World";
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -250,7 +250,7 @@ pub fn normalize_whitespace(text: &str) -> String {
 #[doc = "Check if text starts with pattern"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn starts_with_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
+pub fn starts_with_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
     text.starts_with(pattern)
 }
 #[doc = "Check if text ends with pattern"]
@@ -262,7 +262,7 @@ pub fn ends_with_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
 #[doc = "Case-insensitive pattern matching"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn case_insensitive_match<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
+pub fn case_insensitive_match<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
     let text_lower: String = text.to_lowercase();
     let pattern_lower: String = pattern.to_lowercase();
     let _cse_temp_0 = text_lower.contains(pattern_lower);
@@ -272,7 +272,7 @@ pub fn case_insensitive_match<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
 #[doc = "Find text between two markers"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn find_between<'a, 'c, 'b>(
+pub fn find_between<'b, 'c, 'a>(
     text: &'a str,
     start_marker: &'b str,
     end_marker: &'c str,
@@ -333,7 +333,7 @@ pub fn replace_multiple<'b, 'a>(
 }
 #[doc = "Count occurrences of a word"]
 #[doc = " Depyler: verified panic-free"]
-pub fn count_word_occurrences<'a, 'b>(text: &'a str, word: &'b str) -> i32 {
+pub fn count_word_occurrences<'b, 'a>(text: &'a str, word: &'b str) -> i32 {
     let words: Vec<String> = text
         .split_whitespace()
         .map(|s| s.to_string())
@@ -439,13 +439,13 @@ pub fn test_all_re_features() -> Result<(), Box<dyn std::error::Error>> {
     let tagged: String = "<tag>content</tag>".to_string();
     let content: String = find_between(tagged, "<tag>", "</tag>");
     let replacements: Vec<()> = vec![("a", "x"), ("b", "y")];
-    let multi_replace: String = replace_multiple("aabbcc", &replacements);
+    let multi_replace: String = replace_multiple("aabbcc", &replacements)?;
     let para: String = "the quick brown fox jumps over the lazy dog".to_string();
     let the_count: i32 = count_word_occurrences(para, "the");
     let mixed: String = "I have 2 apples and 5 oranges".to_string();
     let nums: Vec<i32> = extract_numbers_from_text(mixed);
-    let wildcard1: bool = wildcard_match_simple("hello.txt", "*.txt");
-    let wildcard2: bool = wildcard_match_simple("test_file.py", "test_*");
+    let wildcard1: bool = wildcard_match_simple("hello.txt", "*.txt")?;
+    let wildcard2: bool = wildcard_match_simple("test_file.py", "test_*")?;
     println!("{}", "All regex module tests completed successfully");
     Ok(())
 }
