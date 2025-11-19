@@ -147,7 +147,8 @@ def test_set_comp(items: list) -> set:
 
     // Set comprehension with condition should use HashSet and filter
     assert!(
-        rust_code.contains("HashSet") && (rust_code.contains(".filter(") || rust_code.contains("if")),
+        rust_code.contains("HashSet")
+            && (rust_code.contains(".filter(") || rust_code.contains("if")),
         "set comp should generate HashSet with filter"
     );
 }
@@ -165,7 +166,8 @@ def test_dict_comp(items: list) -> dict:
 
     // Dict comprehension with condition should use HashMap and filter
     assert!(
-        rust_code.contains("HashMap") && (rust_code.contains(".filter(") || rust_code.contains("if")),
+        rust_code.contains("HashMap")
+            && (rust_code.contains(".filter(") || rust_code.contains("if")),
         "dict comp should generate HashMap with filter"
     );
 }

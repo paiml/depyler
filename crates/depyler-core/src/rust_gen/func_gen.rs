@@ -1386,8 +1386,24 @@ impl RustCodeGen for HirFunction {
         let (return_type, rust_ret_type, can_fail, error_type) =
             codegen_return_type(self, &lifetime_result, ctx)?;
 
-        // Process function body with proper scoping
+        // DEPYLER-0425: Analyze subcommand field access BEFORE generating body
+        // This sets ctx.current_subcommand_fields so expression generation can rewrite args.field → field
+        let subcommand_info = if ctx.argparser_tracker.has_subcommands() {
+            crate::rust_gen::argparse_transform::analyze_subcommand_field_access(self, &ctx.argparser_tracker)
+        } else {
+            None
+        };
+
+        // Set context for expression generation
+        if let Some((_, ref fields)) = subcommand_info {
+            ctx.current_subcommand_fields = Some(fields.iter().cloned().collect());
+        }
+
+        // Process function body with proper scoping (expressions will now be rewritten if needed)
         let mut body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
+
+        // Clear the subcommand fields context after body generation
+        ctx.current_subcommand_fields = None;
 
         // DEPYLER-0363: Check if ArgumentParser was detected and generate Args struct
         // DEPYLER-0424: Store Args struct and Commands enum in context for module-level emission
@@ -1418,6 +1434,22 @@ impl RustCodeGen for HirFunction {
 
             // DO NOT clear tracker yet - we need it for parameter type resolution
             // It will be cleared after all functions are generated
+        }
+
+        // DEPYLER-0425: Wrap handler functions with subcommand pattern matching
+        // If this function accesses subcommand-specific fields, wrap body in pattern matching
+        if let Some((variant_name, fields)) = subcommand_info {
+            // Get args parameter name (first parameter)
+            if let Some(args_param) = self.params.first() {
+                let args_param_name = args_param.name.as_ref();
+                // Wrap body statements in pattern matching to extract fields from enum variant
+                body_stmts = crate::rust_gen::argparse_transform::wrap_body_with_subcommand_pattern(
+                    body_stmts,
+                    &variant_name,
+                    &fields,
+                    args_param_name,
+                );
+            }
         }
 
         // DEPYLER-0270: Add Ok(()) for functions with Result<(), E> return type

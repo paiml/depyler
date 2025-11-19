@@ -338,7 +338,7 @@ impl BorrowingContext {
                 }
                 self.analyze_expression(value, borrow_depth + 1);
             }
-            HirExpr::Call { func, args , ..} => {
+            HirExpr::Call { func, args, .. } => {
                 // Analyze function calls to determine if parameters are moved
                 let in_loop = self.is_in_loop();
                 let in_conditional = self.is_in_conditional();
@@ -829,7 +829,8 @@ mod tests {
             ret_type: PythonType::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Call {
                 func: "len".to_string(),
-                args: vec![HirExpr::Var("s".to_string())], kwargs: vec![]
+                args: vec![HirExpr::Var("s".to_string())],
+                kwargs: vec![],
             }))],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
@@ -863,7 +864,8 @@ mod tests {
                 args: vec![
                     HirExpr::Var("lst".to_string()),
                     HirExpr::Literal(Literal::Int(42)),
-                ], kwargs: vec![]
+                ],
+                kwargs: vec![],
             })],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),

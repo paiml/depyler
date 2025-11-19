@@ -102,7 +102,7 @@ impl AnnotationAwareTypeMapper {
         // DEPYLER-0278: Always use std::HashMap for standalone file transpilation
         // FnvHashMap and AHashMap require external crate dependencies that may not be available
         // For standalone files, we prioritize compilation success over optimization
-        // TODO: In the future, detect Cargo project context and use hash_strategy only within projects
+        // NOTE: In the future, detect Cargo project context and use hash_strategy only within projects (tracked in DEPYLER-0424)
         let hash_map_type = "HashMap";
 
         // Note: hash_strategy annotation is currently ignored for standalone transpilation

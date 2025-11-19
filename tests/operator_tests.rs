@@ -433,7 +433,11 @@ fn test_array_length_subtraction_safety() {
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Binary {
                 op: BinOp::Sub,
-                left: Box::new(HirExpr::Call { func: "len".to_string(), args: vec![HirExpr::Var("arr".to_string())], kwargs: vec![] }),
+                left: Box::new(HirExpr::Call {
+                    func: "len".to_string(),
+                    args: vec![HirExpr::Var("arr".to_string())],
+                    kwargs: vec![],
+                }),
                 right: Box::new(HirExpr::Literal(Literal::Int(1))),
             }))],
             properties: Default::default(),

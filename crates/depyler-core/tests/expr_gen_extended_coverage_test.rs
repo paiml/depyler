@@ -87,7 +87,10 @@ def triple_combine(a: list[int], b: list[int], c: list[int]) -> list[int]:
     let result = pipeline.transpile(python_code);
 
     // Should handle 3 iterables (izip3 pattern)
-    assert!(result.is_ok() || result.is_err(), "Map with 3 iterables handled");
+    assert!(
+        result.is_ok() || result.is_err(),
+        "Map with 3 iterables handled"
+    );
 }
 
 // ============================================================================
@@ -414,7 +417,10 @@ def get_constant_function():
     let result = pipeline.transpile(python_code);
 
     // Should handle parameterless lambda
-    assert!(result.is_ok() || result.is_err(), "Parameterless lambda handled");
+    assert!(
+        result.is_ok() || result.is_err(),
+        "Parameterless lambda handled"
+    );
 }
 
 /// Unit Test: F-string with only literal (no interpolation)
@@ -492,10 +498,7 @@ fn test_property_unary_operators() {
     let pipeline = DepylerPipeline::new();
 
     // Test not, - (negation)
-    let test_cases = vec![
-        ("not", "not flag"),
-        ("negate", "-value"),
-    ];
+    let test_cases = vec![("not", "not flag"), ("negate", "-value")];
 
     for (name, expr) in test_cases {
         let python_code = if name == "not" {

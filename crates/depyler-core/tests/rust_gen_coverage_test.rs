@@ -234,7 +234,11 @@ from typing import List
     // Should not have duplicate "use std::collections::" statements
     let use_count = rust_code.matches("use std::collections").count();
     // Deduplication should reduce redundant imports
-    assert!(use_count <= 2, "Too many duplicate use statements: {}", use_count);
+    assert!(
+        use_count <= 2,
+        "Too many duplicate use statements: {}",
+        use_count
+    );
 }
 
 /// Unit Test: HashMap import when needed
@@ -435,8 +439,7 @@ def test_{}():
     {}
     return y
 "#,
-            description,
-            pattern
+            description, pattern
         );
         let result = pipeline.transpile(&python_code);
 

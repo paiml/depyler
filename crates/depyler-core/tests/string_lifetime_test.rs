@@ -19,10 +19,7 @@ def process_string(s: str) -> int:
         rust_code.contains("s: &str"),
         "Should use &str with lifetime elision"
     );
-    assert!(
-        rust_code.contains("-> i32"),
-        "Should return i32"
-    );
+    assert!(rust_code.contains("-> i32"), "Should return i32");
 }
 
 #[test]
@@ -64,10 +61,7 @@ def select_string(s1: str, s2: str, use_first: bool) -> str:
         rust_code.contains("s1: String") && rust_code.contains("s2: String"),
         "String parameters that escape should take ownership"
     );
-    assert!(
-        rust_code.contains("-> String"),
-        "Should return String"
-    );
+    assert!(rust_code.contains("-> String"), "Should return String");
 }
 
 #[test]

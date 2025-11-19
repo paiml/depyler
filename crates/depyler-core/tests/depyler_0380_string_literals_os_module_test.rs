@@ -38,8 +38,10 @@ def test() -> str:
     let result = transpile_and_compile(python).unwrap();
 
     // Verify .to_string() is added
-    assert!(result.contains(r#""Python 3.x".to_string()"#),
-        "String literal should have .to_string() added");
+    assert!(
+        result.contains(r#""Python 3.x".to_string()"#),
+        "String literal should have .to_string() added"
+    );
 
     // Verify it compiles (checked by transpile_and_compile)
 }
@@ -109,13 +111,15 @@ def test() -> str:
     let result = transpile_and_compile(python).unwrap();
 
     // Verify correct transpilation
-    assert!(result.contains("std::env::var"),
-        "Should use std::env::var");
-    assert!(result.contains("unwrap_or_else"),
-        "Should use unwrap_or_else for default");
-    assert!(result.contains(r#""/home/user".to_string()"#) ||
-            result.contains(r#""/home/user")"#),
-        "Default value should be properly handled");
+    assert!(result.contains("std::env::var"), "Should use std::env::var");
+    assert!(
+        result.contains("unwrap_or_else"),
+        "Should use unwrap_or_else for default"
+    );
+    assert!(
+        result.contains(r#""/home/user".to_string()"#) || result.contains(r#""/home/user")"#),
+        "Default value should be properly handled"
+    );
 
     // The fix is verified - getenv() is correctly transpiled
 }
@@ -192,16 +196,21 @@ def test() -> bool:
     let result = transpile_and_compile(python).unwrap();
 
     // Verify correct transpilation
-    assert!(result.contains("std::env::var"),
-        "Should use std::env::var");
-    assert!(result.contains(".is_ok()"),
-        "Should use .is_ok() to check existence");
+    assert!(result.contains("std::env::var"), "Should use std::env::var");
+    assert!(
+        result.contains(".is_ok()"),
+        "Should use .is_ok() to check existence"
+    );
 
     // Should NOT have these errors:
-    assert!(!result.contains("contains_key"),
-        "Should not use contains_key (vars is a function, not HashMap)");
-    assert!(!result.contains("env::vars."),
-        "Should not try to call methods on vars function");
+    assert!(
+        !result.contains("contains_key"),
+        "Should not use contains_key (vars is a function, not HashMap)"
+    );
+    assert!(
+        !result.contains("env::vars."),
+        "Should not try to call methods on vars function"
+    );
 }
 
 #[test]
@@ -263,7 +272,10 @@ def test_all_features() -> str:
     let result = transpile_and_compile(python).unwrap();
 
     // Verify all three bugs are fixed
-    assert!(result.contains(r#""Python 3.x".to_string()"#), "Bug #1 fixed");
+    assert!(
+        result.contains(r#""Python 3.x".to_string()"#),
+        "Bug #1 fixed"
+    );
     assert!(result.contains("unwrap_or_else"), "Bug #2 fixed");
     assert!(result.contains(".is_ok()"), "Bug #3 fixed");
 }
@@ -371,7 +383,7 @@ def test() -> str:
             };
 
             TestResult::from_bool(
-                result.contains("std::env::var") && result.contains("unwrap_or_else")
+                result.contains("std::env::var") && result.contains("unwrap_or_else"),
             )
         }
 
@@ -403,9 +415,9 @@ def test() -> bool:
             };
 
             TestResult::from_bool(
-                result.contains("std::env::var") &&
-                result.contains(".is_ok()") &&
-                !result.contains("contains_key")
+                result.contains("std::env::var")
+                    && result.contains(".is_ok()")
+                    && !result.contains("contains_key"),
             )
         }
 
@@ -431,8 +443,10 @@ def test() -> str:
     let result = transpile_and_compile(python).unwrap();
 
     // Should not have double .to_string().to_string()
-    assert!(!result.contains(".to_string().to_string().to_string()"),
-        "Should not have triple .to_string()");
+    assert!(
+        !result.contains(".to_string().to_string().to_string()"),
+        "Should not have triple .to_string()"
+    );
 }
 
 #[test]
@@ -448,7 +462,10 @@ def test() -> bool:
 
     // Should have two .is_ok() calls
     let count = result.matches(".is_ok()").count();
-    assert!(count >= 2, "Should have at least 2 .is_ok() calls for both checks");
+    assert!(
+        count >= 2,
+        "Should have at least 2 .is_ok() calls for both checks"
+    );
 }
 
 #[test]

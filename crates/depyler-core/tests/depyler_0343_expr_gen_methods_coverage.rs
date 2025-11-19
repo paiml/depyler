@@ -212,7 +212,8 @@ def test_isdigit(s: str) -> bool:
 
     // str.isdigit() should generate .chars().all(|c| c.is_numeric())
     assert!(
-        rust_code.contains(".chars(") && (rust_code.contains(".is_numeric(") || rust_code.contains(".is_digit(")),
+        rust_code.contains(".chars(")
+            && (rust_code.contains(".is_numeric(") || rust_code.contains(".is_digit(")),
         "s.isdigit() should generate char digit checking"
     );
 }
@@ -472,7 +473,8 @@ def test_get(d: dict, key: str):
 
     // dict.get(key, default) should generate .get().unwrap_or(default)
     assert!(
-        rust_code.contains(".get(") && (rust_code.contains("unwrap_or") || rust_code.contains("or(")),
+        rust_code.contains(".get(")
+            && (rust_code.contains("unwrap_or") || rust_code.contains("or(")),
         "dict.get(key, default) should generate .get().unwrap_or(default)"
     );
 }
@@ -544,7 +546,9 @@ def test_update(d: dict, other: dict):
 
     // dict.update(other) should generate .extend(other) or insert loop
     assert!(
-        rust_code.contains(".extend(") || rust_code.contains(".insert(") || rust_code.contains("for "),
+        rust_code.contains(".extend(")
+            || rust_code.contains(".insert(")
+            || rust_code.contains("for "),
         "dict.update() should generate extend or insert operations"
     );
 }

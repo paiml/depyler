@@ -12,9 +12,9 @@
 //! - Edge cases (no yields, nested yields, multiple paths)
 //! - Property-based testing for robustness
 
+use depyler_annotations::TranspilationAnnotations;
 use depyler_core::generator_yield_analysis::*;
 use depyler_core::hir::*;
-use depyler_annotations::TranspilationAnnotations;
 use smallvec::smallvec;
 
 // ============================================================================
@@ -28,9 +28,7 @@ fn test_depyler_0350_no_yields_empty_analysis() {
         name: "no_yield".to_string(),
         params: smallvec![],
         ret_type: Type::Int,
-        body: vec![
-            HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42)))),
-        ],
+        body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
         properties: FunctionProperties {
             is_generator: false,
             ..Default::default()
@@ -53,9 +51,18 @@ fn test_depyler_0350_default_trait_creates_empty() {
     let default_analysis = YieldAnalysis::default();
     let new_analysis = YieldAnalysis::new();
 
-    assert_eq!(default_analysis.yield_points.len(), new_analysis.yield_points.len());
-    assert_eq!(default_analysis.state_variables.len(), new_analysis.state_variables.len());
-    assert_eq!(default_analysis.resume_points.len(), new_analysis.resume_points.len());
+    assert_eq!(
+        default_analysis.yield_points.len(),
+        new_analysis.yield_points.len()
+    );
+    assert_eq!(
+        default_analysis.state_variables.len(),
+        new_analysis.state_variables.len()
+    );
+    assert_eq!(
+        default_analysis.resume_points.len(),
+        new_analysis.resume_points.len()
+    );
 }
 
 #[test]
@@ -79,7 +86,11 @@ fn test_depyler_0350_has_yields_true_case() {
     let analysis = YieldAnalysis::analyze(&func);
 
     assert!(analysis.has_yields(), "has_yields should return true");
-    assert_eq!(analysis.num_states(), 2, "Should have 2 states (0 + 1 yield)");
+    assert_eq!(
+        analysis.num_states(),
+        2,
+        "Should have 2 states (0 + 1 yield)"
+    );
 }
 
 // ============================================================================
@@ -110,8 +121,15 @@ fn test_depyler_0350_for_loop_with_yield() {
 
     let analysis = YieldAnalysis::analyze(&func);
 
-    assert_eq!(analysis.yield_points.len(), 1, "Should find 1 yield in for loop");
-    assert_eq!(analysis.yield_points[0].depth, 1, "For loop yield at depth 1");
+    assert_eq!(
+        analysis.yield_points.len(),
+        1,
+        "Should find 1 yield in for loop"
+    );
+    assert_eq!(
+        analysis.yield_points[0].depth, 1,
+        "For loop yield at depth 1"
+    );
     assert_eq!(analysis.yield_points[0].state_id, 1);
 }
 
@@ -144,7 +162,10 @@ fn test_depyler_0350_nested_for_loops_with_yields() {
     let analysis = YieldAnalysis::analyze(&func);
 
     assert_eq!(analysis.yield_points.len(), 1, "Should find 1 yield");
-    assert_eq!(analysis.yield_points[0].depth, 2, "Nested for loop yield at depth 2");
+    assert_eq!(
+        analysis.yield_points[0].depth, 2,
+        "Nested for loop yield at depth 2"
+    );
 }
 
 // ============================================================================
@@ -175,7 +196,11 @@ fn test_depyler_0350_if_branch_with_yield() {
 
     let analysis = YieldAnalysis::analyze(&func);
 
-    assert_eq!(analysis.yield_points.len(), 1, "Should find yield in if branch");
+    assert_eq!(
+        analysis.yield_points.len(),
+        1,
+        "Should find yield in if branch"
+    );
     assert_eq!(analysis.yield_points[0].depth, 0, "If branch at depth 0");
 }
 
@@ -205,7 +230,11 @@ fn test_depyler_0350_if_else_both_with_yields() {
 
     let analysis = YieldAnalysis::analyze(&func);
 
-    assert_eq!(analysis.yield_points.len(), 2, "Should find 2 yields (if + else)");
+    assert_eq!(
+        analysis.yield_points.len(),
+        2,
+        "Should find 2 yields (if + else)"
+    );
     assert_eq!(analysis.yield_points[0].state_id, 1);
     assert_eq!(analysis.yield_points[1].state_id, 2);
 }
@@ -239,7 +268,10 @@ fn test_depyler_0350_nested_if_with_yields() {
     let analysis = YieldAnalysis::analyze(&func);
 
     assert_eq!(analysis.yield_points.len(), 1, "Should find nested yield");
-    assert_eq!(analysis.yield_points[0].depth, 0, "Nested if still at depth 0 (not a loop)");
+    assert_eq!(
+        analysis.yield_points[0].depth, 0,
+        "Nested if still at depth 0 (not a loop)"
+    );
 }
 
 // ============================================================================
@@ -271,7 +303,11 @@ fn test_depyler_0350_try_block_with_yield() {
 
     let analysis = YieldAnalysis::analyze(&func);
 
-    assert_eq!(analysis.yield_points.len(), 1, "Should find yield in try block");
+    assert_eq!(
+        analysis.yield_points.len(),
+        1,
+        "Should find yield in try block"
+    );
 }
 
 #[test]
@@ -303,7 +339,11 @@ fn test_depyler_0350_except_handler_with_yield() {
 
     let analysis = YieldAnalysis::analyze(&func);
 
-    assert_eq!(analysis.yield_points.len(), 1, "Should find yield in except handler");
+    assert_eq!(
+        analysis.yield_points.len(),
+        1,
+        "Should find yield in except handler"
+    );
 }
 
 #[test]
@@ -331,7 +371,11 @@ fn test_depyler_0350_try_else_with_yield() {
 
     let analysis = YieldAnalysis::analyze(&func);
 
-    assert_eq!(analysis.yield_points.len(), 1, "Should find yield in try else clause");
+    assert_eq!(
+        analysis.yield_points.len(),
+        1,
+        "Should find yield in try else clause"
+    );
 }
 
 #[test]
@@ -359,7 +403,11 @@ fn test_depyler_0350_finally_with_yield() {
 
     let analysis = YieldAnalysis::analyze(&func);
 
-    assert_eq!(analysis.yield_points.len(), 1, "Should find yield in finally block");
+    assert_eq!(
+        analysis.yield_points.len(),
+        1,
+        "Should find yield in finally block"
+    );
 }
 
 #[test]
@@ -433,7 +481,11 @@ fn test_depyler_0350_with_statement_yield() {
 
     let analysis = YieldAnalysis::analyze(&func);
 
-    assert_eq!(analysis.yield_points.len(), 1, "Should find yield in with block");
+    assert_eq!(
+        analysis.yield_points.len(),
+        1,
+        "Should find yield in with block"
+    );
 }
 
 #[test]
@@ -464,7 +516,11 @@ fn test_depyler_0350_nested_with_statements() {
 
     let analysis = YieldAnalysis::analyze(&func);
 
-    assert_eq!(analysis.yield_points.len(), 1, "Should find yield in nested with");
+    assert_eq!(
+        analysis.yield_points.len(),
+        1,
+        "Should find yield in nested with"
+    );
 }
 
 // ============================================================================
@@ -506,8 +562,16 @@ fn test_depyler_0350_resume_points_sequential() {
 
     let analysis = YieldAnalysis::analyze(&func);
 
-    assert_eq!(analysis.resume_points.get(&1), Some(&2), "State 1 resumes at stmt 2");
-    assert_eq!(analysis.resume_points.get(&2), Some(&4), "State 2 resumes at stmt 4");
+    assert_eq!(
+        analysis.resume_points.get(&1),
+        Some(&2),
+        "State 1 resumes at stmt 2"
+    );
+    assert_eq!(
+        analysis.resume_points.get(&2),
+        Some(&4),
+        "State 2 resumes at stmt 4"
+    );
 }
 
 // ============================================================================
@@ -522,7 +586,11 @@ fn test_depyler_0350_non_yield_expr_ignored() {
         params: smallvec![],
         ret_type: Type::Int,
         body: vec![
-            HirStmt::Expr(HirExpr::Call { func: "print".to_string(), args: vec![HirExpr::Literal(Literal::String("hello".to_string()))], kwargs: vec![] }),
+            HirStmt::Expr(HirExpr::Call {
+                func: "print".to_string(),
+                args: vec![HirExpr::Literal(Literal::String("hello".to_string()))],
+                kwargs: vec![],
+            }),
             HirStmt::Expr(HirExpr::Binary {
                 op: BinOp::Add,
                 left: Box::new(HirExpr::Literal(Literal::Int(1))),
@@ -539,7 +607,11 @@ fn test_depyler_0350_non_yield_expr_ignored() {
 
     let analysis = YieldAnalysis::analyze(&func);
 
-    assert_eq!(analysis.yield_points.len(), 0, "Should not find yields in non-yield expressions");
+    assert_eq!(
+        analysis.yield_points.len(),
+        0,
+        "Should not find yields in non-yield expressions"
+    );
 }
 
 #[test]
@@ -561,7 +633,11 @@ fn test_depyler_0350_yield_with_none_value() {
     let analysis = YieldAnalysis::analyze(&func);
 
     // Bare yield (None value) not captured by current impl - this is expected behavior
-    assert_eq!(analysis.yield_points.len(), 0, "Bare yield (None value) not captured by current impl");
+    assert_eq!(
+        analysis.yield_points.len(),
+        0,
+        "Bare yield (None value) not captured by current impl"
+    );
 }
 
 // ============================================================================
@@ -575,21 +651,17 @@ fn test_depyler_0350_mixed_control_flow() {
         name: "complex".to_string(),
         params: smallvec![],
         ret_type: Type::Int,
-        body: vec![
-            HirStmt::For {
-                target: AssignTarget::Symbol("i".to_string()),
-                iter: HirExpr::Var("items".to_string()),
-                body: vec![
-                    HirStmt::If {
-                        condition: HirExpr::Var("condition".to_string()),
-                        then_body: vec![HirStmt::Expr(HirExpr::Yield {
-                            value: Some(Box::new(HirExpr::Var("i".to_string()))),
-                        })],
-                        else_body: None,
-                    },
-                ],
-            },
-        ],
+        body: vec![HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![HirStmt::If {
+                condition: HirExpr::Var("condition".to_string()),
+                then_body: vec![HirStmt::Expr(HirExpr::Yield {
+                    value: Some(Box::new(HirExpr::Var("i".to_string()))),
+                })],
+                else_body: None,
+            }],
+        }],
         properties: FunctionProperties {
             is_generator: true,
             ..Default::default()
@@ -600,8 +672,15 @@ fn test_depyler_0350_mixed_control_flow() {
 
     let analysis = YieldAnalysis::analyze(&func);
 
-    assert_eq!(analysis.yield_points.len(), 1, "Should find yield in for+if combination");
-    assert_eq!(analysis.yield_points[0].depth, 1, "Yield depth tracks outer loop only");
+    assert_eq!(
+        analysis.yield_points.len(),
+        1,
+        "Should find yield in for+if combination"
+    );
+    assert_eq!(
+        analysis.yield_points[0].depth, 1,
+        "Yield depth tracks outer loop only"
+    );
 }
 
 #[test]
@@ -632,7 +711,11 @@ fn test_depyler_0350_while_loop_multiple_yields() {
 
     let analysis = YieldAnalysis::analyze(&func);
 
-    assert_eq!(analysis.yield_points.len(), 2, "Should find 2 yields in while loop");
+    assert_eq!(
+        analysis.yield_points.len(),
+        2,
+        "Should find 2 yields in while loop"
+    );
     assert_eq!(analysis.yield_points[0].depth, 1);
     assert_eq!(analysis.yield_points[1].depth, 1);
 }
@@ -669,8 +752,14 @@ fn test_depyler_0350_yield_point_debug() {
     };
 
     let debug = format!("{:?}", yp);
-    assert!(debug.contains("YieldPoint"), "Debug output should contain struct name");
-    assert!(debug.contains("state_id"), "Debug output should contain field names");
+    assert!(
+        debug.contains("YieldPoint"),
+        "Debug output should contain struct name"
+    );
+    assert!(
+        debug.contains("state_id"),
+        "Debug output should contain field names"
+    );
 }
 
 // ============================================================================

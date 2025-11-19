@@ -227,7 +227,9 @@ def test_pow(a: int, b: int) -> int:
 
     // int ** int should generate .pow(), .powi(), or .checked_pow()
     assert!(
-        rust_code.contains(".pow(") || rust_code.contains(".powi(") || rust_code.contains(".checked_pow("),
+        rust_code.contains(".pow(")
+            || rust_code.contains(".powi(")
+            || rust_code.contains(".checked_pow("),
         "int ** int should generate power operation (.pow(), .powi(), or .checked_pow())"
     );
 }
@@ -538,7 +540,8 @@ def test_chain(obj):
 
     // Multiple keyword methods chained should all be escaped
     // Currently not implemented - this documents missing feature
-    let has_chaining = rust_code.contains(".type()") || rust_code.contains(".as()") || rust_code.contains(".in()");
+    let has_chaining =
+        rust_code.contains(".type()") || rust_code.contains(".as()") || rust_code.contains(".in()");
     assert!(
         has_chaining,
         "Method chaining should be generated (keyword escaping is future feature)"
@@ -558,8 +561,10 @@ def test_ops(a: set, b: set, c: set) -> set:
 
     // Chained set operations should preserve associativity
     assert!(
-        rust_code.contains("&") || rust_code.contains("|") ||
-        rust_code.contains(".union(") || rust_code.contains(".intersection("),
+        rust_code.contains("&")
+            || rust_code.contains("|")
+            || rust_code.contains(".union(")
+            || rust_code.contains(".intersection("),
         "Chained set operations should be generated"
     );
 }
