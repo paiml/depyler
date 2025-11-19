@@ -3032,6 +3032,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         &mut self,
         method: &str,
         args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
     ) -> Result<Option<syn::Expr>> {
         // Convert arguments first
         let arg_exprs: Vec<syn::Expr> = args
@@ -3082,12 +3083,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // DictWriter (simplified)
+            // DEPYLER-0426: Handle both positional and keyword arguments
+            // csv.DictWriter(file, fieldnames=[...]) or csv.DictWriter(file, fieldnames=...)
             "DictWriter" => {
-                if arg_exprs.len() < 2 {
-                    bail!("csv.DictWriter() requires at least 2 arguments (file, fieldnames)");
+                // Get file argument (first positional arg required)
+                if arg_exprs.is_empty() {
+                    bail!("csv.DictWriter() requires at least 1 argument (file)");
                 }
                 let file = &arg_exprs[0];
-                let _fieldnames = &arg_exprs[1];
+
+                // Get fieldnames from either positional arg or kwargs
+                let _fieldnames = if arg_exprs.len() >= 2 {
+                    // Positional: csv.DictWriter(file, ['col1', 'col2'])
+                    Some(&arg_exprs[1])
+                } else {
+                    // Keyword: csv.DictWriter(file, fieldnames=['col1', 'col2'])
+                    kwargs.iter()
+                        .find(|(key, _)| key == "fieldnames")
+                        .map(|(_, value)| value.to_rust_expr(self.ctx))
+                        .transpose()?
+                        .as_ref()
+                        .map(|_| &arg_exprs[0]) // Placeholder, we don't use fieldnames yet
+                };
+
+                if _fieldnames.is_none() {
+                    bail!("csv.DictWriter() requires fieldnames argument (positional or keyword)");
+                }
 
                 // csv.DictWriter(file, fieldnames) → csv::Writer::from_writer(file)
                 // Note: fieldnames handling requires more context
@@ -7436,6 +7457,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         object: &HirExpr,
         method: &str,
         args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
     ) -> Result<Option<syn::Expr>> {
         // DEPYLER-0386: Handle os.environ.get() and other os.environ methods
         // os.environ.get('VAR') → std::env::var('VAR').ok()
@@ -7528,8 +7550,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // DEPYLER-STDLIB-CSV: CSV file operations
+            // DEPYLER-0426: Pass kwargs for DictWriter(file, fieldnames=...)
             if module_name == "csv" {
-                return self.try_convert_csv_method(method, args);
+                return self.try_convert_csv_method(method, args, kwargs);
             }
 
             // DEPYLER-0380: os module operations (getenv, etc.)
@@ -9119,6 +9142,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         object: &HirExpr,
         method: &str,
         args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
     ) -> Result<syn::Expr> {
         // DEPYLER-0413: Handle string methods FIRST before any other checks
         // This ensures string methods like upper/lower are converted even when
@@ -9183,7 +9207,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // Try module method handling
-        if let Some(result) = self.try_convert_module_method(object, method, args)? {
+        // DEPYLER-0426: Pass kwargs to module method converter
+        if let Some(result) = self.try_convert_module_method(object, method, args, kwargs)? {
             return Ok(result);
         }
 
@@ -11269,7 +11294,8 @@ impl ToRustExpr for HirExpr {
                     }
                 }
 
-                converter.convert_method_call(object, method, args)
+                // DEPYLER-0426: Pass kwargs to convert_method_call
+                converter.convert_method_call(object, method, args, kwargs)
             }
             HirExpr::Index { base, index } => converter.convert_index(base, index),
             HirExpr::Slice {
