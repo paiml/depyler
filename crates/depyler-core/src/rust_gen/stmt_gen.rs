@@ -1687,6 +1687,14 @@ pub(crate) fn codegen_assign_stmt(
                         ctx.var_types.insert(var_name.clone(), ret_type.clone());
                     }
                 }
+                // DEPYLER-0431: Track re.search(), re.match(), re.find() module functions
+                // These all return Option<Match> in Rust
+                else if matches!(func.as_str(), "search" | "match" | "find") {
+                    // Only track if this looks like a regex call (needs more context to be sure)
+                    // For now, track any call to search/match/find as Optional
+                    // This is a heuristic - could be improved with module tracking
+                    ctx.var_types.insert(var_name.clone(), Type::Optional(Box::new(Type::Unknown)));
+                }
             }
             HirExpr::List(elements) => {
                 // DEPYLER-0269: Track list type from literal for auto-borrowing
@@ -1784,6 +1792,13 @@ pub(crate) fn codegen_assign_stmt(
                         | "format"
                 ) {
                     ctx.var_types.insert(var_name.clone(), Type::String);
+                }
+                // DEPYLER-0431: Regex methods that return Option<Match>
+                // Track .find(), .search(), .match() as Optional for truthiness conversion
+                else if matches!(method.as_str(), "find" | "search" | "match") {
+                    // Check if this is a regex method call (on compiled regex object)
+                    // We don't have a specific regex type, so use Optional as a marker
+                    ctx.var_types.insert(var_name.clone(), Type::Optional(Box::new(Type::Unknown)));
                 }
             }
             _ => {}
