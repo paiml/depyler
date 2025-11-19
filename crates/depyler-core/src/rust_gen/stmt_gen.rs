@@ -629,6 +629,15 @@ pub(crate) fn codegen_raise_stmt(
         // DEPYLER-0333: Extract exception type to check if it's handled
         let exception_type = extract_exception_type(exc);
 
+        // DEPYLER-0438: Set error type flag for generation
+        match exception_type.as_str() {
+            "ValueError" => ctx.needs_valueerror = true,
+            "ArgumentTypeError" => ctx.needs_argumenttypeerror = true,
+            "ZeroDivisionError" => ctx.needs_zerodivisionerror = true,
+            "IndexError" => ctx.needs_indexerror = true,
+            _ => {}
+        }
+
         // DEPYLER-0333: Check if exception is caught by current try block
         if ctx.is_exception_handled(&exception_type) {
             // Exception is caught - for now use panic! (control flow jump is complex)
@@ -643,7 +652,20 @@ pub(crate) fn codegen_raise_stmt(
             );
 
             if needs_boxing {
-                Ok(quote! { return Err(Box::new(#exc_expr)); })
+                // DEPYLER-0438: Wrap exception in error type constructor if it's a known exception
+                // format!() returns String which doesn't implement std::error::Error
+                // Need to wrap in ValueError::new(), ArgumentTypeError::new(), etc.
+                if exception_type == "ValueError"
+                    || exception_type == "ArgumentTypeError"
+                    || exception_type == "TypeError"
+                    || exception_type == "KeyError"
+                    || exception_type == "IndexError"
+                {
+                    let exc_type = safe_ident(&exception_type);
+                    Ok(quote! { return Err(Box::new(#exc_type::new(#exc_expr))); })
+                } else {
+                    Ok(quote! { return Err(Box::new(#exc_expr)); })
+                }
             } else {
                 Ok(quote! { return Err(#exc_expr); })
             }
@@ -665,6 +687,7 @@ fn extract_exception_type(exception: &HirExpr) -> String {
     match exception {
         HirExpr::Call { func, .. } => func.clone(),
         HirExpr::Var(name) => name.clone(),
+        HirExpr::MethodCall { method, .. } => method.clone(),
         _ => "Exception".to_string(),
     }
 }
