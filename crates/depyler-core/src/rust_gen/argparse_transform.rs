@@ -973,6 +973,39 @@ pub fn analyze_subcommand_field_access(
             HirExpr::Lambda { body, .. } => {
                 walk_expr(body, args_param, field_to_variant, accessed_fields, detected_variant);
             }
+            HirExpr::FString { parts } => {
+                // DEPYLER-0425: Walk f-string interpolated expressions
+                for part in parts {
+                    if let crate::hir::FStringPart::Expr(expr) = part {
+                        walk_expr(expr, args_param, field_to_variant, accessed_fields, detected_variant);
+                    }
+                }
+            }
+            HirExpr::IfExpr { test, body, orelse } => {
+                walk_expr(test, args_param, field_to_variant, accessed_fields, detected_variant);
+                walk_expr(body, args_param, field_to_variant, accessed_fields, detected_variant);
+                walk_expr(orelse, args_param, field_to_variant, accessed_fields, detected_variant);
+            }
+            HirExpr::SortByKey { iterable, key_body, .. } => {
+                walk_expr(iterable, args_param, field_to_variant, accessed_fields, detected_variant);
+                walk_expr(key_body, args_param, field_to_variant, accessed_fields, detected_variant);
+            }
+            HirExpr::GeneratorExp { element, generators } => {
+                walk_expr(element, args_param, field_to_variant, accessed_fields, detected_variant);
+                for gen in generators {
+                    walk_expr(&gen.iter, args_param, field_to_variant, accessed_fields, detected_variant);
+                    for cond in &gen.conditions {
+                        walk_expr(cond, args_param, field_to_variant, accessed_fields, detected_variant);
+                    }
+                }
+            }
+            HirExpr::Await { value } => {
+                walk_expr(value, args_param, field_to_variant, accessed_fields, detected_variant);
+            }
+            HirExpr::Yield { value: Some(v) } => {
+                walk_expr(v, args_param, field_to_variant, accessed_fields, detected_variant);
+            }
+            HirExpr::Yield { value: None } => {}
             _ => {}
         }
     }
