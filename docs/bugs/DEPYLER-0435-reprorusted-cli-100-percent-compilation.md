@@ -19,7 +19,7 @@
 4. ✅ git_clone - Subcommands (FIXED: DEPYLER-0425)
 
 ### Transpiling But Not Compiling (9/13)
-5. ❌ complex_cli - 13 errors (needs DEPYLER-0428)
+5. ❌ complex_cli - 11 errors (needs DEPYLER-0436, DEPYLER-0437, DEPYLER-0438)
 6. ❌ stdlib_integration - 41 errors (needs DEPYLER-0430)
 7. ❌ config_manager - 43 errors (needs DEPYLER-0430)
 8. ❌ task_runner - 22 errors (needs DEPYLER-0429)
@@ -31,24 +31,143 @@
 
 ---
 
-## Sub-Tickets (7 Total)
+## Sub-Tickets (10 Total)
+
+**Completed**: 1/10 (DEPYLER-0428 ✅)
+**In Progress**: 0/10
+**Not Started**: 9/10 (DEPYLER-0436, DEPYLER-0437, DEPYLER-0438, DEPYLER-0429, DEPYLER-0430, DEPYLER-0431, DEPYLER-0432, DEPYLER-0433, DEPYLER-0434)
 
 ### HIGH Priority (5-7 hours) - Target: 6-7/13 (46-54%)
 
-#### DEPYLER-0428: argparse.ArgumentTypeError Exception Handling
-- **Status**: RED phase complete, needs GREEN+REFACTOR
-- **Effort**: 3-4 hours
-- **Blocks**: complex_cli (13 errors)
-- **Impact**: +1-2 examples
-- **Test Suite**: `crates/depyler-core/tests/depyler_0428_argument_type_error.rs`
-- **MANDATORY Pre-Work**: Debug with `--trace` and Renacer (see Debugging Workflow section)
+#### DEPYLER-0428: argparse.ArgumentTypeError Exception Handling ✅ COMPLETE
+- **Status**: ✅ COMPLETE (commit fa5ecb7)
+- **Effort**: 4 hours (actual)
+- **Blocks**: ~~complex_cli~~ - PARTIALLY FIXED (exception flow analysis complete)
+- **Impact**: Exception flow analysis working, 6/6 tests passing
+- **Test Suite**: `crates/depyler-core/tests/depyler_0428_argument_type_error.rs` - ALL PASSING ✅
+- **Completed Implementation**:
+  - ✅ Exception flow analysis for Try/except blocks
+  - ✅ Track caught vs raised exceptions
+  - ✅ Functions with ArgumentTypeError now return Result<T, E>
+  - ✅ MethodCall pattern handling in extract_exception_type()
+- **Files**: `crates/depyler-core/src/ast_bridge/properties.rs` (lines 200-252, 329)
+- **Remaining Issues**: See DEPYLER-0436, DEPYLER-0437, DEPYLER-0438 below
+
+#### DEPYLER-0436: argparse Type Validators - Parameter Type Inference
+- **Status**: NEW - Blocking complex_cli
+- **Priority**: P0 (CRITICAL - STOP THE LINE)
+- **Effort**: 2-3 hours
+- **Blocks**: complex_cli (5 errors)
+- **Impact**: Fix argparse custom type validators
+- **Parent**: DEPYLER-0428 (post-analysis)
+- **Root Cause**: Type inference fails for argparse validator parameters
+- **Problem**:
+  ```python
+  def port_number(value):  # value is a string from argparse
+      port = int(value)    # Should parse string, not cast
+  ```
+  Current (WRONG):
+  ```rust
+  pub fn port_number(value: serde_json::Value) -> Result<i32, ...> {
+      let port = (value) as i32;  // ❌ E0605: Invalid cast
+  }
+  ```
+  Expected (CORRECT):
+  ```rust
+  pub fn port_number(value: &str) -> Result<i32, Box<dyn std::error::Error>> {
+      let port = value.parse::<i32>()?;  // ✅ Proper parsing
+  }
+  ```
 - **Implementation**:
-  - Map `raise argparse.ArgumentTypeError(msg)` → `return Err(msg.to_string())`
-  - Update function return types: `T` → `Result<T, String>`
-  - Update callers to handle Result
-  - Fix try/except ValueError patterns
-- **Files**: `crates/depyler-core/src/rust_gen/stmt_gen.rs`, `func_gen.rs`
-- **Next Step**: `pmat prompt show continue DEPYLER-0428`
+  - Detect argparse type= validator pattern (function used in type= parameter)
+  - Infer first parameter as `&str` (argparse always passes strings)
+  - Update int() call handling: string → parse(), not cast
+  - Handle parse errors properly (? operator)
+- **Files**:
+  - `crates/depyler-core/src/type_hints.rs` (type inference)
+  - `crates/depyler-core/src/rust_gen/expr_gen.rs` (int() call handling)
+- **Test**: Add to `depyler_0428_argument_type_error.rs`
+- **Next Step**: `pmat prompt show continue DEPYLER-0436`
+
+#### DEPYLER-0437: Try/Except Control Flow - Exception Handler Branching
+- **Status**: NEW - Blocking complex_cli
+- **Priority**: P0 (CRITICAL - STOP THE LINE)
+- **Effort**: 3-4 hours
+- **Blocks**: complex_cli (unreachable code warnings)
+- **Impact**: Fix try/except ValueError patterns
+- **Parent**: DEPYLER-0428 (post-analysis)
+- **Root Cause**: Exception handlers transpiled as sequential code
+- **Problem**:
+  ```python
+  try:
+      port = int(value)
+      if port < 1:
+          raise ArgumentTypeError("bad port")
+      return port
+  except ValueError:  # ← Should only run on int() failure
+      raise ArgumentTypeError("not an integer")
+  ```
+  Current (WRONG):
+  ```rust
+  {
+      let port = (value) as i32;
+      if port < 1 {
+          return Err(...);
+      }
+      return Ok(port);  // Line 72
+      return Err(...);   // Line 73 - ⚠️ UNREACHABLE after line 72
+  }
+  ```
+  Expected (CORRECT):
+  ```rust
+  match value.parse::<i32>() {
+      Ok(port) => {
+          if port < 1 {
+              return Err(Box::new("bad port"));
+          }
+          Ok(port)
+      }
+      Err(_) => Err(Box::new("not an integer"))  // ValueError handler
+  }
+  ```
+- **Implementation**:
+  - Detect try/except pattern with failable operations (int(), dict access, etc.)
+  - Generate match expression on Result
+  - Ok(value) branch: try body statements
+  - Err(_) branch: exception handler statements
+  - Support multiple except handlers (match multiple error types)
+- **Files**: `crates/depyler-core/src/rust_gen/stmt_gen.rs` (convert_try)
+- **Test**: Add to `depyler_0428_argument_type_error.rs`
+- **Next Step**: `pmat prompt show continue DEPYLER-0437`
+
+#### DEPYLER-0438: Custom Error Types - String as std::error::Error
+- **Status**: NEW - Blocking complex_cli
+- **Priority**: P1 (BLOCK RELEASE)
+- **Effort**: 1-2 hours
+- **Blocks**: complex_cli (3 E0277 errors)
+- **Impact**: Generate proper error types for exceptions
+- **Parent**: DEPYLER-0428 (post-analysis)
+- **Root Cause**: String doesn't implement std::error::Error trait
+- **Problem**:
+  ```rust
+  return Err(Box::new(format!("Port must be...", port)));
+  // ❌ E0277: String doesn't implement std::error::Error
+  ```
+  Expected:
+  ```rust
+  return Err(Box::new(ValueError::new(format!("Port must be...", port))));
+  // ✅ ValueError implements std::error::Error
+  ```
+- **Implementation**:
+  - Generate error type definitions for Python exceptions
+  - Wrap format!() strings in error constructors
+  - Pattern: `format!(...)` → `ExceptionType::new(format!(...))`
+  - Support common exceptions: ValueError, ArgumentTypeError, etc.
+- **Files**:
+  - `crates/depyler-core/src/rust_gen/error_gen.rs` (error type generation)
+  - `crates/depyler-core/src/rust_gen/stmt_gen.rs` (wrap error messages)
+- **Test**: Add to `depyler_0428_argument_type_error.rs`
+- **Next Step**: `pmat prompt show continue DEPYLER-0438`
 
 #### DEPYLER-0429: subprocess Module Support
 - **Status**: Not started
