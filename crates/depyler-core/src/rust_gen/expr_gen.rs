@@ -8847,6 +8847,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// Handle regex methods (findall)
     #[inline]
+    /// DEPYLER-0431: Convert regex instance method calls
+    /// Handles both compiled Regex methods and Match object methods
     fn convert_regex_method(
         &mut self,
         object_expr: &syn::Expr,
@@ -8854,6 +8856,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         arg_exprs: &[syn::Expr],
     ) -> Result<syn::Expr> {
         match method {
+            // Compiled Regex methods
             "findall" => {
                 if arg_exprs.is_empty() {
                     bail!("findall() requires at least one argument");
@@ -8865,6 +8868,89 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         .collect::<Vec<String>>()
                 })
             }
+
+            // DEPYLER-0431: compiled.match(text) → compiled.find(text)
+            // Python re.match() only matches at start, but Rust .find() searches anywhere
+            // For now, use .find() - exact match-at-start behavior tracked separately
+            "match" => {
+                if arg_exprs.is_empty() {
+                    bail!("match() requires at least one argument");
+                }
+                let text = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.find(#text) })
+            }
+
+            // compiled.search(text) → compiled.find(text)
+            "search" => {
+                if arg_exprs.is_empty() {
+                    bail!("search() requires at least one argument");
+                }
+                let text = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.find(#text) })
+            }
+
+            // Match object methods (these should be called on unwrapped Match, not Option<Match>)
+            // Note: These will fail if called on Option<Match> - caller must unwrap first
+
+            // match.group(0) → match.as_str() (for group 0)
+            // match.group(n) → match.get(n).map(|m| m.as_str()) (for other groups)
+            "group" => {
+                if arg_exprs.is_empty() {
+                    // No args: default to group 0
+                    Ok(parse_quote! { #object_expr.as_str() })
+                } else {
+                    // Check if group_num is literal 0
+                    if matches!(arg_exprs[0], syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(ref lit), .. }) if lit.base10_parse::<i32>().ok() == Some(0))
+                    {
+                        Ok(parse_quote! { #object_expr.as_str() })
+                    } else {
+                        // Non-zero group: needs captures API
+                        bail!("match.group(n) for n>0 requires .captures() API (not yet implemented)")
+                    }
+                }
+            }
+
+            // match.groups() → extract all capture groups
+            // This is complex - need to use .captures() instead of .find()
+            "groups" => {
+                bail!("match.groups() requires .captures() API (tracked in DEPYLER-0431)")
+            }
+
+            // match.start() → match.start() (passthrough)
+            "start" => {
+                if arg_exprs.is_empty() {
+                    Ok(parse_quote! { #object_expr.start() })
+                } else {
+                    bail!("match.start(group) with group number not yet implemented")
+                }
+            }
+
+            // match.end() → match.end() (passthrough)
+            "end" => {
+                if arg_exprs.is_empty() {
+                    Ok(parse_quote! { #object_expr.end() })
+                } else {
+                    bail!("match.end(group) with group number not yet implemented")
+                }
+            }
+
+            // match.span() → (match.start(), match.end())
+            "span" => {
+                if arg_exprs.is_empty() {
+                    Ok(parse_quote! { (#object_expr.start(), #object_expr.end()) })
+                } else {
+                    bail!("match.span(group) with group number not yet implemented")
+                }
+            }
+
+            // match.as_str() → match.as_str() (passthrough)
+            "as_str" => {
+                if !arg_exprs.is_empty() {
+                    bail!("as_str() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.as_str() })
+            }
+
             _ => bail!("Unknown regex method: {}", method),
         }
     }
@@ -9176,8 +9262,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             | "issuperset"
             | "isdisjoint" => self.convert_set_method(object_expr, method, arg_exprs),
 
-            // Regex methods
-            "findall" => self.convert_regex_method(object_expr, method, arg_exprs),
+            // DEPYLER-0431: Regex methods (compiled Regex + Match object)
+            // Compiled Regex: findall, match, search (note: "find" conflicts with string.find())
+            // Match object: group, groups, start, end, span, as_str
+            "findall" | "match" | "search" | "group" | "groups" | "start" | "end"
+            | "span" | "as_str" => self.convert_regex_method(object_expr, method, arg_exprs),
 
             // Path instance methods (DEPYLER-0363)
             "read_text" => {
