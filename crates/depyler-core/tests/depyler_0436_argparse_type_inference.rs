@@ -1,0 +1,172 @@
+// DEPYLER-0436: argparse validator parameter type inference
+//
+// Tests that parameters in argparse custom validators are correctly
+// inferred as &str (not serde_json::Value).
+//
+// Root cause: Type inference doesn't detect argparse validator pattern
+// Solution: When function is used as argparse type= validator, first param should be &str
+//
+// Parent: DEPYLER-0428 (ArgumentTypeError support)
+
+use depyler_core::DepylerPipeline;
+
+/// Helper to transpile Python code
+fn transpile_python(python: &str) -> anyhow::Result<String> {
+    let pipeline = DepylerPipeline::new();
+    pipeline.transpile(python)
+}
+
+#[test]
+fn test_DEPYLER_0436_parameter_type_should_be_str() {
+    // Minimal argparse validator
+    let python = r#"
+def port_validator(value):
+    """Argparse custom type validator."""
+    port = int(value)
+    if port < 1 or port > 65535:
+        raise ValueError(f"Port must be 1-65535")
+    return port
+"#;
+
+    let result = transpile_python(python);
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+
+    let rust = result.unwrap();
+
+    // CRITICAL: Parameter should be &str, NOT serde_json::Value
+    assert!(
+        rust.contains("value: &str"),
+        "Parameter 'value' should be &str for argparse validators. Got: {}",
+        rust
+    );
+
+    // Should NOT use serde_json::Value
+    assert!(
+        !rust.contains("value: serde_json::Value"),
+        "Should not use serde_json::Value for string parameters: {}",
+        rust
+    );
+}
+
+#[test]
+fn test_DEPYLER_0436_int_call_should_parse_not_cast() {
+    // int() on string parameter should use .parse(), not cast
+    let python = r#"
+def validator(value):
+    num = int(value)
+    return num
+"#;
+
+    let result = transpile_python(python);
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+
+    let rust = result.unwrap();
+
+    // Should use .parse() for string to int conversion
+    assert!(
+        rust.contains(".parse") || rust.contains("parse::<i32>"),
+        "int(string_value) should use .parse(), not cast. Got: {}",
+        rust
+    );
+
+    // Should NOT use cast syntax (value) as i32
+    assert!(
+        !rust.contains("(value) as i32"),
+        "Should not use cast for string parsing: {}",
+        rust
+    );
+}
+
+#[test]
+fn test_DEPYLER_0436_parse_error_handling() {
+    // int() can fail when parsing strings, should return Result
+    let python = r#"
+def validator(value):
+    try:
+        num = int(value)
+        return num
+    except ValueError:
+        raise ValueError("Invalid number")
+"#;
+
+    let result = transpile_python(python);
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+
+    let rust = result.unwrap();
+
+    // Should return Result because parsing can fail
+    assert!(
+        rust.contains("Result<"),
+        "Should return Result when int() can fail: {}",
+        rust
+    );
+
+    // Should handle parse error with ? operator or match
+    assert!(
+        rust.contains("?") || rust.contains("match"),
+        "Should handle parse errors: {}",
+        rust
+    );
+}
+
+#[test]
+fn test_DEPYLER_0436_full_validator_compiles() {
+    // Complete argparse validator should compile successfully
+    let python = r#"
+def port_number(value):
+    """Port validator for argparse."""
+    try:
+        port = int(value)
+        if port < 1 or port > 65535:
+            raise ValueError(f"Port must be 1-65535, got {port}")
+        return port
+    except ValueError:
+        raise ValueError(f"Invalid port: {value}")
+"#;
+
+    let result = transpile_python(python);
+    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+
+    let rust = result.unwrap();
+
+    // Write to temp file and try to compile
+    std::fs::write("/tmp/depyler_0436_test.rs", &rust).unwrap();
+
+    let compile_result = std::process::Command::new("rustc")
+        .args(&[
+            "--crate-type", "lib",
+            "--edition", "2021",
+            "/tmp/depyler_0436_test.rs",
+            "-o", "/tmp/depyler_0436_test.rlib",
+        ])
+        .output();
+
+    assert!(
+        compile_result.is_ok(),
+        "rustc should run successfully: {:?}",
+        compile_result.err()
+    );
+
+    let output = compile_result.unwrap();
+
+    // Check for specific errors we're trying to fix
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        !stderr.contains("E0605"),
+        "Should not have cast errors (E0605 - non-primitive cast). Stderr: {}",
+        stderr
+    );
+
+    assert!(
+        !stderr.contains("cannot cast"),
+        "Should not have cast errors. Stderr: {}",
+        stderr
+    );
+
+    assert!(
+        output.status.success(),
+        "Compilation should succeed. Stderr: {}",
+        stderr
+    );
+}
