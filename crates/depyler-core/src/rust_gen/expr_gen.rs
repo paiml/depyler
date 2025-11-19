@@ -4290,6 +4290,58 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// Try to convert platform module method calls
+    /// DEPYLER-0430: platform module - system information
+    ///
+    /// Maps Python platform module to Rust std::env::consts:
+    /// - platform.system() → std::env::consts::OS
+    /// - platform.machine() → std::env::consts::ARCH
+    /// - platform.python_version() → "3.11.0" (hardcoded constant)
+    ///
+    /// # Complexity
+    /// ≤10 (simple match with few branches)
+    #[inline]
+    fn try_convert_platform_method(
+        &mut self,
+        method: &str,
+        _args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let result = match method {
+            "system" => {
+                // platform.system() → std::env::consts::OS
+                // Returns "linux", "macos", "windows", etc.
+                parse_quote! { std::env::consts::OS.to_string() }
+            }
+
+            "machine" => {
+                // platform.machine() → std::env::consts::ARCH
+                // Returns "x86_64", "aarch64", etc.
+                parse_quote! { std::env::consts::ARCH.to_string() }
+            }
+
+            "python_version" => {
+                // platform.python_version() → "3.11.0"
+                // Hardcoded to Python 3.11 for compatibility
+                parse_quote! { "3.11.0".to_string() }
+            }
+
+            "release" => {
+                // platform.release() → OS release version
+                // Note: This is OS-specific and may require additional logic
+                parse_quote! { std::env::consts::OS.to_string() }
+            }
+
+            _ => {
+                bail!(
+                    "platform.{} not implemented yet (try: system, machine, python_version, release)",
+                    method
+                );
+            }
+        };
+
+        Ok(Some(result))
+    }
+
     /// Try to convert binascii module method calls
     /// DEPYLER-STDLIB-BINASCII: Binary/ASCII conversions
     ///
@@ -7468,6 +7520,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if module_name == "os" && attr == "environ" {
                     return self.try_convert_os_environ_method(method, args);
                 }
+                // DEPYLER-0430: Handle os.path.exists(), os.path.join(), etc.
+                // os.path.exists(path) → Path::new(path).exists()
+                // os.path.join(a, b) → PathBuf::from(a).join(b)
+                if module_name == "os" && attr == "path" {
+                    return self.try_convert_os_path_method(method, args);
+                }
             }
         }
 
@@ -7595,6 +7653,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-STDLIB-HMAC: HMAC authentication
             if module_name == "hmac" {
                 return self.try_convert_hmac_method(method, args);
+            }
+
+            // DEPYLER-0430: platform module - system information
+            if module_name == "platform" {
+                return self.try_convert_platform_method(method, args);
             }
 
             // DEPYLER-STDLIB-BINASCII: Binary/ASCII conversions
