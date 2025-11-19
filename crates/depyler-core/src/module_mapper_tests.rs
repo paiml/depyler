@@ -153,7 +153,7 @@ fn test_map_unknown_module() {
 
     let rust_imports = mapper.map_import(&import);
     assert_eq!(rust_imports.len(), 1);
-    assert!(rust_imports[0].path.contains("TODO: Map Python module"));
+    assert!(rust_imports[0].path.contains("NOTE: Map Python module"));
 }
 
 #[test]

@@ -17,10 +17,10 @@
 //! - Property-based tests for annotation combinations
 //! - Edge cases and complex scenarios
 
+use depyler_annotations::*;
 use depyler_core::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
 use depyler_core::hir::Type as PythonType;
 use depyler_core::type_mapper::{PrimitiveType, RustType, TypeMapper};
-use depyler_annotations::*;
 
 // ============================================================================
 // CONSTRUCTOR TESTS
@@ -383,9 +383,8 @@ fn test_depyler_0356_nested_optional_list() {
     let mapper = AnnotationAwareTypeMapper::new();
     let annotations = TranspilationAnnotations::default();
 
-    let optional_list = PythonType::Optional(Box::new(PythonType::List(Box::new(
-        PythonType::String,
-    ))));
+    let optional_list =
+        PythonType::Optional(Box::new(PythonType::List(Box::new(PythonType::String))));
     let rust_type = mapper.map_type_with_annotations(&optional_list, &annotations);
 
     assert_eq!(
@@ -407,9 +406,7 @@ fn test_depyler_0356_nested_optional_dict() {
 
     assert_eq!(
         rust_type,
-        RustType::Option(Box::new(RustType::Custom(
-            "HashMap<i32, bool>".to_string()
-        )))
+        RustType::Option(Box::new(RustType::Custom("HashMap<i32, bool>".to_string())))
     );
 }
 
@@ -505,12 +502,10 @@ fn test_depyler_0356_deeply_nested_types() {
     let annotations = TranspilationAnnotations::default();
 
     // List<Optional<Dict<String, List<Int>>>>
-    let deep_type = PythonType::List(Box::new(PythonType::Optional(Box::new(
-        PythonType::Dict(
-            Box::new(PythonType::String),
-            Box::new(PythonType::List(Box::new(PythonType::Int))),
-        ),
-    ))));
+    let deep_type = PythonType::List(Box::new(PythonType::Optional(Box::new(PythonType::Dict(
+        Box::new(PythonType::String),
+        Box::new(PythonType::List(Box::new(PythonType::Int))),
+    )))));
 
     let rust_type = mapper.map_type_with_annotations(&deep_type, &annotations);
 
@@ -715,7 +710,8 @@ fn test_depyler_0356_integration_zero_copy_parser() {
     };
 
     // Simulate parser return: Dict<String, String>
-    let parser_return = PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::String));
+    let parser_return =
+        PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::String));
     let rust_type = mapper.map_type_with_annotations(&parser_return, &annotations);
 
     // Should produce borrowed HashMap with &str keys and values

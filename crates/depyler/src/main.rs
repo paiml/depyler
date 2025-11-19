@@ -128,7 +128,9 @@ async fn handle_command(command: Commands) -> Result<()> {
             source_map,
             trace,
             explain,
-        } => transpile_command(input, output, verify, gen_tests, debug, source_map, trace, explain),
+        } => transpile_command(
+            input, output, verify, gen_tests, debug, source_map, trace, explain,
+        ),
         Commands::Compile {
             input,
             output,

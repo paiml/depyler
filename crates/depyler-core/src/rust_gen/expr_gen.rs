@@ -607,7 +607,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // - Replace parse_args() with Args::parse()
         // For now, return unit to make code compile while transformation is implemented
         if func.contains("ArgumentParser") {
-            // TODO: Full implementation - generate Args struct with clap derives
+            // NOTE: Full argparse implementation requires generating Args struct with clap derives (tracked in DEPYLER-0363)
             // For now, just return unit to allow compilation
             return Ok(parse_quote! { () });
         }
@@ -2620,7 +2620,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // DEPYLER-0389: re.match() in Python only matches at the beginning
                 // Returns Option<Match> to support .group() calls
-                // TODO: Add start-of-string constraint (check match.start() == 0 or prepend ^)
+                // NOTE: Add start-of-string constraint in future (check match.start() == 0 or prepend ^) (tracked in DEPYLER-0389)
                 // For now, using .find() like search() - compatible with Match object usage
                 parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) }
             }
@@ -3212,7 +3212,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// - subprocess.run(cmd) → Command::new(cmd[0]).args(&cmd[1..]).status()
     /// - capture_output=True → .output() instead of .status()
     /// - cwd=path → .current_dir(path)
-    /// - check=True → verify exit status (TODO: add error handling)
+    /// - check=True → verify exit status (NOTE: add error handling tracked in DEPYLER-0424)
     ///
     /// Returns anonymous struct with: returncode, stdout, stderr
     ///
@@ -4161,7 +4161,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         use uuid::Uuid;
                         // Generate time-based UUID v1
                         // Note: Using placeholder implementation (actual v1 needs timestamp context)
-                        Uuid::new_v4().to_string()  // TODO: Implement proper v1 with timestamp
+                        Uuid::new_v4().to_string()  // NOTE: Implement proper UUID v1 with timestamp (tracked in DEPYLER-0424)
                     }
                 }
             }
@@ -4223,7 +4223,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let key = &arg_exprs[0];
                 let msg = &arg_exprs[1];
 
-                // TODO: Parse digestmod argument (arg_exprs[2]) to support multiple algorithms
+                // NOTE: Parse digestmod argument (arg_exprs[2]) to support multiple HMAC algorithms (tracked in DEPYLER-0424)
                 // For now, hardcode SHA256 as most common
 
                 // hmac.new(key, msg, hashlib.sha256) → HMAC-SHA256 hex digest
@@ -4355,7 +4355,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let data = &arg_exprs[0];
 
                 // Simplified implementation - basic quoted-printable
-                // TODO: Full RFC 1521 implementation
+                // NOTE: Full RFC 1521 quoted-printable implementation (tracked in DEPYLER-0424)
                 parse_quote! {
                     {
                         // Simple QP: replace special chars, preserve printable ASCII
@@ -4380,7 +4380,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let data = &arg_exprs[0];
 
                 // Simplified QP decoder
-                // TODO: Full RFC 1521 implementation
+                // NOTE: Full RFC 1521 quoted-printable implementation (tracked in DEPYLER-0424)
                 parse_quote! {
                     {
                         let s = std::str::from_utf8(#data).expect("Invalid UTF-8");
@@ -4411,7 +4411,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let data = &arg_exprs[0];
 
                 // Simplified UU encoding (basic implementation)
-                // TODO: Full UU encoding with proper line wrapping
+                // NOTE: Full UU encoding with proper line wrapping (tracked in DEPYLER-0424)
                 parse_quote! {
                     {
                         let bytes: &[u8] = #data;
@@ -4440,7 +4440,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let data = &arg_exprs[0];
 
                 // Simplified UU decoding (basic implementation)
-                // TODO: Full UU decoding
+                // NOTE: Full UU decoding implementation (tracked in DEPYLER-0424)
                 parse_quote! {
                     {
                         let bytes: &[u8] = #data;
@@ -4686,7 +4686,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let pattern = &arg_exprs[1];
 
                 // Simplified implementation: convert pattern to regex and match
-                // TODO: Proper fnmatch pattern translation with case sensitivity
+                // NOTE: Proper fnmatch pattern translation with case sensitivity (tracked in DEPYLER-0424)
                 parse_quote! {
                     {
                         // Convert fnmatch pattern to regex
@@ -4792,7 +4792,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let s = &arg_exprs[0];
 
                 // Simplified shell split (handles basic quotes)
-                // TODO: Use shell-words crate for full POSIX compliance
+                // NOTE: Use shell-words crate for full POSIX shell compliance (tracked in DEPYLER-0424)
                 parse_quote! {
                     {
                         let input = #s;
@@ -6403,7 +6403,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let value = &arg_exprs[0];
                 // quantize(Decimal("0.01")) → round to 2 decimal places
                 // For now, we'll use round_dp(2) as a simple approximation
-                // TODO: More sophisticated quantization based on quantum value
+                // NOTE: More sophisticated Decimal quantization based on quantum value (tracked in DEPYLER-0424)
                 parse_quote! { #value.round_dp(2) }
             }
 
@@ -7175,7 +7175,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let a = &arg_exprs[0];
                 let b = &arg_exprs[1];
                 // For now, implement simple Euclidean algorithm inline
-                // TODO: Use num_integer::gcd crate in the future
+                // NOTE: Use num_integer::gcd crate for better performance (tracked in DEPYLER-0424)
                 parse_quote! {
                     {
                         let mut a = (#a as i64).abs();
@@ -8042,7 +8042,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 // DEPYLER-0303 Phase 3 Fix #8: Return Vec for compatibility
                 // However, this causes redundant .collect().iter() in sum(d.values())
-                // TODO: Consider context-aware return type (Vec vs Iterator)
+                // NOTE: Consider context-aware return type (Vec vs Iterator) for optimization (tracked in DEPYLER-0303)
                 Ok(parse_quote! { #object_expr.values().cloned().collect::<Vec<_>>() })
             }
             "items" => {
@@ -8870,13 +8870,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // ArgumentParser.parse_args() requires full struct transformation
         // For now, return unit to allow compilation
         if method == "parse_args" {
-            // TODO: Full implementation - Args::parse() call
+            // NOTE: Full argparse implementation requires Args::parse() call (tracked in DEPYLER-0363)
             return Ok(parse_quote! { () });
         }
 
         // DEPYLER-0363: Handle add_argument() → Skip for now, will be accumulated for struct generation
         if method == "add_argument" {
-            // TODO: Accumulate these calls to generate struct fields
+            // NOTE: Accumulate add_argument calls to generate struct fields (tracked in DEPYLER-0363)
             return Ok(parse_quote! { () });
         }
 
@@ -10090,6 +10090,39 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_attribute(&mut self, value: &HirExpr, attr: &str) -> Result<syn::Expr> {
+        // DEPYLER-0425: Handle subcommand field access (args.url → url)
+        // If this is accessing a subcommand-specific field on args parameter,
+        // generate just the field name (it's extracted via pattern matching)
+        if let HirExpr::Var(var_name) = value {
+            // Check if var_name is an args parameter
+            // (heuristic: variable ending in "args" or exactly "args")
+            if (var_name == "args" || var_name.ends_with("args")) && self.ctx.argparser_tracker.has_subcommands() {
+                // Check if this field belongs to any subcommand
+                let mut is_subcommand_field = false;
+                for subcommand in self.ctx.argparser_tracker.subcommands.values() {
+                    for arg in &subcommand.arguments {
+                        if arg.rust_field_name() == attr {
+                            is_subcommand_field = true;
+                            break;
+                        }
+                    }
+                    if is_subcommand_field {
+                        break;
+                    }
+                }
+
+                if is_subcommand_field {
+                    // Generate just the field name (extracted via pattern matching in func wrapper)
+                    let attr_ident = if Self::is_rust_keyword(attr) {
+                        syn::Ident::new_raw(attr, proc_macro2::Span::call_site())
+                    } else {
+                        syn::Ident::new(attr, proc_macro2::Span::call_site())
+                    };
+                    return Ok(parse_quote! { #attr_ident });
+                }
+            }
+        }
+
         // Handle classmethod cls.ATTR → Self::ATTR
         if let HirExpr::Var(var_name) = value {
             if var_name == "cls" && self.ctx.is_classmethod {

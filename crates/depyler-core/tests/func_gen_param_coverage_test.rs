@@ -464,9 +464,18 @@ fn test_property_all_param_features() {
     let pipeline = DepylerPipeline::new();
 
     let test_cases = vec![
-        ("unused", "def f(x: int, _unused: int) -> int:\n    return x"),
-        ("mutable", "def f(x: int) -> int:\n    x = x + 1\n    return x"),
-        ("borrowed_mut", "def f(items: list[int]) -> list[int]:\n    items.append(1)\n    return items"),
+        (
+            "unused",
+            "def f(x: int, _unused: int) -> int:\n    return x",
+        ),
+        (
+            "mutable",
+            "def f(x: int) -> int:\n    x = x + 1\n    return x",
+        ),
+        (
+            "borrowed_mut",
+            "def f(items: list[int]) -> list[int]:\n    items.append(1)\n    return items",
+        ),
     ];
 
     for (name, code) in test_cases {

@@ -135,7 +135,10 @@ fn test_depyler_0347_expr_unary() {
 
 #[test]
 fn test_depyler_0347_expr_call() {
-    let expr = HirExpr::Call { func: Box::new(HirExpr::Identifier("print".to_string())), args: vec![HirExpr::Literal(HirLiteral::String("hello".to_string()))] };
+    let expr = HirExpr::Call {
+        func: Box::new(HirExpr::Identifier("print".to_string())),
+        args: vec![HirExpr::Literal(HirLiteral::String("hello".to_string()))],
+    };
 
     assert!(matches!(expr, HirExpr::Call { .. }));
 }
@@ -159,18 +162,22 @@ fn test_depyler_0347_expr_if_without_else() {
         else_branch: None,
     };
 
-    assert!(matches!(expr, HirExpr::If { else_branch: None, .. }));
+    assert!(matches!(
+        expr,
+        HirExpr::If {
+            else_branch: None,
+            ..
+        }
+    ));
 }
 
 #[test]
 fn test_depyler_0347_expr_block() {
-    let expr = HirExpr::Block(vec![
-        HirStatement::Let {
-            name: "x".to_string(),
-            value: Box::new(HirExpr::Literal(HirLiteral::Integer(10))),
-            is_mutable: false,
-        },
-    ]);
+    let expr = HirExpr::Block(vec![HirStatement::Let {
+        name: "x".to_string(),
+        value: Box::new(HirExpr::Literal(HirLiteral::Integer(10))),
+        is_mutable: false,
+    }]);
 
     assert!(matches!(expr, HirExpr::Block(_)));
 }
@@ -304,7 +311,10 @@ fn test_depyler_0347_expr_continue_without_label() {
 
 #[test]
 fn test_depyler_0347_expr_await() {
-    let expr = HirExpr::Await(Box::new(HirExpr::Call { func: Box::new(HirExpr::Identifier("fetch".to_string())), args: vec![] }));
+    let expr = HirExpr::Await(Box::new(HirExpr::Call {
+        func: Box::new(HirExpr::Identifier("fetch".to_string())),
+        args: vec![],
+    }));
 
     assert!(matches!(expr, HirExpr::Await(_)));
 }
@@ -345,7 +355,10 @@ fn test_depyler_0347_statement_let_mutable() {
 
 #[test]
 fn test_depyler_0347_statement_expression() {
-    let stmt = HirStatement::Expression(Box::new(HirExpr::Call { func: Box::new(HirExpr::Identifier("print".to_string())), args: vec![] }));
+    let stmt = HirStatement::Expression(Box::new(HirExpr::Call {
+        func: Box::new(HirExpr::Identifier("print".to_string())),
+        args: vec![],
+    }));
 
     assert!(matches!(stmt, HirStatement::Expression(_)));
 }
@@ -590,13 +603,11 @@ fn test_depyler_0347_complex_nested_expr() {
 fn test_depyler_0347_complex_function_with_body() {
     let expr = HirExpr::Function {
         name: "calculate".to_string(),
-        params: vec![
-            HirParam {
-                name: "x".to_string(),
-                typ: Some(HirType::Int),
-                default: Some(Box::new(HirExpr::Literal(HirLiteral::Integer(0)))),
-            },
-        ],
+        params: vec![HirParam {
+            name: "x".to_string(),
+            typ: Some(HirType::Int),
+            default: Some(Box::new(HirExpr::Literal(HirLiteral::Integer(0)))),
+        }],
         body: Box::new(HirExpr::Block(vec![
             HirStatement::Let {
                 name: "result".to_string(),

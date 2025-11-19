@@ -255,11 +255,7 @@ fn test_depyler_0354_unary_op_bitwise_not() {
 
 #[test]
 fn test_depyler_0354_unary_op_all_variants_distinct() {
-    let ops = [
-        HirUnaryOp::Not,
-        HirUnaryOp::Negate,
-        HirUnaryOp::BitwiseNot,
-    ];
+    let ops = [HirUnaryOp::Not, HirUnaryOp::Negate, HirUnaryOp::BitwiseNot];
 
     for (i, op1) in ops.iter().enumerate() {
         for (j, op2) in ops.iter().enumerate() {
@@ -368,7 +364,9 @@ fn test_depyler_0354_param_clone_equality() {
     let param1 = HirParam {
         name: "param".to_string(),
         typ: Some(HirType::String),
-        default: Some(Box::new(HirExpr::Literal(HirLiteral::String("default".to_string())))),
+        default: Some(Box::new(HirExpr::Literal(HirLiteral::String(
+            "default".to_string(),
+        )))),
     };
 
     let param2 = param1.clone();
@@ -546,17 +544,23 @@ fn test_depyler_0354_expr_unary_nested() {
 
 #[test]
 fn test_depyler_0354_expr_call_no_args() {
-    let expr = HirExpr::Call { func: Box::new(HirExpr::Identifier("foo".to_string())), args: vec![] };
+    let expr = HirExpr::Call {
+        func: Box::new(HirExpr::Identifier("foo".to_string())),
+        args: vec![],
+    };
 
     assert_eq!(expr.clone(), expr);
 }
 
 #[test]
 fn test_depyler_0354_expr_call_with_args() {
-    let expr = HirExpr::Call { func: Box::new(HirExpr::Identifier("print".to_string())), args: vec![
+    let expr = HirExpr::Call {
+        func: Box::new(HirExpr::Identifier("print".to_string())),
+        args: vec![
             HirExpr::Literal(HirLiteral::String("hello".to_string())),
             HirExpr::Literal(HirLiteral::Integer(42)),
-        ] };
+        ],
+    };
 
     let debug = format!("{:?}", expr);
     assert!(debug.contains("Call"));
@@ -564,9 +568,15 @@ fn test_depyler_0354_expr_call_with_args() {
 
 #[test]
 fn test_depyler_0354_expr_call_nested() {
-    let inner_call = HirExpr::Call { func: Box::new(HirExpr::Identifier("inner".to_string())), args: vec![HirExpr::Literal(HirLiteral::Integer(1))] };
+    let inner_call = HirExpr::Call {
+        func: Box::new(HirExpr::Identifier("inner".to_string())),
+        args: vec![HirExpr::Literal(HirLiteral::Integer(1))],
+    };
 
-    let outer_call = HirExpr::Call { func: Box::new(HirExpr::Identifier("outer".to_string())), args: vec![inner_call] };
+    let outer_call = HirExpr::Call {
+        func: Box::new(HirExpr::Identifier("outer".to_string())),
+        args: vec![inner_call],
+    };
 
     let _serialized = serde_json::to_string(&outer_call).unwrap();
 }
@@ -701,7 +711,9 @@ fn test_depyler_0354_expr_function_async() {
     let expr = HirExpr::Function {
         name: "async_func".to_string(),
         params: vec![],
-        body: Box::new(HirExpr::Await(Box::new(HirExpr::Identifier("future".to_string())))),
+        body: Box::new(HirExpr::Await(Box::new(HirExpr::Identifier(
+            "future".to_string(),
+        )))),
         is_async: true,
         return_type: None,
     };
@@ -726,13 +738,11 @@ fn test_depyler_0354_expr_lambda_no_params() {
 #[test]
 fn test_depyler_0354_expr_lambda_with_params() {
     let expr = HirExpr::Lambda {
-        params: vec![
-            HirParam {
-                name: "x".to_string(),
-                typ: None,
-                default: None,
-            },
-        ],
+        params: vec![HirParam {
+            name: "x".to_string(),
+            typ: None,
+            default: None,
+        }],
         body: Box::new(HirExpr::Binary {
             left: Box::new(HirExpr::Identifier("x".to_string())),
             op: HirBinaryOp::Add,
@@ -757,9 +767,9 @@ fn test_depyler_0354_expr_for_loop() {
             HirExpr::Literal(HirLiteral::Integer(2)),
             HirExpr::Literal(HirLiteral::Integer(3)),
         ])),
-        body: Box::new(HirExpr::Block(vec![
-            HirStatement::Expression(Box::new(HirExpr::Identifier("i".to_string()))),
-        ])),
+        body: Box::new(HirExpr::Block(vec![HirStatement::Expression(Box::new(
+            HirExpr::Identifier("i".to_string()),
+        ))])),
     };
 
     let cloned = expr.clone();
@@ -791,9 +801,9 @@ fn test_depyler_0354_expr_for_loop_nested() {
 fn test_depyler_0354_expr_while_loop() {
     let expr = HirExpr::While {
         condition: Box::new(HirExpr::Literal(HirLiteral::Bool(true))),
-        body: Box::new(HirExpr::Block(vec![
-            HirStatement::Expression(Box::new(HirExpr::Break(None))),
-        ])),
+        body: Box::new(HirExpr::Block(vec![HirStatement::Expression(Box::new(
+            HirExpr::Break(None),
+        ))])),
     };
 
     assert_eq!(expr.clone(), expr);
@@ -845,7 +855,10 @@ fn test_depyler_0354_statement_let_mutable() {
 
 #[test]
 fn test_depyler_0354_statement_expression() {
-    let stmt = HirStatement::Expression(Box::new(HirExpr::Call { func: Box::new(HirExpr::Identifier("print".to_string())), args: vec![HirExpr::Literal(HirLiteral::String("hello".to_string()))] }));
+    let stmt = HirStatement::Expression(Box::new(HirExpr::Call {
+        func: Box::new(HirExpr::Identifier("print".to_string())),
+        args: vec![HirExpr::Literal(HirLiteral::String("hello".to_string()))],
+    }));
 
     let _serialized = serde_json::to_string(&stmt).unwrap();
 }
@@ -907,10 +920,13 @@ fn test_depyler_0354_function_with_control_flow() {
             else_branch: Some(Box::new(HirExpr::Return(Some(Box::new(HirExpr::Binary {
                 left: Box::new(HirExpr::Identifier("n".to_string())),
                 op: HirBinaryOp::Multiply,
-                right: Box::new(HirExpr::Call { func: Box::new(HirExpr::Identifier("factorial".to_string())), args: vec![HirExpr::Binary {
+                right: Box::new(HirExpr::Call {
+                    func: Box::new(HirExpr::Identifier("factorial".to_string())),
+                    args: vec![HirExpr::Binary {
                         left: Box::new(HirExpr::Identifier("n".to_string())),
                         op: HirBinaryOp::Subtract,
-                        right: Box::new(HirExpr::Literal(HirLiteral::Integer(1))), }],
+                        right: Box::new(HirExpr::Literal(HirLiteral::Integer(1))),
+                    }],
                 }),
             }))))),
         }),
@@ -935,7 +951,10 @@ fn test_depyler_0354_async_function_with_await() {
         body: Box::new(HirExpr::Block(vec![
             HirStatement::Let {
                 name: "response".to_string(),
-                value: Box::new(HirExpr::Await(Box::new(HirExpr::Call { func: Box::new(HirExpr::Identifier("fetch".to_string())), args: vec![HirExpr::Identifier("url".to_string())] }))),
+                value: Box::new(HirExpr::Await(Box::new(HirExpr::Call {
+                    func: Box::new(HirExpr::Identifier("fetch".to_string())),
+                    args: vec![HirExpr::Identifier("url".to_string())],
+                }))),
                 is_mutable: false,
             },
             HirStatement::Expression(Box::new(HirExpr::Return(Some(Box::new(

@@ -1761,7 +1761,7 @@ impl<'a> ExprConverter<'a> {
             HirExpr::Var(name) => self.convert_variable(name),
             HirExpr::Binary { op, left, right } => self.convert_binary(*op, left, right),
             HirExpr::Unary { op, operand } => self.convert_unary(*op, operand),
-            HirExpr::Call { func, args , ..} => self.convert_call(func, args),
+            HirExpr::Call { func, args, .. } => self.convert_call(func, args),
             HirExpr::Index { base, index } => self.convert_index(base, index),
             HirExpr::List(elts) => self.convert_list(elts),
             HirExpr::Dict(items) => self.convert_dict(items),
@@ -1772,7 +1772,8 @@ impl<'a> ExprConverter<'a> {
             HirExpr::MethodCall {
                 object,
                 method,
-                args, ..
+                args,
+                ..
             } => self.convert_method_call(object, method, args),
             HirExpr::ListComp {
                 element,
@@ -2473,10 +2474,14 @@ impl<'a> ExprConverter<'a> {
             }
             "split" => {
                 if arg_exprs.is_empty() {
-                    Ok(parse_quote! { #object_expr.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() })
+                    Ok(
+                        parse_quote! { #object_expr.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() },
+                    )
                 } else if arg_exprs.len() == 1 {
                     let sep = &arg_exprs[0];
-                    Ok(parse_quote! { #object_expr.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() })
+                    Ok(
+                        parse_quote! { #object_expr.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() },
+                    )
                 } else {
                     bail!("split() with maxsplit not supported");
                 }
@@ -2514,19 +2519,25 @@ impl<'a> ExprConverter<'a> {
                 if !arg_exprs.is_empty() {
                     bail!("isdigit() takes no arguments");
                 }
-                Ok(parse_quote! { !#object_expr.is_empty() && #object_expr.chars().all(|c| c.is_ascii_digit()) })
+                Ok(
+                    parse_quote! { !#object_expr.is_empty() && #object_expr.chars().all(|c| c.is_ascii_digit()) },
+                )
             }
             "isalpha" => {
                 if !arg_exprs.is_empty() {
                     bail!("isalpha() takes no arguments");
                 }
-                Ok(parse_quote! { !#object_expr.is_empty() && #object_expr.chars().all(|c| c.is_alphabetic()) })
+                Ok(
+                    parse_quote! { !#object_expr.is_empty() && #object_expr.chars().all(|c| c.is_alphabetic()) },
+                )
             }
             "isalnum" => {
                 if !arg_exprs.is_empty() {
                     bail!("isalnum() takes no arguments");
                 }
-                Ok(parse_quote! { !#object_expr.is_empty() && #object_expr.chars().all(|c| c.is_alphanumeric()) })
+                Ok(
+                    parse_quote! { !#object_expr.is_empty() && #object_expr.chars().all(|c| c.is_alphanumeric()) },
+                )
             }
 
             // Generic method call fallback
@@ -2851,8 +2862,11 @@ mod tests {
         let type_mapper = create_test_type_mapper();
         let converter = ExprConverter::new(&type_mapper);
 
-        let call_expr = HirExpr::Call { func: "len".to_string(), args: vec![HirExpr::Var("arr".to_string())],
-         kwargs: vec![] };
+        let call_expr = HirExpr::Call {
+            func: "len".to_string(),
+            args: vec![HirExpr::Var("arr".to_string())],
+            kwargs: vec![],
+        };
 
         let result = converter.convert(&call_expr).unwrap();
         // Should generate a method call expression
@@ -2864,8 +2878,11 @@ mod tests {
         let type_mapper = create_test_type_mapper();
         let converter = ExprConverter::new(&type_mapper);
 
-        let call_expr = HirExpr::Call { func: "range".to_string(), args: vec![HirExpr::Literal(Literal::Int(10))],
-         kwargs: vec![] };
+        let call_expr = HirExpr::Call {
+            func: "range".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(10))],
+            kwargs: vec![],
+        };
 
         let result = converter.convert(&call_expr).unwrap();
         // Should generate a range expression
@@ -2912,8 +2929,11 @@ mod tests {
         let converter = ExprConverter::new(&type_mapper);
 
         // zeros(5) should generate [0; 5]
-        let zeros_call = HirExpr::Call { func: "zeros".to_string(), args: vec![HirExpr::Literal(Literal::Int(5))],
-         kwargs: vec![] };
+        let zeros_call = HirExpr::Call {
+            func: "zeros".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(5))],
+            kwargs: vec![],
+        };
 
         let result = converter.convert(&zeros_call).unwrap();
         assert!(matches!(result, syn::Expr::Repeat(_)));
@@ -2924,11 +2944,14 @@ mod tests {
         let type_mapper = create_test_type_mapper();
         let converter = ExprConverter::new(&type_mapper);
 
-        let call_expr = HirExpr::Call { func: "range".to_string(), args: vec![
+        let call_expr = HirExpr::Call {
+            func: "range".to_string(),
+            args: vec![
                 HirExpr::Literal(Literal::Int(1)),
                 HirExpr::Literal(Literal::Int(10)),
             ],
-         kwargs: vec![] };
+            kwargs: vec![],
+        };
 
         let result = converter.convert(&call_expr).unwrap();
         assert!(matches!(result, syn::Expr::Range(_)));

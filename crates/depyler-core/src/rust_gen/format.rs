@@ -181,7 +181,10 @@ mod tests {
         // "} ;" → "};"
         let input2 = "struct S { } ;".to_string();
         let output2 = apply_string_replacements(input2);
-        assert!(!output2.contains("} ;"), "Brace semicolon spacing not fixed");
+        assert!(
+            !output2.contains("} ;"),
+            "Brace semicolon spacing not fixed"
+        );
     }
 
     /// Unit Test: HashMap import specific fix
@@ -251,9 +254,9 @@ mod tests {
     #[test]
     fn test_apply_string_replacements_assignments() {
         let test_cases = vec![
-            ("let x=(42)", "let x = (42)"),   // "=(" → " = ("
-            ("let y= (10)", "let y = (10)"),  // "= (" → " = ("
-            ("let z  =5", "let z =5"),        // "  =" → " ="
+            ("let x=(42)", "let x = (42)"),    // "=(" → " = ("
+            ("let y= (10)", "let y = (10)"),   // "= (" → " = ("
+            ("let z  =5", "let z =5"),         // "  =" → " ="
             ("let a   =true", "let a  =true"), // "   =" → " ="
         ];
 
@@ -351,7 +354,10 @@ mod tests {
 
         let input2 = "x<self".to_string();
         let output2 = apply_string_replacements(input2);
-        assert!(output2.contains("< self"), "Self comparison spacing not fixed");
+        assert!(
+            output2.contains("< self"),
+            "Self comparison spacing not fixed"
+        );
     }
 
     /// Unit Test: Range operators
@@ -359,11 +365,7 @@ mod tests {
     /// Verifies: Lines 119-121 (range spacing)
     #[test]
     fn test_apply_string_replacements_ranges() {
-        let test_cases = vec![
-            ("0 .. 10", "0..10"),
-            ("0 ..", "0.."),
-            (".. 10", "..10"),
-        ];
+        let test_cases = vec![("0 .. 10", "0..10"), ("0 ..", "0.."), (".. 10", "..10")];
 
         for (input, expected) in test_cases {
             let output = apply_string_replacements(input.to_string());
@@ -389,7 +391,10 @@ mod tests {
         let input = "".to_string();
         let result = format_rust_code(input);
         // rustfmt adds a newline even to empty input
-        assert!(result.trim().is_empty() || result == "\n", "Empty or newline only");
+        assert!(
+            result.trim().is_empty() || result == "\n",
+            "Empty or newline only"
+        );
     }
 
     /// Unit Test: Rustfmt fallback on invalid syntax
@@ -400,7 +405,10 @@ mod tests {
         let input = "fn broken( { { { invalid".to_string();
         let result = format_rust_code(input);
         // Should return the string-replaced version (rustfmt failed, fell back)
-        assert!(!result.is_empty(), "Should return fallback code on rustfmt failure");
+        assert!(
+            !result.is_empty(),
+            "Should return fallback code on rustfmt failure"
+        );
     }
 
     /// Property Test: Replacement idempotency
@@ -448,7 +456,8 @@ fn main( ){
     let p=Point::new( 3 , 4 );
     println !(\"Distance: {}\", p.distance ());
 }
-"#.to_string();
+"#
+        .to_string();
 
         let output = apply_string_replacements(complex_code);
 

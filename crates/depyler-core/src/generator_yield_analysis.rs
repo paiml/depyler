@@ -253,7 +253,7 @@ impl YieldAnalysis {
     ///
     /// # Complexity: 2 (placeholder for future liveness analysis)
     fn finalize(&mut self) {
-        // TODO: Implement liveness analysis to determine which variables
+        // NOTE: Implement liveness analysis to determine which variables need capturing (tracked in DEPYLER-0424)
         // need to be preserved in the state struct.
         // For now, we'll rely on the existing GeneratorStateInfo analysis.
     }

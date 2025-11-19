@@ -34,7 +34,8 @@ def join_paths(*parts: str) -> str:
     // Should convert to parts.join(std::path::MAIN_SEPARATOR_STR) or similar
     assert!(
         code.contains("join") || code.contains("MAIN_SEPARATOR"),
-        "Should have path joining logic. Got: {}", code
+        "Should have path joining logic. Got: {}",
+        code
     );
 }
 
@@ -49,7 +50,10 @@ def test() -> str:
 "#;
 
     let result = transpile_and_compile(python);
-    assert!(result.is_ok(), "Should transpile os.path.join(*parts) with list literal");
+    assert!(
+        result.is_ok(),
+        "Should transpile os.path.join(*parts) with list literal"
+    );
 }
 
 #[test]
@@ -62,7 +66,10 @@ def test(base: str, *rest: str) -> str:
 "#;
 
     let result = transpile_and_compile(python);
-    assert!(result.is_ok(), "Should transpile os.path.join with mixed positional and starred args");
+    assert!(
+        result.is_ok(),
+        "Should transpile os.path.join with mixed positional and starred args"
+    );
 }
 
 // ============================================================================
@@ -98,8 +105,11 @@ def test(*args):
     if result.is_err() {
         let err_msg = result.unwrap_err().to_string();
         assert!(
-            err_msg.contains("*args") || err_msg.contains("unpacking") || err_msg.contains("not yet supported"),
-            "Error message should mention *args unpacking. Got: {}", err_msg
+            err_msg.contains("*args")
+                || err_msg.contains("unpacking")
+                || err_msg.contains("not yet supported"),
+            "Error message should mention *args unpacking. Got: {}",
+            err_msg
         );
     }
 }
@@ -118,14 +128,15 @@ mod property_tests {
             return TestResult::discard();
         }
 
-        let parts_str = parts.iter()
+        let parts_str = parts
+            .iter()
             .map(|s| {
                 let escaped = s
-                    .replace("\\", "\\\\")  // Backslash first
-                    .replace("\"", "\\\"")  // Double quotes
-                    .replace("\n", "\\n")   // Newlines
-                    .replace("\r", "\\r")   // Carriage returns
-                    .replace("\t", "\\t");  // Tabs
+                    .replace("\\", "\\\\") // Backslash first
+                    .replace("\"", "\\\"") // Double quotes
+                    .replace("\n", "\\n") // Newlines
+                    .replace("\r", "\\r") // Carriage returns
+                    .replace("\t", "\\t"); // Tabs
                 format!("\"{}\"", escaped)
             })
             .collect::<Vec<_>>()
@@ -146,7 +157,9 @@ def test() -> str:
             Ok(code) => {
                 // Verify path joining logic exists
                 TestResult::from_bool(
-                    code.contains("join") || code.contains("MAIN_SEPARATOR") || code.contains("PathBuf")
+                    code.contains("join")
+                        || code.contains("MAIN_SEPARATOR")
+                        || code.contains("PathBuf"),
                 )
             }
             Err(_) => TestResult::failed(),

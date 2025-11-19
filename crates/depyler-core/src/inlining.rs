@@ -268,7 +268,7 @@ impl InliningAnalyzer {
 
 fn extract_calls_from_expr_inner(expr: &HirExpr, calls: &mut HashSet<String>) {
     match expr {
-        HirExpr::Call { func, args , ..} => extract_from_call(func, args, calls),
+        HirExpr::Call { func, args, .. } => extract_from_call(func, args, calls),
         HirExpr::Binary { left, right, .. } => extract_from_binary(left, right, calls),
         HirExpr::Unary { operand, .. } => extract_calls_from_expr_inner(operand, calls),
         HirExpr::List(items) | HirExpr::Tuple(items) => extract_from_items(items, calls),
@@ -671,7 +671,7 @@ impl InliningAnalyzer {
         }
 
         match stmt {
-            HirStmt::Expr(HirExpr::Call { func, args , ..}) => {
+            HirStmt::Expr(HirExpr::Call { func, args, .. }) => {
                 self.try_inline_expr_call(func, args, function_map, decisions, depth)
             }
             HirStmt::Assign { target, value, .. } => {
@@ -705,7 +705,7 @@ impl InliningAnalyzer {
         decisions: &HashMap<String, InliningDecision>,
         depth: usize,
     ) -> Option<Vec<HirStmt>> {
-        if let HirExpr::Call { func, args , ..} = value {
+        if let HirExpr::Call { func, args, .. } = value {
             let decision = decisions.get(func)?;
             if !decision.should_inline {
                 return None;
@@ -895,7 +895,7 @@ fn contains_loops_inner(body: &[HirStmt]) -> bool {
 
 fn expr_has_side_effects_inner(expr: &HirExpr) -> bool {
     match expr {
-        HirExpr::Call { func, args , ..} => call_has_side_effects(func, args),
+        HirExpr::Call { func, args, .. } => call_has_side_effects(func, args),
         HirExpr::MethodCall { method, .. } => method_has_side_effects(method),
         HirExpr::Binary { left, right, .. } => binary_has_side_effects(left, right),
         HirExpr::Unary { operand, .. } => expr_has_side_effects_inner(operand),
@@ -974,11 +974,14 @@ fn transform_expr_for_inlining_inner(expr: &HirExpr, params: &[crate::hir::HirPa
             operand: Box::new(transform_expr_for_inlining_inner(operand, params)),
             op: *op,
         },
-        HirExpr::Call { func, args , ..} => HirExpr::Call { func: func.clone(), args: args
+        HirExpr::Call { func, args, .. } => HirExpr::Call {
+            func: func.clone(),
+            args: args
                 .iter()
                 .map(|a| transform_expr_for_inlining_inner(a, params))
                 .collect(),
-         kwargs: vec![] },
+            kwargs: vec![],
+        },
         _ => expr.clone(),
     }
 }

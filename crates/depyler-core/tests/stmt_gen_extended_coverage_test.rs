@@ -668,40 +668,58 @@ fn test_property_statement_types() {
     let pipeline = DepylerPipeline::new();
 
     let test_cases = vec![
-        ("if", r#"
+        (
+            "if",
+            r#"
 def test_if():
     x = 10
     if x > 0:
         return 1
     else:
         return 0
-"#),
-        ("while", r#"
+"#,
+        ),
+        (
+            "while",
+            r#"
 def test_while():
     x = 10
     while x > 0:
         x = x - 1
     return x
-"#),
-        ("for", r#"
+"#,
+        ),
+        (
+            "for",
+            r#"
 def test_for():
     for i in range(10):
         print(i)
-"#),
-        ("break", r#"
+"#,
+        ),
+        (
+            "break",
+            r#"
 def test_break():
     for i in range(10):
         break
-"#),
-        ("continue", r#"
+"#,
+        ),
+        (
+            "continue",
+            r#"
 def test_continue():
     for i in range(10):
         continue
-"#),
-        ("return", r#"
+"#,
+        ),
+        (
+            "return",
+            r#"
 def test_return():
     return 42
-"#),
+"#,
+        ),
     ];
 
     for (stmt_type, python_code) in test_cases {

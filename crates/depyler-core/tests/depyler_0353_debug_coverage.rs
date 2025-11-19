@@ -222,7 +222,10 @@ fn test_depyler_0353_add_function_mapping_async_function() {
         params: SmallVec::new(),
         ret_type: Type::Int,
         body: vec![],
-        properties: FunctionProperties { is_async: true, ..Default::default() },
+        properties: FunctionProperties {
+            is_async: true,
+            ..Default::default()
+        },
         annotations: Default::default(),
         docstring: Some("Async function".to_string()),
     };
@@ -323,7 +326,10 @@ fn test_depyler_0353_generate_function_debug_async() {
         params: SmallVec::new(),
         ret_type: Type::Int,
         body: vec![],
-        properties: FunctionProperties { is_async: true, ..Default::default() },
+        properties: FunctionProperties {
+            is_async: true,
+            ..Default::default()
+        },
         annotations: Default::default(),
         docstring: None,
     };
@@ -728,15 +734,13 @@ fn test_depyler_0353_debugger_integration_workflow() {
     let source_map = SourceMap {
         source_file: PathBuf::from("app.py"),
         target_file: PathBuf::from("app.rs"),
-        mappings: vec![
-            SourceMapping {
-                python_line: 1,
-                python_column: 0,
-                rust_line: 1,
-                rust_column: 0,
-                symbol: Some("start".to_string()),
-            },
-        ],
+        mappings: vec![SourceMapping {
+            python_line: 1,
+            python_column: 0,
+            rust_line: 1,
+            rust_column: 0,
+            symbol: Some("start".to_string()),
+        }],
         function_map: HashMap::new(),
     };
 

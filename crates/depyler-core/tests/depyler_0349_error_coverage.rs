@@ -78,14 +78,18 @@ fn test_depyler_0349_error_kind_unsupported_feature() {
 
 #[test]
 fn test_depyler_0349_error_kind_type_inference() {
-    let err = TranspileError::new(ErrorKind::TypeInferenceError("cannot infer type for variable 'x'".to_string()));
+    let err = TranspileError::new(ErrorKind::TypeInferenceError(
+        "cannot infer type for variable 'x'".to_string(),
+    ));
     let display = format!("{}", err);
     assert!(display.contains("Type inference error"));
 }
 
 #[test]
 fn test_depyler_0349_error_kind_invalid_type_annotation() {
-    let err = TranspileError::new(ErrorKind::InvalidTypeAnnotation("List[int, str]".to_string()));
+    let err = TranspileError::new(ErrorKind::InvalidTypeAnnotation(
+        "List[int, str]".to_string(),
+    ));
     let display = format!("{}", err);
     assert!(display.contains("Invalid type annotation"));
 }
@@ -103,21 +107,27 @@ fn test_depyler_0349_error_kind_type_mismatch() {
 
 #[test]
 fn test_depyler_0349_error_kind_code_generation() {
-    let err = TranspileError::new(ErrorKind::CodeGenerationError("failed to generate function body".to_string()));
+    let err = TranspileError::new(ErrorKind::CodeGenerationError(
+        "failed to generate function body".to_string(),
+    ));
     let display = format!("{}", err);
     assert!(display.contains("Code generation error"));
 }
 
 #[test]
 fn test_depyler_0349_error_kind_verification() {
-    let err = TranspileError::new(ErrorKind::VerificationError("generated code does not compile".to_string()));
+    let err = TranspileError::new(ErrorKind::VerificationError(
+        "generated code does not compile".to_string(),
+    ));
     let display = format!("{}", err);
     assert!(display.contains("Verification failed"));
 }
 
 #[test]
 fn test_depyler_0349_error_kind_internal() {
-    let err = TranspileError::new(ErrorKind::InternalError("unexpected compiler state".to_string()));
+    let err = TranspileError::new(ErrorKind::InternalError(
+        "unexpected compiler state".to_string(),
+    ));
     let display = format!("{}", err);
     assert!(display.contains("Internal error"));
 }
@@ -192,7 +202,9 @@ fn test_depyler_0349_result_ext_err() {
 
 #[test]
 fn test_depyler_0349_result_ext_chain_context() {
-    let result: Result<String, TranspileError> = Err(TranspileError::new(ErrorKind::TypeInferenceError("unknown".to_string())));
+    let result: Result<String, TranspileError> = Err(TranspileError::new(
+        ErrorKind::TypeInferenceError("unknown".to_string()),
+    ));
 
     let with_ctx = result
         .with_context("in function 'foo'")

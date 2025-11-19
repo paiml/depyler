@@ -221,7 +221,7 @@ impl TypeInferencer {
             HirExpr::Var(name) => Ok(self.infer_variable(name)),
             HirExpr::Binary { op, left, right } => self.infer_binary(op, left, right),
             HirExpr::Unary { op, operand } => self.infer_unary(op, operand),
-            HirExpr::Call { func, args , ..} => self.infer_call(func, args),
+            HirExpr::Call { func, args, .. } => self.infer_call(func, args),
             HirExpr::Index { base, index } => self.infer_index(base, index),
             HirExpr::List(elts) => self.infer_list(elts),
             HirExpr::Dict(items) => self.infer_dict(items),

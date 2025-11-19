@@ -56,10 +56,7 @@ pub fn extract_dependencies(ctx: &CodeGenContext) -> Vec<Dependency> {
     // External crate mappings
     if ctx.needs_serde_json {
         deps.push(Dependency::new("serde_json", "1.0"));
-        deps.push(
-            Dependency::new("serde", "1.0")
-                .with_features(vec!["derive".to_string()]),
-        );
+        deps.push(Dependency::new("serde", "1.0").with_features(vec!["derive".to_string()]));
     }
 
     if ctx.needs_regex {
@@ -128,10 +125,7 @@ pub fn extract_dependencies(ctx: &CodeGenContext) -> Vec<Dependency> {
 
     // DEPYLER-0384: Check if ArgumentParser was used (needs clap)
     if ctx.needs_clap {
-        deps.push(
-            Dependency::new("clap", "4.5")
-                .with_features(vec!["derive".to_string()]),
-        );
+        deps.push(Dependency::new("clap", "4.5").with_features(vec!["derive".to_string()]));
     }
 
     deps
@@ -185,8 +179,7 @@ mod tests {
 
     #[test]
     fn test_dependency_to_toml_with_features() {
-        let dep = Dependency::new("clap", "4.5")
-            .with_features(vec!["derive".to_string()]);
+        let dep = Dependency::new("clap", "4.5").with_features(vec!["derive".to_string()]);
         assert_eq!(
             dep.to_toml_line(),
             "clap = { version = \"4.5\", features = [\"derive\"] }"
@@ -208,8 +201,7 @@ mod tests {
     fn test_generate_cargo_toml_with_deps() {
         let deps = vec![
             Dependency::new("serde_json", "1.0"),
-            Dependency::new("clap", "4.5")
-                .with_features(vec!["derive".to_string()]),
+            Dependency::new("clap", "4.5").with_features(vec!["derive".to_string()]),
         ];
         let toml = generate_cargo_toml("test_pkg", "main.rs", &deps);
 
@@ -264,7 +256,10 @@ mod tests {
 
         // Property: Package name appears exactly twice (once in [package], once in [[bin]])
         let count = toml.matches("name = \"my_app\"").count();
-        assert_eq!(count, 2, "Package name must appear in [package] and [[bin]] sections");
+        assert_eq!(
+            count, 2,
+            "Package name must appear in [package] and [[bin]] sections"
+        );
 
         // Property: Required sections exist
         assert!(toml.contains("[package]"), "Must have [package] section");
@@ -308,7 +303,10 @@ mod tests {
         let type_mapper: &'static TypeMapper = Box::leak(Box::new(TypeMapper::default()));
         let mut ctx = CodeGenContext {
             type_mapper,
-            annotation_aware_mapper: crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(type_mapper.clone()),
+            annotation_aware_mapper:
+                crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(
+                    type_mapper.clone(),
+                ),
             string_optimizer: crate::string_optimization::StringOptimizer::new(),
             union_enum_generator: crate::union_enum_gen::UnionEnumGenerator::new(),
             generated_enums: Vec::new(),
@@ -363,13 +361,20 @@ mod tests {
             current_error_type: None,
             exception_scopes: Vec::new(),
             argparser_tracker: crate::rust_gen::ArgParserTracker::new(),
+            generated_args_struct: None,
+            generated_commands_enum: None,
+            current_subcommand_fields: None,
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
         let deps1 = extract_dependencies(&ctx);
         let deps2 = extract_dependencies(&ctx);
 
-        assert_eq!(deps1.len(), deps2.len(), "Must return same number of dependencies");
+        assert_eq!(
+            deps1.len(),
+            deps2.len(),
+            "Must return same number of dependencies"
+        );
         for (d1, d2) in deps1.iter().zip(deps2.iter()) {
             assert_eq!(d1.crate_name, d2.crate_name);
             assert_eq!(d1.version, d2.version);
@@ -387,7 +392,10 @@ mod tests {
         let type_mapper: &'static TypeMapper = Box::leak(Box::new(TypeMapper::default()));
         let mut ctx = CodeGenContext {
             type_mapper,
-            annotation_aware_mapper: crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(type_mapper.clone()),
+            annotation_aware_mapper:
+                crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(
+                    type_mapper.clone(),
+                ),
             string_optimizer: crate::string_optimization::StringOptimizer::new(),
             union_enum_generator: crate::union_enum_gen::UnionEnumGenerator::new(),
             generated_enums: Vec::new(),
@@ -442,6 +450,9 @@ mod tests {
             current_error_type: None,
             exception_scopes: Vec::new(),
             argparser_tracker: crate::rust_gen::ArgParserTracker::new(),
+            generated_args_struct: None,
+            generated_commands_enum: None,
+            current_subcommand_fields: None,
         };
 
         let deps = extract_dependencies(&ctx);
@@ -467,7 +478,10 @@ mod tests {
         let type_mapper: &'static TypeMapper = Box::leak(Box::new(TypeMapper::default()));
         let mut ctx = CodeGenContext {
             type_mapper,
-            annotation_aware_mapper: crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(type_mapper.clone()),
+            annotation_aware_mapper:
+                crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(
+                    type_mapper.clone(),
+                ),
             string_optimizer: crate::string_optimization::StringOptimizer::new(),
             union_enum_generator: crate::union_enum_gen::UnionEnumGenerator::new(),
             generated_enums: Vec::new(),
@@ -522,6 +536,9 @@ mod tests {
             current_error_type: None,
             exception_scopes: Vec::new(),
             argparser_tracker: crate::rust_gen::ArgParserTracker::new(),
+            generated_args_struct: None,
+            generated_commands_enum: None,
+            current_subcommand_fields: None,
         };
 
         let deps = extract_dependencies(&ctx);
@@ -535,7 +552,10 @@ mod tests {
 
         // Verify serde has derive feature
         let serde_dep = deps.iter().find(|d| d.crate_name == "serde").unwrap();
-        assert!(serde_dep.features.contains(&"derive".to_string()), "serde needs derive feature");
+        assert!(
+            serde_dep.features.contains(&"derive".to_string()),
+            "serde needs derive feature"
+        );
     }
 
     /// Integration Test: Verify clap has derive feature
@@ -548,7 +568,10 @@ mod tests {
         let type_mapper: &'static TypeMapper = Box::leak(Box::new(TypeMapper::default()));
         let mut ctx = CodeGenContext {
             type_mapper,
-            annotation_aware_mapper: crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(type_mapper.clone()),
+            annotation_aware_mapper:
+                crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(
+                    type_mapper.clone(),
+                ),
             string_optimizer: crate::string_optimization::StringOptimizer::new(),
             union_enum_generator: crate::union_enum_gen::UnionEnumGenerator::new(),
             generated_enums: Vec::new(),
@@ -603,6 +626,9 @@ mod tests {
             current_error_type: None,
             exception_scopes: Vec::new(),
             argparser_tracker: crate::rust_gen::ArgParserTracker::new(),
+            generated_args_struct: None,
+            generated_commands_enum: None,
+            current_subcommand_fields: None,
         };
 
         let deps = extract_dependencies(&ctx);

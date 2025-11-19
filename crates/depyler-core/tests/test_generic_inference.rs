@@ -17,8 +17,10 @@ def identity(x: T) -> T:
     assert!(rust_code.contains("-> T"));
     // DEPYLER-0271: Final statement uses implicit return (idiomatic Rust)
     // Function body should be just "x" not "return x;"
-    assert!(!rust_code.contains("return x"),
-        "Final return should use implicit return (idiomatic Rust), not explicit return keyword");
+    assert!(
+        !rust_code.contains("return x"),
+        "Final return should use implicit return (idiomatic Rust), not explicit return keyword"
+    );
 }
 
 #[test]

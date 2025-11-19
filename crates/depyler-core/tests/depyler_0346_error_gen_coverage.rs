@@ -166,11 +166,11 @@ def complex_operation(a: int, b: int, items: list) -> int:
     println!("Generated code with multiple error types:\n{}", rust_code);
 
     // Should handle multiple error types in same function
-    let has_error_handling = rust_code.contains("Error") ||
-                             rust_code.contains("Result") ||
-                             rust_code.contains("divide") ||
-                             rust_code.contains("negative") ||
-                             rust_code.contains("range");
+    let has_error_handling = rust_code.contains("Error")
+        || rust_code.contains("Result")
+        || rust_code.contains("divide")
+        || rust_code.contains("negative")
+        || rust_code.contains("range");
 
     assert!(
         has_error_handling,

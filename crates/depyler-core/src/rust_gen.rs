@@ -550,6 +550,7 @@ pub fn generate_rust_file(
         argparser_tracker: argparse_transform::ArgParserTracker::new(), // DEPYLER-0363: Track ArgumentParser patterns
         generated_args_struct: None, // DEPYLER-0424: Args struct (hoisted to module level)
         generated_commands_enum: None, // DEPYLER-0424: Commands enum (hoisted to module level)
+        current_subcommand_fields: None, // DEPYLER-0425: Subcommand field extraction
     };
 
     // Analyze all functions first for string optimization
@@ -723,6 +724,9 @@ mod tests {
             current_error_type: None, // DEPYLER-0310: Track error type for raise statement wrapping
             exception_scopes: Vec::new(), // DEPYLER-0333: Exception scope tracking stack
             argparser_tracker: argparse_transform::ArgParserTracker::new(), // DEPYLER-0363: Track ArgumentParser patterns
+            generated_args_struct: None,       // DEPYLER-0424: Args struct (hoisted to module level)
+            generated_commands_enum: None,     // DEPYLER-0424: Commands enum (hoisted to module level)
+            current_subcommand_fields: None,   // DEPYLER-0425: Subcommand field extraction
         }
     }
 
@@ -960,7 +964,7 @@ mod tests {
         );
     }
 
-    // TODO: With statement with target incomplete - requires full implementation
+    // NOTE: With statement with target incomplete - requires full implementation (tracked in DEPYLER-0424)
     // This test was written ahead of implementation (aspirational test)
     // Tracked in roadmap: Complete with statement target binding support
     #[test]
@@ -1175,7 +1179,7 @@ mod tests {
         );
     }
 
-    // TODO: Boolean casting incomplete - requires type cast implementation
+    // NOTE: Boolean casting incomplete - requires type cast implementation (tracked in DEPYLER-0424)
     // This test was written ahead of implementation (aspirational test)
     // Tracked in roadmap: Implement bool() builtin casting
     #[test]
