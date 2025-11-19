@@ -1,0 +1,261 @@
+[2m2025-11-19T04:56:53.058636Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/run_comprehensive_tests.sh
+Issues found in ./scripts/run_comprehensive_tests.sh:
+
+ℹ 79:22-100 79:22-100 [info] SC2005: Useless 'echo' in command substitution. Use '"$coverage_output" | grep -o '[0-9]*\.[0-9]*%' | head -1 | sed 's/%//'' directly instead of '$(echo "$coverage_output" | grep -o '[0-9]*\.[0-9]*%' | head -1 | sed 's/%//')'
+
+ℹ 81:11-69 81:11-69 [info] SC2005: Useless 'echo' in command substitution. Use '"$coverage_percent >= $COVERAGE_THRESHOLD" | bc -l' directly instead of '$(echo "$coverage_percent >= $COVERAGE_THRESHOLD" | bc -l)'
+
+ℹ 129:1-98 129:1-98 [info] SC2015: Note that 'A && B || C' is not if-then-else. C may run when A is true. Use 'if A; then B; else C; fi' for proper conditional logic
+
+⚠ 121:18-30 121:18-30 [warning] SC2031: Variable 'total_tests' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 122:13-26 122:13-26 [warning] SC2031: Variable 'passed_tests' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 123:13-26 123:13-26 [warning] SC2031: Variable 'failed_tests' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 129:20-33 129:20-33 [warning] SC2031: Variable 'passed_tests' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 129:40-52 129:40-52 [warning] SC2031: Variable 'total_tests' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 156:29-41 156:29-41 [warning] SC2031: Variable 'total_tests' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 157:21-34 157:21-34 [warning] SC2031: Variable 'passed_tests' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 158:21-34 158:21-34 [warning] SC2031: Variable 'failed_tests' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 161:7-20 161:7-20 [warning] SC2031: Variable 'failed_tests' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 166:24-37 166:24-37 [warning] SC2031: Variable 'failed_tests' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+ℹ 9:1-5 9:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 10:1-7 10:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 11:1-8 11:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 12:1-6 12:1-6 [info] SC2032: Variable 'BLUE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 13:1-4 13:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 16:1-20 16:1-20 [info] SC2032: Variable 'COVERAGE_THRESHOLD' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 17:1-15 17:1-15 [info] SC2032: Variable 'MAX_TEST_TIME' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 18:1-10 18:1-10 [info] SC2032: Variable 'TEMP_DIR' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 46:1-13 46:1-13 [info] SC2032: Variable 'total_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 47:1-14 47:1-14 [info] SC2032: Variable 'passed_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 48:1-14 48:1-14 [info] SC2032: Variable 'failed_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 62:5-17 62:5-17 [info] SC2032: Variable 'total_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 65:9-22 65:9-22 [info] SC2032: Variable 'passed_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 67:9-22 67:9-22 [info] SC2032: Variable 'failed_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 74:1-13 74:1-13 [info] SC2032: Variable 'total_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 78:5-21 78:5-21 [info] SC2032: Variable 'coverage_output' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 79:5-22 79:5-22 [info] SC2032: Variable 'coverage_percent' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 83:9-22 83:9-22 [info] SC2032: Variable 'passed_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 86:9-22 86:9-22 [info] SC2032: Variable 'failed_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 90:5-18 90:5-18 [info] SC2032: Variable 'failed_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 96:1-16 96:1-16 [info] SC2032: Variable 'quality_checks' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 104:5-17 104:5-17 [info] SC2032: Variable 'total_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 107:9-22 107:9-22 [info] SC2032: Variable 'passed_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 109:9-22 109:9-22 [info] SC2032: Variable 'failed_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 115:1-13 115:1-13 [info] SC2032: Variable 'report_file' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 103:13-18 103:13-18 [warning] SC2041: 'read' in for loop reads from stdin, not loop data. Use 'while read' instead (for loop started at line 102)
+
+⚠ 18:10-22 18:10-22 [warning] SC2046: Quote this to prevent word splitting: $(mktemp -d)
+  Fix: "$(mktemp -d)"
+
+⚠ 62:17-36 62:17-36 [warning] SC2046: Quote this to prevent word splitting: $((total_tests + 1)
+  Fix: "$((total_tests + 1)"
+
+⚠ 65:22-42 65:22-42 [warning] SC2046: Quote this to prevent word splitting: $((passed_tests + 1)
+  Fix: "$((passed_tests + 1)"
+
+⚠ 67:22-42 67:22-42 [warning] SC2046: Quote this to prevent word splitting: $((failed_tests + 1)
+  Fix: "$((failed_tests + 1)"
+
+⚠ 74:13-32 74:13-32 [warning] SC2046: Quote this to prevent word splitting: $((total_tests + 1)
+  Fix: "$((total_tests + 1)"
+
+⚠ 78:21-92 78:21-92 [warning] SC2046: Quote this to prevent word splitting: $(cargo llvm-cov --workspace --summary-only 2>/dev/null || echo "0.0%")
+  Fix: "$(cargo llvm-cov --workspace --summary-only 2>/dev/null || echo "0.0%")"
+
+⚠ 79:22-100 79:22-100 [warning] SC2046: Quote this to prevent word splitting: $(echo "$coverage_output" | grep -o '[0-9]*\.[0-9]*%' | head -1 | sed 's/%//')
+  Fix: "$(echo "$coverage_output" | grep -o '[0-9]*\.[0-9]*%' | head -1 | sed 's/%//')"
+
+⚠ 81:11-69 81:11-69 [warning] SC2046: Quote this to prevent word splitting: $(echo "$coverage_percent >= $COVERAGE_THRESHOLD" | bc -l)
+  Fix: "$(echo "$coverage_percent >= $COVERAGE_THRESHOLD" | bc -l)"
+
+⚠ 83:22-42 83:22-42 [warning] SC2046: Quote this to prevent word splitting: $((passed_tests + 1)
+  Fix: "$((passed_tests + 1)"
+
+⚠ 86:22-42 86:22-42 [warning] SC2046: Quote this to prevent word splitting: $((failed_tests + 1)
+  Fix: "$((failed_tests + 1)"
+
+⚠ 90:18-38 90:18-38 [warning] SC2046: Quote this to prevent word splitting: $((failed_tests + 1)
+  Fix: "$((failed_tests + 1)"
+
+⚠ 104:17-36 104:17-36 [warning] SC2046: Quote this to prevent word splitting: $((total_tests + 1)
+  Fix: "$((total_tests + 1)"
+
+⚠ 107:22-42 107:22-42 [warning] SC2046: Quote this to prevent word splitting: $((passed_tests + 1)
+  Fix: "$((passed_tests + 1)"
+
+⚠ 109:22-42 109:22-42 [warning] SC2046: Quote this to prevent word splitting: $((failed_tests + 1)
+  Fix: "$((failed_tests + 1)"
+
+⚠ 120:16-23 120:16-23 [warning] SC2046: Quote this to prevent word splitting: $(date)
+  Fix: "$(date)"
+
+⚠ 124:19-57 124:19-57 [warning] SC2046: Quote this to prevent word splitting: $(( passed_tests * 100 / total_tests )
+  Fix: "$(( passed_tests * 100 / total_tests )"
+
+⚠ 129:15-98 129:15-98 [warning] SC2046: Quote this to prevent word splitting: $([ "$passed_tests" -eq "$total_tests" ] && echo "✅ PASSED" || echo "❌ FAILED")
+  Fix: "$([ "$passed_tests" -eq "$total_tests" ] && echo "✅ PASSED" || echo "❌ FAILED")"
+
+⚠ 146:3-61 146:3-61 [warning] SC2046: Quote this to prevent word splitting: $(find tests/fixtures/python_samples -name "*.py" | wc -l)
+  Fix: "$(find tests/fixtures/python_samples -name "*.py" | wc -l)"
+
+⚠ 147:3-60 147:3-60 [warning] SC2046: Quote this to prevent word splitting: $(find tests/fixtures/expected_rust -name "*.rs" | wc -l)
+  Fix: "$(find tests/fixtures/expected_rust -name "*.rs" | wc -l)"
+
+⚠ 148:3-37 148:3-37 [warning] SC2046: Quote this to prevent word splitting: $(find tests -name "*.rs" | wc -l)
+  Fix: "$(find tests -name "*.rs" | wc -l)"
+
+⚠ 159:21-59 159:21-59 [warning] SC2046: Quote this to prevent word splitting: $(( passed_tests * 100 / total_tests )
+  Fix: "$(( passed_tests * 100 / total_tests )"
+
+⚠ 24:26-42 24:26-42 [warning] SC2047: Quote ${MAX_TEST_TIME} to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 79:50-73 79:50-73 [warning] SC2062: Quote the grep pattern so the shell won't interpret it
+
+⚠ 19:1-23 19:1-23 [warning] SC2064: Use single quotes, otherwise this expands now rather than when signalled
+
+ℹ 81:13-41 81:13-41 [info] SC2065: This may be interpreted as a shell file redirection. Quote or escape if intentional
+
+⚠ 121:18-30 121:18-30 [warning] SC2086: Double quote to prevent globbing and word splitting on $total_tests
+  Fix: "$total_tests"
+
+⚠ 122:13-26 122:13-26 [warning] SC2086: Double quote to prevent globbing and word splitting on $passed_tests
+  Fix: "$passed_tests"
+
+⚠ 123:13-26 123:13-26 [warning] SC2086: Double quote to prevent globbing and word splitting on $failed_tests
+  Fix: "$failed_tests"
+
+⚠ 128:18-39 128:18-39 [warning] SC2086: Double quote to prevent globbing and word splitting on ${COVERAGE_THRESHOLD}
+  Fix: "${COVERAGE_THRESHOLD}"
+
+⚠ 143:23-44 143:23-44 [warning] SC2086: Double quote to prevent globbing and word splitting on ${COVERAGE_THRESHOLD}
+  Fix: "${COVERAGE_THRESHOLD}"
+
+⚠ 36:28-51 36:28-51 [warning] SC2087: Quote variables in sh -c / bash -c with single quotes or escape with \$
+
+ℹ 103:5-58 103:5-58 [info] SC2089: Quotes/backslashes will be treated literally. Use array or separate assignment
+
+ℹ 103:1-17 103:1-17 [info] SC2097: This assignment is only seen by 'read', not the current shell. Move to separate line or use 'export' if you want it to persist
+
+⚠ 39:1-9 39:1-9 [warning] SC2117: Unreachable code after 'return' on line 38
+
+⚠ 121:18-30 121:18-30 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${total_tests[@]}
+
+⚠ 122:13-26 122:13-26 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${passed_tests[@]}
+
+⚠ 123:13-26 123:13-26 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${failed_tests[@]}
+
+⚠ 129:20-33 129:20-33 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${passed_tests[@]}
+
+⚠ 129:40-52 129:40-52 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${total_tests[@]}
+
+⚠ 156:29-41 156:29-41 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${total_tests[@]}
+
+⚠ 157:21-34 157:21-34 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${passed_tests[@]}
+
+⚠ 158:21-34 158:21-34 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${failed_tests[@]}
+
+⚠ 161:7-20 161:7-20 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${failed_tests[@]}
+
+⚠ 166:24-37 166:24-37 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${failed_tests[@]}
+
+ℹ 78:78-84 78:78-84 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+ℹ 129:78-84 129:78-84 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+⚠ 106:31-42 106:31-42 [warning] SC2154: Variable 'check_name' is referenced but not assigned
+
+⚠ 106:45-59 106:45-59 [warning] SC2154: Variable 'check_command' is referenced but not assigned
+
+⚠ 129:17-55 129:17-55 [warning] SC2198: Arrays don't work as scalars in [ ]. Use [ -n "${passed_tests[0]}" ] for first element or [[ ]] with ${passed_tests[@]}
+
+⚠ 161:4-29 161:4-29 [warning] SC2198: Arrays don't work as scalars in [ ]. Use [ -n "${failed_tests[0]}" ] for first element or [[ ]] with ${failed_tests[@]}
+
+ℹ 78:1-92 78:1-92 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 62:1-37 62:1-37 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 65:1-43 65:1-43 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 67:1-43 67:1-43 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 74:1-33 74:1-33 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 83:1-43 83:1-43 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 86:1-43 86:1-43 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 90:1-39 90:1-39 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 104:1-37 104:1-37 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 107:1-43 107:1-43 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 109:1-43 109:1-43 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 124:1-59 124:1-59 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 159:1-62 159:1-62 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 135:1-41 135:1-41 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 149:1-20 149:1-20 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 64:1-96 64:1-96 [info] SC2290: Remove $ from index variables in array subscripts: ${array[i]} not ${array[$i]}
+
+ℹ 64:1-96 64:1-96 [info] SC2310: Function 'run_test_with_timeout' is called in a condition. set -e will not apply to commands inside it.
+
+ℹ 76:1-121 76:1-121 [info] SC2310: Function 'run_test_with_timeout' is called in a condition. set -e will not apply to commands inside it.
+
+ℹ 106:1-69 106:1-69 [info] SC2310: Function 'run_test_with_timeout' is called in a condition. set -e will not apply to commands inside it.
+
+⚠ 39:1-9 39:1-9 [warning] SC2317: Command appears to be unreachable (code after exit/return on line 38)
+
+✗ 120:16-22 120:16-22 [error] DET002: Non-deterministic timestamp usage - requires manual fix (UNSAFE)
+  Fix: 
+
+Summary: 1 error(s), 57 warning(s), 52 info(s)

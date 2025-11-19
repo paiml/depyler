@@ -1,0 +1,51 @@
+[2m2025-11-19T04:56:52.771691Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/profile_transpiler.sh
+Issues found in ./scripts/profile_transpiler.sh:
+
+ℹ 8:1-5 8:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 9:1-7 9:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 10:1-8 10:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 11:1-4 11:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 36:1-13 36:1-13 [info] SC2032: Variable 'PYTHON_FILE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 37:1-6 37:1-6 [info] SC2032: Variable 'MODE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 61:9-21 61:9-21 [info] SC2032: Variable 'OUTPUT_FILE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 61:32-62 61:32-62 [warning] SC2046: Quote this to prevent word splitting: $(basename "$PYTHON_FILE" .py)
+  Fix: "$(basename "$PYTHON_FILE" .py)"
+
+ℹ 61:9-73 61:9-73 [info] SC2089: Quotes/backslashes will be treated literally. Use array or separate assignment
+
+ℹ 14:1-38 14:1-38 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 55:9-52 55:9-52 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 70:9-45 70:9-45 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 80:44-50 80:44-50 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+⚠ 64:28-90 64:28-90 [warning] SC2176: 'time' with pipelines is undefined. Use 'time { cmd1 | cmd2; }'
+
+⚠ 79:28-99 79:28-99 [warning] SC2176: 'time' with pipelines is undefined. Use 'time { cmd1 | cmd2; }'
+
+⚠ 85:28-90 85:28-90 [warning] SC2176: 'time' with pipelines is undefined. Use 'time { cmd1 | cmd2; }'
+
+ℹ 22:1-76 22:1-76 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 64:1-92 64:1-92 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 71:1-56 71:1-56 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 73:1-52 73:1-52 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 79:1-101 79:1-101 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 85:1-92 85:1-92 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 22:1-76 22:1-76 [info] SC2320: Positional parameter expands as single word. Quote to prevent word splitting: "$1"
+
+Summary: 0 error(s), 4 warning(s), 19 info(s)

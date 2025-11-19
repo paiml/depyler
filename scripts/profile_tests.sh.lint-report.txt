@@ -1,0 +1,36 @@
+[2m2025-11-19T04:56:52.555602Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/profile_tests.sh
+Issues found in ./scripts/profile_tests.sh:
+
+ℹ 8:1-7 8:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 9:1-8 9:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 10:1-5 10:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 11:1-4 11:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 20:1-11 20:1-11 [info] SC2032: Variable 'TEST_NAME' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 21:1-6 21:1-6 [info] SC2032: Variable 'MODE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 45:61-66 45:61-66 [warning] SC2047: Quote ${NC} to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 29:13-28 29:13-28 [warning] SC2062: Quote the grep pattern so the shell won't interpret it
+
+⚠ 34:13-28 34:13-28 [warning] SC2062: Quote the grep pattern so the shell won't interpret it
+
+ℹ 14:1-38 14:1-38 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+⚠ 28:28-66 28:28-66 [warning] SC2176: 'time' with pipelines is undefined. Use 'time { cmd1 | cmd2; }'
+
+⚠ 33:28-65 33:28-65 [warning] SC2176: 'time' with pipelines is undefined. Use 'time { cmd1 | cmd2; }'
+
+⚠ 30:1-44 30:1-44 [warning] SC2204: (..) is a subshell. Use [ ] or [[ ]] for test
+
+⚠ 35:1-44 35:1-44 [warning] SC2204: (..) is a subshell. Use [ ] or [[ ]] for test
+
+ℹ 28:1-68 28:1-68 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 33:1-67 33:1-67 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+Summary: 0 error(s), 7 warning(s), 9 info(s)

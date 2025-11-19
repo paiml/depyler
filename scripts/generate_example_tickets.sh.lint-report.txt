@@ -1,0 +1,251 @@
+[2m2025-11-19T04:56:52.947390Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/generate_example_tickets.sh
+Issues found in ./scripts/generate_example_tickets.sh:
+
+ℹ 34:48-79 34:48-79 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $(--all-targets -- -D warnings\)
+
+ℹ 35:47-64 35:47-64 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $(--all-features\)
+
+ℹ 36:52-76 36:52-76 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $(--fail-under-lines 80\)
+
+ℹ 37:49-66 37:49-66 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $(--min-grade A-\)
+
+ℹ 38:54-76 38:54-76 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $(--max-cyclomatic 10\)
+
+ℹ 39:41-63 39:41-63 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $(--fail-on-violation\)
+
+ℹ 51:71-83 51:71-83 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $($basename\)
+
+ℹ 52:28-39 52:28-39 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $($relpath\)
+
+ℹ 67:71-83 67:71-83 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $($basename\)
+
+ℹ 68:28-39 68:28-39 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $($relpath\)
+
+ℹ 88:67-79 88:67-79 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $($basename\)
+
+ℹ 89:24-35 89:24-35 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $($relpath\)
+
+ℹ 101:8-11 101:8-11 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $(\)
+
+ℹ 110:8-11 110:8-11 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $(\)
+
+ℹ 15:1-14 15:1-14 [info] SC2032: Variable 'PROJECT_ROOT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 16:1-14 16:1-14 [info] SC2032: Variable 'EXAMPLES_DIR' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 19:1-14 19:1-14 [info] SC2032: Variable 'TICKET_START' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 24:1-11 24:1-11 [info] SC2032: Variable 'TICKET_ID' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 49:9-18 49:9-18 [info] SC2032: Variable 'basename' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 50:9-17 50:9-17 [info] SC2032: Variable 'relpath' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 65:9-18 65:9-18 [info] SC2032: Variable 'basename' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 66:9-17 66:9-17 [info] SC2032: Variable 'relpath' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 86:5-14 86:5-14 [info] SC2032: Variable 'basename' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 87:5-13 87:5-13 [info] SC2032: Variable 'relpath' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 34:76-79 34:76-79 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 35:61-64 35:61-64 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 36:71-74 36:71-74 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 37:63-66 37:63-66 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 38:71-74 38:71-74 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 39:60-63 39:60-63 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 51:82-84 51:82-84 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 52:38-40 52:38-40 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 67:82-84 67:82-84 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 68:38-40 68:38-40 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 88:78-80 88:78-80 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 89:34-36 89:34-36 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 101:12-18 101:12-18 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 110:12-14 110:12-14 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 28:29-51 28:29-51 [warning] SC2046: Quote this to prevent word splitting: $(date -u +"%Y-%m-%d")
+  Fix: "$(date -u +"%Y-%m-%d")"
+
+⚠ 34:48-79 34:48-79 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$(--all-targets -- -D warnings\)"
+
+⚠ 35:47-64 35:47-64 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$(--all-features\)"
+
+⚠ 36:52-76 36:52-76 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$(--fail-under-lines 80\)"
+
+⚠ 37:49-66 37:49-66 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$(--min-grade A-\)"
+
+⚠ 38:54-76 38:54-76 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$(--max-cyclomatic 10\)"
+
+⚠ 39:41-63 39:41-63 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$(--fail-on-violation\)"
+
+⚠ 49:18-40 49:18-40 [warning] SC2046: Quote this to prevent word splitting: $(basename "$example")
+  Fix: "$(basename "$example")"
+
+⚠ 51:30-57 51:30-57 [warning] SC2046: Quote this to prevent word splitting: $(printf "%04d" $TICKET_ID)
+  Fix: "$(printf "%04d" $TICKET_ID)"
+
+⚠ 51:71-83 51:71-83 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$($basename\)"
+
+⚠ 52:28-39 52:28-39 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$($relpath\)"
+
+⚠ 65:18-40 65:18-40 [warning] SC2046: Quote this to prevent word splitting: $(basename "$example")
+  Fix: "$(basename "$example")"
+
+⚠ 67:30-57 67:30-57 [warning] SC2046: Quote this to prevent word splitting: $(printf "%04d" $TICKET_ID)
+  Fix: "$(printf "%04d" $TICKET_ID)"
+
+⚠ 67:71-83 67:71-83 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$($basename\)"
+
+⚠ 68:28-39 68:28-39 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$($relpath\)"
+
+⚠ 86:14-36 86:14-36 [warning] SC2046: Quote this to prevent word splitting: $(basename "$example")
+  Fix: "$(basename "$example")"
+
+⚠ 88:26-53 88:26-53 [warning] SC2046: Quote this to prevent word splitting: $(printf "%04d" $TICKET_ID)
+  Fix: "$(printf "%04d" $TICKET_ID)"
+
+⚠ 88:67-79 88:67-79 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$($basename\)"
+
+⚠ 89:24-35 89:24-35 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$($relpath\)"
+
+⚠ 101:8-11 101:8-11 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$(\)"
+
+⚠ 110:8-11 110:8-11 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$(\)"
+
+⚠ 48:11-19 48:11-19 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 64:11-19 64:11-19 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 64:49-57 64:49-57 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 64:79-87 64:79-87 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 81:11-19 81:11-19 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 82:11-19 82:11-19 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 83:11-19 83:11-19 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 83:41-49 83:41-49 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 24:11-24 24:11-24 [warning] SC2086: Double quote to prevent globbing and word splitting on $TICKET_START
+  Fix: "$TICKET_START"
+
+⚠ 48:11-19 48:11-19 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 64:11-19 64:11-19 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 64:49-57 64:49-57 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 64:79-87 64:79-87 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 81:11-19 81:11-19 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 82:11-19 82:11-19 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 83:11-19 83:11-19 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 83:41-49 83:41-49 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+ℹ 15:1-64 15:1-64 [info] SC2089: Quotes/backslashes will be treated literally. Use array or separate assignment
+
+ℹ 34:48-79 34:48-79 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 35:47-64 35:47-64 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 36:52-76 36:52-76 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 37:49-66 37:49-66 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 38:54-76 38:54-76 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 39:41-63 39:41-63 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 51:71-83 51:71-83 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 52:28-39 52:28-39 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 67:71-83 67:71-83 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 68:28-39 68:28-39 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 88:67-79 88:67-79 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 89:24-35 89:24-35 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 101:8-11 101:8-11 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 110:8-11 110:8-11 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+⚠ 15:32-44 15:32-44 [warning] SC2154: Variable 'BASH_SOURCE' is referenced but not assigned
+
+⚠ 47:17-26 47:17-26 [warning] SC2154: Variable 'EXAMPLES' is referenced but not assigned
+
+⚠ 63:17-26 63:17-26 [warning] SC2154: Variable 'EXAMPLES' is referenced but not assigned
+
+⚠ 79:17-26 79:17-26 [warning] SC2154: Variable 'EXAMPLES' is referenced but not assigned
+
+ℹ 24:1-24 24:1-24 [info] SC2300: Consider using ${VAR:?} to ensure required environment variables are set
+
+✗ 28:29-35 28:29-35 [error] DET002: Non-deterministic timestamp usage - requires manual fix (UNSAFE)
+  Fix: 
+
+Summary: 1 error(s), 56 warning(s), 40 info(s)

@@ -1,0 +1,56 @@
+[2m2025-11-19T04:56:53.095668Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/publish-crates.sh
+Issues found in ./scripts/publish-crates.sh:
+
+ℹ 7:1-7 7:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 8:1-5 8:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 9:1-8 9:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 10:1-6 10:1-6 [info] SC2032: Variable 'BLUE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 11:1-4 11:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 27:18-20 27:18-20 [warning] SC2047: Quote $i to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 41:10-32 41:10-32 [warning] SC2047: Quote ${CARGO_REGISTRY_TOKEN to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 19:15-21 19:15-21 [warning] SC2086: Double quote to prevent globbing and word splitting on $crate
+  Fix: "$crate"
+
+⚠ 27:18-20 27:18-20 [warning] SC2086: Double quote to prevent globbing and word splitting on $i
+  Fix: "$i"
+
+ℹ 27:16-28 27:16-28 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+⚠ 41:10-31 41:10-31 [warning] SC2154: Variable 'CARGO_REGISTRY_TOKEN' is referenced but not assigned
+
+⚠ 19:1-21 19:1-21 [warning] SC2161: Use 'cd ... || exit' or check for errors
+
+⚠ 36:1-13 36:1-13 [warning] SC2161: Use 'cd ... || exit' or check for errors
+
+⚠ 19:5-21 19:5-21 [warning] SC2164: Use 'cd ... || exit' in case cd fails
+  Fix: cd crates/$crate || exit
+
+⚠ 36:5-13 36:5-13 [warning] SC2164: Use 'cd ... || exit' in case cd fails
+  Fix: cd ../.. || exit
+
+ℹ 18:1-51 18:1-51 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 58:1-64 58:1-64 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 61:1-63 61:1-63 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 64:1-50 64:1-50 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 72:1-50 72:1-50 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 27:1-34 27:1-34 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+ℹ 41:1-44 41:1-44 [info] SC2282: Use ${var:?} to fail if variable is unset, rather than defaulting to empty
+
+⚠ 27:1-34 27:1-34 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+ℹ 17:1-19 17:1-19 [info] SC2320: Positional parameter expands as single word. Quote to prevent word splitting: "$1"
+
+Summary: 0 error(s), 10 warning(s), 14 info(s)
