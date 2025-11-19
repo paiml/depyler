@@ -278,6 +278,13 @@ impl TypeHintProvider {
             } => self.analyze_if_stmt(condition, then_body, else_body),
             HirStmt::While { condition, body } => self.analyze_while_stmt(condition, body),
             HirStmt::For { target, iter, body } => self.analyze_for_stmt(target, iter, body),
+            // DEPYLER-0436: Analyze Try blocks to infer types from exception handlers
+            HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => self.analyze_try_stmt(body, handlers, finalbody),
             HirStmt::Expr(expr) => self.analyze_expr(expr),
             _ => Ok(()),
         }
@@ -313,6 +320,28 @@ impl TypeHintProvider {
             self.analyze_for_loop(target_name, iter)?;
         }
         self.analyze_body(body)
+    }
+
+    fn analyze_try_stmt(
+        &mut self,
+        body: &[HirStmt],
+        handlers: &[crate::hir::ExceptHandler],
+        finalbody: &Option<Vec<HirStmt>>,
+    ) -> Result<()> {
+        // Analyze the try body
+        self.analyze_body(body)?;
+
+        // Analyze each exception handler body
+        for handler in handlers {
+            self.analyze_body(&handler.body)?;
+        }
+
+        // Analyze the finally body if present
+        if let Some(final_stmts) = finalbody {
+            self.analyze_body(final_stmts)?;
+        }
+
+        Ok(())
     }
 
     fn analyze_expr(&mut self, expr: &HirExpr) -> Result<()> {
@@ -472,8 +501,20 @@ impl TypeHintProvider {
 
     fn analyze_conversion_call(&mut self, func: &str, args: &[HirExpr]) {
         if let Some(HirExpr::Var(var)) = args.first() {
-            let target_type = self.conversion_target_type(func);
-            self.add_argument_constraint(var, func, target_type);
+            // DEPYLER-0436: int(value) means value is a string being parsed
+            // This is the argparse validator pattern: def validator(value): int(value)
+            if func == "int" {
+                // Add evidence that this variable is a String (will map to &str)
+                self.context.constraints.push(TypeConstraint::Compatible {
+                    var: var.to_string(),
+                    ty: Type::String,
+                });
+                // Also record string-like usage pattern for stronger evidence
+                self.record_usage_pattern(var, UsagePattern::StringLike);
+            } else {
+                let target_type = self.conversion_target_type(func);
+                self.add_argument_constraint(var, func, target_type);
+            }
         }
     }
 
