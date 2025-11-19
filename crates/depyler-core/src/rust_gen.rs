@@ -533,6 +533,7 @@ pub fn generate_rust_file(
         needs_zerodivisionerror: false,
         needs_indexerror: false,
         needs_valueerror: false,
+        needs_argumenttypeerror: false,
         in_generator: false,
         is_classmethod: false,
         generator_state_vars: HashSet::new(),

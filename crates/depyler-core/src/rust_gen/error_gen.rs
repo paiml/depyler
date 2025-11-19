@@ -97,6 +97,29 @@ pub fn generate_error_type_definitions(ctx: &CodeGenContext) -> Vec<proc_macro2:
         });
     }
 
+    if ctx.needs_argumenttypeerror {
+        definitions.push(quote! {
+            #[derive(Debug, Clone)]
+            pub struct ArgumentTypeError {
+                message: String,
+            }
+
+            impl std::fmt::Display for ArgumentTypeError {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "argument type error: {}", self.message)
+                }
+            }
+
+            impl std::error::Error for ArgumentTypeError {}
+
+            impl ArgumentTypeError {
+                pub fn new(message: impl Into<String>) -> Self {
+                    Self { message: message.into() }
+                }
+            }
+        });
+    }
+
     definitions
 }
 
