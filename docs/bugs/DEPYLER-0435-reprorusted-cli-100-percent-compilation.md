@@ -33,9 +33,9 @@
 
 ## Sub-Tickets (10 Total)
 
-**Completed**: 1/10 (DEPYLER-0428 ✅)
-**In Progress**: 0/10
-**Not Started**: 9/10 (DEPYLER-0436, DEPYLER-0437, DEPYLER-0438, DEPYLER-0429, DEPYLER-0430, DEPYLER-0431, DEPYLER-0432, DEPYLER-0433, DEPYLER-0434)
+**Completed**: 3/10 (DEPYLER-0428 ✅, DEPYLER-0436 ✅, DEPYLER-0437 ✅)
+**In Progress**: 1/10 (DEPYLER-0438)
+**Not Started**: 6/10 (DEPYLER-0429, DEPYLER-0430, DEPYLER-0431, DEPYLER-0432, DEPYLER-0433, DEPYLER-0434)
 
 ### HIGH Priority (5-7 hours) - Target: 6-7/13 (46-54%)
 
@@ -53,12 +53,12 @@
 - **Files**: `crates/depyler-core/src/ast_bridge/properties.rs` (lines 200-252, 329)
 - **Remaining Issues**: See DEPYLER-0436, DEPYLER-0437, DEPYLER-0438 below
 
-#### DEPYLER-0436: argparse Type Validators - Parameter Type Inference
-- **Status**: NEW - Blocking complex_cli
+#### DEPYLER-0436: argparse Type Validators - Parameter Type Inference ✅ COMPLETE
+- **Status**: ✅ COMPLETE (commit a50cce9)
 - **Priority**: P0 (CRITICAL - STOP THE LINE)
-- **Effort**: 2-3 hours
-- **Blocks**: complex_cli (5 errors)
-- **Impact**: Fix argparse custom type validators
+- **Effort**: 2 hours (actual)
+- **Blocks**: ~~complex_cli (5 errors)~~ - FIXED
+- **Impact**: Fix argparse custom type validators ✅
 - **Parent**: DEPYLER-0428 (post-analysis)
 - **Root Cause**: Type inference fails for argparse validator parameters
 - **Problem**:
@@ -89,12 +89,12 @@
 - **Test**: Add to `depyler_0428_argument_type_error.rs`
 - **Next Step**: `pmat prompt show continue DEPYLER-0436`
 
-#### DEPYLER-0437: Try/Except Control Flow - Exception Handler Branching
-- **Status**: NEW - Blocking complex_cli
+#### DEPYLER-0437: Try/Except Control Flow - Exception Handler Branching ✅ COMPLETE
+- **Status**: ✅ COMPLETE (commit 82ec217)
 - **Priority**: P0 (CRITICAL - STOP THE LINE)
-- **Effort**: 3-4 hours
-- **Blocks**: complex_cli (unreachable code warnings)
-- **Impact**: Fix try/except ValueError patterns
+- **Effort**: 2 hours (actual)
+- **Blocks**: ~~complex_cli (unreachable code warnings)~~ - FIXED
+- **Impact**: Fix try/except ValueError patterns ✅
 - **Parent**: DEPYLER-0428 (post-analysis)
 - **Root Cause**: Exception handlers transpiled as sequential code
 - **Problem**:
@@ -141,10 +141,10 @@
 - **Next Step**: `pmat prompt show continue DEPYLER-0437`
 
 #### DEPYLER-0438: Custom Error Types - String as std::error::Error
-- **Status**: NEW - Blocking complex_cli
+- **Status**: IN PROGRESS - Blocking complex_cli
 - **Priority**: P1 (BLOCK RELEASE)
 - **Effort**: 1-2 hours
-- **Blocks**: complex_cli (3 E0277 errors)
+- **Blocks**: complex_cli (3 E0277 errors remaining)
 - **Impact**: Generate proper error types for exceptions
 - **Parent**: DEPYLER-0428 (post-analysis)
 - **Root Cause**: String doesn't implement std::error::Error trait
