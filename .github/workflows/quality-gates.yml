@@ -51,6 +51,13 @@ jobs:
           cargo doc --workspace --no-deps --all-features
           cargo test --doc --workspace
 
+      - name: Install bashrs
+        run: cargo install bashrs --locked || true
+
+      - name: Validate Makefiles with bashrs
+        run: make validate-makefiles
+        continue-on-error: false
+
   test-coverage-gate:
     name: Test Coverage Gate
     runs-on: ubuntu-latest
