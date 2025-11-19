@@ -115,7 +115,7 @@ impl ConstGenericInferencer {
                 right,
             } => self.detect_multiply_pattern(left, right),
             HirExpr::List(elements) => self.detect_literal_list_size(elements),
-            HirExpr::Call { func, args , ..} => self.detect_array_func_call(func, args),
+            HirExpr::Call { func, args, .. } => self.detect_array_func_call(func, args),
             _ => None,
         }
     }
@@ -174,7 +174,7 @@ impl ConstGenericInferencer {
         // DISABLED: This transformation was causing list[int] -> [i32; 5]
         // which breaks semantics (dynamic list becomes fixed array)
 
-        // TODO: Re-enable with proper opt-in mechanism:
+        // NOTE: Re-enable const generic inference with proper opt-in mechanism (tracked in DEPYLER-0424):
         // - Check for @depyler annotations like `# @depyler: use_arrays = true`
         // - Only transform when explicitly requested
         // - Never transform return types unless user uses array syntax
@@ -304,7 +304,8 @@ impl ConstGenericInferencer {
             HirExpr::MethodCall {
                 object,
                 method,
-                args, ..
+                args,
+                ..
             } => {
                 // Mutating list methods
                 if matches!(
@@ -415,7 +416,7 @@ impl ConstGenericInferencer {
         call_side: &HirExpr,
         size_side: &HirExpr,
     ) -> Option<usize> {
-        if let (HirExpr::Call { func, args , ..}, HirExpr::Literal(Literal::Int(size))) =
+        if let (HirExpr::Call { func, args, .. }, HirExpr::Literal(Literal::Int(size))) =
             (call_side, size_side)
         {
             if func == "len" && args.len() == 1 {
@@ -665,13 +666,16 @@ mod tests {
         let inferencer = ConstGenericInferencer::new();
 
         // Test zeros(10) pattern
-        let expr = HirExpr::Call { func: "zeros".to_string(), args: vec![HirExpr::Literal(Literal::Int(10))],
-         kwargs: vec![] };
+        let expr = HirExpr::Call {
+            func: "zeros".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(10))],
+            kwargs: vec![],
+        };
 
         assert_eq!(inferencer.detect_fixed_size_pattern(&expr), Some(10));
     }
 
-    // TODO: Const generic array inference incomplete - requires full implementation
+    // NOTE: Const generic array inference incomplete - requires full implementation (tracked in DEPYLER-0424)
     // This test was written ahead of implementation (aspirational test)
     // Tracked in roadmap: Complete const generic inference feature
     #[test]
@@ -716,8 +720,11 @@ mod tests {
         // Test len(arr) == 5
         let expr = HirExpr::Binary {
             op: BinOp::Eq,
-            left: Box::new(HirExpr::Call { func: "len".to_string(), args: vec![HirExpr::Var("arr".to_string())],
-             kwargs: vec![] }),
+            left: Box::new(HirExpr::Call {
+                func: "len".to_string(),
+                args: vec![HirExpr::Var("arr".to_string())],
+                kwargs: vec![],
+            }),
             right: Box::new(HirExpr::Literal(Literal::Int(5))),
         };
 

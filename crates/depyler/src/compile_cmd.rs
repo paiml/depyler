@@ -104,11 +104,10 @@ fn create_cargo_project(
     // DEPYLER-0384, DEPYLER-0392: Generate Cargo.toml with automatic dependencies and [[bin]] section
     let cargo_toml = depyler_core::cargo_toml_gen::generate_cargo_toml(
         project_name,
-        "src/main.rs",  // DEPYLER-0392: Path to binary source
-        dependencies
+        "src/main.rs", // DEPYLER-0392: Path to binary source
+        dependencies,
     );
-    fs::write(project_dir.join("Cargo.toml"), cargo_toml)
-        .context("Failed to write Cargo.toml")?;
+    fs::write(project_dir.join("Cargo.toml"), cargo_toml).context("Failed to write Cargo.toml")?;
 
     // Write main.rs
     fs::write(project_dir.join("src/main.rs"), rust_code).context("Failed to write main.rs")?;
@@ -228,11 +227,8 @@ mod tests {
 
     #[test]
     fn test_compile_nonexistent_file() {
-        let result = compile_python_to_binary(
-            Path::new("/nonexistent/file.py"),
-            None,
-            Some("release"),
-        );
+        let result =
+            compile_python_to_binary(Path::new("/nonexistent/file.py"), None, Some("release"));
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("not found"));
     }

@@ -385,7 +385,7 @@ impl LifetimeInference {
                 self.analyze_expr_for_param(param, base, usage, in_loop, false);
                 self.analyze_expr_for_param(param, index, usage, in_loop, false);
             }
-            HirExpr::Call { func: _, args , ..} => {
+            HirExpr::Call { func: _, args, .. } => {
                 // Check if parameter is passed to a function (potential move)
                 for arg in args {
                     if let HirExpr::Var(id) = arg {

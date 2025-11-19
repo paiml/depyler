@@ -123,6 +123,10 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-0424: Generated Commands enum for subcommands (emitted at module level)
     /// Stored here so it can be hoisted outside main() function
     pub generated_commands_enum: Option<proc_macro2::TokenStream>,
+    /// DEPYLER-0425: Current function's subcommand fields (for expression rewriting)
+    /// If current function accesses subcommand fields, this maps field names to variant name
+    /// Used by expr_gen to rewrite args.field → field (extracted via pattern matching)
+    pub current_subcommand_fields: Option<std::collections::HashSet<String>>,
 }
 
 impl<'a> CodeGenContext<'a> {

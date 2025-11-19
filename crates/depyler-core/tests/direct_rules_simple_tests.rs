@@ -208,7 +208,11 @@ mod tests {
                 // For loop
                 HirStmt::For {
                     target: AssignTarget::Symbol("i".to_string()),
-                    iter: HirExpr::Call { func: "range".to_string(), args: vec![HirExpr::Literal(Literal::Int(10))], kwargs: vec![] },
+                    iter: HirExpr::Call {
+                        func: "range".to_string(),
+                        args: vec![HirExpr::Literal(Literal::Int(10))],
+                        kwargs: vec![],
+                    },
                     body: vec![HirStmt::Expr(HirExpr::Var("i".to_string()))],
                 },
                 // While loop
@@ -330,7 +334,11 @@ mod tests {
                     },
                     type_annotation: None,
                 },
-                HirStmt::Return(Some(HirExpr::Call { func: "f".to_string(), args: vec![HirExpr::Literal(Literal::Int(5))], kwargs: vec![] })),
+                HirStmt::Return(Some(HirExpr::Call {
+                    func: "f".to_string(),
+                    args: vec![HirExpr::Literal(Literal::Int(5))],
+                    kwargs: vec![],
+                })),
             ],
             properties: FunctionProperties::default(),
             annotations: Default::default(),

@@ -526,11 +526,8 @@ pub fn compile_command(
         println!("🔨 Compiling {} to native binary...", input.display());
     }
 
-    let binary_path = compile_cmd::compile_python_to_binary(
-        &input,
-        output.as_deref(),
-        Some(&profile),
-    )?;
+    let binary_path =
+        compile_cmd::compile_python_to_binary(&input, output.as_deref(), Some(&profile))?;
 
     println!("✅ Binary created: {}", binary_path.display());
     Ok(())
@@ -588,9 +585,18 @@ pub fn transpile_command(
     if trace {
         eprintln!("\n=== TRANSPILATION TRACE ===");
         eprintln!("Phase 1: Pipeline Initialization");
-        eprintln!("  - Verification: {}", if verify { "enabled" } else { "disabled" });
-        eprintln!("  - Debug mode: {}", if debug { "enabled" } else { "disabled" });
-        eprintln!("  - Source map: {}", if source_map { "enabled" } else { "disabled" });
+        eprintln!(
+            "  - Verification: {}",
+            if verify { "enabled" } else { "disabled" }
+        );
+        eprintln!(
+            "  - Debug mode: {}",
+            if debug { "enabled" } else { "disabled" }
+        );
+        eprintln!(
+            "  - Source map: {}",
+            if source_map { "enabled" } else { "disabled" }
+        );
         eprintln!();
     }
     // Parse Python
@@ -708,7 +714,11 @@ pub fn transpile_command(
     if !dependencies.is_empty() {
         let mut cargo_toml_path = output_path.clone();
         cargo_toml_path.set_file_name("Cargo.toml");
-        println!("📦 Cargo.toml: {} ({} dependencies)", cargo_toml_path.display(), dependencies.len());
+        println!(
+            "📦 Cargo.toml: {} ({} dependencies)",
+            cargo_toml_path.display(),
+            dependencies.len()
+        );
     }
 
     println!("⏱️  Parse time: {:.2}ms", parse_time.as_millis());

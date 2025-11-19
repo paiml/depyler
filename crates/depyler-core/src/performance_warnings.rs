@@ -283,13 +283,16 @@ impl PerformanceAnalyzer {
             HirExpr::Binary { left, right, op } => {
                 self.analyze_binary_expr(left, right, op, func, line);
             }
-            HirExpr::Call { func: fname, args , ..} => {
+            HirExpr::Call {
+                func: fname, args, ..
+            } => {
                 self.analyze_function_call(fname, args, func, line);
             }
             HirExpr::MethodCall {
                 object,
                 method,
-                args, ..
+                args,
+                ..
             } => {
                 self.analyze_method_call(object, method, args, func, line);
             }
@@ -428,7 +431,10 @@ impl PerformanceAnalyzer {
 
     fn check_iteration_pattern(&mut self, iter: &HirExpr, func: &HirFunction, line: usize) {
         // Check for range(len(x)) antipattern
-        if let HirExpr::Call { func: fname, args , ..} = iter {
+        if let HirExpr::Call {
+            func: fname, args, ..
+        } = iter
+        {
             if fname == "range" && !args.is_empty() {
                 if let HirExpr::Call {
                     func: inner_func, ..
@@ -827,8 +833,11 @@ mod tests {
     fn test_string_concat_in_loop_detection() {
         let body = vec![HirStmt::For {
             target: AssignTarget::Symbol("i".to_string()),
-            iter: HirExpr::Call { func: "range".to_string(), args: vec![HirExpr::Literal(Literal::Int(10))],
-             kwargs: vec![] },
+            iter: HirExpr::Call {
+                func: "range".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(10))],
+                kwargs: vec![],
+            },
             body: vec![HirStmt::Assign {
                 target: AssignTarget::Symbol("s".to_string()),
                 value: HirExpr::Binary {
@@ -893,8 +902,11 @@ mod tests {
             iter: HirExpr::Var("items".to_string()),
             body: vec![HirStmt::Assign {
                 target: AssignTarget::Symbol("s".to_string()),
-                value: HirExpr::Call { func: "sorted".to_string(), args: vec![HirExpr::Var("data".to_string())],
-                 kwargs: vec![] },
+                value: HirExpr::Call {
+                    func: "sorted".to_string(),
+                    args: vec![HirExpr::Var("data".to_string())],
+                    kwargs: vec![],
+                },
                 type_annotation: None,
             }],
         }];

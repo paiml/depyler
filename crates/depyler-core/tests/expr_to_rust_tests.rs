@@ -175,26 +175,37 @@ mod call_tests {
 
     #[test]
     fn test_simple_call_no_args() {
-        let expr = HirExpr::Call { func: "foo".to_string(), args: vec![], kwargs: vec![] };
+        let expr = HirExpr::Call {
+            func: "foo".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
         assert!(matches!(expr, HirExpr::Call { .. }));
     }
 
     #[test]
     fn test_call_with_args() {
-        let expr = HirExpr::Call { func: "add".to_string(), args: vec![create_int_literal(1), create_int_literal(2)], kwargs: vec![] };
+        let expr = HirExpr::Call {
+            func: "add".to_string(),
+            args: vec![create_int_literal(1), create_int_literal(2)],
+            kwargs: vec![],
+        };
         assert!(matches!(expr, HirExpr::Call { .. }));
     }
 
     #[test]
     fn test_call_with_complex_args() {
-        let expr = HirExpr::Call { func: "process".to_string(), args: vec![
+        let expr = HirExpr::Call {
+            func: "process".to_string(),
+            args: vec![
                 create_var("x"),
                 HirExpr::Binary {
                     op: BinOp::Add,
                     left: Box::new(create_var("y")),
                     right: Box::new(create_int_literal(1)),
                 },
-            ], kwargs: vec![],
+            ],
+            kwargs: vec![],
         };
         assert!(matches!(expr, HirExpr::Call { .. }));
     }
@@ -314,13 +325,23 @@ mod method_call_tests {
 
     #[test]
     fn test_method_call_no_args() {
-        let expr = HirExpr::MethodCall { object: Box::new(create_var("obj")), method: "len".to_string(), args: vec![], kwargs: vec![] };
+        let expr = HirExpr::MethodCall {
+            object: Box::new(create_var("obj")),
+            method: "len".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
         assert!(matches!(expr, HirExpr::MethodCall { .. }));
     }
 
     #[test]
     fn test_method_call_with_args() {
-        let expr = HirExpr::MethodCall { object: Box::new(create_var("obj")), method: "add".to_string(), args: vec![create_int_literal(42)], kwargs: vec![] };
+        let expr = HirExpr::MethodCall {
+            object: Box::new(create_var("obj")),
+            method: "add".to_string(),
+            args: vec![create_int_literal(42)],
+            kwargs: vec![],
+        };
         assert!(matches!(expr, HirExpr::MethodCall { .. }));
     }
 }
@@ -489,7 +510,11 @@ mod async_tests {
     #[test]
     fn test_await_expression() {
         let expr = HirExpr::Await {
-            value: Box::new(HirExpr::Call { func: "async_func".to_string(), args: vec![], kwargs: vec![] }),
+            value: Box::new(HirExpr::Call {
+                func: "async_func".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
         };
         assert!(matches!(expr, HirExpr::Await { .. }));
     }

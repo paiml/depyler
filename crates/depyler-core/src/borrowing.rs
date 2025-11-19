@@ -153,7 +153,7 @@ impl BorrowingContext {
         match expr {
             HirExpr::Binary { op: _, left, right } => self.analyze_binary(left, right),
             HirExpr::Unary { op: _, operand } => self.analyze_expr(operand),
-            HirExpr::Call { func: _, args , ..} => self.analyze_call(args),
+            HirExpr::Call { func: _, args, .. } => self.analyze_call(args),
             HirExpr::List(elts) | HirExpr::Tuple(elts) => self.analyze_collection(elts),
             HirExpr::Dict(items) => self.analyze_dict(items),
             HirExpr::Index { base, index } => self.analyze_index(base, index),
@@ -365,7 +365,8 @@ mod tests {
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Call {
                 func: "len".to_string(),
-                args: vec![HirExpr::Var("x".to_string())], kwargs: vec![]
+                args: vec![HirExpr::Var("x".to_string())],
+                kwargs: vec![],
             }))],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
@@ -395,7 +396,8 @@ mod tests {
                 args: vec![
                     HirExpr::Var("x".to_string()),
                     HirExpr::Literal(Literal::Int(42)),
-                ], kwargs: vec![]
+                ],
+                kwargs: vec![],
             })],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
@@ -762,10 +764,8 @@ mod tests {
         // Call expression: func(a, b)
         let expr = HirExpr::Call {
             func: "func".to_string(),
-            args: vec![
-                HirExpr::Var("a".to_string()),
-                HirExpr::Var("b".to_string()),
-            ], kwargs: vec![]
+            args: vec![HirExpr::Var("a".to_string()), HirExpr::Var("b".to_string())],
+            kwargs: vec![],
         };
 
         ctx.analyze_expr(&expr);
@@ -920,7 +920,10 @@ mod tests {
     fn test_primitive_type_conversions() {
         let ctx = BorrowingContext::new();
 
-        assert_eq!(ctx.primitive_type_to_rust(&Type::Unknown), "serde_json::Value");
+        assert_eq!(
+            ctx.primitive_type_to_rust(&Type::Unknown),
+            "serde_json::Value"
+        );
         assert_eq!(ctx.primitive_type_to_rust(&Type::Int), "i32");
         assert_eq!(ctx.primitive_type_to_rust(&Type::Float), "f64");
         assert_eq!(ctx.primitive_type_to_rust(&Type::String), "String");
@@ -986,7 +989,10 @@ mod tests {
         };
         let result = ctx.type_to_rust_string(&array_type);
 
-        assert_eq!(result, "Array<f64>", "Array of float should map to Array<f64>");
+        assert_eq!(
+            result, "Array<f64>",
+            "Array of float should map to Array<f64>"
+        );
     }
 
     /// Unit Test: Tuple type conversion

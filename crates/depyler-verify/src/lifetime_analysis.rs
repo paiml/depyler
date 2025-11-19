@@ -214,7 +214,8 @@ impl LifetimeAnalyzer {
                 object,
                 method,
                 args,
-                .. } => self.analyze_method_call_expr(object, method, args, scope_depth),
+                ..
+            } => self.analyze_method_call_expr(object, method, args, scope_depth),
             HirExpr::Attribute { value, .. } => self.analyze_expr(value, scope_depth),
             _ => {}
         }
@@ -554,10 +555,14 @@ mod tests {
             body: vec![HirStmt::For {
                 target: AssignTarget::Symbol("item".to_string()),
                 iter: HirExpr::Var("items".to_string()),
-                body: vec![HirStmt::Expr(HirExpr::Call { func: "append".to_string(), args: vec![
+                body: vec![HirStmt::Expr(HirExpr::Call {
+                    func: "append".to_string(),
+                    args: vec![
                         HirExpr::Var("items".to_string()),
                         HirExpr::Literal(Literal::Int(42)),
-                    ], kwargs: vec![] })],
+                    ],
+                    kwargs: vec![],
+                })],
             }],
             properties: FunctionProperties::default(),
             annotations: Default::default(),

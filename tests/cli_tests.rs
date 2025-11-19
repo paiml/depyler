@@ -300,8 +300,14 @@ fn test_transpile_with_output_flag() {
     let output = dir.path().join("out.rs");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "transpile", input.to_str().unwrap(),
-               "--output", output.to_str().unwrap()])
+        .args([
+            "run",
+            "--",
+            "transpile",
+            input.to_str().unwrap(),
+            "--output",
+            output.to_str().unwrap(),
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -314,7 +320,13 @@ fn test_transpile_verify_flag() {
     let input = create_test_py(&dir, "test.py");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "transpile", input.to_str().unwrap(), "--verify"])
+        .args([
+            "run",
+            "--",
+            "transpile",
+            input.to_str().unwrap(),
+            "--verify",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -327,7 +339,13 @@ fn test_transpile_gen_tests_flag() {
     let input = create_test_py(&dir, "test.py");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "transpile", input.to_str().unwrap(), "--gen-tests"])
+        .args([
+            "run",
+            "--",
+            "transpile",
+            input.to_str().unwrap(),
+            "--gen-tests",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -353,7 +371,13 @@ fn test_transpile_source_map_flag() {
     let input = create_test_py(&dir, "test.py");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "transpile", input.to_str().unwrap(), "--source-map"])
+        .args([
+            "run",
+            "--",
+            "transpile",
+            input.to_str().unwrap(),
+            "--source-map",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -367,9 +391,18 @@ fn test_transpile_all_flags_combined() {
     let output = dir.path().join("out.rs");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "transpile", input.to_str().unwrap(),
-               "--output", output.to_str().unwrap(),
-               "--verify", "--gen-tests", "--debug", "--source-map"])
+        .args([
+            "run",
+            "--",
+            "transpile",
+            input.to_str().unwrap(),
+            "--output",
+            output.to_str().unwrap(),
+            "--verify",
+            "--gen-tests",
+            "--debug",
+            "--source-map",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -386,7 +419,13 @@ fn test_quality_check_enforce_flag() {
     let input = create_test_py(&dir, "test.py");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "quality-check", input.to_str().unwrap(), "--enforce"])
+        .args([
+            "run",
+            "--",
+            "quality-check",
+            input.to_str().unwrap(),
+            "--enforce",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -400,8 +439,14 @@ fn test_quality_check_min_tdg_flag() {
     let input = create_test_py(&dir, "test.py");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "quality-check", input.to_str().unwrap(),
-               "--min-tdg", "0.5"])
+        .args([
+            "run",
+            "--",
+            "quality-check",
+            input.to_str().unwrap(),
+            "--min-tdg",
+            "0.5",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -414,8 +459,14 @@ fn test_quality_check_max_tdg_flag() {
     let input = create_test_py(&dir, "test.py");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "quality-check", input.to_str().unwrap(),
-               "--max-tdg", "3.0"])
+        .args([
+            "run",
+            "--",
+            "quality-check",
+            input.to_str().unwrap(),
+            "--max-tdg",
+            "3.0",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -445,8 +496,14 @@ fn test_inspect_repr_python_ast() {
     let input = create_test_py(&dir, "test.py");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "inspect", input.to_str().unwrap(),
-               "--repr", "python-ast"])
+        .args([
+            "run",
+            "--",
+            "inspect",
+            input.to_str().unwrap(),
+            "--repr",
+            "python-ast",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -459,8 +516,14 @@ fn test_inspect_repr_typed_hir() {
     let input = create_test_py(&dir, "test.py");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "inspect", input.to_str().unwrap(),
-               "--repr", "typed-hir"])
+        .args([
+            "run",
+            "--",
+            "inspect",
+            input.to_str().unwrap(),
+            "--repr",
+            "typed-hir",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -473,8 +536,14 @@ fn test_inspect_format_json() {
     let input = create_test_py(&dir, "test.py");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "inspect", input.to_str().unwrap(),
-               "--format", "json"])
+        .args([
+            "run",
+            "--",
+            "inspect",
+            input.to_str().unwrap(),
+            "--format",
+            "json",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -487,8 +556,14 @@ fn test_inspect_format_debug() {
     let input = create_test_py(&dir, "test.py");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "inspect", input.to_str().unwrap(),
-               "--format", "debug"])
+        .args([
+            "run",
+            "--",
+            "inspect",
+            input.to_str().unwrap(),
+            "--format",
+            "debug",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -502,8 +577,14 @@ fn test_inspect_with_output_file() {
     let output = dir.path().join("inspect.txt");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "inspect", input.to_str().unwrap(),
-               "--output", output.to_str().unwrap()])
+        .args([
+            "run",
+            "--",
+            "inspect",
+            input.to_str().unwrap(),
+            "--output",
+            output.to_str().unwrap(),
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -531,9 +612,15 @@ fn test_debug_gen_script() {
     let script = dir.path().join("debug.gdb");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "debug",
-               "--gen-script", script.to_str().unwrap(),
-               "--source", input.to_str().unwrap()])
+        .args([
+            "run",
+            "--",
+            "debug",
+            "--gen-script",
+            script.to_str().unwrap(),
+            "--source",
+            input.to_str().unwrap(),
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -561,8 +648,14 @@ fn test_docs_basic() {
     let output = dir.path().join("docs");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "docs", input.to_str().unwrap(),
-               "--output", output.to_str().unwrap()])
+        .args([
+            "run",
+            "--",
+            "docs",
+            input.to_str().unwrap(),
+            "--output",
+            output.to_str().unwrap(),
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -576,9 +669,16 @@ fn test_docs_format_html() {
     let output = dir.path().join("docs");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "docs", input.to_str().unwrap(),
-               "--output", output.to_str().unwrap(),
-               "--format", "html"])
+        .args([
+            "run",
+            "--",
+            "docs",
+            input.to_str().unwrap(),
+            "--output",
+            output.to_str().unwrap(),
+            "--format",
+            "html",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -592,9 +692,15 @@ fn test_docs_performance_notes_flag() {
     let output = dir.path().join("docs");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "docs", input.to_str().unwrap(),
-               "--output", output.to_str().unwrap(),
-               "--performance-notes"])
+        .args([
+            "run",
+            "--",
+            "docs",
+            input.to_str().unwrap(),
+            "--output",
+            output.to_str().unwrap(),
+            "--performance-notes",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -624,7 +730,13 @@ fn test_profile_flamegraph_flag() {
     let input = create_test_py(&dir, "test.py");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "profile", input.to_str().unwrap(), "--flamegraph"])
+        .args([
+            "run",
+            "--",
+            "profile",
+            input.to_str().unwrap(),
+            "--flamegraph",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -637,8 +749,14 @@ fn test_profile_hot_path_threshold() {
     let input = create_test_py(&dir, "test.py");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "profile", input.to_str().unwrap(),
-               "--hot-path-threshold", "200"])
+        .args([
+            "run",
+            "--",
+            "profile",
+            input.to_str().unwrap(),
+            "--hot-path-threshold",
+            "200",
+        ])
         .output()
         .expect("Failed to execute");
 
@@ -679,7 +797,13 @@ fn test_global_verbose_flag() {
     let input = create_test_py(&dir, "test.py");
 
     let result = Command::new("cargo")
-        .args(["run", "--", "--verbose", "transpile", input.to_str().unwrap()])
+        .args([
+            "run",
+            "--",
+            "--verbose",
+            "transpile",
+            input.to_str().unwrap(),
+        ])
         .output()
         .expect("Failed to execute");
 
