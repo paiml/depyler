@@ -34,9 +34,9 @@
 ## Sub-Tickets (10 Total)
 
 **Completed**: 5/10 (DEPYLER-0428 ✅, DEPYLER-0436 ✅, DEPYLER-0437 ✅, DEPYLER-0438 ✅, DEPYLER-0430 ✅)
-**Partial**: 1/10 (DEPYLER-0429 ⚠️ Iteration 1 done, Iteration 2 deferred)
+**Partial**: 2/10 (DEPYLER-0429 ⚠️ Iteration 1 done, DEPYLER-0431 ⚠️ Core fixes done)
 **In Progress**: 0/10
-**Not Started**: 4/10 (DEPYLER-0431, DEPYLER-0432, DEPYLER-0433, DEPYLER-0434)
+**Not Started**: 3/10 (DEPYLER-0432, DEPYLER-0433, DEPYLER-0434)
 
 ### HIGH Priority (5-7 hours) - Target: 6-7/13 (46-54%)
 
@@ -210,20 +210,27 @@
 - **Known Limitations**: Type inference issues (return types, parameters) tracked separately
 - **Next**: Continue to DEPYLER-0431 (regex module, highest remaining errors)
 
-#### DEPYLER-0431: re (regex) Module Improvements
-- **Status**: Not started
-- **Effort**: 2-3 hours
-- **Blocks**: pattern_matcher (46 errors)
-- **Impact**: +1 example
-- **MANDATORY Pre-Work**: Debug with `--trace` and Renacer (see Debugging Workflow section)
-- **Missing Implementations**:
-  - `re.Match.group(n)` → extract capture group
-  - `re.Match.groups()` → all groups as tuple
-  - `re.finditer(pattern, text)` → iterator over matches
-  - Proper Option<Match> handling when no match
-  - `re.Match.span()`, `re.Match.start()`, `re.Match.end()`
-- **Files**: `crates/depyler-core/src/rust_gen/expr_gen.rs` (try_convert_re_method)
-- **Next Step**: `pmat prompt show continue DEPYLER-0431`
+#### DEPYLER-0431: re (regex) Module Improvements ⚠️ PARTIAL
+- **Status**: ⚠️ PARTIAL COMPLETE (Core fixes done, flow analysis deferred)
+- **Actual Effort**: ~3 hours (RED + GREEN phases)
+- **Blocks**: pattern_matcher (46 → ~41 errors, 11% reduction estimated)
+- **Impact**: LIMITED - Transpilation fixes working, compilation blocked by type inference
+- **Commits**: cc3be8f (RED), 0d1a6b1 (GREEN), 856f0a6 (DOC)
+- **Test Suite**: `crates/depyler-core/tests/depyler_0431_regex_improvements.rs` - 0/7 passing (type inference issues)
+- **What Works** ✅:
+  - `compiled.match()` → `compiled.find()` (7% of errors)
+  - `if match:` → `if match.is_some()` (60% of errors)
+  - Match object methods infrastructure (group, start, end, span, as_str)
+  - re.IGNORECASE flags (already working)
+- **What Remains** ❌:
+  - `match.groups()` - Requires .captures() API (2-3h)
+  - Option<Match> unwrapping - Requires flow analysis (4-6h)
+  - Type inference - Separate ticket needed
+- **Files**:
+  - `crates/depyler-core/src/rust_gen/expr_gen.rs` (+138 lines)
+  - `crates/depyler-core/src/rust_gen/stmt_gen.rs` (+14 lines)
+- **Recommendation**: Defer remaining work, focus on type inference
+- **Next**: DEPYLER-0432 OR type inference ticket
 
 #### DEPYLER-0432: sys.stdin/stdout Stream Handling
 - **Status**: Not started
