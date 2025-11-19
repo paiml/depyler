@@ -301,7 +301,7 @@ mod tests {
         use crate::type_mapper::TypeMapper;
 
         let type_mapper: &'static TypeMapper = Box::leak(Box::new(TypeMapper::default()));
-        let mut ctx = CodeGenContext {
+        let ctx = CodeGenContext {
             type_mapper,
             annotation_aware_mapper:
                 crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(
@@ -391,7 +391,7 @@ mod tests {
         use std::collections::HashSet;
 
         let type_mapper: &'static TypeMapper = Box::leak(Box::new(TypeMapper::default()));
-        let mut ctx = CodeGenContext {
+        let ctx = CodeGenContext {
             type_mapper,
             annotation_aware_mapper:
                 crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(
@@ -478,7 +478,7 @@ mod tests {
         use std::collections::HashSet;
 
         let type_mapper: &'static TypeMapper = Box::leak(Box::new(TypeMapper::default()));
-        let mut ctx = CodeGenContext {
+        let ctx = CodeGenContext {
             type_mapper,
             annotation_aware_mapper:
                 crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(
@@ -569,7 +569,7 @@ mod tests {
         use std::collections::HashSet;
 
         let type_mapper: &'static TypeMapper = Box::leak(Box::new(TypeMapper::default()));
-        let mut ctx = CodeGenContext {
+        let ctx = CodeGenContext {
             type_mapper,
             annotation_aware_mapper:
                 crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(
