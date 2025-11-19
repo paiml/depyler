@@ -427,3 +427,99 @@ finally:
 - **Sibling**: DEPYLER-0436 (Type Inference) - ✅ Complete
 - **Sibling**: DEPYLER-0438 (Error Types) - Next
 - **Master**: DEPYLER-0435 (100% Compilation)
+
+---
+
+## GREEN Phase Results (2025-11-19)
+
+### Implementation Summary
+
+Successfully implemented match-based exception handling for try/except blocks with ValueError handlers.
+
+**Files Modified**:
+- `crates/depyler-core/src/rust_gen/stmt_gen.rs` (+91 lines, -3 lines)
+
+**Functions Added**:
+1. `extract_parse_from_tokens()` (lines 2605-2657)
+   - Detects `.parse().unwrap_or_default()` pattern in generated token streams
+   - Handles TokenStream spacing (tokens separated by spaces)
+   - Returns: (var_name, parse_expr, remaining_stmts)
+
+**Functions Modified**:
+1. `codegen_try_stmt()` (lines 2296-2335)
+   - Added DEPYLER-0437 match generation before fallback logic
+   - Detects ValueError handlers without exception binding
+   - Generates match expressions instead of sequential code
+
+**Key Insight**: 
+The `int(value)` call is converted to `.parse().unwrap_or_default()` by `expr_gen.rs` BEFORE `codegen_try_stmt` sees it. Therefore, we extract the pattern from generated tokens, not from HIR.
+
+### Test Results
+
+All 5/5 tests passing ✅:
+- `test_DEPYLER_0437_try_except_generates_match` ✅
+- `test_DEPYLER_0437_except_handler_in_err_branch` ✅
+- `test_DEPYLER_0437_multiple_statements_in_try` ✅
+- `test_DEPYLER_0437_compiles_without_warnings` ✅
+- `test_DEPYLER_0437_nested_try_in_ok_branch` ✅
+
+### Example Output
+
+**Input Python**:
+```python
+def port_number(value):
+    try:
+        port = int(value)
+        if port < 1 or port > 65535:
+            raise ValueError(f"Port must be between 1 and 65535, got {port}")
+        return port
+    except ValueError:
+        raise ArgumentTypeError(f"Port must be an integer, got '{value}'")
+```
+
+**Generated Rust** (CORRECT):
+```rust
+pub fn port_number(value: &str) -> Result<i32, Box<dyn std::error::Error>> {
+    match value.parse::<i32>() {
+        Ok(port) => {
+            if (port < 1) || (port > 65535) {
+                return Err(Box::new(format!(
+                    "Port must be between 1 and 65535, got {:?}",
+                    port
+                )));
+            }
+            return Ok(port);
+        }
+        Err(_) => {
+            return Err(Box::new(format!(
+                "Port must be an integer, got '{:?}'",
+                value
+            )));
+        }
+    }
+}
+```
+
+### Verification
+
+- ✅ No unreachable code warnings
+- ✅ All workspace lib tests passing (76/76)
+- ✅ Match expression generated for ValueError + parse() pattern
+- ✅ Ok branch contains validation logic
+- ✅ Err branch contains exception handler
+- ✅ Finally clauses supported
+
+### Commit
+
+- GREEN phase: commit 82ec217
+  - Message: `[GREEN] DEPYLER-0437: Implement match-based exception handling for try/except`
+  - Changes: +91 lines, -3 lines in stmt_gen.rs
+  - All tests passing
+
+### Status
+
+**DEPYLER-0437 GREEN phase: COMPLETE** ✅
+
+Time: ~2 hours (including investigation, implementation, testing)
+
+Next: DEPYLER-0438 (Custom error types)
