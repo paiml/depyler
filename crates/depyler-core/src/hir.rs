@@ -322,6 +322,14 @@ pub enum HirStmt {
         msg: Option<HirExpr>,
     },
     Pass,
+    /// Nested function definition (inner functions)
+    FunctionDef {
+        name: Symbol,
+        params: SmallVec<[HirParam; 4]>,
+        ret_type: Type,
+        body: Vec<HirStmt>,
+        docstring: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

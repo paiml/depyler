@@ -42,9 +42,7 @@ impl StmtConverter {
             ast::Stmt::Try(t) => Self::convert_try(t),
             ast::Stmt::Assert(a) => Self::convert_assert(a),
             ast::Stmt::Pass(_) => Self::convert_pass(),
-            ast::Stmt::FunctionDef(_) => {
-                bail!("Statement type not yet supported: FunctionDef (nested functions)")
-            }
+            ast::Stmt::FunctionDef(f) => Self::convert_nested_function_def(f),
             ast::Stmt::ClassDef(_) => bail!("Statement type not yet supported: ClassDef (classes)"),
             ast::Stmt::Delete(_) => bail!("Statement type not yet supported: Delete"),
             ast::Stmt::Import(_) => bail!("Statement type not yet supported: Import"),
@@ -310,6 +308,27 @@ impl StmtConverter {
 
     fn convert_pass() -> Result<HirStmt> {
         Ok(HirStmt::Pass)
+    }
+
+    /// Convert nested function definition (inner functions)
+    ///
+    /// DEPYLER-0427: Support for Python nested functions
+    /// Converts nested function definitions to Rust inner functions
+    fn convert_nested_function_def(func: ast::StmtFunctionDef) -> Result<HirStmt> {
+        let name = func.name.to_string();
+        let params = convert_nested_function_params(&func.args)?;
+        let ret_type = super::type_extraction::TypeExtractor::extract_return_type(&func.returns)?;
+
+        // Extract docstring and filter it from the body
+        let (docstring, body) = extract_nested_function_body(func.body)?;
+
+        Ok(HirStmt::FunctionDef {
+            name,
+            params: params.into(),
+            ret_type,
+            body,
+            docstring,
+        })
     }
 }
 
@@ -1023,4 +1042,71 @@ impl ExprConverter {
         let orelse = Box::new(Self::convert(*i.orelse)?);
         Ok(HirExpr::IfExpr { test, body, orelse })
     }
+}
+
+// ============================================================================
+// DEPYLER-0427: Helper functions for nested function support
+// ============================================================================
+
+/// Convert parameters for nested functions
+fn convert_nested_function_params(args: &ast::Arguments) -> Result<Vec<HirParam>> {
+    let mut params = Vec::new();
+
+    // Calculate number of args without defaults
+    let num_args = args.args.len();
+    let defaults_vec: Vec<_> = args.defaults().collect();
+    let num_defaults = defaults_vec.len();
+    let first_default_idx = num_args.saturating_sub(num_defaults);
+
+    for (i, arg) in args.args.iter().enumerate() {
+        let name = arg.def.arg.to_string();
+        let ty = if let Some(annotation) = &arg.def.annotation {
+            super::type_extraction::TypeExtractor::extract_type(annotation)?
+        } else {
+            Type::Unknown
+        };
+
+        // Check if this parameter has a default value
+        let default = if i >= first_default_idx {
+            let default_idx = i - first_default_idx;
+            if let Some(default_expr) = defaults_vec.get(default_idx) {
+                Some(ExprConverter::convert((*default_expr).clone())?)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        params.push(HirParam { name, ty, default });
+    }
+
+    Ok(params)
+}
+
+/// Extract docstring and convert body for nested functions
+fn extract_nested_function_body(body: Vec<ast::Stmt>) -> Result<(Option<String>, Vec<HirStmt>)> {
+    if body.is_empty() {
+        return Ok((None, vec![]));
+    }
+
+    // Check if first statement is a docstring
+    let (docstring, remaining_body) = if let ast::Stmt::Expr(expr_stmt) = &body[0] {
+        if let ast::Expr::Constant(c) = &*expr_stmt.value {
+            if let ast::Constant::Str(s) = &c.value {
+                (Some(s.to_string()), &body[1..])
+            } else {
+                (None, &body[..])
+            }
+        } else {
+            (None, &body[..])
+        }
+    } else {
+        (None, &body[..])
+    };
+
+    // Convert remaining statements
+    let hir_body = convert_body(remaining_body.to_vec())?;
+
+    Ok((docstring, hir_body))
 }

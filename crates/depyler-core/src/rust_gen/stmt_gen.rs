@@ -2843,6 +2843,117 @@ impl RustCodeGen for HirStmt {
             } => codegen_try_stmt(body, handlers, finalbody, ctx),
             HirStmt::Assert { test, msg } => codegen_assert_stmt(test, msg, ctx),
             HirStmt::Pass => codegen_pass_stmt(),
+            HirStmt::FunctionDef {
+                name,
+                params,
+                ret_type,
+                body,
+                docstring: _,
+            } => codegen_nested_function_def(name, params, ret_type, body, ctx),
         }
     }
+}
+
+// ============================================================================
+// DEPYLER-0427: Nested Function Code Generation
+// ============================================================================
+
+/// Convert HIR Type to proc_macro2::TokenStream for code generation
+fn hir_type_to_tokens(ty: &Type, _ctx: &CodeGenContext) -> proc_macro2::TokenStream {
+    use quote::quote;
+
+    match ty {
+        Type::Int => quote! { i64 },
+        Type::Float => quote! { f64 },
+        Type::String => quote! { String },
+        Type::Bool => quote! { bool },
+        Type::None => quote! { () },
+        Type::Unknown => quote! { () },  // Default to () for unknown types
+        Type::List(elem) => {
+            let elem_ty = hir_type_to_tokens(elem, _ctx);
+            quote! { Vec<#elem_ty> }
+        }
+        Type::Dict(key, value) => {
+            let key_ty = hir_type_to_tokens(key, _ctx);
+            let val_ty = hir_type_to_tokens(value, _ctx);
+            quote! { std::collections::HashMap<#key_ty, #val_ty> }
+        }
+        Type::Tuple(types) => {
+            let elem_types: Vec<_> = types.iter().map(|t| hir_type_to_tokens(t, _ctx)).collect();
+            quote! { (#(#elem_types),*) }
+        }
+        Type::Optional(inner) => {
+            let inner_ty = hir_type_to_tokens(inner, _ctx);
+            quote! { Option<#inner_ty> }
+        }
+        Type::Custom(name) => {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            quote! { #ident }
+        }
+        _ => quote! { () },  // Fallback for other types (Set, Function, Generic, Union, Array, etc.)
+    }
+}
+
+/// Generate Rust code for nested function definitions (inner functions)
+///
+/// Python nested functions are converted to Rust inner functions.
+/// This enables code like csv_filter.py and log_analyzer.py to transpile.
+///
+/// # Examples
+///
+/// Python:
+/// ```python
+/// def outer():
+///     def inner(x):
+///         return x * 2
+///     return inner(5)
+/// ```
+///
+/// Rust:
+/// ```rust
+/// fn outer() -> i64 {
+///     fn inner(x: i64) -> i64 {
+///         x * 2
+///     }
+///     inner(5)
+/// }
+/// ```
+fn codegen_nested_function_def(
+    name: &str,
+    params: &[HirParam],
+    ret_type: &Type,
+    body: &[HirStmt],
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    use quote::quote;
+
+    // Generate function name
+    let fn_name = syn::Ident::new(name, proc_macro2::Span::call_site());
+
+    // Generate parameters
+    let param_tokens: Vec<proc_macro2::TokenStream> = params
+        .iter()
+        .map(|p| {
+            let param_name = syn::Ident::new(&p.name, proc_macro2::Span::call_site());
+            let param_type = hir_type_to_tokens(&p.ty, ctx);
+
+            quote! { #param_name: #param_type }
+        })
+        .collect();
+
+    // Generate return type
+    let return_type = hir_type_to_tokens(ret_type, ctx);
+
+    // Generate body
+    let body_tokens: Vec<proc_macro2::TokenStream> = body
+        .iter()
+        .map(|stmt| stmt.to_rust_tokens(ctx))
+        .collect::<Result<Vec<_>>>()?;
+
+    // Generate inner function
+    Ok(quote! {
+        fn #fn_name(#(#param_tokens),*) -> #return_type {
+            #(#body_tokens)*
+        }
+    })
 }
