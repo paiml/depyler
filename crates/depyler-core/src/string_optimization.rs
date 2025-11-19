@@ -170,7 +170,7 @@ impl StringOptimizer {
             HirExpr::Binary { op, left, right } => {
                 self.analyze_binary_expr(op, left, right);
             }
-            HirExpr::Call { func, args , ..} => {
+            HirExpr::Call { func, args, .. } => {
                 self.analyze_call_expr(func, args);
             }
             HirExpr::List(elts) | HirExpr::Tuple(elts) => {
@@ -419,7 +419,8 @@ mod tests {
             ret_type: Type::None,
             body: vec![HirStmt::Expr(HirExpr::Call {
                 func: "print".to_string(),
-                args: vec![HirExpr::Literal(Literal::String("hello".to_string()))], kwargs: vec![]
+                args: vec![HirExpr::Literal(Literal::String("hello".to_string()))],
+                kwargs: vec![],
             })],
             properties: FunctionProperties::default(),
             annotations: Default::default(),
@@ -472,7 +473,8 @@ mod tests {
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Call {
                 func: "len".to_string(),
-                args: vec![HirExpr::Var("s".to_string())], kwargs: vec![]
+                args: vec![HirExpr::Var("s".to_string())],
+                kwargs: vec![],
             }))],
             properties: FunctionProperties::default(),
             annotations: Default::default(),

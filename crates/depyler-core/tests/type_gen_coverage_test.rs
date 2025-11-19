@@ -157,11 +157,7 @@ def mutable_modify(data: str) -> str:
 fn test_primitive_types_all() {
     let pipeline = DepylerPipeline::new();
 
-    let test_cases = vec![
-        ("int", "42"),
-        ("float", "3.14"),
-        ("bool", "True"),
-    ];
+    let test_cases = vec![("int", "42"), ("float", "3.14"), ("bool", "True")];
 
     for (type_name, value) in test_cases {
         let python_code = format!(

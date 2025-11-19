@@ -314,8 +314,8 @@ fn test_lifetime_result_empty() {
 
 #[test]
 fn test_lifetime_result_with_params() {
-    use indexmap::IndexMap;
     use depyler_core::type_mapper::RustType;
+    use indexmap::IndexMap;
 
     let mut param_lifetimes = IndexMap::new();
     param_lifetimes.insert(
@@ -356,7 +356,10 @@ fn test_lifetime_result_with_bounds() {
 
     assert_eq!(result.lifetime_params.len(), 2);
     assert_eq!(result.lifetime_bounds.len(), 1);
-    assert_eq!(result.lifetime_bounds[0], ("'a".to_string(), "'b".to_string()));
+    assert_eq!(
+        result.lifetime_bounds[0],
+        ("'a".to_string(), "'b".to_string())
+    );
 }
 
 // ============================================================================

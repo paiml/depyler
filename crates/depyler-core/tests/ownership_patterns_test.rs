@@ -18,7 +18,11 @@ fn test_read_only_string_borrowed() {
         name: "get_length".to_string(),
         params: smallvec![HirParam::new("text".to_string(), PythonType::String)],
         ret_type: PythonType::Int,
-        body: vec![HirStmt::Return(Some(HirExpr::Call { func: "len".to_string(), args: vec![HirExpr::Var("text".to_string())], kwargs: vec![] }))],
+        body: vec![HirStmt::Return(Some(HirExpr::Call {
+            func: "len".to_string(),
+            args: vec![HirExpr::Var("text".to_string())],
+            kwargs: vec![],
+        }))],
         properties: FunctionProperties::default(),
         annotations: TranspilationAnnotations::default(),
         docstring: None,
@@ -47,10 +51,14 @@ fn test_list_append_takes_ownership() {
             PythonType::List(Box::new(PythonType::Int))
         )],
         ret_type: PythonType::None,
-        body: vec![HirStmt::Expr(HirExpr::Call { func: "append".to_string(), args: vec![
+        body: vec![HirStmt::Expr(HirExpr::Call {
+            func: "append".to_string(),
+            args: vec![
                 HirExpr::Var("items".to_string()),
                 HirExpr::Literal(Literal::Int(42)),
-            ], kwargs: vec![] })],
+            ],
+            kwargs: vec![],
+        })],
         properties: FunctionProperties::default(),
         annotations: TranspilationAnnotations::default(),
         docstring: None,
@@ -207,10 +215,14 @@ fn test_loop_usage_affects_borrowing() {
             HirStmt::While {
                 condition: HirExpr::Literal(Literal::Bool(true)),
                 body: vec![HirStmt::If {
-                    condition: HirExpr::Call { func: "contains".to_string(), args: vec![
+                    condition: HirExpr::Call {
+                        func: "contains".to_string(),
+                        args: vec![
                             HirExpr::Var("haystack".to_string()),
                             HirExpr::Var("needle".to_string()),
-                        ], kwargs: vec![] },
+                        ],
+                        kwargs: vec![],
+                    },
                     then_body: vec![HirStmt::Assign {
                         target: depyler_core::hir::AssignTarget::Symbol("count".to_string()),
                         value: HirExpr::Binary {

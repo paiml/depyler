@@ -394,9 +394,7 @@ mod tests {
             if duration.as_millis() > perf_budget_ms {
                 println!(
                     "  ⚠️  {} exceeded soft budget: {:?} > {}ms (non-fatal)",
-                    pattern_name,
-                    duration,
-                    perf_budget_ms
+                    pattern_name, duration, perf_budget_ms
                 );
             }
         }

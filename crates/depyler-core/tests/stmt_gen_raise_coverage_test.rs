@@ -272,8 +272,14 @@ fn test_property_raise_patterns() {
 
     let test_cases = vec![
         ("simple", "if x < 0:\n        raise ValueError(\"error\")"),
-        ("after_check", "y = x * 2\n    if y > 100:\n        raise ValueError(\"too large\")"),
-        ("in_loop", "for i in items:\n        if i < 0:\n            raise ValueError(\"neg\")"),
+        (
+            "after_check",
+            "y = x * 2\n    if y > 100:\n        raise ValueError(\"too large\")",
+        ),
+        (
+            "in_loop",
+            "for i in items:\n        if i < 0:\n            raise ValueError(\"neg\")",
+        ),
     ];
 
     for (name, raise_stmt) in test_cases {

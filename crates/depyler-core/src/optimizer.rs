@@ -30,9 +30,9 @@ impl Default for OptimizerConfig {
     fn default() -> Self {
         Self {
             // DEPYLER-0161: Disabled broken inlining optimization
-            // BUG: Inlining pass marks functions as "Trivial" but doesn't inline them,
+            // KNOWN ISSUE: Inlining pass marks functions as "Trivial" but doesn't inline them,
             // then dead code elimination removes assignments, leaving undefined variables.
-            // TODO: Fix inlining logic in v3.19.0, then re-enable this optimization.
+            // NOTE: Fix inlining logic before re-enabling (tracked in DEPYLER-0161)
             inline_functions: false,
             // DEPYLER-0363: Temporarily disable dead code elimination to debug argparse issue
             eliminate_dead_code: false,
@@ -594,7 +594,6 @@ impl Optimizer {
         }
     }
 
-
     /// DEPYLER-0270 Fix #1: Check if expression contains indexing operations
     /// Returns true if the expression tree contains any Index nodes, which indicate
     /// operations that can fail (e.g., list[0], dict["key"]) and have side effects.
@@ -621,7 +620,12 @@ impl Optimizer {
                     || args.iter().any(|arg| self.expr_contains_index(arg))
             }
             HirExpr::Attribute { value, .. } => self.expr_contains_index(value),
-            HirExpr::Slice { base, start, stop, step } => {
+            HirExpr::Slice {
+                base,
+                start,
+                stop,
+                step,
+            } => {
                 self.expr_contains_index(base)
                     || start.as_ref().is_some_and(|e| self.expr_contains_index(e))
                     || stop.as_ref().is_some_and(|e| self.expr_contains_index(e))
@@ -828,7 +832,7 @@ impl Optimizer {
                     (new_expr, extra_stmts)
                 }
             }
-            HirExpr::Call { func, args , ..} if self.is_pure_function(func) => {
+            HirExpr::Call { func, args, .. } if self.is_pure_function(func) => {
                 // Process arguments
                 let mut new_args = Vec::new();
                 for arg in args {
@@ -838,8 +842,11 @@ impl Optimizer {
                     new_args.push(new_arg);
                 }
 
-                let new_expr = HirExpr::Call { func: func.clone(), args: new_args,
-                 kwargs: vec![] };
+                let new_expr = HirExpr::Call {
+                    func: func.clone(),
+                    args: new_args,
+                    kwargs: vec![],
+                };
 
                 let hash = self.hash_expr(&new_expr);
 
@@ -937,7 +944,7 @@ fn hash_expr_recursive_inner<H: Hasher>(expr: &HirExpr, hasher: &mut H) {
             hash_expr_recursive_inner(left, hasher);
             hash_expr_recursive_inner(right, hasher);
         }
-        HirExpr::Call { func, args , ..} => {
+        HirExpr::Call { func, args, .. } => {
             "call".hash(hasher);
             func.hash(hasher);
             for arg in args {
@@ -993,7 +1000,7 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
                 collect_used_vars_expr_inner(v, used);
             }
         }
-        HirExpr::Call { func, args , ..} => {
+        HirExpr::Call { func, args, .. } => {
             // Mark the function name as used (important for lambda variables)
             used.insert(func.clone(), true);
             for arg in args {
@@ -1077,8 +1084,7 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
 mod tests {
     use super::*;
     use crate::hir::{
-        AssignTarget, FunctionProperties, HirExpr, HirFunction, HirProgram, HirStmt, Literal,
-        Type,
+        AssignTarget, FunctionProperties, HirExpr, HirFunction, HirProgram, HirStmt, Literal, Type,
     };
     use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
@@ -1123,7 +1129,11 @@ mod tests {
         // With current conservative implementation, structure is preserved
         // but dead code constants could be propagated
         let func = &optimized.functions[0];
-        assert_eq!(func.body.len(), 3, "All statements preserved (dead code elimination disabled)");
+        assert_eq!(
+            func.body.len(),
+            3,
+            "All statements preserved (dead code elimination disabled)"
+        );
 
         // Verify the optimizer runs without panicking
         assert!(matches!(&func.body[0], HirStmt::Assign { .. }));
@@ -1228,7 +1238,10 @@ mod tests {
         );
 
         // At minimum, the return statement should exist
-        let has_return = func.body.iter().any(|stmt| matches!(stmt, HirStmt::Return(_)));
+        let has_return = func
+            .body
+            .iter()
+            .any(|stmt| matches!(stmt, HirStmt::Return(_)));
         assert!(has_return, "Return statement should be preserved");
     }
 }

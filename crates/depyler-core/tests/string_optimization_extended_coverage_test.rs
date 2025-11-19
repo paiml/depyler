@@ -16,10 +16,8 @@
 //! - analyze_call_expr with mutating methods
 //! - analyze_binary_expr with non-Add operators
 
-use depyler_core::string_optimization::{
-    OptimalStringType, StringContext, StringOptimizer,
-};
 use depyler_core::hir::*;
+use depyler_core::string_optimization::{OptimalStringType, StringContext, StringOptimizer};
 
 /// Unit Test: escape_char all escape sequences
 ///
@@ -40,11 +38,13 @@ fn test_escape_char_all_sequences() {
     ];
 
     for (input, expected_escaped) in test_cases {
-        let code = generate_optimized_string(&optimizer, &StringContext::Literal(input.to_string()));
+        let code =
+            generate_optimized_string(&optimizer, &StringContext::Literal(input.to_string()));
         // Should contain the escaped version
         assert!(
             code.contains(expected_escaped) || code.contains(input),
-            "Failed to escape '{}' correctly", input
+            "Failed to escape '{}' correctly",
+            input
         );
     }
 }
@@ -90,9 +90,13 @@ fn test_get_interned_name_special_chars() {
         name: "test".to_string(),
         params: vec![].into(),
         ret_type: Type::None,
-        body: (0..5).map(|_| {
-            HirStmt::Expr(HirExpr::Literal(Literal::String("hello-world!@#".to_string())))
-        }).collect(),
+        body: (0..5)
+            .map(|_| {
+                HirStmt::Expr(HirExpr::Literal(Literal::String(
+                    "hello-world!@#".to_string(),
+                )))
+            })
+            .collect(),
         properties: FunctionProperties::default(),
         annotations: Default::default(),
         docstring: None,
@@ -104,9 +108,21 @@ fn test_get_interned_name_special_chars() {
     assert!(name.is_some());
     let name_str = name.unwrap();
     // Should convert to uppercase and replace special chars with underscores
-    assert!(name_str.starts_with("STR_"), "Should start with STR_, got: {}", name_str);
-    assert!(name_str.contains("HELLO"), "Should contain HELLO, got: {}", name_str);
-    assert!(name_str.contains("WORLD"), "Should contain WORLD, got: {}", name_str);
+    assert!(
+        name_str.starts_with("STR_"),
+        "Should start with STR_, got: {}",
+        name_str
+    );
+    assert!(
+        name_str.contains("HELLO"),
+        "Should contain HELLO, got: {}",
+        name_str
+    );
+    assert!(
+        name_str.contains("WORLD"),
+        "Should contain WORLD, got: {}",
+        name_str
+    );
 }
 
 /// Unit Test: generate_interned_constants
@@ -120,9 +136,9 @@ fn test_generate_interned_constants() {
         name: "test".to_string(),
         params: vec![].into(),
         ret_type: Type::None,
-        body: (0..5).map(|_| {
-            HirStmt::Expr(HirExpr::Literal(Literal::String("repeated".to_string())))
-        }).collect(),
+        body: (0..5)
+            .map(|_| HirStmt::Expr(HirExpr::Literal(Literal::String("repeated".to_string()))))
+            .collect(),
         properties: FunctionProperties::default(),
         annotations: Default::default(),
         docstring: None,
@@ -148,8 +164,13 @@ fn test_is_mutating_method_all_methods() {
 
     // Test via analyze_call_expr by checking parameter mutation detection
     let mutating_methods = vec![
-        "push_str", "push", "insert", "insert_str",
-        "replace_range", "clear", "truncate"
+        "push_str",
+        "push",
+        "insert",
+        "insert_str",
+        "replace_range",
+        "clear",
+        "truncate",
     ];
 
     for method in mutating_methods {
@@ -157,7 +178,11 @@ fn test_is_mutating_method_all_methods() {
             name: "test".to_string(),
             params: vec![HirParam::new("s".to_string(), Type::String)].into(),
             ret_type: Type::None,
-            body: vec![HirStmt::Expr(HirExpr::Call { func: method.to_string(), args: vec![HirExpr::Var("s".to_string())], kwargs: vec![] })],
+            body: vec![HirStmt::Expr(HirExpr::Call {
+                func: method.to_string(),
+                args: vec![HirExpr::Var("s".to_string())],
+                kwargs: vec![],
+            })],
             properties: FunctionProperties::default(),
             annotations: Default::default(),
             docstring: None,
@@ -171,8 +196,14 @@ fn test_is_mutating_method_all_methods() {
         let typ = opt.get_optimal_type(&ctx);
 
         // Should not be borrowed if mutated
-        assert_ne!(typ, OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) },
-            "Method {} should mark parameter as mutable", method);
+        assert_ne!(
+            typ,
+            OptimalStringType::BorrowedStr {
+                lifetime: Some("'a".to_string())
+            },
+            "Method {} should mark parameter as mutable",
+            method
+        );
     }
 }
 
@@ -238,9 +269,9 @@ fn test_analyze_while_stmt_with_strings() {
         ret_type: Type::None,
         body: vec![HirStmt::While {
             condition: HirExpr::Var("s".to_string()),
-            body: vec![
-                HirStmt::Expr(HirExpr::Literal(Literal::String("iteration".to_string()))),
-            ],
+            body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String(
+                "iteration".to_string(),
+            )))],
         }],
         properties: FunctionProperties::default(),
         annotations: Default::default(),
@@ -367,8 +398,16 @@ fn test_is_string_expr_call_functions() {
         ret_type: Type::String,
         body: vec![HirStmt::Return(Some(HirExpr::Binary {
             op: BinOp::Add,
-            left: Box::new(HirExpr::Call { func: "str".to_string(), args: vec![HirExpr::Literal(Literal::Int(42))], kwargs: vec![] }),
-            right: Box::new(HirExpr::Call { func: "format".to_string(), args: vec![], kwargs: vec![] }),
+            left: Box::new(HirExpr::Call {
+                func: "str".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(42))],
+                kwargs: vec![],
+            }),
+            right: Box::new(HirExpr::Call {
+                func: "format".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
         }))],
         properties: FunctionProperties::default(),
         annotations: Default::default(),
@@ -432,7 +471,12 @@ fn test_analyze_var_usage_returned() {
     let typ = optimizer.get_optimal_type(&ctx);
 
     // Immutable parameter (even if returned) should borrow
-    assert_eq!(typ, OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) });
+    assert_eq!(
+        typ,
+        OptimalStringType::BorrowedStr {
+            lifetime: Some("'a".to_string())
+        }
+    );
 }
 
 /// Unit Test: String interning threshold exactly 4 occurrences
@@ -447,9 +491,9 @@ fn test_string_interning_threshold_boundary() {
         name: "test".to_string(),
         params: vec![].into(),
         ret_type: Type::None,
-        body: (0..4).map(|_| {
-            HirStmt::Expr(HirExpr::Literal(Literal::String("boundary".to_string())))
-        }).collect(),
+        body: (0..4)
+            .map(|_| HirStmt::Expr(HirExpr::Literal(Literal::String("boundary".to_string()))))
+            .collect(),
         properties: FunctionProperties::default(),
         annotations: Default::default(),
         docstring: None,
@@ -473,9 +517,9 @@ fn test_string_interning_threshold_not_met() {
         name: "test".to_string(),
         params: vec![].into(),
         ret_type: Type::None,
-        body: (0..3).map(|_| {
-            HirStmt::Expr(HirExpr::Literal(Literal::String("notinterned".to_string())))
-        }).collect(),
+        body: (0..3)
+            .map(|_| HirStmt::Expr(HirExpr::Literal(Literal::String("notinterned".to_string()))))
+            .collect(),
         properties: FunctionProperties::default(),
         annotations: Default::default(),
         docstring: None,
@@ -500,8 +544,11 @@ fn test_optimal_string_type_cow_str() {
     let code = generate_optimized_string(&optimizer, &StringContext::Concatenation);
 
     // Should generate Cow for concatenation context
-    assert!(code.contains("Cow") || code.contains("String::new()"),
-        "Concatenation context should produce Cow or String, got: {}", code);
+    assert!(
+        code.contains("Cow") || code.contains("String::new()"),
+        "Concatenation context should produce Cow or String, got: {}",
+        code
+    );
 }
 
 /// Unit Test: Multiple statement types in function
@@ -516,7 +563,8 @@ fn test_combined_statement_analysis() {
         params: vec![
             HirParam::new("flag".to_string(), Type::Bool),
             HirParam::new("items".to_string(), Type::List(Box::new(Type::Int))),
-        ].into(),
+        ]
+        .into(),
         ret_type: Type::String,
         body: vec![
             HirStmt::Assign {
@@ -526,20 +574,16 @@ fn test_combined_statement_analysis() {
             },
             HirStmt::If {
                 condition: HirExpr::Var("flag".to_string()),
-                then_body: vec![
-                    HirStmt::Assign {
-                        target: AssignTarget::Symbol("result".to_string()),
-                        value: HirExpr::Literal(Literal::String("true_branch".to_string())),
-                        type_annotation: None,
-                    },
-                ],
-                else_body: Some(vec![
-                    HirStmt::Assign {
-                        target: AssignTarget::Symbol("result".to_string()),
-                        value: HirExpr::Literal(Literal::String("false_branch".to_string())),
-                        type_annotation: None,
-                    },
-                ]),
+                then_body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("result".to_string()),
+                    value: HirExpr::Literal(Literal::String("true_branch".to_string())),
+                    type_annotation: None,
+                }],
+                else_body: Some(vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("result".to_string()),
+                    value: HirExpr::Literal(Literal::String("false_branch".to_string())),
+                    type_annotation: None,
+                }]),
             },
             HirStmt::Return(Some(HirExpr::Var("result".to_string()))),
         ],
@@ -566,13 +610,22 @@ fn test_property_all_statement_types() {
     let _optimizer = StringOptimizer::new();
 
     let statement_types = vec![
-        ("assign", HirStmt::Assign {
-            target: AssignTarget::Symbol("x".to_string()),
-            value: HirExpr::Literal(Literal::String("value".to_string())),
-            type_annotation: None,
-        }),
-        ("return", HirStmt::Return(Some(HirExpr::Literal(Literal::String("ret".to_string()))))),
-        ("expr", HirStmt::Expr(HirExpr::Literal(Literal::String("expr".to_string())))),
+        (
+            "assign",
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::String("value".to_string())),
+                type_annotation: None,
+            },
+        ),
+        (
+            "return",
+            HirStmt::Return(Some(HirExpr::Literal(Literal::String("ret".to_string())))),
+        ),
+        (
+            "expr",
+            HirStmt::Expr(HirExpr::Literal(Literal::String("expr".to_string()))),
+        ),
     ];
 
     for (name, stmt) in statement_types {
@@ -604,16 +657,32 @@ fn test_mutation_escape_sequences() {
     let optimizer = StringOptimizer::new();
 
     // Test Case 1: Quote escaping must be correct
-    let code1 = generate_optimized_string(&optimizer, &StringContext::Literal("test\"quote".to_string()));
-    assert!(code1.contains("\\\"") || code1.contains("test"), "Quote must be escaped");
+    let code1 = generate_optimized_string(
+        &optimizer,
+        &StringContext::Literal("test\"quote".to_string()),
+    );
+    assert!(
+        code1.contains("\\\"") || code1.contains("test"),
+        "Quote must be escaped"
+    );
 
     // Test Case 2: Backslash escaping must be correct
-    let code2 = generate_optimized_string(&optimizer, &StringContext::Literal("back\\slash".to_string()));
-    assert!(code2.contains("\\\\") || code2.contains("back"), "Backslash must be escaped");
+    let code2 = generate_optimized_string(
+        &optimizer,
+        &StringContext::Literal("back\\slash".to_string()),
+    );
+    assert!(
+        code2.contains("\\\\") || code2.contains("back"),
+        "Backslash must be escaped"
+    );
 
     // Test Case 3: Newline escaping must be correct
-    let code3 = generate_optimized_string(&optimizer, &StringContext::Literal("new\nline".to_string()));
-    assert!(code3.contains("\\n") || code3.contains("new"), "Newline must be escaped");
+    let code3 =
+        generate_optimized_string(&optimizer, &StringContext::Literal("new\nline".to_string()));
+    assert!(
+        code3.contains("\\n") || code3.contains("new"),
+        "Newline must be escaped"
+    );
 }
 
 /// Mutation Test: Interning threshold enforcement
@@ -629,9 +698,9 @@ fn test_mutation_interning_threshold() {
         name: "test".to_string(),
         params: vec![].into(),
         ret_type: Type::None,
-        body: (0..3).map(|_| {
-            HirStmt::Expr(HirExpr::Literal(Literal::String("s".to_string())))
-        }).collect(),
+        body: (0..3)
+            .map(|_| HirStmt::Expr(HirExpr::Literal(Literal::String("s".to_string()))))
+            .collect(),
         properties: FunctionProperties::default(),
         annotations: Default::default(),
         docstring: None,
@@ -642,9 +711,9 @@ fn test_mutation_interning_threshold() {
         name: "test".to_string(),
         params: vec![].into(),
         ret_type: Type::None,
-        body: (0..4).map(|_| {
-            HirStmt::Expr(HirExpr::Literal(Literal::String("s".to_string())))
-        }).collect(),
+        body: (0..4)
+            .map(|_| HirStmt::Expr(HirExpr::Literal(Literal::String("s".to_string()))))
+            .collect(),
         properties: FunctionProperties::default(),
         annotations: Default::default(),
         docstring: None,
@@ -671,7 +740,11 @@ fn test_mutation_mixed_usage_detection() {
         name: "test".to_string(),
         params: vec![HirParam::new("s".to_string(), Type::String)].into(),
         ret_type: Type::Int,
-        body: vec![HirStmt::Return(Some(HirExpr::Call { func: "len".to_string(), args: vec![HirExpr::Var("s".to_string())], kwargs: vec![] }))],
+        body: vec![HirStmt::Return(Some(HirExpr::Call {
+            func: "len".to_string(),
+            args: vec![HirExpr::Var("s".to_string())],
+            kwargs: vec![],
+        }))],
         properties: FunctionProperties::default(),
         annotations: Default::default(),
         docstring: None,
@@ -701,9 +774,16 @@ fn test_mutation_mixed_usage_detection() {
     let ctx = StringContext::Parameter("s".to_string());
 
     // Mutation kill: Removing immutable detection would fail this
-    assert_eq!(opt_immutable.get_optimal_type(&ctx),
-        OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) },
-        "Immutable parameter should borrow");
-    assert_eq!(opt_mutated.get_optimal_type(&ctx), OptimalStringType::OwnedString,
-        "Mutated parameter should be owned");
+    assert_eq!(
+        opt_immutable.get_optimal_type(&ctx),
+        OptimalStringType::BorrowedStr {
+            lifetime: Some("'a".to_string())
+        },
+        "Immutable parameter should borrow"
+    );
+    assert_eq!(
+        opt_mutated.get_optimal_type(&ctx),
+        OptimalStringType::OwnedString,
+        "Mutated parameter should be owned"
+    );
 }

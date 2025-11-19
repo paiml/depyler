@@ -596,7 +596,8 @@ impl AstBridge {
                                 let field_type = Type::Int;
 
                                 // Convert the value expression
-                                let converted_value = ExprConverter::convert(assign.value.as_ref().clone())?;
+                                let converted_value =
+                                    ExprConverter::convert(assign.value.as_ref().clone())?;
 
                                 fields.push(HirField {
                                     name: field_name,
@@ -1192,7 +1193,7 @@ fn expr_calls_failing_function(
     can_fail_map: &std::collections::HashMap<String, bool>,
 ) -> bool {
     match expr {
-        HirExpr::Call { func, args , ..} => {
+        HirExpr::Call { func, args, .. } => {
             // Check if the called function is known to fail
             if can_fail_map.get(func).copied().unwrap_or(false) {
                 return true;
@@ -1640,7 +1641,10 @@ def call_functions() -> int:
         let hir = parse_python_to_hir(source);
 
         let func = &hir.functions[0];
-        if let HirStmt::Return(Some(HirExpr::Call { func: fname, args , ..})) = &func.body[0] {
+        if let HirStmt::Return(Some(HirExpr::Call {
+            func: fname, args, ..
+        })) = &func.body[0]
+        {
             assert_eq!(fname, "len");
             assert_eq!(args.len(), 1);
             assert!(matches!(args[0], HirExpr::List(_)));

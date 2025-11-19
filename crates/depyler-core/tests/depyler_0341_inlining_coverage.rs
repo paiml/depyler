@@ -10,9 +10,9 @@
 //! - Analyzer initialization
 //! - Basic decision-making logic
 
+use depyler_annotations::TranspilationAnnotations;
 use depyler_core::hir::*;
 use depyler_core::inlining::*;
-use depyler_annotations::TranspilationAnnotations;
 use smallvec::smallvec;
 
 // ============================================================================
@@ -210,7 +210,11 @@ fn test_call_graph_simple_call() {
         name: "caller".to_string(),
         params: smallvec![],
         ret_type: Type::Int,
-        body: vec![HirStmt::Return(Some(HirExpr::Call { func: "helper".to_string(), args: vec![], kwargs: vec![] }))],
+        body: vec![HirStmt::Return(Some(HirExpr::Call {
+            func: "helper".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        }))],
         properties: FunctionProperties::default(),
         annotations: TranspilationAnnotations::default(),
         docstring: None,

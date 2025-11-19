@@ -470,7 +470,11 @@ fn test_expr_stmt_function_call() {
 
     module.functions.push(create_function_with_body(
         "test",
-        vec![HirStmt::Expr(HirExpr::Call { func: "print".to_string(), args: vec![HirExpr::Literal(Literal::String("hello".to_string()))], kwargs: vec![] })],
+        vec![HirStmt::Expr(HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("hello".to_string()))],
+            kwargs: vec![],
+        })],
     ));
 
     let type_mapper = TypeMapper::new();
