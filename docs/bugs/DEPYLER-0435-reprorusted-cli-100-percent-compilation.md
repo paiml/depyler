@@ -173,25 +173,45 @@
 
 **NEVER implement fixes without debugging first!** Use these tools to understand root causes:
 
+**Complete Reference**: See `/home/noah/src/renacer/book/src/examples/debug-compilation.md` for comprehensive debugging scenarios including:
+- Debugging slow compilation (Scenario 1)
+- Finding missing dependencies (Scenario 2)
+- Transpiler source mapping (Scenario 3)
+- Multi-process compilation pipeline analysis (Scenario 4)
+- Debugging compilation errors (Scenario 5)
+
 #### 1. Renacer - System Call Tracer
 **Location**: `/home/noah/src/renacer/target/debug/renacer`
 
-**Debugging transpiled binaries**:
+**Debugging compilation errors (CRITICAL for DEPYLER-0428)**:
 ```bash
-# Example: Debug complex_cli after transpilation
+# Example: Debug complex_cli compilation failures
 cd /home/noah/src/reprorusted-python-cli/examples/example_complex
 
-# Transpile with debug info
-/home/noah/src/depyler/target/release/depyler transpile complex_cli.py -o complex_cli.rs
+# Step 1: Trace transpilation to see code generation issues
+renacer -e 'trace=write' -- /home/noah/src/depyler/target/release/depyler \
+  transpile complex_cli.py -o complex_cli.rs --trace
 
-# Build with debug info (even if it fails, partial binaries can be traced)
-rustc -g complex_cli.rs -o complex_cli 2>&1 | tee build_errors.txt
+# Step 2: Build and capture errors
+cargo build --release 2>&1 | tee build_errors.txt
 
-# If binary was created, trace it
-/home/noah/src/renacer/target/debug/renacer -s -T -- ./complex_cli --help
+# Step 3: If partial binary exists, trace to find runtime issues
+renacer -s -T -- ./target/release/complex_cli --help 2>&1 | tee runtime_trace.txt
 
-# Analyze syscalls to find runtime issues
-/home/noah/src/renacer/target/debug/renacer -c -- ./complex_cli
+# Step 4: Analyze syscall patterns
+renacer -c -- ./target/release/complex_cli 2>&1 | tee syscall_stats.txt
+```
+
+**For DEPYLER-0428 Specifically** (ArgumentTypeError):
+```bash
+# Trace where exception handling is generated
+renacer -e 'trace=write' -- depyler transpile complex_cli.py 2>&1 | \
+  grep -i "argumenttypeerror\|panic\|result" | head -20
+
+# Compare expected vs actual function signatures
+grep -A 5 "pub fn port_number" complex_cli.rs
+# Should be: Result<i32, String>
+# Currently: i32 (WRONG)
 ```
 
 **Renacer Quick Reference**:
@@ -199,7 +219,9 @@ rustc -g complex_cli.rs -o complex_cli 2>&1 | tee build_errors.txt
 - `-T` : Show syscall timing
 - `-c` : Statistics summary
 - `-e trace=file` : Filter to file operations only
+- `-e trace=write` : Track what's being written (code generation)
 - `--format json` : JSON output for parsing
+- `-f` : Follow forks (multi-process builds)
 
 #### 2. Depyler --trace Flag
 **Use to see transpilation pipeline phases**:
