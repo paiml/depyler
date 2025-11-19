@@ -611,6 +611,10 @@ impl BorrowingContext {
             "find",
             "index",
             "count",
+            // DEPYLER-0436: Type conversion functions borrow their arguments
+            "int",
+            "float",
+            "bool",
         ];
 
         // Known functions that take ownership

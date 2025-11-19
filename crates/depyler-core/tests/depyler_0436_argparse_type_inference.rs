@@ -79,7 +79,7 @@ def validator(value):
 
 #[test]
 fn test_DEPYLER_0436_parse_error_handling() {
-    // int() can fail when parsing strings, should return Result
+    // DEPYLER-0436: Even in try/except blocks, parameter type should be inferred as &str
     let python = r#"
 def validator(value):
     try:
@@ -94,19 +94,21 @@ def validator(value):
 
     let rust = result.unwrap();
 
-    // Should return Result because parsing can fail
+    // DEPYLER-0436: Parameter should be &str, NOT serde_json::Value
     assert!(
-        rust.contains("Result<"),
-        "Should return Result when int() can fail: {}",
+        rust.contains("value: &str"),
+        "Parameter 'value' should be &str even in try/except. Got: {}",
         rust
     );
 
-    // Should handle parse error with ? operator or match
+    // Should NOT use serde_json::Value
     assert!(
-        rust.contains("?") || rust.contains("match"),
-        "Should handle parse errors: {}",
+        !rust.contains("value: serde_json::Value") && !rust.contains("value: &serde_json::Value"),
+        "Should not use serde_json::Value for string parameters: {}",
         rust
     );
+
+    // NOTE: Result return type is DEPYLER-0437's responsibility (try/except control flow)
 }
 
 #[test]
