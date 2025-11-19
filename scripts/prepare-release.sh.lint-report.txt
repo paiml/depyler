@@ -1,0 +1,62 @@
+[2m2025-11-19T04:56:52.806889Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/prepare-release.sh
+Issues found in ./scripts/prepare-release.sh:
+
+ℹ 6:1-9 6:1-9 [info] SC2032: Variable 'VERSION' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 7:1-14 7:1-14 [info] SC2032: Variable 'RELEASE_DATE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 26:1-13 26:1-13 [info] SC2032: Variable 'RELEASE_DIR' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 7:14-33 7:14-33 [warning] SC2046: Quote this to prevent word splitting: $(date +"%Y-%m-%d")
+  Fix: "$(date +"%Y-%m-%d")"
+
+⚠ 32:51-91 32:51-91 [warning] SC2046: Quote this to prevent word splitting: $(uname -s | tr '[:upper:]' '[:lower:]')
+  Fix: "$(uname -s | tr '[:upper:]' '[:lower:]')"
+
+⚠ 32:92-103 32:92-103 [warning] SC2046: Quote this to prevent word splitting: $(uname -m)
+  Fix: "$(uname -m)"
+
+⚠ 32:68-77 32:68-77 [warning] SC2101: Named class needs outer [], e.g. [[:upper:]]
+
+⚠ 32:80-89 32:80-89 [warning] SC2101: Named class needs outer [], e.g. [[:lower:]]
+
+⚠ 27:1-24 27:1-24 [warning] SC2114: Use "${RELEASE_DIR:?}" to ensure variable is set before rm -rf
+
+⚠ 36:1-20 36:1-20 [warning] SC2161: Use 'cd ... || exit' or check for errors
+
+⚠ 43:1-6 43:1-6 [warning] SC2161: Use 'cd ... || exit' or check for errors
+
+⚠ 47:1-20 47:1-20 [warning] SC2161: Use 'cd ... || exit' or check for errors
+
+⚠ 49:1-6 49:1-6 [warning] SC2161: Use 'cd ... || exit' or check for errors
+
+⚠ 36:1-20 36:1-20 [warning] SC2164: Use 'cd ... || exit' in case cd fails
+  Fix: cd "${RELEASE_DIR}" || exit
+
+⚠ 43:1-6 43:1-6 [warning] SC2164: Use 'cd ... || exit' in case cd fails
+  Fix: cd .. || exit
+
+⚠ 47:1-20 47:1-20 [warning] SC2164: Use 'cd ... || exit' in case cd fails
+  Fix: cd "${RELEASE_DIR}" || exit
+
+⚠ 49:1-6 49:1-6 [warning] SC2164: Use 'cd ... || exit' in case cd fails
+  Fix: cd .. || exit
+
+⚠ 26:1-33 26:1-33 [warning] SC2201: Brace expansion doesn't happen in assignments. Use an array RELEASE_DIR=(...) or a loop instead
+
+ℹ 48:1-83 48:1-83 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+⚠ 48:1-83 48:1-83 [warning] SC2297: Redirects should come before pipes in the command
+
+ℹ 6:1-16 6:1-16 [info] SC2311: Use single quotes for literal strings that don't contain expansions
+
+✗ 7:14-20 7:14-20 [error] DET002: Non-deterministic timestamp usage - requires manual fix (UNSAFE)
+  Fix: 
+
+⚠ 37:23-24 37:23-24 [warning] DET003: Unordered wildcard - results may vary
+  Fix: | sort
+
+⚠ 30:22-24 30:22-24 [warning] IDEM002: Non-idempotent rm - add -f flag (SAFE-WITH-ASSUMPTIONS)
+  Fix: rm -f
+
+Summary: 1 error(s), 18 warning(s), 5 info(s)

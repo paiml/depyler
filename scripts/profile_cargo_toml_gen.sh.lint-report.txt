@@ -1,0 +1,62 @@
+[2m2025-11-19T04:56:52.912960Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/profile_cargo_toml_gen.sh
+Issues found in ./scripts/profile_cargo_toml_gen.sh:
+
+ℹ 61:9-35 61:9-35 [info] SC2002: Useless use of cat. Consider using command directly on the file.
+  Fix: grep /tmp/Cargo.toml
+
+⚠ 55:37-47 55:37-47 [warning] SC2031: Variable 'ELAPSED' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+ℹ 7:1-7 7:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 8:1-8 8:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 9:1-5 9:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 10:1-4 10:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 49:5-11 49:5-11 [info] SC2032: Variable 'START' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 52:5-9 52:5-9 [info] SC2032: Variable 'END' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 54:5-13 54:5-13 [info] SC2032: Variable 'ELAPSED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 49:11-24 49:11-24 [warning] SC2046: Quote this to prevent word splitting: $(date +%s%N)
+  Fix: "$(date +%s%N)"
+
+⚠ 52:9-22 52:9-22 [warning] SC2046: Quote this to prevent word splitting: $(date +%s%N)
+  Fix: "$(date +%s%N)"
+
+⚠ 54:13-30 54:13-30 [warning] SC2046: Quote this to prevent word splitting: $(( (END - START)
+  Fix: "$(( (END - START)"
+
+ℹ 13:1-38 13:1-38 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 32:43-49 32:43-49 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+ℹ 39:42-48 39:42-48 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+⚠ 24:20-66 24:20-66 [warning] SC2176: 'time' with pipelines is undefined. Use 'time { cmd1 | cmd2; }'
+
+⚠ 31:20-144 31:20-144 [warning] SC2176: 'time' with pipelines is undefined. Use 'time { cmd1 | cmd2; }'
+
+⚠ 38:20-136 38:20-136 [warning] SC2176: 'time' with pipelines is undefined. Use 'time { cmd1 | cmd2; }'
+
+⚠ 50:24-139 50:24-139 [warning] SC2176: 'time' with pipelines is undefined. Use 'time { cmd1 | cmd2; }'
+
+ℹ 24:1-68 24:1-68 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 31:1-146 31:1-146 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 38:1-138 38:1-138 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 50:1-141 50:1-141 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 61:1-102 61:1-102 [info] SC2298: Use < file instead of cat file | for better performance
+
+✗ 49:13-21 49:13-21 [error] DET002: Non-deterministic timestamp usage - requires manual fix (UNSAFE)
+  Fix: 
+
+✗ 52:11-19 52:11-19 [error] DET002: Non-deterministic timestamp usage - requires manual fix (UNSAFE)
+  Fix: 
+
+Summary: 2 error(s), 8 warning(s), 16 info(s)

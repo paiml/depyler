@@ -1,0 +1,251 @@
+[2m2025-11-19T04:56:52.737090Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/run_performance_suite.sh
+Issues found in ./scripts/run_performance_suite.sh:
+
+ℹ 36:18-59 36:18-59 [info] SC2005: Useless 'echo' in command substitution. Use '"$end_time - $start_time" | bc -l' directly instead of '$(echo "$end_time - $start_time" | bc -l)'
+
+ℹ 41:18-59 41:18-59 [info] SC2005: Useless 'echo' in command substitution. Use '"$end_time - $start_time" | bc -l' directly instead of '$(echo "$end_time - $start_time" | bc -l)'
+
+ℹ 122:7-51 122:7-51 [info] SC2005: Useless 'echo' in command substitution. Use '"$total_time < $target_time" | bc -l' directly instead of '$(echo "$total_time < $target_time" | bc -l)'
+
+ℹ 13:1-5 13:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 14:1-7 14:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 15:1-8 15:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 16:1-6 16:1-6 [info] SC2032: Variable 'BLUE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 17:1-4 17:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 32:5-16 32:5-16 [info] SC2032: Variable 'start_time' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 35:9-18 35:9-18 [info] SC2032: Variable 'end_time' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 36:9-18 36:9-18 [info] SC2032: Variable 'duration' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 40:9-18 40:9-18 [info] SC2032: Variable 'end_time' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 41:9-18 41:9-18 [info] SC2032: Variable 'duration' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 89:1-13 89:1-13 [info] SC2032: Variable 'total_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 90:1-14 90:1-14 [info] SC2032: Variable 'passed_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 91:1-14 91:1-14 [info] SC2032: Variable 'failed_tests' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 103:1-12 103:1-12 [info] SC2032: Variable 'total_time' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 113:1-14 113:1-14 [info] SC2032: Variable 'slowest_test' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 117:1-14 117:1-14 [info] SC2032: Variable 'fastest_test' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 121:1-13 121:1-13 [info] SC2032: Variable 'target_time' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 32:16-30 32:16-30 [warning] SC2046: Quote this to prevent word splitting: $(date +%s.%N)
+  Fix: "$(date +%s.%N)"
+
+⚠ 35:18-32 35:18-32 [warning] SC2046: Quote this to prevent word splitting: $(date +%s.%N)
+  Fix: "$(date +%s.%N)"
+
+⚠ 36:18-59 36:18-59 [warning] SC2046: Quote this to prevent word splitting: $(echo "$end_time - $start_time" | bc -l)
+  Fix: "$(echo "$end_time - $start_time" | bc -l)"
+
+⚠ 40:18-32 40:18-32 [warning] SC2046: Quote this to prevent word splitting: $(date +%s.%N)
+  Fix: "$(date +%s.%N)"
+
+⚠ 41:18-59 41:18-59 [warning] SC2046: Quote this to prevent word splitting: $(echo "$end_time - $start_time" | bc -l)
+  Fix: "$(echo "$end_time - $start_time" | bc -l)"
+
+⚠ 82:21-28 82:21-28 [warning] SC2046: Quote this to prevent word splitting: $(date)
+  Fix: "$(date)"
+
+⚠ 89:13-58 89:13-58 [warning] SC2046: Quote this to prevent word splitting: $(tail -n +2 performance_results.csv | wc -l)
+  Fix: "$(tail -n +2 performance_results.csv | wc -l)"
+
+⚠ 90:14-74 90:14-74 [warning] SC2046: Quote this to prevent word splitting: $(tail -n +2 performance_results.csv | grep ",PASS" | wc -l)
+  Fix: "$(tail -n +2 performance_results.csv | grep ",PASS" | wc -l)"
+
+⚠ 91:14-74 91:14-74 [warning] SC2046: Quote this to prevent word splitting: $(tail -n +2 performance_results.csv | grep ",FAIL" | wc -l)
+  Fix: "$(tail -n +2 performance_results.csv | grep ",FAIL" | wc -l)"
+
+⚠ 103:12-86 103:12-86 [warning] SC2046: Quote this to prevent word splitting: $(tail -n +2 performance_results.csv | cut -d',' -f2 | paste -sd+ | bc -l)
+  Fix: "$(tail -n +2 performance_results.csv | cut -d',' -f2 | paste -sd+ | bc -l)"
+
+⚠ 113:14-82 113:14-82 [warning] SC2046: Quote this to prevent word splitting: $(tail -n +2 performance_results.csv | sort -t',' -k2 -nr | head -1)
+  Fix: "$(tail -n +2 performance_results.csv | sort -t',' -k2 -nr | head -1)"
+
+⚠ 117:14-81 117:14-81 [warning] SC2046: Quote this to prevent word splitting: $(tail -n +2 performance_results.csv | sort -t',' -k2 -n | head -1)
+  Fix: "$(tail -n +2 performance_results.csv | sort -t',' -k2 -n | head -1)"
+
+⚠ 122:7-51 122:7-51 [warning] SC2046: Quote this to prevent word splitting: $(echo "$total_time < $target_time" | bc -l)
+  Fix: "$(echo "$total_time < $target_time" | bc -l)"
+
+⚠ 118:21-34 118:21-34 [warning] SC2047: Quote $fastest_test to prevent word splitting, or use [[..]] instead of [..]
+
+ℹ 122:9-30 122:9-30 [info] SC2065: This may be interpreted as a shell file redirection. Quote or escape if intentional
+
+ℹ 123:5-61 123:5-61 [info] SC2065: This may be interpreted as a shell file redirection. Quote or escape if intentional
+
+ℹ 125:5-62 125:5-62 [info] SC2065: This may be interpreted as a shell file redirection. Quote or escape if intentional
+
+⚠ 31:18-23 31:18-23 [warning] SC2086: Double quote to prevent globbing and word splitting on $BLUE
+  Fix: "$BLUE"
+
+⚠ 34:13-26 34:13-26 [warning] SC2086: Double quote to prevent globbing and word splitting on $test_command
+  Fix: "$test_command"
+
+⚠ 37:22-28 37:22-28 [warning] SC2086: Double quote to prevent globbing and word splitting on $GREEN
+  Fix: "$GREEN"
+
+⚠ 42:22-26 42:22-26 [warning] SC2086: Double quote to prevent globbing and word splitting on $RED
+  Fix: "$RED"
+
+⚠ 51:14-21 51:14-21 [warning] SC2086: Double quote to prevent globbing and word splitting on $YELLOW
+  Fix: "$YELLOW"
+
+⚠ 54:14-21 54:14-21 [warning] SC2086: Double quote to prevent globbing and word splitting on $YELLOW
+  Fix: "$YELLOW"
+
+⚠ 57:14-21 57:14-21 [warning] SC2086: Double quote to prevent globbing and word splitting on $YELLOW
+  Fix: "$YELLOW"
+
+⚠ 60:14-21 60:14-21 [warning] SC2086: Double quote to prevent globbing and word splitting on $YELLOW
+  Fix: "$YELLOW"
+
+⚠ 63:14-21 63:14-21 [warning] SC2086: Double quote to prevent globbing and word splitting on $YELLOW
+  Fix: "$YELLOW"
+
+⚠ 66:14-21 66:14-21 [warning] SC2086: Double quote to prevent globbing and word splitting on $YELLOW
+  Fix: "$YELLOW"
+
+⚠ 69:14-21 69:14-21 [warning] SC2086: Double quote to prevent globbing and word splitting on $YELLOW
+  Fix: "$YELLOW"
+
+⚠ 72:14-21 72:14-21 [warning] SC2086: Double quote to prevent globbing and word splitting on $YELLOW
+  Fix: "$YELLOW"
+
+⚠ 75:14-21 75:14-21 [warning] SC2086: Double quote to prevent globbing and word splitting on $YELLOW
+  Fix: "$YELLOW"
+
+⚠ 79:14-19 79:14-19 [warning] SC2086: Double quote to prevent globbing and word splitting on $BLUE
+  Fix: "$BLUE"
+
+⚠ 128:14-20 128:14-20 [warning] SC2086: Double quote to prevent globbing and word splitting on $GREEN
+  Fix: "$GREEN"
+
+⚠ 129:14-19 129:14-19 [warning] SC2086: Double quote to prevent globbing and word splitting on $BLUE
+  Fix: "$BLUE"
+
+⚠ 130:14-19 130:14-19 [warning] SC2086: Double quote to prevent globbing and word splitting on $BLUE
+  Fix: "$BLUE"
+
+⚠ 138:18-24 138:18-24 [warning] SC2086: Double quote to prevent globbing and word splitting on $GREEN
+  Fix: "$GREEN"
+
+⚠ 141:18-22 141:18-22 [warning] SC2086: Double quote to prevent globbing and word splitting on $RED
+  Fix: "$RED"
+
+⚠ 140:1-5 140:1-5 [warning] SC2117: Unreachable code after 'exit' on line 139
+
+ℹ 90:53-73 90:53-73 [info] SC2126: Consider using grep -c instead of grep | wc -l
+
+ℹ 91:53-73 91:53-73 [info] SC2126: Consider using grep -c instead of grep | wc -l
+
+⚠ 93:20-32 93:20-32 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${total_tests[@]}
+
+⚠ 94:15-28 94:15-28 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${passed_tests[@]}
+
+⚠ 95:15-28 95:15-28 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${failed_tests[@]}
+
+⚠ 137:7-20 137:7-20 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${failed_tests[@]}
+
+⚠ 141:28-41 141:28-41 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${failed_tests[@]}
+
+ℹ 82:1-83:1 82:1-83:1 [info] SC2129: Consider using { cmd1; cmd2; } >> performance_report.txt instead of 2 individual redirects for better performance
+
+ℹ 85:1-86:1 85:1-86:1 [info] SC2129: Consider using { cmd1; cmd2; } >> performance_report.txt instead of 2 individual redirects for better performance
+
+ℹ 93:1-96:1 93:1-96:1 [info] SC2129: Consider using { cmd1; cmd2; } >> performance_report.txt instead of 4 individual redirects for better performance
+
+ℹ 98:1-100:1 98:1-100:1 [info] SC2129: Consider using { cmd1; cmd2; } >> performance_report.txt instead of 3 individual redirects for better performance
+
+ℹ 104:1-105:1 104:1-105:1 [info] SC2129: Consider using { cmd1; cmd2; } >> performance_report.txt instead of 2 individual redirects for better performance
+
+ℹ 108:1-110:1 108:1-110:1 [info] SC2129: Consider using { cmd1; cmd2; } >> performance_report.txt instead of 3 individual redirects for better performance
+
+⚠ 137:4-29 137:4-29 [warning] SC2198: Arrays don't work as scalars in [ ]. Use [ -n "${failed_tests[0]}" ] for first element or [[ ]] with ${failed_tests[@]}
+
+ℹ 38:1-68 38:1-68 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 43:1-68 43:1-68 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 82:1-55 82:1-55 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 83:1-31 83:1-31 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 85:1-55 85:1-55 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 86:1-54 86:1-54 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 93:1-59 93:1-59 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 94:1-55 94:1-55 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 95:1-55 95:1-55 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 96:1-31 96:1-31 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 98:1-51 98:1-51 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 99:1-51 99:1-51 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 100:1-54 100:1-54 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 104:1-31 104:1-31 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 105:1-70 105:1-70 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 108:1-31 108:1-31 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 109:1-55 109:1-55 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 110:1-54 110:1-54 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 114:1-61 114:1-61 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 118:1-61 118:1-61 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 123:1-103 123:1-103 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 125:1-104 125:1-104 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+⚠ 140:1-5 140:1-5 [warning] SC2317: Command appears to be unreachable (code after exit/return on line 139)
+
+ℹ 21:1-19 21:1-19 [info] SC2320: Positional parameter expands as single word. Quote to prevent word splitting: "$1"
+
+ℹ 22:1-21 22:1-21 [info] SC2320: Positional parameter expands as single word. Quote to prevent word splitting: "$1"
+
+ℹ 28:1-23 28:1-23 [info] SC2320: Positional parameter expands as single word. Quote to prevent word splitting: "$1"
+
+ℹ 29:1-26 29:1-26 [info] SC2320: Positional parameter expands as single word. Quote to prevent word splitting: "$1"
+
+✗ 32:18-26 32:18-26 [error] DET002: Non-deterministic timestamp usage - requires manual fix (UNSAFE)
+  Fix: 
+
+✗ 35:20-28 35:20-28 [error] DET002: Non-deterministic timestamp usage - requires manual fix (UNSAFE)
+  Fix: 
+
+✗ 40:20-28 40:20-28 [error] DET002: Non-deterministic timestamp usage - requires manual fix (UNSAFE)
+  Fix: 
+
+✗ 82:21-27 82:21-27 [error] DET002: Non-deterministic timestamp usage - requires manual fix (UNSAFE)
+  Fix: 
+
+✗ 34:8-12 34:8-12 [error] SEC001: Command injection risk via eval - manual review required
+
+Summary: 5 error(s), 41 warning(s), 57 info(s)

@@ -1,0 +1,159 @@
+[2m2025-11-19T04:56:52.840736Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/enforce_quality.sh
+Issues found in ./scripts/enforce_quality.sh:
+
+ℹ 95:13-90 95:13-90 [info] SC2005: Useless 'echo' in command substitution. Use '"$OUTPUT" | grep "TDG Score:" | grep -oE "[0-9]+\.[0-9]+" || echo "0"' directly instead of '$(echo "$OUTPUT" | grep "TDG Score:" | grep -oE "[0-9]+\.[0-9]+" || echo "0")'
+
+ℹ 99:19-73 99:19-73 [info] SC2005: Useless 'echo' in command substitution. Use '"$TDG >= $MIN_TDG && $TDG <= $MAX_TDG" | bc -l' directly instead of '$(echo "$TDG >= $MIN_TDG && $TDG <= $MAX_TDG" | bc -l)'
+
+⚠ 75:33-48 75:33-48 [warning] SC2031: Variable 'COVERAGE_EST' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 77:10-23 77:10-23 [warning] SC2031: Variable 'COVERAGE_EST' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+ℹ 11:1-5 11:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 12:1-7 12:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 13:1-8 13:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 14:1-4 14:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 17:1-14 17:1-14 [info] SC2032: Variable 'MIN_COVERAGE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 18:1-9 18:1-9 [info] SC2032: Variable 'MAX_TDG' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 19:1-9 19:1-9 [info] SC2032: Variable 'MIN_TDG' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 20:1-16 20:1-16 [info] SC2032: Variable 'MAX_COMPLEXITY' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 36:1-8 36:1-8 [info] SC2032: Variable 'FAILED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 41:5-14 41:5-14 [info] SC2032: Variable 'SRC_FILE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 45:9-17 45:9-17 [info] SC2032: Variable 'TEMP_PY' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 49:9-16 49:9-16 [info] SC2032: Variable 'OUTPUT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 66:1-11 66:1-11 [info] SC2032: Variable 'SRC_LINES' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 67:1-12 67:1-12 [info] SC2032: Variable 'TEST_LINES' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 71:5-18 71:5-18 [info] SC2032: Variable 'COVERAGE_EST' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 81:9-16 81:9-16 [info] SC2032: Variable 'FAILED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 94:9-16 94:9-16 [info] SC2032: Variable 'OUTPUT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 95:9-13 95:9-13 [info] SC2032: Variable 'TDG' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 103:17-24 103:17-24 [info] SC2032: Variable 'FAILED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 46:33-43 46:33-43 [warning] SC2037: To assign command output, use temp_py=$(cmd), not cmd > $TEMP_PY
+
+⚠ 66:32-36 66:32-36 [warning] SC2035: Use ./* so names with dashes won't become options. Example: rm ./*.txt instead of rm *.txt
+
+⚠ 67:28-32 67:28-32 [warning] SC2035: Use ./* so names with dashes won't become options. Example: rm ./*.txt instead of rm *.txt
+
+⚠ 67:62-66 67:62-66 [warning] SC2035: Use ./* so names with dashes won't become options. Example: rm ./*.txt instead of rm *.txt
+
+⚠ 41:14-76 41:14-76 [warning] SC2046: Quote this to prevent word splitting: $(find $module/src -name "*.rs" -not -name "lib.rs" | head -1)
+  Fix: "$(find $module/src -name "*.rs" -not -name "lib.rs" | head -1)"
+
+⚠ 45:17-54 45:17-54 [warning] SC2046: Quote this to prevent word splitting: $(mktemp /tmp/depyler_test_XXXXXX.py)
+  Fix: "$(mktemp /tmp/depyler_test_XXXXXX.py)"
+
+⚠ 49:16-136 49:16-136 [warning] SC2046: Quote this to prevent word splitting: $(cargo run --bin depyler -- quality-check $TEMP_PY 2>/dev/null | grep -E "TDG Score:|Coverage:|Complexity:" || echo "")
+  Fix: "$(cargo run --bin depyler -- quality-check $TEMP_PY 2>/dev/null | grep -E "TDG Score:|Coverage:|Complexity:" || echo "")"
+
+⚠ 66:11-109 66:11-109 [warning] SC2046: Quote this to prevent word splitting: $(find crates -name "*.rs" -path "*/src/*" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
+  Fix: "$(find crates -name "*.rs" -path "*/src/*" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')"
+
+⚠ 67:12-156 67:12-156 [warning] SC2046: Quote this to prevent word splitting: $(find . -name "*.rs" -path "*/tests/*" -o -name "*.rs" -path "tests/*" | grep -v target | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
+  Fix: "$(find . -name "*.rs" -path "*/tests/*" -o -name "*.rs" -path "tests/*" | grep -v target | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')"
+
+⚠ 71:18-56 71:18-56 [warning] SC2046: Quote this to prevent word splitting: $(( TEST_LINES * 100 / (SRC_LINES / 3)
+  Fix: "$(( TEST_LINES * 100 / (SRC_LINES / 3)"
+
+⚠ 94:16-73 94:16-73 [warning] SC2046: Quote this to prevent word splitting: $(cargo run --bin depyler -- quality-check $example 2>&1)
+  Fix: "$(cargo run --bin depyler -- quality-check $example 2>&1)"
+
+⚠ 95:13-90 95:13-90 [warning] SC2046: Quote this to prevent word splitting: $(echo "$OUTPUT" | grep "TDG Score:" | grep -oE "[0-9]+\.[0-9]+" || echo "0")
+  Fix: "$(echo "$OUTPUT" | grep "TDG Score:" | grep -oE "[0-9]+\.[0-9]+" || echo "0")"
+
+⚠ 99:19-73 99:19-73 [warning] SC2046: Quote this to prevent word splitting: $(echo "$TDG >= $MIN_TDG && $TDG <= $MAX_TDG" | bc -l)
+  Fix: "$(echo "$TDG >= $MIN_TDG && $TDG <= $MAX_TDG" | bc -l)"
+
+⚠ 77:10-23 77:10-23 [warning] SC2047: Quote $COVERAGE_EST to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 77:28-41 77:28-41 [warning] SC2047: Quote $MIN_COVERAGE to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 114:6-13 114:6-13 [warning] SC2047: Quote $FAILED to prevent word splitting, or use [[..]] instead of [..]
+
+ℹ 99:21-56 99:21-56 [info] SC2065: This may be interpreted as a shell file redirection. Quote or escape if intentional
+
+⚠ 41:21-28 41:21-28 [warning] SC2086: Double quote to prevent globbing and word splitting on $module
+  Fix: "$module"
+
+⚠ 46:35-43 46:35-43 [warning] SC2086: Double quote to prevent globbing and word splitting on $TEMP_PY
+  Fix: "$TEMP_PY"
+
+⚠ 49:59-67 49:59-67 [warning] SC2086: Double quote to prevent globbing and word splitting on $TEMP_PY
+  Fix: "$TEMP_PY"
+
+⚠ 57:15-23 57:15-23 [warning] SC2086: Double quote to prevent globbing and word splitting on $TEMP_PY
+  Fix: "$TEMP_PY"
+
+⚠ 77:10-23 77:10-23 [warning] SC2086: Double quote to prevent globbing and word splitting on $COVERAGE_EST
+  Fix: "$COVERAGE_EST"
+
+⚠ 77:28-41 77:28-41 [warning] SC2086: Double quote to prevent globbing and word splitting on $MIN_COVERAGE
+  Fix: "$MIN_COVERAGE"
+
+⚠ 94:59-67 94:59-67 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 114:6-13 114:6-13 [warning] SC2086: Double quote to prevent globbing and word splitting on $FAILED
+  Fix: "$FAILED"
+
+ℹ 41:16-28 41:16-28 [info] SC2090: Quotes/backslashes in this variable will be treated literally. Use array
+
+ℹ 23:1-46 23:1-46 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 45:1-54 45:1-54 [info] SC2097: This assignment is only seen by '/tmp/depyler_test_XXXXXX.py)', not the current shell. Move to separate line or use 'export' if you want it to persist
+
+ℹ 49:1-27 49:1-27 [info] SC2097: This assignment is only seen by 'run', not the current shell. Move to separate line or use 'export' if you want it to persist
+
+ℹ 66:1-24 66:1-24 [info] SC2097: This assignment is only seen by 'crates', not the current shell. Move to separate line or use 'export' if you want it to persist
+
+ℹ 94:1-27 94:1-27 [info] SC2097: This assignment is only seen by 'run', not the current shell. Move to separate line or use 'export' if you want it to persist
+
+⚠ 95:62-68 95:62-68 [warning] SC2102: Ranges can only match single chars (to match + literally, use \+)
+
+⚠ 95:70-76 95:70-76 [warning] SC2102: Ranges can only match single chars (to match + literally, use \+)
+
+ℹ 114:4-21 114:4-21 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+ℹ 49:126-132 49:126-132 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+ℹ 95:79-85 95:79-85 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+ℹ 30:1-45 30:1-45 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 49:1-136 49:1-136 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 66:1-109 66:1-109 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 67:1-156 67:1-156 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+⚠ 66:1-109 66:1-109 [warning] SC2272: Use find -print0 | xargs -0 or find -exec for filenames with spaces
+
+ℹ 77:1-49 77:1-49 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+ℹ 114:1-27 114:1-27 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+ℹ 69:1-53 69:1-53 [info] SC2274: Prefer [[ condition && condition ]] over separate [ ] tests
+
+⚠ 77:1-49 77:1-49 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+⚠ 114:1-27 114:1-27 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+Summary: 0 error(s), 31 warning(s), 38 info(s)

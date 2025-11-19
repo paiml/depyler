@@ -1,0 +1,564 @@
+[2m2025-11-19T04:56:52.664836Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/pre-release-audit.sh
+Issues found in ./scripts/pre-release-audit.sh:
+
+ℹ 191:11-28 191:11-28 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $(cargo fmt --all)
+
+ℹ 157:17-81 157:17-81 [info] SC2015: Note that 'A && B || C' is not if-then-else. C may run when A is true. Use 'if A; then B; else C; fi' for proper conditional logic
+
+ℹ 158:20-90 158:20-90 [info] SC2015: Note that 'A && B || C' is not if-then-else. C may run when A is true. Use 'if A; then B; else C; fi' for proper conditional logic
+
+ℹ 159:16-84 159:16-84 [info] SC2015: Note that 'A && B || C' is not if-then-else. C may run when A is true. Use 'if A; then B; else C; fi' for proper conditional logic
+
+ℹ 160:15-83 160:15-83 [info] SC2015: Note that 'A && B || C' is not if-then-else. C may run when A is true. Use 'if A; then B; else C; fi' for proper conditional logic
+
+ℹ 161:17-87 161:17-87 [info] SC2015: Note that 'A && B || C' is not if-then-else. C may run when A is true. Use 'if A; then B; else C; fi' for proper conditional logic
+
+⚠ 77:154-161 77:154-161 [warning] SC2030: Variable 'depth' modified in subshell. Use var=$(cmd) to capture output or remove subshell
+
+⚠ 104:27-39 104:27-39 [warning] SC2031: Variable 'PANIC_COUNT' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 159:21-33 159:21-33 [warning] SC2031: Variable 'PANIC_COUNT' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 159:21-33 159:21-33 [warning] SC2031: Variable 'PANIC_COUNT' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 163:21-36 163:21-36 [warning] SC2031: Variable 'TOTAL_BLOCKERS' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 167:6-21 167:6-21 [warning] SC2031: Variable 'TOTAL_BLOCKERS' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 171:42-57 171:42-57 [warning] SC2031: Variable 'TOTAL_BLOCKERS' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 239:23-38 239:23-38 [warning] SC2031: Variable 'TOTAL_BLOCKERS' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 242:6-21 242:6-21 [warning] SC2031: Variable 'TOTAL_BLOCKERS' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 246:28-43 246:28-43 [warning] SC2031: Variable 'TOTAL_BLOCKERS' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+ℹ 8:1-5 8:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 9:1-7 9:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 10:1-8 10:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 11:1-6 11:1-6 [info] SC2032: Variable 'BLUE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 12:1-4 12:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 15:1-8 15:1-8 [info] SC2032: Variable 'OUTPUT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 19:1-9 19:1-9 [info] SC2032: Variable 'VERSION' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 54:1-12 54:1-12 [info] SC2032: Variable 'SATD_COUNT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 57:5-16 57:5-16 [info] SC2032: Variable 'SATD_COUNT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 69:1-15 69:1-15 [info] SC2032: Variable 'COMPLEX_COUNT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 84:1-18 84:1-18 [info] SC2032: Variable 'INCOMPLETE_COUNT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 87:5-22 87:5-22 [info] SC2032: Variable 'INCOMPLETE_COUNT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 99:1-13 99:1-13 [info] SC2032: Variable 'PANIC_COUNT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 102:5-17 102:5-17 [info] SC2032: Variable 'PANIC_COUNT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 114:1-13 114:1-13 [info] SC2032: Variable 'TEST_PASSED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 118:5-17 118:5-17 [info] SC2032: Variable 'TEST_PASSED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 125:1-15 125:1-15 [info] SC2032: Variable 'CLIPPY_PASSED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 131:5-19 131:5-19 [info] SC2032: Variable 'CLIPPY_PASSED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 146:1-16 146:1-16 [info] SC2032: Variable 'TOTAL_BLOCKERS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 148:5-20 148:5-20 [info] SC2032: Variable 'TOTAL_BLOCKERS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 151:5-20 151:5-20 [info] SC2032: Variable 'TOTAL_BLOCKERS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 169:5-20 169:5-20 [info] SC2032: Variable 'RELEASE_STATUS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 172:5-20 172:5-20 [info] SC2032: Variable 'RELEASE_STATUS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 55:9-11 55:9-11 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 58:13-15 58:13-15 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 62:13-15 62:13-15 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 70:9-11 70:9-11 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 79:9-11 79:9-11 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 85:9-11 85:9-11 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 88:13-15 88:13-15 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 92:13-15 92:13-15 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 100:9-11 100:9-11 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 103:13-15 103:13-15 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 107:13-15 107:13-15 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 126:9-11 126:9-11 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 128:13-15 128:13-15 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 132:13-15 132:13-15 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 139:9-11 139:9-11 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 141:9-11 141:9-11 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 56:69-73 56:69-73 [warning] SC2035: Use ./* so names with dashes won't become options. Example: rm ./*.txt instead of rm *.txt
+
+⚠ 57:83-87 57:83-87 [warning] SC2035: Use ./* so names with dashes won't become options. Example: rm ./*.txt instead of rm *.txt
+
+⚠ 77:24-28 77:24-28 [warning] SC2035: Use ./* so names with dashes won't become options. Example: rm ./*.txt instead of rm *.txt
+
+⚠ 86:70-74 86:70-74 [warning] SC2035: Use ./* so names with dashes won't become options. Example: rm ./*.txt instead of rm *.txt
+
+⚠ 87:90-94 87:90-94 [warning] SC2035: Use ./* so names with dashes won't become options. Example: rm ./*.txt instead of rm *.txt
+
+⚠ 101:52-56 101:52-56 [warning] SC2035: Use ./* so names with dashes won't become options. Example: rm ./*.txt instead of rm *.txt
+
+⚠ 102:67-71 102:67-71 [warning] SC2035: Use ./* so names with dashes won't become options. Example: rm ./*.txt instead of rm *.txt
+
+⚠ 215:49-53 215:49-53 [warning] SC2035: Use ./* so names with dashes won't become options. Example: rm ./*.txt instead of rm *.txt
+
+⚠ 19:15-67 19:15-67 [warning] SC2046: Quote this to prevent word splitting: $(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)
+  Fix: "$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)"
+
+⚠ 29:12-19 29:12-19 [warning] SC2046: Quote this to prevent word splitting: $(date)
+  Fix: "$(date)"
+
+⚠ 57:16-129 57:16-129 [warning] SC2046: Quote this to prevent word splitting: $(grep -rn "TODO\|FIXME\|HACK\|XXX\|INCOMPLETE" crates/ --include="*.rs" 2>/dev/null | grep -v "target/" | wc -l)
+  Fix: "$(grep -rn "TODO\|FIXME\|HACK\|XXX\|INCOMPLETE" crates/ --include="*.rs" 2>/dev/null | grep -v "target/" | wc -l)"
+
+⚠ 87:22-153 87:22-153 [warning] SC2046: Quote this to prevent word splitting: $(grep -rn "unimplemented!\|todo!\|unreachable!" crates/ --include="*.rs" 2>/dev/null | grep -v "target/" | grep -v "test" | wc -l)
+  Fix: "$(grep -rn "unimplemented!\|todo!\|unreachable!" crates/ --include="*.rs" 2>/dev/null | grep -v "target/" | grep -v "test" | wc -l)"
+
+⚠ 102:17-150 102:17-150 [warning] SC2046: Quote this to prevent word splitting: $(grep -rn "panic!\|\.expect(" crates/ --include="*.rs" 2>/dev/null | grep -v "target/" | grep -v "test" | grep -v "example" | wc -l)
+  Fix: "$(grep -rn "panic!\|\.expect(" crates/ --include="*.rs" 2>/dev/null | grep -v "target/" | grep -v "test" | grep -v "example" | wc -l)"
+
+⚠ 146:16-49 146:16-49 [warning] SC2046: Quote this to prevent word splitting: $((SATD_COUNT + INCOMPLETE_COUNT)
+  Fix: "$((SATD_COUNT + INCOMPLETE_COUNT)"
+
+⚠ 148:20-42 148:20-42 [warning] SC2046: Quote this to prevent word splitting: $((TOTAL_BLOCKERS + 1)
+  Fix: "$((TOTAL_BLOCKERS + 1)"
+
+⚠ 151:20-42 151:20-42 [warning] SC2046: Quote this to prevent word splitting: $((TOTAL_BLOCKERS + 1)
+  Fix: "$((TOTAL_BLOCKERS + 1)"
+
+⚠ 157:18-80 157:18-80 [warning] SC2046: Quote this to prevent word splitting: $([ $SATD_COUNT -eq 0 ] && echo "✅ PASS" || echo "❌ FAIL")
+  Fix: "$([ $SATD_COUNT -eq 0 ] && echo "✅ PASS" || echo "❌ FAIL")"
+
+⚠ 157:97-155 157:97-155 [warning] SC2046: Quote this to prevent word splitting: $([ $SATD_COUNT -eq 0 ] && echo "Ready" || echo "BLOCKED")
+  Fix: "$([ $SATD_COUNT -eq 0 ] && echo "Ready" || echo "BLOCKED")"
+
+⚠ 158:21-89 158:21-89 [warning] SC2046: Quote this to prevent word splitting: $([ $INCOMPLETE_COUNT -eq 0 ] && echo "✅ PASS" || echo "❌ FAIL")
+  Fix: "$([ $INCOMPLETE_COUNT -eq 0 ] && echo "✅ PASS" || echo "❌ FAIL")"
+
+⚠ 158:112-176 158:112-176 [warning] SC2046: Quote this to prevent word splitting: $([ $INCOMPLETE_COUNT -eq 0 ] && echo "Ready" || echo "BLOCKED")
+  Fix: "$([ $INCOMPLETE_COUNT -eq 0 ] && echo "Ready" || echo "BLOCKED")"
+
+⚠ 159:17-83 159:17-83 [warning] SC2046: Quote this to prevent word splitting: $([ $PANIC_COUNT -eq 0 ] && echo "✅ PASS" || echo "⚠️ WARN")
+  Fix: "$([ $PANIC_COUNT -eq 0 ] && echo "✅ PASS" || echo "⚠️ WARN")"
+
+⚠ 160:16-82 160:16-82 [warning] SC2046: Quote this to prevent word splitting: $([ "$TEST_PASSED" = true ] && echo "✅ PASS" || echo "❌ FAIL")
+  Fix: "$([ "$TEST_PASSED" = true ] && echo "✅ PASS" || echo "❌ FAIL")"
+
+⚠ 160:89-151 160:89-151 [warning] SC2046: Quote this to prevent word splitting: $([ "$TEST_PASSED" = true ] && echo "Ready" || echo "BLOCKED")
+  Fix: "$([ "$TEST_PASSED" = true ] && echo "Ready" || echo "BLOCKED")"
+
+⚠ 161:18-86 161:18-86 [warning] SC2046: Quote this to prevent word splitting: $([ "$CLIPPY_PASSED" = true ] && echo "✅ PASS" || echo "❌ FAIL")
+  Fix: "$([ "$CLIPPY_PASSED" = true ] && echo "✅ PASS" || echo "❌ FAIL")"
+
+⚠ 161:93-157 161:93-157 [warning] SC2046: Quote this to prevent word splitting: $([ "$CLIPPY_PASSED" = true ] && echo "Ready" || echo "BLOCKED")
+  Fix: "$([ "$CLIPPY_PASSED" = true ] && echo "Ready" || echo "BLOCKED")"
+
+⚠ 191:11-28 191:11-28 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$(cargo fmt --all)"
+
+⚠ 157:22-33 157:22-33 [warning] SC2047: Quote $SATD_COUNT to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 157:101-112 157:101-112 [warning] SC2047: Quote $SATD_COUNT to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 158:25-42 158:25-42 [warning] SC2047: Quote $INCOMPLETE_COUNT to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 158:116-133 158:116-133 [warning] SC2047: Quote $INCOMPLETE_COUNT to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 159:21-33 159:21-33 [warning] SC2047: Quote $PANIC_COUNT to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 167:6-21 167:6-21 [warning] SC2047: Quote $TOTAL_BLOCKERS to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 242:6-21 242:6-21 [warning] SC2047: Quote $TOTAL_BLOCKERS to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 157:22-33 157:22-33 [warning] SC2086: Double quote to prevent globbing and word splitting on $SATD_COUNT
+  Fix: "$SATD_COUNT"
+
+⚠ 157:83-94 157:83-94 [warning] SC2086: Double quote to prevent globbing and word splitting on $SATD_COUNT
+  Fix: "$SATD_COUNT"
+
+⚠ 157:101-112 157:101-112 [warning] SC2086: Double quote to prevent globbing and word splitting on $SATD_COUNT
+  Fix: "$SATD_COUNT"
+
+⚠ 158:25-42 158:25-42 [warning] SC2086: Double quote to prevent globbing and word splitting on $INCOMPLETE_COUNT
+  Fix: "$INCOMPLETE_COUNT"
+
+⚠ 158:92-109 158:92-109 [warning] SC2086: Double quote to prevent globbing and word splitting on $INCOMPLETE_COUNT
+  Fix: "$INCOMPLETE_COUNT"
+
+⚠ 158:116-133 158:116-133 [warning] SC2086: Double quote to prevent globbing and word splitting on $INCOMPLETE_COUNT
+  Fix: "$INCOMPLETE_COUNT"
+
+⚠ 159:21-33 159:21-33 [warning] SC2086: Double quote to prevent globbing and word splitting on $PANIC_COUNT
+  Fix: "$PANIC_COUNT"
+
+⚠ 159:86-98 159:86-98 [warning] SC2086: Double quote to prevent globbing and word splitting on $PANIC_COUNT
+  Fix: "$PANIC_COUNT"
+
+⚠ 163:21-36 163:21-36 [warning] SC2086: Double quote to prevent globbing and word splitting on $TOTAL_BLOCKERS
+  Fix: "$TOTAL_BLOCKERS"
+
+⚠ 167:6-21 167:6-21 [warning] SC2086: Double quote to prevent globbing and word splitting on $TOTAL_BLOCKERS
+  Fix: "$TOTAL_BLOCKERS"
+
+⚠ 242:6-21 242:6-21 [warning] SC2086: Double quote to prevent globbing and word splitting on $TOTAL_BLOCKERS
+  Fix: "$TOTAL_BLOCKERS"
+
+ℹ 19:1-69 19:1-69 [info] SC2089: Quotes/backslashes will be treated literally. Use array or separate assignment
+
+⚠ 157:16-80 157:16-80 [warning] SC2091: Remove surrounding $() to avoid executing output (or use eval if intentional)
+
+⚠ 158:19-89 158:19-89 [warning] SC2091: Remove surrounding $() to avoid executing output (or use eval if intentional)
+
+⚠ 159:15-83 159:15-83 [warning] SC2091: Remove surrounding $() to avoid executing output (or use eval if intentional)
+
+⚠ 160:14-82 160:14-82 [warning] SC2091: Remove surrounding $() to avoid executing output (or use eval if intentional)
+
+⚠ 161:16-86 161:16-86 [warning] SC2091: Remove surrounding $() to avoid executing output (or use eval if intentional)
+
+ℹ 56:1-120 56:1-120 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 72:1-45 72:1-45 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 86:1-138 86:1-138 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 101:1-140 101:1-140 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 115:1-46 115:1-46 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+⚠ 77:1-188 77:1-188 [warning] SC2096: Multiple stdout redirections specified. Only the last one will be used, earlier ones are ignored
+
+ℹ 77:154-161 77:154-161 [info] SC2098: Variable 'depth' is assigned in a subshell and won't be visible in the parent shell
+
+ℹ 55:7-9 55:7-9 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 58:11-13 58:11-13 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 62:11-13 62:11-13 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 70:7-9 70:7-9 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 79:7-9 79:7-9 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 85:7-9 85:7-9 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 88:11-13 88:11-13 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 92:11-13 92:11-13 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 100:7-9 100:7-9 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 103:11-13 103:11-13 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 107:11-13 107:11-13 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 126:7-9 126:7-9 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 128:11-13 128:11-13 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 132:11-13 132:11-13 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 139:7-9 139:7-9 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 141:7-9 141:7-9 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 191:11-28 191:11-28 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 213:1-3 213:1-3 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 225:1-3 225:1-3 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 67:55-63 67:55-63 [info] SC2112: 'function' keyword is non-standard. Delete it for better portability
+
+⚠ 245:1-5 245:1-5 [warning] SC2117: Unreachable code after 'exit' on line 244
+
+ℹ 57:103-128 57:103-128 [info] SC2126: Consider using grep -c instead of grep | wc -l
+
+ℹ 87:130-152 87:130-152 [info] SC2126: Consider using grep -c instead of grep | wc -l
+
+ℹ 102:124-149 102:124-149 [info] SC2126: Consider using grep -c instead of grep | wc -l
+
+ℹ 55:1-56:1 55:1-56:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$OUTPUT" instead of 2 individual redirects for better performance
+
+ℹ 58:1-59:1 58:1-59:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$OUTPUT" instead of 2 individual redirects for better performance
+
+ℹ 61:1-63:1 61:1-63:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$OUTPUT" instead of 3 individual redirects for better performance
+
+ℹ 85:1-86:1 85:1-86:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$OUTPUT" instead of 2 individual redirects for better performance
+
+ℹ 88:1-89:1 88:1-89:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$OUTPUT" instead of 2 individual redirects for better performance
+
+ℹ 91:1-93:1 91:1-93:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$OUTPUT" instead of 3 individual redirects for better performance
+
+ℹ 100:1-101:1 100:1-101:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$OUTPUT" instead of 2 individual redirects for better performance
+
+ℹ 103:1-104:1 103:1-104:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$OUTPUT" instead of 2 individual redirects for better performance
+
+ℹ 106:1-108:1 106:1-108:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$OUTPUT" instead of 3 individual redirects for better performance
+
+ℹ 128:1-129:1 128:1-129:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$OUTPUT" instead of 2 individual redirects for better performance
+
+ℹ 132:1-133:1 132:1-133:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$OUTPUT" instead of 2 individual redirects for better performance
+
+ℹ 139:1-141:1 139:1-141:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$OUTPUT" instead of 3 individual redirects for better performance
+
+ℹ 157:20-41 157:20-41 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+ℹ 157:99-120 157:99-120 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+ℹ 158:23-50 158:23-50 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+ℹ 158:114-141 158:114-141 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+ℹ 159:19-41 159:19-41 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+ℹ 167:4-29 167:4-29 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+ℹ 242:4-29 242:4-29 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+⚠ 77:129-168 77:129-168 [warning] SC2140: Word is split between quotes. Use proper quoting or concatenation
+
+⚠ 86:106-129 86:106-129 [warning] SC2140: Word is split between quotes. Use proper quoting or concatenation
+
+⚠ 101:88-118 101:88-118 [warning] SC2140: Word is split between quotes. Use proper quoting or concatenation
+
+⚠ 102:103-133 102:103-133 [warning] SC2140: Word is split between quotes. Use proper quoting or concatenation
+
+⚠ 157:78-146 157:78-146 [warning] SC2140: Word is split between quotes. Use proper quoting or concatenation
+
+⚠ 158:87-167 158:87-167 [warning] SC2140: Word is split between quotes. Use proper quoting or concatenation
+
+⚠ 160:106-142 160:106-142 [warning] SC2140: Word is split between quotes. Use proper quoting or concatenation
+
+⚠ 161:112-148 161:112-148 [warning] SC2140: Word is split between quotes. Use proper quoting or concatenation
+
+ℹ 140:78-84 140:78-84 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+ℹ 157:62-68 157:62-68 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+ℹ 157:138-144 157:138-144 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+ℹ 158:71-77 158:71-77 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+ℹ 158:159-165 158:159-165 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+ℹ 159:62-68 159:62-68 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+ℹ 160:64-70 160:64-70 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+ℹ 160:134-140 160:134-140 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+ℹ 161:68-74 161:68-74 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+ℹ 161:140-146 161:140-146 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+ℹ 215:79-88 215:79-88 [info] SC2141: 'xargs -' doesn't read stdin. Consider restructuring the command
+
+ℹ 77:5-176 77:5-176 [info] SC2150: -exec with \; is inefficient. Use + for batch mode or -print0 | xargs -0
+
+⚠ 169:1-39 169:1-39 [warning] SC2201: Brace expansion doesn't happen in assignments. Use an array RELEASE_STATUS=(...) or a loop instead
+
+⚠ 172:1-36 172:1-36 [warning] SC2201: Brace expansion doesn't happen in assignments. Use an array RELEASE_STATUS=(...) or a loop instead
+
+ℹ 56:1-125 56:1-125 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 57:1-129 57:1-129 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 73:1-62 73:1-62 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 86:1-143 86:1-143 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 87:1-153 87:1-153 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 101:1-145 101:1-145 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 102:1-150 102:1-150 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 127:1-73 127:1-73 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 140:1-125 140:1-125 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 146:1-50 146:1-50 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 148:1-43 148:1-43 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 151:1-43 151:1-43 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 55:1-24 55:1-24 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 56:1-125 56:1-125 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 58:1-28 58:1-28 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 59:1-81 59:1-81 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 61:1-38 61:1-38 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 62:1-28 62:1-28 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 63:1-73 63:1-73 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 67:1-118 67:1-118 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 70:1-24 70:1-24 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 75:1-77 75:1-77 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 77:1-189 77:1-189 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 79:1-24 79:1-24 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 82:1-136 82:1-136 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 85:1-24 85:1-24 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 86:1-143 86:1-143 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 88:1-28 88:1-28 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 89:1-101 89:1-101 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 91:1-60 91:1-60 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 92:1-28 92:1-28 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 93:1-61 93:1-61 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 97:1-102 97:1-102 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 100:1-24 100:1-24 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 101:1-145 101:1-145 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 103:1-28 103:1-28 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 104:1-85 104:1-85 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 106:1-59 106:1-59 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 107:1-28 107:1-28 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 108:1-52 108:1-52 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 112:1-52 112:1-52 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 116:1-49 116:1-49 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 119:1-63 119:1-63 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 123:1-94 123:1-94 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 126:1-24 126:1-24 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 128:1-28 128:1-28 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 129:1-61 129:1-61 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 132:1-28 132:1-28 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 133:1-64 133:1-64 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 137:1-57 137:1-57 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 139:1-24 139:1-24 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 140:1-125 140:1-125 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 140:1-125 140:1-125 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 141:1-24 141:1-24 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 144:1-68 144:1-68 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 154:1-23 154:1-23 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 168:1-111 168:1-111 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 171:1-120 171:1-120 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 176:1-25 176:1-25 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 77:1-189 77:1-189 [info] SC2268: Avoid unnecessary subshells for simple assignments
+
+ℹ 67:1-118 67:1-118 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 82:1-136 82:1-136 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 97:1-102 97:1-102 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 112:1-52 112:1-52 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 123:1-94 123:1-94 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 137:1-57 137:1-57 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 144:1-68 144:1-68 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 168:1-111 168:1-111 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 171:1-120 171:1-120 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 157:1-157 157:1-157 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+ℹ 158:1-178 158:1-178 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+ℹ 159:1-109 159:1-109 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+ℹ 167:1-35 167:1-35 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+ℹ 242:1-35 242:1-35 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+⚠ 56:1-125 56:1-125 [warning] SC2297: Redirects should come before pipes in the command
+
+⚠ 86:1-143 86:1-143 [warning] SC2297: Redirects should come before pipes in the command
+
+⚠ 101:1-145 101:1-145 [warning] SC2297: Redirects should come before pipes in the command
+
+⚠ 140:1-125 140:1-125 [warning] SC2297: Redirects should come before pipes in the command
+
+⚠ 157:1-157 157:1-157 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+⚠ 158:1-178 158:1-178 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+⚠ 159:1-109 159:1-109 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+⚠ 167:1-35 167:1-35 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+⚠ 242:1-35 242:1-35 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+ℹ 15:1-31 15:1-31 [info] SC2311: Use single quotes for literal strings that don't contain expansions
+
+⚠ 245:1-5 245:1-5 [warning] SC2317: Command appears to be unreachable (code after exit/return on line 244)
+
+✗ 29:12-18 29:12-18 [error] DET002: Non-deterministic timestamp usage - requires manual fix (UNSAFE)
+  Fix: 
+
+✗ 77:171-173 77:171-173 [error] SEC003: Unquoted {} in find -exec - filenames with spaces will break
+  Fix: "{}"
+
+Summary: 2 error(s), 97 warning(s), 165 info(s)

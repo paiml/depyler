@@ -1,0 +1,130 @@
+[2m2025-11-19T04:56:52.702855Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/validate_transpiled_strict.sh
+Issues found in ./scripts/validate_transpiled_strict.sh:
+
+⚠ 45:41-47 45:41-47 [warning] SC2031: Variable 'TOTAL' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 78:34-40 78:34-40 [warning] SC2031: Variable 'TOTAL' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 80:6-12 80:6-12 [warning] SC2031: Variable 'TOTAL' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 81:30-37 81:30-37 [warning] SC2031: Variable 'PASSED' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 82:28-35 82:28-35 [warning] SC2031: Variable 'FAILED' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 88:29-44 88:29-44 [warning] SC2031: Variable 'WARNINGS_FOUND' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 91:6-13 91:6-13 [warning] SC2031: Variable 'FAILED' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+ℹ 12:1-5 12:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 13:1-7 13:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 14:1-8 14:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 15:1-6 15:1-6 [info] SC2032: Variable 'BLUE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 16:1-4 16:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 22:1-7 22:1-7 [info] SC2032: Variable 'TOTAL' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 23:1-8 23:1-8 [info] SC2032: Variable 'PASSED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 24:1-8 24:1-8 [info] SC2032: Variable 'FAILED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 25:1-16 25:1-16 [info] SC2032: Variable 'WARNINGS_FOUND' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 35:5-13 35:5-13 [info] SC2032: Variable 'py_file' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 42:5-11 42:5-11 [info] SC2032: Variable 'TOTAL' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 43:5-14 43:5-14 [info] SC2032: Variable 'basename' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 51:5-19 51:5-19 [info] SC2032: Variable 'warning_count' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 56:9-16 56:9-16 [info] SC2032: Variable 'PASSED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 60:9-16 60:9-16 [info] SC2032: Variable 'FAILED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 63:9-24 63:9-24 [info] SC2032: Variable 'WARNINGS_FOUND' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 42:11-24 42:11-24 [warning] SC2046: Quote this to prevent word splitting: $((TOTAL + 1)
+  Fix: "$((TOTAL + 1)"
+
+⚠ 43:14-36 43:14-36 [warning] SC2046: Quote this to prevent word splitting: $(basename "$rs_file")
+  Fix: "$(basename "$rs_file")"
+
+⚠ 51:19-92 51:19-92 [warning] SC2046: Quote this to prevent word splitting: $(grep "^warning:" "/tmp/depyler_err_$$" 2>/dev/null | wc -l | tr -d ' ')
+  Fix: "$(grep "^warning:" "/tmp/depyler_err_$$" 2>/dev/null | wc -l | tr -d ' ')"
+
+⚠ 56:16-30 56:16-30 [warning] SC2046: Quote this to prevent word splitting: $((PASSED + 1)
+  Fix: "$((PASSED + 1)"
+
+⚠ 60:16-30 60:16-30 [warning] SC2046: Quote this to prevent word splitting: $((FAILED + 1)
+  Fix: "$((FAILED + 1)"
+
+⚠ 63:24-58 63:24-58 [warning] SC2046: Quote this to prevent word splitting: $((WARNINGS_FOUND + warning_count)
+  Fix: "$((WARNINGS_FOUND + warning_count)"
+
+⚠ 81:44-68 81:44-68 [warning] SC2046: Quote this to prevent word splitting: $((PASSED * 100 / TOTAL)
+  Fix: "$((PASSED * 100 / TOTAL)"
+
+⚠ 82:42-66 82:42-66 [warning] SC2046: Quote this to prevent word splitting: $((FAILED * 100 / TOTAL)
+  Fix: "$((FAILED * 100 / TOTAL)"
+
+⚠ 100:45-52 100:45-52 [warning] SC2046: Quote this to prevent word splitting: $((i+1)
+  Fix: "$((i+1)"
+
+⚠ 80:6-12 80:6-12 [warning] SC2047: Quote $TOTAL to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 91:6-13 91:6-13 [warning] SC2047: Quote $FAILED to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 80:6-12 80:6-12 [warning] SC2086: Double quote to prevent globbing and word splitting on $TOTAL
+  Fix: "$TOTAL"
+
+⚠ 91:6-13 91:6-13 [warning] SC2086: Double quote to prevent globbing and word splitting on $FAILED
+  Fix: "$FAILED"
+
+⚠ 113:1-5 113:1-5 [warning] SC2117: Unreachable code after 'exit' on line 112
+
+ℹ 51:21-79 51:21-79 [info] SC2126: Consider using grep -c instead of grep | wc -l
+
+ℹ 80:4-20 80:4-20 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+ℹ 91:4-21 91:4-21 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+⚠ 100:55-68 100:55-68 [warning] SC2154: Variable 'FAILED_FILES' is referenced but not assigned
+
+⚠ 100:77-92 100:77-92 [warning] SC2154: Variable 'WARNING_COUNTS' is referenced but not assigned
+
+ℹ 48:1-97 48:1-97 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 51:1-92 51:1-92 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 42:1-25 42:1-25 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 56:1-31 56:1-31 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 60:1-31 60:1-31 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 63:1-59 63:1-59 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 81:1-72 81:1-72 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 82:1-70 82:1-70 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 80:1-26 80:1-26 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+ℹ 91:1-27 91:1-27 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+ℹ 100:1-99 100:1-99 [info] SC2290: Remove $ from index variables in array subscripts: ${array[i]} not ${array[$i]}
+
+⚠ 80:1-26 80:1-26 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+⚠ 91:1-27 91:1-27 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+⚠ 113:1-5 113:1-5 [warning] SC2317: Command appears to be unreachable (code after exit/return on line 112)
+
+⚠ 30:25-26 30:25-26 [warning] DET003: Unordered wildcard - results may vary
+  Fix: | sort
+
+Summary: 0 error(s), 27 warning(s), 30 info(s)

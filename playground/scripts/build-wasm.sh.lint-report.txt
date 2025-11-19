@@ -1,0 +1,79 @@
+[2m2025-11-19T04:56:52.419884Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./playground/scripts/build-wasm.sh
+Issues found in ./playground/scripts/build-wasm.sh:
+
+ℹ 64:39-83 64:39-83 [info] SC2015: Note that 'A && B || C' is not if-then-else. C may run when A is true. Use 'if A; then B; else C; fi' for proper conditional logic
+
+⚠ 44:30-40 44:30-40 [warning] SC2031: Variable 'SIZE_KB' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 48:6-14 48:6-14 [warning] SC2031: Variable 'SIZE_KB' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 49:30-40 49:30-40 [warning] SC2031: Variable 'SIZE_KB' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 52:38-48 52:38-48 [warning] SC2031: Variable 'SIZE_KB' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 62:14-22 62:14-22 [warning] SC2031: Variable 'SIZE_KB' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+ℹ 41:1-12 41:1-12 [info] SC2032: Variable 'SIZE_BYTES' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 42:1-9 42:1-9 [info] SC2032: Variable 'SIZE_KB' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 47:1-11 47:1-11 [info] SC2032: Variable 'BUDGET_KB' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 41:12-40 41:12-40 [warning] SC2046: Quote this to prevent word splitting: $(stat -c%s depyler.wasm.gz)
+  Fix: "$(stat -c%s depyler.wasm.gz)"
+
+⚠ 42:9-30 42:9-30 [warning] SC2046: Quote this to prevent word splitting: $((SIZE_BYTES / 1024)
+  Fix: "$((SIZE_BYTES / 1024)"
+
+⚠ 64:16-82 64:16-82 [warning] SC2046: Quote this to prevent word splitting: $(command -v wasm-opt &> /dev/null && echo "true" || echo "false")
+  Fix: "$(command -v wasm-opt &> /dev/null && echo "true" || echo "false")"
+
+⚠ 48:6-14 48:6-14 [warning] SC2047: Quote $SIZE_KB to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 48:19-29 48:19-29 [warning] SC2047: Quote $BUDGET_KB to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 48:6-14 48:6-14 [warning] SC2086: Double quote to prevent globbing and word splitting on $SIZE_KB
+  Fix: "$SIZE_KB"
+
+⚠ 48:19-29 48:19-29 [warning] SC2086: Double quote to prevent globbing and word splitting on $BUDGET_KB
+  Fix: "$BUDGET_KB"
+
+⚠ 62:14-22 62:14-22 [warning] SC2086: Double quote to prevent globbing and word splitting on $SIZE_KB
+  Fix: "$SIZE_KB"
+
+ℹ 23:1-37 23:1-37 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+⚠ 51:1-5 51:1-5 [warning] SC2117: Unreachable code after 'exit' on line 50
+
+⚠ 64:13-75 64:13-75 [warning] SC2140: Word is split between quotes. Use proper quoting or concatenation
+
+ℹ 64:67-73 64:67-73 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+⚠ 7:1-47 7:1-47 [warning] SC2161: Use 'cd ... || exit' or check for errors
+
+⚠ 20:1-32 20:1-32 [warning] SC2161: Use 'cd ... || exit' or check for errors
+
+⚠ 7:1-14 7:1-14 [warning] SC2164: Use 'cd ... || exit' in case cd fails
+  Fix: cd "$(dirname || exit
+
+⚠ 20:1-32 20:1-32 [warning] SC2164: Use 'cd ... || exit' in case cd fails
+  Fix: cd ../../playground/public/wasm || exit
+
+ℹ 42:1-31 42:1-31 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 48:1-37 48:1-37 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+⚠ 48:1-37 48:1-37 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+⚠ 51:1-5 51:1-5 [warning] SC2317: Command appears to be unreachable (code after exit/return on line 50)
+
+✗ 61:15-21 61:15-21 [error] DET002: Non-deterministic timestamp usage - requires manual fix (UNSAFE)
+  Fix: 
+
+✗ 63:18-24 63:18-24 [error] DET002: Non-deterministic timestamp usage - requires manual fix (UNSAFE)
+  Fix: 
+
+⚠ 56:1-3 56:1-3 [warning] IDEM002: Non-idempotent rm - add -f flag (SAFE-WITH-ASSUMPTIONS)
+  Fix: rm -f
+
+Summary: 2 error(s), 22 warning(s), 8 info(s)

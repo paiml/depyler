@@ -1,0 +1,165 @@
+[2m2025-11-19T04:56:53.130906Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/validate_examples.sh
+Issues found in ./scripts/validate_examples.sh:
+
+ℹ 11:1-5 11:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 12:1-7 12:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 13:1-8 13:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 14:1-6 14:1-6 [info] SC2032: Variable 'BLUE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 15:1-4 15:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 18:1-14 18:1-14 [info] SC2032: Variable 'EXAMPLES_DIR' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 19:1-13 19:1-13 [info] SC2032: Variable 'REPORT_FILE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 20:1-13 20:1-13 [info] SC2032: Variable 'DEPYLER_BIN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 23:1-16 23:1-16 [info] SC2032: Variable 'TOTAL_EXAMPLES' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 24:1-17 24:1-17 [info] SC2032: Variable 'PASSED_EXAMPLES' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 25:1-17 25:1-17 [info] SC2032: Variable 'FAILED_EXAMPLES' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 26:1-18 26:1-18 [info] SC2032: Variable 'SKIPPED_EXAMPLES' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 196:5-14 196:5-14 [info] SC2032: Variable 'filename' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 197:5-16 197:5-16 [info] SC2032: Variable 'violations' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 43:16-51 43:16-51 [warning] SC2046: Quote this to prevent word splitting: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+  Fix: "$(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+
+⚠ 54:20-44 54:20-44 [warning] SC2046: Quote this to prevent word splitting: $(basename "$rust_file")
+  Fix: "$(basename "$rust_file")"
+
+⚠ 135:11-22 135:11-22 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$violations"
+
+⚠ 225:7-23 225:7-23 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$FAILED_EXAMPLES"
+
+⚠ 252:7-23 252:7-23 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$FAILED_EXAMPLES"
+
+⚠ 185:33-51 185:33-51 [warning] SC2068: Double quote to prevent globbing and word splitting on array expansion
+  Fix: "${PASSED_FILES[@]}"
+
+⚠ 195:33-51 195:33-51 [warning] SC2068: Double quote to prevent globbing and word splitting on array expansion
+  Fix: "${FAILED_FILES[@]}"
+
+⚠ 207:34-53 207:34-53 [warning] SC2068: Double quote to prevent globbing and word splitting on array expansion
+  Fix: "${SKIPPED_FILES[@]}"
+
+⚠ 44:16-29 44:16-29 [warning] SC2086: Double quote to prevent globbing and word splitting on $EXAMPLES_DIR
+  Fix: "$EXAMPLES_DIR"
+
+⚠ 121:8-20 121:8-20 [warning] SC2086: Double quote to prevent globbing and word splitting on $DEPYLER_BIN
+  Fix: "$DEPYLER_BIN"
+
+⚠ 135:11-22 135:11-22 [warning] SC2086: Double quote to prevent globbing and word splitting on $violations
+  Fix: "$violations"
+
+⚠ 176:23-38 176:23-38 [warning] SC2086: Double quote to prevent globbing and word splitting on $TOTAL_EXAMPLES
+  Fix: "$TOTAL_EXAMPLES"
+
+⚠ 177:15-31 177:15-31 [warning] SC2086: Double quote to prevent globbing and word splitting on $PASSED_EXAMPLES
+  Fix: "$PASSED_EXAMPLES"
+
+⚠ 178:15-31 178:15-31 [warning] SC2086: Double quote to prevent globbing and word splitting on $FAILED_EXAMPLES
+  Fix: "$FAILED_EXAMPLES"
+
+⚠ 179:16-33 179:16-33 [warning] SC2086: Double quote to prevent globbing and word splitting on $SKIPPED_EXAMPLES
+  Fix: "$SKIPPED_EXAMPLES"
+
+⚠ 225:7-23 225:7-23 [warning] SC2086: Double quote to prevent globbing and word splitting on $FAILED_EXAMPLES
+  Fix: "$FAILED_EXAMPLES"
+
+⚠ 252:7-23 252:7-23 [warning] SC2086: Double quote to prevent globbing and word splitting on $FAILED_EXAMPLES
+  Fix: "$FAILED_EXAMPLES"
+
+ℹ 71:5-89 71:5-89 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 92:5-37 92:5-37 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 94:9-127 94:9-127 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 106:5-37 106:5-37 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 108:9-82 108:9-82 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 121:5-95 121:5-95 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 122:9-73 122:9-73 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 20:1-38 20:1-38 [info] SC2097: This assignment is only seen by 'run', not the current shell. Move to separate line or use 'export' if you want it to persist
+
+⚠ 185:28-32 185:28-32 [warning] SC2102: Ranges can only match single chars (to match + literally, use \+)
+
+⚠ 195:28-32 195:28-32 [warning] SC2102: Ranges can only match single chars (to match + literally, use \+)
+
+⚠ 207:29-33 207:29-33 [warning] SC2102: Ranges can only match single chars (to match + literally, use \+)
+
+⚠ 255:1-5 255:1-5 [warning] SC2117: Unreachable code after 'exit' on line 254
+
+⚠ 135:11-22 135:11-22 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${violations[@]}
+
+⚠ 140:43-54 140:43-54 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${violations[@]}
+
+⚠ 198:28-39 198:28-39 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${violations[@]}
+
+⚠ 185:14-27 185:14-27 [warning] SC2154: Variable 'PASSED_FILES' is referenced but not assigned
+
+⚠ 185:33-46 185:33-46 [warning] SC2154: Variable 'PASSED_FILES' is referenced but not assigned
+
+⚠ 195:14-27 195:14-27 [warning] SC2154: Variable 'FAILED_FILES' is referenced but not assigned
+
+⚠ 195:33-46 195:33-46 [warning] SC2154: Variable 'FAILED_FILES' is referenced but not assigned
+
+⚠ 207:14-28 207:14-28 [warning] SC2154: Variable 'SKIPPED_FILES' is referenced but not assigned
+
+⚠ 207:34-48 207:34-48 [warning] SC2154: Variable 'SKIPPED_FILES' is referenced but not assigned
+
+⚠ 54:5-10 54:5-10 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 135:8-31 135:8-31 [warning] SC2199: Arrays implicitly concatenate in [[ ]]. Use ${violations[@]} to check all elements or ${violations[0]} for first element
+
+ℹ 82:1-108 82:1-108 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 175:1-28 175:1-28 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 186:1-41 186:1-41 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 189:1-28 189:1-28 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 198:1-70 198:1-70 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 201:1-28 201:1-28 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 208:1-65 208:1-65 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 211:1-28 211:1-28 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 226:1-32 226:1-32 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 236:1-32 236:1-32 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+✗ 185:1-58 185:1-58 [error] SC2296: Parameter expansions can't be nested. Use separate expansions.
+
+✗ 195:1-58 195:1-58 [error] SC2296: Parameter expansions can't be nested. Use separate expansions.
+
+✗ 207:1-60 207:1-60 [error] SC2296: Parameter expansions can't be nested. Use separate expansions.
+
+ℹ 19:1-35 19:1-35 [info] SC2311: Use single quotes for literal strings that don't contain expansions
+
+⚠ 255:1-5 255:1-5 [warning] SC2317: Command appears to be unreachable (code after exit/return on line 254)
+
+✗ 43:16-22 43:16-22 [error] DET002: Non-deterministic timestamp usage - requires manual fix (UNSAFE)
+  Fix: 
+
+Summary: 4 error(s), 33 warning(s), 33 info(s)

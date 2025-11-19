@@ -1,0 +1,158 @@
+[2m2025-11-19T04:56:52.590718Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/quick_validate_examples.sh
+Issues found in ./scripts/quick_validate_examples.sh:
+
+ℹ 64:43-94 64:43-94 [info] SC2016: Expressions don't expand in single quotes, use double quotes for that
+
+⚠ 76:13-57 76:13-57 [warning] SC2027: The surrounding quotes actually unquote this. Use printf '%s\n' "$var" instead
+
+⚠ 78:13-67 78:13-67 [warning] SC2027: The surrounding quotes actually unquote this. Use printf '%s\n' "$var" instead
+
+⚠ 90:13-57 90:13-57 [warning] SC2027: The surrounding quotes actually unquote this. Use printf '%s\n' "$var" instead
+
+⚠ 92:13-67 92:13-67 [warning] SC2027: The surrounding quotes actually unquote this. Use printf '%s\n' "$var" instead
+
+⚠ 109:9-53 109:9-53 [warning] SC2027: The surrounding quotes actually unquote this. Use printf '%s\n' "$var" instead
+
+⚠ 111:9-63 111:9-63 [warning] SC2027: The surrounding quotes actually unquote this. Use printf '%s\n' "$var" instead
+
+ℹ 13:1-5 13:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 14:1-7 14:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 15:1-8 15:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 16:1-6 16:1-6 [info] SC2032: Variable 'BLUE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 17:1-4 17:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 19:1-14 19:1-14 [info] SC2032: Variable 'PROJECT_ROOT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 20:1-14 20:1-14 [info] SC2032: Variable 'EXAMPLES_DIR' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 42:5-17 42:5-17 [info] SC2032: Variable 'CLIPPY_PASS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 45:5-17 45:5-17 [info] SC2032: Variable 'CLIPPY_PASS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 52:5-16 52:5-16 [info] SC2032: Variable 'CHECK_PASS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 55:5-16 55:5-16 [info] SC2032: Variable 'CHECK_PASS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 66:1-7 66:1-7 [info] SC2032: Variable 'TOTAL' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 67:1-10 67:1-10 [info] SC2032: Variable 'SHOWCASE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 68:1-6 68:1-6 [info] SC2032: Variable 'CORE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 69:1-10 69:1-10 [info] SC2032: Variable 'ADVANCED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 74:9-18 74:9-18 [info] SC2032: Variable 'basename' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 88:9-18 88:9-18 [info] SC2032: Variable 'basename' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 107:5-14 107:5-14 [info] SC2032: Variable 'basename' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 74:18-40 74:18-40 [warning] SC2046: Quote this to prevent word splitting: $(basename "$example")
+  Fix: "$(basename "$example")"
+
+⚠ 88:18-40 88:18-40 [warning] SC2046: Quote this to prevent word splitting: $(basename "$example")
+  Fix: "$(basename "$example")"
+
+⚠ 107:14-36 107:14-36 [warning] SC2046: Quote this to prevent word splitting: $(basename "$example")
+  Fix: "$(basename "$example")"
+
+⚠ 73:11-19 73:11-19 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 87:11-19 87:11-19 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 87:49-57 87:49-57 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 87:79-87 87:79-87 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 102:11-19 102:11-19 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 103:11-19 103:11-19 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 104:11-19 104:11-19 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+⚠ 104:41-49 104:41-49 [warning] SC2066: Quote variable in [[ ... ]] to prevent globbing and word splitting
+  Fix: "$example"
+
+ℹ 64:43-94 64:43-94 [info] SC2081: Expressions don't expand in single quotes, use double quotes for that
+  Fix: " {1..50})" "$(printf '%.0s-' {1..10})" "$(printf "
+
+⚠ 73:11-19 73:11-19 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 75:12-24 75:12-24 [warning] SC2086: Double quote to prevent globbing and word splitting on $CLIPPY_PASS
+  Fix: "$CLIPPY_PASS"
+
+⚠ 75:28-39 75:28-39 [warning] SC2086: Double quote to prevent globbing and word splitting on $CHECK_PASS
+  Fix: "$CHECK_PASS"
+
+⚠ 87:11-19 87:11-19 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 87:49-57 87:49-57 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 87:79-87 87:79-87 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 89:12-24 89:12-24 [warning] SC2086: Double quote to prevent globbing and word splitting on $CLIPPY_PASS
+  Fix: "$CLIPPY_PASS"
+
+⚠ 89:28-39 89:28-39 [warning] SC2086: Double quote to prevent globbing and word splitting on $CHECK_PASS
+  Fix: "$CHECK_PASS"
+
+⚠ 102:11-19 102:11-19 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 103:11-19 103:11-19 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 104:11-19 104:11-19 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 104:41-49 104:41-49 [warning] SC2086: Double quote to prevent globbing and word splitting on $example
+  Fix: "$example"
+
+⚠ 108:8-20 108:8-20 [warning] SC2086: Double quote to prevent globbing and word splitting on $CLIPPY_PASS
+  Fix: "$CLIPPY_PASS"
+
+⚠ 108:24-35 108:24-35 [warning] SC2086: Double quote to prevent globbing and word splitting on $CHECK_PASS
+  Fix: "$CHECK_PASS"
+
+⚠ 126:4-16 126:4-16 [warning] SC2086: Double quote to prevent globbing and word splitting on $CLIPPY_PASS
+  Fix: "$CLIPPY_PASS"
+
+⚠ 126:20-31 126:20-31 [warning] SC2086: Double quote to prevent globbing and word splitting on $CHECK_PASS
+  Fix: "$CHECK_PASS"
+
+⚠ 137:10-22 137:10-22 [warning] SC2086: Double quote to prevent globbing and word splitting on $CLIPPY_PASS
+  Fix: "$CLIPPY_PASS"
+
+⚠ 140:10-21 140:10-21 [warning] SC2086: Double quote to prevent globbing and word splitting on $CHECK_PASS
+  Fix: "$CHECK_PASS"
+
+ℹ 19:1-64 19:1-64 [info] SC2089: Quotes/backslashes will be treated literally. Use array or separate assignment
+
+⚠ 19:32-44 19:32-44 [warning] SC2154: Variable 'BASH_SOURCE' is referenced but not assigned
+
+⚠ 72:17-26 72:17-26 [warning] SC2154: Variable 'EXAMPLES' is referenced but not assigned
+
+⚠ 86:17-26 86:17-26 [warning] SC2154: Variable 'EXAMPLES' is referenced but not assigned
+
+⚠ 100:17-26 100:17-26 [warning] SC2154: Variable 'EXAMPLES' is referenced but not assigned
+
+ℹ 40:1-98 40:1-98 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 50:1-73 50:1-73 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+Summary: 0 error(s), 39 warning(s), 23 info(s)

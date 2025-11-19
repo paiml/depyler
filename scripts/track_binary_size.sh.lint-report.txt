@@ -1,0 +1,364 @@
+[2m2025-11-19T04:56:53.019776Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/track_binary_size.sh
+Issues found in ./scripts/track_binary_size.sh:
+
+ℹ 274:18-39 274:18-39 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $(--profile min-size\)
+
+ℹ 275:46-54 275:46-54 [info] SC2006: Use $(...) instead of deprecated backticks
+  Fix: $(strip\)
+
+⚠ 103:42-50 103:42-50 [warning] SC2031: Variable 'size_mb' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 104:62-72 104:62-72 [warning] SC2031: Variable 'size_mb' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 106:43-51 106:43-51 [warning] SC2031: Variable 'size_mb' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 107:61-71 107:61-71 [warning] SC2031: Variable 'size_mb' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 143:42-57 143:42-57 [warning] SC2031: Variable 'size_reduction' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 143:60-80 143:60-80 [warning] SC2031: Variable 'reduction_percent' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 176:30-50 176:30-50 [warning] SC2031: Variable 'compression_ratio' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 189:37-49 189:37-49 [warning] SC2031: Variable 'upx_ratio' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 225:33-52 225:33-52 [warning] SC2031: Variable 'default_overhead' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 230:39-55 230:39-55 [warning] SC2031: Variable 'full_overhead' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+ℹ 9:1-5 9:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 10:1-7 10:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 11:1-8 11:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 12:1-6 12:1-6 [info] SC2032: Variable 'BLUE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 13:1-4 13:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 16:1-19 16:1-19 [info] SC2032: Variable 'SIZE_THRESHOLD_MB' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 17:1-22 17:1-22 [info] SC2032: Variable 'RELEASE_THRESHOLD_MB' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 18:1-10 18:1-10 [info] SC2032: Variable 'TEMP_DIR' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 254:9-18 254:9-18 [info] SC2032: Variable 'dev_size' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 258:9-22 258:9-22 [info] SC2032: Variable 'release_size' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 262:9-18 262:9-18 [info] SC2032: Variable 'min_size' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 274:38-64 274:38-64 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 275:53-63 275:53-63 [warning] SC2036: Quotes in backticks need escaping. Use $( ) instead or escape with \"
+
+⚠ 91:13-18 91:13-18 [warning] SC2041: 'read' in for loop reads from stdin, not loop data. Use 'while read' instead (for loop started at line 17)
+
+⚠ 18:10-22 18:10-22 [warning] SC2046: Quote this to prevent word splitting: $(mktemp -d)
+  Fix: "$(mktemp -d)"
+
+⚠ 88:21-52 88:21-52 [warning] SC2046: Quote this to prevent word splitting: $(get_file_size "$binary_path")
+  Fix: "$(get_file_size "$binary_path")"
+
+⚠ 89:24-58 89:24-58 [warning] SC2046: Quote this to prevent word splitting: $(get_section_info "$binary_path")
+  Fix: "$(get_section_info "$binary_path")"
+
+⚠ 94:28-54 94:28-54 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $file_size)
+  Fix: "$(format_bytes $file_size)"
+
+⚠ 95:28-54 95:28-54 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $text_size)
+  Fix: "$(format_bytes $text_size)"
+
+⚠ 96:28-54 96:28-54 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $data_size)
+  Fix: "$(format_bytes $data_size)"
+
+⚠ 97:28-53 97:28-53 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $bss_size)
+  Fix: "$(format_bytes $bss_size)"
+
+⚠ 98:28-55 98:28-55 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $total_size)
+  Fix: "$(format_bytes $total_size)"
+
+⚠ 101:19-44 101:19-44 [warning] SC2046: Quote this to prevent word splitting: $(( file_size / 1048576 )
+  Fix: "$(( file_size / 1048576 )"
+
+⚠ 136:25-60 136:25-60 [warning] SC2046: Quote this to prevent word splitting: $(get_file_size "$original_binary")
+  Fix: "$(get_file_size "$original_binary")"
+
+⚠ 137:25-60 137:25-60 [warning] SC2046: Quote this to prevent word splitting: $(get_file_size "$stripped_binary")
+  Fix: "$(get_file_size "$stripped_binary")"
+
+⚠ 138:26-61 138:26-61 [warning] SC2046: Quote this to prevent word splitting: $(( original_size - stripped_size )
+  Fix: "$(( original_size - stripped_size )"
+
+⚠ 139:29-71 139:29-71 [warning] SC2046: Quote this to prevent word splitting: $(( size_reduction * 100 / original_size )
+  Fix: "$(( size_reduction * 100 / original_size )"
+
+⚠ 141:27-57 141:27-57 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $original_size)
+  Fix: "$(format_bytes $original_size)"
+
+⚠ 142:27-57 142:27-57 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $stripped_size)
+  Fix: "$(format_bytes $stripped_size)"
+
+⚠ 143:27-58 143:27-58 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $size_reduction)
+  Fix: "$(format_bytes $size_reduction)"
+
+⚠ 170:25-60 170:25-60 [warning] SC2046: Quote this to prevent word splitting: $(get_file_size "$original_binary")
+  Fix: "$(get_file_size "$original_binary")"
+
+⚠ 171:27-62 171:27-62 [warning] SC2046: Quote this to prevent word splitting: $(get_file_size "$compressed_file")
+  Fix: "$(get_file_size "$compressed_file")"
+
+⚠ 172:29-72 172:29-72 [warning] SC2046: Quote this to prevent word splitting: $(( compressed_size * 100 / original_size )
+  Fix: "$(( compressed_size * 100 / original_size )"
+
+⚠ 174:29-59 174:29-59 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $original_size)
+  Fix: "$(format_bytes $original_size)"
+
+⚠ 175:29-61 175:29-61 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $compressed_size)
+  Fix: "$(format_bytes $compressed_size)"
+
+⚠ 185:28-58 185:28-58 [warning] SC2046: Quote this to prevent word splitting: $(get_file_size "$upx_binary")
+  Fix: "$(get_file_size "$upx_binary")"
+
+⚠ 186:29-65 186:29-65 [warning] SC2046: Quote this to prevent word splitting: $(( upx_size * 100 / original_size )
+  Fix: "$(( upx_size * 100 / original_size )"
+
+⚠ 188:37-62 188:37-62 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $upx_size)
+  Fix: "$(format_bytes $upx_size)"
+
+⚠ 207:24-65 207:24-65 [warning] SC2046: Quote this to prevent word splitting: $(get_file_size "target/release/depyler")
+  Fix: "$(get_file_size "target/release/depyler")"
+
+⚠ 212:24-65 212:24-65 [warning] SC2046: Quote this to prevent word splitting: $(get_file_size "target/release/depyler")
+  Fix: "$(get_file_size "target/release/depyler")"
+
+⚠ 217:21-62 217:21-62 [warning] SC2046: Quote this to prevent word splitting: $(get_file_size "target/release/depyler")
+  Fix: "$(get_file_size "target/release/depyler")"
+
+⚠ 219:29-58 219:29-58 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $minimal_size)
+  Fix: "$(format_bytes $minimal_size)"
+
+⚠ 220:29-58 220:29-58 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $default_size)
+  Fix: "$(format_bytes $default_size)"
+
+⚠ 221:29-55 221:29-55 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $full_size)
+  Fix: "$(format_bytes $full_size)"
+
+⚠ 224:32-65 224:32-65 [warning] SC2046: Quote this to prevent word splitting: $(( (default_size - minimal_size)
+  Fix: "$(( (default_size - minimal_size)"
+
+⚠ 229:29-59 229:29-59 [warning] SC2046: Quote this to prevent word splitting: $(( (full_size - default_size)
+  Fix: "$(( (full_size - default_size)"
+
+⚠ 242:26-33 242:26-33 [warning] SC2046: Quote this to prevent word splitting: $(date)
+  Fix: "$(date)"
+
+⚠ 254:18-72 254:18-72 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $(get_file_size "target/debug/depyler")
+  Fix: "$(format_bytes $(get_file_size "target/debug/depyler")"
+
+⚠ 258:22-78 258:22-78 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $(get_file_size "target/release/depyler")
+  Fix: "$(format_bytes $(get_file_size "target/release/depyler")"
+
+⚠ 262:18-75 262:18-75 [warning] SC2046: Quote this to prevent word splitting: $(format_bytes $(get_file_size "target/min-size/depyler")
+  Fix: "$(format_bytes $(get_file_size "target/min-size/depyler")"
+
+⚠ 274:18-39 274:18-39 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$(--profile min-size\)"
+
+⚠ 275:46-54 275:46-54 [warning] SC2046: Quote this and use $(...) instead of backticks
+  Fix: "$(strip\)"
+
+⚠ 19:1-23 19:1-23 [warning] SC2064: Use single quotes, otherwise this expands now rather than when signalled
+
+ℹ 101:5-45 101:5-45 [info] SC2085: Use 'local size_mb; ((...))' if you want side effects only, not the result
+
+ℹ 138:5-62 138:5-62 [info] SC2085: Use 'local size_reduction; ((...))' if you want side effects only, not the result
+
+ℹ 139:5-72 139:5-72 [info] SC2085: Use 'local reduction_percent; ((...))' if you want side effects only, not the result
+
+ℹ 172:5-73 172:5-73 [info] SC2085: Use 'local compression_ratio; ((...))' if you want side effects only, not the result
+
+ℹ 186:13-66 186:13-66 [info] SC2085: Use 'local upx_ratio; ((...))' if you want side effects only, not the result
+
+ℹ 91:5-80 91:5-80 [info] SC2089: Quotes/backslashes will be treated literally. Use array or separate assignment
+
+ℹ 52:5-56 52:5-56 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 151:5-38 151:5-38 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 179:5-35 179:5-35 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 184:9-54 184:9-54 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+ℹ 91:1-17 91:1-17 [info] SC2097: This assignment is only seen by 'read', not the current shell. Move to separate line or use 'export' if you want it to persist
+
+ℹ 274:18-39 274:18-39 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+ℹ 275:46-54 275:46-54 [info] SC2099: Use $(...) instead of deprecated backtick command substitution
+
+⚠ 106:1-88 106:1-88 [warning] SC2117: Unreachable code after 'return' on line 105
+
+⚠ 36:11-17 36:11-17 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${bytes[@]}
+
+⚠ 38:13-19 38:13-19 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${bytes[@]}
+
+⚠ 39:15-23 39:15-23 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${bytes[@]}
+
+⚠ 40:13-19 40:13-19 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${bytes[@]}
+
+⚠ 42:13-19 42:13-19 [warning] SC2128: Expanding an array without an index only gives the first element
+  Fix: ${bytes[@]}
+
+ℹ 241:1-243:1 241:1-243:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$report_file" instead of 3 individual redirects for better performance
+
+ℹ 245:1-246:1 245:1-246:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$report_file" instead of 2 individual redirects for better performance
+
+ℹ 265:1-270:1 265:1-270:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$report_file" instead of 6 individual redirects for better performance
+
+ℹ 272:1-277:1 272:1-277:1 [info] SC2129: Consider using { cmd1; cmd2; } >> "$report_file" instead of 6 individual redirects for better performance
+
+⚠ 106:21-43 106:21-43 [warning] SC2140: Word is split between quotes. Use proper quoting or concatenation
+
+ℹ 27:73-79 27:73-79 [info] SC2141: 'echo' doesn't read stdin. Consider restructuring the command
+
+⚠ 95:43-53 95:43-53 [warning] SC2154: Variable 'text_size' is referenced but not assigned
+
+⚠ 95:56-66 95:56-66 [warning] SC2154: Variable 'text_size' is referenced but not assigned
+
+⚠ 96:43-53 96:43-53 [warning] SC2154: Variable 'data_size' is referenced but not assigned
+
+⚠ 96:56-66 96:56-66 [warning] SC2154: Variable 'data_size' is referenced but not assigned
+
+⚠ 97:43-52 97:43-52 [warning] SC2154: Variable 'bss_size' is referenced but not assigned
+
+⚠ 97:55-64 97:55-64 [warning] SC2154: Variable 'bss_size' is referenced but not assigned
+
+⚠ 98:43-54 98:43-54 [warning] SC2154: Variable 'total_size' is referenced but not assigned
+
+⚠ 98:57-68 98:57-68 [warning] SC2154: Variable 'total_size' is referenced but not assigned
+
+⚠ 88:5-10 88:5-10 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 89:5-10 89:5-10 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 101:5-10 101:5-10 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 136:5-10 136:5-10 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 137:5-10 137:5-10 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 138:5-10 138:5-10 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 139:5-10 139:5-10 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 170:5-10 170:5-10 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 171:5-10 171:5-10 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 172:5-10 172:5-10 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 185:13-18 185:13-18 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 186:13-18 186:13-18 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 207:5-10 207:5-10 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 212:5-10 212:5-10 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 217:5-10 217:5-10 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 224:9-14 224:9-14 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 229:9-14 229:9-14 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+⚠ 36:8-26 36:8-26 [warning] SC2198: Arrays don't work as scalars in [ ]. Use [ -n "${bytes[0]}" ] for first element or [[ ]] with ${bytes[@]}
+
+⚠ 38:10-31 38:10-31 [warning] SC2198: Arrays don't work as scalars in [ ]. Use [ -n "${bytes[0]}" ] for first element or [[ ]] with ${bytes[@]}
+
+⚠ 40:10-34 40:10-34 [warning] SC2198: Arrays don't work as scalars in [ ]. Use [ -n "${bytes[0]}" ] for first element or [[ ]] with ${bytes[@]}
+
+⚠ 42:10-37 42:10-37 [warning] SC2198: Arrays don't work as scalars in [ ]. Use [ -n "${bytes[0]}" ] for first element or [[ ]] with ${bytes[@]}
+
+ℹ 27:1-83 27:1-83 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 41:1-37 41:1-37 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 43:1-40 43:1-40 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 45:1-43 45:1-43 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 101:1-45 101:1-45 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 138:1-62 138:1-62 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 139:1-72 139:1-72 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 172:1-73 172:1-73 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 186:1-66 186:1-66 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 241:1-30 241:1-30 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 242:1-52 242:1-52 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 243:1-30 243:1-30 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 245:1-47 245:1-47 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 246:1-30 246:1-30 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 265:1-48 265:1-48 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 266:1-48 266:1-48 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 267:1-57 267:1-57 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 268:1-57 268:1-57 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 269:1-54 269:1-54 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 270:1-30 270:1-30 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 272:1-61 272:1-61 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 273:1-30 273:1-30 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 274:1-82 274:1-82 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 275:1-81 275:1-81 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 276:1-83 276:1-83 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 277:1-77 277:1-77 [info] SC2234: Spaces after redirect operators (>) are optional but unusual. Consider removing for consistency
+
+ℹ 103:1-84 103:1-84 [info] SC2274: Prefer [[ condition && condition ]] over separate [ ] tests
+
+ℹ 106:1-88 106:1-88 [info] SC2274: Prefer [[ condition && condition ]] over separate [ ] tests
+
+ℹ 223:1-68 223:1-68 [info] SC2274: Prefer [[ condition && condition ]] over separate [ ] tests
+
+ℹ 228:1-65 228:1-65 [info] SC2274: Prefer [[ condition && condition ]] over separate [ ] tests
+
+⚠ 305:1-10 305:1-10 [warning] SC2281: Use "$*" or ${array[*]} for string concatenation, or ${array[@]} for separate elements
+
+ℹ 69:1-41 69:1-41 [info] SC2316: Prefer [[ ]] over [ ] for string comparison (better handling of special characters)
+
+ℹ 71:1-42 71:1-42 [info] SC2316: Prefer [[ ]] over [ ] for string comparison (better handling of special characters)
+
+ℹ 73:1-38 73:1-38 [info] SC2316: Prefer [[ ]] over [ ] for string comparison (better handling of special characters)
+
+ℹ 103:1-84 103:1-84 [info] SC2316: Prefer [[ ]] over [ ] for string comparison (better handling of special characters)
+
+ℹ 106:1-88 106:1-88 [info] SC2316: Prefer [[ ]] over [ ] for string comparison (better handling of special characters)
+
+⚠ 106:1-88 106:1-88 [warning] SC2317: Command appears to be unreachable (code after exit/return on line 105)
+
+✗ 242:26-32 242:26-32 [error] DET002: Non-deterministic timestamp usage - requires manual fix (UNSAFE)
+  Fix: 
+
+Summary: 1 error(s), 90 warning(s), 66 info(s)
