@@ -1,0 +1,195 @@
+[2m2025-11-19T04:55:55.283778Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting tdd-book/Makefile
+Issues found in tdd-book/Makefile:
+
+⚠ 34:1-7 34:1-7 [warning] MAKE004: Target 'format' should be marked as .PHONY
+  Fix: .PHONY: format
+
+⚠ 11:6-13 11:6-13 [warning] MAKE010: Command 'install' missing error handling - consider adding '|| exit 1'
+  Fix: pip install -r requirements.txt || exit 1
+
+⚠ 45:2-4 45:2-4 [warning] MAKE010: Command 'rm' missing error handling - consider adding '|| exit 1'
+  Fix: rm -rf reports/ .coverage htmlcov/ .pytest_cache/ || exit 1
+
+⚠ 46:41-43 46:41-43 [warning] MAKE010: Command 'rm' missing error handling - consider adding '|| exit 1'
+  Fix: find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true || exit 1
+
+⚠ 51:2-7 51:2-7 [warning] MAKE010: Command 'mkdir' missing error handling - consider adding '|| exit 1'
+  Fix: mkdir -p tests/ docs/modules docs/edge-cases reports/ || exit 1
+
+⚠ 1:1-1 1:1-1 [warning] MAKE013: Missing .SUFFIXES - built-in implicit rules slow down Make (consider adding .SUFFIXES: to disable)
+  Fix: .SUFFIXES:
+
+# Makefile for Depyler TDD Book
+
+.PHONY: help test lint quality build serve clean install
+
+help: ## Show this help message
+	@echo "Depyler TDD Book - Makefile Commands"
+	@echo "===================================="
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+install: ## Install dependencies
+	pip install -r requirements.txt
+
+test: ## Run all tests
+	pytest tests/ -v --cov --cov-report=term-missing --cov-report=html
+
+test-fast: ## Run tests in parallel
+	pytest tests/ -n auto -v
+
+test-module: ## Test specific module (usage: make test-module MODULE=os)
+	pytest tests/test_$(MODULE)/ -v
+
+quality: ## Run quality gates (requires pmat)
+	@command -v pmat >/dev/null 2>&1 && { \
+		pmat analyze complexity --fail-on-violation; \
+		pmat analyze satd --fail-on-violation; \
+		pmat quality-gate --strict; \
+	} || echo "⚠️  pmat not installed, skipping quality gates"
+
+lint: ## Run linters
+	ruff check tests/ scripts/
+	black --check tests/ scripts/
+	@command -v mypy >/dev/null 2>&1 && mypy tests/ scripts/ || echo "⚠️  mypy not installed, skipping type checking"
+
+format: ## Auto-format code
+	black tests/ scripts/
+	ruff check --fix tests/ scripts/
+
+extract: ## Generate docs from tests
+	@command -v python >/dev/null 2>&1 && python scripts/extract_examples.py --all || echo "⚠️  extract script not yet implemented"
+
+validate: test lint ## Run all validation checks
+	@echo "✅ All validation checks passed!"
+
+clean: ## Clean build artifacts
+	rm -rf reports/ .coverage htmlcov/ .pytest_cache/
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete
+
+setup: install ## Initial project setup
+	@echo "🚀 Setting up Depyler TDD Book..."
+	mkdir -p tests/ docs/modules docs/edge-cases reports/
+	@echo "✅ Setup complete!"
+
+.DEFAULT_GOAL := help
+
+
+⚠ 1:1-1 1:1-1 [warning] MAKE015: Makefile missing .DELETE_ON_ERROR - partially-built files may be left on error
+  Fix: .DELETE_ON_ERROR:
+# Makefile for Depyler TDD Book
+
+.PHONY: help test lint quality build serve clean install
+
+help: ## Show this help message
+	@echo "Depyler TDD Book - Makefile Commands"
+	@echo "===================================="
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+install: ## Install dependencies
+	pip install -r requirements.txt
+
+test: ## Run all tests
+	pytest tests/ -v --cov --cov-report=term-missing --cov-report=html
+
+test-fast: ## Run tests in parallel
+	pytest tests/ -n auto -v
+
+test-module: ## Test specific module (usage: make test-module MODULE=os)
+	pytest tests/test_$(MODULE)/ -v
+
+quality: ## Run quality gates (requires pmat)
+	@command -v pmat >/dev/null 2>&1 && { \
+		pmat analyze complexity --fail-on-violation; \
+		pmat analyze satd --fail-on-violation; \
+		pmat quality-gate --strict; \
+	} || echo "⚠️  pmat not installed, skipping quality gates"
+
+lint: ## Run linters
+	ruff check tests/ scripts/
+	black --check tests/ scripts/
+	@command -v mypy >/dev/null 2>&1 && mypy tests/ scripts/ || echo "⚠️  mypy not installed, skipping type checking"
+
+format: ## Auto-format code
+	black tests/ scripts/
+	ruff check --fix tests/ scripts/
+
+extract: ## Generate docs from tests
+	@command -v python >/dev/null 2>&1 && python scripts/extract_examples.py --all || echo "⚠️  extract script not yet implemented"
+
+validate: test lint ## Run all validation checks
+	@echo "✅ All validation checks passed!"
+
+clean: ## Clean build artifacts
+	rm -rf reports/ .coverage htmlcov/ .pytest_cache/
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete
+
+setup: install ## Initial project setup
+	@echo "🚀 Setting up Depyler TDD Book..."
+	mkdir -p tests/ docs/modules docs/edge-cases reports/
+	@echo "✅ Setup complete!"
+
+.DEFAULT_GOAL := help
+
+
+⚠ 1:1-1 1:1-1 [warning] MAKE017: Missing .ONESHELL - multi-line recipes execute in separate shells (consider adding .ONESHELL: for consistent behavior)
+  Fix: .ONESHELL:
+
+# Makefile for Depyler TDD Book
+
+.PHONY: help test lint quality build serve clean install
+
+help: ## Show this help message
+	@echo "Depyler TDD Book - Makefile Commands"
+	@echo "===================================="
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+install: ## Install dependencies
+	pip install -r requirements.txt
+
+test: ## Run all tests
+	pytest tests/ -v --cov --cov-report=term-missing --cov-report=html
+
+test-fast: ## Run tests in parallel
+	pytest tests/ -n auto -v
+
+test-module: ## Test specific module (usage: make test-module MODULE=os)
+	pytest tests/test_$(MODULE)/ -v
+
+quality: ## Run quality gates (requires pmat)
+	@command -v pmat >/dev/null 2>&1 && { \
+		pmat analyze complexity --fail-on-violation; \
+		pmat analyze satd --fail-on-violation; \
+		pmat quality-gate --strict; \
+	} || echo "⚠️  pmat not installed, skipping quality gates"
+
+lint: ## Run linters
+	ruff check tests/ scripts/
+	black --check tests/ scripts/
+	@command -v mypy >/dev/null 2>&1 && mypy tests/ scripts/ || echo "⚠️  mypy not installed, skipping type checking"
+
+format: ## Auto-format code
+	black tests/ scripts/
+	ruff check --fix tests/ scripts/
+
+extract: ## Generate docs from tests
+	@command -v python >/dev/null 2>&1 && python scripts/extract_examples.py --all || echo "⚠️  extract script not yet implemented"
+
+validate: test lint ## Run all validation checks
+	@echo "✅ All validation checks passed!"
+
+clean: ## Clean build artifacts
+	rm -rf reports/ .coverage htmlcov/ .pytest_cache/
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete
+
+setup: install ## Initial project setup
+	@echo "🚀 Setting up Depyler TDD Book..."
+	mkdir -p tests/ docs/modules docs/edge-cases reports/
+	@echo "✅ Setup complete!"
+
+.DEFAULT_GOAL := help
+
+
+Summary: 0 error(s), 8 warning(s), 0 info(s)
