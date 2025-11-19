@@ -1,13 +1,13 @@
 # DEPYLER-0429: subprocess Module Support - Exception Variable Binding
 
-## Status: IN PROGRESS (RED Phase)
+## Status: PARTIAL COMPLETE (GREEN Phase - Iteration 1)
 - **Created**: 2025-11-19
 - **Priority**: P0 (CRITICAL - STOP THE LINE)
 - **Type**: Transpiler Bug + Feature Gap
 - **Parent**: DEPYLER-0435 (reprorusted-python-cli 100% compilation)
-- **Blocks**: task_runner.py (22 compilation errors)
-- **Estimated Effort**: 2-3 hours
-- **Actual Effort**: TBD
+- **Blocks**: task_runner.py (22 compilation errors → 19 remaining)
+- **Estimated Effort**: 2-3 hours (iteration 1), 2-3 hours more (iteration 2)
+- **Actual Effort**: 2 hours (iteration 1)
 
 ## Problem Statement
 
@@ -334,3 +334,97 @@ grep -A 10 "CalledProcessError" /home/noah/src/reprorusted-python-cli/examples/e
 
 **STATUS**: Ready for RED phase implementation
 **NEXT STEP**: `pmat prompt show continue DEPYLER-0429` to begin RED phase
+
+---
+
+## Iteration 1 Completion Summary (GREEN Phase)
+
+### What Was Fixed ✅
+**Scope**: Single-handler try/except with .parse() and exception variable binding
+
+**Implementation**: Modified `codegen_try_stmt()` in `stmt_gen.rs` (lines 2319-2367):
+- Removed ValueError-only restriction
+- Added exception variable binding support: `Err(e) =>` vs `Err(_) =>`
+- Handles `except Exception as e:` syntax correctly
+
+**Tests Passing**: 1/5 (20%)
+- ✅ test_DEPYLER_0429_01_simple_exception_binding (PASSING)
+- ❌ test_02: subprocess.CalledProcessError (no .parse() call)
+- ❌ test_03: FileNotFoundError without variable (no .parse() call)
+- ❌ test_04: Multiple exception handlers
+- ⏭️  test_05: Integration test (ignored)
+
+**Example Working Code**:
+```python
+def parse_int(value):
+    try:
+        x = int(value)  # Generates .parse()
+        return x
+    except ValueError as e:  # ✅ Variable `e` bound!
+        print(f"Parse error: {e}")
+        return -1
+```
+
+**Generated Rust (CORRECT)**:
+```rust
+pub fn parse_int(value: &str) -> i32 {
+    match value.parse::<i32>() {
+        Ok(x) => {
+            return x;
+        }
+        Err(e) => {  // ✅ Variable `e` BOUND!
+            println!("{}", format!("Parse error: {:?}", e));
+            return -1;
+        }
+    }
+}
+```
+
+### What's NOT Fixed ❌
+**Remaining Issues**: Exception handlers without .parse() calls
+
+**Blocked Scenarios**:
+1. **subprocess.CalledProcessError with variable**:
+   ```python
+   except subprocess.CalledProcessError as e:
+       sys.exit(e.returncode)  # ❌ E0425: `e` not found
+   ```
+   
+2. **FileNotFoundError without variable**:
+   ```python
+   except FileNotFoundError:
+       print("Not found")  # ❌ Falls through to sequential code
+   ```
+
+3. **Multiple except handlers**:
+   ```python
+   except ValueError as e1:
+       ...
+   except ZeroDivisionError as e2:  # ❌ handlers.len() != 1
+       ...
+   ```
+
+**Root Cause**: Current fix ONLY works when `extract_parse_from_tokens()` succeeds (i.e., try block contains `.parse()` call). Other exception types need different transpilation strategy.
+
+### Impact
+**Before**: 22 compilation errors in task_runner.py
+**After**: 19 compilation errors (3 E0425 errors fixed where .parse() is used)
+**Progress**: 13.6% error reduction
+
+**Still Blocks**: task_runner.py from compiling (needs iteration 2)
+
+### Next Steps (Iteration 2)
+1. Handle exception variable binding for NON-parse() scenarios
+2. Support multiple except handlers with different variables
+3. Support except without variable (wildcard pattern)
+4. Full task_runner.py compilation
+
+**Estimated Effort**: 2-3 hours for iteration 2
+
+### Commits
+- **RED Phase**: commit 2d25b5e
+- **GREEN Phase (Iteration 1)**: commit [PENDING]
+
+---
+
+**STATUS**: Iteration 1 complete, ready for commit. Iteration 2 needed for full task_runner.py support.
