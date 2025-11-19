@@ -1696,6 +1696,12 @@ fn convert_stmt_with_context(
             // Pass statement generates empty statement
             Ok(syn::Stmt::Expr(parse_quote! { {} }, None))
         }
+        // DEPYLER-0427: Nested function support - delegate to main rust_gen module
+        HirStmt::FunctionDef { .. } => {
+            // Nested functions are handled by the main rust_gen module
+            // direct_rules is a legacy optimization path
+            Ok(syn::Stmt::Expr(parse_quote! { {} }, None))
+        }
     }
 }
 

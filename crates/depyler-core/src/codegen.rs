@@ -595,6 +595,13 @@ fn stmt_to_rust_tokens_with_scope(
             // Pass statement generates no code
             Ok(quote! {})
         }
+        // DEPYLER-0427: Nested function support - delegate to rust_gen module
+        HirStmt::FunctionDef { .. } => {
+            // This is handled by the main rust_gen module
+            // This codegen.rs module is a legacy simplified codegen path
+            // For now, just return empty - nested functions use the main rust_gen path
+            Ok(quote! {})
+        }
     }
 }
 

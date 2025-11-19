@@ -300,6 +300,13 @@ impl BorrowingContext {
                     }
                 }
             }
+            // DEPYLER-0427: Nested function support
+            // Analyze nested function body for parameter usage
+            HirStmt::FunctionDef { body, .. } => {
+                for stmt in body {
+                    self.analyze_statement(stmt);
+                }
+            }
         }
     }
 

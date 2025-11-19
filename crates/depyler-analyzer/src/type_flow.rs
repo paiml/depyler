@@ -211,6 +211,11 @@ impl TypeInferencer {
                     self.infer_body(finally_stmts)?;
                 }
             }
+            // DEPYLER-0427: Nested function support
+            // Analyze nested function body for type inference
+            HirStmt::FunctionDef { body, .. } => {
+                self.infer_body(body)?;
+            }
         }
         Ok(())
     }
