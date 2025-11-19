@@ -2316,12 +2316,9 @@ pub(crate) fn codegen_try_stmt(
             Ok(quote! { #(#try_stmts)* })
         }
     } else {
-        // DEPYLER-0437: Generate proper match expressions for ValueError + parse() patterns
+        // DEPYLER-0437/0429: Generate proper match expressions for parse() patterns
         // Check if try_stmts contains a .parse() call that we can convert to match
-        if handlers.len() == 1
-            && handlers[0].exception_type.as_deref() == Some("ValueError")
-            && handlers[0].name.is_none()
-        {
+        if handlers.len() == 1 {
             if let Some((var_name, parse_expr_str, remaining_stmts)) =
                 extract_parse_from_tokens(&try_stmts)
             {
@@ -2335,11 +2332,21 @@ pub(crate) fn codegen_try_stmt(
                 // Generate Err branch (handler body)
                 let err_body = &handler_tokens[0];
 
+                // DEPYLER-0429: Check if exception variable should be bound
+                let err_pattern = if let Some(exc_var) = &handlers[0].name {
+                    // Bind exception variable: Err(e) => { ... }
+                    let exc_ident = safe_ident(exc_var);
+                    quote! { Err(#exc_ident) }
+                } else {
+                    // No exception variable: Err(_) => { ... }
+                    quote! { Err(_) }
+                };
+
                 // Build match expression
                 let match_expr = quote! {
                     match #parse_expr {
                         Ok(#ok_var) => { #ok_body },
-                        Err(_) => { #err_body }
+                        #err_pattern => { #err_body }
                     }
                 };
 
