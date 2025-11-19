@@ -1,0 +1,59 @@
+[2m2025-11-19T04:56:52.983208Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/release.sh
+Issues found in ./scripts/release.sh:
+
+ℹ 7:1-7 7:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 8:1-5 8:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 9:1-8 9:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 10:1-6 10:1-6 [info] SC2032: Variable 'BLUE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 11:1-4 11:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 21:1-9 21:1-9 [info] SC2032: Variable 'VERSION' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 22:1-13 22:1-13 [info] SC2032: Variable 'VERSION_TAG' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 71:11-21 71:11-21 [warning] SC2086: Double quote to prevent globbing and word splitting on ${VERSION}
+  Fix: "${VERSION}"
+
+⚠ 91:15-29 91:15-29 [warning] SC2086: Double quote to prevent globbing and word splitting on ${VERSION_TAG}
+  Fix: "${VERSION_TAG}"
+
+⚠ 92:9-23 92:9-23 [warning] SC2086: Double quote to prevent globbing and word splitting on ${VERSION_TAG}
+  Fix: "${VERSION_TAG}"
+
+⚠ 111:7-13 111:7-13 [warning] SC2086: Double quote to prevent globbing and word splitting on $REPLY
+  Fix: "$REPLY"
+
+⚠ 113:21-35 113:21-35 [warning] SC2086: Double quote to prevent globbing and word splitting on ${VERSION_TAG}
+  Fix: "${VERSION_TAG}"
+
+⚠ 111:7-13 111:7-13 [warning] SC2154: Variable 'REPLY' is referenced but not assigned
+
+⚠ 22:1-26 22:1-26 [warning] SC2201: Brace expansion doesn't happen in assignments. Use an array VERSION_TAG=(...) or a loop instead
+
+⚠ 109:1-41 109:1-41 [warning] SC2269: Use 'read -r' to prevent backslash interpretation
+
+ℹ 38:1-62 38:1-62 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 59:1-60 59:1-60 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 68:1-61 68:1-61 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 102:1-55 102:1-55 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 125:1-62 125:1-62 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 70:1-27 70:1-27 [info] SC2276: Avoid useless cat - use here document directly
+
+ℹ 91:1-45 91:1-45 [info] SC2276: Avoid useless cat - use here document directly
+
+ℹ 16:1-31 16:1-31 [info] SC2320: Positional parameter expands as single word. Quote to prevent word splitting: "$1"
+
+ℹ 17:1-29 17:1-29 [info] SC2320: Positional parameter expands as single word. Quote to prevent word splitting: "$1"
+
+ℹ 21:1-11 21:1-11 [info] SC2320: Positional parameter expands as single word. Quote to prevent word splitting: "$1"
+
+Summary: 0 error(s), 8 warning(s), 17 info(s)

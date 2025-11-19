@@ -1,0 +1,139 @@
+[2m2025-11-19T04:56:52.628273Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/bashrs_validate_all.sh
+Issues found in ./scripts/bashrs_validate_all.sh:
+
+ℹ 43:17-69 43:17-69 [info] SC2005: Useless 'echo' in command substitution. Use '"$LINT_OUTPUT" | grep -c "\[error\]" || true' directly instead of '$(echo "$LINT_OUTPUT" | grep -c "\[error\]" || true)'
+
+ℹ 44:19-73 44:19-73 [info] SC2005: Useless 'echo' in command substitution. Use '"$LINT_OUTPUT" | grep -c "\[warning\]" || true' directly instead of '$(echo "$LINT_OUTPUT" | grep -c "\[warning\]" || true)'
+
+ℹ 112:58-90 112:58-90 [info] SC2016: Expressions don't expand in single quotes, use double quotes for that
+
+⚠ 37:22-36 37:22-36 [warning] SC2031: Variable 'TOTAL_SCRIPTS' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 94:38-52 94:38-52 [warning] SC2031: Variable 'TOTAL_SCRIPTS' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 95:37-57 95:37-57 [warning] SC2031: Variable 'SCRIPTS_WITH_ERRORS' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 96:42-64 96:42-64 [warning] SC2031: Variable 'SCRIPTS_WITH_WARNINGS' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 97:39-56 97:39-56 [warning] SC2031: Variable 'SCRIPTS_PURIFIED' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 98:37-52 98:37-52 [warning] SC2031: Variable 'SCRIPTS_FAILED' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 101:7-27 101:7-27 [warning] SC2031: Variable 'SCRIPTS_WITH_ERRORS' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 104:31-51 104:31-51 [warning] SC2031: Variable 'SCRIPTS_WITH_ERRORS' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+ℹ 8:1-5 8:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 9:1-7 9:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 10:1-8 10:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 11:1-6 11:1-6 [info] SC2032: Variable 'BLUE' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 12:1-4 12:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 15:1-15 15:1-15 [info] SC2032: Variable 'TOTAL_SCRIPTS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 16:1-21 16:1-21 [info] SC2032: Variable 'SCRIPTS_WITH_ERRORS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 17:1-23 17:1-23 [info] SC2032: Variable 'SCRIPTS_WITH_WARNINGS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 18:1-18 18:1-18 [info] SC2032: Variable 'SCRIPTS_PURIFIED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 19:1-16 19:1-16 [info] SC2032: Variable 'SCRIPTS_FAILED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 27:1-9 27:1-9 [info] SC2032: Variable 'SCRIPTS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 36:5-19 36:5-19 [info] SC2032: Variable 'TOTAL_SCRIPTS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 40:5-17 40:5-17 [info] SC2032: Variable 'LINT_OUTPUT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 43:5-17 43:5-17 [info] SC2032: Variable 'ERROR_COUNT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 44:5-19 44:5-19 [info] SC2032: Variable 'WARNING_COUNT' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 48:9-29 48:9-29 [info] SC2032: Variable 'SCRIPTS_WITH_ERRORS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 53:9-31 53:9-31 [info] SC2032: Variable 'SCRIPTS_WITH_WARNINGS' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 71:13-28 71:13-28 [info] SC2032: Variable 'SCRIPTS_FAILED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 77:9-24 77:9-24 [info] SC2032: Variable 'ORIGINAL_LINES' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 78:9-24 78:9-24 [info] SC2032: Variable 'PURIFIED_LINES' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 81:9-26 81:9-26 [info] SC2032: Variable 'SCRIPTS_PURIFIED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 84:9-24 84:9-24 [info] SC2032: Variable 'SCRIPTS_FAILED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 112:29-33 112:29-33 [warning] SC2035: Use ./* so names with dashes won't become options. Example: rm ./*.txt instead of rm *.txt
+
+⚠ 36:19-40 36:19-40 [warning] SC2046: Quote this to prevent word splitting: $((TOTAL_SCRIPTS + 1)
+  Fix: "$((TOTAL_SCRIPTS + 1)"
+
+⚠ 40:17-54 40:17-54 [warning] SC2046: Quote this to prevent word splitting: $(bashrs lint "$script" 2>&1 || true)
+  Fix: "$(bashrs lint "$script" 2>&1 || true)"
+
+⚠ 43:17-69 43:17-69 [warning] SC2046: Quote this to prevent word splitting: $(echo "$LINT_OUTPUT" | grep -c "\[error\]" || true)
+  Fix: "$(echo "$LINT_OUTPUT" | grep -c "\[error\]" || true)"
+
+⚠ 44:19-73 44:19-73 [warning] SC2046: Quote this to prevent word splitting: $(echo "$LINT_OUTPUT" | grep -c "\[warning\]" || true)
+  Fix: "$(echo "$LINT_OUTPUT" | grep -c "\[warning\]" || true)"
+
+⚠ 48:29-56 48:29-56 [warning] SC2046: Quote this to prevent word splitting: $((SCRIPTS_WITH_ERRORS + 1)
+  Fix: "$((SCRIPTS_WITH_ERRORS + 1)"
+
+⚠ 53:31-60 53:31-60 [warning] SC2046: Quote this to prevent word splitting: $((SCRIPTS_WITH_WARNINGS + 1)
+  Fix: "$((SCRIPTS_WITH_WARNINGS + 1)"
+
+⚠ 71:28-50 71:28-50 [warning] SC2046: Quote this to prevent word splitting: $((SCRIPTS_FAILED + 1)
+  Fix: "$((SCRIPTS_FAILED + 1)"
+
+⚠ 77:24-44 77:24-44 [warning] SC2046: Quote this to prevent word splitting: $(wc -l < "$script")
+  Fix: "$(wc -l < "$script")"
+
+⚠ 78:24-55 78:24-55 [warning] SC2046: Quote this to prevent word splitting: $(wc -l < "${script}.purified")
+  Fix: "$(wc -l < "${script}.purified")"
+
+⚠ 81:26-50 81:26-50 [warning] SC2046: Quote this to prevent word splitting: $((SCRIPTS_PURIFIED + 1)
+  Fix: "$((SCRIPTS_PURIFIED + 1)"
+
+⚠ 84:24-46 84:24-46 [warning] SC2046: Quote this to prevent word splitting: $((SCRIPTS_FAILED + 1)
+  Fix: "$((SCRIPTS_FAILED + 1)"
+
+⚠ 43:41-52 43:41-52 [warning] SC2062: Quote the grep pattern so the shell won't interpret it
+
+⚠ 44:43-54 44:43-54 [warning] SC2062: Quote the grep pattern so the shell won't interpret it
+
+⚠ 35:15-23 35:15-23 [warning] SC2086: Double quote to prevent globbing and word splitting on $SCRIPTS
+  Fix: "$SCRIPTS"
+
+ℹ 40:1-30 40:1-30 [info] SC2097: This assignment is only seen by 'lint', not the current shell. Move to separate line or use 'export' if you want it to persist
+
+ℹ 112:15-98 112:15-98 [info] SC2150: -exec with \; is inefficient. Use + for batch mode or -print0 | xargs -0
+
+ℹ 40:1-54 40:1-54 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 67:1-83 67:1-83 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 69:1-54 69:1-54 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 36:1-41 36:1-41 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 48:1-57 48:1-57 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 53:1-61 53:1-61 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 71:1-51 71:1-51 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 81:1-51 81:1-51 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 84:1-47 84:1-47 [info] SC2233: Spaces around operators are fine in arithmetic but unusual. Consider removing for consistency
+
+ℹ 56:1-68 56:1-68 [info] SC2274: Prefer [[ condition && condition ]] over separate [ ] tests
+
+✗ 112:93-95 112:93-95 [error] SEC003: Unquoted {} in find -exec - filenames with spaces will break
+  Fix: "{}"
+
+Summary: 1 error(s), 23 warning(s), 37 info(s)
