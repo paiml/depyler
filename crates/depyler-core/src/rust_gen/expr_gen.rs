@@ -1338,6 +1338,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         || name == "text"
                         || name == "word"
                         || name == "line"
+                        || name == "value"  // DEPYLER-0436: Common argparse validator parameter
                         || name == "value_str"  // Explicit case for this example
                         || name.starts_with("str_")
                         || name.starts_with("string_");
