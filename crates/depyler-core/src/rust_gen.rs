@@ -710,6 +710,7 @@ mod tests {
             needs_zerodivisionerror: false,
             needs_indexerror: false,
             needs_valueerror: false,
+            needs_argumenttypeerror: false,
             is_classmethod: false,
             in_generator: false,
             generator_state_vars: HashSet::new(),
