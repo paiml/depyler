@@ -236,7 +236,8 @@ impl FunctionAnalyzer {
 
                 // DEPYLER-0327 NOTE: Marking as NOT can_fail for now
                 // because exceptions are caught internally. This is conservative.
-                // NOTE: Improve exception flow analysis to detect uncaught exceptions (tracked in DEPYLER-0424)
+                // DEPYLER-0428 TODO: Improve exception flow analysis to detect uncaught exceptions
+                // Pattern: try/except ValueError → raise ArgumentTypeError (should set can_fail=true)
                 (false, all_errors)
             }
             _ => (false, Vec::new()),
@@ -315,6 +316,8 @@ impl FunctionAnalyzer {
         match exception {
             Some(HirExpr::Call { func, .. }) => func.clone(),
             Some(HirExpr::Var(name)) => name.clone(),
+            // DEPYLER-0428: Handle argparse.ArgumentTypeError pattern
+            Some(HirExpr::MethodCall { method, .. }) => method.clone(),
             _ => "Exception".to_string(),
         }
     }
