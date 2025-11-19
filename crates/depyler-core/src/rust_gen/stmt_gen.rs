@@ -2293,10 +2293,50 @@ pub(crate) fn codegen_try_stmt(
             Ok(quote! { #(#try_stmts)* })
         }
     } else {
-        // DEPYLER-0358: Handle simple try-except-return pattern
-        // If we detected a simple pattern (try returns, except returns literal),
-        // fix the unwrap_or_default() to use the actual exception value
+        // DEPYLER-0437: Generate proper match expressions for ValueError + parse() patterns
+        // Check if try_stmts contains a .parse() call that we can convert to match
+        if handlers.len() == 1
+            && handlers[0].exception_type.as_deref() == Some("ValueError")
+            && handlers[0].name.is_none()
+        {
+            if let Some((var_name, parse_expr_str, remaining_stmts)) =
+                extract_parse_from_tokens(&try_stmts)
+            {
+                // Parse the expression string back to token stream
+                let parse_expr: proc_macro2::TokenStream = parse_expr_str.parse().unwrap();
+                let ok_var = safe_ident(&var_name);
+
+                // Generate Ok branch (remaining statements after parse)
+                let ok_body = quote! { #(#remaining_stmts)* };
+
+                // Generate Err branch (handler body)
+                let err_body = &handler_tokens[0];
+
+                // Build match expression
+                let match_expr = quote! {
+                    match #parse_expr {
+                        Ok(#ok_var) => { #ok_body },
+                        Err(_) => { #err_body }
+                    }
+                };
+
+                // Wrap with finally if present
+                if let Some(finally_code) = finally_stmts {
+                    return Ok(quote! {
+                        {
+                            #match_expr
+                            #finally_code
+                        }
+                    });
+                } else {
+                    return Ok(match_expr);
+                }
+            }
+        }
+
+        // Fall through to existing simple_pattern_info logic
         if let Some((exception_value_str, _exception_type)) = simple_pattern_info {
+            // Fall through to existing unwrap_or logic if not a match pattern
             // Convert try_stmts to string to post-process
             let try_code = quote! { #(#try_stmts)* };
             let try_str = try_code.to_string();
@@ -2566,6 +2606,54 @@ pub(crate) fn codegen_try_stmt(
             }
         }
     }
+}
+
+/// DEPYLER-0437: Extract .parse() call from generated token stream
+///
+/// Looks for pattern: `let var = expr.parse::<i32>().unwrap_or_default();`
+/// Returns: (variable_name, parse_expression_without_unwrap_or, remaining_statements)
+fn extract_parse_from_tokens(
+    try_stmts: &[proc_macro2::TokenStream],
+) -> Option<(String, String, Vec<proc_macro2::TokenStream>)> {
+    if try_stmts.is_empty() {
+        return None;
+    }
+
+    // Convert first statement to string (note: tokens have spaces between them)
+    let first_stmt = try_stmts[0].to_string();
+
+    // Pattern: let var_name = something . parse :: < i32 > () . unwrap_or_default () ;
+    // Note: TokenStream.to_string() adds spaces between tokens
+    if first_stmt.contains("parse") && first_stmt.contains("unwrap_or_default") {
+        // Extract variable name (after "let " and before " =")
+        if let Some(let_pos) = first_stmt.find("let ") {
+            if let Some(eq_pos) = first_stmt[let_pos..].find(" =") {
+                let var_name = first_stmt[let_pos + 4..let_pos + eq_pos].trim().to_string();
+
+                // Extract parse expression (between "= " and "unwrap_or_default")
+                // We need to find the start of unwrap_or_default and go back to find the parse call
+                if let Some(eq_start) = first_stmt.find(" = ") {
+                    if let Some(unwrap_pos) = first_stmt.find("unwrap_or_default") {
+                        // Go back from unwrap_pos to skip ". " before it
+                        let parse_end = if unwrap_pos >= 2 && &first_stmt[unwrap_pos - 2..unwrap_pos] == ". " {
+                            unwrap_pos - 2
+                        } else {
+                            unwrap_pos
+                        };
+
+                        let parse_expr = first_stmt[eq_start + 3..parse_end].trim().to_string();
+
+                        // Collect remaining statements
+                        let remaining: Vec<_> = try_stmts[1..].to_vec();
+
+                        return Some((var_name, parse_expr, remaining));
+                    }
+                }
+            }
+        }
+    }
+
+    None
 }
 
 /// DEPYLER-0359: Check if an expression contains floor division operation
