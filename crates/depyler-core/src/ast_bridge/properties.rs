@@ -206,19 +206,26 @@ impl FunctionAnalyzer {
                 // Collect error types from try body
                 let (_body_fail, mut body_errors) = Self::check_can_fail(body);
 
+                // DEPYLER-0428: Track which exception types are CAUGHT vs RAISED
+                let mut caught_exceptions: Vec<String> = Vec::new();
+                let mut raised_in_handlers: Vec<String> = Vec::new();
+
                 // Collect error types from except handlers
                 let mut handler_errors = Vec::new();
                 for handler in handlers {
-                    let (handler_fail, mut h_errors) = Self::check_can_fail(&handler.body);
-                    if handler_fail {
-                        handler_errors.append(&mut h_errors);
+                    // Track which exception this handler catches
+                    if let Some(ref exc_type) = handler.exception_type {
+                        caught_exceptions.push(exc_type.clone());
+                        // DEPYLER-0327 Fix #3: Add exception types from handler signatures
+                        // This ensures types like ValueError are generated even if only caught
+                        body_errors.push(exc_type.clone());
                     }
 
-                    // DEPYLER-0327 Fix #3: Add exception types from handler signatures
-                    // This ensures types like ValueError are generated even if only caught
-                    if let Some(ref exc_type) = handler.exception_type {
-                        // exc_type is the caught exception (e.g., "ValueError")
-                        body_errors.push(exc_type.clone());
+                    // Track which exceptions are raised IN the handler body
+                    let (handler_fail, mut h_errors) = Self::check_can_fail(&handler.body);
+                    if handler_fail {
+                        raised_in_handlers.append(&mut h_errors.clone());
+                        handler_errors.append(&mut h_errors);
                     }
                 }
 
@@ -234,11 +241,15 @@ impl FunctionAnalyzer {
                 all_errors.append(&mut handler_errors);
                 all_errors.extend(finally_errors);
 
-                // DEPYLER-0327 NOTE: Marking as NOT can_fail for now
-                // because exceptions are caught internally. This is conservative.
-                // DEPYLER-0428 TODO: Improve exception flow analysis to detect uncaught exceptions
-                // Pattern: try/except ValueError → raise ArgumentTypeError (should set can_fail=true)
-                (false, all_errors)
+                // DEPYLER-0428: Try block can_fail=true if handler raises UNCAUGHT exceptions
+                // Example: try/except ValueError → raise ArgumentTypeError
+                // - caught_exceptions = ["ValueError"]
+                // - raised_in_handlers = ["ArgumentTypeError"]
+                // - has_uncaught = true (ArgumentTypeError not in caught list)
+                let has_uncaught_exceptions = raised_in_handlers.iter()
+                    .any(|raised| !caught_exceptions.contains(raised));
+
+                (has_uncaught_exceptions, all_errors)
             }
             _ => (false, Vec::new()),
         }
