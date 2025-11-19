@@ -34,8 +34,9 @@
 ## Sub-Tickets (10 Total)
 
 **Completed**: 4/10 (DEPYLER-0428 ✅, DEPYLER-0436 ✅, DEPYLER-0437 ✅, DEPYLER-0438 ✅)
+**Partial**: 1/10 (DEPYLER-0429 ⚠️ Iteration 1 done, Iteration 2 deferred)
 **In Progress**: 0/10
-**Not Started**: 6/10 (DEPYLER-0429, DEPYLER-0430, DEPYLER-0431, DEPYLER-0432, DEPYLER-0433, DEPYLER-0434)
+**Not Started**: 5/10 (DEPYLER-0430, DEPYLER-0431, DEPYLER-0432, DEPYLER-0433, DEPYLER-0434)
 
 ### HIGH Priority (5-7 hours) - Target: 6-7/13 (46-54%)
 
@@ -169,19 +170,20 @@
 - **Test**: Add to `depyler_0428_argument_type_error.rs`
 - **Next Step**: `pmat prompt show continue DEPYLER-0438`
 
-#### DEPYLER-0429: subprocess Module Support
-- **Status**: Not started
-- **Effort**: 2-3 hours
-- **Blocks**: task_runner (22 errors)
-- **Impact**: +1 example
-- **MANDATORY Pre-Work**: Debug with `--trace` and Renacer (see Debugging Workflow section)
-- **Implementation**:
-  - Add subprocess to stdlib mapping
-  - Implement `subprocess.run(cmd, capture_output=True, cwd=path, check=True)`
-  - Map to `std::process::Command`
-  - Handle `CompletedProcess` return type with stdout/stderr
-- **Files**: `crates/depyler-core/src/rust_gen/expr_gen.rs` (try_convert_subprocess_method)
-- **Next Step**: `pmat prompt show continue DEPYLER-0429`
+#### DEPYLER-0429: Exception Variable Binding (subprocess context) ⚠️ PARTIAL
+- **Status**: ⚠️ PARTIAL COMPLETE (Iteration 1 done, Iteration 2 deferred)
+- **Actual Effort**: 2 hours (Iteration 1)
+- **Blocks**: task_runner (22 errors → 19 remaining, 13.6% reduction)
+- **Impact**: LIMITED - Only fixes .parse() exception patterns
+- **SCOPE REASSESSMENT** (commit 909a5ba):
+  - ✅ Iteration 1: Exception variable binding for .parse() patterns (1/5 tests passing)
+  - ❌ Iteration 2: Architectural limitation - non-Result operations need 20-30 hours
+  - **Error Analysis**: DEPYLER-0429 fixes 2/22 errors (9%), remaining 20/22 (91%) are TYPE INFERENCE
+  - **Recommendation**: Defer Iteration 2, focus on type inference tickets (better ROI)
+- **What Works**: `except ValueError as e:` with .parse() → `Err(e) => { ... }`
+- **What Doesn't**: subprocess.CalledProcessError, FileNotFoundError, multiple handlers
+- **Commits**: 2d25b5e (RED), e21303f (GREEN Iter 1), 909a5ba (Analysis)
+- **Next Step**: Type inference ticket OR continue to DEPYLER-0430
 
 ---
 
