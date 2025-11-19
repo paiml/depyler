@@ -2,10 +2,11 @@
 
 ## Overview
 
-[Renacer](https://github.com/paiml/renacer) is a lightweight syscall tracer and function profiler that helps identify performance bottlenecks in the Depyler transpiler and transpiled binaries.
+[Renacer](https://github.com/paiml/renacer) is a lightweight syscall tracer, function profiler, and transpiler decision tracer that helps identify performance bottlenecks in the Depyler transpiler and transpiled binaries.
 
-**Version**: v0.2.0+
+**Version**: v0.5.0 (Released 2025-11-19)
 **Installation**: `cargo install renacer`
+**New Features**: Transpiler source mapping & decision tracing
 
 ## Why Renacer for Depyler?
 
@@ -327,8 +328,8 @@ sudo setcap cap_sys_ptrace=eip /usr/local/cargo/bin/renacer
 # Disable syscall tracing (only function profiling)
 renacer --function-time -- ./binary
 
-# Reduce sampling frequency (not yet implemented in v0.2.0)
-# Future: renacer --sample-rate 100 -- ./binary
+# Reduce sampling frequency (available in v0.5.0+)
+renacer --sample-rate 100 -- ./binary
 ```
 
 ## Best Practices
@@ -485,6 +486,6 @@ When submitting performance optimizations:
 
 ---
 
-**Last Updated**: 2025-11-17
-**Renacer Version**: v0.2.0
-**Depyler Version**: v3.20.0+
+**Last Updated**: 2025-11-19
+**Renacer Version**: v0.5.0 (with transpiler source mapping & decision tracing)
+**Depyler Version**: v3.20.0+94
