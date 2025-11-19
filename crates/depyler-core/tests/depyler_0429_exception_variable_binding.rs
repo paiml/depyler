@@ -251,10 +251,17 @@ fn compile_rust_code(rust_code: &str) -> bool {
 
     let output = Command::new("rustc")
         .arg("--crate-type").arg("lib")
+        .arg("--crate-name").arg("depyler_test")  // Fix: explicit crate name
         .arg("--edition").arg("2021")
         .arg(temp_file.path())
         .output()
         .expect("Failed to run rustc");
+
+    if !output.status.success() {
+        eprintln!("Compilation failed:");
+        eprintln!("STDOUT: {}", String::from_utf8_lossy(&output.stdout));
+        eprintln!("STDERR: {}", String::from_utf8_lossy(&output.stderr));
+    }
 
     output.status.success()
 }
@@ -269,6 +276,7 @@ fn get_compilation_errors(rust_code: &str) -> Vec<String> {
 
     let output = Command::new("rustc")
         .arg("--crate-type").arg("lib")
+        .arg("--crate-name").arg("depyler_test")  // Fix: explicit crate name
         .arg("--edition").arg("2021")
         .arg(temp_file.path())
         .output()
