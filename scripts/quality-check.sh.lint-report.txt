@@ -1,0 +1,28 @@
+[2m2025-11-19T04:56:53.169933Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./scripts/quality-check.sh
+Issues found in ./scripts/quality-check.sh:
+
+ℹ 7:1-7 7:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 8:1-5 8:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 9:1-8 9:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 10:1-4 10:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 35:42-47 35:42-47 [warning] SC2047: Quote ${NC} to prevent word splitting, or use [[..]] instead of [..]
+
+ℹ 16:1-54 16:1-54 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 26:1-44 26:1-44 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 35:1-48 35:1-48 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 44:1-47 44:1-47 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 53:1-52 53:1-52 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 62:1-47 62:1-47 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 70:1-56 70:1-56 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+Summary: 0 error(s), 1 warning(s), 11 info(s)

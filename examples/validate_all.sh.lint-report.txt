@@ -1,0 +1,138 @@
+[2m2025-11-19T04:56:52.516967Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./examples/validate_all.sh
+Issues found in ./examples/validate_all.sh:
+
+⚠ 198:18-37 198:18-37 [warning] SC2031: Variable 'files_to_validate' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+⚠ 222:26-38 222:26-38 [warning] SC2031: Variable 'pass_rate' was assigned in a subshell. It will be empty here. Use var=$(cmd) or assign in current shell
+
+ℹ 21:1-5 21:1-5 [info] SC2032: Variable 'RED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 22:1-7 22:1-7 [info] SC2032: Variable 'GREEN' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 23:1-8 23:1-8 [info] SC2032: Variable 'YELLOW' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 24:1-4 24:1-4 [info] SC2032: Variable 'NC' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 27:1-7 27:1-7 [info] SC2032: Variable 'TOTAL' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 28:1-8 28:1-8 [info] SC2032: Variable 'PASSED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 29:1-8 29:1-8 [info] SC2032: Variable 'FAILED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 30:1-9 30:1-9 [info] SC2032: Variable 'SKIPPED' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 37:1-7 37:1-7 [info] SC2032: Variable 'GATES' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 149:17-29 149:17-29 [info] SC2032: Variable 'file_passed' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 184:9-27 184:9-27 [info] SC2032: Variable 'files_to_validate' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+ℹ 187:5-11 187:5-11 [info] SC2032: Variable 'TOTAL' assigned in script with shebang. To affect caller, source this script (source script.sh) or remove shebang
+
+⚠ 221:25-43 221:25-43 [warning] SC2046: Quote this to prevent word splitting: $(( (PASSED * 100)
+  Fix: "$(( (PASSED * 100)"
+
+⚠ 144:18-28 144:18-28 [warning] SC2047: Quote $exit_code to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 189:10-16 189:10-16 [warning] SC2047: Quote $TOTAL to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 220:10-16 220:10-16 [warning] SC2047: Quote $TOTAL to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 227:10-17 227:10-17 [warning] SC2047: Quote $FAILED to prevent word splitting, or use [[..]] instead of [..]
+
+⚠ 128:12-22 128:12-22 [warning] SC2086: Double quote to prevent globbing and word splitting on $exit_code
+  Fix: "$exit_code"
+
+⚠ 144:18-28 144:18-28 [warning] SC2086: Double quote to prevent globbing and word splitting on $exit_code
+  Fix: "$exit_code"
+
+⚠ 155:8-20 155:8-20 [warning] SC2086: Double quote to prevent globbing and word splitting on $file_passed
+  Fix: "$file_passed"
+
+⚠ 189:10-16 189:10-16 [warning] SC2086: Double quote to prevent globbing and word splitting on $TOTAL
+  Fix: "$TOTAL"
+
+⚠ 220:10-16 220:10-16 [warning] SC2086: Double quote to prevent globbing and word splitting on $TOTAL
+  Fix: "$TOTAL"
+
+⚠ 227:10-17 227:10-17 [warning] SC2086: Double quote to prevent globbing and word splitting on $FAILED
+  Fix: "$FAILED"
+
+ℹ 62:13-78 62:13-78 [info] SC2089: Quotes/backslashes will be treated literally. Use array or separate assignment
+
+ℹ 113:13-45 113:13-45 [info] SC2095: Redirections only apply to the condition command, not the if block. Move redirection after 'fi' to redirect entire block
+
+⚠ 96:1-17 96:1-17 [warning] SC2117: Unreachable code after 'return' on line 95
+
+⚠ 187:1-31 187:1-31 [warning] SC2125: Brace expansions and globs are literal in assignments. Assign as array, e.g., arr=(*.txt)
+
+ℹ 144:16-36 144:16-36 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+ℹ 189:8-24 189:8-24 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+ℹ 220:8-24 220:8-24 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+ℹ 227:8-25 227:8-25 [info] SC2134: Consider using (( )) for numeric tests. Example: (( x > 0 )) instead of [ $x -gt 0 ]
+
+⚠ 91:25-84 91:25-84 [warning] SC2140: Word is split between quotes. Use proper quoting or concatenation
+
+⚠ 102:27-95 102:27-95 [warning] SC2140: Word is split between quotes. Use proper quoting or concatenation
+
+⚠ 229:22-35 229:22-35 [warning] SC2154: Variable 'FAILED_FILES' is referenced but not assigned
+
+⚠ 235:22-35 235:22-35 [warning] SC2154: Variable 'FAILED_GATES' is referenced but not assigned
+
+⚠ 221:9-14 221:9-14 [warning] SC2155: Declare and assign separately to avoid masking return values (local)
+
+ℹ 67:1-50 67:1-50 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 72:1-48 72:1-48 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 77:1-47 77:1-47 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 82:1-49 82:1-49 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 87:1-51 87:1-51 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 91:1-105 91:1-105 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 92:1-50 92:1-50 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 102:1-116 102:1-116 [info] SC2227: Redirection before pipe applies to first command only. Reorder if this is unexpected
+
+ℹ 156:1-72 156:1-72 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 160:1-49 160:1-49 [info] SC2271: Prefer printf over echo for escape sequences (more portable)
+
+ℹ 144:1-42 144:1-42 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+ℹ 189:1-30 189:1-30 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+ℹ 220:1-30 220:1-30 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+ℹ 227:1-31 227:1-31 [info] SC2273: Prefer [[ ]] over [ ] for robustness with variables
+
+⚠ 184:1-33 184:1-33 [warning] SC2281: Use "$*" or ${array[*]} for string concatenation, or ${array[@]} for separate elements
+
+⚠ 268:1-10 268:1-10 [warning] SC2281: Use "$*" or ${array[*]} for string concatenation, or ${array[@]} for separate elements
+
+⚠ 91:1-105 91:1-105 [warning] SC2297: Redirects should come before pipes in the command
+
+⚠ 102:1-116 102:1-116 [warning] SC2297: Redirects should come before pipes in the command
+
+⚠ 144:1-42 144:1-42 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+⚠ 189:1-30 189:1-30 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+⚠ 220:1-30 220:1-30 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+⚠ 227:1-31 227:1-31 [warning] SC2307: Use [[ ]] or quote variable to prevent word splitting in tests
+
+ℹ 140:1-42 140:1-42 [info] SC2310: Function 'run_gate' is called in a condition. set -e will not apply to commands inside it.
+
+⚠ 96:1-17 96:1-17 [warning] SC2317: Command appears to be unreachable (code after exit/return on line 95)
+
+⚠ 54:24-29 54:24-29 [warning] SEC006: Unsafe temp file - use mktemp for secure random names
+  Fix: $(mktemp)
+
+Summary: 0 error(s), 30 warning(s), 33 info(s)
