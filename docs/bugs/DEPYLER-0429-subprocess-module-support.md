@@ -428,3 +428,71 @@ pub fn parse_int(value: &str) -> i32 {
 ---
 
 **STATUS**: Iteration 1 complete, ready for commit. Iteration 2 needed for full task_runner.py support.
+
+---
+
+## Iteration 2 Analysis - Scope Reassessment
+
+### Error Breakdown (task_runner.py)
+```bash
+$ cargo build 2>&1 | grep "error\[E" | sort | uniq -c
+     11 error[E0308]: mismatched types (TYPE INFERENCE)
+      2 error[E0425]: cannot find value `e` (EXCEPTION BINDING) ← DEPYLER-0429
+      2 error[E0277]: RangeFrom Index (TYPE INFERENCE)
+      2 error[E0277]: AsRef<OsStr> (TYPE INFERENCE)
+      2 error[E0277]: AsRef<Path> (TYPE INFERENCE)
+      2 error[E0277]: not an iterator (TYPE INFERENCE)
+      1 error[E0061]: argument count (TYPE INFERENCE)
+```
+
+**Total**: 22 errors
+- **DEPYLER-0429 scope**: 2/22 (9%) ← Exception variable binding
+- **Type inference scope**: 20/22 (91%) ← Separate ticket needed
+
+### Architectural Limitation Discovered
+
+**Problem**: Exception variable binding for non-Result operations requires fundamental changes:
+
+1. **Current Architecture**:
+   - Try/except transpiled as sequential code concatenation
+   - Exception handlers are unreachable dead code
+   - No control flow structure (no match, no if-let)
+   - Variables referenced but never bound
+
+2. **What's Needed** (for full exception support):
+   - Make ALL exception-raising operations return Result<>
+   - Generate match/if-let expressions for Result handling
+   - Bind exception variables in Err branches
+   - Support multiple exception handlers with nested matches
+
+3. **Estimated Effort**: 20-30 hours (major architecture refactoring)
+
+**Iteration 1 Achievement**: Fixed the **easy case** (.parse() already returns Result, just needed variable binding)
+
+**Iteration 2 Reality**: Remaining cases need Result-returning operations that don't exist yet
+
+### Recommendation: Defer Iteration 2
+
+**Rationale**:
+1. DEPYLER-0429 Iteration 2 would fix 2/22 errors (9% impact)
+2. Type inference work would fix 20/22 errors (91% impact)  
+3. Full exception handling is 20-30 hour architectural work
+4. Better ROI: Focus on type inference tickets first
+
+**Proposed Plan**:
+1. **Close DEPYLER-0429 as PARTIAL** (Iteration 1 complete)
+2. **Create new ticket**: DEPYLER-04XX for type inference (cmd parameter types)
+3. **Defer full exception handling** to future sprint (architectural work)
+
+### Updated Status
+
+**DEPYLER-0429 Status**: PARTIAL COMPLETE (Iteration 1 only)
+- ✅ Fixed: Exception variable binding for .parse() patterns (1/5 tests)
+- ⏭️ Deferred: General exception handling (architectural work, future ticket)
+- 📊 Impact: 3/22 errors fixed (13.6% of task_runner.py errors)
+
+**Next Recommended Ticket**: Type inference for function parameters
+- Would fix 20/22 task_runner.py errors (90% impact)
+- Est. 3-4 hours (vs 20-30 for full exception handling)
+- Better ROI for reaching 100% compilation goal
+
