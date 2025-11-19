@@ -846,54 +846,8 @@ fn infer_expr_type_with_env(
     }
 }
 
-/// Recursively collect return expression types from statements
-fn collect_return_types(stmts: &[HirStmt], types: &mut Vec<Type>) {
-    for stmt in stmts {
-        match stmt {
-            HirStmt::Return(Some(expr)) => {
-                types.push(infer_expr_type_simple(expr));
-            }
-            HirStmt::Return(None) => {
-                // Explicit return with no value
-                types.push(Type::None);
-            }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
-                collect_return_types(then_body, types);
-                if let Some(else_stmts) = else_body {
-                    collect_return_types(else_stmts, types);
-                }
-            }
-            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
-                collect_return_types(body, types);
-            }
-            HirStmt::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            } => {
-                collect_return_types(body, types);
-                for handler in handlers {
-                    collect_return_types(&handler.body, types);
-                }
-                if let Some(orelse_stmts) = orelse {
-                    collect_return_types(orelse_stmts, types);
-                }
-                if let Some(finally_stmts) = finalbody {
-                    collect_return_types(finally_stmts, types);
-                }
-            }
-            HirStmt::With { body, .. } => {
-                collect_return_types(body, types);
-            }
-            _ => {}
-        }
-    }
-}
+// NOTE: collect_return_types() removed - replaced by collect_return_types_with_env()
+// which provides better type inference using variable type environment (DEPYLER-0415)
 
 /// Simple expression type inference without context
 /// Handles common cases like literals, comparisons, and arithmetic
