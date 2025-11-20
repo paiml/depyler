@@ -1,11 +1,11 @@
 [package]
-name = "v1_3_0_features_demo"
+name = "test_kwargs_support_final"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "v1_3_0_features_demo"
-path = "v1_3_0_features_demo.rs"
+name = "test_kwargs_support_final"
+path = "test_kwargs_support_final.rs"
 
 [dependencies]
 serde_json = "1.0"
