@@ -215,7 +215,7 @@ impl StringOptimizer {
             let base_name = self.generate_base_const_name(s);
             name_map
                 .entry(base_name)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(s.clone());
         }
 
