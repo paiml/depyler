@@ -1471,6 +1471,17 @@ pub(crate) fn codegen_assign_stmt(
         }
     }
 
+    // DEPYLER-0440: Skip None-placeholder assignments
+    // When a variable is initialized with None and later reassigned in if-elif-else,
+    // skip the initial None assignment to avoid Option<T> type mismatch.
+    // The hoisting logic (DEPYLER-0439) will handle the declaration with correct type.
+    if let AssignTarget::Symbol(var_name) = target {
+        if matches!(value, HirExpr::Literal(Literal::None)) && ctx.mutable_vars.contains(var_name) {
+            // This is a None placeholder that will be reassigned - skip it
+            return Ok(quote! {});
+        }
+    }
+
     // DEPYLER-0363: Detect ArgumentParser patterns for clap transformation
     // Pattern 1: parser = argparse.ArgumentParser(...) [MethodCall with object=argparse]
     // Pattern 2: args = parser.parse_args() [MethodCall with object=parser]
