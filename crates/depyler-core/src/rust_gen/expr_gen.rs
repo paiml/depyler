@@ -11121,10 +11121,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     template.push_str(s);
                 }
                 FStringPart::Expr(expr) => {
-                    // DEPYLER-0397: Use {:?} debug formatting for all f-string expressions
-                    // This handles Vec<T>, Option<T>, and other types that don't implement Display
-                    // Trade-off: Strings will show with quotes, but this ensures compilation
-                    template.push_str("{:?}");
+                    // DEPYLER-0438: Use {} Display formatting for f-string expressions
+                    // This matches Python semantics and works for String/&str/primitives.
+                    // If a type doesn't implement Display, Rust compiler gives clear error.
+                    // Previous approach (DEPYLER-0397) used {:?} which incorrectly added quotes.
+                    template.push_str("{}");
                     let arg_expr = expr.to_rust_expr(self.ctx)?;
                     args.push(arg_expr);
                 }
