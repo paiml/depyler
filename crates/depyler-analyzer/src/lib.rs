@@ -240,6 +240,7 @@ mod tests {
             type_aliases: vec![],
             protocols: vec![],
             classes: vec![],
+            constants: vec![],
         };
 
         let result = analyzer.analyze(&module).unwrap();
@@ -259,6 +260,7 @@ mod tests {
             type_aliases: vec![],
             protocols: vec![],
             classes: vec![],
+            constants: vec![],
         };
 
         let result = analyzer.analyze(&module).unwrap();
@@ -310,6 +312,7 @@ mod tests {
             type_aliases: vec![],
             protocols: vec![],
             classes: vec![],
+            constants: vec![],
         };
 
         let coverage = analyzer.calculate_type_coverage(&module);

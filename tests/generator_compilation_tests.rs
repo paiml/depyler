@@ -60,6 +60,7 @@ fn test_DEPYLER_0260_simple_generator_compiles() {
         type_aliases: vec![],
         protocols: vec![],
         classes: vec![],
+        constants: vec![],
     };
 
     // Generate Rust code
@@ -133,6 +134,7 @@ fn test_DEPYLER_0260_generator_no_dynamictype() {
         type_aliases: vec![],
         protocols: vec![],
         classes: vec![],
+        constants: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -228,6 +230,7 @@ fn test_DEPYLER_0260_fibonacci_generator_compiles() {
         type_aliases: vec![],
         protocols: vec![],
         classes: vec![],
+        constants: vec![],
     };
 
     let type_mapper = TypeMapper::default();
