@@ -925,8 +925,14 @@ pub(crate) fn codegen_if_stmt(
     };
 
     // DEPYLER-0379: Generate hoisted variable declarations
+    // DEPYLER-0439: Skip variables already declared in parent scope (prevents shadowing)
     let mut hoisted_decls = Vec::new();
     for var_name in &hoisted_vars {
+        // DEPYLER-0439: Skip if variable is already declared in parent scope
+        if ctx.is_declared(var_name) {
+            continue;
+        }
+
         // Find the variable's type from the first assignment in either branch
         let var_type = find_variable_type(var_name, then_body).or_else(|| {
             if let Some(else_stmts) = else_body {
