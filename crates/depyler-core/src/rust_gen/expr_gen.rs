@@ -11280,14 +11280,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 });
 
                                 if is_args_var {
-                                    // Check if this argument is optional (has default or not required)
+                                    // Check if this argument is optional (Option<T> type, not boolean)
                                     self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
                                         parser_info.arguments.iter().any(|arg| {
                                             let field_name = arg.rust_field_name();
-                                            // Argument is optional if: not required OR has a default value
-                                            // If required is None, it's optional by default (argparse behavior)
-                                            let is_optional = !arg.required.unwrap_or(false) || arg.default.is_some();
-                                            field_name == *attr && is_optional
+                                            if field_name != *attr {
+                                                return false;
+                                            }
+
+                                            // Argument is NOT an Option if it has action="store_true" or "store_false"
+                                            if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
+                                                return false;
+                                            }
+
+                                            // Argument is an Option<T> if: not required AND no default value AND not positional
+                                            !arg.is_positional && !arg.required.unwrap_or(false) && arg.default.is_none()
                                         })
                                     })
                                 } else {
