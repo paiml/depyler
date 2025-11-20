@@ -9063,6 +9063,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // DEPYLER-0432: Handle file I/O .read() method
+        // Python: f.read() → Rust: read_to_string() or read_to_end()
+        if method == "read" && arg_exprs.is_empty() {
+            // f.read() with no arguments → read entire file
+            // Need to determine if text or binary mode
+            // For now, default to text mode (read_to_string)
+            // TODO: Track file open mode to distinguish text vs binary
+            return Ok(parse_quote! {
+                {
+                    let mut content = String::new();
+                    #object_expr.read_to_string(&mut content)?;
+                    content
+                }
+            });
+        }
+
         // DEPYLER-0389: Handle regex Match.group() method
         // Python: match.group(0) or match.group(n)
         // Rust: match.as_str() for group(0), or handle numbered groups
