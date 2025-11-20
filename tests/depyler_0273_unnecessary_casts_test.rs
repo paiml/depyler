@@ -25,6 +25,7 @@ fn test_simple_variable_return_should_not_cast() {
     let module = HirModule {
         functions: vec![func],
         classes: vec![],
+        constants: vec![],
         imports: vec![],
         global_vars: vec![],
     };
@@ -68,6 +69,7 @@ fn test_binary_expression_return_should_not_cast() {
     let module = HirModule {
         functions: vec![func],
         classes: vec![],
+        constants: vec![],
         imports: vec![],
         global_vars: vec![],
     };
@@ -105,6 +107,7 @@ fn test_array_length_should_cast() {
     let module = HirModule {
         functions: vec![func],
         classes: vec![],
+        constants: vec![],
         imports: vec![],
         global_vars: vec![],
     };
@@ -172,6 +175,7 @@ fn test_conditional_return_should_not_cast() {
     let module = HirModule {
         functions: vec![func],
         classes: vec![],
+        constants: vec![],
         imports: vec![],
         global_vars: vec![],
     };
@@ -207,6 +211,7 @@ fn test_literal_return_should_not_cast() {
     let module = HirModule {
         functions: vec![func],
         classes: vec![],
+        constants: vec![],
         imports: vec![],
         global_vars: vec![],
     };
@@ -246,6 +251,7 @@ fn test_count_method_should_cast() {
     let module = HirModule {
         functions: vec![func],
         classes: vec![],
+        constants: vec![],
         imports: vec![],
         global_vars: vec![],
     };

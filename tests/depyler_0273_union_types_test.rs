@@ -29,6 +29,7 @@ fn test_simple_union_type_int_or_none() {
     let module = HirModule {
         functions: vec![func],
         classes: vec![],
+        constants: vec![],
         imports: vec![],
         global_vars: vec![],
     };
@@ -68,6 +69,7 @@ fn test_union_return_type() {
     let module = HirModule {
         functions: vec![func],
         classes: vec![],
+        constants: vec![],
         imports: vec![],
         global_vars: vec![],
     };
@@ -117,6 +119,7 @@ fn test_optional_default_parameter() {
     let module = HirModule {
         functions: vec![func],
         classes: vec![],
+        constants: vec![],
         imports: vec![],
         global_vars: vec![],
     };
