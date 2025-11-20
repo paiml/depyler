@@ -11,6 +11,17 @@ All the following branches have been merged into `main` and are no longer needed
   - Status: Work merged via PR #88 (commit 8b4590e in main)
   - ✅ Local branch deleted
 
+### Merged Nov 20, 2025 (Latest Session)
+- `claude/final-compile-fixes-013tprzbkeTCjFK6oDFv4WxW`
+  - Last commit: Merge pull request #92 (commit 9ecf62b)
+  - Status: ✅ Branch points to PR #92 which is already merged into main
+  - Note: Stale branch reference, no unique work
+
+- `claude/merge-branches-fix-compile-013tprzbkeTCjFK6oDFv4WxW`
+  - Last commit: [FIX] Add constants field to remaining HirModule test initializations (commit f0df0bc)
+  - Status: ✅ Merged via PR #89 and PR #90 into main
+  - Note: Stale branch reference, no unique work
+
 ### Merged Nov 6, 2025
 - `claude/add-translation-ideas-spec-011CUrTHBHVJvPCkYPA6EuRV`
   - Last commit: [ROADMAP] Add DEPYLER-0281 through DEPYLER-0287 tickets + CHANGELOG
@@ -66,7 +77,13 @@ Since automated deletion via git push --delete returned 403 errors, these branch
 2. Find each branch listed above
 3. Click the delete button (trash icon) next to each branch
 
-## Total Branches to Delete: 12
+## Total Branches to Delete: 14
+
+### Update Log
+- **Initial analysis**: 12 branches identified (Nov 20, 2025)
+- **Additional findings**: 2 more stale branches found (Nov 20, 2025)
+  - `claude/final-compile-fixes-013tprzbkeTCjFK6oDFv4WxW`
+  - `claude/merge-branches-fix-compile-013tprzbkeTCjFK6oDFv4WxW`
 
 ## Verification Commands
 
