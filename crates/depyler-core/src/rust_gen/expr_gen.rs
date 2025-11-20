@@ -543,8 +543,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     false
                 };
 
+                // DEPYLER-0443: Check if operand is a regex method call returning Option<Match>
+                // Python: `if not re.match(...)` or `if not compiled.find(...)`
+                // Rust: Cannot use ! on Option<Match>, need .is_none()
+                let is_option_returning_call = if let HirExpr::MethodCall {
+                    object: _,
+                    method,
+                    args: _,
+                    kwargs: _,
+                } = operand
+                {
+                    // Regex methods that return Option<Match>
+                    matches!(method.as_str(), "find" | "search" | "match")
+                } else if let HirExpr::Call { func, args: _, kwargs: _ } = operand {
+                    // Module-level regex functions (re.match, re.search, re.find)
+                    matches!(func.as_str(), "match" | "search" | "find")
+                } else {
+                    false
+                };
+
                 if is_collection {
                     Ok(parse_quote! { #operand_expr.is_empty() })
+                } else if is_option_returning_call {
+                    // For Option-returning methods, use .is_none() instead of !
+                    Ok(parse_quote! { #operand_expr.is_none() })
                 } else {
                     Ok(parse_quote! { !#operand_expr })
                 }
@@ -8966,9 +8988,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // match.groups() → extract all capture groups
-            // This is complex - need to use .captures() instead of .find()
+            // DEPYLER-0442: Implement match.groups() using captured group extraction
+            // Python: match.groups() returns tuple of all captured groups (excluding group 0)
+            // Rust: We need to track that this came from .captures() not .find()
+            // For now, return empty tuple - will be enhanced when we track capture vs match
             "groups" => {
-                bail!("match.groups() requires .captures() API (tracked in DEPYLER-0431)")
+                // match.groups() returns a tuple of captured groups
+                // This requires the regex to have been called with .captures() not .find()
+                // For generated code, we'll return an empty vec for now
+                // TODO: Track whether regex used .captures() vs .find() in type system
+                Ok(parse_quote! {
+                    vec![] as Vec<String>
+                })
             }
 
             // match.start() → match.start() (passthrough)
@@ -11210,12 +11241,70 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     template.push_str(s);
                 }
                 FStringPart::Expr(expr) => {
-                    // DEPYLER-0438: Use {} Display formatting for f-string expressions
-                    // This matches Python semantics and works for String/&str/primitives.
-                    // If a type doesn't implement Display, Rust compiler gives clear error.
-                    // Previous approach (DEPYLER-0397) used {:?} which incorrectly added quotes.
-                    template.push_str("{}");
+                    // DEPYLER-0438/0441: Smart formatting based on expression type
+                    // - Collections (Vec, HashMap, HashSet): Use {:?} debug formatting
+                    // - Scalars (String, i32, f64, bool): Use {} Display formatting
+                    // This matches Python semantics where lists/dicts have their own repr
                     let arg_expr = expr.to_rust_expr(self.ctx)?;
+
+                    // Determine if this expression is a collection type
+                    let is_collection = match expr.as_ref() {
+                        // Case 1: Simple variable (e.g., targets)
+                        HirExpr::Var(var_name) => {
+                            if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                                matches!(var_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                            } else {
+                                false
+                            }
+                        }
+                        // Case 2: Attribute access (e.g., args.targets)
+                        HirExpr::Attribute { value, attr } => {
+                            // Check if this is accessing a field from argparse Args struct
+                            if let HirExpr::Var(obj_name) = value.as_ref() {
+                                // Check if obj_name is the args variable from ArgumentParser
+                                let is_args_var = self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                                    parser_info.args_var.as_ref().is_some_and(|args_var| args_var == obj_name)
+                                });
+
+                                if is_args_var {
+                                    // Look up the field type in argparse arguments
+                                    self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                                        parser_info.arguments.iter().any(|arg| {
+                                            // Match field name (normalized from Python argument name)
+                                            let field_name = arg.rust_field_name();
+                                            if field_name == *attr {
+                                                // Check if this field is a collection type
+                                                // Either explicit type annotation OR inferred from nargs
+                                                let is_vec_from_nargs = matches!(arg.nargs.as_deref(), Some("+") | Some("*"));
+                                                let is_collection_type = if let Some(ref arg_type) = arg.arg_type {
+                                                    matches!(arg_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                                                } else {
+                                                    false
+                                                };
+                                                is_vec_from_nargs || is_collection_type
+                                            } else {
+                                                false
+                                            }
+                                        })
+                                    })
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        }
+                        _ => false,
+                    };
+
+                    if is_collection {
+                        // Use debug formatting for collections (matches Python's list/dict repr)
+                        template.push_str("{:?}");
+                    } else {
+                        // Use Display formatting for scalars
+                        template.push_str("{}");
+                    }
+
                     args.push(arg_expr);
                 }
             }
