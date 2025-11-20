@@ -12,6 +12,7 @@ mod tests {
             classes: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            constants: vec![],
         }
     }
 
@@ -411,6 +412,7 @@ mod property_tests {
                 classes: vec![],
                 type_aliases: vec![],
                 protocols: vec![],
+                constants: vec![],
             };
 
             for i in 0..num_functions {
