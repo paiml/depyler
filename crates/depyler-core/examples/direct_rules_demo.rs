@@ -43,6 +43,7 @@ fn create_sample_module() -> HirModule {
             is_newtype: false,
         }],
         protocols: vec![],
+        constants: vec![],
     }
 }
 

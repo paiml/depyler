@@ -41,6 +41,7 @@ fn test_augmented_assignment() {
         type_aliases: vec![],
         protocols: vec![],
         classes: vec![],
+        constants: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -81,6 +82,7 @@ fn test_in_operator() {
         type_aliases: vec![],
         protocols: vec![],
         classes: vec![],
+        constants: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -118,6 +120,7 @@ fn test_not_in_operator() {
         type_aliases: vec![],
         protocols: vec![],
         classes: vec![],
+        constants: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -362,6 +365,7 @@ fn test_power_operator() {
         type_aliases: vec![],
         protocols: vec![],
         classes: vec![],
+        constants: vec![],
     };
 
     // Power operator should now be supported
@@ -398,6 +402,7 @@ fn test_floor_division_operator() {
         type_aliases: vec![],
         protocols: vec![],
         classes: vec![],
+        constants: vec![],
     };
 
     // Floor division should now be supported
@@ -448,6 +453,7 @@ fn test_array_length_subtraction_safety() {
         type_aliases: vec![],
         protocols: vec![],
         classes: vec![],
+        constants: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -485,6 +491,7 @@ fn test_regular_subtraction_unchanged() {
         type_aliases: vec![],
         protocols: vec![],
         classes: vec![],
+        constants: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -526,6 +533,7 @@ fn test_len_variable_subtraction_safety() {
         type_aliases: vec![],
         protocols: vec![],
         classes: vec![],
+        constants: vec![],
     };
 
     let type_mapper = TypeMapper::default();
