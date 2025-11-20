@@ -548,7 +548,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_call(&mut self, func: &str, args: &[HirExpr]) -> Result<syn::Expr> {
+    fn convert_call(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
+    ) -> Result<syn::Expr> {
         // DEPYLER-0382: Handle os.path.join(*parts) starred unpacking
         if func == "__os_path_join_starred" {
             if args.len() != 1 {
@@ -1144,16 +1149,56 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .collect::<Result<Vec<_>>>()?
         };
 
+        // DEPYLER-0364: Convert kwargs to positional arguments
+        // Python: greet(name="Alice", greeting="Hello") → Rust: greet("Alice", "Hello")
+        // For now, we append kwargs as additional positional arguments. This works for
+        // common cases where functions accept positional or keyword arguments in order.
+        // TODO: In the future, we should look up function signatures to determine
+        // the correct parameter order and merge positional + kwargs properly
+        let kwarg_exprs: Vec<syn::Expr> = if is_user_class {
+            // For user-defined classes, convert string literals to String
+            // This prevents "expected String, found &str" errors in constructors
+            kwargs
+                .iter()
+                .map(|(_name, value)| {
+                    let expr = value.to_rust_expr(self.ctx)?;
+                    if matches!(value, HirExpr::Literal(Literal::String(_))) {
+                        Ok(parse_quote! { #expr.to_string() })
+                    } else {
+                        Ok(expr)
+                    }
+                })
+                .collect::<Result<Vec<_>>>()?
+        } else {
+            // For built-in functions and regular calls, use standard conversion
+            kwargs
+                .iter()
+                .map(|(_name, value)| value.to_rust_expr(self.ctx))
+                .collect::<Result<Vec<_>>>()?
+        };
+
+        // Merge positional args and kwargs (both HIR and converted Rust exprs)
+        // This creates a single argument list that will be passed to the function
+        let mut all_args = arg_exprs.clone();
+        all_args.extend(kwarg_exprs);
+
+        let mut all_hir_args: Vec<HirExpr> = args.to_vec();
+        for (_name, value) in kwargs {
+            all_hir_args.push(value.clone());
+        }
+
         match func {
             // Python built-in type conversions → Rust casting
-            "int" => self.convert_int_cast(args, &arg_exprs),
+            "int" => self.convert_int_cast(&all_hir_args, &arg_exprs),
             "float" => self.convert_float_cast(&arg_exprs),
             "str" => self.convert_str_conversion(&arg_exprs),
             "bool" => self.convert_bool_cast(&arg_exprs),
             // Other built-in functions
             "len" => self.convert_len_call(&arg_exprs),
             "range" => self.convert_range_call(&arg_exprs),
-            "zeros" | "ones" | "full" => self.convert_array_init_call(func, args, &arg_exprs),
+            "zeros" | "ones" | "full" => {
+                self.convert_array_init_call(func, &all_hir_args, &arg_exprs)
+            }
             "set" => self.convert_set_constructor(&arg_exprs),
             "frozenset" => self.convert_frozenset_constructor(&arg_exprs),
             // DEPYLER-0171, 0172, 0173, 0174: Collection conversion builtins
@@ -1170,7 +1215,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "zip" => self.convert_zip_builtin(&arg_exprs),
             "reversed" => self.convert_reversed_builtin(&arg_exprs),
             "sorted" => self.convert_sorted_builtin(&arg_exprs),
-            "filter" => self.convert_filter_builtin(args, &arg_exprs),
+            "filter" => self.convert_filter_builtin(&all_hir_args, &arg_exprs),
             "sum" => self.convert_sum_builtin(&arg_exprs),
             // DEPYLER-STDLIB-BUILTINS: Final batch for 50% milestone
             "round" => self.convert_round_builtin(&arg_exprs),
@@ -1186,13 +1231,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "hash" => self.convert_hash_builtin(&arg_exprs),
             "repr" => self.convert_repr_builtin(&arg_exprs),
             // DEPYLER-0387: File I/O builtin
-            "open" => self.convert_open_builtin(args, &arg_exprs),
+            "open" => self.convert_open_builtin(&all_hir_args, &arg_exprs),
             // DEPYLER-STDLIB-50: next(), getattr(), iter(), type()
             "next" => self.convert_next_builtin(&arg_exprs),
             "getattr" => self.convert_getattr_builtin(&arg_exprs),
             "iter" => self.convert_iter_builtin(&arg_exprs),
             "type" => self.convert_type_builtin(&arg_exprs),
-            _ => self.convert_generic_call(func, args, &arg_exprs),
+            _ => self.convert_generic_call(func, &all_hir_args, &all_args),
         }
     }
 
@@ -2254,17 +2299,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-0424: Check if argument is argparse args variable
                     // If so, always pass by reference (&args)
                     if let HirExpr::Var(var_name) = hir_arg {
-                        let is_argparse_args = self
-                            .ctx
-                            .argparser_tracker
-                            .parsers
-                            .values()
-                            .any(|parser_info| {
-                                parser_info
-                                    .args_var
-                                    .as_ref()
-                                    .map_or(false, |args_var| args_var == var_name)
-                            });
+                        let is_argparse_args =
+                            self.ctx
+                                .argparser_tracker
+                                .parsers
+                                .values()
+                                .any(|parser_info| {
+                                    parser_info
+                                        .args_var
+                                        .as_ref()
+                                        .map_or(false, |args_var| args_var == var_name)
+                                });
 
                         if is_argparse_args {
                             return parse_quote! { &#arg_expr };
@@ -3099,7 +3144,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Some(&arg_exprs[1])
                 } else {
                     // Keyword: csv.DictWriter(file, fieldnames=['col1', 'col2'])
-                    kwargs.iter()
+                    kwargs
+                        .iter()
                         .find(|(key, _)| key == "fieldnames")
                         .map(|(_, value)| value.to_rust_expr(self.ctx))
                         .transpose()?
@@ -8905,7 +8951,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(parse_quote! { #object_expr.as_str() })
                     } else {
                         // Non-zero group: needs captures API
-                        bail!("match.group(n) for n>0 requires .captures() API (not yet implemented)")
+                        bail!(
+                            "match.group(n) for n>0 requires .captures() API (not yet implemented)"
+                        )
                     }
                 }
             }
@@ -9265,8 +9313,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0431: Regex methods (compiled Regex + Match object)
             // Compiled Regex: findall, match, search (note: "find" conflicts with string.find())
             // Match object: group, groups, start, end, span, as_str
-            "findall" | "match" | "search" | "group" | "groups" | "start" | "end"
-            | "span" | "as_str" => self.convert_regex_method(object_expr, method, arg_exprs),
+            "findall" | "match" | "search" | "group" | "groups" | "start" | "end" | "span"
+            | "as_str" => self.convert_regex_method(object_expr, method, arg_exprs),
 
             // Path instance methods (DEPYLER-0363)
             "read_text" => {
@@ -9371,8 +9419,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .map(|arg| arg.to_rust_expr(self.ctx))
             .collect::<Result<Vec<_>>>()?;
 
+        // DEPYLER-0364: Merge kwargs with positional arguments for method calls
+        // Python: obj.setup(mode="advanced", timeout=30) → Rust: obj.setup("advanced", 30)
+        // Similar to function calls, we append kwargs as additional positional arguments
+        let kwarg_exprs: Vec<syn::Expr> = kwargs
+            .iter()
+            .map(|(_name, value)| value.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let mut all_args = arg_exprs.clone();
+        all_args.extend(kwarg_exprs);
+
+        let mut all_hir_args: Vec<HirExpr> = args.to_vec();
+        for (_name, value) in kwargs {
+            all_hir_args.push(value.clone());
+        }
+
         // Dispatch to instance method handler
-        self.convert_instance_method(object, &object_expr, method, &arg_exprs, args)
+        self.convert_instance_method(object, &object_expr, method, &all_args, &all_hir_args)
     }
 
     fn convert_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
@@ -10274,7 +10338,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if let HirExpr::Var(var_name) = value {
             // Check if var_name is an args parameter
             // (heuristic: variable ending in "args" or exactly "args")
-            if (var_name == "args" || var_name.ends_with("args")) && self.ctx.argparser_tracker.has_subcommands() {
+            if (var_name == "args" || var_name.ends_with("args"))
+                && self.ctx.argparser_tracker.has_subcommands()
+            {
                 // Check if this field belongs to any subcommand
                 let mut is_subcommand_field = false;
                 for subcommand in self.ctx.argparser_tracker.subcommands.values() {
@@ -11431,7 +11497,7 @@ impl ToRustExpr for HirExpr {
             HirExpr::Var(name) => converter.convert_variable(name),
             HirExpr::Binary { op, left, right } => converter.convert_binary(*op, left, right),
             HirExpr::Unary { op, operand } => converter.convert_unary(op, operand),
-            HirExpr::Call { func, args, .. } => converter.convert_call(func, args),
+            HirExpr::Call { func, args, kwargs } => converter.convert_call(func, args, kwargs),
             HirExpr::MethodCall {
                 object,
                 method,
