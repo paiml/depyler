@@ -7882,7 +7882,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     // DEPYLER-0142 Phase 2: Category Handlers
     // ========================================================================
 
-    /// Handle list methods (append, extend, pop, insert, remove)
+    /// Handle list methods (append, extend, pop, insert, remove, sort)
     #[inline]
     fn convert_list_method(
         &mut self,
@@ -7891,6 +7891,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         method: &str,
         arg_exprs: &[syn::Expr],
         hir_args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
     ) -> Result<syn::Expr> {
         match method {
             "append" => {
@@ -8131,12 +8132,47 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! { #object_expr.reverse() })
             }
             "sort" => {
-                // Python: list.sort() -> sorts in place
-                // Rust: list.sort()
+                // DEPYLER-0445: Python: list.sort(key=func, reverse=False)
+                // Rust: list.sort_by_key(|x| func(x)) or list.sort()
+
+                // Check for `key` kwarg
+                let key_func = kwargs.iter().find(|(k, _)| k == "key").map(|(_, v)| v);
+                let reverse = kwargs.iter()
+                    .find(|(k, _)| k == "reverse")
+                    .and_then(|(_, v)| {
+                        if let HirExpr::Literal(crate::hir::Literal::Bool(b)) = v {
+                            Some(*b)
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or(false);
+
                 if !arg_exprs.is_empty() {
-                    bail!("sort() takes no arguments");
+                    bail!("sort() does not accept positional arguments");
                 }
-                Ok(parse_quote! { #object_expr.sort() })
+
+                match (key_func, reverse) {
+                    (Some(key_expr), false) => {
+                        // list.sort(key=func) → list.sort_by_key(|x| func(x))
+                        // Convert key_expr to Rust callable
+                        let key_rust = key_expr.to_rust_expr(self.ctx)?;
+                        Ok(parse_quote! { #object_expr.sort_by_key(|x| #key_rust(x)) })
+                    }
+                    (Some(key_expr), true) => {
+                        // list.sort(key=func, reverse=True) → list.sort_by_key(|x| std::cmp::Reverse(func(x)))
+                        let key_rust = key_expr.to_rust_expr(self.ctx)?;
+                        Ok(parse_quote! { #object_expr.sort_by_key(|x| std::cmp::Reverse(#key_rust(x))) })
+                    }
+                    (None, false) => {
+                        // list.sort() → list.sort()
+                        Ok(parse_quote! { #object_expr.sort() })
+                    }
+                    (None, true) => {
+                        // list.sort(reverse=True) → list.sort_by(|a, b| b.cmp(a))
+                        Ok(parse_quote! { #object_expr.sort_by(|a, b| b.cmp(a)) })
+                    }
+                }
             }
             _ => bail!("Unknown list method: {}", method),
         }
@@ -9124,6 +9160,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         method: &str,
         arg_exprs: &[syn::Expr],
         hir_args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
     ) -> Result<syn::Expr> {
         // DEPYLER-0363: Handle parse_args() → Skip for now, will be replaced with Args::parse()
         // ArgumentParser.parse_args() requires full struct transformation
@@ -9285,7 +9322,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // List methods
             "append" | "extend" | "pop" | "insert" | "remove" | "index" | "copy" | "clear"
             | "reverse" | "sort" => {
-                self.convert_list_method(object_expr, object, method, arg_exprs, hir_args)
+                self.convert_list_method(object_expr, object, method, arg_exprs, hir_args, kwargs)
             }
 
             // DEPYLER-0226: Disambiguate count() for list vs string
@@ -9298,7 +9335,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
                 } else {
                     // List: use list.count() → .iter().filter().count()
-                    self.convert_list_method(object_expr, object, method, arg_exprs, hir_args)
+                    self.convert_list_method(object_expr, object, method, arg_exprs, hir_args, kwargs)
                 }
             }
 
@@ -9473,24 +9510,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .map(|arg| arg.to_rust_expr(self.ctx))
             .collect::<Result<Vec<_>>>()?;
 
-        // DEPYLER-0364: Merge kwargs with positional arguments for method calls
-        // Python: obj.setup(mode="advanced", timeout=30) → Rust: obj.setup("advanced", 30)
-        // Similar to function calls, we append kwargs as additional positional arguments
-        let kwarg_exprs: Vec<syn::Expr> = kwargs
-            .iter()
-            .map(|(_name, value)| value.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
-
-        let mut all_args = arg_exprs.clone();
-        all_args.extend(kwarg_exprs);
-
-        let mut all_hir_args: Vec<HirExpr> = args.to_vec();
-        for (_name, value) in kwargs {
-            all_hir_args.push(value.clone());
-        }
-
-        // Dispatch to instance method handler
-        self.convert_instance_method(object, &object_expr, method, &all_args, &all_hir_args)
+        // DEPYLER-0445: Pass original args and kwargs separately to convert_instance_method
+        // Some methods like sort(key=func) need to preserve keyword argument names
+        // For other methods, they can merge kwargs as positional if needed
+        self.convert_instance_method(object, &object_expr, method, &arg_exprs, args, kwargs)
     }
 
     fn convert_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
