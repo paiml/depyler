@@ -79,6 +79,26 @@ pub struct HirModule {
     pub type_aliases: Vec<TypeAlias>,
     pub protocols: Vec<Protocol>,
     pub classes: Vec<HirClass>,
+    pub constants: Vec<HirConstant>,
+}
+
+/// Module-level constant declaration
+///
+/// Represents a constant value defined at module scope in Python,
+/// which will be transpiled to Rust `const` or `pub const` declarations.
+///
+/// # Examples
+///
+/// ```python
+/// MAX_SIZE = 100
+/// PI: float = 3.14159
+/// NAME = "MyApp"
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HirConstant {
+    pub name: String,
+    pub value: HirExpr,
+    pub type_annotation: Option<Type>,
 }
 
 /// Simplified program representation for optimization passes
