@@ -165,6 +165,7 @@ fn test_all_arithmetic_operators() {
             type_aliases: vec![],
             protocols: vec![],
             classes: vec![],
+            constants: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -245,6 +246,7 @@ fn test_comparison_operators() {
             type_aliases: vec![],
             protocols: vec![],
             classes: vec![],
+            constants: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -284,6 +286,7 @@ fn test_logical_operators() {
             type_aliases: vec![],
             protocols: vec![],
             classes: vec![],
+            constants: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -329,6 +332,7 @@ fn test_bitwise_operators() {
             type_aliases: vec![],
             protocols: vec![],
             classes: vec![],
+            constants: vec![],
         };
 
         let type_mapper = TypeMapper::default();
