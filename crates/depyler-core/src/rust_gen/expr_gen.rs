@@ -11210,12 +11210,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     template.push_str(s);
                 }
                 FStringPart::Expr(expr) => {
-                    // DEPYLER-0438: Use {} Display formatting for f-string expressions
-                    // This matches Python semantics and works for String/&str/primitives.
-                    // If a type doesn't implement Display, Rust compiler gives clear error.
-                    // Previous approach (DEPYLER-0397) used {:?} which incorrectly added quotes.
-                    template.push_str("{}");
+                    // DEPYLER-0438/0441: Smart formatting based on expression type
+                    // - Collections (Vec, HashMap, HashSet): Use {:?} debug formatting
+                    // - Scalars (String, i32, f64, bool): Use {} Display formatting
+                    // This matches Python semantics where lists/dicts have their own repr
                     let arg_expr = expr.to_rust_expr(self.ctx)?;
+
+                    // Determine if this expression is a collection type
+                    // Check if it's a variable with a known collection type
+                    let is_collection = if let HirExpr::Var(var_name) = expr.as_ref() {
+                        if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                            matches!(var_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+
+                    if is_collection {
+                        // Use debug formatting for collections (matches Python's list/dict repr)
+                        template.push_str("{:?}");
+                    } else {
+                        // Use Display formatting for scalars
+                        template.push_str("{}");
+                    }
+
                     args.push(arg_expr);
                 }
             }
