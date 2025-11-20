@@ -16,6 +16,8 @@ pub struct StringOptimizer {
     string_literal_count: HashMap<String, usize>,
     /// Strings that should be interned due to frequent use
     interned_strings: HashSet<String>,
+    /// Mapping from string literal to its unique constant name
+    interned_names: HashMap<String, String>,
 }
 
 /// Optimal string representation based on usage analysis
@@ -197,6 +199,61 @@ impl StringOptimizer {
         }
     }
 
+    /// Finalize interned string names, resolving any collisions
+    /// This must be called after analysis and before code generation
+    pub fn finalize_interned_names(&mut self) {
+        if !self.interned_names.is_empty() {
+            // Already finalized
+            return;
+        }
+
+        // Map from base constant name to list of actual string values
+        let mut name_map: HashMap<String, Vec<String>> = HashMap::new();
+
+        // Group strings by their base constant name
+        for s in &self.interned_strings {
+            let base_name = self.generate_base_const_name(s);
+            name_map
+                .entry(base_name)
+                .or_insert_with(Vec::new)
+                .push(s.clone());
+        }
+
+        // Assign unique names, adding suffixes for collisions
+        for (base_name, strings) in name_map {
+            if strings.len() == 1 {
+                // No collision, use base name
+                self.interned_names.insert(strings[0].clone(), base_name);
+            } else {
+                // Collision detected, add numeric suffixes
+                for (idx, s) in strings.iter().enumerate() {
+                    let unique_name = format!("{}_{}", base_name, idx + 1);
+                    self.interned_names.insert(s.clone(), unique_name);
+                }
+            }
+        }
+    }
+
+    /// Generate base constant name from string content (may have collisions)
+    fn generate_base_const_name(&self, s: &str) -> String {
+        // Convert to uppercase, replace non-alphanumeric with underscore
+        let name = s
+            .chars()
+            .map(|c| match c {
+                'a'..='z' | 'A'..='Z' | '0'..='9' => c.to_ascii_uppercase(),
+                _ => '_',
+            })
+            .collect::<String>();
+
+        let base_name = if name.is_empty() {
+            "EMPTY".to_string()
+        } else {
+            name
+        };
+
+        format!("STR_{}", base_name)
+    }
+
     fn analyze_var_usage(&mut self, name: &str, is_returned: bool) {
         if is_returned && self.immutable_params.contains(name) {
             self.mixed_usage_strings.insert(name.to_string());
@@ -286,37 +343,24 @@ impl StringOptimizer {
     }
 
     /// Get interned string name for a literal
+    /// Returns the unique constant name for an interned string
     pub fn get_interned_name(&self, s: &str) -> Option<String> {
-        if self.should_intern(s) {
-            // Generate a constant name from the string content
-            let name = s
-                .chars()
-                .map(|c| match c {
-                    'a'..='z' | 'A'..='Z' | '0'..='9' => c.to_ascii_uppercase(),
-                    _ => '_',
-                })
-                .collect::<String>();
-            Some(format!(
-                "STR_{}",
-                if name.is_empty() { "EMPTY" } else { &name }
-            ))
-        } else {
-            None
-        }
+        // Return the finalized name from the cache
+        self.interned_names.get(s).cloned()
     }
 
     /// Generate interned string constants
     pub fn generate_interned_constants(&self) -> Vec<String> {
         let mut constants = Vec::new();
-        for s in &self.interned_strings {
-            if let Some(name) = self.get_interned_name(s) {
-                constants.push(format!(
-                    "const {}: &'static str = \"{}\";",
-                    name,
-                    escape_string(s)
-                ));
-            }
+
+        for (string_value, const_name) in &self.interned_names {
+            constants.push(format!(
+                "const {}: &'static str = \"{}\";",
+                const_name,
+                escape_string(string_value)
+            ));
         }
+
         constants
     }
 }
