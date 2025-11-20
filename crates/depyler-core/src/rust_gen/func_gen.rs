@@ -137,11 +137,12 @@ pub(crate) fn codegen_where_clause(
     quote! { where #(#bounds),* }
 }
 
-/// Generate function attributes (doc comments, panic-free, termination proofs)
+/// Generate function attributes (doc comments, panic-free, termination proofs, custom attributes)
 #[inline]
 pub(crate) fn codegen_function_attrs(
     docstring: &Option<String>,
     properties: &crate::hir::FunctionProperties,
+    custom_attributes: &[String],
 ) -> Vec<proc_macro2::TokenStream> {
     let mut attrs = vec![];
 
@@ -162,6 +163,17 @@ pub(crate) fn codegen_function_attrs(
         attrs.push(quote! {
             #[doc = " Depyler: proven to terminate"]
         });
+    }
+
+    // Add custom Rust attributes
+    for attr in custom_attributes {
+        // Parse the attribute string as a TokenStream
+        // This allows complex attributes like inline(always), repr(C), etc.
+        if let Ok(tokens) = attr.parse::<proc_macro2::TokenStream>() {
+            attrs.push(quote! {
+                #[#tokens]
+            });
+        }
     }
 
     attrs
@@ -1419,8 +1431,12 @@ impl RustCodeGen for HirFunction {
             }
         }
 
-        // Add documentation
-        let attrs = codegen_function_attrs(&self.docstring, &self.properties);
+        // Add documentation and custom attributes
+        let attrs = codegen_function_attrs(
+            &self.docstring,
+            &self.properties,
+            &self.annotations.custom_attributes,
+        );
 
         // Check if function is a generator (contains yield)
         let func_tokens = if self.properties.is_generator {
