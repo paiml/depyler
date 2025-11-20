@@ -1226,7 +1226,7 @@ pub(crate) fn codegen_for_stmt(
             let is_string_type = ctx
                 .var_types
                 .get(var_name)
-                .map_or(false, |t| matches!(t, Type::String));
+                .is_some_and(|t| matches!(t, Type::String));
 
             // DEPYLER-0300/0302: Fall back to name-based heuristics if type not available
             // Strings use .chars() instead of .iter().cloned()
@@ -2953,7 +2953,7 @@ fn try_generate_subcommand_match(
 /// Returns the command name if pattern matches: args.command == "string"
 fn is_subcommand_check(expr: &HirExpr) -> Option<String> {
     match expr {
-        HirExpr::Binary { op, left, right } if matches!(op, BinOp::Eq) => {
+        HirExpr::Binary { op: BinOp::Eq, left, right } => {
             // Check if left side is args.command
             let is_command_attr = matches!(
                 left.as_ref(),
