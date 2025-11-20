@@ -333,6 +333,7 @@ mod tests {
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            constants: vec![],
         };
 
         ide.index_symbols(&module, "def test_func(x: int) -> int:\n    pass");
