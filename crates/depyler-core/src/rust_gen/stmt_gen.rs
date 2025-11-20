@@ -485,18 +485,15 @@ pub(crate) fn codegen_return_stmt(
         // Python `-> None` maps to Rust `()`, not `Option<T>`
         let is_void_return = matches!(ctx.current_return_type.as_ref(), Some(Type::None));
 
-        if is_void_return {
-            // Void functions (Python -> None): no return value
-            if use_return_keyword {
-                // Early return from void function: use empty return
-                Ok(quote! { return; })
-            } else {
-                // Final statement in void function: use unit value ()
-                // Cannot use None; because it requires type annotations
-                Ok(quote! { () })
-            }
-        } else if ctx.current_function_can_fail {
-            if is_optional_return && !is_none_literal {
+        if ctx.current_function_can_fail {
+            if is_void_return && is_none_literal {
+                // Void function with can_fail: return Ok(()) for `return None`
+                if use_return_keyword {
+                    Ok(quote! { return Ok(()); })
+                } else {
+                    Ok(quote! { Ok(()) })
+                }
+            } else if is_optional_return && !is_none_literal {
                 // Wrap value in Some() for Optional return types
                 if use_return_keyword {
                     Ok(quote! { return Ok(Some(#expr_tokens)); })
@@ -514,6 +511,15 @@ pub(crate) fn codegen_return_stmt(
                 Ok(quote! { return Ok(#expr_tokens); })
             } else {
                 Ok(quote! { Ok(#expr_tokens) })
+            }
+        } else if is_void_return {
+            // Void functions (Python -> None): no return value (non-fallible)
+            if use_return_keyword {
+                // Early return from void function: use empty return
+                Ok(quote! { return; })
+            } else {
+                // Final statement in void function: use unit value ()
+                Ok(quote! { () })
             }
         } else if is_optional_return && !is_none_literal {
             // Wrap value in Some() for Optional return types
@@ -1050,6 +1056,10 @@ fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
                     .as_ref()
                     .is_some_and(|s| is_var_used_in_expr(var_name, s))
         }
+        HirExpr::FString { parts } => parts.iter().any(|part| match part {
+            crate::hir::FStringPart::Expr(expr) => is_var_used_in_expr(var_name, expr),
+            crate::hir::FStringPart::Literal(_) => false,
+        }),
         _ => false, // Literals and other expressions don't reference variables
     }
 }
@@ -1693,7 +1703,8 @@ pub(crate) fn codegen_assign_stmt(
                     // Only track if this looks like a regex call (needs more context to be sure)
                     // For now, track any call to search/match/find as Optional
                     // This is a heuristic - could be improved with module tracking
-                    ctx.var_types.insert(var_name.clone(), Type::Optional(Box::new(Type::Unknown)));
+                    ctx.var_types
+                        .insert(var_name.clone(), Type::Optional(Box::new(Type::Unknown)));
                 }
             }
             HirExpr::List(elements) => {
@@ -1798,7 +1809,8 @@ pub(crate) fn codegen_assign_stmt(
                 else if matches!(method.as_str(), "find" | "search" | "match") {
                     // Check if this is a regex method call (on compiled regex object)
                     // We don't have a specific regex type, so use Optional as a marker
-                    ctx.var_types.insert(var_name.clone(), Type::Optional(Box::new(Type::Unknown)));
+                    ctx.var_types
+                        .insert(var_name.clone(), Type::Optional(Box::new(Type::Unknown)));
                 }
             }
             _ => {}
@@ -2680,11 +2692,12 @@ fn extract_parse_from_tokens(
                 if let Some(eq_start) = first_stmt.find(" = ") {
                     if let Some(unwrap_pos) = first_stmt.find("unwrap_or_default") {
                         // Go back from unwrap_pos to skip ". " before it
-                        let parse_end = if unwrap_pos >= 2 && &first_stmt[unwrap_pos - 2..unwrap_pos] == ". " {
-                            unwrap_pos - 2
-                        } else {
-                            unwrap_pos
-                        };
+                        let parse_end =
+                            if unwrap_pos >= 2 && &first_stmt[unwrap_pos - 2..unwrap_pos] == ". " {
+                                unwrap_pos - 2
+                            } else {
+                                unwrap_pos
+                            };
 
                         let parse_expr = first_stmt[eq_start + 3..parse_end].trim().to_string();
 
@@ -3001,7 +3014,7 @@ fn hir_type_to_tokens(ty: &Type, _ctx: &CodeGenContext) -> proc_macro2::TokenStr
         Type::String => quote! { String },
         Type::Bool => quote! { bool },
         Type::None => quote! { () },
-        Type::Unknown => quote! { () },  // Default to () for unknown types
+        Type::Unknown => quote! { () }, // Default to () for unknown types
         Type::List(elem) => {
             let elem_ty = hir_type_to_tokens(elem, _ctx);
             quote! { Vec<#elem_ty> }
@@ -3023,7 +3036,7 @@ fn hir_type_to_tokens(ty: &Type, _ctx: &CodeGenContext) -> proc_macro2::TokenStr
             let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
             quote! { #ident }
         }
-        _ => quote! { () },  // Fallback for other types (Set, Function, Generic, Union, Array, etc.)
+        _ => quote! { () }, // Fallback for other types (Set, Function, Generic, Union, Array, etc.)
     }
 }
 

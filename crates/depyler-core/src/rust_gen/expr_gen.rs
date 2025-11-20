@@ -143,9 +143,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if right side is a set based on type information
                 let is_set = self.is_set_expr(right) || self.is_set_var(right);
 
+                // Check if right side is a list/array
+                let is_list = self.is_list_expr(right);
+
                 // DEPYLER-0321 + DEPYLER-0304: Type-aware containment method selection
                 // - String: .contains() method
                 // - Set: .contains() method
+                // - List/Array: .contains() method
                 // - HashMap: .contains_key() method with smart reference handling
 
                 // DEPYLER-0422 Fix #12: HashMap borrowing for owned values
@@ -162,8 +166,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // owned variables) need the borrow, we default to always borrowing.
                 let needs_borrow = true;
 
-                if is_string || is_set {
-                    // Strings and Sets both use .contains(&value)
+                if is_string || is_set || is_list {
+                    // Strings, Sets, and Lists all use .contains(&value)
                     if needs_borrow {
                         Ok(parse_quote! { #right_expr.contains(&#left_expr) })
                     } else {
@@ -200,6 +204,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if right side is a set based on type information
                 let is_set = self.is_set_expr(right) || self.is_set_var(right);
 
+                // Check if right side is a list/array
+                let is_list = self.is_list_expr(right);
+
                 // DEPYLER-0321 + DEPYLER-0304: Type-aware containment method selection
                 // Same logic as BinOp::In, but negated
 
@@ -210,8 +217,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     true
                 };
 
-                if is_string || is_set {
-                    // Strings and Sets both use .contains(&value)
+                if is_string || is_set || is_list {
+                    // Strings, Sets, and Lists all use .contains(&value)
                     if needs_borrow {
                         Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
                     } else {
@@ -2254,17 +2261,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-0424: Check if argument is argparse args variable
                     // If so, always pass by reference (&args)
                     if let HirExpr::Var(var_name) = hir_arg {
-                        let is_argparse_args = self
-                            .ctx
-                            .argparser_tracker
-                            .parsers
-                            .values()
-                            .any(|parser_info| {
-                                parser_info
-                                    .args_var
-                                    .as_ref()
-                                    .map_or(false, |args_var| args_var == var_name)
-                            });
+                        let is_argparse_args =
+                            self.ctx
+                                .argparser_tracker
+                                .parsers
+                                .values()
+                                .any(|parser_info| {
+                                    parser_info
+                                        .args_var
+                                        .as_ref()
+                                        .map_or(false, |args_var| args_var == var_name)
+                                });
 
                         if is_argparse_args {
                             return parse_quote! { &#arg_expr };
@@ -3099,7 +3106,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Some(&arg_exprs[1])
                 } else {
                     // Keyword: csv.DictWriter(file, fieldnames=['col1', 'col2'])
-                    kwargs.iter()
+                    kwargs
+                        .iter()
                         .find(|(key, _)| key == "fieldnames")
                         .map(|(_, value)| value.to_rust_expr(self.ctx))
                         .transpose()?
@@ -8905,7 +8913,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(parse_quote! { #object_expr.as_str() })
                     } else {
                         // Non-zero group: needs captures API
-                        bail!("match.group(n) for n>0 requires .captures() API (not yet implemented)")
+                        bail!(
+                            "match.group(n) for n>0 requires .captures() API (not yet implemented)"
+                        )
                     }
                 }
             }
@@ -9265,8 +9275,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0431: Regex methods (compiled Regex + Match object)
             // Compiled Regex: findall, match, search (note: "find" conflicts with string.find())
             // Match object: group, groups, start, end, span, as_str
-            "findall" | "match" | "search" | "group" | "groups" | "start" | "end"
-            | "span" | "as_str" => self.convert_regex_method(object_expr, method, arg_exprs),
+            "findall" | "match" | "search" | "group" | "groups" | "start" | "end" | "span"
+            | "as_str" => self.convert_regex_method(object_expr, method, arg_exprs),
 
             // Path instance methods (DEPYLER-0363)
             "read_text" => {
@@ -10274,7 +10284,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if let HirExpr::Var(var_name) = value {
             // Check if var_name is an args parameter
             // (heuristic: variable ending in "args" or exactly "args")
-            if (var_name == "args" || var_name.ends_with("args")) && self.ctx.argparser_tracker.has_subcommands() {
+            if (var_name == "args" || var_name.ends_with("args"))
+                && self.ctx.argparser_tracker.has_subcommands()
+            {
                 // Check if this field belongs to any subcommand
                 let mut is_subcommand_field = false;
                 for subcommand in self.ctx.argparser_tracker.subcommands.values() {
