@@ -9387,7 +9387,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
-        let base_expr = base.to_rust_expr(self.ctx)?;
+        let mut base_expr = base.to_rust_expr(self.ctx)?;
+
+        // DEPYLER-0270: Auto-unwrap Result-returning function calls
+        // When base is a function call that returns Result<HashMap/Vec, E>,
+        // we need to unwrap it with ? before calling .get() or indexing
+        // Example: get_config()["name"] → get_config()?.get("name")...
+        if let HirExpr::Call { func, .. } = base {
+            if self.ctx.result_returning_functions.contains(func) {
+                base_expr = parse_quote! { #base_expr? };
+            }
+        }
 
         // DEPYLER-0422 Fix #3 & #4: Handle tuple indexing with actual type information
         // Python: tuple[0], tuple[1] → Rust: tuple.0, tuple.1
