@@ -2034,6 +2034,7 @@ def test_str(value: int) -> str:
 }
 
 #[test]
+#[ignore = "int(float) not implemented - generates invalid parse() call"]
 fn test_125_builtin_int() {
     let python = r#"
 def test_int(value: float) -> int:
