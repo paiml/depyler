@@ -249,16 +249,12 @@ fn codegen_single_param(
 
     // DEPYLER-0424: Check if this parameter is the argparse args variable
     // If so, type it as &Args instead of default type mapping
-    let is_argparse_args = ctx
-        .argparser_tracker
-        .parsers
-        .values()
-        .any(|parser_info| {
-            parser_info
-                .args_var
-                .as_ref()
-                .map_or(false, |args_var| args_var == &param.name)
-        });
+    let is_argparse_args = ctx.argparser_tracker.parsers.values().any(|parser_info| {
+        parser_info
+            .args_var
+            .as_ref()
+            .map_or(false, |args_var| args_var == &param.name)
+    });
 
     if is_argparse_args {
         // Use &Args for argparse result parameters
@@ -1343,7 +1339,10 @@ impl RustCodeGen for HirFunction {
         // DEPYLER-0425: Analyze subcommand field access BEFORE generating body
         // This sets ctx.current_subcommand_fields so expression generation can rewrite args.field → field
         let subcommand_info = if ctx.argparser_tracker.has_subcommands() {
-            crate::rust_gen::argparse_transform::analyze_subcommand_field_access(self, &ctx.argparser_tracker)
+            crate::rust_gen::argparse_transform::analyze_subcommand_field_access(
+                self,
+                &ctx.argparser_tracker,
+            )
         } else {
             None
         };
@@ -1409,8 +1408,15 @@ impl RustCodeGen for HirFunction {
         // DEPYLER-0270: Add Ok(()) for functions with Result<(), E> return type
         // When Python function has `-> None` but uses fallible operations (e.g., indexing),
         // the Rust return type becomes `Result<(), IndexError>` and needs Ok(()) at the end
+        // Only add Ok(()) if the function doesn't already end with a return statement
         if can_fail && matches!(self.ret_type, Type::None) {
-            body_stmts.push(parse_quote! { Ok(()) });
+            let needs_ok = self
+                .body
+                .last()
+                .map_or(true, |stmt| !matches!(stmt, HirStmt::Return(_)));
+            if needs_ok {
+                body_stmts.push(parse_quote! { Ok(()) });
+            }
         }
 
         // Add documentation
