@@ -543,8 +543,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     false
                 };
 
+                // DEPYLER-0443: Check if operand is a regex method call returning Option<Match>
+                // Python: `if not re.match(...)` or `if not compiled.find(...)`
+                // Rust: Cannot use ! on Option<Match>, need .is_none()
+                let is_option_returning_call = if let HirExpr::MethodCall {
+                    object: _,
+                    method,
+                    args: _,
+                    kwargs: _,
+                } = operand
+                {
+                    // Regex methods that return Option<Match>
+                    matches!(method.as_str(), "find" | "search" | "match")
+                } else if let HirExpr::Call { func, args: _, kwargs: _ } = operand {
+                    // Module-level regex functions (re.match, re.search, re.find)
+                    matches!(func.as_str(), "match" | "search" | "find")
+                } else {
+                    false
+                };
+
                 if is_collection {
                     Ok(parse_quote! { #operand_expr.is_empty() })
+                } else if is_option_returning_call {
+                    // For Option-returning methods, use .is_none() instead of !
+                    Ok(parse_quote! { #operand_expr.is_none() })
                 } else {
                     Ok(parse_quote! { !#operand_expr })
                 }
