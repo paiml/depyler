@@ -47,7 +47,7 @@ impl TypeExtractor {
             ast::Expr::BinOp(b) if matches!(b.op, ast::Operator::BitOr) => {
                 Self::extract_union_from_binop(b)
             }
-            _ => bail!("Unsupported type annotation"),
+            _ => bail!("Unsupported type annotation: {:?}", expr),
         }
     }
 
