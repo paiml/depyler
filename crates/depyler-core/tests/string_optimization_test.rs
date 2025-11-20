@@ -96,6 +96,77 @@ def use_repeated_string():
 }
 
 #[test]
+fn test_constants_collision_resolution() {
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def test_constants1() -> bool:
+    """Test string constants comparison"""
+    x = "DEF"
+    if x == 'ABC':
+        return False
+    if x == 'abc':
+        return False
+    return True
+
+def test_constants2() -> bool:
+    """Test string constants comparison"""
+    x = "DEF"
+    if x == 'ABC':
+        return False
+    if x == 'abc':
+        return False
+    return True
+
+def test_constants3() -> bool:
+    """Test string constants comparison"""
+    x = "DEF"
+    if x == 'ABC':
+        return False
+    if x == 'abc':
+        return False
+    return True
+
+def test_constants4() -> bool:
+    """Test string constants comparison"""
+    x = "DEF"
+    if x == 'ABC':
+        return False
+    if x == 'abc':
+        return False
+    return True
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated code for test_constants:\n{}", rust_code);
+
+    // Each string appears 4 times (once per function), so should be interned
+    assert!(
+        rust_code.contains("const STR_DEF"),
+        "Should intern DEF string literal (appears 4 times)"
+    );
+    assert!(
+        rust_code.contains("const STR_ABC"),
+        "Should intern ABC string literal (appears 4 times)"
+    );
+
+    // Verify that "ABC" and "abc" get different constant names due to collision
+    // Both would map to STR_ABC, so one should get a suffix
+    let abc_count = rust_code.matches("const STR_ABC").count();
+    assert!(
+        abc_count >= 2,
+        "Should have at least 2 STR_ABC constants (one for 'ABC', one for 'abc' with suffix), found {}",
+        abc_count
+    );
+
+    // Verify the constants actually compile (no duplicate names)
+    assert!(
+        rust_code.matches("const STR_ABC_1").count() >= 1
+            || rust_code.matches("const STR_ABC_2").count() >= 1,
+        "Should have collision-resolved names like STR_ABC_1 or STR_ABC_2"
+    );
+}
+
+#[test]
 fn test_function_taking_str_reference() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
