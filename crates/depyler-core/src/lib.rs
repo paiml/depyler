@@ -486,6 +486,7 @@ impl DepylerPipeline {
             type_aliases: hir.type_aliases,
             protocols: hir.protocols,
             classes: optimized_program.classes,
+            constants: hir.constants,
         };
 
         // Generate Rust code with dependencies
