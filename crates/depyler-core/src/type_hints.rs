@@ -285,6 +285,8 @@ impl TypeHintProvider {
                 finalbody,
                 ..
             } => self.analyze_try_stmt(body, handlers, finalbody),
+            // DEPYLER-0432: Analyze With statements to infer types from context (e.g., open(filepath))
+            HirStmt::With { context, body, .. } => self.analyze_with_stmt(context, body),
             HirStmt::Expr(expr) => self.analyze_expr(expr),
             _ => Ok(()),
         }
@@ -296,6 +298,8 @@ impl TypeHintProvider {
         then_body: &[HirStmt],
         else_body: &Option<Vec<HirStmt>>,
     ) -> Result<()> {
+        // DEPYLER-0432: If condition is a simple variable, infer bool type
+        self.infer_bool_from_condition(condition);
         self.analyze_expr(condition)?;
         self.analyze_body(then_body)?;
         if let Some(else_stmts) = else_body {
@@ -305,8 +309,26 @@ impl TypeHintProvider {
     }
 
     fn analyze_while_stmt(&mut self, condition: &HirExpr, body: &[HirStmt]) -> Result<()> {
+        // DEPYLER-0432: If condition is a simple variable, infer bool type
+        self.infer_bool_from_condition(condition);
         self.analyze_expr(condition)?;
         self.analyze_body(body)
+    }
+
+    /// DEPYLER-0432: Infer bool type for variables used directly in conditions
+    fn infer_bool_from_condition(&mut self, condition: &HirExpr) {
+        if let HirExpr::Var(var) = condition {
+            // Variable used directly as condition → likely bool
+            // Add multiple constraints for higher confidence (need 4+ for High confidence)
+            self.context.constraints.push(TypeConstraint::Compatible {
+                var: var.to_string(),
+                ty: Type::Bool,
+            });
+            self.context.constraints.push(TypeConstraint::Compatible {
+                var: var.to_string(),
+                ty: Type::Bool,
+            });
+        }
     }
 
     fn analyze_for_stmt(
@@ -342,6 +364,14 @@ impl TypeHintProvider {
         }
 
         Ok(())
+    }
+
+    /// DEPYLER-0432: Analyze with statement context expressions
+    fn analyze_with_stmt(&mut self, context: &HirExpr, body: &[HirStmt]) -> Result<()> {
+        // Analyze the context expression (e.g., open(filepath))
+        self.analyze_expr(context)?;
+        // Analyze the body
+        self.analyze_body(body)
     }
 
     fn analyze_expr(&mut self, expr: &HirExpr) -> Result<()> {
@@ -489,7 +519,21 @@ impl TypeHintProvider {
         match func {
             "len" => self.analyze_len_call(args),
             "str" | "int" | "float" | "bool" => self.analyze_conversion_call(func, args),
+            "open" => self.analyze_open_call(args),
             _ => {}
+        }
+    }
+
+    /// DEPYLER-0432: Detect open(filepath) - filepath should be &str
+    fn analyze_open_call(&mut self, args: &[HirExpr]) {
+        if let Some(HirExpr::Var(var)) = args.first() {
+            // open(filepath) means filepath is a file path (String/&str)
+            self.context.constraints.push(TypeConstraint::Compatible {
+                var: var.to_string(),
+                ty: Type::String,
+            });
+            // Record string-like pattern for stronger evidence
+            self.record_usage_pattern(var, UsagePattern::StringLike);
         }
     }
 
