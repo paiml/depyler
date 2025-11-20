@@ -2530,11 +2530,12 @@ pub(crate) fn codegen_try_stmt(
                     }
                 }
 
-                // DEPYLER-0362: Check if try block has error handling (unwrap_or_default)
-                // If so, don't concatenate handler as it creates invalid syntax
+                // DEPYLER-0362/0444: Check if try block has error handling (unwrap_or_default, .expect())
+                // If so, don't concatenate handler as it creates invalid syntax or unreachable code
                 let try_code_str = quote! { #(#try_stmts)* }.to_string();
                 let has_error_handling = try_code_str.contains("unwrap_or_default")
-                    || try_code_str.contains("unwrap_or(");
+                    || try_code_str.contains("unwrap_or(")
+                    || try_code_str.contains(".expect(");
 
                 if has_error_handling {
                     // Try block already handles errors, don't add handler
@@ -2549,26 +2550,45 @@ pub(crate) fn codegen_try_stmt(
                         Ok(quote! { #(#try_stmts)* })
                     }
                 } else {
-                    let handler_code = &handler_tokens[0];
+                    // DEPYLER-0444: Check if handler has exception variable binding
+                    // If so, skip handler code since we can't bind it in unconditional context
+                    let has_exception_binding = handlers[0].name.is_some();
 
-                    if let Some(finally_code) = finally_stmts {
-                        Ok(quote! {
-                            {
-                                #(#try_stmts)*
-                                #handler_code
-                                #finally_code
-                            }
-                        })
+                    if has_exception_binding {
+                        // Skip handler code - it would reference unbound exception variable
+                        // NOTE: This means exception handlers are not fully implemented (tracked in DEPYLER-0424)
+                        if let Some(finally_code) = finally_stmts {
+                            Ok(quote! {
+                                {
+                                    #(#try_stmts)*
+                                    #finally_code
+                                }
+                            })
+                        } else {
+                            Ok(quote! { #(#try_stmts)* })
+                        }
                     } else {
-                        // DEPYLER-0357: Include handler code after try block
-                        // NOTE: This executes both unconditionally - need proper conditional logic (tracked in DEPYLER-0424)
-                        // based on which operations can panic (ZeroDivisionError, IndexError, etc.)
-                        Ok(quote! {
-                            {
-                                #(#try_stmts)*
-                                #handler_code
-                            }
-                        })
+                        let handler_code = &handler_tokens[0];
+
+                        if let Some(finally_code) = finally_stmts {
+                            Ok(quote! {
+                                {
+                                    #(#try_stmts)*
+                                    #handler_code
+                                    #finally_code
+                                }
+                            })
+                        } else {
+                            // DEPYLER-0357: Include handler code after try block
+                            // NOTE: This executes both unconditionally - need proper conditional logic (tracked in DEPYLER-0424)
+                            // based on which operations can panic (ZeroDivisionError, IndexError, etc.)
+                            Ok(quote! {
+                                {
+                                    #(#try_stmts)*
+                                    #handler_code
+                                }
+                            })
+                        }
                     }
                 }
             } else {
