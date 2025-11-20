@@ -97,3 +97,4 @@ playground/node_modules/
 # Rust build artifacts
 *.rlib
 *.rmeta
+examples/marco_polo_cli/target/
