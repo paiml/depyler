@@ -557,6 +557,9 @@ pub fn generate_rust_file(
     // Analyze all functions first for string optimization
     analyze_string_optimization(&mut ctx, &module.functions);
 
+    // Finalize interned string names (resolve collisions)
+    ctx.string_optimizer.finalize_interned_names();
+
     // DEPYLER-0270: Populate Result-returning functions map
     // All functions that can_fail return Result<T, E> and need unwrapping at call sites
     for func in &module.functions {
@@ -726,9 +729,9 @@ mod tests {
             current_error_type: None, // DEPYLER-0310: Track error type for raise statement wrapping
             exception_scopes: Vec::new(), // DEPYLER-0333: Exception scope tracking stack
             argparser_tracker: argparse_transform::ArgParserTracker::new(), // DEPYLER-0363: Track ArgumentParser patterns
-            generated_args_struct: None,       // DEPYLER-0424: Args struct (hoisted to module level)
-            generated_commands_enum: None,     // DEPYLER-0424: Commands enum (hoisted to module level)
-            current_subcommand_fields: None,   // DEPYLER-0425: Subcommand field extraction
+            generated_args_struct: None, // DEPYLER-0424: Args struct (hoisted to module level)
+            generated_commands_enum: None, // DEPYLER-0424: Commands enum (hoisted to module level)
+            current_subcommand_fields: None, // DEPYLER-0425: Subcommand field extraction
         }
     }
 
