@@ -264,11 +264,7 @@ def test_func():
 /// with rustc (not just syntactically valid).
 ///
 /// Verifies: End-to-end compilation success
-///
-/// NOTE: Disabled due to unrelated type inference bug (Option<&str> vs &str)
-/// This test fails due to DEPYLER-0440, not DEPYLER-0439.
 #[test]
-#[ignore]  // Disabled due to unrelated type inference issue
 fn test_depyler_0439_generated_code_compiles() {
     let source = r#"
 def test_func():
