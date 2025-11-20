@@ -288,6 +288,7 @@ impl BorrowingContext {
             Type::Generic { base, .. } => base.clone(),
             Type::Function { .. } => "/* function */".to_string(),
             Type::Union(_) => "Union".to_string(),
+            Type::Final(inner) => self.type_to_rust_string(inner), // Unwrap Final to get the actual type
         }
     }
 

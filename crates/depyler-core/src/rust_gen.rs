@@ -1004,7 +1004,7 @@ mod tests {
         let mut ctx = create_test_context();
         let value_expr = syn::parse_quote! { 42 };
 
-        let result = codegen_assign_symbol("x", value_expr, None, &mut ctx).unwrap();
+        let result = codegen_assign_symbol("x", value_expr, None, false, &mut ctx).unwrap();
         assert!(result.to_string().contains("let x = 42"));
     }
 
@@ -1014,7 +1014,7 @@ mod tests {
         let value_expr = syn::parse_quote! { 42 };
         let type_ann = Some(quote! { : i32 });
 
-        let result = codegen_assign_symbol("x", value_expr, type_ann, &mut ctx).unwrap();
+        let result = codegen_assign_symbol("x", value_expr, type_ann, false, &mut ctx).unwrap();
         assert!(result.to_string().contains("let x : i32 = 42"));
     }
 
@@ -1024,7 +1024,7 @@ mod tests {
         ctx.declare_var("x");
         let value_expr = syn::parse_quote! { 100 };
 
-        let result = codegen_assign_symbol("x", value_expr, None, &mut ctx).unwrap();
+        let result = codegen_assign_symbol("x", value_expr, None, false, &mut ctx).unwrap();
         assert_eq!(result.to_string(), "x = 100 ;");
     }
 

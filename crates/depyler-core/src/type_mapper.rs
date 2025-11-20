@@ -144,6 +144,7 @@ impl TypeMapper {
                 RustType::Tuple(rust_types)
             }
             PythonType::Optional(inner) => RustType::Option(Box::new(self.map_type(inner))),
+            PythonType::Final(inner) => self.map_type(inner), // Unwrap Final to get the actual type
             PythonType::Function { params: _, ret: _ } => {
                 // For V1, we don't map function types directly
                 RustType::Unsupported("function".to_string())
