@@ -11217,15 +11217,53 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let arg_expr = expr.to_rust_expr(self.ctx)?;
 
                     // Determine if this expression is a collection type
-                    // Check if it's a variable with a known collection type
-                    let is_collection = if let HirExpr::Var(var_name) = expr.as_ref() {
-                        if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                            matches!(var_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
-                        } else {
-                            false
+                    let is_collection = match expr.as_ref() {
+                        // Case 1: Simple variable (e.g., targets)
+                        HirExpr::Var(var_name) => {
+                            if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                                matches!(var_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                            } else {
+                                false
+                            }
                         }
-                    } else {
-                        false
+                        // Case 2: Attribute access (e.g., args.targets)
+                        HirExpr::Attribute { value, attr } => {
+                            // Check if this is accessing a field from argparse Args struct
+                            if let HirExpr::Var(obj_name) = value.as_ref() {
+                                // Check if obj_name is the args variable from ArgumentParser
+                                let is_args_var = self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                                    parser_info.args_var.as_ref().is_some_and(|args_var| args_var == obj_name)
+                                });
+
+                                if is_args_var {
+                                    // Look up the field type in argparse arguments
+                                    self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                                        parser_info.arguments.iter().any(|arg| {
+                                            // Match field name (normalized from Python argument name)
+                                            let field_name = arg.rust_field_name();
+                                            if field_name == *attr {
+                                                // Check if this field is a collection type
+                                                // Either explicit type annotation OR inferred from nargs
+                                                let is_vec_from_nargs = matches!(arg.nargs.as_deref(), Some("+") | Some("*"));
+                                                let is_collection_type = if let Some(ref arg_type) = arg.arg_type {
+                                                    matches!(arg_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                                                } else {
+                                                    false
+                                                };
+                                                is_vec_from_nargs || is_collection_type
+                                            } else {
+                                                false
+                                            }
+                                        })
+                                    })
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        }
+                        _ => false,
                     };
 
                     if is_collection {
