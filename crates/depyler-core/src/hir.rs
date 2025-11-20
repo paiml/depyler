@@ -345,7 +345,7 @@ pub enum HirStmt {
     /// Nested function definition (inner functions)
     FunctionDef {
         name: Symbol,
-        params: SmallVec<[HirParam; 4]>,
+        params: Box<SmallVec<[HirParam; 4]>>,
         ret_type: Type,
         body: Vec<HirStmt>,
         docstring: Option<String>,

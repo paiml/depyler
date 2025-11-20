@@ -145,7 +145,6 @@ pub fn play_simple_round(target: i32, max_attempts: i32) -> i32 {
         if guess == target {
             return attempts;
         } else {
-            let mut guess;
             if guess < target {
                 guess = guess + 10;
             } else {

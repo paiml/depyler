@@ -122,92 +122,92 @@ impl Optimizer {
     /// DEPYLER-0269: Collect all variables that are actually USED (read)
     fn collect_read_vars_function(&self, func: &HirFunction, read_vars: &mut HashSet<String>) {
         for stmt in &func.body {
-            self.collect_read_vars_stmt(stmt, read_vars);
+            Self::collect_read_vars_stmt(stmt, read_vars);
         }
     }
 
     /// DEPYLER-0269: Recursively collect variable reads from statements
-    fn collect_read_vars_stmt(&self, stmt: &HirStmt, read_vars: &mut HashSet<String>) {
+    fn collect_read_vars_stmt(stmt: &HirStmt, read_vars: &mut HashSet<String>) {
         match stmt {
             HirStmt::Assign { value, .. } => {
                 // Variable reads in the RHS of assignment
-                self.collect_read_vars_expr(value, read_vars);
+                Self::collect_read_vars_expr(value, read_vars);
             }
             HirStmt::Expr(expr) => {
-                self.collect_read_vars_expr(expr, read_vars);
+                Self::collect_read_vars_expr(expr, read_vars);
             }
             HirStmt::If {
                 condition,
                 then_body,
                 else_body,
             } => {
-                self.collect_read_vars_expr(condition, read_vars);
+                Self::collect_read_vars_expr(condition, read_vars);
                 for s in then_body {
-                    self.collect_read_vars_stmt(s, read_vars);
+                    Self::collect_read_vars_stmt(s, read_vars);
                 }
                 if let Some(else_stmts) = else_body {
                     for s in else_stmts {
-                        self.collect_read_vars_stmt(s, read_vars);
+                        Self::collect_read_vars_stmt(s, read_vars);
                     }
                 }
             }
             HirStmt::While { condition, body } => {
-                self.collect_read_vars_expr(condition, read_vars);
+                Self::collect_read_vars_expr(condition, read_vars);
                 for s in body {
-                    self.collect_read_vars_stmt(s, read_vars);
+                    Self::collect_read_vars_stmt(s, read_vars);
                 }
             }
             HirStmt::For { iter, body, .. } => {
-                self.collect_read_vars_expr(iter, read_vars);
+                Self::collect_read_vars_expr(iter, read_vars);
                 for s in body {
-                    self.collect_read_vars_stmt(s, read_vars);
+                    Self::collect_read_vars_stmt(s, read_vars);
                 }
             }
             HirStmt::Return(Some(expr)) => {
-                self.collect_read_vars_expr(expr, read_vars);
+                Self::collect_read_vars_expr(expr, read_vars);
             }
             _ => {}
         }
     }
 
     /// DEPYLER-0269: Recursively collect variable reads from expressions
-    fn collect_read_vars_expr(&self, expr: &HirExpr, read_vars: &mut HashSet<String>) {
+    fn collect_read_vars_expr(expr: &HirExpr, read_vars: &mut HashSet<String>) {
         match expr {
             HirExpr::Var(name) => {
                 // This is a variable READ - mark as used
                 read_vars.insert(name.clone());
             }
             HirExpr::Binary { left, right, .. } => {
-                self.collect_read_vars_expr(left, read_vars);
-                self.collect_read_vars_expr(right, read_vars);
+                Self::collect_read_vars_expr(left, read_vars);
+                Self::collect_read_vars_expr(right, read_vars);
             }
             HirExpr::Unary { operand, .. } => {
-                self.collect_read_vars_expr(operand, read_vars);
+                Self::collect_read_vars_expr(operand, read_vars);
             }
             HirExpr::List(items) => {
                 for item in items {
-                    self.collect_read_vars_expr(item, read_vars);
+                    Self::collect_read_vars_expr(item, read_vars);
                 }
             }
             HirExpr::Dict(pairs) => {
                 for (k, v) in pairs {
-                    self.collect_read_vars_expr(k, read_vars);
-                    self.collect_read_vars_expr(v, read_vars);
+                    Self::collect_read_vars_expr(k, read_vars);
+                    Self::collect_read_vars_expr(v, read_vars);
                 }
             }
             HirExpr::Call { args, .. } => {
                 for arg in args {
-                    self.collect_read_vars_expr(arg, read_vars);
+                    Self::collect_read_vars_expr(arg, read_vars);
                 }
             }
             HirExpr::MethodCall { object, args, .. } => {
-                self.collect_read_vars_expr(object, read_vars);
+                Self::collect_read_vars_expr(object, read_vars);
                 for arg in args {
-                    self.collect_read_vars_expr(arg, read_vars);
+                    Self::collect_read_vars_expr(arg, read_vars);
                 }
             }
             HirExpr::Lambda { body, .. } => {
-                self.collect_read_vars_expr(body, read_vars);
+                Self::collect_read_vars_expr(body, read_vars);
             }
             _ => {}
         }
@@ -506,7 +506,7 @@ impl Optimizer {
         let mut side_effect_vars = HashSet::new();
         for stmt in &func.body {
             if let HirStmt::Assign { target, value, .. } = stmt {
-                if self.expr_contains_index(value) {
+                if Self::expr_contains_index(value) {
                     if let AssignTarget::Symbol(name) = target {
                         side_effect_vars.insert(name.clone());
                     }
@@ -600,36 +600,36 @@ impl Optimizer {
     ///
     /// # Complexity
     /// 5 (recursive expression traversal with early return)
-    fn expr_contains_index(&self, expr: &HirExpr) -> bool {
+    fn expr_contains_index(expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Index { .. } => true,
             HirExpr::Binary { left, right, .. } => {
-                self.expr_contains_index(left) || self.expr_contains_index(right)
+                Self::expr_contains_index(left) || Self::expr_contains_index(right)
             }
-            HirExpr::Unary { operand, .. } => self.expr_contains_index(operand),
-            HirExpr::Call { args, .. } => args.iter().any(|arg| self.expr_contains_index(arg)),
+            HirExpr::Unary { operand, .. } => Self::expr_contains_index(operand),
+            HirExpr::Call { args, .. } => args.iter().any(Self::expr_contains_index),
             HirExpr::List(items) | HirExpr::Tuple(items) => {
-                items.iter().any(|item| self.expr_contains_index(item))
+                items.iter().any(Self::expr_contains_index)
             }
             HirExpr::Dict(pairs) => pairs
                 .iter()
-                .any(|(k, v)| self.expr_contains_index(k) || self.expr_contains_index(v)),
-            HirExpr::Set(items) => items.iter().any(|item| self.expr_contains_index(item)),
+                .any(|(k, v)| Self::expr_contains_index(k) || Self::expr_contains_index(v)),
+            HirExpr::Set(items) => items.iter().any(Self::expr_contains_index),
             HirExpr::MethodCall { object, args, .. } => {
-                self.expr_contains_index(object)
-                    || args.iter().any(|arg| self.expr_contains_index(arg))
+                Self::expr_contains_index(object)
+                    || args.iter().any(Self::expr_contains_index)
             }
-            HirExpr::Attribute { value, .. } => self.expr_contains_index(value),
+            HirExpr::Attribute { value, .. } => Self::expr_contains_index(value),
             HirExpr::Slice {
                 base,
                 start,
                 stop,
                 step,
             } => {
-                self.expr_contains_index(base)
-                    || start.as_ref().is_some_and(|e| self.expr_contains_index(e))
-                    || stop.as_ref().is_some_and(|e| self.expr_contains_index(e))
-                    || step.as_ref().is_some_and(|e| self.expr_contains_index(e))
+                Self::expr_contains_index(base)
+                    || start.as_ref().is_some_and(|e| Self::expr_contains_index(e))
+                    || stop.as_ref().is_some_and(|e| Self::expr_contains_index(e))
+                    || step.as_ref().is_some_and(|e| Self::expr_contains_index(e))
             }
             _ => false,
         }

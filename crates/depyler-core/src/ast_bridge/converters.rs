@@ -324,7 +324,7 @@ impl StmtConverter {
 
         Ok(HirStmt::FunctionDef {
             name,
-            params: params.into(),
+            params: Box::new(params.into()),
             ret_type,
             body,
             docstring,

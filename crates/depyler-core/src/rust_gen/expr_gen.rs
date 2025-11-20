@@ -2315,7 +2315,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                     parser_info
                                         .args_var
                                         .as_ref()
-                                        .map_or(false, |args_var| args_var == var_name)
+                                        .is_some_and(|args_var| args_var == var_name)
                                 });
 
                         if is_argparse_args {
