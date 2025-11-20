@@ -3173,6 +3173,7 @@ mod tests {
             type_aliases: vec![],
             protocols: vec![],
             classes: vec![],
+            constants: vec![],
         };
 
         let result = apply_rules(&module, &type_mapper).unwrap();

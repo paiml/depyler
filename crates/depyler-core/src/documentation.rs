@@ -526,6 +526,7 @@ mod tests {
             type_aliases: vec![],
             protocols: vec![],
             classes: vec![],
+            constants: vec![],
         }
     }
 
@@ -646,6 +647,7 @@ mod tests {
             type_aliases: vec![],
             protocols: vec![],
             classes: vec![class],
+            constants: vec![],
         };
 
         let docs = generator.generate_docs(&module);
@@ -687,6 +689,7 @@ mod tests {
             type_aliases: vec![],
             protocols: vec![],
             classes: vec![],
+            constants: vec![],
         };
 
         let docs = generator.generate_docs(&module);
