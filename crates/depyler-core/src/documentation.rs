@@ -388,6 +388,7 @@ fn format_type_inner(ty: &Type) -> String {
         }
         Type::Set(inner) => format!("HashSet<{}>", format_type_inner(inner)),
         Type::Optional(inner) => format!("Option<{}>", format_type_inner(inner)),
+        Type::Final(inner) => format_type_inner(inner), // Unwrap Final to get the actual type
         Type::Custom(name) => name.clone(),
         Type::Union(types) => {
             let variants: Vec<String> = types.iter().map(format_type_inner).collect();
