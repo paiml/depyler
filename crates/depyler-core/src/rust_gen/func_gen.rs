@@ -265,7 +265,7 @@ fn codegen_single_param(
         parser_info
             .args_var
             .as_ref()
-            .map_or(false, |args_var| args_var == &param.name)
+            .is_some_and(|args_var| args_var == &param.name)
     });
 
     if is_argparse_args {
@@ -612,12 +612,10 @@ fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
 
     // DEPYLER-0412: Also check for trailing expression (implicit return)
     // If the last statement is an expression without return, it's an implicit return
-    if let Some(last_stmt) = body.last() {
-        if let HirStmt::Expr(expr) = last_stmt {
-            let trailing_type = infer_expr_type_with_env(expr, &var_types);
-            if !matches!(trailing_type, Type::Unknown) {
-                return_types.push(trailing_type);
-            }
+    if let Some(HirStmt::Expr(expr)) = body.last() {
+        let trailing_type = infer_expr_type_with_env(expr, &var_types);
+        if !matches!(trailing_type, Type::Unknown) {
+            return_types.push(trailing_type);
         }
     }
 
@@ -663,14 +661,11 @@ fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
 fn build_var_type_env(stmts: &[HirStmt], var_types: &mut std::collections::HashMap<String, Type>) {
     for stmt in stmts {
         match stmt {
-            HirStmt::Assign { target, value, .. } => {
-                // Extract variable name from target
-                if let crate::hir::AssignTarget::Symbol(name) = target {
-                    // DEPYLER-0415: Use the environment we're building for lookups
-                    let value_type = infer_expr_type_with_env(value, var_types);
-                    if !matches!(value_type, Type::Unknown) {
-                        var_types.insert(name.clone(), value_type);
-                    }
+            HirStmt::Assign { target: crate::hir::AssignTarget::Symbol(name), value, .. } => {
+                // DEPYLER-0415: Use the environment we're building for lookups
+                let value_type = infer_expr_type_with_env(value, var_types);
+                if !matches!(value_type, Type::Unknown) {
+                    var_types.insert(name.clone(), value_type);
                 }
             }
             HirStmt::If {
@@ -792,7 +787,7 @@ fn infer_expr_type_with_env(
             if matches!(op, BinOp::Mul) {
                 match (left.as_ref(), right.as_ref()) {
                     // Pattern: [elem] * n
-                    (&HirExpr::List(ref elems), &HirExpr::Literal(Literal::Int(size)))
+                    (HirExpr::List(elems), &HirExpr::Literal(Literal::Int(size)))
                         if elems.len() == 1 && size > 0 =>
                     {
                         let elem_type = infer_expr_type_with_env(&elems[0], var_types);
@@ -806,7 +801,7 @@ fn infer_expr_type_with_env(
                         };
                     }
                     // Pattern: n * [elem]
-                    (&HirExpr::Literal(Literal::Int(size)), &HirExpr::List(ref elems))
+                    (&HirExpr::Literal(Literal::Int(size)), HirExpr::List(elems))
                         if elems.len() == 1 && size > 0 =>
                     {
                         let elem_type = infer_expr_type_with_env(&elems[0], var_types);
@@ -882,7 +877,7 @@ fn infer_expr_type_simple(expr: &HirExpr) -> Type {
             if matches!(op, BinOp::Mul) {
                 match (left.as_ref(), right.as_ref()) {
                     // Pattern: [elem] * n
-                    (&HirExpr::List(ref elems), &HirExpr::Literal(Literal::Int(size)))
+                    (HirExpr::List(elems), &HirExpr::Literal(Literal::Int(size)))
                         if elems.len() == 1 && size > 0 =>
                     {
                         let elem_type = infer_expr_type_simple(&elems[0]);
@@ -896,7 +891,7 @@ fn infer_expr_type_simple(expr: &HirExpr) -> Type {
                         };
                     }
                     // Pattern: n * [elem]
-                    (&HirExpr::Literal(Literal::Int(size)), &HirExpr::List(ref elems))
+                    (&HirExpr::Literal(Literal::Int(size)), HirExpr::List(elems))
                         if elems.len() == 1 && size > 0 =>
                     {
                         let elem_type = infer_expr_type_simple(&elems[0]);
@@ -1425,7 +1420,7 @@ impl RustCodeGen for HirFunction {
             let needs_ok = self
                 .body
                 .last()
-                .map_or(true, |stmt| !matches!(stmt, HirStmt::Return(_)));
+                .is_none_or(|stmt| !matches!(stmt, HirStmt::Return(_)));
             if needs_ok {
                 body_stmts.push(parse_quote! { Ok(()) });
             }

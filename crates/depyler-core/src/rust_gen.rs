@@ -486,14 +486,13 @@ fn generate_constant_tokens(
             quote! { : #syn_type }
         } else {
             // Infer type from the literal value
-            let inferred_type = match &constant.value {
+            match &constant.value {
                 HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
                 HirExpr::Literal(Literal::Float(_)) => quote! { : f64 },
                 HirExpr::Literal(Literal::String(_)) => quote! { : &str },
                 HirExpr::Literal(Literal::Bool(_)) => quote! { : bool },
                 _ => quote! { : i32 }, // Default fallback
-            };
-            inferred_type
+            }
         };
 
         // Generate the constant declaration
