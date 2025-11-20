@@ -79,6 +79,10 @@ name = "operator_tests"
 path = "../../tests/operator_tests.rs"
 
 [[test]]
+name = "array_generation_test"
+path = "../../tests/array_generation_test.rs"
+
+[[test]]
 name = "cli_tests"
 path = "../../tests/cli_tests.rs"
 
