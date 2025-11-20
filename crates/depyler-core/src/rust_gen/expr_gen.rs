@@ -11264,11 +11264,49 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     template.push_str(s);
                 }
                 FStringPart::Expr(expr) => {
-                    // DEPYLER-0438/0441: Smart formatting based on expression type
+                    // DEPYLER-0438/0441/0446: Smart formatting based on expression type
                     // - Collections (Vec, HashMap, HashSet): Use {:?} debug formatting
                     // - Scalars (String, i32, f64, bool): Use {} Display formatting
+                    // - Option types: Unwrap with .unwrap_or_default() or display "None"
                     // This matches Python semantics where lists/dicts have their own repr
                     let arg_expr = expr.to_rust_expr(self.ctx)?;
+
+                    // DEPYLER-0446: Check if this is an Option<T> field (e.g., optional CLI arg)
+                    let is_option = match expr.as_ref() {
+                        HirExpr::Attribute { value, attr } => {
+                            if let HirExpr::Var(obj_name) = value.as_ref() {
+                                let is_args_var = self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                                    parser_info.args_var.as_ref().is_some_and(|args_var| args_var == obj_name)
+                                });
+
+                                if is_args_var {
+                                    // Check if this argument is optional (has default or not required)
+                                    self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                                        parser_info.arguments.iter().any(|arg| {
+                                            let field_name = arg.rust_field_name();
+                                            // Argument is optional if: not required OR has a default value
+                                            // If required is None, it's optional by default (argparse behavior)
+                                            let is_optional = !arg.required.unwrap_or(false) || arg.default.is_some();
+                                            field_name == *attr && is_optional
+                                        })
+                                    })
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        }
+                        HirExpr::Var(var_name) => {
+                            // Check if variable type is Option<T>
+                            if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                                matches!(var_type, Type::Optional(_))
+                            } else {
+                                false
+                            }
+                        }
+                        _ => false,
+                    };
 
                     // Determine if this expression is a collection type
                     let is_collection = match expr.as_ref() {
@@ -11320,15 +11358,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         _ => false,
                     };
 
+                    // DEPYLER-0446: Wrap Option types to handle Display trait
+                    let final_arg = if is_option {
+                        // Option<T> doesn't implement Display, so we need to unwrap it
+                        // For string-like types, display the value or "None"
+                        // For numeric types, use unwrap_or_default()
+                        parse_quote! {
+                            {
+                                match &#arg_expr {
+                                    Some(v) => format!("{}", v),
+                                    None => "None".to_string(),
+                                }
+                            }
+                        }
+                    } else {
+                        arg_expr
+                    };
+
                     if is_collection {
                         // Use debug formatting for collections (matches Python's list/dict repr)
                         template.push_str("{:?}");
                     } else {
-                        // Use Display formatting for scalars
+                        // Use Display formatting for scalars (and wrapped Options)
                         template.push_str("{}");
                     }
 
-                    args.push(arg_expr);
+                    args.push(final_arg);
                 }
             }
         }
