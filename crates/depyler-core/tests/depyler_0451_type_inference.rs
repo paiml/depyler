@@ -182,7 +182,9 @@ def sum_list(items):
     let has_slice_param = rust_code.contains("items: &[i32]")
         || rust_code.contains("items: &[i64]")
         || rust_code.contains("items: Vec<i32>")
-        || rust_code.contains("items: Vec<i64>");
+        || rust_code.contains("items: Vec<i64>")
+        || rust_code.contains("items: &Vec<i32>")
+        || rust_code.contains("items: &Vec<i64>");
 
     // Should NOT use serde_json::Value
     let has_value_param = rust_code.contains("items: serde_json::Value")
@@ -190,7 +192,7 @@ def sum_list(items):
 
     assert!(
         has_slice_param && !has_value_param,
-        "Expected items: &[i32] or Vec<i32>, not Value. Got:\n{}",
+        "Expected items: &[i32] or Vec<i32> or &Vec<i32>, not Value. Got:\n{}",
         rust_code
     );
 }
