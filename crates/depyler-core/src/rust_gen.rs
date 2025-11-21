@@ -692,6 +692,7 @@ pub fn generate_rust_file(
         generated_commands_enum: None, // DEPYLER-0424: Commands enum (hoisted to module level)
         current_subcommand_fields: None, // DEPYLER-0425: Subcommand field extraction
         validator_functions: HashSet::new(), // DEPYLER-0447: Track argparse validator functions
+        stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452: Stdlib API mappings
     };
 
     // Analyze all functions first for string optimization
