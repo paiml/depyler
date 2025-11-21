@@ -212,7 +212,88 @@ def filter_csv(filepath, column, value):
 }
 
 // ====================================================================================
-// Test 6: File Line Iteration
+// Test 6: CSV Reader in Generator Expression (DEPYLER-0454)
+// ====================================================================================
+//
+// CRITICAL BUG: DEPYLER-0452 fixed CSV iteration in `for` loops, but NOT in
+// generator expressions or filter/map chains.
+//
+// The pattern `reader.iter().filter().map()` incorrectly generates `.iter()` call,
+// but csv::Reader<R> has no `.iter()` method. Should use `.deserialize()` instead.
+//
+// This test MUST FAIL until DEPYLER-0454 is fixed.
+
+#[test]
+fn test_DEPYLER_0454_csv_reader_generator_expression() {
+    let python = r#"
+import csv
+
+def filter_csv_generator(filepath, column, value):
+    with open(filepath) as f:
+        reader = csv.DictReader(f)
+        filtered = [row for row in reader if row[column] == value]
+        return filtered
+"#;
+
+    let result = transpile_python(python);
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
+
+    let rust_code = result.unwrap();
+
+    // Should use deserialize() for CSV reader iteration (NOT .iter())
+    assert_contains(&rust_code, "deserialize");
+
+    // Should NOT generate non-existent .iter() method on csv::Reader
+    assert_not_contains(&rust_code, "reader.iter()");
+
+    // Should use filter pattern for filtering rows
+    let has_filter = rust_code.contains(".filter(")
+        || rust_code.contains("if ");
+    assert!(has_filter, "Expected filter pattern for list comprehension. Got:\n{}", rust_code);
+
+    // Should handle HashMap for DictReader rows
+    assert_contains(&rust_code, "HashMap");
+}
+
+// ====================================================================================
+// Test 7: CSV Reader in Method Chain (DEPYLER-0454)
+// ====================================================================================
+//
+// Alternative test case focusing on functional-style method chains.
+// Python's generator expressions often transpile to Rust iterator chains.
+
+#[test]
+fn test_DEPYLER_0454_csv_reader_method_chain() {
+    let python = r#"
+import csv
+
+def filter_and_map_csv(filepath):
+    with open(filepath) as f:
+        reader = csv.DictReader(f)
+        # Generator expression that should become iterator chain
+        names = [row['name'] for row in reader if row['active'] == 'true']
+        return names
+"#;
+
+    let result = transpile_python(python);
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
+
+    let rust_code = result.unwrap();
+
+    // CRITICAL: Should NOT use .iter() on csv::Reader (method doesn't exist)
+    assert_not_contains(&rust_code, "reader.iter()");
+
+    // Should use deserialize() for CSV reader access
+    assert_contains(&rust_code, "deserialize");
+
+    // Should handle Result type from deserialize iterator
+    let has_result_handling = rust_code.contains("?")
+        || rust_code.contains(".unwrap()");
+    assert!(has_result_handling, "Expected Result handling. Got:\n{}", rust_code);
+}
+
+// ====================================================================================
+// Test 8: File Line Iteration
 // ====================================================================================
 
 #[test]
