@@ -10,7 +10,7 @@ use crate::rust_gen::return_type_expects_float;
 use crate::rust_gen::type_gen::convert_binop;
 use crate::string_optimization::{StringContext, StringOptimizer};
 use anyhow::{bail, Result};
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{self, parse_quote};
 
 struct ExpressionConverter<'a, 'b> {
@@ -10735,6 +10735,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             _ => {
                 // Not a datetime property, continue with default handling
+            }
+        }
+
+        // DEPYLER-0452: Check stdlib API mappings before default fallback
+        // Try common CSV patterns (heuristic-based for now)
+        if let Some(mapping) = self.ctx.stdlib_mappings.lookup("csv", "DictReader", attr) {
+            // Found a CSV DictReader mapping - apply it
+            let rust_code = mapping.generate_rust_code(
+                &value_expr.to_token_stream().to_string(),
+                &[]
+            );
+            if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
+                return Ok(expr);
+            }
+        }
+
+        // Also try generic Reader patterns
+        if let Some(mapping) = self.ctx.stdlib_mappings.lookup("csv", "Reader", attr) {
+            let rust_code = mapping.generate_rust_code(
+                &value_expr.to_token_stream().to_string(),
+                &[]
+            );
+            if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
+                return Ok(expr);
             }
         }
 
