@@ -252,6 +252,27 @@ impl FunctionAnalyzer {
 
                 (has_uncaught_exceptions, all_errors)
             }
+            // DEPYLER-0432: With statements using open() are fallible (file I/O)
+            HirStmt::With { context, body, .. } => {
+                // Check if context expression uses open() call
+                let context_uses_open = match context {
+                    HirExpr::Call { func, .. } if func.as_str() == "open" => true,
+                    _ => false,
+                };
+
+                let (context_fail, context_errors) = Self::expr_can_fail(context);
+                let (body_fail, mut body_errors) = Self::check_can_fail(body);
+
+                let mut all_errors = context_errors;
+                all_errors.append(&mut body_errors);
+
+                // File I/O operations can fail with IOError
+                if context_uses_open {
+                    all_errors.push("std::io::Error".to_string());
+                }
+
+                (context_uses_open || context_fail || body_fail, all_errors)
+            }
             _ => (false, Vec::new()),
         }
     }
