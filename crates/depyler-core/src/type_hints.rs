@@ -48,6 +48,9 @@ struct InferenceContext {
     constraints: Vec<TypeConstraint>,
     /// Usage patterns
     usage_patterns: HashMap<String, Vec<UsagePattern>>,
+    /// Loop variable sources (DEPYLER-0451 Phase 1c)
+    /// Maps loop variable → iterable variable (e.g., "item" → "items")
+    loop_var_sources: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone)]
@@ -120,6 +123,7 @@ impl TypeHintProvider {
         self.context.current_function = Some(func.name.clone());
         self.context.constraints.clear();
         self.context.usage_patterns.clear();
+        self.context.loop_var_sources.clear();
     }
 
     fn collect_parameter_hints(&mut self, func: &HirFunction, hints: &mut Vec<TypeHint>) {
@@ -337,11 +341,30 @@ impl TypeHintProvider {
         iter: &HirExpr,
         body: &[HirStmt],
     ) -> Result<()> {
-        // For now, only analyze simple symbol targets
+        // DEPYLER-0451 Phase 1c: Track loop variable sources for back-propagation
+        // For simple symbol targets: for item in items: ...
         if let crate::hir::AssignTarget::Symbol(target_name) = target {
+            // Track the loop variable source
+            if let HirExpr::Var(iter_var) = iter {
+                self.context
+                    .loop_var_sources
+                    .insert(target_name.clone(), iter_var.clone());
+            }
+
             self.analyze_for_loop(target_name, iter)?;
         }
-        self.analyze_body(body)
+
+        // Analyze the loop body (this will collect constraints on loop variables)
+        self.analyze_body(body)?;
+
+        // DEPYLER-0451 Phase 1c: Back-propagate element types to collection types
+        // After analyzing the body, we know how loop variables are used
+        // Apply those constraints to the iterable parameters
+        if let crate::hir::AssignTarget::Symbol(target_name) = target {
+            self.back_propagate_element_constraints(target_name)?;
+        }
+
+        Ok(())
     }
 
     fn analyze_try_stmt(
@@ -503,6 +526,65 @@ impl TypeHintProvider {
         }
 
         self.analyze_expr(iter)?;
+        Ok(())
+    }
+
+    /// DEPYLER-0451 Phase 1c: Back-propagate element type constraints to collection types
+    /// Example: `for item in items: total += item`
+    /// - `item` gets Int constraint from arithmetic
+    /// - Back-propagate: `items` should be &[Int]
+    fn back_propagate_element_constraints(&mut self, loop_var: &str) -> Result<()> {
+        // Find the source collection for this loop variable
+        let source_collection = match self.context.loop_var_sources.get(loop_var) {
+            Some(src) => src.clone(),
+            None => return Ok(()), // No source tracked
+        };
+
+        // Collect all constraints on the loop variable
+        let mut loop_var_constraints: Vec<Type> = self
+            .context
+            .constraints
+            .iter()
+            .filter_map(|constraint| match constraint {
+                TypeConstraint::Compatible { var, ty } if var == loop_var => Some(ty.clone()),
+                _ => None,
+            })
+            .collect();
+
+        // DEPYLER-0451: Also infer from usage patterns if no explicit constraints
+        if loop_var_constraints.is_empty() {
+            if let Some(patterns) = self.context.usage_patterns.get(loop_var) {
+                for pattern in patterns {
+                    match pattern {
+                        UsagePattern::Numeric => loop_var_constraints.push(Type::Int),
+                        UsagePattern::StringLike => loop_var_constraints.push(Type::String),
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        // Back-propagate each element type constraint to the collection
+        for elem_type in loop_var_constraints {
+            // Element type → Collection type mapping
+            let collection_type = match elem_type {
+                Type::Int => Type::List(Box::new(Type::Int)),
+                Type::Float => Type::List(Box::new(Type::Float)),
+                Type::String => Type::List(Box::new(Type::String)),
+                Type::Bool => Type::List(Box::new(Type::Bool)),
+                other => Type::List(Box::new(other)),
+            };
+
+            // Add multiple constraints for Certain confidence (need 6+ votes)
+            // This ensures typed collections beat generic List(Unknown) from Iterator pattern
+            for _ in 0..4 {
+                self.context.constraints.push(TypeConstraint::Compatible {
+                    var: source_collection.clone(),
+                    ty: collection_type.clone(),
+                });
+            }
+        }
+
         Ok(())
     }
 
