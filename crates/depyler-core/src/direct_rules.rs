@@ -135,6 +135,7 @@ fn extract_nested_indices(
 ///     classes: vec![],
 ///     type_aliases: vec![],
 ///     protocols: vec![],
+///     constants: vec![],
 /// };
 ///
 /// let type_mapper = TypeMapper::new();

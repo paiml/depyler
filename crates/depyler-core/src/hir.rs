@@ -67,6 +67,7 @@ macro_rules! param_with_default {
 ///     type_aliases: vec![],
 ///     protocols: vec![],
 ///     classes: vec![],
+///     constants: vec![],
 /// };
 ///
 /// assert_eq!(module.functions.len(), 1);

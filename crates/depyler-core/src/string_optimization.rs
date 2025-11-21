@@ -2,7 +2,7 @@ use crate::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Literal, Type};
 use std::collections::{HashMap, HashSet};
 
 /// Analyzes string usage patterns to determine optimal string types
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct StringOptimizer {
     /// String literals that are only read, never mutated
     read_only_strings: HashSet<String>,
@@ -18,6 +18,20 @@ pub struct StringOptimizer {
     interned_strings: HashSet<String>,
     /// Mapping from string literal to its unique constant name
     interned_names: HashMap<String, String>,
+}
+
+impl Default for StringOptimizer {
+    fn default() -> Self {
+        Self {
+            read_only_strings: HashSet::new(),
+            immutable_params: HashSet::new(),
+            returned_strings: HashSet::new(),
+            mixed_usage_strings: HashSet::new(),
+            string_literal_count: HashMap::new(),
+            interned_strings: HashSet::new(),
+            interned_names: HashMap::new(),
+        }
+    }
 }
 
 /// Optimal string representation based on usage analysis

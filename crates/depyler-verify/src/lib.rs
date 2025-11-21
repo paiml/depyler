@@ -411,7 +411,7 @@ mod tests {
 /// # Example
 /// ```
 /// use depyler_verify::{PropertyVerifier, PropertyStatus};
-/// use depyler_core::hir::{HirFunction, Type};
+/// use depyler_core::hir::{HirFunction, HirParam, Type};
 /// use smallvec::smallvec;
 ///
 /// let verifier = PropertyVerifier::new()
@@ -420,7 +420,10 @@ mod tests {
 /// // Create a simple function to verify
 /// let func = HirFunction {
 ///     name: "add".to_string(),
-///     params: smallvec![("a".to_string(), Type::Int), ("b".to_string(), Type::Int)],
+///     params: smallvec![
+///         HirParam { name: "a".to_string(), ty: Type::Int, default: None },
+///         HirParam { name: "b".to_string(), ty: Type::Int, default: None }
+///     ],
 ///     ret_type: Type::Int,
 ///     body: vec![],
 ///     properties: Default::default(),

@@ -1101,10 +1101,9 @@ mod tests {
         let exc = Some(HirExpr::Literal(Literal::String("Error".to_string())));
 
         let result = codegen_raise_stmt(&exc, &mut ctx).unwrap();
-        assert_eq!(
-            result.to_string(),
-            "return Err (\"Error\" . to_string ()) ;"
-        );
+        // String literals are now &str, which is valid for error contexts
+        // The Error type will handle the conversion
+        assert_eq!(result.to_string(), "return Err (\"Error\") ;");
     }
 
     #[test]

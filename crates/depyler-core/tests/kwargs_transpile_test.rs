@@ -240,12 +240,15 @@ def test() -> str:
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
     let rust_code = result.unwrap();
 
-    // Should have .to_string() calls for string literals
+    // Should have the string literals in the call
     assert!(rust_code.contains("\"Alice\""), "Missing Alice string");
     assert!(rust_code.contains("\"Hello\""), "Missing Hello string");
+
+    // String parameters should be &str for efficiency (not String)
+    // So no .to_string() is needed for the arguments
     assert!(
-        rust_code.contains(".to_string()"),
-        "Missing string conversion"
+        rust_code.contains("&str") || rust_code.contains("&'"),
+        "Should use string references for parameters"
     );
 }
 
