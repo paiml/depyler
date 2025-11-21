@@ -1436,13 +1436,21 @@ impl RustCodeGen for HirFunction {
         // When Python function has `-> None` but uses fallible operations (e.g., indexing),
         // the Rust return type becomes `Result<(), IndexError>` and needs Ok(()) at the end
         // Only add Ok(()) if the function doesn't already end with a return statement
-        if can_fail && matches!(self.ret_type, Type::None) {
+        //
+        // DEPYLER-0450: Extended to handle all Result return types, not just Type::None
+        // This fixes functions with side effects that use error handling (raise/try/except)
+        // Also handles Type::Unknown (functions without type annotations that don't explicitly return)
+        if can_fail {
             let needs_ok = self
                 .body
                 .last()
                 .is_none_or(|stmt| !matches!(stmt, HirStmt::Return(_)));
             if needs_ok {
-                body_stmts.push(parse_quote! { Ok(()) });
+                // For functions returning unit type (or Unknown which defaults to unit), add Ok(())
+                // For functions returning values with explicit returns, they already have Ok() wrapping
+                if matches!(self.ret_type, Type::None | Type::Unknown) {
+                    body_stmts.push(parse_quote! { Ok(()) });
+                }
             }
         }
 
