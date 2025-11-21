@@ -555,7 +555,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 {
                     // Regex methods that return Option<Match>
                     matches!(method.as_str(), "find" | "search" | "match")
-                } else if let HirExpr::Call { func, args: _, kwargs: _ } = operand {
+                } else if let HirExpr::Call {
+                    func,
+                    args: _,
+                    kwargs: _,
+                } = operand
+                {
                     // Module-level regex functions (re.match, re.search, re.find)
                     matches!(func.as_str(), "match" | "search" | "find")
                 } else {
@@ -7882,7 +7887,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     // DEPYLER-0142 Phase 2: Category Handlers
     // ========================================================================
 
-    /// Handle list methods (append, extend, pop, insert, remove)
+    /// Handle list methods (append, extend, pop, insert, remove, sort)
     #[inline]
     fn convert_list_method(
         &mut self,
@@ -7891,6 +7896,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         method: &str,
         arg_exprs: &[syn::Expr],
         hir_args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
     ) -> Result<syn::Expr> {
         match method {
             "append" => {
@@ -8131,12 +8137,50 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! { #object_expr.reverse() })
             }
             "sort" => {
-                // Python: list.sort() -> sorts in place
-                // Rust: list.sort()
+                // DEPYLER-0445: Python: list.sort(key=func, reverse=False)
+                // Rust: list.sort_by_key(|x| func(x)) or list.sort()
+
+                // Check for `key` kwarg
+                let key_func = kwargs.iter().find(|(k, _)| k == "key").map(|(_, v)| v);
+                let reverse = kwargs
+                    .iter()
+                    .find(|(k, _)| k == "reverse")
+                    .and_then(|(_, v)| {
+                        if let HirExpr::Literal(crate::hir::Literal::Bool(b)) = v {
+                            Some(*b)
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or(false);
+
                 if !arg_exprs.is_empty() {
-                    bail!("sort() takes no arguments");
+                    bail!("sort() does not accept positional arguments");
                 }
-                Ok(parse_quote! { #object_expr.sort() })
+
+                match (key_func, reverse) {
+                    (Some(key_expr), false) => {
+                        // list.sort(key=func) → list.sort_by_key(|x| func(x))
+                        // Convert key_expr to Rust callable
+                        let key_rust = key_expr.to_rust_expr(self.ctx)?;
+                        Ok(parse_quote! { #object_expr.sort_by_key(|x| #key_rust(x)) })
+                    }
+                    (Some(key_expr), true) => {
+                        // list.sort(key=func, reverse=True) → list.sort_by_key(|x| std::cmp::Reverse(func(x)))
+                        let key_rust = key_expr.to_rust_expr(self.ctx)?;
+                        Ok(
+                            parse_quote! { #object_expr.sort_by_key(|x| std::cmp::Reverse(#key_rust(x))) },
+                        )
+                    }
+                    (None, false) => {
+                        // list.sort() → list.sort()
+                        Ok(parse_quote! { #object_expr.sort() })
+                    }
+                    (None, true) => {
+                        // list.sort(reverse=True) → list.sort_by(|a, b| b.cmp(a))
+                        Ok(parse_quote! { #object_expr.sort_by(|a, b| b.cmp(a)) })
+                    }
+                }
             }
             _ => bail!("Unknown list method: {}", method),
         }
@@ -9124,6 +9168,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         method: &str,
         arg_exprs: &[syn::Expr],
         hir_args: &[HirExpr],
+        kwargs: &[(String, HirExpr)],
     ) -> Result<syn::Expr> {
         // DEPYLER-0363: Handle parse_args() → Skip for now, will be replaced with Args::parse()
         // ArgumentParser.parse_args() requires full struct transformation
@@ -9285,7 +9330,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // List methods
             "append" | "extend" | "pop" | "insert" | "remove" | "index" | "copy" | "clear"
             | "reverse" | "sort" => {
-                self.convert_list_method(object_expr, object, method, arg_exprs, hir_args)
+                self.convert_list_method(object_expr, object, method, arg_exprs, hir_args, kwargs)
             }
 
             // DEPYLER-0226: Disambiguate count() for list vs string
@@ -9298,7 +9343,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
                 } else {
                     // List: use list.count() → .iter().filter().count()
-                    self.convert_list_method(object_expr, object, method, arg_exprs, hir_args)
+                    self.convert_list_method(
+                        object_expr,
+                        object,
+                        method,
+                        arg_exprs,
+                        hir_args,
+                        kwargs,
+                    )
                 }
             }
 
@@ -9473,24 +9525,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .map(|arg| arg.to_rust_expr(self.ctx))
             .collect::<Result<Vec<_>>>()?;
 
-        // DEPYLER-0364: Merge kwargs with positional arguments for method calls
-        // Python: obj.setup(mode="advanced", timeout=30) → Rust: obj.setup("advanced", 30)
-        // Similar to function calls, we append kwargs as additional positional arguments
-        let kwarg_exprs: Vec<syn::Expr> = kwargs
-            .iter()
-            .map(|(_name, value)| value.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
-
-        let mut all_args = arg_exprs.clone();
-        all_args.extend(kwarg_exprs);
-
-        let mut all_hir_args: Vec<HirExpr> = args.to_vec();
-        for (_name, value) in kwargs {
-            all_hir_args.push(value.clone());
-        }
-
-        // Dispatch to instance method handler
-        self.convert_instance_method(object, &object_expr, method, &all_args, &all_hir_args)
+        // DEPYLER-0445: Pass original args and kwargs separately to convert_instance_method
+        // Some methods like sort(key=func) need to preserve keyword argument names
+        // For other methods, they can merge kwargs as positional if needed
+        self.convert_instance_method(object, &object_expr, method, &arg_exprs, args, kwargs)
     }
 
     fn convert_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
@@ -11241,11 +11279,70 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     template.push_str(s);
                 }
                 FStringPart::Expr(expr) => {
-                    // DEPYLER-0438/0441: Smart formatting based on expression type
+                    // DEPYLER-0438/0441/0446: Smart formatting based on expression type
                     // - Collections (Vec, HashMap, HashSet): Use {:?} debug formatting
                     // - Scalars (String, i32, f64, bool): Use {} Display formatting
+                    // - Option types: Unwrap with .unwrap_or_default() or display "None"
                     // This matches Python semantics where lists/dicts have their own repr
                     let arg_expr = expr.to_rust_expr(self.ctx)?;
+
+                    // DEPYLER-0446: Check if this is an Option<T> field (e.g., optional CLI arg)
+                    let is_option = match expr.as_ref() {
+                        HirExpr::Attribute { value, attr } => {
+                            if let HirExpr::Var(obj_name) = value.as_ref() {
+                                let is_args_var = self.ctx.argparser_tracker.parsers.values().any(
+                                    |parser_info| {
+                                        parser_info
+                                            .args_var
+                                            .as_ref()
+                                            .is_some_and(|args_var| args_var == obj_name)
+                                    },
+                                );
+
+                                if is_args_var {
+                                    // Check if this argument is optional (Option<T> type, not boolean)
+                                    self.ctx
+                                        .argparser_tracker
+                                        .parsers
+                                        .values()
+                                        .any(|parser_info| {
+                                            parser_info.arguments.iter().any(|arg| {
+                                                let field_name = arg.rust_field_name();
+                                                if field_name != *attr {
+                                                    return false;
+                                                }
+
+                                                // Argument is NOT an Option if it has action="store_true" or "store_false"
+                                                if matches!(
+                                                    arg.action.as_deref(),
+                                                    Some("store_true") | Some("store_false")
+                                                ) {
+                                                    return false;
+                                                }
+
+                                                // Argument is an Option<T> if: not required AND no default value AND not positional
+                                                !arg.is_positional
+                                                    && !arg.required.unwrap_or(false)
+                                                    && arg.default.is_none()
+                                            })
+                                        })
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        }
+                        HirExpr::Var(var_name) => {
+                            // Check if variable type is Option<T>
+                            if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                                matches!(var_type, Type::Optional(_))
+                            } else {
+                                false
+                            }
+                        }
+                        _ => false,
+                    };
 
                     // Determine if this expression is a collection type
                     let is_collection = match expr.as_ref() {
@@ -11262,31 +11359,49 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             // Check if this is accessing a field from argparse Args struct
                             if let HirExpr::Var(obj_name) = value.as_ref() {
                                 // Check if obj_name is the args variable from ArgumentParser
-                                let is_args_var = self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                                    parser_info.args_var.as_ref().is_some_and(|args_var| args_var == obj_name)
-                                });
+                                let is_args_var = self.ctx.argparser_tracker.parsers.values().any(
+                                    |parser_info| {
+                                        parser_info
+                                            .args_var
+                                            .as_ref()
+                                            .is_some_and(|args_var| args_var == obj_name)
+                                    },
+                                );
 
                                 if is_args_var {
                                     // Look up the field type in argparse arguments
-                                    self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                                        parser_info.arguments.iter().any(|arg| {
-                                            // Match field name (normalized from Python argument name)
-                                            let field_name = arg.rust_field_name();
-                                            if field_name == *attr {
-                                                // Check if this field is a collection type
-                                                // Either explicit type annotation OR inferred from nargs
-                                                let is_vec_from_nargs = matches!(arg.nargs.as_deref(), Some("+") | Some("*"));
-                                                let is_collection_type = if let Some(ref arg_type) = arg.arg_type {
-                                                    matches!(arg_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                                    self.ctx
+                                        .argparser_tracker
+                                        .parsers
+                                        .values()
+                                        .any(|parser_info| {
+                                            parser_info.arguments.iter().any(|arg| {
+                                                // Match field name (normalized from Python argument name)
+                                                let field_name = arg.rust_field_name();
+                                                if field_name == *attr {
+                                                    // Check if this field is a collection type
+                                                    // Either explicit type annotation OR inferred from nargs
+                                                    let is_vec_from_nargs = matches!(
+                                                        arg.nargs.as_deref(),
+                                                        Some("+") | Some("*")
+                                                    );
+                                                    let is_collection_type =
+                                                        if let Some(ref arg_type) = arg.arg_type {
+                                                            matches!(
+                                                                arg_type,
+                                                                Type::List(_)
+                                                                    | Type::Dict(_, _)
+                                                                    | Type::Set(_)
+                                                            )
+                                                        } else {
+                                                            false
+                                                        };
+                                                    is_vec_from_nargs || is_collection_type
                                                 } else {
                                                     false
-                                                };
-                                                is_vec_from_nargs || is_collection_type
-                                            } else {
-                                                false
-                                            }
+                                                }
+                                            })
                                         })
-                                    })
                                 } else {
                                     false
                                 }
@@ -11297,15 +11412,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         _ => false,
                     };
 
+                    // DEPYLER-0446: Wrap Option types to handle Display trait
+                    let final_arg = if is_option {
+                        // Option<T> doesn't implement Display, so we need to unwrap it
+                        // For string-like types, display the value or "None"
+                        // For numeric types, use unwrap_or_default()
+                        parse_quote! {
+                            {
+                                match &#arg_expr {
+                                    Some(v) => format!("{}", v),
+                                    None => "None".to_string(),
+                                }
+                            }
+                        }
+                    } else {
+                        arg_expr
+                    };
+
                     if is_collection {
                         // Use debug formatting for collections (matches Python's list/dict repr)
                         template.push_str("{:?}");
                     } else {
-                        // Use Display formatting for scalars
+                        // Use Display formatting for scalars (and wrapped Options)
                         template.push_str("{}");
                     }
 
-                    args.push(arg_expr);
+                    args.push(final_arg);
                 }
             }
         }

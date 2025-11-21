@@ -29,7 +29,11 @@ def parse_int(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
 
@@ -61,7 +65,11 @@ def validator(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
 
@@ -95,7 +103,11 @@ def port_validator(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
 
@@ -130,7 +142,11 @@ def parse_number(text):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
 
@@ -139,10 +155,13 @@ def parse_number(text):
 
     let compile_result = std::process::Command::new("rustc")
         .args(&[
-            "--crate-type", "lib",
-            "--edition", "2021",
+            "--crate-type",
+            "lib",
+            "--edition",
+            "2021",
             "/tmp/depyler_0437_test.rs",
-            "-o", "/tmp/depyler_0437_test.rlib",
+            "-o",
+            "/tmp/depyler_0437_test.rlib",
         ])
         .output();
 
@@ -185,7 +204,11 @@ def validator(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
 

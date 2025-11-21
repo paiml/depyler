@@ -213,10 +213,7 @@ impl StringOptimizer {
         // Group strings by their base constant name
         for s in &self.interned_strings {
             let base_name = self.generate_base_const_name(s);
-            name_map
-                .entry(base_name)
-                .or_default()
-                .push(s.clone());
+            name_map.entry(base_name).or_default().push(s.clone());
         }
 
         // Assign unique names, adding suffixes for collisions

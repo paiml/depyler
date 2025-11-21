@@ -246,7 +246,8 @@ impl FunctionAnalyzer {
                 // - caught_exceptions = ["ValueError"]
                 // - raised_in_handlers = ["ArgumentTypeError"]
                 // - has_uncaught = true (ArgumentTypeError not in caught list)
-                let has_uncaught_exceptions = raised_in_handlers.iter()
+                let has_uncaught_exceptions = raised_in_handlers
+                    .iter()
                     .any(|raised| !caught_exceptions.contains(raised));
 
                 (has_uncaught_exceptions, all_errors)
