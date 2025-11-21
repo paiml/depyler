@@ -133,6 +133,10 @@ pub struct CodeGenContext<'a> {
     /// These functions should have &str parameter type regardless of type inference
     /// Populated when processing add_argument(type=validator_func) calls
     pub validator_functions: std::collections::HashSet<String>,
+
+    /// DEPYLER-0452: Stdlib API mapping system for Python→Rust API translations
+    /// Maps Python stdlib patterns (module, class, attribute) to Rust code patterns
+    pub stdlib_mappings: crate::stdlib_mappings::StdlibMappings,
 }
 
 impl<'a> CodeGenContext<'a> {
