@@ -74,6 +74,10 @@ fn needs_type_conversion(target_type: &Type, expr: &HirExpr) -> bool {
             // This prevents unnecessary casts like `(x: i32) as i32`
             expr_returns_usize(expr)
         }
+        Type::String => {
+            // Convert string literals (&str) to String when return type is String
+            matches!(expr, HirExpr::Literal(Literal::String(_)))
+        }
         _ => false,
     }
 }
@@ -88,6 +92,10 @@ fn apply_type_conversion(value_expr: syn::Expr, target_type: &Type) -> syn::Expr
             // Convert to i32 using 'as' cast
             // This handles usize->i32 conversions
             parse_quote! { #value_expr as i32 }
+        }
+        Type::String => {
+            // Convert &str literals to String using .to_string()
+            parse_quote! { #value_expr.to_string() }
         }
         _ => value_expr,
     }
@@ -1830,6 +1838,22 @@ pub(crate) fn codegen_assign_stmt(
                         .insert(var_name.clone(), Type::Optional(Box::new(Type::Unknown)));
                 }
             }
+            // DEPYLER-0269: Track string literal assignments as String type
+            // When message = "hello", track message as String so it gets borrowed when calling f(&str)
+            HirExpr::Literal(Literal::String(_)) => {
+                ctx.var_types.insert(var_name.clone(), Type::String);
+            }
+            // DEPYLER-0431: Track integer/float literal assignments for truthiness conversion
+            // When match = 5, track match as Int so `if match:` becomes `if match != 0`
+            HirExpr::Literal(Literal::Int(_)) => {
+                ctx.var_types.insert(var_name.clone(), Type::Int);
+            }
+            HirExpr::Literal(Literal::Float(_)) => {
+                ctx.var_types.insert(var_name.clone(), Type::Float);
+            }
+            HirExpr::Literal(Literal::Bool(_)) => {
+                ctx.var_types.insert(var_name.clone(), Type::Bool);
+            }
             _ => {}
         }
     }
@@ -1891,6 +1915,12 @@ pub(crate) fn codegen_assign_stmt(
 
         (Some(quote! { : #target_syn_type }), is_const)
     } else {
+        // No explicit type annotation, but we may still need conversions
+        // When assigning string literals without type annotation,
+        // they should become owned Strings (Python semantics)
+        if matches!(value, HirExpr::Literal(Literal::String(_))) {
+            value_expr = parse_quote! { #value_expr.to_string() };
+        }
         (None, false)
     };
 
@@ -1960,7 +1990,7 @@ pub(crate) fn codegen_assign_index(
     value_expr: syn::Expr,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
-    let final_index = index.to_rust_expr(ctx)?;
+    let mut final_index = index.to_rust_expr(ctx)?;
 
     // DEPYLER-0304: Type-aware subscript assignment detection
     // Check base variable type to determine if this is Vec or HashMap
@@ -2007,6 +2037,12 @@ pub(crate) fn codegen_assign_index(
             _ => false,
         }
     };
+
+    // Convert string literal keys to String for HashMap operations
+    // String literals (&str) need to be converted to String for HashMap<String, V>
+    if !is_numeric_index && matches!(index, HirExpr::Literal(Literal::String(_))) {
+        final_index = parse_quote! { #final_index.to_string() };
+    }
 
     // Extract the base and all intermediate indices
     let (base_expr, indices) = extract_nested_indices_tokens(base, ctx)?;
@@ -2973,7 +3009,11 @@ fn try_generate_subcommand_match(
 /// Returns the command name if pattern matches: args.command == "string"
 fn is_subcommand_check(expr: &HirExpr) -> Option<String> {
     match expr {
-        HirExpr::Binary { op: BinOp::Eq, left, right } => {
+        HirExpr::Binary {
+            op: BinOp::Eq,
+            left,
+            right,
+        } => {
             // Check if left side is args.command
             let is_command_attr = matches!(
                 left.as_ref(),
