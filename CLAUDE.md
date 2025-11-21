@@ -159,17 +159,21 @@ renacer -e trace=file -- ./my_script
 ## QDD (Quality-Driven Development)
 **Quality Metrics FIRST**:
 ```bash
-# Before task
-pmat tdg . --min-grade A- --format=json > baseline.json
+# Before task - Create baseline
+pmat tdg . --format json --with-git-context > baseline.json
 
-# During development
-pmat tdg dashboard --port 8080 --update-interval 5 &
+# During development - Real-time monitoring
+pmat tdg dashboard &
 
-# After each function
-pmat tdg <file> --compare-baseline baseline.json
+# After each function - Check progress with explanations
+pmat tdg <file> --explain --threshold 10 --baseline main
 
-# Before commit
-pmat tdg . --min-grade A- --fail-on-violation
+# Before commit - Quality gate enforcement
+pmat tdg check-quality --min-grade A-
+pmat tdg check-regression --baseline baseline.json
+
+# Repository health check
+pmat rust-project-score --detailed
 ```
 
 ## Development Principles
@@ -350,19 +354,26 @@ max_tdg_score = 2.0  # Any file above = technical debt violation
 ```
 
 ### TDG Command Reference
-**IMPORTANT**: Use `pmat analyze tdg` (not `pmat tdg`):
+**LATEST**: Use `pmat tdg` (top-level command with enhanced features):
 ```bash
 # Full project analysis with component breakdown
-pmat analyze tdg --path . --threshold 2.0 --include-components
+pmat tdg . --include-components
 
-# Critical files only (TDG > 2.5)
-pmat analyze tdg --path crates --critical-only
+# Function-level breakdown with explanations (Issue #78)
+pmat tdg . --explain --threshold 10
 
-# Top 10 debt hotspots
-pmat analyze tdg --path . --top-files 10 --format table
+# Progress tracking against baseline (Issue #78)
+pmat tdg . --explain --baseline main --threshold 10
 
-# JSON output for automation
-pmat analyze tdg --path . --format json > tdg_report.json
+# JSON output for automation with git context
+pmat tdg . --format json --with-git-context > tdg_report.json
+
+# Dashboard mode (real-time monitoring)
+pmat tdg dashboard
+
+# Quality regression detection (Sprint 66)
+pmat tdg check-regression --baseline baseline.json
+pmat tdg check-quality --min-grade A-
 ```
 
 ### Git-Enforced TDG Quality Gates
@@ -384,8 +395,8 @@ pmat analyze tdg --path . --format json > tdg_report.json
 ### TDG Development Workflow
 **Before ANY code changes**:
 ```bash
-# Baseline analysis
-pmat analyze tdg --path crates --threshold 2.0 --include-components
+# Baseline analysis with git context
+pmat tdg crates --include-components --with-git-context
 
 # Quality gate check
 pmat quality-gate --fail-on-violation
@@ -393,20 +404,26 @@ pmat quality-gate --fail-on-violation
 
 **During development** (after each function/module):
 ```bash
-# File-level TDG
-pmat analyze tdg --path <file.rs> --include-components
+# File-level TDG with explanations
+pmat tdg <file.rs> --explain --threshold 10
 
 # Traditional complexity (backup)
 pmat analyze complexity --file <file.rs> --max-cyclomatic 10 --fail-on-violation
 
 # SATD zero-tolerance
 pmat analyze satd --path <file.rs> --fail-on-violation
+
+# Mutation testing (Sprint 61)
+pmat analyze mutate <file.rs>
 ```
 
 **Before commit (MANDATORY - BLOCKS COMMITS)**:
 ```bash
-# TDG threshold enforcement (automated in pre-commit hook)
-pmat analyze tdg --path crates --threshold 2.0 --critical-only
+# TDG quality check (automated in pre-commit hook)
+pmat tdg check-quality --min-grade A-
+
+# Regression detection
+pmat tdg check-regression --baseline baseline.json
 
 # Comprehensive quality gate
 pmat quality-gate --fail-on-violation --format=detailed
@@ -440,6 +457,49 @@ PMAT Verification:
 Closes: TICKET-ID
 ```
 
+### PMAT Work Workflow (Issue #75)
+**Unified GitHub/YAML workflow commands for ticket management**:
+
+**Starting work on a ticket**:
+```bash
+# Start work on GitHub issue
+pmat work start 123
+
+# Start work on YAML ticket
+pmat work start DEPYLER-0452
+
+# Initialize roadmap and hooks (first time)
+pmat work init
+```
+
+**During development**:
+```bash
+# Continue work on existing ticket
+pmat work continue DEPYLER-0452
+
+# Check work status
+pmat work status
+
+# Synchronize GitHub and YAML roadmap
+pmat work sync
+```
+
+**Completing work**:
+```bash
+# Mark ticket as complete
+pmat work complete DEPYLER-0452
+
+# Status shows completed work
+pmat work status
+```
+
+**Benefits**:
+- Automatic ticket status updates
+- GitHub issue synchronization
+- YAML roadmap integration
+- Pre-commit hook setup
+- Quality gate enforcement
+
 ## MANDATORY Quality Gates (BLOCKING)
 ### RED-GREEN-REFACTOR Workflow
 **Phase 1: RED** (Write failing tests)
@@ -456,7 +516,7 @@ git commit -m "[GREEN] DEPYLER-XXXX: Implement <feature>"
 
 **Phase 3: REFACTOR** (Meet quality standards)
 ```bash
-pmat tdg . --min-grade A- --fail-on-violation
+pmat tdg check-quality --min-grade A-
 pmat analyze complexity --max-cyclomatic 10 --fail-on-violation
 cargo clippy --all-targets -- -D warnings
 cargo llvm-cov report --fail-under-lines 80
@@ -468,11 +528,13 @@ git commit -m "[REFACTOR] DEPYLER-XXXX: Meet quality standards"
 1. **Documentation Synchronization**: roadmap.md + CHANGELOG.md must be updated with code changes
 2. **Complexity Enforcement**: ≤10 cyclomatic/cognitive (`pmat analyze complexity --max-cyclomatic 10`)
 3. **SATD Zero-Tolerance**: No TODO/FIXME/HACK (`pmat analyze satd --fail-on-violation`)
-4. **TDG Threshold**: ≤2.0 project-wide (`pmat analyze tdg --path crates --threshold 2.0 --critical-only`)
+4. **TDG Quality Check**: Min grade A- (`pmat tdg check-quality --min-grade A-`)
 5. **Coverage Minimum**: ≥80% (`cargo llvm-cov --fail-under-lines 80`)
 6. **Clippy Zero-Warnings**: All warnings = errors (`cargo clippy -- -D warnings`)
 7. **Dead Code Detection**: `pmat analyze dead-code` (30s timeout)
 8. **Duplicate Code**: `pmat analyze duplicates --threshold 0.8` (15s timeout)
+9. **Mutation Testing**: `pmat analyze mutate` on changed files (Sprint 61)
+10. **Hallucination Detection**: `pmat red-team commit` before push
 
 **SACRED RULE**: NEVER `git commit --no-verify` (except RED phase in TDD)
 
@@ -496,15 +558,17 @@ cargo clean
 ```
 
 ## The Development Flow (PMAT-Enforced)
-1. BASELINE: `pmat quality-gate --fail-on-violation`
-2. LOCATE: Find task in roadmap.yaml
-3. VERIFY: Check dependencies complete
+1. START WORK: `pmat work start DEPYLER-XXXX` or `pmat work continue DEPYLER-XXXX`
+2. BASELINE: `pmat tdg . --format json --with-git-context > baseline.json`
+3. QUALITY CHECK: `pmat quality-gate --fail-on-violation`
 4. WRITE: Property test FIRST (TDD)
 5. IMPLEMENT: <10 complexity (`pmat analyze complexity`)
 6. VERIFY: Generated Rust compiles
-7. VALIDATE: `pmat quality-gate` before commit
-8. COVERAGE: ≥80% (`cargo llvm-cov`)
-9. COMMIT: With ticket reference (only if ALL gates pass)
+7. TDG CHECK: `pmat tdg check-quality --min-grade A-`
+8. REGRESSION CHECK: `pmat tdg check-regression --baseline baseline.json`
+9. COVERAGE: ≥80% (`cargo llvm-cov`)
+10. COMMIT: With ticket reference (only if ALL gates pass)
+11. COMPLETE: `pmat work complete DEPYLER-XXXX`
 
 ## 🔍 Renacer Debugging Integration (Performance Profiling)
 
@@ -673,6 +737,128 @@ renacer --function-time -- depyler compile timeout_script.py
 ```
 
 **Full Documentation**: [docs/debugging/renacer-debugging-guide.md](docs/debugging/renacer-debugging-guide.md)
+
+## PMAT Hooks Management (TICKET-PMAT-5034)
+
+**Automated pre-commit hook setup and management**:
+
+```bash
+# Install pre-commit hooks with quality gates
+pmat hooks install
+
+# Uninstall hooks
+pmat hooks uninstall
+
+# Check hook status
+pmat hooks status
+
+# Update hooks to latest version
+pmat hooks update
+```
+
+**Hook Features**:
+- TDG quality checks (min grade A-)
+- Complexity enforcement (≤10)
+- SATD detection (zero tolerance)
+- Mutation testing on changed files
+- Hallucination detection before push
+- Automatic roadmap/CHANGELOG sync check
+
+## PMAT Agent (Background Quality Monitoring)
+
+**Continuous quality monitoring daemon**:
+
+```bash
+# Start background agent
+pmat agent start
+
+# Stop agent
+pmat agent stop
+
+# Check agent status
+pmat agent status
+
+# View agent logs
+pmat agent logs
+```
+
+**Agent Capabilities**:
+- Real-time TDG monitoring
+- Automatic regression detection
+- Quality alert notifications
+- Dashboard integration
+- Git hook automation
+
+## PMAT Semantic Search & Code Intelligence (PMAT-SEARCH-011)
+
+**Advanced code search and analysis**:
+
+```bash
+# Semantic code search (finds similar code by meaning)
+pmat semantic search "error handling patterns"
+
+# Cluster code by semantic similarity
+pmat analyze cluster --path crates --min-similarity 0.8
+
+# Extract semantic topics from codebase
+pmat analyze topics --path crates --num-topics 10
+
+# Create embeddings for fast search
+pmat embed create --path crates
+pmat embed update --path crates
+```
+
+**Use Cases**:
+- Find similar bug patterns across codebase
+- Identify duplicate logic (not just text)
+- Discover refactoring opportunities
+- Code reuse recommendations
+
+## Repository Health Scoring
+
+**Comprehensive project quality metrics**:
+
+```bash
+# General repository health score (0-110 scale)
+pmat repo-score
+
+# Rust-specific project score (0-106 scale)
+pmat rust-project-score
+
+# Detailed breakdown
+pmat repo-score --detailed
+
+# Compare with baseline
+pmat repo-score --baseline main
+```
+
+**Scoring Factors**:
+- TDG grades (40%)
+- Test coverage (20%)
+- Documentation quality (15%)
+- Complexity metrics (15%)
+- CI/CD health (10%)
+
+## Hallucination Detection & Red Team Mode
+
+**Automated validation of documentation and commits**:
+
+```bash
+# Validate README for hallucinations
+pmat validate-readme README.md
+
+# Check commit messages for false claims
+pmat red-team commit HEAD
+
+# Validate documentation links
+pmat validate-docs docs/
+```
+
+**Benefits**:
+- Prevents false performance claims
+- Validates feature documentation
+- Checks broken links
+- Verifies API examples
 
 ## Release Checklist
 - [ ] All examples transpile and run
