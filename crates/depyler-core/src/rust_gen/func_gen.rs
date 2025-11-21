@@ -287,6 +287,21 @@ fn codegen_single_param(
 
     let is_param_mutated = is_mutated_in_body && takes_ownership;
 
+    // DEPYLER-0447: Detect argparse validator functions (tracked at add_argument() call sites)
+    // These should ALWAYS have &str parameter type regardless of type inference
+    // Validators are detected when processing add_argument(type=validator_func)
+    let is_argparse_validator = ctx.validator_functions.contains(&func.name);
+
+    if is_argparse_validator {
+        // Argparse validators always receive string arguments from clap
+        let ty = if is_param_mutated {
+            quote! { mut #param_ident: &str }
+        } else {
+            quote! { #param_ident: &str }
+        };
+        return Ok(ty);
+    }
+
     // Get the inferred parameter info
     if let Some(inferred) = lifetime_result.param_lifetimes.get(&param.name) {
         let rust_type = &inferred.rust_type;
