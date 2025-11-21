@@ -385,8 +385,30 @@ impl TypeHintProvider {
                 ..
             } => self.analyze_method_call(object, method, args),
             HirExpr::Index { base, index } => self.analyze_indexing(base, index),
+            // DEPYLER-0451 Phase 1b: F-string type inference
+            HirExpr::FString { parts } => self.analyze_fstring(parts),
             _ => Ok(()),
         }
+    }
+
+    /// DEPYLER-0451 Phase 1b: Infer String type for variables used in f-strings
+    fn analyze_fstring(&mut self, parts: &[crate::hir::FStringPart]) -> Result<()> {
+        use crate::hir::FStringPart;
+
+        for part in parts {
+            if let FStringPart::Expr(expr) = part {
+                // Variables in f-strings should be string-like (can be formatted)
+                if let HirExpr::Var(var) = expr.as_ref() {
+                    // Add multiple constraints for higher confidence
+                    self.add_compatible_constraint(var, Type::String);
+                    self.add_compatible_constraint(var, Type::String);
+                    self.record_usage_pattern(var, UsagePattern::StringLike);
+                }
+                // Recursively analyze nested expressions
+                self.analyze_expr(expr)?;
+            }
+        }
+        Ok(())
     }
 
     fn analyze_assignment(&mut self, var_name: &str, value: &HirExpr) -> Result<()> {
