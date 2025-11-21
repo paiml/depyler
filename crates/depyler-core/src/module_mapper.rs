@@ -446,7 +446,10 @@ impl ModuleMapper {
         } else {
             // Unknown module - create a placeholder or warning
             rust_imports.push(RustImport {
-                path: format!("// NOTE: Map Python module '{}' (tracked in DEPYLER-0424)", import.module),
+                path: format!(
+                    "// NOTE: Map Python module '{}' (tracked in DEPYLER-0424)",
+                    import.module
+                ),
                 alias: None,
                 is_external: false,
             });

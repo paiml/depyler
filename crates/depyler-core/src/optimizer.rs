@@ -616,8 +616,7 @@ impl Optimizer {
                 .any(|(k, v)| Self::expr_contains_index(k) || Self::expr_contains_index(v)),
             HirExpr::Set(items) => items.iter().any(Self::expr_contains_index),
             HirExpr::MethodCall { object, args, .. } => {
-                Self::expr_contains_index(object)
-                    || args.iter().any(Self::expr_contains_index)
+                Self::expr_contains_index(object) || args.iter().any(Self::expr_contains_index)
             }
             HirExpr::Attribute { value, .. } => Self::expr_contains_index(value),
             HirExpr::Slice {

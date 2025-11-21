@@ -28,7 +28,11 @@ def outer():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Simple nested function should transpile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Simple nested function should transpile: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
 
@@ -48,7 +52,11 @@ def outer():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Nested function with multiple params should transpile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Nested function with multiple params should transpile: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(rust.contains("fn add"), "Should generate inner function");
@@ -67,7 +75,11 @@ def outer():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Nested function called multiple times should transpile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Nested function called multiple times should transpile: {:?}",
+        result.err()
+    );
 }
 
 // ============================================================================
@@ -85,7 +97,11 @@ def outer(y):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Nested function with capture should transpile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Nested function with capture should transpile: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
 
@@ -105,7 +121,11 @@ def outer(y, z):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Nested function with multiple captures should transpile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Nested function with multiple captures should transpile: {:?}",
+        result.err()
+    );
 }
 
 // ============================================================================
@@ -127,10 +147,17 @@ def filter_csv_advanced(input_file, filters):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "csv_filter nested function pattern should transpile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "csv_filter nested function pattern should transpile: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
-    assert!(rust.contains("matches_all_filters"), "Should contain nested function name");
+    assert!(
+        rust.contains("matches_all_filters"),
+        "Should contain nested function name"
+    );
 }
 
 #[test]
@@ -149,10 +176,17 @@ def group_by_hour(file_path):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "log_analyzer nested function pattern should transpile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "log_analyzer nested function pattern should transpile: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
-    assert!(rust.contains("extract_hour"), "Should contain nested function name");
+    assert!(
+        rust.contains("extract_hour"),
+        "Should contain nested function name"
+    );
 }
 
 // ============================================================================
@@ -161,16 +195,19 @@ def group_by_hour(file_path):
 
 #[test]
 fn test_DEPYLER_0427_csv_filter_full_file() {
-    let csv_filter_path = "/home/noah/src/reprorusted-python-cli/examples/example_csv_filter/csv_filter.py";
+    let csv_filter_path =
+        "/home/noah/src/reprorusted-python-cli/examples/example_csv_filter/csv_filter.py";
 
     // Check if file exists first
     if !std::path::Path::new(csv_filter_path).exists() {
-        eprintln!("WARNING: csv_filter.py not found at {}, skipping test", csv_filter_path);
+        eprintln!(
+            "WARNING: csv_filter.py not found at {}, skipping test",
+            csv_filter_path
+        );
         return;
     }
 
-    let python = std::fs::read_to_string(csv_filter_path)
-        .expect("Failed to read csv_filter.py");
+    let python = std::fs::read_to_string(csv_filter_path).expect("Failed to read csv_filter.py");
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(&python);
@@ -180,30 +217,44 @@ fn test_DEPYLER_0427_csv_filter_full_file() {
     if let Err(e) = &result {
         if e.to_string().contains("DictWriter") {
             eprintln!("SKIP: csv_filter.py requires csv.DictWriter support (known limitation)");
-            eprintln!("      Nested functions work correctly, csv module support is separate issue");
+            eprintln!(
+                "      Nested functions work correctly, csv module support is separate issue"
+            );
             return;
         }
     }
 
-    assert!(result.is_ok(), "csv_filter.py should transpile successfully: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "csv_filter.py should transpile successfully: {:?}",
+        result.err()
+    );
 }
 
 #[test]
 fn test_DEPYLER_0427_log_analyzer_full_file() {
-    let log_analyzer_path = "/home/noah/src/reprorusted-python-cli/examples/example_log_analyzer/log_analyzer.py";
+    let log_analyzer_path =
+        "/home/noah/src/reprorusted-python-cli/examples/example_log_analyzer/log_analyzer.py";
 
     // Check if file exists first
     if !std::path::Path::new(log_analyzer_path).exists() {
-        eprintln!("WARNING: log_analyzer.py not found at {}, skipping test", log_analyzer_path);
+        eprintln!(
+            "WARNING: log_analyzer.py not found at {}, skipping test",
+            log_analyzer_path
+        );
         return;
     }
 
-    let python = std::fs::read_to_string(log_analyzer_path)
-        .expect("Failed to read log_analyzer.py");
+    let python =
+        std::fs::read_to_string(log_analyzer_path).expect("Failed to read log_analyzer.py");
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(&python);
-    assert!(result.is_ok(), "log_analyzer.py should transpile successfully: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "log_analyzer.py should transpile successfully: {:?}",
+        result.err()
+    );
 }
 
 // ============================================================================
@@ -222,7 +273,11 @@ def outer():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Nested function with docstring should transpile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Nested function with docstring should transpile: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -236,5 +291,9 @@ def outer():
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Nested function with type hints should transpile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Nested function with type hints should transpile: {:?}",
+        result.err()
+    );
 }

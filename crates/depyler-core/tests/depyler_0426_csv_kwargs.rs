@@ -27,12 +27,20 @@ def write_data(filename):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
 
     // Should generate csv::Writer::from_writer
-    assert!(rust.contains("csv::Writer"), "Should use csv::Writer: {}", rust);
+    assert!(
+        rust.contains("csv::Writer"),
+        "Should use csv::Writer: {}",
+        rust
+    );
 
     // Should not bail with "requires at least 2 arguments"
     // (this test will fail initially, proving RED phase)
@@ -48,7 +56,11 @@ writer = csv.DictWriter(output, fieldnames=['id', 'name', 'email', 'age'])
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Should handle multiple fieldnames: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should handle multiple fieldnames: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -65,7 +77,11 @@ writer = csv.DictWriter(f, fieldnames=fields)
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Should handle variable fieldnames: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should handle variable fieldnames: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -95,7 +111,11 @@ def filter_csv(input_file, column, value, output_file=None):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Real-world pattern should transpile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Real-world pattern should transpile: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(rust.contains("csv::Writer"), "Should generate csv::Writer");
@@ -107,12 +127,20 @@ fn test_DEPYLER_0426_property_based_fieldnames() {
     let test_cases = vec![
         ("csv.DictWriter(f, fieldnames=['a', 'b'])", "literal list"),
         ("csv.DictWriter(f, fieldnames=fields)", "variable"),
-        ("csv.DictWriter(f, fieldnames=reader.fieldnames)", "attribute"),
+        (
+            "csv.DictWriter(f, fieldnames=reader.fieldnames)",
+            "attribute",
+        ),
     ];
 
     for (python_expr, description) in test_cases {
         let python = format!("import csv\n{}", python_expr);
         let result = transpile_python(&python);
-        assert!(result.is_ok(), "Should handle {}: {:?}", description, result.err());
+        assert!(
+            result.is_ok(),
+            "Should handle {}: {:?}",
+            description,
+            result.err()
+        );
     }
 }

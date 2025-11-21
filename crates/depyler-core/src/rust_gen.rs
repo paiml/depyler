@@ -470,12 +470,12 @@ fn generate_constant_tokens(
     ctx: &mut CodeGenContext,
 ) -> Result<Vec<proc_macro2::TokenStream>> {
     use crate::rust_gen::context::ToRustExpr;
-    
+
     let mut items = Vec::new();
 
     for constant in constants {
         let name_ident = syn::Ident::new(&constant.name, proc_macro2::Span::call_site());
-        
+
         // Generate the value expression
         let value_expr = constant.value.to_rust_expr(ctx)?;
 

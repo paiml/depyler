@@ -2,9 +2,9 @@
 // Tests for platform module and os.path operations
 
 use depyler_core::DepylerPipeline;
+use std::io::Write;
 use std::process::Command;
 use tempfile::NamedTempFile;
-use std::io::Write;
 
 /// Helper function to transpile Python code
 fn transpile_python(python: &str) -> anyhow::Result<String> {
@@ -44,8 +44,7 @@ def get_os():
     return platform.system()
 "#;
 
-    let rust_code = transpile_python(python_code)
-        .expect("Failed to transpile platform.system()");
+    let rust_code = transpile_python(python_code).expect("Failed to transpile platform.system()");
 
     // MUST contain std::env::consts::OS reference
     assert!(
@@ -76,8 +75,7 @@ def get_arch():
     return platform.machine()
 "#;
 
-    let rust_code = transpile_python(python_code)
-        .expect("Failed to transpile platform.machine()");
+    let rust_code = transpile_python(python_code).expect("Failed to transpile platform.machine()");
 
     // MUST contain std::env::consts::ARCH reference
     assert!(
@@ -107,8 +105,7 @@ def check_file(path):
     return os.path.exists(path)
 "#;
 
-    let rust_code = transpile_python(python_code)
-        .expect("Failed to transpile os.path.exists()");
+    let rust_code = transpile_python(python_code).expect("Failed to transpile os.path.exists()");
 
     // MUST use instance method: Path::new(...).exists()
     // NOT static method: Path.exists(...)
@@ -140,8 +137,7 @@ def is_regular_file(path):
     return os.path.isfile(path)
 "#;
 
-    let rust_code = transpile_python(python_code)
-        .expect("Failed to transpile os.path.isfile()");
+    let rust_code = transpile_python(python_code).expect("Failed to transpile os.path.isfile()");
 
     // MUST use instance method: Path::new(...).is_file()
     // NOT static method: Path.isfile(...)
@@ -172,8 +168,8 @@ def expand_home(path):
     return os.path.expanduser(path)
 "#;
 
-    let rust_code = transpile_python(python_code)
-        .expect("Failed to transpile os.path.expanduser()");
+    let rust_code =
+        transpile_python(python_code).expect("Failed to transpile os.path.expanduser()");
 
     // MUST expand ~ to home directory using std::env
     assert!(
@@ -205,8 +201,8 @@ def split_path(path):
     return (dir_name, base_name)
 "#;
 
-    let rust_code = transpile_python(python_code)
-        .expect("Failed to transpile os.path.dirname/basename()");
+    let rust_code =
+        transpile_python(python_code).expect("Failed to transpile os.path.dirname/basename()");
 
     // MUST use instance methods
     assert!(
@@ -254,8 +250,8 @@ def get_env_info(config_path):
     return "Not found"
 "#;
 
-    let rust_code = transpile_python(python_code)
-        .expect("Failed to transpile env_info integration");
+    let rust_code =
+        transpile_python(python_code).expect("Failed to transpile env_info integration");
 
     // MUST contain platform module mappings
     assert!(
