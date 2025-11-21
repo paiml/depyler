@@ -115,6 +115,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// Generate an expression for use in format! macro
+    /// String literals don't need .to_string() since format! handles &str
+    fn generate_format_arg(&mut self, expr: &HirExpr) -> Result<syn::Expr> {
+        match expr {
+            HirExpr::Literal(Literal::String(s)) => {
+                // For string literals in format!, just use the string directly
+                // format! can handle &str, so no need for .to_string()
+                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                Ok(parse_quote! { #lit })
+            }
+            _ => {
+                // For other expressions, use normal conversion
+                expr.to_rust_expr(self.ctx)
+            }
+        }
+    }
+
     fn convert_binary(&mut self, op: BinOp, left: &HirExpr, right: &HirExpr) -> Result<syn::Expr> {
         let left_expr = left.to_rust_expr(self.ctx)?;
         let right_expr = right.to_rust_expr(self.ctx)?;
@@ -280,7 +297,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     })
                 } else if is_definitely_string {
                     // This is string concatenation - use format! to handle references properly
-                    Ok(parse_quote! { format!("{}{}", #left_expr, #right_expr) })
+                    // Don't call to_rust_expr on literals since that adds unnecessary .to_string()
+                    // format! can handle both &str and String directly
+                    let left_fmt = self.generate_format_arg(left)?;
+                    let right_fmt = self.generate_format_arg(right)?;
+                    Ok(parse_quote! { format!("{}{}", #left_fmt, #right_fmt) })
                 } else {
                     // Regular arithmetic addition or unknown types
                     // Default to arithmetic - safer assumption for scalar types
@@ -1408,13 +1429,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0307 Fix #7: Check if variable is String type
                 // DEPYLER-0327 Fix #1: Also use heuristic for variable names
                 HirExpr::Var(var_name) => {
-                    // Check if this variable is known to be String type
-                    let is_known_string = if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                        matches!(var_type, Type::String)
-                    } else {
-                        false
-                    };
+                    // Check the variable's actual type first (type-based decision)
+                    if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                        match var_type {
+                            // String types require parsing
+                            Type::String => {
+                                return Ok(
+                                    parse_quote! { #arg.parse::<i32>().unwrap_or_default() },
+                                );
+                            }
+                            // Numeric types use simple cast
+                            Type::Int | Type::Float | Type::Bool => {
+                                return Ok(parse_quote! { (#arg) as i32 });
+                            }
+                            // For other known types, use cast conservatively
+                            _ => {
+                                return Ok(parse_quote! { (#arg) as i32 });
+                            }
+                        }
+                    }
 
+                    // Type is unknown - fall back to name-based heuristics
                     // Heuristic: variable names ending in _str, _string, or common string names
                     let name = var_name.as_str();
                     let looks_like_string = name.ends_with("_str")
@@ -1424,12 +1459,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         || name == "text"
                         || name == "word"
                         || name == "line"
-                        || name == "value"  // DEPYLER-0436: Common argparse validator parameter
-                        || name == "value_str"  // Explicit case for this example
+                        || name == "value_str"  // Explicit case for string values
                         || name.starts_with("str_")
                         || name.starts_with("string_");
 
-                    if is_known_string || looks_like_string {
+                    if looks_like_string {
                         // String → int requires parsing, not casting
                         // DEPYLER-0293: Use turbofish syntax to specify target type
                         return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
@@ -2382,7 +2416,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Check if this param should be borrowed by looking up function signature
                     let should_borrow = match hir_arg {
                         HirExpr::Var(var_name) => {
-                            // Check if variable has List, Dict, or Set type
+                            // Check if variable has List, Dict, Set, or String type
                             if let Some(var_type) = self.ctx.var_types.get(var_name) {
                                 if matches!(
                                     var_type,
@@ -2395,6 +2429,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                         .and_then(|borrows| borrows.get(param_idx))
                                         .copied()
                                         .unwrap_or(true) // Default to borrow if unknown
+                                } else if matches!(var_type, Type::String) {
+                                    // DEPYLER-0269: Auto-borrow String variables when passing to &str params
+                                    // If function param expects &str (borrowed=true), add &
+                                    // If function param expects String (borrowed=false), pass as-is
+                                    self.ctx
+                                        .function_param_borrows
+                                        .get(func)
+                                        .and_then(|borrows| borrows.get(param_idx))
+                                        .copied()
+                                        .unwrap_or(true) // Default to borrow (&str) if unknown
                                 } else {
                                     false
                                 }
@@ -2413,6 +2457,60 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 .copied()
                                 .unwrap_or(true) // Default to borrow if unknown
                         }
+                        // Check if string literal needs .to_string()
+                        // String literals are &str, but if function expects String (owned),
+                        // we need to add .to_string()
+                        HirExpr::Literal(crate::hir::Literal::String(_)) => {
+                            // Check if function param is borrowed (true = &str, false = String)
+                            let param_is_borrowed = self
+                                .ctx
+                                .function_param_borrows
+                                .get(func)
+                                .and_then(|borrows| borrows.get(param_idx))
+                                .copied()
+                                .unwrap_or(false); // Default to owned (String) if unknown
+
+                            // If param is borrowed (&str), we DON'T need .to_string()
+                            // If param is owned (String), we DO need .to_string()
+                            // But this is handled differently - we modify arg_expr below
+                            false // Don't add & reference for strings
+                        }
+                        // STRING_INTEROP_FIX: Handle string concatenation (Binary Add) in function arguments
+                        // String concatenation like `s + "?"` becomes `format!("{}{}", s, "?")` which returns String
+                        // When passed to a function expecting &str, we need to add & to borrow it
+                        HirExpr::Binary {
+                            op: BinOp::Add,
+                            left,
+                            right,
+                        } => {
+                            // Check if this is string concatenation by checking if operands are string-like
+                            let is_string_concat = matches!(
+                                (&**left, &**right),
+                                (
+                                    HirExpr::Var(_),
+                                    HirExpr::Literal(crate::hir::Literal::String(_))
+                                ) | (
+                                    HirExpr::Literal(crate::hir::Literal::String(_)),
+                                    HirExpr::Var(_)
+                                ) | (
+                                    HirExpr::Literal(crate::hir::Literal::String(_)),
+                                    HirExpr::Literal(crate::hir::Literal::String(_))
+                                )
+                            );
+
+                            if is_string_concat {
+                                // Check if function param expects a borrowed string (&str)
+                                // format!() returns String, so if param expects &str we need to borrow
+                                self.ctx
+                                    .function_param_borrows
+                                    .get(func)
+                                    .and_then(|borrows| borrows.get(param_idx))
+                                    .copied()
+                                    .unwrap_or(true) // Default to borrow (&str) if unknown
+                            } else {
+                                false
+                            }
+                        }
                         _ => {
                             // Fallback: check if expression creates a Vec via .to_vec()
                             let expr_string = quote! { #arg_expr }.to_string();
@@ -2423,7 +2521,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     if should_borrow {
                         parse_quote! { &#arg_expr }
                     } else {
-                        arg_expr.clone()
+                        // For string literals to owned String params, add .to_string()
+                        if matches!(hir_arg, HirExpr::Literal(crate::hir::Literal::String(_))) {
+                            let param_is_borrowed = self
+                                .ctx
+                                .function_param_borrows
+                                .get(func)
+                                .and_then(|borrows| borrows.get(param_idx))
+                                .copied()
+                                .unwrap_or(false); // Default to owned (String) if unknown
+
+                            if !param_is_borrowed {
+                                // Parameter expects String (owned), add .to_string()
+                                parse_quote! { #arg_expr.to_string() }
+                            } else {
+                                // Parameter expects &str (borrowed), use as-is
+                                arg_expr.clone()
+                            }
+                        } else {
+                            arg_expr.clone()
+                        }
                     }
                 })
                 .collect();
@@ -8232,31 +8349,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Python: result = d.get(key); if result is None: ...
                     // Rust: let result = d.get(key).cloned(); if result.is_none() { ... }
 
-                    // DEPYLER-0227: String literals need & prefix, but variables with &str type don't
-                    // Check if key is a string literal that was converted to .to_string()
-                    let key_expr: syn::Expr =
-                        if matches!(hir_args.first(), Some(HirExpr::Literal(Literal::String(_)))) {
-                            // String literal - add & to borrow the String
-                            parse_quote! { &#key }
-                        } else {
-                            // Variable or other expression - already properly typed
-                            parse_quote! { #key }
-                        };
+                    // For HashMap<String, V>, .get() can accept &str directly
+                    // String literals like "key" should be passed as-is (they're &str)
+                    // Don't add & prefix - .get() already takes a reference
+                    let key_expr: syn::Expr = parse_quote! { #key };
 
                     // Return Option - downstream code will handle unwrapping if needed
                     Ok(parse_quote! { #object_expr.get(#key_expr).cloned() })
                 } else if arg_exprs.len() == 2 {
                     let key = &arg_exprs[0];
                     let default = &arg_exprs[1];
-                    // DEPYLER-0227: String literals need & prefix, but variables with &str type don't
-                    let key_expr: syn::Expr =
-                        if matches!(hir_args.first(), Some(HirExpr::Literal(Literal::String(_)))) {
-                            // String literal - add & to borrow the String
-                            parse_quote! { &#key }
-                        } else {
-                            // Variable or other expression - already properly typed
-                            parse_quote! { #key }
-                        };
+                    // Same as above - no & prefix needed
+                    let key_expr: syn::Expr = parse_quote! { #key };
                     Ok(parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#default) })
                 } else {
                     bail!("get() requires 1 or 2 arguments");
@@ -9448,8 +9552,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0431: Regex methods (compiled Regex + Match object)
             // Compiled Regex: findall, match, search (note: "find" conflicts with string.find())
             // Match object: group, groups, start, end, span, as_str
-            "findall" | "match" | "search" | "group" | "groups" | "start" | "end" | "span"
-            | "as_str" => self.convert_regex_method(object_expr, method, arg_exprs),
+            // NOTE: Only route to regex handler if object is actually a regex type
+            // Otherwise, fall through to default case which will escape keywords
+            "findall" | "search" | "groups" | "start" | "end" | "span" | "as_str"
+                if self.is_regex_expr(object) =>
+            {
+                self.convert_regex_method(object_expr, method, arg_exprs)
+            }
+
+            // DEPYLER-0431 + DEPYLER-0306: Special handling for "match" method
+            // "match" is a Rust keyword AND a regex method, so we need to:
+            // 1. Check if object is a regex type → route to convert_regex_method
+            // 2. Otherwise → escape as keyword in default case
+            "match" if self.is_regex_expr(object) => {
+                self.convert_regex_method(object_expr, method, arg_exprs)
+            }
 
             // Path instance methods (DEPYLER-0363)
             "read_text" => {
@@ -10371,13 +10488,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let mut insert_stmts = Vec::new();
         for (key, value) in items {
             let mut key_expr = key.to_rust_expr(self.ctx)?;
-            let val_expr = value.to_rust_expr(self.ctx)?;
+            let mut val_expr = value.to_rust_expr(self.ctx)?;
 
             // DEPYLER-0270 FIX: ALWAYS convert string literal keys to owned Strings
             // Dict literals should use HashMap<String, V> not HashMap<&str, V>
             // This ensures they can be passed to functions expecting HashMap<String, V>
             if matches!(key, HirExpr::Literal(Literal::String(_))) {
                 key_expr = parse_quote! { #key_expr.to_string() };
+            }
+
+            // DEPYLER-0270 FIX: Also convert string literal VALUES to owned Strings
+            // This ensures type consistency: all values in the HashMap have the same type
+            // Without this, mixing "literal" (& str) and variable.to_string() (String) causes errors
+            if matches!(value, HirExpr::Literal(Literal::String(_))) {
+                val_expr = parse_quote! { #val_expr.to_string() };
             }
 
             insert_stmts.push(quote! { map.insert(#key_expr, #val_expr); });
@@ -11037,6 +11161,36 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else {
                     false
                 }
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0344: Check if expression is a regex object
+    /// Used to distinguish regex.match() from obj.match() where "match" is a user method
+    fn is_regex_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Check for re.compile() call result
+            HirExpr::Call { func, .. } if func.as_str() == "compile" => true,
+            // Check for variable with Regex type annotation or tracked type
+            HirExpr::Var(name) => {
+                // Check var_types for Regex type
+                if let Some(Type::Custom(type_name)) = self.ctx.var_types.get(name) {
+                    type_name.contains("Regex") || type_name.contains("Pattern")
+                } else {
+                    // Heuristic: variable names containing "regex", "pattern", "re_"
+                    let n = name.as_str();
+                    n.contains("regex") || n.contains("pattern") || n.starts_with("re_")
+                }
+            }
+            // Check for re.compile() attribute access
+            HirExpr::Attribute { value, attr } => {
+                if attr == "compile" {
+                    if let HirExpr::Var(module) = &**value {
+                        return module == "re";
+                    }
+                }
+                false
             }
             _ => false,
         }
@@ -11978,34 +12132,10 @@ fn literal_to_rust_expr(
                 let ident = syn::Ident::new(&interned_name, proc_macro2::Span::call_site());
                 parse_quote! { #ident }
             } else {
+                // String literals are emitted directly as &str
+                // They'll be converted to String when needed (variable assignment, owned params, etc.)
                 let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-
-                // Use string optimizer to determine if we need .to_string()
-                let context = StringContext::Literal(s.clone());
-                match string_optimizer.get_optimal_type(&context) {
-                    crate::string_optimization::OptimalStringType::StaticStr => {
-                        // For read-only strings, just use the literal
-                        parse_quote! { #lit }
-                    }
-                    crate::string_optimization::OptimalStringType::BorrowedStr { .. } => {
-                        // Use &'static str for literals that can be borrowed
-                        parse_quote! { #lit }
-                    }
-                    crate::string_optimization::OptimalStringType::CowStr => {
-                        // Check if we're in a context where String is required
-                        if let Some(Type::String) = &ctx.current_return_type {
-                            // Function returns String, so convert to owned
-                            parse_quote! { #lit.to_string() }
-                        } else {
-                            // Use Cow for flexible ownership
-                            parse_quote! { std::borrow::Cow::Borrowed(#lit) }
-                        }
-                    }
-                    crate::string_optimization::OptimalStringType::OwnedString => {
-                        // Only use .to_string() when absolutely necessary
-                        parse_quote! { #lit.to_string() }
-                    }
-                }
+                parse_quote! { #lit }
             }
         }
         Literal::Bytes(b) => {

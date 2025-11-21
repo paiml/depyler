@@ -589,6 +589,15 @@ impl BorrowingContext {
                 self.analyze_expression(left, 0);
                 self.analyze_expression(right, 0);
             }
+            HirExpr::FString { parts } => {
+                // F-strings create NEW String values by formatting
+                // Parameters are used but don't escape - just analyze the interpolated expressions
+                for part in parts {
+                    if let crate::hir::FStringPart::Expr(expr) = part {
+                        self.analyze_expression(expr, 0);
+                    }
+                }
+            }
             _ => self.analyze_expression(expr, 0),
         }
     }
