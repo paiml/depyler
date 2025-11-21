@@ -681,7 +681,19 @@ pub(crate) fn codegen_raise_stmt(
                     Ok(quote! { return Err(Box::new(#exc_expr)); })
                 }
             } else {
-                Ok(quote! { return Err(#exc_expr); })
+                // DEPYLER-0455: Also wrap exception in type constructor when not boxing
+                // Without this, `return Err(format!(...))` returns String instead of ExceptionType
+                if exception_type == "ValueError"
+                    || exception_type == "ArgumentTypeError"
+                    || exception_type == "TypeError"
+                    || exception_type == "KeyError"
+                    || exception_type == "IndexError"
+                {
+                    let exc_type = safe_ident(&exception_type);
+                    Ok(quote! { return Err(#exc_type::new(#exc_expr)); })
+                } else {
+                    Ok(quote! { return Err(#exc_expr); })
+                }
             }
         } else {
             // Function doesn't return Result - use panic!
@@ -871,8 +883,38 @@ fn apply_truthiness_conversion(
         }
     }
 
+    // DEPYLER-0455: Fallback - detect Option types by method call patterns
+    // Check if this looks like an Option<T> based on common patterns:
+    // - Variable from `env::var(...).ok()` call
+    // - Method calls that return Option (dict.get(), etc.)
+    if looks_like_option_expr(condition) {
+        return parse_quote! { #cond_expr.is_some() };
+    }
+
     // Not a variable or no type info - use as-is
     cond_expr
+}
+
+/// DEPYLER-0455: Heuristic to detect if an expression likely returns Option<T>
+///
+/// Checks for common patterns that return Option:
+/// - Calls to methods ending with .ok() (Result → Option conversion)
+/// - Calls to .get() methods (dict/map lookups)
+/// - os.environ.get() / std::env::var().ok()
+fn looks_like_option_expr(expr: &HirExpr) -> bool {
+    match expr {
+        // Check if variable was assigned from an Option-returning call
+        HirExpr::Var(_) => {
+            // Type should be checked via ctx.var_types (handled above)
+            // This is just a fallback
+            false
+        }
+        // Method call ending in .ok() → definitely Option
+        HirExpr::MethodCall { method, .. } if method == "ok" => true,
+        // Method call to .get() → usually Option (dict/map lookup)
+        HirExpr::MethodCall { method, .. } if method == "get" => true,
+        _ => false,
+    }
 }
 
 /// DEPYLER-0379: Extract all simple symbol assignments from a statement block
