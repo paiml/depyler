@@ -649,21 +649,17 @@ fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
         }
     }
 
-    // DEPYLER-0422 Fix #9: When we have return statements with values but can't infer type,
-    // default to i32 instead of falling back to Unknown/().
-    // Five-Whys Root Cause:
-    // 1. Why: expected `()`, found `i32`
-    // 2. Why: Return type mapped to () for Unknown
-    // 3. Why: Can't infer return type from lambda call expressions
-    // 4. Why: Lambda closures don't have tracked return types
-    // 5. ROOT CAUSE: Falling back to Unknown when return has value expression
+    // DEPYLER-0448: Do NOT default Unknown to Int - this causes dict/list/Value returns
+    // to be incorrectly typed as i32. Instead, return None and let the type mapper
+    // handle the fallback (which will use serde_json::Value for complex types).
     //
-    // Heuristic: Most unannotated Python functions returning values return numbers
+    // Previous behavior (DEPYLER-0422): Defaulted Unknown → Int for lambda returns
+    // Problem: This also affected dict/list returns, causing E0308 errors
+    // New behavior: Return None for Unknown types, allowing proper Value fallback
     if return_types.iter().all(|t| matches!(t, Type::Unknown)) {
         // We have return statements but all returned Unknown types
-        // This likely means we have value-returning expressions we can't type
-        // Default to Int rather than Unit
-        return Some(Type::Int);
+        // Don't assume Int - let type mapper decide the appropriate fallback
+        return None;
     }
 
     // Mixed types - return the first known type

@@ -561,13 +561,31 @@ fn generate_constant_tokens(
             let syn_type = type_gen::rust_type_to_syn(&rust_type)?;
             quote! { : #syn_type }
         } else {
-            // Infer type from the literal value
+            // DEPYLER-0448: Infer type from expression (not just literals)
             match &constant.value {
+                // Literal types
                 HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
                 HirExpr::Literal(Literal::Float(_)) => quote! { : f64 },
                 HirExpr::Literal(Literal::String(_)) => quote! { : &str },
                 HirExpr::Literal(Literal::Bool(_)) => quote! { : bool },
-                _ => quote! { : i32 }, // Default fallback
+
+                // DEPYLER-0448: Dict types → serde_json::Value (safe fallback)
+                HirExpr::Dict { .. } => {
+                    ctx.needs_serde_json = true;
+                    quote! { : serde_json::Value }
+                }
+
+                // DEPYLER-0448: List types → serde_json::Value (safe fallback)
+                HirExpr::List { .. } => {
+                    ctx.needs_serde_json = true;
+                    quote! { : serde_json::Value }
+                }
+
+                // DEPYLER-0448: Default fallback → serde_json::Value (NOT i32)
+                _ => {
+                    ctx.needs_serde_json = true;
+                    quote! { : serde_json::Value }
+                }
             }
         };
 
