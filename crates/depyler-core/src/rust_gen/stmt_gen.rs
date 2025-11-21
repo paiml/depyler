@@ -8,7 +8,7 @@ use crate::rust_gen::context::{CodeGenContext, RustCodeGen, ToRustExpr};
 use crate::rust_gen::keywords::safe_ident; // DEPYLER-0023: Keyword escaping
 use crate::rust_gen::type_gen::rust_type_to_syn;
 use anyhow::{bail, Result};
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{self, parse_quote};
 
 /// Helper to build nested dictionary access for assignment
@@ -1269,11 +1269,48 @@ pub(crate) fn codegen_for_stmt(
         };
     }
 
+    // DEPYLER-0452: Handle CSV Reader iteration
+    // Check if variable name suggests CSV reader (heuristic-based)
+    let is_csv_reader = if let HirExpr::Var(var_name) = iter {
+        var_name == "reader"
+            || var_name.contains("csv")
+            || var_name.ends_with("_reader")
+            || var_name.starts_with("reader_")
+    } else {
+        false
+    };
+
+    // Track if CSV pattern yields Results (need to unwrap in loop)
+    let mut csv_yields_results = false;
+
+    if !is_stdin_iter && !is_file_iter && is_csv_reader {
+        // Try to apply CSV iteration mapping from stdlib_mappings
+        // This transforms: for row in reader
+        // Into: for result in reader.deserialize::<HashMap<String, String>>()
+        if let Some(pattern) = ctx.stdlib_mappings.get_iteration_pattern("csv", "DictReader") {
+            // Check if pattern yields Results
+            if let crate::stdlib_mappings::RustPattern::IterationPattern { yields_results, .. } = pattern {
+                csv_yields_results = *yields_results;
+            }
+
+            let rust_code = pattern.generate_rust_code(
+                &iter_expr.to_token_stream().to_string(),
+                &[]
+            );
+            if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
+                // Set needs_csv flag
+                ctx.needs_csv = true;
+                // Wrap in iteration that handles Results
+                iter_expr = expr;
+            }
+        }
+    }
+
     // Check if we're iterating over a borrowed collection
     // If iter is a simple variable that refers to a borrowed collection (e.g., &Vec<T>),
     // we need to add .iter() to properly iterate over it
-    // Skip this for stdin/file iterators which are already properly wrapped
-    if !is_stdin_iter && !is_file_iter {
+    // Skip this for stdin/file/csv iterators which are already properly wrapped
+    if !is_stdin_iter && !is_file_iter && !is_csv_reader {
         if let HirExpr::Var(var_name) = iter {
             // DEPYLER-0419: First check type information from context
             // This is more reliable than name heuristics
@@ -1456,6 +1493,27 @@ pub(crate) fn codegen_for_stmt(
                 }
             })
         } else {
+            Ok(quote! {
+                for #target_pattern in #iter_expr {
+                    #(#body_stmts)*
+                }
+            })
+        }
+    } else if csv_yields_results {
+        // DEPYLER-0452: Unwrap Results from CSV deserialize iteration
+        // Python: for row in reader
+        // Rust: for result in reader.deserialize() { let row = result?; ... }
+        if let AssignTarget::Symbol(var_name) = target {
+            let var_ident = safe_ident(var_name); // DEPYLER-0023
+            let result_ident = safe_ident("result"); // DEPYLER-0023
+            Ok(quote! {
+                for #result_ident in #iter_expr {
+                    let #var_ident = #result_ident?;
+                    #(#body_stmts)*
+                }
+            })
+        } else {
+            // Fallback if target is not a simple symbol
             Ok(quote! {
                 for #target_pattern in #iter_expr {
                     #(#body_stmts)*
