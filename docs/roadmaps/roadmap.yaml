@@ -49,11 +49,11 @@ roadmap:
   github_issue: null
   item_type: bugfix
   title: 'CSV Reader .iter() in generator expressions - Should use .deserialize()'
-  status: inprogress
+  status: completed
   priority: critical
   assigned_to: Claude
   created: 2025-11-21T17:49:20.622633933+00:00
-  updated: 2025-11-21T17:49:20.622633933+00:00
+  updated: 2025-11-21T18:34:30+00:00
   spec: null
   acceptance_criteria:
   - 'DEPYLER-0452 fixed CSV iteration in for loops, but NOT in generator expressions'
@@ -67,7 +67,10 @@ roadmap:
   - name: GREEN - Fix CSV iteration pattern detection
     status: completed
   - name: REFACTOR - Verify csv_filter compiles
-    status: inprogress
+    status: completed
   subtasks: []
-  estimated_effort: null
-  labels: []
+  estimated_effort: 2h
+  labels:
+  - csv
+  - generator-expressions
+  - list-comprehensions
