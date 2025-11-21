@@ -137,6 +137,14 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-0452: Stdlib API mapping system for Python→Rust API translations
     /// Maps Python stdlib patterns (module, class, attribute) to Rust code patterns
     pub stdlib_mappings: crate::stdlib_mappings::StdlibMappings,
+
+    /// DEPYLER-0455 Bug 2: Track hoisted variables without type annotations
+    /// These variables need String literal normalization (.to_string()) to ensure
+    /// consistent type inference across if/else branches
+    /// Example: let mut format; if x { format = "json"; } else { format = s.to_lowercase(); }
+    /// Without normalization: &str vs String type mismatch
+    /// With normalization: String vs String (consistent)
+    pub hoisted_inference_vars: HashSet<String>,
 }
 
 impl<'a> CodeGenContext<'a> {

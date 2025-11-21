@@ -1054,6 +1054,11 @@ pub(crate) fn codegen_if_stmt(
             // No type annotation - use type inference placeholder
             // Rust will infer the type from the assignments in the branches
             hoisted_decls.push(quote! { let mut #var_ident; });
+
+            // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
+            // When a variable is hoisted without type annotation, we need to normalize
+            // string literals to String to avoid &str vs String type mismatches
+            ctx.hoisted_inference_vars.insert(var_name.clone());
         }
 
         // Mark variable as declared so assignments use `var = value` not `let var = value`
@@ -1067,7 +1072,7 @@ pub(crate) fn codegen_if_stmt(
         .collect::<Result<Vec<_>>>()?;
     ctx.exit_scope();
 
-    if let Some(else_stmts) = else_body {
+    let result = if let Some(else_stmts) = else_body {
         ctx.enter_scope();
         let else_tokens: Vec<_> = else_stmts
             .iter()
@@ -1088,7 +1093,15 @@ pub(crate) fn codegen_if_stmt(
                 #(#then_stmts)*
             }
         })
+    };
+
+    // DEPYLER-0455 Bug 2: Clean up hoisted inference vars after if-statement
+    // Remove variables from tracking set since they're only relevant within this if-statement
+    for var_name in &hoisted_vars {
+        ctx.hoisted_inference_vars.remove(var_name);
     }
+
+    result
 }
 
 /// DEPYLER-0379: Find the type annotation for a variable in a statement block
@@ -2064,6 +2077,21 @@ pub(crate) fn codegen_assign_stmt(
     } else {
         (None, false)
     };
+
+    // DEPYLER-0455 Bug 2: String literal normalization for hoisted inference variables
+    // When a variable is hoisted without type annotation, string literals must be
+    // normalized to String to ensure consistent type inference across if/else branches
+    // Example: let mut format;
+    //          if x { format = "json"; }  // &str
+    //          else { format = s.to_lowercase(); }  // String - TYPE MISMATCH!
+    // Solution: Convert all string literals to String: format = "json".to_string();
+    if let AssignTarget::Symbol(var_name) = target {
+        if ctx.hoisted_inference_vars.contains(var_name) {
+            if matches!(value, HirExpr::Literal(Literal::String(_))) {
+                value_expr = parse_quote! { #value_expr.to_string() };
+            }
+        }
+    }
 
     match target {
         AssignTarget::Symbol(symbol) => {
