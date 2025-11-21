@@ -901,18 +901,24 @@ fn apply_truthiness_conversion(
 /// - Calls to methods ending with .ok() (Result → Option conversion)
 /// - Calls to .get() methods (dict/map lookups)
 /// - os.environ.get() / std::env::var().ok()
+///
+/// DEPYLER-0455: Enhanced to detect chained method calls like env::var(...).ok()
 fn looks_like_option_expr(expr: &HirExpr) -> bool {
     match expr {
-        // Check if variable was assigned from an Option-returning call
-        HirExpr::Var(_) => {
-            // Type should be checked via ctx.var_types (handled above)
-            // This is just a fallback
-            false
-        }
         // Method call ending in .ok() → definitely Option
         HirExpr::MethodCall { method, .. } if method == "ok" => true,
         // Method call to .get() → usually Option (dict/map lookup)
         HirExpr::MethodCall { method, .. } if method == "get" => true,
+        // DEPYLER-0455: Check for chained calls like std::env::var(...).ok()
+        // This handles cases where the RHS is a method chain
+        HirExpr::MethodCall { object, method, .. } => {
+            // Recursively check if the object is an Option-returning expression
+            if method == "ok" || method == "get" {
+                true
+            } else {
+                looks_like_option_expr(object)
+            }
+        }
         _ => false,
     }
 }
@@ -1840,6 +1846,16 @@ pub(crate) fn codegen_assign_stmt(
                 }
                 _ => {}
             }
+        }
+
+        // DEPYLER-0455: Track Option types from method calls like .ok() and .get()
+        // This enables proper truthiness conversion (if option → if option.is_some())
+        // Example: config_file = os.environ.get("CONFIG_FILE")
+        //          or: config_file = std::env::var(...).ok()
+        if looks_like_option_expr(value) {
+            // Track as Option<String> for now (generic placeholder)
+            // The exact inner type doesn't matter for truthiness conversion
+            ctx.var_types.insert(var_name.clone(), Type::Optional(Box::new(Type::String)));
         }
 
         match value {
