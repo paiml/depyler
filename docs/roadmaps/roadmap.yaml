@@ -92,7 +92,7 @@ roadmap:
   - 'example_complex should compile with 0 errors (down from 10)'
   phases:
   - name: RED - Document bugs and write failing tests
-    status: pending
+    status: completed
   - name: GREEN - Fix all 4 type system bugs
     status: pending
   - name: REFACTOR - Verify example_complex compiles
