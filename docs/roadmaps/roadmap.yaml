@@ -63,11 +63,11 @@ roadmap:
   - 'Verify pattern works for: reader.iter().filter().map()'
   phases:
   - name: RED - Document bug and write failing test
-    status: inprogress
+    status: completed
   - name: GREEN - Fix CSV iteration pattern detection
-    status: pending
+    status: completed
   - name: REFACTOR - Verify csv_filter compiles
-    status: pending
+    status: inprogress
   subtasks: []
   estimated_effort: null
   labels: []
