@@ -11723,11 +11723,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let element_expr = element.to_rust_expr(self.ctx)?;
             let target_pat = self.parse_target_pattern(&gen.target)?;
 
+            // DEPYLER-0454: Detect CSV reader variables in generator expressions
+            let is_csv_reader = if let HirExpr::Var(var_name) = &*gen.iter {
+                var_name == "reader"
+                    || var_name.contains("csv")
+                    || var_name.ends_with("_reader")
+                    || var_name.starts_with("reader_")
+            } else {
+                false
+            };
+
             // DEPYLER-0307 Fix #10: Use .iter().copied() for borrowed collections
+            // DEPYLER-0454 Extension: Use .deserialize() for CSV readers
             // When the iterator is a variable (likely a borrowed parameter like &Vec<i32>),
             // use .iter().copied() to get owned values instead of references
             // This prevents type mismatches like `&i32` vs `i32` in generator expressions
-            let mut chain: syn::Expr = if matches!(&*gen.iter, HirExpr::Var(_)) {
+            let mut chain: syn::Expr = if is_csv_reader {
+                // DEPYLER-0454: CSV reader - use deserialize pattern
+                self.ctx.needs_csv = true;
+                parse_quote! { #iter_expr.deserialize::<std::collections::HashMap<String, String>>().filter_map(|result| result.ok()) }
+            } else if matches!(&*gen.iter, HirExpr::Var(_)) {
                 // Variable iteration - likely borrowed, use .iter().copied()
                 parse_quote! { #iter_expr.iter().copied() }
             } else {
