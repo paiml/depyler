@@ -1,7 +1,37 @@
 roadmap_version: '1.0'
 github_enabled: true
-github_repo: null
+github_repo: paiml/depyler
 roadmap:
+- id: DEPYLER-0453
+  github_issue: null
+  item_type: task
+  title: 'Integrate latest PMAT features into depyler project'
+  status: completed
+  priority: high
+  assigned_to: Claude
+  created: 2025-11-21T16:45:00+00:00
+  updated: 2025-11-21T16:50:00+00:00
+  spec: null
+  acceptance_criteria:
+  - Update CLAUDE.md to use latest PMAT commands
+  - Migrate from 'pmat analyze tdg' to 'pmat tdg'
+  - Add PMAT Work Workflow documentation (Issue #75)
+  - Add all new PMAT features (Sprint 61-66)
+  - Document semantic search, hooks, agent, red-team features
+  - Verify all quality gates updated
+  phases:
+  - name: Documentation Update
+    status: completed
+    deliverables:
+    - Updated CLAUDE.md with 216 new lines
+    - 6 new major sections added
+    - All old syntax removed
+  subtasks: []
+  estimated_effort: 2h
+  labels:
+  - documentation
+  - quality
+  - pmat
 - id: DEPYLER-0435
   github_issue: null
   item_type: task
