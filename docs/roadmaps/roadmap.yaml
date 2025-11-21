@@ -82,19 +82,30 @@ roadmap:
   priority: high
   assigned_to: Claude
   created: 2025-11-21T19:00:00+00:00
-  updated: 2025-11-21T19:00:00+00:00
+  updated: 2025-11-21T22:20:00+00:00
   spec: null
   acceptance_criteria:
-  - 'Fix ArgumentTypeError codegen (raise ArgumentTypeError → Err(ArgumentTypeError))'
-  - 'Fix String/&str type mismatch (.lower() → proper type handling)'
-  - 'Fix Option<String> truthiness (if option → if option.is_some())'
-  - 'Fix Option<String> Display (format Option → format unwrapped value)'
+  - 'Bug 1: Fix ArgumentTypeError codegen (raise ArgumentTypeError → Err(ArgumentTypeError)) ✅'
+  - 'Bug 2: Fix String/&str type mismatch (.lower() → proper type handling) ✅'
+  - 'Bug 3-5: Fix Option<String> truthiness (if option → if option.is_some()) ✅'
+  - 'Bug 6: Fix unreachable Ok(()) in validator functions with try-except ✅'
   - 'example_complex should compile with 0 errors (down from 10)'
   phases:
   - name: RED - Document bugs and write failing tests
     status: completed
-  - name: GREEN - Fix all 4 type system bugs
-    status: pending
+  - name: GREEN - Fix all type system bugs
+    status: inprogress
+  - name: Bug 1 - ArgumentTypeError codegen
+    status: completed
+  - name: Bug 2 - String/&str type consistency
+    status: completed
+  - name: Bug 3-5 - Option handling
+    status: completed
+  - name: Bug 6 - Unreachable Ok(()) in validators
+    status: completed
+    completion: 2025-11-21T22:20:00+00:00
+    commit: e85dd98
+    notes: 'Added stmt_always_returns() helper to detect exhaustive returns in try-except blocks'
   - name: REFACTOR - Verify example_complex compiles
     status: pending
   subtasks: []
