@@ -290,7 +290,7 @@ def test_func():
     let output = std::process::Command::new("rustc")
         .args(&[
             "--crate-type",
-            "lib",  // Use lib instead of bin (no main needed)
+            "lib", // Use lib instead of bin (no main needed)
             "--edition",
             "2021",
             temp_file,
@@ -305,7 +305,8 @@ def test_func():
     assert!(
         output.status.success(),
         "Compilation failed!\nGenerated code:\n{}\n\nCompiler errors:\n{}",
-        result, stderr
+        result,
+        stderr
     );
 
     // Cleanup
@@ -373,7 +374,9 @@ fn test_depyler_0439_property_single_declaration_invariant() {
     // Test various configurations
     let test_cases = vec![
         // 2 branches (if-else)
-        (2, r#"
+        (
+            2,
+            r#"
 def test_func():
     c1 = True
     x = None
@@ -382,9 +385,12 @@ def test_func():
     else:
         x = 2
     return x
-"#),
+"#,
+        ),
         // 3 branches (if-elif-else)
-        (3, r#"
+        (
+            3,
+            r#"
 def test_func():
     c1 = False
     c2 = True
@@ -396,9 +402,12 @@ def test_func():
     else:
         x = 3
     return x
-"#),
+"#,
+        ),
         // 5 branches
-        (5, r#"
+        (
+            5,
+            r#"
 def test_func():
     c1 = False
     c2 = False
@@ -416,7 +425,8 @@ def test_func():
     else:
         x = 5
     return x
-"#),
+"#,
+        ),
     ];
 
     let pipeline = DepylerPipeline::new();

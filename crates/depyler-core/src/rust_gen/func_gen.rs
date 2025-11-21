@@ -661,7 +661,11 @@ fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
 fn build_var_type_env(stmts: &[HirStmt], var_types: &mut std::collections::HashMap<String, Type>) {
     for stmt in stmts {
         match stmt {
-            HirStmt::Assign { target: crate::hir::AssignTarget::Symbol(name), value, .. } => {
+            HirStmt::Assign {
+                target: crate::hir::AssignTarget::Symbol(name),
+                value,
+                ..
+            } => {
                 // DEPYLER-0415: Use the environment we're building for lookups
                 let value_type = infer_expr_type_with_env(value, var_types);
                 if !matches!(value_type, Type::Unknown) {

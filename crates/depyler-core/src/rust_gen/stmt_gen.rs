@@ -824,7 +824,10 @@ fn apply_truthiness_conversion(
         if let HirExpr::Var(obj_name) = value.as_ref() {
             // Check if this is accessing an args variable from ArgumentParser
             let is_args_var = ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                parser_info.args_var.as_ref().is_some_and(|args_var| args_var == obj_name)
+                parser_info
+                    .args_var
+                    .as_ref()
+                    .is_some_and(|args_var| args_var == obj_name)
             });
 
             if is_args_var {
@@ -837,13 +840,18 @@ fn apply_truthiness_conversion(
                         }
 
                         // Argument is NOT an Option if it has action="store_true" or "store_false"
-                        if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
+                        if matches!(
+                            arg.action.as_deref(),
+                            Some("store_true") | Some("store_false")
+                        ) {
                             return false;
                         }
 
                         // Argument is an Option<T> if: not required AND no default value AND not positional
                         // Positional arguments are always required (Vec for nargs)
-                        !arg.is_positional && !arg.required.unwrap_or(false) && arg.default.is_none()
+                        !arg.is_positional
+                            && !arg.required.unwrap_or(false)
+                            && arg.default.is_none()
                     })
                 });
 
@@ -3011,7 +3019,11 @@ fn try_generate_subcommand_match(
 /// Returns the command name if pattern matches: args.command == "string"
 fn is_subcommand_check(expr: &HirExpr) -> Option<String> {
     match expr {
-        HirExpr::Binary { op: BinOp::Eq, left, right } => {
+        HirExpr::Binary {
+            op: BinOp::Eq,
+            left,
+            right,
+        } => {
             // Check if left side is args.command
             let is_command_attr = matches!(
                 left.as_ref(),

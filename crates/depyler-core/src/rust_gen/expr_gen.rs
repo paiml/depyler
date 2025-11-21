@@ -555,7 +555,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 {
                     // Regex methods that return Option<Match>
                     matches!(method.as_str(), "find" | "search" | "match")
-                } else if let HirExpr::Call { func, args: _, kwargs: _ } = operand {
+                } else if let HirExpr::Call {
+                    func,
+                    args: _,
+                    kwargs: _,
+                } = operand
+                {
                     // Module-level regex functions (re.match, re.search, re.find)
                     matches!(func.as_str(), "match" | "search" | "find")
                 } else {
@@ -8137,7 +8142,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // Check for `key` kwarg
                 let key_func = kwargs.iter().find(|(k, _)| k == "key").map(|(_, v)| v);
-                let reverse = kwargs.iter()
+                let reverse = kwargs
+                    .iter()
                     .find(|(k, _)| k == "reverse")
                     .and_then(|(_, v)| {
                         if let HirExpr::Literal(crate::hir::Literal::Bool(b)) = v {
@@ -8162,7 +8168,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     (Some(key_expr), true) => {
                         // list.sort(key=func, reverse=True) → list.sort_by_key(|x| std::cmp::Reverse(func(x)))
                         let key_rust = key_expr.to_rust_expr(self.ctx)?;
-                        Ok(parse_quote! { #object_expr.sort_by_key(|x| std::cmp::Reverse(#key_rust(x))) })
+                        Ok(
+                            parse_quote! { #object_expr.sort_by_key(|x| std::cmp::Reverse(#key_rust(x))) },
+                        )
                     }
                     (None, false) => {
                         // list.sort() → list.sort()
@@ -9335,7 +9343,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
                 } else {
                     // List: use list.count() → .iter().filter().count()
-                    self.convert_list_method(object_expr, object, method, arg_exprs, hir_args, kwargs)
+                    self.convert_list_method(
+                        object_expr,
+                        object,
+                        method,
+                        arg_exprs,
+                        hir_args,
+                        kwargs,
+                    )
                 }
             }
 
@@ -11275,28 +11290,42 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let is_option = match expr.as_ref() {
                         HirExpr::Attribute { value, attr } => {
                             if let HirExpr::Var(obj_name) = value.as_ref() {
-                                let is_args_var = self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                                    parser_info.args_var.as_ref().is_some_and(|args_var| args_var == obj_name)
-                                });
+                                let is_args_var = self.ctx.argparser_tracker.parsers.values().any(
+                                    |parser_info| {
+                                        parser_info
+                                            .args_var
+                                            .as_ref()
+                                            .is_some_and(|args_var| args_var == obj_name)
+                                    },
+                                );
 
                                 if is_args_var {
                                     // Check if this argument is optional (Option<T> type, not boolean)
-                                    self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                                        parser_info.arguments.iter().any(|arg| {
-                                            let field_name = arg.rust_field_name();
-                                            if field_name != *attr {
-                                                return false;
-                                            }
+                                    self.ctx
+                                        .argparser_tracker
+                                        .parsers
+                                        .values()
+                                        .any(|parser_info| {
+                                            parser_info.arguments.iter().any(|arg| {
+                                                let field_name = arg.rust_field_name();
+                                                if field_name != *attr {
+                                                    return false;
+                                                }
 
-                                            // Argument is NOT an Option if it has action="store_true" or "store_false"
-                                            if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
-                                                return false;
-                                            }
+                                                // Argument is NOT an Option if it has action="store_true" or "store_false"
+                                                if matches!(
+                                                    arg.action.as_deref(),
+                                                    Some("store_true") | Some("store_false")
+                                                ) {
+                                                    return false;
+                                                }
 
-                                            // Argument is an Option<T> if: not required AND no default value AND not positional
-                                            !arg.is_positional && !arg.required.unwrap_or(false) && arg.default.is_none()
+                                                // Argument is an Option<T> if: not required AND no default value AND not positional
+                                                !arg.is_positional
+                                                    && !arg.required.unwrap_or(false)
+                                                    && arg.default.is_none()
+                                            })
                                         })
-                                    })
                                 } else {
                                     false
                                 }
@@ -11330,31 +11359,49 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             // Check if this is accessing a field from argparse Args struct
                             if let HirExpr::Var(obj_name) = value.as_ref() {
                                 // Check if obj_name is the args variable from ArgumentParser
-                                let is_args_var = self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                                    parser_info.args_var.as_ref().is_some_and(|args_var| args_var == obj_name)
-                                });
+                                let is_args_var = self.ctx.argparser_tracker.parsers.values().any(
+                                    |parser_info| {
+                                        parser_info
+                                            .args_var
+                                            .as_ref()
+                                            .is_some_and(|args_var| args_var == obj_name)
+                                    },
+                                );
 
                                 if is_args_var {
                                     // Look up the field type in argparse arguments
-                                    self.ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                                        parser_info.arguments.iter().any(|arg| {
-                                            // Match field name (normalized from Python argument name)
-                                            let field_name = arg.rust_field_name();
-                                            if field_name == *attr {
-                                                // Check if this field is a collection type
-                                                // Either explicit type annotation OR inferred from nargs
-                                                let is_vec_from_nargs = matches!(arg.nargs.as_deref(), Some("+") | Some("*"));
-                                                let is_collection_type = if let Some(ref arg_type) = arg.arg_type {
-                                                    matches!(arg_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                                    self.ctx
+                                        .argparser_tracker
+                                        .parsers
+                                        .values()
+                                        .any(|parser_info| {
+                                            parser_info.arguments.iter().any(|arg| {
+                                                // Match field name (normalized from Python argument name)
+                                                let field_name = arg.rust_field_name();
+                                                if field_name == *attr {
+                                                    // Check if this field is a collection type
+                                                    // Either explicit type annotation OR inferred from nargs
+                                                    let is_vec_from_nargs = matches!(
+                                                        arg.nargs.as_deref(),
+                                                        Some("+") | Some("*")
+                                                    );
+                                                    let is_collection_type =
+                                                        if let Some(ref arg_type) = arg.arg_type {
+                                                            matches!(
+                                                                arg_type,
+                                                                Type::List(_)
+                                                                    | Type::Dict(_, _)
+                                                                    | Type::Set(_)
+                                                            )
+                                                        } else {
+                                                            false
+                                                        };
+                                                    is_vec_from_nargs || is_collection_type
                                                 } else {
                                                     false
-                                                };
-                                                is_vec_from_nargs || is_collection_type
-                                            } else {
-                                                false
-                                            }
+                                                }
+                                            })
                                         })
-                                    })
                                 } else {
                                     false
                                 }

@@ -1,7 +1,6 @@
 /// Constants Transpilation Test
 ///
 /// Tests that module-level constants are correctly transpiled from Python to Rust.
-
 use depyler_core::DepylerPipeline;
 
 #[test]
@@ -27,9 +26,11 @@ C = 3
     );
 
     // Constants should be declared with appropriate Rust syntax (const or pub const)
-    let has_const_declarations = rust_code.contains("const A") || rust_code.contains("pub const A")
-        || rust_code.contains("static A") || rust_code.contains("pub static A");
-    
+    let has_const_declarations = rust_code.contains("const A")
+        || rust_code.contains("pub const A")
+        || rust_code.contains("static A")
+        || rust_code.contains("pub static A");
+
     assert!(
         has_const_declarations,
         "Constants should be declared with const or static keyword. Got:\n{}",
@@ -68,7 +69,7 @@ C: int = 3
 
     // Should have integer type annotations
     let has_type_annotations = rust_code.contains("i32") || rust_code.contains("i64");
-    
+
     assert!(
         has_type_annotations,
         "Constants should have integer type annotations. Got:\n{}",
@@ -93,7 +94,9 @@ MESSAGE = "World"
 
     // Check that constant names are present
     assert!(
-        rust_code.contains("NAME") && rust_code.contains("GREETING") && rust_code.contains("MESSAGE"),
+        rust_code.contains("NAME")
+            && rust_code.contains("GREETING")
+            && rust_code.contains("MESSAGE"),
         "Generated code must contain all constant names. Got:\n{}",
         rust_code
     );
@@ -124,20 +127,20 @@ BOOL_VALUE = True
 
     // Check that all constant names are present
     assert!(
-        rust_code.contains("INT_VALUE") 
-        && rust_code.contains("FLOAT_VALUE") 
-        && rust_code.contains("STRING_VALUE")
-        && rust_code.contains("BOOL_VALUE"),
+        rust_code.contains("INT_VALUE")
+            && rust_code.contains("FLOAT_VALUE")
+            && rust_code.contains("STRING_VALUE")
+            && rust_code.contains("BOOL_VALUE"),
         "Generated code must contain all constant names. Got:\n{}",
         rust_code
     );
 
     // Check that values are present
     assert!(
-        rust_code.contains("42") 
-        && rust_code.contains("3.14") 
-        && rust_code.contains("test")
-        && (rust_code.contains("true") || rust_code.contains("True")),
+        rust_code.contains("42")
+            && rust_code.contains("3.14")
+            && rust_code.contains("test")
+            && (rust_code.contains("true") || rust_code.contains("True")),
         "Generated code must contain all constant values. Got:\n{}",
         rust_code
     );
@@ -164,7 +167,7 @@ C = 3
         !rust_code.is_empty(),
         "Generated Rust code must not be empty"
     );
-    
+
     // Check for basic Rust syntax patterns
     assert!(
         rust_code.contains("A") || rust_code.contains("B") || rust_code.contains("C"),
