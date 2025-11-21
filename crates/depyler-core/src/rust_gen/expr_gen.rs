@@ -1771,6 +1771,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! {
                     #arg.collect::<Vec<_>>()
                 })
+            } else if self.is_csv_reader_var(arg) {
+                // DEPYLER-0452: CSV DictReader → use deserialize() for list conversion
+                // list(reader) → reader.deserialize::<HashMap<String, String>>().collect()
+                self.ctx.needs_csv = true;
+                Ok(parse_quote! {
+                    #arg.deserialize::<HashMap<String, String>>().collect::<Vec<_>>()
+                })
             } else {
                 // Regular iterable → collect to Vec
                 Ok(parse_quote! {
@@ -2183,6 +2190,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         } else {
             false
         }
+    }
+
+    /// DEPYLER-0452: Check if expression is a CSV reader variable
+    /// Uses heuristic name-based detection (reader, csv_reader, etc.)
+    fn is_csv_reader_var(&self, expr: &syn::Expr) -> bool {
+        if let syn::Expr::Path(path) = expr {
+            if let Some(ident) = path.path.get_ident() {
+                let var_name = ident.to_string();
+                return var_name == "reader"
+                    || var_name.contains("csv")
+                    || var_name.ends_with("_reader")
+                    || var_name.starts_with("reader_");
+            }
+        }
+        false
     }
 
     fn convert_generic_call(
