@@ -1261,10 +1261,11 @@ pub(crate) fn codegen_for_stmt(
         // We map to unwrap_or_default() to handle errors gracefully
         iter_expr = parse_quote! { #iter_expr.lines().map(|l| l.unwrap_or_default()) };
     } else if is_file_iter {
-        // Use BufReader::new(f).lines() for File iteration
+        // DEPYLER-0452 Phase 3: Use BufReader::new(f).lines() for File iteration
         // This is the idiomatic Rust way to iterate over file lines
+        // Method call syntax (.lines()) is preferred over trait syntax (BufRead::lines())
         iter_expr = parse_quote! {
-            std::io::BufRead::lines(std::io::BufReader::new(#iter_expr))
+            std::io::BufReader::new(#iter_expr).lines()
                 .map(|l| l.unwrap_or_default())
         };
     }

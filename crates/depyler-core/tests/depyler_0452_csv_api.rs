@@ -238,7 +238,8 @@ def read_lines(filepath):
     // Should handle Result from lines() iterator
     let has_result_handling = rust_code.contains("line_result?")
         || rust_code.contains("line?")
-        || rust_code.contains(".unwrap()");
+        || rust_code.contains(".unwrap()")
+        || rust_code.contains(".unwrap_or_default()");
     assert!(has_result_handling, "Expected Result handling for lines(). Got:\n{}", rust_code);
 
     // Should use proper file iteration pattern (not File.iter())
