@@ -73,6 +73,46 @@ fn is_rust_keyword(name: &str) -> bool {
     )
 }
 
+/// Check if a statement always returns or raises (never falls through)
+/// Used to determine if Ok(()) needs to be appended to Result-returning functions
+///
+/// DEPYLER-0455 Bug 6: Fix unreachable Ok(()) in validator functions
+/// Validator functions with try-except that return in all branches were getting
+/// unreachable Ok(()) appended, causing type mismatch errors.
+/// Example: fn port_validator(value: &str) -> Result<i32, Box<dyn Error>>
+///          Both try body and except handler return, so Ok(()) is unreachable
+fn stmt_always_returns(stmt: &HirStmt) -> bool {
+    match stmt {
+        HirStmt::Return(_) => true,
+        HirStmt::Raise { .. } => true,
+        HirStmt::Try {
+            body,
+            handlers,
+            orelse,
+            finalbody: _,
+        } => {
+            // Try always returns if:
+            // 1. Body always returns AND
+            // 2. All exception handlers always return AND
+            // 3. Orelse (if present) always returns
+            // Note: finalbody doesn't affect control flow (always executed)
+            let body_returns = body.iter().any(stmt_always_returns);
+            let handlers_return = !handlers.is_empty()
+                && handlers
+                    .iter()
+                    .all(|h| h.body.iter().any(stmt_always_returns));
+            let orelse_returns = orelse
+                .as_ref()
+                .map_or(true, |stmts| stmts.iter().any(stmt_always_returns));
+
+            // All three conditions must be true
+            // If there are no handlers, the try doesn't guarantee a return
+            body_returns && handlers_return && orelse_returns
+        }
+        _ => false,
+    }
+}
+
 /// Generate combined generic parameters (<'a, 'b, T, U: Bound>)
 #[inline]
 pub(crate) fn codegen_generic_params(
@@ -1440,11 +1480,15 @@ impl RustCodeGen for HirFunction {
         // DEPYLER-0450: Extended to handle all Result return types, not just Type::None
         // This fixes functions with side effects that use error handling (raise/try/except)
         // Also handles Type::Unknown (functions without type annotations that don't explicitly return)
+        //
+        // DEPYLER-0455 Bug 6: Check if last statement always returns (including try-except)
+        // Validator functions with try-except that return in all branches should not get Ok(())
+        // Use stmt_always_returns() instead of simple Return check to handle exhaustive returns
         if can_fail {
             let needs_ok = self
                 .body
                 .last()
-                .is_none_or(|stmt| !matches!(stmt, HirStmt::Return(_)));
+                .is_none_or(|stmt| !stmt_always_returns(stmt));
             if needs_ok {
                 // For functions returning unit type (or Unknown which defaults to unit), add Ok(())
                 // For functions returning values with explicit returns, they already have Ok() wrapping
