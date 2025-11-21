@@ -255,10 +255,7 @@ impl FunctionAnalyzer {
             // DEPYLER-0432: With statements using open() are fallible (file I/O)
             HirStmt::With { context, body, .. } => {
                 // Check if context expression uses open() call
-                let context_uses_open = match context {
-                    HirExpr::Call { func, .. } if func.as_str() == "open" => true,
-                    _ => false,
-                };
+                let context_uses_open = matches!(context, HirExpr::Call { func, .. } if func.as_str() == "open");
 
                 let (context_fail, context_errors) = Self::expr_can_fail(context);
                 let (body_fail, mut body_errors) = Self::check_can_fail(body);
