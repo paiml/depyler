@@ -74,3 +74,32 @@ roadmap:
   - csv
   - generator-expressions
   - list-comprehensions
+- id: DEPYLER-0455
+  github_issue: null
+  item_type: bugfix
+  title: 'Type system bugs: ArgumentTypeError, str/String mismatch, Option truthiness'
+  status: inprogress
+  priority: high
+  assigned_to: Claude
+  created: 2025-11-21T19:00:00+00:00
+  updated: 2025-11-21T19:00:00+00:00
+  spec: null
+  acceptance_criteria:
+  - 'Fix ArgumentTypeError codegen (raise ArgumentTypeError → Err(ArgumentTypeError))'
+  - 'Fix String/&str type mismatch (.lower() → proper type handling)'
+  - 'Fix Option<String> truthiness (if option → if option.is_some())'
+  - 'Fix Option<String> Display (format Option → format unwrapped value)'
+  - 'example_complex should compile with 0 errors (down from 10)'
+  phases:
+  - name: RED - Document bugs and write failing tests
+    status: pending
+  - name: GREEN - Fix all 4 type system bugs
+    status: pending
+  - name: REFACTOR - Verify example_complex compiles
+    status: pending
+  subtasks: []
+  estimated_effort: 3h
+  labels:
+  - type-system
+  - error-handling
+  - option-handling
