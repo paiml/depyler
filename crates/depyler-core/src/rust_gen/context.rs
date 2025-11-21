@@ -128,6 +128,11 @@ pub struct CodeGenContext<'a> {
     /// If current function accesses subcommand fields, this maps field names to variant name
     /// Used by expr_gen to rewrite args.field → field (extracted via pattern matching)
     pub current_subcommand_fields: Option<std::collections::HashSet<String>>,
+
+    /// DEPYLER-0447: Track argparse validator functions (type= parameter in add_argument)
+    /// These functions should have &str parameter type regardless of type inference
+    /// Populated when processing add_argument(type=validator_func) calls
+    pub validator_functions: std::collections::HashSet<String>,
 }
 
 impl<'a> CodeGenContext<'a> {

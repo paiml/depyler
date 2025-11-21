@@ -31,9 +31,10 @@ def email_address(value):
         raise argparse.ArgumentTypeError("Invalid email")
     return value
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--email", type=email_address)
-args = parser.parse_args()
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--email", type=email_address)
+    args = parser.parse_args()
 "#;
 
     let rust_code = transpile_python(py).unwrap();
@@ -81,8 +82,9 @@ def port_number(value):
         raise argparse.ArgumentTypeError("Port must be >= 1")
     return port
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--port", type=port_number)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=port_number)
 "#;
 
     let rust_code = transpile_python(py).unwrap();
@@ -118,8 +120,9 @@ def uppercase_string(value):
     """Validator that transforms string using string method."""
     return value.upper()
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--name", type=uppercase_string)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--name", type=uppercase_string)
 "#;
 
     let rust_code = transpile_python(py).unwrap();
@@ -156,8 +159,9 @@ def lowercase_validator(value):
     """Validator that returns lowercase string."""
     return value.lower()
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--text", type=lowercase_validator)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--text", type=lowercase_validator)
 "#;
 
     let rust_code = transpile_python(py).unwrap();
@@ -187,8 +191,9 @@ def strip_whitespace(value):
     """Validator that strips whitespace."""
     return value.strip()
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--input", type=strip_whitespace)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", type=strip_whitespace)
 "#;
 
     let rust_code = transpile_python(py).unwrap();
@@ -221,8 +226,9 @@ def percentage_validator(value):
         raise argparse.ArgumentTypeError("Percentage must be 0-100")
     return pct
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--percent", type=percentage_validator)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--percent", type=percentage_validator)
 "#;
 
     let rust_code = transpile_python(py).unwrap();

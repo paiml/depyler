@@ -209,7 +209,11 @@ pub(crate) fn codegen_expr_stmt(
                                                     "PathBuf".to_string(),
                                                 ))
                                             }
-                                            _ => {}
+                                            _ => {
+                                                // DEPYLER-0447: Track custom validator functions
+                                                // e.g., type=email_address → track "email_address"
+                                                ctx.validator_functions.insert(type_name.clone());
+                                            }
                                         }
                                     }
                                 }
@@ -319,7 +323,11 @@ pub(crate) fn codegen_expr_stmt(
                                                                 "PathBuf".to_string(),
                                                             ));
                                                     }
-                                                    _ => {}
+                                                    _ => {
+                                                        // DEPYLER-0447: Track custom validator functions
+                                                        // e.g., type=email_address → track "email_address"
+                                                        ctx.validator_functions.insert(type_name.clone());
+                                                    }
                                                 }
                                             }
                                         }
