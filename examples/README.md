@@ -7,8 +7,8 @@ Comprehensive examples demonstrating real-world Python to Rust conversion patter
 | Example | Description | Status | Benchmark Results |
 |---------|-------------|--------|-------------------|
 | [argparse_cli](argparse_cli/) | CLI tool with argument parsing | 🟡 In Progress | Run `make benchmark` |
-| [generator_pipeline](generator_pipeline/) | Text processing with generators | 🔴 Not Started | Run `make benchmark` |
-| [multifile_project](multifile_project/) | Multi-module project with CLI | 🔴 Not Started | Run `make benchmark` |
+| generator_pipeline | Text processing with generators | 🔴 Planned | Not yet started |
+| multifile_project | Multi-module project with CLI | 🔴 Planned | Not yet started |
 
 ## Quick Start
 
