@@ -10823,6 +10823,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         let is_range = self.is_range_expr(&iter_expr);
 
+        // DEPYLER-0454: Detect CSV reader variables in list comprehensions
+        // CSV readers can't use .into_iter() - they need .deserialize()
+        let is_csv_reader = if let HirExpr::Var(var_name) = iter {
+            var_name == "reader"
+                || var_name.contains("csv")
+                || var_name.ends_with("_reader")
+                || var_name.starts_with("reader_")
+        } else {
+            false
+        };
+
         if let Some(cond) = condition {
             // DEPYLER-0299 Fix: Add dereferences to target variable in condition
             // Filter closures receive &T even after .clone().into_iter()
@@ -10836,6 +10847,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! {
                     (#iter_expr)
                         .filter(|&#target_ident| #cond_with_deref)
+                        .map(|#target_ident| #element_expr)
+                        .collect::<Vec<_>>()
+                })
+            } else if is_csv_reader {
+                // DEPYLER-0454: CSV reader in list comprehension
+                // Use .deserialize() instead of .into_iter()
+                // CSV DictReader yields HashMap<String, String>
+                self.ctx.needs_csv = true;
+                let cond_expr = cond.to_rust_expr(self.ctx)?;
+                Ok(parse_quote! {
+                    #iter_expr
+                        .deserialize::<std::collections::HashMap<String, String>>()
+                        .filter_map(|result| result.ok())
+                        .filter(|#target_ident| #cond_expr)
                         .map(|#target_ident| #element_expr)
                         .collect::<Vec<_>>()
                 })
@@ -10857,6 +10882,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Ranges are already iterators, don't call .iter()
                 Ok(parse_quote! {
                     (#iter_expr)
+                        .map(|#target_ident| #element_expr)
+                        .collect::<Vec<_>>()
+                })
+            } else if is_csv_reader {
+                // DEPYLER-0454: CSV reader in list comprehension (no filter)
+                // Use .deserialize() instead of .into_iter()
+                // CSV DictReader yields HashMap<String, String>
+                self.ctx.needs_csv = true;
+                Ok(parse_quote! {
+                    #iter_expr
+                        .deserialize::<std::collections::HashMap<String, String>>()
+                        .filter_map(|result| result.ok())
                         .map(|#target_ident| #element_expr)
                         .collect::<Vec<_>>()
                 })
