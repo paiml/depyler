@@ -817,6 +817,52 @@ fn apply_truthiness_conversion(
         }
     }
 
+    // DEPYLER-0446: Check if this is an attribute access to an optional argparse field
+    // Python: if args.output (where output is optional)
+    // Rust: if args.output.is_some()
+    if let HirExpr::Attribute { value, attr } = condition {
+        if let HirExpr::Var(obj_name) = value.as_ref() {
+            // Check if this is accessing an args variable from ArgumentParser
+            let is_args_var = ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                parser_info
+                    .args_var
+                    .as_ref()
+                    .is_some_and(|args_var| args_var == obj_name)
+            });
+
+            if is_args_var {
+                // Check if this field is optional (Option<T> type, not boolean)
+                let is_optional_field = ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                    parser_info.arguments.iter().any(|arg| {
+                        let field_name = arg.rust_field_name();
+                        if field_name != *attr {
+                            return false;
+                        }
+
+                        // Argument is NOT an Option if it has action="store_true" or "store_false"
+                        if matches!(
+                            arg.action.as_deref(),
+                            Some("store_true") | Some("store_false")
+                        ) {
+                            return false;
+                        }
+
+                        // Argument is an Option<T> if: not required AND no default value AND not positional
+                        // Positional arguments are always required (Vec for nargs)
+                        !arg.is_positional
+                            && !arg.required.unwrap_or(false)
+                            && arg.default.is_none()
+                    })
+                });
+
+                if is_optional_field {
+                    // Convert Option<T> to boolean using .is_some()
+                    return parse_quote! { #cond_expr.is_some() };
+                }
+            }
+        }
+    }
+
     // Not a variable or no type info - use as-is
     cond_expr
 }
@@ -2973,7 +3019,11 @@ fn try_generate_subcommand_match(
 /// Returns the command name if pattern matches: args.command == "string"
 fn is_subcommand_check(expr: &HirExpr) -> Option<String> {
     match expr {
-        HirExpr::Binary { op: BinOp::Eq, left, right } => {
+        HirExpr::Binary {
+            op: BinOp::Eq,
+            left,
+            right,
+        } => {
             // Check if left side is args.command
             let is_command_attr = matches!(
                 left.as_ref(),

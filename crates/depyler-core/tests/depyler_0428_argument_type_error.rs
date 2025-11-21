@@ -31,18 +31,34 @@ def port_number(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
 
     // Should generate Result<T, String> return type
-    assert!(rust.contains("Result<"), "Should use Result return type: {}", rust);
+    assert!(
+        rust.contains("Result<"),
+        "Should use Result return type: {}",
+        rust
+    );
 
     // Should map raise ArgumentTypeError to Err()
-    assert!(rust.contains("Err("), "Should generate Err() for ArgumentTypeError: {}", rust);
+    assert!(
+        rust.contains("Err("),
+        "Should generate Err() for ArgumentTypeError: {}",
+        rust
+    );
 
     // Should not reference Exception type (which doesn't exist in Rust)
-    assert!(!rust.contains("Exception"), "Should not reference Exception: {}", rust);
+    assert!(
+        !rust.contains("Exception"),
+        "Should not reference Exception: {}",
+        rust
+    );
 }
 
 #[test]
@@ -62,7 +78,11 @@ def positive_int(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Should transpile positive_int validator: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile positive_int validator: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(rust.contains("Result<"), "Should use Result type");
@@ -84,7 +104,11 @@ def email_address(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Should transpile email validator: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile email validator: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(rust.contains("Result<"), "Should use Result type");
@@ -105,7 +129,11 @@ def validate_range(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Should transpile simple validator: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile simple validator: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(rust.contains("Result<"), "Should use Result type");
@@ -144,29 +172,53 @@ def email_address(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Real-world validators should transpile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Real-world validators should transpile: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
 
     // All three functions should use Result<T, String>
-    assert!(rust.matches("Result<").count() >= 3, "Should have 3+ Result types");
+    assert!(
+        rust.matches("Result<").count() >= 3,
+        "Should have 3+ Result types"
+    );
 
     // Should not have any Exception references
-    assert!(!rust.contains("Exception"), "Should not reference Exception type");
+    assert!(
+        !rust.contains("Exception"),
+        "Should not reference Exception type"
+    );
 }
 
 #[test]
 fn test_DEPYLER_0428_property_based_error_messages() {
     // Property: ArgumentTypeError can have any expression as message
     let test_cases = vec![
-        (r#"raise argparse.ArgumentTypeError("literal string")"#, "literal"),
-        (r#"raise argparse.ArgumentTypeError(f"formatted {value}")"#, "f-string"),
+        (
+            r#"raise argparse.ArgumentTypeError("literal string")"#,
+            "literal",
+        ),
+        (
+            r#"raise argparse.ArgumentTypeError(f"formatted {value}")"#,
+            "f-string",
+        ),
         (r#"raise argparse.ArgumentTypeError(msg)"#, "variable"),
     ];
 
     for (raise_stmt, description) in test_cases {
-        let python = format!("import argparse\ndef validate(value):\n    {}\n    return value", raise_stmt);
+        let python = format!(
+            "import argparse\ndef validate(value):\n    {}\n    return value",
+            raise_stmt
+        );
         let result = transpile_python(&python);
-        assert!(result.is_ok(), "Should handle {}: {:?}", description, result.err());
+        assert!(
+            result.is_ok(),
+            "Should handle {}: {:?}",
+            description,
+            result.err()
+        );
     }
 }

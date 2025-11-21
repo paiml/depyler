@@ -29,7 +29,11 @@ def port_validator(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
 
@@ -58,7 +62,11 @@ def validator(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
 
@@ -90,7 +98,11 @@ def validator(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
 
@@ -127,7 +139,11 @@ def port_number(value):
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
 
@@ -136,10 +152,13 @@ def port_number(value):
 
     let compile_result = std::process::Command::new("rustc")
         .args(&[
-            "--crate-type", "lib",
-            "--edition", "2021",
+            "--crate-type",
+            "lib",
+            "--edition",
+            "2021",
             "/tmp/depyler_0436_test.rs",
-            "-o", "/tmp/depyler_0436_test.rlib",
+            "-o",
+            "/tmp/depyler_0436_test.rlib",
         ])
         .output();
 
