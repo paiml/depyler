@@ -1154,7 +1154,7 @@ pub(crate) fn codegen_return_type(
 
     // Check if function can fail and needs Result wrapper
     let can_fail = func.properties.can_fail;
-    let error_type_str = if can_fail && !func.properties.error_types.is_empty() {
+    let mut error_type_str = if can_fail && !func.properties.error_types.is_empty() {
         // Use first error type or generic for mixed types
         if func.properties.error_types.len() == 1 {
             func.properties.error_types[0].clone()
@@ -1164,6 +1164,11 @@ pub(crate) fn codegen_return_type(
     } else {
         "Box<dyn std::error::Error>".to_string()
     };
+
+    // DEPYLER-0447: Validators always use Box<dyn Error> for compatibility with clap
+    if ctx.validator_functions.contains(&func.name) {
+        error_type_str = "Box<dyn std::error::Error>".to_string();
+    }
 
     // DEPYLER-0310: Determine ErrorType for raise statement wrapping
     // If Box<dyn Error>, we need to wrap exceptions with Box::new()
