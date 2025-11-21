@@ -495,6 +495,10 @@ impl TypeHintProvider {
         // Record numeric usage patterns
         match op {
             BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div => {
+                // DEPYLER-0451: Stronger type inference for arithmetic with literals
+                // If one operand is an integer literal, infer the variable as Int
+                self.infer_int_from_arithmetic(left, right);
+
                 if let HirExpr::Var(var) = left {
                     self.record_usage_pattern(var, UsagePattern::Numeric);
                 }
@@ -508,6 +512,25 @@ impl TypeHintProvider {
         self.analyze_expr(left)?;
         self.analyze_expr(right)?;
         Ok(())
+    }
+
+    /// DEPYLER-0451: Infer Int type when variable is used in arithmetic with integer literal
+    fn infer_int_from_arithmetic(&mut self, left: &HirExpr, right: &HirExpr) {
+        use crate::hir::Literal;
+
+        // Check if left is var and right is int literal (e.g., x + 1)
+        if let (HirExpr::Var(var), HirExpr::Literal(Literal::Int(_))) = (left, right) {
+            // Add multiple constraints for higher confidence
+            self.add_compatible_constraint(var, Type::Int);
+            self.add_compatible_constraint(var, Type::Int);
+        }
+
+        // Check if right is var and left is int literal (e.g., 1 + x)
+        if let (HirExpr::Literal(Literal::Int(_)), HirExpr::Var(var)) = (left, right) {
+            // Add multiple constraints for higher confidence
+            self.add_compatible_constraint(var, Type::Int);
+            self.add_compatible_constraint(var, Type::Int);
+        }
     }
 
     fn analyze_call(&mut self, func: &str, args: &[HirExpr]) -> Result<()> {
