@@ -31,12 +31,12 @@
 
 ---
 
-## Sub-Tickets (10 Total)
+## Sub-Tickets (12 Total)
 
-**Completed**: 5/10 (DEPYLER-0428 ✅, DEPYLER-0436 ✅, DEPYLER-0437 ✅, DEPYLER-0438 ✅, DEPYLER-0430 ✅)
-**Partial**: 2/10 (DEPYLER-0429 ⚠️ Iteration 1 done, DEPYLER-0431 ⚠️ Core fixes done)
-**In Progress**: 0/10
-**Not Started**: 3/10 (DEPYLER-0432, DEPYLER-0433, DEPYLER-0434)
+**Completed**: 7/12 (DEPYLER-0428 ✅, DEPYLER-0436 ✅, DEPYLER-0437 ✅, DEPYLER-0438 ✅, DEPYLER-0430 ✅, DEPYLER-0449 ✅, DEPYLER-0450 ✅)
+**Partial**: 2/12 (DEPYLER-0429 ⚠️ Iteration 1 done, DEPYLER-0431 ⚠️ Core fixes done)
+**In Progress**: 0/12
+**Not Started**: 3/12 (DEPYLER-0432, DEPYLER-0433, DEPYLER-0434)
 
 ### HIGH Priority (5-7 hours) - Target: 6-7/13 (46-54%)
 
@@ -169,6 +169,38 @@
   - `crates/depyler-core/src/rust_gen/stmt_gen.rs` (wrap error messages)
 - **Test**: Add to `depyler_0428_argument_type_error.rs`
 - **Next Step**: `pmat prompt show continue DEPYLER-0438`
+
+#### DEPYLER-0449: Dict Operations on serde_json::Value ✅ COMPLETE
+- **Status**: ✅ COMPLETE (commits f0989e1, 45e4876, 856f0a6)
+- **Priority**: P0 (STOP THE LINE - Discovered during DEPYLER-0435 work)
+- **Effort**: ~3 hours (RED + GREEN + DOC)
+- **Blocks**: ~~config_manager, env_info, pattern_matcher (34 E0599 errors total)~~ - FIXED
+- **Impact**: Universal fix for dict/HashMap operations on serde_json::Value ✅
+- **Root Cause**: Dict operations called HashMap methods that don't exist on Value
+- **Problem**: Generated `.contains_key()`, `.insert()` which Value doesn't have
+- **Solution**:
+  - BinOp::In → `.get().is_some()` (works for both HashMap and Value)
+  - Enhanced string index detection with type checking
+  - Fixed subscript assignment heuristics (3 locations)
+  - Added `.as_object_mut()` wrapper for Value.insert()
+- **Test Suite**: `crates/depyler-core/tests/depyler_0449_dict_value_operations.rs` - 23/23 PASSING ✅
+- **Files**: `crates/depyler-core/src/rust_gen/expr_gen.rs`, `stmt_gen.rs`
+- **Error Reduction**: E0599 errors: 34 → 2 (94% reduction)
+- **Completion Report**: `docs/bugs/DEPYLER-0449-COMPLETION.md`
+
+#### DEPYLER-0450: Result Return Type Wrapping ✅ COMPLETE
+- **Status**: ✅ COMPLETE (commits cf1e751, 9034a1a)
+- **Priority**: P0 (STOP THE LINE - Discovered during DEPYLER-0435 work)
+- **Effort**: ~2 hours (RED + GREEN + DOC)
+- **Blocks**: ~~Functions with Result returns missing Ok() wrapper (14-15 E0308/E0277 errors)~~ - FIXED
+- **Impact**: Functions with error handling now correctly end with Ok(()) ✅
+- **Root Cause**: Pattern match only checked `Type::None`, missed `Type::Unknown`
+- **Problem**: Unannotated functions with `raise` generated `Result<(), E>` but missing `Ok(())`
+- **Solution**: Extended pattern from `Type::None` to `Type::None | Type::Unknown`
+- **Test Suite**: `crates/depyler-core/tests/depyler_0450_result_return_wrapping.rs` - 20/20 PASSING ✅
+- **Files**: `crates/depyler-core/src/rust_gen/func_gen.rs` (1 line changed)
+- **Expected Error Reduction**: E0308: 11 → 1-2, E0277: 5 → 0-1 (~14-15 errors, 87-93% reduction)
+- **Completion Report**: `docs/bugs/DEPYLER-0450-COMPLETION.md`
 
 #### DEPYLER-0429: Exception Variable Binding (subprocess context) ⚠️ PARTIAL
 - **Status**: ⚠️ PARTIAL COMPLETE (Iteration 1 done, Iteration 2 deferred)
