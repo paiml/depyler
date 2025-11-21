@@ -86,9 +86,9 @@ if __name__ == "__main__":
 
     // Must extract both url and branch from variant
     assert!(
-        rust_code.contains("Commands::Clone") &&
-        (rust_code.contains("{ url") || rust_code.contains("url,")) &&
-        rust_code.contains("branch"),
+        rust_code.contains("Commands::Clone")
+            && (rust_code.contains("{ url") || rust_code.contains("url,"))
+            && rust_code.contains("branch"),
         "Generated code must extract both url and branch from Commands::Clone.\nGenerated:\n{}",
         rust_code
     );
