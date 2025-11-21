@@ -81,6 +81,7 @@ pub mod performance_warnings;
 pub mod profiling;
 pub mod rust_gen;
 pub mod simplified_hir;
+pub mod stdlib_mappings;
 pub mod string_optimization;
 pub mod test_generation;
 pub mod type_hints;
