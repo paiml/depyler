@@ -174,13 +174,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(parse_quote! { #right_expr.contains(#left_expr) })
                     }
                 } else {
-                    // HashMap/dict uses .contains_key(&key)
-                    // (DEPYLER-0326: Fix Phase 2A auto-borrowing in condition contexts)
-                    // (DEPYLER-0329: Avoid double-borrowing for reference-type parameters)
+                    // DEPYLER-0449: Dict/HashMap uses .get(key).is_some() for compatibility
+                    // This works for BOTH HashMap AND serde_json::Value:
+                    // - HashMap<K, V>: .get(&K) -> Option<&V>
+                    // - serde_json::Value: .get(&str) -> Option<&Value>
+                    //
+                    // Using .get().is_some() instead of .contains_key() because:
+                    // 1. serde_json::Value doesn't have .contains_key() method
+                    // 2. .get().is_some() is equivalent to .contains_key() for HashMap
+                    // 3. Works universally for both HashMap and Value types
                     if needs_borrow {
-                        Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                        Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
                     } else {
-                        Ok(parse_quote! { #right_expr.contains_key(#left_expr) })
+                        Ok(parse_quote! { #right_expr.get(#left_expr).is_some() })
                     }
                 }
             }
@@ -225,13 +231,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(parse_quote! { !#right_expr.contains(#left_expr) })
                     }
                 } else {
-                    // HashMap/dict uses .contains_key(&key)
+                    // DEPYLER-0449: Dict/HashMap uses .get(key).is_some() for compatibility
+                    // Same as BinOp::In, but negated - works for both HashMap and Value
                     // (DEPYLER-0326: Fix Phase 2A auto-borrowing in condition contexts)
                     // (DEPYLER-0329: Avoid double-borrowing for reference-type parameters)
                     if needs_borrow {
-                        Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+                        Ok(parse_quote! { !#right_expr.get(&#left_expr).is_some() })
                     } else {
-                        Ok(parse_quote! { !#right_expr.contains_key(#left_expr) })
+                        Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() })
                     }
                 }
             }
@@ -9726,6 +9733,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Check 2: Is base expression a Dict/HashMap type?
         // We need to look at the base's inferred type
         if let HirExpr::Var(sym) = base {
+            // DEPYLER-0449: First check actual variable type if known
+            if let Some(var_type) = self.ctx.var_types.get(sym) {
+                // If variable is typed as serde_json::Value or Dict, use string indexing
+                if matches!(var_type, Type::Dict(_, _)) {
+                    return Ok(true);
+                }
+            }
+
             // Try to find the variable's type in the current function context
             // For parameters, we can check the function signature
             // For local variables, this is harder without full type inference
@@ -9733,7 +9748,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0422: Removed "data" from heuristic - too broad, catches sorted_data, dataset, etc.
             // Only use "dict" or "map" which are more specific to HashMap variables
             let name = sym.as_str();
-            if (name.contains("dict") || name.contains("map")) && !self.is_numeric_index(index) {
+            if (name.contains("dict") || name.contains("map") || name.contains("config") || name.contains("value"))
+                && !self.is_numeric_index(index)
+            {
                 return Ok(true);
             }
         }
@@ -9751,9 +9768,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn is_string_variable(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Var(sym) => {
+                // DEPYLER-0449: First check actual variable type if known
+                if let Some(var_type) = self.ctx.var_types.get(sym) {
+                    // If variable is typed as String, it's a string index
+                    if matches!(var_type, Type::String) {
+                        return true;
+                    }
+                }
+
+                // Fallback to heuristics
                 let name = sym.as_str();
+                // DEPYLER-0449: Expanded to include common loop variables like "k"
                 // Heuristic: variable names like "key", "name", "id", "word", etc.
                 name == "key"
+                    || name == "k" // Common loop variable for keys
                     || name == "name"
                     || name == "id"
                     || name == "word"

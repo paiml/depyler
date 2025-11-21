@@ -2028,14 +2028,30 @@ pub(crate) fn codegen_assign_index(
                 Type::Dict(_, _) => false, // Dict/HashMap → key (not numeric)
                 _ => {
                     // Fall back to index heuristic for other types
+                    // DEPYLER-0449: Check if index looks like a string key before assuming numeric
                     match index {
-                        HirExpr::Var(name)
-                            if name == "char" || name == "character" || name == "c" =>
-                        {
-                            false
+                        HirExpr::Var(name) => {
+                            let name_str = name.as_str();
+                            // String-like variable names → NOT numeric
+                            if name_str == "key"
+                                || name_str == "k"
+                                || name_str == "name"
+                                || name_str == "id"
+                                || name_str == "word"
+                                || name_str == "text"
+                                || name_str == "char"
+                                || name_str == "character"
+                                || name_str == "c"
+                                || name_str.ends_with("_key")
+                                || name_str.ends_with("_name")
+                            {
+                                false
+                            } else {
+                                // Default: assume numeric for other variables
+                                true
+                            }
                         }
-                        HirExpr::Var(_)
-                        | HirExpr::Binary { .. }
+                        HirExpr::Binary { .. }
                         | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
                         _ => false,
                     }
@@ -2043,21 +2059,59 @@ pub(crate) fn codegen_assign_index(
             }
         } else {
             // No type info - use heuristic
+            // DEPYLER-0449: Check if index looks like a string key before assuming numeric
             match index {
-                HirExpr::Var(name) if name == "char" || name == "character" || name == "c" => false,
-                HirExpr::Var(_)
-                | HirExpr::Binary { .. }
-                | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
+                HirExpr::Var(name) => {
+                    let name_str = name.as_str();
+                    // String-like variable names → NOT numeric
+                    if name_str == "key"
+                        || name_str == "k"
+                        || name_str == "name"
+                        || name_str == "id"
+                        || name_str == "word"
+                        || name_str == "text"
+                        || name_str == "char"
+                        || name_str == "character"
+                        || name_str == "c"
+                        || name_str.ends_with("_key")
+                        || name_str.ends_with("_name")
+                    {
+                        false
+                    } else {
+                        // Default: assume numeric for other variables
+                        true
+                    }
+                }
+                HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
                 _ => false,
             }
         }
     } else {
         // Base is not a simple variable - use heuristic
+        // DEPYLER-0449: Check if index looks like a string key before assuming numeric
         match index {
-            HirExpr::Var(name) if name == "char" || name == "character" || name == "c" => false,
-            HirExpr::Var(_)
-            | HirExpr::Binary { .. }
-            | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
+            HirExpr::Var(name) => {
+                let name_str = name.as_str();
+                // String-like variable names → NOT numeric
+                if name_str == "key"
+                    || name_str == "k"
+                    || name_str == "name"
+                    || name_str == "id"
+                    || name_str == "word"
+                    || name_str == "text"
+                    || name_str == "char"
+                    || name_str == "character"
+                    || name_str == "c"
+                    || name_str.ends_with("_key")
+                    || name_str.ends_with("_name")
+                {
+                    false
+                } else {
+                    // Default: assume numeric for other variables
+                    true
+                }
+            }
+            HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
             _ => false,
         }
     };
@@ -2122,12 +2176,34 @@ pub(crate) fn codegen_assign_index(
         value_expr
     };
 
+    // DEPYLER-0449: Detect if base is serde_json::Value (needs .as_object_mut())
+    // Heuristic: check variable name patterns that suggest Value type
+    let needs_as_object_mut = if let HirExpr::Var(base_name) = base {
+        if !is_numeric_index {
+            let name_str = base_name.as_str();
+            // Variables commonly used with serde_json::Value
+            name_str == "config"
+                || name_str == "data"
+                || name_str == "value"
+                || name_str == "current"
+                || name_str == "obj"
+                || name_str == "json"
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
     if indices.is_empty() {
         // Simple assignment: d[k] = v OR list[i] = x
         if is_numeric_index {
             // DEPYLER-0314: Vec.insert(index as usize, value)
             // Wrap in parentheses to ensure correct operator precedence
             Ok(quote! { #base_expr.insert((#final_index) as usize, #value_expr); })
+        } else if needs_as_object_mut {
+            // DEPYLER-0449: serde_json::Value needs .as_object_mut() for insert
+            Ok(quote! { #base_expr.as_object_mut().unwrap().insert(#final_index, #value_expr); })
         } else {
             // HashMap.insert(key, value)
             Ok(quote! { #base_expr.insert(#final_index, #value_expr); })
@@ -2145,6 +2221,9 @@ pub(crate) fn codegen_assign_index(
             // DEPYLER-0314: Vec.insert(index as usize, value)
             // Wrap in parentheses to ensure correct operator precedence
             Ok(quote! { #chain.insert((#final_index) as usize, #value_expr); })
+        } else if needs_as_object_mut {
+            // DEPYLER-0449: serde_json::Value needs .as_object_mut() for insert
+            Ok(quote! { #chain.as_object_mut().unwrap().insert(#final_index, #value_expr); })
         } else {
             // HashMap.insert(key, value)
             Ok(quote! { #chain.insert(#final_index, #value_expr); })
