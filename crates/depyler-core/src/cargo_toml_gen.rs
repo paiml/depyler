@@ -365,6 +365,7 @@ mod tests {
             generated_args_struct: None,
             generated_commands_enum: None,
             current_subcommand_fields: None,
+            validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -455,6 +456,7 @@ mod tests {
             generated_args_struct: None,
             generated_commands_enum: None,
             current_subcommand_fields: None,
+            validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
         };
 
         let deps = extract_dependencies(&ctx);
@@ -542,6 +544,7 @@ mod tests {
             generated_args_struct: None,
             generated_commands_enum: None,
             current_subcommand_fields: None,
+            validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
         };
 
         let deps = extract_dependencies(&ctx);
@@ -633,6 +636,7 @@ mod tests {
             generated_args_struct: None,
             generated_commands_enum: None,
             current_subcommand_fields: None,
+            validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
         };
 
         let deps = extract_dependencies(&ctx);
