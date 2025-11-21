@@ -164,6 +164,49 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### Advanced: Custom Rust Attributes
+
+Depyler supports injecting custom Rust attributes via `@rust.attr()` decorators. This enables advanced Rust features like inlining hints, custom derives, cfg attributes, and more.
+
+**Example** (`custom_attrs.py`):
+```python
+from depyler.annotations import rust
+
+@rust.attr("inline")
+@rust.attr("must_use")
+def fast_multiply(x: int, y: int) -> int:
+    return x * y
+
+@rust.attr("derive(Debug, Clone)")
+@rust.attr("cfg(test)")
+def test_helper(value: str) -> str:
+    return value.upper()
+```
+
+**Output** (`custom_attrs.rs`):
+```rust
+#[inline]
+#[must_use]
+pub fn fast_multiply(x: i32, y: i32) -> i32 {
+    x * y
+}
+
+#[derive(Debug, Clone)]
+#[cfg(test)]
+pub fn test_helper(value: String) -> String {
+    value.to_uppercase()
+}
+```
+
+**Use Cases:**
+- Performance optimization (`#[inline]`, `#[inline(always)]`, `#[cold]`)
+- Compiler hints (`#[must_use]`, `#[allow(dead_code)]`)
+- Conditional compilation (`#[cfg(test)]`, `#[cfg(feature = "...")]`)
+- Custom derives (`#[derive(Debug, Clone, Serialize)]`)
+- Procedural macros and custom attributes
+
+See [docs/custom-attributes.md](docs/custom-attributes.md) for complete documentation.
+
 ## Features
 
 ### Core Capabilities
@@ -190,6 +233,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - Context managers (with statements)
 - Iterators
 - **Print statements** (correctly generates println! macro)
+- **Custom Rust attributes** via `@rust.attr()` (NEW in PR #76) ✨
 
 **Not Supported:**
 - Dynamic features (eval, exec)
