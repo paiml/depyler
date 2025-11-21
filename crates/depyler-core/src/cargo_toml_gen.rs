@@ -367,6 +367,7 @@ mod tests {
             current_subcommand_fields: None,
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
+            hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -459,6 +460,7 @@ mod tests {
             current_subcommand_fields: None,
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
+            hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
         };
 
         let deps = extract_dependencies(&ctx);
@@ -548,6 +550,7 @@ mod tests {
             current_subcommand_fields: None,
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
+            hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
         };
 
         let deps = extract_dependencies(&ctx);
@@ -641,6 +644,7 @@ mod tests {
             current_subcommand_fields: None,
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
+            hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
         };
 
         let deps = extract_dependencies(&ctx);

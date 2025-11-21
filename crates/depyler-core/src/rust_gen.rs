@@ -693,6 +693,7 @@ pub fn generate_rust_file(
         current_subcommand_fields: None, // DEPYLER-0425: Subcommand field extraction
         validator_functions: HashSet::new(), // DEPYLER-0447: Track argparse validator functions
         stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452: Stdlib API mappings
+        hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
     };
 
     // Analyze all functions first for string optimization
@@ -882,6 +883,7 @@ mod tests {
             current_subcommand_fields: None, // DEPYLER-0425: Subcommand field extraction
             validator_functions: HashSet::new(), // DEPYLER-0447: Track argparse validator functions
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
+            hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
         }
     }
 
