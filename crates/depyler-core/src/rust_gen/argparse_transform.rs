@@ -1504,3 +1504,251 @@ pub fn wrap_body_with_subcommand_pattern(
         }
     }]
 }
+
+/// DEPYLER-0456 Bug #1: Pre-scan HIR function body to register all add_parser() calls
+/// This must run BEFORE body codegen so Commands enum includes expression statement subcommands
+///
+/// # Complexity
+/// 8 (recursive HIR walk)
+pub fn preregister_subcommands_from_hir(func: &crate::hir::HirFunction, tracker: &mut ArgParserTracker) {
+    use crate::hir::{HirExpr, HirStmt};
+
+    // Helper to extract string literal value from HIR expression
+    fn extract_string_from_hir(expr: &HirExpr) -> String {
+        match expr {
+            HirExpr::Literal(crate::hir::Literal::String(s)) => s.clone(),
+            _ => String::new(),
+        }
+    }
+
+    // Helper to extract keyword argument string value
+    fn extract_kwarg_string_from_hir(kwargs: &[(String, HirExpr)], key: &str) -> Option<String> {
+        kwargs
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| extract_string_from_hir(v))
+    }
+
+    // Recursive walker for expressions
+    fn walk_expr(expr: &HirExpr, tracker: &mut ArgParserTracker) {
+        match expr {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+                kwargs,
+            } if method == "add_parser" => {
+                // Check if this is a call on a subparsers variable
+                if let HirExpr::Var(subparsers_var) = object.as_ref() {
+                    if tracker.get_subparsers(subparsers_var).is_some() {
+                        // Extract command name and help text
+                        if !args.is_empty() {
+                            let command_name = extract_string_from_hir(&args[0]);
+                            let help = extract_kwarg_string_from_hir(kwargs, "help");
+
+                            // Register subcommand (use command name as key for expression statements)
+                            let subcommand_info = SubcommandInfo {
+                                name: command_name.clone(),
+                                help,
+                                arguments: vec![],
+                                subparsers_var: subparsers_var.clone(),
+                            };
+
+                            tracker.register_subcommand(command_name, subcommand_info);
+                        }
+                    }
+                }
+                // Recurse into method call arguments
+                walk_expr(object, tracker);
+                for arg in args {
+                    walk_expr(arg, tracker);
+                }
+                for (_, val) in kwargs {
+                    walk_expr(val, tracker);
+                }
+            }
+            // Recurse into all other expression types
+            HirExpr::Binary { left, right, .. } => {
+                walk_expr(left, tracker);
+                walk_expr(right, tracker);
+            }
+            HirExpr::Unary { operand, .. } => {
+                walk_expr(operand, tracker);
+            }
+            HirExpr::Call { args, kwargs, .. } => {
+                for arg in args {
+                    walk_expr(arg, tracker);
+                }
+                for (_, val) in kwargs {
+                    walk_expr(val, tracker);
+                }
+            }
+            HirExpr::MethodCall {
+                object,
+                args,
+                kwargs,
+                ..
+            } => {
+                walk_expr(object, tracker);
+                for arg in args {
+                    walk_expr(arg, tracker);
+                }
+                for (_, val) in kwargs {
+                    walk_expr(val, tracker);
+                }
+            }
+            HirExpr::Attribute { value, .. } => {
+                walk_expr(value, tracker);
+            }
+            HirExpr::List(items) | HirExpr::Tuple(items) | HirExpr::Set(items) | HirExpr::FrozenSet(items) => {
+                for item in items {
+                    walk_expr(item, tracker);
+                }
+            }
+            HirExpr::Dict(items) => {
+                for (k, v) in items {
+                    walk_expr(k, tracker);
+                    walk_expr(v, tracker);
+                }
+            }
+            HirExpr::Index { base, index } => {
+                walk_expr(base, tracker);
+                walk_expr(index, tracker);
+            }
+            HirExpr::IfExpr { test, body, orelse } => {
+                walk_expr(test, tracker);
+                walk_expr(body, tracker);
+                walk_expr(orelse, tracker);
+            }
+            _ => {} // Literals, vars, etc. - no recursion needed
+        }
+    }
+
+    // Recursive walker for statements
+    fn walk_stmt(stmt: &HirStmt, tracker: &mut ArgParserTracker) {
+        match stmt {
+            HirStmt::Expr(expr) => walk_expr(expr, tracker),
+            HirStmt::Assign { target, value, type_annotation: _ } => {
+                // Special handling for ArgumentParser() assignments
+                // Pattern: parser = argparse.ArgumentParser(...)
+                if let HirExpr::Call { func, kwargs, .. } = value {
+                    if func == "ArgumentParser" {
+                        if let crate::hir::AssignTarget::Symbol(parser_var) = target {
+                            // Register parser
+                            let description = extract_kwarg_string_from_hir(kwargs, "description");
+                            let epilog = extract_kwarg_string_from_hir(kwargs, "epilog");
+
+                            let parser_info = ArgParserInfo {
+                                parser_var: parser_var.clone(),
+                                description,
+                                epilog,
+                                arguments: vec![],
+                                args_var: None,
+                            };
+
+                            tracker.register_parser(parser_var.clone(), parser_info);
+                        }
+                    }
+                }
+
+                // Special handling for add_subparsers() assignments
+                // Pattern: subparsers = parser.add_subparsers(...)
+                if let HirExpr::MethodCall {
+                    object,
+                    method,
+                    kwargs,
+                    ..
+                } = value
+                {
+                    if method == "add_subparsers" {
+                        if let HirExpr::Var(parser_var) = object.as_ref() {
+                            if tracker.get_parser(parser_var).is_some() {
+                                if let crate::hir::AssignTarget::Symbol(subparsers_var) = target {
+                                    let dest_field = extract_kwarg_string_from_hir(kwargs, "dest")
+                                        .unwrap_or_else(|| "command".to_string());
+                                    let required = extract_kwarg_string_from_hir(kwargs, "required")
+                                        .map(|s| s == "true" || s == "True")
+                                        .unwrap_or(false);
+                                    let help = extract_kwarg_string_from_hir(kwargs, "help");
+
+                                    let subparser_info = SubparserInfo {
+                                        parser_var: parser_var.clone(),
+                                        dest_field,
+                                        required,
+                                        help,
+                                    };
+
+                                    // Use actual variable name from assignment
+                                    tracker.register_subparsers(
+                                        subparsers_var.clone(),
+                                        subparser_info,
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+                // Also walk value for other method calls (e.g., nested add_parser() calls)
+                walk_expr(value, tracker);
+            }
+            HirStmt::Return(Some(expr)) => walk_expr(expr, tracker),
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
+                walk_expr(condition, tracker);
+                for s in then_body {
+                    walk_stmt(s, tracker);
+                }
+                if let Some(else_stmts) = else_body {
+                    for s in else_stmts {
+                        walk_stmt(s, tracker);
+                    }
+                }
+            }
+            HirStmt::While { condition, body } => {
+                walk_expr(condition, tracker);
+                for s in body {
+                    walk_stmt(s, tracker);
+                }
+            }
+            HirStmt::For { body, .. } => {
+                for s in body {
+                    walk_stmt(s, tracker);
+                }
+            }
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
+                for s in body {
+                    walk_stmt(s, tracker);
+                }
+                for handler in handlers {
+                    for s in &handler.body {
+                        walk_stmt(s, tracker);
+                    }
+                }
+                if let Some(orelse_stmts) = orelse {
+                    for s in orelse_stmts {
+                        walk_stmt(s, tracker);
+                    }
+                }
+                if let Some(final_stmts) = finalbody {
+                    for s in final_stmts {
+                        walk_stmt(s, tracker);
+                    }
+                }
+            }
+            _ => {} // Other statement types don't contain add_parser() calls
+        }
+    }
+
+    // Walk all statements in function body
+    for stmt in &func.body {
+        walk_stmt(stmt, tracker);
+    }
+}
