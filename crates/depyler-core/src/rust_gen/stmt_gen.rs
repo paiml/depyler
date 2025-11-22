@@ -432,6 +432,31 @@ pub(crate) fn codegen_expr_stmt(
                         // Defaults use field default values
                         return Ok(quote! {});
                     }
+                    "add_parser" => {
+                        // DEPYLER-0456: Handle subparsers.add_parser() expression statements
+                        // Pattern: subparsers.add_parser("init", help="...")
+                        // Register the subcommand and skip code generation
+                        if ctx.argparser_tracker.get_subparsers(var_name).is_some() {
+                            // Extract command name and help text
+                            if !args.is_empty() {
+                                let command_name = extract_string_literal(&args[0]);
+                                let help = extract_kwarg_string(kwargs, "help");
+
+                                // Register subcommand without a variable name (since it's not assigned)
+                                use crate::rust_gen::argparse_transform::SubcommandInfo;
+                                let subcommand_info = SubcommandInfo {
+                                    name: command_name.clone(),
+                                    help,
+                                    arguments: vec![],
+                                    subparsers_var: var_name.clone(),
+                                };
+
+                                // Use the command name itself as the key (since there's no parser variable)
+                                ctx.argparser_tracker.register_subcommand(command_name, subcommand_info);
+                            }
+                            return Ok(quote! {});
+                        }
+                    }
                     _ => {
                         // Other parser methods - fall through to normal code generation
                     }
