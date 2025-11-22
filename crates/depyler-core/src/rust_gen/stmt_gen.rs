@@ -1698,19 +1698,30 @@ pub(crate) fn codegen_assign_stmt(
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
     // DEPYLER-0399: Transform CSE assignments for subcommand comparisons
-    // When we have subcommands, assignments like `_cse_temp_0 = args.command == "clone"`
+    // DEPYLER-0456 Bug #2: Use dest_field instead of hardcoded "command"
+    // When we have subcommands, assignments like `_cse_temp_0 = args.action == "clone"`
     // would try to compare Commands enum to string (won't compile).
     // Transform into a match expression that returns bool:
-    // let _cse_temp_0 = matches!(args.command, Commands::Clone { .. });
+    // let _cse_temp_0 = matches!(args.action, Commands::Clone { .. });
     if ctx.argparser_tracker.has_subcommands() {
-        if let Some(cmd_name) = is_subcommand_check(value) {
+        // Get dest_field from subparser info
+        let dest_field = ctx
+            .argparser_tracker
+            .subparsers
+            .values()
+            .next()
+            .map(|sp| sp.dest_field.clone())
+            .unwrap_or_else(|| "command".to_string());
+
+        if let Some(cmd_name) = is_subcommand_check(value, &dest_field) {
             if let AssignTarget::Symbol(cse_var) = target {
                 use quote::{format_ident, quote};
                 let variant_name = format_ident!("{}", to_pascal_case_subcommand(&cmd_name));
                 let var_ident = safe_ident(cse_var);
+                let dest_field_ident = format_ident!("{}", dest_field);
 
                 return Ok(quote! {
-                    let #var_ident = matches!(args.command, Commands::#variant_name { .. });
+                    let #var_ident = matches!(args.#dest_field_ident, Commands::#variant_name { .. });
                 });
             }
         }
@@ -3231,8 +3242,18 @@ fn try_generate_subcommand_match(
 ) -> Result<Option<proc_macro2::TokenStream>> {
     use quote::{format_ident, quote};
 
-    // Check if condition matches: args.command == "string"
-    let command_name = match is_subcommand_check(condition) {
+    // DEPYLER-0456 Bug #2: Get dest_field from subparser info
+    // Find the dest_field name (e.g., "action" or "command")
+    let dest_field = ctx
+        .argparser_tracker
+        .subparsers
+        .values()
+        .next()
+        .map(|sp| sp.dest_field.clone())
+        .unwrap_or_else(|| "command".to_string()); // Default to "command" for backwards compatibility
+
+    // Check if condition matches: args.<dest_field> == "string"
+    let command_name = match is_subcommand_check(condition, &dest_field) {
         Some(name) => name,
         None => return Ok(None),
     };
@@ -3251,7 +3272,7 @@ fn try_generate_subcommand_match(
                 else_body: elif_else,
             } = &else_stmts[0]
             {
-                if let Some(elif_name) = is_subcommand_check(elif_cond) {
+                if let Some(elif_name) = is_subcommand_check(elif_cond, &dest_field) {
                     branches.push((elif_name, elif_then.as_slice()));
                     current_else = elif_else;
                     continue;
@@ -3311,31 +3332,35 @@ fn try_generate_subcommand_match(
         })
         .collect();
 
+    // DEPYLER-0456 Bug #2: Use dest_field in match expression
+    let dest_field_ident = format_ident!("{}", dest_field);
     Ok(Some(quote! {
-        match args.command {
+        match args.#dest_field_ident {
             #(#arms)*
         }
     }))
 }
 
 /// DEPYLER-0399: Check if expression is a subcommand check pattern
+/// DEPYLER-0456 Bug #2: Accept dest_field parameter to support custom field names
 ///
-/// Returns the command name if pattern matches: args.command == "string"
-fn is_subcommand_check(expr: &HirExpr) -> Option<String> {
+/// Returns the command name if pattern matches: args.<dest_field> == "string"
+fn is_subcommand_check(expr: &HirExpr, dest_field: &str) -> Option<String> {
     match expr {
         HirExpr::Binary {
             op: BinOp::Eq,
             left,
             right,
         } => {
-            // Check if left side is args.command
-            let is_command_attr = matches!(
+            // DEPYLER-0456 Bug #2: Check if left side is args.<dest_field>
+            // (e.g., args.action, args.command, etc.)
+            let is_dest_field_attr = matches!(
                 left.as_ref(),
-                HirExpr::Attribute { attr, .. } if attr == "command"
+                HirExpr::Attribute { attr, .. } if attr == dest_field
             );
 
             // Check if right side is a string literal
-            if is_command_attr {
+            if is_dest_field_attr {
                 if let HirExpr::Literal(Literal::String(cmd_name)) = right.as_ref() {
                     return Some(cmd_name.clone());
                 }
