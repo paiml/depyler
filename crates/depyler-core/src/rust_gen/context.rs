@@ -92,9 +92,9 @@ pub struct CodeGenContext<'a> {
     /// Used to track types of variables assigned from function calls
     pub function_return_types: HashMap<String, Type>,
     /// DEPYLER-0270: Track function parameter borrowing for auto-borrow decisions
-    /// Maps function name -> Vec of booleans (true if param is borrowed, false if owned)
-    /// Used to determine whether to add & when passing List/Dict/Set arguments
-    pub function_param_borrows: HashMap<String, Vec<bool>>,
+    /// Maps function name -> Vec of (is_borrowed, is_mutable) tuples
+    /// Used to determine whether to add &, &mut when passing List/Dict/Set arguments
+    pub function_param_borrows: HashMap<String, Vec<(bool, bool)>>,
     /// DEPYLER-0307 Fix #9: Track variables that iterate over tuples (from zip())
     /// Used to generate tuple field access syntax (tuple.0, tuple.1) instead of vector indexing
     pub tuple_iter_vars: HashSet<String>,
@@ -128,15 +128,15 @@ pub struct CodeGenContext<'a> {
     /// If current function accesses subcommand fields, this maps field names to variant name
     /// Used by expr_gen to rewrite args.field → field (extracted via pattern matching)
     pub current_subcommand_fields: Option<std::collections::HashSet<String>>,
-
-    /// DEPYLER-0447: Track argparse validator functions (type= parameter in add_argument)
     /// These functions should have &str parameter type regardless of type inference
     /// Populated when processing add_argument(type=validator_func) calls
     pub validator_functions: std::collections::HashSet<String>,
-
     /// DEPYLER-0452: Stdlib API mapping system for Python→Rust API translations
     /// Maps Python stdlib patterns (module, class, attribute) to Rust code patterns
     pub stdlib_mappings: crate::stdlib_mappings::StdlibMappings,
+    /// Interprocedural analysis results for cross-function mutation detection
+    /// Used by lifetime analysis to determine parameter mutability across function boundaries
+    pub interprocedural_analysis: Option<&'a crate::interprocedural::InterproceduralAnalysis<'a>>,
 }
 
 impl<'a> CodeGenContext<'a> {

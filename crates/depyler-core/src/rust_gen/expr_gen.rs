@@ -174,19 +174,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(parse_quote! { #right_expr.contains(#left_expr) })
                     }
                 } else {
-                    // DEPYLER-0449: Dict/HashMap uses .get(key).is_some() for compatibility
-                    // This works for BOTH HashMap AND serde_json::Value:
-                    // - HashMap<K, V>: .get(&K) -> Option<&V>
-                    // - serde_json::Value: .get(&str) -> Option<&Value>
-                    //
-                    // Using .get().is_some() instead of .contains_key() because:
-                    // 1. serde_json::Value doesn't have .contains_key() method
-                    // 2. .get().is_some() is equivalent to .contains_key() for HashMap
-                    // 3. Works universally for both HashMap and Value types
-                    if needs_borrow {
-                        Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
+                    // DEPYLER-0303 + DEPYLER-0449: Dict/HashMap membership check
+                    // For typed dicts (HashMap<K, V>), use .contains_key() which is more idiomatic
+                    // For untyped dicts (serde_json::Value), use .get().is_some() for compatibility
+
+                    // Check if we know the type is a typed Dict/HashMap
+                    let is_typed_dict = if let HirExpr::Var(name) = right {
+                        self.ctx
+                            .var_types
+                            .get(name)
+                            .map(|t| matches!(t, Type::Dict(_, _)))
+                            .unwrap_or(false)
                     } else {
-                        Ok(parse_quote! { #right_expr.get(#left_expr).is_some() })
+                        false
+                    };
+
+                    if is_typed_dict {
+                        // Use .contains_key() for typed HashMap<K, V>
+                        if needs_borrow {
+                            Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                        } else {
+                            Ok(parse_quote! { #right_expr.contains_key(#left_expr) })
+                        }
+                    } else {
+                        // Use .get().is_some() for untyped dicts (serde_json::Value)
+                        // This works for BOTH HashMap AND serde_json::Value:
+                        // - HashMap<K, V>: .get(&K) -> Option<&V>
+                        // - serde_json::Value: .get(&str) -> Option<&Value>
+                        if needs_borrow {
+                            Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
+                        } else {
+                            Ok(parse_quote! { #right_expr.get(#left_expr).is_some() })
+                        }
                     }
                 }
             }
@@ -231,14 +250,35 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(parse_quote! { !#right_expr.contains(#left_expr) })
                     }
                 } else {
-                    // DEPYLER-0449: Dict/HashMap uses .get(key).is_some() for compatibility
-                    // Same as BinOp::In, but negated - works for both HashMap and Value
-                    // (DEPYLER-0326: Fix Phase 2A auto-borrowing in condition contexts)
-                    // (DEPYLER-0329: Avoid double-borrowing for reference-type parameters)
-                    if needs_borrow {
-                        Ok(parse_quote! { !#right_expr.get(&#left_expr).is_some() })
+                    // DEPYLER-0303 + DEPYLER-0449: Dict/HashMap membership check (negated)
+                    // For typed dicts (HashMap<K, V>), use .contains_key() which is more idiomatic
+                    // For untyped dicts (serde_json::Value), use .get().is_some() for compatibility
+
+                    // Check if we know the type is a typed Dict/HashMap
+                    let is_typed_dict = if let HirExpr::Var(name) = right {
+                        self.ctx
+                            .var_types
+                            .get(name)
+                            .map(|t| matches!(t, Type::Dict(_, _)))
+                            .unwrap_or(false)
                     } else {
-                        Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() })
+                        false
+                    };
+
+                    if is_typed_dict {
+                        // Use .contains_key() for typed HashMap<K, V>
+                        if needs_borrow {
+                            Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+                        } else {
+                            Ok(parse_quote! { !#right_expr.contains_key(#left_expr) })
+                        }
+                    } else {
+                        // Use .get().is_some() for untyped dicts (serde_json::Value)
+                        if needs_borrow {
+                            Ok(parse_quote! { !#right_expr.get(&#left_expr).is_some() })
+                        } else {
+                            Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() })
+                        }
                     }
                 }
             }
@@ -2351,7 +2391,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // This handles cases like: sum_list_recursive(rest) where rest is Vec but param is &Vec
             //
             // Strategy:
-            // 1. Look up function signature to see which params are borrowed
+            // 1. Look up function signature to see which params are borrowed and if mutable
             // 2. Only borrow if: (a) arg is List/Dict/Set AND (b) function expects borrow
             // 3. Otherwise pass as-is (either owned or primitive)
             let borrowed_args: Vec<syn::Expr> = hir_args
@@ -2380,13 +2420,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
 
                     // Check if this param should be borrowed by looking up function signature
-                    let should_borrow = match hir_arg {
+                    // Returns (should_borrow, is_mutable)
+                    let (should_borrow, is_mutable) = match hir_arg {
                         HirExpr::Var(var_name) => {
-                            // Check if variable has List, Dict, or Set type
+                            // Check if variable has List, Dict, Set, or class type
                             if let Some(var_type) = self.ctx.var_types.get(var_name) {
                                 if matches!(
                                     var_type,
-                                    Type::List(_) | Type::Dict(_, _) | Type::Set(_)
+                                    Type::List(_)
+                                        | Type::Dict(_, _)
+                                        | Type::Set(_)
+                                        | Type::Custom(_)
                                 ) {
                                     // Check if function param expects a borrow
                                     self.ctx
@@ -2394,12 +2438,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                         .get(func)
                                         .and_then(|borrows| borrows.get(param_idx))
                                         .copied()
-                                        .unwrap_or(true) // Default to borrow if unknown
+                                        .unwrap_or((true, false)) // Default to immutable borrow if unknown
                                 } else {
-                                    false
+                                    (false, false)
                                 }
                             } else {
-                                false
+                                (false, false)
                             }
                         }
                         // DEPYLER-0359: Auto-borrow list/dict/set literals when calling functions
@@ -2411,18 +2455,47 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 .get(func)
                                 .and_then(|borrows| borrows.get(param_idx))
                                 .copied()
-                                .unwrap_or(true) // Default to borrow if unknown
+                                .unwrap_or((true, false)) // Default to immutable borrow if unknown
                         }
                         _ => {
                             // Fallback: check if expression creates a Vec via .to_vec()
                             let expr_string = quote! { #arg_expr }.to_string();
-                            expr_string.contains("to_vec")
+                            if expr_string.contains("to_vec") {
+                                (true, false)
+                            } else {
+                                (false, false)
+                            }
                         }
                     };
 
                     if should_borrow {
-                        parse_quote! { &#arg_expr }
+                        if is_mutable {
+                            parse_quote! { &mut #arg_expr }
+                        } else {
+                            parse_quote! { &#arg_expr }
+                        }
                     } else {
+                        // Parameter takes by value (ownership transfer)
+                        // For variables with non-Copy types, we need to clone to allow reuse
+                        // This is conservative but correct - the alternative would require
+                        // flow analysis to determine if this is the variable's last use
+                        if let HirExpr::Var(var_name) = hir_arg {
+                            // Check if this is a non-Copy type that needs cloning
+                            if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                                if matches!(
+                                    var_type,
+                                    Type::List(_)
+                                        | Type::Dict(_, _)
+                                        | Type::Set(_)
+                                        | Type::String
+                                        | Type::Custom(_)
+                                ) {
+                                    // Non-Copy type passed by value -> needs .clone()
+                                    return parse_quote! { #arg_expr.clone() };
+                                }
+                            }
+                        }
+                        // Copy type or unknown type - pass as-is
                         arg_expr.clone()
                     }
                 })
@@ -9770,7 +9843,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0422: Removed "data" from heuristic - too broad, catches sorted_data, dataset, etc.
             // Only use "dict" or "map" which are more specific to HashMap variables
             let name = sym.as_str();
-            if (name.contains("dict") || name.contains("map") || name.contains("config") || name.contains("value"))
+            if (name.contains("dict")
+                || name.contains("map")
+                || name.contains("config")
+                || name.contains("value"))
                 && !self.is_numeric_index(index)
             {
                 return Ok(true);
@@ -10764,10 +10840,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Try common CSV patterns (heuristic-based for now)
         if let Some(mapping) = self.ctx.stdlib_mappings.lookup("csv", "DictReader", attr) {
             // Found a CSV DictReader mapping - apply it
-            let rust_code = mapping.generate_rust_code(
-                &value_expr.to_token_stream().to_string(),
-                &[]
-            );
+            let rust_code =
+                mapping.generate_rust_code(&value_expr.to_token_stream().to_string(), &[]);
             if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
                 return Ok(expr);
             }
@@ -10775,10 +10849,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // Also try generic Reader patterns
         if let Some(mapping) = self.ctx.stdlib_mappings.lookup("csv", "Reader", attr) {
-            let rust_code = mapping.generate_rust_code(
-                &value_expr.to_token_stream().to_string(),
-                &[]
-            );
+            let rust_code =
+                mapping.generate_rust_code(&value_expr.to_token_stream().to_string(), &[]);
             if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
                 return Ok(expr);
             }

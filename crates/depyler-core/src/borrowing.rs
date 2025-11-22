@@ -1,5 +1,5 @@
 use crate::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Type};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// Tracks how parameters are used within a function to infer borrowing patterns
 #[derive(Debug, Default)]
@@ -12,6 +12,9 @@ pub struct BorrowingContext {
     read_only_params: HashSet<String>,
     /// Parameters used in loops (may need special handling)
     loop_used_params: HashSet<String>,
+    /// Maps loop variables to the parameter they originate from
+    /// e.g., "item" -> "state" when iterating over state.items
+    loop_var_origins: HashMap<String, String>,
 }
 
 /// Analysis result for a single parameter
@@ -91,20 +94,37 @@ impl BorrowingContext {
                 else_body,
             } => self.analyze_if(condition, then_body, else_body),
             HirStmt::While { condition, body } => self.analyze_while(condition, body),
-            HirStmt::For {
-                target: _,
-                iter,
-                body,
-            } => self.analyze_for(iter, body),
+            HirStmt::For { target, iter, body } => self.analyze_for(target, iter, body),
             _ => {}
         }
     }
 
     fn analyze_assign(&mut self, target: &AssignTarget, value: &HirExpr) {
-        if let AssignTarget::Symbol(symbol) = target {
-            if self.read_only_params.contains(symbol) {
-                self.mutated_params.insert(symbol.clone());
+        match target {
+            AssignTarget::Symbol(symbol) => {
+                if self.read_only_params.contains(symbol) {
+                    self.mutated_params.insert(symbol.clone());
+                }
             }
+            AssignTarget::Attribute { value: obj, .. } => {
+                // Check if we're mutating an attribute of a loop variable
+                // e.g., item.value = ... where item comes from state.items
+                if let HirExpr::Var(var_name) = obj.as_ref() {
+                    if let Some(param_name) = self.loop_var_origins.get(var_name) {
+                        // Mark the original parameter as mutated
+                        self.mutated_params.insert(param_name.clone());
+                    }
+                }
+            }
+            AssignTarget::Index { base, .. } => {
+                // Similarly handle index assignments through loop variables
+                if let HirExpr::Var(var_name) = base.as_ref() {
+                    if let Some(param_name) = self.loop_var_origins.get(var_name) {
+                        self.mutated_params.insert(param_name.clone());
+                    }
+                }
+            }
+            _ => {}
         }
         self.check_escaping_expr(value);
         self.analyze_expr(value);
@@ -140,7 +160,15 @@ impl BorrowingContext {
         }
     }
 
-    fn analyze_for(&mut self, iter: &HirExpr, body: &[HirStmt]) {
+    fn analyze_for(&mut self, target: &AssignTarget, iter: &HirExpr, body: &[HirStmt]) {
+        // Track the origin of the loop variable
+        // If we're iterating over param.attr (e.g., state.items), track that
+        if let AssignTarget::Symbol(loop_var) = target {
+            if let Some(param_name) = self.extract_param_from_expr(iter) {
+                self.loop_var_origins.insert(loop_var.clone(), param_name);
+            }
+        }
+
         self.analyze_expr(iter);
         self.mark_loop_params(body);
         for stmt in body {
@@ -266,6 +294,33 @@ impl BorrowingContext {
                 self.find_params_in_expr(index);
             }
             _ => {}
+        }
+    }
+
+    /// Extract the parameter name from an expression
+    /// For example, from `state.items` extract `state`
+    fn extract_param_from_expr(&self, expr: &HirExpr) -> Option<String> {
+        match expr {
+            HirExpr::Var(name) => {
+                // Direct parameter reference
+                if self.read_only_params.contains(name)
+                    || self.mutated_params.contains(name)
+                    || self.escaping_params.contains(name)
+                {
+                    Some(name.clone())
+                } else {
+                    None
+                }
+            }
+            HirExpr::Attribute { value, .. } => {
+                // Attribute access like state.items - extract the base
+                self.extract_param_from_expr(value)
+            }
+            HirExpr::Index { base, .. } => {
+                // Index access like state[0] - extract the base
+                self.extract_param_from_expr(base)
+            }
+            _ => None,
         }
     }
 

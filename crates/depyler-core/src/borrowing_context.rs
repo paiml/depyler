@@ -2,11 +2,79 @@
 //!
 //! This module provides comprehensive analysis of parameter usage patterns
 //! to determine optimal borrowing strategies for function parameters.
+//!
+//! # Purpose
+//!
+//! Translating Python to Rust requires deciding whether parameters should be:
+//! - **Owned**: `param: T` - takes ownership, can move/consume
+//! - **Immutable borrow**: `param: &T` - read-only access
+//! - **Mutable borrow**: `param: &mut T` - can mutate but doesn't own
+//! - **Cow**: `param: Cow<T>` - flexible, can clone if needed
+//!
+//! # Analysis Process
+//!
+//! `BorrowingContext` tracks how each parameter is used:
+//! 1. **Read**: Accessing fields/methods without mutation → `&T`
+//! 2. **Mutate**: Assigning to fields, mutating methods → `&mut T`
+//! 3. **Move**: Passed to function taking ownership → `T`
+//! 4. **Escape**: Returned from function → affects lifetime
+//! 5. **Store**: Kept in struct/container → affects lifetime
+//!
+//! # Interprocedural Integration
+//!
+//! When `analyze_function_with_interprocedural()` is called with
+//! `InterproceduralAnalysis`, it enhances intraprocedural analysis:
+//!
+//! ```text
+//! Intraprocedural: state.items.append(x)  → state is mutated
+//! Interprocedural: helper(state)          → if helper mutates, state is mutated
+//! ```
+//!
+//! # Example
+//!
+//! ```python
+//! def process(state: State, config: Config) -> None:
+//!     state.value = config.multiplier * 2  # state mutated, config read
+//! ```
+//!
+//! Analysis result:
+//! - `state`: `is_mutated=true` → generates `state: &mut State`
+//! - `config`: `is_read=true` → generates `config: &Config`
+//!
+//! # Data Flow
+//!
+//! ```text
+//! LifetimeInference::analyze_function_with_interprocedural()
+//!     ↓
+//! BorrowingContext::analyze_function_with_interprocedural()
+//!     ├─ analyze_statement() - intraprocedural mutations
+//!     └─ interprocedural.is_param_mutated() - cross-function mutations
+//!         ↓
+//! determine_strategies() - choose &T, &mut T, T, or Cow<T>
+//! ```
 
+use crate::expr_utils::extract_root_var;
 use crate::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Type as PythonType};
+use crate::interprocedural::InterproceduralAnalysis;
 use crate::type_mapper::{RustType, TypeMapper};
 use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
+
+/// Check if a method name represents a mutating operation
+fn is_mutating_method(method: &str) -> bool {
+    matches!(
+        method,
+        // List methods
+        "append" | "extend" | "insert" | "remove" | "pop" | "clear" | "reverse" | "sort" |
+        // Dict methods
+        "update" | "setdefault" | "popitem" |
+        // Set methods
+        "add" | "discard" | "difference_update" | "intersection_update" | "symmetric_difference_update" |
+        "union_update" |
+        // Other mutating methods
+        "push" | "pop_front" | "push_front" | "pop_back" | "push_back"
+    )
+}
 
 /// Comprehensive borrowing context for analyzing parameter usage
 #[derive(Debug)]
@@ -169,6 +237,40 @@ impl BorrowingContext {
         self.determine_strategies(func, type_mapper)
     }
 
+    /// Analyze a function with interprocedural context
+    /// This version incorporates cross-function mutation analysis
+    pub fn analyze_function_with_interprocedural(
+        &mut self,
+        func: &HirFunction,
+        type_mapper: &TypeMapper,
+        interprocedural: Option<&InterproceduralAnalysis>,
+    ) -> BorrowingAnalysisResult {
+        // Initialize parameter tracking
+        for param in &func.params {
+            self.param_usage
+                .insert(param.name.clone(), ParameterUsagePattern::default());
+        }
+
+        // Analyze function body
+        for stmt in &func.body {
+            self.analyze_statement(stmt);
+        }
+
+        // Apply interprocedural analysis results if available
+        if let Some(analysis) = interprocedural {
+            for param in &func.params {
+                if analysis.is_param_mutated(&func.name, &param.name) {
+                    if let Some(usage) = self.param_usage.get_mut(&param.name) {
+                        usage.is_mutated = true;
+                    }
+                }
+            }
+        }
+
+        // Determine borrowing strategies based on usage patterns
+        self.determine_strategies(func, type_mapper)
+    }
+
     /// Analyze a statement for parameter usage
     fn analyze_statement(&mut self, stmt: &HirStmt) {
         match stmt {
@@ -176,16 +278,49 @@ impl BorrowingContext {
                 // Check if assigning to a parameter (mutation)
                 let in_loop = self.is_in_loop();
                 let in_conditional = self.is_in_conditional();
-                if let AssignTarget::Symbol(symbol) = target {
-                    if let Some(usage) = self.param_usage.get_mut(symbol) {
-                        usage.is_mutated = true;
-                        usage.usage_sites.push(UsageSite {
-                            usage_type: UsageType::Write,
-                            in_loop,
-                            in_conditional,
-                            borrow_depth: 0,
-                        });
+                match target {
+                    AssignTarget::Symbol(symbol) => {
+                        if let Some(usage) = self.param_usage.get_mut(symbol) {
+                            usage.is_mutated = true;
+                            usage.usage_sites.push(UsageSite {
+                                usage_type: UsageType::Write,
+                                in_loop,
+                                in_conditional,
+                                borrow_depth: 0,
+                            });
+                        }
                     }
+                    AssignTarget::Attribute { value: obj, .. } => {
+                        // Assigning to parameter.field mutates the parameter
+                        // DEPYLER-0318: Handle nested attributes like param.field.subfield = val
+                        if let Some(root_var) = extract_root_var(obj) {
+                            if let Some(usage) = self.param_usage.get_mut(&root_var) {
+                                usage.is_mutated = true;
+                                usage.usage_sites.push(UsageSite {
+                                    usage_type: UsageType::Write,
+                                    in_loop,
+                                    in_conditional,
+                                    borrow_depth: 1,
+                                });
+                            }
+                        }
+                    }
+                    AssignTarget::Index { base: obj, .. } => {
+                        // Assigning to parameter[index] mutates the parameter
+                        // DEPYLER-0318: Handle nested access like param.field[index] = val
+                        if let Some(root_var) = extract_root_var(obj) {
+                            if let Some(usage) = self.param_usage.get_mut(&root_var) {
+                                usage.is_mutated = true;
+                                usage.usage_sites.push(UsageSite {
+                                    usage_type: UsageType::Write,
+                                    in_loop,
+                                    in_conditional,
+                                    borrow_depth: 1,
+                                });
+                            }
+                        }
+                    }
+                    _ => {}
                 }
                 self.analyze_expression(value, 0);
             }
@@ -350,6 +485,7 @@ impl BorrowingContext {
                 let in_loop = self.is_in_loop();
                 let in_conditional = self.is_in_conditional();
                 for (i, arg) in args.iter().enumerate() {
+                    // Check if directly passing a parameter
                     if let HirExpr::Var(name) = arg {
                         let takes_ownership = self.function_takes_ownership(func, i);
                         if let Some(usage) = self.param_usage.get_mut(name) {
@@ -364,6 +500,33 @@ impl BorrowingContext {
                                 in_conditional,
                                 borrow_depth,
                             });
+                        }
+                    } else if let Some(root_var) = extract_root_var(arg) {
+                        // DEPYLER-0318: If passing a field (e.g., state.items) to a function,
+                        // and the function mutates that parameter, the root object must be marked as mutated
+                        let needs_mut = self.function_requires_mutable_param(func, i);
+                        let takes_ownership = self.function_takes_ownership(func, i);
+
+                        if let Some(usage) = self.param_usage.get_mut(&root_var) {
+                            // Only mark as mutated if the function actually mutates the param
+                            // Taking ownership alone doesn't mean mutation
+                            if needs_mut {
+                                usage.is_mutated = true;
+                                usage.usage_sites.push(UsageSite {
+                                    usage_type: UsageType::FunctionArg { takes_ownership },
+                                    in_loop,
+                                    in_conditional,
+                                    borrow_depth: borrow_depth + 1,
+                                });
+                            } else if takes_ownership {
+                                // Track usage but don't mark as mutated
+                                usage.usage_sites.push(UsageSite {
+                                    usage_type: UsageType::FunctionArg { takes_ownership },
+                                    in_loop,
+                                    in_conditional,
+                                    borrow_depth: borrow_depth + 1,
+                                });
+                            }
                         }
                     }
                     self.analyze_expression(arg, borrow_depth);
@@ -413,7 +576,32 @@ impl BorrowingContext {
                 }
                 self.analyze_expression(expr, borrow_depth + 1);
             }
-            HirExpr::MethodCall { object, args, .. } => {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+                ..
+            } => {
+                // Check if this is a mutating method call on a parameter
+                let in_loop = self.is_in_loop();
+                let in_conditional = self.is_in_conditional();
+                let is_mutating = is_mutating_method(method);
+
+                // DEPYLER-0318: Extract root variable from nested attribute access
+                // e.g., state.items.append() should mark 'state' as mutated
+                if is_mutating {
+                    if let Some(root_var) = extract_root_var(object) {
+                        if let Some(usage) = self.param_usage.get_mut(&root_var) {
+                            usage.is_mutated = true;
+                            usage.usage_sites.push(UsageSite {
+                                usage_type: UsageType::MethodCall(method.clone()),
+                                in_loop,
+                                in_conditional,
+                                borrow_depth,
+                            });
+                        }
+                    }
+                }
                 self.analyze_expression(object, borrow_depth);
                 for arg in args {
                     self.analyze_expression(arg, borrow_depth);
@@ -628,6 +816,21 @@ impl BorrowingContext {
             // Conservative default: assume ownership transfer
             true
         }
+    }
+
+    /// Determine if a function requires its argument to be mutable
+    /// This is used when passing field accesses (like state.items) to functions
+    fn function_requires_mutable_param(&self, func_name: &str, _arg_index: usize) -> bool {
+        // Known mutating methods/functions that require &mut T
+        let mutating_functions = [
+            "append", "extend", "insert", "remove", "pop", "clear", "sort", "reverse", "push",
+            "push_str",
+            // Custom user functions - would need interprocedural analysis
+            // For now, conservatively assume any non-standard library function
+            // might mutate if it's not in the known-immutable list
+        ];
+
+        mutating_functions.contains(&func_name)
     }
 
     /// Check if currently in a loop context

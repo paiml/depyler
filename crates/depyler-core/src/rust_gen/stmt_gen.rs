@@ -326,7 +326,8 @@ pub(crate) fn codegen_expr_stmt(
                                                     _ => {
                                                         // DEPYLER-0447: Track custom validator functions
                                                         // e.g., type=email_address → track "email_address"
-                                                        ctx.validator_functions.insert(type_name.clone());
+                                                        ctx.validator_functions
+                                                            .insert(type_name.clone());
                                                     }
                                                 }
                                             }
@@ -618,6 +619,10 @@ pub(crate) fn codegen_raise_stmt(
         // DEPYLER-0398: Handle argparse.ArgumentTypeError specially
         // Pattern: raise argparse.ArgumentTypeError("message")
         // Extract message and use directly in panic!/error
+        //
+        // DEPYLER-0295: Also handle ValueError, TypeError, KeyError, IndexError
+        // Pattern: raise ValueError("message")
+        // Extract the message to avoid double-wrapping ValueError::new(ValueError::new(...))
         let exc_expr = match exc {
             // Pattern 1: argparse.ArgumentTypeError(msg)
             HirExpr::MethodCall {
@@ -634,6 +639,17 @@ pub(crate) fn codegen_raise_stmt(
             }
             // Pattern 2: ArgumentTypeError(msg) - if imported
             HirExpr::Call { func, args, .. } if func == "ArgumentTypeError" && !args.is_empty() => {
+                args[0].to_rust_expr(ctx)?
+            }
+            // Pattern 3: ValueError(msg), TypeError(msg), etc. - extract message to avoid double-wrapping
+            HirExpr::Call { func, args, .. }
+                if (func == "ValueError"
+                    || func == "TypeError"
+                    || func == "KeyError"
+                    || func == "IndexError"
+                    || func == "ZeroDivisionError")
+                    && !args.is_empty() =>
+            {
                 args[0].to_rust_expr(ctx)?
             }
             // Default: use exception as-is
@@ -674,6 +690,7 @@ pub(crate) fn codegen_raise_stmt(
                     || exception_type == "TypeError"
                     || exception_type == "KeyError"
                     || exception_type == "IndexError"
+                    || exception_type == "ZeroDivisionError"
                 {
                     let exc_type = safe_ident(&exception_type);
                     Ok(quote! { return Err(Box::new(#exc_type::new(#exc_expr))); })
@@ -688,6 +705,7 @@ pub(crate) fn codegen_raise_stmt(
                     || exception_type == "TypeError"
                     || exception_type == "KeyError"
                     || exception_type == "IndexError"
+                    || exception_type == "ZeroDivisionError"
                 {
                     let exc_type = safe_ident(&exception_type);
                     Ok(quote! { return Err(#exc_type::new(#exc_expr)); })
@@ -1222,6 +1240,101 @@ fn is_var_used_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
     }
 }
 
+/// Check if an iterator expression is accessing a field on a parameter
+/// Returns Some((root_var, is_field_access)) if it's a field access pattern
+fn is_field_access_iter(iter: &HirExpr) -> Option<(String, bool)> {
+    match iter {
+        // Direct field access: state.items
+        HirExpr::Attribute { value, .. } => {
+            if let Some(root_var) = crate::expr_utils::extract_root_var(value) {
+                Some((root_var, true))
+            } else {
+                None
+            }
+        }
+        // enumerate(state.items) or reversed(state.items)
+        HirExpr::Call { func, args, .. }
+            if (func == "enumerate" || func == "reversed") && !args.is_empty() =>
+        {
+            if let HirExpr::Attribute { value, .. } = &args[0] {
+                if let Some(root_var) = crate::expr_utils::extract_root_var(value) {
+                    Some((root_var, true))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Check if loop body mutates the loop variable (indicating need for &mut)
+fn does_loop_body_mutate_items(target: &AssignTarget, body: &[HirStmt]) -> bool {
+    // Get the loop variable name
+    let loop_var = match target {
+        AssignTarget::Symbol(name) => name,
+        AssignTarget::Tuple(targets) => {
+            // For tuples like (i, item), check the second element
+            if targets.len() >= 2 {
+                if let AssignTarget::Symbol(name) = &targets[1] {
+                    name
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+        _ => return false,
+    };
+
+    // Check if the loop variable is mutated in the body
+    for stmt in body {
+        if is_loop_var_mutated(loop_var, stmt) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Helper to check if a loop variable is mutated in a statement
+fn is_loop_var_mutated(var_name: &str, stmt: &HirStmt) -> bool {
+    match stmt {
+        // Direct assignment to loop variable or its fields
+        HirStmt::Assign { target, .. } => {
+            match target {
+                AssignTarget::Symbol(name) if name == var_name => true,
+                AssignTarget::Attribute { value, .. } => {
+                    // Check if assigning to var_name.field
+                    matches!(value.as_ref(), HirExpr::Var(name) if name == var_name)
+                }
+                AssignTarget::Index { base, .. } => {
+                    // Check if assigning to var_name[index]
+                    matches!(base.as_ref(), HirExpr::Var(name) if name == var_name)
+                }
+                _ => false,
+            }
+        }
+        // Check nested statements
+        HirStmt::If {
+            then_body,
+            else_body,
+            ..
+        } => {
+            then_body.iter().any(|s| is_loop_var_mutated(var_name, s))
+                || else_body
+                    .as_ref()
+                    .is_some_and(|body| body.iter().any(|s| is_loop_var_mutated(var_name, s)))
+        }
+        HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+            body.iter().any(|s| is_loop_var_mutated(var_name, s))
+        }
+        _ => false,
+    }
+}
+
 /// Generate code for For loop statement
 #[inline]
 pub(crate) fn codegen_for_stmt(
@@ -1273,6 +1386,29 @@ pub(crate) fn codegen_for_stmt(
     };
 
     let mut iter_expr = iter.to_rust_expr(ctx)?;
+
+    // DEPYLER-0318: For loop borrow generation
+    // When iterating over field accesses (e.g., state.items), we MUST use borrows
+    // because Rust doesn't allow moving out of struct fields.
+    // Determine whether to use & or &mut based on loop body mutations.
+    let (needs_field_borrow, is_special_call) = if let Some((_root_var, is_field)) =
+        is_field_access_iter(iter)
+    {
+        if is_field {
+            // This is a field access - we need borrowing
+            // Determine if we need mutable or immutable borrow
+            let needs_mut_borrow = does_loop_body_mutate_items(target, body);
+
+            // Check if this is a special function call (enumerate, reversed)
+            let is_special = matches!(iter, HirExpr::Call { func, .. } if func == "enumerate" || func == "reversed");
+
+            (Some(needs_mut_borrow), is_special)
+        } else {
+            (None, false)
+        }
+    } else {
+        (None, false)
+    };
 
     // DEPYLER-0388: Handle sys.stdin iteration
     // Python: for line in sys.stdin:
@@ -1330,16 +1466,20 @@ pub(crate) fn codegen_for_stmt(
         // Try to apply CSV iteration mapping from stdlib_mappings
         // This transforms: for row in reader
         // Into: for result in reader.deserialize::<HashMap<String, String>>()
-        if let Some(pattern) = ctx.stdlib_mappings.get_iteration_pattern("csv", "DictReader") {
+        if let Some(pattern) = ctx
+            .stdlib_mappings
+            .get_iteration_pattern("csv", "DictReader")
+        {
             // Check if pattern yields Results
-            if let crate::stdlib_mappings::RustPattern::IterationPattern { yields_results, .. } = pattern {
+            if let crate::stdlib_mappings::RustPattern::IterationPattern {
+                yields_results, ..
+            } = pattern
+            {
                 csv_yields_results = *yields_results;
             }
 
-            let rust_code = pattern.generate_rust_code(
-                &iter_expr.to_token_stream().to_string(),
-                &[]
-            );
+            let rust_code =
+                pattern.generate_rust_code(&iter_expr.to_token_stream().to_string(), &[]);
             if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
                 // Set needs_csv flag
                 ctx.needs_csv = true;
@@ -1349,11 +1489,55 @@ pub(crate) fn codegen_for_stmt(
         }
     }
 
+    // DEPYLER-0318: Apply borrow operator for field access iterators
+    // If we determined that a borrow is needed (field access on a parameter),
+    // wrap the iterator expression with & or &mut, OR use .iter()/.iter_mut() for special calls
+    if let Some(needs_mut) = needs_field_borrow {
+        if is_special_call {
+            // For enumerate/reversed, we need to regenerate using .iter()/.iter_mut()
+            // Extract the field access expression
+            match iter {
+                HirExpr::Call { func, args, .. } if func == "enumerate" && !args.is_empty() => {
+                    // Get the field access from inside enumerate
+                    let field_expr = args[0].to_rust_expr(ctx)?;
+                    if needs_mut {
+                        iter_expr = parse_quote! { #field_expr.iter_mut().enumerate() };
+                    } else {
+                        iter_expr = parse_quote! { #field_expr.iter().enumerate() };
+                    }
+                }
+                HirExpr::Call { func, args, .. } if func == "reversed" && !args.is_empty() => {
+                    // Get the field access from inside reversed
+                    let field_expr = args[0].to_rust_expr(ctx)?;
+                    if needs_mut {
+                        iter_expr = parse_quote! { #field_expr.iter_mut().rev() };
+                    } else {
+                        iter_expr = parse_quote! { #field_expr.iter().rev() };
+                    }
+                }
+                _ => {}
+            }
+        } else {
+            // For plain field access, just wrap with & or &mut
+            if needs_mut {
+                iter_expr = parse_quote! { &mut #iter_expr };
+            } else {
+                iter_expr = parse_quote! { &#iter_expr };
+            }
+        }
+    }
+
     // Check if we're iterating over a borrowed collection
     // If iter is a simple variable that refers to a borrowed collection (e.g., &Vec<T>),
     // we need to add .iter() to properly iterate over it
     // Skip this for stdin/file/csv iterators which are already properly wrapped
-    if !is_stdin_iter && !is_file_iter && !is_csv_reader {
+    // Also skip for field access iterators that we just added borrows to
+    if !is_stdin_iter
+        && !is_file_iter
+        && !is_csv_reader
+        && needs_field_borrow.is_none()
+        && !is_special_call
+    {
         if let HirExpr::Var(var_name) = iter {
             // DEPYLER-0419: First check type information from context
             // This is more reliable than name heuristics
@@ -2152,8 +2336,9 @@ pub(crate) fn codegen_assign_index(
                                 true
                             }
                         }
-                        HirExpr::Binary { .. }
-                        | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
+                        HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => {
+                            true
+                        }
                         _ => false,
                     }
                 }
