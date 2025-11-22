@@ -1,0 +1,224 @@
+name: Reprorusted Validation
+
+# Phase 2: End-to-End Validation - Differential Testing
+# Validates all 13 reprorusted examples (Python output == Rust output)
+# BLOCKS commits/PRs that break reprorusted examples
+# Spec: docs/specifications/single-shot-compile-python-to-rust-rearchitecture.md
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  # Reprorusted repository location
+  REPRORUSTED_REPO: https://github.com/paiml/reprorusted-python-cli
+  REPRORUSTED_DIR: ../reprorusted-python-cli
+  # Quality thresholds
+  MIN_PASS_RATE: 100.0  # Target: 100% (currently 15.4% = 2/13)
+  TIER2_TIMEOUT: 300000  # 5 minutes (from workspace.metadata.testing)
+
+jobs:
+  differential-testing:
+    name: Differential Testing - Reprorusted Examples
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout depyler
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install rustc and cargo
+        run: |
+          rustup component add rustfmt clippy
+          rustc --version
+          cargo --version
+
+      - name: Clone reprorusted-python-cli
+        run: |
+          git clone ${{ env.REPRORUSTED_REPO }} ${{ env.REPRORUSTED_DIR }}
+          echo "Reprorusted examples cloned to ${{ env.REPRORUSTED_DIR }}"
+          ls -la ${{ env.REPRORUSTED_DIR }}/examples/
+
+      - name: Build depyler
+        run: |
+          cargo build --release --bin depyler
+          echo "Depyler built successfully"
+
+      - name: Run Tier 2 Differential Tests
+        id: tier2_tests
+        run: |
+          echo "Running Tier 2 integration tests (certeza-tier2)..."
+          cargo test --test tier2_reprorusted_integration \
+            --features certeza-tier2 \
+            -- --nocapture --test-threads=1 | tee tier2-results.txt
+
+      - name: Extract differential test results
+        id: extract_results
+        if: always()
+        run: |
+          # Extract pass rate from test output
+          PASS_COUNT=$(grep -oP 'Pass Rate: \K[0-9]+' tier2-results.txt | head -1 || echo "0")
+          TOTAL_COUNT=$(grep -oP 'Pass Rate: [0-9]+/\K[0-9]+' tier2-results.txt | head -1 || echo "13")
+
+          # Calculate pass rate percentage
+          if [ "$TOTAL_COUNT" -gt 0 ]; then
+            PASS_RATE=$(echo "scale=1; $PASS_COUNT * 100 / $TOTAL_COUNT" | bc)
+          else
+            PASS_RATE="0.0"
+          fi
+
+          echo "pass_count=$PASS_COUNT" >> $GITHUB_OUTPUT
+          echo "total_count=$TOTAL_COUNT" >> $GITHUB_OUTPUT
+          echo "pass_rate=$PASS_RATE" >> $GITHUB_OUTPUT
+
+          echo "Differential Testing Results:"
+          echo "  Pass Count: $PASS_COUNT / $TOTAL_COUNT"
+          echo "  Pass Rate: $PASS_RATE%"
+          echo "  Target: ${{ env.MIN_PASS_RATE }}%"
+
+      - name: Check pass rate threshold
+        if: always()
+        run: |
+          PASS_RATE=${{ steps.extract_results.outputs.pass_rate }}
+          MIN_PASS=${{ env.MIN_PASS_RATE }}
+
+          echo "Current pass rate: ${PASS_RATE}%"
+          echo "Required minimum: ${MIN_PASS}%"
+
+          # Compare pass rates
+          if (( $(echo "$PASS_RATE < $MIN_PASS" | bc -l) )); then
+            echo "::error::Reprorusted pass rate ${PASS_RATE}% is below target of ${MIN_PASS}%"
+            echo ""
+            echo "BLOCKING: One or more reprorusted examples failed differential testing"
+            echo ""
+            echo "Failed examples must be fixed in the transpiler BEFORE merging."
+            echo "See test output above for mismatch details."
+            echo ""
+            echo "Rearchitecture Phase 2: Target is 100% pass rate (13/13 examples)"
+            exit 1
+          else
+            echo "✅ Reprorusted validation PASSED: ${PASS_RATE}% (target: ${MIN_PASS}%)"
+          fi
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tier2-differential-results
+          path: tier2-results.txt
+
+      - name: Generate differential report
+        if: always()
+        run: |
+          echo "# Reprorusted Differential Testing Report" > reprorusted-report.md
+          echo "" >> reprorusted-report.md
+          echo "## Summary" >> reprorusted-report.md
+          echo "- Pass Rate: ${{ steps.extract_results.outputs.pass_count }}/${{ steps.extract_results.outputs.total_count }} (${{ steps.extract_results.outputs.pass_rate }}%)" >> reprorusted-report.md
+          echo "- Target: ${{ env.MIN_PASS_RATE }}%" >> reprorusted-report.md
+          echo "- Status: ${{ job.status }}" >> reprorusted-report.md
+          echo "" >> reprorusted-report.md
+          echo "## Phase 2: End-to-End Validation" >> reprorusted-report.md
+          echo "Validates semantic equivalence: Python output == Rust output" >> reprorusted-report.md
+          echo "" >> reprorusted-report.md
+          echo "## Details" >> reprorusted-report.md
+          echo '```' >> reprorusted-report.md
+          cat tier2-results.txt >> reprorusted-report.md
+          echo '```' >> reprorusted-report.md
+
+      - name: Upload differential report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reprorusted-differential-report
+          path: reprorusted-report.md
+
+  pmat-quality-gates:
+    name: PMAT Quality Gates
+    runs-on: ubuntu-latest
+    needs: differential-testing
+    if: always()
+
+    steps:
+      - name: Checkout depyler
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Clone PMAT
+        run: |
+          git clone https://github.com/paiml/paiml-mcp-agent-toolkit ../paiml-mcp-agent-toolkit
+          cd ../paiml-mcp-agent-toolkit
+          cargo build --release --bin pmat
+
+      - name: Run PMAT TDG Quality Check
+        id: tdg_check
+        continue-on-error: true
+        run: |
+          cd ../paiml-mcp-agent-toolkit
+          ./target/release/pmat tdg ../depyler/crates --include-components | tee ../depyler/tdg-report.txt
+
+      - name: Run PMAT Quality Gate
+        id: quality_gate
+        continue-on-error: true
+        run: |
+          cd ../paiml-mcp-agent-toolkit
+          ./target/release/pmat quality-gate ../depyler --fail-on-violation --format=detailed | tee ../depyler/quality-gate-report.txt
+
+      - name: Upload PMAT reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pmat-quality-reports
+          path: |
+            tdg-report.txt
+            quality-gate-report.txt
+
+  final-validation:
+    name: Final Reprorusted Validation Gate
+    runs-on: ubuntu-latest
+    needs: [differential-testing, pmat-quality-gates]
+    if: always()
+
+    steps:
+      - name: Check all gates
+        run: |
+          echo "# Reprorusted Validation Summary" > validation-summary.md
+          echo "" >> validation-summary.md
+          echo "## Gates Status" >> validation-summary.md
+          echo "- Differential Testing: ${{ needs.differential-testing.result }}" >> validation-summary.md
+          echo "- PMAT Quality Gates: ${{ needs.pmat-quality-gates.result }}" >> validation-summary.md
+          echo "" >> validation-summary.md
+
+          # Differential testing is BLOCKING (must pass)
+          # PMAT quality gates are informational (continue-on-error)
+          if [[ "${{ needs.differential-testing.result }}" == "failure" ]]; then
+            echo "❌ **BLOCKED: Reprorusted differential testing FAILED**" >> validation-summary.md
+            echo "" >> validation-summary.md
+            echo "One or more reprorusted examples failed differential testing." >> validation-summary.md
+            echo "All examples must pass before merging." >> validation-summary.md
+            echo "" >> validation-summary.md
+            echo "Phase 2 Spec: docs/specifications/single-shot-compile-python-to-rust-rearchitecture.md" >> validation-summary.md
+            exit 1
+          else
+            echo "✅ **All reprorusted validation gates PASSED**" >> validation-summary.md
+          fi
+
+      - name: Upload validation summary
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: validation-summary
+          path: validation-summary.md
