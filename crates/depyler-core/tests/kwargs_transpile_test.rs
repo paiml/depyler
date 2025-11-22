@@ -3,29 +3,7 @@
 //! Tests to verify that keyword arguments (kwargs) are correctly transpiled from Python
 //! to Rust throughout the entire compilation pipeline (AST→HIR→Rust code generation).
 //!
-//! ## Problem
-//! Python supports keyword arguments: `greet(name="Alice", greeting="Hello")`
-//! These were preserved in HIR but dropped during Rust code generation, resulting in
-//! empty function calls: `greet()` instead of `greet("Alice", "Hello")`.
 //!
-//! ## Solution
-//! Updated `convert_call()` and `convert_method_call()` in expr_gen.rs to:
-//! - Extract kwargs from HIR and convert to Rust expressions
-//! - Merge kwargs as additional positional arguments
-//! - Handle string literal conversion for user-defined classes
-//!
-//! ## Test Coverage
-//! 1. Mixed positional and named arguments
-//! 2. All named arguments
-//! 3. Multiple named after positional
-//! 4. Method calls with named arguments
-//! 5. Nested function calls with kwargs
-//! 6. Only positional args (regression test)
-//! 7. Complex expressions in kwargs
-//! 8. String literal conversion
-//! 9. Built-in functions with kwargs
-//! 10. Empty function calls (no args)
-
 use depyler_core::DepylerPipeline;
 
 #[test]
@@ -43,16 +21,7 @@ def test() -> str:
 
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
     let rust_code = result.unwrap();
-
-    // Should have greet function with both parameters
-    assert!(rust_code.contains("fn greet"), "Missing greet function");
-    assert!(rust_code.contains("name"), "Missing name parameter");
-    assert!(rust_code.contains("greeting"), "Missing greeting parameter");
-
-    // Should call greet with both arguments
-    assert!(rust_code.contains("greet("), "Missing greet call");
-    assert!(rust_code.contains("\"Alice\""), "Missing Alice argument");
-    assert!(rust_code.contains("\"Hi\""), "Missing Hi argument");
+    assert!(rust_code.contains(r#"greet("Alice".to_string(), "Hi".to_string())"#));
 }
 
 #[test]
@@ -70,12 +39,7 @@ def test() -> dict:
 
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
     let rust_code = result.unwrap();
-
-    // Should call configure with all three arguments
-    assert!(rust_code.contains("configure("), "Missing configure call");
-    assert!(rust_code.contains("800"), "Missing width argument");
-    assert!(rust_code.contains("600"), "Missing height argument");
-    assert!(rust_code.contains("\"My App\""), "Missing title argument");
+    assert!(rust_code.contains(r#"configure(800, 600, "My App".to_string())"#));
 }
 
 #[test]
@@ -99,13 +63,7 @@ def test() -> int:
 
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
     let rust_code = result.unwrap();
-
-    // Should call calculate with all four arguments in correct order
-    assert!(rust_code.contains("calculate("), "Missing calculate call");
-    assert!(rust_code.contains("10"), "Missing first argument");
-    assert!(rust_code.contains("20"), "Missing second argument");
-    assert!(rust_code.contains("\"add\""), "Missing operation argument");
-    assert!(rust_code.contains("true"), "Missing verbose argument");
+    assert!(rust_code.contains(r#"calculate(10, 20, "add", true)"#));
 }
 
 #[test]
@@ -127,12 +85,7 @@ def test():
 
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
     let rust_code = result.unwrap();
-
-    // Should call setup method with all arguments
-    assert!(rust_code.contains(".setup("), "Missing setup method call");
-    assert!(rust_code.contains("\"advanced\""), "Missing mode argument");
-    assert!(rust_code.contains("30"), "Missing timeout argument");
-    assert!(rust_code.contains("true"), "Missing retry argument");
+    assert!(rust_code.contains(r#".setup("advanced".to_string(), 30, true)"#));
 }
 
 #[test]
@@ -153,16 +106,7 @@ def test() -> int:
 
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
     let rust_code = result.unwrap();
-
-    // Should have nested function calls with kwargs
-    assert!(rust_code.contains("outer("), "Missing outer call");
-    assert!(rust_code.contains("inner("), "Missing inner call");
-    assert!(rust_code.contains("10"), "Missing x=10 argument");
-    assert!(rust_code.contains("20"), "Missing y=20 argument");
-    assert!(
-        rust_code.contains("2.0") || rust_code.contains("2f64"),
-        "Missing scale argument"
-    );
+    assert!(rust_code.contains("outer(inner(10, 20), 2.0, inner(5, 5))"));
 }
 
 #[test]
@@ -180,11 +124,7 @@ def test() -> int:
 
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
     let rust_code = result.unwrap();
-
-    // Should call add with both positional arguments
-    assert!(rust_code.contains("add("), "Missing add call");
-    assert!(rust_code.contains("5"), "Missing first argument");
-    assert!(rust_code.contains("3"), "Missing second argument");
+    assert!(rust_code.contains("add(5, 3)"));
 }
 
 #[test]
@@ -210,18 +150,13 @@ def test() -> dict:
 
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
     let rust_code = result.unwrap();
-
-    // Should call configure with complex expressions as arguments
-    assert!(rust_code.contains("configure("), "Missing configure call");
     assert!(
-        rust_code.contains("100") && rust_code.contains("200"),
-        "Missing width expression"
+        rust_code.contains("configure(")
+            && rust_code.contains("100")
+            && rust_code.contains("200")
+            && rust_code.contains("get_height()")
+            && rust_code.contains("true")
     );
-    assert!(
-        rust_code.contains("get_height("),
-        "Missing height expression"
-    );
-    assert!(rust_code.contains("true"), "Missing enabled expression");
 }
 
 #[test]
@@ -231,7 +166,7 @@ def greet(name: str, greeting: str) -> str:
     return f"{greeting}, {name}!"
 
 def test() -> str:
-    return greet(name="Alice", greeting="Hello")
+    return greet(greeting="Hello", name="Alice")
 "#;
 
     let pipeline = DepylerPipeline::new();
@@ -239,14 +174,7 @@ def test() -> str:
 
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
     let rust_code = result.unwrap();
-
-    // Should have .to_string() calls for string literals
-    assert!(rust_code.contains("\"Alice\""), "Missing Alice string");
-    assert!(rust_code.contains("\"Hello\""), "Missing Hello string");
-    assert!(
-        rust_code.contains(".to_string()"),
-        "Missing string conversion"
-    );
+    assert!(rust_code.contains(r#"greet("Alice".to_string(), "Hello".to_string())"#));
 }
 
 #[test]
@@ -261,14 +189,17 @@ def test() -> str:
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
 
-    // This might fail if open() kwargs aren't fully supported yet, but test structure is here
-    if result.is_ok() {
-        let rust_code = result.unwrap();
-        assert!(
-            rust_code.contains("File::open") || rust_code.contains("open"),
-            "Missing file open operation"
-        );
-    }
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
+    let rust_code = result.unwrap();
+    // Note: Python's open() with mode/encoding kwargs gets transpiled to Rust's File::open()
+    // which only accepts a path. Mode and encoding are handled differently in Rust.
+    // This is a semantic transformation, not a direct kwargs-to-args conversion.
+    // We just check that the file path is present.
+    assert!(
+        rust_code.contains(r#"File::open("data.txt""#),
+        "Generated code should contain File::open with the path:\n{}",
+        rust_code
+    );
 }
 
 #[test]
@@ -286,7 +217,91 @@ def test() -> int:
 
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
     let rust_code = result.unwrap();
+    assert!(rust_code.contains("no_params()"));
+}
 
-    // Should call no_params with no arguments
-    assert!(rust_code.contains("no_params()"), "Missing no_params call");
+#[test]
+fn test_kwargs_reordered_arguments() {
+    let python = r#"
+def format_message(name: str, age: int, city: str, country: str) -> str:
+    return f"{name} is {age} years old from {city}, {country}"
+
+def test() -> str:
+    return format_message(country="USA", name="Alice", city="New York", age=30)
+"#;
+
+    let pipeline = DepylerPipeline::new();
+    let result = pipeline.transpile(python);
+
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
+    let rust_code = result.unwrap();
+
+    // Check that the arguments appear in the correct order (ignoring whitespace/formatting)
+    // Expected order: name="Alice", age=30, city="New York", country="USA"
+    let call_start = rust_code
+        .find("format_message(")
+        .expect("format_message call not found");
+    let call_section = &rust_code[call_start..];
+
+    // Find the positions of each argument in the call
+    let alice_pos = call_section
+        .find(r#""Alice".to_string()"#)
+        .expect("Alice not found");
+    let age_pos = call_section.find("30").expect("30 not found");
+    let newyork_pos = call_section
+        .find(r#""New York".to_string()"#)
+        .expect("New York not found");
+    let usa_pos = call_section
+        .find(r#""USA".to_string()"#)
+        .expect("USA not found");
+
+    // Verify they appear in the correct order
+    assert!(alice_pos < age_pos, "Alice should come before age");
+    assert!(age_pos < newyork_pos, "age should come before New York");
+    assert!(newyork_pos < usa_pos, "New York should come before USA");
+}
+
+#[test]
+fn test_kwargs_mixed_positional_and_reordered_named() {
+    let python = r#"
+def build_url(protocol: str, host: str, port: int, path: str) -> str:
+    return f"{protocol}://{host}:{port}/{path}"
+
+def test() -> str:
+    return build_url("https", "example.com", path="api", port=443)
+"#;
+
+    let pipeline = DepylerPipeline::new();
+    let result = pipeline.transpile(python);
+
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
+    let rust_code = result.unwrap();
+
+    let call_start = rust_code
+        .find("build_url(")
+        .expect("build_url call not found");
+    let call_section = &rust_code[call_start..];
+
+    // Find the positions of each argument in the call
+    let https_pos = call_section
+        .find(r#""https".to_string()"#)
+        .expect("https not found");
+    let example_pos = call_section
+        .find(r#""example.com".to_string()"#)
+        .expect("example.com not found");
+    let port_pos = call_section.find("443").expect("443 not found");
+    let api_pos = call_section
+        .find(r#""api".to_string()"#)
+        .expect("api not found");
+
+    // Verify they appear in the correct order: protocol, host, port, path
+    assert!(
+        https_pos < example_pos,
+        "https should come before example.com"
+    );
+    assert!(example_pos < port_pos, "example.com should come before 443");
+    assert!(
+        port_pos < api_pos,
+        "443 should come before api (kwargs reordered)"
+    );
 }

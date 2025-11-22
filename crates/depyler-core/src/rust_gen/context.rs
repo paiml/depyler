@@ -95,6 +95,10 @@ pub struct CodeGenContext<'a> {
     /// Maps function name -> Vec of booleans (true if param is borrowed, false if owned)
     /// Used to determine whether to add & when passing List/Dict/Set arguments
     pub function_param_borrows: HashMap<String, Vec<bool>>,
+    /// DEPYLER-0364: Track function parameter names for kwargs reordering
+    /// Maps function name -> Vec of parameter names in declaration order
+    /// Used to reorder kwargs to match function signature when kwargs are out of order
+    pub function_param_names: HashMap<String, Vec<String>>,
     /// DEPYLER-0307 Fix #9: Track variables that iterate over tuples (from zip())
     /// Used to generate tuple field access syntax (tuple.0, tuple.1) instead of vector indexing
     pub tuple_iter_vars: HashSet<String>,

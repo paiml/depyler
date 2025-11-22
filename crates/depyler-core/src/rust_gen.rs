@@ -58,7 +58,11 @@ fn analyze_string_optimization(ctx: &mut CodeGenContext, functions: &[HirFunctio
 /// This must run BEFORE function signature generation so parameter types can be corrected.
 ///
 /// Complexity: 8 (func loop + const loop + stmt loop + match + expr match + kwargs loop + filter)
-fn analyze_validators(ctx: &mut CodeGenContext, functions: &[HirFunction], constants: &[HirConstant]) {
+fn analyze_validators(
+    ctx: &mut CodeGenContext,
+    functions: &[HirFunction],
+    constants: &[HirConstant],
+) {
     // Scan function bodies
     for func in functions {
         scan_stmts_for_validators(&func.body, ctx);
@@ -77,7 +81,11 @@ fn scan_stmts_for_validators(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
             HirStmt::Expr(expr) => {
                 scan_expr_for_validators(expr, ctx);
             }
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 scan_stmts_for_validators(then_body, ctx);
                 if let Some(ref else_stmts) = else_body {
                     scan_stmts_for_validators(else_stmts, ctx);
@@ -89,7 +97,12 @@ fn scan_stmts_for_validators(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
             HirStmt::For { body, .. } => {
                 scan_stmts_for_validators(body, ctx);
             }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
                 scan_stmts_for_validators(body, ctx);
                 for handler in handlers {
                     scan_stmts_for_validators(&handler.body, ctx);
@@ -618,8 +631,7 @@ pub fn generate_rust_file(
         .collect();
 
     // DEPYLER-0231: Build map of mutating methods (class_name -> set of method names)
-    let mut mutating_methods: std::collections::HashMap<String, HashSet<String>> =
-        std::collections::HashMap::new();
+    let mut mutating_methods: HashMap<String, HashSet<String>> = HashMap::new();
     for class in &module.classes {
         let mut mut_methods = HashSet::new();
         for method in &class.methods {
@@ -676,11 +688,12 @@ pub fn generate_rust_file(
         in_generator: false,
         is_classmethod: false,
         generator_state_vars: HashSet::new(),
-        var_types: std::collections::HashMap::new(),
+        var_types: HashMap::new(),
         class_names,
         mutating_methods,
-        function_return_types: std::collections::HashMap::new(), // DEPYLER-0269: Track function return types
-        function_param_borrows: std::collections::HashMap::new(), // DEPYLER-0270: Track parameter borrowing
+        function_return_types: HashMap::new(), // DEPYLER-0269: Track function return types
+        function_param_borrows: HashMap::new(), // DEPYLER-0270: Track parameter borrowing
+        function_param_names: HashMap::new(), // DEPYLER-0364: Track parameter names for kwargs reordering
         tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
         is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
         result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
@@ -865,11 +878,12 @@ mod tests {
             is_classmethod: false,
             in_generator: false,
             generator_state_vars: HashSet::new(),
-            var_types: std::collections::HashMap::new(),
+            var_types: HashMap::new(),
             class_names: HashSet::new(),
-            mutating_methods: std::collections::HashMap::new(),
-            function_return_types: std::collections::HashMap::new(), // DEPYLER-0269: Track function return types
-            function_param_borrows: std::collections::HashMap::new(), // DEPYLER-0270: Track parameter borrowing
+            mutating_methods: HashMap::new(),
+            function_return_types: HashMap::new(), // DEPYLER-0269: Track function return types
+            function_param_borrows: HashMap::new(), // DEPYLER-0270: Track parameter borrowing
+            function_param_names: HashMap::new(), // DEPYLER-0364: Track parameter names for kwargs reordering
             tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
             is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
             result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>

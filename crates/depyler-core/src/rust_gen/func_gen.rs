@@ -1359,6 +1359,12 @@ impl RustCodeGen for HirFunction {
         ctx.function_param_borrows
             .insert(self.name.clone(), param_borrows);
 
+        // DEPYLER-0364: Store parameter names for kwargs reordering
+        // When calling with kwargs, we need to reorder them to match parameter positions
+        let param_names: Vec<String> = self.params.iter().map(|p| p.name.clone()).collect();
+        ctx.function_param_names
+            .insert(self.name.clone(), param_names);
+
         // Generate return type with Result wrapper and lifetime handling
         let (return_type, rust_ret_type, can_fail, error_type) =
             codegen_return_type(self, &lifetime_result, ctx)?;
