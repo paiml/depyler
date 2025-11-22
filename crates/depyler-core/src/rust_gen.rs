@@ -437,6 +437,9 @@ fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenS
         (ctx.needs_rc, quote! { use std::rc::Rc; }),
         (ctx.needs_cow, quote! { use std::borrow::Cow; }),
         (ctx.needs_serde_json, quote! { use serde_json; }),
+        (ctx.needs_io_read, quote! { use std::io::Read; }),   // DEPYLER-0458
+        (ctx.needs_io_write, quote! { use std::io::Write; }), // DEPYLER-0458
+        (ctx.needs_once_cell, quote! { use once_cell::sync::Lazy; }), // DEPYLER-REARCH-001
     ];
 
     // Add imports where needed
@@ -540,7 +543,11 @@ fn generate_interned_string_tokens(optimizer: &StringOptimizer) -> Vec<proc_macr
 ///
 /// Generates `pub const` declarations for module-level constants.
 /// For simple literal values (int, float, string, bool), generates const.
-/// For complex expressions, may need to use static or lazy_static.
+/// For complex expressions (Dict, List), uses once_cell::Lazy for runtime init.
+///
+/// # DEPYLER-REARCH-001: Phase 3.2 - Fix const initialization
+/// HashMap::new() and .insert() are not const-evaluable, so we use Lazy for
+/// complex collections.
 fn generate_constant_tokens(
     constants: &[HirConstant],
     ctx: &mut CodeGenContext,
@@ -555,45 +562,71 @@ fn generate_constant_tokens(
         // Generate the value expression
         let value_expr = constant.value.to_rust_expr(ctx)?;
 
-        // Generate type annotation - required for Rust const
-        let type_annotation = if let Some(ref ty) = constant.type_annotation {
-            let rust_type = ctx.type_mapper.map_type(ty);
-            let syn_type = type_gen::rust_type_to_syn(&rust_type)?;
-            quote! { : #syn_type }
+        // DEPYLER-REARCH-001: Check if this value needs runtime initialization
+        let needs_runtime_init = matches!(
+            &constant.value,
+            HirExpr::Dict(_) | HirExpr::List(_) | HirExpr::Set(_) | HirExpr::Tuple(_)
+        );
+
+        if needs_runtime_init {
+            // Use once_cell::Lazy for runtime-initialized constants
+            ctx.needs_once_cell = true;
+
+            // Generate type annotation
+            let type_annotation = if let Some(ref ty) = constant.type_annotation {
+                let rust_type = ctx.type_mapper.map_type(ty);
+                let syn_type = type_gen::rust_type_to_syn(&rust_type)?;
+                quote! { #syn_type }
+            } else {
+                // Infer type from expression
+                match &constant.value {
+                    HirExpr::Dict { .. } => {
+                        ctx.needs_serde_json = true;
+                        quote! { serde_json::Value }
+                    }
+                    HirExpr::List { .. } | HirExpr::Tuple(_) | HirExpr::Set(_) => {
+                        ctx.needs_serde_json = true;
+                        quote! { serde_json::Value }
+                    }
+                    _ => {
+                        ctx.needs_serde_json = true;
+                        quote! { serde_json::Value }
+                    }
+                }
+            };
+
+            // Generate: pub static NAME: Lazy<Type> = Lazy::new(|| { ... });
+            items.push(quote! {
+                pub static #name_ident: once_cell::sync::Lazy<#type_annotation> = once_cell::sync::Lazy::new(|| #value_expr);
+            });
         } else {
-            // DEPYLER-0448: Infer type from expression (not just literals)
-            match &constant.value {
-                // Literal types
-                HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
-                HirExpr::Literal(Literal::Float(_)) => quote! { : f64 },
-                HirExpr::Literal(Literal::String(_)) => quote! { : &str },
-                HirExpr::Literal(Literal::Bool(_)) => quote! { : bool },
+            // Simple literals can use pub const
+            let type_annotation = if let Some(ref ty) = constant.type_annotation {
+                let rust_type = ctx.type_mapper.map_type(ty);
+                let syn_type = type_gen::rust_type_to_syn(&rust_type)?;
+                quote! { : #syn_type }
+            } else {
+                // DEPYLER-0448: Infer type from expression (not just literals)
+                match &constant.value {
+                    // Literal types
+                    HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
+                    HirExpr::Literal(Literal::Float(_)) => quote! { : f64 },
+                    HirExpr::Literal(Literal::String(_)) => quote! { : &str },
+                    HirExpr::Literal(Literal::Bool(_)) => quote! { : bool },
 
-                // DEPYLER-0448: Dict types → serde_json::Value (safe fallback)
-                HirExpr::Dict { .. } => {
-                    ctx.needs_serde_json = true;
-                    quote! { : serde_json::Value }
+                    // Default fallback
+                    _ => {
+                        ctx.needs_serde_json = true;
+                        quote! { : serde_json::Value }
+                    }
                 }
+            };
 
-                // DEPYLER-0448: List types → serde_json::Value (safe fallback)
-                HirExpr::List { .. } => {
-                    ctx.needs_serde_json = true;
-                    quote! { : serde_json::Value }
-                }
-
-                // DEPYLER-0448: Default fallback → serde_json::Value (NOT i32)
-                _ => {
-                    ctx.needs_serde_json = true;
-                    quote! { : serde_json::Value }
-                }
-            }
-        };
-
-        // Generate the constant declaration
-        // Use pub const for module-level visibility
-        items.push(quote! {
-            pub const #name_ident #type_annotation = #value_expr;
-        });
+            // Generate: pub const NAME: Type = value;
+            items.push(quote! {
+                pub const #name_ident #type_annotation = #value_expr;
+            });
+        }
     }
 
     Ok(items)
@@ -662,6 +695,9 @@ pub fn generate_rust_file(
         needs_hmac: false,
         needs_crc32: false,
         needs_url_encoding: false,
+        needs_io_read: false,  // DEPYLER-0458
+        needs_io_write: false, // DEPYLER-0458
+        needs_once_cell: false, // DEPYLER-REARCH-001
         declared_vars: vec![HashSet::new()],
         current_function_can_fail: false,
         current_return_type: None,
@@ -852,6 +888,9 @@ mod tests {
             needs_hmac: false,
             needs_crc32: false,
             needs_url_encoding: false,
+            needs_io_read: false,  // DEPYLER-0458
+            needs_io_write: false, // DEPYLER-0458
+            needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
