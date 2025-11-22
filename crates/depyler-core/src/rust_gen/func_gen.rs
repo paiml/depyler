@@ -1506,6 +1506,14 @@ impl RustCodeGen for HirFunction {
             ctx.current_subcommand_fields = Some(fields.iter().cloned().collect());
         }
 
+        // DEPYLER-0456 Bug #1: Pre-register all add_parser() calls before body codegen
+        // This ensures expression statement subcommands (no variable assignment) are included
+        // in Commands enum generation. Must run BEFORE codegen_function_body() below.
+        crate::rust_gen::argparse_transform::preregister_subcommands_from_hir(
+            self,
+            &mut ctx.argparser_tracker,
+        );
+
         // Process function body with proper scoping (expressions will now be rewritten if needed)
         let mut body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
 
