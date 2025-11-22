@@ -67,7 +67,7 @@ fn expr_returns_usize(expr: &HirExpr) -> bool {
 /// DEPYLER-0272 FIX: Now checks the actual expression to determine if cast is needed.
 /// Only adds cast when expression returns usize (from len(), count(), etc.)
 /// Complexity: 3 (type check + expression check)
-fn needs_type_conversion(target_type: &Type, expr: &HirExpr, ctx: &CodeGenContext) -> bool {
+fn needs_type_conversion(target_type: &Type, expr: &HirExpr, _ctx: &CodeGenContext) -> bool {
     match target_type {
         Type::Int => {
             // Only convert if expression actually returns usize
@@ -801,8 +801,9 @@ pub(crate) fn codegen_with_stmt(
         if is_file_open {
             // DEPYLER-0387: For open() calls, bind File directly (no __enter__)
             // DEPYLER-0417: No block wrapper - Python allows accessing variables from with blocks
+            // DEPYLER-0458: Add mut to file handles for Read/Write trait methods
             Ok(quote! {
-                let #var_ident = #context_expr;
+                let mut #var_ident = #context_expr;
                 #(#body_stmts)*
             })
         } else {
@@ -2157,10 +2158,10 @@ pub(crate) fn codegen_assign_stmt(
     //          else { format = s.to_lowercase(); }  // String - TYPE MISMATCH!
     // Solution: Convert all string literals to String: format = "json".to_string();
     if let AssignTarget::Symbol(var_name) = target {
-        if ctx.hoisted_inference_vars.contains(var_name) {
-            if matches!(value, HirExpr::Literal(Literal::String(_))) {
-                value_expr = parse_quote! { #value_expr.to_string() };
-            }
+        if ctx.hoisted_inference_vars.contains(var_name)
+            && matches!(value, HirExpr::Literal(Literal::String(_)))
+        {
+            value_expr = parse_quote! { #value_expr.to_string() };
         }
     }
 
