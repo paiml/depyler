@@ -958,6 +958,71 @@ fn infer_expr_type_with_env(
                 .collect();
             Type::Tuple(elem_types)
         }
+        // DEPYLER-REARCH-001: Handle MethodCall with environment for variable type lookups
+        HirExpr::MethodCall { object, method, .. } => {
+            // DEPYLER-REARCH-001: Check if this is a module method call (e.g., json.load(), csv.reader())
+            // These need special handling because the module itself doesn't have a type
+            if let HirExpr::Var(module_name) = object.as_ref() {
+                match (module_name.as_str(), method.as_str()) {
+                    // json module methods
+                    // json.load/loads returns arbitrary JSON (dict, list, string, number, bool, null)
+                    // which maps to serde_json::Value, not HashMap
+                    ("json", "load") | ("json", "loads") => {
+                        return Type::Custom("serde_json::Value".to_string());
+                    }
+                    ("json", "dump") => return Type::None,
+                    ("json", "dumps") => return Type::String,
+                    // csv module methods
+                    ("csv", "reader") => {
+                        return Type::List(Box::new(Type::List(Box::new(Type::String))));
+                    }
+                    ("csv", "DictReader") => {
+                        return Type::List(Box::new(Type::Dict(
+                            Box::new(Type::String),
+                            Box::new(Type::String),
+                        )));
+                    }
+                    ("csv", "writer") | ("csv", "DictWriter") => return Type::Unknown,
+                    _ => {} // Fall through to regular method handling
+                }
+            }
+
+            // For non-module method calls, infer the object type using the environment
+            let object_type = infer_expr_type_with_env(object, var_types);
+
+            match method.as_str() {
+                // .copy() returns same type as object
+                "copy" => object_type,
+                // String methods that return String
+                "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "title"
+                | "capitalize" | "join" | "format" => Type::String,
+                // String methods that return bool
+                "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum" | "isupper"
+                | "islower" => Type::Bool,
+                // String methods that return int
+                "find" | "rfind" | "index" | "rindex" | "count" => Type::Int,
+                // String methods that return list
+                "split" | "splitlines" => Type::List(Box::new(Type::String)),
+                // List/Dict methods
+                "get" => {
+                    // dict.get() returns element type
+                    match object_type {
+                        Type::Dict(_, val) => *val,
+                        Type::List(elem) => *elem,
+                        _ => Type::Unknown,
+                    }
+                }
+                "pop" => match object_type {
+                    Type::List(elem) => *elem,
+                    Type::Dict(_, val) => *val,
+                    _ => Type::Unknown,
+                },
+                "keys" => Type::List(Box::new(Type::Unknown)),
+                "values" => Type::List(Box::new(Type::Unknown)),
+                "items" => Type::List(Box::new(Type::Tuple(vec![Type::Unknown, Type::Unknown]))),
+                _ => Type::Unknown,
+            }
+        }
         // For other cases, use the simple version
         _ => infer_expr_type_simple(expr),
     }
@@ -1097,8 +1162,19 @@ fn infer_expr_type_simple(expr: &HirExpr) -> Type {
         HirExpr::FString { .. } => Type::String,
         // DEPYLER-0414: Add Call expression type inference
         HirExpr::Call { func, .. } => {
-            // Common builtin functions with known return types
+            // DEPYLER-REARCH-001: Handle module function calls
+            // Check both qualified (json.load) and unqualified (load) names
             match func.as_str() {
+                // json module functions (qualified names)
+                "json.load" | "json.loads" => Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)),
+                "json.dump" => Type::None,
+                "json.dumps" => Type::String,
+                // csv module functions (qualified names)
+                "csv.reader" => Type::List(Box::new(Type::List(Box::new(Type::String)))),
+                "csv.writer" => Type::Unknown,
+                "csv.DictReader" => Type::List(Box::new(Type::Dict(Box::new(Type::String), Box::new(Type::String)))),
+                "csv.DictWriter" => Type::Unknown,
+                // Common builtin functions with known return types
                 "len" | "int" | "abs" | "ord" | "hash" => Type::Int,
                 "float" => Type::Float,
                 "str" | "repr" | "chr" | "input" => Type::String,
@@ -1116,6 +1192,8 @@ fn infer_expr_type_simple(expr: &HirExpr) -> Type {
         // DEPYLER-0414: Add MethodCall expression type inference
         HirExpr::MethodCall { object, method, .. } => {
             match method.as_str() {
+                // DEPYLER-REARCH-001: .copy() returns same type as object
+                "copy" => infer_expr_type_simple(object),
                 // String methods that return String
                 "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "title"
                 | "capitalize" | "join" | "format" => Type::String,
@@ -1203,11 +1281,7 @@ pub(crate) fn codegen_return_type(
 
     let effective_ret_type = if should_infer {
         // Try to infer from return statements in body
-        if let Some(inferred) = infer_return_type_from_body(&func.body) {
-            inferred
-        } else {
-            func.ret_type.clone()
-        }
+        infer_return_type_from_body(&func.body).unwrap_or_else(|| func.ret_type.clone())
     } else {
         func.ret_type.clone()
     };

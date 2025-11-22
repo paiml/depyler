@@ -1,0 +1,36 @@
+[package]
+name = "depyler-testing"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Differential testing and validation framework for Depyler"
+keywords = ["testing", "validation", "differential", "python", "rust"]
+categories = ["development-tools::testing"]
+
+[features]
+default = []
+# Certeza tiered testing features
+certeza-tier1 = []  # Sub-second tests (<1s total)
+certeza-tier2 = []  # Medium tests (1-5 min)
+certeza-tier3 = []  # Exhaustive tests (hours)
+
+[dependencies]
+# Core
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+# Process execution
+which = "7.0"
+
+# Path manipulation
+tempfile.workspace = true
+
+# Testing utilities
+proptest = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest.workspace = true
