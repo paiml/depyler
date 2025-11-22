@@ -70,6 +70,9 @@ pub struct CodeGenContext<'a> {
     pub needs_hmac: bool,
     pub needs_crc32: bool,
     pub needs_url_encoding: bool,
+    pub needs_io_read: bool,  // DEPYLER-0458: Track std::io::Read trait for file I/O
+    pub needs_io_write: bool, // DEPYLER-0458: Track std::io::Write trait for file I/O
+    pub needs_once_cell: bool, // DEPYLER-REARCH-001: Track once_cell for lazy static initialization
     pub declared_vars: Vec<HashSet<String>>,
     pub current_function_can_fail: bool,
     pub current_return_type: Option<Type>,

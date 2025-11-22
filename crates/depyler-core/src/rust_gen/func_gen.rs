@@ -103,7 +103,8 @@ fn stmt_always_returns(stmt: &HirStmt) -> bool {
                     .all(|h| h.body.iter().any(stmt_always_returns));
             let orelse_returns = orelse
                 .as_ref()
-                .map_or(true, |stmts| stmts.iter().any(stmt_always_returns));
+                .map(|stmts| stmts.iter().any(stmt_always_returns))
+                .unwrap_or(true);
 
             // All three conditions must be true
             // If there are no handlers, the try doesn't guarantee a return
