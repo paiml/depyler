@@ -706,6 +706,65 @@ fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
     first_known.cloned()
 }
 
+/// DEPYLER-0455 Bug 7: Infer return type from body including parameter types
+/// Wrapper for infer_return_type_from_body that includes function parameters in the type environment
+fn infer_return_type_from_body_with_params(func: &HirFunction, ctx: &CodeGenContext) -> Option<Type> {
+    // Build initial type environment with function parameters
+    let mut var_types: std::collections::HashMap<String, Type> = std::collections::HashMap::new();
+
+    // Add parameter types to environment
+    // For argparse validators, parameters are typically strings
+    // DEPYLER-0455 Bug 7: Validator functions receive &str parameters
+    let is_validator = ctx.validator_functions.contains(&func.name);
+    for param in &func.params {
+        let param_type = if is_validator && matches!(param.ty, Type::Unknown) {
+            // Validator function parameters without type annotations are strings
+            Type::String
+        } else {
+            param.ty.clone()
+        };
+        var_types.insert(param.name.clone(), param_type);
+    }
+
+    // Build additional types from variable assignments
+    build_var_type_env(&func.body, &mut var_types);
+
+    // Collect return types with the environment
+    let mut return_types = Vec::new();
+    collect_return_types_with_env(&func.body, &mut return_types, &var_types);
+
+    // Check for trailing expression (implicit return)
+    if let Some(HirStmt::Expr(expr)) = func.body.last() {
+        let trailing_type = infer_expr_type_with_env(expr, &var_types);
+        if !matches!(trailing_type, Type::Unknown) {
+            return_types.push(trailing_type);
+        }
+    }
+
+    if return_types.is_empty() {
+        return None;
+    }
+
+    // If all return types are the same (ignoring Unknown), use that type
+    let first_known = return_types.iter().find(|t| !matches!(t, Type::Unknown));
+    if let Some(first) = first_known {
+        if return_types
+            .iter()
+            .all(|t| matches!(t, Type::Unknown) || t == first)
+        {
+            return Some(first.clone());
+        }
+    }
+
+    // If all types are Unknown, return None
+    if return_types.iter().all(|t| matches!(t, Type::Unknown)) {
+        return None;
+    }
+
+    // Mixed types - return the first known type
+    first_known.cloned()
+}
+
 // ========== DEPYLER-0415: Variable Type Environment ==========
 
 /// Build a type environment by collecting variable assignments
@@ -1250,7 +1309,35 @@ pub(crate) fn codegen_return_type(
         if can_fail {
             let error_type: syn::Type = syn::parse_str(&error_type_str)
                 .unwrap_or_else(|_| parse_quote! { Box<dyn std::error::Error> });
-            quote! { -> Result<(), #error_type> }
+
+            // DEPYLER-0455 Bug 7: Infer return type from function body
+            // Functions without type annotations but that return values (e.g., argparse validators)
+            // should infer their return type from actual return statements
+            //
+            // Example: def email_address(value):
+            //              return value  # <- Returns string, not None
+            //
+            // Before fix: Result<(), Box<dyn Error>>  [WRONG - type mismatch with returned value]
+            // After fix:  Result<String, Box<dyn Error>>  [CORRECT - matches return value]
+            if let Some(inferred_type) = infer_return_type_from_body_with_params(func, ctx) {
+                // We found a return statement with a value!
+                // Map the inferred HIR type to Rust type
+                let inferred_rust_type = ctx
+                    .annotation_aware_mapper
+                    .map_return_type_with_annotations(&inferred_type, &func.annotations);
+
+                // Convert to syn type
+                if let Ok(ty) = rust_type_to_syn(&inferred_rust_type) {
+                    // Use inferred type instead of ()
+                    quote! { -> Result<#ty, #error_type> }
+                } else {
+                    // Fallback to () if conversion fails
+                    quote! { -> Result<(), #error_type> }
+                }
+            } else {
+                // No return value found, use ()
+                quote! { -> Result<(), #error_type> }
+            }
         } else {
             quote! {}
         }
