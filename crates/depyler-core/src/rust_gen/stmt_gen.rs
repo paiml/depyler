@@ -67,12 +67,21 @@ fn expr_returns_usize(expr: &HirExpr) -> bool {
 /// DEPYLER-0272 FIX: Now checks the actual expression to determine if cast is needed.
 /// Only adds cast when expression returns usize (from len(), count(), etc.)
 /// Complexity: 3 (type check + expression check)
-fn needs_type_conversion(target_type: &Type, expr: &HirExpr) -> bool {
+fn needs_type_conversion(target_type: &Type, expr: &HirExpr, ctx: &CodeGenContext) -> bool {
     match target_type {
         Type::Int => {
             // Only convert if expression actually returns usize
             // This prevents unnecessary casts like `(x: i32) as i32`
             expr_returns_usize(expr)
+        }
+        Type::String => {
+            // DEPYLER-0455 Bug 7: Convert &str to String for validator functions
+            // When returning a parameter from a validator function, the parameter is &str
+            // but the return type is Result<String, ...>, so we need .to_string()
+            // Apply .to_string() for all variables returned as String - it's safe:
+            // - If already String, it's a clone (acceptable overhead)
+            // - If &str parameter, it converts correctly
+            matches!(expr, HirExpr::Var(_))
         }
         _ => false,
     }
@@ -80,14 +89,19 @@ fn needs_type_conversion(target_type: &Type, expr: &HirExpr) -> bool {
 
 /// Apply type conversion to value expression
 ///
-/// Wraps the expression with appropriate conversion (e.g., `as i32`)
-/// Complexity: 2 (simple match)
+/// Wraps the expression with appropriate conversion (e.g., `as i32`, `.to_string()`)
+/// Complexity: 3 (match with 2 arms)
 fn apply_type_conversion(value_expr: syn::Expr, target_type: &Type) -> syn::Expr {
     match target_type {
         Type::Int => {
             // Convert to i32 using 'as' cast
             // This handles usize->i32 conversions
             parse_quote! { #value_expr as i32 }
+        }
+        Type::String => {
+            // DEPYLER-0455 Bug 7: Convert &str to String using .to_string()
+            // This handles validator function parameters (&str) returned as String
+            parse_quote! { #value_expr.to_string() }
         }
         _ => value_expr,
     }
@@ -453,7 +467,8 @@ pub(crate) fn codegen_return_stmt(
             };
 
             // DEPYLER-0272: Pass expression to check if cast is actually needed
-            if needs_type_conversion(target_type, e) {
+            // DEPYLER-0455 Bug 7: Also pass ctx to check validator function context
+            if needs_type_conversion(target_type, e, ctx) {
                 expr_tokens = apply_type_conversion(expr_tokens, target_type);
             }
         }
@@ -878,6 +893,36 @@ fn apply_truthiness_conversion(
                 if is_optional_field {
                     // Convert Option<T> to boolean using .is_some()
                     return parse_quote! { #cond_expr.is_some() };
+                }
+
+                // DEPYLER-0455 Bug 8: Check if this field is a String with a default value
+                // Python: if args.encoding (where encoding has default="utf-8")
+                // Rust: if !args.encoding.is_empty() (String cannot be used as bool)
+                let is_string_with_default = ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                    parser_info.arguments.iter().any(|arg| {
+                        let field_name = arg.rust_field_name();
+                        if field_name != *attr {
+                            return false;
+                        }
+
+                        // Check if:
+                        // 1. Has a default value (arg.default.is_some())
+                        // 2. Type is String (arg.arg_type.is_none() means default String type)
+                        // 3. Not a boolean action (store_true/store_false)
+                        arg.default.is_some()
+                            && arg.arg_type.is_none()
+                            && !matches!(
+                                arg.action.as_deref(),
+                                Some("store_true") | Some("store_false")
+                            )
+                    })
+                });
+
+                if is_string_with_default {
+                    // Convert String to boolean using !.is_empty()
+                    // Note: This is technically redundant since default values are non-empty,
+                    // but it's semantically correct for Python truthiness
+                    return parse_quote! { !#cond_expr.is_empty() };
                 }
             }
         }
@@ -2058,8 +2103,9 @@ pub(crate) fn codegen_assign_stmt(
         let target_syn_type = rust_type_to_syn(&target_rust_type)?;
 
         // DEPYLER-0272: Check if we need type conversion (e.g., usize to i32)
+        // DEPYLER-0455 Bug 7: Also pass ctx for validator function detection
         // Pass the value expression to determine if cast is actually needed
-        if needs_type_conversion(actual_type, value) {
+        if needs_type_conversion(actual_type, value, ctx) {
             value_expr = apply_type_conversion(value_expr, actual_type);
         }
 
