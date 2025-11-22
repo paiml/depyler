@@ -9,8 +9,15 @@ members = [
     "crates/depyler",
     "crates/depyler-wasm",
     "crates/depyler-ruchy",
+    "crates/depyler-testing",
 ]
 resolver = "2"
+
+[workspace.metadata.testing]
+# Certeza tiered testing configuration
+tier1_timeout_ms = 1000  # Sub-second tests
+tier2_timeout_ms = 300000  # 5 minutes
+tier3_timeout_ms = 14400000  # 4 hours
 
 [workspace.metadata.quality]
 max_tdg_score = 2.0
