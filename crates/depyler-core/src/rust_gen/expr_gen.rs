@@ -1190,43 +1190,72 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .collect::<Result<Vec<_>>>()?
         };
 
-        // DEPYLER-0364: Convert kwargs to positional arguments
+        // DEPYLER-0364: Convert kwargs to positional arguments with proper parameter ordering
         // Python: greet(name="Alice", greeting="Hello") → Rust: greet("Alice", "Hello")
-        // For now, we append kwargs as additional positional arguments. This works for
-        // common cases where functions accept positional or keyword arguments in order.
-        // TODO: In the future, we should look up function signatures to determine
-        // the correct parameter order and merge positional + kwargs properly
-        let kwarg_exprs: Vec<syn::Expr> = if is_user_class {
-            // For user-defined classes, convert string literals to String
-            // This prevents "expected String, found &str" errors in constructors
-            kwargs
-                .iter()
-                .map(|(_name, value)| {
-                    let expr = value.to_rust_expr(self.ctx)?;
-                    if matches!(value, HirExpr::Literal(Literal::String(_))) {
-                        Ok(parse_quote! { #expr.to_string() })
-                    } else {
-                        Ok(expr)
+        //
+        // Look up the function signature to determine the correct parameter order.
+        // This handles cases where kwargs are provided in a different order than parameters:
+        // Example: build_url(protocol, host, port, path) called with path="api", port=443
+        // Should generate: build_url(..., 443, "api") NOT build_url(..., "api", 443)
+        //
+        // Note: We rely on to_rust_expr() to handle string literal conversion.
+        // The literal_to_rust_expr() function uses StringOptimizer to decide whether
+        // to add .to_string() based on context, so we don't need to do it here.
+
+        let (all_args, all_hir_args) = if !kwargs.is_empty() {
+            // Look up function signature to get parameter names
+            let param_names_opt = self.ctx.function_param_names.get(func).cloned();
+
+            if let Some(param_names) = param_names_opt {
+                // We have the function signature - reorder kwargs to match parameter positions
+                let num_positional = args.len();
+
+                // Build a map of kwarg name -> (value HIR, value Rust expr)
+                let mut kwarg_map: std::collections::HashMap<String, (HirExpr, syn::Expr)> =
+                    std::collections::HashMap::new();
+                for (name, value) in kwargs {
+                    let rust_expr = value.to_rust_expr(self.ctx)?;
+                    kwarg_map.insert(name.clone(), (value.clone(), rust_expr));
+                }
+
+                // Build the complete argument list by filling in positional args first,
+                // then kwargs in parameter order
+                let mut reordered_rust_args = arg_exprs.clone();
+                let mut reordered_hir_args: Vec<HirExpr> = args.to_vec();
+
+                // For each parameter position after the positional args,
+                // look up the corresponding kwarg by name
+                for i in num_positional..param_names.len() {
+                    let param_name = &param_names[i];
+                    if let Some((hir_val, rust_val)) = kwarg_map.get(param_name) {
+                        reordered_rust_args.push(rust_val.clone());
+                        reordered_hir_args.push(hir_val.clone());
                     }
-                })
-                .collect::<Result<Vec<_>>>()?
+                }
+
+                (reordered_rust_args, reordered_hir_args)
+            } else {
+                // No function signature available - fall back to appending kwargs in order
+                // This happens for built-in functions, methods, or external functions
+                let kwarg_exprs: Vec<syn::Expr> = kwargs
+                    .iter()
+                    .map(|(_name, value)| value.to_rust_expr(self.ctx))
+                    .collect::<Result<Vec<_>>>()?;
+
+                let mut all_args = arg_exprs.clone();
+                all_args.extend(kwarg_exprs);
+
+                let mut all_hir_args: Vec<HirExpr> = args.to_vec();
+                for (_name, value) in kwargs {
+                    all_hir_args.push(value.clone());
+                }
+
+                (all_args, all_hir_args)
+            }
         } else {
-            // For built-in functions and regular calls, use standard conversion
-            kwargs
-                .iter()
-                .map(|(_name, value)| value.to_rust_expr(self.ctx))
-                .collect::<Result<Vec<_>>>()?
+            // No kwargs - use args as-is
+            (arg_exprs.clone(), args.to_vec())
         };
-
-        // Merge positional args and kwargs (both HIR and converted Rust exprs)
-        // This creates a single argument list that will be passed to the function
-        let mut all_args = arg_exprs.clone();
-        all_args.extend(kwarg_exprs);
-
-        let mut all_hir_args: Vec<HirExpr> = args.to_vec();
-        for (_name, value) in kwargs {
-            all_hir_args.push(value.clone());
-        }
 
         match func {
             // Python built-in type conversions → Rust casting
@@ -9310,13 +9339,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // built-in collection methods. We must prioritize user-defined methods.
         if self.is_class_instance(object) {
             // This is a user-defined class instance - use generic method call
+            // DEPYLER-0426: Merge kwargs as additional positional arguments
+            let mut all_args = arg_exprs.to_vec();
+            for (_name, value) in kwargs {
+                let kwarg_expr = value.to_rust_expr(self.ctx)?;
+                all_args.push(kwarg_expr);
+            }
+
             // DEPYLER-0306 FIX: Use raw identifiers for method names that are Rust keywords
             let method_ident = if Self::is_rust_keyword(method) {
                 syn::Ident::new_raw(method, proc_macro2::Span::call_site())
             } else {
                 syn::Ident::new(method, proc_macro2::Span::call_site())
             };
-            return Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) });
+            return Ok(parse_quote! { #object_expr.#method_ident(#(#all_args),*) });
         }
 
         // DEPYLER-0211 FIX: Check object type first for ambiguous methods like update()
@@ -9770,7 +9806,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0422: Removed "data" from heuristic - too broad, catches sorted_data, dataset, etc.
             // Only use "dict" or "map" which are more specific to HashMap variables
             let name = sym.as_str();
-            if (name.contains("dict") || name.contains("map") || name.contains("config") || name.contains("value"))
+            if (name.contains("dict")
+                || name.contains("map")
+                || name.contains("config")
+                || name.contains("value"))
                 && !self.is_numeric_index(index)
             {
                 return Ok(true);
@@ -10764,10 +10803,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Try common CSV patterns (heuristic-based for now)
         if let Some(mapping) = self.ctx.stdlib_mappings.lookup("csv", "DictReader", attr) {
             // Found a CSV DictReader mapping - apply it
-            let rust_code = mapping.generate_rust_code(
-                &value_expr.to_token_stream().to_string(),
-                &[]
-            );
+            let rust_code =
+                mapping.generate_rust_code(&value_expr.to_token_stream().to_string(), &[]);
             if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
                 return Ok(expr);
             }
@@ -10775,10 +10812,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // Also try generic Reader patterns
         if let Some(mapping) = self.ctx.stdlib_mappings.lookup("csv", "Reader", attr) {
-            let rust_code = mapping.generate_rust_code(
-                &value_expr.to_token_stream().to_string(),
-                &[]
-            );
+            let rust_code =
+                mapping.generate_rust_code(&value_expr.to_token_stream().to_string(), &[]);
             if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
                 return Ok(expr);
             }
