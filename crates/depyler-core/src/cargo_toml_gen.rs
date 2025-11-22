@@ -128,6 +128,11 @@ pub fn extract_dependencies(ctx: &CodeGenContext) -> Vec<Dependency> {
         deps.push(Dependency::new("clap", "4.5").with_features(vec!["derive".to_string()]));
     }
 
+    // DEPYLER-REARCH-001: Check if once_cell is needed (for lazy static initialization)
+    if ctx.needs_once_cell {
+        deps.push(Dependency::new("once_cell", "1.20"));
+    }
+
     deps
 }
 
@@ -336,6 +341,9 @@ mod tests {
             needs_crc32: false,
             needs_url_encoding: false,
             needs_clap: true,
+            needs_io_read: false,  // DEPYLER-0458
+            needs_io_write: false, // DEPYLER-0458
+            needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![std::collections::HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -429,6 +437,9 @@ mod tests {
             needs_crc32: true,
             needs_url_encoding: true,
             needs_clap: true,
+            needs_io_read: false,  // DEPYLER-0458
+            needs_io_write: false, // DEPYLER-0458
+            needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -519,6 +530,9 @@ mod tests {
             needs_crc32: false,
             needs_url_encoding: false,
             needs_clap: false,
+            needs_io_read: false,  // DEPYLER-0458
+            needs_io_write: false, // DEPYLER-0458
+            needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -613,6 +627,9 @@ mod tests {
             needs_crc32: false,
             needs_url_encoding: false,
             needs_clap: true, // Enable clap
+            needs_io_read: false,  // DEPYLER-0458
+            needs_io_write: false, // DEPYLER-0458
+            needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
