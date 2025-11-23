@@ -411,6 +411,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // v3.16.0 Phase 2: Python's `/` always returns float
                 // Rust's `/` does integer division when both operands are integers
                 // Check if we need to cast to float based on return type context
+                let left_is_float = self.ctx.is_expr_float_type(left);
+                let right_is_float = self.ctx.is_expr_float_type(right);
                 let needs_float_division = self
                     .ctx
                     .current_return_type
@@ -418,8 +420,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .map(return_type_expects_float)
                     .unwrap_or(false);
 
-                if needs_float_division {
+                if needs_float_division && !left_is_float && !right_is_float {
                     // Cast both operands to f64 for Python float division semantics
+                    // Only cast if operands are not already floats
                     Ok(parse_quote! { (#left_expr as f64) / (#right_expr as f64) })
                 } else {
                     // Regular division (int/int → int, float/float → float)
@@ -449,53 +452,45 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 (#left_expr as f64).powf(#right_expr as f64)
                             })
                         } else {
-                            // Positive integer exponent: use .pow() with u32
-                            // Add checked_pow for overflow safety
-                            // DEPYLER-0405: Cast to i32 to give literal a concrete type
-                            Ok(parse_quote! {
-                                (#left_expr as i32).checked_pow(#right_expr as u32)
-                                    .expect("Power operation overflowed")
-                            })
+                            // Positive integer exponent: use simple .pow() with type suffix
+                            // Generate: 2_i32.pow(8 as u32) instead of (2 as i32).pow(...)
+                            // Extract the integer value to create a typed literal
+                            if let HirExpr::Literal(Literal::Int(base_val)) = left {
+                                let base_str = base_val.to_string();
+                                let typed_base = syn::LitInt::new(&format!("{}_i32", base_str), proc_macro2::Span::call_site());
+                                Ok(parse_quote! {
+                                    #typed_base.pow(#right_expr as u32)
+                                })
+                            } else {
+                                // Fallback (shouldn't happen)
+                                Ok(parse_quote! {
+                                    (#left_expr as i32).pow(#right_expr as u32)
+                                })
+                            }
                         }
                     }
                     // Float literal base: always use .powf()
-                    // DEPYLER-0408: Cast float literal to f64 for concrete type
                     (HirExpr::Literal(Literal::Float(_)), _) => Ok(parse_quote! {
                         (#left_expr as f64).powf(#right_expr as f64)
                     }),
                     // Any base with float exponent: use .powf()
-                    // DEPYLER-0408: Cast float literal exponent to f64 for concrete type
                     (_, HirExpr::Literal(Literal::Float(_))) => Ok(parse_quote! {
                         (#left_expr as f64).powf(#right_expr as f64)
                     }),
-                    // Variables or complex expressions: generate type-safe code
-                    _ => {
-                        // For non-literal expressions, we need runtime type checking
-                        // This is a conservative approach that works for common cases
-                        // Determine the target type for casting from context
-                        let target_type = self
-                            .ctx
-                            .current_return_type
-                            .as_ref()
-                            .and_then(|t| match t {
-                                Type::Int => Some(quote! { i32 }),
-                                Type::Float => Some(quote! { f64 }),
-                                _ => None,
-                            })
-                            .unwrap_or_else(|| quote! { i32 });
-
-                        // DEPYLER-0405: Cast both sides to i64 for type-safe comparison
+                    // Variable base with integer literal exponent
+                    (_, HirExpr::Literal(Literal::Int(exp))) if *exp >= 0 => {
+                        // Use simple .pow() for positive literal exponents
+                        // Generate: a.pow(2 as u32)
                         Ok(parse_quote! {
-                            {
-                                // Try integer power first if exponent can be u32
-                                if #right_expr >= 0 && (#right_expr as i64) <= (u32::MAX as i64) {
-                                    (#left_expr as i32).checked_pow(#right_expr as u32)
-                                        .expect("Power operation overflowed")
-                                } else {
-                                    // Fall back to float power for negative or large exponents
-                                    (#left_expr as f64).powf(#right_expr as f64) as #target_type
-                                }
-                            }
+                            #left_expr.pow(#right_expr as u32)
+                        })
+                    }
+                    // Variable or expression base with variable exponent
+                    _ => {
+                        // For variable exponents, use checked_pow for safety
+                        // Generate: a.checked_pow(b as u32)
+                        Ok(parse_quote! {
+                            #left_expr.checked_pow(#right_expr as u32).expect("Power operation overflowed")
                         })
                     }
                 }
@@ -846,36 +841,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #iter_expr.iter().sum::<#target_type>() });
         }
 
-        // DEPYLER-0307 Fix #3: Handle max(a, b) with 2 arguments → std::cmp::max(a, b)
-        if func == "max" && args.len() == 2 {
-            let arg1 = args[0].to_rust_expr(self.ctx)?;
-            let arg2 = args[1].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { std::cmp::max(#arg1, #arg2) });
+        // Handle max() builtin
+        if func == "max" {
+            return crate::rust_gen::builtins::handle_max(args, self.ctx);
         }
 
-        // DEPYLER-0193: Handle max(iterable) → iterable.iter().copied().max().unwrap()
-        if func == "max" && args.len() == 1 {
-            let iter_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { *#iter_expr.iter().max().unwrap() });
-        }
-
-        // DEPYLER-0307 Fix #3: Handle min(a, b) with 2 arguments → std::cmp::min(a, b)
-        if func == "min" && args.len() == 2 {
-            let arg1 = args[0].to_rust_expr(self.ctx)?;
-            let arg2 = args[1].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { std::cmp::min(#arg1, #arg2) });
-        }
-
-        // DEPYLER-0194: Handle min(iterable) → iterable.iter().copied().min().unwrap()
-        if func == "min" && args.len() == 1 {
-            let iter_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { *#iter_expr.iter().min().unwrap() });
+        // Handle min() builtin  
+        if func == "min" {
+            return crate::rust_gen::builtins::handle_min(args, self.ctx);
         }
 
         // DEPYLER-0248: Handle abs(value) → value.abs()
-        if func == "abs" && args.len() == 1 {
-            let value_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #value_expr.abs() });
+        if func == "abs" {
+            return crate::rust_gen::builtins::handle_abs(args, self.ctx);
         }
 
         // DEPYLER-0307 Fix #1: Handle any() with generator expressions
@@ -906,20 +884,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #iter_expr.iter().all(|&x| x) });
         }
 
-        // DEPYLER-0251: Handle round(value) → value.round() as i32
-        // DEPYLER-0357: Add `as i32` cast because Python round() returns int
-        // but Rust f64::round() returns f64
-        if func == "round" && args.len() == 1 {
-            let value_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #value_expr.round() as i32 });
+        // Handle round() builtin
+        if func == "round" {
+            return crate::rust_gen::builtins::handle_round(args, self.ctx);
         }
 
-        // DEPYLER-0252: Handle pow(base, exp) → base.pow(exp as u32)
-        // Rust's pow() requires u32 exponent, so we cast
-        if func == "pow" && args.len() == 2 {
-            let base_expr = args[0].to_rust_expr(self.ctx)?;
-            let exp_expr = args[1].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #base_expr.pow(#exp_expr as u32) });
+        // Handle pow() builtin
+        if func == "pow" {
+            return crate::rust_gen::builtins::handle_pow(args, self.ctx);
         }
 
         // DEPYLER-0253: Handle chr(code) → char::from_u32(code as u32).unwrap().to_string()
@@ -9688,16 +9660,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             } = index
             {
                 if let HirExpr::Literal(Literal::Int(n)) = **operand {
-                    // Negative index literal: arr[-1] → arr.get(arr.len() - 1)
                     let offset = n as usize;
-                    return Ok(parse_quote! {
-                        {
-                            // DEPYLER-0307 Fix #11: Use borrow to avoid moving the base expression
-                            let base = &#base_expr;
-                            // DEPYLER-0267: Use .cloned() instead of .copied() for non-Copy types (String, Vec, etc.)
-                            base.get(base.len().saturating_sub(#offset)).cloned().unwrap_or_default()
-                        }
-                    });
+                    // Special case for -1: use .last()
+                    if offset == 1 {
+                        return Ok(parse_quote! { *#base_expr.last().unwrap() });
+                    }
+                    // For other negative indices, use direct indexing: items[items.len() - N]
+                    return Ok(parse_quote! { #base_expr[#base_expr.len() - #offset] });
                 }
             }
 
@@ -9706,6 +9675,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // This avoids unnecessary temporary variables and runtime checks
             if let HirExpr::Literal(Literal::Int(n)) = index {
                 let idx_value = *n as usize;
+                // Special case for 0: use .first()
+                if idx_value == 0 {
+                    return Ok(parse_quote! { *#base_expr.first().unwrap() });
+                }
                 return Ok(parse_quote! {
                     #base_expr.get(#idx_value).cloned().unwrap_or_default()
                 });

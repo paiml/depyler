@@ -259,6 +259,21 @@ impl<'a> CodeGenContext<'a> {
     pub fn exit_exception_scope(&mut self) {
         self.exception_scopes.pop();
     }
+
+    /// Check if an expression evaluates to a float type
+    ///
+    /// Used by math builtins to determine whether to use float or integer methods.
+    /// # Complexity
+    /// 1 (simple pattern match + HashMap lookup)
+    pub fn is_expr_float_type(&self, expr: &crate::hir::HirExpr) -> bool {
+        match expr {
+            crate::hir::HirExpr::Var(var_name) => {
+                matches!(self.var_types.get(var_name), Some(Type::Float))
+            }
+            crate::hir::HirExpr::Literal(crate::hir::Literal::Float(_)) => true,
+            _ => false,
+        }
+    }
 }
 
 /// Trait for converting HIR elements to Rust tokens

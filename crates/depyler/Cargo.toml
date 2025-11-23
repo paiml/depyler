@@ -228,3 +228,7 @@ path = "../../tests/depyler_0271_main_return_type_test.rs"
 [[test]]
 name = "depyler_0272_unused_loop_vars_test"
 path = "../../tests/depyler_0272_unused_loop_vars_test.rs"
+
+[[test]]
+name = "math_tests"
+path = "../../tests/math_tests.rs"

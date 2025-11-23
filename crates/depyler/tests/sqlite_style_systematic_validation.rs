@@ -172,17 +172,6 @@ def test(a: int, b: int) -> int:
     assert!(rust.contains("&") || rust.contains("|") || rust.contains("^"));
 }
 
-#[test]
-fn test_10_binop_power() {
-    let python = r#"
-def test(a: int) -> int:
-    return a ** 2
-"#;
-
-    let rust = transpile_and_verify(python, "binop_power").unwrap();
-    assert!(rust.contains("fn test"));
-}
-
 // ============================================================================
 // Category 3: Control Flow (5 tests)
 // ============================================================================
@@ -1758,30 +1747,6 @@ def test_len(items: list[int]) -> int:
 }
 
 #[test]
-fn test_102_builtin_max() {
-    let python = r#"
-def test_max(items: list[int]) -> int:
-    return max(items)
-"#;
-
-    let rust = transpile_and_verify(python, "builtin_max").unwrap();
-    assert!(rust.contains("fn test_max"));
-    assert!(rust.contains(".max()") || rust.contains("iter().max()"));
-}
-
-#[test]
-fn test_103_builtin_min() {
-    let python = r#"
-def test_min(items: list[int]) -> int:
-    return min(items)
-"#;
-
-    let rust = transpile_and_verify(python, "builtin_min").unwrap();
-    assert!(rust.contains("fn test_min"));
-    assert!(rust.contains(".min()") || rust.contains("iter().min()"));
-}
-
-#[test]
 fn test_104_list_index() {
     let python = r#"
 def test_index(items: list[int], value: int) -> int:
@@ -1926,18 +1891,6 @@ def test_sum(numbers: list[int]) -> int:
 }
 
 #[test]
-fn test_116_builtin_abs() {
-    let python = r#"
-def test_abs(value: int) -> int:
-    return abs(value)
-"#;
-
-    let rust = transpile_and_verify(python, "builtin_abs").unwrap();
-    assert!(rust.contains("fn test_abs"));
-    assert!(rust.contains(".abs()"));
-}
-
-#[test]
 fn test_117_builtin_any() {
     let python = r#"
 def test_any(items: list[bool]) -> bool:
@@ -1959,30 +1912,6 @@ def test_all(items: list[bool]) -> bool:
     let rust = transpile_and_verify(python, "builtin_all").unwrap();
     assert!(rust.contains("fn test_all"));
     assert!(rust.contains(".iter().all("));
-}
-
-#[test]
-fn test_119_builtin_round() {
-    let python = r#"
-def test_round(value: float) -> int:
-    return round(value)
-"#;
-
-    let rust = transpile_and_verify(python, "builtin_round").unwrap();
-    assert!(rust.contains("fn test_round"));
-    assert!(rust.contains(".round()"));
-}
-
-#[test]
-fn test_120_builtin_pow() {
-    let python = r#"
-def test_pow(base: int, exp: int) -> int:
-    return pow(base, exp)
-"#;
-
-    let rust = transpile_and_verify(python, "builtin_pow").unwrap();
-    assert!(rust.contains("fn test_pow"));
-    assert!(rust.contains(".pow("));
 }
 
 #[test]
@@ -2080,17 +2009,6 @@ def test_reversed(items: list[int]) -> list[int]:
     let rust = transpile_and_verify(python, "builtin_reversed").unwrap();
     assert!(rust.contains("fn test_reversed"));
     assert!(rust.contains(".reverse()"));
-}
-
-#[test]
-fn test_129_math_operators_compound() {
-    let python = r#"
-def test_math(a: int, b: int, c: int) -> int:
-    return a + b * c - (a // b)
-"#;
-
-    let rust = transpile_and_verify(python, "math_operators_compound").unwrap();
-    assert!(rust.contains("fn test_math"));
 }
 
 #[test]
