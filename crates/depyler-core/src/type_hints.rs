@@ -64,12 +64,12 @@ enum TypeConstraint {
         op: String,
         required: Type,
     },
-    /// Variable passed to function expecting type
+    /// Variable passed to function expecting type (DEPYLER-0492: stdlib signatures)
     ArgumentConstraint {
-        _var: String,
-        _func: String,
-        _param_idx: usize,
-        _expected: Type,
+        var: String,
+        func: String,
+        param_idx: usize,
+        expected: Type,
     },
     /// Variable returned from function
     ReturnConstraint { var: String, ty: Type },
@@ -129,7 +129,14 @@ impl TypeHintProvider {
     fn collect_parameter_hints(&mut self, func: &HirFunction, hints: &mut Vec<TypeHint>) {
         for param in &func.params {
             if matches!(param.ty, Type::Unknown) {
-                if let Some(hint) = self.infer_parameter_type(&param.name) {
+                // DEPYLER-0492: Infer type from default value first (highest confidence)
+                if let Some(hint) = self.infer_from_default(&param.name, &param.default) {
+                    hints.push(hint.clone());
+                    self.parameter_hints
+                        .entry(func.name.clone())
+                        .or_default()
+                        .push(hint);
+                } else if let Some(hint) = self.infer_parameter_type(&param.name) {
                     hints.push(hint.clone());
                     self.parameter_hints
                         .entry(func.name.clone())
@@ -408,6 +415,8 @@ impl TypeHintProvider {
                 ..
             } => self.analyze_method_call(object, method, args),
             HirExpr::Index { base, index } => self.analyze_indexing(base, index),
+            // DEPYLER-0492: Slicing operations imply list/vector type
+            HirExpr::Slice { base, .. } => self.analyze_slicing(base),
             // DEPYLER-0451 Phase 1b: F-string type inference
             HirExpr::FString { parts } => self.analyze_fstring(parts),
             _ => Ok(()),
@@ -703,10 +712,10 @@ impl TypeHintProvider {
         self.context
             .constraints
             .push(TypeConstraint::ArgumentConstraint {
-                _var: var.to_string(),
-                _func: func.to_string(),
-                _param_idx: 0,
-                _expected: expected,
+                var: var.to_string(),
+                func: func.to_string(),
+                param_idx: 0,
+                expected,
             });
     }
 
@@ -724,6 +733,21 @@ impl TypeHintProvider {
         args: &[HirExpr],
     ) -> Result<()> {
         if let HirExpr::Var(var) = object {
+            // DEPYLER-0492: subprocess.run() expects first arg to be List[str]
+            if var == "subprocess" && method == "run" {
+                if let Some(HirExpr::Var(cmd_var)) = args.first() {
+                    // subprocess.run(cmd) -> cmd should be Vec<String>
+                    // Use ArgumentConstraint for high-confidence stdlib signature
+                    self.context.constraints.push(TypeConstraint::ArgumentConstraint {
+                        var: cmd_var.to_string(),
+                        func: "subprocess.run".to_string(),
+                        param_idx: 0,
+                        expected: Type::List(Box::new(Type::String)),
+                    });
+                    self.record_usage_pattern(cmd_var, UsagePattern::Container);
+                }
+            }
+
             // String methods
             if [
                 "upper",
@@ -765,12 +789,50 @@ impl TypeHintProvider {
         Ok(())
     }
 
+    /// DEPYLER-0492: Slicing operations (items[1:]) imply list/vector type
+    fn analyze_slicing(&mut self, base: &HirExpr) -> Result<()> {
+        if let HirExpr::Var(var) = base {
+            self.record_usage_pattern(var, UsagePattern::Container);
+        }
+        self.analyze_expr(base)?;
+        Ok(())
+    }
+
     fn record_usage_pattern(&mut self, var: &str, pattern: UsagePattern) {
         self.context
             .usage_patterns
             .entry(var.to_string())
             .or_default()
             .push(pattern);
+    }
+
+    /// DEPYLER-0492: Infer parameter type from default value (Certain confidence)
+    fn infer_from_default(
+        &self,
+        param_name: &str,
+        default: &Option<HirExpr>,
+    ) -> Option<TypeHint> {
+        let default_expr = default.as_ref()?;
+
+        let inferred_type = match default_expr {
+            HirExpr::Literal(lit) => match lit {
+                crate::hir::Literal::Bool(_) => Type::Bool,
+                crate::hir::Literal::Int(_) => Type::Int,
+                crate::hir::Literal::Float(_) => Type::Float,
+                crate::hir::Literal::String(_) => Type::String,
+                crate::hir::Literal::None => return None, // None doesn't give type info
+                _ => return None,                          // Other literals not yet supported
+            },
+            _ => return None, // Complex defaults not yet supported
+        };
+
+        Some(TypeHint {
+            suggested_type: inferred_type,
+            confidence: Confidence::Certain, // Default values are certain
+            reason: "inferred from default value".to_string(),
+            source_location: None,
+            target: HintTarget::Parameter(param_name.to_string()),
+        })
     }
 
     fn infer_parameter_type(&self, param_name: &str) -> Option<TypeHint> {
@@ -794,6 +856,15 @@ impl TypeHintProvider {
                 }
                 TypeConstraint::OperatorConstraint { var, op, required } if var == param_name => {
                     self.add_operator_evidence(op, required, type_votes);
+                }
+                // DEPYLER-0492: High-confidence stdlib function signatures
+                TypeConstraint::ArgumentConstraint {
+                    var,
+                    func,
+                    expected,
+                    ..
+                } if var == param_name => {
+                    self.add_argument_evidence(func, expected, type_votes);
                 }
                 _ => {}
             }
@@ -821,6 +892,19 @@ impl TypeHintProvider {
         reasons.push(format!("used with {} operator", op));
     }
 
+    /// DEPYLER-0492: High-confidence evidence from stdlib function signatures
+    /// Score of 5 gives Confidence::High, ensuring parameter types are inferred
+    fn add_argument_evidence(
+        &self,
+        func: &str,
+        expected: &Type,
+        type_votes: &mut HashMap<Type, (u32, Vec<String>)>,
+    ) {
+        let (count, reasons) = type_votes.entry(expected.clone()).or_default();
+        *count += 5; // High confidence (score ≥ 4)
+        reasons.push(format!("stdlib function {} signature", func));
+    }
+
     fn collect_pattern_evidence(
         &self,
         param_name: &str,
@@ -842,6 +926,8 @@ impl TypeHintProvider {
             UsagePattern::Numeric => self.add_numeric_evidence(type_votes),
             UsagePattern::StringLike => self.add_string_evidence(type_votes),
             UsagePattern::Iterator => self.add_iterator_evidence(type_votes),
+            // DEPYLER-0492: Container pattern from indexing/slicing
+            UsagePattern::Container => self.add_container_evidence(type_votes),
             _ => {}
         }
     }
@@ -864,6 +950,15 @@ impl TypeHintProvider {
             .or_default();
         *count += 1;
         reasons.push("used as iterator".to_string());
+    }
+
+    /// DEPYLER-0492: High-confidence evidence from indexing/slicing operations
+    fn add_container_evidence(&self, type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
+        let (count, reasons) = type_votes
+            .entry(Type::List(Box::new(Type::Unknown)))
+            .or_default();
+        *count += 4; // High confidence - indexing strongly implies list type
+        reasons.push("indexing/slicing operation".to_string());
     }
 
     fn build_type_hint_from_votes(
@@ -960,10 +1055,11 @@ impl TypeHintProvider {
         match pattern {
             UsagePattern::Numeric => *type_score.entry(Type::Int).or_insert(0) += 1,
             UsagePattern::StringLike => *type_score.entry(Type::String).or_insert(0) += 2,
+            // DEPYLER-0492: Indexing/slicing strongly implies list type (High confidence)
             UsagePattern::Container => {
                 *type_score
                     .entry(Type::List(Box::new(Type::Unknown)))
-                    .or_insert(0) += 1
+                    .or_insert(0) += 4 // High confidence (was 1)
             }
             _ => {}
         }

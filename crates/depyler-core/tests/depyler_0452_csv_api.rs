@@ -3,6 +3,7 @@
 // This test suite validates correct Rust code generation for Python stdlib APIs,
 // specifically focusing on csv module and file I/O patterns.
 //
+#![allow(non_snake_case)] // Allow DEPYLER-XXXX test naming convention
 // Created: 2025-11-21
 // Ticket: https://github.com/paiml/depyler/issues/DEPYLER-0452
 
@@ -64,9 +65,12 @@ def read_csv(filepath):
     assert_not_contains(&rust_code, "reader.iter()");
 
     // Should use BufReader for file
-    let has_bufreader = rust_code.contains("BufReader::new")
-        || rust_code.contains("from_reader");
-    assert!(has_bufreader, "Expected BufReader or from_reader pattern. Got:\n{}", rust_code);
+    let has_bufreader = rust_code.contains("BufReader::new") || rust_code.contains("from_reader");
+    assert!(
+        has_bufreader,
+        "Expected BufReader or from_reader pattern. Got:\n{}",
+        rust_code
+    );
 }
 
 // ====================================================================================
@@ -96,9 +100,13 @@ def get_headers(filepath):
     assert_not_contains(&rust_code, "reader.fieldnames");
 
     // Should handle Result from headers()
-    let has_result_handling = rust_code.contains("headers()?")
-        || rust_code.contains("headers().unwrap()");
-    assert!(has_result_handling, "Expected Result handling for headers(). Got:\n{}", rust_code);
+    let has_result_handling =
+        rust_code.contains("headers()?") || rust_code.contains("headers().unwrap()");
+    assert!(
+        has_result_handling,
+        "Expected Result handling for headers(). Got:\n{}",
+        rust_code
+    );
 }
 
 // ====================================================================================
@@ -129,9 +137,13 @@ def print_rows(filepath):
     assert_contains(&rust_code, "HashMap<String, String>");
 
     // Should handle Result from deserialize iteration
-    let has_result_handling = rust_code.contains("result?")
-        || rust_code.contains("result.unwrap()");
-    assert!(has_result_handling, "Expected Result handling in iteration. Got:\n{}", rust_code);
+    let has_result_handling =
+        rust_code.contains("result?") || rust_code.contains("result.unwrap()");
+    assert!(
+        has_result_handling,
+        "Expected Result handling in iteration. Got:\n{}",
+        rust_code
+    );
 
     // Should NOT use incorrect .iter() method
     assert_not_contains(&rust_code, "reader.iter()");
@@ -166,7 +178,11 @@ def get_column(filepath, column_name):
         && (rust_code.contains(".unwrap_or")
             || rust_code.contains(".unwrap()")
             || rust_code.contains("?"));
-    assert!(has_option_handling, "Expected Option handling for HashMap.get(). Got:\n{}", rust_code);
+    assert!(
+        has_option_handling,
+        "Expected Option handling for HashMap.get(). Got:\n{}",
+        rust_code
+    );
 
     // Should NOT use invalid numeric indexing on HashMap
     assert_not_contains(&rust_code, "as usize");
@@ -206,9 +222,12 @@ def filter_csv(filepath, column, value):
     assert_contains(&rust_code, ".get(");
 
     // Should collect results into Vec
-    let has_collect = rust_code.contains(".collect()")
-        || rust_code.contains("results.push(");
-    assert!(has_collect, "Expected collect() or push() for results. Got:\n{}", rust_code);
+    let has_collect = rust_code.contains(".collect()") || rust_code.contains("results.push(");
+    assert!(
+        has_collect,
+        "Expected collect() or push() for results. Got:\n{}",
+        rust_code
+    );
 }
 
 // ====================================================================================
@@ -247,9 +266,12 @@ def filter_csv_generator(filepath, column, value):
     assert_not_contains(&rust_code, "reader.iter()");
 
     // Should use filter pattern for filtering rows
-    let has_filter = rust_code.contains(".filter(")
-        || rust_code.contains("if ");
-    assert!(has_filter, "Expected filter pattern for list comprehension. Got:\n{}", rust_code);
+    let has_filter = rust_code.contains(".filter(") || rust_code.contains("if ");
+    assert!(
+        has_filter,
+        "Expected filter pattern for list comprehension. Got:\n{}",
+        rust_code
+    );
 
     // Should handle HashMap for DictReader rows
     assert_contains(&rust_code, "HashMap");
@@ -287,9 +309,12 @@ def filter_and_map_csv(filepath):
     assert_contains(&rust_code, "deserialize");
 
     // Should handle Result type from deserialize iterator
-    let has_result_handling = rust_code.contains("?")
-        || rust_code.contains(".unwrap()");
-    assert!(has_result_handling, "Expected Result handling. Got:\n{}", rust_code);
+    let has_result_handling = rust_code.contains("?") || rust_code.contains(".unwrap()");
+    assert!(
+        has_result_handling,
+        "Expected Result handling. Got:\n{}",
+        rust_code
+    );
 }
 
 // ====================================================================================
@@ -321,10 +346,17 @@ def read_lines(filepath):
         || rust_code.contains("line?")
         || rust_code.contains(".unwrap()")
         || rust_code.contains(".unwrap_or_default()");
-    assert!(has_result_handling, "Expected Result handling for lines(). Got:\n{}", rust_code);
+    assert!(
+        has_result_handling,
+        "Expected Result handling for lines(). Got:\n{}",
+        rust_code
+    );
 
     // Should use proper file iteration pattern (not File.iter())
-    let has_proper_iteration = rust_code.contains(".lines()")
-        || rust_code.contains("BufReader");
-    assert!(has_proper_iteration, "Expected BufReader.lines() pattern for file iteration. Got:\n{}", rust_code);
+    let has_proper_iteration = rust_code.contains(".lines()") || rust_code.contains("BufReader");
+    assert!(
+        has_proper_iteration,
+        "Expected BufReader.lines() pattern for file iteration. Got:\n{}",
+        rust_code
+    );
 }

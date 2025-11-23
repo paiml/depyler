@@ -33,6 +33,7 @@ default = []
 wasm = ["web-time"]
 deterministic = []
 ruchy = []
+enable-decision-tracing = []
 # Chaos engineering features (renacer pattern)
 chaos-basic = []
 chaos-network = ["chaos-basic"]

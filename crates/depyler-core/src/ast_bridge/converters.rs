@@ -1078,7 +1078,7 @@ fn convert_nested_function_params(args: &ast::Arguments) -> Result<Vec<HirParam>
             None
         };
 
-        params.push(HirParam { name, ty, default });
+        params.push(HirParam { name, ty, default, is_vararg: false });
     }
 
     Ok(params)

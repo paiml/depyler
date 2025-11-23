@@ -3,6 +3,7 @@
 // This test verifies that when handler functions access subcommand-specific fields
 // (like args.url in a clone handler), the transpiler generates proper pattern matching
 // to extract those fields from the Commands enum variant.
+#![allow(non_snake_case)] // Allow DEPYLER-XXXX test naming convention
 
 use depyler_core::DepylerPipeline;
 

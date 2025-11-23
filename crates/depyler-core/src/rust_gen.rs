@@ -58,7 +58,11 @@ fn analyze_string_optimization(ctx: &mut CodeGenContext, functions: &[HirFunctio
 /// This must run BEFORE function signature generation so parameter types can be corrected.
 ///
 /// Complexity: 8 (func loop + const loop + stmt loop + match + expr match + kwargs loop + filter)
-fn analyze_validators(ctx: &mut CodeGenContext, functions: &[HirFunction], constants: &[HirConstant]) {
+fn analyze_validators(
+    ctx: &mut CodeGenContext,
+    functions: &[HirFunction],
+    constants: &[HirConstant],
+) {
     // Scan function bodies
     for func in functions {
         scan_stmts_for_validators(&func.body, ctx);
@@ -77,7 +81,11 @@ fn scan_stmts_for_validators(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
             HirStmt::Expr(expr) => {
                 scan_expr_for_validators(expr, ctx);
             }
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 scan_stmts_for_validators(then_body, ctx);
                 if let Some(ref else_stmts) = else_body {
                     scan_stmts_for_validators(else_stmts, ctx);
@@ -89,7 +97,12 @@ fn scan_stmts_for_validators(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
             HirStmt::For { body, .. } => {
                 scan_stmts_for_validators(body, ctx);
             }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
                 scan_stmts_for_validators(body, ctx);
                 for handler in handlers {
                     scan_stmts_for_validators(&handler.body, ctx);
@@ -437,7 +450,7 @@ fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenS
         (ctx.needs_rc, quote! { use std::rc::Rc; }),
         (ctx.needs_cow, quote! { use std::borrow::Cow; }),
         (ctx.needs_serde_json, quote! { use serde_json; }),
-        (ctx.needs_io_read, quote! { use std::io::Read; }),   // DEPYLER-0458
+        (ctx.needs_io_read, quote! { use std::io::Read; }), // DEPYLER-0458
         (ctx.needs_io_write, quote! { use std::io::Write; }), // DEPYLER-0458
         (ctx.needs_once_cell, quote! { use once_cell::sync::Lazy; }), // DEPYLER-REARCH-001
     ];
@@ -643,6 +656,16 @@ pub fn generate_rust_file(
     let (imported_modules, imported_items) =
         process_module_imports(&module.imports, &module_mapper);
 
+    // DEPYLER-0490/0491: Set needs_* flags based on imported modules AND items
+    // This ensures Cargo.toml dependencies are generated for external crates
+    // Check both whole module imports (import X) and specific imports (from X import Y)
+    let needs_chrono = imported_modules.contains_key("datetime")
+        || imported_items.values().any(|path| path.starts_with("chrono::"));
+    let needs_tempfile = imported_modules.contains_key("tempfile")
+        || imported_items.values().any(|path| path.starts_with("tempfile::"));
+    let needs_itertools = imported_modules.contains_key("itertools")
+        || imported_items.values().any(|path| path.starts_with("itertools::"));
+
     // Extract class names from module (DEPYLER-0230: distinguish user classes from builtins)
     let class_names: HashSet<String> = module
         .classes
@@ -680,7 +703,9 @@ pub fn generate_rust_file(
         needs_rand: false,
         needs_serde_json: false,
         needs_regex: false,
-        needs_chrono: false,
+        needs_chrono,    // DEPYLER-0490: Set from imports
+        needs_tempfile,  // DEPYLER-0490: Set from imports
+        needs_itertools, // DEPYLER-0490: Set from imports
         needs_clap: false,
         needs_csv: false,
         needs_rust_decimal: false,
@@ -695,8 +720,8 @@ pub fn generate_rust_file(
         needs_hmac: false,
         needs_crc32: false,
         needs_url_encoding: false,
-        needs_io_read: false,  // DEPYLER-0458
-        needs_io_write: false, // DEPYLER-0458
+        needs_io_read: false,   // DEPYLER-0458
+        needs_io_write: false,  // DEPYLER-0458
         needs_once_cell: false, // DEPYLER-REARCH-001
         declared_vars: vec![HashSet::new()],
         current_function_can_fail: false,
@@ -728,8 +753,10 @@ pub fn generate_rust_file(
         generated_commands_enum: None, // DEPYLER-0424: Commands enum (hoisted to module level)
         current_subcommand_fields: None, // DEPYLER-0425: Subcommand field extraction
         validator_functions: HashSet::new(), // DEPYLER-0447: Track argparse validator functions
+        in_json_context: false,      // DEPYLER-0461: Track json!() macro context for nested dicts
         stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452: Stdlib API mappings
         hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
+        cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2: Track CSE subcommand temps
     };
 
     // Analyze all functions first for string optimization
@@ -888,8 +915,8 @@ mod tests {
             needs_hmac: false,
             needs_crc32: false,
             needs_url_encoding: false,
-            needs_io_read: false,  // DEPYLER-0458
-            needs_io_write: false, // DEPYLER-0458
+            needs_io_read: false,   // DEPYLER-0458
+            needs_io_write: false,  // DEPYLER-0458
             needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
@@ -921,8 +948,10 @@ mod tests {
             generated_commands_enum: None, // DEPYLER-0424: Commands enum (hoisted to module level)
             current_subcommand_fields: None, // DEPYLER-0425: Subcommand field extraction
             validator_functions: HashSet::new(), // DEPYLER-0447: Track argparse validator functions
+            in_json_context: false, // DEPYLER-0461: Track json!() macro context for nested dicts
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
+            cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2: Track CSE subcommand temps
         }
     }
 

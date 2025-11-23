@@ -119,7 +119,7 @@ pub fn format_statistics(
     let _cse_temp_4 = avg.to_string();
     let _cse_temp_5 = format!("{}{}", format!("{}{}", result, "Average: "), _cse_temp_4);
     result = format!("{}{}", _cse_temp_5, "\n");
-    Ok(result)
+    Ok(result.to_string())
 }
 #[doc = "Check if guess is in valid range."]
 #[doc = " Depyler: verified panic-free"]

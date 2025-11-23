@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 /// Differential Testing Harness
 ///
 /// Validates Python→Rust transpilation by comparing runtime behavior:
@@ -5,12 +6,10 @@
 /// - Deterministic 100% accuracy (vs ML-based regression detection)
 ///
 /// Based on McKeeman (1998) "Differential Testing for Software"
-
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
-use serde::{Deserialize, Serialize};
+use std::process::Command;
 
 /// Result of running Python vs Rust differential test
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -60,10 +59,7 @@ impl DifferentialTester {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
             python_exe: which::which("python3")?,
-            depyler_exe: std::env::current_exe()?
-                .parent()
-                .unwrap()
-                .join("depyler"),
+            depyler_exe: std::env::current_exe()?.parent().unwrap().join("depyler"),
             temp_dir: std::env::temp_dir().join("depyler-differential"),
         })
     }
@@ -137,22 +133,24 @@ impl DifferentialTester {
 
     /// Transpile Python → Rust using depyler
     fn transpile(&self, python_file: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
-        let rust_file = self.temp_dir.join(
-            python_file.file_stem().unwrap().to_str().unwrap()
-        ).with_extension("rs");
+        let rust_file = self
+            .temp_dir
+            .join(python_file.file_stem().unwrap().to_str().unwrap())
+            .with_extension("rs");
 
         fs::create_dir_all(&self.temp_dir)?;
 
         let output = Command::new(&self.depyler_exe)
-            .args(&["transpile", python_file.to_str().unwrap()])
-            .args(&["-o", rust_file.to_str().unwrap()])
+            .args(["transpile", python_file.to_str().unwrap()])
+            .args(["-o", rust_file.to_str().unwrap()])
             .output()?;
 
         if !output.status.success() {
             return Err(format!(
                 "Transpilation failed:\n{}",
                 String::from_utf8_lossy(&output.stderr)
-            ).into());
+            )
+            .into());
         }
 
         Ok(rust_file)
@@ -164,15 +162,16 @@ impl DifferentialTester {
 
         let output = Command::new("rustc")
             .arg(rust_file)
-            .args(&["-o", binary.to_str().unwrap()])
-            .args(&["--deny", "warnings"])  // Enforce zero warnings
+            .args(["-o", binary.to_str().unwrap()])
+            .args(["--deny", "warnings"]) // Enforce zero warnings
             .output()?;
 
         if !output.status.success() {
             return Err(format!(
                 "Rust compilation failed:\n{}",
                 String::from_utf8_lossy(&output.stderr)
-            ).into());
+            )
+            .into());
         }
 
         Ok(binary)
@@ -186,9 +185,7 @@ impl DifferentialTester {
     ) -> Result<ProgramOutput, Box<dyn std::error::Error>> {
         let start = std::time::Instant::now();
 
-        let output = Command::new(binary)
-            .args(args)
-            .output()?;
+        let output = Command::new(binary).args(args).output()?;
 
         let runtime_ms = start.elapsed().as_millis();
 
@@ -201,11 +198,7 @@ impl DifferentialTester {
     }
 
     /// Compare Python vs Rust outputs
-    fn compare_outputs(
-        &self,
-        python: &ProgramOutput,
-        rust: &ProgramOutput,
-    ) -> Vec<Mismatch> {
+    fn compare_outputs(&self, python: &ProgramOutput, rust: &ProgramOutput) -> Vec<Mismatch> {
         let mut mismatches = Vec::new();
 
         // Compare stdout (with normalization)
@@ -222,13 +215,11 @@ impl DifferentialTester {
         }
 
         // Compare stderr (warnings are OK, errors are not)
-        if python.exit_code != 0 || rust.exit_code != 0 {
-            if python.stderr != rust.stderr {
-                mismatches.push(Mismatch::StderrDifference {
-                    python: python.stderr.clone(),
-                    rust: rust.stderr.clone(),
-                });
-            }
+        if (python.exit_code != 0 || rust.exit_code != 0) && python.stderr != rust.stderr {
+            mismatches.push(Mismatch::StderrDifference {
+                python: python.stderr.clone(),
+                rust: rust.stderr.clone(),
+            });
         }
 
         // Compare exit codes
@@ -317,12 +308,16 @@ impl ReprorustedTestSuite {
             ("example_simple", &["--name", "Alice"][..]),
             ("example_flags", &["--debug"]),
             ("example_config", &["init"]),
-            ("example_csv_filter", &["data.csv", "--column", "name", "--value", "Alice"]),
+            (
+                "example_csv_filter",
+                &["data.csv", "--column", "name", "--value", "Alice"],
+            ),
             // ... more examples
         ];
 
         for (name, args) in examples {
-            let python_file = self.examples_dir
+            let python_file = self
+                .examples_dir
                 .join(name)
                 .join(format!("{}.py", name.strip_prefix("example_").unwrap()));
 
@@ -375,9 +370,7 @@ impl ReprorustedTestSuite {
     <h2>{}: {}</h2>
     <p>Python runtime: {}ms | Rust runtime: {}ms</p>
 "#,
-                class, name, status,
-                result.python_output.runtime_ms,
-                result.rust_output.runtime_ms
+                class, name, status, result.python_output.runtime_ms, result.rust_output.runtime_ms
             ));
 
             if !result.passed {
@@ -427,13 +420,17 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let python_file = temp_dir.path().join("test.py");
 
-        std::fs::write(&python_file, r#"
+        std::fs::write(
+            &python_file,
+            r#"
 def main():
     print("Hello, World!")
 
 if __name__ == "__main__":
     main()
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let tester = DifferentialTester::new().unwrap();
         let result = tester.test_file(&python_file, &[]).unwrap();

@@ -55,6 +55,7 @@ pub mod chaos;
 pub mod codegen;
 pub mod const_generic_inference;
 pub mod debug;
+pub mod decision_trace;
 pub mod direct_rules;
 pub mod documentation;
 pub mod error;
@@ -86,6 +87,7 @@ pub mod string_optimization;
 pub mod test_generation;
 pub mod type_hints;
 pub mod type_mapper;
+pub mod type_system;
 pub mod union_enum_gen;
 
 use anyhow::Result;

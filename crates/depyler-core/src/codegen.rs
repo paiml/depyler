@@ -243,6 +243,10 @@ fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
             let inner_type = type_to_rust_type(inner);
             quote! { HashSet<#inner_type> }
         }
+        Type::UnificationVar(id) => {
+            // UnificationVar should never appear in final code generation
+            panic!("BUG: UnificationVar({}) encountered in codegen. Type inference incomplete.", id)
+        }
     }
 }
 
