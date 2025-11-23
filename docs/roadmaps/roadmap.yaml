@@ -6,11 +6,11 @@ roadmap:
   github_issue: null
   item_type: bug
   title: Generator variable scoping - variables not accessible across yield states
-  status: inprogress
+  status: completed
   priority: critical
   assigned_to: Claude
   created: 2025-11-23T18:45:00+00:00
-  updated: 2025-11-23T20:43:48.657928523+00:00
+  updated: 2025-11-23T21:02:02.434962801+00:00
   spec: docs/bugs/DEPYLER-0494-generator-variable-scoping.md
   acceptance_criteria:
   - fibonacci_generator compiles without errors
@@ -121,11 +121,11 @@ roadmap:
   github_issue: null
   item_type: bug
   title: Incorrect &mut parameter type inference for immutable parameters
-  status: inprogress
+  status: completed
   priority: high
   assigned_to: Claude
   created: 2025-11-23T18:30:00+00:00
-  updated: 2025-11-23T18:24:36.696613042+00:00
+  updated: 2025-11-23T21:03:31.361457130+00:00
   spec: docs/bugs/DEPYLER-0483-mut-parameter-inference.md
   acceptance_criteria:
   - Parameters used immutably inferred as & (not &mut)
@@ -157,11 +157,11 @@ roadmap:
   github_issue: null
   item_type: bug
   title: isinstance() generates invalid Rust code
-  status: inprogress
+  status: completed
   priority: critical
   assigned_to: Claude
   created: 2025-10-27T00:00:00+00:00
-  updated: 2025-11-23T18:37:59.280874356+00:00
+  updated: 2025-11-23T21:03:54.137243208+00:00
   spec: docs/bugs/DEPYLER-0269-isinstance-transpilation.md
   acceptance_criteria:
   - isinstance() calls removed from generated Rust code
