@@ -336,6 +336,8 @@ mod tests {
             needs_regex: false,
             needs_chrono: true,
             needs_csv: false,
+            needs_itertools: false,
+            needs_tempfile: false,
             needs_rust_decimal: false,
             needs_num_rational: false,
             needs_base64: false,
@@ -447,6 +449,8 @@ mod tests {
             needs_crc32: true,
             needs_url_encoding: true,
             needs_clap: true,
+            needs_tempfile: true,   // DEPYLER-0493
+            needs_itertools: true,  // DEPYLER-0493
             needs_io_read: false,   // DEPYLER-0458
             needs_io_write: false,  // DEPYLER-0458
             needs_once_cell: false, // DEPYLER-REARCH-001
@@ -529,6 +533,8 @@ mod tests {
             needs_regex: false,
             needs_chrono: false,
             needs_csv: false,
+            needs_itertools: false,
+            needs_tempfile: false,
             needs_rust_decimal: false,
             needs_num_rational: false,
             needs_base64: false,
@@ -628,6 +634,8 @@ mod tests {
             needs_regex: false,
             needs_chrono: false,
             needs_csv: false,
+            needs_itertools: false,
+            needs_tempfile: false,
             needs_rust_decimal: false,
             needs_num_rational: false,
             needs_base64: false,

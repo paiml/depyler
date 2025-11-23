@@ -308,6 +308,7 @@ fn test_module_mapping_clone() {
         is_external: true,
         version: Some("1.0".to_string()),
         item_map: HashMap::from([("foo".to_string(), "bar".to_string())]),
+        constructor_patterns: HashMap::new(),
     };
 
     let cloned = mapping.clone();
