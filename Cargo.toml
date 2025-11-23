@@ -11,6 +11,7 @@ members = [
     "crates/depyler-ruchy",
     "crates/depyler-testing",
 ]
+exclude = ["examples/argparse_cli"]
 resolver = "2"
 
 [workspace.metadata.testing]
