@@ -115,3 +115,39 @@ roadmap:
   - mutability
   - P1-blocker
   notes: Affects example_config, causes E0596 borrow checker error
+- id: DEPYLER-0269
+  github_issue: null
+  item_type: bug
+  title: isinstance() generates invalid Rust code
+  status: inprogress
+  priority: critical
+  assigned_to: Claude
+  created: 2025-10-27T00:00:00+00:00
+  updated: 2025-11-23T18:37:59.280874356+00:00
+  spec: docs/bugs/DEPYLER-0269-isinstance-transpilation.md
+  acceptance_criteria:
+  - isinstance() calls removed from generated Rust code
+  - Type-annotated parameters return true (type system guarantees)
+  - Generated code compiles without isinstance errors
+  - No regression in existing compiling examples
+  - Test coverage for isinstance with int, str, list, dict types
+  phases:
+  - name: Phase 1 - Create failing tests (RED)
+    status: planned
+    estimated_effort: null
+    completion: 0
+  - name: Phase 2 - Implement isinstance removal (GREEN)
+    status: planned
+    estimated_effort: null
+    completion: 0
+  - name: Phase 3 - Test and validate (REFACTOR)
+    status: planned
+    estimated_effort: null
+    completion: 0
+  subtasks: []
+  estimated_effort: 2h
+  labels:
+  - P0-critical
+  - type-checking
+  - builtins
+  notes: 'STOP THE LINE: isinstance(x, int) generates undefined isinstance() and int'
