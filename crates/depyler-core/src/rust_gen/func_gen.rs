@@ -3,6 +3,7 @@
 //! This module handles converting HIR functions to Rust token streams.
 //! It includes all function conversion helpers and the HirFunction RustCodeGen trait implementation.
 
+use crate::borrowing_context::BorrowingStrategy;
 use crate::hir::*;
 use crate::lifetime_analysis::LifetimeInference;
 use crate::rust_gen::context::{CodeGenContext, RustCodeGen};
@@ -1307,6 +1308,9 @@ pub(crate) fn codegen_return_type(
 
 impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
+        // Set current function name for parameter ownership tracking
+        ctx.current_function_name = Some(self.name.clone());
+
         // DEPYLER-0306 FIX: Use raw identifiers for function names that are Rust keywords
         let name = if is_rust_keyword(&self.name) {
             syn::Ident::new_raw(&self.name, proc_macro2::Span::call_site())
@@ -1326,9 +1330,55 @@ impl RustCodeGen for HirFunction {
 
         // Perform lifetime analysis with automatic elision (DEPYLER-0275)
         let mut lifetime_inference = LifetimeInference::new();
-        let lifetime_result = lifetime_inference
-            .apply_elision_rules(self, ctx.type_mapper)
-            .unwrap_or_else(|| lifetime_inference.analyze_function(self, ctx.type_mapper));
+        let mut lifetime_result = lifetime_inference
+            .apply_elision_rules_with_interprocedural(
+                self,
+                ctx.type_mapper,
+                ctx.interprocedural_analysis,
+            )
+            .unwrap_or_else(|| {
+                lifetime_inference.analyze_function_with_interprocedural(
+                    self,
+                    ctx.type_mapper,
+                    ctx.interprocedural_analysis,
+                )
+            });
+
+        // INTERPROCEDURAL FIX: Apply mutability requirements from populate_function_param_borrows
+        // The interprocedural analysis may have upgraded parameters to &mut based on callees
+        if let Some(param_borrows) = ctx.function_param_borrows.get(&self.name) {
+            for (param_idx, borrow_info) in param_borrows.iter().enumerate() {
+                if param_idx < self.params.len() {
+                    let param_name = &self.params[param_idx].name;
+                    if let Some(param_lifetime) = lifetime_result.param_lifetimes.get_mut(param_name) {
+                        // Upgrade to borrow if interprocedural analysis says so
+                        if borrow_info.should_borrow {
+                            param_lifetime.should_borrow = true;
+                        }
+                        // Upgrade to &mut if interprocedural analysis says so
+                        if borrow_info.needs_mut {
+                            param_lifetime.needs_mut = true;
+                        }
+                        // Override take_ownership if interprocedural analysis says to borrow
+                        if !borrow_info.takes_ownership && borrow_info.should_borrow {
+                            // Update borrowing strategy to match
+                            lifetime_result.borrowing_strategies.insert(
+                                param_name.clone(),
+                                if borrow_info.needs_mut {
+                                    BorrowingStrategy::BorrowMutable {
+                                        lifetime: param_lifetime.lifetime.clone(),
+                                    }
+                                } else {
+                                    BorrowingStrategy::BorrowImmutable {
+                                        lifetime: param_lifetime.lifetime.clone(),
+                                    }
+                                },
+                            );
+                        }
+                    }
+                }
+            }
+        }
 
         // Generate combined generic parameters (lifetimes + type params)
         let generic_params = codegen_generic_params(&type_params, &lifetime_result.lifetime_params);
@@ -1340,24 +1390,41 @@ impl RustCodeGen for HirFunction {
         // This populates ctx.mutable_vars which codegen_single_param uses to determine `mut` keyword
         analyze_mutable_vars(&self.body, ctx, &self.params);
 
+        // Populate current function's parameter ownership map for zip/enumerate iterator decisions
+        // Maps parameter name -> whether it takes ownership (true) or borrows (false)
+        ctx.current_function_param_ownership.clear();
+        for param in &self.params {
+            let takes_ownership = lifetime_result
+                .borrowing_strategies
+                .get(&param.name)
+                .map(|strategy| matches!(strategy, BorrowingStrategy::TakeOwnership))
+                .unwrap_or(false);
+            ctx.current_function_param_ownership
+                .insert(param.name.clone(), takes_ownership);
+        }
+
+        // TODO: Store clone requirements for parameters so expression generation knows when to clone
+        // ctx.param_clone_requirements = lifetime_result.param_clone_requirements.clone();
+
         // Convert parameters using lifetime analysis results
         let params = codegen_function_params(self, &lifetime_result, ctx)?;
 
-        // DEPYLER-0270: Extract parameter borrowing information for auto-borrow decisions
-        // Check which parameters are references (borrowed) vs owned
-        let param_borrows: Vec<bool> = self
-            .params
-            .iter()
-            .map(|p| {
-                lifetime_result
-                    .param_lifetimes
-                    .get(&p.name)
-                    .map(|inf| inf.should_borrow)
-                    .unwrap_or(false)
-            })
-            .collect();
-        ctx.function_param_borrows
-            .insert(self.name.clone(), param_borrows);
+        // NOTE: function_param_borrows is now pre-populated in rust_gen.rs::populate_function_param_borrows()
+        // before any functions are generated. This ensures call sites have complete information
+        // about callee parameter signatures. The code below is kept for reference but not executed.
+        // let param_borrows: Vec<(bool, bool)> = self
+        //     .params
+        //     .iter()
+        //     .map(|p| {
+        //         lifetime_result
+        //             .param_lifetimes
+        //             .get(&p.name)
+        //             .map(|inf| (inf.should_borrow, inf.needs_mut))
+        //             .unwrap_or((false, false))
+        //     })
+        //     .collect();
+        // ctx.function_param_borrows
+        //     .insert(self.name.clone(), param_borrows);
 
         // Generate return type with Result wrapper and lifetime handling
         let (return_type, rust_ret_type, can_fail, error_type) =
@@ -1488,6 +1555,9 @@ impl RustCodeGen for HirFunction {
                 }
             }
         };
+
+        // Reset clone requirements to avoid leaking into next function
+        ctx.param_clone_requirements.clear();
 
         Ok(func_tokens)
     }

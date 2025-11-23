@@ -174,19 +174,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(parse_quote! { #right_expr.contains(#left_expr) })
                     }
                 } else {
-                    // DEPYLER-0449: Dict/HashMap uses .get(key).is_some() for compatibility
-                    // This works for BOTH HashMap AND serde_json::Value:
-                    // - HashMap<K, V>: .get(&K) -> Option<&V>
-                    // - serde_json::Value: .get(&str) -> Option<&Value>
-                    //
-                    // Using .get().is_some() instead of .contains_key() because:
-                    // 1. serde_json::Value doesn't have .contains_key() method
-                    // 2. .get().is_some() is equivalent to .contains_key() for HashMap
-                    // 3. Works universally for both HashMap and Value types
-                    if needs_borrow {
-                        Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
+                    // DEPYLER-0303 + DEPYLER-0449: Dict/HashMap membership check
+                    // For typed dicts (HashMap<K, V>), use .contains_key() which is more idiomatic
+                    // For untyped dicts (serde_json::Value), use .get().is_some() for compatibility
+
+                    // Check if we know the type is a typed Dict/HashMap
+                    let is_typed_dict = if let HirExpr::Var(name) = right {
+                        self.ctx
+                            .var_types
+                            .get(name)
+                            .map(|t| matches!(t, Type::Dict(_, _)))
+                            .unwrap_or(false)
                     } else {
-                        Ok(parse_quote! { #right_expr.get(#left_expr).is_some() })
+                        false
+                    };
+
+                    if is_typed_dict {
+                        // Use .contains_key() for typed HashMap<K, V>
+                        if needs_borrow {
+                            Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                        } else {
+                            Ok(parse_quote! { #right_expr.contains_key(#left_expr) })
+                        }
+                    } else {
+                        // Use .get().is_some() for untyped dicts (serde_json::Value)
+                        // This works for BOTH HashMap AND serde_json::Value:
+                        // - HashMap<K, V>: .get(&K) -> Option<&V>
+                        // - serde_json::Value: .get(&str) -> Option<&Value>
+                        if needs_borrow {
+                            Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
+                        } else {
+                            Ok(parse_quote! { #right_expr.get(#left_expr).is_some() })
+                        }
                     }
                 }
             }
@@ -231,14 +250,35 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(parse_quote! { !#right_expr.contains(#left_expr) })
                     }
                 } else {
-                    // DEPYLER-0449: Dict/HashMap uses .get(key).is_some() for compatibility
-                    // Same as BinOp::In, but negated - works for both HashMap and Value
-                    // (DEPYLER-0326: Fix Phase 2A auto-borrowing in condition contexts)
-                    // (DEPYLER-0329: Avoid double-borrowing for reference-type parameters)
-                    if needs_borrow {
-                        Ok(parse_quote! { !#right_expr.get(&#left_expr).is_some() })
+                    // DEPYLER-0303 + DEPYLER-0449: Dict/HashMap membership check (negated)
+                    // For typed dicts (HashMap<K, V>), use .contains_key() which is more idiomatic
+                    // For untyped dicts (serde_json::Value), use .get().is_some() for compatibility
+
+                    // Check if we know the type is a typed Dict/HashMap
+                    let is_typed_dict = if let HirExpr::Var(name) = right {
+                        self.ctx
+                            .var_types
+                            .get(name)
+                            .map(|t| matches!(t, Type::Dict(_, _)))
+                            .unwrap_or(false)
                     } else {
-                        Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() })
+                        false
+                    };
+
+                    if is_typed_dict {
+                        // Use .contains_key() for typed HashMap<K, V>
+                        if needs_borrow {
+                            Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+                        } else {
+                            Ok(parse_quote! { !#right_expr.contains_key(#left_expr) })
+                        }
+                    } else {
+                        // Use .get().is_some() for untyped dicts (serde_json::Value)
+                        if needs_borrow {
+                            Ok(parse_quote! { !#right_expr.get(&#left_expr).is_some() })
+                        } else {
+                            Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() })
+                        }
                     }
                 }
             }
@@ -684,9 +724,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let param_ident = syn::Ident::new(&params[0], proc_macro2::Span::call_site());
                 let body_expr = body.to_rust_expr(self.ctx)?;
 
-                return Ok(parse_quote! {
-                    #iterable_expr.into_iter().filter(|#param_ident| #body_expr)
-                });
+                // Use .iter() for borrowed collections (parameters), then .copied() for Copy types
+                if self.is_owned_collection(&args[1]) {
+                    return Ok(parse_quote! {
+                        #iterable_expr.into_iter().filter(|#param_ident| #body_expr)
+                    });
+                } else {
+                    // For borrowed collections, use .iter().copied().filter() for Copy types
+                    // or .iter().cloned().filter() for Clone types
+                    // For now, use .copied() since most primitives are Copy
+                    return Ok(parse_quote! {
+                        #iterable_expr.iter().copied().filter(|#param_ident| #body_expr).collect::<Vec<_>>()
+                    });
+                }
             }
         }
 
@@ -856,7 +906,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0193: Handle max(iterable) → iterable.iter().copied().max().unwrap()
         if func == "max" && args.len() == 1 {
             let iter_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { *#iter_expr.iter().max().unwrap() });
+            // Check if we're dealing with floats (which don't implement Ord)
+            let is_float = match &args[0] {
+                HirExpr::Var(var_name) => {
+                    if let Some(Type::List(element_type)) = self.ctx.var_types.get(var_name) {
+                        matches!(**element_type, Type::Float)
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            };
+            if is_float {
+                return Ok(parse_quote! {
+                    *#iter_expr.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()
+                });
+            } else {
+                return Ok(parse_quote! { *#iter_expr.iter().max().unwrap() });
+            }
         }
 
         // DEPYLER-0307 Fix #3: Handle min(a, b) with 2 arguments → std::cmp::min(a, b)
@@ -869,13 +936,71 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0194: Handle min(iterable) → iterable.iter().copied().min().unwrap()
         if func == "min" && args.len() == 1 {
             let iter_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { *#iter_expr.iter().min().unwrap() });
+            // Check if we're dealing with floats (which don't implement Ord)
+            let is_float = match &args[0] {
+                HirExpr::Var(var_name) => {
+                    if let Some(Type::List(element_type)) = self.ctx.var_types.get(var_name) {
+                        matches!(**element_type, Type::Float)
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            };
+            if is_float {
+                return Ok(parse_quote! {
+                    *#iter_expr.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()
+                });
+            } else {
+                return Ok(parse_quote! { *#iter_expr.iter().min().unwrap() });
+            }
         }
 
         // DEPYLER-0248: Handle abs(value) → value.abs()
         if func == "abs" && args.len() == 1 {
             let value_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #value_expr.abs() });
+            // For numeric literals, add type suffix to avoid ambiguity
+            // For all cases, wrap in parentheses to handle casts properly
+            let abs_expr = match &args[0] {
+                HirExpr::Literal(Literal::Int(_)) => {
+                    parse_quote! { ((#value_expr) as i32).abs() }
+                }
+                HirExpr::Unary {
+                    op: UnaryOp::Neg,
+                    operand,
+                } => {
+                    if matches!(**operand, HirExpr::Literal(Literal::Int(_))) {
+                        parse_quote! { ((#value_expr) as i32).abs() }
+                    } else if matches!(**operand, HirExpr::Literal(Literal::Float(_))) {
+                        parse_quote! { ((#value_expr) as f64).abs() }
+                    } else {
+                        parse_quote! { (#value_expr).abs() }
+                    }
+                }
+                HirExpr::Literal(Literal::Float(_)) => {
+                    parse_quote! { ((#value_expr) as f64).abs() }
+                }
+                _ => {
+                    // For expressions that might contain casts, wrap in parentheses
+                    parse_quote! { (#value_expr).abs() }
+                }
+            };
+
+            // If the current return type is Float but abs would return Int (e.g., abs(round(x))),
+            // we need to cast to f64
+            if let Some(Type::Float) = &self.ctx.current_return_type {
+                // Check if the argument is a Call to round, which returns i32
+                if let HirExpr::Call {
+                    func: round_func, ..
+                } = &args[0]
+                {
+                    if round_func.as_str() == "round" {
+                        return Ok(parse_quote! { #abs_expr as f64 });
+                    }
+                }
+            }
+
+            return Ok(abs_expr);
         }
 
         // DEPYLER-0307 Fix #1: Handle any() with generator expressions
@@ -911,7 +1036,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // but Rust f64::round() returns f64
         if func == "round" && args.len() == 1 {
             let value_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #value_expr.round() as i32 });
+            // For float literals, add type suffix to avoid ambiguity
+            let needs_float_cast = match &args[0] {
+                HirExpr::Literal(Literal::Float(_)) => true,
+                HirExpr::Unary {
+                    op: UnaryOp::Neg,
+                    operand,
+                } => {
+                    matches!(**operand, HirExpr::Literal(Literal::Float(_)))
+                }
+                _ => false,
+            };
+            if needs_float_cast {
+                return Ok(parse_quote! { (#value_expr as f64).round() as i32 });
+            } else {
+                return Ok(parse_quote! { (#value_expr).round() as i32 });
+            }
         }
 
         // DEPYLER-0252: Handle pow(base, exp) → base.pow(exp as u32)
@@ -919,7 +1059,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if func == "pow" && args.len() == 2 {
             let base_expr = args[0].to_rust_expr(self.ctx)?;
             let exp_expr = args[1].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #base_expr.pow(#exp_expr as u32) });
+            // For numeric literals, add type suffix to avoid ambiguity
+            let (is_int, is_float) = match &args[0] {
+                HirExpr::Literal(Literal::Int(_)) => (true, false),
+                HirExpr::Literal(Literal::Float(_)) => (false, true),
+                HirExpr::Unary {
+                    op: UnaryOp::Neg,
+                    operand,
+                } => match **operand {
+                    HirExpr::Literal(Literal::Int(_)) => (true, false),
+                    HirExpr::Literal(Literal::Float(_)) => (false, true),
+                    _ => (false, false),
+                },
+                _ => (false, false),
+            };
+            if is_int {
+                return Ok(parse_quote! { (#base_expr as i32).pow(#exp_expr as u32) });
+            } else if is_float {
+                return Ok(parse_quote! { (#base_expr as f64).powf(#exp_expr as f64) });
+            } else {
+                return Ok(parse_quote! { #base_expr.pow(#exp_expr as u32) });
+            }
         }
 
         // DEPYLER-0253: Handle chr(code) → char::from_u32(code as u32).unwrap().to_string()
@@ -1119,10 +1279,36 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
-        // Handle enumerate(items) → items.into_iter().enumerate()
+        // Handle enumerate(items) → items.iter().enumerate() or items.into_iter().enumerate()
         if func == "enumerate" && args.len() == 1 {
             let items_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #items_expr.into_iter().enumerate() });
+            // Use .iter() for borrowed collections (parameters), .into_iter() for owned
+            if self.is_owned_collection(&args[0]) {
+                return Ok(parse_quote! { #items_expr.into_iter().enumerate() });
+            } else {
+                // For borrowed collections, check if element type is Copy
+                // If so, use .copied() to avoid &T in tuple pattern
+                let needs_copied = if let HirExpr::Var(name) = &args[0] {
+                    self.ctx
+                        .var_types
+                        .get(name)
+                        .map(|t| match t {
+                            Type::List(elem) => {
+                                matches!(**elem, Type::Int | Type::Float | Type::Bool | Type::None)
+                            }
+                            _ => false,
+                        })
+                        .unwrap_or(false)
+                } else {
+                    false
+                };
+
+                if needs_copied {
+                    return Ok(parse_quote! { #items_expr.iter().copied().enumerate() });
+                } else {
+                    return Ok(parse_quote! { #items_expr.iter().enumerate() });
+                }
+            }
         }
 
         // Handle zip(a, b, ...) → a.into_iter().zip(b.into_iter())...
@@ -2351,7 +2537,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // This handles cases like: sum_list_recursive(rest) where rest is Vec but param is &Vec
             //
             // Strategy:
-            // 1. Look up function signature to see which params are borrowed
+            // 1. Look up function signature to see which params are borrowed and if mutable
             // 2. Only borrow if: (a) arg is List/Dict/Set AND (b) function expects borrow
             // 3. Otherwise pass as-is (either owned or primitive)
             let borrowed_args: Vec<syn::Expr> = hir_args
@@ -2379,51 +2565,94 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     }
 
-                    // Check if this param should be borrowed by looking up function signature
-                    let should_borrow = match hir_arg {
+                    let param_info = self
+                        .ctx
+                        .function_param_borrows
+                        .get(func)
+                        .and_then(|borrows| borrows.get(param_idx));
+
+                    let mut should_borrow =
+                        param_info.map(|info| info.should_borrow).unwrap_or(false);
+                    let mut is_mutable = param_info.map(|info| info.needs_mut).unwrap_or(false);
+                    let takes_ownership =
+                        param_info.map(|info| info.takes_ownership).unwrap_or(false);
+
+                    match hir_arg {
                         HirExpr::Var(var_name) => {
-                            // Check if variable has List, Dict, or Set type
-                            if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                                if matches!(
-                                    var_type,
-                                    Type::List(_) | Type::Dict(_, _) | Type::Set(_)
-                                ) {
-                                    // Check if function param expects a borrow
-                                    self.ctx
-                                        .function_param_borrows
-                                        .get(func)
-                                        .and_then(|borrows| borrows.get(param_idx))
-                                        .copied()
-                                        .unwrap_or(true) // Default to borrow if unknown
-                                } else {
-                                    false
-                                }
-                            } else {
-                                false
+                            let var_type = self.ctx.var_types.get(var_name);
+                            let is_collection_like = var_type.map(|ty| {
+                                matches!(
+                                    ty,
+                                    Type::List(_)
+                                        | Type::Dict(_, _)
+                                        | Type::Set(_)
+                                        | Type::Custom(_)
+                                )
+                            });
+                            let is_non_copy = var_type
+                                .map(|ty| {
+                                    matches!(
+                                        ty,
+                                        Type::List(_)
+                                            | Type::Dict(_, _)
+                                            | Type::Set(_)
+                                            | Type::String
+                                            | Type::Custom(_)
+                                    )
+                                })
+                                .unwrap_or(false);
+
+                            if param_info.is_none() && is_collection_like.unwrap_or(false) {
+                                // Default to borrowing for containers when signature unknown
+                                should_borrow = true;
                             }
+
+                            if should_borrow {
+                                if is_mutable {
+                                    return parse_quote! { &mut #arg_expr };
+                                } else {
+                                    return parse_quote! { &#arg_expr };
+                                }
+                            }
+
+                            if takes_ownership
+                                && self.ctx.param_clone_requirements.contains(var_name)
+                            {
+                                return parse_quote! { #arg_expr.clone() };
+                            }
+
+                            if is_non_copy {
+                                return parse_quote! { #arg_expr.clone() };
+                            }
+
+                            arg_expr.clone()
                         }
                         // DEPYLER-0359: Auto-borrow list/dict/set literals when calling functions
                         // List literal [1, 2, 3] should be passed as &vec![1, 2, 3]
                         HirExpr::List(_) | HirExpr::Dict(_) | HirExpr::Set(_) => {
-                            // Check if function param expects a borrow
-                            self.ctx
-                                .function_param_borrows
-                                .get(func)
-                                .and_then(|borrows| borrows.get(param_idx))
-                                .copied()
-                                .unwrap_or(true) // Default to borrow if unknown
+                            if param_info.is_none() {
+                                should_borrow = true;
+                            }
+
+                            if should_borrow {
+                                if is_mutable {
+                                    parse_quote! { &mut #arg_expr }
+                                } else {
+                                    parse_quote! { &#arg_expr }
+                                }
+                            } else {
+                                arg_expr.clone()
+                            }
                         }
                         _ => {
                             // Fallback: check if expression creates a Vec via .to_vec()
                             let expr_string = quote! { #arg_expr }.to_string();
-                            expr_string.contains("to_vec")
+                            if expr_string.contains("to_vec") {
+                                parse_quote! { &#arg_expr }
+                            } else {
+                                arg_expr.clone()
+                            }
                         }
-                    };
-
-                    if should_borrow {
-                        parse_quote! { &#arg_expr }
-                    } else {
-                        arg_expr.clone()
                     }
                 })
                 .collect();
@@ -9406,7 +9635,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         bail!("list.get() requires exactly one argument");
                     }
                     let index = &arg_exprs[0];
-                    // Cast integer index to usize (Vec/slice .get() requires usize, not &i32)
+                    // Cast integer index to usize (Vec/slice .get() requires usize, not i32)
                     Ok(parse_quote! { #object_expr.get(#index as usize).cloned() })
                 } else {
                     // Dict .get() - use existing dict handler (supports 1 or 2 args)
@@ -9770,7 +9999,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0422: Removed "data" from heuristic - too broad, catches sorted_data, dataset, etc.
             // Only use "dict" or "map" which are more specific to HashMap variables
             let name = sym.as_str();
-            if (name.contains("dict") || name.contains("map") || name.contains("config") || name.contains("value"))
+            if (name.contains("dict")
+                || name.contains("map")
+                || name.contains("config")
+                || name.contains("value"))
                 && !self.is_numeric_index(index)
             {
                 return Ok(true);
@@ -10764,10 +10996,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Try common CSV patterns (heuristic-based for now)
         if let Some(mapping) = self.ctx.stdlib_mappings.lookup("csv", "DictReader", attr) {
             // Found a CSV DictReader mapping - apply it
-            let rust_code = mapping.generate_rust_code(
-                &value_expr.to_token_stream().to_string(),
-                &[]
-            );
+            let rust_code =
+                mapping.generate_rust_code(&value_expr.to_token_stream().to_string(), &[]);
             if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
                 return Ok(expr);
             }
@@ -10775,10 +11005,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // Also try generic Reader patterns
         if let Some(mapping) = self.ctx.stdlib_mappings.lookup("csv", "Reader", attr) {
-            let rust_code = mapping.generate_rust_code(
-                &value_expr.to_token_stream().to_string(),
-                &[]
-            );
+            let rust_code =
+                mapping.generate_rust_code(&value_expr.to_token_stream().to_string(), &[]);
             if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
                 return Ok(expr);
             }
@@ -11056,12 +11284,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-0303 Phase 3 Fix #6: Check if expression is an owned collection
-    /// Used to determine if zip() should use .into_iter() (owned) vs .iter() (borrowed)
+    /// Used to determine if zip()/enumerate()/filter() should use .into_iter() (owned) vs .iter() (borrowed)
     ///
     /// Returns true if:
-    /// - Expression is a Var with type List (Vec<T>) - function parameters are owned
     /// - Expression is a list literal - always owned
     /// - Expression is a list() call - creates owned Vec
+    /// - Expression is from list comprehension - generates owned Vec
+    /// - Expression is a variable with List type from local assignment (not parameter)
+    ///
+    /// Returns false (borrowed) if:
+    /// - Expression is a function parameter (typically &Vec<T>)
+    /// - Expression type unknown (conservative)
     ///
     /// # Complexity
     /// 3 (match + type lookup + variant check)
@@ -11071,10 +11304,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::List(_) => true,
             // list() calls create owned Vec
             HirExpr::Call { func, .. } if func == "list" => true,
-            // Check if variable has List type (function parameters of type Vec<T>)
+            // List comprehensions create owned Vec
+            HirExpr::ListComp { .. } => true,
+            // Variables: check if they're function parameters that take ownership
             HirExpr::Var(name) => {
+                // Check if this variable is a parameter that takes ownership
+                if let Some(&takes_ownership) = self.ctx.current_function_param_ownership.get(name)
+                {
+                    if takes_ownership {
+                        // This parameter takes ownership - check if it's a collection type
+                        if let Some(ty) = self.ctx.var_types.get(name) {
+                            if matches!(ty, Type::List(_) | Type::Dict(_, _) | Type::Set(_)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                // Fallback: check type info for non-parameters
                 if let Some(ty) = self.ctx.var_types.get(name) {
-                    matches!(ty, Type::List(_))
+                    // If it's not a collection type, it's owned by default
+                    !matches!(ty, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
                 } else {
                     // No type info - conservative default is borrowed
                     false

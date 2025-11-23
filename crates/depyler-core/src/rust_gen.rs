@@ -1,4 +1,5 @@
 use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
+use crate::borrowing_context::BorrowingStrategy;
 use crate::cargo_toml_gen; // DEPYLER-0384: Cargo.toml generation
 use crate::hir::*;
 use crate::string_optimization::StringOptimizer;
@@ -50,6 +51,387 @@ fn analyze_string_optimization(ctx: &mut CodeGenContext, functions: &[HirFunctio
     }
 }
 
+/// Pre-populate function_param_borrows for all functions
+///
+/// This two-pass approach ensures that when function A calls function B,
+/// A knows B's parameter signature (borrowed vs owned, mutable vs immutable)
+/// even if B hasn't been fully generated yet.
+///
+/// Without this, call sites default to immutable borrow, causing incorrect
+/// code generation when the callee expects mutable borrow or ownership.
+///
+/// Performs interprocedural analysis via fixpoint iteration to propagate
+/// mutability requirements: if function A passes parameter X to function B
+/// which expects &mut, then A's parameter X must also be &mut.
+fn populate_function_param_borrows(
+    functions: &[HirFunction],
+    ctx: &mut CodeGenContext,
+) -> Result<()> {
+    use crate::lifetime_analysis::LifetimeInference;
+
+    // Phase 1: Initial analysis - determine direct mutations
+    for func in functions {
+        // Perform lifetime analysis to determine parameter borrowing strategies
+        let mut lifetime_inference = LifetimeInference::new();
+        let lifetime_result = lifetime_inference
+            .apply_elision_rules_with_interprocedural(
+                func,
+                ctx.type_mapper,
+                ctx.interprocedural_analysis,
+            )
+            .unwrap_or_else(|| {
+                lifetime_inference.analyze_function_with_interprocedural(
+                    func,
+                    ctx.type_mapper,
+                    ctx.interprocedural_analysis,
+                )
+            });
+
+        // Extract parameter borrowing information
+        let mut param_borrows = Vec::new();
+        let mut param_strategies = Vec::new();
+
+        for param in &func.params {
+            let inferred = lifetime_result
+                .param_lifetimes
+                .get(&param.name)
+                .map(|inf| (inf.should_borrow, inf.needs_mut))
+                .unwrap_or((false, false));
+
+            let strategy = lifetime_result
+                .borrowing_strategies
+                .get(&param.name)
+                .cloned()
+                .unwrap_or(BorrowingStrategy::TakeOwnership);
+
+            param_borrows.push(context::ParamBorrowInfo {
+                should_borrow: inferred.0,
+                needs_mut: inferred.1,
+                takes_ownership: matches!(strategy, BorrowingStrategy::TakeOwnership),
+            });
+            param_strategies.push(strategy);
+        }
+
+        ctx.function_param_borrows
+            .insert(func.name.clone(), param_borrows);
+        ctx.function_param_strategies
+            .insert(func.name.clone(), param_strategies);
+    }
+
+    // Phase 2: Interprocedural analysis - propagate mutability requirements
+    // Fixpoint iteration: if function A passes parameter P to function B where B expects &mut,
+    // then A must also take P as &mut
+    let mut changed = true;
+    let mut iterations = 0;
+    const MAX_ITERATIONS: usize = 10; // Prevent infinite loops
+
+    while changed && iterations < MAX_ITERATIONS {
+        changed = false;
+        iterations += 1;
+
+        for func in functions {
+            // Find all function calls in this function's body
+            let calls = find_function_calls(&func.body);
+
+            for (called_func_name, arg_exprs) in calls {
+                // Clone the callee's parameter requirements to avoid borrowing conflict
+                let callee_borrows = ctx.function_param_borrows.get(&called_func_name).cloned();
+
+                if let Some(callee_borrows) = callee_borrows {
+                    // Check each argument
+                    for (arg_idx, arg_expr) in arg_exprs.iter().enumerate() {
+                        // If this argument is a variable that matches a parameter of the current function
+                        if let HirExpr::Var(var_name) = arg_expr {
+                            // Check if this variable is a parameter of the current function
+                            if let Some(param_idx) =
+                                func.params.iter().position(|p| &p.name == var_name)
+                            {
+                                // Get the current parameter's borrow info
+                                let current_caller_info = ctx.function_param_borrows
+                                    .get(&func.name)
+                                    .and_then(|borrows| borrows.get(param_idx))
+                                    .cloned();
+                                    
+                                // Check if the callee expects &mut for this argument position
+                                if let Some(callee_info) = callee_borrows.get(arg_idx) {
+                                    // Key insight: If a parameter is passed to a function call,
+                                    // it CANNOT take ownership (would be moved). Must be borrowed.
+                                    // The borrowing must be &mut if:
+                                    // - The callee needs &mut, OR
+                                    // - The parameter has its fields mutated locally
+                                    
+                                    let currently_takes_ownership = current_caller_info
+                                        .as_ref()
+                                        .map(|info| info.takes_ownership)
+                                        .unwrap_or(false);
+                                    
+                                    // Check if this parameter actually has field mutations
+                                    let param_has_mutations = parameter_has_field_mutations(func, var_name);
+                                    
+                                    // If parameter takes ownership, it's being passed to a function
+                                    // so it must be borrowed instead
+                                    let should_upgrade_to_borrow = currently_takes_ownership;
+                                    let should_be_mut = param_has_mutations || callee_info.needs_mut;
+                                    
+                                    if should_upgrade_to_borrow {
+                                        // The parameter is being passed to a function, so it must be borrowed
+                                        // If it's mutated locally or callee needs &mut, use &mut
+                                        if let Some(caller_borrows) =
+                                            ctx.function_param_borrows.get_mut(&func.name)
+                                        {
+                                            if let Some(caller_info) =
+                                                caller_borrows.get_mut(param_idx)
+                                            {
+                                                if caller_info.takes_ownership {
+                                                    // Upgrade from ownership to borrowing
+                                                    caller_info.should_borrow = true;
+                                                    caller_info.takes_ownership = false;
+                                                    caller_info.needs_mut = should_be_mut;
+                                                    changed = true;
+                                                }
+                                            }
+                                        }
+                                    } else if callee_info.needs_mut {
+                                        // Already borrowed, but need to upgrade to &mut
+                                        if let Some(caller_borrows) =
+                                            ctx.function_param_borrows.get_mut(&func.name)
+                                        {
+                                            if let Some(caller_info) =
+                                                caller_borrows.get_mut(param_idx)
+                                            {
+                                                if !caller_info.needs_mut {
+                                                    caller_info.needs_mut = true;
+                                                    changed = true;
+                                                }
+                                            }
+                                        }
+                                    } else if callee_info.should_borrow
+                                        && !callee_info.takes_ownership
+                                    {
+                                        // The callee needs at least &, ensure we provide a borrow
+                                        if let Some(caller_borrows) =
+                                            ctx.function_param_borrows.get_mut(&func.name)
+                                        {
+                                            if let Some(caller_info) =
+                                                caller_borrows.get_mut(param_idx)
+                                            {
+                                                if !caller_info.should_borrow {
+                                                    caller_info.should_borrow = true;
+                                                    caller_info.takes_ownership = false; // Don't take ownership, borrow instead
+                                                    changed = true;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Helper: Check if a parameter is mutated in the function body
+/// Detects: field assignments, method calls that mutate, index assignments
+fn parameter_has_field_mutations(func: &HirFunction, param_name: &str) -> bool {
+    fn check_stmts(stmts: &[HirStmt], param_name: &str) -> bool {
+        stmts.iter().any(|stmt| check_stmt(stmt, param_name))
+    }
+    
+    fn check_stmt(stmt: &HirStmt, param_name: &str) -> bool {
+        match stmt {
+            HirStmt::Assign { target, .. } => {
+                // Check if assigning to a field or index of the parameter
+                match target {
+                    AssignTarget::Attribute { value, .. } => {
+                        matches!(value.as_ref(), HirExpr::Var(name) if name == param_name)
+                    }
+                    AssignTarget::Index { base, .. } => {
+                        matches!(base.as_ref(), HirExpr::Var(name) if name == param_name)
+                    }
+                    _ => false,
+                }
+            }
+            HirStmt::Expr(expr) => check_expr_for_mutation(expr, param_name),
+            HirStmt::If { then_body, else_body, .. } => {
+                check_stmts(then_body, param_name) || 
+                else_body.as_ref().map(|body| check_stmts(body, param_name)).unwrap_or(false)
+            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                check_stmts(body, param_name)
+            }
+            _ => false,
+        }
+    }
+    
+    fn check_expr_for_mutation(expr: &HirExpr, param_name: &str) -> bool {
+        match expr {
+            // Method calls on the parameter that are known to mutate
+            HirExpr::MethodCall { object, method, .. } => {
+                if let HirExpr::Var(obj_name) = object.as_ref() {
+                    if obj_name == param_name {
+                        // List of mutating methods
+                        return matches!(
+                            method.as_str(),
+                            "append" | "extend" | "insert" | "remove" | "pop" | 
+                            "clear" | "sort" | "reverse" | "update" | "add" | 
+                            "discard" | "setdefault" | "popitem"
+                        );
+                    }
+                }
+                false
+            }
+            // Recursively check nested expressions
+            HirExpr::Binary { left, right, .. } => {
+                check_expr_for_mutation(left, param_name) || check_expr_for_mutation(right, param_name)
+            }
+            HirExpr::Unary { operand, .. } => check_expr_for_mutation(operand, param_name),
+            HirExpr::Call { args, .. } => {
+                args.iter().any(|arg| check_expr_for_mutation(arg, param_name))
+            }
+            _ => false,
+        }
+    }
+    
+    check_stmts(&func.body, param_name)
+}
+
+/// Helper: Find all function calls in a list of statements
+/// Returns a list of (function_name, arguments) tuples
+fn find_function_calls(stmts: &[HirStmt]) -> Vec<(String, Vec<HirExpr>)> {
+    let mut calls = Vec::new();
+
+    fn scan_expr(expr: &HirExpr, calls: &mut Vec<(String, Vec<HirExpr>)>) {
+        match expr {
+            HirExpr::Call { func, args, .. } => {
+                calls.push((func.clone(), args.clone()));
+                // Recursively scan arguments
+                for arg in args {
+                    scan_expr(arg, calls);
+                }
+            }
+            HirExpr::Binary { left, right, .. } => {
+                scan_expr(left, calls);
+                scan_expr(right, calls);
+            }
+            HirExpr::Unary { operand, .. } => {
+                scan_expr(operand, calls);
+            }
+            HirExpr::MethodCall { object, args, .. } => {
+                scan_expr(object, calls);
+                for arg in args {
+                    scan_expr(arg, calls);
+                }
+            }
+            HirExpr::Attribute { value, .. } => {
+                scan_expr(value, calls);
+            }
+            HirExpr::Index { base, index } => {
+                scan_expr(base, calls);
+                scan_expr(index, calls);
+            }
+            HirExpr::IfExpr { test, body, orelse } => {
+                scan_expr(test, calls);
+                scan_expr(body, calls);
+                scan_expr(orelse, calls);
+            }
+            HirExpr::List(exprs) | HirExpr::Tuple(exprs) | HirExpr::Set(exprs) => {
+                for e in exprs {
+                    scan_expr(e, calls);
+                }
+            }
+            HirExpr::Dict(pairs) => {
+                for (k, v) in pairs {
+                    scan_expr(k, calls);
+                    scan_expr(v, calls);
+                }
+            }
+            HirExpr::Lambda { body, .. } => {
+                scan_expr(body, calls);
+            }
+            HirExpr::ListComp { element, .. } | HirExpr::SetComp { element, .. } => {
+                scan_expr(element, calls);
+            }
+            HirExpr::DictComp { key, value, .. } => {
+                scan_expr(key, calls);
+                scan_expr(value, calls);
+            }
+            _ => {}
+        }
+    }
+
+    fn scan_stmt(stmt: &HirStmt, calls: &mut Vec<(String, Vec<HirExpr>)>) {
+        match stmt {
+            HirStmt::Expr(expr) => scan_expr(expr, calls),
+            HirStmt::Assign { value, .. } => scan_expr(value, calls),
+            HirStmt::Return(Some(expr)) => scan_expr(expr, calls),
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
+                scan_expr(condition, calls);
+                for s in then_body {
+                    scan_stmt(s, calls);
+                }
+                if let Some(else_stmts) = else_body {
+                    for s in else_stmts {
+                        scan_stmt(s, calls);
+                    }
+                }
+            }
+            HirStmt::While { condition, body } => {
+                scan_expr(condition, calls);
+                for s in body {
+                    scan_stmt(s, calls);
+                }
+            }
+            HirStmt::For { iter, body, .. } => {
+                scan_expr(iter, calls);
+                for s in body {
+                    scan_stmt(s, calls);
+                }
+            }
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
+                for s in body {
+                    scan_stmt(s, calls);
+                }
+                for handler in handlers {
+                    for s in &handler.body {
+                        scan_stmt(s, calls);
+                    }
+                }
+                if let Some(else_stmts) = orelse {
+                    for s in else_stmts {
+                        scan_stmt(s, calls);
+                    }
+                }
+                if let Some(final_stmts) = finalbody {
+                    for s in final_stmts {
+                        scan_stmt(s, calls);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    for stmt in stmts {
+        scan_stmt(stmt, &mut calls);
+    }
+
+    calls
+}
+
 /// DEPYLER-0447: Analyze function bodies AND constants to find argparse validators
 ///
 /// Scans all statements in function bodies and constant expressions to find
@@ -58,7 +440,11 @@ fn analyze_string_optimization(ctx: &mut CodeGenContext, functions: &[HirFunctio
 /// This must run BEFORE function signature generation so parameter types can be corrected.
 ///
 /// Complexity: 8 (func loop + const loop + stmt loop + match + expr match + kwargs loop + filter)
-fn analyze_validators(ctx: &mut CodeGenContext, functions: &[HirFunction], constants: &[HirConstant]) {
+fn analyze_validators(
+    ctx: &mut CodeGenContext,
+    functions: &[HirFunction],
+    constants: &[HirConstant],
+) {
     // Scan function bodies
     for func in functions {
         scan_stmts_for_validators(&func.body, ctx);
@@ -77,7 +463,11 @@ fn scan_stmts_for_validators(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
             HirStmt::Expr(expr) => {
                 scan_expr_for_validators(expr, ctx);
             }
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 scan_stmts_for_validators(then_body, ctx);
                 if let Some(ref else_stmts) = else_body {
                     scan_stmts_for_validators(else_stmts, ctx);
@@ -89,7 +479,12 @@ fn scan_stmts_for_validators(stmts: &[HirStmt], ctx: &mut CodeGenContext) {
             HirStmt::For { body, .. } => {
                 scan_stmts_for_validators(body, ctx);
             }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
                 scan_stmts_for_validators(body, ctx);
                 for handler in handlers {
                     scan_stmts_for_validators(&handler.body, ctx);
@@ -136,12 +531,28 @@ fn scan_expr_for_validators(expr: &HirExpr, ctx: &mut CodeGenContext) {
 /// Complexity: 7 (stmt loop + match + if + expr scan + method match)
 fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[HirParam]) {
     let mut declared = HashSet::new();
+    let mut loop_var_origins: HashMap<String, String> = HashMap::new();
 
     // DEPYLER-0312: Pre-populate declared with function parameters
     // This allows the reassignment detection logic below to catch parameter mutations
     // Example: def gcd(a, b): a = temp  # Now detected as reassignment → mut a
     for param in params {
         declared.insert(param.name.clone());
+    }
+
+    fn extract_param_from_expr(expr: &HirExpr, declared: &HashSet<String>) -> Option<String> {
+        match expr {
+            HirExpr::Var(name) => {
+                if declared.contains(name) {
+                    Some(name.clone())
+                } else {
+                    None
+                }
+            }
+            HirExpr::Attribute { value, .. } => extract_param_from_expr(value, declared),
+            HirExpr::Index { base, .. } => extract_param_from_expr(base, declared),
+            _ => None,
+        }
     }
 
     fn analyze_expr_for_mutations(
@@ -247,6 +658,7 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[H
         mutable: &mut HashSet<String>,
         var_types: &mut HashMap<String, String>,
         mutating_methods: &HashMap<String, HashSet<String>>,
+        loop_var_origins: &mut HashMap<String, String>,
     ) {
         match stmt {
             HirStmt::Assign { target, value, .. } => {
@@ -283,18 +695,32 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[H
                             }
                         }
                     }
-                    AssignTarget::Attribute { value, .. } => {
+                    AssignTarget::Attribute { value: obj, .. } => {
                         // DEPYLER-0235 FIX: Property writes require the base object to be mutable
                         // e.g., `b.size = 20` requires `let mut b = ...`
-                        if let HirExpr::Var(var_name) = value.as_ref() {
-                            mutable.insert(var_name.clone());
+                        // Also check if this is a loop variable that traces back to a parameter
+                        if let HirExpr::Var(var_name) = obj.as_ref() {
+                            if let Some(param_name) = loop_var_origins.get(var_name) {
+                                // Mutating through a loop variable - mark the source parameter as mutable
+                                mutable.insert(param_name.clone());
+                            } else {
+                                // Direct variable mutation
+                                mutable.insert(var_name.clone());
+                            }
                         }
                     }
                     AssignTarget::Index { base, .. } => {
                         // DEPYLER-0235 FIX: Index assignments also require mutability
                         // e.g., `arr[i] = value` requires `let mut arr = ...`
+                        // Also check if this is a loop variable that traces back to a parameter
                         if let HirExpr::Var(var_name) = base.as_ref() {
-                            mutable.insert(var_name.clone());
+                            if let Some(param_name) = loop_var_origins.get(var_name) {
+                                // Mutating through a loop variable - mark the source parameter as mutable
+                                mutable.insert(param_name.clone());
+                            } else {
+                                // Direct variable mutation
+                                mutable.insert(var_name.clone());
+                            }
                         }
                     }
                 }
@@ -314,11 +740,25 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[H
             } => {
                 analyze_expr_for_mutations(condition, mutable, var_types, mutating_methods);
                 for stmt in then_body {
-                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                    analyze_stmt(
+                        stmt,
+                        declared,
+                        mutable,
+                        var_types,
+                        mutating_methods,
+                        loop_var_origins,
+                    );
                 }
                 if let Some(else_stmts) = else_body {
                     for stmt in else_stmts {
-                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                        analyze_stmt(
+                            stmt,
+                            declared,
+                            mutable,
+                            var_types,
+                            mutating_methods,
+                            loop_var_origins,
+                        );
                     }
                 }
             }
@@ -327,12 +767,33 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[H
             } => {
                 analyze_expr_for_mutations(condition, mutable, var_types, mutating_methods);
                 for stmt in body {
-                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                    analyze_stmt(
+                        stmt,
+                        declared,
+                        mutable,
+                        var_types,
+                        mutating_methods,
+                        loop_var_origins,
+                    );
                 }
             }
-            HirStmt::For { body, .. } => {
+            HirStmt::For { target, iter, body } => {
+                // Track the origin of the loop variable
+                if let AssignTarget::Symbol(loop_var) = target {
+                    if let Some(param_name) = extract_param_from_expr(iter, declared) {
+                        loop_var_origins.insert(loop_var.clone(), param_name);
+                    }
+                }
+
                 for stmt in body {
-                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                    analyze_stmt(
+                        stmt,
+                        declared,
+                        mutable,
+                        var_types,
+                        mutating_methods,
+                        loop_var_origins,
+                    );
                 }
             }
             _ => {}
@@ -348,6 +809,7 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[H
             &mut ctx.mutable_vars,
             &mut var_types,
             mutating_methods,
+            &mut loop_var_origins,
         );
     }
 }
@@ -606,6 +1068,10 @@ pub fn generate_rust_file(
 ) -> Result<(String, Vec<cargo_toml_gen::Dependency>)> {
     let module_mapper = crate::module_mapper::ModuleMapper::new();
 
+    // INTERPROCEDURAL ANALYSIS: Analyze cross-function mutations
+    let mut interprocedural_analyzer = crate::interprocedural::InterproceduralAnalyzer::new(module);
+    let interprocedural_analysis = interprocedural_analyzer.analyze();
+
     // Process imports to populate the context
     let (imported_modules, imported_items) =
         process_module_imports(&module.imports, &module_mapper);
@@ -664,6 +1130,7 @@ pub fn generate_rust_file(
         needs_url_encoding: false,
         declared_vars: vec![HashSet::new()],
         current_function_can_fail: false,
+        current_function_name: None,
         current_return_type: None,
         module_mapper,
         imported_modules,
@@ -681,6 +1148,9 @@ pub fn generate_rust_file(
         mutating_methods,
         function_return_types: std::collections::HashMap::new(), // DEPYLER-0269: Track function return types
         function_param_borrows: std::collections::HashMap::new(), // DEPYLER-0270: Track parameter borrowing
+        function_param_strategies: std::collections::HashMap::new(),
+        current_function_param_ownership: std::collections::HashMap::new(),
+        param_clone_requirements: HashSet::new(),
         tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
         is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
         result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
@@ -693,6 +1163,7 @@ pub fn generate_rust_file(
         current_subcommand_fields: None, // DEPYLER-0425: Subcommand field extraction
         validator_functions: HashSet::new(), // DEPYLER-0447: Track argparse validator functions
         stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452: Stdlib API mappings
+        interprocedural_analysis: Some(&interprocedural_analysis), // Interprocedural mutation analysis
     };
 
     // Analyze all functions first for string optimization
@@ -720,6 +1191,12 @@ pub fn generate_rust_file(
             ctx.result_bool_functions.insert(func.name.clone());
         }
     }
+
+    // PRE-POPULATE function_param_borrows for ALL functions BEFORE code generation
+    // This ensures that when function A calls function B, it knows B's parameter signature
+    // even if B hasn't been generated yet. Fixes issue where call sites default to
+    // immutable borrow when they should use mutable borrow or pass by value.
+    populate_function_param_borrows(&module.functions, &mut ctx)?;
 
     // Convert classes first (they might be used by functions)
     let classes = convert_classes_to_rust(&module.classes, ctx.type_mapper)?;
@@ -853,6 +1330,7 @@ mod tests {
             needs_url_encoding: false,
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
+            current_function_name: None,
             current_return_type: None,
             module_mapper: crate::module_mapper::ModuleMapper::new(),
             imported_modules: std::collections::HashMap::new(),
@@ -870,6 +1348,9 @@ mod tests {
             mutating_methods: std::collections::HashMap::new(),
             function_return_types: std::collections::HashMap::new(), // DEPYLER-0269: Track function return types
             function_param_borrows: std::collections::HashMap::new(), // DEPYLER-0270: Track parameter borrowing
+            function_param_strategies: std::collections::HashMap::new(),
+            current_function_param_ownership: std::collections::HashMap::new(),
+            param_clone_requirements: HashSet::new(),
             tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
             is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
             result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
@@ -882,6 +1363,7 @@ mod tests {
             current_subcommand_fields: None, // DEPYLER-0425: Subcommand field extraction
             validator_functions: HashSet::new(), // DEPYLER-0447: Track argparse validator functions
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
+            interprocedural_analysis: None,
         }
     }
 

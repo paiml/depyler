@@ -338,6 +338,7 @@ mod tests {
             needs_clap: true,
             declared_vars: vec![std::collections::HashSet::new()],
             current_function_can_fail: false,
+            current_function_name: None,
             current_return_type: None,
             module_mapper: crate::module_mapper::ModuleMapper::new(),
             imported_modules: std::collections::HashMap::new(),
@@ -355,6 +356,9 @@ mod tests {
             mutating_methods: std::collections::HashMap::new(),
             function_return_types: std::collections::HashMap::new(),
             function_param_borrows: std::collections::HashMap::new(),
+            function_param_strategies: std::collections::HashMap::new(),
+            current_function_param_ownership: std::collections::HashMap::new(),
+            param_clone_requirements: std::collections::HashSet::new(),
             tuple_iter_vars: std::collections::HashSet::new(),
             is_final_statement: false,
             result_bool_functions: std::collections::HashSet::new(),
@@ -367,6 +371,7 @@ mod tests {
             current_subcommand_fields: None,
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
+            interprocedural_analysis: None,
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -430,6 +435,7 @@ mod tests {
             needs_clap: true,
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
+            current_function_name: None,
             current_return_type: None,
             module_mapper: crate::module_mapper::ModuleMapper::new(),
             imported_modules: std::collections::HashMap::new(),
@@ -447,6 +453,9 @@ mod tests {
             mutating_methods: std::collections::HashMap::new(),
             function_return_types: std::collections::HashMap::new(),
             function_param_borrows: std::collections::HashMap::new(),
+            function_param_strategies: std::collections::HashMap::new(),
+            current_function_param_ownership: std::collections::HashMap::new(),
+            param_clone_requirements: std::collections::HashSet::new(),
             tuple_iter_vars: HashSet::new(),
             is_final_statement: false,
             result_bool_functions: HashSet::new(),
@@ -459,6 +468,7 @@ mod tests {
             current_subcommand_fields: None,
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
+            interprocedural_analysis: None,
         };
 
         let deps = extract_dependencies(&ctx);
@@ -519,6 +529,7 @@ mod tests {
             needs_clap: false,
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
+            current_function_name: None,
             current_return_type: None,
             module_mapper: crate::module_mapper::ModuleMapper::new(),
             imported_modules: std::collections::HashMap::new(),
@@ -536,6 +547,9 @@ mod tests {
             mutating_methods: std::collections::HashMap::new(),
             function_return_types: std::collections::HashMap::new(),
             function_param_borrows: std::collections::HashMap::new(),
+            function_param_strategies: std::collections::HashMap::new(),
+            current_function_param_ownership: std::collections::HashMap::new(),
+            param_clone_requirements: std::collections::HashSet::new(),
             tuple_iter_vars: HashSet::new(),
             is_final_statement: false,
             result_bool_functions: HashSet::new(),
@@ -548,6 +562,7 @@ mod tests {
             current_subcommand_fields: None,
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
+            interprocedural_analysis: None,
         };
 
         let deps = extract_dependencies(&ctx);
@@ -612,6 +627,7 @@ mod tests {
             needs_clap: true, // Enable clap
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
+            current_function_name: None,
             current_return_type: None,
             module_mapper: crate::module_mapper::ModuleMapper::new(),
             imported_modules: std::collections::HashMap::new(),
@@ -629,6 +645,9 @@ mod tests {
             mutating_methods: std::collections::HashMap::new(),
             function_return_types: std::collections::HashMap::new(),
             function_param_borrows: std::collections::HashMap::new(),
+            function_param_strategies: std::collections::HashMap::new(),
+            current_function_param_ownership: std::collections::HashMap::new(),
+            param_clone_requirements: std::collections::HashSet::new(),
             tuple_iter_vars: HashSet::new(),
             is_final_statement: false,
             result_bool_functions: HashSet::new(),
@@ -641,6 +660,7 @@ mod tests {
             current_subcommand_fields: None,
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
+            interprocedural_analysis: None,
         };
 
         let deps = extract_dependencies(&ctx);

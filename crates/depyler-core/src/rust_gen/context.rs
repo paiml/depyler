@@ -5,6 +5,7 @@
 //! the code generation pipeline.
 
 use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
+use crate::borrowing_context::BorrowingStrategy;
 use crate::hir::{ExceptionScope, Type};
 use crate::string_optimization::StringOptimizer;
 use anyhow::Result;
@@ -38,6 +39,13 @@ pub enum ErrorType {
 ///
 /// # Complexity
 /// N/A (data structure)
+#[derive(Debug, Clone)]
+pub struct ParamBorrowInfo {
+    pub should_borrow: bool,
+    pub needs_mut: bool,
+    pub takes_ownership: bool,
+}
+
 pub struct CodeGenContext<'a> {
     pub type_mapper: &'a crate::type_mapper::TypeMapper,
     pub annotation_aware_mapper: AnnotationAwareTypeMapper,
@@ -72,6 +80,7 @@ pub struct CodeGenContext<'a> {
     pub needs_url_encoding: bool,
     pub declared_vars: Vec<HashSet<String>>,
     pub current_function_can_fail: bool,
+    pub current_function_name: Option<String>,
     pub current_return_type: Option<Type>,
     pub module_mapper: crate::module_mapper::ModuleMapper,
     pub imported_modules: std::collections::HashMap<String, crate::module_mapper::ModuleMapping>,
@@ -92,9 +101,19 @@ pub struct CodeGenContext<'a> {
     /// Used to track types of variables assigned from function calls
     pub function_return_types: HashMap<String, Type>,
     /// DEPYLER-0270: Track function parameter borrowing for auto-borrow decisions
-    /// Maps function name -> Vec of booleans (true if param is borrowed, false if owned)
-    /// Used to determine whether to add & when passing List/Dict/Set arguments
-    pub function_param_borrows: HashMap<String, Vec<bool>>,
+    /// Maps function name -> Vec of parameter borrowing metadata
+    /// Used to determine whether to add &, &mut when passing List/Dict/Set arguments
+    pub function_param_borrows: HashMap<String, Vec<ParamBorrowInfo>>,
+    /// Borrowing strategies inferred for each function parameter (called function)
+    /// Used by subsequent lifetime analyses to understand callee ownership semantics
+    pub function_param_strategies: HashMap<String, Vec<BorrowingStrategy>>,
+    /// Maps parameter names in the CURRENT function to their ownership information
+    /// Populated when entering a function, cleared when exiting
+    /// Used to determine if .into_iter() or .iter() should be used for parameters
+    pub current_function_param_ownership: HashMap<String, bool>, // param_name -> takes_ownership
+    /// Parameters in the CURRENT function that require cloning before being passed by value
+    /// Populated per-function from lifetime analysis results
+    pub param_clone_requirements: HashSet<String>,
     /// DEPYLER-0307 Fix #9: Track variables that iterate over tuples (from zip())
     /// Used to generate tuple field access syntax (tuple.0, tuple.1) instead of vector indexing
     pub tuple_iter_vars: HashSet<String>,
@@ -128,15 +147,15 @@ pub struct CodeGenContext<'a> {
     /// If current function accesses subcommand fields, this maps field names to variant name
     /// Used by expr_gen to rewrite args.field → field (extracted via pattern matching)
     pub current_subcommand_fields: Option<std::collections::HashSet<String>>,
-
-    /// DEPYLER-0447: Track argparse validator functions (type= parameter in add_argument)
     /// These functions should have &str parameter type regardless of type inference
     /// Populated when processing add_argument(type=validator_func) calls
     pub validator_functions: std::collections::HashSet<String>,
-
     /// DEPYLER-0452: Stdlib API mapping system for Python→Rust API translations
     /// Maps Python stdlib patterns (module, class, attribute) to Rust code patterns
     pub stdlib_mappings: crate::stdlib_mappings::StdlibMappings,
+    /// Interprocedural analysis results for cross-function mutation detection
+    /// Used by lifetime analysis to determine parameter mutability across function boundaries
+    pub interprocedural_analysis: Option<&'a crate::interprocedural::InterproceduralAnalysis<'a>>,
 }
 
 impl<'a> CodeGenContext<'a> {

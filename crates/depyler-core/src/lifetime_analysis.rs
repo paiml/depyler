@@ -2,8 +2,77 @@
 //!
 //! This module implements sophisticated lifetime inference to generate
 //! idiomatic Rust code with proper borrowing and ownership patterns.
+//!
+//! # Purpose
+//!
+//! Rust's borrow checker requires explicit lifetime annotations in many cases.
+//! This module automatically infers when lifetime parameters are needed and
+//! applies Rust's lifetime elision rules to minimize annotations.
+//!
+//! # Borrowing Analysis Pipeline
+//!
+//! The complete analysis flow is:
+//!
+//! ```text
+//! 1. InterproceduralAnalyzer::analyze() [in rust_gen.rs]
+//!    └─ Detects cross-function mutations via fixpoint iteration
+//!
+//! 2. LifetimeInference::apply_elision_rules_with_interprocedural()
+//!    ├─ Calls analyze_function_with_interprocedural()
+//!    └─ Applies Rust's elision rules to minimize annotations
+//!
+//! 3. BorrowingContext::analyze_function_with_interprocedural()
+//!    ├─ Intraprocedural: analyzes mutations within function
+//!    ├─ Interprocedural: consults InterproceduralAnalysis
+//!    └─ Returns borrowing strategies (&T, &mut T, T, Cow<T>)
+//!
+//! 4. LifetimeInference converts strategies to lifetime parameters
+//!    └─ Generates: fn foo<'a>(x: &'a T) -> &'a U
+//! ```
+//!
+//! # Lifetime Elision Rules
+//!
+//! Rust allows omitting lifetime annotations in common cases:
+//! - **Rule 1**: Each elided input lifetime gets a distinct parameter
+//! - **Rule 2**: If one input lifetime, assign it to all outputs
+//! - **Rule 3**: If `&self` or `&mut self`, assign its lifetime to outputs
+//!
+//! This module implements these rules to generate idiomatic code.
+//!
+//! # Example
+//!
+//! ```python
+//! def process(state: State, config: Config) -> None:
+//!     state.value = config.multiplier * 2
+//! ```
+//!
+//! Analysis result:
+//! - Interprocedural: No cross-function mutations detected
+//! - Intraprocedural: `state` is mutated, `config` is read
+//! - Borrowing strategies: `state` → `&mut State`, `config` → `&Config`
+//! - Lifetimes: Elided (no return value, so no annotations needed)
+//!
+//! Generated Rust:
+//! ```rust
+//! pub fn process(state: &mut State, config: &Config) {
+//!     state.value = config.multiplier * 2;
+//! }
+//! ```
+//!
+//! # Integration Point
+//!
+//! Called from `func_gen.rs`:
+//! ```rust
+//! let lifetime_result = lifetime_inference
+//!     .apply_elision_rules_with_interprocedural(
+//!         func,
+//!         type_mapper,
+//!         ctx.interprocedural_analysis  // ← passes interprocedural results
+//!     );
+//! ```
 
 use crate::borrowing_context::{BorrowingContext, BorrowingStrategy};
+use crate::expr_utils::extract_root_var;
 use crate::hir::{AssignTarget, HirExpr, HirFunction, HirStmt};
 use crate::type_mapper::RustType;
 use indexmap::IndexMap;
@@ -106,6 +175,23 @@ pub struct InferredParam {
     pub rust_type: RustType,
 }
 
+/// Check if a method name represents a mutating operation
+fn is_mutating_method(method: &str) -> bool {
+    matches!(
+        method,
+        // List methods
+        "append" | "extend" | "insert" | "remove" | "pop" | "clear" | "reverse" | "sort" |
+        // Dict methods
+        "update" | "setdefault" | "popitem" |
+        // Set methods
+        "add" | "discard" | "difference_update" | "intersection_update" | "symmetric_difference_update" |
+        "union_update" |
+        // String methods (mutating in Python context, though strings are immutable in Rust)
+        // Other mutating methods
+        "push" | "pop_front" | "push_front" | "pop_back" | "push_back"
+    )
+}
+
 impl LifetimeInference {
     pub fn new() -> Self {
         Self {
@@ -143,9 +229,20 @@ impl LifetimeInference {
         func: &HirFunction,
         type_mapper: &crate::type_mapper::TypeMapper,
     ) -> LifetimeResult {
+        self.analyze_function_with_interprocedural(func, type_mapper, None)
+    }
+
+    /// Analyze a function to infer parameter lifetimes with interprocedural context
+    pub fn analyze_function_with_interprocedural(
+        &mut self,
+        func: &HirFunction,
+        type_mapper: &crate::type_mapper::TypeMapper,
+        interprocedural: Option<&crate::interprocedural::InterproceduralAnalysis>,
+    ) -> LifetimeResult {
         // Use enhanced borrowing context for comprehensive analysis
         let mut borrowing_ctx = BorrowingContext::new(Some(func.ret_type.clone()));
-        let borrowing_result = borrowing_ctx.analyze_function(func, type_mapper);
+        let borrowing_result =
+            borrowing_ctx.analyze_function_with_interprocedural(func, type_mapper, interprocedural);
 
         // Convert borrowing strategies to lifetime information
         let mut param_lifetimes = IndexMap::new();
@@ -244,11 +341,30 @@ impl LifetimeInference {
         match stmt {
             HirStmt::Expr(expr) => self.analyze_expr_for_param(param, expr, usage, in_loop, false),
             HirStmt::Assign { target, value, .. } => {
-                // Check if we're assigning to the parameter
-                if let AssignTarget::Symbol(symbol) = target {
-                    if symbol == param {
-                        usage.is_mutated = true;
+                // Check if we're assigning to the parameter or its attributes/elements
+                match target {
+                    AssignTarget::Symbol(symbol) => {
+                        if symbol == param {
+                            usage.is_mutated = true;
+                        }
                     }
+                    AssignTarget::Attribute { value: obj, .. } => {
+                        // Assigning to parameter.field mutates the parameter
+                        if let HirExpr::Var(var_name) = obj.as_ref() {
+                            if var_name == param {
+                                usage.is_mutated = true;
+                            }
+                        }
+                    }
+                    AssignTarget::Index { base: obj, .. } => {
+                        // Assigning to parameter[index] mutates the parameter
+                        if let HirExpr::Var(var_name) = obj.as_ref() {
+                            if var_name == param {
+                                usage.is_mutated = true;
+                            }
+                        }
+                    }
+                    _ => {}
                 }
                 self.analyze_expr_for_param(param, value, usage, in_loop, false);
             }
@@ -426,7 +542,22 @@ impl LifetimeInference {
                 self.analyze_expr_for_param(param, operand, usage, in_loop, false);
             }
             HirExpr::Literal(_) => {}
-            HirExpr::MethodCall { object, args, .. } => {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+                ..
+            } => {
+                // Check if this is a mutating method call on our parameter
+                // DEPYLER-0318: Handle nested attributes like param.field.mutate()
+                if is_mutating_method(method) {
+                    if let Some(root_var) = extract_root_var(object) {
+                        if root_var == param {
+                            usage.is_mutated = true;
+                            usage.is_read_only = false; // It's not read-only if we're mutating it
+                        }
+                    }
+                }
                 self.analyze_expr_for_param(param, object, usage, in_loop, in_return);
                 for arg in args {
                     self.analyze_expr_for_param(param, arg, usage, in_loop, in_return);
@@ -691,8 +822,19 @@ impl LifetimeInference {
         func: &HirFunction,
         type_mapper: &crate::type_mapper::TypeMapper,
     ) -> Option<LifetimeResult> {
-        // First, do the full analysis
-        let full_result = self.analyze_function(func, type_mapper);
+        self.apply_elision_rules_with_interprocedural(func, type_mapper, None)
+    }
+
+    /// Apply Rust's lifetime elision rules with interprocedural context
+    pub fn apply_elision_rules_with_interprocedural(
+        &mut self,
+        func: &HirFunction,
+        type_mapper: &crate::type_mapper::TypeMapper,
+        interprocedural: Option<&crate::interprocedural::InterproceduralAnalysis>,
+    ) -> Option<LifetimeResult> {
+        // First, do the full analysis WITH interprocedural context
+        let full_result =
+            self.analyze_function_with_interprocedural(func, type_mapper, interprocedural);
 
         // Count reference parameters
         let ref_params: Vec<_> = full_result
@@ -722,6 +864,19 @@ impl LifetimeInference {
             return Some(LifetimeResult {
                 param_lifetimes: full_result.param_lifetimes,
                 return_lifetime: None,   // Elided
+                lifetime_params: vec![], // No explicit lifetimes needed
+                lifetime_bounds: vec![],
+                borrowing_strategies: full_result.borrowing_strategies,
+            });
+        }
+
+        // Rule for multiple borrowed parameters with no return borrowing:
+        // If the function doesn't return a borrowed value (returns (), non-reference, etc.),
+        // then borrowed parameters don't need explicit lifetimes - they're independent
+        if !return_needs_lifetime {
+            return Some(LifetimeResult {
+                param_lifetimes: full_result.param_lifetimes,
+                return_lifetime: None,
                 lifetime_params: vec![], // No explicit lifetimes needed
                 lifetime_bounds: vec![],
                 borrowing_strategies: full_result.borrowing_strategies,

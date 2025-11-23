@@ -103,7 +103,7 @@ def has_key(d: dict[str, int], key: str) -> bool:
         "Should NOT contain &&key double reference"
     );
 
-    // Should have single reference or no reference
+    // Should have .contains_key() for typed HashMap (DEPYLER-0303 fix)
     assert!(
         rust_code.contains(".contains_key(key)") || rust_code.contains(".contains_key(&key)"),
         "Should contain .contains_key(key) or .contains_key(&key)"
