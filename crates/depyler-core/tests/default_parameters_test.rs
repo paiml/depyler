@@ -21,6 +21,7 @@ fn test_function_with_none_default() {
                 name: "greeting".to_string(),
                 ty: Type::Optional(Box::new(Type::String)),
                 default: Some(HirExpr::Literal(Literal::None)),
+                is_vararg: false,
             },
         ],
         ret_type: Type::String,
@@ -141,6 +142,7 @@ fn test_function_with_empty_list_default() {
             name: "items".to_string(),
             ty: Type::List(Box::new(Type::Int)),
             default: Some(HirExpr::List(vec![])),
+            is_vararg: false,
         },],
         ret_type: Type::List(Box::new(Type::Int)),
         body: vec![],
@@ -343,6 +345,7 @@ fn test_hir_param_serde() {
         name: "count".to_string(),
         ty: Type::Int,
         default: Some(HirExpr::Literal(Literal::Int(0))),
+        is_vararg: false,
     };
 
     let json = serde_json::to_string(&param).unwrap();
