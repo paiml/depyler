@@ -206,12 +206,14 @@ mod tests {
                 HirParam {
                     name: Symbol::from("x"),
                     ty: Type::Int,
-                    default: None
+                    default: None,
+                    is_vararg: false,
                 },
                 HirParam {
                     name: Symbol::from("y"),
                     ty: Type::String,
-                    default: None
+                    default: None,
+                    is_vararg: false,
                 }
             ],
             ret_type: Type::Int,
@@ -283,7 +285,8 @@ mod tests {
             params: smallvec![HirParam {
                 name: Symbol::from("x"),
                 ty: Type::Int,
-                default: None
+                default: None,
+                is_vararg: false,
             }],
             ret_type: Type::String,
             body: vec![],
@@ -297,7 +300,8 @@ mod tests {
             params: smallvec![HirParam {
                 name: Symbol::from("y"),
                 ty: Type::Unknown,
-                default: None
+                default: None,
+                is_vararg: false,
             }],
             ret_type: Type::Unknown,
             body: vec![],

@@ -901,6 +901,8 @@ mod tests {
             needs_serde_json: false,
             needs_regex: false,
             needs_chrono: false,
+            needs_tempfile: false,  // DEPYLER-0493
+            needs_itertools: false, // DEPYLER-0493
             needs_clap: false,
             needs_csv: false,
             needs_rust_decimal: false,
