@@ -5,7 +5,7 @@ roadmap:
 - id: DEPYLER-0492
   github_issue: null
   item_type: bug
-  title: 'Type inference for unannotated parameters - Hindley-Milner integration'
+  title: Type inference for unannotated parameters - Hindley-Milner integration
   status: completed
   priority: critical
   assigned_to: Claude
@@ -23,12 +23,20 @@ roadmap:
   phases:
   - name: Phase 1 - Create failing test
     status: completed
+    estimated_effort: null
+    completion: 0
   - name: Phase 2 - Implement constraint collection
     status: completed
+    estimated_effort: null
+    completion: 0
   - name: Phase 3 - Integration testing on real examples
     status: completed
+    estimated_effort: null
+    completion: 0
   - name: Phase 4 - Re-transpile and verify
     status: completed
+    estimated_effort: null
+    completion: 0
   subtasks: []
   estimated_effort: 4h
   labels:
@@ -39,30 +47,71 @@ roadmap:
 - id: DEPYLER-0493
   github_issue: null
   item_type: bug
-  title: 'Constructor pattern recognition for tempfile and stdlib types'
+  title: Constructor pattern recognition for tempfile and stdlib types
   status: completed
   priority: high
   assigned_to: Claude
   created: 2025-11-23T17:17:00+00:00
-  updated: 2025-11-23T19:45:00+00:00
+  updated: 2025-11-23T17:52:09.899075443+00:00
   spec: docs/bugs/DEPYLER-0493-constructor-patterns.md
   acceptance_criteria:
-  - 'tempfile::NamedTempFile constructed correctly (::new() pattern) ✅'
-  - 'Constructor patterns infrastructure in place for future types ✅'
-  - 'ConstructorPattern enum with New/Function/Method variants ✅'
-  - 'Module mapper updated with constructor metadata ✅'
+  - tempfile::NamedTempFile constructed correctly (::new() pattern) ✅
+  - Constructor patterns infrastructure in place for future types ✅
+  - ConstructorPattern enum with New/Function/Method variants ✅
+  - Module mapper updated with constructor metadata ✅
   phases:
   - name: Phase 1 - Analyze constructor errors
     status: completed
+    estimated_effort: null
+    completion: 0
   - name: Phase 2 - Implement constructor recognition
     status: completed
+    estimated_effort: null
+    completion: 0
   - name: Phase 3 - Test and validate
     status: planned
+    estimated_effort: null
+    completion: 0
   subtasks: []
   estimated_effort: 2h
-  actual_effort: 2.5h
   labels:
   - stdlib-mappings
   - constructor-patterns
   - high-impact
   notes: 'Completed Phases 1-2: Root cause found (MethodCall path in ast_bridge), infrastructure implemented, tempfile working'
+- id: DEPYLER-0483
+  github_issue: null
+  item_type: bug
+  title: Incorrect &mut parameter type inference for immutable parameters
+  status: inprogress
+  priority: high
+  assigned_to: Claude
+  created: 2025-11-23T18:30:00+00:00
+  updated: 2025-11-23T18:24:36.696613042+00:00
+  spec: docs/bugs/DEPYLER-0483-mut-parameter-inference.md
+  acceptance_criteria:
+  - Parameters used immutably inferred as & (not &mut)
+  - set_nested_value compiles without E0596 error
+  - Function parameter mutability correctly analyzed
+  - No regression in existing 2 compiling examples
+  - Test coverage for mutability inference edge cases
+  phases:
+  - name: Phase 1 - Investigate root cause
+    status: planned
+    estimated_effort: null
+    completion: 0
+  - name: Phase 2 - Fix mutability inference logic
+    status: planned
+    estimated_effort: null
+    completion: 0
+  - name: Phase 3 - Test and validate
+    status: planned
+    estimated_effort: null
+    completion: 0
+  subtasks: []
+  estimated_effort: 3h
+  labels:
+  - type-inference
+  - mutability
+  - P1-blocker
+  notes: Affects example_config, causes E0596 borrow checker error
