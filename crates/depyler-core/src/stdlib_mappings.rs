@@ -51,9 +51,7 @@ pub enum RustPattern {
     },
 
     /// Custom code template with {var} placeholders
-    CustomTemplate {
-        template: &'static str,
-    },
+    CustomTemplate { template: &'static str },
 }
 
 /// Stdlib API mapping registry
@@ -77,12 +75,14 @@ impl StdlibMappings {
     }
 
     /// Register CSV module API mappings
-    fn register_csv_mappings(
-        mappings: &mut HashMap<(String, String, String), RustPattern>,
-    ) {
+    fn register_csv_mappings(mappings: &mut HashMap<(String, String, String), RustPattern>) {
         // csv.DictReader.fieldnames → reader.headers()?
         mappings.insert(
-            ("csv".to_string(), "DictReader".to_string(), "fieldnames".to_string()),
+            (
+                "csv".to_string(),
+                "DictReader".to_string(),
+                "fieldnames".to_string(),
+            ),
             RustPattern::PropertyToMethod {
                 method: "headers",
                 propagate_error: true,
@@ -91,7 +91,11 @@ impl StdlibMappings {
 
         // csv.DictReader iteration → deserialize::<HashMap<String, String>>()
         mappings.insert(
-            ("csv".to_string(), "DictReader".to_string(), "__iter__".to_string()),
+            (
+                "csv".to_string(),
+                "DictReader".to_string(),
+                "__iter__".to_string(),
+            ),
             RustPattern::IterationPattern {
                 iter_method: "deserialize",
                 element_type: Some("HashMap<String, String>"),
@@ -101,7 +105,11 @@ impl StdlibMappings {
 
         // csv.Reader.fieldnames (also support basic Reader)
         mappings.insert(
-            ("csv".to_string(), "Reader".to_string(), "fieldnames".to_string()),
+            (
+                "csv".to_string(),
+                "Reader".to_string(),
+                "fieldnames".to_string(),
+            ),
             RustPattern::PropertyToMethod {
                 method: "headers",
                 propagate_error: true,
@@ -110,12 +118,14 @@ impl StdlibMappings {
     }
 
     /// Register file I/O API mappings
-    fn register_file_mappings(
-        mappings: &mut HashMap<(String, String, String), RustPattern>,
-    ) {
+    fn register_file_mappings(mappings: &mut HashMap<(String, String, String), RustPattern>) {
         // File iteration: for line in file
         mappings.insert(
-            ("builtins".to_string(), "file".to_string(), "__iter__".to_string()),
+            (
+                "builtins".to_string(),
+                "file".to_string(),
+                "__iter__".to_string(),
+            ),
             RustPattern::CustomTemplate {
                 template: "BufReader::new({var}).lines()",
             },
@@ -123,7 +133,11 @@ impl StdlibMappings {
 
         // TextIOWrapper iteration (from open())
         mappings.insert(
-            ("io".to_string(), "TextIOWrapper".to_string(), "__iter__".to_string()),
+            (
+                "io".to_string(),
+                "TextIOWrapper".to_string(),
+                "__iter__".to_string(),
+            ),
             RustPattern::CustomTemplate {
                 template: "BufReader::new({var}).lines()",
             },
@@ -131,17 +145,9 @@ impl StdlibMappings {
     }
 
     /// Look up mapping for a Python API call
-    pub fn lookup(
-        &self,
-        module: &str,
-        class: &str,
-        attribute: &str,
-    ) -> Option<&RustPattern> {
-        self.mappings.get(&(
-            module.to_string(),
-            class.to_string(),
-            attribute.to_string(),
-        ))
+    pub fn lookup(&self, module: &str, class: &str, attribute: &str) -> Option<&RustPattern> {
+        self.mappings
+            .get(&(module.to_string(), class.to_string(), attribute.to_string()))
     }
 
     /// Check if a class has iteration mapping
@@ -215,9 +221,7 @@ impl RustPattern {
                 }
             }
 
-            RustPattern::CustomTemplate { template } => {
-                template.replace("{var}", base_expr)
-            }
+            RustPattern::CustomTemplate { template } => template.replace("{var}", base_expr),
         }
     }
 

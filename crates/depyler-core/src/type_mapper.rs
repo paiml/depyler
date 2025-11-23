@@ -226,6 +226,10 @@ impl TypeMapper {
                 size: self.map_const_generic(size),
             },
             PythonType::Set(inner) => RustType::HashSet(Box::new(self.map_type(inner))),
+            PythonType::UnificationVar(id) => {
+                // UnificationVar should never appear in type mapping
+                panic!("BUG: UnificationVar({}) encountered in type mapper. Type inference incomplete.", id)
+            }
         }
     }
 

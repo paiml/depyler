@@ -318,9 +318,13 @@ def dict_ops(d: dict[str, int]) -> None:
         rust_code.contains(".remove(") || rust_code.contains(".pop("),
         "Should still handle .pop() method"
     );
+    // DEPYLER-0449: Changed from .contains_key() to .get().is_some() for serde_json::Value compatibility
+    // Accept both patterns as valid (they're semantically equivalent)
+    let has_contains_key = rust_code.contains(".contains_key(");
+    let has_get_is_some = rust_code.contains(".get(") && rust_code.contains(".is_some()");
     assert!(
-        rust_code.contains(".contains_key("),
-        "Should still use .contains_key() for membership test"
+        has_contains_key || has_get_is_some,
+        "Should use .contains_key() or .get().is_some() for membership test"
     );
 
     println!("Generated Rust code:\n{}", rust_code);

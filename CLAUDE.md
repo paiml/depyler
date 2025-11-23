@@ -738,6 +738,353 @@ renacer --function-time -- depyler compile timeout_script.py
 
 **Full Documentation**: [docs/debugging/renacer-debugging-guide.md](docs/debugging/renacer-debugging-guide.md)
 
+---
+
+## 🔍 Golden Tracing for Debugging (USE NOW)
+
+**Problem**: We repeatedly encounter similar compilation and semantic equivalence failures across different examples. This "spinning of wheels" stems from a lack of unified, deterministic context when comparing the original Python behavior to the transpiled Rust output.
+
+**Solution**: Golden Tracing using **Renacer** provides a single source of truth by capturing and comparing causally-ordered syscall traces, allowing us to definitively validate behavior and prevent recurring bugs. Adopting this methodology is critical to making steady, forward progress.
+
+### When to Use Golden Tracing for Debugging
+
+**Use NOW for failing examples**:
+- ✅ Debug type inference issues (understand what types Python actually uses at runtime)
+- ✅ Understand stdlib mapping behavior (see which Python stdlib calls map to Rust)
+- ✅ Identify missing method calls (compare syscall patterns)
+- ✅ Validate constructor patterns (trace object instantiation)
+- ✅ Compare execution flow between Python and Rust (even if Rust doesn't compile)
+
+**Key Insight**: You can trace Python execution BEFORE Rust compiles to understand expected behavior.
+
+### Cross-Modal Debugging Workflow
+
+**Step 1: Capture Python baseline** (establishes expected behavior)
+```bash
+cd /home/noah/src/reprorusted-python-cli/examples/example_subprocess
+
+# Trace Python execution
+renacer -T --format json -- python task_runner.py echo "test" --capture > golden_python.json
+
+# Analyze syscalls to understand runtime behavior
+grep "execve\|clone\|wait4" golden_python.json | jq '.syscall_name'
+# Shows: Python uses these syscalls for subprocess.run()
+```
+
+**Step 2: Analyze Rust compilation errors**
+```bash
+cargo build 2>&1 | tee build_errors.txt
+
+# Extract error patterns
+grep "error\[E0277\]" build_errors.txt
+# Shows: serde_json::Value doesn't implement AsRef<OsStr>
+# Insight: Type inference defaulted to Value instead of Vec<String>
+```
+
+**Step 3: Five Whys root cause analysis**
+```bash
+# Compare Python trace with Rust error:
+# - Python trace shows: execve receives char** (string array)
+# - Rust error shows: Type system expects AsRef<OsStr>
+# - Root cause: Type inference didn't propagate Vec<String> constraint
+```
+
+**Step 4: Fix transpiler** (never fix generated code)
+```bash
+# Update type inference in depyler-core/src/type_system/
+# Add failing test first (TDD)
+# Re-build transpiler
+cargo build --release
+```
+
+**Step 5: Re-transpile and capture Rust trace**
+```bash
+depyler transpile task_runner.py --source-map -o task_runner.rs
+cargo build --release
+
+# Trace Rust execution (if it compiles)
+renacer -T --format json -- ./target/release/task_runner echo "test" --capture > golden_rust.json
+
+# Compare syscalls
+diff <(jq '.syscall_name' golden_python.json) <(jq '.syscall_name' golden_rust.json)
+# Expected: Similar syscall patterns (execve, wait4, etc.)
+```
+
+### Cross-Modal Context Features
+
+**Transpiler Source Mapping** (Renacer Sprint 24-28):
+```bash
+# Generate source map during transpilation
+depyler transpile example.py --source-map -o example.rs
+# Creates: example.rs + example.rs.sourcemap.json
+
+# Use source map during debugging
+renacer --transpiler-map example.rs.sourcemap.json -T -- ./target/release/example
+
+# Output shows Python line numbers instead of Rust line numbers:
+# [Python:42 process_data()] write(1, "output", 6) = 6
+```
+
+**Unified Tracing** (Renacer Sprint 31 - OTLP + Transpiler Decisions):
+```bash
+# Trace with transpiler decisions
+renacer --otlp-endpoint http://localhost:4318 -- ./target/release/example
+
+# View in Jaeger (http://localhost:16686)
+# Single trace shows:
+# - Python source locations
+# - Rust syscalls
+# - Transpiler decisions that generated the code
+```
+
+### Example: Debugging example_subprocess Type Inference
+
+**Problem**: Rust won't compile - `serde_json::Value: AsRef<OsStr>` not satisfied
+
+**Debug Process**:
+```bash
+# 1. Capture Python baseline
+cd /home/noah/src/reprorusted-python-cli/examples/example_subprocess
+renacer -c -- python task_runner.py echo "test" > python_stats.txt
+
+# 2. Analyze Python syscalls
+grep "execve" python_stats.txt
+# Shows: execve("echo", ["echo", "test"], ...) - string array
+
+# 3. Check Rust error
+cargo build 2>&1 | grep -A5 "E0277"
+# Shows: cmd: &serde_json::Value used in Command::new(&cmd[0])
+# Error: Value doesn't implement AsRef<OsStr>
+
+# 4. Root cause identified
+# Type inference: cmd should be Vec<String>, not Value
+# Evidence: Python uses string array, Rust expects AsRef<OsStr>
+
+# 5. Fix transpiler type inference (not generated code)
+# Create test: test_subprocess_cmd_type_inference()
+# Update: type_system to propagate Vec<String> from usage
+```
+
+### Systematic Debugging Pattern
+
+For EVERY failing example, follow this pattern:
+1. **Capture Python golden trace** - Establish syscall baseline
+2. **Analyze compilation errors** - Identify type/trait mismatches
+3. **Compare traces with errors** - Find root cause in transpiler logic
+4. **Five Whys analysis** - Trace error back to transpiler decision
+5. **Fix transpiler** (NEVER fix generated code)
+6. **Re-transpile and validate** - Capture Rust trace, compare
+
+**Documentation**: See `single_shot_compilation_failure_analysis.md` for detailed examples.
+
+---
+
+## 🎯 Renacer Golden Trace Validation (GOLDEN-001 Epic)
+
+**MANDATORY**: Use Renacer golden traces to validate semantic equivalence of Python→Rust transpilations AFTER achieving 100% compilation.
+
+### What is a Golden Trace?
+
+A **Golden Trace** is a canonical execution trace that:
+1. Captures syscall-level behavior of program execution
+2. Provides causal ordering guarantees using Lamport clocks (not wall-clock time)
+3. Enables semantic equivalence checking between Python and Rust implementations
+4. Serves as regression test baseline in CI/CD pipelines
+
+**Toyota Way Principles**:
+- **Jidoka (Autonomation)**: Automatic detection of semantic divergence
+- **Andon (Stop the Line)**: Build-time assertions fail CI on performance regression
+- **Poka-Yoke (Error-Proofing)**: Lamport clocks eliminate race condition false positives
+
+### Integration Guide
+
+**Configuration**: `/home/noah/src/reprorusted-python-cli/renacer.toml`
+**Documentation**: `/home/noah/src/reprorusted-python-cli/docs/integration-report-golden-trace.md`
+
+### Validation Workflow (4-Step Protocol)
+
+**Step 1: Capture Python Baseline**
+```bash
+# Run original Python CLI
+python example_cli.py --arg "test" > python_output.txt
+
+# Trace Python execution (syscall-level)
+renacer --format json -- python example_cli.py --arg "test" > golden_python.json
+```
+
+**Step 2: Generate Rust Transpilation**
+```bash
+# Transpile with Depyler
+depyler transpile example_cli.py --source-map -o example_cli.rs
+
+# Build Rust binary with debug symbols
+rustc -g example_cli.rs -o example_cli
+# or
+cargo build --release
+```
+
+**Step 3: Capture Rust Trace**
+```bash
+# Run Rust CLI (same inputs as Python)
+./example_cli --arg "test" > rust_output.txt
+
+# Trace Rust execution
+renacer --format json -- ./example_cli --arg "test" > golden_rust.json
+```
+
+**Step 4: Validate Semantic Equivalence**
+```bash
+# Compare outputs (must be identical)
+diff python_output.txt rust_output.txt
+# ✅ Expected: No differences
+
+# Validate syscall-level equivalence
+renacer-compare golden_python.json golden_rust.json
+
+# Expected output:
+# ✅ Semantic Equivalence: PASS
+#    - Write patterns: Identical
+#    - File operations: Identical
+#    - Output correctness: Identical
+# ✅ Performance: 8.5× faster (Rust: 10ms, Python: 85ms)
+```
+
+### CI/CD Integration
+
+Add to `.github/workflows/ci.yml`:
+```yaml
+- name: Golden Trace Validation
+  run: |
+    # Install Renacer
+    cargo install renacer
+
+    # For each example
+    for example in example_simple example_argparse example_config; do
+      cd examples/$example
+
+      # Capture Python trace
+      renacer --format json -- python ${example}.py > golden_python.json
+
+      # Build Rust
+      cargo build --release
+
+      # Capture Rust trace
+      renacer --format json -- ./target/release/${example} > golden_rust.json
+
+      # Validate equivalence
+      cargo test --test semantic_equivalence_${example}
+
+      # Check performance budgets
+      cargo test --test performance_regression_${example}
+    done
+```
+
+### Performance Budgets (renacer.toml)
+
+Enforce performance budgets at build time:
+```toml
+[[assertion]]
+name = "cli_startup_time"
+type = "critical_path"
+max_duration_ms = 15  # CLI must start in <15ms
+fail_on_violation = true  # STOP THE LINE on violation
+
+[[assertion]]
+name = "max_syscalls"
+type = "span_count"
+max_spans = 150  # Limit syscall overhead
+fail_on_violation = true
+```
+
+**Enforcement**: Tests fail if performance budgets violated (Andon principle).
+
+### Semantic Equivalence Testing
+
+Example test suite integration:
+```rust
+// tests/semantic_equivalence.rs
+use renacer::semantic_equivalence::{SemanticValidator, ValidationResult};
+use renacer::unified_trace::UnifiedTrace;
+
+#[test]
+fn test_example_simple_equivalence() {
+    // Load traces
+    let python_trace = UnifiedTrace::from_file("golden_python.json").unwrap();
+    let rust_trace = UnifiedTrace::from_file("golden_rust.json").unwrap();
+
+    // Validate
+    let validator = SemanticValidator::new();
+    let result = validator.validate(&python_trace, &rust_trace);
+
+    match result {
+        ValidationResult::Pass { performance, .. } => {
+            println!("✅ Transpilation validated! Speedup: {}×", performance.speedup);
+            assert!(performance.speedup >= 3.0, "Rust must be ≥3× faster");
+        }
+        ValidationResult::Fail { reason, .. } => {
+            panic!("❌ Semantic divergence: {}", reason);
+        }
+    }
+}
+```
+
+### When to Use Golden Traces
+
+**MANDATORY**:
+- ✅ After fixing any transpiler bug (regression prevention)
+- ✅ Before releasing to crates.io (validation gate)
+- ✅ When changing core codegen logic (semantic preservation)
+
+**RECOMMENDED**:
+- ✅ For all new CLI examples (baseline establishment)
+- ✅ When performance regression suspected (quantification)
+- ✅ During refactoring (correctness verification)
+
+### Overhead Characteristics
+
+| Metric | Renacer | strace | Improvement |
+|--------|---------|--------|-------------|
+| Hot path latency | 200ns | 50μs | **250× faster** |
+| CPU overhead | <1% | 10-30% | **10-30× lower** |
+| Observer effect | Minimal | High | **Production-safe** |
+
+**Conclusion**: Renacer has <1% overhead, making it safe for CI/CD without performance penalty.
+
+### Anti-Pattern Detection
+
+Renacer can detect common issues in transpiled code:
+```toml
+[[assertion]]
+name = "prevent_god_process"
+type = "anti_pattern"
+pattern = "GodProcess"
+threshold = 0.8
+fail_on_violation = false  # Warning only
+```
+
+**Detects**:
+- Single process doing too much work
+- Missing parallelization opportunities
+- Tight loops (busy-wait instead of async)
+
+### Troubleshooting
+
+**Permission Denied**:
+```bash
+# Enable ptrace for user
+echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+```
+
+**No Source Correlation**:
+```bash
+# Rebuild with debug symbols
+RUSTFLAGS="-C debuginfo=2" cargo build --release
+```
+
+**Full Integration Guide**: `/home/noah/src/reprorusted-python-cli/docs/integration-report-golden-trace.md`
+
+---
+
 ## PMAT Hooks Management (TICKET-PMAT-5034)
 
 **Automated pre-commit hook setup and management**:

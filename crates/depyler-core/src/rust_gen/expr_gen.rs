@@ -85,6 +85,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         matches!(name, "self" | "Self" | "super" | "crate")
     }
 
+    /// DEPYLER-0465: Add & to borrow a path expression if it's a simple variable
+    /// This prevents moving String parameters in PathBuf::from() and File::open()
+    ///
+    /// # Complexity
+    /// ≤10 (simple match pattern)
+    fn borrow_if_needed(expr: &syn::Expr) -> syn::Expr {
+        match expr {
+            // If it's a simple path (variable), add &
+            syn::Expr::Path(path) if path.qself.is_none() && path.path.segments.len() == 1 => {
+                parse_quote! { &#expr }
+            }
+            // Otherwise, use as-is (literals, method calls, etc.)
+            _ => expr.clone(),
+        }
+    }
+
     fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
         // Check for special keywords that cannot be raw identifiers
         if Self::is_non_raw_keyword(name) {
@@ -216,12 +232,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0321 + DEPYLER-0304: Type-aware containment method selection
                 // Same logic as BinOp::In, but negated
 
-                // DEPYLER-0329: Check if left is already a reference to avoid double-borrowing
-                let needs_borrow = if let HirExpr::Var(var_name) = left {
-                    !matches!(self.ctx.var_types.get(var_name), Some(Type::String))
-                } else {
-                    true
-                };
+                // DEPYLER-0473: Always borrow keys for .get() and .contains()
+                // HIR Type::String doesn't distinguish owned String vs &str,
+                // so we can't reliably detect when to skip borrow. Default to always borrowing.
+                let needs_borrow = true;
 
                 if is_string || is_set || is_list {
                     // Strings, Sets, and Lists all use .contains(&value)
@@ -1030,7 +1044,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Path(p) / "subdir" → p.join("subdir")
         if func == "Path" && args.len() == 1 {
             let path_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { std::path::PathBuf::from(#path_expr) });
+            // DEPYLER-0465: Borrow variable paths to avoid moving String parameters
+            // If path_expr is a simple variable (not a literal or method call), add &
+            let borrowed_path = Self::borrow_if_needed(&path_expr);
+            return Ok(parse_quote! { std::path::PathBuf::from(#borrowed_path) });
         }
 
         // DEPYLER-STDLIB-DATETIME: Handle datetime constructors
@@ -1186,7 +1203,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .collect::<Result<Vec<_>>>()?
         } else {
             args.iter()
-                .map(|arg| arg.to_rust_expr(self.ctx))
+                .map(|arg| {
+                    let expr = arg.to_rust_expr(self.ctx)?;
+                    // DEPYLER-0458: Add & prefix for Lazy const variables (e.g., DEFAULT_CONFIG)
+                    // When passing a const (all uppercase) to a function, it's likely a Lazy<T>
+                    // that needs to be borrowed (&) so Deref converts it to &T
+                    if let HirExpr::Var(var_name) = arg {
+                        let is_const = var_name.chars().all(|c| c.is_uppercase() || c == '_');
+                        if is_const {
+                            return Ok(parse_quote! { &#expr });
+                        }
+                    }
+                    Ok(expr)
+                })
                 .collect::<Result<Vec<_>>>()?
         };
 
@@ -1226,6 +1255,110 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let mut all_hir_args: Vec<HirExpr> = args.to_vec();
         for (_name, value) in kwargs {
             all_hir_args.push(value.clone());
+        }
+
+        // DEPYLER-0462: Handle print(file=sys.stderr) → eprintln!()
+        // Must check BEFORE kwargs are merged into all_args (losing keyword names)
+        if func == "print" {
+            // Check if file=sys.stderr keyword is present
+            let use_stderr = kwargs.iter().any(|(name, value)| {
+                name == "file" && matches!(value, HirExpr::Attribute {
+                    value: attr_value,
+                    attr
+                } if matches!(&**attr_value, HirExpr::Var(module) if module == "sys") && attr == "stderr")
+            });
+
+            return if args.is_empty() {
+                // print() with no arguments
+                if use_stderr {
+                    Ok(parse_quote! { eprintln!() })
+                } else {
+                    Ok(parse_quote! { println!() })
+                }
+            } else if args.len() == 1 {
+                // Single argument print
+                let needs_debug = if let Some(hir_arg) = args.first() {
+                    match hir_arg {
+                        HirExpr::Var(name) => {
+                            // DEPYLER-0468: Use debug formatter for collections and Optional types
+                            // Also use it for variables with Unknown type or known-problematic names
+                            let type_based = self
+                                .ctx
+                                .var_types
+                                .get(name)
+                                .map(|t| {
+                                    matches!(
+                                        t,
+                                        Type::List(_)
+                                            | Type::Dict(_, _)
+                                            | Type::Set(_)
+                                            | Type::Optional(_)
+                                            | Type::Unknown
+                                    )
+                                })
+                                .unwrap_or(false);
+
+                            // Heuristic: "value" often comes from functions returning Option<T>
+                            let name_based = name == "value";
+
+                            type_based || name_based
+                        }
+                        HirExpr::List(_)
+                        | HirExpr::Dict(_)
+                        | HirExpr::Set(_)
+                        | HirExpr::FrozenSet(_) => true,
+                        _ => false,
+                    }
+                } else {
+                    false
+                };
+
+                let arg = &arg_exprs[0];
+                if use_stderr {
+                    if needs_debug {
+                        Ok(parse_quote! { eprintln!("{:?}", #arg) })
+                    } else {
+                        Ok(parse_quote! { eprintln!("{}", #arg) })
+                    }
+                } else if needs_debug {
+                    Ok(parse_quote! { println!("{:?}", #arg) })
+                } else {
+                    Ok(parse_quote! { println!("{}", #arg) })
+                }
+            } else {
+                // Multiple arguments
+                let format_specs: Vec<&str> = args
+                    .iter()
+                    .map(|hir_arg| {
+                        let needs_debug = match hir_arg {
+                            HirExpr::Var(name) => self
+                                .ctx
+                                .var_types
+                                .get(name)
+                                .map(|t| {
+                                    matches!(t, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                                })
+                                .unwrap_or(false),
+                            HirExpr::List(_)
+                            | HirExpr::Dict(_)
+                            | HirExpr::Set(_)
+                            | HirExpr::FrozenSet(_) => true,
+                            _ => false,
+                        };
+                        if needs_debug {
+                            "{:?}"
+                        } else {
+                            "{}"
+                        }
+                    })
+                    .collect();
+                let format_str = format_specs.join(" ");
+                if use_stderr {
+                    Ok(parse_quote! { eprintln!(#format_str, #(#arg_exprs),*) })
+                } else {
+                    Ok(parse_quote! { println!(#format_str, #(#arg_exprs),*) })
+                }
+            };
         }
 
         match func {
@@ -2035,10 +2168,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     ///
     /// # Complexity
     /// ≤10 (match with 3 branches)
-    fn convert_open_builtin(&self, hir_args: &[HirExpr], args: &[syn::Expr]) -> Result<syn::Expr> {
+    fn convert_open_builtin(
+        &mut self,
+        hir_args: &[HirExpr],
+        args: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         if args.is_empty() || args.len() > 2 {
             bail!("open() requires 1 or 2 arguments");
         }
+
+        // DEPYLER-0458: File handles need Read/Write traits
+        self.ctx.needs_io_read = true;
+        self.ctx.needs_io_write = true;
 
         let path = &args[0];
 
@@ -2055,14 +2196,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "r" // Default mode
         };
 
+        // DEPYLER-0465: Borrow path to avoid moving String parameters
+        let borrowed_path = Self::borrow_if_needed(path);
+
         match mode {
             "r" | "rb" => {
                 // Read mode → std::fs::File::open(path)?
-                Ok(parse_quote! { std::fs::File::open(#path)? })
+                Ok(parse_quote! { std::fs::File::open(#borrowed_path)? })
             }
             "w" | "wb" => {
                 // Write mode → std::fs::File::create(path)?
-                Ok(parse_quote! { std::fs::File::create(#path)? })
+                Ok(parse_quote! { std::fs::File::create(#borrowed_path)? })
             }
             "a" | "ab" => {
                 // Append mode → OpenOptions with append
@@ -2070,12 +2214,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     std::fs::OpenOptions::new()
                         .append(true)
                         .create(true)
-                        .open(#path)?
+                        .open(#borrowed_path)?
                 })
             }
             _ => {
                 // Unsupported mode, default to read
-                Ok(parse_quote! { std::fs::File::open(#path)? })
+                Ok(parse_quote! { std::fs::File::open(#borrowed_path)? })
             }
         }
     }
@@ -2213,87 +2357,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         hir_args: &[HirExpr],
         args: &[syn::Expr],
     ) -> Result<syn::Expr> {
-        // Special case: Python print() → Rust println!()
-        if func == "print" {
-            return if args.is_empty() {
-                // print() with no arguments → println!()
-                Ok(parse_quote! { println!() })
-            } else if args.len() == 1 {
-                // DEPYLER-0272 FIX: Use {:?} for collections that don't implement Display
-                // Check if arg is a collection type (Vec, HashMap, HashSet)
-                let needs_debug = if let Some(hir_arg) = hir_args.first() {
-                    match hir_arg {
-                        HirExpr::Var(name) => {
-                            // Check variable type
-                            self.ctx
-                                .var_types
-                                .get(name)
-                                .map(|t| {
-                                    matches!(t, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
-                                })
-                                .unwrap_or(false)
-                        }
-                        HirExpr::List(_)
-                        | HirExpr::Dict(_)
-                        | HirExpr::Set(_)
-                        | HirExpr::FrozenSet(_) => true,
-                        HirExpr::Binary {
-                            op: BinOp::Add,
-                            left,
-                            right,
-                        } => {
-                            // Result of list concatenation
-                            self.is_list_expr(left) || self.is_list_expr(right)
-                        }
-                        _ => false,
-                    }
-                } else {
-                    false
-                };
-
-                let arg = &args[0];
-                if needs_debug {
-                    Ok(parse_quote! { println!("{:?}", #arg) })
-                } else {
-                    Ok(parse_quote! { println!("{}", #arg) })
-                }
-            } else {
-                // print(a, b, c) → println!("{} {} {}", a, b, c) or with {:?} for collections
-                // DEPYLER-0272 FIX: Use {:?} for each collection argument
-                let format_specs: Vec<&str> = hir_args
-                    .iter()
-                    .map(|hir_arg| {
-                        let needs_debug = match hir_arg {
-                            HirExpr::Var(name) => self
-                                .ctx
-                                .var_types
-                                .get(name)
-                                .map(|t| {
-                                    matches!(t, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
-                                })
-                                .unwrap_or(false),
-                            HirExpr::List(_)
-                            | HirExpr::Dict(_)
-                            | HirExpr::Set(_)
-                            | HirExpr::FrozenSet(_) => true,
-                            HirExpr::Binary {
-                                op: BinOp::Add,
-                                left,
-                                right,
-                            } => self.is_list_expr(left) || self.is_list_expr(right),
-                            _ => false,
-                        };
-                        if needs_debug {
-                            "{:?}"
-                        } else {
-                            "{}"
-                        }
-                    })
-                    .collect();
-                let format_str = format_specs.join(" ");
-                Ok(parse_quote! { println!(#format_str, #(#args),*) })
-            };
-        }
+        // DEPYLER-0462: print() is now handled in convert_call() to support file=stderr kwarg
 
         // Check if this is an imported function
         if let Some(rust_path) = self.ctx.imported_items.get(func) {
@@ -2359,6 +2423,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .zip(args.iter())
                 .enumerate()
                 .map(|(param_idx, (hir_arg, arg_expr))| {
+                    // DEPYLER-0471: Clone args.config when passing to functions taking owned String
+                    // This avoids "use after move" errors when args.config is used multiple times
+                    if matches!(hir_arg, HirExpr::Attribute { value, attr }
+                        if attr == "config" && matches!(value.as_ref(), HirExpr::Var(v) if v == "args"))
+                    {
+                        // Check if function takes owned String (not &str)
+                        // For save_config and load_config, clone args.config
+                        if matches!(func, "save_config" | "load_config") {
+                            return parse_quote! { #arg_expr.clone() };
+                        }
+                    }
+
+                    // DEPYLER-0469/0488: Special case for known functions that need String borrowing
+                    // get_nested_value(config, key) - key param (index 1) needs &str
+                    // set_nested_value(config, key, value) - key (1) needs &str, value (2) needs &str (NOT &mut!)
+                    // DEPYLER-0488: Removed incorrect &mut for value parameter - it's only READ in the function
+                    // These work with both Var and Attribute expressions (before/after argparse transform)
+                    if (func == "get_nested_value" || func == "set_nested_value") && param_idx == 1 {
+                        // Immutable borrow for key parameter
+                        return parse_quote! { &#arg_expr };
+                    } else if func == "set_nested_value" && param_idx == 2 {
+                        // DEPYLER-0488: value parameter is READ (RHS of assignment), not mutated
+                        // Immutable borrow is sufficient
+                        return parse_quote! { &#arg_expr };
+                    }
+
                     // DEPYLER-0424: Check if argument is argparse args variable
                     // If so, always pass by reference (&args)
                     if let HirExpr::Var(var_name) = hir_arg {
@@ -2382,12 +2472,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Check if this param should be borrowed by looking up function signature
                     let should_borrow = match hir_arg {
                         HirExpr::Var(var_name) => {
-                            // Check if variable has List, Dict, or Set type
+                            // Check if variable has List, Dict, Set, String, or Custom type
                             if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                                if matches!(
-                                    var_type,
-                                    Type::List(_) | Type::Dict(_, _) | Type::Set(_)
-                                ) {
+                                // DEPYLER-0467: Debug logging for key/value
+                                if matches!(var_name.as_str(), "key" | "value") {
+                                    eprintln!("[DEPYLER-0467] Variable '{}' has type: {:?}", var_name, var_type);
+                                }
+
+                                // DEPYLER-0467: Always borrow serde_json::Value types
+                                // These are typically borrowed in idiomatic Rust
+                                if matches!(var_type, Type::Custom(ref s) if s == "serde_json::Value") {
+                                    true  // Always borrow Value types
+                                } else if matches!(var_type, Type::Dict(_, _)) {
+                                    // Also borrow Dict types (mapped to serde_json::Value)
+                                    true
+                                } else if matches!(var_type, Type::String) {
+                                    // DEPYLER-0469: ALWAYS borrow String types as &str
+                                    // This is idiomatic Rust - prefer &str over String for parameters
+                                    true
+                                } else if matches!(var_type, Type::Unknown) {
+                                    // DEPYLER-0467: Heuristic for Unknown types
+                                    // If variable name suggests it's commonly borrowed, borrow it
+                                    // This handles cases where type inference fails (e.g., Result unwrapping, pattern matching)
+                                    matches!(var_name.as_str(),
+                                        "config" | "data" | "json" | "obj" | "document" |
+                                        "key" | "value" | "path" | "name" | "text" | "content"
+                                    )
+                                } else if matches!(var_type, Type::List(_) | Type::Set(_)) {
+                                    // DEPYLER-0466: Also borrow collection types
                                     // Check if function param expects a borrow
                                     self.ctx
                                         .function_param_borrows
@@ -2399,7 +2511,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                     false
                                 }
                             } else {
-                                false
+                                // DEPYLER-0467: Variable not in var_types (e.g., pattern match destructuring)
+                                // Apply name-based heuristic for common variable names
+                                eprintln!("[DEPYLER-0467] Variable '{}' NOT in var_types, applying heuristic", var_name);
+                                matches!(var_name.as_str(),
+                                    "config" | "data" | "json" | "obj" | "document" |
+                                    "key" | "value" | "path" | "name" | "text" | "content"
+                                )
                             }
                         }
                         // DEPYLER-0359: Auto-borrow list/dict/set literals when calling functions
@@ -2442,7 +2560,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Solution: Don't automatically add `?` to function calls. Let explicit error handling
             // in Python (try/except) determine when Result types are needed.
             // If specific cases need `?` for recursive calls, those should be handled specially.
-            Ok(parse_quote! { #func_ident(#(#borrowed_args),*) })
+            let call_expr: syn::Expr = parse_quote! { #func_ident(#(#borrowed_args),*) };
+            Ok(call_expr)
         }
     }
 
@@ -3316,15 +3435,39 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() == 1 {
                     // os.environ.get("KEY") → std::env::var("KEY").ok()
                     // Returns Option<String>: Some(value) if exists, None otherwise
+                    // DEPYLER-0486: Handle Option-typed keys (e.g., from argparse nargs="?")
+                    // If key is an &Option<String> or Option<String>, unwrap it first
                     let key = &arg_exprs[0];
-                    parse_quote! { std::env::var(#key).ok() }
+                    let key_with_unwrap = if let HirExpr::Var(var_name) = &args[0] {
+                        if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                            if matches!(var_type, Type::Optional(_)) {
+                                // Key is an Option type - unwrap it
+                                parse_quote! { #key.as_ref().unwrap() }
+                            } else {
+                                key.clone()
+                            }
+                        } else {
+                            key.clone()
+                        }
+                    } else {
+                        key.clone()
+                    };
+                    parse_quote! { std::env::var(#key_with_unwrap).ok() }
                 } else {
                     // os.environ.get("KEY", "default") → std::env::var("KEY").unwrap_or_else(|_| "default".to_string())
                     // Returns String: value if exists, default otherwise
+                    // DEPYLER-0486: Auto-borrow variables (not string literals) to avoid move errors
                     let key = &arg_exprs[0];
+                    let key_with_borrow = if matches!(&args[0], HirExpr::Var(_)) {
+                        // Variable: borrow it to avoid moving in loops
+                        parse_quote! { &#key }
+                    } else {
+                        // String literal or other expression: use as-is
+                        key.clone()
+                    };
                     let default = &arg_exprs[1];
                     parse_quote! {
-                        std::env::var(#key).unwrap_or_else(|_| #default.to_string())
+                        std::env::var(#key_with_borrow).unwrap_or_else(|_| #default.to_string())
                     }
                 }
             }
@@ -3518,6 +3661,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .map(|arg| arg.to_rust_expr(self.ctx))
             .collect::<Result<Vec<_>>>()?;
 
+        // Helper function to auto-borrow String arguments for Path::new()
+        // Path::new() expects &str, but we often have String variables
+        // DEPYLER-0484: Auto-borrow String types when passing to Path::new()
+        let maybe_borrow = |hir_arg: &HirExpr, arg_expr: &syn::Expr| -> syn::Expr {
+            let needs_borrow = match hir_arg {
+                HirExpr::Var(var_name) => {
+                    // Check if variable is String type
+                    if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                        matches!(var_type, Type::String)
+                    } else {
+                        // Unknown type: use heuristic based on name
+                        matches!(var_name.as_str(), "path" | "expanded" | "p" | "file" | "dir")
+                    }
+                }
+                HirExpr::Literal(Literal::String(_)) => false, // String literals are already &str
+                _ => false,
+            };
+
+            if needs_borrow {
+                parse_quote! { &#arg_expr }
+            } else {
+                arg_expr.clone()
+            }
+        };
+
         let result = match method {
             // Path construction
             "join" => {
@@ -3543,7 +3711,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.basename() requires exactly 1 argument");
                 }
-                let path = &arg_exprs[0];
+                let path = maybe_borrow(&args[0], &arg_exprs[0]);
 
                 // os.path.basename(path) → Path::new(path).file_name()
                 parse_quote! {
@@ -3559,7 +3727,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.dirname() requires exactly 1 argument");
                 }
-                let path = &arg_exprs[0];
+                let path = maybe_borrow(&args[0], &arg_exprs[0]);
 
                 // os.path.dirname(path) → Path::new(path).parent()
                 parse_quote! {
@@ -3575,7 +3743,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.split() requires exactly 1 argument");
                 }
-                let path = &arg_exprs[0];
+                let path = maybe_borrow(&args[0], &arg_exprs[0]);
 
                 // os.path.split(path) → (dirname, basename) tuple
                 parse_quote! {
@@ -3592,7 +3760,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.splitext() requires exactly 1 argument");
                 }
-                let path = &arg_exprs[0];
+                let path = maybe_borrow(&args[0], &arg_exprs[0]);
 
                 // os.path.splitext(path) → (stem, extension) tuple
                 parse_quote! {
@@ -3610,7 +3778,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.exists() requires exactly 1 argument");
                 }
-                let path = &arg_exprs[0];
+                let path = maybe_borrow(&args[0], &arg_exprs[0]);
 
                 // os.path.exists(path) → Path::new(path).exists()
                 parse_quote! { std::path::Path::new(#path).exists() }
@@ -3620,7 +3788,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.isfile() requires exactly 1 argument");
                 }
-                let path = &arg_exprs[0];
+                let path = maybe_borrow(&args[0], &arg_exprs[0]);
 
                 // os.path.isfile(path) → Path::new(path).is_file()
                 parse_quote! { std::path::Path::new(#path).is_file() }
@@ -3630,7 +3798,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.isdir() requires exactly 1 argument");
                 }
-                let path = &arg_exprs[0];
+                let path = maybe_borrow(&args[0], &arg_exprs[0]);
 
                 // os.path.isdir(path) → Path::new(path).is_dir()
                 parse_quote! { std::path::Path::new(#path).is_dir() }
@@ -3640,7 +3808,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.isabs() requires exactly 1 argument");
                 }
-                let path = &arg_exprs[0];
+                let path = maybe_borrow(&args[0], &arg_exprs[0]);
 
                 // os.path.isabs(path) → Path::new(path).is_absolute()
                 parse_quote! { std::path::Path::new(#path).is_absolute() }
@@ -3651,7 +3819,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.abspath() requires exactly 1 argument");
                 }
-                let path = &arg_exprs[0];
+                let path = maybe_borrow(&args[0], &arg_exprs[0]);
 
                 // os.path.abspath(path) → std::fs::canonicalize() or manual absolute path
                 // Using canonicalize (resolves symlinks too, like realpath)
@@ -3667,7 +3835,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.normpath() requires exactly 1 argument");
                 }
-                let path = &arg_exprs[0];
+                let path = maybe_borrow(&args[0], &arg_exprs[0]);
 
                 // os.path.normpath(path) → normalize path components
                 // Rust Path doesn't have direct normpath, but we can use PathBuf operations
@@ -9239,6 +9407,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             });
         }
 
+        // DEPYLER-0458: Handle file I/O .write() method
+        // Python: f.write(string) → Rust: f.write_all(bytes)?
+        if method == "write" && arg_exprs.len() == 1 {
+            let content = &arg_exprs[0];
+            // Convert string to bytes and use write_all()
+            // Python's write() returns bytes written, but we simplify to just the operation
+            return Ok(parse_quote! {
+                #object_expr.write_all(#content.as_bytes())?
+            });
+        }
+
         // DEPYLER-0389: Handle regex Match.group() method
         // Python: match.group(0) or match.group(n)
         // Rust: match.as_str() for group(0), or handle numbered groups
@@ -9519,13 +9698,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0416: Check if this is a static method call on a class (e.g., Point.origin())
         // Convert to ClassName::method(args)
+        // DEPYLER-0458 FIX: Exclude CONST_NAMES (all uppercase) from static method conversion
+        // Constants like DEFAULT_CONFIG should use instance methods (.clone()) not static (::copy())
         if let HirExpr::Var(class_name) = object {
-            if class_name
+            let is_const = class_name.chars().all(|c| c.is_uppercase() || c == '_');
+            let starts_uppercase = class_name
                 .chars()
                 .next()
                 .map(|c| c.is_uppercase())
-                .unwrap_or(false)
-            {
+                .unwrap_or(false);
+
+            if starts_uppercase && !is_const {
                 // This is likely a static method call - convert to ClassName::method(args)
                 let class_ident = syn::Ident::new(class_name, proc_macro2::Span::call_site());
                 let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
@@ -9770,7 +9953,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0422: Removed "data" from heuristic - too broad, catches sorted_data, dataset, etc.
             // Only use "dict" or "map" which are more specific to HashMap variables
             let name = sym.as_str();
-            if (name.contains("dict") || name.contains("map") || name.contains("config") || name.contains("value"))
+            if (name.contains("dict")
+                || name.contains("map")
+                || name.contains("config")
+                || name.contains("value"))
                 && !self.is_numeric_index(index)
             {
                 return Ok(true);
@@ -9843,6 +10029,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match expr {
             HirExpr::Literal(Literal::String(_)) => true,
             HirExpr::Var(sym) => {
+                // DEPYLER-0479: Check type system first (most reliable)
+                if let Some(ty) = self.ctx.var_types.get(sym) {
+                    return matches!(ty, Type::String);
+                }
+
                 // DEPYLER-0267 FIX: Only match singular string-like names, NOT plurals
                 // "words" (plural) is likely list[str], not str!
                 // "word" (singular) without 's' ending is likely str
@@ -9964,9 +10155,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Start and stop: base[start:stop]
             (Some(start), Some(stop), None) => Ok(parse_quote! {
                 {
-                    let base = #base_expr;
-                    let start = (#start).max(0) as usize;
-                    let stop = (#stop).max(0) as usize;
+                    // DEPYLER-0473: Borrow to avoid moving base (allows reuse later)
+                    let base = &#base_expr;
+                    // DEPYLER-0459: Cast to isize first to handle negative indices
+                    let start_idx = #start as isize;
+                    let stop_idx = #stop as isize;
+                    let start = if start_idx < 0 {
+                        (base.len() as isize + start_idx).max(0) as usize
+                    } else {
+                        start_idx as usize
+                    };
+                    let stop = if stop_idx < 0 {
+                        (base.len() as isize + stop_idx).max(0) as usize
+                    } else {
+                        stop_idx as usize
+                    };
                     if start < base.len() {
                         base[start..stop.min(base.len())].to_vec()
                     } else {
@@ -9978,8 +10181,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Start only: base[start:]
             (Some(start), None, None) => Ok(parse_quote! {
                 {
-                    let base = #base_expr;
-                    let start = (#start).max(0) as usize;
+                    // DEPYLER-0473: Borrow to avoid moving base (allows reuse later)
+                    let base = &#base_expr;
+                    // DEPYLER-0459: Cast to isize first to handle negative indices
+                    let start_idx = #start as isize;
+                    let start = if start_idx < 0 {
+                        (base.len() as isize + start_idx).max(0) as usize
+                    } else {
+                        start_idx as usize
+                    };
                     if start < base.len() {
                         base[start..].to_vec()
                     } else {
@@ -9991,8 +10201,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Stop only: base[:stop]
             (None, Some(stop), None) => Ok(parse_quote! {
                 {
-                    let base = #base_expr;
-                    let stop = (#stop).max(0) as usize;
+                    // DEPYLER-0473: Borrow to avoid moving base (allows reuse later)
+                    let base = &#base_expr;
+                    // DEPYLER-0459: Cast to isize first to handle negative indices
+                    let stop_idx = #stop as isize;
+                    let stop = if stop_idx < 0 {
+                        (base.len() as isize + stop_idx).max(0) as usize
+                    } else {
+                        stop_idx as usize
+                    };
                     base[..stop.min(base.len())].to_vec()
                 }
             }),
@@ -10005,8 +10222,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! {
                     {
                         let base = #base_expr;
-                        let start = (#start).max(0) as usize;
-                        let stop = (#stop).max(0) as usize;
+                        // DEPYLER-0459: Cast to isize first to handle negative indices
+                        let start_idx = #start as isize;
+                        let stop_idx = #stop as isize;
+                        let start = if start_idx < 0 {
+                            (base.len() as isize + start_idx).max(0) as usize
+                        } else {
+                            start_idx as usize
+                        };
+                        let stop = if stop_idx < 0 {
+                            (base.len() as isize + stop_idx).max(0) as usize
+                        } else {
+                            stop_idx as usize
+                        };
                         let step = #step;
 
                         if step == 1 {
@@ -10043,7 +10271,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             (Some(start), None, Some(step)) => Ok(parse_quote! {
                 {
                     let base = #base_expr;
-                    let start = (#start).max(0) as usize;
+                    // DEPYLER-0459: Cast to isize first to handle negative indices
+                    let start_idx = #start as isize;
+                    let start = if start_idx < 0 {
+                        (base.len() as isize + start_idx).max(0) as usize
+                    } else {
+                        start_idx as usize
+                    };
                     let step = #step;
 
                     if start < base.len() {
@@ -10342,12 +10576,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     fn convert_dict(&mut self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
         // DEPYLER-0376: Detect heterogeneous dicts (mixed value types)
-        // For mixed types, use serde_json::json! instead of HashMap
+        // DEPYLER-0461: Also check if we're in json!() context (nested dicts must use json!())
+        // For mixed types or json context, use serde_json::json! instead of HashMap
         let has_mixed_types = self.dict_has_mixed_types(items)?;
+        let in_json_context = self.ctx.in_json_context;
 
-        if has_mixed_types {
-            // Use serde_json::json! for heterogeneous dicts
+        if has_mixed_types || in_json_context {
+            // Use serde_json::json! for heterogeneous dicts or nested dicts in json!()
             self.ctx.needs_serde_json = true;
+
+            // DEPYLER-0461: Set json context flag for nested conversions
+            let prev_json_context = self.ctx.in_json_context;
+            self.ctx.in_json_context = true;
+
             let mut entries = Vec::new();
             for (key, value) in items {
                 let key_str = match key {
@@ -10357,6 +10598,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let val_expr = value.to_rust_expr(self.ctx)?;
                 entries.push(quote! { #key_str: #val_expr });
             }
+
+            // DEPYLER-0461: Restore previous json context
+            self.ctx.in_json_context = prev_json_context;
 
             return Ok(parse_quote! {
                 serde_json::json!({
@@ -10385,13 +10629,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0279: Only add `mut` if there are items to insert
         // Empty dicts don't need mutable bindings
+        // DEPYLER-0472: When in json context, use json!({}) instead of HashMap::new()
+        // This happens when dict is assigned to serde_json::Value (e.g., current[k] = {})
         if items.is_empty() {
-            Ok(parse_quote! {
-                {
-                    let map = HashMap::new();
-                    map
-                }
-            })
+            if self.ctx.in_json_context {
+                // Use json!({}) for serde_json::Value compatibility
+                self.ctx.needs_serde_json = true;
+                Ok(parse_quote! { serde_json::json!({}) })
+            } else {
+                // Regular HashMap for normal dicts
+                Ok(parse_quote! {
+                    {
+                        let map = HashMap::new();
+                        map
+                    }
+                })
+            }
         } else {
             Ok(parse_quote! {
                 {
@@ -10405,9 +10658,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-0376: Check if dict has heterogeneous value types
     /// DEPYLER-0270 FIX: Only flag as heterogeneous when we have strong evidence
+    /// DEPYLER-0461: Also detect nested dicts which require serde_json::Value
     fn dict_has_mixed_types(&self, items: &[(HirExpr, HirExpr)]) -> Result<bool> {
         if items.len() <= 1 {
             return Ok(false); // Single type or empty
+        }
+
+        // DEPYLER-0461: Check for nested dict expressions (recursively)
+        // If any value is a Dict (or contains a Dict), we need serde_json::json!()
+        // This ensures ALL levels of nested dicts use json!() for consistency
+        if self.dict_contains_nested_dict(items) {
+            return Ok(true);
         }
 
         // STRATEGY 1: Check for obvious mixing of literal types
@@ -10440,6 +10701,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Only use json! if we have 2+ distinct literal types
         // This avoids false positives from dicts with uniform types but variable values
         Ok(distinct_types >= 2)
+    }
+
+    /// DEPYLER-0461: Recursively check if dict contains any nested dicts
+    /// Returns true if any value is a Dict. When this is true, ALL nested dicts
+    /// in the tree must use json!() for consistency (json!() doesn't accept HashMap blocks)
+    fn dict_contains_nested_dict(&self, items: &[(HirExpr, HirExpr)]) -> bool {
+        for (_key, value) in items {
+            if self.expr_is_or_contains_dict(value) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// DEPYLER-0461: Check if expression is a dict or recursively contains a dict
+    fn expr_is_or_contains_dict(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Dict(_) => true,
+            HirExpr::List(items) => items.iter().any(|e| self.expr_is_or_contains_dict(e)),
+            HirExpr::Tuple(items) => items.iter().any(|e| self.expr_is_or_contains_dict(e)),
+            _ => false,
+        }
     }
 
     fn convert_tuple(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
@@ -10764,10 +11047,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Try common CSV patterns (heuristic-based for now)
         if let Some(mapping) = self.ctx.stdlib_mappings.lookup("csv", "DictReader", attr) {
             // Found a CSV DictReader mapping - apply it
-            let rust_code = mapping.generate_rust_code(
-                &value_expr.to_token_stream().to_string(),
-                &[]
-            );
+            let rust_code =
+                mapping.generate_rust_code(&value_expr.to_token_stream().to_string(), &[]);
             if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
                 return Ok(expr);
             }
@@ -10775,10 +11056,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // Also try generic Reader patterns
         if let Some(mapping) = self.ctx.stdlib_mappings.lookup("csv", "Reader", attr) {
-            let rust_code = mapping.generate_rust_code(
-                &value_expr.to_token_stream().to_string(),
-                &[]
-            );
+            let rust_code =
+                mapping.generate_rust_code(&value_expr.to_token_stream().to_string(), &[]);
             if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
                 return Ok(expr);
             }

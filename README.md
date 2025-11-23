@@ -58,6 +58,36 @@ See [CHANGELOG.md](CHANGELOG.md) for complete details.
 
 ---
 
+### Latest Bug Fixes (v3.20.1-dev) - Enhanced Reprorusted Compatibility
+
+**Three Critical P0/P1 Bugs Resolved** (2025-11-22):
+
+**DEPYLER-0455: Type System Bugs** ✅
+- ✅ **ArgumentTypeError wrapping**: `raise ArgumentTypeError(msg)` → `Err(ArgumentTypeError::new(msg))`
+- ✅ **String/&str consistency**: Hoisted variables auto-convert literals via `.to_string()`
+- ✅ **Option truthiness**: `if option_var` → `if option_var.is_some()`
+- ✅ **Option Display**: Safe unwrapping via match expressions
+- **Files**: `stmt_gen.rs:724-733`, `stmt_gen.rs:2153-2166`, expression generation
+- **Impact**: `example_complex` now compiles correctly
+
+**DEPYLER-0438: F-String Formatter** ✅
+- ✅ **Smart formatting**: Collections use `{:?}` (Debug), scalars use `{}` (Display)
+- ✅ **Correct output**: `f"Hello, {name}!"` → `format!("Hello, {}!", name)` (no quotes)
+- ✅ **Python semantics**: Matches Python string representation
+- **File**: `expr_gen.rs:11558-11564`
+- **Impact**: All CLI output now displays correctly (27+ files verified)
+
+**DEPYLER-0458: File I/O Traits** ✅
+- ✅ **Auto-import traits**: `use std::io::{Read, Write};` generated automatically
+- ✅ **Mutable file handles**: `let mut f = File::open(...)?`
+- ✅ **Correct methods**: `f.write(string)` → `f.write_all(bytes)?`
+- **Files**: `expr_gen.rs:9246-9255`, `context.rs:73-74`, `rust_gen.rs:440-441`
+- **Impact**: All `with open()` statements now compile
+
+**Verification**: 27 reprorusted-python-cli examples tested successfully
+
+---
+
 ### Previous Release: v3.19.30 - Production-Ready ArgumentParser Support
 
 Python CLI tools with argparse now transpile to idiomatic Rust with clap derive macros!

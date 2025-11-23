@@ -289,6 +289,11 @@ impl BorrowingContext {
             Type::Function { .. } => "/* function */".to_string(),
             Type::Union(_) => "Union".to_string(),
             Type::Final(inner) => self.type_to_rust_string(inner), // Unwrap Final to get the actual type
+            Type::UnificationVar(id) => {
+                // UnificationVar should never appear in final code generation
+                // It should be resolved by the type inference system before codegen
+                panic!("BUG: UnificationVar({}) encountered during code generation. Type inference did not complete.", id)
+            }
         }
     }
 

@@ -204,7 +204,7 @@ impl FunctionAnalyzer {
                 ..
             } => {
                 // Collect error types from try body
-                let (_body_fail, mut body_errors) = Self::check_can_fail(body);
+                let (body_fail, mut body_errors) = Self::check_can_fail(body);
 
                 // DEPYLER-0428: Track which exception types are CAUGHT vs RAISED
                 let mut caught_exceptions: Vec<String> = Vec::new();
@@ -250,12 +250,19 @@ impl FunctionAnalyzer {
                     .iter()
                     .any(|raised| !caught_exceptions.contains(raised));
 
-                (has_uncaught_exceptions, all_errors)
+                // DEPYLER-0XXX: Result<> Inference Fix
+                // If try body contains I/O operations (with open()), function must return Result<>
+                // even if all exceptions are caught, because Rust version uses `?` operator
+                // which propagates errors (unlike Python sys.exit() which terminates)
+                let body_has_io = all_errors.iter().any(|e| e.contains("io::Error"));
+
+                (has_uncaught_exceptions || body_fail || body_has_io, all_errors)
             }
             // DEPYLER-0432: With statements using open() are fallible (file I/O)
             HirStmt::With { context, body, .. } => {
                 // Check if context expression uses open() call
-                let context_uses_open = matches!(context, HirExpr::Call { func, .. } if func.as_str() == "open");
+                let context_uses_open =
+                    matches!(context, HirExpr::Call { func, .. } if func.as_str() == "open");
 
                 let (context_fail, context_errors) = Self::expr_can_fail(context);
                 let (body_fail, mut body_errors) = Self::check_can_fail(body);

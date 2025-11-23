@@ -246,6 +246,21 @@ pub(crate) fn codegen_expr_stmt(
                                         arg.required = Some(*req);
                                     }
                                 }
+                                "nargs" => {
+                                    // DEPYLER-0485: Handle nargs for subcommand arguments
+                                    // Same logic as main parser (lines 336-348)
+                                    match kw_value {
+                                        HirExpr::Literal(crate::hir::Literal::String(
+                                            nargs_val,
+                                        )) => {
+                                            arg.nargs = Some(nargs_val.clone());
+                                        }
+                                        HirExpr::Literal(crate::hir::Literal::Int(n)) => {
+                                            arg.nargs = Some(n.to_string());
+                                        }
+                                        _ => {}
+                                    }
+                                }
                                 _ => {}
                             }
                         }
@@ -263,11 +278,42 @@ pub(crate) fn codegen_expr_stmt(
             } else if let Some(parent_parser) = ctx.argparser_tracker.get_parser_for_group(var_name)
             {
                 parent_parser // Already returns owned String
+            } else if ctx.argparser_tracker.get_subparsers(var_name).is_some() {
+                // DEPYLER-0456 Bug #1 FIX: Handle subparsers.add_parser() expression statements
+                // Don't early return here - let it fall through to add_parser handling at line ~435
+                var_name.clone()
             } else {
-                // Not a parser, group, or subcommand - fall through to normal code generation
+                // Not a parser, group, subparsers, or subcommand - fall through to normal code generation
                 let expr_tokens = expr.to_rust_expr(ctx)?;
                 return Ok(quote! { #expr_tokens; });
             };
+
+            // DEPYLER-0456 Bug #1 FIX: Check for subparsers.add_parser() FIRST
+            // This must come before the parser check since subparsers variables are NOT in the parser list
+            if ctx.argparser_tracker.get_subparsers(&parser_var).is_some() && method == "add_parser"
+            {
+                // Handle subparsers.add_parser() expression statements
+                // Pattern: subparsers.add_parser("init", help="...")
+                if !args.is_empty() {
+                    let command_name = extract_string_literal(&args[0]);
+                    let help = extract_kwarg_string(kwargs, "help");
+
+                    // Register subcommand without a variable name (since it's not assigned)
+                    use crate::rust_gen::argparse_transform::SubcommandInfo;
+                    let subcommand_info = SubcommandInfo {
+                        name: command_name.clone(),
+                        help,
+                        arguments: vec![],
+                        subparsers_var: parser_var.clone(),
+                    };
+
+                    // Use the command name itself as the key (since there's no parser variable)
+                    ctx.argparser_tracker
+                        .register_subcommand(command_name, subcommand_info);
+                }
+                // Skip code generation for this statement
+                return Ok(quote! {});
+            }
 
             // Check if this is a parser configuration method
             if ctx.argparser_tracker.get_parser(&parser_var).is_some() {
@@ -340,7 +386,8 @@ pub(crate) fn codegen_expr_stmt(
                                                     _ => {
                                                         // DEPYLER-0447: Track custom validator functions
                                                         // e.g., type=email_address → track "email_address"
-                                                        ctx.validator_functions.insert(type_name.clone());
+                                                        ctx.validator_functions
+                                                            .insert(type_name.clone());
                                                     }
                                                 }
                                             }
@@ -452,7 +499,8 @@ pub(crate) fn codegen_expr_stmt(
                                 };
 
                                 // Use the command name itself as the key (since there's no parser variable)
-                                ctx.argparser_tracker.register_subcommand(command_name, subcommand_info);
+                                ctx.argparser_tracker
+                                    .register_subcommand(command_name, subcommand_info);
                             }
                             return Ok(quote! {});
                         }
@@ -709,11 +757,18 @@ pub(crate) fn codegen_raise_stmt(
                 // DEPYLER-0438: Wrap exception in error type constructor if it's a known exception
                 // format!() returns String which doesn't implement std::error::Error
                 // Need to wrap in ValueError::new(), ArgumentTypeError::new(), etc.
-                if exception_type == "ValueError"
-                    || exception_type == "ArgumentTypeError"
-                    || exception_type == "TypeError"
-                    || exception_type == "KeyError"
-                    || exception_type == "IndexError"
+                // DEPYLER-0472-FIX: Don't double-wrap if exc is already a Call to the exception type
+                let is_already_wrapped = matches!(
+                    exc,
+                    HirExpr::Call { func, .. } if func == &exception_type
+                );
+
+                if !is_already_wrapped
+                    && (exception_type == "ValueError"
+                        || exception_type == "ArgumentTypeError"
+                        || exception_type == "TypeError"
+                        || exception_type == "KeyError"
+                        || exception_type == "IndexError")
                 {
                     let exc_type = safe_ident(&exception_type);
                     Ok(quote! { return Err(Box::new(#exc_type::new(#exc_expr))); })
@@ -723,11 +778,18 @@ pub(crate) fn codegen_raise_stmt(
             } else {
                 // DEPYLER-0455: Also wrap exception in type constructor when not boxing
                 // Without this, `return Err(format!(...))` returns String instead of ExceptionType
-                if exception_type == "ValueError"
-                    || exception_type == "ArgumentTypeError"
-                    || exception_type == "TypeError"
-                    || exception_type == "KeyError"
-                    || exception_type == "IndexError"
+                // DEPYLER-0472-FIX: Don't double-wrap if exc is already a Call to the exception type
+                let is_already_wrapped = matches!(
+                    exc,
+                    HirExpr::Call { func, .. } if func == &exception_type
+                );
+
+                if !is_already_wrapped
+                    && (exception_type == "ValueError"
+                        || exception_type == "ArgumentTypeError"
+                        || exception_type == "TypeError"
+                        || exception_type == "KeyError"
+                        || exception_type == "IndexError")
                 {
                     let exc_type = safe_ident(&exception_type);
                     Ok(quote! { return Err(#exc_type::new(#exc_expr)); })
@@ -924,25 +986,26 @@ fn apply_truthiness_conversion(
                 // DEPYLER-0455 Bug 8: Check if this field is a String with a default value
                 // Python: if args.encoding (where encoding has default="utf-8")
                 // Rust: if !args.encoding.is_empty() (String cannot be used as bool)
-                let is_string_with_default = ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                    parser_info.arguments.iter().any(|arg| {
-                        let field_name = arg.rust_field_name();
-                        if field_name != *attr {
-                            return false;
-                        }
+                let is_string_with_default =
+                    ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                        parser_info.arguments.iter().any(|arg| {
+                            let field_name = arg.rust_field_name();
+                            if field_name != *attr {
+                                return false;
+                            }
 
-                        // Check if:
-                        // 1. Has a default value (arg.default.is_some())
-                        // 2. Type is String (arg.arg_type.is_none() means default String type)
-                        // 3. Not a boolean action (store_true/store_false)
-                        arg.default.is_some()
-                            && arg.arg_type.is_none()
-                            && !matches!(
-                                arg.action.as_deref(),
-                                Some("store_true") | Some("store_false")
-                            )
-                    })
-                });
+                            // Check if:
+                            // 1. Has a default value (arg.default.is_some())
+                            // 2. Type is String (arg.arg_type.is_none() means default String type)
+                            // 3. Not a boolean action (store_true/store_false)
+                            arg.default.is_some()
+                                && arg.arg_type.is_none()
+                                && !matches!(
+                                    arg.action.as_deref(),
+                                    Some("store_true") | Some("store_false")
+                                )
+                        })
+                    });
 
                 if is_string_with_default {
                     // Convert String to boolean using !.is_empty()
@@ -1001,6 +1064,10 @@ fn looks_like_option_expr(expr: &HirExpr) -> bool {
 ///
 /// # Complexity
 /// 4 (recursive traversal with set operations)
+///
+/// DEPYLER-0476: This function is currently unused after switching to extract_toplevel_assigned_symbols
+/// for if/else hoisting. Kept for potential future use (e.g., for other optimization passes).
+#[allow(dead_code)]
 fn extract_assigned_symbols(stmts: &[HirStmt]) -> std::collections::HashSet<String> {
     use std::collections::HashSet;
     let mut symbols = HashSet::new();
@@ -1048,10 +1115,77 @@ fn extract_assigned_symbols(stmts: &[HirStmt]) -> std::collections::HashSet<Stri
     symbols
 }
 
+/// Extract symbols assigned ONLY at the top level (not in nested for/while loops)
+///
+/// DEPYLER-0476: Fix variable hoisting for variables with incompatible types in nested scopes.
+/// Variables assigned inside for/while loops should NOT be hoisted to the parent if/else scope
+/// because they may have different types than variables with the same name in the if branch.
+///
+/// Example (Python):
+/// ```python
+/// if condition:
+///     value = get_optional()  # Returns Option<String>
+/// else:
+///     for item in items:
+///         value = get_required(item)  # Returns String
+/// ```
+///
+/// The `value` in the for loop should NOT be hoisted because it has a different type.
+fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> std::collections::HashSet<String> {
+    use std::collections::HashSet;
+    let mut symbols = HashSet::new();
+
+    for stmt in stmts {
+        match stmt {
+            HirStmt::Assign {
+                target: AssignTarget::Symbol(name),
+                ..
+            } => {
+                symbols.insert(name.clone());
+            }
+            // Recursively check nested if/else blocks (these are still at the same conceptual level)
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                symbols.extend(extract_toplevel_assigned_symbols(then_body));
+                if let Some(else_stmts) = else_body {
+                    symbols.extend(extract_toplevel_assigned_symbols(else_stmts));
+                }
+            }
+            // Recursively check try/except blocks (these are still at the same conceptual level)
+            HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => {
+                symbols.extend(extract_toplevel_assigned_symbols(body));
+                for handler in handlers {
+                    symbols.extend(extract_toplevel_assigned_symbols(&handler.body));
+                }
+                if let Some(finally) = finalbody {
+                    symbols.extend(extract_toplevel_assigned_symbols(finally));
+                }
+            }
+            // DEPYLER-0476: DO NOT recurse into for/while loops - variables inside loops
+            // should not be hoisted because they may have different types/scopes
+            HirStmt::While { .. } | HirStmt::For { .. } => {
+                // Skip - don't extract symbols from loop bodies
+            }
+            _ => {}
+        }
+    }
+
+    symbols
+}
+
 /// Generate code for If statement with optional else clause
 ///
 /// DEPYLER-0379: Implements variable hoisting for if/else blocks to fix scope issues.
 /// Variables assigned in BOTH if and else branches are hoisted before the if statement.
+/// DEPYLER-0476: Only hoist top-level assignments, not variables inside nested for/while loops.
 #[inline]
 pub(crate) fn codegen_if_stmt(
     condition: &HirExpr,
@@ -1089,9 +1223,10 @@ pub(crate) fn codegen_if_stmt(
     cond = apply_truthiness_conversion(condition, cond, ctx);
 
     // DEPYLER-0379: Variable hoisting - find variables assigned in BOTH branches
+    // DEPYLER-0476: Use toplevel extraction to avoid hoisting variables from nested for/while loops
     let hoisted_vars: HashSet<String> = if let Some(else_stmts) = else_body {
-        let then_vars = extract_assigned_symbols(then_body);
-        let else_vars = extract_assigned_symbols(else_stmts);
+        let then_vars = extract_toplevel_assigned_symbols(then_body);
+        let else_vars = extract_toplevel_assigned_symbols(else_stmts);
         then_vars.intersection(&else_vars).cloned().collect()
     } else {
         HashSet::new()
@@ -1420,16 +1555,20 @@ pub(crate) fn codegen_for_stmt(
         // Try to apply CSV iteration mapping from stdlib_mappings
         // This transforms: for row in reader
         // Into: for result in reader.deserialize::<HashMap<String, String>>()
-        if let Some(pattern) = ctx.stdlib_mappings.get_iteration_pattern("csv", "DictReader") {
+        if let Some(pattern) = ctx
+            .stdlib_mappings
+            .get_iteration_pattern("csv", "DictReader")
+        {
             // Check if pattern yields Results
-            if let crate::stdlib_mappings::RustPattern::IterationPattern { yields_results, .. } = pattern {
+            if let crate::stdlib_mappings::RustPattern::IterationPattern {
+                yields_results, ..
+            } = pattern
+            {
                 csv_yields_results = *yields_results;
             }
 
-            let rust_code = pattern.generate_rust_code(
-                &iter_expr.to_token_stream().to_string(),
-                &[]
-            );
+            let rust_code =
+                pattern.generate_rust_code(&iter_expr.to_token_stream().to_string(), &[]);
             if let Ok(expr) = syn::parse_str::<syn::Expr>(&rust_code) {
                 // Set needs_csv flag
                 ctx.needs_csv = true;
@@ -1713,15 +1852,19 @@ pub(crate) fn codegen_assign_stmt(
             .map(|sp| sp.dest_field.clone())
             .unwrap_or_else(|| "command".to_string());
 
-        if let Some(cmd_name) = is_subcommand_check(value, &dest_field) {
+        if let Some(cmd_name) = is_subcommand_check(value, &dest_field, ctx) {
             if let AssignTarget::Symbol(cse_var) = target {
                 use quote::{format_ident, quote};
                 let variant_name = format_ident!("{}", to_pascal_case_subcommand(&cmd_name));
                 let var_ident = safe_ident(cse_var);
-                let dest_field_ident = format_ident!("{}", dest_field);
 
+                // DEPYLER-0456 Bug #2: Track this CSE temp so is_subcommand_check() can find it
+                ctx.cse_subcommand_temps
+                    .insert(cse_var.clone(), cmd_name.clone());
+
+                // DEPYLER-0456 Bug #3 FIX: Always use "command" as Rust field name
                 return Ok(quote! {
-                    let #var_ident = matches!(args.#dest_field_ident, Commands::#variant_name { .. });
+                    let #var_ident = matches!(args.command, Commands::#variant_name { .. });
                 });
             }
         }
@@ -1943,14 +2086,48 @@ pub(crate) fn codegen_assign_stmt(
             }
         }
 
+        // DEPYLER-0479: Track String type from os.environ.get(key, default) with default value
+        // Example: value = os.environ.get(var, "default")
+        //       → value = std::env::var(var).unwrap_or_else(|_| "default".to_string())
+        // This should track as String, NOT Option<String>
+        if let HirExpr::MethodCall {
+            object,
+            method,
+            args,
+            kwargs: _,
+        } = value
+        {
+            // Check for os.environ.get(key, default) - 2 arguments means default provided
+            if method == "get" && args.len() == 2 {
+                if let HirExpr::Attribute { value: attr_obj, attr } = object.as_ref() {
+                    if let HirExpr::Var(module) = attr_obj.as_ref() {
+                        if module == "os" && attr == "environ" {
+                            // os.environ.get(key, default) returns String (not Option)
+                            ctx.var_types.insert(var_name.clone(), Type::String);
+                        }
+                    }
+                }
+            }
+            // Also check for os.getenv(key, default)
+            else if method == "getenv" && args.len() == 2 {
+                if let HirExpr::Var(module) = object.as_ref() {
+                    if module == "os" {
+                        ctx.var_types.insert(var_name.clone(), Type::String);
+                    }
+                }
+            }
+        }
+
         // DEPYLER-0455: Track Option types from method calls like .ok() and .get()
         // This enables proper truthiness conversion (if option → if option.is_some())
         // Example: config_file = os.environ.get("CONFIG_FILE")
         //          or: config_file = std::env::var(...).ok()
-        if looks_like_option_expr(value) {
+        // DEPYLER-0479: Skip if already tracked (e.g., unwrap_or_else handled above)
+        if !ctx.var_types.contains_key(var_name) && looks_like_option_expr(value) {
             // Track as Option<String> for now (generic placeholder)
             // The exact inner type doesn't matter for truthiness conversion
-            ctx.var_types.insert(var_name.clone(), Type::Optional(Box::new(Type::String)));
+            ctx.var_types
+                .insert(var_name.clone(), Type::Optional(Box::new(Type::String)));
         }
 
         match value {
@@ -2100,7 +2277,30 @@ pub(crate) fn codegen_assign_stmt(
         }
     }
 
+    // DEPYLER-0472: Set json context when assigning to serde_json::Value dicts
+    // This ensures dict literals use json!({}) instead of HashMap::new()
+    let prev_json_context = ctx.in_json_context;
+    if let AssignTarget::Index { base, .. } = target {
+        // Check if base variable suggests serde_json::Value type
+        if let HirExpr::Var(base_name) = base.as_ref() {
+            let name_str = base_name.as_str();
+            // Variables commonly used with serde_json::Value
+            if name_str == "config"
+                || name_str == "data"
+                || name_str == "value"
+                || name_str == "current"
+                || name_str == "obj"
+                || name_str == "json"
+            {
+                ctx.in_json_context = true;
+            }
+        }
+    }
+
     let mut value_expr = value.to_rust_expr(ctx)?;
+
+    // DEPYLER-0472: Restore previous json context
+    ctx.in_json_context = prev_json_context;
 
     // DEPYLER-0270: Auto-unwrap Result-returning function calls in assignments
     // When assigning from a function that returns Result<T, E> in a non-Result context,
@@ -2221,10 +2421,36 @@ pub(crate) fn codegen_assign_symbol(
         // First declaration - check if variable needs mut
         ctx.declare_var(symbol);
         if ctx.mutable_vars.contains(symbol) {
-            if let Some(type_ann) = type_annotation_tokens {
-                Ok(quote! { let mut #target_ident #type_ann = #value_expr; })
+            // DEPYLER-0464: When initializing from a borrowed dict/json parameter
+            // that will be reassigned with .cloned() later, clone it to create an owned value
+            // Pattern: `let mut value = config` where config is a parameter
+            let needs_clone = if let syn::Expr::Path(ref path) = value_expr {
+                // Check if this is a simple path (single identifier)
+                if path.path.segments.len() == 1 {
+                    let ident = &path.path.segments[0].ident;
+                    let var_name = ident.to_string();
+                    // Check if:
+                    // 1. Source is already declared (it's a parameter)
+                    // 2. Source name != target name (assigning to a new variable)
+                    // This is the pattern: `let mut value = param` which will later be reassigned
+                    ctx.is_declared(&var_name) && var_name != symbol
+                } else {
+                    false
+                }
             } else {
-                Ok(quote! { let mut #target_ident = #value_expr; })
+                false
+            };
+
+            let init_expr = if needs_clone {
+                parse_quote! { #value_expr.clone() }
+            } else {
+                value_expr
+            };
+
+            if let Some(type_ann) = type_annotation_tokens {
+                Ok(quote! { let mut #target_ident #type_ann = #init_expr; })
+            } else {
+                Ok(quote! { let mut #target_ident = #init_expr; })
             }
         } else if let Some(type_ann) = type_annotation_tokens {
             Ok(quote! { let #target_ident #type_ann = #value_expr; })
@@ -2279,8 +2505,9 @@ pub(crate) fn codegen_assign_index(
                                 true
                             }
                         }
-                        HirExpr::Binary { .. }
-                        | HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
+                        HirExpr::Binary { .. } | HirExpr::Literal(crate::hir::Literal::Int(_)) => {
+                            true
+                        }
                         _ => false,
                     }
                 }
@@ -2423,18 +2650,39 @@ pub(crate) fn codegen_assign_index(
         false
     };
 
+    // DEPYLER-0472: Wrap value in serde_json::Value when assigning to Value dicts
+    // Check if value needs wrapping (not already json!() or Value variant)
+    let final_value_expr = if needs_as_object_mut {
+        // Check if value_expr is already a json!() or Value expression
+        let value_str = quote! { #value_expr }.to_string();
+        if value_str.contains("serde_json :: json !") || value_str.contains("serde_json :: Value") {
+            // Already wrapped, use as-is
+            value_expr
+        } else {
+            // Need to wrap in serde_json::to_value() for safe conversion
+            // This handles all types (String, &str, numbers, etc.)
+            ctx.needs_serde_json = true;
+            parse_quote! { serde_json::to_value(#value_expr).unwrap() }
+        }
+    } else {
+        value_expr
+    };
+
     if indices.is_empty() {
         // Simple assignment: d[k] = v OR list[i] = x
         if is_numeric_index {
             // DEPYLER-0314: Vec.insert(index as usize, value)
             // Wrap in parentheses to ensure correct operator precedence
-            Ok(quote! { #base_expr.insert((#final_index) as usize, #value_expr); })
+            Ok(quote! { #base_expr.insert((#final_index) as usize, #final_value_expr); })
         } else if needs_as_object_mut {
             // DEPYLER-0449: serde_json::Value needs .as_object_mut() for insert
-            Ok(quote! { #base_expr.as_object_mut().unwrap().insert(#final_index, #value_expr); })
+            // DEPYLER-0473: Clone key to avoid move-after-use errors
+            Ok(
+                quote! { #base_expr.as_object_mut().unwrap().insert((#final_index).clone(), #final_value_expr); },
+            )
         } else {
             // HashMap.insert(key, value)
-            Ok(quote! { #base_expr.insert(#final_index, #value_expr); })
+            Ok(quote! { #base_expr.insert(#final_index, #final_value_expr); })
         }
     } else {
         // Nested assignment: build chain of get_mut calls
@@ -2448,13 +2696,14 @@ pub(crate) fn codegen_assign_index(
         if is_numeric_index {
             // DEPYLER-0314: Vec.insert(index as usize, value)
             // Wrap in parentheses to ensure correct operator precedence
-            Ok(quote! { #chain.insert((#final_index) as usize, #value_expr); })
+            Ok(quote! { #chain.insert((#final_index) as usize, #final_value_expr); })
         } else if needs_as_object_mut {
             // DEPYLER-0449: serde_json::Value needs .as_object_mut() for insert
-            Ok(quote! { #chain.as_object_mut().unwrap().insert(#final_index, #value_expr); })
+            // DEPYLER-0473: Clone key to avoid move-after-use errors
+            Ok(quote! { #chain.as_object_mut().unwrap().insert((#final_index).clone(), #final_value_expr); })
         } else {
             // HashMap.insert(key, value)
-            Ok(quote! { #chain.insert(#final_index, #value_expr); })
+            Ok(quote! { #chain.insert(#final_index, #final_value_expr); })
         }
     }
 }
@@ -2843,6 +3092,111 @@ pub(crate) fn codegen_try_stmt(
                 }
             }
         } else {
+            // DEPYLER-0489: General exception handling with variable binding
+            // Generate proper match expression for all handlers, not just special cases
+            // This ensures exception variables (except E as e:) are always available
+
+            // Check if any handler needs exception variable binding
+            let needs_error_binding = handlers.iter().any(|h| h.name.is_some());
+
+            if needs_error_binding {
+                // DEPYLER-0489: Generate Result-returning closure + match pattern
+                // Pattern: (|| -> Result<(), Box<dyn std::error::Error>> { try_body })().unwrap_or_else(|e| { handler })
+
+                let handler_body = if handlers.len() == 1 {
+                    // Single handler - use match pattern
+                    let err_pattern = if let Some(exc_var) = &handlers[0].name {
+                        let exc_ident = safe_ident(exc_var);
+                        quote! { Err(#exc_ident) }
+                    } else {
+                        quote! { Err(_) }
+                    };
+
+                    let handler_code = &handler_tokens[0];
+
+                    if let Some(finally_code) = finally_stmts {
+                        quote! {
+                            {
+                                match (|| -> Result<(), Box<dyn std::error::Error>> {
+                                    #(#try_stmts)*
+                                    Ok(())
+                                })() {
+                                    Ok(()) => {},
+                                    #err_pattern => { #handler_code }
+                                }
+                                #finally_code
+                            }
+                        }
+                    } else {
+                        quote! {
+                            match (|| -> Result<(), Box<dyn std::error::Error>> {
+                                #(#try_stmts)*
+                                Ok(())
+                            })() {
+                                Ok(()) => {},
+                                #err_pattern => { #handler_code }
+                            }
+                        }
+                    }
+                } else {
+                    // DEPYLER-0489: Multiple handlers with exception variable binding
+                    // Find ANY handler that has a variable binding (not just the first)
+                    // Full multi-handler support with type checking would require more complex codegen
+                    let exc_var_opt = handlers.iter().find_map(|h| h.name.as_ref());
+
+                    if let Some(exc_var) = exc_var_opt {
+                        let exc_ident = safe_ident(exc_var);
+                        let handler_code = quote! { #(#handler_tokens)* };
+
+                        if let Some(finally_code) = finally_stmts {
+                            quote! {
+                                {
+                                    match (|| -> Result<(), Box<dyn std::error::Error>> {
+                                        #(#try_stmts)*
+                                        Ok(())
+                                    })() {
+                                        Ok(()) => {},
+                                        Err(#exc_ident) => { #handler_code }
+                                    }
+                                    #finally_code
+                                }
+                            }
+                        } else {
+                            quote! {
+                                match (|| -> Result<(), Box<dyn std::error::Error>> {
+                                    #(#try_stmts)*
+                                    Ok(())
+                                })() {
+                                    Ok(()) => {},
+                                    Err(#exc_ident) => { #handler_code }
+                                }
+                            }
+                        }
+                    } else {
+                        // No binding needed - simple concatenation
+                        let handler_code = quote! { #(#handler_tokens)* };
+                        if let Some(finally_code) = finally_stmts {
+                            quote! {
+                                {
+                                    #(#try_stmts)*
+                                    #handler_code
+                                    #finally_code
+                                }
+                            }
+                        } else {
+                            quote! {
+                                {
+                                    #(#try_stmts)*
+                                    #handler_code
+                                }
+                            }
+                        }
+                    }
+                };
+
+                return Ok(handler_body);
+            }
+
             // DEPYLER-0357: Non-simple patterns - use original concatenation logic
             // Execute try block statements, then if we have a single handler, use it
             if handlers.len() == 1 {
@@ -3213,6 +3567,183 @@ fn extract_kwarg_bool(kwargs: &[(String, HirExpr)], key: &str) -> Option<bool> {
         })
 }
 
+/// DEPYLER-0425: Extract subcommand fields accessed in handler body
+/// Analyzes HIR statements to find args.field attribute accesses
+///
+/// DEPYLER-0480: Now accepts dest_field parameter to filter dynamically
+/// DEPYLER-0481: Now accepts cmd_name and ctx to filter out top-level args
+///
+/// # Complexity
+/// 10 (recursive HIR walk + HashSet operations)
+fn extract_accessed_subcommand_fields(
+    body: &[HirStmt],
+    args_var: &str,
+    dest_field: &str,
+    cmd_name: &str,
+    ctx: &CodeGenContext,
+) -> Vec<String> {
+    let mut fields = std::collections::HashSet::new();
+    extract_fields_recursive(body, args_var, dest_field, &mut fields);
+
+    // DEPYLER-0481: Filter out top-level args that don't belong to this subcommand
+    // Only keep fields that are actual arguments of the subcommand
+    let subcommand_arg_names: std::collections::HashSet<String> = ctx
+        .argparser_tracker
+        .subcommands
+        .values()
+        .find(|sub| sub.name == cmd_name)
+        .map(|sub| {
+            sub.arguments
+                .iter()
+                .map(|arg| {
+                    // Extract dest name from argument
+                    arg.dest.clone().unwrap_or_else(|| {
+                        // If no dest, use the name (for positional) or long option without dashes
+                        if arg.is_positional {
+                            arg.name.clone()
+                        } else if let Some(long) = &arg.long {
+                            long.trim_start_matches("--").replace('-', "_")
+                        } else {
+                            arg.name.trim_start_matches('-').replace('-', "_")
+                        }
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let mut result: Vec<_> = fields
+        .into_iter()
+        .filter(|f| subcommand_arg_names.contains(f))
+        .collect();
+    result.sort(); // Deterministic order
+    result
+}
+
+/// DEPYLER-0425: Recursively extract fields from HIR statements
+///
+/// DEPYLER-0480: Now accepts dest_field parameter to pass through
+///
+/// # Complexity
+/// 8 (recursive statement traversal)
+fn extract_fields_recursive(
+    stmts: &[HirStmt],
+    args_var: &str,
+    dest_field: &str,
+    fields: &mut std::collections::HashSet<String>,
+) {
+    for stmt in stmts {
+        match stmt {
+            HirStmt::Expr(expr) => extract_fields_from_expr(expr, args_var, dest_field, fields),
+            HirStmt::Assign { value, .. } => extract_fields_from_expr(value, args_var, dest_field, fields),
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                extract_fields_recursive(then_body, args_var, dest_field, fields);
+                if let Some(else_stmts) = else_body {
+                    extract_fields_recursive(else_stmts, args_var, dest_field, fields);
+                }
+            }
+            HirStmt::While { body: loop_body, .. } | HirStmt::For { body: loop_body, .. } => {
+                extract_fields_recursive(loop_body, args_var, dest_field, fields);
+            }
+            HirStmt::Try {
+                body: try_body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
+                extract_fields_recursive(try_body, args_var, dest_field, fields);
+                for handler in handlers {
+                    extract_fields_recursive(&handler.body, args_var, dest_field, fields);
+                }
+                if let Some(orelse_stmts) = orelse {
+                    extract_fields_recursive(orelse_stmts, args_var, dest_field, fields);
+                }
+                if let Some(finally_stmts) = finalbody {
+                    extract_fields_recursive(finally_stmts, args_var, dest_field, fields);
+                }
+            }
+            HirStmt::With { body: with_body, .. } => {
+                extract_fields_recursive(with_body, args_var, dest_field, fields);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// DEPYLER-0425: Extract fields from HIR expression
+/// Finds patterns like `args.field` and collects field names
+///
+/// DEPYLER-0480: Now uses dest_field parameter instead of hardcoded "command"/"action"
+///
+/// # Complexity
+/// 10 (expression traversal + pattern matching)
+fn extract_fields_from_expr(
+    expr: &HirExpr,
+    args_var: &str,
+    dest_field: &str,
+    fields: &mut std::collections::HashSet<String>,
+) {
+    match expr {
+        // Pattern: args.field
+        HirExpr::Attribute { value, attr } => {
+            if let HirExpr::Var(var) = value.as_ref() {
+                if var == args_var {
+                    // DEPYLER-0480: Filter out the dest field dynamically
+                    // The dest field (e.g., "command" or "action") is the match discriminant,
+                    // so it shouldn't be included in the extracted fields list
+                    if attr != dest_field {
+                        fields.insert(attr.clone());
+                    }
+                }
+            }
+        }
+        // Recurse into nested expressions
+        HirExpr::Call { args: call_args, .. } => {
+            for arg in call_args {
+                extract_fields_from_expr(arg, args_var, dest_field, fields);
+            }
+        }
+        HirExpr::Binary { left, right, .. } => {
+            extract_fields_from_expr(left, args_var, dest_field, fields);
+            extract_fields_from_expr(right, args_var, dest_field, fields);
+        }
+        HirExpr::Unary { operand, .. } => {
+            extract_fields_from_expr(operand, args_var, dest_field, fields);
+        }
+        HirExpr::IfExpr { test, body, orelse } => {
+            extract_fields_from_expr(test, args_var, dest_field, fields);
+            extract_fields_from_expr(body, args_var, dest_field, fields);
+            extract_fields_from_expr(orelse, args_var, dest_field, fields);
+        }
+        HirExpr::Index { base, index } => {
+            extract_fields_from_expr(base, args_var, dest_field, fields);
+            extract_fields_from_expr(index, args_var, dest_field, fields);
+        }
+        HirExpr::List(elements) | HirExpr::Tuple(elements) | HirExpr::Set(elements) => {
+            for elem in elements {
+                extract_fields_from_expr(elem, args_var, dest_field, fields);
+            }
+        }
+        HirExpr::Dict(pairs) => {
+            for (key, value) in pairs {
+                extract_fields_from_expr(key, args_var, dest_field, fields);
+                extract_fields_from_expr(value, args_var, dest_field, fields);
+            }
+        }
+        HirExpr::MethodCall { object, args: method_args, .. } => {
+            extract_fields_from_expr(object, args_var, dest_field, fields);
+            for arg in method_args {
+                extract_fields_from_expr(arg, args_var, dest_field, fields);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// DEPYLER-0399: Try to generate a match statement for subcommand dispatch
 ///
 /// Detects patterns like:
@@ -3252,8 +3783,8 @@ fn try_generate_subcommand_match(
         .map(|sp| sp.dest_field.clone())
         .unwrap_or_else(|| "command".to_string()); // Default to "command" for backwards compatibility
 
-    // Check if condition matches: args.<dest_field> == "string"
-    let command_name = match is_subcommand_check(condition, &dest_field) {
+    // Check if condition matches: args.<dest_field> == "string" OR CSE temp variable
+    let command_name = match is_subcommand_check(condition, &dest_field, ctx) {
         Some(name) => name,
         None => return Ok(None),
     };
@@ -3264,24 +3795,65 @@ fn try_generate_subcommand_match(
     // Check if else is another if statement (elif pattern)
     let mut current_else = else_body;
     while let Some(else_stmts) = current_else {
-        // Check if else body is a single If statement
-        if else_stmts.len() == 1 {
-            if let HirStmt::If {
-                condition: elif_cond,
-                then_body: elif_then,
-                else_body: elif_else,
+        // DEPYLER-0456 Bug #2 FIX: Handle CSE-optimized elif branches
+        // CSE creates: [assignment: _cse_temp_N = check, if: _cse_temp_N { ... }]
+        // Original (pre-CSE) elif is a single If statement
+        let (elif_stmt, cse_cmd_name) = if else_stmts.len() == 1 {
+            // Pre-CSE or direct elif: single If statement
+            (&else_stmts[0], None)
+        } else if else_stmts.len() == 2 {
+            // CSE-optimized elif: [assignment, if]
+            // Extract command name from the CSE assignment
+            if let HirStmt::Assign {
+                target: AssignTarget::Symbol(var),
+                value,
+                ..
             } = &else_stmts[0]
             {
-                if let Some(elif_name) = is_subcommand_check(elif_cond, &dest_field) {
-                    branches.push((elif_name, elif_then.as_slice()));
-                    current_else = elif_else;
-                    continue;
+                if var.starts_with("_cse_temp") {
+                    // Extract command name from the assignment value
+                    let cmd_name = is_subcommand_check(value, &dest_field, ctx);
+                    (&else_stmts[1], cmd_name)
+                } else {
+                    // Not a CSE pattern, stop collecting
+                    break;
                 }
+            } else {
+                // Not a CSE pattern, stop collecting
+                break;
+            }
+        } else {
+            // Not an elif pattern, stop collecting
+            break;
+        };
+
+        // Check if this is an If statement with subcommand check
+        if let HirStmt::If {
+            condition: elif_cond,
+            then_body: elif_then,
+            else_body: elif_else,
+        } = elif_stmt
+        {
+            // Use command name from CSE assignment if available, otherwise check condition
+            let elif_name =
+                cse_cmd_name.or_else(|| is_subcommand_check(elif_cond, &dest_field, ctx));
+
+            if let Some(name) = elif_name {
+                branches.push((name, elif_then.as_slice()));
+                current_else = elif_else;
+                continue;
             }
         }
+
         // Not an elif pattern, stop collecting
         break;
     }
+
+    // DEPYLER-0482: Check if any branch has an early return
+    // If so, don't add wildcard unreachable!() because execution continues to next match
+    let has_early_return = branches.iter().any(|(_, body)| {
+        body.iter().any(|stmt| matches!(stmt, HirStmt::Return { .. }))
+    });
 
     // Generate match arms
     let arms: Vec<proc_macro2::TokenStream> = branches
@@ -3290,22 +3862,11 @@ fn try_generate_subcommand_match(
             // Convert command name to PascalCase variant
             let variant_name = format_ident!("{}", to_pascal_case_subcommand(cmd_name));
 
-            // Get subcommand info to extract fields
-            let subcommand_info = ctx
-                .argparser_tracker
-                .subcommands
-                .values()
-                .find(|sc| sc.name == *cmd_name);
-
-            // Generate field bindings
-            let field_bindings: Vec<_> = if let Some(sc) = subcommand_info {
-                sc.arguments
-                    .iter()
-                    .map(|arg| format_ident!("{}", arg.rust_field_name()))
-                    .collect()
-            } else {
-                vec![]
-            };
+            // DEPYLER-0425: Detect which fields are accessed in the body
+            // This determines whether we use Pattern A ({ .. }) or Pattern B ({ field1, field2, ... })
+            // DEPYLER-0480: Pass dest_field to dynamically filter based on actual dest parameter
+            // DEPYLER-0481: Pass cmd_name and ctx to filter out top-level args
+            let accessed_fields = extract_accessed_subcommand_fields(body, "args", &dest_field, cmd_name, ctx);
 
             // Generate body statements
             ctx.enter_scope();
@@ -3316,15 +3877,28 @@ fn try_generate_subcommand_match(
                 .unwrap_or_default();
             ctx.exit_scope();
 
-            if field_bindings.is_empty() {
+            // DEPYLER-0456 Bug #3 FIX: Always use struct variant syntax `{}`
+            // Clap generates struct variants (e.g., `Init {}`) not unit variants (e.g., `Init`)
+            //
+            // DEPYLER-0425: Pattern selection based on field usage
+            // - Pattern A: No fields accessed → { .. } (handler gets &args)
+            // - Pattern B: Fields accessed → { field1, field2, ... } (handler gets individual fields)
+            if accessed_fields.is_empty() {
+                // Pattern A: No field access, use { .. }
                 quote! {
-                    Commands::#variant_name => {
+                    Commands::#variant_name { .. } => {
                         #(#body_stmts)*
                     }
                 }
             } else {
+                // Pattern B: Extract accessed fields
+                let field_idents: Vec<syn::Ident> = accessed_fields
+                    .iter()
+                    .map(|f| format_ident!("{}", f))
+                    .collect();
+
                 quote! {
-                    Commands::#variant_name { #(#field_bindings),* } => {
+                    Commands::#variant_name { #(#field_idents),* } => {
                         #(#body_stmts)*
                     }
                 }
@@ -3332,11 +3906,29 @@ fn try_generate_subcommand_match(
         })
         .collect();
 
-    // DEPYLER-0456 Bug #2: Use dest_field in match expression
-    let dest_field_ident = format_ident!("{}", dest_field);
-    Ok(Some(quote! {
-        match args.#dest_field_ident {
-            #(#arms)*
+    // DEPYLER-0456 Bug #3 FIX: Always use "command" as the Rust struct field name
+    // The Args struct always has `command: Commands` regardless of Python's dest parameter
+    // DEPYLER-0470: Add wildcard arm to make match exhaustive
+    // When early returns split matches, not all Commands variants may be in this match
+    // Use unreachable!() because split matches ensure mutually exclusive variants
+    // DEPYLER-0474: Match by reference to avoid partial move errors
+    // When handler functions take &args, we must borrow args.command, not move it
+    // DEPYLER-0482: Only add wildcard if no early returns (otherwise execution continues to next match)
+    Ok(Some(if has_early_return {
+        // Early return present: Don't add wildcard, execution continues to next match
+        quote! {
+            match &args.command {
+                #(#arms)*
+                _ => {}
+            }
+        }
+    } else {
+        // No early returns: This is likely the final/complete match, add unreachable wildcard
+        quote! {
+            match &args.command {
+                #(#arms)*
+                _ => unreachable!("Other command variants handled elsewhere")
+            }
         }
     }))
 }
@@ -3345,8 +3937,9 @@ fn try_generate_subcommand_match(
 /// DEPYLER-0456 Bug #2: Accept dest_field parameter to support custom field names
 ///
 /// Returns the command name if pattern matches: args.<dest_field> == "string"
-fn is_subcommand_check(expr: &HirExpr, dest_field: &str) -> Option<String> {
+fn is_subcommand_check(expr: &HirExpr, dest_field: &str, ctx: &CodeGenContext) -> Option<String> {
     match expr {
+        // Direct comparison: args.action == "init"
         HirExpr::Binary {
             op: BinOp::Eq,
             left,
@@ -3366,6 +3959,12 @@ fn is_subcommand_check(expr: &HirExpr, dest_field: &str) -> Option<String> {
                 }
             }
             None
+        }
+        // DEPYLER-0456 Bug #2 FIX: CSE temp variable (e.g., _cse_temp_0)
+        // After CSE optimization, the condition becomes just a variable reference
+        HirExpr::Var(var_name) => {
+            // Look up in CSE subcommand temps map
+            ctx.cse_subcommand_temps.get(var_name).cloned()
         }
         _ => None,
     }

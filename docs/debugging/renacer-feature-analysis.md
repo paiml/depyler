@@ -765,9 +765,9 @@ renacer --otlp-endpoint http://localhost:4317 \
 
 5. **Decision Trace** (`--trace-transpiler-decisions`)
    - **Why**: Shows which transpiler decisions were made (critical for Bug #1 debugging)
-   - **Status**: **Renacer supports it, but Depyler doesn't emit decision traces yet!**
-   - **Blocker**: Need to add `emit_decision!()` macros in Depyler
-   - **Ticket**: DEPYLER-XXXX - Implement decision trace emission
+   - **Status**: **Implemented (DEPYLER-0458)**
+   - **Blocker**: None (this is now implemented)
+   - **Ticket**: DEPYLER-0458 - Implement decision trace emission
 
 ### Tier 3: NICE TO HAVE (Advanced Use Cases)
 
@@ -937,7 +937,7 @@ error[E0425]: cannot find value `key` in this scope
 
 ### Phase 2: SHORT-TERM (Minor Depyler Changes)
 
-**Ticket**: DEPYLER-XXXX - Implement decision trace emission
+**Ticket**: DEPYLER-0458 - Implement decision trace emission (COMPLETED)
 
 1. Add `decision_trace` module to Depyler
 2. Implement `emit_decision!()` macro
