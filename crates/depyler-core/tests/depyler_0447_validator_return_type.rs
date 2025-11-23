@@ -56,8 +56,7 @@ def main():
 
     // Check 3: Return statement should convert &str to String
     assert!(
-        rust_code.contains("Ok(value.to_string())")
-            || rust_code.contains("Ok(value.into())"),
+        rust_code.contains("Ok(value.to_string())") || rust_code.contains("Ok(value.into())"),
         "email_address should convert &str to String in return, got:\n{}",
         extract_function_body(&rust_code, "email_address")
     );
@@ -172,7 +171,8 @@ def main():
     );
 
     assert!(
-        rust_code.contains("-> Result<String,") || rust_code.contains("-> Result<std::string::String,"),
+        rust_code.contains("-> Result<String,")
+            || rust_code.contains("-> Result<std::string::String,"),
         "lowercase_validator should return Result<String, ...>"
     );
 
@@ -204,7 +204,8 @@ def main():
     );
 
     assert!(
-        rust_code.contains("-> Result<String,") || rust_code.contains("-> Result<std::string::String,"),
+        rust_code.contains("-> Result<String,")
+            || rust_code.contains("-> Result<std::string::String,"),
         "strip_whitespace should return Result<String, ...>"
     );
 
@@ -267,8 +268,7 @@ fn extract_function_body(rust_code: &str, func_name: &str) -> String {
     let start_idx = lines.iter().position(|line| line.contains(&pattern));
 
     if let Some(start) = start_idx {
-        lines[start..std::cmp::min(start + 20, lines.len())]
-            .join("\n")
+        lines[start..std::cmp::min(start + 20, lines.len())].join("\n")
     } else {
         String::from("Function not found")
     }

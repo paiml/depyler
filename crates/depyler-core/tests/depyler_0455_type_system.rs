@@ -173,8 +173,8 @@ def check_config():
     let rust_code = result.unwrap();
 
     // Should use .is_some() or if let Some for Option check
-    let has_proper_option_check = rust_code.contains(".is_some()")
-        || rust_code.contains("if let Some(");
+    let has_proper_option_check =
+        rust_code.contains(".is_some()") || rust_code.contains("if let Some(");
 
     assert!(
         has_proper_option_check,
@@ -326,8 +326,7 @@ def main():
     assert!(has_string_handling);
 
     // Bug 3: Option truthiness
-    let has_option_check = rust_code.contains(".is_some()")
-        || rust_code.contains("if let Some(");
+    let has_option_check = rust_code.contains(".is_some()") || rust_code.contains("if let Some(");
     assert!(has_option_check);
 
     // Bug 4: Option Display (implicit in proper if let Some usage)
@@ -337,8 +336,7 @@ def main():
         assert!(true);
     } else if rust_code.contains(".is_some()") {
         // Should have corresponding .unwrap() or .unwrap_or()
-        let has_unwrap = rust_code.contains(".unwrap()")
-            || rust_code.contains(".unwrap_or(");
+        let has_unwrap = rust_code.contains(".unwrap()") || rust_code.contains(".unwrap_or(");
         assert!(has_unwrap, "Expected .unwrap() after .is_some() check");
     }
 }
@@ -373,8 +371,8 @@ def check_multiple_env():
 
     // All Option checks should use .is_some() or if let
     let option_checks = rust_code.matches("if ").count();
-    let proper_checks = rust_code.matches(".is_some()").count()
-        + rust_code.matches("if let Some").count();
+    let proper_checks =
+        rust_code.matches(".is_some()").count() + rust_code.matches("if let Some").count();
 
     assert!(
         proper_checks >= option_checks,

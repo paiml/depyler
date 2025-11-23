@@ -220,8 +220,8 @@ def main():
 
     // Parameter should be inferred as &str (not serde_json::Value)
     // Check function signature
-    let has_str_param = rust_code.contains("filepath: &str")
-        || rust_code.contains("filepath: String");
+    let has_str_param =
+        rust_code.contains("filepath: &str") || rust_code.contains("filepath: String");
 
     // Should NOT use serde_json::Value for file paths
     let has_value_param = rust_code.contains("filepath: serde_json::Value");
@@ -312,8 +312,7 @@ def main():
 
     // Should generate enum variant for stdin subcommand
     // Pattern: Stdin, (unit variant) OR Stdin { } (empty struct)
-    let has_stdin_variant = rust_code.contains("Stdin,")
-        || rust_code.contains("Stdin {");
+    let has_stdin_variant = rust_code.contains("Stdin,") || rust_code.contains("Stdin {");
 
     assert!(
         has_stdin_variant,
@@ -347,8 +346,8 @@ def show_hex(data):
 
     // Should use hex::encode() OR manual hex formatting
     let has_hex_encode = rust_code.contains("hex::encode");
-    let has_hex_format = rust_code.contains("format!(\"{:02x}\"")
-        || rust_code.contains("format!(\"{:x}\"");
+    let has_hex_format =
+        rust_code.contains("format!(\"{:02x}\"") || rust_code.contains("format!(\"{:x}\"");
 
     assert!(
         has_hex_encode || has_hex_format,
@@ -400,10 +399,11 @@ def create_temp():
 #[ignore] // Run separately due to large file
 fn test_DEPYLER_0432_11_stream_processor_integration() {
     // Read the actual stream_processor.py from reprorusted-python-cli
-    let python_file = "/home/user/reprorusted-python-cli/examples/example_io_streams/stream_processor.py";
+    let python_file =
+        "/home/user/reprorusted-python-cli/examples/example_io_streams/stream_processor.py";
 
-    let python_code = std::fs::read_to_string(python_file)
-        .expect("Failed to read stream_processor.py");
+    let python_code =
+        std::fs::read_to_string(python_file).expect("Failed to read stream_processor.py");
 
     let result = transpile_python(&python_code);
     assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
@@ -435,10 +435,13 @@ fn test_DEPYLER_0432_11_stream_processor_integration() {
 
     let compile_result = std::process::Command::new("rustc")
         .args(&[
-            "--crate-type", "bin",
-            "--edition", "2021",
+            "--crate-type",
+            "bin",
+            "--edition",
+            "2021",
             "/tmp/stream_processor_test.rs",
-            "-o", "/tmp/stream_processor_test",
+            "-o",
+            "/tmp/stream_processor_test",
         ])
         .output();
 
@@ -447,8 +450,10 @@ fn test_DEPYLER_0432_11_stream_processor_integration() {
         let error_count = stderr.matches("error[E").count();
 
         println!("Compilation errors: {}", error_count);
-        println!("First 50 lines of errors:\n{}",
-            stderr.lines().take(50).collect::<Vec<_>>().join("\n"));
+        println!(
+            "First 50 lines of errors:\n{}",
+            stderr.lines().take(50).collect::<Vec<_>>().join("\n")
+        );
 
         // In RED phase, we expect errors. Track progress:
         // Initial: 32 errors

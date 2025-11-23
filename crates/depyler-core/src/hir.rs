@@ -232,6 +232,9 @@ pub struct HirParam {
     pub name: Symbol,
     pub ty: Type,
     pub default: Option<HirExpr>,
+    /// DEPYLER-0477: True for varargs parameters (*args in Python)
+    /// Transpiles to Vec<T> instead of regular parameter type
+    pub is_vararg: bool,
 }
 
 impl HirParam {
@@ -241,6 +244,7 @@ impl HirParam {
             name,
             ty,
             default: None,
+            is_vararg: false,  // DEPYLER-0477: Regular parameter
         }
     }
 
@@ -250,6 +254,7 @@ impl HirParam {
             name,
             ty,
             default: Some(default),
+            is_vararg: false,  // DEPYLER-0477: Regular parameter
         }
     }
 }
@@ -593,6 +598,9 @@ pub enum Type {
     Custom(String),
     /// Type variable for generics (e.g., T, U)
     TypeVar(String),
+    /// Unification variable for Hindley-Milner type inference
+    /// Used during constraint solving, replaced with concrete types after inference
+    UnificationVar(usize),
     /// Generic type with parameters (e.g., List<T>, Dict<K, V>)
     Generic {
         base: String,

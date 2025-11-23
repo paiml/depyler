@@ -56,7 +56,9 @@ pub struct CodeGenContext<'a> {
     pub needs_serde_json: bool,
     pub needs_regex: bool,
     pub needs_chrono: bool,
-    pub needs_clap: bool, // DEPYLER-0384: Track clap dependency for ArgumentParser
+    pub needs_tempfile: bool, // DEPYLER-0490: Track tempfile crate for temporary file operations
+    pub needs_itertools: bool, // DEPYLER-0490: Track itertools crate for advanced iteration
+    pub needs_clap: bool,      // DEPYLER-0384: Track clap dependency for ArgumentParser
     pub needs_csv: bool,
     pub needs_rust_decimal: bool,
     pub needs_num_rational: bool,
@@ -70,7 +72,7 @@ pub struct CodeGenContext<'a> {
     pub needs_hmac: bool,
     pub needs_crc32: bool,
     pub needs_url_encoding: bool,
-    pub needs_io_read: bool,  // DEPYLER-0458: Track std::io::Read trait for file I/O
+    pub needs_io_read: bool, // DEPYLER-0458: Track std::io::Read trait for file I/O
     pub needs_io_write: bool, // DEPYLER-0458: Track std::io::Write trait for file I/O
     pub needs_once_cell: bool, // DEPYLER-REARCH-001: Track once_cell for lazy static initialization
     pub declared_vars: Vec<HashSet<String>>,
@@ -137,6 +139,10 @@ pub struct CodeGenContext<'a> {
     /// Populated when processing add_argument(type=validator_func) calls
     pub validator_functions: std::collections::HashSet<String>,
 
+    /// DEPYLER-0461: Track whether we're currently generating code inside a serde_json::json!() macro
+    /// When true, nested dicts must also use json!() instead of HashMap (json!() doesn't accept code blocks)
+    pub in_json_context: bool,
+
     /// DEPYLER-0452: Stdlib API mapping system for Python→Rust API translations
     /// Maps Python stdlib patterns (module, class, attribute) to Rust code patterns
     pub stdlib_mappings: crate::stdlib_mappings::StdlibMappings,
@@ -148,6 +154,11 @@ pub struct CodeGenContext<'a> {
     /// Without normalization: &str vs String type mismatch
     /// With normalization: String vs String (consistent)
     pub hoisted_inference_vars: HashSet<String>,
+
+    /// DEPYLER-0456 Bug #2: Track CSE temp variables for subcommand checks
+    /// Maps CSE temp variable names (e.g., "_cse_temp_0") to command names (e.g., "init")
+    /// This allows is_subcommand_check() to recognize CSE-optimized subcommand comparisons
+    pub cse_subcommand_temps: std::collections::HashMap<String, String>,
 }
 
 impl<'a> CodeGenContext<'a> {

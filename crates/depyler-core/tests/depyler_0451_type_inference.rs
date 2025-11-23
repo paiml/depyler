@@ -52,8 +52,8 @@ def read_file(filepath):
     let rust_code = result.unwrap();
 
     // Should infer filepath as &str (not serde_json::Value)
-    let has_str_param = rust_code.contains("filepath: &str")
-        || rust_code.contains("filepath: String");
+    let has_str_param =
+        rust_code.contains("filepath: &str") || rust_code.contains("filepath: String");
 
     // Should NOT use serde_json::Value
     let has_value_param = rust_code.contains("filepath: serde_json::Value");
@@ -113,8 +113,7 @@ def greet(name):
     let rust_code = result.unwrap();
 
     // Should infer name as &str (from f-string usage)
-    let has_str_param = rust_code.contains("name: &str")
-        || rust_code.contains("name: String");
+    let has_str_param = rust_code.contains("name: &str") || rust_code.contains("name: String");
 
     // Should NOT use serde_json::Value
     let has_value_param = rust_code.contains("name: serde_json::Value");
@@ -143,8 +142,7 @@ def uppercase(text):
     let rust_code = result.unwrap();
 
     // Should infer text as &str (from .upper() method)
-    let has_str_param = rust_code.contains("text: &str")
-        || rust_code.contains("text: String");
+    let has_str_param = rust_code.contains("text: &str") || rust_code.contains("text: String");
 
     // Should NOT use serde_json::Value
     let has_value_param = rust_code.contains("text: serde_json::Value");
@@ -248,8 +246,7 @@ def process(data, flag):
     let rust_code = result.unwrap();
 
     // Should infer data as &str (from .upper() method)
-    let has_str_data = rust_code.contains("data: &str")
-        || rust_code.contains("data: String");
+    let has_str_data = rust_code.contains("data: &str") || rust_code.contains("data: String");
 
     // Should infer flag as bool (from if condition)
     let has_bool_flag = rust_code.contains("flag: bool");
@@ -295,8 +292,7 @@ def process_csv(path):
     let rust_code = result.unwrap();
 
     // Should infer path as &str
-    let has_str_param = rust_code.contains("path: &str")
-        || rust_code.contains("path: String");
+    let has_str_param = rust_code.contains("path: &str") || rust_code.contains("path: String");
 
     // Should NOT use serde_json::Value
     let has_value_param = rust_code.contains("path: serde_json::Value");
@@ -328,8 +324,7 @@ def get_length(text: str) -> int:
     let rust_code = result.unwrap();
 
     // Should respect type annotations
-    let has_str_param = rust_code.contains("text: &str")
-        || rust_code.contains("text: String");
+    let has_str_param = rust_code.contains("text: &str") || rust_code.contains("text: String");
 
     let has_int_return = rust_code.contains("-> i32")
         || rust_code.contains("-> i64")
@@ -368,8 +363,7 @@ def search(items, target):
     let rust_code = result.unwrap();
 
     // Should infer items as slice (from iteration)
-    let has_slice_param = rust_code.contains("items: &[")
-        || rust_code.contains("items: Vec<");
+    let has_slice_param = rust_code.contains("items: &[") || rust_code.contains("items: Vec<");
 
     // Should NOT use serde_json::Value for items
     let has_value_items = rust_code.contains("items: serde_json::Value")

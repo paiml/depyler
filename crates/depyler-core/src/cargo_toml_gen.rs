@@ -67,6 +67,14 @@ pub fn extract_dependencies(ctx: &CodeGenContext) -> Vec<Dependency> {
         deps.push(Dependency::new("chrono", "0.4"));
     }
 
+    if ctx.needs_tempfile {
+        deps.push(Dependency::new("tempfile", "3.0"));
+    }
+
+    if ctx.needs_itertools {
+        deps.push(Dependency::new("itertools", "0.12"));
+    }
+
     if ctx.needs_csv {
         deps.push(Dependency::new("csv", "1.0"));
     }
@@ -341,8 +349,8 @@ mod tests {
             needs_crc32: false,
             needs_url_encoding: false,
             needs_clap: true,
-            needs_io_read: false,  // DEPYLER-0458
-            needs_io_write: false, // DEPYLER-0458
+            needs_io_read: false,   // DEPYLER-0458
+            needs_io_write: false,  // DEPYLER-0458
             needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![std::collections::HashSet::new()],
             current_function_can_fail: false,
@@ -374,8 +382,10 @@ mod tests {
             generated_commands_enum: None,
             current_subcommand_fields: None,
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
+            in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -437,8 +447,8 @@ mod tests {
             needs_crc32: true,
             needs_url_encoding: true,
             needs_clap: true,
-            needs_io_read: false,  // DEPYLER-0458
-            needs_io_write: false, // DEPYLER-0458
+            needs_io_read: false,   // DEPYLER-0458
+            needs_io_write: false,  // DEPYLER-0458
             needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
@@ -470,8 +480,10 @@ mod tests {
             generated_commands_enum: None,
             current_subcommand_fields: None,
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
+            in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
         };
 
         let deps = extract_dependencies(&ctx);
@@ -530,8 +542,8 @@ mod tests {
             needs_crc32: false,
             needs_url_encoding: false,
             needs_clap: false,
-            needs_io_read: false,  // DEPYLER-0458
-            needs_io_write: false, // DEPYLER-0458
+            needs_io_read: false,   // DEPYLER-0458
+            needs_io_write: false,  // DEPYLER-0458
             needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
@@ -563,8 +575,10 @@ mod tests {
             generated_commands_enum: None,
             current_subcommand_fields: None,
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
+            in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
         };
 
         let deps = extract_dependencies(&ctx);
@@ -626,9 +640,9 @@ mod tests {
             needs_hmac: false,
             needs_crc32: false,
             needs_url_encoding: false,
-            needs_clap: true, // Enable clap
-            needs_io_read: false,  // DEPYLER-0458
-            needs_io_write: false, // DEPYLER-0458
+            needs_clap: true,       // Enable clap
+            needs_io_read: false,   // DEPYLER-0458
+            needs_io_write: false,  // DEPYLER-0458
             needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
@@ -660,8 +674,10 @@ mod tests {
             generated_commands_enum: None,
             current_subcommand_fields: None,
             validator_functions: std::collections::HashSet::new(), // DEPYLER-0447
+            in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
         };
 
         let deps = extract_dependencies(&ctx);

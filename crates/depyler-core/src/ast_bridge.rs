@@ -773,6 +773,7 @@ impl AstBridge {
                 name: param_name,
                 ty: param_type,
                 default: None, // Note: Method defaults extraction requires AST alignment with convert_parameters()
+                is_vararg: false, // DEPYLER-0477: Regular parameter
             });
         }
 
@@ -894,6 +895,7 @@ impl AstBridge {
                 name: param_name,
                 ty: param_type,
                 default: None, // Note: Method defaults extraction requires AST alignment with convert_parameters()
+                is_vararg: false, // DEPYLER-0477: Regular parameter
             });
         }
 
@@ -1296,9 +1298,12 @@ fn convert_parameters(args: &ast::Arguments) -> Result<Vec<HirParam>> {
 
     for (i, arg) in args.args.iter().enumerate() {
         let name = arg.def.arg.to_string();
-        let ty = if let Some(annotation) = &arg.def.annotation {
+
+        // DEPYLER-0457: Extract base type from annotation
+        let base_ty = if let Some(annotation) = &arg.def.annotation {
             TypeExtractor::extract_type(annotation)?
         } else {
+            // No annotation - will be refined based on default value below
             Type::Unknown
         };
 
@@ -1314,8 +1319,70 @@ fn convert_parameters(args: &ast::Arguments) -> Result<Vec<HirParam>> {
             None
         };
 
-        params.push(HirParam { name, ty, default });
+        // DEPYLER-0457: Infer types for unannotated parameters
+        let ty = if let Some(HirExpr::Literal(Literal::None)) = &default {
+            // Parameter has default=None, wrap type in Optional
+            match base_ty {
+                Type::Unknown => {
+                    // For unannotated optional params, infer Option<String> as reasonable default
+                    // This handles common patterns like: def foo(path=None), def bar(name=None)
+                    Type::Optional(Box::new(Type::String))
+                }
+                Type::Optional(_) => {
+                    // Already Optional<T>, don't double-wrap
+                    base_ty
+                }
+                _ => {
+                    // Wrap annotated type in Optional
+                    Type::Optional(Box::new(base_ty))
+                }
+            }
+        } else if default.is_none() && matches!(base_ty, Type::Unknown) {
+            // DEPYLER-0457: Heuristic inference for unannotated required parameters
+            // Only infer String for parameters with names suggesting string types
+            let param_lower = name.to_lowercase();
+            let is_likely_string = param_lower.contains("file")
+                || param_lower.contains("path")
+                || param_lower.contains("name")
+                || param_lower.contains("column")
+                || param_lower == "value" // Common in filter functions
+                || param_lower.contains("key"); // But not "keys" plural
+
+            if is_likely_string && !param_lower.contains("config") && !param_lower.contains("data")
+            {
+                // Conservative inference: only for clearly string-like parameters
+                Type::String
+            } else {
+                // Keep as Unknown (→ serde_json::Value) for safety
+                base_ty
+            }
+        } else {
+            base_ty
+        };
+
+        params.push(HirParam { name, ty, default, is_vararg: false });
     }
+
+    // DEPYLER-0477: Extract varargs parameter (*args)
+    if let Some(vararg) = &args.vararg {
+        let name = vararg.arg.to_string();
+
+        // Start with List<String> as a reasonable default
+        // TODO DEPYLER-0477 Phase 2.2: Infer element type from usage
+        let ty = Type::List(Box::new(Type::String));
+
+        params.push(HirParam {
+            name,
+            ty,
+            default: None,  // Varargs never have defaults
+            is_vararg: true,
+        });
+    }
+
+    // TODO DEPYLER-0477 Phase 2.2: Extract kwargs (**kwargs)
+    // if let Some(kwarg) = &args.kwarg {
+    //     // Will transpile to HashMap<String, serde_json::Value>
+    // }
 
     Ok(params)
 }
