@@ -1296,6 +1296,7 @@ mod tests {
                 name: "x".to_string(),
                 ty: Type::Int,
                 default: None,
+                is_vararg: false,
             }]),
             ret_type: Type::Int,
             body: vec![HirStmt::Assign {

@@ -57,7 +57,7 @@ roadmap:
   - name: Phase 2 - Implement constructor recognition
     status: completed
   - name: Phase 3 - Test and validate
-    status: pending
+    status: planned
   subtasks: []
   estimated_effort: 2h
   actual_effort: 2.5h

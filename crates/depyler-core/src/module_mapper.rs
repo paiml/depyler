@@ -104,6 +104,30 @@ impl ModuleMapper {
             },
         );
 
+        // DEPYLER-0493: Python io module → Rust std::io
+        module_map.insert(
+            "io".to_string(),
+            ModuleMapping {
+                rust_path: "std::io".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    ("BufferedReader".to_string(), "BufReader".to_string()),
+                    ("BufferedWriter".to_string(), "BufWriter".to_string()),
+                    ("BytesIO".to_string(), "Cursor".to_string()),
+                    ("StringIO".to_string(), "Cursor".to_string()),
+                ]),
+                // DEPYLER-0493: Constructor patterns for IO types
+                constructor_patterns: HashMap::from([
+                    // BufReader and BufWriter use ::new(inner) pattern
+                    ("BufReader".to_string(), ConstructorPattern::New),
+                    ("BufWriter".to_string(), ConstructorPattern::New),
+                    // Cursor also uses ::new()
+                    ("Cursor".to_string(), ConstructorPattern::New),
+                ]),
+            },
+        );
+
         module_map.insert(
             "json".to_string(),
             ModuleMapping {
