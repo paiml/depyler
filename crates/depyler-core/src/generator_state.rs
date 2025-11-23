@@ -128,25 +128,62 @@ impl StateAnalyzer {
         }
     }
 
+    /// DEPYLER-0494: Analyze assignment target (handles both Symbol and Tuple)
+    /// Complexity: 7 (within ≤10 target)
     fn analyze_assign(
         &mut self,
         target: &crate::hir::AssignTarget,
         value: &HirExpr,
         type_annotation: &Option<Type>,
     ) {
-        if let crate::hir::AssignTarget::Symbol(name) = target {
-            let name_str = name.as_str();
-            if !self.declared_vars.contains(name_str) {
-                self.declared_vars.insert(name_str.to_string());
-                // DEPYLER-0258 FIX: Infer type from value expression if no annotation
-                let ty = type_annotation
-                    .clone()
-                    .unwrap_or_else(|| Self::infer_type_from_expression(value));
-                self.state_variables.push(StateVariable {
-                    name: name_str.to_string(),
-                    ty,
-                });
+        match target {
+            crate::hir::AssignTarget::Symbol(name) => {
+                let name_str = name.as_str();
+                if !self.declared_vars.contains(name_str) {
+                    self.declared_vars.insert(name_str.to_string());
+                    // DEPYLER-0258 FIX: Infer type from value expression if no annotation
+                    let ty = type_annotation
+                        .clone()
+                        .unwrap_or_else(|| Self::infer_type_from_expression(value));
+                    self.state_variables.push(StateVariable {
+                        name: name_str.to_string(),
+                        ty,
+                    });
+                }
             }
+            // DEPYLER-0494 FIX: Handle tuple unpacking (a, b) = (0, 1)
+            crate::hir::AssignTarget::Tuple(targets) => {
+                // Infer element types from tuple value if possible
+                let element_types = if let HirExpr::Tuple(values) = value {
+                    // Parallel tuple: (a, b) = (val1, val2)
+                    values
+                        .iter()
+                        .map(Self::infer_type_from_expression)
+                        .collect::<Vec<_>>()
+                } else {
+                    // Can't infer from value, use Unknown
+                    vec![]
+                };
+
+                for (idx, target_elem) in targets.iter().enumerate() {
+                    if let crate::hir::AssignTarget::Symbol(name) = target_elem {
+                        let name_str = name.as_str();
+                        if !self.declared_vars.contains(name_str) {
+                            self.declared_vars.insert(name_str.to_string());
+                            // Try to get type from parallel value or use Unknown
+                            let ty = element_types
+                                .get(idx)
+                                .cloned()
+                                .unwrap_or(Type::Unknown);
+                            self.state_variables.push(StateVariable {
+                                name: name_str.to_string(),
+                                ty,
+                            });
+                        }
+                    }
+                }
+            }
+            _ => {} // Index and Attribute assignments don't declare new variables
         }
         self.analyze_expression(value);
     }

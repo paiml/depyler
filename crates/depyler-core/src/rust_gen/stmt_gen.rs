@@ -2722,7 +2722,14 @@ pub(crate) fn codegen_assign_attribute(
 }
 
 /// Generate code for tuple unpacking assignment
+///
+/// DEPYLER-0494: Handle generator state variables in tuple assignments
+/// When inside a generator, state variables must be assigned via self.field
+/// instead of local variable destructuring.
+///
+/// # Complexity: 9 (within ≤10 target)
 #[inline]
+#[allow(clippy::unnecessary_to_owned)] // HashSet<String> requires owned String for contains()
 pub(crate) fn codegen_assign_tuple(
     targets: &[AssignTarget],
     value_expr: syn::Expr,
@@ -2740,30 +2747,81 @@ pub(crate) fn codegen_assign_tuple(
 
     match all_symbols {
         Some(symbols) => {
-            let all_declared = symbols.iter().all(|s| ctx.is_declared(s));
-
-            if all_declared {
-                // All variables exist, do reassignment
-                let idents: Vec<_> = symbols
+            // DEPYLER-0494 FIX: Check if we're in a generator with state variables
+            // Pattern: (a, b) = (0, 1) where a, b are generator state variables
+            // Must generate: let _temp = (0, 1); self.a = _temp.0; self.b = _tuple.1;
+            let generator_state_vars: Vec<_> = if ctx.in_generator {
+                symbols
                     .iter()
-                    .map(|s| safe_ident(s)) // DEPYLER-0023
-                    .collect();
-                Ok(quote! { (#(#idents),*) = #value_expr; })
+                    .filter(|s| ctx.generator_state_vars.contains(&s.to_string()))
+                    .collect()
             } else {
-                // First declaration - mark each variable individually
-                symbols.iter().for_each(|s| ctx.declare_var(s));
-                let idents_with_mut: Vec<_> = symbols
+                vec![]
+            };
+
+            if !generator_state_vars.is_empty() {
+                // At least one variable is a generator state variable
+                // Destructure into temporary, then assign each field
+                let temp_var = syn::Ident::new("_tuple_temp", proc_macro2::Span::call_site());
+                let assignments: Vec<_> = symbols
                     .iter()
-                    .map(|s| {
-                        let ident = safe_ident(s); // DEPYLER-0023
-                        if ctx.mutable_vars.contains(*s) {
-                            quote! { mut #ident }
+                    .enumerate()
+                    .map(|(idx, s)| {
+                        let ident = safe_ident(s);
+                        let index = syn::Index::from(idx);
+
+                        if ctx.generator_state_vars.contains(&s.to_string()) {
+                            // State variable: self.field = temp.N;
+                            quote! { self.#ident = #temp_var.#index; }
                         } else {
-                            quote! { #ident }
+                            // Local variable: ident = temp.N; (if already declared)
+                            // or: let ident = temp.N; (if first declaration)
+                            if ctx.is_declared(s) {
+                                quote! { #ident = #temp_var.#index; }
+                            } else {
+                                ctx.declare_var(s);
+                                let mut_token = if ctx.mutable_vars.contains(*s) {
+                                    quote! { mut }
+                                } else {
+                                    quote! {}
+                                };
+                                quote! { let #mut_token #ident = #temp_var.#index; }
+                            }
                         }
                     })
                     .collect();
-                Ok(quote! { let (#(#idents_with_mut),*) = #value_expr; })
+
+                Ok(quote! {
+                    let #temp_var = #value_expr;
+                    #(#assignments)*
+                })
+            } else {
+                // No generator state variables - original logic
+                let all_declared = symbols.iter().all(|s| ctx.is_declared(s));
+
+                if all_declared {
+                    // All variables exist, do reassignment
+                    let idents: Vec<_> = symbols
+                        .iter()
+                        .map(|s| safe_ident(s)) // DEPYLER-0023
+                        .collect();
+                    Ok(quote! { (#(#idents),*) = #value_expr; })
+                } else {
+                    // First declaration - mark each variable individually
+                    symbols.iter().for_each(|s| ctx.declare_var(s));
+                    let idents_with_mut: Vec<_> = symbols
+                        .iter()
+                        .map(|s| {
+                            let ident = safe_ident(s); // DEPYLER-0023
+                            if ctx.mutable_vars.contains(*s) {
+                                quote! { mut #ident }
+                            } else {
+                                quote! { #ident }
+                            }
+                        })
+                        .collect();
+                    Ok(quote! { let (#(#idents_with_mut),*) = #value_expr; })
+                }
             }
         }
         None => {
