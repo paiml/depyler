@@ -68,7 +68,8 @@ enum TypeConstraint {
     ArgumentConstraint {
         var: String,
         func: String,
-        param_idx: usize,
+        /// Parameter index (reserved for future multi-param signature matching)
+        _param_idx: usize,
         expected: Type,
     },
     /// Variable returned from function
@@ -714,7 +715,7 @@ impl TypeHintProvider {
             .push(TypeConstraint::ArgumentConstraint {
                 var: var.to_string(),
                 func: func.to_string(),
-                param_idx: 0,
+                _param_idx: 0,
                 expected,
             });
     }
@@ -741,7 +742,7 @@ impl TypeHintProvider {
                     self.context.constraints.push(TypeConstraint::ArgumentConstraint {
                         var: cmd_var.to_string(),
                         func: "subprocess.run".to_string(),
-                        param_idx: 0,
+                        _param_idx: 0,
                         expected: Type::List(Box::new(Type::String)),
                     });
                     self.record_usage_pattern(cmd_var, UsagePattern::Container);

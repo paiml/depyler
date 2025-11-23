@@ -57,9 +57,35 @@ pub struct DifferentialTester {
 
 impl DifferentialTester {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+        // Try to find depyler in PATH first, otherwise look in target/debug
+        let depyler_exe = which::which("depyler").or_else(|_| {
+            // During tests, current_exe is target/debug/deps/depyler_testing-<hash>
+            // Go up to target/debug/deps -> target/debug -> depyler
+            let exe_path = std::env::current_exe()?;
+            let target_debug = exe_path
+                .parent() // Remove test executable name -> target/debug/deps
+                .and_then(|p| p.parent()) // -> target/debug
+                .ok_or_else(|| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        "Failed to find target/debug directory",
+                    )
+                })?;
+
+            let depyler_path = target_debug.join("depyler");
+            if depyler_path.exists() {
+                Ok(depyler_path)
+            } else {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    format!("depyler executable not found at {:?}", depyler_path),
+                ))
+            }
+        })?;
+
         Ok(Self {
             python_exe: which::which("python3")?,
-            depyler_exe: std::env::current_exe()?.parent().unwrap().join("depyler"),
+            depyler_exe,
             temp_dir: std::env::temp_dir().join("depyler-differential"),
         })
     }

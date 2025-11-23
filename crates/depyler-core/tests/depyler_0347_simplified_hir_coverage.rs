@@ -202,11 +202,13 @@ fn test_depyler_0347_expr_function() {
                 name: "a".to_string(),
                 typ: Some(HirType::Int),
                 default: None,
+                    is_vararg: false,
             },
             HirParam {
                 name: "b".to_string(),
                 typ: Some(HirType::Int),
                 default: None,
+                    is_vararg: false,
             },
         ],
         body: Box::new(HirExpr::Binary {
@@ -245,6 +247,7 @@ fn test_depyler_0347_expr_lambda() {
             name: "x".to_string(),
             typ: None,
             default: None,
+                    is_vararg: false,
         }],
         body: Box::new(HirExpr::Identifier("x".to_string())),
     };
@@ -373,6 +376,7 @@ fn test_depyler_0347_param_with_type() {
         name: "x".to_string(),
         typ: Some(HirType::Int),
         default: None,
+                    is_vararg: false,
     };
 
     assert_eq!(param.name, "x");
@@ -397,6 +401,7 @@ fn test_depyler_0347_param_without_type() {
         name: "x".to_string(),
         typ: None,
         default: None,
+                    is_vararg: false,
     };
 
     assert!(param.typ.is_none());

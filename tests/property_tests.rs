@@ -160,6 +160,7 @@ impl Arbitrary for ArbitraryFunction {
                 name: Symbol::from(format!("param_{i}")),
                 ty: arbitrary_simple_type(g),
                 default: None,
+                is_vararg: false,
             })
             .collect();
 
