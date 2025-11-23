@@ -1,0 +1,253 @@
+# O(1) Quality Gates - Metric Tracking for Depyler
+# Phase 3.4: CI/CD Integration for Metric Tracking
+# Tracks quality metrics over time and posts regression warnings to PRs
+# Integrates with Depyler's NASA/SQLite reliability testing framework
+
+name: O(1) Quality Metrics Tracking
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  PROPTEST_CASES: 256  # Full property testing for CI
+  QUICKCHECK_TESTS: 100  # Full quickcheck testing for CI
+
+jobs:
+  track-metrics:
+    name: Track O(1) Quality Metrics
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for trend analysis
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install PMAT
+        run: |
+          cargo install pmat --version ">=2.200.0" || cargo install pmat
+          pmat --version
+
+      - name: Install bashrs for shell linting
+        run: |
+          cargo install bashrs --version ">=0.6.0" || cargo install bashrs
+
+      - name: Install cargo-nextest
+        run: |
+          cargo install cargo-nextest --locked
+
+      - name: Record lint metric
+        id: lint
+        run: |
+          START=$(date +%s%3N)
+          cargo clippy --workspace --all-features --quiet -- -D warnings || true
+          END=$(date +%s%3N)
+          DURATION=$((END - START))
+          echo "duration=$DURATION" >> $GITHUB_OUTPUT
+          pmat record-metric lint $DURATION
+
+      - name: Record test-fast metric
+        id: test-fast
+        run: |
+          START=$(date +%s%3N)
+          PROPTEST_CASES=5 QUICKCHECK_TESTS=5 cargo nextest run --no-fail-fast --workspace --all-features --profile fast --quiet || true
+          END=$(date +%s%3N)
+          DURATION=$((END - START))
+          echo "duration=$DURATION" >> $GITHUB_OUTPUT
+          pmat record-metric test-fast $DURATION
+
+      - name: Record test-pre-commit-fast metric
+        id: test-pre-commit
+        run: |
+          START=$(date +%s%3N)
+          cargo check --workspace --quiet || true
+          END=$(date +%s%3N)
+          DURATION=$((END - START))
+          echo "duration=$DURATION" >> $GITHUB_OUTPUT
+          pmat record-metric test-pre-commit-fast $DURATION
+
+      - name: Record coverage metric
+        id: coverage
+        run: |
+          cargo install cargo-llvm-cov --locked || true
+          START=$(date +%s%3N)
+          cargo llvm-cov clean --workspace --quiet
+          PROPTEST_CASES=10 QUICKCHECK_TESTS=10 cargo llvm-cov --no-report --ignore-run-fail nextest --no-tests=warn --all-features --workspace --quiet || true
+          cargo llvm-cov report --html --output-dir target/coverage/html
+          END=$(date +%s%3N)
+          DURATION=$((END - START))
+          echo "duration=$DURATION" >> $GITHUB_OUTPUT
+          pmat record-metric coverage $DURATION
+
+      - name: Record binary size metric
+        id: binary-size
+        run: |
+          cargo build --release --quiet || true
+          BINARY_SIZE=$(find target/release -maxdepth 1 -type f -executable -name "depyler" -exec stat -c%s {} \; 2>/dev/null || echo "0")
+          echo "size=$BINARY_SIZE" >> $GITHUB_OUTPUT
+          pmat record-metric binary-size $BINARY_SIZE
+
+      - name: Record benchmark metric (if main branch)
+        id: bench
+        if: github.ref == 'refs/heads/main'
+        run: |
+          START=$(date +%s%3N)
+          cargo bench --no-fail-fast --quiet || true
+          END=$(date +%s%3N)
+          DURATION=$((END - START))
+          echo "duration=$DURATION" >> $GITHUB_OUTPUT
+          pmat record-metric bench $DURATION
+
+      - name: Upload metrics artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: quality-metrics
+          path: .pmat-metrics/
+          retention-days: 90
+
+      - name: Analyze metric trends
+        id: trends
+        run: |
+          pmat show-metrics --trend --format json > metrics-trend.json
+          cat metrics-trend.json
+
+      - name: Check for regressions (PRs only)
+        if: github.event_name == 'pull_request'
+        run: |
+          # Compare PR metrics against main baseline
+          pmat predict-quality --all --failures-only --format json > regressions.json
+
+          # Check if any metrics are regressing
+          if [ -s regressions.json ] && [ "$(cat regressions.json)" != "[]" ]; then
+            echo "⚠️ Quality metric regressions detected"
+            cat regressions.json
+
+            # Post comment to PR
+            if [ -n "${{ secrets.GITHUB_TOKEN }}" ]; then
+              COMMENT="## ⚠️ O(1) Quality Metric Regressions Detected\\n\\n"
+              COMMENT="${COMMENT}The following metrics are regressing and may breach thresholds soon:\\n\\n"
+              COMMENT="${COMMENT}$(cat regressions.json | jq -r '.[] | \"### \\(.metric)\\n- **Status**: \\(.direction)\\n- **Predicted breach**: \\(.breach_in_days // \"unknown\") days\\n- **Recommendations**:\\n\\(.recommendations | map(\"  - \" + .) | join(\"\\n\"))\\n\\n\"')"
+              COMMENT="${COMMENT}\\n---\\n**Powered by PMAT O(1) Quality Gates** (Phase 3.4)"
+
+              gh pr comment ${{ github.event.pull_request.number }} \
+                --body "$COMMENT" \
+                || echo "Failed to post PR comment"
+            fi
+          else
+            echo "✅ No quality metric regressions detected"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate metric report
+        if: always()
+        run: |
+          echo "## 📊 Depyler O(1) Quality Metrics Report" > metrics-report.md
+          echo "" >> metrics-report.md
+          echo "**Commit**: \`${{ github.sha }}\`" >> metrics-report.md
+          echo "**Branch**: \`${{ github.ref_name }}\`" >> metrics-report.md
+          echo "**Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> metrics-report.md
+          echo "" >> metrics-report.md
+
+          echo "### Current Metrics" >> metrics-report.md
+          echo "" >> metrics-report.md
+          echo "| Metric | Value | Threshold | Status |" >> metrics-report.md
+          echo "|--------|-------|-----------|--------|" >> metrics-report.md
+          echo "| Lint | ${{ steps.lint.outputs.duration }}ms | 30,000ms | $([ "${{ steps.lint.outputs.duration }}" -lt "30000" ] && echo "✅" || echo "❌") |" >> metrics-report.md
+          echo "| Test (fast) | ${{ steps.test-fast.outputs.duration }}ms | 300,000ms | $([ "${{ steps.test-fast.outputs.duration }}" -lt "300000" ] && echo "✅" || echo "❌") |" >> metrics-report.md
+          echo "| Test (pre-commit) | ${{ steps.test-pre-commit.outputs.duration }}ms | 60,000ms | $([ "${{ steps.test-pre-commit.outputs.duration }}" -lt "60000" ] && echo "✅" || echo "❌") |" >> metrics-report.md
+          echo "| Coverage | ${{ steps.coverage.outputs.duration }}ms | 600,000ms | $([ "${{ steps.coverage.outputs.duration }}" -lt "600000" ] && echo "✅" || echo "❌") |" >> metrics-report.md
+          echo "| Binary Size | ${{ steps.binary-size.outputs.size }} bytes | 15,000,000 bytes | $([ "${{ steps.binary-size.outputs.size }}" -lt "15000000" ] && echo "✅" || echo "❌") |" >> metrics-report.md
+          echo "" >> metrics-report.md
+
+          echo "### Trend Analysis (30 days)" >> metrics-report.md
+          echo "" >> metrics-report.md
+          pmat show-metrics --trend >> metrics-report.md || true
+
+          cat metrics-report.md
+
+      - name: Upload metrics report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: o1-metrics-report
+          path: metrics-report.md
+          retention-days: 90
+
+      - name: Run rust-project-score (weekly/main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          # Run comprehensive rust-project-score on main branch pushes
+          pmat rust-project-score --full --format markdown --output rust-score-o1.md
+
+          echo "## 🦀 Rust Project Score (O(1) Metrics)" >> metrics-report.md
+          cat rust-score-o1.md >> metrics-report.md
+
+      - name: Upload rust-project-score
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v3
+        with:
+          name: rust-project-score-o1
+          path: rust-score-o1.md
+          retention-days: 90
+
+  # Integration check: Ensure metrics are being recorded
+  verify-o1-metrics:
+    name: Verify O(1) Metrics Integration
+    needs: track-metrics
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download metrics artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: quality-metrics
+          path: .pmat-metrics/
+
+      - name: Verify metrics exist
+        run: |
+          echo "✅ Verifying O(1) metrics integration..."
+          if [ -d ".pmat-metrics/trends" ]; then
+            echo "✅ Trends directory exists"
+            ls -la .pmat-metrics/trends/ || echo "No trend files yet"
+          else
+            echo "❌ Trends directory missing"
+            exit 1
+          fi
+
+          if [ -f ".pmat-metrics.toml" ]; then
+            echo "✅ Configuration file exists"
+            cat .pmat-metrics.toml
+          else
+            echo "⚠️  Configuration file missing (expected in repository)"
+          fi
+
+          echo ""
+          echo "✅ O(1) Quality Gates integration verified!"

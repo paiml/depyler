@@ -29,6 +29,10 @@ tarpaulin-report.html
 *.profraw
 *.profdata
 
+# PMAT quality gates and TDG baseline
+.pmat/baseline.json
+.pmat-metrics/
+
 # Python cache and bytecode
 __pycache__/
 *.py[cod]
