@@ -150,16 +150,17 @@ def range_gen(start, end):
         rust
     );
 
-    // current should be initialized from parameter
+    // current should be initialized from parameter (either in struct init or in state:0)
+    // Note: start is a captured param, so it becomes self.start
     assert!(
-        rust.contains("current: start") || rust.contains("self.current = start"),
+        rust.contains("current: start") || rust.contains("self.current = self.start"),
         "BUG: current not initialized from start parameter\nGenerated:\n{}",
         rust
     );
 }
 
 #[test]
-#[ignore] // Enable after implementation
+#[ignore] // DEPYLER-0494: Scoping FIXED, but type inference issues remain (separate ticket needed)
 fn test_generator_compiles() {
     // CRITICAL: Generated code MUST compile
     let python = r#"
@@ -185,6 +186,7 @@ def fib_gen(limit=None):
     // Must compile without errors
     let output = std::process::Command::new("rustc")
         .arg("--crate-type=lib")
+        .arg("--crate-name=test_gen")
         .arg("--deny=warnings")
         .arg(file.path())
         .output()

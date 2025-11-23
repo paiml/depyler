@@ -552,7 +552,8 @@ pub fn codegen_generator_function(
     // DEPYLER-0263: Extract yield value type, inferring from yield expressions if needed
     let item_type = extract_generator_item_type(func, &yield_analysis, ctx)?;
 
-    // Populate generator state variables for scoping
+    // DEPYLER-0494 FIX: Populate generator state variables BEFORE generating state machine
+    // This ensures ctx.generator_state_vars is available when codegen_assign_tuple() is called
     populate_generator_state_vars(ctx, &state_info);
 
     // DEPYLER-0262 Phase 3B: Check if we have simple loop with yield pattern
