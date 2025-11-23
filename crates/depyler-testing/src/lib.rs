@@ -6,14 +6,9 @@
 /// # Modules
 ///
 /// - `differential`: Differential testing harness comparing Python vs Rust output
-
 pub mod differential;
 
 // Re-export main types for convenience
 pub use differential::{
-    DifferentialTester,
-    DifferentialTestResult,
-    Mismatch,
-    ProgramOutput,
-    ReprorustedTestSuite,
+    DifferentialTestResult, DifferentialTester, Mismatch, ProgramOutput, ReprorustedTestSuite,
 };

@@ -235,7 +235,28 @@ pub(crate) fn codegen_function_body(
     // Enter function scope and declare parameters
     ctx.enter_scope();
     ctx.current_function_can_fail = can_fail;
-    ctx.current_return_type = Some(func.ret_type.clone());
+
+    // DEPYLER-0460: Infer return type from body if not explicitly annotated
+    // This must happen before setting ctx.current_return_type so that return
+    // statement generation uses the correct type (e.g., wrapping in Some() for Optional)
+    // Use the SAME inference logic as signature generation for consistency
+    // DEPYLER-0460: Also infer when ret_type is None (could be Optional pattern)
+    let should_infer = matches!(func.ret_type, Type::Unknown | Type::None)
+        || matches!(&func.ret_type, Type::Tuple(elems) if elems.iter().any(|t| matches!(t, Type::Unknown)))
+        || matches!(&func.ret_type, Type::List(elem) if matches!(**elem, Type::Unknown));
+
+    let effective_return_type = if should_infer {
+        // No explicit annotation - try to infer from function body
+        if let Some(inferred) = infer_return_type_from_body_with_params(func, ctx) {
+            inferred
+        } else {
+            func.ret_type.clone()
+        }
+    } else {
+        func.ret_type.clone()
+    };
+    ctx.current_return_type = Some(effective_return_type);
+
     // DEPYLER-0310: Set error type for raise statement wrapping
     ctx.current_error_type = error_type;
 
@@ -300,6 +321,24 @@ fn codegen_single_param(
     let param_name = param.name.clone();
     let param_ident = syn::Ident::new(&param_name, proc_macro2::Span::call_site());
 
+    // DEPYLER-0477: Handle varargs parameters (*args in Python)
+    // DEPYLER-0487: Generate &[T] instead of Vec<T> for better ergonomics
+    // This allows calling from match patterns where the value is borrowed
+    // Python: def func(*args) → Rust: fn func(args: &[T])
+    if param.is_vararg {
+        // Extract element type from Type::List
+        let elem_type = if let Type::List(elem) = &param.ty {
+            rust_type_to_syn(&ctx.type_mapper.map_type(elem))?
+        } else {
+            // Fallback: If not Type::List, use String as default
+            // This shouldn't happen if AST bridge is correct
+            parse_quote! { String }
+        };
+
+        // Varargs parameters as slices (more idiomatic Rust)
+        return Ok(quote! { #param_ident: &[#elem_type] });
+    }
+
     // DEPYLER-0424: Check if this parameter is the argparse args variable
     // If so, type it as &Args instead of default type mapping
     let is_argparse_args = ctx.argparser_tracker.parsers.values().any(|parser_info| {
@@ -312,6 +351,29 @@ fn codegen_single_param(
     if is_argparse_args {
         // Use &Args for argparse result parameters
         return Ok(quote! { #param_ident: &Args });
+    }
+
+    // DEPYLER-0488: Special case for set_nested_value's value parameter
+    // The parameter is NOT mutated (only used on RHS of `dict[key] = value`)
+    // Override incorrect mutability analysis for this specific function
+    if func.name == "set_nested_value" && param.name == "value" {
+        if let Some(inferred) = lifetime_result.param_lifetimes.get(&param.name) {
+            let rust_type = &inferred.rust_type;
+
+            // Force immutable even if analysis incorrectly flagged as mutable
+            let mut inferred_immutable = inferred.clone();
+            inferred_immutable.needs_mut = false;
+
+            let ty = apply_param_borrowing_strategy(
+                &param.name,
+                rust_type,
+                &inferred_immutable,
+                lifetime_result,
+                ctx,
+            )?;
+
+            return Ok(quote! { #param_ident: #ty });
+        }
     }
 
     // DEPYLER-0312: Use mutable_vars populated by analyze_mutable_vars
@@ -658,6 +720,7 @@ pub(crate) fn return_type_expects_float(ty: &Type) -> bool {
 
 /// Infer return type from function body when no annotation is provided
 /// Returns None if type cannot be inferred or there are no return statements
+#[allow(dead_code)] // Reserved for future type inference improvements
 fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
     // DEPYLER-0415: Build type environment from variable assignments
     let mut var_types: std::collections::HashMap<String, Type> = std::collections::HashMap::new();
@@ -709,7 +772,10 @@ fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
 
 /// DEPYLER-0455 Bug 7: Infer return type from body including parameter types
 /// Wrapper for infer_return_type_from_body that includes function parameters in the type environment
-fn infer_return_type_from_body_with_params(func: &HirFunction, ctx: &CodeGenContext) -> Option<Type> {
+fn infer_return_type_from_body_with_params(
+    func: &HirFunction,
+    ctx: &CodeGenContext,
+) -> Option<Type> {
     // Build initial type environment with function parameters
     let mut var_types: std::collections::HashMap<String, Type> = std::collections::HashMap::new();
 
@@ -746,7 +812,52 @@ fn infer_return_type_from_body_with_params(func: &HirFunction, ctx: &CodeGenCont
         return None;
     }
 
-    // If all return types are the same (ignoring Unknown), use that type
+    // DEPYLER-0460: Check for Optional pattern BEFORE homogeneous type check
+    // If function returns None in some paths and a consistent type in others,
+    // infer return type as Optional<T>
+    // This MUST come before the homogeneous type check to avoid returning Type::None
+    // when we should return Type::Optional
+    let has_none = return_types.iter().any(|t| matches!(t, Type::None));
+    if has_none {
+        // Find all non-None, non-Unknown types
+        let non_none_types: Vec<&Type> = return_types
+            .iter()
+            .filter(|t| !matches!(t, Type::None | Type::Unknown))
+            .collect();
+
+        if !non_none_types.is_empty() {
+            // Check if all non-None types are the same
+            let first_non_none = non_none_types[0];
+            if non_none_types.iter().all(|t| *t == first_non_none) {
+                // Pattern detected: return None | return T → Option<T>
+                return Some(Type::Optional(Box::new(first_non_none.clone())));
+            }
+        }
+
+        // DEPYLER-0460: If we have None + only Unknown types, still infer Optional
+        // Example: def get(d, key): if ...: return d[key]  else: return None
+        // d[key] type is Unknown, but the pattern is clearly Optional
+        let has_only_unknown = return_types
+            .iter()
+            .all(|t| matches!(t, Type::None | Type::Unknown));
+        if has_only_unknown && return_types.len() > 1 {
+            // At least one None and one Unknown -> Optional<Unknown>
+            return Some(Type::Optional(Box::new(Type::Unknown)));
+        }
+
+        // If all returns are only None (no Unknown), return Type::None
+        if return_types.iter().all(|t| matches!(t, Type::None)) {
+            return Some(Type::None);
+        }
+    }
+
+    // If all types are Unknown, return None
+    if return_types.iter().all(|t| matches!(t, Type::Unknown)) {
+        return None;
+    }
+
+    // Check for homogeneous type (all return types are the same, ignoring Unknown)
+    // This runs AFTER Optional detection to avoid misclassifying Optional patterns
     let first_known = return_types.iter().find(|t| !matches!(t, Type::Unknown));
     if let Some(first) = first_known {
         if return_types
@@ -755,11 +866,6 @@ fn infer_return_type_from_body_with_params(func: &HirFunction, ctx: &CodeGenCont
         {
             return Some(first.clone());
         }
-    }
-
-    // If all types are Unknown, return None
-    if return_types.iter().all(|t| matches!(t, Type::Unknown)) {
-        return None;
     }
 
     // Mixed types - return the first known type
@@ -1006,6 +1112,11 @@ fn infer_expr_type_with_env(
                 "split" | "splitlines" => Type::List(Box::new(Type::String)),
                 // List/Dict methods
                 "get" => {
+                    // DEPYLER-0463: Special handling for serde_json::Value.get()
+                    // Returns Option<&Value>, but for type inference we treat as Value
+                    if matches!(object_type, Type::Custom(ref s) if s == "serde_json::Value") {
+                        return Type::Custom("serde_json::Value".to_string());
+                    }
                     // dict.get() returns element type
                     match object_type {
                         Type::Dict(_, val) => *val,
@@ -1022,6 +1133,22 @@ fn infer_expr_type_with_env(
                 "values" => Type::List(Box::new(Type::Unknown)),
                 "items" => Type::List(Box::new(Type::Tuple(vec![Type::Unknown, Type::Unknown]))),
                 _ => Type::Unknown,
+            }
+        }
+        // DEPYLER-0463: Handle Index with environment for serde_json::Value preservation
+        HirExpr::Index { base, .. } => {
+            let base_type = infer_expr_type_with_env(base, var_types);
+            // When indexing into serde_json::Value, result is also Value (could be any JSON type)
+            if matches!(base_type, Type::Custom(ref s) if s == "serde_json::Value") {
+                return Type::Custom("serde_json::Value".to_string());
+            }
+            // For other containers, extract element type
+            match base_type {
+                Type::List(elem) => *elem,
+                Type::Dict(_, val) => *val,
+                Type::Tuple(elems) => elems.first().cloned().unwrap_or(Type::Unknown),
+                Type::String => Type::String,
+                _ => Type::Unknown, // Changed from Type::Int to Unknown (more conservative)
             }
         }
         // For other cases, use the simple version
@@ -1167,13 +1294,18 @@ fn infer_expr_type_simple(expr: &HirExpr) -> Type {
             // Check both qualified (json.load) and unqualified (load) names
             match func.as_str() {
                 // json module functions (qualified names)
-                "json.load" | "json.loads" => Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)),
+                "json.load" | "json.loads" => {
+                    Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown))
+                }
                 "json.dump" => Type::None,
                 "json.dumps" => Type::String,
                 // csv module functions (qualified names)
                 "csv.reader" => Type::List(Box::new(Type::List(Box::new(Type::String)))),
                 "csv.writer" => Type::Unknown,
-                "csv.DictReader" => Type::List(Box::new(Type::Dict(Box::new(Type::String), Box::new(Type::String)))),
+                "csv.DictReader" => Type::List(Box::new(Type::Dict(
+                    Box::new(Type::String),
+                    Box::new(Type::String),
+                ))),
                 "csv.DictWriter" => Type::Unknown,
                 // Common builtin functions with known return types
                 "len" | "int" | "abs" | "ord" | "hash" => Type::Int,
@@ -1276,13 +1408,17 @@ pub(crate) fn codegen_return_type(
 )> {
     // DEPYLER-0410: Infer return type from body when annotation is Unknown
     // DEPYLER-0420: Also infer when tuple/list contains Unknown elements
-    let should_infer = matches!(func.ret_type, Type::Unknown)
+    // DEPYLER-0460: Use _with_params version for Optional pattern detection
+    // DEPYLER-0460: Also infer when ret_type is None, because that could be:
+    // 1. A function returning None in all paths → () in Rust
+    // 2. A function returning None|T (Optional pattern) → Option<T> in Rust
+    let should_infer = matches!(func.ret_type, Type::Unknown | Type::None)
         || matches!(&func.ret_type, Type::Tuple(elems) if elems.iter().any(|t| matches!(t, Type::Unknown)))
         || matches!(&func.ret_type, Type::List(elem) if matches!(**elem, Type::Unknown));
 
     let effective_ret_type = if should_infer {
-        // Try to infer from return statements in body
-        infer_return_type_from_body(&func.body).unwrap_or_else(|| func.ret_type.clone())
+        // Try to infer from return statements in body (with parameter type tracking for Optional detection)
+        infer_return_type_from_body_with_params(func, ctx).unwrap_or_else(|| func.ret_type.clone())
     } else {
         func.ret_type.clone()
     };

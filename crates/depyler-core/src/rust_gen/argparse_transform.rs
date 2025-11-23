@@ -33,6 +33,7 @@
 //! 4. Generate struct definition with clap derives
 //! 5. Replace parse_args() call with `Args::parse()`
 
+use crate::emit_decision;
 use crate::hir::{HirExpr, Type};
 use std::collections::HashMap;
 
@@ -520,6 +521,7 @@ pub fn generate_commands_enum(tracker: &ArgParserTracker) -> proc_macro2::TokenS
         .subcommands
         .values()
         .map(|subcommand| {
+            emit_decision!("argparse.enum.variant.added", &subcommand.name);
             // Convert "clone" -> "Clone" (PascalCase)
             let variant_name = format_ident!("{}", to_pascal_case(&subcommand.name));
 
@@ -1510,7 +1512,10 @@ pub fn wrap_body_with_subcommand_pattern(
 ///
 /// # Complexity
 /// 8 (recursive HIR walk)
-pub fn preregister_subcommands_from_hir(func: &crate::hir::HirFunction, tracker: &mut ArgParserTracker) {
+pub fn preregister_subcommands_from_hir(
+    func: &crate::hir::HirFunction,
+    tracker: &mut ArgParserTracker,
+) {
     use crate::hir::{HirExpr, HirStmt};
 
     // Helper to extract string literal value from HIR expression
@@ -1544,6 +1549,7 @@ pub fn preregister_subcommands_from_hir(func: &crate::hir::HirFunction, tracker:
                         // Extract command name and help text
                         if !args.is_empty() {
                             let command_name = extract_string_from_hir(&args[0]);
+                            emit_decision!("argparse.subcommand.detected", &command_name);
                             let help = extract_kwarg_string_from_hir(kwargs, "help");
 
                             // Register subcommand (use command name as key for expression statements)
@@ -1554,7 +1560,8 @@ pub fn preregister_subcommands_from_hir(func: &crate::hir::HirFunction, tracker:
                                 subparsers_var: subparsers_var.clone(),
                             };
 
-                            tracker.register_subcommand(command_name, subcommand_info);
+                            tracker.register_subcommand(command_name.clone(), subcommand_info);
+                            emit_decision!("argparse.subcommand.registered", &command_name);
                         }
                     }
                 }
@@ -1600,7 +1607,10 @@ pub fn preregister_subcommands_from_hir(func: &crate::hir::HirFunction, tracker:
             HirExpr::Attribute { value, .. } => {
                 walk_expr(value, tracker);
             }
-            HirExpr::List(items) | HirExpr::Tuple(items) | HirExpr::Set(items) | HirExpr::FrozenSet(items) => {
+            HirExpr::List(items)
+            | HirExpr::Tuple(items)
+            | HirExpr::Set(items)
+            | HirExpr::FrozenSet(items) => {
                 for item in items {
                     walk_expr(item, tracker);
                 }
@@ -1628,7 +1638,11 @@ pub fn preregister_subcommands_from_hir(func: &crate::hir::HirFunction, tracker:
     fn walk_stmt(stmt: &HirStmt, tracker: &mut ArgParserTracker) {
         match stmt {
             HirStmt::Expr(expr) => walk_expr(expr, tracker),
-            HirStmt::Assign { target, value, type_annotation: _ } => {
+            HirStmt::Assign {
+                target,
+                value,
+                type_annotation: _,
+            } => {
                 // Special handling for ArgumentParser() assignments
                 // Pattern: parser = argparse.ArgumentParser(...)
                 if let HirExpr::Call { func, kwargs, .. } = value {
@@ -1666,9 +1680,10 @@ pub fn preregister_subcommands_from_hir(func: &crate::hir::HirFunction, tracker:
                                 if let crate::hir::AssignTarget::Symbol(subparsers_var) = target {
                                     let dest_field = extract_kwarg_string_from_hir(kwargs, "dest")
                                         .unwrap_or_else(|| "command".to_string());
-                                    let required = extract_kwarg_string_from_hir(kwargs, "required")
-                                        .map(|s| s == "true" || s == "True")
-                                        .unwrap_or(false);
+                                    let required =
+                                        extract_kwarg_string_from_hir(kwargs, "required")
+                                            .map(|s| s == "true" || s == "True")
+                                            .unwrap_or(false);
                                     let help = extract_kwarg_string_from_hir(kwargs, "help");
 
                                     let subparser_info = SubparserInfo {

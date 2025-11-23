@@ -1,0 +1,153 @@
+roadmap_version: '1.0'
+github_enabled: true
+github_repo: paiml/depyler
+roadmap:
+- id: DEPYLER-0453
+  github_issue: null
+  item_type: task
+  title: Integrate latest PMAT features into depyler project
+  status: completed
+  priority: high
+  assigned_to: Claude
+  created: 2025-11-21T16:45:00+00:00
+  updated: 2025-11-21T16:57:45.321721656+00:00
+  spec: null
+  acceptance_criteria:
+  - Update CLAUDE.md to use latest PMAT commands
+  - Migrate from 'pmat analyze tdg' to 'pmat tdg'
+  - Add PMAT Work Workflow documentation (Issue
+  - Add all new PMAT features (Sprint 61-66)
+  - Document semantic search, hooks, agent, red-team features
+  - Verify all quality gates updated
+  phases:
+  - name: Documentation Update
+    status: completed
+    estimated_effort: null
+    completion: 0
+  subtasks: []
+  estimated_effort: 2h
+  labels:
+  - documentation
+  - quality
+  - pmat
+- id: DEPYLER-0435
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0435'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-21T07:50:21.141727754+00:00
+  updated: 2025-11-21T07:50:21.141727754+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+- id: DEPYLER-0454
+  github_issue: null
+  item_type: bugfix
+  title: 'CSV Reader .iter() in generator expressions - Should use .deserialize()'
+  status: completed
+  priority: critical
+  assigned_to: Claude
+  created: 2025-11-21T17:49:20.622633933+00:00
+  updated: 2025-11-21T18:34:30+00:00
+  spec: null
+  acceptance_criteria:
+  - 'DEPYLER-0452 fixed CSV iteration in for loops, but NOT in generator expressions'
+  - 'reader.iter() should be reader.deserialize() in filter/map chains'
+  - 'csv_filter example should compile with <10 errors (down from 14)'
+  - 'Add test for CSV reader in generator expression context'
+  - 'Verify pattern works for: reader.iter().filter().map()'
+  phases:
+  - name: RED - Document bug and write failing test
+    status: completed
+  - name: GREEN - Fix CSV iteration pattern detection
+    status: completed
+  - name: REFACTOR - Verify csv_filter compiles
+    status: completed
+  subtasks: []
+  estimated_effort: 2h
+  labels:
+  - csv
+  - generator-expressions
+  - list-comprehensions
+- id: DEPYLER-0455
+  github_issue: null
+  item_type: bugfix
+  title: 'Type system bugs: ArgumentTypeError, str/String mismatch, Option truthiness'
+  status: inprogress
+  priority: high
+  assigned_to: Claude
+  created: 2025-11-21T19:00:00+00:00
+  updated: 2025-11-21T23:00:00+00:00
+  spec: null
+  acceptance_criteria:
+  - 'Bug 1: Fix ArgumentTypeError codegen (raise ArgumentTypeError → Err(ArgumentTypeError)) ✅'
+  - 'Bug 2: Fix String/&str type mismatch (.lower() → proper type handling) ✅'
+  - 'Bug 3-5: Fix Option<String> truthiness (if option → if option.is_some()) ✅'
+  - 'Bug 6: Fix unreachable Ok(()) in validator functions with try-except ✅'
+  - 'example_complex: 13 errors → 2 errors (85% reduction) ⏳'
+  - 'Bug 7: Argparse custom type function return type inference ⏳'
+  - 'Bug 8: String with default value truthiness check ⏳'
+  phases:
+  - name: RED - Document bugs and write failing tests
+    status: completed
+  - name: GREEN - Fix all type system bugs
+    status: inprogress
+  - name: Bug 1 - ArgumentTypeError codegen
+    status: completed
+  - name: Bug 2 - String/&str type consistency
+    status: completed
+  - name: Bug 3-5 - Option handling
+    status: completed
+  - name: Bug 6 - Unreachable Ok(()) in validators
+    status: completed
+    completion: 2025-11-21T22:20:00+00:00
+    commit: e85dd98
+    notes: 'Added stmt_always_returns() helper to detect exhaustive returns in try-except blocks'
+  - name: REFACTOR - Verify example_complex compiles
+    status: completed
+    completion: 2025-11-21T23:00:00+00:00
+    notes: 'Verified: 13 errors → 2 errors (85% reduction). Discovered 2 additional bugs (7-8) that need fixing for 100% success'
+  subtasks: []
+  estimated_effort: 3h
+  labels:
+  - type-system
+  - error-handling
+  - option-handling
+- id: DEPYLER-0492
+  github_issue: null
+  item_type: bugfix
+  title: 'Type inference for unannotated parameters - Hindley-Milner integration'
+  status: inprogress
+  priority: critical
+  assigned_to: Claude
+  created: 2025-11-23T16:40:00+00:00
+  updated: 2025-11-23T16:40:00+00:00
+  spec: docs/bugs/DEPYLER-0492-type-inference-unannotated-params.md
+  acceptance_criteria:
+  - 'Hindley-Milner solver integrated into transpilation pipeline'
+  - 'Constraints collected from indexing, slicing, function calls'
+  - 'example_subprocess compiles without errors'
+  - 'Parameter types: cmd: Vec<String>, check: bool (not serde_json::Value)'
+  - 'Test coverage: 5+ property tests for constraint collection'
+  - 'No regression in existing 7 passing examples'
+  - 'Performance: <50ms overhead for type inference'
+  phases:
+  - name: Phase 1 - Create failing test
+    status: inprogress
+  - name: Phase 2 - Implement constraint collection
+    status: pending
+  - name: Phase 3 - Integrate solver into pipeline
+    status: pending
+  - name: Phase 4 - Re-transpile and verify
+    status: pending
+  subtasks: []
+  estimated_effort: 4h
+  labels:
+  - type-inference
+  - hindley-milner
+  - highest-impact

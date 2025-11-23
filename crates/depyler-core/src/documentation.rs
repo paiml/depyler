@@ -415,6 +415,10 @@ fn format_type_inner(ty: &Type) -> String {
             element_type,
             size: _,
         } => format!("&[{}]", format_type_inner(element_type)),
+        Type::UnificationVar(id) => {
+            // UnificationVar should never appear in documentation generation
+            panic!("BUG: UnificationVar({}) encountered during documentation. Type inference incomplete.", id)
+        }
     }
 }
 
