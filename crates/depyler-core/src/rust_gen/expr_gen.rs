@@ -2372,11 +2372,46 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     path = quote! { #path::#part_ident };
                 }
             }
-            if args.is_empty() {
-                return Ok(parse_quote! { #path() });
-            } else {
-                return Ok(parse_quote! { #path(#(#args),*) });
-            }
+
+            // DEPYLER-0493: Check if this is a struct type that needs constructor pattern
+            // Look up constructor pattern from imported modules
+            use crate::module_mapper::ConstructorPattern;
+            let constructor_pattern = self.ctx.imported_modules
+                .values()
+                .find_map(|module| {
+                    // Get the last part of the rust_path (e.g., "NamedTempFile" from "tempfile::NamedTempFile")
+                    let type_name = path_parts.last()?;
+                    module.constructor_patterns.get(*type_name)
+                });
+
+            // Generate call based on constructor pattern
+            return match constructor_pattern {
+                Some(ConstructorPattern::New) => {
+                    // Struct type → use ::new() pattern
+                    if args.is_empty() {
+                        Ok(parse_quote! { #path::new() })
+                    } else {
+                        Ok(parse_quote! { #path::new(#(#args),*) })
+                    }
+                }
+                Some(ConstructorPattern::Method(method)) => {
+                    // Custom method (e.g., File::open())
+                    let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                    if args.is_empty() {
+                        Ok(parse_quote! { #path::#method_ident() })
+                    } else {
+                        Ok(parse_quote! { #path::#method_ident(#(#args),*) })
+                    }
+                }
+                Some(ConstructorPattern::Function) | None => {
+                    // Regular function call (default behavior)
+                    if args.is_empty() {
+                        Ok(parse_quote! { #path() })
+                    } else {
+                        Ok(parse_quote! { #path(#(#args),*) })
+                    }
+                }
+            };
         }
 
         // Check if this might be a constructor call (capitalized name)
@@ -7789,6 +7824,73 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
         kwargs: &[(String, HirExpr)],
     ) -> Result<Option<syn::Expr>> {
+        // DEPYLER-0493: Handle constructor patterns for imported types
+        // tempfile.NamedTempFile() → tempfile::NamedTempFile::new()
+        if let HirExpr::Var(module_name) = object {
+            // Check if this module is imported and has constructor pattern metadata
+            if let Some(module_mapping) = self.ctx.imported_modules.get(module_name) {
+                // Look up the Python name → Rust name mapping
+                if let Some(rust_name) = module_mapping.item_map.get(method) {
+                    // Check if this has a constructor pattern defined
+                    if let Some(constructor_pattern) = module_mapping.constructor_patterns.get(rust_name) {
+                        use crate::module_mapper::ConstructorPattern;
+
+                        // Clone what we need to avoid borrow checker issues
+                        let rust_path_str = format!("{}::{}", module_mapping.rust_path, rust_name);
+                        let constructor_pattern_owned = constructor_pattern.clone();
+
+                        // Build the full Rust path
+                        let path_parts: Vec<&str> = rust_path_str.split("::").collect();
+                        let mut path = quote! {};
+                        for (i, part) in path_parts.iter().enumerate() {
+                            let part_ident = syn::Ident::new(part, proc_macro2::Span::call_site());
+                            if i == 0 {
+                                path = quote! { #part_ident };
+                            } else {
+                                path = quote! { #path::#part_ident };
+                            }
+                        }
+
+                        // Convert arguments
+                        let arg_exprs: Vec<syn::Expr> = args
+                            .iter()
+                            .map(|arg| arg.to_rust_expr(self.ctx))
+                            .collect::<Result<Vec<_>>>()?;
+
+                        // Generate call based on constructor pattern
+                        let result = match constructor_pattern_owned {
+                            ConstructorPattern::New => {
+                                // Struct type → use ::new() pattern
+                                if arg_exprs.is_empty() {
+                                    parse_quote! { #path::new() }
+                                } else {
+                                    parse_quote! { #path::new(#(#arg_exprs),*) }
+                                }
+                            }
+                            ConstructorPattern::Method(method_name) => {
+                                // Custom method (e.g., File::open())
+                                let method_ident = syn::Ident::new(&method_name, proc_macro2::Span::call_site());
+                                if arg_exprs.is_empty() {
+                                    parse_quote! { #path::#method_ident() }
+                                } else {
+                                    parse_quote! { #path::#method_ident(#(#arg_exprs),*) }
+                                }
+                            }
+                            ConstructorPattern::Function => {
+                                // Regular function call
+                                if arg_exprs.is_empty() {
+                                    parse_quote! { #path() }
+                                } else {
+                                    parse_quote! { #path(#(#arg_exprs),*) }
+                                }
+                            }
+                        };
+                        return Ok(Some(result));
+                    }
+                }
+            }
+        }
+
         // DEPYLER-0386: Handle os.environ.get() and other os.environ methods
         // os.environ.get('VAR') → std::env::var('VAR').ok()
         // os.environ.get('VAR', 'default') → std::env::var('VAR').unwrap_or_else(|_| 'default'.to_string())

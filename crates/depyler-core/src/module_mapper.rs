@@ -13,6 +13,17 @@ pub struct ModuleMapper {
     module_map: HashMap<String, ModuleMapping>,
 }
 
+/// DEPYLER-0493: Constructor pattern for Rust types
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConstructorPattern {
+    /// Call as ::new() - most common pattern (BufReader, NamedTempFile, etc.)
+    New,
+    /// Call as regular function - not a struct (e.g., tempfile::tempfile())
+    Function,
+    /// Custom method call (e.g., File::open(), Regex::compile())
+    Method(String),
+}
+
 #[derive(Debug, Clone)]
 pub struct ModuleMapping {
     /// The Rust crate or module path
@@ -23,6 +34,9 @@ pub struct ModuleMapping {
     pub version: Option<String>,
     /// Item-specific mappings within the module
     pub item_map: HashMap<String, String>,
+    /// DEPYLER-0493: Constructor patterns for items that are types (not functions)
+    /// Maps item name to how it should be constructed
+    pub constructor_patterns: HashMap<String, ConstructorPattern>,
 }
 
 impl ModuleMapper {
@@ -53,6 +67,7 @@ impl ModuleMapper {
                     ("path".to_string(), "path::Path".to_string()),
                     ("getenv".to_string(), "env::var".to_string()),
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -68,6 +83,7 @@ impl ModuleMapper {
                     ("basename".to_string(), "Path::file_name".to_string()),
                     ("dirname".to_string(), "Path::parent".to_string()),
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -84,6 +100,7 @@ impl ModuleMapper {
                     ("stdout".to_string(), "io::stdout".to_string()),
                     ("stderr".to_string(), "io::stderr".to_string()),
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -99,6 +116,7 @@ impl ModuleMapper {
                     ("load".to_string(), "from_reader".to_string()),
                     ("dump".to_string(), "to_writer".to_string()),
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -115,6 +133,7 @@ impl ModuleMapper {
                     ("findall".to_string(), "Regex::find_iter".to_string()),
                     ("Pattern".to_string(), "Regex".to_string()),
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -130,6 +149,7 @@ impl ModuleMapper {
                     ("time".to_string(), "NaiveTime".to_string()),
                     ("timedelta".to_string(), "Duration".to_string()),
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -148,6 +168,7 @@ impl ModuleMapper {
                     ("Union".to_string(), "".to_string()), // Handled specially
                     ("Any".to_string(), "".to_string()),   // No direct mapping
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -165,6 +186,7 @@ impl ModuleMapper {
                     ("deque".to_string(), "VecDeque".to_string()),
                     ("OrderedDict".to_string(), "IndexMap".to_string()), // requires indexmap crate
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -182,6 +204,7 @@ impl ModuleMapper {
                     ("pi".to_string(), "consts::PI".to_string()),
                     ("e".to_string(), "consts::E".to_string()),
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -197,6 +220,7 @@ impl ModuleMapper {
                     ("choice".to_string(), "choose".to_string()),
                     ("shuffle".to_string(), "shuffle".to_string()),
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -218,6 +242,7 @@ impl ModuleMapper {
                     ("cycle".to_string(), "cycle".to_string()),
                     ("repeat".to_string(), "repeat_n".to_string()),
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -233,6 +258,7 @@ impl ModuleMapper {
                     ("lru_cache".to_string(), "".to_string()), // Would need external crate
                     ("wraps".to_string(), "".to_string()),   // Not applicable in Rust
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -248,6 +274,7 @@ impl ModuleMapper {
                     ("sha1".to_string(), "Sha1".to_string()),
                     ("md5".to_string(), "Md5".to_string()),
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -263,6 +290,7 @@ impl ModuleMapper {
                     ("urlsafe_b64encode".to_string(), "encode_config".to_string()),
                     ("urlsafe_b64decode".to_string(), "decode_config".to_string()),
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -284,6 +312,7 @@ impl ModuleMapper {
                         "percent_encoding::percent_decode".to_string(),
                     ),
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -297,6 +326,7 @@ impl ModuleMapper {
                     ("Path".to_string(), "PathBuf".to_string()),
                     ("PurePath".to_string(), "Path".to_string()),
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -315,6 +345,17 @@ impl ModuleMapper {
                     ("mkstemp".to_string(), "tempfile".to_string()),
                     ("mkdtemp".to_string(), "tempdir".to_string()),
                 ]),
+                // DEPYLER-0493: Specify constructor patterns for tempfile types
+                constructor_patterns: HashMap::from([
+                    // NamedTempFile is a struct → use ::new() pattern
+                    ("NamedTempFile".to_string(), ConstructorPattern::New),
+                    // TempDir is a struct → use ::new() pattern
+                    ("TempDir".to_string(), ConstructorPattern::New),
+                    // tempfile() is a function → call directly (no ::new)
+                    ("tempfile".to_string(), ConstructorPattern::Function),
+                    // tempdir() is a function → call directly (no ::new)
+                    ("tempdir".to_string(), ConstructorPattern::Function),
+                ]),
             },
         );
 
@@ -330,6 +371,7 @@ impl ModuleMapper {
                     ("DictReader".to_string(), "Reader".to_string()),
                     ("DictWriter".to_string(), "Writer".to_string()),
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
@@ -348,6 +390,7 @@ impl ModuleMapper {
                     // - add_argument() → struct fields with #[arg] attributes
                     // - parse_args() → Args::parse()
                 ]),
+                constructor_patterns: HashMap::new(),
             },
         );
 
