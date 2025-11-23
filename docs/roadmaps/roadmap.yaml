@@ -2,6 +2,44 @@ roadmap_version: '1.0'
 github_enabled: true
 github_repo: paiml/depyler
 roadmap:
+- id: DEPYLER-0494
+  github_issue: null
+  item_type: bug
+  title: Generator variable scoping - variables not accessible across yield states
+  status: inprogress
+  priority: critical
+  assigned_to: Claude
+  created: 2025-11-23T18:45:00+00:00
+  updated: 2025-11-23T20:43:48.657928523+00:00
+  spec: docs/bugs/DEPYLER-0494-generator-variable-scoping.md
+  acceptance_criteria:
+  - fibonacci_generator compiles without errors
+  - Generated state struct contains a, b, count fields
+  - Variables accessed via self.a, self.b, self.count
+  - No "cannot find value in scope" errors
+  - Test coverage ≥80% for generator transpilation
+  - All existing tests pass
+  phases:
+  - name: Phase 1 - Create failing tests (RED)
+    status: planned
+    estimated_effort: null
+    completion: 0
+  - name: Phase 2 - Implement generator variable analysis (GREEN)
+    status: planned
+    estimated_effort: null
+    completion: 0
+  - name: Phase 3 - Quality gates and regression testing (REFACTOR)
+    status: planned
+    estimated_effort: null
+    completion: 0
+  subtasks: []
+  estimated_effort: 6h
+  labels:
+  - P0-critical
+  - generators
+  - yield
+  - state-machine
+  notes: 'STOP THE LINE: Breaks ALL Python generators with yield (36 compilation errors in fibonacci.rs)'
 - id: DEPYLER-0492
   github_issue: null
   item_type: bug
