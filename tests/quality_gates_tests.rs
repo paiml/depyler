@@ -9,7 +9,8 @@ fn create_simple_function() -> HirFunction {
         params: smallvec![HirParam {
             name: Symbol::from("x"),
             ty: Type::Int,
-            default: None
+            default: None,
+            is_vararg: false,
         }],
         ret_type: Type::Int,
         body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
@@ -26,17 +27,20 @@ fn create_complex_function() -> HirFunction {
             HirParam {
                 name: Symbol::from("a"),
                 ty: Type::Int,
-                default: None
+                default: None,
+                is_vararg: false,
             },
             HirParam {
                 name: Symbol::from("b"),
                 ty: Type::Int,
-                default: None
+                default: None,
+                is_vararg: false,
             },
             HirParam {
                 name: Symbol::from("c"),
                 ty: Type::Int,
-                default: None
+                default: None,
+                is_vararg: false,
             }
         ],
         ret_type: Type::Int,
