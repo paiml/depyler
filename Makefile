@@ -708,6 +708,37 @@ fuzz-coverage: ## Fuzz with coverage report
 	@$(CARGO) +nightly cov -- show target/*/release/fuzz_target_1 --format=html -instr-profile=fuzz/coverage/fuzz_target_1/coverage.profdata > fuzz-coverage.html
 	@echo "✅ Coverage report: fuzz-coverage.html"
 
+##@ PMAT Integration
+
+.PHONY: validate-docs
+validate-docs: ## Validate documentation accuracy (hallucination detection - Phase 3.5)
+	@echo "📚 Validating documentation accuracy (Phase 3.5)..."
+	@which pmat > /dev/null 2>&1 || { echo "❌ PMAT not found! Install with: cargo install pmat"; exit 1; }
+	@pmat context --output deep_context.md --format llm-optimized
+	@pmat validate-readme \
+		--targets README.md CLAUDE.md \
+		--deep-context deep_context.md \
+		--fail-on-contradiction \
+		--verbose || { \
+		echo "❌ Documentation validation failed!"; \
+		exit 1; \
+	}
+	@echo "✅ Documentation validation complete - zero hallucinations!"
+
+.PHONY: pmat-quality-gate
+pmat-quality-gate: ## Run PMAT quality gates (O(1) validation)
+	@echo "🔍 Running PMAT quality gates..."
+	@which pmat > /dev/null 2>&1 || { echo "❌ PMAT not found! Install with: cargo install pmat"; exit 1; }
+	@pmat quality-gate --check-metrics --check-tdg
+	@echo "✅ PMAT quality gates passed!"
+
+.PHONY: pmat-rust-score
+pmat-rust-score: ## Run Rust Project Score assessment
+	@echo "🦀 Running Rust Project Score assessment..."
+	@which pmat > /dev/null 2>&1 || { echo "❌ PMAT not found! Install with: cargo install pmat"; exit 1; }
+	@pmat rust-project-score --verbose
+	@echo "✅ Rust Project Score complete!"
+
 ##@ bashrs Validation
 
 .PHONY: validate-makefiles

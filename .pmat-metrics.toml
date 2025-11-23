@@ -1,0 +1,54 @@
+# O(1) Quality Gate Metric Thresholds for Depyler
+# Spec: Phase 2 O(1) Quality Gates with hash-based caching
+# Pattern: Toyota Way - Jidoka (MEAN mode: warnings = errors)
+
+[thresholds]
+# Hard limits (block commits) - based on Depyler's Makefile targets
+lint_max_ms = 30_000              # 30s (clippy with -D warnings)
+test_fast_max_ms = 300_000        # 5min (cargo-nextest with PROPTEST_CASES=5)
+test_pre_commit_max_ms = 60_000   # 60s (cargo check validation)
+coverage_max_ms = 600_000         # 10min (llvm-cov with PROPTEST_CASES=10)
+binary_max_bytes = 15_000_000     # 15MB (Python transpiler/decompiler)
+
+# Soft limits (warnings only)
+build_release_max_ms = 180_000    # 3min (typical Rust build time)
+bench_max_ms = 600_000            # 10min (transpilation benchmarks)
+test_comprehensive_max_ms = 1_800_000  # 30min (full NASA-grade test suite)
+
+# Transpilation-specific thresholds
+transpile_max_ms = 120_000        # 2min (Python to Rust transpilation)
+decompile_max_ms = 60_000         # 1min (bytecode decompilation)
+
+[staleness]
+# Metrics older than this trigger warnings
+max_age_days = 7
+
+[enforcement]
+# Pre-commit behavior (MEAN mode = strict)
+fail_on_stale_metrics = false     # Warn, don't block
+fail_on_missing_metrics = false   # Allow commits if no cache
+fail_on_threshold_violation = true # Block commits on violations (MEAN mode)
+
+[trend_analysis]
+# Track metrics for Kaizen (continuous improvement)
+enabled = true
+retention_days = 90
+alert_on_regression = true
+regression_threshold_pct = 10.0   # Alert if >10% slower
+
+# Depyler-specific quality gates
+[quality_gates]
+# NASA/SQLite reliability standards (Depyler targets)
+min_coverage_pct = 60.0           # Current: 60%, Target: 85% (NASA standard)
+min_mutation_score_pct = 60.0     # Current: 60%, Target: 80%
+max_cyclomatic_complexity = 10    # Per function (enforced by Makefile)
+max_lines_per_function = 50       # Per function (enforced by Makefile)
+min_tdg_grade = "B+"              # Target: B+ or better (≥85)
+max_unwrap_calls = 100            # Current: 712 (CRITICAL - must reduce!)
+
+# Performance budgets (transpilation targets)
+[performance]
+# Python to Rust transpilation targets
+min_transpile_throughput = 1000   # 1000+ lines/sec (Python→Rust)
+max_memory_usage_mb = 512         # ≤512MB for typical codebases
+max_regression_pct = 5.0          # ≤5% performance regression allowed
