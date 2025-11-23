@@ -54,12 +54,14 @@ mod tests {
                 HirParam {
                     name: Symbol::from("a"),
                     ty: Type::Int,
-                    default: None
+                    default: None,
+                    is_vararg: false,
                 },
                 HirParam {
                     name: Symbol::from("b"),
                     ty: Type::Int,
-                    default: None
+                    default: None,
+                    is_vararg: false,
                 }
             ],
             ret_type: Type::Int,
@@ -173,7 +175,8 @@ mod tests {
             params: smallvec![HirParam {
                 name: Symbol::from("x"),
                 ty: Type::Int,
-                default: None
+                default: None,
+                    is_vararg: false,
             }],
             ret_type: Type::Int,
             body: vec![HirStmt::If {
@@ -267,7 +270,8 @@ mod tests {
                 params: smallvec![HirParam {
                     name: Symbol::from("self"),
                     ty: Type::Unknown,
-                    default: None
+                    default: None,
+                    is_vararg: false,
                 }],
                 ret_type: Type::None,
                 body: vec![],
@@ -378,7 +382,8 @@ mod tests {
             params: smallvec![HirParam {
                 name: Symbol::from("data"),
                 ty: Type::List(Box::new(Type::Int)),
-                default: None
+                default: None,
+                    is_vararg: false,
             }],
             ret_type: Type::Int,
             body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))],
