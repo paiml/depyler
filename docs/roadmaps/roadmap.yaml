@@ -6,7 +6,7 @@ roadmap:
   github_issue: null
   item_type: bugfix
   title: 'Type inference for unannotated parameters - Hindley-Milner integration'
-  status: inprogress
+  status: completed
   priority: critical
   assigned_to: Claude
   created: 2025-11-23T16:44:09.512548668+00:00
@@ -22,13 +22,13 @@ roadmap:
   - 'Performance: <50ms overhead for type inference'
   phases:
   - name: Phase 1 - Create failing test
-    status: inprogress
+    status: completed
   - name: Phase 2 - Implement constraint collection
-    status: pending
-  - name: Phase 3 - Integrate solver into pipeline
-    status: pending
+    status: completed
+  - name: Phase 3 - Integration testing on real examples
+    status: completed
   - name: Phase 4 - Re-transpile and verify
-    status: pending
+    status: completed
   subtasks: []
   estimated_effort: 4h
   labels:
