@@ -71,18 +71,27 @@ fn extract_generator_item_type(
     yield_analysis: &YieldAnalysis,
     ctx: &CodeGenContext,
 ) -> Result<syn::Type> {
-    // DEPYLER-0263: Infer type from first yield expression if func.ret_type is Unknown
-    let yield_type =
-        if matches!(func.ret_type, Type::Unknown) && !yield_analysis.yield_points.is_empty() {
-            // Infer from first yield expression
+    // DEPYLER-0495: Extract element type from Iterator[T] return type
+    // If return type is Iterator[int], we need item type = int (not Iterator<int>)
+    let element_type = match &func.ret_type {
+        // Iterator[T] -> extract T
+        Type::Generic { base, params } if base == "Iterator" && params.len() == 1 => {
+            params[0].clone()
+        }
+        // Generator[YieldType, SendType, ReturnType] -> extract YieldType
+        Type::Generic { base, params } if base == "Generator" && !params.is_empty() => {
+            params[0].clone()
+        }
+        // Unknown -> infer from yield expression (DEPYLER-0263)
+        Type::Unknown if !yield_analysis.yield_points.is_empty() => {
             infer_yield_type(&yield_analysis.yield_points[0].yield_expr)
-        } else {
-            // Use func.ret_type if available
-            func.ret_type.clone()
-        };
+        }
+        // Other types -> use as-is (backwards compatibility)
+        other => other.clone(),
+    };
 
-    let rust_yield_type = ctx.type_mapper.map_type(&yield_type);
-    rust_type_to_syn(&rust_yield_type)
+    let rust_element_type = ctx.type_mapper.map_type(&element_type);
+    rust_type_to_syn(&rust_element_type)
 }
 
 /// Infer type from a yield expression
