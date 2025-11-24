@@ -191,7 +191,7 @@ pub fn main() {
     );
     println!(
         "{}",
-        format!("Fibonacci({}) memoized: {}", n, fibonacci_memoized(n))
+        format!("Fibonacci({}) memoized: {:?}", n, fibonacci_memoized(n))
     );
     println!(
         "{}",
