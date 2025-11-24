@@ -288,7 +288,7 @@ def test_func():
     std::fs::write(temp_file, &result).unwrap();
 
     let output = std::process::Command::new("rustc")
-        .args(&[
+        .args([
             "--crate-type",
             "lib", // Use lib instead of bin (no main needed)
             "--edition",

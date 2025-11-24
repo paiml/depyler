@@ -314,9 +314,7 @@ fn test_convert_list_comp_with_condition() {
     let expr = parse_expr("[x for x in range(10) if x % 2 == 0]");
     let result = ExprConverter::convert(expr).unwrap();
     match result {
-        HirExpr::ListComp {
-            generators, ..
-        } => {
+        HirExpr::ListComp { generators, .. } => {
             assert_eq!(generators.len(), 1);
             assert_eq!(generators[0].target, "x");
             assert!(!generators[0].conditions.is_empty());

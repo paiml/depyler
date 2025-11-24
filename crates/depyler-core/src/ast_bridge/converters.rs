@@ -434,7 +434,8 @@ impl ExprConverter {
                             "reverse" => {
                                 // DEPYLER-0502: Convert reverse parameter as expression
                                 // Supports constants (True/False), variables (reverse), and expressions (not x)
-                                reverse_expr = Some(Box::new(Self::convert(keyword.value.clone())?));
+                                reverse_expr =
+                                    Some(Box::new(Self::convert(keyword.value.clone())?));
                             }
                             _ => {} // Ignore other parameters
                         }
@@ -1126,7 +1127,12 @@ fn convert_nested_function_params(args: &ast::Arguments) -> Result<Vec<HirParam>
             None
         };
 
-        params.push(HirParam { name, ty, default, is_vararg: false });
+        params.push(HirParam {
+            name,
+            ty,
+            default,
+            is_vararg: false,
+        });
     }
 
     // DEPYLER-0507: Handle variadic parameter (*args)

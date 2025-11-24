@@ -21,15 +21,16 @@ def test_value(num: int) -> bool:
 
     // Should contain cast to i64
     assert!(
-        rust.contains("(5 * num * num + 4) as i64")
-        || rust.contains("as i64"),
+        rust.contains("(5 * num * num + 4) as i64") || rust.contains("as i64"),
         "Should auto-insert cast for i32→i64 function argument"
     );
 
     // Verify compilation
     let result = std::process::Command::new("rustc")
-        .arg("--crate-type").arg("lib")
-        .arg("--edition").arg("2021")
+        .arg("--crate-type")
+        .arg("lib")
+        .arg("--edition")
+        .arg("2021")
         .arg("-")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -70,8 +71,10 @@ def is_perfect_square(x: int) -> bool:
 
     // Verify compilation
     let result = std::process::Command::new("rustc")
-        .arg("--crate-type").arg("lib")
-        .arg("--edition").arg("2021")
+        .arg("--crate-type")
+        .arg("lib")
+        .arg("--edition")
+        .arg("2021")
         .arg("-")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -87,7 +90,7 @@ def is_perfect_square(x: int) -> bool:
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(
             !stderr.contains("expected `i32`, found `i64`")
-            && !stderr.contains("expected `i64`, found `i32`"),
+                && !stderr.contains("expected `i64`, found `i32`"),
             "Should not have integer type mismatch errors"
         );
     }
@@ -107,8 +110,10 @@ def calculate(a: int, b: int) -> int:
 
     // Verify compilation without type errors
     let result = std::process::Command::new("rustc")
-        .arg("--crate-type").arg("lib")
-        .arg("--edition").arg("2021")
+        .arg("--crate-type")
+        .arg("lib")
+        .arg("--edition")
+        .arg("2021")
         .arg("-")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())

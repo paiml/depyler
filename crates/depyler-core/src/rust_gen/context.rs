@@ -58,7 +58,7 @@ pub struct CodeGenContext<'a> {
     pub needs_chrono: bool,
     pub needs_tempfile: bool, // DEPYLER-0490: Track tempfile crate for temporary file operations
     pub needs_itertools: bool, // DEPYLER-0490: Track itertools crate for advanced iteration
-    pub needs_clap: bool,      // DEPYLER-0384: Track clap dependency for ArgumentParser
+    pub needs_clap: bool,     // DEPYLER-0384: Track clap dependency for ArgumentParser
     pub needs_csv: bool,
     pub needs_rust_decimal: bool,
     pub needs_num_rational: bool,

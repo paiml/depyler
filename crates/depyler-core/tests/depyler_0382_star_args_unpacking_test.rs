@@ -102,8 +102,8 @@ def test(*args):
 
     // Should either transpile with a TODO/warning, or return a clear error
     // For now, we expect it to fail with a helpful message
-    if result.is_err() {
-        let err_msg = result.unwrap_err().to_string();
+    if let Err(e) = result {
+        let err_msg = e.to_string();
         assert!(
             err_msg.contains("*args")
                 || err_msg.contains("unpacking")

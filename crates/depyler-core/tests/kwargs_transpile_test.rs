@@ -262,8 +262,7 @@ def test() -> str:
     let result = pipeline.transpile(python);
 
     // This might fail if open() kwargs aren't fully supported yet, but test structure is here
-    if result.is_ok() {
-        let rust_code = result.unwrap();
+    if let Ok(rust_code) = result {
         assert!(
             rust_code.contains("File::open") || rust_code.contains("open"),
             "Missing file open operation"

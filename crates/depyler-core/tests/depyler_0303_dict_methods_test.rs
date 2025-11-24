@@ -105,8 +105,10 @@ def has_key(d: dict[str, int], key: str) -> bool:
 
     // DEPYLER-0449: Changed from .contains_key() to .get().is_some() for serde_json::Value compatibility
     // Accept both patterns as valid (they're semantically equivalent)
-    let has_contains_key = rust_code.contains(".contains_key(key)") || rust_code.contains(".contains_key(&key)");
-    let has_get_is_some = rust_code.contains(".get(&key).is_some()") || rust_code.contains(".get(key).is_some()");
+    let has_contains_key =
+        rust_code.contains(".contains_key(key)") || rust_code.contains(".contains_key(&key)");
+    let has_get_is_some =
+        rust_code.contains(".get(&key).is_some()") || rust_code.contains(".get(key).is_some()");
 
     assert!(
         has_contains_key || has_get_is_some,

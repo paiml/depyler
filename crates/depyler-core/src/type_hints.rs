@@ -739,12 +739,14 @@ impl TypeHintProvider {
                 if let Some(HirExpr::Var(cmd_var)) = args.first() {
                     // subprocess.run(cmd) -> cmd should be Vec<String>
                     // Use ArgumentConstraint for high-confidence stdlib signature
-                    self.context.constraints.push(TypeConstraint::ArgumentConstraint {
-                        var: cmd_var.to_string(),
-                        func: "subprocess.run".to_string(),
-                        _param_idx: 0,
-                        expected: Type::List(Box::new(Type::String)),
-                    });
+                    self.context
+                        .constraints
+                        .push(TypeConstraint::ArgumentConstraint {
+                            var: cmd_var.to_string(),
+                            func: "subprocess.run".to_string(),
+                            _param_idx: 0,
+                            expected: Type::List(Box::new(Type::String)),
+                        });
                     self.record_usage_pattern(cmd_var, UsagePattern::Container);
                 }
             }
@@ -808,11 +810,7 @@ impl TypeHintProvider {
     }
 
     /// DEPYLER-0492: Infer parameter type from default value (Certain confidence)
-    fn infer_from_default(
-        &self,
-        param_name: &str,
-        default: &Option<HirExpr>,
-    ) -> Option<TypeHint> {
+    fn infer_from_default(&self, param_name: &str, default: &Option<HirExpr>) -> Option<TypeHint> {
         let default_expr = default.as_ref()?;
 
         let inferred_type = match default_expr {
@@ -822,7 +820,7 @@ impl TypeHintProvider {
                 crate::hir::Literal::Float(_) => Type::Float,
                 crate::hir::Literal::String(_) => Type::String,
                 crate::hir::Literal::None => return None, // None doesn't give type info
-                _ => return None,                          // Other literals not yet supported
+                _ => return None,                         // Other literals not yet supported
             },
             _ => return None, // Complex defaults not yet supported
         };

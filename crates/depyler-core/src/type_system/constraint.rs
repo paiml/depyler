@@ -112,7 +112,10 @@ impl std::fmt::Display for ConstraintKind {
 
 impl std::fmt::Display for TypeConstraint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?} {} {:?} ({})",
-            self.lhs, self.kind, self.rhs, self.reason)
+        write!(
+            f,
+            "{:?} {} {:?} ({})",
+            self.lhs, self.kind, self.rhs, self.reason
+        )
     }
 }

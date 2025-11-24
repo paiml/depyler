@@ -1,8 +1,8 @@
 //! Bug discovery test - systematically transpile examples to find next bug
 
 use depyler_core::ast_bridge;
-use rustpython_parser::{Parse, ast};
 use rustpython_ast::Suite;
+use rustpython_parser::{ast, Parse};
 
 #[test]
 fn test_transpile_basic_class_test() {
@@ -48,8 +48,8 @@ fn test_transpile_ast_converters_demo() {
 
 #[test]
 fn test_transpile_array_test() {
-    let python = std::fs::read_to_string("../../examples/array_test.py")
-        .expect("Should read array_test.py");
+    let python =
+        std::fs::read_to_string("../../examples/array_test.py").expect("Should read array_test.py");
 
     let statements = Suite::parse(&python, "<test>").expect("Should parse");
     let ast = ast::Mod::Module(ast::ModModule {
@@ -488,8 +488,7 @@ fn test_transpile_lambda_demo() {
 
 #[test]
 fn test_transpile_demo() {
-    let python = std::fs::read_to_string("../../examples/demo.py")
-        .expect("Should read demo.py");
+    let python = std::fs::read_to_string("../../examples/demo.py").expect("Should read demo.py");
 
     let statements = Suite::parse(&python, "<test>").expect("Should parse");
     let ast = ast::Mod::Module(ast::ModModule {

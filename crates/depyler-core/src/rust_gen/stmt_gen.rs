@@ -636,7 +636,12 @@ pub(crate) fn codegen_return_stmt(
         } else if is_optional_return && is_if_expr_with_none {
             // DEPYLER-0498: If-expr with None arm - manually wrap true arm in Some()
             // Pattern: `return x if cond else None` -> `if cond { Some(x) } else { None }`
-            if let HirExpr::IfExpr { test, body, orelse: _ } = e {
+            if let HirExpr::IfExpr {
+                test,
+                body,
+                orelse: _,
+            } = e
+            {
                 let test_tokens = test.to_rust_expr(ctx)?;
                 let body_tokens = body.to_rust_expr(ctx)?;
 
@@ -2138,7 +2143,11 @@ pub(crate) fn codegen_assign_stmt(
         {
             // Check for os.environ.get(key, default) - 2 arguments means default provided
             if method == "get" && args.len() == 2 {
-                if let HirExpr::Attribute { value: attr_obj, attr } = object.as_ref() {
+                if let HirExpr::Attribute {
+                    value: attr_obj,
+                    attr,
+                } = object.as_ref()
+                {
                     if let HirExpr::Var(module) = attr_obj.as_ref() {
                         if module == "os" && attr == "environ" {
                             // os.environ.get(key, default) returns String (not Option)
@@ -2739,7 +2748,9 @@ pub(crate) fn codegen_assign_index(
         } else if needs_as_object_mut {
             // DEPYLER-0449: serde_json::Value needs .as_object_mut() for insert
             // DEPYLER-0473: Clone key to avoid move-after-use errors
-            Ok(quote! { #chain.as_object_mut().unwrap().insert((#final_index).clone(), #final_value_expr); })
+            Ok(
+                quote! { #chain.as_object_mut().unwrap().insert((#final_index).clone(), #final_value_expr); },
+            )
         } else {
             // HashMap.insert(key, value)
             Ok(quote! { #chain.insert(#final_index, #final_value_expr); })
@@ -3732,7 +3743,9 @@ fn extract_fields_recursive(
     for stmt in stmts {
         match stmt {
             HirStmt::Expr(expr) => extract_fields_from_expr(expr, args_var, dest_field, fields),
-            HirStmt::Assign { value, .. } => extract_fields_from_expr(value, args_var, dest_field, fields),
+            HirStmt::Assign { value, .. } => {
+                extract_fields_from_expr(value, args_var, dest_field, fields)
+            }
             HirStmt::If {
                 then_body,
                 else_body,
@@ -3743,7 +3756,12 @@ fn extract_fields_recursive(
                     extract_fields_recursive(else_stmts, args_var, dest_field, fields);
                 }
             }
-            HirStmt::While { body: loop_body, .. } | HirStmt::For { body: loop_body, .. } => {
+            HirStmt::While {
+                body: loop_body, ..
+            }
+            | HirStmt::For {
+                body: loop_body, ..
+            } => {
                 extract_fields_recursive(loop_body, args_var, dest_field, fields);
             }
             HirStmt::Try {
@@ -3763,7 +3781,9 @@ fn extract_fields_recursive(
                     extract_fields_recursive(finally_stmts, args_var, dest_field, fields);
                 }
             }
-            HirStmt::With { body: with_body, .. } => {
+            HirStmt::With {
+                body: with_body, ..
+            } => {
                 extract_fields_recursive(with_body, args_var, dest_field, fields);
             }
             _ => {}
@@ -3799,7 +3819,9 @@ fn extract_fields_from_expr(
             }
         }
         // Recurse into nested expressions
-        HirExpr::Call { args: call_args, .. } => {
+        HirExpr::Call {
+            args: call_args, ..
+        } => {
             for arg in call_args {
                 extract_fields_from_expr(arg, args_var, dest_field, fields);
             }
@@ -3831,7 +3853,11 @@ fn extract_fields_from_expr(
                 extract_fields_from_expr(value, args_var, dest_field, fields);
             }
         }
-        HirExpr::MethodCall { object, args: method_args, .. } => {
+        HirExpr::MethodCall {
+            object,
+            args: method_args,
+            ..
+        } => {
             extract_fields_from_expr(object, args_var, dest_field, fields);
             for arg in method_args {
                 extract_fields_from_expr(arg, args_var, dest_field, fields);
@@ -3949,7 +3975,8 @@ fn try_generate_subcommand_match(
     // DEPYLER-0482: Check if any branch has an early return
     // If so, don't add wildcard unreachable!() because execution continues to next match
     let has_early_return = branches.iter().any(|(_, body)| {
-        body.iter().any(|stmt| matches!(stmt, HirStmt::Return { .. }))
+        body.iter()
+            .any(|stmt| matches!(stmt, HirStmt::Return { .. }))
     });
 
     // Generate match arms
@@ -3963,7 +3990,8 @@ fn try_generate_subcommand_match(
             // This determines whether we use Pattern A ({ .. }) or Pattern B ({ field1, field2, ... })
             // DEPYLER-0480: Pass dest_field to dynamically filter based on actual dest parameter
             // DEPYLER-0481: Pass cmd_name and ctx to filter out top-level args
-            let accessed_fields = extract_accessed_subcommand_fields(body, "args", &dest_field, cmd_name, ctx);
+            let accessed_fields =
+                extract_accessed_subcommand_fields(body, "args", &dest_field, cmd_name, ctx);
 
             // Generate body statements
             ctx.enter_scope();

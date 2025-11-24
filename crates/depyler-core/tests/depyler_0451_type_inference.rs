@@ -6,6 +6,8 @@
 // Created: 2025-11-21
 // Ticket: https://github.com/paiml/depyler/issues/DEPYLER-0451
 
+#![allow(non_snake_case)] // Test naming convention
+
 use depyler_core::DepylerPipeline;
 
 /// Helper function to transpile Python code
@@ -25,6 +27,7 @@ fn assert_contains(rust_code: &str, pattern: &str) {
 }
 
 /// Helper function to check if generated Rust code does NOT contain a pattern
+#[allow(dead_code)]
 fn assert_not_contains(rust_code: &str, pattern: &str) {
     assert!(
         !rust_code.contains(pattern),
