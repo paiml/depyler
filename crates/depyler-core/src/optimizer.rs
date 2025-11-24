@@ -1078,6 +1078,17 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
             collect_used_vars_expr_inner(base, used);
             collect_used_vars_expr_inner(index, used);
         }
+        HirExpr::FString { parts } => {
+            // DEPYLER-0516 / GH-103: Collect variables from f-string expressions
+            // F-strings can contain embedded expressions that reference variables
+            // Example: f"Hello {args.name}" uses `args` variable
+            // Without this, DCE incorrectly removes `args = parser.parse_args()`
+            for part in parts {
+                if let crate::hir::FStringPart::Expr(expr) = part {
+                    collect_used_vars_expr_inner(expr, used);
+                }
+            }
+        }
         _ => {}
     }
 }
