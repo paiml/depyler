@@ -4262,9 +4262,24 @@ fn codegen_nested_function_def(
     // GH-70 FIX: Generate as closure instead of fn item
     // Closures can be returned as values and have better type inference
     // This fixes the issue where nested functions had all types defaulting to ()
-    Ok(quote! {
-        let #fn_name = |#(#param_tokens),*| -> #return_type {
-            #(#body_tokens)*
-        };
+    //
+    // GH-70 CRITICAL FIX: Omit return type annotation for Type::Unknown
+    // When no type annotation exists in Python, ret_type is Type::Unknown.
+    // Previously, this defaulted to () in hir_type_to_tokens, causing explicit
+    // `-> ()` in closure definition which conflicted with actual return values.
+    // Solution: Omit return type entirely, allowing Rust's type inference to
+    // determine correct return type from closure body.
+    Ok(if matches!(ret_type, Type::Unknown) {
+        quote! {
+            let #fn_name = |#(#param_tokens),*| {
+                #(#body_tokens)*
+            };
+        }
+    } else {
+        quote! {
+            let #fn_name = |#(#param_tokens),*| -> #return_type {
+                #(#body_tokens)*
+            };
+        }
     })
 }

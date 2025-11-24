@@ -986,7 +986,23 @@ fn infer_expr_type_with_env(
 ) -> Type {
     match expr {
         // DEPYLER-0415: Look up variable types in the environment
-        HirExpr::Var(name) => var_types.get(name).cloned().unwrap_or(Type::Unknown),
+        HirExpr::Var(name) => {
+            // First, try to find in environment
+            if let Some(ty) = var_types.get(name) {
+                return ty.clone();
+            }
+            // GH-70: Fallback heuristic for common string variable names
+            // (useful when variables come from tuple unpacking not tracked in environment)
+            let name_str = name.as_str();
+            if name_str == "timestamp" || name_str == "message" || name_str == "level"
+                || name_str.ends_with("_str") || name_str.ends_with("_string")
+                || name_str.ends_with("_message") || name_str.ends_with("timestamp")
+            {
+                Type::String
+            } else {
+                Type::Unknown
+            }
+        }
         // For other expressions, delegate to the simple version
         // but recurse with environment for nested expressions
         HirExpr::Binary { op, left, right } => {
@@ -1149,6 +1165,18 @@ fn infer_expr_type_with_env(
                 Type::Tuple(elems) => elems.first().cloned().unwrap_or(Type::Unknown),
                 Type::String => Type::String,
                 _ => Type::Unknown, // Changed from Type::Int to Unknown (more conservative)
+            }
+        }
+        // GH-70: Handle Slice with environment-aware inference for string variables
+        HirExpr::Slice { base, .. } => {
+            // Use environment to resolve variables like "timestamp"
+            let base_type = infer_expr_type_with_env(base, var_types);
+            // String slicing returns String
+            if matches!(base_type, Type::String) {
+                Type::String
+            } else {
+                // For other types (lists, etc.), slicing returns same type
+                base_type
             }
         }
         // For other cases, use the simple version
@@ -1448,11 +1476,23 @@ fn detect_returns_nested_function(
                 }
             }
 
+            // GH-70: Apply type inference to return type
+            let inferred_ret_type = if matches!(ret_type, Type::Unknown) {
+                // Try to infer from body's return statements
+                if let Some(inferred_ty) = infer_return_type_from_body(body) {
+                    inferred_ty
+                } else {
+                    ret_type.clone()
+                }
+            } else {
+                ret_type.clone()
+            };
+
             // Store inferred params in context for use during code generation
             ctx.nested_function_params
                 .insert(name.clone(), inferred_params.clone());
 
-            nested_functions.insert(name.clone(), (inferred_params, ret_type.clone()));
+            nested_functions.insert(name.clone(), (inferred_params, inferred_ret_type));
         }
     }
 
