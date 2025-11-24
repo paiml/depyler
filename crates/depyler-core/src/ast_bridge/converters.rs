@@ -811,12 +811,23 @@ impl ExprConverter {
         let element = Box::new(Self::convert(*lc.elt)?);
 
         // Convert the condition if present
+        // DEPYLER-0505: Chain multiple if conditions with && operator
         let condition = if generator.ifs.is_empty() {
             None
         } else if generator.ifs.len() == 1 {
             Some(Box::new(Self::convert(generator.ifs[0].clone())?))
         } else {
-            bail!("Multiple conditions in list comprehension not yet supported");
+            // Chain multiple conditions: if cond1 if cond2 -> (cond1 && cond2)
+            let mut combined = Self::convert(generator.ifs[0].clone())?;
+            for condition_expr in generator.ifs.iter().skip(1) {
+                let right = Self::convert(condition_expr.clone())?;
+                combined = HirExpr::Binary {
+                    op: BinOp::And,
+                    left: Box::new(combined),
+                    right: Box::new(right),
+                };
+            }
+            Some(Box::new(combined))
         };
 
         Ok(HirExpr::ListComp {
@@ -848,12 +859,23 @@ impl ExprConverter {
         let element = Box::new(Self::convert(*sc.elt)?);
 
         // Convert the condition if present
+        // DEPYLER-0505: Chain multiple if conditions with && operator
         let condition = if generator.ifs.is_empty() {
             None
         } else if generator.ifs.len() == 1 {
             Some(Box::new(Self::convert(generator.ifs[0].clone())?))
         } else {
-            bail!("Multiple if conditions in set comprehensions not yet supported");
+            // Chain multiple conditions: if cond1 if cond2 -> (cond1 && cond2)
+            let mut combined = Self::convert(generator.ifs[0].clone())?;
+            for condition_expr in generator.ifs.iter().skip(1) {
+                let right = Self::convert(condition_expr.clone())?;
+                combined = HirExpr::Binary {
+                    op: BinOp::And,
+                    left: Box::new(combined),
+                    right: Box::new(right),
+                };
+            }
+            Some(Box::new(combined))
         };
 
         Ok(HirExpr::SetComp {
@@ -886,12 +908,23 @@ impl ExprConverter {
         let value = Box::new(Self::convert(*dc.value)?);
 
         // Convert the condition if present
+        // DEPYLER-0505: Chain multiple if conditions with && operator
         let condition = if generator.ifs.is_empty() {
             None
         } else if generator.ifs.len() == 1 {
             Some(Box::new(Self::convert(generator.ifs[0].clone())?))
         } else {
-            bail!("Multiple if conditions in dict comprehensions not yet supported");
+            // Chain multiple conditions: if cond1 if cond2 -> (cond1 && cond2)
+            let mut combined = Self::convert(generator.ifs[0].clone())?;
+            for condition_expr in generator.ifs.iter().skip(1) {
+                let right = Self::convert(condition_expr.clone())?;
+                combined = HirExpr::Binary {
+                    op: BinOp::And,
+                    left: Box::new(combined),
+                    right: Box::new(right),
+                };
+            }
+            Some(Box::new(combined))
         };
 
         Ok(HirExpr::DictComp {
