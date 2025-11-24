@@ -155,7 +155,7 @@ impl AstBridge {
     /// - The AST contains unsupported Python constructs
     /// - Type annotations are malformed
     /// - Function signatures are invalid
-    /// Converts a Python AST module to Depyler HIR with type environment
+    /// Converts a Python AST module to Depyler HIR with type environment.
     ///
     /// # Returns
     ///
