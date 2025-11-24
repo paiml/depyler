@@ -1894,6 +1894,21 @@ pub(crate) fn codegen_assign_stmt(
         }
     }
 
+    // DEPYLER-0497: Track variables assigned from Option-returning functions
+    // When a variable is assigned from a function that returns Option<T>, we need to record
+    // its type in var_types so format! can detect it needs unwrapping.
+    if let AssignTarget::Symbol(var_name) = target {
+        if let HirExpr::Call { func, .. } = value {
+            if ctx.option_returning_functions.contains(func) {
+                // Variable is assigned from Option-returning function
+                // Get the function's return type and add to var_types
+                if let Some(ret_type) = ctx.function_return_types.get(func) {
+                    ctx.var_types.insert(var_name.clone(), ret_type.clone());
+                }
+            }
+        }
+    }
+
     // DEPYLER-0440: Skip None-placeholder assignments
     // When a variable is initialized with None and later reassigned in if-elif-else,
     // skip the initial None assignment to avoid Option<T> type mismatch.
