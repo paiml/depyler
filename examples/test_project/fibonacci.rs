@@ -143,7 +143,7 @@ pub fn fibonacci_memoized(
             return Ok(1);
         }
     }
-    let _cse_temp_3 = fibonacci_memoized(n - 1, &memo) + fibonacci_memoized(n - 2, &memo);
+    let _cse_temp_3 = fibonacci_memoized(n - 1, &memo)? + fibonacci_memoized(n - 2, &memo)?;
     let result = _cse_temp_3;
     memo.insert(n, result);
     Ok(result)
