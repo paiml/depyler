@@ -4251,10 +4251,12 @@ fn codegen_nested_function_def(
         .map(|stmt| stmt.to_rust_tokens(ctx))
         .collect::<Result<Vec<_>>>()?;
 
-    // Generate inner function
+    // GH-70 FIX: Generate as closure instead of fn item
+    // Closures can be returned as values and have better type inference
+    // This fixes the issue where nested functions had all types defaulting to ()
     Ok(quote! {
-        fn #fn_name(#(#param_tokens),*) -> #return_type {
+        let #fn_name = |#(#param_tokens),*| -> #return_type {
             #(#body_tokens)*
-        }
+        };
     })
 }
