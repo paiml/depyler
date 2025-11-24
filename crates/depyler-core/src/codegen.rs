@@ -129,13 +129,21 @@ fn convert_function_to_rust(func: &HirFunction) -> Result<proc_macro2::TokenStre
     let name = syn::Ident::new(&func.name, proc_macro2::Span::call_site());
 
     // Convert parameters
+    // DEPYLER-0507: Handle variadic parameters (*args) as slices
     let params: Vec<_> = func
         .params
         .iter()
         .map(|param| {
             let param_ident = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
-            let rust_type = type_to_rust_type(&param.ty);
-            quote! { #param_ident: #rust_type }
+
+            if param.is_vararg {
+                // Variadic parameter → &[String] slice (most common type)
+                // Future: Type inference to determine actual element type
+                quote! { #param_ident: &[String] }
+            } else {
+                let rust_type = type_to_rust_type(&param.ty);
+                quote! { #param_ident: #rust_type }
+            }
         })
         .collect();
 
