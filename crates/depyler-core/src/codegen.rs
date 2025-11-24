@@ -963,26 +963,62 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
         } => slice_expr_to_rust_tokens(base, start, stop, step),
         HirExpr::ListComp {
             element,
-            target,
-            iter,
-            condition,
-        } => list_comp_to_rust_tokens(element, target, iter, condition),
+            generators,
+        } => {
+            // DEPYLER-0504: Legacy path - only support single generator for now
+            if generators.len() != 1 {
+                bail!("Multiple generators not supported in legacy codegen path");
+            }
+            let gen = &generators[0];
+            let condition = if gen.conditions.is_empty() {
+                None
+            } else if gen.conditions.len() == 1 {
+                Some(Box::new(gen.conditions[0].clone()))
+            } else {
+                bail!("Multiple conditions in generator not supported in legacy codegen path");
+            };
+            list_comp_to_rust_tokens(element, &gen.target, &gen.iter, &condition)
+        }
         HirExpr::Lambda { params, body } => lambda_to_rust_tokens(params, body),
         HirExpr::Set(items) => set_literal_to_rust_tokens(items),
         HirExpr::FrozenSet(items) => frozen_set_to_rust_tokens(items),
         HirExpr::SetComp {
             element,
-            target,
-            iter,
-            condition,
-        } => set_comp_to_rust_tokens(element, target, iter, condition),
+            generators,
+        } => {
+            // DEPYLER-0504: Legacy path - only support single generator for now
+            if generators.len() != 1 {
+                bail!("Multiple generators not supported in legacy codegen path");
+            }
+            let gen = &generators[0];
+            let condition = if gen.conditions.is_empty() {
+                None
+            } else if gen.conditions.len() == 1 {
+                Some(Box::new(gen.conditions[0].clone()))
+            } else {
+                bail!("Multiple conditions in generator not supported in legacy codegen path");
+            };
+            set_comp_to_rust_tokens(element, &gen.target, &gen.iter, &condition)
+        }
         HirExpr::DictComp {
             key,
             value,
-            target,
-            iter,
-            condition,
-        } => dict_comp_to_rust_tokens(key, value, target, iter, condition),
+            generators,
+        } => {
+            // DEPYLER-0504: Legacy path - only support single generator for now
+            if generators.len() != 1 {
+                bail!("Multiple generators not supported in legacy codegen path");
+            }
+            let gen = &generators[0];
+            let condition = if gen.conditions.is_empty() {
+                None
+            } else if gen.conditions.len() == 1 {
+                Some(Box::new(gen.conditions[0].clone()))
+            } else {
+                bail!("Multiple conditions in generator not supported in legacy codegen path");
+            };
+            dict_comp_to_rust_tokens(key, value, &gen.target, &gen.iter, &condition)
+        }
         HirExpr::Await { value } => {
             let value_tokens = expr_to_rust_tokens(value)?;
             Ok(quote! { #value_tokens.await })

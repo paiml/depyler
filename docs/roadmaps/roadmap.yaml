@@ -113,7 +113,7 @@ roadmap:
   priority: critical
   assigned_to: Claude
   created: 2025-11-23T21:15:00+00:00
-  updated: 2025-11-24T08:24:05.346678660+00:00
+  updated: 2025-11-24T14:25:00.152992830+00:00
   spec: docs/bugs/DEPYLER-0495-generator-return-type.md
   acceptance_criteria:
   - Generator with Iterator[int] transpiles to impl Iterator<Item = i32>
@@ -461,11 +461,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'New task: DEPYLER-0507'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2025-11-24T14:04:05.432966825+00:00
-  updated: 2025-11-24T14:04:05.432966825+00:00
+  updated: 2025-11-24T14:24:01.509985071+00:00
   spec: null
   acceptance_criteria: []
   phases: []

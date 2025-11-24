@@ -1074,16 +1074,13 @@ pub fn analyze_subcommand_field_access(
             }
             HirExpr::ListComp {
                 element,
-                iter,
-                condition,
-                ..
+                generators,
             }
             | HirExpr::SetComp {
                 element,
-                iter,
-                condition,
-                ..
+                generators,
             } => {
+                // DEPYLER-0504: Support multiple generators
                 walk_expr(
                     element,
                     args_param,
@@ -1091,30 +1088,31 @@ pub fn analyze_subcommand_field_access(
                     accessed_fields,
                     detected_variant,
                 );
-                walk_expr(
-                    iter,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
-                if let Some(cond) = condition {
+                for gen in generators {
                     walk_expr(
-                        cond,
+                        &gen.iter,
                         args_param,
                         field_to_variant,
                         accessed_fields,
                         detected_variant,
                     );
+                    for cond in &gen.conditions {
+                        walk_expr(
+                            cond,
+                            args_param,
+                            field_to_variant,
+                            accessed_fields,
+                            detected_variant,
+                        );
+                    }
                 }
             }
             HirExpr::DictComp {
                 key,
                 value,
-                iter,
-                condition,
-                ..
+                generators,
             } => {
+                // DEPYLER-0504: Support multiple generators
                 walk_expr(
                     key,
                     args_param,
@@ -1129,21 +1127,23 @@ pub fn analyze_subcommand_field_access(
                     accessed_fields,
                     detected_variant,
                 );
-                walk_expr(
-                    iter,
-                    args_param,
-                    field_to_variant,
-                    accessed_fields,
-                    detected_variant,
-                );
-                if let Some(cond) = condition {
+                for gen in generators {
                     walk_expr(
-                        cond,
+                        &gen.iter,
                         args_param,
                         field_to_variant,
                         accessed_fields,
                         detected_variant,
                     );
+                    for cond in &gen.conditions {
+                        walk_expr(
+                            cond,
+                            args_param,
+                            field_to_variant,
+                            accessed_fields,
+                            detected_variant,
+                        );
+                    }
                 }
             }
             HirExpr::Lambda { body, .. } => {
