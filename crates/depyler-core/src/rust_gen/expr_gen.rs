@@ -11246,24 +11246,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 return Ok(parse_quote! { #value_expr.#method_ident() as i32 });
             }
 
-            // timedelta properties
-            "days" => {
-                // td.days → td.num_days()
-                return Ok(parse_quote! { #value_expr.num_days() as i32 });
-            }
-
-            "seconds" => {
-                // td.seconds → td.num_seconds() % 86400 (seconds within the day)
-                return Ok(parse_quote! { (#value_expr.num_seconds() % 86400) as i32 });
-            }
-
-            "microseconds" => {
-                // td.microseconds → (td.num_microseconds() % 1_000_000)
-                return Ok(
-                    parse_quote! { (#value_expr.num_microseconds().unwrap() % 1_000_000) as i32 },
-                );
-            }
-
+            // DEPYLER-0514 / GH-74: Removed overly-aggressive timedelta property conversions
+            // These attribute names (days, seconds, microseconds) can appear on ANY object,
+            // not just timedelta. Without type information, we cannot distinguish between:
+            //   - obj.seconds (regular field) vs td.seconds (timedelta property)
+            //
+            // Similar to DEPYLER-0357 which removed overly-aggressive .name conversion.
+            //
+            // Future enhancement: Add type-aware attribute rewriting that checks HIR type
+            // information before applying stdlib-specific conversions.
+            //
+            // Commented out until type guards are implemented:
+            //
+            // "days" => {
+            //     // td.days → td.num_days()
+            //     return Ok(parse_quote! { #value_expr.num_days() as i32 });
+            // }
+            //
+            // "seconds" => {
+            //     // td.seconds → td.num_seconds() % 86400 (seconds within the day)
+            //     return Ok(parse_quote! { (#value_expr.num_seconds() % 86400) as i32 });
+            // }
+            //
+            // "microseconds" => {
+            //     // td.microseconds → (td.num_microseconds() % 1_000_000)
+            //     return Ok(
+            //         parse_quote! { (#value_expr.num_microseconds().unwrap() % 1_000_000) as i32 },
+            //     );
+            // }
             _ => {
                 // Not a datetime property, continue with default handling
             }
