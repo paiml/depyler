@@ -10294,6 +10294,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     || name == "s"
                     || name == "string"
                     || name == "line"
+                    || name == "timestamp"  // GH-70: Common string field (ISO 8601, etc.)
+                    || name == "message"     // GH-70: Log messages are strings
+                    || name == "level"       // GH-70: Log levels are strings ("INFO", "ERROR")
                     || (name == "word" && is_singular)
                     || (name.starts_with("text") && is_singular)
                     || (name.starts_with("str") && is_singular)
@@ -10301,6 +10304,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     || (name.ends_with("_string") && is_singular)
                     || (name.ends_with("_word") && is_singular)
                     || (name.ends_with("_text") && is_singular)
+                    || (name.ends_with("timestamp") && is_singular)  // GH-70: created_timestamp, etc.
+                    || (name.ends_with("_message") && is_singular)   // GH-70: error_message, etc.
             }
             HirExpr::MethodCall { method, .. }
                 if method.as_str().contains("upper")
