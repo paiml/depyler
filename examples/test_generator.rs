@@ -44,6 +44,8 @@ impl Iterator for SimpleGeneratorState {
 #[derive(Debug)]
 struct FibonacciGeneratorState {
     state: usize,
+    a: i32,
+    b: i32,
     count: i32,
     n: i32,
 }
@@ -51,6 +53,8 @@ struct FibonacciGeneratorState {
 pub fn fibonacci_generator(n: i32) -> impl Iterator<Item = i32> {
     FibonacciGeneratorState {
         state: 0,
+        a: 0,
+        b: 0,
         count: 0,
         n: n,
     }
@@ -60,15 +64,19 @@ impl Iterator for FibonacciGeneratorState {
     fn next(&mut self) -> Option<Self::Item> {
         match self.state {
             0 => {
-                let (mut a, mut b) = (0, 1);
+                let _tuple_temp = (0, 1);
+                self.a = _tuple_temp.0;
+                self.b = _tuple_temp.1;
                 self.count = 0;
                 self.state = 1;
                 self.next()
             }
             1 => {
                 if self.count < self.n {
-                    let result = a;
-                    (a, b) = (b, a + b);
+                    let result = self.a;
+                    let _tuple_temp = (self.b, self.a + self.b);
+                    self.a = _tuple_temp.0;
+                    self.b = _tuple_temp.1;
                     self.count = self.count + 1;
                     return Some(result);
                 } else {
