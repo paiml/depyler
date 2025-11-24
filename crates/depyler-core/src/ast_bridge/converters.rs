@@ -416,9 +416,10 @@ impl ExprConverter {
         // Special handling for sorted() with key parameter
         if let ast::Expr::Name(n) = &*c.func {
             if n.id.as_str() == "sorted" && !c.keywords.is_empty() {
-                // Extract key and reverse parameters
+                // DEPYLER-0502: Extract key and reverse parameters
+                // reverse now supports dynamic expressions, not just constants
                 let mut key_lambda = None;
-                let mut reverse = false;
+                let mut reverse_expr: Option<Box<HirExpr>> = None;
 
                 for keyword in &c.keywords {
                     if let Some(arg_name) = &keyword.arg {
@@ -431,16 +432,9 @@ impl ExprConverter {
                                 }
                             }
                             "reverse" => {
-                                // Extract boolean value from reverse parameter
-                                if let ast::Expr::Constant(c) = &keyword.value {
-                                    if let ast::Constant::Bool(b) = &c.value {
-                                        reverse = *b;
-                                    } else {
-                                        bail!("sorted() reverse parameter must be a boolean");
-                                    }
-                                } else {
-                                    bail!("sorted() reverse parameter must be a constant boolean");
-                                }
+                                // DEPYLER-0502: Convert reverse parameter as expression
+                                // Supports constants (True/False), variables (reverse), and expressions (not x)
+                                reverse_expr = Some(Box::new(Self::convert(keyword.value.clone())?));
                             }
                             _ => {} // Ignore other parameters
                         }
@@ -469,13 +463,13 @@ impl ExprConverter {
                         iterable,
                         key_params,
                         key_body,
-                        reverse,
+                        reverse_expr,
                     });
                 }
 
-                // DEPYLER-0307: If reverse=True but no key, create SortByKey with identity function
-                // This ensures the reverse parameter is preserved in the HIR
-                if reverse {
+                // DEPYLER-0307 + DEPYLER-0502: If reverse specified but no key, create SortByKey with identity function
+                // This ensures the reverse parameter is preserved in the HIR (whether constant or variable)
+                if reverse_expr.is_some() {
                     if c.args.is_empty() {
                         bail!("sorted() requires at least one argument");
                     }
@@ -489,7 +483,7 @@ impl ExprConverter {
                         iterable,
                         key_params,
                         key_body,
-                        reverse,
+                        reverse_expr,
                     });
                 }
             }
