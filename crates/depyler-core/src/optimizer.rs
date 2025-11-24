@@ -591,6 +591,43 @@ impl Optimizer {
             HirStmt::Expr(expr) => {
                 self.collect_used_vars_expr(expr, used);
             }
+            // DEPYLER-0514: Handle Try statements - recurse into all blocks
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
+                // Recurse into try body
+                for s in body {
+                    self.collect_truly_used_vars_stmt(s, used);
+                }
+                // Recurse into exception handlers
+                for handler in handlers {
+                    for s in &handler.body {
+                        self.collect_truly_used_vars_stmt(s, used);
+                    }
+                }
+                // Recurse into else block (executed if no exception)
+                if let Some(orelse_stmts) = orelse {
+                    for s in orelse_stmts {
+                        self.collect_truly_used_vars_stmt(s, used);
+                    }
+                }
+                // Recurse into finally block
+                if let Some(finalbody_stmts) = finalbody {
+                    for s in finalbody_stmts {
+                        self.collect_truly_used_vars_stmt(s, used);
+                    }
+                }
+            }
+            // DEPYLER-0514: Handle With statements - recurse into body
+            HirStmt::With { context, body, .. } => {
+                self.collect_used_vars_expr(context, used);
+                for s in body {
+                    self.collect_truly_used_vars_stmt(s, used);
+                }
+            }
             _ => {}
         }
     }

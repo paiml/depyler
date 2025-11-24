@@ -1,22 +1,22 @@
-/// DEPYLER-0514: Missing variable assignments for ternary conditional expressions before try/with blocks
-///
-/// Bug: When a ternary assignment appears before a try/with block, the assignment statement
-/// is not generated in the Rust output, causing E0425 "cannot find value" errors.
-///
-/// Example Python:
-///   hasher = hashlib.md5() if algorithm == "md5" else hashlib.sha256()
-///   try:
-///       with open(file) as f:
-///           hasher.update(f.read())
-///
-/// Expected Rust:
-///   let mut hasher = if algorithm == "md5" { ... } else { ... };
-///   // try/with block here
-///
-/// Actual Rust (BUG):
-///   // hasher assignment MISSING!
-///   // try/with block
-///   hasher.update(...) // E0425: cannot find value 'hasher'
+// DEPYLER-0514: Missing variable assignments for ternary conditional expressions before try/with blocks
+//
+// Bug: When a ternary assignment appears before a try/with block, the assignment statement
+// is not generated in the Rust output, causing E0425 "cannot find value" errors.
+//
+// Example Python:
+//   hasher = hashlib.md5() if algorithm == "md5" else hashlib.sha256()
+//   try:
+//       with open(file) as f:
+//           hasher.update(f.read())
+//
+// Expected Rust:
+//   let mut hasher = if algorithm == "md5" { ... } else { ... };
+//   // try/with block here
+//
+// Actual Rust (BUG):
+//   // hasher assignment MISSING!
+//   // try/with block
+//   hasher.update(...) // E0425: cannot find value 'hasher'
 
 use depyler_core::DepylerPipeline;
 
