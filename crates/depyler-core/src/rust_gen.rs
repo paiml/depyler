@@ -660,11 +660,17 @@ pub fn generate_rust_file(
     // This ensures Cargo.toml dependencies are generated for external crates
     // Check both whole module imports (import X) and specific imports (from X import Y)
     let needs_chrono = imported_modules.contains_key("datetime")
-        || imported_items.values().any(|path| path.starts_with("chrono::"));
+        || imported_items
+            .values()
+            .any(|path| path.starts_with("chrono::"));
     let needs_tempfile = imported_modules.contains_key("tempfile")
-        || imported_items.values().any(|path| path.starts_with("tempfile::"));
+        || imported_items
+            .values()
+            .any(|path| path.starts_with("tempfile::"));
     let needs_itertools = imported_modules.contains_key("itertools")
-        || imported_items.values().any(|path| path.starts_with("itertools::"));
+        || imported_items
+            .values()
+            .any(|path| path.starts_with("itertools::"));
 
     // Extract class names from module (DEPYLER-0230: distinguish user classes from builtins)
     let class_names: HashSet<String> = module

@@ -10,6 +10,8 @@
 // Created: 2025-11-19
 // Ticket: https://github.com/paiml/depyler/issues/DEPYLER-0432
 
+#![allow(non_snake_case)] // Test naming convention
+
 use depyler_core::DepylerPipeline;
 
 /// Helper function to transpile Python code
@@ -434,7 +436,7 @@ fn test_DEPYLER_0432_11_stream_processor_integration() {
     println!("\n=== Attempting compilation (expected to fail in RED phase) ===");
 
     let compile_result = std::process::Command::new("rustc")
-        .args(&[
+        .args([
             "--crate-type",
             "bin",
             "--edition",

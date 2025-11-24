@@ -26,7 +26,9 @@ def set_value(data, value):
 
     // Should be immutable borrow
     assert!(
-        rust.contains("value: &str") || rust.contains("value: &String") || rust.contains("value: String"),
+        rust.contains("value: &str")
+            || rust.contains("value: &String")
+            || rust.contains("value: String"),
         "Expected value to be &str or String (immutable)\nGenerated:\n{}",
         rust
     );

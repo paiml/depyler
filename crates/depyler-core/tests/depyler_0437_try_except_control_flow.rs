@@ -8,6 +8,8 @@
 //
 // Parent: DEPYLER-0428 (ArgumentTypeError support)
 
+#![allow(non_snake_case)] // Test naming convention
+
 use depyler_core::DepylerPipeline;
 
 /// Helper to transpile Python code
@@ -154,7 +156,7 @@ def parse_number(text):
     std::fs::write("/tmp/depyler_0437_test.rs", &rust).unwrap();
 
     let compile_result = std::process::Command::new("rustc")
-        .args(&[
+        .args([
             "--crate-type",
             "lib",
             "--edition",

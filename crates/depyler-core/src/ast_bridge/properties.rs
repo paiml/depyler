@@ -256,7 +256,10 @@ impl FunctionAnalyzer {
                 // which propagates errors (unlike Python sys.exit() which terminates)
                 let body_has_io = all_errors.iter().any(|e| e.contains("io::Error"));
 
-                (has_uncaught_exceptions || body_fail || body_has_io, all_errors)
+                (
+                    has_uncaught_exceptions || body_fail || body_has_io,
+                    all_errors,
+                )
             }
             // DEPYLER-0432: With statements using open() are fallible (file I/O)
             HirStmt::With { context, body, .. } => {

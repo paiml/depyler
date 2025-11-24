@@ -253,7 +253,10 @@ fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
         }
         Type::UnificationVar(id) => {
             // UnificationVar should never appear in final code generation
-            panic!("BUG: UnificationVar({}) encountered in codegen. Type inference incomplete.", id)
+            panic!(
+                "BUG: UnificationVar({}) encountered in codegen. Type inference incomplete.",
+                id
+            )
         }
     }
 }

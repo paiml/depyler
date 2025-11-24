@@ -9,8 +9,8 @@
 
 use depyler_core::ast_bridge;
 use depyler_core::hir::Type;
-use rustpython_parser::{Parse, ast};
 use rustpython_ast::Suite;
+use rustpython_parser::{ast, Parse};
 
 /// Helper function to parse Python and generate HIR
 fn parse_and_generate(python: &str) -> depyler_core::hir::HirModule {
@@ -20,7 +20,9 @@ fn parse_and_generate(python: &str) -> depyler_core::hir::HirModule {
         type_ignores: vec![],
         range: Default::default(),
     });
-    let (hir, _type_env) = ast_bridge::AstBridge::new().python_to_hir(ast).expect("Should generate HIR");
+    let (hir, _type_env) = ast_bridge::AstBridge::new()
+        .python_to_hir(ast)
+        .expect("Should generate HIR");
     hir
 }
 
@@ -41,7 +43,8 @@ def get_data() -> List[Any]:
     match &hir.functions[0].ret_type {
         Type::List(inner) => {
             assert!(
-                matches!(inner.as_ref(), Type::Unknown) || matches!(inner.as_ref(), Type::Custom(s) if s == "serde_json::Value"),
+                matches!(inner.as_ref(), Type::Unknown)
+                    || matches!(inner.as_ref(), Type::Custom(s) if s == "serde_json::Value"),
                 "List[Any] should map to List<Unknown> or List<Value>, got: {:?}",
                 inner
             );
@@ -64,7 +67,10 @@ def apply(transform: Callable[[Any], Any], value: Any) -> Any:
 
     // For now, just verify it transpiles without error
     // Callable[[Any], Any] is complex - may map to Unknown initially
-    assert!(hir.functions[0].params.len() == 2, "Should have 2 parameters");
+    assert!(
+        hir.functions[0].params.len() == 2,
+        "Should have 2 parameters"
+    );
 }
 
 #[test]

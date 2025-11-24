@@ -1303,10 +1303,12 @@ mod tests {
 
         // Verify the unused variable was removed, not just renamed
         let has_unused = func.body.iter().any(|stmt| {
-            if let HirStmt::Assign { target, .. } = stmt {
-                if let AssignTarget::Symbol(name) = target {
-                    return name == "unused" || name == "_unused";
-                }
+            if let HirStmt::Assign {
+                target: AssignTarget::Symbol(name),
+                ..
+            } = stmt
+            {
+                return name == "unused" || name == "_unused";
             }
             false
         });

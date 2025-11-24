@@ -11,6 +11,8 @@
 //! - Nested functions with captures → Rust closures
 //! - Real-world examples (csv_filter, log_analyzer)
 
+#![allow(non_snake_case)] // Test naming convention
+
 use depyler_core::DepylerPipeline;
 
 // ============================================================================

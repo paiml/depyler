@@ -8,8 +8,8 @@
 //! 3. Option lifting (T <: Option<T>)
 //! 4. Transitivity (T <: U, U <: V → T <: V)
 
-use depyler_core::type_system::subtyping::SubtypeChecker;
 use depyler_core::hir::Type;
+use depyler_core::type_system::subtyping::SubtypeChecker;
 
 #[test]
 fn test_subtype_int_to_float() {
@@ -43,10 +43,7 @@ fn test_subtype_option_lift() {
     let checker = SubtypeChecker::new();
 
     // T <: Option<T> (value lifting)
-    let result = checker.check_subtype(
-        &Type::Int,
-        &Type::Optional(Box::new(Type::Int))
-    );
+    let result = checker.check_subtype(&Type::Int, &Type::Optional(Box::new(Type::Int)));
     assert!(result.is_ok(), "T should be subtype of Option<T>");
 }
 
@@ -57,9 +54,12 @@ fn test_subtype_option_covariance() {
     // Option<Int> <: Option<Float> (container covariance)
     let result = checker.check_subtype(
         &Type::Optional(Box::new(Type::Int)),
-        &Type::Optional(Box::new(Type::Float))
+        &Type::Optional(Box::new(Type::Float)),
     );
-    assert!(result.is_ok(), "Option<Int> should be subtype of Option<Float>");
+    assert!(
+        result.is_ok(),
+        "Option<Int> should be subtype of Option<Float>"
+    );
 }
 
 #[test]
@@ -69,7 +69,7 @@ fn test_subtype_list_covariance() {
     // List<Int> <: List<Float> (read-only covariance)
     let result = checker.check_subtype(
         &Type::List(Box::new(Type::Int)),
-        &Type::List(Box::new(Type::Float))
+        &Type::List(Box::new(Type::Float)),
     );
     assert!(result.is_ok(), "List<Int> should be subtype of List<Float>");
 }
@@ -85,8 +85,8 @@ fn test_subtype_incompatible_types() {
 
 #[test]
 fn test_constraint_subtype_vs_equality() {
-    use depyler_core::type_system::constraint::TypeConstraint;
     use depyler_core::type_system::constraint::ConstraintKind;
+    use depyler_core::type_system::constraint::TypeConstraint;
 
     // Subtype constraint: arg: Int when param expects Float (should succeed)
     let subtype_constraint = TypeConstraint {
@@ -98,7 +98,10 @@ fn test_constraint_subtype_vs_equality() {
 
     let checker = SubtypeChecker::new();
     let result = checker.check_constraint(&subtype_constraint);
-    assert!(result.is_ok(), "Subtype constraint Int <: Float should succeed");
+    assert!(
+        result.is_ok(),
+        "Subtype constraint Int <: Float should succeed"
+    );
 
     // Equality constraint: arg: Int when param expects Float (should fail)
     let equality_constraint = TypeConstraint {
@@ -109,13 +112,16 @@ fn test_constraint_subtype_vs_equality() {
     };
 
     let result = checker.check_constraint(&equality_constraint);
-    assert!(result.is_err(), "Equality constraint Int == Float should fail");
+    assert!(
+        result.is_err(),
+        "Equality constraint Int == Float should fail"
+    );
 }
 
 #[test]
 fn test_worklist_solver_propagates_bounds() {
+    use depyler_core::type_system::constraint::{ConstraintKind, TypeConstraint};
     use depyler_core::type_system::solver::WorklistSolver;
-    use depyler_core::type_system::constraint::{TypeConstraint, ConstraintKind};
 
     let mut solver = WorklistSolver::new();
 
@@ -149,11 +155,19 @@ fn test_ssa_variable_versioning() {
 
     // Python: x = 5 (x_0: i64)
     let x_0 = env.bind_var("x", Type::Int);
-    assert_eq!(env.get_var_version("x"), Some(0), "First binding should be version 0");
+    assert_eq!(
+        env.get_var_version("x"),
+        Some(0),
+        "First binding should be version 0"
+    );
 
     // Python: x = "hello" (x_1: String) - type change requires new version
     let x_1 = env.bind_var("x", Type::String);
-    assert_eq!(env.get_var_version("x"), Some(1), "Type change should create version 1");
+    assert_eq!(
+        env.get_var_version("x"),
+        Some(1),
+        "Type change should create version 1"
+    );
 
     assert_ne!(x_0, x_1, "Different versions should have different IDs");
 
@@ -164,22 +178,28 @@ fn test_ssa_variable_versioning() {
 
 #[test]
 fn test_bidirectional_checking_synthesis() {
-    use depyler_core::type_system::type_environment::TypeEnvironment;
     use depyler_core::hir::HirExpr;
+    use depyler_core::type_system::type_environment::TypeEnvironment;
 
     let mut env = TypeEnvironment::new();
 
     // Synthesis: infer type from literal
     let expr = HirExpr::Literal(depyler_core::hir::Literal::Int(42));
-    let inferred = env.synthesize_type(&expr).expect("Should infer i32 from small literal");
+    let inferred = env
+        .synthesize_type(&expr)
+        .expect("Should infer i32 from small literal");
 
-    assert_eq!(inferred, Type::Int, "Small int literal should synthesize to i32");
+    assert_eq!(
+        inferred,
+        Type::Int,
+        "Small int literal should synthesize to i32"
+    );
 }
 
 #[test]
 fn test_bidirectional_checking_check() {
-    use depyler_core::type_system::type_environment::TypeEnvironment;
     use depyler_core::hir::HirExpr;
+    use depyler_core::type_system::type_environment::TypeEnvironment;
 
     let mut env = TypeEnvironment::new();
 
@@ -188,5 +208,8 @@ fn test_bidirectional_checking_check() {
     let result = env.check_type(&expr, &Type::Int);
 
     // Should succeed: i32 literal <: i64 expected
-    assert!(result.is_ok(), "i32 literal should check against i64 (subtyping)");
+    assert!(
+        result.is_ok(),
+        "i32 literal should check against i64 (subtyping)"
+    );
 }

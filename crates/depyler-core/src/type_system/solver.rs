@@ -18,7 +18,7 @@
 //! - **Expected**: O(N log N) with good heuristics
 
 use crate::hir::Type;
-use crate::type_system::constraint::{TypeConstraint, ConstraintKind};
+use crate::type_system::constraint::{ConstraintKind, TypeConstraint};
 use crate::type_system::subtyping::SubtypeChecker;
 use std::collections::{HashMap, VecDeque};
 
@@ -106,7 +106,10 @@ impl WorklistSolver {
             self.iterations += 1;
 
             if self.iterations > self.max_iterations {
-                return Err(format!("Solver timeout after {} iterations", self.max_iterations));
+                return Err(format!(
+                    "Solver timeout after {} iterations",
+                    self.max_iterations
+                ));
             }
 
             // Process constraint
@@ -159,7 +162,10 @@ impl WorklistSolver {
             // Concrete types must match exactly
             (t1, t2) if t1 == t2 => Ok(()),
 
-            _ => Err(format!("Equality constraint failed: {:?} != {:?} ({})", lhs, rhs, reason))
+            _ => Err(format!(
+                "Equality constraint failed: {:?} != {:?} ({})",
+                lhs, rhs, reason
+            )),
         }
     }
 
@@ -170,7 +176,8 @@ impl WorklistSolver {
             (Type::UnificationVar(var_id), ty) => {
                 if let Some(existing) = self.assignments.get(var_id) {
                     // Check if existing type is subtype of new bound
-                    self.checker.check_subtype(existing, ty)
+                    self.checker
+                        .check_subtype(existing, ty)
                         .map_err(|e| format!("{} ({})", e, reason))?;
                 } else {
                     // No assignment yet - for now, assign the upper bound
@@ -184,7 +191,8 @@ impl WorklistSolver {
             (ty, Type::UnificationVar(var_id)) => {
                 if let Some(existing) = self.assignments.get(var_id) {
                     // Check if new type is subtype of existing
-                    self.checker.check_subtype(ty, existing)
+                    self.checker
+                        .check_subtype(ty, existing)
                         .map_err(|e| format!("{} ({})", e, reason))?;
                 } else {
                     // No assignment yet - assign the lower bound
@@ -194,10 +202,10 @@ impl WorklistSolver {
             }
 
             // Both concrete: check subtyping relation
-            (t1, t2) => {
-                self.checker.check_subtype(t1, t2)
-                    .map_err(|e| format!("{} ({})", e, reason))
-            }
+            (t1, t2) => self
+                .checker
+                .check_subtype(t1, t2)
+                .map_err(|e| format!("{} ({})", e, reason)),
         }
     }
 }
@@ -220,7 +228,7 @@ mod tests {
         solver.add_constraint(TypeConstraint::eq(
             Type::UnificationVar(0),
             Type::Int,
-            "Assignment"
+            "Assignment",
         ));
 
         let solution = solver.solve().expect("Should solve");
@@ -235,7 +243,7 @@ mod tests {
         solver.add_constraint(TypeConstraint::subtype(
             Type::Int,
             Type::Float,
-            "Function argument"
+            "Function argument",
         ));
 
         let solution = solver.solve().expect("Should solve");
@@ -250,12 +258,12 @@ mod tests {
         solver.add_constraint(TypeConstraint::subtype(
             Type::UnificationVar(0),
             Type::UnificationVar(1),
-            "Transitivity test"
+            "Transitivity test",
         ));
         solver.add_constraint(TypeConstraint::subtype(
             Type::UnificationVar(1),
             Type::UnificationVar(2),
-            "Transitivity test"
+            "Transitivity test",
         ));
 
         let solution = solver.solve().expect("Should solve");

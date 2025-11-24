@@ -64,7 +64,11 @@ impl std::fmt::Display for TypeError {
                 write!(f, "Infinite type: variable {} occurs in {:?}", var, ty)
             }
             TypeError::Mismatch(expected, actual) => {
-                write!(f, "Type mismatch: expected {:?}, got {:?}", expected, actual)
+                write!(
+                    f,
+                    "Type mismatch: expected {:?}, got {:?}",
+                    expected, actual
+                )
             }
             TypeError::UnificationFailed(msg) => {
                 write!(f, "Unification failed: {}", msg)
@@ -315,10 +319,7 @@ impl TypeConstraintSolver {
             Type::Union(types) => {
                 Type::Union(types.iter().map(|t| self.apply_substitution(t)).collect())
             }
-            Type::Array {
-                element_type,
-                size,
-            } => Type::Array {
+            Type::Array { element_type, size } => Type::Array {
                 element_type: Box::new(self.apply_substitution(element_type)),
                 size: size.clone(),
             },
@@ -358,9 +359,7 @@ mod tests {
         let var = solver.fresh_var();
 
         // Unify variable with Int
-        assert!(solver
-            .unify(Type::UnificationVar(var), Type::Int)
-            .is_ok());
+        assert!(solver.unify(Type::UnificationVar(var), Type::Int).is_ok());
         assert_eq!(solver.substitutions.get(&var), Some(&Type::Int));
     }
 

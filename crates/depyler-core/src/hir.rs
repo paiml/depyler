@@ -244,7 +244,7 @@ impl HirParam {
             name,
             ty,
             default: None,
-            is_vararg: false,  // DEPYLER-0477: Regular parameter
+            is_vararg: false, // DEPYLER-0477: Regular parameter
         }
     }
 
@@ -254,7 +254,7 @@ impl HirParam {
             name,
             ty,
             default: Some(default),
-            is_vararg: false,  // DEPYLER-0477: Regular parameter
+            is_vararg: false, // DEPYLER-0477: Regular parameter
         }
     }
 }
@@ -463,7 +463,7 @@ pub enum HirExpr {
         iterable: Box<HirExpr>,
         key_params: Vec<Symbol>,
         key_body: Box<HirExpr>,
-        reverse_expr: Option<Box<HirExpr>>,  // None = false (default), Some = dynamic expression
+        reverse_expr: Option<Box<HirExpr>>, // None = false (default), Some = dynamic expression
     },
     // Generator expression (Python: (x * 2 for x in range(5)))
     GeneratorExp {

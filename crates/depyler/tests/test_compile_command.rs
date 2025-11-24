@@ -12,6 +12,8 @@
 //! TDG Score: A (≤2.0)
 //! Complexity: ≤10 per function
 
+#![allow(deprecated)] // cargo_bin deprecation - not critical for test file
+
 use assert_cmd::cargo::CommandCargoExt;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;

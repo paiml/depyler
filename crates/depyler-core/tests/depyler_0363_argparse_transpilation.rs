@@ -368,7 +368,7 @@ if __name__ == "__main__":
 #[ignore] // RED phase
 fn test_depyler_0363_property_argparse_always_compiles() {
     // Simple smoke test - full property test would use proptest crate
-    let test_cases = vec![
+    let test_cases = [
         r#"
 import argparse
 parser = argparse.ArgumentParser()
