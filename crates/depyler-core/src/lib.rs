@@ -363,7 +363,7 @@ impl DepylerPipeline {
         let ast = self.parse_python(python_source)?;
 
         // Convert to HIR with annotation support
-        let mut hir = ast_bridge::AstBridge::new()
+        let (mut hir, _type_env) = ast_bridge::AstBridge::new()
             .with_source(python_source.to_string())
             .python_to_hir(ast)?;
 
@@ -501,7 +501,7 @@ impl DepylerPipeline {
         let ast = self.parse_python(python_source)?;
 
         // Convert to HIR with annotation support
-        let mut hir = ast_bridge::AstBridge::new()
+        let (mut hir, _type_env) = ast_bridge::AstBridge::new()
             .with_source(python_source.to_string())
             .python_to_hir(ast)?;
 
@@ -640,9 +640,10 @@ impl DepylerPipeline {
 
     pub fn parse_to_hir(&self, source: &str) -> Result<hir::HirModule> {
         let ast = self.parse_python(source)?;
-        ast_bridge::AstBridge::new()
+        let (hir, _type_env) = ast_bridge::AstBridge::new()
             .with_source(source.to_string())
-            .python_to_hir(ast)
+            .python_to_hir(ast)?;
+        Ok(hir)
     }
 
     pub fn analyze_to_typed_hir(&self, source: &str) -> Result<hir::HirModule> {
