@@ -13,6 +13,13 @@ use anyhow::{bail, Result};
 use quote::{quote, ToTokens};
 use syn::{self, parse_quote};
 
+/// DEPYLER-0498: Integer type for cast detection (i32 vs i64)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IntType {
+    I32,
+    I64,
+}
+
 struct ExpressionConverter<'a, 'b> {
     ctx: &'a mut CodeGenContext<'b>,
 }
@@ -2637,11 +2644,47 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     };
 
-                    if should_borrow {
+                    let mut final_expr = if should_borrow {
                         parse_quote! { &#arg_expr }
                     } else {
                         arg_expr.clone()
+                    };
+
+                    // DEPYLER-0498: Integer type casting (i32 ↔ i64) - Conservative approach
+                    // When passing arithmetic expressions to functions, cast to i64
+                    // Five-Whys Root Cause: Inconsistent integer type inference between parameters and expressions
+                    // Example: is_perfect_square(5 * num * num + 4) where num is i32 but param is i64
+                    //
+                    // Heuristic: If expression is i32 arithmetic (Binary with integer operands),
+                    // cast to i64 for user-defined functions (not builtins like len, range, etc.)
+                    let arg_type = self.infer_expr_int_type(hir_arg);
+
+                    // Check if argument is i32 AND if function is user-defined (not a builtin)
+                    let is_builtin = matches!(func,
+                        "len" | "range" | "print" | "str" | "int" | "float" | "bool" |
+                        "list" | "dict" | "set" | "tuple" | "zip" | "enumerate" | "map" |
+                        "filter" | "sum" | "max" | "min" | "abs" | "round" | "pow" |
+                        "chr" | "ord" | "hex" | "bin" | "oct" | "hash" | "repr"
+                    );
+
+                    if arg_type == Some(IntType::I32) && !is_builtin {
+                        // User-defined function with i32 arithmetic - cast to i64
+                        // IMPORTANT: Wrap entire expression in parentheses before casting
+                        // to ensure correct precedence: (expr) as i64, not expr as i64
+                        if let syn::Expr::Reference(ref_expr) = &final_expr {
+                            // Already borrowed - cast the inner expression
+                            let inner = &ref_expr.expr;
+                            // Create explicit Paren + Cast syntax
+                            let paren_expr: syn::Expr = parse_quote! { (#inner) };
+                            final_expr = parse_quote! { &(#paren_expr as i64) };
+                        } else {
+                            // Create explicit Paren + Cast syntax
+                            let paren_expr: syn::Expr = parse_quote! { (#final_expr) };
+                            final_expr = parse_quote! { (#paren_expr as i64) };
+                        }
                     }
+
+                    final_expr
                 })
                 .collect();
 
@@ -11502,6 +11545,76 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 false
             }
             _ => false,
+        }
+    }
+
+    /// DEPYLER-0498: Check if expression contains integer literals
+    fn contains_int_literal(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
+            HirExpr::Binary { left, right, .. } => {
+                self.contains_int_literal(left) || self.contains_int_literal(right)
+            }
+            HirExpr::Unary { operand, .. } => self.contains_int_literal(operand),
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0498: Infer integer type from HIR expression
+    ///
+    /// Returns Some(IntType::I32) or Some(IntType::I64) if expression is integer-typed,
+    /// None otherwise.
+    ///
+    /// Five-Whys Root Cause: Need to detect i32 arithmetic expressions vs i64 parameters
+    /// Strategy: If expression contains integer literals, treat as i32 arithmetic
+    fn infer_expr_int_type(&self, expr: &HirExpr) -> Option<IntType> {
+        // Simple heuristic: if expression contains integer literals, it's i32 arithmetic
+        // This matches Rust's type inference for arithmetic expressions
+        if self.contains_int_literal(expr) {
+            return Some(IntType::I32);
+        }
+
+        match expr {
+            // Variable: check var_types (only if no literals in expression)
+            HirExpr::Var(var_name) => {
+                if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                    match var_type {
+                        Type::Int => Some(IntType::I64), // Default Int maps to i64
+                        Type::Custom(s) if s == "i32" => Some(IntType::I32),
+                        Type::Custom(s) if s == "i64" => Some(IntType::I64),
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            }
+            // Literal already checked above
+            HirExpr::Literal(crate::hir::Literal::Int(_)) => Some(IntType::I32),
+            // Binary operation: already checked for literals
+            HirExpr::Binary { .. } => None,
+            // Unary operation: propagate type
+            HirExpr::Unary { operand, .. } => self.infer_expr_int_type(operand),
+            // Function call: check return type
+            HirExpr::Call { func, .. } => {
+                if let Some(ret_type) = self.ctx.function_return_types.get(func) {
+                    match ret_type {
+                        Type::Int => Some(IntType::I64), // Default Int
+                        Type::Custom(s) if s == "i32" => Some(IntType::I32),
+                        Type::Custom(s) if s == "i64" => Some(IntType::I64),
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            }
+            // Method call: check return type heuristics
+            HirExpr::MethodCall { method, .. } => {
+                match method.as_str() {
+                    "len" | "count" | "capacity" => Some(IntType::I64), // usize → i64
+                    _ => None,
+                }
+            }
+            _ => None,
         }
     }
 
