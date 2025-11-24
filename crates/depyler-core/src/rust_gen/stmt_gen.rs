@@ -572,6 +572,14 @@ pub(crate) fn codegen_return_stmt(
         // Check if the expression is None literal
         let is_none_literal = matches!(e, HirExpr::Literal(Literal::None));
 
+        // DEPYLER-0498: Check if expression is if-expr with None arm (ternary with None)
+        // Pattern: `return x if cond else None` -> should be `if cond { Some(x) } else { None }`
+        // NOT: `Some(if cond { x } else { None })`
+        let is_if_expr_with_none = matches!(
+            e,
+            HirExpr::IfExpr { orelse, .. } if matches!(&**orelse, HirExpr::Literal(Literal::None))
+        );
+
         // DEPYLER-0271: For final statement in function, omit `return` keyword (idiomatic Rust)
         // Early returns (not final) keep the `return` keyword
         let use_return_keyword = !ctx.is_final_statement;
@@ -617,12 +625,28 @@ pub(crate) fn codegen_return_stmt(
                 // Final statement in void function: use unit value ()
                 Ok(quote! { () })
             }
-        } else if is_optional_return && !is_none_literal {
+        } else if is_optional_return && !is_none_literal && !is_if_expr_with_none {
             // Wrap value in Some() for Optional return types
+            // DEPYLER-0498: Skip wrapping if if-expr has None arm (handled separately)
             if use_return_keyword {
                 Ok(quote! { return Some(#expr_tokens); })
             } else {
                 Ok(quote! { Some(#expr_tokens) })
+            }
+        } else if is_optional_return && is_if_expr_with_none {
+            // DEPYLER-0498: If-expr with None arm - manually wrap true arm in Some()
+            // Pattern: `return x if cond else None` -> `if cond { Some(x) } else { None }`
+            if let HirExpr::IfExpr { test, body, orelse: _ } = e {
+                let test_tokens = test.to_rust_expr(ctx)?;
+                let body_tokens = body.to_rust_expr(ctx)?;
+
+                if use_return_keyword {
+                    Ok(quote! { return if #test_tokens { Some(#body_tokens) } else { None }; })
+                } else {
+                    Ok(quote! { if #test_tokens { Some(#body_tokens) } else { None } })
+                }
+            } else {
+                unreachable!("is_if_expr_with_none should only match IfExpr")
             }
         } else if is_optional_return && is_none_literal {
             // DEPYLER-0277: Return None for Optional types (not ()) - non-Result case
