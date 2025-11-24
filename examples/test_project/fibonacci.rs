@@ -1,4 +1,3 @@
-use serde_json;
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct IndexError {
@@ -122,17 +121,14 @@ impl Iterator for FibonacciGeneratorState {
 #[doc = " Depyler: proven to terminate"]
 pub fn fibonacci_memoized(
     n: i32,
-    mut memo: Option<HashMap<serde_json::Value, serde_json::Value>>,
+    mut memo: Option<HashMap<i32, i32>>,
 ) -> Result<i32, IndexError> {
     if memo.is_none() {
-        memo = {
-            let map = HashMap::new();
-            map
-        };
+        memo = Some(HashMap::new());
     }
-    let _cse_temp_0 = memo.get(&n).is_some();
+    let _cse_temp_0 = memo.as_ref().unwrap().get(&n).is_some();
     if _cse_temp_0 {
-        return Ok(memo.get(&n).cloned().unwrap_or_default());
+        return Ok(*memo.as_ref().unwrap().get(&n).unwrap());
     }
     let _cse_temp_1 = n <= 0;
     if _cse_temp_1 {
@@ -143,9 +139,9 @@ pub fn fibonacci_memoized(
             return Ok(1);
         }
     }
-    let _cse_temp_3 = fibonacci_memoized(n - 1, &memo)? + fibonacci_memoized(n - 2, &memo)?;
+    let _cse_temp_3 = fibonacci_memoized(n - 1, memo.clone())? + fibonacci_memoized(n - 2, memo.clone())?;
     let result = _cse_temp_3;
-    memo.insert(n, result);
+    memo.as_mut().unwrap().insert(n, result);
     Ok(result)
 }
 #[doc = "Find the index of a target value in Fibonacci sequence."]
@@ -177,9 +173,9 @@ pub fn is_fibonacci_number(num: i32) -> bool {
     }
     fn is_perfect_square(x: i64) -> bool {
         let root = ((x as f64).powf(0.5 as f64)) as i32;
-        return root * root == x;
+        return i64::from(root * root) == x;
     }
-    (is_perfect_square(5 * num * num + 4)) || (is_perfect_square(5 * num * num - 4))
+    (is_perfect_square((5 * num * num + 4) as i64)) || (is_perfect_square((5 * num * num - 4) as i64))
 }
 #[doc = "Test the Fibonacci functions."]
 #[doc = " Depyler: verified panic-free"]
@@ -195,14 +191,14 @@ pub fn main() {
     );
     println!(
         "{}",
-        format!("Fibonacci({}) memoized: {:?}", n, fibonacci_memoized(n))
+        format!("Fibonacci({}) memoized: {:?}", n, fibonacci_memoized(n, None))
     );
     println!(
         "{}",
-        format!("\nFirst {} Fibonacci numbers: {}", n, fibonacci_sequence(n))
+        format!("\nFirst {} Fibonacci numbers: {:?}", n, fibonacci_sequence(n))
     );
     println!("{}", "\nUsing generator:");
-    for (i, fib) in fibonacci_generator(n).into_iter().enumerate() {
+    for (i, fib) in fibonacci_generator(&Some(n)).into_iter().enumerate() {
         let i = i as i32;
         println!("{}", format!("  F({}) = {}", i, fib));
     }
@@ -211,7 +207,7 @@ pub fn main() {
     if index.is_some() {
         println!(
             "{}",
-            format!("\n{} is at index {} in Fibonacci sequence", target, index)
+            format!("\n{} is at index {} in Fibonacci sequence", target, index.unwrap())
         );
     } else {
         println!("{}", format!("\n{} is not in Fibonacci sequence", target));
