@@ -1,5 +1,7 @@
 //! GH-70: Nested function definitions not supported
 //!
+//! **STATUS**: RED phase complete. GREEN phase requires type system changes (deferred).
+//!
 //! **ROOT CAUSE**: Type inference doesn't propagate types into nested function context
 //!
 //! **Five Whys**:
@@ -10,14 +12,20 @@
 //! 5. ROOT: Type inference doesn't propagate types from outer function into nested functions
 //!
 //! **Problem**: Nested functions transpile but with wrong types:
-//! - Outer function return type: `()` (should be function pointer)
+//! - Outer function return type: `()` (should be function pointer or `impl Fn`)
 //! - Nested function parameters: `()` (should be inferred from usage)
 //! - Nested function return: `()` (should be inferred from body)
 //!
-//! **Solution Required**:
-//! 1. Detect when function returns another function → set return type to fn pointer
-//! 2. Propagate type information into nested function parameters
-//! 3. Infer nested function return type from body
+//! **Solution Required** (Type System Changes):
+//! 1. Enhance type inference to track nested function context
+//! 2. Propagate outer scope type information into nested functions
+//! 3. Detect when function returns another function → infer return type
+//! 4. Consider converting nested functions to closures for better type inference
+//!
+//! **Alternatives Considered**:
+//! - Closure approach: `let inner = |x| { ... };` (better type inference, but still needs work)
+//! - Codegen-only fix: Detect patterns and override types (hacky, incomplete)
+//! - Type system fix: Proper context-aware inference (correct but significant work)
 //!
 //! **Examples**:
 //! ```python
@@ -27,7 +35,7 @@
 //!     return inner
 //! ```
 //!
-//! **Generated (BROKEN)**:
+//! **Generated (CURRENT - BROKEN)**:
 //! ```rust,ignore
 //! pub fn outer() {  // ← Missing return type
 //!     fn inner(entry: ()) -> () {  // ← Wrong parameter/return types
@@ -37,14 +45,20 @@
 //! }
 //! ```
 //!
-//! **Expected (CORRECT)**:
+//! **Expected (TARGET)**:
 //! ```rust,ignore
-//! pub fn outer() -> fn((String, String, String)) -> String {
-//!     fn inner(entry: (String, String, String)) -> String {
+//! pub fn outer() -> impl Fn((String, String, String)) -> String {
+//!     |entry: (String, String, String)| -> String {
 //!         entry.0.clone()
 //!     }
-//!     inner
 //! }
+//! ```
+//!
+//! **Workaround**: Use lambdas instead of nested named functions:
+//! ```python
+//! def outer():
+//!     inner = lambda entry: entry[0]  # ✅ Works
+//!     return inner
 //! ```
 
 #![allow(non_snake_case)]
