@@ -2,6 +2,43 @@ roadmap_version: '1.0'
 github_enabled: true
 github_repo: paiml/depyler
 roadmap:
+- id: DEPYLER-0495
+  github_issue: null
+  item_type: bug
+  title: Generator return type incorrect - Iterator[T] transpiles to Iterator<Item = Iterator<T>>
+  status: inprogress
+  priority: critical
+  assigned_to: Claude
+  created: 2025-11-23T21:15:00+00:00
+  updated: 2025-11-23T21:11:40.029203788+00:00
+  spec: docs/bugs/DEPYLER-0495-generator-return-type.md
+  acceptance_criteria:
+  - Generator with Iterator[int] transpiles to impl Iterator<Item = i32>
+  - Generated type Item = i32 (not Iterator<i32>)
+  - fibonacci_generator compiles without E0107/E0191 errors
+  - No regression in existing 6 generator tests
+  - Test coverage for Iterator[T] with multiple element types
+  phases:
+  - name: Phase 1 - Create failing tests (RED)
+    status: planned
+    estimated_effort: null
+    completion: 0
+  - name: Phase 2 - Fix generator return type mapping (GREEN)
+    status: planned
+    estimated_effort: null
+    completion: 0
+  - name: Phase 3 - Quality gates and regression testing (REFACTOR)
+    status: planned
+    estimated_effort: null
+    completion: 0
+  subtasks: []
+  estimated_effort: 3h
+  labels:
+  - P0-critical
+  - generators
+  - type-mapping
+  - iterator
+  notes: 'STOP THE LINE: Iterator[int] incorrectly maps to Iterator<Item = Iterator<i32>> instead of Iterator<Item = i32>'
 - id: DEPYLER-0494
   github_issue: null
   item_type: bug

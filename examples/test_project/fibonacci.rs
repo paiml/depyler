@@ -80,7 +80,7 @@ struct FibonacciGeneratorState {
     limit: Option<i32>,
 }
 #[doc = " Generator function - returns Iterator"]
-pub fn fibonacci_generator(limit: &Option<i32>) -> impl Iterator<Item = Iterator<i32>> {
+pub fn fibonacci_generator(limit: &Option<i32>) -> impl Iterator<Item = i32> {
     FibonacciGeneratorState {
         state: 0,
         a: 0,
@@ -90,7 +90,7 @@ pub fn fibonacci_generator(limit: &Option<i32>) -> impl Iterator<Item = Iterator
     }
 }
 impl Iterator for FibonacciGeneratorState {
-    type Item = Iterator<i32>;
+    type Item = i32;
     fn next(&mut self) -> Option<Self::Item> {
         match self.state {
             0 => {
