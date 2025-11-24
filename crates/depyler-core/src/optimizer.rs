@@ -1245,4 +1245,72 @@ mod tests {
             .any(|stmt| matches!(stmt, HirStmt::Return(_)));
         assert!(has_return, "Return statement should be preserved");
     }
+
+    #[test]
+    fn test_DEPYLER_0508_dead_code_elimination_enabled_by_default() {
+        // DEPYLER-0508: DCE should be enabled by default
+        // Unused variables should be eliminated without explicit opt-in
+        let config = OptimizerConfig::default();
+
+        // Verify DCE is enabled by default
+        assert!(
+            config.eliminate_dead_code,
+            "DEPYLER-0508: Dead code elimination should be enabled by default"
+        );
+
+        let mut optimizer = Optimizer::new(config);
+
+        let program = HirProgram {
+            functions: vec![HirFunction {
+                name: "test".to_string(),
+                params: smallvec![],
+                ret_type: Type::Int,
+                body: vec![
+                    // Unused variable - should be eliminated
+                    HirStmt::Assign {
+                        target: AssignTarget::Symbol("unused".to_string()),
+                        value: HirExpr::Literal(Literal::Int(42)),
+                        type_annotation: None,
+                    },
+                    // Used variable - should be kept
+                    HirStmt::Assign {
+                        target: AssignTarget::Symbol("used".to_string()),
+                        value: HirExpr::Literal(Literal::Int(10)),
+                        type_annotation: None,
+                    },
+                    HirStmt::Return(Some(HirExpr::Var("used".to_string()))),
+                ],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let optimized = optimizer.optimize_program(program);
+        let func = &optimized.functions[0];
+
+        // With DCE enabled by default, unused assignment should be removed
+        // Statements should be: assignment for "used" + return = 2 statements
+        assert_eq!(
+            func.body.len(),
+            2,
+            "DEPYLER-0508: Unused 'unused' variable should be eliminated by default"
+        );
+
+        // Verify the unused variable was removed, not just renamed
+        let has_unused = func.body.iter().any(|stmt| {
+            if let HirStmt::Assign { target, .. } = stmt {
+                if let AssignTarget::Symbol(name) = target {
+                    return name == "unused" || name == "_unused";
+                }
+            }
+            false
+        });
+        assert!(
+            !has_unused,
+            "DEPYLER-0508: 'unused' variable should be completely eliminated"
+        );
+    }
 }
