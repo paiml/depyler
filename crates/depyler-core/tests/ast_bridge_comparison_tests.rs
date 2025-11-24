@@ -38,7 +38,7 @@ class Service:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should have docstring extracted and body filtered
     assert_eq!(hir.classes.len(), 1);
@@ -64,7 +64,7 @@ class Service:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     assert_eq!(hir.classes.len(), 1);
     assert_eq!(hir.classes[0].methods.len(), 1);
@@ -89,7 +89,7 @@ UserId = int
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should recognize as type alias
     assert_eq!(hir.type_aliases.len(), 1);
@@ -108,7 +108,7 @@ x, y = 1, 2
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should NOT be recognized as type alias
     assert_eq!(
@@ -134,7 +134,7 @@ Container = list[T]
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should process TypeVar correctly
     // The == comparison validates type_params match the pattern
@@ -150,7 +150,7 @@ Name = str
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should process non-generic type aliases
     assert_eq!(hir.type_aliases.len(), 2);
@@ -172,7 +172,7 @@ class User:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     assert_eq!(hir.classes.len(), 1);
     // Non-generic class should have 0 type params
@@ -190,7 +190,7 @@ class Container:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should handle generic classes
     // type_params.len() should be > 0 for generics
@@ -247,7 +247,7 @@ class Service:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     assert_eq!(hir.classes.len(), 1);
     assert!(!hir.classes[0].methods.is_empty());
@@ -266,7 +266,7 @@ class Service:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     assert_eq!(hir.classes.len(), 1);
     assert!(!hir.classes[0].methods.is_empty());
@@ -291,7 +291,7 @@ class Config:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     assert_eq!(hir.classes.len(), 1);
     assert_eq!(hir.classes[0].methods.len(), 1);
@@ -312,7 +312,7 @@ class Config:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     assert_eq!(hir.classes.len(), 1);
     assert!(!hir.classes[0].methods.is_empty());
@@ -353,7 +353,7 @@ Name = str
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Validates multiple comparison operators in complex scenario
     assert_eq!(hir.classes.len(), 1, "Should have GenericService class");
