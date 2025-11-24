@@ -12277,9 +12277,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         iterable: &HirExpr,
         key_params: &[String],
         key_body: &HirExpr,
-        reverse: bool,
+        reverse_expr: &Option<Box<HirExpr>>,
     ) -> Result<syn::Expr> {
         let iter_expr = iterable.to_rust_expr(self.ctx)?;
+
+        // DEPYLER-0502: Convert reverse_expr to Rust expression (supports variables and expressions)
+        // If None, default to false (no reversal)
+        let reverse_rust_expr = if let Some(expr) = reverse_expr {
+            expr.to_rust_expr(self.ctx)?
+        } else {
+            parse_quote! { false }
+        };
 
         // DEPYLER-0307: Check if this is an identity function (lambda x: x)
         // If so, use simple .sort() instead of .sort_by_key()
@@ -12287,25 +12295,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             key_params.len() == 1 && matches!(key_body, HirExpr::Var(v) if v == &key_params[0]);
 
         if is_identity {
-            // Identity function: just sort() + optional reverse()
-            if reverse {
-                return Ok(parse_quote! {
-                    {
-                        let mut __sorted_result = #iter_expr.clone();
-                        __sorted_result.sort();
+            // Identity function: just sort() + conditional reverse()
+            return Ok(parse_quote! {
+                {
+                    let mut __sorted_result = #iter_expr.clone();
+                    __sorted_result.sort();
+                    if #reverse_rust_expr {
                         __sorted_result.reverse();
-                        __sorted_result
                     }
-                });
-            } else {
-                return Ok(parse_quote! {
-                    {
-                        let mut __sorted_result = #iter_expr.clone();
-                        __sorted_result.sort();
-                        __sorted_result
-                    }
-                });
-            }
+                    __sorted_result
+                }
+            });
         }
 
         // Non-identity key function: use sort_by_key
@@ -12319,25 +12319,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             bail!("sorted() key lambda must have exactly one parameter");
         };
 
-        // Generate: { let mut result = iterable.clone(); result.sort_by_key(|param| body); [result.reverse();] result }
-        if reverse {
-            Ok(parse_quote! {
-                {
-                    let mut __sorted_result = #iter_expr.clone();
-                    __sorted_result.sort_by_key(|#param_pat| #body_expr);
+        // DEPYLER-0502: Generate code with runtime conditional reverse
+        // { let mut result = iterable.clone(); result.sort_by_key(|param| body); if reverse_expr { result.reverse(); } result }
+        Ok(parse_quote! {
+            {
+                let mut __sorted_result = #iter_expr.clone();
+                __sorted_result.sort_by_key(|#param_pat| #body_expr);
+                if #reverse_rust_expr {
                     __sorted_result.reverse();
-                    __sorted_result
                 }
-            })
-        } else {
-            Ok(parse_quote! {
-                {
-                    let mut __sorted_result = #iter_expr.clone();
-                    __sorted_result.sort_by_key(|#param_pat| #body_expr);
-                    __sorted_result
-                }
-            })
-        }
+                __sorted_result
+            }
+        })
     }
 
     fn convert_generator_expression(
@@ -12574,8 +12567,8 @@ impl ToRustExpr for HirExpr {
                 iterable,
                 key_params,
                 key_body,
-                reverse,
-            } => converter.convert_sort_by_key(iterable, key_params, key_body, *reverse),
+                reverse_expr,
+            } => converter.convert_sort_by_key(iterable, key_params, key_body, reverse_expr),
             HirExpr::GeneratorExp {
                 element,
                 generators,
