@@ -161,7 +161,11 @@ pub fn find_fibonacci_index(target: i32) -> Option<i32> {
         (a, b) = (b, a + b);
         index = index + 1;
     }
-    Some(if a == target { index } else { None })
+    if a == target {
+        Some(index)
+    } else {
+        None
+    }
 }
 #[doc = "Check if a number is in the Fibonacci sequence."]
 #[doc = " Depyler: verified panic-free"]
