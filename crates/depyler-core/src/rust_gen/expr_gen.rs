@@ -917,10 +917,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #iter_expr.iter().sum::<#target_type>() });
         }
 
-        // DEPYLER-0307 Fix #3: Handle max(a, b) with 2 arguments → std::cmp::max(a, b)
+        // DEPYLER-0515 / GH-72: Handle max(a, b) with mixed numeric types
+        // Python allows max(5, 3.14), but Rust's std::cmp::max requires same types
         if func == "max" && args.len() == 2 {
             let arg1 = args[0].to_rust_expr(self.ctx)?;
             let arg2 = args[1].to_rust_expr(self.ctx)?;
+
+            // DEPYLER-0515: Check if either argument is a float literal
+            // If so, use f64 method calls with explicit casting
+            let has_float = matches!(args[0], HirExpr::Literal(Literal::Float(_)))
+                || matches!(args[1], HirExpr::Literal(Literal::Float(_)));
+
+            if has_float {
+                // Use f64 method call: (a as f64).max(b as f64)
+                return Ok(parse_quote! { (#arg1 as f64).max(#arg2 as f64) });
+            }
+
             return Ok(parse_quote! { std::cmp::max(#arg1, #arg2) });
         }
 
@@ -930,10 +942,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { *#iter_expr.iter().max().unwrap() });
         }
 
-        // DEPYLER-0307 Fix #3: Handle min(a, b) with 2 arguments → std::cmp::min(a, b)
+        // DEPYLER-0515 / GH-72: Handle min(a, b) with mixed numeric types
+        // Python allows min(5, 3.14), but Rust's std::cmp::min requires same types
         if func == "min" && args.len() == 2 {
             let arg1 = args[0].to_rust_expr(self.ctx)?;
             let arg2 = args[1].to_rust_expr(self.ctx)?;
+
+            // DEPYLER-0515: Check if either argument is a float literal
+            // If so, use f64 method calls with explicit casting
+            let has_float = matches!(args[0], HirExpr::Literal(Literal::Float(_)))
+                || matches!(args[1], HirExpr::Literal(Literal::Float(_)));
+
+            if has_float {
+                // Use f64 method call: (a as f64).min(b as f64)
+                return Ok(parse_quote! { (#arg1 as f64).min(#arg2 as f64) });
+            }
+
             return Ok(parse_quote! { std::cmp::min(#arg1, #arg2) });
         }
 
