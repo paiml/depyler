@@ -791,148 +791,169 @@ impl ExprConverter {
     }
 
     fn convert_list_comp(lc: ast::ExprListComp) -> Result<HirExpr> {
-        // Convert only simple list comprehensions for now
-        if lc.generators.len() != 1 {
-            bail!("Nested list comprehensions not yet supported");
-        }
-
-        let generator = &lc.generators[0];
-
-        // Extract the target variable
-        let target = match &generator.target {
-            ast::Expr::Name(n) => n.id.to_string(),
-            _ => bail!("Complex comprehension targets not yet supported"),
-        };
-
-        // Convert the iterator expression
-        let iter = Box::new(Self::convert(generator.iter.clone())?);
-
-        // Convert the element expression
+        // DEPYLER-0504: Support multiple generators (flattened comprehensions)
+        // Convert element expression
         let element = Box::new(Self::convert(*lc.elt)?);
 
-        // Convert the condition if present
-        // DEPYLER-0505: Chain multiple if conditions with && operator
-        let condition = if generator.ifs.is_empty() {
-            None
-        } else if generator.ifs.len() == 1 {
-            Some(Box::new(Self::convert(generator.ifs[0].clone())?))
-        } else {
-            // Chain multiple conditions: if cond1 if cond2 -> (cond1 && cond2)
-            let mut combined = Self::convert(generator.ifs[0].clone())?;
-            for condition_expr in generator.ifs.iter().skip(1) {
-                let right = Self::convert(condition_expr.clone())?;
-                combined = HirExpr::Binary {
-                    op: BinOp::And,
-                    left: Box::new(combined),
-                    right: Box::new(right),
-                };
-            }
-            Some(Box::new(combined))
-        };
+        // Convert all generators (support multiple for clauses)
+        let mut generators = Vec::new();
+        for gen in lc.generators {
+            // Extract target variable(s)
+            let target = match &gen.target {
+                ast::Expr::Name(n) => n.id.to_string(),
+                ast::Expr::Tuple(t) => {
+                    // For tuple unpacking like: (i, j) in ...
+                    let names: Vec<String> = t
+                        .elts
+                        .iter()
+                        .filter_map(|e| {
+                            if let ast::Expr::Name(n) = e {
+                                Some(n.id.to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    if names.is_empty() {
+                        bail!("Complex tuple unpacking in list comprehension not yet supported");
+                    }
+                    format!("({})", names.join(", "))
+                }
+                _ => bail!("Complex comprehension targets not yet supported"),
+            };
+
+            // Convert iterator expression
+            let iter = Box::new(Self::convert(gen.iter.clone())?);
+
+            // Convert all conditions (if clauses)
+            let conditions: Vec<HirExpr> = gen
+                .ifs
+                .iter()
+                .map(|if_expr| Self::convert(if_expr.clone()))
+                .collect::<Result<Vec<_>>>()?;
+
+            generators.push(crate::hir::HirComprehension {
+                target,
+                iter,
+                conditions,
+            });
+        }
 
         Ok(HirExpr::ListComp {
             element,
-            target,
-            iter,
-            condition,
+            generators,
         })
     }
 
     fn convert_set_comp(sc: ast::ExprSetComp) -> Result<HirExpr> {
-        // Convert only simple set comprehensions for now
-        if sc.generators.len() != 1 {
-            bail!("Nested set comprehensions not yet supported");
-        }
-
-        let generator = &sc.generators[0];
-
-        // Extract the target variable
-        let target = match &generator.target {
-            ast::Expr::Name(n) => n.id.to_string(),
-            _ => bail!("Complex comprehension targets not yet supported"),
-        };
-
-        // Convert the iterator expression
-        let iter = Box::new(Self::convert(generator.iter.clone())?);
-
-        // Convert the element expression
+        // DEPYLER-0504: Support multiple generators (flattened comprehensions)
+        // Convert element expression
         let element = Box::new(Self::convert(*sc.elt)?);
 
-        // Convert the condition if present
-        // DEPYLER-0505: Chain multiple if conditions with && operator
-        let condition = if generator.ifs.is_empty() {
-            None
-        } else if generator.ifs.len() == 1 {
-            Some(Box::new(Self::convert(generator.ifs[0].clone())?))
-        } else {
-            // Chain multiple conditions: if cond1 if cond2 -> (cond1 && cond2)
-            let mut combined = Self::convert(generator.ifs[0].clone())?;
-            for condition_expr in generator.ifs.iter().skip(1) {
-                let right = Self::convert(condition_expr.clone())?;
-                combined = HirExpr::Binary {
-                    op: BinOp::And,
-                    left: Box::new(combined),
-                    right: Box::new(right),
-                };
-            }
-            Some(Box::new(combined))
-        };
+        // Convert all generators (support multiple for clauses)
+        let mut generators = Vec::new();
+        for gen in sc.generators {
+            // Extract target variable(s)
+            let target = match &gen.target {
+                ast::Expr::Name(n) => n.id.to_string(),
+                ast::Expr::Tuple(t) => {
+                    // For tuple unpacking like: (i, j) in ...
+                    let names: Vec<String> = t
+                        .elts
+                        .iter()
+                        .filter_map(|e| {
+                            if let ast::Expr::Name(n) = e {
+                                Some(n.id.to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    if names.is_empty() {
+                        bail!("Complex tuple unpacking in set comprehension not yet supported");
+                    }
+                    format!("({})", names.join(", "))
+                }
+                _ => bail!("Complex comprehension targets not yet supported"),
+            };
+
+            // Convert iterator expression
+            let iter = Box::new(Self::convert(gen.iter.clone())?);
+
+            // Convert all conditions (if clauses)
+            let conditions: Vec<HirExpr> = gen
+                .ifs
+                .iter()
+                .map(|if_expr| Self::convert(if_expr.clone()))
+                .collect::<Result<Vec<_>>>()?;
+
+            generators.push(crate::hir::HirComprehension {
+                target,
+                iter,
+                conditions,
+            });
+        }
 
         Ok(HirExpr::SetComp {
             element,
-            target,
-            iter,
-            condition,
+            generators,
         })
     }
 
     fn convert_dict_comp(dc: ast::ExprDictComp) -> Result<HirExpr> {
-        // Convert only simple dict comprehensions for now
-        if dc.generators.len() != 1 {
-            bail!("Nested dict comprehensions not yet supported");
-        }
-
-        let generator = &dc.generators[0];
-
-        // Extract the target variable
-        let target = match &generator.target {
-            ast::Expr::Name(n) => n.id.to_string(),
-            _ => bail!("Complex comprehension targets not yet supported"),
-        };
-
-        // Convert the iterator expression
-        let iter = Box::new(Self::convert(generator.iter.clone())?);
-
-        // Convert the key and value expressions
+        // DEPYLER-0504: Support multiple generators (flattened comprehensions)
+        // Convert key and value expressions
         let key = Box::new(Self::convert(*dc.key)?);
         let value = Box::new(Self::convert(*dc.value)?);
 
-        // Convert the condition if present
-        // DEPYLER-0505: Chain multiple if conditions with && operator
-        let condition = if generator.ifs.is_empty() {
-            None
-        } else if generator.ifs.len() == 1 {
-            Some(Box::new(Self::convert(generator.ifs[0].clone())?))
-        } else {
-            // Chain multiple conditions: if cond1 if cond2 -> (cond1 && cond2)
-            let mut combined = Self::convert(generator.ifs[0].clone())?;
-            for condition_expr in generator.ifs.iter().skip(1) {
-                let right = Self::convert(condition_expr.clone())?;
-                combined = HirExpr::Binary {
-                    op: BinOp::And,
-                    left: Box::new(combined),
-                    right: Box::new(right),
-                };
-            }
-            Some(Box::new(combined))
-        };
+        // Convert all generators (support multiple for clauses)
+        let mut generators = Vec::new();
+        for gen in dc.generators {
+            // Extract target variable(s)
+            let target = match &gen.target {
+                ast::Expr::Name(n) => n.id.to_string(),
+                ast::Expr::Tuple(t) => {
+                    // For tuple unpacking like: (i, j) in ...
+                    let names: Vec<String> = t
+                        .elts
+                        .iter()
+                        .filter_map(|e| {
+                            if let ast::Expr::Name(n) = e {
+                                Some(n.id.to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    if names.is_empty() {
+                        bail!("Complex tuple unpacking in dict comprehension not yet supported");
+                    }
+                    format!("({})", names.join(", "))
+                }
+                _ => bail!("Complex comprehension targets not yet supported"),
+            };
+
+            // Convert iterator expression
+            let iter = Box::new(Self::convert(gen.iter.clone())?);
+
+            // Convert all conditions (if clauses)
+            let conditions: Vec<HirExpr> = gen
+                .ifs
+                .iter()
+                .map(|if_expr| Self::convert(if_expr.clone()))
+                .collect::<Result<Vec<_>>>()?;
+
+            generators.push(crate::hir::HirComprehension {
+                target,
+                iter,
+                conditions,
+            });
+        }
 
         Ok(HirExpr::DictComp {
             key,
             value,
-            target,
-            iter,
-            condition,
+            generators,
         })
     }
 
