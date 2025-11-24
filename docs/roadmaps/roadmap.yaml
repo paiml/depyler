@@ -2,15 +2,98 @@ roadmap_version: '1.0'
 github_enabled: true
 github_repo: paiml/depyler
 roadmap:
+- id: DEPYLER-0496
+  github_issue: null
+  item_type: bug
+  title: Binary operations on Result-returning expressions missing ? operator
+  status: planned
+  priority: critical
+  assigned_to: Claude
+  created: 2025-11-23T21:30:00+00:00
+  updated: 2025-11-23T21:30:00+00:00
+  spec: docs/bugs/DEPYLER-0496-result-binop-error-propagation.md
+  acceptance_criteria:
+  - 'fibonacci_memoized(n-1) + fibonacci_memoized(n-2) uses ? operator'
+  - 'Generated code: fibonacci_memoized(n-1)? + fibonacci_memoized(n-2)?'
+  - fibonacci_memoized compiles without E0369 error
+  - No regressions in error handling tests
+  phases:
+  - name: Phase 1 - Create failing tests (RED)
+    status: planned
+  - name: Phase 2 - Fix binop error propagation (GREEN)
+    status: planned
+  - name: Phase 3 - Quality gates (REFACTOR)
+    status: planned
+  subtasks: []
+  estimated_effort: 2h
+  labels:
+  - P0-critical
+  - error-handling
+  - result-type
+  - binop
+  notes: 'STOP THE LINE: Cannot add Result<T> + Result<T> without ? operator'
+- id: DEPYLER-0497
+  github_issue: null
+  item_type: bug
+  title: Option/Result types in format! macro need Debug formatting or unwrap
+  status: planned
+  priority: high
+  assigned_to: null
+  created: 2025-11-23T21:30:00+00:00
+  spec: docs/bugs/DEPYLER-0497-format-macro-display-trait.md
+  acceptance_criteria:
+  - 'Result/Option/Vec in format! use {:?} or .unwrap()'
+  - fibonacci.rs compiles without E0277 Display errors
+  phases:
+  - name: Phase 1 - Create failing tests (RED)
+    status: planned
+  - name: Phase 2 - Fix format macro codegen (GREEN)
+    status: planned
+  - name: Phase 3 - Quality gates (REFACTOR)
+    status: planned
+  subtasks: []
+  estimated_effort: 2h
+  labels:
+  - P1-high
+  - format-macro
+  - display-trait
+  notes: '3 Display trait errors in fibonacci.rs'
+- id: DEPYLER-0498
+  github_issue: null
+  item_type: bug
+  title: Option type mismatches - borrowing and comparison issues
+  status: planned
+  priority: high
+  assigned_to: null
+  created: 2025-11-23T21:30:00+00:00
+  spec: docs/bugs/DEPYLER-0498-option-type-mismatches.md
+  acceptance_criteria:
+  - '&Option<T> vs Option<T> correctly handled (clone/deref)'
+  - 'T compared with Option<T> uses .unwrap_or() or pattern match'
+  - fibonacci.rs compiles without E0308 type mismatch errors
+  phases:
+  - name: Phase 1 - Create failing tests (RED)
+    status: planned
+  - name: Phase 2 - Fix Option handling (GREEN)
+    status: planned
+  - name: Phase 3 - Quality gates (REFACTOR)
+    status: planned
+  subtasks: []
+  estimated_effort: 3h
+  labels:
+  - P1-high
+  - option-type
+  - type-inference
+  notes: '7 type mismatch errors in fibonacci.rs'
 - id: DEPYLER-0495
   github_issue: null
   item_type: bug
   title: Generator return type incorrect - Iterator[T] transpiles to Iterator<Item = Iterator<T>>
-  status: inprogress
+  status: completed
   priority: critical
   assigned_to: Claude
   created: 2025-11-23T21:15:00+00:00
-  updated: 2025-11-23T21:11:40.029203788+00:00
+  updated: 2025-11-24T08:24:05.346678660+00:00
   spec: docs/bugs/DEPYLER-0495-generator-return-type.md
   acceptance_criteria:
   - Generator with Iterator[int] transpiles to impl Iterator<Item = i32>

@@ -132,8 +132,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_binary(&mut self, op: BinOp, left: &HirExpr, right: &HirExpr) -> Result<syn::Expr> {
-        let left_expr = left.to_rust_expr(self.ctx)?;
-        let right_expr = right.to_rust_expr(self.ctx)?;
+        // DEPYLER-0496: Check if operands return Result types (need ? operator)
+        let left_returns_result = self.expr_returns_result(left);
+        let right_returns_result = self.expr_returns_result(right);
+
+        let mut left_expr = left.to_rust_expr(self.ctx)?;
+        let mut right_expr = right.to_rust_expr(self.ctx)?;
+
+        // DEPYLER-0496: Add ? operator for Result-returning expressions in binary operations
+        // Only add ? if we're in a Result-returning context (current function can fail)
+        if self.ctx.current_function_can_fail {
+            if left_returns_result {
+                left_expr = parse_quote! { #left_expr? };
+            }
+            if right_returns_result {
+                right_expr = parse_quote! { #right_expr? };
+            }
+        }
 
         match op {
             BinOp::In => {
@@ -11432,6 +11447,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Only treat explicit list literals and calls as lists
                 false
             }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0496: Check if expression returns a Result type
+    /// Used to determine if ? operator is needed in binary operations
+    ///
+    /// Returns true if:
+    /// - Expression is a function call to a Result-returning function
+    /// - Expression is a method call that might return Result
+    ///
+    /// # Complexity
+    /// 2 (match + HashSet lookup)
+    fn expr_returns_result(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Function calls: check if function is tracked as Result-returning
+            HirExpr::Call { func, .. } => self.ctx.result_returning_functions.contains(func),
+            // Method calls: Some method calls return Result (e.g., parse(), read_to_string())
+            // For now, be conservative and don't assume method calls return Result
+            // This can be enhanced later with specific method tracking
+            HirExpr::MethodCall { .. } => false,
+            // Other expressions don't return Result
             _ => false,
         }
     }
