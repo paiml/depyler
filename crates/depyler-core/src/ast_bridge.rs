@@ -494,7 +494,7 @@ impl AstBridge {
 
     /// Try to convert an annotated assignment to a module-level constant
     fn try_convert_annotated_constant(
-        &self,
+        &mut self,
         ann_assign: &ast::StmtAnnAssign,
     ) -> Result<Option<HirConstant>> {
         let name = match ann_assign.target.as_ref() {
@@ -504,6 +504,11 @@ impl AstBridge {
 
         // Extract type annotation
         let type_annotation = Some(TypeExtractor::extract_type(&ann_assign.annotation)?);
+
+        // DEPYLER-0500 Phase 2: Bind type annotation to TypeEnvironment
+        if let Some(ref ty) = type_annotation {
+            self.type_env.bind_var(&name, ty.clone());
+        }
 
         // Get the value (annotated assignments at module level should have values)
         if let Some(value_expr) = &ann_assign.value {
