@@ -390,7 +390,20 @@ impl AstBridge {
                 }
             }
             // Generic alias: UserId = Optional[int]
-            ast::Expr::Subscript(_) => (TypeExtractor::extract_type(&assign.value)?, false),
+            // DEPYLER-0503: Only treat subscripts with type base (Optional, List, etc.) as type aliases
+            // Regular value subscripts like items[0] should return None (not a type alias)
+            ast::Expr::Subscript(s) => {
+                // Check if the base is a type name
+                if let ast::Expr::Name(base_name) = s.value.as_ref() {
+                    if self.is_type_name(base_name.id.as_str()) {
+                        (TypeExtractor::extract_type(&assign.value)?, false)
+                    } else {
+                        return Ok(None); // Base is variable, not a type - not a type alias
+                    }
+                } else {
+                    return Ok(None); // Complex base expression - not a type alias
+                }
+            }
             // NewType pattern: UserId = NewType('UserId', int)
             ast::Expr::Call(call) => {
                 if let ast::Expr::Name(func_name) = call.func.as_ref() {
