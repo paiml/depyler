@@ -675,7 +675,7 @@ roadmap:
 - id: DEPYLER-0514
   github_issue: null
   item_type: bug
-  title: 'Optimizer removes assignments before try/with blocks'
+  title: Optimizer removes assignments before try/with blocks
   status: completed
   priority: critical
   assigned_to: Claude
@@ -709,3 +709,19 @@ roadmap:
   - dead-code-elimination
   - try-except
   notes: 'ROOT CAUSE: Optimizer.collect_truly_used_vars_stmt did not recurse into Try/With statements. Added handlers for HirStmt::Try and HirStmt::With to collect used variables from all nested blocks.'
+- id: CLEANUP-2025-11-24
+  github_issue: null
+  item_type: task
+  title: 'New task: CLEANUP-2025-11-24'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-24T22:44:52.292389504+00:00
+  updated: 2025-11-24T22:44:52.292389504+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
