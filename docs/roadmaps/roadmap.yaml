@@ -524,7 +524,7 @@ roadmap:
 - id: DEPYLER-0511
   github_issue: null
   item_type: bug
-  title: 'Range Comprehension Parentheses Bug (Operator Precedence)'
+  title: Range Comprehension Parentheses Bug (Operator Precedence)
   status: completed
   priority: critical
   assigned_to: Claude
@@ -532,7 +532,7 @@ roadmap:
   updated: 2025-11-24T17:30:00+00:00
   spec: crates/depyler-core/tests/depyler_0511_range_parentheses.rs
   acceptance_criteria:
-  - Range expressions in comprehensions generate correct Rust: (0..5).into_iter()
+  - 'Range expressions in comprehensions generate correct Rust: (0..5).into_iter()'
   - All 5 DEPYLER-0511 tests pass (list/dict/set/nested/range_with_start)
   - Original 3 failing tests pass (test_25, test_30, test_35)
   - Generated code compiles without operator precedence errors
@@ -557,3 +557,19 @@ roadmap:
   - operator-precedence
   - ranges
   notes: 'STOP THE LINE: 0..5.into_iter() parsed as 0..(5.into_iter()) - fixed 9 code paths'
+- id: DEPYLER-0512
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0512'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-24T17:28:15.909996052+00:00
+  updated: 2025-11-24T17:28:15.909996052+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
