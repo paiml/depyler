@@ -466,9 +466,7 @@ fn test_depyler_0353_debug_runtime_breakpoint() {
 
     // Should return valid Rust code for breakpoint
     assert!(!breakpoint_code.is_empty());
-    assert!(
-        breakpoint_code.contains("std::intrinsics::breakpoint") || !breakpoint_code.is_empty()
-    );
+    assert!(breakpoint_code.contains("std::intrinsics::breakpoint") || !breakpoint_code.is_empty());
 }
 
 #[test]

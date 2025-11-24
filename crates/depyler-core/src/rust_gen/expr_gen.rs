@@ -11338,6 +11338,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 false
             };
 
+            // DEPYLER-0511: Wrap ranges in parens before method calls
+            let iter_expr = if !is_csv_reader && !matches!(&*gen.iter, HirExpr::Var(_)) {
+                self.wrap_range_in_parens(iter_expr)
+            } else {
+                iter_expr
+            };
+
             let mut chain: syn::Expr = if is_csv_reader {
                 // DEPYLER-0454: CSV reader - use deserialize pattern
                 self.ctx.needs_csv = true;
@@ -11385,6 +11392,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let inner_expr = self.build_nested_chain(element, generators, 1)?;
 
         // Start the chain with the first generator
+        // DEPYLER-0511: Wrap ranges in parens before .into_iter()
+        let first_iter = self.wrap_range_in_parens(first_iter);
         let mut chain: syn::Expr = parse_quote! { #first_iter.into_iter() };
 
         // Add filters for first generator's conditions
@@ -11397,6 +11406,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         chain = parse_quote! { #chain.flat_map(|#first_pat| #inner_expr) };
 
         Ok(chain)
+    }
+
+    /// DEPYLER-0511: Wrap range expressions in parentheses before method calls
+    ///
+    /// Ranges need parentheses when followed by method calls due to operator precedence.
+    /// Without parens: `0..5.into_iter()` parses as `0..(5.into_iter())` ❌
+    /// With parens: `(0..5).into_iter()` parses correctly ✅
+    ///
+    /// Detects syn::Expr::Range and wraps in syn::Expr::Paren.
+    fn wrap_range_in_parens(&self, expr: syn::Expr) -> syn::Expr {
+        match &expr {
+            syn::Expr::Range(_) => {
+                // Wrap range in parentheses
+                parse_quote! { (#expr) }
+            }
+            _ => expr, // No wrapping needed for other expressions
+        }
     }
 
     /// Add dereference (*) to uses of target variable in expression
@@ -11813,6 +11839,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let element_expr = element.to_rust_expr(self.ctx)?;
             let target_pat = self.parse_target_pattern(&gen.target)?;
 
+            // DEPYLER-0511: Wrap ranges in parens before method calls
+            let iter_expr = if !matches!(&*gen.iter, HirExpr::Var(_)) {
+                self.wrap_range_in_parens(iter_expr)
+            } else {
+                iter_expr
+            };
+
             let mut chain: syn::Expr = if matches!(&*gen.iter, HirExpr::Var(_)) {
                 // Variable iteration - likely borrowed, use .iter().copied()
                 parse_quote! { #iter_expr.iter().copied() }
@@ -11862,6 +11895,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let value_expr = value.to_rust_expr(self.ctx)?;
             let target_pat = self.parse_target_pattern(&gen.target)?;
 
+            // DEPYLER-0511: Wrap ranges in parens before method calls
+            let iter_expr = if !matches!(&*gen.iter, HirExpr::Var(_)) {
+                self.wrap_range_in_parens(iter_expr)
+            } else {
+                iter_expr
+            };
+
             let mut chain: syn::Expr = if matches!(&*gen.iter, HirExpr::Var(_)) {
                 // Variable iteration - likely borrowed, use .iter().copied()
                 parse_quote! { #iter_expr.iter().copied() }
@@ -11904,6 +11944,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let inner_expr = self.build_nested_chain_for_dict(key, value, generators, 1)?;
 
         // Start the chain with the first generator
+        // DEPYLER-0511: Wrap ranges in parens before .into_iter()
+        let first_iter = self.wrap_range_in_parens(first_iter);
         let mut chain: syn::Expr = parse_quote! { #first_iter.into_iter() };
 
         // Add filters for first generator's conditions
@@ -11939,6 +11981,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // Build inner chain recursively
         let inner_chain = self.build_nested_chain_for_dict(key, value, generators, depth + 1)?;
+
+        // DEPYLER-0511: Wrap ranges in parens before .into_iter()
+        let iter_expr = self.wrap_range_in_parens(iter_expr);
 
         // Start with iterator
         let mut chain: syn::Expr = parse_quote! { #iter_expr.into_iter() };
@@ -12397,6 +12442,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 false
             };
 
+            // DEPYLER-0511: Wrap ranges in parens before method calls
+            let iter_expr = if !is_csv_reader && !matches!(&*gen.iter, HirExpr::Var(_)) {
+                self.wrap_range_in_parens(iter_expr)
+            } else {
+                iter_expr
+            };
+
             // DEPYLER-0307 Fix #10: Use .iter().copied() for borrowed collections
             // DEPYLER-0454 Extension: Use .deserialize() for CSV readers
             // When the iterator is a variable (likely a borrowed parameter like &Vec<i32>),
@@ -12447,6 +12499,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let inner_expr = self.build_nested_chain(element, generators, 1)?;
 
         // Start the chain with the first generator
+        // DEPYLER-0511: Wrap ranges in parens before .into_iter()
+        let first_iter = self.wrap_range_in_parens(first_iter);
         let mut chain: syn::Expr = parse_quote! { #first_iter.into_iter() };
 
         // Add filters for first generator's conditions
@@ -12479,6 +12533,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // Build the inner expression (recursive)
         let inner_expr = self.build_nested_chain(element, generators, depth + 1)?;
+
+        // DEPYLER-0511: Wrap ranges in parens before .into_iter()
+        let iter_expr = self.wrap_range_in_parens(iter_expr);
 
         // Build the chain for this level
         let mut chain: syn::Expr = parse_quote! { #iter_expr.into_iter() };
