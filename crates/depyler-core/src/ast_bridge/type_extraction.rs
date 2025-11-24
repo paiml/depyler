@@ -47,11 +47,31 @@ impl TypeExtractor {
             ast::Expr::BinOp(b) if matches!(b.op, ast::Operator::BitOr) => {
                 Self::extract_union_from_binop(b)
             }
+            // DEPYLER-0501: Handle Callable[[Any], Any] - parameter list is ExprList
+            ast::Expr::List(list) => {
+                // For now, treat list of types as tuple-like (used in Callable)
+                // Map to Unknown for simplicity
+                if list.elts.is_empty() {
+                    Ok(Type::Unknown)
+                } else if list.elts.len() == 1 {
+                    // Single element list - extract that type
+                    Self::extract_type(&list.elts[0])
+                } else {
+                    // Multiple elements - for Callable[[T1, T2], R], map to Unknown
+                    // Full Callable support would need function pointer types
+                    Ok(Type::Unknown)
+                }
+            }
             _ => bail!("Unsupported type annotation: {:?}", expr),
         }
     }
 
     pub fn extract_simple_type(name: &str) -> Result<Type> {
+        // DEPYLER-0501: Handle Any type (maps to Unknown)
+        if name == "Any" {
+            return Ok(Type::Unknown);
+        }
+
         // Try builtin types first (complexity 5)
         if let Some(ty) = Self::try_extract_builtin_type(name) {
             return Ok(ty);
