@@ -1108,6 +1108,23 @@ fn convert_nested_function_params(args: &ast::Arguments) -> Result<Vec<HirParam>
         params.push(HirParam { name, ty, default, is_vararg: false });
     }
 
+    // DEPYLER-0507: Handle variadic parameter (*args)
+    if let Some(vararg) = &args.vararg {
+        let name = vararg.arg.to_string();
+        let ty = if let Some(annotation) = &vararg.annotation {
+            super::type_extraction::TypeExtractor::extract_type(annotation)?
+        } else {
+            Type::Unknown
+        };
+
+        params.push(HirParam {
+            name,
+            ty,
+            default: None,
+            is_vararg: true,
+        });
+    }
+
     Ok(params)
 }
 
