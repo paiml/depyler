@@ -11385,6 +11385,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Add dereference (*) to uses of target variable in expression
     /// This is needed because filter closures receive &T even when the iterator yields T
     /// Example: transforms `x > 0` to `*x > 0` when x is the target variable
+    ///
+    /// Note: Currently unused but kept for potential future use with filter optimization
+    #[allow(dead_code)]
     fn add_deref_to_var_uses(&mut self, expr: &HirExpr, target: &str) -> Result<syn::Expr> {
         use crate::hir::{BinOp, HirExpr, UnaryOp};
 
