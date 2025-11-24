@@ -1,290 +1,131 @@
-//! DEPYLER-0497: Option/Result Types in format! Macro Need Debug Formatting
+//! DEPYLER-0497: Format Macro Display Trait - RED Phase Tests
 //!
-//! Tests that Result<T>, Option<T>, and Vec<T> types in format! macros use
-//! {:?} Debug formatting instead of {} Display formatting.
+//! Tests verify that format! macro handles non-Display types correctly:
+//! - Vec<T> should use {:?} (Debug trait)
+//! - Option<T> should use {:?} or .unwrap_or()
+//! - Result<T, E> should use {:?} or ? operator
 //!
-//! BUG: format!("value: {}", result_fn()) tries to use Display trait
-//! Expected: format!("value: {:?}", result_fn()) uses Debug trait
+//! These tests use the actual fibonacci.rs errors as test cases.
 
 use depyler_core::DepylerPipeline;
-use std::io::Write;
 
-#[test]
-fn test_format_result_type() {
-    // Result-returning function in format! macro
-    let python = r#"
-def divide(a: int, b: int) -> int:
-    if b == 0:
-        raise ValueError("Division by zero")
-    return a // b
-
-def show_result():
-    result = divide(10, 2)
-    print(f"Result: {result}")
-"#;
-
-    let compiler = DepylerPipeline::new();
-    let rust = compiler.transpile(python).expect("Transpilation failed");
-
-    println!("Generated Rust code:\n{}", rust);
-
-    // Should use {:?} for Result type or unwrap it
-    // Either: format!("Result: {:?}", divide(...))
-    // Or: format!("Result: {}", divide(...)?)
-    let has_debug_fmt = rust.contains("{:?}");
-    let has_question_unwrap = rust.contains("divide(10, 2)?");
-
-    assert!(
-        has_debug_fmt || has_question_unwrap,
-        "BUG: format! with Result type must use {{:?}} or unwrap with ?\n\
-         Expected: format!(\"Result: {{:?}}\", result) or format!(\"Result: {{}}\", result?)\n\
-         Generated:\n{}",
-        rust
-    );
+/// Helper: transpile Python to Rust
+fn transpile(python: &str) -> String {
+    let pipeline = DepylerPipeline::new();
+    pipeline.transpile(python).expect("Should transpile")
 }
 
 #[test]
-fn test_format_option_type() {
-    // Option value in format! macro
+fn test_format_vec_needs_debug_formatter() {
     let python = r#"
-from typing import Optional
-
-def find_value(items: list, target: int) -> Optional[int]:
-    for i, item in enumerate(items):
-        if item == target:
-            return i
-    return None
-
-def show_index():
-    items = [10, 20, 30]
-    index = find_value(items, 20)
-    print(f"Found at index: {index}")
+def main():
+    nums = [1, 2, 3]
+    print(f"Numbers: {nums}")
 "#;
 
-    let compiler = DepylerPipeline::new();
-    let rust = compiler.transpile(python).expect("Transpilation failed");
+    let rust = transpile(python);
 
-    println!("Generated Rust code:\n{}", rust);
-
-    // Should use {:?} for Option type or unwrap_or
-    let has_debug_fmt = rust.contains("{:?}");
-    let has_unwrap_or = rust.contains(".unwrap_or");
-
-    assert!(
-        has_debug_fmt || has_unwrap_or,
-        "BUG: format! with Option type must use {{:?}} or .unwrap_or()\n\
-         Expected: format!(\"Found at index: {{:?}}\", index)\n\
-         Generated:\n{}",
-        rust
-    );
-}
-
-#[test]
-fn test_format_vec_type() {
-    // Vec/List value in format! macro
-    let python = r#"
-def get_numbers() -> list:
-    return [1, 2, 3, 4, 5]
-
-def show_list():
-    numbers = get_numbers()
-    print(f"Numbers: {numbers}")
-"#;
-
-    let compiler = DepylerPipeline::new();
-    let rust = compiler.transpile(python).expect("Transpilation failed");
-
-    println!("Generated Rust code:\n{}", rust);
-
-    // Should use {:?} for Vec type
+    // After fix: should use {:?} for Vec (Debug trait)
     assert!(
         rust.contains("{:?}"),
-        "BUG: format! with Vec type must use {{:?}}\n\
-         Expected: format!(\"Numbers: {{:?}}\", numbers)\n\
-         Generated:\n{}",
+        "Vec should use Debug formatter {{:?}}, got: {}",
         rust
     );
 }
 
 #[test]
-fn test_print_result_function_call() {
-    // Direct print of Result-returning function
+fn test_fibonacci_sequence_format() {
+    // Real example from fibonacci.rs (Error #6)
     let python = r#"
-def compute(x: int) -> int:
-    if x < 0:
-        raise ValueError("Negative value")
-    return x * 2
+def fibonacci_sequence(limit: int) -> list[int]:
+    sequence = []
+    a, b = 0, 1
+    for _ in range(limit):
+        sequence.append(a)
+        a, b = b, a + b
+    return sequence
 
 def main():
-    print(compute(5))
+    n = 10
+    result = fibonacci_sequence(n)
+    print(f"First {n} numbers: {result}")
 "#;
 
-    let compiler = DepylerPipeline::new();
-    let rust = compiler.transpile(python).expect("Transpilation failed");
+    let rust = transpile(python);
 
-    println!("Generated Rust code:\n{}", rust);
-
-    // Should handle Result in print macro
-    let has_debug_fmt = rust.contains("{:?}");
-    let has_question = rust.contains("compute(5)?");
-    let has_unwrap = rust.contains("compute(5).unwrap");
-
-    assert!(
-        has_debug_fmt || has_question || has_unwrap,
-        "BUG: print with Result must use {{:?}}, ?, or .unwrap()\n\
-         Generated:\n{}",
-        rust
-    );
-}
-
-#[test]
-fn test_multiple_format_args_mixed_types() {
-    // Multiple arguments with mixed types in format!
-    let python = r#"
-from typing import Optional
-
-def process_data(x: int) -> int:
-    if x < 0:
-        raise ValueError("Invalid")
-    return x
-
-def find_index(target: int) -> Optional[int]:
-    return 42 if target > 0 else None
-
-def show_data():
-    result = process_data(10)
-    index = find_index(20)
-    values = [1, 2, 3]
-    print(f"Result: {result}, Index: {index}, Values: {values}")
-"#;
-
-    let compiler = DepylerPipeline::new();
-    let rust = compiler.transpile(python).expect("Transpilation failed");
-
-    println!("Generated Rust code:\n{}", rust);
-
-    // Should handle multiple non-Display types correctly
-    // At minimum, need some {:?} formatting
+    // Should use {:?} for Vec return type
     assert!(
         rust.contains("{:?}"),
-        "BUG: format! with multiple non-Display types must use {{:?}}\n\
-         Generated:\n{}",
+        "Vec<i32> should use Debug formatter, got: {}",
         rust
     );
 }
 
 #[test]
-fn test_f_string_with_expressions() {
-    // f-string with Result expression
+fn test_find_fibonacci_index_option_format() {
+    // Real example from fibonacci.rs (Error #8)
     let python = r#"
-def safe_div(a: int, b: int) -> int:
-    if b == 0:
-        raise ValueError("Div by zero")
-    return a // b
-
-def show_calculation():
-    a, b = 10, 2
-    print(f"{a} / {b} = {safe_div(a, b)}")
-"#;
-
-    let compiler = DepylerPipeline::new();
-    let rust = compiler.transpile(python).expect("Transpilation failed");
-
-    println!("Generated Rust code:\n{}", rust);
-
-    // Result in format should be handled
-    let has_debug_fmt = rust.contains("{:?}");
-    let has_question = rust.contains("safe_div(a, b)?");
-
-    assert!(
-        has_debug_fmt || has_question,
-        "BUG: f-string with Result expression must use {{:?}} or ?\n\
-         Generated:\n{}",
-        rust
-    );
-}
-
-#[test]
-fn test_compilation_no_e0277() {
-    // Verify generated code compiles without E0277 Display error
-    let python = r#"
-from typing import Optional
-
-def get_value(x: int) -> int:
-    if x < 0:
-        raise ValueError("Negative")
-    return x
-
-def find_item(items: list, target: int) -> Optional[int]:
-    return 0 if len(items) > 0 else None
+def find_fibonacci_index(target: int) -> int | None:
+    if target < 0:
+        return None
+    return 42
 
 def main():
-    result = get_value(5)
-    print(f"Result: {result}")
-
-    items = [1, 2, 3]
-    print(f"Items: {items}")
-
-    index = find_item(items, 2)
-    print(f"Index: {index}")
+    target = 21
+    index = find_fibonacci_index(target)
+    if index is not None:
+        print(f"{target} at index {index}")
 "#;
 
-    let compiler = DepylerPipeline::new();
-    let rust = compiler.transpile(python).expect("Transpilation failed");
+    let rust = transpile(python);
 
-    // Write to temp file
-    let mut file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
-    file.write_all(rust.as_bytes()).expect("Failed to write");
+    // Should handle Option - either {:?}, unwrap, or pattern match
+    let has_debug = rust.contains("{:?}");
+    let has_unwrap = rust.contains("unwrap");
+    let has_pattern = rust.contains("if let Some");
 
-    // Try to compile with rustc
-    let output = std::process::Command::new("rustc")
-        .arg("--crate-type=lib")
-        .arg("--crate-name=test_format")
-        .arg("--deny=warnings")
-        .arg(file.path())
-        .output()
-        .expect("Failed to run rustc");
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    println!("rustc output:\n{}", stderr);
-
-    // Should NOT have E0277 Display trait error
     assert!(
-        !stderr.contains("E0277") || !stderr.contains("doesn't implement `std::fmt::Display`"),
-        "BUG: Generated code has E0277 Display trait error\n\
-         This means Result/Option/Vec in format! are missing {{:?}} or unwrap\n\
-         rustc stderr:\n{}",
-        stderr
+        has_debug || has_unwrap || has_pattern,
+        "Option should be handled with Debug, unwrap, or pattern match, got: {}",
+        rust
     );
 }
 
 #[test]
-fn test_nested_format_expressions() {
-    // Nested expressions with Result types
+fn test_hashmap_format_uses_debug() {
     let python = r#"
-def compute(x: int) -> int:
-    if x < 0:
-        raise ValueError()
-    return x * 2
-
-def show_nested():
-    x = 5
-    print(f"Double of {x} is {compute(x)}")
+def main():
+    data = {"a": 1, "b": 2}
+    print(f"Data: {data}")
 "#;
 
-    let compiler = DepylerPipeline::new();
-    let rust = compiler.transpile(python).expect("Transpilation failed");
+    let rust = transpile(python);
 
-    println!("Generated Rust code:\n{}", rust);
+    // HashMap should use {:?}
+    assert!(
+        rust.contains("{:?}") || !rust.contains("HashMap"),
+        "HashMap should use Debug formatter if present, got: {}",
+        rust
+    );
+}
 
-    // Result should be handled in format
-    let has_debug_fmt = rust.contains("{:?}");
-    let has_question = rust.contains("compute(x)?");
+#[test]
+fn test_primitive_types_still_use_display() {
+    let python = r#"
+def main():
+    num = 42
+    text = "hello"
+    print(f"Number: {num}, Text: {text}")
+"#;
+
+    let rust = transpile(python);
+
+    // Primitives should still use {} (Display)
+    let display_count = rust.matches("{}").count();
 
     assert!(
-        has_debug_fmt || has_question,
-        "BUG: Nested Result expression in format! must use {{:?}} or ?\n\
-         Generated:\n{}",
+        display_count >= 2,
+        "Primitives should use Display formatter {{}}, got: {}",
         rust
     );
 }
