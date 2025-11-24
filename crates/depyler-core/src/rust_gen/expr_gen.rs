@@ -136,6 +136,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let left_returns_result = self.expr_returns_result(left);
         let right_returns_result = self.expr_returns_result(right);
 
+        // DEPYLER-0498: Check if operands are Option types (need unwrap for comparisons)
+        let left_is_option = self.expr_is_option(left);
+        let right_is_option = self.expr_is_option(right);
+
         let mut left_expr = left.to_rust_expr(self.ctx)?;
         let mut right_expr = right.to_rust_expr(self.ctx)?;
 
@@ -147,6 +151,37 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             if right_returns_result {
                 right_expr = parse_quote! { #right_expr? };
+            }
+        }
+
+        // DEPYLER-0498: Unwrap Option types in comparison operations
+        // Use unwrap_or with appropriate defaults for comparison
+        let is_comparison = matches!(
+            op,
+            BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq | BinOp::Eq | BinOp::NotEq
+        );
+
+        if is_comparison {
+            if left_is_option && !right_is_option {
+                // Left is Option, right is plain - unwrap left
+                left_expr = parse_quote! { #left_expr.unwrap_or_default() };
+            }
+            if right_is_option && !left_is_option {
+                // Right is Option, left is plain - unwrap right for comparison
+                // For less-than: unwrap_or(i32::MAX) so None is treated as "very large"
+                // For greater-than: unwrap_or(i32::MIN) so None is treated as "very small"
+                // For equality: unwrap_or_default()
+                match op {
+                    BinOp::Lt | BinOp::LtEq => {
+                        right_expr = parse_quote! { #right_expr.unwrap_or(i32::MAX) };
+                    }
+                    BinOp::Gt | BinOp::GtEq => {
+                        right_expr = parse_quote! { #right_expr.unwrap_or(i32::MIN) };
+                    }
+                    _ => {
+                        right_expr = parse_quote! { #right_expr.unwrap_or_default() };
+                    }
+                }
             }
         }
 
@@ -11426,6 +11461,45 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Fallback to heuristic for cases without type info
                     self.is_string_base(expr)
                 }
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0498: Check if expression is an Option type
+    /// Used to determine if unwrap_or is needed in binary operations
+    ///
+    /// Returns true if:
+    /// - Expression is a variable with Option<T> type
+    /// - Expression is an attribute access that returns Option
+    ///
+    /// # Complexity
+    /// 2 (match + type lookup)
+    fn expr_is_option(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Variable: check if type is Optional
+            HirExpr::Var(var_name) => {
+                if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                    matches!(var_type, Type::Optional(_))
+                } else {
+                    false
+                }
+            }
+            // Attribute access: check if field type is Optional
+            HirExpr::Attribute { value, attr } => {
+                // DEPYLER-0498: Check if self.field is Option in generator context
+                if let HirExpr::Var(obj_name) = value.as_ref() {
+                    if obj_name == "self" && self.ctx.in_generator {
+                        // Check if this field is a generator state variable with Optional type
+                        if self.ctx.generator_state_vars.contains(attr) {
+                            // Field is a generator state var - check its type in var_types
+                            if let Some(field_type) = self.ctx.var_types.get(attr) {
+                                return matches!(field_type, Type::Optional(_));
+                            }
+                        }
+                    }
+                }
+                false
             }
             _ => false,
         }
