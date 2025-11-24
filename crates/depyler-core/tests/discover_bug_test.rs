@@ -105,3 +105,43 @@ fn test_transpile_deep_nested_dict() {
         Err(e) => panic!("❌ Found bug in deep_nested_dict.py: {}", e),
     }
 }
+
+#[test]
+fn test_transpile_dict_assign() {
+    let python = std::fs::read_to_string("../../examples/dict_assign.py")
+        .expect("Should read dict_assign.py");
+
+    let statements = Suite::parse(&python, "<test>").expect("Should parse");
+    let ast = ast::Mod::Module(ast::ModModule {
+        body: statements,
+        type_ignores: vec![],
+        range: Default::default(),
+    });
+
+    let result = ast_bridge::AstBridge::new().python_to_hir(ast);
+
+    match result {
+        Ok(_) => println!("✅ dict_assign.py transpiles successfully"),
+        Err(e) => panic!("❌ Found bug in dict_assign.py: {}", e),
+    }
+}
+
+#[test]
+fn test_transpile_simple_class() {
+    let python = std::fs::read_to_string("../../examples/simple_class_test.py")
+        .expect("Should read simple_class_test.py");
+
+    let statements = Suite::parse(&python, "<test>").expect("Should parse");
+    let ast = ast::Mod::Module(ast::ModModule {
+        body: statements,
+        type_ignores: vec![],
+        range: Default::default(),
+    });
+
+    let result = ast_bridge::AstBridge::new().python_to_hir(ast);
+
+    match result {
+        Ok(_) => println!("✅ simple_class_test.py transpiles successfully"),
+        Err(e) => panic!("❌ Found bug in simple_class_test.py: {}", e),
+    }
+}
