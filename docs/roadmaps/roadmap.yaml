@@ -561,11 +561,27 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'New task: DEPYLER-0512'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2025-11-24T17:28:15.909996052+00:00
-  updated: 2025-11-24T17:28:15.909996052+00:00
+  updated: 2025-11-24T17:35:19.043604449+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0513
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0513'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-24T17:36:09.874901712+00:00
+  updated: 2025-11-24T17:36:09.874901712+00:00
   spec: null
   acceptance_criteria: []
   phases: []

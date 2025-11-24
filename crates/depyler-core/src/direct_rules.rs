@@ -1838,6 +1838,8 @@ impl<'a> ExprConverter<'a> {
             }
             HirExpr::Attribute { value, attr } => self.convert_attribute(value, attr),
             HirExpr::Await { value } => self.convert_await(value),
+            // DEPYLER-0513: F-string support for class methods
+            HirExpr::FString { parts } => self.convert_fstring(parts),
             _ => bail!("Expression type not yet supported: {:?}", expr),
         }
     }
@@ -2718,6 +2720,57 @@ impl<'a> ExprConverter<'a> {
     fn convert_await(&self, value: &HirExpr) -> Result<syn::Expr> {
         let value_expr = self.convert(value)?;
         Ok(parse_quote! { #value_expr.await })
+    }
+
+    /// DEPYLER-0513: Convert F-string to format!() macro
+    ///
+    /// Handles Python f-strings like `f"Hello {name}"` → `format!("Hello {}", name)`
+    ///
+    /// Strategy: Build format template and collect args, then generate format!() call.
+    /// Simplified version for direct_rules - basic formatting only.
+    fn convert_fstring(&self, parts: &[crate::hir::FStringPart]) -> Result<syn::Expr> {
+        use crate::hir::FStringPart;
+
+        // Handle empty f-strings
+        if parts.is_empty() {
+            return Ok(parse_quote! { "".to_string() });
+        }
+
+        // Check if it's just a plain string (no expressions)
+        let has_expressions = parts.iter().any(|p| matches!(p, FStringPart::Expr(_)));
+
+        if !has_expressions {
+            // Just literal parts - concatenate them
+            let mut result = String::new();
+            for part in parts {
+                if let FStringPart::Literal(s) = part {
+                    result.push_str(s);
+                }
+            }
+            return Ok(parse_quote! { #result.to_string() });
+        }
+
+        // Build format string template and collect arguments
+        let mut template = String::new();
+        let mut args = Vec::new();
+
+        for part in parts {
+            match part {
+                FStringPart::Literal(s) => {
+                    template.push_str(s);
+                }
+                FStringPart::Expr(expr) => {
+                    // Add {} placeholder to template
+                    template.push_str("{}");
+                    // Convert expression to Rust and add to args
+                    let arg_expr = self.convert(expr)?;
+                    args.push(arg_expr);
+                }
+            }
+        }
+
+        // Generate format!() macro call
+        Ok(parse_quote! { format!(#template, #(#args),*) })
     }
 
     fn convert_attribute(&self, value: &HirExpr, attr: &str) -> Result<syn::Expr> {
