@@ -34,8 +34,9 @@ impl Default for OptimizerConfig {
             // then dead code elimination removes assignments, leaving undefined variables.
             // NOTE: Fix inlining logic before re-enabling (tracked in DEPYLER-0161)
             inline_functions: false,
-            // DEPYLER-0363: Temporarily disable dead code elimination to debug argparse issue
-            eliminate_dead_code: false,
+            // DEPYLER-0508: Re-enabled DCE - unused variables should be eliminated
+            // DEPYLER-0363: Previously disabled for argparse debugging, now fixed
+            eliminate_dead_code: true,
             propagate_constants: true,
             eliminate_common_subexpressions: true,
             inline_threshold: 20,
@@ -1144,8 +1145,8 @@ mod tests {
 
     #[test]
     fn test_dead_code_elimination() {
-        // DEPYLER-0363: Dead code elimination is DISABLED by default
-        // due to previous bugs. This test validates current behavior.
+        // DEPYLER-0508: Dead code elimination is now ENABLED by default
+        // Unused variables should be eliminated
         let mut optimizer = Optimizer::new(OptimizerConfig::default());
 
         let program = HirProgram {
@@ -1176,20 +1177,20 @@ mod tests {
 
         let optimized = optimizer.optimize_program(program);
 
-        // Check optimization results with current conservative settings
+        // Check optimization results - DCE is now enabled by default
         let func = &optimized.functions[0];
 
-        // Since dead code elimination is DISABLED, all statements are preserved
+        // DEPYLER-0508: DCE is enabled - unused variable should be eliminated
+        // Statements: assignment for "used" + return = 2 statements
         assert_eq!(
             func.body.len(),
-            3,
-            "All 3 statements preserved (dead code elimination disabled by default)"
+            2,
+            "Unused 'unused' variable should be eliminated (DCE enabled by default)"
         );
 
-        // Verify structure is maintained
+        // Verify the "used" variable and return are preserved
         assert!(matches!(&func.body[0], HirStmt::Assign { .. }));
-        assert!(matches!(&func.body[1], HirStmt::Assign { .. }));
-        assert!(matches!(&func.body[2], HirStmt::Return(_)));
+        assert!(matches!(&func.body[1], HirStmt::Return(_)));
     }
 
     #[test]
@@ -1247,6 +1248,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn test_DEPYLER_0508_dead_code_elimination_enabled_by_default() {
         // DEPYLER-0508: DCE should be enabled by default
         // Unused variables should be eliminated without explicit opt-in
