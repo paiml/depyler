@@ -145,3 +145,43 @@ fn test_transpile_simple_class() {
         Err(e) => panic!("❌ Found bug in simple_class_test.py: {}", e),
     }
 }
+
+#[test]
+fn test_transpile_basic_imports() {
+    let python = std::fs::read_to_string("../../examples/test_basic_imports.py")
+        .expect("Should read test_basic_imports.py");
+
+    let statements = Suite::parse(&python, "<test>").expect("Should parse");
+    let ast = ast::Mod::Module(ast::ModModule {
+        body: statements,
+        type_ignores: vec![],
+        range: Default::default(),
+    });
+
+    let result = ast_bridge::AstBridge::new().python_to_hir(ast);
+
+    match result {
+        Ok(_) => println!("✅ test_basic_imports.py transpiles successfully"),
+        Err(e) => panic!("❌ Found bug in test_basic_imports.py: {}", e),
+    }
+}
+
+#[test]
+fn test_transpile_module_mapping() {
+    let python = std::fs::read_to_string("../../examples/module_mapping_demo.py")
+        .expect("Should read module_mapping_demo.py");
+
+    let statements = Suite::parse(&python, "<test>").expect("Should parse");
+    let ast = ast::Mod::Module(ast::ModModule {
+        body: statements,
+        type_ignores: vec![],
+        range: Default::default(),
+    });
+
+    let result = ast_bridge::AstBridge::new().python_to_hir(ast);
+
+    match result {
+        Ok(_) => println!("✅ module_mapping_demo.py transpiles successfully"),
+        Err(e) => panic!("❌ Found bug in module_mapping_demo.py: {}", e),
+    }
+}
