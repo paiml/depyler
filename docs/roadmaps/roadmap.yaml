@@ -42,11 +42,11 @@ roadmap:
   github_issue: null
   item_type: bug
   title: Option/Result types in format! macro need Debug formatting or unwrap
-  status: inprogress
+  status: completed
   priority: high
   assigned_to: null
   created: 2025-11-23T21:30:00+00:00
-  updated: 2025-11-24T21:06:12.428486554+00:00
+  updated: 2025-11-24T21:39:22.975162625+00:00
   spec: docs/bugs/DEPYLER-0497-format-macro-display-trait.md
   acceptance_criteria:
   - Result/Option/Vec in format! use {:?} or .unwrap()
@@ -656,3 +656,56 @@ roadmap:
   - bug
   - enhancement
   notes: null
+- id: GH-69
+  github_issue: null
+  item_type: task
+  title: 'New task: GH-69'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-11-24T21:43:10.586517508+00:00
+  updated: 2025-11-24T21:44:49.935057618+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0514
+  github_issue: null
+  item_type: bug
+  title: 'Optimizer removes assignments before try/with blocks'
+  status: completed
+  priority: critical
+  assigned_to: Claude
+  created: 2025-11-24T21:52:36.549469880+00:00
+  updated: 2025-11-24T23:00:00.000000000+00:00
+  spec: null
+  acceptance_criteria:
+  - Variables assigned before try blocks preserved in generated code
+  - Dead code elimination recurses into try/except/else/finally blocks
+  - Dead code elimination recurses into with statement bodies
+  - All 545 unit tests pass
+  - Integration test validates ternary assignment before try block
+  phases:
+  - name: Phase 1 - Create failing tests (RED)
+    status: completed
+    estimated_effort: null
+    completion: 100
+  - name: Phase 2 - Fix optimizer (GREEN)
+    status: completed
+    estimated_effort: null
+    completion: 100
+  - name: Phase 3 - Quality gates (REFACTOR)
+    status: completed
+    estimated_effort: null
+    completion: 100
+  subtasks: []
+  estimated_effort: 3h
+  labels:
+  - P0-critical
+  - optimizer
+  - dead-code-elimination
+  - try-except
+  notes: 'ROOT CAUSE: Optimizer.collect_truly_used_vars_stmt did not recurse into Try/With statements. Added handlers for HirStmt::Try and HirStmt::With to collect used variables from all nested blocks.'

@@ -19,7 +19,7 @@ fn compile_rust_code(rust_code: &str, test_name: &str) -> Result<(), String> {
 
     // Try to compile
     let output = Command::new("rustc")
-        .args(&["--crate-type", "lib", "--deny", "warnings", &temp_file])
+        .args(["--crate-type", "lib", "--deny", "warnings", &temp_file])
         .output()
         .map_err(|e| format!("Rustc execution failed: {}", e))?;
 
