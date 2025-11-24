@@ -62,6 +62,8 @@ impl TypeExtractor {
                     Ok(Type::Unknown)
                 }
             }
+            // DEPYLER-0512: Handle module-qualified types (module.Class)
+            ast::Expr::Attribute(attr) => Self::extract_module_qualified_type(attr),
             _ => bail!("Unsupported type annotation: {:?}", expr),
         }
     }
@@ -307,5 +309,34 @@ impl TypeExtractor {
 
     fn is_type_var_name(name: &str) -> bool {
         name.len() == 1 && name.chars().next().is_some_and(|c| c.is_uppercase())
+    }
+
+    /// DEPYLER-0512: Extract module-qualified type (module.Class or module.submodule.Class)
+    ///
+    /// Handles Python type annotations like:
+    /// - `argparse.Namespace` → Custom("Namespace")
+    /// - `typing.Any` → Unknown
+    /// - `pathlib.Path` → Custom("Path")
+    /// - `collections.abc.Iterable` → Custom("Iterable")
+    ///
+    /// Strategy: Extract the final attribute name and map known types, otherwise treat as custom.
+    /// Module prefix is discarded since Rust types don't include module qualification.
+    fn extract_module_qualified_type(attr: &ast::ExprAttribute) -> Result<Type> {
+        // Extract the final attribute name (e.g., "Namespace" from "argparse.Namespace")
+        let type_name = attr.attr.as_str();
+
+        // Special case: typing.Any → Unknown
+        if type_name == "Any" {
+            return Ok(Type::Unknown);
+        }
+
+        // Check if it's a known builtin type (e.g., typing.List → list[T])
+        if let Some(ty) = Self::try_extract_builtin_type(type_name) {
+            return Ok(ty);
+        }
+
+        // Otherwise, treat as custom type (module prefix discarded)
+        // Examples: argparse.Namespace → Namespace, pathlib.Path → Path
+        Ok(Type::Custom(type_name.to_string()))
     }
 }
