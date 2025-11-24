@@ -425,3 +425,83 @@ fn test_transpile_simulation_combined() {
         Err(e) => panic!("❌ Found bug in simulation_combined.py: {}", e),
     }
 }
+
+#[test]
+fn test_transpile_debugging_workflow() {
+    let python = std::fs::read_to_string("../../examples/debugging_workflow.py")
+        .expect("Should read debugging_workflow.py");
+
+    let statements = Suite::parse(&python, "<test>").expect("Should parse");
+    let ast = ast::Mod::Module(ast::ModModule {
+        body: statements,
+        type_ignores: vec![],
+        range: Default::default(),
+    });
+
+    let result = ast_bridge::AstBridge::new().python_to_hir(ast);
+
+    match result {
+        Ok(_) => println!("✅ debugging_workflow.py transpiles successfully"),
+        Err(e) => panic!("❌ Found bug in debugging_workflow.py: {}", e),
+    }
+}
+
+#[test]
+fn test_transpile_lifetime_demo() {
+    let python = std::fs::read_to_string("../../examples/lifetime_demo.py")
+        .expect("Should read lifetime_demo.py");
+
+    let statements = Suite::parse(&python, "<test>").expect("Should parse");
+    let ast = ast::Mod::Module(ast::ModModule {
+        body: statements,
+        type_ignores: vec![],
+        range: Default::default(),
+    });
+
+    let result = ast_bridge::AstBridge::new().python_to_hir(ast);
+
+    match result {
+        Ok(_) => println!("✅ lifetime_demo.py transpiles successfully"),
+        Err(e) => panic!("❌ Found bug in lifetime_demo.py: {}", e),
+    }
+}
+
+#[test]
+fn test_transpile_lambda_demo() {
+    let python = std::fs::read_to_string("../../examples/lambda_demo.py")
+        .expect("Should read lambda_demo.py");
+
+    let statements = Suite::parse(&python, "<test>").expect("Should parse");
+    let ast = ast::Mod::Module(ast::ModModule {
+        body: statements,
+        type_ignores: vec![],
+        range: Default::default(),
+    });
+
+    let result = ast_bridge::AstBridge::new().python_to_hir(ast);
+
+    match result {
+        Ok(_) => println!("✅ lambda_demo.py transpiles successfully"),
+        Err(e) => panic!("❌ Found bug in lambda_demo.py: {}", e),
+    }
+}
+
+#[test]
+fn test_transpile_demo() {
+    let python = std::fs::read_to_string("../../examples/demo.py")
+        .expect("Should read demo.py");
+
+    let statements = Suite::parse(&python, "<test>").expect("Should parse");
+    let ast = ast::Mod::Module(ast::ModModule {
+        body: statements,
+        type_ignores: vec![],
+        range: Default::default(),
+    });
+
+    let result = ast_bridge::AstBridge::new().python_to_hir(ast);
+
+    match result {
+        Ok(_) => println!("✅ demo.py transpiles successfully"),
+        Err(e) => panic!("❌ Found bug in demo.py: {}", e),
+    }
+}
