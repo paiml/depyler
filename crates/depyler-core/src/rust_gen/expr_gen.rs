@@ -12184,6 +12184,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // Case 1: Simple variable (e.g., targets)
                         HirExpr::Var(var_name) => {
                             if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                                // Known type: check if it needs Debug formatting
                                 matches!(
                                     var_type,
                                     Type::List(_)
@@ -12192,7 +12193,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                         | Type::Optional(_) // DEPYLER-0497: Options need {:?}
                                 )
                             } else {
-                                false
+                                // DEPYLER-0497 WORKAROUND: Unknown type - default to {:?} (defensive)
+                                // This is safer because Debug is more universally implemented than Display
+                                // Most types implement Debug: Option<T>, Result<T,E>, Vec<T>, primitives
+                                // Only a few types need Display: i32, String, etc (which also have Debug)
+                                // This prevents E0277 errors for Option/Result/Vec variables
+                                true
                             }
                         }
                         // DEPYLER-0497: Function calls that return Result<T> OR Option<T> need {:?}
