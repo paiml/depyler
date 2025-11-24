@@ -505,3 +505,55 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: DEPYLER-0510
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0510'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-24T16:54:25.378558912+00:00
+  updated: 2025-11-24T16:54:25.378558912+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0511
+  github_issue: null
+  item_type: bug
+  title: 'Range Comprehension Parentheses Bug (Operator Precedence)'
+  status: completed
+  priority: critical
+  assigned_to: Claude
+  created: 2025-11-24T16:58:25.820352427+00:00
+  updated: 2025-11-24T17:30:00+00:00
+  spec: crates/depyler-core/tests/depyler_0511_range_parentheses.rs
+  acceptance_criteria:
+  - Range expressions in comprehensions generate correct Rust: (0..5).into_iter()
+  - All 5 DEPYLER-0511 tests pass (list/dict/set/nested/range_with_start)
+  - Original 3 failing tests pass (test_25, test_30, test_35)
+  - Generated code compiles without operator precedence errors
+  phases:
+  - name: RED - Create failing tests
+    status: completed
+    estimated_effort: null
+    completion: 100
+  - name: GREEN - Fix 9 code paths
+    status: completed
+    estimated_effort: null
+    completion: 100
+  - name: REFACTOR - Quality gates
+    status: completed
+    estimated_effort: null
+    completion: 100
+  subtasks: []
+  estimated_effort: 2h
+  labels:
+  - P0-critical
+  - comprehensions
+  - operator-precedence
+  - ranges
+  notes: 'STOP THE LINE: 0..5.into_iter() parsed as 0..(5.into_iter()) - fixed 9 code paths'
