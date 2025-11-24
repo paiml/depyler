@@ -86,7 +86,7 @@ pub fn fibonacci_generator(limit: &Option<i32>) -> impl Iterator<Item = i32> {
         a: 0,
         b: 0,
         count: 0,
-        limit: limit,
+        limit: *limit,
     }
 }
 impl Iterator for FibonacciGeneratorState {
