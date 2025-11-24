@@ -2669,18 +2669,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                     if arg_type == Some(IntType::I32) && !is_builtin {
                         // User-defined function with i32 arithmetic - cast to i64
-                        // IMPORTANT: Wrap entire expression in parentheses before casting
-                        // to ensure correct precedence: (expr) as i64, not expr as i64
+                        // DEPYLER-0509: Only wrap in parentheses if needed for precedence
+                        // Simple literals (Lit) and variables (Path) don't need wrapping
+                        let is_simple = matches!(
+                            &final_expr,
+                            syn::Expr::Lit(_) | syn::Expr::Path(_) | syn::Expr::Paren(_)
+                        );
+
                         if let syn::Expr::Reference(ref_expr) = &final_expr {
                             // Already borrowed - cast the inner expression
                             let inner = &ref_expr.expr;
-                            // Create explicit Paren + Cast syntax
-                            let paren_expr: syn::Expr = parse_quote! { (#inner) };
-                            final_expr = parse_quote! { &(#paren_expr as i64) };
+                            let inner_simple = matches!(
+                                inner.as_ref(),
+                                syn::Expr::Lit(_) | syn::Expr::Path(_) | syn::Expr::Paren(_)
+                            );
+                            if inner_simple {
+                                final_expr = parse_quote! { &#inner as i64 };
+                            } else {
+                                final_expr = parse_quote! { &((#inner) as i64) };
+                            }
+                        } else if is_simple {
+                            // Simple expression - direct cast without any wrapping parens
+                            final_expr = parse_quote! { #final_expr as i64 };
                         } else {
-                            // Create explicit Paren + Cast syntax
-                            let paren_expr: syn::Expr = parse_quote! { (#final_expr) };
-                            final_expr = parse_quote! { (#paren_expr as i64) };
+                            // Complex expression - wrap in parens before cast
+                            final_expr = parse_quote! { (#final_expr) as i64 };
                         }
                     }
 

@@ -3,11 +3,11 @@ use serde_json;
 #[doc = " Depyler: proven to terminate"]
 pub fn test_lambda_with_operations() -> (serde_json::Value, serde_json::Value, serde_json::Value) {
     let calc = |x, y, z| x + y * z;
-    let result1 = calc(((2) as i64), ((3) as i64), ((4) as i64));
+    let result1 = calc(2 as i64, 3 as i64, 4 as i64);
     let negate = |x| -x;
-    let result2 = negate(((5) as i64));
+    let result2 = negate(5 as i64);
     let multiply = |a, b| a * b;
-    let result3 = multiply(((10) as i64), ((20) as i64));
+    let result3 = multiply(10 as i64, 20 as i64);
     (result1, result2, result3)
 }
 #[doc = " Depyler: verified panic-free"]
