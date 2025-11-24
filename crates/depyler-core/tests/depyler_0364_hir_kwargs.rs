@@ -10,7 +10,8 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile_to_hir(python_code: &str) -> Result<HirModule> {
     let ast = parse(python_code, Mode::Module, "<test>")?;
-    AstBridge::new().python_to_hir(ast)
+    let (hir, _type_env) = AstBridge::new().python_to_hir(ast)?;
+    Ok(hir)
 }
 
 #[test]
