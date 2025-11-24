@@ -412,52 +412,64 @@ mod comprehension_tests {
 
     #[test]
     fn test_list_comp_no_condition() {
+        // DEPYLER-0504: Updated to use generators pattern
         let expr = HirExpr::ListComp {
             element: Box::new(create_var("x")),
-            target: "x".to_string(),
-            iter: Box::new(create_var("items")),
-            condition: None,
+            generators: vec![HirComprehension {
+                target: "x".to_string(),
+                iter: Box::new(create_var("items")),
+                conditions: vec![],
+            }],
         };
         assert!(matches!(expr, HirExpr::ListComp { .. }));
     }
 
     #[test]
     fn test_list_comp_with_condition() {
+        // DEPYLER-0504: Updated to use generators pattern
         let expr = HirExpr::ListComp {
             element: Box::new(create_var("x")),
-            target: "x".to_string(),
-            iter: Box::new(create_var("items")),
-            condition: Some(Box::new(HirExpr::Binary {
-                op: BinOp::Gt,
-                left: Box::new(create_var("x")),
-                right: Box::new(create_int_literal(5)),
-            })),
+            generators: vec![HirComprehension {
+                target: "x".to_string(),
+                iter: Box::new(create_var("items")),
+                conditions: vec![HirExpr::Binary {
+                    op: BinOp::Gt,
+                    left: Box::new(create_var("x")),
+                    right: Box::new(create_int_literal(5)),
+                }],
+            }],
         };
         assert!(matches!(expr, HirExpr::ListComp { .. }));
     }
 
     #[test]
     fn test_set_comp_no_condition() {
+        // DEPYLER-0504: Updated to use generators pattern
         let expr = HirExpr::SetComp {
             element: Box::new(create_var("x")),
-            target: "x".to_string(),
-            iter: Box::new(create_var("items")),
-            condition: None,
+            generators: vec![HirComprehension {
+                target: "x".to_string(),
+                iter: Box::new(create_var("items")),
+                conditions: vec![],
+            }],
         };
         assert!(matches!(expr, HirExpr::SetComp { .. }));
     }
 
     #[test]
     fn test_set_comp_with_condition() {
+        // DEPYLER-0504: Updated to use generators pattern
         let expr = HirExpr::SetComp {
             element: Box::new(create_var("x")),
-            target: "x".to_string(),
-            iter: Box::new(create_var("items")),
-            condition: Some(Box::new(HirExpr::Binary {
-                op: BinOp::Lt,
-                left: Box::new(create_var("x")),
-                right: Box::new(create_int_literal(10)),
-            })),
+            generators: vec![HirComprehension {
+                target: "x".to_string(),
+                iter: Box::new(create_var("items")),
+                conditions: vec![HirExpr::Binary {
+                    op: BinOp::Lt,
+                    left: Box::new(create_var("x")),
+                    right: Box::new(create_int_literal(10)),
+                }],
+            }],
         };
         assert!(matches!(expr, HirExpr::SetComp { .. }));
     }
@@ -538,15 +550,18 @@ mod regression_tests {
                 args: vec![create_int_literal(42)],
                 kwargs: vec![],
             }),
+            // DEPYLER-0504: Updated to use generators pattern
             right: Box::new(HirExpr::ListComp {
                 element: Box::new(HirExpr::Binary {
                     op: BinOp::Mul,
                     left: Box::new(create_var("x")),
                     right: Box::new(create_int_literal(2)),
                 }),
-                target: "x".to_string(),
-                iter: Box::new(create_var("items")),
-                condition: None,
+                generators: vec![HirComprehension {
+                    target: "x".to_string(),
+                    iter: Box::new(create_var("items")),
+                    conditions: vec![],
+                }],
             }),
         };
         assert!(matches!(expr, HirExpr::Binary { .. }));
