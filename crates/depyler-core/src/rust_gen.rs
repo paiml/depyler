@@ -764,6 +764,7 @@ pub fn generate_rust_file(
         stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452: Stdlib API mappings
         hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
         cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2: Track CSE subcommand temps
+        nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
     };
 
     // Analyze all functions first for string optimization
@@ -975,6 +976,7 @@ mod tests {
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2: Track CSE subcommand temps
+            nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
         }
     }
 
