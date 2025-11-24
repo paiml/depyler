@@ -1392,23 +1392,67 @@ fn literal_to_type(lit: &Literal) -> Type {
 
 // ========== Phase 3b: Return Type Generation ==========
 
+/// GH-70: Infer parameter type from tuple unpacking in function body
+/// Detects pattern: `a, b, c = param` and infers param is 3-tuple
+fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<Type> {
+    for stmt in body {
+        // Look for: (var1, var2, ...) = param_name
+        if let HirStmt::Assign {
+            target,
+            value: HirExpr::Var(var),
+            type_annotation: _,
+        } = stmt
+        {
+            // Check if value is our parameter and target is tuple unpacking
+            if var == param_name {
+                if let AssignTarget::Tuple(elements) = target {
+                    // Infer as tuple with N String elements (common case)
+                    let elem_types = vec![Type::String; elements.len()];
+                    return Some(Type::Tuple(elem_types));
+                }
+            }
+        }
+    }
+    None
+}
+
 /// GH-70: Detect if function returns a nested function/closure
 /// Returns Some((nested_fn_name, params, ret_type)) if detected
-fn detect_returns_nested_function(func: &HirFunction) -> Option<(String, Vec<HirParam>, Type)> {
+/// Stores inferred params in ctx.nested_function_params for use during code generation
+fn detect_returns_nested_function(
+    func: &HirFunction,
+    ctx: &mut CodeGenContext,
+) -> Option<(String, Vec<HirParam>, Type)> {
     // Look for pattern: function contains nested FunctionDef and ends with returning that name
     let mut nested_functions: std::collections::HashMap<String, (Vec<HirParam>, Type)> =
         std::collections::HashMap::new();
 
-    // Collect nested function definitions
+    // Collect nested function definitions with type inference
     for stmt in &func.body {
         if let HirStmt::FunctionDef {
             name,
             params,
             ret_type,
+            body,
             ..
         } = stmt
         {
-            nested_functions.insert(name.clone(), (params.to_vec(), ret_type.clone()));
+            // GH-70: Apply type inference to parameters
+            let mut inferred_params = params.to_vec();
+            for param in &mut inferred_params {
+                if matches!(param.ty, Type::Unknown) {
+                    // Try to infer from body usage
+                    if let Some(inferred_ty) = infer_param_type_from_body(&param.name, body) {
+                        param.ty = inferred_ty;
+                    }
+                }
+            }
+
+            // Store inferred params in context for use during code generation
+            ctx.nested_function_params
+                .insert(name.clone(), inferred_params.clone());
+
+            nested_functions.insert(name.clone(), (inferred_params, ret_type.clone()));
         }
     }
 
@@ -1447,16 +1491,13 @@ pub(crate) fn codegen_return_type(
     Option<crate::rust_gen::context::ErrorType>,
 )> {
     // GH-70: Check if function returns a nested function/closure
-    if let Some((_nested_name, params, nested_ret_type)) = detect_returns_nested_function(func) {
+    if let Some((_nested_name, params, nested_ret_type)) = detect_returns_nested_function(func, ctx) {
         use quote::quote;
 
         // Build Box<dyn Fn(params) -> ret> type
         let param_types: Vec<proc_macro2::TokenStream> = params
             .iter()
-            .map(|p| {
-                let ty_tokens = crate::rust_gen::stmt_gen::hir_type_to_tokens(&p.ty, ctx);
-                ty_tokens
-            })
+            .map(|p| crate::rust_gen::stmt_gen::hir_type_to_tokens(&p.ty, ctx))
             .collect();
 
         let ret_ty_tokens = crate::rust_gen::stmt_gen::hir_type_to_tokens(&nested_ret_type, ctx);
@@ -1798,7 +1839,7 @@ impl RustCodeGen for HirFunction {
         let mut body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
 
         // GH-70: Wrap returned closure in Box::new() if function returns Box<dyn Fn>
-        if let Some((nested_name, _, _)) = detect_returns_nested_function(self) {
+        if let Some((nested_name, _, _)) = detect_returns_nested_function(self, ctx) {
             // Find last statement and wrap if it's returning the nested function
             if let Some(last_stmt) = body_stmts.last_mut() {
                 use quote::quote;
