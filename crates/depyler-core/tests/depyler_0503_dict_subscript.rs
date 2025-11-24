@@ -10,8 +10,8 @@
 //! 5. ROOT: TBD - need to find exact call site
 
 use depyler_core::ast_bridge;
-use rustpython_parser::{Parse, ast};
 use rustpython_ast::Suite;
+use rustpython_parser::{ast, Parse};
 
 fn parse_and_generate(python: &str) -> depyler_core::hir::HirModule {
     let statements = Suite::parse(python, "<test>").expect("Should parse");
@@ -20,7 +20,9 @@ fn parse_and_generate(python: &str) -> depyler_core::hir::HirModule {
         type_ignores: vec![],
         range: Default::default(),
     });
-    let (hir, _type_env) = ast_bridge::AstBridge::new().python_to_hir(ast).expect("Should generate HIR");
+    let (hir, _type_env) = ast_bridge::AstBridge::new()
+        .python_to_hir(ast)
+        .expect("Should generate HIR");
     hir
 }
 
@@ -42,7 +44,7 @@ fn test_list_subscript_with_int() {
 items = [1, 2, 3]
 first = items[0]
 "#;
-    let hir = parse_and_generate(python);
+    let _hir = parse_and_generate(python);
     // Should transpile without "unsupported type annotation" error
 }
 

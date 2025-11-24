@@ -232,7 +232,7 @@ mod tests {
         assert_eq!(config.memory_limit, 0);
         assert_eq!(config.cpu_limit, 0.0);
         assert_eq!(config.timeout, Duration::from_secs(60));
-        assert_eq!(config.signal_injection, false);
+        assert!(!config.signal_injection);
     }
 
     #[test]
@@ -241,7 +241,7 @@ mod tests {
         assert_eq!(config.memory_limit, 512 * 1024 * 1024);
         assert_eq!(config.cpu_limit, 0.8);
         assert_eq!(config.timeout, Duration::from_secs(120));
-        assert_eq!(config.signal_injection, false);
+        assert!(!config.signal_injection);
     }
 
     #[test]
@@ -250,7 +250,7 @@ mod tests {
         assert_eq!(config.memory_limit, 64 * 1024 * 1024);
         assert_eq!(config.cpu_limit, 0.25);
         assert_eq!(config.timeout, Duration::from_secs(10));
-        assert_eq!(config.signal_injection, true);
+        assert!(config.signal_injection);
     }
 
     #[test]
@@ -277,7 +277,7 @@ mod tests {
         assert_eq!(config.memory_limit, 100 * 1024 * 1024);
         assert_eq!(config.cpu_limit, 0.5);
         assert_eq!(config.timeout, Duration::from_secs(30));
-        assert_eq!(config.signal_injection, true);
+        assert!(config.signal_injection);
     }
 
     #[test]

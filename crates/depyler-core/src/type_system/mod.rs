@@ -26,17 +26,17 @@
 
 // DEPYLER-0499: New subtyping-aware modules
 pub mod constraint;
-pub mod subtyping;
 pub mod solver;
+pub mod subtyping;
 pub mod type_environment;
 
 // Legacy Hindley-Milner (kept for backward compatibility)
 pub mod hindley_milner;
 
 // Re-exports
-pub use constraint::{TypeConstraint, ConstraintKind};
+pub use constraint::{ConstraintKind, TypeConstraint};
+pub use solver::{Solution, WorklistSolver};
 pub use subtyping::SubtypeChecker;
-pub use solver::{WorklistSolver, Solution};
 pub use type_environment::{TypeEnvironment, TypeInfo, VarId};
 
 // Legacy exports

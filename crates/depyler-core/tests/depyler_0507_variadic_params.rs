@@ -10,8 +10,8 @@
 //! 5. ROOT: Missing code to handle ast::Arguments::vararg
 
 use depyler_core::ast_bridge;
-use rustpython_parser::{Parse, ast};
 use rustpython_ast::Suite;
+use rustpython_parser::{ast, Parse};
 
 fn parse_and_generate(python: &str) -> depyler_core::hir::HirModule {
     let statements = Suite::parse(python, "<test>").expect("Should parse");
@@ -20,7 +20,9 @@ fn parse_and_generate(python: &str) -> depyler_core::hir::HirModule {
         type_ignores: vec![],
         range: Default::default(),
     });
-    let (hir, _type_env) = ast_bridge::AstBridge::new().python_to_hir(ast).expect("Should generate HIR");
+    let (hir, _type_env) = ast_bridge::AstBridge::new()
+        .python_to_hir(ast)
+        .expect("Should generate HIR");
     hir
 }
 
@@ -42,7 +44,10 @@ result = concat("a", "b", "c")
     let concat_func = concat_func.unwrap();
     assert_eq!(concat_func.params.len(), 1, "Should have 1 parameter");
     assert_eq!(concat_func.params[0].name, "args");
-    assert!(concat_func.params[0].is_vararg, "Parameter should be marked as vararg");
+    assert!(
+        concat_func.params[0].is_vararg,
+        "Parameter should be marked as vararg"
+    );
 }
 
 #[test]
@@ -64,7 +69,10 @@ msg = format_msg("INFO", "server", "started")
 
     // First param is regular
     assert_eq!(format_func.params[0].name, "prefix");
-    assert!(!format_func.params[0].is_vararg, "prefix should NOT be vararg");
+    assert!(
+        !format_func.params[0].is_vararg,
+        "prefix should NOT be vararg"
+    );
 
     // Second param is variadic
     assert_eq!(format_func.params[1].name, "parts");
@@ -126,7 +134,10 @@ def outer():
     let nested_params = nested_func.unwrap();
     assert_eq!(nested_params.len(), 1);
     assert_eq!(nested_params[0].name, "args");
-    assert!(nested_params[0].is_vararg, "Nested function args should be vararg");
+    assert!(
+        nested_params[0].is_vararg,
+        "Nested function args should be vararg"
+    );
 }
 
 #[test]

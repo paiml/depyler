@@ -38,7 +38,7 @@ def count_up(n: int) -> Iterator[int]:
     // Should NOT have nested Iterator
     assert!(
         !rust.contains("Iterator<Item = Iterator<i32>>")
-        && !rust.contains("Iterator<Item=Iterator<i32>>"),
+            && !rust.contains("Iterator<Item=Iterator<i32>>"),
         "BUG: Return type incorrectly nested Iterator<Item = Iterator<i32>>\nGenerated:\n{}",
         rust
     );
@@ -70,7 +70,8 @@ def word_gen() -> Iterator[str]:
 
     // Should have String, not Iterator<String>
     assert!(
-        rust.contains("impl Iterator<Item = String>") || rust.contains("impl Iterator<Item=String>"),
+        rust.contains("impl Iterator<Item = String>")
+            || rust.contains("impl Iterator<Item=String>"),
         "BUG: Function return type should be 'impl Iterator<Item = String>'\nGenerated:\n{}",
         rust
     );
@@ -237,7 +238,7 @@ def batch_gen(n: int) -> Iterator[List[int]]:
     // NOT Iterator<Item = Iterator<Vec<i32>>>
     assert!(
         rust.contains("impl Iterator<Item = Vec<i32>>")
-        || rust.contains("impl Iterator<Item=Vec<i32>>"),
+            || rust.contains("impl Iterator<Item=Vec<i32>>"),
         "BUG: Should have Vec<i32> element type\nGenerated:\n{}",
         rust
     );

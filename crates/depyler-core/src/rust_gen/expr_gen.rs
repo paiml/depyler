@@ -2447,13 +2447,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0493: Check if this is a struct type that needs constructor pattern
             // Look up constructor pattern from imported modules
             use crate::module_mapper::ConstructorPattern;
-            let constructor_pattern = self.ctx.imported_modules
-                .values()
-                .find_map(|module| {
-                    // Get the last part of the rust_path (e.g., "NamedTempFile" from "tempfile::NamedTempFile")
-                    let type_name = path_parts.last()?;
-                    module.constructor_patterns.get(*type_name)
-                });
+            let constructor_pattern = self.ctx.imported_modules.values().find_map(|module| {
+                // Get the last part of the rust_path (e.g., "NamedTempFile" from "tempfile::NamedTempFile")
+                let type_name = path_parts.last()?;
+                module.constructor_patterns.get(*type_name)
+            });
 
             // Generate call based on constructor pattern
             return match constructor_pattern {
@@ -3827,7 +3825,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         matches!(var_type, Type::String)
                     } else {
                         // Unknown type: use heuristic based on name
-                        matches!(var_name.as_str(), "path" | "expanded" | "p" | "file" | "dir")
+                        matches!(
+                            var_name.as_str(),
+                            "path" | "expanded" | "p" | "file" | "dir"
+                        )
                     }
                 }
                 HirExpr::Literal(Literal::String(_)) => false, // String literals are already &str
@@ -7952,7 +7953,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Look up the Python name → Rust name mapping
                 if let Some(rust_name) = module_mapping.item_map.get(method) {
                     // Check if this has a constructor pattern defined
-                    if let Some(constructor_pattern) = module_mapping.constructor_patterns.get(rust_name) {
+                    if let Some(constructor_pattern) =
+                        module_mapping.constructor_patterns.get(rust_name)
+                    {
                         use crate::module_mapper::ConstructorPattern;
 
                         // Clone what we need to avoid borrow checker issues
@@ -7989,7 +7992,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             }
                             ConstructorPattern::Method(method_name) => {
                                 // Custom method (e.g., File::open())
-                                let method_ident = syn::Ident::new(&method_name, proc_macro2::Span::call_site());
+                                let method_ident =
+                                    syn::Ident::new(&method_name, proc_macro2::Span::call_site());
                                 if arg_exprs.is_empty() {
                                     parse_quote! { #path::#method_ident() }
                                 } else {
@@ -12115,7 +12119,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             if let Some(var_type) = self.ctx.var_types.get(var_name) {
                                 matches!(
                                     var_type,
-                                    Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Optional(_)
+                                    Type::List(_)
+                                        | Type::Dict(_, _)
+                                        | Type::Set(_)
+                                        | Type::Optional(_)
                                 )
                             } else {
                                 false

@@ -6,6 +6,8 @@
 // Root cause: convert_method_call() only receives args, not kwargs
 // Solution: Thread kwargs parameter through entire call chain
 
+#![allow(non_snake_case)] // Test naming convention
+
 use depyler_core::DepylerPipeline;
 
 /// Helper to transpile Python code

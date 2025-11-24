@@ -3,6 +3,8 @@
 //! Tests to verify that integer literals don't have unnecessary double parentheses
 //! when cast to i64 for function calls.
 
+#![allow(non_snake_case)] // Test naming convention
+
 use depyler_core::ast_bridge::AstBridge;
 use depyler_core::rust_gen::generate_rust_file;
 use depyler_core::type_mapper::TypeMapper;
@@ -71,9 +73,8 @@ def test() -> int:
 
     // Check that the output has proper casts without double parentheses
     // The code should have "(2 as i64)" not "((2) as i64)"
-    let has_double_parens = rust_code.contains("((2)")
-        || rust_code.contains("((3)")
-        || rust_code.contains("((4)");
+    let has_double_parens =
+        rust_code.contains("((2)") || rust_code.contains("((3)") || rust_code.contains("((4)");
 
     assert!(
         !has_double_parens,

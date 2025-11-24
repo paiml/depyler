@@ -3,6 +3,8 @@
 //! Verifies that functions receiving parse_args() result are typed as `&Args`
 //! instead of `&serde_json::Value`.
 
+#![allow(non_snake_case)] // Test naming convention
+
 use depyler_core::DepylerPipeline;
 
 fn transpile_str(python: &str) -> Result<String, Box<dyn std::error::Error>> {

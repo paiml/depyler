@@ -12,7 +12,7 @@
 //! - Dunfield, J., & Krishnaswami, N. (2013). Bidirectional Typechecking for Higher-Rank Polymorphism.
 
 use crate::hir::Type;
-use crate::type_system::constraint::{TypeConstraint, ConstraintKind};
+use crate::type_system::constraint::{ConstraintKind, TypeConstraint};
 
 /// Subtype checker implementing T1 <: T2 relation
 pub struct SubtypeChecker {
@@ -47,13 +47,19 @@ impl SubtypeChecker {
     pub fn check_subtype(&self, lhs: &Type, rhs: &Type) -> Result<(), String> {
         // Check cache first
         if let Some(&result) = self.cache.borrow().get(&(lhs.clone(), rhs.clone())) {
-            return if result { Ok(()) } else { Err(format!("{:?} is not a subtype of {:?}", lhs, rhs)) };
+            return if result {
+                Ok(())
+            } else {
+                Err(format!("{:?} is not a subtype of {:?}", lhs, rhs))
+            };
         }
 
         let result = self.check_subtype_uncached(lhs, rhs);
 
         // Cache result
-        self.cache.borrow_mut().insert((lhs.clone(), rhs.clone()), result.is_ok());
+        self.cache
+            .borrow_mut()
+            .insert((lhs.clone(), rhs.clone()), result.is_ok());
 
         result
     }
@@ -73,14 +79,10 @@ impl SubtypeChecker {
             (ty, Type::Optional(inner)) if ty == inner.as_ref() => Ok(()),
 
             // Option covariance: Option<T> <: Option<U> if T <: U
-            (Type::Optional(t1), Type::Optional(t2)) => {
-                self.check_subtype(t1, t2)
-            }
+            (Type::Optional(t1), Type::Optional(t2)) => self.check_subtype(t1, t2),
 
             // List covariance: List<T> <: List<U> if T <: U
-            (Type::List(t1), Type::List(t2)) => {
-                self.check_subtype(t1, t2)
-            }
+            (Type::List(t1), Type::List(t2)) => self.check_subtype(t1, t2),
 
             // Unification variables: defer to solver
             (Type::UnificationVar(_), _) | (_, Type::UnificationVar(_)) => {
@@ -88,7 +90,7 @@ impl SubtypeChecker {
             }
 
             // No subtyping relationship
-            _ => Err(format!("{:?} is not a subtype of {:?}", lhs, rhs))
+            _ => Err(format!("{:?} is not a subtype of {:?}", lhs, rhs)),
         }
     }
 
@@ -99,20 +101,24 @@ impl SubtypeChecker {
                 if constraint.lhs == constraint.rhs {
                     Ok(())
                 } else {
-                    Err(format!("Type mismatch: {:?} != {:?} ({})",
-                        constraint.lhs, constraint.rhs, constraint.reason))
+                    Err(format!(
+                        "Type mismatch: {:?} != {:?} ({})",
+                        constraint.lhs, constraint.rhs, constraint.reason
+                    ))
                 }
             }
-            ConstraintKind::Subtype => {
-                self.check_subtype(&constraint.lhs, &constraint.rhs)
-                    .map_err(|e| format!("{} ({})", e, constraint.reason))
-            }
+            ConstraintKind::Subtype => self
+                .check_subtype(&constraint.lhs, &constraint.rhs)
+                .map_err(|e| format!("{} ({})", e, constraint.reason)),
             ConstraintKind::Supertype => {
                 // T1 :> T2 equivalent to T2 <: T1
                 self.check_subtype(&constraint.rhs, &constraint.lhs)
                     .map_err(|e| format!("{} ({})", e, constraint.reason))
             }
-            _ => Err(format!("Unsupported constraint kind: {:?}", constraint.kind))
+            _ => Err(format!(
+                "Unsupported constraint kind: {:?}",
+                constraint.kind
+            )),
         }
     }
 }
@@ -148,10 +154,7 @@ mod tests {
     #[test]
     fn test_option_lift() {
         let checker = SubtypeChecker::new();
-        let result = checker.check_subtype(
-            &Type::Int,
-            &Type::Optional(Box::new(Type::Int))
-        );
+        let result = checker.check_subtype(&Type::Int, &Type::Optional(Box::new(Type::Int)));
         assert!(result.is_ok());
     }
 }

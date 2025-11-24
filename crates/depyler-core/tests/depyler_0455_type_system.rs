@@ -9,6 +9,8 @@
 // Created: 2025-11-21
 // Ticket: https://github.com/paiml/depyler/issues/DEPYLER-0455
 
+#![allow(non_snake_case)] // Test naming convention
+
 use depyler_core::DepylerPipeline;
 
 /// Helper function to transpile Python code
@@ -332,8 +334,7 @@ def main():
     // Bug 4: Option Display (implicit in proper if let Some usage)
     // If we have "if let Some", the inner block should use the unwrapped value
     if rust_code.contains("if let Some(") {
-        // Good - pattern matching extracts value
-        assert!(true);
+        // Good - pattern matching extracts value (no assertion needed)
     } else if rust_code.contains(".is_some()") {
         // Should have corresponding .unwrap() or .unwrap_or()
         let has_unwrap = rust_code.contains(".unwrap()") || rust_code.contains(".unwrap_or(");

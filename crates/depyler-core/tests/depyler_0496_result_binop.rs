@@ -29,9 +29,7 @@ def add_divisions(a: int, b: int, c: int, d: int) -> int:
 
     // Should use ? operator on Result-returning calls
     // Pattern: divide(...)? + divide(...)?
-    let has_question_marks = rust.matches("divide(")
-        .zip(rust.matches(")?"))
-        .count() >= 2;
+    let has_question_marks = rust.matches("divide(").zip(rust.matches(")?")).count() >= 2;
 
     assert!(
         has_question_marks || rust.contains("divide(a, b)? + divide(c, d)?"),
@@ -134,7 +132,8 @@ def fibonacci_memoized(n: int, memo: Optional[Dict[int, int]] = None) -> int:
 
     // Check for ? operator on fibonacci_memoized calls
     let fib_call_count = rust.matches("fibonacci_memoized(n - 1").count();
-    let question_after_call = rust.matches("fibonacci_memoized(n - 1")
+    let question_after_call = rust
+        .matches("fibonacci_memoized(n - 1")
         .filter(|_| rust.contains(")?"))
         .count();
 

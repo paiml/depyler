@@ -1,6 +1,8 @@
 // DEPYLER-0430: os/sys/platform Module Gaps
 // Tests for platform module and os.path operations
 
+#![allow(non_snake_case)] // Test naming convention
+
 use depyler_core::DepylerPipeline;
 use std::io::Write;
 use std::process::Command;
@@ -13,6 +15,7 @@ fn transpile_python(python: &str) -> anyhow::Result<String> {
 }
 
 /// Helper function to compile Rust code
+#[allow(dead_code)]
 fn compile_rust_code(rust_code: &str) -> bool {
     let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
     temp_file

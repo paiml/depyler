@@ -4,8 +4,8 @@
 // specifically focusing on csv module and file I/O patterns.
 //
 #![allow(non_snake_case)] // Allow DEPYLER-XXXX test naming convention
-// Created: 2025-11-21
-// Ticket: https://github.com/paiml/depyler/issues/DEPYLER-0452
+                          // Created: 2025-11-21
+                          // Ticket: https://github.com/paiml/depyler/issues/DEPYLER-0452
 
 use depyler_core::DepylerPipeline;
 
