@@ -4160,7 +4160,8 @@ impl RustCodeGen for HirStmt {
 // ============================================================================
 
 /// Convert HIR Type to proc_macro2::TokenStream for code generation
-fn hir_type_to_tokens(ty: &Type, _ctx: &CodeGenContext) -> proc_macro2::TokenStream {
+/// GH-70: Made public for use in func_gen.rs
+pub(crate) fn hir_type_to_tokens(ty: &Type, _ctx: &CodeGenContext) -> proc_macro2::TokenStream {
     use quote::quote;
 
     match ty {
