@@ -18,13 +18,8 @@ impl IndexError {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_arrays() -> Result<i32, IndexError> {
     let arr1 = vec![1, 2, 3, 4, 5];
-    let arr2 = vec![0, 0, 0, 0];
-    let _cse_temp_0 = [0; 10];
-    let zeros = _cse_temp_0;
-    let _cse_temp_1 = [1; 5];
-    let ones = _cse_temp_1;
-    let _cse_temp_2 = arr1.get(0usize).cloned().unwrap_or_default()
+    let _cse_temp_0 = arr1.get(0usize).cloned().unwrap_or_default()
         + arr1.get(1usize).cloned().unwrap_or_default();
-    let sum_val = _cse_temp_2;
+    let sum_val = _cse_temp_0;
     Ok(sum_val)
 }
