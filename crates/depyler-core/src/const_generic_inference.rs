@@ -521,10 +521,8 @@ impl ConstGenericInferencer {
             HirExpr::Borrow { expr, .. } => self.transform_expression(expr),
             HirExpr::ListComp {
                 element,
-                iter,
-                condition,
-                ..
-            } => self.transform_list_comp(element, iter, condition),
+                generators,
+            } => self.transform_list_comp(element, generators),
             _ => Ok(()),
         }
     }
@@ -596,13 +594,14 @@ impl ConstGenericInferencer {
     fn transform_list_comp(
         &mut self,
         element: &mut HirExpr,
-        iter: &mut HirExpr,
-        condition: &mut Option<Box<HirExpr>>,
+        generators: &mut [crate::hir::HirComprehension],
     ) -> Result<()> {
         self.transform_expression(element)?;
-        self.transform_expression(iter)?;
-        if let Some(cond) = condition {
-            self.transform_expression(cond)?;
+        for gen in generators {
+            self.transform_expression(&mut gen.iter)?;
+            for cond in &mut gen.conditions {
+                self.transform_expression(cond)?;
+            }
         }
         Ok(())
     }

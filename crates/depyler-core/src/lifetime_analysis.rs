@@ -454,22 +454,28 @@ impl LifetimeInference {
             }
             HirExpr::ListComp {
                 element,
-                target,
-                iter,
-                condition,
+                generators,
             } => {
+                // DEPYLER-0504: Support multiple generators
                 // List comprehensions create a new scope, so the target variable
                 // shadows any outer variable with the same name
-                if target != param {
-                    // Only analyze if the comprehension target doesn't shadow our parameter
-                    self.analyze_expr_for_param(param, iter, usage, true, false);
-                    self.analyze_expr_for_param(param, element, usage, true, in_return);
-                    if let Some(cond) = condition {
-                        self.analyze_expr_for_param(param, cond, usage, true, false);
+                for gen in generators {
+                    // Check if any generator target shadows our parameter
+                    let target_shadows = gen.target == param
+                        || gen.target.contains(&format!("({})", param))
+                        || gen.target.contains(&format!("{},", param))
+                        || gen.target.contains(&format!(", {}", param));
+
+                    if !target_shadows {
+                        // Only analyze if the comprehension target doesn't shadow our parameter
+                        self.analyze_expr_for_param(param, &gen.iter, usage, true, false);
+                        for cond in &gen.conditions {
+                            self.analyze_expr_for_param(param, cond, usage, true, false);
+                        }
                     }
                 }
-                // If target shadows param, we don't analyze element/condition
-                // since they would refer to the comprehension variable, not the parameter
+                // Analyze element expression (after all generators)
+                self.analyze_expr_for_param(param, element, usage, true, in_return);
             }
             HirExpr::Lambda { params: _, body } => {
                 // Lambda functions can capture parameters by reference
@@ -483,43 +489,55 @@ impl LifetimeInference {
             }
             HirExpr::SetComp {
                 element,
-                target,
-                iter,
-                condition,
+                generators,
             } => {
+                // DEPYLER-0504: Support multiple generators
                 // Set comprehensions create a new scope, so the target variable
                 // shadows any outer variable with the same name
-                if target != param {
-                    // Only analyze if the comprehension target doesn't shadow our parameter
-                    self.analyze_expr_for_param(param, iter, usage, true, false);
-                    self.analyze_expr_for_param(param, element, usage, true, in_return);
-                    if let Some(cond) = condition {
-                        self.analyze_expr_for_param(param, cond, usage, true, false);
+                for gen in generators {
+                    // Check if any generator target shadows our parameter
+                    let target_shadows = gen.target == param
+                        || gen.target.contains(&format!("({})", param))
+                        || gen.target.contains(&format!("{},", param))
+                        || gen.target.contains(&format!(", {}", param));
+
+                    if !target_shadows {
+                        // Only analyze if the comprehension target doesn't shadow our parameter
+                        self.analyze_expr_for_param(param, &gen.iter, usage, true, false);
+                        for cond in &gen.conditions {
+                            self.analyze_expr_for_param(param, cond, usage, true, false);
+                        }
                     }
                 }
-                // If target shadows param, we don't analyze element/condition
-                // since they would refer to the comprehension variable, not the parameter
+                // Analyze element expression (after all generators)
+                self.analyze_expr_for_param(param, element, usage, true, in_return);
             }
             HirExpr::DictComp {
                 key,
                 value,
-                target,
-                iter,
-                condition,
+                generators,
             } => {
+                // DEPYLER-0504: Support multiple generators
                 // Dict comprehensions create a new scope, so the target variable
                 // shadows any outer variable with the same name
-                if target != param {
-                    // Only analyze if the comprehension target doesn't shadow our parameter
-                    self.analyze_expr_for_param(param, iter, usage, true, false);
-                    self.analyze_expr_for_param(param, key, usage, true, in_return);
-                    self.analyze_expr_for_param(param, value, usage, true, in_return);
-                    if let Some(cond) = condition {
-                        self.analyze_expr_for_param(param, cond, usage, true, false);
+                for gen in generators {
+                    // Check if any generator target shadows our parameter
+                    let target_shadows = gen.target == param
+                        || gen.target.contains(&format!("({})", param))
+                        || gen.target.contains(&format!("{},", param))
+                        || gen.target.contains(&format!(", {}", param));
+
+                    if !target_shadows {
+                        // Only analyze if the comprehension target doesn't shadow our parameter
+                        self.analyze_expr_for_param(param, &gen.iter, usage, true, false);
+                        for cond in &gen.conditions {
+                            self.analyze_expr_for_param(param, cond, usage, true, false);
+                        }
                     }
                 }
-                // If target shadows param, we don't analyze key/value/condition
-                // since they would refer to the comprehension variable, not the parameter
+                // Analyze key and value expressions (after all generators)
+                self.analyze_expr_for_param(param, key, usage, true, in_return);
+                self.analyze_expr_for_param(param, value, usage, true, in_return);
             }
             HirExpr::Await { value } => {
                 // Await expressions propagate parameter usage

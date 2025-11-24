@@ -11294,110 +11294,92 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn convert_list_comp(
         &mut self,
         element: &HirExpr,
-        target: &str,
-        iter: &HirExpr,
-        condition: &Option<Box<HirExpr>>,
+        generators: &[crate::hir::HirComprehension],
     ) -> Result<syn::Expr> {
-        let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
-        let iter_expr = iter.to_rust_expr(self.ctx)?;
-        let element_expr = element.to_rust_expr(self.ctx)?;
+        // DEPYLER-0504: Support multiple generators in list comprehensions
+        // Strategy: Single generator → simple chain, Multiple → flat_map nesting
+        // Same pattern as convert_generator_expression but with .collect::<Vec<_>>()
 
-        // DEPYLER-0299 FIX: Proper iterator handling for comprehensions
-        // Strategy:
-        // - Use .iter() to explicitly borrow elements
-        // - Use pattern matching |&x| in filter closure to dereference once
-        // - Then use .cloned() after filter to get owned values
-        // - This avoids double-reference issues (&&T) in filter conditions
-
-        let is_range = self.is_range_expr(&iter_expr);
-
-        // DEPYLER-0454: Detect CSV reader variables in list comprehensions
-        // CSV readers can't use .into_iter() - they need .deserialize()
-        let is_csv_reader = if let HirExpr::Var(var_name) = iter {
-            var_name == "reader"
-                || var_name.contains("csv")
-                || var_name.ends_with("_reader")
-                || var_name.starts_with("reader_")
-        } else {
-            false
-        };
-
-        if let Some(cond) = condition {
-            // DEPYLER-0299 Fix: Add dereferences to target variable in condition
-            // Filter closures receive &T even after .clone().into_iter()
-            // So we need to generate *x for variable uses in the condition
-            let cond_with_deref = self.add_deref_to_var_uses(cond, target)?;
-
-            if is_range {
-                // Ranges are already iterators, don't call .iter()
-                // Range items are owned (i32, etc.), filter receives &i32
-                // Use pattern matching |&x| to dereference for the condition
-                Ok(parse_quote! {
-                    (#iter_expr)
-                        .filter(|&#target_ident| #cond_with_deref)
-                        .map(|#target_ident| #element_expr)
-                        .collect::<Vec<_>>()
-                })
-            } else if is_csv_reader {
-                // DEPYLER-0454: CSV reader in list comprehension
-                // Use .deserialize() instead of .into_iter()
-                // CSV DictReader yields HashMap<String, String>
-                self.ctx.needs_csv = true;
-                let cond_expr = cond.to_rust_expr(self.ctx)?;
-                Ok(parse_quote! {
-                    #iter_expr
-                        .deserialize::<std::collections::HashMap<String, String>>()
-                        .filter_map(|result| result.ok())
-                        .filter(|#target_ident| #cond_expr)
-                        .map(|#target_ident| #element_expr)
-                        .collect::<Vec<_>>()
-                })
-            } else {
-                // DEPYLER-0299 Fix: Clone the collection, then use .into_iter()
-                // Filter closures still receive &T, so we deref in the condition
-                Ok(parse_quote! {
-                    #iter_expr
-                        .clone()
-                        .into_iter()
-                        .filter(|#target_ident| #cond_with_deref)
-                        .map(|#target_ident| #element_expr)
-                        .collect::<Vec<_>>()
-                })
-            }
-        } else {
-            // Without condition: map-only comprehensions
-            if is_range {
-                // Ranges are already iterators, don't call .iter()
-                Ok(parse_quote! {
-                    (#iter_expr)
-                        .map(|#target_ident| #element_expr)
-                        .collect::<Vec<_>>()
-                })
-            } else if is_csv_reader {
-                // DEPYLER-0454: CSV reader in list comprehension (no filter)
-                // Use .deserialize() instead of .into_iter()
-                // CSV DictReader yields HashMap<String, String>
-                self.ctx.needs_csv = true;
-                Ok(parse_quote! {
-                    #iter_expr
-                        .deserialize::<std::collections::HashMap<String, String>>()
-                        .filter_map(|result| result.ok())
-                        .map(|#target_ident| #element_expr)
-                        .collect::<Vec<_>>()
-                })
-            } else {
-                // DEPYLER-0299 Fix: Clone the collection, then use .into_iter()
-                // Same fix needed for map-only comprehensions (no filter)
-                // .into_iter() on &Vec<T> yields &T, causing issues in map closures
-                Ok(parse_quote! {
-                    #iter_expr
-                        .clone()
-                        .into_iter()
-                        .map(|#target_ident| #element_expr)
-                        .collect::<Vec<_>>()
-                })
-            }
+        if generators.is_empty() {
+            bail!("List comprehension must have at least one generator");
         }
+
+        // Single generator case (simple iterator chain)
+        if generators.len() == 1 {
+            let gen = &generators[0];
+            let iter_expr = gen.iter.to_rust_expr(self.ctx)?;
+            let element_expr = element.to_rust_expr(self.ctx)?;
+            let target_pat = self.parse_target_pattern(&gen.target)?;
+
+            // DEPYLER-0454: Detect CSV reader variables in list comprehensions
+            let is_csv_reader = if let HirExpr::Var(var_name) = &*gen.iter {
+                var_name == "reader"
+                    || var_name.contains("csv")
+                    || var_name.ends_with("_reader")
+                    || var_name.starts_with("reader_")
+            } else {
+                false
+            };
+
+            let mut chain: syn::Expr = if is_csv_reader {
+                // DEPYLER-0454: CSV reader - use deserialize pattern
+                self.ctx.needs_csv = true;
+                parse_quote! { #iter_expr.deserialize::<std::collections::HashMap<String, String>>().filter_map(|result| result.ok()) }
+            } else if matches!(&*gen.iter, HirExpr::Var(_)) {
+                // Variable iteration - likely borrowed, use .iter().copied()
+                parse_quote! { #iter_expr.iter().copied() }
+            } else {
+                // Direct expression (ranges, lists, etc.) - use .into_iter()
+                parse_quote! { #iter_expr.into_iter() }
+            };
+
+            // Add filters for each condition
+            for cond in &gen.conditions {
+                let cond_expr = cond.to_rust_expr(self.ctx)?;
+                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+            }
+
+            // Add the map transformation
+            chain = parse_quote! { #chain.map(|#target_pat| #element_expr) };
+
+            // Collect into Vec
+            return Ok(parse_quote! { #chain.collect::<Vec<_>>() });
+        }
+
+        // Multiple generators case (nested iteration with flat_map)
+        // Pattern: [x + y for x in range(3) for y in range(3)]
+        // Becomes: (0..3).flat_map(|x| (0..3).map(move |y| x + y)).collect::<Vec<_>>()
+
+        let chain = self.convert_nested_generators_for_list_comp(element, generators)?;
+        Ok(parse_quote! { #chain.collect::<Vec<_>>() })
+    }
+
+    fn convert_nested_generators_for_list_comp(
+        &mut self,
+        element: &HirExpr,
+        generators: &[crate::hir::HirComprehension],
+    ) -> Result<syn::Expr> {
+        // Start with the outermost generator
+        let first_gen = &generators[0];
+        let first_iter = first_gen.iter.to_rust_expr(self.ctx)?;
+        let first_pat = self.parse_target_pattern(&first_gen.target)?;
+
+        // Build the nested expression recursively
+        let inner_expr = self.build_nested_chain(element, generators, 1)?;
+
+        // Start the chain with the first generator
+        let mut chain: syn::Expr = parse_quote! { #first_iter.into_iter() };
+
+        // Add filters for first generator's conditions
+        for cond in &first_gen.conditions {
+            let cond_expr = cond.to_rust_expr(self.ctx)?;
+            chain = parse_quote! { #chain.filter(|#first_pat| #cond_expr) };
+        }
+
+        // Use flat_map for the first generator
+        chain = parse_quote! { #chain.flat_map(|#first_pat| #inner_expr) };
+
+        Ok(chain)
     }
 
     /// Add dereference (*) to uses of target variable in expression
@@ -11793,133 +11775,164 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn convert_set_comp(
         &mut self,
         element: &HirExpr,
-        target: &str,
-        iter: &HirExpr,
-        condition: &Option<Box<HirExpr>>,
+        generators: &[crate::hir::HirComprehension],
     ) -> Result<syn::Expr> {
-        // DEPYLER-0299 Pattern #5 FIX: Proper iterator handling for set comprehensions
-        // Uses the same strategy as list comprehensions:
-        // - Ranges are already iterators, use them directly
-        // - Collections need .iter() to get an iterator
-        // - Use .cloned() to convert &T to T
-        // - Place .cloned() AFTER .filter() so filter sees &T
-        //
-        // Key insight: .filter(|x| ...) receives &Item where Item is the iterator's item type.
-        // So .iter().filter() means x is &&T, but .iter().filter().cloned() means filter gets &T
-        // and then .cloned() converts to T for the next stage.
+        // DEPYLER-0504: Support multiple generators in set comprehensions
+        // Same pattern as convert_list_comp but collecting to HashSet
 
         self.ctx.needs_hashset = true;
-        let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
-        let iter_expr = iter.to_rust_expr(self.ctx)?;
-        let element_expr = element.to_rust_expr(self.ctx)?;
 
-        let is_range = self.is_range_expr(&iter_expr);
-
-        if let Some(cond) = condition {
-            let cond_expr = cond.to_rust_expr(self.ctx)?;
-            if is_range {
-                // Ranges are already iterators, don't call .iter()
-                // Range items are owned (i32, etc.), so no dereference needed
-                Ok(parse_quote! {
-                    (#iter_expr)
-                        .filter(|#target_ident| #cond_expr)
-                        .map(|#target_ident| #element_expr)
-                        .collect::<HashSet<_>>()
-                })
-            } else {
-                // Collections need .iter().filter().cloned().map()
-                // Use |&target| pattern to automatically dereference in filter closure
-                Ok(parse_quote! {
-                    #iter_expr
-                        .iter()
-                        .filter(|&#target_ident| #cond_expr)
-                        .cloned()
-                        .map(|#target_ident| #element_expr)
-                        .collect::<HashSet<_>>()
-                })
-            }
-        } else if is_range {
-            Ok(parse_quote! {
-                (#iter_expr)
-                    .map(|#target_ident| #element_expr)
-                    .collect::<HashSet<_>>()
-            })
-        } else {
-            Ok(parse_quote! {
-                #iter_expr
-                    .iter()
-                    .cloned()
-                    .map(|#target_ident| #element_expr)
-                    .collect::<HashSet<_>>()
-            })
+        if generators.is_empty() {
+            bail!("Set comprehension must have at least one generator");
         }
+
+        // Single generator case (simple iterator chain)
+        if generators.len() == 1 {
+            let gen = &generators[0];
+            let iter_expr = gen.iter.to_rust_expr(self.ctx)?;
+            let element_expr = element.to_rust_expr(self.ctx)?;
+            let target_pat = self.parse_target_pattern(&gen.target)?;
+
+            let mut chain: syn::Expr = if matches!(&*gen.iter, HirExpr::Var(_)) {
+                // Variable iteration - likely borrowed, use .iter().copied()
+                parse_quote! { #iter_expr.iter().copied() }
+            } else {
+                // Direct expression (ranges, lists, etc.) - use .into_iter()
+                parse_quote! { #iter_expr.into_iter() }
+            };
+
+            // Add filters for each condition
+            for cond in &gen.conditions {
+                let cond_expr = cond.to_rust_expr(self.ctx)?;
+                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+            }
+
+            // Add the map transformation
+            chain = parse_quote! { #chain.map(|#target_pat| #element_expr) };
+
+            // Collect into HashSet
+            return Ok(parse_quote! { #chain.collect::<HashSet<_>>() });
+        }
+
+        // Multiple generators case (nested iteration with flat_map)
+        let chain = self.convert_nested_generators_for_list_comp(element, generators)?;
+        Ok(parse_quote! { #chain.collect::<HashSet<_>>() })
     }
 
     fn convert_dict_comp(
         &mut self,
         key: &HirExpr,
         value: &HirExpr,
-        target: &str,
-        iter: &HirExpr,
-        condition: &Option<Box<HirExpr>>,
+        generators: &[crate::hir::HirComprehension],
     ) -> Result<syn::Expr> {
-        // DEPYLER-0299 Pattern #5 FIX: Proper iterator handling for dict comprehensions
-        // Uses the same strategy as list comprehensions:
-        // - Ranges are already iterators, use them directly
-        // - Collections need .iter() to get an iterator
-        // - Use .cloned() to convert &T to T
-        // - Place .cloned() AFTER .filter() so filter sees &T
-        //
-        // Key insight: .filter(|x| ...) receives &Item where Item is the iterator's item type.
-        // So .iter().filter() means x is &&T, but .iter().filter().cloned() means filter gets &T
-        // and then .cloned() converts to T for the next stage.
+        // DEPYLER-0504: Support multiple generators in dict comprehensions
+        // Same pattern as convert_list_comp but collecting to HashMap with (key, value) tuples
 
         self.ctx.needs_hashmap = true;
-        let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
-        let iter_expr = iter.to_rust_expr(self.ctx)?;
-        let key_expr = key.to_rust_expr(self.ctx)?;
-        let value_expr = value.to_rust_expr(self.ctx)?;
 
-        let is_range = self.is_range_expr(&iter_expr);
-
-        if let Some(cond) = condition {
-            let cond_expr = cond.to_rust_expr(self.ctx)?;
-            if is_range {
-                // Ranges are already iterators, don't call .iter()
-                // Range items are owned (i32, etc.), so no dereference needed
-                Ok(parse_quote! {
-                    (#iter_expr)
-                        .filter(|#target_ident| #cond_expr)
-                        .map(|#target_ident| (#key_expr, #value_expr))
-                        .collect::<HashMap<_, _>>()
-                })
-            } else {
-                // Collections need .iter().filter().cloned().map()
-                // Use |&target| pattern to automatically dereference in filter closure
-                Ok(parse_quote! {
-                    #iter_expr
-                        .iter()
-                        .filter(|&#target_ident| #cond_expr)
-                        .cloned()
-                        .map(|#target_ident| (#key_expr, #value_expr))
-                        .collect::<HashMap<_, _>>()
-                })
-            }
-        } else if is_range {
-            Ok(parse_quote! {
-                (#iter_expr)
-                    .map(|#target_ident| (#key_expr, #value_expr))
-                    .collect::<HashMap<_, _>>()
-            })
-        } else {
-            Ok(parse_quote! {
-                #iter_expr
-                    .iter()
-                    .cloned()
-                    .map(|#target_ident| (#key_expr, #value_expr))
-                    .collect::<HashMap<_, _>>()
-            })
+        if generators.is_empty() {
+            bail!("Dict comprehension must have at least one generator");
         }
+
+        // Single generator case (simple iterator chain)
+        if generators.len() == 1 {
+            let gen = &generators[0];
+            let iter_expr = gen.iter.to_rust_expr(self.ctx)?;
+            let key_expr = key.to_rust_expr(self.ctx)?;
+            let value_expr = value.to_rust_expr(self.ctx)?;
+            let target_pat = self.parse_target_pattern(&gen.target)?;
+
+            let mut chain: syn::Expr = if matches!(&*gen.iter, HirExpr::Var(_)) {
+                // Variable iteration - likely borrowed, use .iter().copied()
+                parse_quote! { #iter_expr.iter().copied() }
+            } else {
+                // Direct expression (ranges, lists, etc.) - use .into_iter()
+                parse_quote! { #iter_expr.into_iter() }
+            };
+
+            // Add filters for each condition
+            for cond in &gen.conditions {
+                let cond_expr = cond.to_rust_expr(self.ctx)?;
+                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+            }
+
+            // Add the map transformation (to key-value tuple)
+            chain = parse_quote! { #chain.map(|#target_pat| (#key_expr, #value_expr)) };
+
+            // Collect into HashMap
+            return Ok(parse_quote! { #chain.collect::<HashMap<_, _>>() });
+        }
+
+        // Multiple generators case (nested iteration with flat_map)
+        // Build nested chain that generates (key, value) tuples
+        let chain = self.convert_nested_generators_for_dict_comp(key, value, generators)?;
+        Ok(parse_quote! { #chain.collect::<HashMap<_, _>>() })
+    }
+
+    fn convert_nested_generators_for_dict_comp(
+        &mut self,
+        key: &HirExpr,
+        value: &HirExpr,
+        generators: &[crate::hir::HirComprehension],
+    ) -> Result<syn::Expr> {
+        // Start with the outermost generator
+        let first_gen = &generators[0];
+        let first_iter = first_gen.iter.to_rust_expr(self.ctx)?;
+        let first_pat = self.parse_target_pattern(&first_gen.target)?;
+
+        // Build nested chain that produces (key, value) tuples
+        let inner_expr = self.build_nested_chain_for_dict(key, value, generators, 1)?;
+
+        // Start the chain with the first generator
+        let mut chain: syn::Expr = parse_quote! { #first_iter.into_iter() };
+
+        // Add filters for first generator's conditions
+        for cond in &first_gen.conditions {
+            let cond_expr = cond.to_rust_expr(self.ctx)?;
+            chain = parse_quote! { #chain.filter(|#first_pat| #cond_expr) };
+        }
+
+        // Use flat_map for the first generator
+        chain = parse_quote! { #chain.flat_map(|#first_pat| #inner_expr) };
+
+        Ok(chain)
+    }
+
+    fn build_nested_chain_for_dict(
+        &mut self,
+        key: &HirExpr,
+        value: &HirExpr,
+        generators: &[crate::hir::HirComprehension],
+        depth: usize,
+    ) -> Result<syn::Expr> {
+        if depth >= generators.len() {
+            // Base case: no more generators, return (key, value) tuple
+            let key_expr = key.to_rust_expr(self.ctx)?;
+            let value_expr = value.to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { std::iter::once((#key_expr, #value_expr)) });
+        }
+
+        // Recursive case: process current generator
+        let gen = &generators[depth];
+        let iter_expr = gen.iter.to_rust_expr(self.ctx)?;
+        let target_pat = self.parse_target_pattern(&gen.target)?;
+
+        // Build inner chain recursively
+        let inner_chain = self.build_nested_chain_for_dict(key, value, generators, depth + 1)?;
+
+        // Start with iterator
+        let mut chain: syn::Expr = parse_quote! { #iter_expr.into_iter() };
+
+        // Add filters for current generator's conditions
+        for cond in &gen.conditions {
+            let cond_expr = cond.to_rust_expr(self.ctx)?;
+            chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+        }
+
+        // Use flat_map to nest the inner chain
+        chain = parse_quote! { #chain.flat_map(move |#target_pat| #inner_chain) };
+
+        Ok(chain)
     }
 
     fn convert_lambda(&mut self, params: &[String], body: &HirExpr) -> Result<syn::Expr> {
@@ -12541,24 +12554,18 @@ impl ToRustExpr for HirExpr {
             HirExpr::Borrow { expr, mutable } => converter.convert_borrow(expr, *mutable),
             HirExpr::ListComp {
                 element,
-                target,
-                iter,
-                condition,
-            } => converter.convert_list_comp(element, target, iter, condition),
+                generators,
+            } => converter.convert_list_comp(element, generators),
             HirExpr::Lambda { params, body } => converter.convert_lambda(params, body),
             HirExpr::SetComp {
                 element,
-                target,
-                iter,
-                condition,
-            } => converter.convert_set_comp(element, target, iter, condition),
+                generators,
+            } => converter.convert_set_comp(element, generators),
             HirExpr::DictComp {
                 key,
                 value,
-                target,
-                iter,
-                condition,
-            } => converter.convert_dict_comp(key, value, target, iter, condition),
+                generators,
+            } => converter.convert_dict_comp(key, value, generators),
             HirExpr::Await { value } => converter.convert_await(value),
             HirExpr::Yield { value } => converter.convert_yield(value),
             HirExpr::FString { parts } => converter.convert_fstring(parts),

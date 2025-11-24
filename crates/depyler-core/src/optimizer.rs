@@ -1017,26 +1017,28 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
         }
         HirExpr::ListComp {
             element,
-            iter,
-            condition,
-            ..
+            generators,
         } => {
+            // DEPYLER-0504: Support multiple generators
             collect_used_vars_expr_inner(element, used);
-            collect_used_vars_expr_inner(iter, used);
-            if let Some(cond) = condition {
-                collect_used_vars_expr_inner(cond, used);
+            for gen in generators {
+                collect_used_vars_expr_inner(&gen.iter, used);
+                for cond in &gen.conditions {
+                    collect_used_vars_expr_inner(cond, used);
+                }
             }
         }
         HirExpr::SetComp {
             element,
-            iter,
-            condition,
-            ..
+            generators,
         } => {
+            // DEPYLER-0504: Support multiple generators
             collect_used_vars_expr_inner(element, used);
-            collect_used_vars_expr_inner(iter, used);
-            if let Some(cond) = condition {
-                collect_used_vars_expr_inner(cond, used);
+            for gen in generators {
+                collect_used_vars_expr_inner(&gen.iter, used);
+                for cond in &gen.conditions {
+                    collect_used_vars_expr_inner(cond, used);
+                }
             }
         }
         HirExpr::Await { value } => {
