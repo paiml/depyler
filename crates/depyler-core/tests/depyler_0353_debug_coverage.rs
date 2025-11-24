@@ -177,7 +177,8 @@ fn test_depyler_0353_new_line_many_times() {
 
     // Should handle many line increments without panic
     let source_map = generator.source_map();
-    assert!(source_map.mappings.len() >= 0);
+    // Just verify we got a valid source map (constructor test)
+    let _ = source_map;
 }
 
 // ============================================================================
@@ -205,8 +206,11 @@ fn test_depyler_0353_add_function_mapping_basic() {
     generator.add_function_mapping(&func, 10);
 
     let source_map = generator.source_map();
-    // Function mappings go into function_map, not mappings vec
-    assert!(source_map.function_map.len() >= 1 || source_map.mappings.len() >= 0);
+    // Function mappings go into function_map
+    assert!(
+        !source_map.function_map.is_empty(),
+        "Function mapping should be added"
+    );
 }
 
 #[test]
@@ -233,7 +237,10 @@ fn test_depyler_0353_add_function_mapping_async_function() {
     generator.add_function_mapping(&func, 50);
 
     let source_map = generator.source_map();
-    assert!(source_map.function_map.len() >= 1 || source_map.mappings.len() >= 0);
+    assert!(
+        !source_map.function_map.is_empty(),
+        "Async function mapping should be added"
+    );
 }
 
 #[test]
@@ -257,7 +264,10 @@ fn test_depyler_0353_add_function_mapping_with_docstring() {
     generator.add_function_mapping(&func, 100);
 
     let source_map = generator.source_map();
-    assert!(source_map.function_map.len() >= 1 || source_map.mappings.len() >= 0);
+    assert!(
+        !source_map.function_map.is_empty(),
+        "Documented function mapping should be added"
+    );
 }
 
 #[test]
@@ -281,7 +291,10 @@ fn test_depyler_0353_add_function_mapping_zero_rust_line() {
     generator.add_function_mapping(&func, 0);
 
     let source_map = generator.source_map();
-    assert!(source_map.function_map.len() >= 1 || source_map.mappings.len() >= 0);
+    assert!(
+        !source_map.function_map.is_empty(),
+        "Function at line 0 should be added"
+    );
 }
 
 // ============================================================================
@@ -335,7 +348,8 @@ fn test_depyler_0353_generate_function_debug_async() {
     };
 
     let debug_code = generator.generate_function_debug(&func);
-    assert!(debug_code.len() >= 0);
+    // Verify function returns successfully (may or may not be empty)
+    let _ = debug_code;
 }
 
 #[test]
@@ -359,7 +373,7 @@ fn test_depyler_0353_generate_function_debug_none_level() {
     let debug_code = generator.generate_function_debug(&func);
 
     // With DebugLevel::None, might return empty string or minimal code
-    assert!(debug_code.len() >= 0);
+    let _ = debug_code;
 }
 
 // ============================================================================
@@ -439,7 +453,7 @@ fn test_depyler_0353_generate_debug_print_none_level() {
     let debug_print = generator.generate_debug_print("var", &Type::Int);
 
     // With DebugLevel::None, might return empty string
-    assert!(debug_print.len() >= 0);
+    let _ = debug_print;
 }
 
 // ============================================================================
@@ -452,7 +466,9 @@ fn test_depyler_0353_debug_runtime_breakpoint() {
 
     // Should return valid Rust code for breakpoint
     assert!(!breakpoint_code.is_empty());
-    assert!(breakpoint_code.contains("std::intrinsics::breakpoint") || breakpoint_code.len() > 0);
+    assert!(
+        breakpoint_code.contains("std::intrinsics::breakpoint") || !breakpoint_code.is_empty()
+    );
 }
 
 #[test]
@@ -531,7 +547,7 @@ fn test_depyler_0353_debug_runtime_trace_point_empty_location() {
 fn test_depyler_0353_debug_runtime_trace_point_special_chars() {
     let trace_code = DebugRuntime::trace_point("file/path/with spaces.py:123");
 
-    assert!(trace_code.len() >= 0);
+    let _ = trace_code;
 }
 
 // ============================================================================
@@ -540,24 +556,24 @@ fn test_depyler_0353_debug_runtime_trace_point_special_chars() {
 
 #[test]
 fn test_depyler_0353_debugger_integration_new_gdb() {
-    let integration = DebuggerIntegration::new(DebuggerType::Gdb);
+    let _integration = DebuggerIntegration::new(DebuggerType::Gdb);
 
     // Should create GDB integration (we can't inspect internals, but shouldn't panic)
-    assert!(true); // Constructor succeeds
+    // Constructor completed without panic - test passes
 }
 
 #[test]
 fn test_depyler_0353_debugger_integration_new_lldb() {
-    let integration = DebuggerIntegration::new(DebuggerType::Lldb);
+    let _integration = DebuggerIntegration::new(DebuggerType::Lldb);
 
-    assert!(true); // Constructor succeeds
+    // Constructor completed without panic - test passes
 }
 
 #[test]
 fn test_depyler_0353_debugger_integration_new_rustgdb() {
-    let integration = DebuggerIntegration::new(DebuggerType::RustGdb);
+    let _integration = DebuggerIntegration::new(DebuggerType::RustGdb);
 
-    assert!(true); // Constructor succeeds
+    // Constructor completed without panic - test passes
 }
 
 // ============================================================================
@@ -672,7 +688,7 @@ fn test_depyler_0353_generate_debug_macros_contains_macro_definitions() {
     let macros = generate_debug_macros();
 
     // Should contain macro_rules! or similar Rust macro syntax
-    assert!(macros.contains("macro_rules!") || macros.len() > 0);
+    assert!(macros.contains("macro_rules!") || !macros.is_empty());
 }
 
 #[test]
@@ -758,9 +774,9 @@ fn test_depyler_0353_debugger_integration_workflow() {
     assert!(!lldb_script.is_empty());
     assert!(!rustgdb_script.is_empty());
 
-    // Scripts should be different for different debuggers
-    // (unless implementation happens to be identical)
-    assert!(gdb_script != lldb_script || gdb_script == lldb_script);
+    // Scripts may be different for different debuggers
+    // This is just a coverage test - implementations may vary
+    let _ = (gdb_script, lldb_script, rustgdb_script);
 }
 
 #[test]
@@ -890,7 +906,7 @@ mod property_tests {
             generator.add_mapping(line, column, Some("test".to_string()));
 
             let source_map = generator.source_map();
-            prop_assert!(source_map.mappings.len() >= 1);
+            prop_assert!(!source_map.mappings.is_empty());
         }
 
         #[test]
@@ -914,7 +930,7 @@ mod property_tests {
             let debug_print = generator.generate_debug_print("var", &test_type);
 
             // Should always generate valid code (possibly empty for None level)
-            prop_assert!(debug_print.len() >= 0);
+            let _ = debug_print;
         }
 
         #[test]
@@ -924,7 +940,7 @@ mod property_tests {
             let trace_code = DebugRuntime::trace_point(&location);
 
             // Should handle any string location without panic
-            prop_assert!(trace_code.len() >= 0);
+            let _ = trace_code;
         }
 
         #[test]
@@ -943,7 +959,7 @@ mod property_tests {
 
             // Should handle arbitrary number of new_line calls
             let source_map = generator.source_map();
-            prop_assert!(source_map.source_file == PathBuf::from("test.py"));
+            prop_assert!(source_map.source_file == std::path::Path::new("test.py"));
         }
     }
 }

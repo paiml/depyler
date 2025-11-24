@@ -11,8 +11,8 @@
 use depyler_core::ast_bridge;
 use depyler_core::hir::{HirModule, Type};
 use depyler_core::type_system::type_environment::TypeEnvironment;
-use rustpython_parser::{Parse, ast};
 use rustpython_ast::Suite;
+use rustpython_parser::{ast, Parse};
 
 /// Helper function to parse Python and generate HIR with TypeEnvironment
 fn parse_and_generate(python: &str) -> (HirModule, TypeEnvironment) {
@@ -22,7 +22,9 @@ fn parse_and_generate(python: &str) -> (HirModule, TypeEnvironment) {
         type_ignores: vec![],
         range: Default::default(),
     });
-    ast_bridge::AstBridge::new().python_to_hir(ast).expect("Should generate HIR")
+    ast_bridge::AstBridge::new()
+        .python_to_hir(ast)
+        .expect("Should generate HIR")
 }
 
 #[test]
@@ -48,8 +50,16 @@ fn test_collect_function_signature() {
     let (_hir, type_env) = parse_and_generate(python);
 
     // Both parameters collected
-    assert_eq!(type_env.get_var_type("a"), Some(&Type::Int), "Parameter 'a' should be Int");
-    assert_eq!(type_env.get_var_type("b"), Some(&Type::Int), "Parameter 'b' should be Int");
+    assert_eq!(
+        type_env.get_var_type("a"),
+        Some(&Type::Int),
+        "Parameter 'a' should be Int"
+    );
+    assert_eq!(
+        type_env.get_var_type("b"),
+        Some(&Type::Int),
+        "Parameter 'b' should be Int"
+    );
 }
 
 #[test]
@@ -58,8 +68,16 @@ fn test_collect_variable_annotations() {
     let (_hir, type_env) = parse_and_generate(python);
 
     // Variable annotations collected (module-level constants)
-    assert_eq!(type_env.get_var_type("x"), Some(&Type::Int), "Variable 'x: int' should be Int");
-    assert_eq!(type_env.get_var_type("y"), Some(&Type::String), "Variable 'y: str' should be String");
+    assert_eq!(
+        type_env.get_var_type("x"),
+        Some(&Type::Int),
+        "Variable 'x: int' should be Int"
+    );
+    assert_eq!(
+        type_env.get_var_type("y"),
+        Some(&Type::String),
+        "Variable 'y: str' should be String"
+    );
 }
 
 #[test]
@@ -85,7 +103,7 @@ fn test_collect_list_type() {
 
 #[test]
 fn test_unannotated_variable_not_in_env() {
-    let python = "x = 5";  // No annotation
+    let python = "x = 5"; // No annotation
     let (_hir, type_env) = parse_and_generate(python);
 
     // Unannotated variables NOT in TypeEnvironment (Pass 1 only collects explicit annotations)

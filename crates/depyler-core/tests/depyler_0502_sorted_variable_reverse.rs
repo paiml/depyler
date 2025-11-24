@@ -12,9 +12,8 @@
 //! Solution: Change HIR SortByKey from reverse: bool to reverse_expr: Option<Box<HirExpr>>
 
 use depyler_core::ast_bridge;
-use depyler_core::hir::{HirExpr, Type};
-use rustpython_parser::{Parse, ast};
 use rustpython_ast::Suite;
+use rustpython_parser::{ast, Parse};
 
 /// Helper function to parse Python and generate HIR
 fn parse_and_generate(python: &str) -> depyler_core::hir::HirModule {
@@ -24,7 +23,9 @@ fn parse_and_generate(python: &str) -> depyler_core::hir::HirModule {
         type_ignores: vec![],
         range: Default::default(),
     });
-    let (hir, _type_env) = ast_bridge::AstBridge::new().python_to_hir(ast).expect("Should generate HIR");
+    let (hir, _type_env) = ast_bridge::AstBridge::new()
+        .python_to_hir(ast)
+        .expect("Should generate HIR");
     hir
 }
 
@@ -83,7 +84,11 @@ def sort_by(data: List[Dict[str, Any]], field: str, reverse: bool = False) -> Li
 "#;
     let hir = parse_and_generate(python);
 
-    assert_eq!(hir.functions.len(), 1, "Should transpile data_processor.py sort_by()");
+    assert_eq!(
+        hir.functions.len(),
+        1,
+        "Should transpile data_processor.py sort_by()"
+    );
     assert_eq!(hir.functions[0].name, "sort_by");
     assert_eq!(hir.functions[0].params.len(), 3);
 }

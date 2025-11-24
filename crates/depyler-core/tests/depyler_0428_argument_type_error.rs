@@ -6,6 +6,8 @@
 // Root cause: raise argparse.ArgumentTypeError(msg) not mapped to Err()
 // Solution: Detect ArgumentTypeError and generate Result return type
 
+#![allow(non_snake_case)] // Test naming convention
+
 use depyler_core::DepylerPipeline;
 
 /// Helper to transpile Python code

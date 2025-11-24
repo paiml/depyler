@@ -162,7 +162,13 @@ impl AstBridge {
     ///
     /// Returns a tuple of (HirModule, TypeEnvironment) where TypeEnvironment contains
     /// all type annotations collected during HIR generation.
-    pub fn python_to_hir(mut self, module: ast::Mod) -> Result<(HirModule, crate::type_system::type_environment::TypeEnvironment)> {
+    pub fn python_to_hir(
+        mut self,
+        module: ast::Mod,
+    ) -> Result<(
+        HirModule,
+        crate::type_system::type_environment::TypeEnvironment,
+    )> {
         let hir = match module {
             ast::Mod::Module(m) => self.convert_module(m)?,
             _ => bail!("Only module-level code is supported"),
@@ -245,7 +251,11 @@ impl AstBridge {
         })
     }
 
-    fn convert_function(&mut self, func: ast::StmtFunctionDef, is_async: bool) -> Result<HirFunction> {
+    fn convert_function(
+        &mut self,
+        func: ast::StmtFunctionDef,
+        is_async: bool,
+    ) -> Result<HirFunction> {
         let name = func.name.to_string();
         let params = convert_parameters(&func.args)?;
 
@@ -1182,7 +1192,12 @@ impl AstBridge {
 /// assert_eq!(hir.functions.len(), 1);
 /// assert_eq!(hir.functions[0].name, "simple");
 /// ```
-pub fn python_to_hir(module: ast::Mod) -> Result<(HirModule, crate::type_system::type_environment::TypeEnvironment)> {
+pub fn python_to_hir(
+    module: ast::Mod,
+) -> Result<(
+    HirModule,
+    crate::type_system::type_environment::TypeEnvironment,
+)> {
     AstBridge::new().python_to_hir(module)
 }
 
@@ -1400,7 +1415,12 @@ fn convert_parameters(args: &ast::Arguments) -> Result<Vec<HirParam>> {
             base_ty
         };
 
-        params.push(HirParam { name, ty, default, is_vararg: false });
+        params.push(HirParam {
+            name,
+            ty,
+            default,
+            is_vararg: false,
+        });
     }
 
     // DEPYLER-0477: Extract varargs parameter (*args)
@@ -1414,7 +1434,7 @@ fn convert_parameters(args: &ast::Arguments) -> Result<Vec<HirParam>> {
         params.push(HirParam {
             name,
             ty,
-            default: None,  // Varargs never have defaults
+            default: None, // Varargs never have defaults
             is_vararg: true,
         });
     }

@@ -212,7 +212,7 @@ mod function_with_params_tests {
             name: Symbol::from("x"),
             ty: Type::Int,
             default: None,
-                is_vararg: false,
+            is_vararg: false,
         }]);
         func.ret_type = Type::Int;
 
@@ -321,7 +321,7 @@ mod regression_tests {
                     name: Symbol::from("p"),
                     ty: Type::Int,
                     default: None,
-                is_vararg: false,
+                    is_vararg: false,
                 }]);
                 m.functions = vec![func];
                 m

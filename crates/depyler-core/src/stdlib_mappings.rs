@@ -482,7 +482,10 @@ mod tests {
 
         // Test code generation
         let get_pattern = mappings.lookup("requests", "Session", "get").unwrap();
-        assert_eq!(get_pattern.generate_rust_code("session", &[]), "session.get()?");
+        assert_eq!(
+            get_pattern.generate_rust_code("session", &[]),
+            "session.get()?"
+        );
     }
 
     struct TestNumpyPlugin;
@@ -535,7 +538,7 @@ mod tests {
                     class: "DictReader",
                     python_attr: "fieldnames",
                     rust_pattern: RustPattern::PropertyToMethod {
-                        method: "get_headers",  // Different method
+                        method: "get_headers", // Different method
                         propagate_error: true,
                     },
                 });

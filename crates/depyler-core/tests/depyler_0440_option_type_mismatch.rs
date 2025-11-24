@@ -51,7 +51,7 @@ def test_func():
     std::fs::write(temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
-        .args(&[
+        .args([
             "--crate-type",
             "lib",
             "--edition",
@@ -116,7 +116,7 @@ def test_func():
     std::fs::write(temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
-        .args(&[
+        .args([
             "--crate-type",
             "lib",
             "--edition",
@@ -186,7 +186,7 @@ def test_func():
     std::fs::write(temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
-        .args(&[
+        .args([
             "--crate-type",
             "lib",
             "--edition",
@@ -276,7 +276,7 @@ def test_func():
     std::fs::write(temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
-        .args(&[
+        .args([
             "--crate-type",
             "lib",
             "--edition",
@@ -348,7 +348,7 @@ def test_func():
     std::fs::write(temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
-        .args(&[
+        .args([
             "--crate-type",
             "lib",
             "--edition",
@@ -414,7 +414,7 @@ def process_args():
     std::fs::write(temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
-        .args(&[
+        .args([
             "--crate-type",
             "lib",
             "--edition",
@@ -447,7 +447,7 @@ def process_args():
 /// Verifies: General correctness property
 #[test]
 fn test_depyler_0440_property_none_placeholder_compiles() {
-    let test_cases = vec![
+    let test_cases = [
         // 2 branches (if-else)
         r#"
 def test_func():
@@ -504,7 +504,7 @@ def test_func():
         std::fs::write(&temp_file, &rust_code).unwrap();
 
         let output = std::process::Command::new("rustc")
-            .args(&[
+            .args([
                 "--crate-type",
                 "lib",
                 "--edition",
@@ -526,6 +526,6 @@ def test_func():
 
         // Cleanup
         let _ = std::fs::remove_file(&temp_file);
-        let _ = std::fs::remove_file(&format!("/tmp/libdepyler_0440_test8_{}.rlib", i));
+        let _ = std::fs::remove_file(format!("/tmp/libdepyler_0440_test8_{}.rlib", i));
     }
 }

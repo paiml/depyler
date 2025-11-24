@@ -26,7 +26,7 @@
 //! assert_ne!(x_0, x_1, "Different versions have different IDs");
 //! ```
 
-use crate::hir::{Type, HirExpr, Literal};
+use crate::hir::{HirExpr, Literal, Type};
 use std::collections::HashMap;
 
 /// Variable ID for O(1) lookup
@@ -90,9 +90,9 @@ impl TypeEnvironment {
         // Check if variable exists with different type
         let needs_new_version = if let Some(&existing_id) = self.current_bindings.get(name) {
             let existing_info = self.bindings.get(&existing_id).unwrap();
-            existing_info.ty != ty  // Type changed - need new version (SSA)
+            existing_info.ty != ty // Type changed - need new version (SSA)
         } else {
-            true  // First binding
+            true // First binding
         };
 
         if needs_new_version {
@@ -104,11 +104,14 @@ impl TypeEnvironment {
             let var_id = self.next_var_id;
             self.next_var_id += 1;
 
-            self.bindings.insert(var_id, TypeInfo {
-                name: name.to_string(),
-                version,
-                ty: ty.clone(),
-            });
+            self.bindings.insert(
+                var_id,
+                TypeInfo {
+                    name: name.to_string(),
+                    version,
+                    ty: ty.clone(),
+                },
+            );
 
             self.current_bindings.insert(name.to_string(), var_id);
 
@@ -150,17 +153,16 @@ impl TypeEnvironment {
                     Literal::String(_) => Ok(Type::String),
                     Literal::Bool(_) => Ok(Type::Bool),
                     Literal::None => Ok(Type::Optional(Box::new(Type::Unknown))),
-                    Literal::Bytes(_) => Ok(Type::String),  // Treat bytes as string for simplicity
+                    Literal::Bytes(_) => Ok(Type::String), // Treat bytes as string for simplicity
                 }
             }
 
-            HirExpr::Var(name) => {
-                self.get_var_type(name)
-                    .cloned()
-                    .ok_or_else(|| format!("Undefined variable: {}", name))
-            }
+            HirExpr::Var(name) => self
+                .get_var_type(name)
+                .cloned()
+                .ok_or_else(|| format!("Undefined variable: {}", name)),
 
-            _ => Ok(Type::Unknown)  // Simplified for now
+            _ => Ok(Type::Unknown), // Simplified for now
         }
     }
 
@@ -174,7 +176,8 @@ impl TypeEnvironment {
         let checker = SubtypeChecker::new();
 
         // Check if inferred <: expected (subtyping)
-        checker.check_subtype(&inferred, expected)
+        checker
+            .check_subtype(&inferred, expected)
             .map_err(|e| format!("Type check failed: {}", e))
     }
 }
@@ -227,7 +230,7 @@ mod tests {
         let mut env = TypeEnvironment::new();
 
         let x_0 = env.bind_var("x", Type::Int);
-        let x_same = env.bind_var("x", Type::Int);  // Same type
+        let x_same = env.bind_var("x", Type::Int); // Same type
 
         assert_eq!(x_0, x_same, "Same type should reuse binding");
     }

@@ -62,9 +62,7 @@ def get_first(items):
 
     // Should infer items as indexable type (Vec, slice, etc.)
     assert!(
-        rust.contains("items: Vec<")
-            || rust.contains("items: &Vec<")
-            || rust.contains("items: &["),
+        rust.contains("items: Vec<") || rust.contains("items: &Vec<") || rust.contains("items: &["),
         "Expected items to be inferred as Vec or &Vec or slice from indexing, got:\n{}",
         rust
     );
@@ -90,9 +88,7 @@ def get_rest(items):
 
     // Should infer items as sliceable type
     assert!(
-        rust.contains("items: Vec<")
-            || rust.contains("items: &Vec<")
-            || rust.contains("items: &["),
+        rust.contains("items: Vec<") || rust.contains("items: &Vec<") || rust.contains("items: &["),
         "Expected items to be inferred as Vec or &Vec or slice from slicing, got:\n{}",
         rust
     );
@@ -135,9 +131,7 @@ def build_command(prog, args):
     // Should infer args: Vec<T> from list concatenation
     // where T matches prog's type (likely String or Unknown)
     assert!(
-        rust.contains("args: Vec<")
-            || rust.contains("args: &Vec<")
-            || rust.contains("args: &["),
+        rust.contains("args: Vec<") || rust.contains("args: &Vec<") || rust.contains("args: &["),
         "Expected args to be inferred from list concatenation, got:\n{}",
         rust
     );

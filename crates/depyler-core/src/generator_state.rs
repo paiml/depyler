@@ -171,10 +171,7 @@ impl StateAnalyzer {
                         if !self.declared_vars.contains(name_str) {
                             self.declared_vars.insert(name_str.to_string());
                             // Try to get type from parallel value or use Unknown
-                            let ty = element_types
-                                .get(idx)
-                                .cloned()
-                                .unwrap_or(Type::Unknown);
+                            let ty = element_types.get(idx).cloned().unwrap_or(Type::Unknown);
                             self.state_variables.push(StateVariable {
                                 name: name_str.to_string(),
                                 ty,
