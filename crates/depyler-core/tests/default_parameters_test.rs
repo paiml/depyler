@@ -15,7 +15,7 @@ fn test_function_with_none_default() {
                 name: "name".to_string(),
                 ty: Type::String,
                 default: None,
-                    is_vararg: false,
+                is_vararg: false,
             },
             HirParam {
                 name: "greeting".to_string(),
@@ -48,7 +48,7 @@ fn test_function_with_int_default() {
                 name: "x".to_string(),
                 ty: Type::Int,
                 default: None,
-                    is_vararg: false,
+                is_vararg: false,
             },
             HirParam {
                 name: "step".to_string(),
@@ -81,7 +81,7 @@ fn test_function_with_string_default() {
                 name: "message".to_string(),
                 ty: Type::String,
                 default: None,
-                    is_vararg: false,
+                is_vararg: false,
             },
             HirParam {
                 name: "level".to_string(),
@@ -112,7 +112,7 @@ fn test_function_with_bool_default() {
                 name: "data".to_string(),
                 ty: Type::String,
                 default: None,
-                    is_vararg: false,
+                is_vararg: false,
             },
             HirParam {
                 name: "verbose".to_string(),
@@ -167,7 +167,7 @@ fn test_function_with_dict_none_default() {
                 name: "n".to_string(),
                 ty: Type::Int,
                 default: None,
-                    is_vararg: false,
+                is_vararg: false,
             },
             HirParam {
                 name: "memo".to_string(),
@@ -236,13 +236,13 @@ fn test_function_with_no_defaults() {
                 name: "a".to_string(),
                 ty: Type::Int,
                 default: None,
-                    is_vararg: false,
+                is_vararg: false,
             },
             HirParam {
                 name: "b".to_string(),
                 ty: Type::Int,
                 default: None,
-                    is_vararg: false,
+                is_vararg: false,
             },
         ],
         ret_type: Type::Int,
@@ -265,7 +265,7 @@ fn test_function_with_mixed_defaults() {
                 name: "url".to_string(),
                 ty: Type::String,
                 default: None,
-                    is_vararg: false,
+                is_vararg: false,
             },
             HirParam {
                 name: "timeout".to_string(),
@@ -300,7 +300,7 @@ fn test_function_with_float_default() {
                 name: "value".to_string(),
                 ty: Type::Float,
                 default: None,
-                    is_vararg: false,
+                is_vararg: false,
             },
             HirParam {
                 name: "factor".to_string(),
