@@ -625,11 +625,11 @@ roadmap:
   github_issue: 103
   item_type: task
   title: 'Codegen Bug: Missing `Args::parse()` call in argparse-generated CLI code'
-  status: completed
+  status: inprogress
   priority: medium
   assigned_to: null
   created: 2025-11-24T18:13:17.211159025+00:00
-  updated: 2025-11-24T18:53:28.514805297+00:00
+  updated: 2025-11-24T22:53:27.154294430+00:00
   spec: null
   acceptance_criteria: []
   phases: []
@@ -642,11 +642,11 @@ roadmap:
   github_issue: 70
   item_type: task
   title: Nested function definitions not supported - Blocks itertools.groupby with key functions
-  status: completed
+  status: inprogress
   priority: medium
   assigned_to: null
   created: 2025-11-24T19:54:00.092118063+00:00
-  updated: 2025-11-24T20:06:43.149590800+00:00
+  updated: 2025-11-24T22:59:41.306005747+00:00
   spec: null
   acceptance_criteria: []
   phases: []
