@@ -605,3 +605,19 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: GH-72
+  github_issue: 72
+  item_type: task
+  title: Min operation is incorrectly converted
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-11-24T18:03:51.956727857+00:00
+  updated: 2025-11-24T18:11:50.566518237+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
