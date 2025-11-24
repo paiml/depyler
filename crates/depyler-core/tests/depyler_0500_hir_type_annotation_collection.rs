@@ -53,7 +53,6 @@ fn test_collect_function_signature() {
 }
 
 #[test]
-#[ignore = "Variable annotations not yet collected (module-level only in Pass 1)"]
 fn test_collect_variable_annotations() {
     let python = "x: int = 5\ny: str = 'hello'";
     let (_hir, type_env) = parse_and_generate(python);
@@ -72,7 +71,6 @@ fn test_collect_optional_type() {
 }
 
 #[test]
-#[ignore = "List type annotation not yet tested"]
 fn test_collect_list_type() {
     let python = "numbers: list[int] = [1, 2, 3]";
     let (_hir, type_env) = parse_and_generate(python);
