@@ -157,3 +157,32 @@ is_perfect_square(5 * num * num + 4)  // expected `i64`, found `i32`
 - `crates/depyler-core/src/rust_gen/expr_gen.rs` - Option unwrap in binops
 - `crates/depyler-core/src/rust_gen/expr_gen.rs` - Ternary type unification
 - `crates/depyler-core/tests/depyler_0498_option_mismatches.rs` (NEW)
+
+## Five-Whys Update: Ternary Error (Line 164)
+
+**Error Context:**
+```python
+# Python (line 88)
+return index if a == target else None
+
+# Rust (BROKEN - line 164)
+Some(if a == target { index } else { None })
+// ❌ E0308: expected i32, found Option<_>
+
+# Rust (CORRECT)
+if a == target { Some(index) } else { None }
+```
+
+**Five-Whys:**
+1. Why? If-expr arms have different types (i32 vs Option<_>)
+2. Why? Outer Some() wraps entire if-expr, expecting both arms i32
+3. Why? Return statement codegen wraps entire value in Some()
+4. Why? Transpiler doesn't detect that one arm is already None
+5. **ROOT CAUSE**: Return statement codegen blindly wraps Option-returning functions
+
+**Solution:**
+- Detect if-expr with None arm in Option-returning context
+- Don't wrap entire expr in Some()
+- Wrap only non-None arm: `if cond { Some(val) } else { None }`
+
+**Location:** `stmt_gen.rs` - return statement handling for Option types

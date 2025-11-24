@@ -329,3 +329,19 @@ roadmap:
   - type-checking
   - builtins
   notes: 'STOP THE LINE: isinstance(x, int) generates undefined isinstance() and int'
+- id: DEPYLER-0499
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0499'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-11-24T10:13:24.711450624+00:00
+  updated: 2025-11-24T10:20:40.708107718+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
