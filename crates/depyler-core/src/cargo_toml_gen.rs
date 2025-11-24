@@ -389,6 +389,7 @@ mod tests {
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
+            nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -490,6 +491,7 @@ mod tests {
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
+            nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
         };
 
         let deps = extract_dependencies(&ctx);
@@ -588,6 +590,7 @@ mod tests {
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
+            nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
         };
 
         let deps = extract_dependencies(&ctx);
@@ -690,6 +693,7 @@ mod tests {
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
+            nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
         };
 
         let deps = extract_dependencies(&ctx);
