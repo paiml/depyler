@@ -4232,8 +4232,15 @@ fn codegen_nested_function_def(
     // Generate function name
     let fn_name = syn::Ident::new(name, proc_macro2::Span::call_site());
 
+    // GH-70: Use inferred parameters from context if available
+    let effective_params = ctx
+        .nested_function_params
+        .get(name)
+        .map(|inferred| inferred.as_slice())
+        .unwrap_or(params);
+
     // Generate parameters
-    let param_tokens: Vec<proc_macro2::TokenStream> = params
+    let param_tokens: Vec<proc_macro2::TokenStream> = effective_params
         .iter()
         .map(|p| {
             let param_name = syn::Ident::new(&p.name, proc_macro2::Span::call_site());

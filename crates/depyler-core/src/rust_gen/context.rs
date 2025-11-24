@@ -162,6 +162,12 @@ pub struct CodeGenContext<'a> {
     /// Maps CSE temp variable names (e.g., "_cse_temp_0") to command names (e.g., "init")
     /// This allows is_subcommand_check() to recognize CSE-optimized subcommand comparisons
     pub cse_subcommand_temps: std::collections::HashMap<String, String>,
+
+    /// GH-70: Track inferred parameter types for nested functions/closures
+    /// Maps nested function name → Vec<HirParam> with inferred types from usage patterns
+    /// Used by stmt_gen.rs when generating closures to apply inferred parameter types
+    /// instead of defaulting all parameters to () for Unknown types
+    pub nested_function_params: std::collections::HashMap<String, Vec<crate::hir::HirParam>>,
 }
 
 impl<'a> CodeGenContext<'a> {
