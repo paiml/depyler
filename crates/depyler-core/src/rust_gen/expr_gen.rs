@@ -1322,6 +1322,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         | HirExpr::Dict(_)
                         | HirExpr::Set(_)
                         | HirExpr::FrozenSet(_) => true,
+                        // DEPYLER-0497: Function calls that return Result need {:?}
+                        HirExpr::Call { func, .. } => {
+                            self.ctx.result_returning_functions.contains(func)
+                        }
                         _ => false,
                     }
                 } else {
@@ -1351,13 +1355,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 .var_types
                                 .get(name)
                                 .map(|t| {
-                                    matches!(t, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                                    matches!(
+                                        t,
+                                        Type::List(_)
+                                            | Type::Dict(_, _)
+                                            | Type::Set(_)
+                                            | Type::Optional(_)
+                                    )
                                 })
                                 .unwrap_or(false),
                             HirExpr::List(_)
                             | HirExpr::Dict(_)
                             | HirExpr::Set(_)
                             | HirExpr::FrozenSet(_) => true,
+                            // DEPYLER-0497: Function calls that return Result need {:?}
+                            HirExpr::Call { func, .. } => {
+                                self.ctx.result_returning_functions.contains(func)
+                            }
                             _ => false,
                         };
                         if needs_debug {
@@ -11873,15 +11887,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         _ => false,
                     };
 
-                    // Determine if this expression is a collection type
-                    let is_collection = match expr.as_ref() {
+                    // DEPYLER-0497: Determine if expression needs {:?} Debug formatting
+                    // Required for: collections, Result, Option, Vec, and any non-Display type
+                    let needs_debug_fmt = match expr.as_ref() {
                         // Case 1: Simple variable (e.g., targets)
                         HirExpr::Var(var_name) => {
                             if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                                matches!(var_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_))
+                                matches!(
+                                    var_type,
+                                    Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Optional(_)
+                                )
                             } else {
                                 false
                             }
+                        }
+                        // DEPYLER-0497: Function calls that return Result<T> need {:?}
+                        HirExpr::Call { func, .. } => {
+                            self.ctx.result_returning_functions.contains(func)
                         }
                         // Case 2: Attribute access (e.g., args.targets)
                         HirExpr::Attribute { value, attr } => {
@@ -11958,8 +11980,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         arg_expr
                     };
 
-                    if is_collection {
-                        // Use debug formatting for collections (matches Python's list/dict repr)
+                    // DEPYLER-0497: Use {:?} for non-Display types (Result, Option, Vec, collections)
+                    // Use {} for Display types (primitives, String, wrapped Options)
+                    if needs_debug_fmt {
+                        // Use debug formatting for collections, Result, Option, Vec
                         template.push_str("{:?}");
                     } else {
                         // Use Display formatting for scalars (and wrapped Options)
