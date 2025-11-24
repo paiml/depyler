@@ -746,6 +746,7 @@ pub fn generate_rust_file(
         is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
         result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
         result_returning_functions: HashSet::new(), // DEPYLER-0270: Track ALL Result-returning functions
+        option_returning_functions: HashSet::new(), // DEPYLER-0497: Track functions returning Option<T>
         current_error_type: None, // DEPYLER-0310: Track error type for raise statement wrapping
         exception_scopes: Vec::new(), // DEPYLER-0333: Exception scope tracking stack
         argparser_tracker: argparse_transform::ArgParserTracker::new(), // DEPYLER-0363: Track ArgumentParser patterns
@@ -782,6 +783,19 @@ pub fn generate_rust_file(
     for func in &module.functions {
         if func.properties.can_fail && matches!(func.ret_type, Type::Bool) {
             ctx.result_bool_functions.insert(func.name.clone());
+        }
+    }
+
+    // DEPYLER-0497: Populate Option-returning functions map and function return types
+    // Functions that return Option<T> need unwrapping in format! and other Display contexts
+    for func in &module.functions {
+        // Store all function return types for type tracking
+        ctx.function_return_types
+            .insert(func.name.clone(), func.ret_type.clone());
+
+        // Track Option-returning functions specifically
+        if matches!(func.ret_type, Type::Optional(_)) {
+            ctx.option_returning_functions.insert(func.name.clone());
         }
     }
 
@@ -943,6 +957,7 @@ mod tests {
             is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
             result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
             result_returning_functions: HashSet::new(), // DEPYLER-0270: Track ALL Result-returning functions
+            option_returning_functions: HashSet::new(), // DEPYLER-0497: Track functions returning Option<T>
             current_error_type: None, // DEPYLER-0310: Track error type for raise statement wrapping
             exception_scopes: Vec::new(), // DEPYLER-0333: Exception scope tracking stack
             argparser_tracker: argparse_transform::ArgParserTracker::new(), // DEPYLER-0363: Track ArgumentParser patterns

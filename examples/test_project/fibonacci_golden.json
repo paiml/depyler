@@ -1,0 +1,9293 @@
+Fibonacci(10) recursive: 55
+Fibonacci(10) iterative: 55
+Fibonacci(10) memoized: 55
+
+First 10 Fibonacci numbers: [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+
+Using generator:
+  F(0) = 0
+  F(1) = 1
+  F(2) = 1
+  F(3) = 2
+  F(4) = 3
+  F(5) = 5
+  F(6) = 8
+  F(7) = 13
+  F(8) = 21
+  F(9) = 34
+
+21 is at index 8 in Fibonacci sequence
+
+Fibonacci number check:
+  0: True
+  1: True
+  2: True
+  3: True
+  4: False
+  5: True
+  8: True
+  13: True
+  20: False
+  21: True
+{
+  "version": "0.6.2",
+  "format": "renacer-json-v1",
+  "syscalls": [
+    {
+      "name": "brk",
+      "args": [
+        "0x0",
+        "0x7fffab9e8a3c",
+        "0x0"
+      ],
+      "result": 105809656147968
+    },
+    {
+      "name": "arch_prctl",
+      "args": [
+        "0x3001",
+        "0x7fffab9e89f0",
+        "0x71d8ea19c3c0"
+      ],
+      "result": -22
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x2000",
+        "0x3"
+      ],
+      "result": 125176454295552
+    },
+    {
+      "name": "access",
+      "args": [
+        "0x71d8ea1acd90",
+        "0x4",
+        "0x603b83067e48"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/lib/glibc-hwcaps/x86-64-v4/libpython3.13.so.1.0\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b30",
+        "0x7fffab9e7c10"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/lib/glibc-hwcaps/x86-64-v3/libpython3.13.so.1.0\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b30",
+        "0x7fffab9e7c10"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/lib/glibc-hwcaps/x86-64-v2/libpython3.13.so.1.0\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b30",
+        "0x7fffab9e7c10"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/lib/tls/x86_64/x86_64/libpython3.13.so.1.0\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b30",
+        "0x7fffab9e7c10"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/lib/tls/x86_64/libpython3.13.so.1.0\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b30",
+        "0x7fffab9e7c10"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/lib/tls/x86_64/libpython3.13.so.1.0\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b30",
+        "0x7fffab9e7c10"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/lib/tls/libpython3.13.so.1.0\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b30",
+        "0x7fffab9e7c10"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/lib/x86_64/x86_64/libpython3.13.so.1.0\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b30",
+        "0x7fffab9e7c10"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/lib/x86_64/libpython3.13.so.1.0\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b30",
+        "0x7fffab9e7c10"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/lib/x86_64/libpython3.13.so.1.0\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b30",
+        "0x7fffab9e7c10"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/lib/libpython3.13.so.1.0\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x7fffab9e7d78",
+        "0x340"
+      ],
+      "result": 832
+    },
+    {
+      "name": "pread64",
+      "args": [
+        "0x3",
+        "0x7fffab9e7aa0",
+        "0x24"
+      ],
+      "result": 36
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8ea1abee9",
+        "0x7fffab9e7c10"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x5a5ff0",
+        "0x1"
+      ],
+      "result": 125176446451712
+    },
+    {
+      "name": "mprotect",
+      "args": [
+        "0x71d8e9a86000",
+        "0x513000",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x71d8e9a86000",
+        "0x253000",
+        "0x5"
+      ],
+      "result": 125176447000576
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x71d8e9cd9000",
+        "0x17c000",
+        "0x1"
+      ],
+      "result": 125176449437696
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x71d8e9e56000",
+        "0xd1000",
+        "0x3"
+      ],
+      "result": 125176450998272
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x71d8e9f27000",
+        "0x716e8",
+        "0x3"
+      ],
+      "result": 125176451854336
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x71d8e9f99000",
+        "0xd000",
+        "0x3"
+      ],
+      "result": 125176452321280
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x29",
+        "0xb"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/gcc/lib/gcc/current/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/gcc/lib/gcc/current/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/gcc/lib/gcc/current/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/gcc/lib/gcc/current/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/gcc/lib/gcc/current/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/gcc/lib/gcc/current/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/gcc/lib/gcc/current/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/gcc/lib/gcc/current/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/gcc/lib/gcc/current/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/gcc/lib/gcc/current/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/gcc/lib/gcc/current/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/mpdecimal/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/mpdecimal/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/mpdecimal/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/mpdecimal/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/mpdecimal/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/mpdecimal/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/mpdecimal/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/mpdecimal/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/mpdecimal/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/mpdecimal/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/mpdecimal/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/openssl@3/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/openssl@3/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/openssl@3/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/openssl@3/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/openssl@3/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/openssl@3/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/openssl@3/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/openssl@3/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/openssl@3/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/openssl@3/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/openssl@3/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/ncurses/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/ncurses/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/ncurses/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/ncurses/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/ncurses/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/ncurses/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/ncurses/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/ncurses/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/ncurses/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/ncurses/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/ncurses/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/readline/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/readline/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/readline/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/readline/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/readline/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/readline/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/readline/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/readline/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/readline/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/readline/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/readline/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/zlib/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/zlib/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/zlib/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/zlib/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/zlib/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/zlib/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/zlib/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/zlib/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/zlib/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/zlib/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/zlib/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/sqlite/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/sqlite/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/sqlite/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/sqlite/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/sqlite/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/sqlite/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/sqlite/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/sqlite/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/sqlite/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/sqlite/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/sqlite/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/xz/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/xz/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/xz/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/xz/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/xz/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/xz/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/xz/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/xz/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/xz/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/xz/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/xz/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/bzip2/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/bzip2/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/bzip2/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/bzip2/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/bzip2/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/bzip2/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/bzip2/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/bzip2/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/bzip2/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/bzip2/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/bzip2/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/expat/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/expat/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/expat/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/expat/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/expat/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/expat/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/expat/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/expat/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/expat/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/expat/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/expat/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libedit/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libedit/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libedit/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libedit/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libedit/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libedit/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libedit/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libedit/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libedit/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libedit/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libedit/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libffi/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libffi/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libffi/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libffi/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libffi/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libffi/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libffi/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libffi/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libffi/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libffi/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libffi/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libxcrypt/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libxcrypt/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libxcrypt/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libxcrypt/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libxcrypt/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libxcrypt/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libxcrypt/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libxcrypt/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libxcrypt/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libxcrypt/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libxcrypt/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/berkeley-db@5/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/berkeley-db@5/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/berkeley-db@5/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/berkeley-db@5/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/berkeley-db@5/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/berkeley-db@5/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/berkeley-db@5/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/berkeley-db@5/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/berkeley-db@5/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/berkeley-db@5/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/berkeley-db@5/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/krb5/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/krb5/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/krb5/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/krb5/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/krb5/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/krb5/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/krb5/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/krb5/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/krb5/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/krb5/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/krb5/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libtirpc/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libtirpc/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libtirpc/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libtirpc/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libtirpc/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libtirpc/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libtirpc/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libtirpc/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libtirpc/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libtirpc/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libtirpc/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libnsl/lib/glibc-hwcaps/x86-64-v4/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libnsl/lib/glibc-hwcaps/x86-64-v3/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libnsl/lib/glibc-hwcaps/x86-64-v2/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libnsl/lib/tls/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libnsl/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libnsl/lib/tls/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libnsl/lib/tls/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libnsl/lib/x86_64/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libnsl/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libnsl/lib/x86_64/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libnsl/lib/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x7fffab9e7b10",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/etc/ld.so.cache\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8ea1abee9",
+        "0x7fffab9e7b20"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x1c21c",
+        "0x1"
+      ],
+      "result": 125176454176768
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x1c21c",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/lib/x86_64-linux-gnu/libc.so.6\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x7fffab9e7d58",
+        "0x340"
+      ],
+      "result": 832
+    },
+    {
+      "name": "pread64",
+      "args": [
+        "0x3",
+        "0x7fffab9e7960",
+        "0x310"
+      ],
+      "result": 784
+    },
+    {
+      "name": "pread64",
+      "args": [
+        "0x3",
+        "0x7fffab9e7920",
+        "0x30"
+      ],
+      "result": 48
+    },
+    {
+      "name": "pread64",
+      "args": [
+        "0x3",
+        "0x7fffab9e78d0",
+        "0x44"
+      ],
+      "result": 68
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8ea1abee9",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "pread64",
+      "args": [
+        "0x3",
+        "0x7fffab9e7830",
+        "0x310"
+      ],
+      "result": 784
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x228e50",
+        "0x1"
+      ],
+      "result": 125176442257408
+    },
+    {
+      "name": "mprotect",
+      "args": [
+        "0x71d8e9628000",
+        "0x1ee000",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x71d8e9628000",
+        "0x195000",
+        "0x5"
+      ],
+      "result": 125176442421248
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x71d8e97bd000",
+        "0x58000",
+        "0x1"
+      ],
+      "result": 125176444080128
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x71d8e9816000",
+        "0x6000",
+        "0x3"
+      ],
+      "result": 125176444444672
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x71d8e981c000",
+        "0xce50",
+        "0x3"
+      ],
+      "result": 125176444469248
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x4",
+        "0x71d8e9600380"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x2000",
+        "0x3"
+      ],
+      "result": 125176454168576
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/mpdecimal/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/openssl@3/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/ncurses/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/readline/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/zlib/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/sqlite/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/xz/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/bzip2/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/expat/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libedit/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libffi/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libxcrypt/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/berkeley-db@5/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/krb5/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libtirpc/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libnsl/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/mpdecimal/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/openssl@3/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/ncurses/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/readline/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/zlib/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/sqlite/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/xz/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/bzip2/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/expat/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libedit/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libffi/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libxcrypt/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/berkeley-db@5/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/krb5/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libtirpc/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/opt/libnsl/lib/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/lib/x86_64-linux-gnu/libm.so.6\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x7fffab9e7d38",
+        "0x340"
+      ],
+      "result": 832
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8ea1abee9",
+        "0x7fffab9e7bd0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0xe6108",
+        "0x1"
+      ],
+      "result": 125176453222400
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x71d8ea083000",
+        "0x7c000",
+        "0x5"
+      ],
+      "result": 125176453279744
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x71d8ea0ff000",
+        "0x5b000",
+        "0x1"
+      ],
+      "result": 125176453787648
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x71d8ea15a000",
+        "0x2000",
+        "0x3"
+      ],
+      "result": 125176454160384
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x4",
+        "0x71d8ea0752d8"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x3000",
+        "0x3"
+      ],
+      "result": 125176453210112
+    },
+    {
+      "name": "arch_prctl",
+      "args": [
+        "0x1002",
+        "0x71d8ea072740",
+        "0xffff8e2715f8ceb0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "set_tid_address",
+      "args": [
+        "0x71d8ea072a10",
+        "0x71d8ea072740",
+        "0x71d8ea1b80d8"
+      ],
+      "result": 3133718
+    },
+    {
+      "name": "set_robust_list",
+      "args": [
+        "0x71d8ea072a20",
+        "0x18",
+        "0x71d8ea1b80d8"
+      ],
+      "result": 0
+    },
+    {
+      "name": "unknown",
+      "args": [
+        "0x71d8ea0730e0",
+        "0x20",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mprotect",
+      "args": [
+        "0x71d8e9816000",
+        "0x4000",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mprotect",
+      "args": [
+        "0x71d8ea15a000",
+        "0x1000",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mprotect",
+      "args": [
+        "0x71d8e9e56000",
+        "0x4d000",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mprotect",
+      "args": [
+        "0x603b83067000",
+        "0x1000",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mprotect",
+      "args": [
+        "0x71d8ea1b5000",
+        "0x2000",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "unknown",
+      "args": [
+        "0x0",
+        "0x3",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "munmap",
+      "args": [
+        "0x71d8ea15e000",
+        "0x1c21c",
+        "0x71d8e9690c10"
+      ],
+      "result": 0
+    },
+    {
+      "name": "getrandom",
+      "args": [
+        "0x7fffab9e8ac0",
+        "0x20",
+        "0x1"
+      ],
+      "result": 32
+    },
+    {
+      "name": "open",
+      "args": [
+        "0x71d8e9cf21c0",
+        "0x0",
+        "0x0"
+      ],
+      "result": 3
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x7fffab9e8ad0",
+        "0x20"
+      ],
+      "result": 2
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x20",
+        "0x71d8e971e8fd"
+      ],
+      "result": 0
+    },
+    {
+      "name": "getrandom",
+      "args": [
+        "0x71d8e98214d8",
+        "0x8",
+        "0x1"
+      ],
+      "result": 8
+    },
+    {
+      "name": "brk",
+      "args": [
+        "0x0",
+        "0x71d8e981ac80",
+        "0x0"
+      ],
+      "result": 105809656147968
+    },
+    {
+      "name": "brk",
+      "args": [
+        "0x603bbafa0000",
+        "0x71d8e981ac80",
+        "0x71d8e9822218"
+      ],
+      "result": 105809656283136
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/usr/lib/locale/locale-archive\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x71d8e981bb80"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x572950",
+        "0x1"
+      ],
+      "result": 125176435965952
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x572950",
+        "0x2ba0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/usr/lib/x86_64-linux-gnu/gconv/gconv-modules.cache\"",
+        "0x0"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7f60"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x697a",
+        "0x1"
+      ],
+      "result": 125176454266880
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x697a",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "futex",
+      "args": [
+        "0x71d8e981ba6c",
+        "0x81",
+        "0x7fffffff"
+      ],
+      "result": 0
+    },
+    {
+      "name": "getcwd",
+      "args": [
+        "0x7fffab9e3280",
+        "0x1000",
+        "0x0"
+      ],
+      "result": 45
+    },
+    {
+      "name": "getrandom",
+      "args": [
+        "0x71d8e9f97dd0",
+        "0x18",
+        "0x1"
+      ],
+      "result": 24
+    },
+    {
+      "name": "gettid",
+      "args": [
+        "0x0",
+        "0x1",
+        "0x1"
+      ],
+      "result": 3133718
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x100000",
+        "0x3"
+      ],
+      "result": 125176445403136
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x41000",
+        "0x3"
+      ],
+      "result": 125176452943872
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x21000",
+        "0x3"
+      ],
+      "result": 125176452808704
+    },
+    {
+      "name": "brk",
+      "args": [
+        "0x603bbafc1000",
+        "0x71d8e981ac80",
+        "0x0"
+      ],
+      "result": 105809656418304
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x4000",
+        "0x3"
+      ],
+      "result": 125176454250496
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80660",
+        "0x7fffab9e80d0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80690",
+        "0x7fffab9e80d0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80660",
+        "0x7fffab9e80d0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80660",
+        "0x7fffab9e80d0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80660",
+        "0x7fffab9e80d0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80660",
+        "0x7fffab9e80d0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80690",
+        "0x7fffab9e80d0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80660",
+        "0x7fffab9e80d0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80660",
+        "0x7fffab9e80d0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/pyvenv.cfg\"",
+        "0x0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/bin/pyvenv.cfg\"",
+        "0x0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "readlink",
+      "args": [
+        "0x603bbaf80660",
+        "0x7fffab9e30f0",
+        "0x1000"
+      ],
+      "result": 40
+    },
+    {
+      "name": "readlink",
+      "args": [
+        "0x603bbaf80990",
+        "0x7fffab9e30f0",
+        "0x1000"
+      ],
+      "result": 10
+    },
+    {
+      "name": "readlink",
+      "args": [
+        "0x603bbaf80990",
+        "0x7fffab9e30f0",
+        "0x1000"
+      ],
+      "result": -22
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/bin/python3._pth\"",
+        "0x0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/bin/python3.13._pth\"",
+        "0x0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/bin/pybuilddir.txt\"",
+        "0x0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbafbe380",
+        "0x7fffab9e80d0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbafbe380",
+        "0x7fffab9e7e00"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80990",
+        "0x7fffab9e7e60"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80990",
+        "0x7fffab9e7e60"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80690",
+        "0x7fffab9e7e60"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80690",
+        "0x7fffab9e7e60"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80660",
+        "0x7fffab9e7e60"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbaf80640",
+        "0x7fffab9e7e60"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbafbe380",
+        "0x7fffab9e7e60"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbafbe380",
+        "0x7fffab9e7e60"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbafbe380",
+        "0x7fffab9e7e60"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbafbe380",
+        "0x7fffab9e7e68"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbafbe380",
+        "0x7fffab9e7e68"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x603bbafbe380",
+        "0x7fffab9e80d8"
+      ],
+      "result": 0
+    },
+    {
+      "name": "brk",
+      "args": [
+        "0x603bbafe2000",
+        "0x71d8e981ac80",
+        "0x0"
+      ],
+      "result": 105809656553472
+    },
+    {
+      "name": "sysinfo",
+      "args": [
+        "0x7fffab9e7450",
+        "0x870",
+        "0x71d8e97d4588"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x100000",
+        "0x3"
+      ],
+      "result": 125176434917376
+    },
+    {
+      "name": "brk",
+      "args": [
+        "0x603bbb003000",
+        "0x71d8e981ac80",
+        "0x0"
+      ],
+      "result": 105809656688640
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/etc/localtime\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7460"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7280"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbafe4b80",
+        "0x1000"
+      ],
+      "result": 2614
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0xfffffffffffff993",
+        "0x1"
+      ],
+      "result": 969
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbafe4b80",
+        "0x1000"
+      ],
+      "result": 1645
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0xfbada408",
+        "0x71d8e9816a00"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e994aeb0",
+        "0x7fffab9e7860"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e99e4950",
+        "0x7fffab9e78c0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e994aeb0",
+        "0x7fffab9e7c40"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e994aeb0",
+        "0x7fffab9e78c0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e994aeb0",
+        "0x7fffab9e7c40"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e994aeb0",
+        "0x7fffab9e7c40"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13\"",
+        "0x90800"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbafe6440",
+        "0x8000"
+      ],
+      "result": 6552
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbafe6440",
+        "0x8000"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x71d8e981ace0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f0ae90",
+        "0x7fffab9e7c40"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e99c2ed0",
+        "0x7fffab9e7c40"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e99c2f50",
+        "0x7fffab9e7c40"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e99c2ed0",
+        "0x7fffab9e7c40"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e99c2ed0",
+        "0x7fffab9e7c40"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/encodings/__pycache__/__init__.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "fcntl",
+      "args": [
+        "0x3",
+        "0x1",
+        "0x0"
+      ],
+      "result": 1
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e77d0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e7960"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7c00"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbafe9c60",
+        "0x17b2"
+      ],
+      "result": 6065
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbafeb411",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e9949cc0",
+        "0x7fffab9e6cd0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e9949cc0",
+        "0x7fffab9e7050"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e9949cc0",
+        "0x7fffab9e7050"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/encodings\"",
+        "0x90800"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7060"
+      ],
+      "result": 0
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbaff1930",
+        "0x8000"
+      ],
+      "result": 4224
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbaff1930",
+        "0x8000"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x71d8e981ace0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e99c36d0",
+        "0x7fffab9e7050"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e99c36d0",
+        "0x7fffab9e7050"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/encodings/__pycache__/aliases.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e6c40"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e6dd0"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7080"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbaff5150",
+        "0x3092"
+      ],
+      "result": 12433
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbaff81e1",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e9949cc0",
+        "0x7fffab9e7ba0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e99c2fd0",
+        "0x7fffab9e7ba0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e99c2fd0",
+        "0x7fffab9e7ba0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/encodings/__pycache__/utf_8.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7790"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e7920"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7bd0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbaff4140",
+        "0x91d"
+      ],
+      "result": 2332
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbaff4a5c",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0xd",
+        "0x7fffab9e82a0",
+        "0x7fffab9e8340"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x19",
+        "0x7fffab9e82a0",
+        "0x7fffab9e8340"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x1",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x2",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x4",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x5",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x6",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x7",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x8",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x9",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0xa",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0xb",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0xc",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0xd",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0xe",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0xf",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x10",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x11",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x12",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x13",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x14",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x15",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x16",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x17",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x18",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x19",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x1a",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x1b",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x1c",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x1d",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x1e",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x1f",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x22",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x23",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x24",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x25",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x26",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x27",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x28",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x29",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x2a",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x2b",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x2c",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x2d",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x2e",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x2f",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x30",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x31",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x32",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x33",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x34",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x35",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x36",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x37",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x38",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x39",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x3a",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x3b",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x3c",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x3d",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x3e",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x3f",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x40",
+        "0x0",
+        "0x7fffab9e7c90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x2",
+        "0x7fffab9e7b40",
+        "0x7fffab9e7be0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x0",
+        "0x71d8e97d844f",
+        "0x7fffab9e8620"
+      ],
+      "result": 0
+    },
+    {
+      "name": "fcntl",
+      "args": [
+        "0x0",
+        "0x1",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x0",
+        "0x71d8e97d844f",
+        "0x7fffab9e7f50"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x0",
+        "0x5401",
+        "0x7fffab9e80e0"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x0",
+        "0x0",
+        "0x1"
+      ],
+      "result": -29
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x0",
+        "0x5401",
+        "0x7fffab9e83a0"
+      ],
+      "result": -25
+    },
+    {
+      "name": "fcntl",
+      "args": [
+        "0x1",
+        "0x1",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x1",
+        "0x71d8e97d844f",
+        "0x7fffab9e7f50"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x1",
+        "0x5401",
+        "0x7fffab9e80e0"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x1",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x1",
+        "0x5401",
+        "0x7fffab9e83a0"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x1",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "fcntl",
+      "args": [
+        "0x2",
+        "0x1",
+        "0x2"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x2",
+        "0x71d8e97d844f",
+        "0x7fffab9e7f50"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x2",
+        "0x5401",
+        "0x7fffab9e80e0"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x2",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x2",
+        "0x5401",
+        "0x7fffab9e83a0"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x2",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "brk",
+      "args": [
+        "0x603bbb024000",
+        "0x71d8e981ac80",
+        "0x0"
+      ],
+      "result": 105809656823808
+    },
+    {
+      "name": "brk",
+      "args": [
+        "0x603bbb045000",
+        "0x71d8e981ac80",
+        "0x0"
+      ],
+      "result": 105809656958976
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f821c0",
+        "0x7fffab9e7720"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f82210",
+        "0x7fffab9e7780"
+      ],
+      "result": -2
+    },
+    {
+      "name": "setgid",
+      "args": [
+        "0x71d8e99eed90",
+        "0x0",
+        "0x270a"
+      ],
+      "result": 1000
+    },
+    {
+      "name": "getuid",
+      "args": [
+        "0x71d8e99eed90",
+        "0x0",
+        "0x270a"
+      ],
+      "result": 1000
+    },
+    {
+      "name": "geteuid",
+      "args": [
+        "0x71d8e99eed90",
+        "0x0",
+        "0x270a"
+      ],
+      "result": 1000
+    },
+    {
+      "name": "getgid",
+      "args": [
+        "0x71d8e99eed90",
+        "0x0",
+        "0x270a"
+      ],
+      "result": 1000
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f1ebc0",
+        "0x7fffab9e79e0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/noah/.local/lib/python3.13/site-packages\"",
+        "0x90800"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e79f0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbb02e700",
+        "0x8000"
+      ],
+      "result": 848
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbb02e700",
+        "0x8000"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0xe900"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f33550",
+        "0x7fffab9e7a40"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/site-packages\"",
+        "0x90800"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7a50"
+      ],
+      "result": 0
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbb02e700",
+        "0x8000"
+      ],
+      "result": 608
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbb02e700",
+        "0x8000"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0xe900"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5d940",
+        "0x7fffab9e7610"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f338d0",
+        "0x7fffab9e7610"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f338d0",
+        "0x7fffab9e7610"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/__pycache__/sitecustomize.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7200"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e7390"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7640"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb02f700",
+        "0xf3a"
+      ],
+      "result": 3897
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb030639",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5da90",
+        "0x7fffab9e6ee0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e995a570",
+        "0x7fffab9e6ee0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f33b50",
+        "0x7fffab9e6ee0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f33ad0",
+        "0x7fffab9e6ee0"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f33bd0",
+        "0x7fffab9e6ee0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f33bd0",
+        "0x7fffab9e6ee0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/re/__pycache__/__init__.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e6ad0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e6c60"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e6f10"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb030230",
+        "0x4bd9"
+      ],
+      "result": 19416
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb034e08",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5dda0",
+        "0x7fffab9e67b0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5dda0",
+        "0x7fffab9e67b0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5dda0",
+        "0x7fffab9e67b0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/__pycache__/enum.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e63a0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e6530"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e67e0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "brk",
+      "args": [
+        "0x603bbb06c000",
+        "0x71d8e981ac80",
+        "0x0"
+      ],
+      "result": 105809657118720
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb036e40",
+        "0x14e8b"
+      ],
+      "result": 85642
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb04bcca",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5e040",
+        "0x7fffab9e6080"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f9c9d0",
+        "0x7fffab9e6080"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f9c9d0",
+        "0x7fffab9e6080"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/__pycache__/functools.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e5c70"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e5e00"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e60b0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb036e40",
+        "0xa6d1"
+      ],
+      "result": 42704
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb041510",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5ef90",
+        "0x7fffab9e5950"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fac5f0",
+        "0x7fffab9e5950"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e995ae70",
+        "0x7fffab9e5950"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f9cfd0",
+        "0x7fffab9e5950"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f9d0d0",
+        "0x7fffab9e5950"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f9d0d0",
+        "0x7fffab9e5950"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/collections/__pycache__/__init__.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e5540"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e56d0"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e5980"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb036e40",
+        "0x11e21"
+      ],
+      "result": 73248
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb048c60",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5f000",
+        "0x7fffab9e5220"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5f000",
+        "0x7fffab9e5220"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5f000",
+        "0x7fffab9e5220"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/__pycache__/keyword.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e4e10"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e4fa0"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e5250"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb03d6b0",
+        "0x442"
+      ],
+      "result": 1089
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb03daf1",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc80c0",
+        "0x7fffab9e5220"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc80c0",
+        "0x7fffab9e5220"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc80c0",
+        "0x7fffab9e5220"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/__pycache__/operator.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e4e10"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e4fa0"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e5250"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb03dec0",
+        "0x4406"
+      ],
+      "result": 17413
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb0422c5",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc80c0",
+        "0x7fffab9e5220"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc80c0",
+        "0x7fffab9e5220"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc80c0",
+        "0x7fffab9e5220"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/__pycache__/reprlib.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e4e10"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e4fa0"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e5250"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb041460",
+        "0x28e8"
+      ],
+      "result": 10471
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb043d47",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x100000",
+        "0x3"
+      ],
+      "result": 125176433868800
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5fd20",
+        "0x7fffab9e6080"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5fd20",
+        "0x7fffab9e6080"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5fd20",
+        "0x7fffab9e6080"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/__pycache__/types.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e5c70"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e5e00"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e60b0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb05b0e0",
+        "0x3cea"
+      ],
+      "result": 15593
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb05edc9",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5fee0",
+        "0x7fffab9e5f70"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5fee0",
+        "0x7fffab9e62f0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5fee0",
+        "0x7fffab9e62f0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/re\"",
+        "0x90800"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e6300"
+      ],
+      "result": 0
+    },
+    {
+      "name": "brk",
+      "args": [
+        "0x603bbb08d000",
+        "0x71d8e981ac80",
+        "0x0"
+      ],
+      "result": 105809657253888
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbb064560",
+        "0x8000"
+      ],
+      "result": 248
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbb064560",
+        "0x8000"
+      ],
+      "result": 0
+    },
+    {
+      "name": "brk",
+      "args": [
+        "0x603bbb085000",
+        "0x0",
+        "0xfffffffffffff000"
+      ],
+      "result": 105809657221120
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x71d8e9822218"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f9fbd0",
+        "0x7fffab9e62f0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f9fbd0",
+        "0x7fffab9e62f0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/re/__pycache__/_compiler.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e5ee0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e6070"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e6320"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb065560",
+        "0x6923"
+      ],
+      "result": 26914
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb06be82",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc92b0",
+        "0x7fffab9e5700"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e18050",
+        "0x7fffab9e5700"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e180d0",
+        "0x7fffab9e5700"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/re/__pycache__/_parser.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e52f0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e5480"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e5730"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb0710b0",
+        "0xaa5d"
+      ],
+      "result": 43612
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb07bb0c",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc92b0",
+        "0x7fffab9e4fd0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e182d0",
+        "0x7fffab9e4fd0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e182d0",
+        "0x7fffab9e4fd0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/re/__pycache__/_constants.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e4bc0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e4d50"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e5000"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb06a100",
+        "0x1534"
+      ],
+      "result": 5427
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb06b633",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc9630",
+        "0x7fffab9e5bc0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e18550",
+        "0x7fffab9e5bc0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e18550",
+        "0x7fffab9e5bc0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/re/__pycache__/_casefix.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e57b0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e5940"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e5bf0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb074d10",
+        "0x749"
+      ],
+      "result": 1864
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb075458",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc9630",
+        "0x7fffab9e67b0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc9630",
+        "0x7fffab9e67b0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc9630",
+        "0x7fffab9e67b0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/__pycache__/copyreg.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e63a0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e6530"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e67e0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb077df0",
+        "0x1da1"
+      ],
+      "result": 7584
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb079b90",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8ffbad0",
+        "0x7fffab9e72b0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f940b0",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e0c250",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e0c250",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f82300",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "readlink",
+      "args": [
+        "0x71d8e8f82300",
+        "0x7fffab9e6360",
+        "0x1000"
+      ],
+      "result": 40
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e0bac0",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f82300",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fbddf0",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fbd610",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc92b0",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "readlink",
+      "args": [
+        "0x71d8e8fc92b0",
+        "0x7fffab9e63c0",
+        "0x1000"
+      ],
+      "result": 10
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc92b0",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8ffbad0",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f6b8f0",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e33f90",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e99c6f80",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e99c70c0",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fbe090",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8ffbad0",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f940b0",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e33ed0",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e99c70c0",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f82300",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e99e7d10",
+        "0x7fffab9e7310"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e992d5b0",
+        "0x7fffab9e7310"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e992e4b0",
+        "0x7fffab9e7310"
+      ],
+      "result": -2
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5d8d0",
+        "0x7fffab9e7610"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5d8d0",
+        "0x7fffab9e7290"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5d8d0",
+        "0x7fffab9e7610"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f5d8d0",
+        "0x7fffab9e7610"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/lib-dynload\"",
+        "0x90800"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7620"
+      ],
+      "result": 0
+    },
+    {
+      "name": "brk",
+      "args": [
+        "0x603bbb0a8000",
+        "0x71d8e981ac80",
+        "0x0"
+      ],
+      "result": 105809657364480
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbb07ff20",
+        "0x8000"
+      ],
+      "result": 4904
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbb07ff20",
+        "0x8000"
+      ],
+      "result": 0
+    },
+    {
+      "name": "brk",
+      "args": [
+        "0x603bbb0a0000",
+        "0x0",
+        "0xfffffffffffff000"
+      ],
+      "result": 105809657331712
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x71d8e9822218"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e40640",
+        "0x7fffab9e7290"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e40640",
+        "0x7fffab9e7610"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e40640",
+        "0x7fffab9e7610"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/noah/.local/lib/python3.13/site-packages\"",
+        "0x90800"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7620"
+      ],
+      "result": 0
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbb07ff20",
+        "0x8000"
+      ],
+      "result": 848
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbb07ff20",
+        "0x8000"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0xfffffffffffff000"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f339d0",
+        "0x7fffab9e7290"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f339d0",
+        "0x7fffab9e7610"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8f339d0",
+        "0x7fffab9e7610"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/site-packages\"",
+        "0x90800"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7620"
+      ],
+      "result": 0
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbb07ff20",
+        "0x8000"
+      ],
+      "result": 608
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbb07ff20",
+        "0x8000"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0xfffffffffffff000"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e992e4b0",
+        "0x7fffab9e8380"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/noah/src/depyler/examples/test_project/fibonacci.py\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7f10"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e80a0"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x2"
+      ],
+      "result": 3309
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 3309
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb07ff10",
+        "0x10000"
+      ],
+      "result": 3309
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb080bfd",
+        "0xf000"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e992e4b0",
+        "0x7fffab9e8520"
+      ],
+      "result": 0
+    },
+    {
+      "name": "readlink",
+      "args": [
+        "0x603bbaf7f2a0",
+        "0x7fffab9d7890",
+        "0x1000"
+      ],
+      "result": -22
+    },
+    {
+      "name": "getcwd",
+      "args": [
+        "0x7fffab9d7470",
+        "0x400",
+        "0x7fffab9d7460"
+      ],
+      "result": 45
+    },
+    {
+      "name": "readlink",
+      "args": [
+        "0x7fffab9d7470",
+        "0x7fffab9d7010",
+        "0x3ff"
+      ],
+      "result": -22
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/noah/src/depyler/examples/test_project/fibonacci.py\"",
+        "0x0"
+      ],
+      "result": 3
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5451",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e8990"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e8850"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e8710"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb079f10",
+        "0x1000"
+      ],
+      "result": 3309
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb079f10",
+        "0x1000"
+      ],
+      "result": 3309
+    },
+    {
+      "name": "brk",
+      "args": [
+        "0x603bbb0c1000",
+        "0x71d8e981ac80",
+        "0x0"
+      ],
+      "result": 105809657466880
+    },
+    {
+      "name": "brk",
+      "args": [
+        "0x603bbb0e3000",
+        "0x71d8e981ac80",
+        "0x0"
+      ],
+      "result": 105809657606144
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x603bbb079f10",
+        "0x1000"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0xfbad2418",
+        "0x71d8e9816a00"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e40a00",
+        "0x7fffab9e7be0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e40a00",
+        "0x7fffab9e7f60"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8e40a00",
+        "0x7fffab9e7f60"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/noah/src/depyler/examples/test_project\"",
+        "0x90800"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7f70"
+      ],
+      "result": 0
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbb0c9540",
+        "0x8000"
+      ],
+      "result": 360
+    },
+    {
+      "name": "getdents64",
+      "args": [
+        "0x3",
+        "0x603bbb0c9540",
+        "0x8000"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x11ac0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc94e0",
+        "0x7fffab9e7f60"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc94e0",
+        "0x7fffab9e7f60"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0xffffff9c",
+        "0x71d8e8fc94e0",
+        "0x7fffab9e7f60"
+      ],
+      "result": 0
+    },
+    {
+      "name": "openat",
+      "args": [
+        "0xffffff9c",
+        "\"/home/linuxbrew/.linuxbrew/Cellar/python@3.13/3.13.1/lib/python3.13/__pycache__/typing.cpython-313.pyc\"",
+        "0x80000"
+      ],
+      "result": 3
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7b50"
+      ],
+      "result": 0
+    },
+    {
+      "name": "ioctl",
+      "args": [
+        "0x3",
+        "0x5401",
+        "0x7fffab9e7ce0"
+      ],
+      "result": -25
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "lseek",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "newfstatat",
+      "args": [
+        "0x3",
+        "0x71d8e97d844f",
+        "0x7fffab9e7f90"
+      ],
+      "result": 0
+    },
+    {
+      "name": "mmap",
+      "args": [
+        "0x0",
+        "0x26000",
+        "0x3"
+      ],
+      "result": 125176452653056
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x71d8e9fea030",
+        "0x25bd5"
+      ],
+      "result": 154580
+    },
+    {
+      "name": "read",
+      "args": [
+        "0x3",
+        "0x71d8ea00fc04",
+        "0x1"
+      ],
+      "result": 0
+    },
+    {
+      "name": "close",
+      "args": [
+        "0x3",
+        "0x0",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "munmap",
+      "args": [
+        "0x71d8e9fea000",
+        "0x26000",
+        "0x0"
+      ],
+      "result": 0
+    },
+    {
+      "name": "write",
+      "args": [
+        "0x1",
+        "0x603bbaffeeb0",
+        "0x1bf"
+      ],
+      "result": 447
+    },
+    {
+      "name": "rt_sigaction",
+      "args": [
+        "0x2",
+        "0x7fffab9e85f0",
+        "0x7fffab9e8690"
+      ],
+      "result": 0
+    },
+    {
+      "name": "munmap",
+      "args": [
+        "0x71d8ea170000",
+        "0x4000",
+        "0x4000"
+      ],
+      "result": 0
+    }
+  ],
+  "summary": {
+    "total_syscalls": 1028,
+    "exit_code": 0
+  }
+}
