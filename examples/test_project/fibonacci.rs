@@ -102,7 +102,7 @@ impl Iterator for FibonacciGeneratorState {
                 self.next()
             }
             1 => {
-                if (self.limit.is_none()) || (self.count < self.limit) {
+                if (self.limit.is_none()) || (self.count < self.limit.unwrap_or(i32::MAX)) {
                     let result = self.a;
                     let _tuple_temp = (self.b, self.a + self.b);
                     self.a = _tuple_temp.0;
