@@ -148,8 +148,19 @@ fn generate_param_initializers(
         .filter(|p| state_info.captured_params.contains(&p.name))
         .map(|param| {
             let field_name = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
-            // Initialize with parameter value (n: n)
-            quote! { #field_name: #field_name }
+
+            // DEPYLER-0498: Dereference Option parameters (&Option<T> -> Option<T>)
+            // Five-Whys Root Cause: Parameters are borrowed but struct fields are owned
+            // Solution: Dereference (*param) since Option<i32> implements Copy
+            let init_value = if matches!(param.ty, Type::Optional(_)) {
+                // Parameter is &Option<T>, field is Option<T> - dereference
+                quote! { *#field_name }
+            } else {
+                // Regular parameter - direct assignment
+                quote! { #field_name }
+            };
+
+            quote! { #field_name: #init_value }
         })
         .collect()
 }
