@@ -12128,8 +12128,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // This matches Python semantics where lists/dicts have their own repr
                     let arg_expr = expr.to_rust_expr(self.ctx)?;
 
-                    // DEPYLER-0446: Check if this is an Option<T> field (e.g., optional CLI arg)
-                    let is_option = match expr.as_ref() {
+                    // DEPYLER-0446: Check if this is an argparse Option<T> field (should be wrapped to String)
+                    let is_argparse_option = match expr.as_ref() {
                         HirExpr::Attribute { value, attr } => {
                             if let HirExpr::Var(obj_name) = value.as_ref() {
                                 let is_args_var = self.ctx.argparser_tracker.parsers.values().any(
@@ -12175,18 +12175,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 false
                             }
                         }
-                        HirExpr::Var(var_name) => {
-                            // Check if variable type is Option<T>
-                            if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                                matches!(var_type, Type::Optional(_))
-                            } else {
-                                false
-                            }
-                        }
-                        // DEPYLER-0497: Check if function call returns Option<T>
-                        HirExpr::Call { func, .. } => {
-                            self.ctx.option_returning_functions.contains(func)
-                        }
                         _ => false,
                     };
 
@@ -12201,15 +12189,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                     Type::List(_)
                                         | Type::Dict(_, _)
                                         | Type::Set(_)
-                                        | Type::Optional(_)
+                                        | Type::Optional(_) // DEPYLER-0497: Options need {:?}
                                 )
                             } else {
                                 false
                             }
                         }
-                        // DEPYLER-0497: Function calls that return Result<T> need {:?}
+                        // DEPYLER-0497: Function calls that return Result<T> OR Option<T> need {:?}
                         HirExpr::Call { func, .. } => {
                             self.ctx.result_returning_functions.contains(func)
+                                || self.ctx.option_returning_functions.contains(func)
                         }
                         // Case 2: Attribute access (e.g., args.targets)
                         HirExpr::Attribute { value, attr } => {
@@ -12269,11 +12258,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         _ => false,
                     };
 
-                    // DEPYLER-0446: Wrap Option types to handle Display trait
-                    let final_arg = if is_option {
-                        // Option<T> doesn't implement Display, so we need to unwrap it
-                        // For string-like types, display the value or "None"
-                        // For numeric types, use unwrap_or_default()
+                    // DEPYLER-0446: Wrap argparse Option types to handle Display trait
+                    // Only wrap argparse Optional fields, not regular Option variables
+                    let final_arg = if is_argparse_option {
+                        // Argparse Option<T> should display as value or "None" string
                         parse_quote! {
                             {
                                 match &#arg_expr {
@@ -12286,15 +12274,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         arg_expr
                     };
 
-                    // DEPYLER-0497: Use {:?} for non-Display types (Result, Vec, collections)
-                    // Use {} for Display types (primitives, String, wrapped Options)
-                    // IMPORTANT: If Option was wrapped above, it's now a String, so use {} not {:?}
-                    if needs_debug_fmt && !is_option {
-                        // Use debug formatting for collections, Result, Vec
-                        // BUT NOT for Option (already wrapped to String)
+                    // DEPYLER-0497: Use {:?} for non-Display types (Result, Vec, collections, Option)
+                    // Use {} for Display types (primitives, String, wrapped argparse Options)
+                    if is_argparse_option {
+                        // Argparse Option was wrapped to String, use {}
+                        template.push_str("{}");
+                    } else if needs_debug_fmt {
+                        // Non-Display types (Vec, Result, Option, collections) need {:?}
                         template.push_str("{:?}");
                     } else {
-                        // Use Display formatting for scalars and wrapped Options
+                        // Regular Display types (i32, String, etc.)
                         template.push_str("{}");
                     }
 
