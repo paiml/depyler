@@ -64,6 +64,7 @@ pub struct AstBridge {
     source_code: Option<String>,
     annotation_extractor: AnnotationExtractor,
     annotation_parser: AnnotationParser,
+    type_env: crate::type_system::type_environment::TypeEnvironment,
 }
 
 impl Default for AstBridge {
@@ -88,6 +89,7 @@ impl AstBridge {
             source_code: None,
             annotation_extractor: AnnotationExtractor::new(),
             annotation_parser: AnnotationParser::new(),
+            type_env: crate::type_system::type_environment::TypeEnvironment::new(),
         }
     }
 
@@ -153,14 +155,21 @@ impl AstBridge {
     /// - The AST contains unsupported Python constructs
     /// - Type annotations are malformed
     /// - Function signatures are invalid
-    pub fn python_to_hir(&self, module: ast::Mod) -> Result<HirModule> {
-        match module {
-            ast::Mod::Module(m) => self.convert_module(m),
+    /// Converts a Python AST module to Depyler HIR with type environment
+    ///
+    /// # Returns
+    ///
+    /// Returns a tuple of (HirModule, TypeEnvironment) where TypeEnvironment contains
+    /// all type annotations collected during HIR generation.
+    pub fn python_to_hir(mut self, module: ast::Mod) -> Result<(HirModule, crate::type_system::type_environment::TypeEnvironment)> {
+        let hir = match module {
+            ast::Mod::Module(m) => self.convert_module(m)?,
             _ => bail!("Only module-level code is supported"),
-        }
+        };
+        Ok((hir, self.type_env))
     }
 
-    fn convert_module(&self, module: ast::ModModule) -> Result<HirModule> {
+    fn convert_module(&mut self, module: ast::ModModule) -> Result<HirModule> {
         let mut functions = Vec::new();
         let mut imports = Vec::new();
         let mut type_aliases = Vec::new();
@@ -235,9 +244,15 @@ impl AstBridge {
         })
     }
 
-    fn convert_function(&self, func: ast::StmtFunctionDef, is_async: bool) -> Result<HirFunction> {
+    fn convert_function(&mut self, func: ast::StmtFunctionDef, is_async: bool) -> Result<HirFunction> {
         let name = func.name.to_string();
         let params = convert_parameters(&func.args)?;
+
+        // DEPYLER-0500: Collect parameter type annotations
+        for param in &params {
+            self.type_env.bind_var(&param.name, param.ty.clone());
+        }
+
         let ret_type = TypeExtractor::extract_return_type(&func.returns)?;
 
         // Extract annotations from source code if available
@@ -259,9 +274,15 @@ impl AstBridge {
         })
     }
 
-    fn convert_async_function(&self, func: ast::StmtAsyncFunctionDef) -> Result<HirFunction> {
+    fn convert_async_function(&mut self, func: ast::StmtAsyncFunctionDef) -> Result<HirFunction> {
         let name = func.name.to_string();
         let params = convert_parameters(&func.args)?;
+
+        // DEPYLER-0500: Collect parameter type annotations
+        for param in &params {
+            self.type_env.bind_var(&param.name, param.ty.clone());
+        }
+
         let ret_type = TypeExtractor::extract_return_type(&func.returns)?;
 
         // Extract annotations from source code if available
@@ -345,7 +366,7 @@ impl AstBridge {
         TranspilationAnnotations::default()
     }
 
-    fn try_convert_type_alias(&self, assign: &ast::StmtAssign) -> Result<Option<TypeAlias>> {
+    fn try_convert_type_alias(&mut self, assign: &ast::StmtAssign) -> Result<Option<TypeAlias>> {
         // Look for patterns like: UserId = int or UserId = NewType('UserId', int)
         if assign.targets.len() != 1 {
             return Ok(None); // Skip multiple assignment targets
@@ -449,7 +470,7 @@ impl AstBridge {
     }
 
     /// Try to convert a simple assignment to a module-level constant
-    fn try_convert_constant(&self, assign: &ast::StmtAssign) -> Result<Option<HirConstant>> {
+    fn try_convert_constant(&mut self, assign: &ast::StmtAssign) -> Result<Option<HirConstant>> {
         // Only handle single assignment targets
         if assign.targets.len() != 1 {
             return Ok(None);
@@ -523,7 +544,7 @@ impl AstBridge {
         )
     }
 
-    fn try_convert_protocol(&self, class: &ast::StmtClassDef) -> Result<Option<Protocol>> {
+    fn try_convert_protocol(&mut self, class: &ast::StmtClassDef) -> Result<Option<Protocol>> {
         // Check if this class inherits from Protocol
         let is_protocol = class
             .bases
@@ -564,7 +585,7 @@ impl AstBridge {
         }))
     }
 
-    fn try_convert_class(&self, class: &ast::StmtClassDef) -> Result<Option<HirClass>> {
+    fn try_convert_class(&mut self, class: &ast::StmtClassDef) -> Result<Option<HirClass>> {
         // Extract docstring if present
         let docstring = self.extract_class_docstring(&class.body);
 
@@ -698,7 +719,7 @@ impl AstBridge {
     }
 
     fn convert_method(
-        &self,
+        &mut self,
         method: &ast::StmtFunctionDef,
         is_async: bool,
     ) -> Result<Option<HirMethod>> {
@@ -813,7 +834,7 @@ impl AstBridge {
     }
 
     fn convert_async_method(
-        &self,
+        &mut self,
         method: &ast::StmtAsyncFunctionDef,
     ) -> Result<Option<HirMethod>> {
         use smallvec::smallvec;
@@ -934,7 +955,7 @@ impl AstBridge {
         }))
     }
 
-    fn extract_class_docstring(&self, body: &[ast::Stmt]) -> Option<String> {
+    fn extract_class_docstring(&mut self, body: &[ast::Stmt]) -> Option<String> {
         if let Some(ast::Stmt::Expr(expr)) = body.first() {
             if let ast::Expr::Constant(c) = expr.value.as_ref() {
                 if let ast::Constant::Str(s) = &c.value {
@@ -945,7 +966,7 @@ impl AstBridge {
         None
     }
 
-    fn extract_class_type_params(&self, class: &ast::StmtClassDef) -> Vec<String> {
+    fn extract_class_type_params(&mut self, class: &ast::StmtClassDef) -> Vec<String> {
         // Look for Generic[T, U] in base classes
         for base in &class.bases {
             if let ast::Expr::Subscript(subscript) = base {
@@ -959,7 +980,7 @@ impl AstBridge {
         Vec::new()
     }
 
-    fn extract_generic_params(&self, slice: &ast::Expr) -> Vec<String> {
+    fn extract_generic_params(&mut self, slice: &ast::Expr) -> Vec<String> {
         match slice {
             ast::Expr::Name(n) => vec![n.id.to_string()],
             ast::Expr::Tuple(tuple) => tuple
@@ -1142,7 +1163,7 @@ impl AstBridge {
 /// assert_eq!(hir.functions.len(), 1);
 /// assert_eq!(hir.functions[0].name, "simple");
 /// ```
-pub fn python_to_hir(module: ast::Mod) -> Result<HirModule> {
+pub fn python_to_hir(module: ast::Mod) -> Result<(HirModule, crate::type_system::type_environment::TypeEnvironment)> {
     AstBridge::new().python_to_hir(module)
 }
 
@@ -1555,10 +1576,11 @@ mod tests {
             type_ignores: vec![],
             range: Default::default(),
         });
-        AstBridge::new()
+        let (hir, _type_env) = AstBridge::new()
             .with_source(source.to_string())
             .python_to_hir(ast)
-            .unwrap()
+            .unwrap();
+        hir
     }
 
     #[test]
