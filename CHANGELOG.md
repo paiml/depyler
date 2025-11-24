@@ -11389,6 +11389,7 @@ and this project adheres to
   - Impact: Python type hints now preserved and enforced in generated Rust code
 
 ### Fixed
+- Codegen Bug: Missing `Args::parse()` call in argparse-generated CLI code (#103)
 - **[DEPYLER-0097]** Type annotation preservation and conversion (2025-10-08)
   - Fixed: Annotated assignments now generate explicit Rust type annotations
   - Fixed: `right: int = len(arr) - 1` → `let right: i32 = (arr.len() - 1) as i32`
