@@ -54,6 +54,48 @@ pub enum RustPattern {
     CustomTemplate { template: &'static str },
 }
 
+/// Plugin trait for extending stdlib mappings
+///
+/// Implement this trait to add custom Python→Rust API mappings.
+///
+/// # Example
+/// ```rust
+/// use depyler_core::stdlib_mappings::{StdlibPlugin, StdlibMappings, StdlibApiMapping, RustPattern};
+///
+/// struct RequestsPlugin;
+///
+/// impl StdlibPlugin for RequestsPlugin {
+///     fn register_mappings(&self, registry: &mut StdlibMappings) {
+///         registry.register(StdlibApiMapping {
+///             module: "requests",
+///             class: "Session",
+///             python_attr: "get",
+///             rust_pattern: RustPattern::MethodCall {
+///                 method: "get",
+///                 extra_args: vec![],
+///                 propagate_error: true,
+///             },
+///         });
+///     }
+///
+///     fn name(&self) -> &str {
+///         "requests"
+///     }
+/// }
+/// ```
+pub trait StdlibPlugin {
+    /// Register this plugin's mappings into the registry
+    fn register_mappings(&self, registry: &mut StdlibMappings);
+
+    /// Plugin name for identification
+    fn name(&self) -> &str;
+
+    /// Optional: Plugin version
+    fn version(&self) -> &str {
+        "0.1.0"
+    }
+}
+
 /// Stdlib API mapping registry
 pub struct StdlibMappings {
     /// Lookup by (module, class, attribute)
@@ -158,6 +200,68 @@ impl StdlibMappings {
     /// Get iteration pattern for a class
     pub fn get_iteration_pattern(&self, module: &str, class: &str) -> Option<&RustPattern> {
         self.lookup(module, class, "__iter__")
+    }
+
+    /// Register a custom mapping (public API for plugins)
+    ///
+    /// # Example
+    /// ```rust
+    /// use depyler_core::stdlib_mappings::{StdlibMappings, StdlibApiMapping, RustPattern};
+    ///
+    /// let mut mappings = StdlibMappings::new();
+    /// mappings.register(StdlibApiMapping {
+    ///     module: "requests",
+    ///     class: "Session",
+    ///     python_attr: "get",
+    ///     rust_pattern: RustPattern::MethodCall {
+    ///         method: "get",
+    ///         extra_args: vec![],
+    ///         propagate_error: true,
+    ///     },
+    /// });
+    /// ```
+    pub fn register(&mut self, mapping: StdlibApiMapping) {
+        let key = (
+            mapping.module.to_string(),
+            mapping.class.to_string(),
+            mapping.python_attr.to_string(),
+        );
+        self.mappings.insert(key, mapping.rust_pattern);
+    }
+
+    /// Register multiple mappings at once
+    pub fn register_batch(&mut self, mappings: Vec<StdlibApiMapping>) {
+        for mapping in mappings {
+            self.register(mapping);
+        }
+    }
+
+    /// Load a plugin into the registry
+    ///
+    /// # Example
+    /// ```rust
+    /// use depyler_core::stdlib_mappings::{StdlibMappings, StdlibPlugin};
+    ///
+    /// struct MyPlugin;
+    /// impl StdlibPlugin for MyPlugin {
+    ///     fn register_mappings(&self, registry: &mut StdlibMappings) {
+    ///         // Register custom mappings
+    ///     }
+    ///     fn name(&self) -> &str { "my_plugin" }
+    /// }
+    ///
+    /// let mut mappings = StdlibMappings::new();
+    /// mappings.load_plugin(&MyPlugin);
+    /// ```
+    pub fn load_plugin(&mut self, plugin: &dyn StdlibPlugin) {
+        plugin.register_mappings(self);
+    }
+
+    /// Load multiple plugins at once
+    pub fn load_plugins(&mut self, plugins: &[&dyn StdlibPlugin]) {
+        for plugin in plugins {
+            self.load_plugin(*plugin);
+        }
     }
 }
 
@@ -269,5 +373,183 @@ mod tests {
 
         let rust_code = pattern.unwrap().generate_rust_code("f", &[]);
         assert_eq!(rust_code, "BufReader::new(f).lines()");
+    }
+
+    // DEPYLER-0506: Plugin system tests
+
+    #[test]
+    fn test_register_custom_mapping() {
+        let mut mappings = StdlibMappings::new();
+
+        // Register custom mapping
+        mappings.register(StdlibApiMapping {
+            module: "requests",
+            class: "Session",
+            python_attr: "get",
+            rust_pattern: RustPattern::MethodCall {
+                method: "get",
+                extra_args: vec![],
+                propagate_error: true,
+            },
+        });
+
+        // Verify it's registered
+        let pattern = mappings.lookup("requests", "Session", "get");
+        assert!(pattern.is_some());
+
+        let rust_code = pattern.unwrap().generate_rust_code("session", &[]);
+        assert_eq!(rust_code, "session.get()?");
+    }
+
+    #[test]
+    fn test_register_batch() {
+        let mut mappings = StdlibMappings::new();
+
+        let batch = vec![
+            StdlibApiMapping {
+                module: "numpy",
+                class: "ndarray",
+                python_attr: "shape",
+                rust_pattern: RustPattern::PropertyToMethod {
+                    method: "shape",
+                    propagate_error: false,
+                },
+            },
+            StdlibApiMapping {
+                module: "numpy",
+                class: "ndarray",
+                python_attr: "dtype",
+                rust_pattern: RustPattern::PropertyToMethod {
+                    method: "dtype",
+                    propagate_error: false,
+                },
+            },
+        ];
+
+        mappings.register_batch(batch);
+
+        assert!(mappings.lookup("numpy", "ndarray", "shape").is_some());
+        assert!(mappings.lookup("numpy", "ndarray", "dtype").is_some());
+    }
+
+    // Example plugin for testing
+    struct TestRequestsPlugin;
+
+    impl StdlibPlugin for TestRequestsPlugin {
+        fn register_mappings(&self, registry: &mut StdlibMappings) {
+            registry.register(StdlibApiMapping {
+                module: "requests",
+                class: "Session",
+                python_attr: "get",
+                rust_pattern: RustPattern::MethodCall {
+                    method: "get",
+                    extra_args: vec![],
+                    propagate_error: true,
+                },
+            });
+
+            registry.register(StdlibApiMapping {
+                module: "requests",
+                class: "Session",
+                python_attr: "post",
+                rust_pattern: RustPattern::MethodCall {
+                    method: "post",
+                    extra_args: vec![],
+                    propagate_error: true,
+                },
+            });
+        }
+
+        fn name(&self) -> &str {
+            "requests"
+        }
+
+        fn version(&self) -> &str {
+            "1.0.0"
+        }
+    }
+
+    #[test]
+    fn test_load_plugin() {
+        let mut mappings = StdlibMappings::new();
+        let plugin = TestRequestsPlugin;
+
+        mappings.load_plugin(&plugin);
+
+        // Verify plugin mappings registered
+        assert!(mappings.lookup("requests", "Session", "get").is_some());
+        assert!(mappings.lookup("requests", "Session", "post").is_some());
+
+        // Test code generation
+        let get_pattern = mappings.lookup("requests", "Session", "get").unwrap();
+        assert_eq!(get_pattern.generate_rust_code("session", &[]), "session.get()?");
+    }
+
+    struct TestNumpyPlugin;
+
+    impl StdlibPlugin for TestNumpyPlugin {
+        fn register_mappings(&self, registry: &mut StdlibMappings) {
+            registry.register(StdlibApiMapping {
+                module: "numpy",
+                class: "ndarray",
+                python_attr: "reshape",
+                rust_pattern: RustPattern::MethodCall {
+                    method: "reshape",
+                    extra_args: vec![],
+                    propagate_error: false,
+                },
+            });
+        }
+
+        fn name(&self) -> &str {
+            "numpy"
+        }
+    }
+
+    #[test]
+    fn test_load_multiple_plugins() {
+        let mut mappings = StdlibMappings::new();
+        let requests_plugin = TestRequestsPlugin;
+        let numpy_plugin = TestNumpyPlugin;
+
+        mappings.load_plugins(&[&requests_plugin, &numpy_plugin]);
+
+        // Verify both plugins loaded
+        assert!(mappings.lookup("requests", "Session", "get").is_some());
+        assert!(mappings.lookup("numpy", "ndarray", "reshape").is_some());
+    }
+
+    #[test]
+    fn test_plugin_override_builtin() {
+        let mut mappings = StdlibMappings::new();
+
+        // Built-in csv mapping exists
+        assert!(mappings.lookup("csv", "DictReader", "fieldnames").is_some());
+
+        // Plugin can override it
+        struct OverridePlugin;
+        impl StdlibPlugin for OverridePlugin {
+            fn register_mappings(&self, registry: &mut StdlibMappings) {
+                registry.register(StdlibApiMapping {
+                    module: "csv",
+                    class: "DictReader",
+                    python_attr: "fieldnames",
+                    rust_pattern: RustPattern::PropertyToMethod {
+                        method: "get_headers",  // Different method
+                        propagate_error: true,
+                    },
+                });
+            }
+            fn name(&self) -> &str {
+                "csv_override"
+            }
+        }
+
+        mappings.load_plugin(&OverridePlugin);
+
+        // Verify override worked
+        let pattern = mappings.lookup("csv", "DictReader", "fieldnames").unwrap();
+        let code = pattern.generate_rust_code("reader", &[]);
+        assert_eq!(code, "reader.get_headers()?");
     }
 }
