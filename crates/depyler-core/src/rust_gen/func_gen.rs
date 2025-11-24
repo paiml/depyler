@@ -1392,9 +1392,49 @@ fn literal_to_type(lit: &Literal) -> Type {
 
 // ========== Phase 3b: Return Type Generation ==========
 
+/// GH-70: Detect if function returns a nested function/closure
+/// Returns Some((nested_fn_name, params, ret_type)) if detected
+fn detect_returns_nested_function(func: &HirFunction) -> Option<(String, Vec<HirParam>, Type)> {
+    // Look for pattern: function contains nested FunctionDef and ends with returning that name
+    let mut nested_functions: std::collections::HashMap<String, (Vec<HirParam>, Type)> =
+        std::collections::HashMap::new();
+
+    // Collect nested function definitions
+    for stmt in &func.body {
+        if let HirStmt::FunctionDef {
+            name,
+            params,
+            ret_type,
+            ..
+        } = stmt
+        {
+            nested_functions.insert(name.clone(), (params.to_vec(), ret_type.clone()));
+        }
+    }
+
+    // Check if last statement returns one of the nested functions
+    if let Some(last_stmt) = func.body.last() {
+        // Pattern 1: explicit return statement
+        if let HirStmt::Return(Some(HirExpr::Var(var_name))) = last_stmt {
+            if let Some((params, ret_type)) = nested_functions.get(var_name) {
+                return Some((var_name.clone(), params.clone(), ret_type.clone()));
+            }
+        }
+        // Pattern 2: implicit return (expression statement at end)
+        if let HirStmt::Expr(HirExpr::Var(var_name)) = last_stmt {
+            if let Some((params, ret_type)) = nested_functions.get(var_name) {
+                return Some((var_name.clone(), params.clone(), ret_type.clone()));
+            }
+        }
+    }
+
+    None
+}
+
 /// Generate return type with Result wrapper and lifetime handling
 ///
 /// DEPYLER-0310: Now returns ErrorType (4th tuple element) for raise statement wrapping
+/// GH-70: Now detects when function returns nested function and uses Box<dyn Fn>
 #[inline]
 pub(crate) fn codegen_return_type(
     func: &HirFunction,
@@ -1406,6 +1446,35 @@ pub(crate) fn codegen_return_type(
     bool,
     Option<crate::rust_gen::context::ErrorType>,
 )> {
+    // GH-70: Check if function returns a nested function/closure
+    if let Some((_nested_name, params, nested_ret_type)) = detect_returns_nested_function(func) {
+        use quote::quote;
+
+        // Build Box<dyn Fn(params) -> ret> type
+        let param_types: Vec<proc_macro2::TokenStream> = params
+            .iter()
+            .map(|p| {
+                let ty_tokens = crate::rust_gen::stmt_gen::hir_type_to_tokens(&p.ty, ctx);
+                ty_tokens
+            })
+            .collect();
+
+        let ret_ty_tokens = crate::rust_gen::stmt_gen::hir_type_to_tokens(&nested_ret_type, ctx);
+
+        let fn_type = if params.is_empty() {
+            quote! { -> Box<dyn Fn() -> #ret_ty_tokens> }
+        } else {
+            quote! { -> Box<dyn Fn(#(#param_types),*) -> #ret_ty_tokens> }
+        };
+
+        return Ok((
+            fn_type.clone(),
+            crate::type_mapper::RustType::Custom("BoxedFn".to_string()),
+            false, // can_fail
+            None,  // error_type
+        ));
+    }
+
     // DEPYLER-0410: Infer return type from body when annotation is Unknown
     // DEPYLER-0420: Also infer when tuple/list contains Unknown elements
     // DEPYLER-0460: Use _with_params version for Optional pattern detection
@@ -1727,6 +1796,21 @@ impl RustCodeGen for HirFunction {
 
         // Process function body with proper scoping (expressions will now be rewritten if needed)
         let mut body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
+
+        // GH-70: Wrap returned closure in Box::new() if function returns Box<dyn Fn>
+        if let Some((nested_name, _, _)) = detect_returns_nested_function(self) {
+            // Find last statement and wrap if it's returning the nested function
+            if let Some(last_stmt) = body_stmts.last_mut() {
+                use quote::quote;
+                let nested_ident = syn::Ident::new(&nested_name, proc_macro2::Span::call_site());
+                // Check if last statement is just the variable name (implicit return)
+                let last_stmt_str = last_stmt.to_string();
+                if last_stmt_str.trim() == nested_name {
+                    // Replace with Box::new(name)
+                    *last_stmt = quote! { Box::new(#nested_ident) };
+                }
+            }
+        }
 
         // Clear the subcommand fields context after body generation
         ctx.current_subcommand_fields = None;
