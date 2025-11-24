@@ -287,17 +287,17 @@ fn test_convert_compare() {
 #[allow(clippy::cognitive_complexity)]
 #[test]
 fn test_convert_list_comp() {
+    // DEPYLER-0504: Updated to use generators pattern
     let expr = parse_expr("[x * 2 for x in range(10)]");
     let result = ExprConverter::convert(expr).unwrap();
     match result {
         HirExpr::ListComp {
             element,
-            target,
-            iter: _,
-            condition,
+            generators,
         } => {
-            assert_eq!(target, "x");
-            assert!(condition.is_none());
+            assert_eq!(generators.len(), 1);
+            assert_eq!(generators[0].target, "x");
+            assert!(generators[0].conditions.is_empty());
             // element should be x * 2
             match element.as_ref() {
                 HirExpr::Binary { op, .. } => assert!(matches!(op, BinOp::Mul)),
@@ -310,14 +310,16 @@ fn test_convert_list_comp() {
 
 #[test]
 fn test_convert_list_comp_with_condition() {
+    // DEPYLER-0504: Updated to use generators pattern
     let expr = parse_expr("[x for x in range(10) if x % 2 == 0]");
     let result = ExprConverter::convert(expr).unwrap();
     match result {
         HirExpr::ListComp {
-            target, condition, ..
+            generators, ..
         } => {
-            assert_eq!(target, "x");
-            assert!(condition.is_some());
+            assert_eq!(generators.len(), 1);
+            assert_eq!(generators[0].target, "x");
+            assert!(!generators[0].conditions.is_empty());
         }
         _ => panic!("Expected list comprehension"),
     }
@@ -636,17 +638,17 @@ fn test_convert_ann_assign() {
 #[allow(clippy::cognitive_complexity)]
 #[test]
 fn test_convert_set_comp() {
+    // DEPYLER-0504: Updated to use generators pattern
     let expr = parse_expr("{x * 2 for x in range(10)}");
     let result = ExprConverter::convert(expr).unwrap();
     match result {
         HirExpr::SetComp {
             element,
-            target,
-            iter: _,
-            condition,
+            generators,
         } => {
-            assert_eq!(target, "x");
-            assert!(condition.is_none());
+            assert_eq!(generators.len(), 1);
+            assert_eq!(generators[0].target, "x");
+            assert!(generators[0].conditions.is_empty());
             match element.as_ref() {
                 HirExpr::Binary { op, .. } => assert!(matches!(op, BinOp::Mul)),
                 _ => panic!("Expected binary operation in element"),

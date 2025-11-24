@@ -148,7 +148,7 @@ fn test_ssa_variable_versioning() {
     let mut env = TypeEnvironment::new();
 
     // Python: x = 5 (x_0: i64)
-    let x_0 = env.bind_var("x", Type::Int64);
+    let x_0 = env.bind_var("x", Type::Int);
     assert_eq!(env.get_var_version("x"), Some(0), "First binding should be version 0");
 
     // Python: x = "hello" (x_1: String) - type change requires new version
@@ -158,7 +158,7 @@ fn test_ssa_variable_versioning() {
     assert_ne!(x_0, x_1, "Different versions should have different IDs");
 
     // Verify both versions exist
-    assert_eq!(env.get_type_by_id(x_0), Some(&Type::Int64));
+    assert_eq!(env.get_type_by_id(x_0), Some(&Type::Int));
     assert_eq!(env.get_type_by_id(x_1), Some(&Type::String));
 }
 
@@ -170,10 +170,10 @@ fn test_bidirectional_checking_synthesis() {
     let mut env = TypeEnvironment::new();
 
     // Synthesis: infer type from literal
-    let expr = HirExpr::Literal(crate::hir::Literal::Int(42));
+    let expr = HirExpr::Literal(depyler_core::hir::Literal::Int(42));
     let inferred = env.synthesize_type(&expr).expect("Should infer i32 from small literal");
 
-    assert_eq!(inferred, Type::Int32, "Small int literal should synthesize to i32");
+    assert_eq!(inferred, Type::Int, "Small int literal should synthesize to i32");
 }
 
 #[test]
@@ -184,8 +184,8 @@ fn test_bidirectional_checking_check() {
     let mut env = TypeEnvironment::new();
 
     // Checking: verify expression against expected type
-    let expr = HirExpr::Literal(crate::hir::Literal::Int(42));
-    let result = env.check_type(&expr, &Type::Int64);
+    let expr = HirExpr::Literal(depyler_core::hir::Literal::Int(42));
+    let result = env.check_type(&expr, &Type::Int);
 
     // Should succeed: i32 literal <: i64 expected
     assert!(result.is_ok(), "i32 literal should check against i64 (subtyping)");
