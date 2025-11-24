@@ -742,7 +742,7 @@ pub fn analyze_command(input: PathBuf, format: String) -> Result<()> {
         use rustpython_parser::{parse, Mode};
         parse(&python_source, Mode::Module, "<input>")?
     };
-    let hir = depyler_core::ast_bridge::python_to_hir(ast)?;
+    let (hir, _type_env) = depyler_core::ast_bridge::python_to_hir(ast)?;
 
     // Analyze
     let analyzer = Analyzer::new();
@@ -858,7 +858,7 @@ pub fn generate_quality_report(input: &std::path::Path) -> Result<depyler_qualit
         use rustpython_parser::{parse, Mode};
         parse(&python_source, Mode::Module, "<input>")?
     };
-    let hir = depyler_core::ast_bridge::python_to_hir(ast)?;
+    let (hir, _type_env) = depyler_core::ast_bridge::python_to_hir(ast)?;
     let quality_analyzer = QualityAnalyzer::new();
     Ok(quality_analyzer.analyze_quality(&hir.functions)?)
 }

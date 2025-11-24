@@ -323,7 +323,7 @@ impl InteractiveSession {
 
         // Parse Python to analyze structure
         let ast = parse(python_source, Mode::Module, "<input>")?;
-        let hir = depyler_core::ast_bridge::AstBridge::new()
+        let (hir, _type_env) = depyler_core::ast_bridge::AstBridge::new()
             .with_source(python_source.to_string())
             .python_to_hir(ast)?;
 
@@ -575,7 +575,7 @@ impl InteractiveSession {
 
         // Quality analysis
         let ast = parse(python_source, Mode::Module, "<input>")?;
-        let hir = depyler_core::ast_bridge::AstBridge::new()
+        let (hir, _type_env) = depyler_core::ast_bridge::AstBridge::new()
             .with_source(python_source.to_string())
             .python_to_hir(ast)?;
         let quality_report = self.quality_analyzer.analyze_quality(&hir.functions)?;
