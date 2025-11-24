@@ -24,7 +24,7 @@ use rustpython_parser::{parse, Mode};
 fn assert_field_type_inference(python_code: &str, expected_field_name: &str, expected_type: Type) {
     let ast = parse(python_code, Mode::Module, "<test>").expect("Failed to parse");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("Failed to convert to HIR");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("Failed to convert to HIR");
 
     // Find the class and check its fields
     assert!(!hir.classes.is_empty(), "Expected at least one class");
@@ -275,7 +275,7 @@ class Config:
 
     let ast = parse(python, Mode::Module, "<test>").expect("Failed to parse");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("Failed to convert to HIR");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("Failed to convert to HIR");
 
     assert!(!hir.classes.is_empty());
     let class = &hir.classes[0];
@@ -326,7 +326,7 @@ class Config:
 
     let ast = parse(python, Mode::Module, "<test>").expect("Failed to parse");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("Failed to convert to HIR");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("Failed to convert to HIR");
 
     // Complex expressions should either infer as Unknown or not be added as fields
     assert!(!hir.classes.is_empty());
