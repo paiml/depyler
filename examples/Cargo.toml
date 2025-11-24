@@ -1,11 +1,11 @@
 [package]
-name = "test_kwargs_support_final"
+name = "lambda_advanced_test"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "test_kwargs_support_final"
-path = "test_kwargs_support_final.rs"
+name = "lambda_advanced_test"
+path = "lambda_advanced_test.rs"
 
 [dependencies]
 serde_json = "1.0"
