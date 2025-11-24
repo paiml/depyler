@@ -29,7 +29,7 @@ class Config:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should infer field from __init__ because:
     // 1. fields.is_empty() = true (no explicit fields)
@@ -52,7 +52,7 @@ class Config:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should NOT infer fields because is_dataclass = true
     // The condition is: fields.is_empty() && !is_dataclass
@@ -79,7 +79,7 @@ class Config:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should NOT infer additional fields because fields.is_empty() = false
     // The condition: fields.is_empty() && !is_dataclass
@@ -109,7 +109,7 @@ class Config:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should detect @dataclass decorator
     // The OR condition allows matching EITHER Name OR Attribute
@@ -127,7 +127,7 @@ class Config:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should detect @dataclasses.dataclass via Attribute match
     // The OR condition is necessary: Name match fails but Attribute succeeds
@@ -156,7 +156,7 @@ class Config:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should skip __str__ and __repr__ but keep normal_method
     // The AND condition requires BOTH starts and ends with "__"
@@ -192,7 +192,7 @@ class Iterator:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should keep __init__, __iter__, __next__ (special exceptions)
     assert_eq!(hir.classes.len(), 1);
@@ -223,7 +223,7 @@ class Config:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // The AND condition requires BOTH start and end with "__"
     // These methods don't match both, so they're kept
@@ -269,7 +269,7 @@ class Service:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // The AND condition requires BOTH decorator and async keyword
     // fetch_data: has both → should be recognized
@@ -297,7 +297,7 @@ class Config:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     // Should detect both @property and @functools.property
     assert_eq!(hir.classes.len(), 1);
@@ -315,7 +315,7 @@ class Util:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     assert_eq!(hir.classes.len(), 1);
     assert_eq!(hir.classes[0].methods.len(), 1);
@@ -353,7 +353,7 @@ class DataModel:
 "#;
     let ast = parse(python, Mode::Module, "<test>").expect("parse failed");
     let bridge = AstBridge::new();
-    let hir = bridge.python_to_hir(ast).expect("conversion failed");
+    let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
     assert_eq!(hir.classes.len(), 1);
     let class = &hir.classes[0];
