@@ -464,11 +464,12 @@ pub enum HirExpr {
         orelse: Box<HirExpr>,
     },
     // sorted() with key parameter (Python: sorted(iterable, key=lambda x: ..., reverse=True))
+    // DEPYLER-0502: reverse_expr supports dynamic boolean expressions, not just constants
     SortByKey {
         iterable: Box<HirExpr>,
         key_params: Vec<Symbol>,
         key_body: Box<HirExpr>,
-        reverse: bool,
+        reverse_expr: Option<Box<HirExpr>>,  // None = false (default), Some = dynamic expression
     },
     // Generator expression (Python: (x * 2 for x in range(5)))
     GeneratorExp {

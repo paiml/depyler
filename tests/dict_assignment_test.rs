@@ -17,7 +17,7 @@ def test_basic():
     let ast = parse(python_code, Mode::Module, "<test>").expect("Failed to parse Python");
 
     // Convert to HIR
-    let module = AstBridge::new()
+    let (module, _type_env) = AstBridge::new()
         .with_source(python_code.to_string())
         .python_to_hir(ast)
         .expect("Failed to convert to HIR");
@@ -46,7 +46,7 @@ def test_nested():
     let ast = parse(python_code, Mode::Module, "<test>").expect("Failed to parse Python");
 
     // Convert to HIR
-    let module = AstBridge::new()
+    let (module, _type_env) = AstBridge::new()
         .with_source(python_code.to_string())
         .python_to_hir(ast)
         .expect("Failed to convert to HIR");
@@ -75,7 +75,7 @@ def test_deep():
     let ast = parse(python_code, Mode::Module, "<test>").expect("Failed to parse Python");
 
     // Convert to HIR
-    let module = AstBridge::new()
+    let (module, _type_env) = AstBridge::new()
         .with_source(python_code.to_string())
         .python_to_hir(ast)
         .expect("Failed to convert to HIR");
@@ -104,7 +104,7 @@ def test_tuple_keys():
     let ast = parse(python_code, Mode::Module, "<test>").expect("Failed to parse Python");
 
     // Convert to HIR
-    let module = AstBridge::new()
+    let (module, _type_env) = AstBridge::new()
         .with_source(python_code.to_string())
         .python_to_hir(ast)
         .expect("Failed to convert to HIR");

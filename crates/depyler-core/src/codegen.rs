@@ -1000,7 +1000,7 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             iterable,
             key_params,
             key_body,
-            reverse,
+            reverse_expr,
         } => {
             let iter_tokens = expr_to_rust_tokens(iterable)?;
             let body_tokens = expr_to_rust_tokens(key_body)?;
@@ -1011,25 +1011,24 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
 
             let param = syn::Ident::new(&key_params[0], proc_macro2::Span::call_site());
 
-            if *reverse {
-                // When reverse=True, sort and then reverse
-                Ok(quote! {
-                    {
-                        let mut __sorted_result = #iter_tokens.clone();
-                        __sorted_result.sort_by_key(|#param| #body_tokens);
-                        __sorted_result.reverse();
-                        __sorted_result
-                    }
-                })
+            // DEPYLER-0502: Convert reverse_expr to Rust tokens (supports variables and expressions)
+            let reverse_tokens = if let Some(expr) = reverse_expr {
+                expr_to_rust_tokens(expr)?
             } else {
-                Ok(quote! {
-                    {
-                        let mut __sorted_result = #iter_tokens.clone();
-                        __sorted_result.sort_by_key(|#param| #body_tokens);
-                        __sorted_result
+                quote! { false }
+            };
+
+            // Generate code with runtime conditional reverse
+            Ok(quote! {
+                {
+                    let mut __sorted_result = #iter_tokens.clone();
+                    __sorted_result.sort_by_key(|#param| #body_tokens);
+                    if #reverse_tokens {
+                        __sorted_result.reverse();
                     }
-                })
-            }
+                    __sorted_result
+                }
+            })
         }
         HirExpr::GeneratorExp { .. } => {
             // Note: Generator expressions are fully implemented in rust_gen.rs (v3.13.0, 20/20 tests).
