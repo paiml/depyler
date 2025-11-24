@@ -1104,9 +1104,9 @@ mod tests {
 
     #[test]
     fn test_constant_propagation() {
-        // DEPYLER-0269: Current implementation is conservative -
-        // only propagates constants that are NEVER READ (dead code)
-        // This test validates the current behavior
+        // DEPYLER-0508: Dead code elimination is ENABLED by default
+        // Unused variables should be eliminated
+        // This test validates that DCE correctly removes dead assignments
         let mut optimizer = Optimizer::new(OptimizerConfig::default());
 
         let program = HirProgram {
@@ -1115,13 +1115,13 @@ mod tests {
                 params: smallvec![],
                 ret_type: Type::Int,
                 body: vec![
-                    // Dead assignment - never read
+                    // Dead assignment - never read → eliminated by DCE
                     HirStmt::Assign {
                         target: AssignTarget::Symbol("unused".to_string()),
                         value: HirExpr::Literal(Literal::Int(42)),
                         type_annotation: None,
                     },
-                    // This will be propagated
+                    // Dead assignment - never read → eliminated by DCE
                     HirStmt::Assign {
                         target: AssignTarget::Symbol("result".to_string()),
                         value: HirExpr::Literal(Literal::Int(10)),
@@ -1139,19 +1139,17 @@ mod tests {
 
         let optimized = optimizer.optimize_program(program);
 
-        // With current conservative implementation, structure is preserved
-        // but dead code constants could be propagated
+        // DEPYLER-0508: With DCE enabled, unused variables are eliminated
+        // Only the return statement remains
         let func = &optimized.functions[0];
         assert_eq!(
             func.body.len(),
-            3,
-            "All statements preserved (dead code elimination disabled)"
+            1,
+            "Dead assignments eliminated, only return statement remains (DCE enabled)"
         );
 
-        // Verify the optimizer runs without panicking
-        assert!(matches!(&func.body[0], HirStmt::Assign { .. }));
-        assert!(matches!(&func.body[1], HirStmt::Assign { .. }));
-        assert!(matches!(&func.body[2], HirStmt::Return(_)));
+        // Verify only the return statement remains
+        assert!(matches!(&func.body[0], HirStmt::Return(_)));
     }
 
     #[test]
