@@ -1783,23 +1783,59 @@ impl<'a> ExprConverter<'a> {
             } => self.convert_method_call(object, method, args),
             HirExpr::ListComp {
                 element,
-                target,
-                iter,
-                condition,
-            } => self.convert_list_comp(element, target, iter, condition),
+                generators,
+            } => {
+                // DEPYLER-0504: Legacy path - only support single generator for now
+                if generators.len() != 1 {
+                    bail!("Multiple generators not supported in direct rules path");
+                }
+                let gen = &generators[0];
+                let condition = if gen.conditions.is_empty() {
+                    None
+                } else if gen.conditions.len() == 1 {
+                    Some(Box::new(gen.conditions[0].clone()))
+                } else {
+                    bail!("Multiple conditions in generator not supported in direct rules path");
+                };
+                self.convert_list_comp(element, &gen.target, &gen.iter, &condition)
+            }
             HirExpr::SetComp {
                 element,
-                target,
-                iter,
-                condition,
-            } => self.convert_set_comp(element, target, iter, condition),
+                generators,
+            } => {
+                // DEPYLER-0504: Legacy path - only support single generator for now
+                if generators.len() != 1 {
+                    bail!("Multiple generators not supported in direct rules path");
+                }
+                let gen = &generators[0];
+                let condition = if gen.conditions.is_empty() {
+                    None
+                } else if gen.conditions.len() == 1 {
+                    Some(Box::new(gen.conditions[0].clone()))
+                } else {
+                    bail!("Multiple conditions in generator not supported in direct rules path");
+                };
+                self.convert_set_comp(element, &gen.target, &gen.iter, &condition)
+            }
             HirExpr::DictComp {
                 key,
                 value,
-                target,
-                iter,
-                condition,
-            } => self.convert_dict_comp(key, value, target, iter, condition),
+                generators,
+            } => {
+                // DEPYLER-0504: Legacy path - only support single generator for now
+                if generators.len() != 1 {
+                    bail!("Multiple generators not supported in direct rules path");
+                }
+                let gen = &generators[0];
+                let condition = if gen.conditions.is_empty() {
+                    None
+                } else if gen.conditions.len() == 1 {
+                    Some(Box::new(gen.conditions[0].clone()))
+                } else {
+                    bail!("Multiple conditions in generator not supported in direct rules path");
+                };
+                self.convert_dict_comp(key, value, &gen.target, &gen.iter, &condition)
+            }
             HirExpr::Attribute { value, attr } => self.convert_attribute(value, attr),
             HirExpr::Await { value } => self.convert_await(value),
             _ => bail!("Expression type not yet supported: {:?}", expr),

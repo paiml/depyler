@@ -418,27 +418,21 @@ pub enum HirExpr {
         expr: Box<HirExpr>,
         mutable: bool,
     },
-    // List comprehension
+    // List comprehension (DEPYLER-0504: Support multiple generators)
     ListComp {
         element: Box<HirExpr>,
-        target: Symbol,
-        iter: Box<HirExpr>,
-        condition: Option<Box<HirExpr>>,
+        generators: Vec<HirComprehension>,
     },
-    // Set comprehension
+    // Set comprehension (DEPYLER-0504: Support multiple generators)
     SetComp {
         element: Box<HirExpr>,
-        target: Symbol,
-        iter: Box<HirExpr>,
-        condition: Option<Box<HirExpr>>,
+        generators: Vec<HirComprehension>,
     },
-    // Dict comprehension
+    // Dict comprehension (DEPYLER-0504: Support multiple generators)
     DictComp {
         key: Box<HirExpr>,
         value: Box<HirExpr>,
-        target: Symbol,
-        iter: Box<HirExpr>,
-        condition: Option<Box<HirExpr>>,
+        generators: Vec<HirComprehension>,
     },
     // Lambda function
     Lambda {

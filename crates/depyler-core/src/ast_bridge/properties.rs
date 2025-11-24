@@ -474,16 +474,12 @@ impl FunctionAnalyzer {
             HirExpr::Dict(pairs) => Self::check_pairs_for_yield(pairs),
             HirExpr::ListComp {
                 element,
-                iter,
-                condition,
-                ..
+                generators,
             }
             | HirExpr::SetComp {
                 element,
-                iter,
-                condition,
-                ..
-            } => Self::check_comp_for_yield(element, iter, condition),
+                generators,
+            } => Self::check_comp_for_yield(element, generators),
             _ => false,
         }
     }
@@ -508,11 +504,23 @@ impl FunctionAnalyzer {
 
     fn check_comp_for_yield(
         element: &HirExpr,
-        iter: &HirExpr,
-        condition: &Option<Box<HirExpr>>,
+        generators: &[crate::hir::HirComprehension],
     ) -> bool {
-        Self::expr_has_yield(element)
-            || Self::expr_has_yield(iter)
-            || condition.as_ref().is_some_and(|c| Self::expr_has_yield(c))
+        // Check element for yield
+        if Self::expr_has_yield(element) {
+            return true;
+        }
+        // Check all generators (iter and conditions)
+        for gen in generators {
+            if Self::expr_has_yield(&gen.iter) {
+                return true;
+            }
+            for cond in &gen.conditions {
+                if Self::expr_has_yield(cond) {
+                    return true;
+                }
+            }
+        }
+        false
     }
 }
