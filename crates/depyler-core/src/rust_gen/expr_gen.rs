@@ -12071,6 +12071,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 false
                             }
                         }
+                        // DEPYLER-0497: Check if function call returns Option<T>
+                        HirExpr::Call { func, .. } => {
+                            self.ctx.option_returning_functions.contains(func)
+                        }
                         _ => false,
                     };
 
@@ -12167,13 +12171,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         arg_expr
                     };
 
-                    // DEPYLER-0497: Use {:?} for non-Display types (Result, Option, Vec, collections)
+                    // DEPYLER-0497: Use {:?} for non-Display types (Result, Vec, collections)
                     // Use {} for Display types (primitives, String, wrapped Options)
-                    if needs_debug_fmt {
-                        // Use debug formatting for collections, Result, Option, Vec
+                    // IMPORTANT: If Option was wrapped above, it's now a String, so use {} not {:?}
+                    if needs_debug_fmt && !is_option {
+                        // Use debug formatting for collections, Result, Vec
+                        // BUT NOT for Option (already wrapped to String)
                         template.push_str("{:?}");
                     } else {
-                        // Use Display formatting for scalars (and wrapped Options)
+                        // Use Display formatting for scalars and wrapped Options
                         template.push_str("{}");
                     }
 

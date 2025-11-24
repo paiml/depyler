@@ -79,14 +79,15 @@ def main():
 
     let rust = transpile(python);
 
-    // Should handle Option - either {:?}, unwrap, or pattern match
+    // Should handle Option - either {:?}, unwrap, or pattern match (match/if let Some)
     let has_debug = rust.contains("{:?}");
     let has_unwrap = rust.contains("unwrap");
-    let has_pattern = rust.contains("if let Some");
+    let has_match = rust.contains("match &") || rust.contains("match ");
+    let has_if_let = rust.contains("if let Some");
 
     assert!(
-        has_debug || has_unwrap || has_pattern,
-        "Option should be handled with Debug, unwrap, or pattern match, got: {}",
+        has_debug || has_unwrap || has_match || has_if_let,
+        "Option should be handled with Debug, unwrap, match, or if let, got: {}",
         rust
     );
 }
