@@ -236,6 +236,11 @@ pub(crate) fn codegen_function_body(
     ctx.enter_scope();
     ctx.current_function_can_fail = can_fail;
 
+    // GH-70: Pre-populate nested function parameter types with inference
+    // This must happen before processing body statements so that nested function
+    // code generation can use the inferred types from ctx.nested_function_params
+    let _ = detect_returns_nested_function(func, ctx);
+
     // DEPYLER-0460: Infer return type from body if not explicitly annotated
     // This must happen before setting ctx.current_return_type so that return
     // statement generation uses the correct type (e.g., wrapping in Some() for Optional)
@@ -1420,11 +1425,14 @@ fn literal_to_type(lit: &Literal) -> Type {
 
 // ========== Phase 3b: Return Type Generation ==========
 
-/// GH-70: Infer parameter type from tuple unpacking in function body
-/// Detects pattern: `a, b, c = param` and infers param is 3-tuple
+/// GH-70: Infer parameter type from usage patterns in function body
+/// Detects patterns:
+/// - `a, b, c = param` → param is 3-tuple of strings
+/// - `print(param)` → param needs Display trait → String
+/// - Other usage patterns
 fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<Type> {
     for stmt in body {
-        // Look for: (var1, var2, ...) = param_name
+        // Pattern 1: Tuple unpacking - `a, b, c = param`
         if let HirStmt::Assign {
             target,
             value: HirExpr::Var(var),
@@ -1440,8 +1448,128 @@ fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<Type
                 }
             }
         }
+
+        // Pattern 2: Expression statement with print/println call
+        if let HirStmt::Expr(expr) = stmt {
+            if let Some(ty) = infer_type_from_expr_usage(param_name, expr) {
+                return Some(ty);
+            }
+        }
+
+        // Pattern 3: Return statement with expression using param
+        // GH-70: `return item[0]` → infer item is indexable
+        if let HirStmt::Return(Some(expr)) = stmt {
+            if let Some(ty) = infer_type_from_expr_usage(param_name, expr) {
+                return Some(ty);
+            }
+        }
     }
     None
+}
+
+/// GH-70: Helper to infer type from expression usage
+fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> {
+    match expr {
+        // Pattern: print(param) or println(param) → param needs Display → String
+        HirExpr::Call { func, args, .. } => {
+            // func is a Symbol (String), check if it's print/println
+            if func == "print" || func == "println" {
+                // Check if our parameter is used as an argument
+                for arg in args {
+                    if let HirExpr::Var(var_name) = arg {
+                        if var_name == param_name {
+                            return Some(Type::String);
+                        }
+                    }
+                }
+            }
+            // Recursively check arguments
+            for arg in args {
+                if let Some(ty) = infer_type_from_expr_usage(param_name, arg) {
+                    return Some(ty);
+                }
+            }
+            None
+        }
+        // Pattern: f-string with param → param needs Display → String
+        HirExpr::FString { parts } => {
+            for part in parts {
+                if let crate::hir::FStringPart::Expr(val_expr) = part {
+                    if let HirExpr::Var(var_name) = val_expr.as_ref() {
+                        if var_name == param_name {
+                            return Some(Type::String);
+                        }
+                    }
+                }
+            }
+            None
+        }
+        // Pattern: param[index] → param is indexable → Vec<i64> (default assumption)
+        // GH-70: When a parameter is used with indexing like item[0], infer as Vec
+        HirExpr::Index { base, .. } => {
+            if let HirExpr::Var(var_name) = base.as_ref() {
+                if var_name == param_name {
+                    // Default to Vec<i64> for integer indexing
+                    return Some(Type::List(Box::new(Type::Int)));
+                }
+            }
+            // Recursively check base expression
+            infer_type_from_expr_usage(param_name, base)
+        }
+        // Pattern: param[start:stop] → param is sliceable → String or Vec
+        HirExpr::Slice { base, .. } => {
+            if let HirExpr::Var(var_name) = base.as_ref() {
+                if var_name == param_name {
+                    // Slicing is common on strings, default to String
+                    return Some(Type::String);
+                }
+            }
+            infer_type_from_expr_usage(param_name, base)
+        }
+        // Pattern: param * N, param + N, etc. → param is numeric → Int
+        // GH-70: Binary operations with param suggest numeric type
+        HirExpr::Binary { left, right, op, .. } => {
+            // Check if param is used on left side
+            if let HirExpr::Var(var_name) = left.as_ref() {
+                if var_name == param_name {
+                    // For arithmetic ops, infer numeric type
+                    use crate::hir::BinOp;
+                    if matches!(
+                        op,
+                        BinOp::Add
+                            | BinOp::Sub
+                            | BinOp::Mul
+                            | BinOp::Div
+                            | BinOp::FloorDiv
+                            | BinOp::Mod
+                    ) {
+                        return Some(Type::Int);
+                    }
+                }
+            }
+            // Check if param is used on right side
+            if let HirExpr::Var(var_name) = right.as_ref() {
+                if var_name == param_name {
+                    use crate::hir::BinOp;
+                    if matches!(
+                        op,
+                        BinOp::Add
+                            | BinOp::Sub
+                            | BinOp::Mul
+                            | BinOp::Div
+                            | BinOp::FloorDiv
+                            | BinOp::Mod
+                    ) {
+                        return Some(Type::Int);
+                    }
+                }
+            }
+            // Recursively check subexpressions
+            infer_type_from_expr_usage(param_name, left)
+                .or_else(|| infer_type_from_expr_usage(param_name, right))
+        }
+        _ => None,
+    }
 }
 
 /// GH-70: Detect if function returns a nested function/closure
@@ -1477,13 +1605,36 @@ fn detect_returns_nested_function(
             }
 
             // GH-70: Apply type inference to return type
+            // Include inferred param types in the environment so that
+            // expressions like `return item[0]` can infer the element type
             let inferred_ret_type = if matches!(ret_type, Type::Unknown) {
-                // Try to infer from body's return statements
-                if let Some(inferred_ty) = infer_return_type_from_body(body) {
-                    inferred_ty
-                } else {
-                    ret_type.clone()
+                // Build type env with inferred params
+                let mut var_types: std::collections::HashMap<String, Type> =
+                    std::collections::HashMap::new();
+                for p in &inferred_params {
+                    var_types.insert(p.name.clone(), p.ty.clone());
                 }
+                // Build from body assignments
+                build_var_type_env(body, &mut var_types);
+
+                // Collect return types using the enhanced environment
+                let mut return_types = Vec::new();
+                collect_return_types_with_env(body, &mut return_types, &var_types);
+
+                // Check for trailing expression
+                if let Some(HirStmt::Expr(expr)) = body.last() {
+                    let trailing_type = infer_expr_type_with_env(expr, &var_types);
+                    if !matches!(trailing_type, Type::Unknown) {
+                        return_types.push(trailing_type);
+                    }
+                }
+
+                // Get first known type
+                return_types
+                    .iter()
+                    .find(|t| !matches!(t, Type::Unknown))
+                    .cloned()
+                    .unwrap_or_else(|| ret_type.clone())
             } else {
                 ret_type.clone()
             };
