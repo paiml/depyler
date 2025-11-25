@@ -1013,25 +1013,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             });
         }
 
-        // DEPYLER-0422 Fix #5: Handle numpy-style array initialization functions
-        // Python: zeros(n) → Rust: vec![0; n]
-        // Python: ones(n) → Rust: vec![1; n]
-        // Python: full(n, val) → Rust: vec![val; n]
-        if func == "zeros" && args.len() == 1 {
-            let size_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { vec![0; #size_expr as usize] });
-        }
-
-        if func == "ones" && args.len() == 1 {
-            let size_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { vec![1; #size_expr as usize] });
-        }
-
-        if func == "full" && args.len() == 2 {
-            let size_expr = args[0].to_rust_expr(self.ctx)?;
-            let value_expr = args[1].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { vec![#value_expr; #size_expr as usize] });
-        }
+        // DEPYLER-REFACTOR-001 Phase 2.14: Removed redundant zeros/ones/full early handlers
+        // These are now handled by the final match block via convert_array_init_call
+        // which delegates to array_initialization module for consistent handling
 
         // DEPYLER-0363: Handle ArgumentParser() → Skip for now, will be replaced with struct generation
         // ArgumentParser pattern requires complex transformation:
