@@ -31,11 +31,11 @@
 | Function | Original | Current | Change |
 |----------|----------|---------|--------|
 | `convert_binary` | 461 lines | 175 lines | -62% |
-| `convert_call` | 862 lines | 634 lines | -26.5% |
+| `convert_call` | 862 lines | 573 lines | -33.5% |
 
 ### Phase 2 Progress (Internal Decomposition)
 
-#### Completed (Phase 2.7-2.14)
+#### Completed (Phase 2.7-2.15)
 | Change | Lines Saved | Description |
 |--------|-------------|-------------|
 | `convert_containment_op` helper | ~60 | Extracted In/NotIn handling |
@@ -48,6 +48,7 @@
 | `try_convert_numeric_type_call` | ~79 | Extracted Decimal, Fraction |
 | `try_convert_iterator_util_call` | ~42 | Extracted enumerate, zip, isinstance |
 | Remove redundant zeros/ones/full | ~16 | Removed early handlers, use array_initialization module |
+| `needs_debug_format` helper | ~17 | Extracted print debug format detection |
 
 #### Analyzed but NOT Duplicates (Keep Early Handlers)
 | Handler | Reason |
