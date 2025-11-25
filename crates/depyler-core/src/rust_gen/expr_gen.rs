@@ -917,6 +917,50 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-REFACTOR-001 Phase 2.15: Extracted debug format detection helper
+    ///
+    /// Determines if a HirExpr needs {:?} debug formatting instead of {} display formatting.
+    /// Used by print() handler to select appropriate format specifiers.
+    ///
+    /// Returns true for:
+    /// - Collection types (List, Dict, Set, Optional, Unknown)
+    /// - Collection literals (list, dict, set, frozenset)
+    /// - Function calls that return Result types
+    /// - Variables named "value" (heuristic for Option<T>)
+    ///
+    /// # Complexity: 4
+    fn needs_debug_format(&self, hir_arg: &HirExpr) -> bool {
+        match hir_arg {
+            HirExpr::Var(name) => {
+                // DEPYLER-0468: Use debug formatter for collections and Optional types
+                let type_based = self
+                    .ctx
+                    .var_types
+                    .get(name)
+                    .map(|t| {
+                        matches!(
+                            t,
+                            Type::List(_)
+                                | Type::Dict(_, _)
+                                | Type::Set(_)
+                                | Type::Optional(_)
+                                | Type::Unknown
+                        )
+                    })
+                    .unwrap_or(false);
+
+                // Heuristic: "value" often comes from functions returning Option<T>
+                let name_based = name == "value";
+
+                type_based || name_based
+            }
+            HirExpr::List(_) | HirExpr::Dict(_) | HirExpr::Set(_) | HirExpr::FrozenSet(_) => true,
+            // DEPYLER-0497: Function calls that return Result need {:?}
+            HirExpr::Call { func, .. } => self.ctx.result_returning_functions.contains(func),
+            _ => false,
+        }
+    }
+
     fn convert_unary(&mut self, op: &UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
         let operand_expr = operand.to_rust_expr(self.ctx)?;
         match op {
@@ -1458,45 +1502,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             } else if args.len() == 1 {
                 // Single argument print
-                let needs_debug = if let Some(hir_arg) = args.first() {
-                    match hir_arg {
-                        HirExpr::Var(name) => {
-                            // DEPYLER-0468: Use debug formatter for collections and Optional types
-                            // Also use it for variables with Unknown type or known-problematic names
-                            let type_based = self
-                                .ctx
-                                .var_types
-                                .get(name)
-                                .map(|t| {
-                                    matches!(
-                                        t,
-                                        Type::List(_)
-                                            | Type::Dict(_, _)
-                                            | Type::Set(_)
-                                            | Type::Optional(_)
-                                            | Type::Unknown
-                                    )
-                                })
-                                .unwrap_or(false);
-
-                            // Heuristic: "value" often comes from functions returning Option<T>
-                            let name_based = name == "value";
-
-                            type_based || name_based
-                        }
-                        HirExpr::List(_)
-                        | HirExpr::Dict(_)
-                        | HirExpr::Set(_)
-                        | HirExpr::FrozenSet(_) => true,
-                        // DEPYLER-0497: Function calls that return Result need {:?}
-                        HirExpr::Call { func, .. } => {
-                            self.ctx.result_returning_functions.contains(func)
-                        }
-                        _ => false,
-                    }
-                } else {
-                    false
-                };
+                // DEPYLER-REFACTOR-001 Phase 2.15: Use extracted helper
+                let needs_debug = args.first().map(|a| self.needs_debug_format(a)).unwrap_or(false);
 
                 let arg = &arg_exprs[0];
                 if use_stderr {
@@ -1512,35 +1519,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             } else {
                 // Multiple arguments
+                // DEPYLER-REFACTOR-001 Phase 2.15: Use extracted helper
                 let format_specs: Vec<&str> = args
                     .iter()
                     .map(|hir_arg| {
-                        let needs_debug = match hir_arg {
-                            HirExpr::Var(name) => self
-                                .ctx
-                                .var_types
-                                .get(name)
-                                .map(|t| {
-                                    matches!(
-                                        t,
-                                        Type::List(_)
-                                            | Type::Dict(_, _)
-                                            | Type::Set(_)
-                                            | Type::Optional(_)
-                                    )
-                                })
-                                .unwrap_or(false),
-                            HirExpr::List(_)
-                            | HirExpr::Dict(_)
-                            | HirExpr::Set(_)
-                            | HirExpr::FrozenSet(_) => true,
-                            // DEPYLER-0497: Function calls that return Result need {:?}
-                            HirExpr::Call { func, .. } => {
-                                self.ctx.result_returning_functions.contains(func)
-                            }
-                            _ => false,
-                        };
-                        if needs_debug {
+                        if self.needs_debug_format(hir_arg) {
                             "{:?}"
                         } else {
                             "{}"
