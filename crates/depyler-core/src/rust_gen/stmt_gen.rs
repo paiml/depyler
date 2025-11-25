@@ -1063,6 +1063,16 @@ fn apply_truthiness_conversion(
     }
 
     // DEPYLER-0455: Fallback - detect Option types by method call patterns
+    // DEPYLER-0519: Check for method calls that return Vec types (like groups())
+    // Python: `if match.groups():` checks if groups is non-empty
+    // Rust: `if !groups().is_empty()`
+    if let HirExpr::MethodCall { method, .. } = condition {
+        let vec_returning_methods = ["groups", "split", "split_whitespace", "splitlines", "findall"];
+        if vec_returning_methods.contains(&method.as_str()) {
+            return parse_quote! { !#cond_expr.is_empty() };
+        }
+    }
+
     // Check if this looks like an Option<T> based on common patterns:
     // - Variable from `env::var(...).ok()` call
     // - Method calls that return Option (dict.get(), etc.)

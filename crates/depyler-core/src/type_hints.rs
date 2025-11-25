@@ -1113,6 +1113,23 @@ impl TypeHintProvider {
     }
 
     fn infer_var_type(&self, name: &str) -> Type {
+        // DEPYLER-0519: First check usage patterns for Container/Iterator
+        // This takes priority because f-string analysis adds String constraints
+        // to ANY variable used in formatting, even lists. But if we see the
+        // variable used with iteration or len(), it's definitely a list.
+        if let Some(patterns) = self.context.usage_patterns.get(name) {
+            for pattern in patterns {
+                match pattern {
+                    UsagePattern::Container | UsagePattern::Iterator => {
+                        // Variable is used as a container/iterator, definitely a list
+                        return Type::List(Box::new(Type::String));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // Then check explicit Compatible constraints
         for constraint in &self.context.constraints {
             if let TypeConstraint::Compatible { var, ty } = constraint {
                 if var == name {
@@ -1120,6 +1137,7 @@ impl TypeHintProvider {
                 }
             }
         }
+
         Type::Unknown
     }
 
