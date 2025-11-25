@@ -31,11 +31,11 @@
 | Function | Original | Current | Change |
 |----------|----------|---------|--------|
 | `convert_binary` | 461 lines | 175 lines | -62% |
-| `convert_call` | 862 lines | 692 lines | -19.7% |
+| `convert_call` | 862 lines | 650 lines | -24.6% |
 
 ### Phase 2 Progress (Internal Decomposition)
 
-#### Completed (Phase 2.7-2.12)
+#### Completed (Phase 2.7-2.13)
 | Change | Lines Saved | Description |
 |--------|-------------|-------------|
 | `convert_containment_op` helper | ~60 | Extracted In/NotIn handling |
@@ -46,6 +46,7 @@
 | Consolidate chr/ord | ~10 | Removed duplicate early handlers |
 | `try_convert_stdlib_type_call` | ~91 | Extracted Path, datetime, date, time, timedelta |
 | `try_convert_numeric_type_call` | ~79 | Extracted Decimal, Fraction |
+| `try_convert_iterator_util_call` | ~42 | Extracted enumerate, zip, isinstance |
 
 #### Analyzed but NOT Duplicates (Keep Early Handlers)
 | Handler | Reason |
