@@ -984,6 +984,86 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .unwrap_or_else(|| quote! { i32 })
     }
 
+    /// DEPYLER-REFACTOR-001 Phase 2.17: Extracted print call handler
+    ///
+    /// Handles Python print() function conversion to Rust println!/eprintln!.
+    ///
+    /// Features:
+    /// - print() with no args → println!()
+    /// - print(single_arg) → println!("{}", arg) or println!("{:?}", arg) for debug types
+    /// - print(multiple_args) → println!("{} {} ...", arg1, arg2, ...)
+    /// - file=sys.stderr kwarg → eprintln! variants
+    ///
+    /// Returns Some(Ok(expr)) if handled, None if not a print call.
+    ///
+    /// # Complexity: 5
+    fn try_convert_print_call(
+        &self,
+        func: &str,
+        args: &[HirExpr],
+        arg_exprs: &[syn::Expr],
+        kwargs: &[(String, HirExpr)],
+    ) -> Option<Result<syn::Expr>> {
+        if func != "print" {
+            return None;
+        }
+
+        // DEPYLER-0462: Check if file=sys.stderr keyword is present
+        let use_stderr = kwargs.iter().any(|(name, value)| {
+            name == "file"
+                && matches!(value, HirExpr::Attribute {
+                    value: attr_value,
+                    attr
+                } if matches!(&**attr_value, HirExpr::Var(module) if module == "sys") && attr == "stderr")
+        });
+
+        let result = if args.is_empty() {
+            // print() with no arguments
+            if use_stderr {
+                Ok(parse_quote! { eprintln!() })
+            } else {
+                Ok(parse_quote! { println!() })
+            }
+        } else if args.len() == 1 {
+            // Single argument print
+            let needs_debug = args.first().map(|a| self.needs_debug_format(a)).unwrap_or(false);
+            let arg = &arg_exprs[0];
+
+            if use_stderr {
+                if needs_debug {
+                    Ok(parse_quote! { eprintln!("{:?}", #arg) })
+                } else {
+                    Ok(parse_quote! { eprintln!("{}", #arg) })
+                }
+            } else if needs_debug {
+                Ok(parse_quote! { println!("{:?}", #arg) })
+            } else {
+                Ok(parse_quote! { println!("{}", #arg) })
+            }
+        } else {
+            // Multiple arguments - build format string with per-arg detection
+            let format_specs: Vec<&str> = args
+                .iter()
+                .map(|hir_arg| {
+                    if self.needs_debug_format(hir_arg) {
+                        "{:?}"
+                    } else {
+                        "{}"
+                    }
+                })
+                .collect();
+            let format_str = format_specs.join(" ");
+
+            if use_stderr {
+                Ok(parse_quote! { eprintln!(#format_str, #(#arg_exprs),*) })
+            } else {
+                Ok(parse_quote! { println!(#format_str, #(#arg_exprs),*) })
+            }
+        };
+
+        Some(result)
+    }
+
     fn convert_unary(&mut self, op: &UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
         let operand_expr = operand.to_rust_expr(self.ctx)?;
         match op {
@@ -1473,61 +1553,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             all_hir_args.push(value.clone());
         }
 
-        // DEPYLER-0462: Handle print(file=sys.stderr) → eprintln!()
-        // Must check BEFORE kwargs are merged into all_args (losing keyword names)
-        if func == "print" {
-            // Check if file=sys.stderr keyword is present
-            let use_stderr = kwargs.iter().any(|(name, value)| {
-                name == "file" && matches!(value, HirExpr::Attribute {
-                    value: attr_value,
-                    attr
-                } if matches!(&**attr_value, HirExpr::Var(module) if module == "sys") && attr == "stderr")
-            });
-
-            return if args.is_empty() {
-                // print() with no arguments
-                if use_stderr {
-                    Ok(parse_quote! { eprintln!() })
-                } else {
-                    Ok(parse_quote! { println!() })
-                }
-            } else if args.len() == 1 {
-                // Single argument print
-                // DEPYLER-REFACTOR-001 Phase 2.15: Use extracted helper
-                let needs_debug = args.first().map(|a| self.needs_debug_format(a)).unwrap_or(false);
-
-                let arg = &arg_exprs[0];
-                if use_stderr {
-                    if needs_debug {
-                        Ok(parse_quote! { eprintln!("{:?}", #arg) })
-                    } else {
-                        Ok(parse_quote! { eprintln!("{}", #arg) })
-                    }
-                } else if needs_debug {
-                    Ok(parse_quote! { println!("{:?}", #arg) })
-                } else {
-                    Ok(parse_quote! { println!("{}", #arg) })
-                }
-            } else {
-                // Multiple arguments
-                // DEPYLER-REFACTOR-001 Phase 2.15: Use extracted helper
-                let format_specs: Vec<&str> = args
-                    .iter()
-                    .map(|hir_arg| {
-                        if self.needs_debug_format(hir_arg) {
-                            "{:?}"
-                        } else {
-                            "{}"
-                        }
-                    })
-                    .collect();
-                let format_str = format_specs.join(" ");
-                if use_stderr {
-                    Ok(parse_quote! { eprintln!(#format_str, #(#arg_exprs),*) })
-                } else {
-                    Ok(parse_quote! { println!(#format_str, #(#arg_exprs),*) })
-                }
-            };
+        // DEPYLER-REFACTOR-001 Phase 2.17: Delegate print call to helper
+        if let Some(result) = self.try_convert_print_call(func, args, &arg_exprs, kwargs) {
+            return result;
         }
 
         match func {
