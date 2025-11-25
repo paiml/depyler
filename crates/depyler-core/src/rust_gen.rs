@@ -811,6 +811,7 @@ pub fn generate_rust_file(
         function_return_types: std::collections::HashMap::new(), // DEPYLER-0269: Track function return types
         function_param_borrows: std::collections::HashMap::new(), // DEPYLER-0270: Track parameter borrowing
         tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
+        iterator_vars: HashSet::new(),   // DEPYLER-0520: Track variables assigned from iterators
         is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
         result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
         result_returning_functions: HashSet::new(), // DEPYLER-0270: Track ALL Result-returning functions
@@ -1023,6 +1024,7 @@ mod tests {
             function_return_types: std::collections::HashMap::new(), // DEPYLER-0269: Track function return types
             function_param_borrows: std::collections::HashMap::new(), // DEPYLER-0270: Track parameter borrowing
             tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
+            iterator_vars: HashSet::new(),   // DEPYLER-0520: Track variables assigned from iterators
             is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
             result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
             result_returning_functions: HashSet::new(), // DEPYLER-0270: Track ALL Result-returning functions

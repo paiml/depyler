@@ -103,6 +103,9 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-0307 Fix #9: Track variables that iterate over tuples (from zip())
     /// Used to generate tuple field access syntax (tuple.0, tuple.1) instead of vector indexing
     pub tuple_iter_vars: HashSet<String>,
+    /// DEPYLER-0520: Track variables assigned from iterator-producing expressions
+    /// Used to avoid adding .iter().cloned() to variables that are already iterators
+    pub iterator_vars: HashSet<String>,
     /// DEPYLER-0271: Tracks if current statement is the final statement in its block
     /// Used to generate idiomatic expression-based returns (no `return` keyword)
     pub is_final_statement: bool,
