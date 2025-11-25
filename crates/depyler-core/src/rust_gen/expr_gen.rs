@@ -5,6 +5,7 @@
 //! and the ToRustExpr trait implementation for HirExpr.
 
 use crate::hir::*;
+use crate::rust_gen::builtin_conversions; // DEPYLER-REFACTOR-001: Extracted conversions
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use crate::rust_gen::return_type_expects_float;
 use crate::rust_gen::type_gen::convert_binop;
@@ -1619,306 +1620,43 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
     fn convert_len_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
-            bail!("len() requires exactly one argument");
-        }
-        let arg = &args[0];
-
-        // DEPYLER-0276: Keep cast for CSE compatibility
-        // Python's len() returns int (maps to i32)
-        // Rust's .len() returns usize, so we cast to i32
-        // CSE optimization runs before return statement processing, so we need the cast here
-        // to avoid type mismatches when CSE extracts len() into a temporary variable
-        Ok(parse_quote! { #arg.len() as i32 })
+        builtin_conversions::convert_len_call(args)
     }
 
+    /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
     fn convert_int_cast(&self, hir_args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
-        if arg_exprs.is_empty() || arg_exprs.len() > 2 {
-            bail!("int() requires 1-2 arguments");
-        }
-        let arg = &arg_exprs[0];
-
-        // DEPYLER-REFACTOR-001: Handle int(string, base) with from_str_radix
-        if arg_exprs.len() == 2 {
-            let base = &arg_exprs[1];
-            // int("ff", 16) → i64::from_str_radix("ff", 16).unwrap()
-            return Ok(parse_quote! { i64::from_str_radix(#arg, #base).unwrap() });
-        }
-
-        // Python int() serves four purposes:
-        // 1. Parse strings to integers (requires .parse())
-        // 2. Convert floats to integers (truncation via as i32)
-        // 3. Convert bools to integers (False→0, True→1 via as i32)
-        // 4. Ensure integer type for indexing (via as i32)
-        //
-        // DEPYLER-0307 Fix #7: Check if variable is String type
-        // String variables need .parse().unwrap_or_default() not 'as i32' cast
-        //
-        // DEPYLER-0327 Fix #1: Improved type inference for method calls
-        // Check if expression is a String-typed method call (e.g., Vec<String>.get())
-        //
-        // Strategy:
-        // - For String variables/params → .parse().unwrap_or_default()
-        // - For String literals → .parse().unwrap_or_default()
-        // - For String-typed method calls → .parse().unwrap_or_default()
-        // - For known bool expressions → as i32 cast
-        // - For integer literals → no cast needed
-        // - For other variables → as i32 cast conservatively
-        if !hir_args.is_empty() {
-            match &hir_args[0] {
-                // Integer literals don't need casting
-                HirExpr::Literal(Literal::Int(_)) => return Ok(arg.clone()),
-
-                // DEPYLER-0327 Fix #1: String literals need parsing
-                HirExpr::Literal(Literal::String(_)) => {
-                    return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
-                }
-
-                // DEPYLER-0307 Fix #7: Check if variable is String type
-                // DEPYLER-0327 Fix #1: Also use heuristic for variable names
-                HirExpr::Var(var_name) => {
-                    // Check if this variable is known to be String type
-                    let is_known_string = if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                        matches!(var_type, Type::String)
-                    } else {
-                        false
-                    };
-
-                    // Heuristic: variable names ending in _str, _string, or common string names
-                    let name = var_name.as_str();
-                    let looks_like_string = name.ends_with("_str")
-                        || name.ends_with("_string")
-                        || name == "s"
-                        || name == "string"
-                        || name == "text"
-                        || name == "word"
-                        || name == "line"
-                        || name == "value"  // DEPYLER-0436: Common argparse validator parameter
-                        || name == "value_str"  // Explicit case for this example
-                        || name.starts_with("str_")
-                        || name.starts_with("string_");
-
-                    if is_known_string || looks_like_string {
-                        // String → int requires parsing, not casting
-                        // DEPYLER-0293: Use turbofish syntax to specify target type
-                        return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
-                    }
-                    // Default: use as i32 cast for other types
-                    return Ok(parse_quote! { (#arg) as i32 });
-                }
-
-                // DEPYLER-0327 Fix #1: Check if method call returns String type
-                // E.g., Vec<String>.get() or str methods
-                HirExpr::MethodCall {
-                    object,
-                    method,
-                    args: method_args,
-                    ..
-                } => {
-                    // Check if this is .get() on a Vec<String> or similar
-                    if self.is_string_method_call(object, method, method_args) {
-                        return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
-                    }
-                    // Otherwise, use default cast
-                    return Ok(parse_quote! { (#arg) as i32 });
-                }
-
-                // Check if it's a known bool expression
-                expr => {
-                    if let Some(is_bool) = self.is_bool_expr(expr) {
-                        if is_bool {
-                            return Ok(parse_quote! { (#arg) as i32 });
-                        }
-                    }
-                    // For other complex expressions, apply cast conservatively
-                    return Ok(parse_quote! { (#arg) as i32 });
-                }
-            }
-        }
-
-        // Default: cast for safety
-        Ok(parse_quote! { (#arg) as i32 })
+        builtin_conversions::convert_int_cast(
+            self.ctx,
+            hir_args,
+            arg_exprs,
+            |obj, method, args| builtin_conversions::is_string_method_call(self.ctx, obj, method, args),
+            builtin_conversions::is_bool_expr,
+        )
     }
 
+    /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
     fn convert_float_cast(
         &self,
         hir_args: &[HirExpr],
         arg_exprs: &[syn::Expr],
     ) -> Result<syn::Expr> {
-        if arg_exprs.len() != 1 {
-            bail!("float() requires exactly one argument");
-        }
-        let arg = &arg_exprs[0];
-
-        // Python float() serves two purposes:
-        // 1. Parse strings to floats (requires .parse())
-        // 2. Convert integers to floats (via as f64)
-        //
-        // DEPYLER-REFACTOR-001: Check argument type to determine conversion method
-        if !hir_args.is_empty() {
-            match &hir_args[0] {
-                // String literals need parsing
-                HirExpr::Literal(Literal::String(_)) => {
-                    return Ok(parse_quote! { #arg.parse::<f64>().unwrap() });
-                }
-
-                // Integer/float literals can use direct cast
-                HirExpr::Literal(Literal::Int(_) | Literal::Float(_)) => {
-                    return Ok(parse_quote! { (#arg) as f64 });
-                }
-
-                // Check if variable is known to be String type
-                HirExpr::Var(var_name) => {
-                    let is_string = if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                        matches!(var_type, Type::String)
-                    } else {
-                        // Heuristic: variable names that look like strings
-                        let name = var_name.as_str();
-                        name.ends_with("_str")
-                            || name.ends_with("_string")
-                            || name == "s"
-                            || name == "string"
-                            || name == "text"
-                            || name == "value"
-                    };
-
-                    if is_string {
-                        return Ok(parse_quote! { #arg.parse::<f64>().unwrap() });
-                    }
-                    return Ok(parse_quote! { (#arg) as f64 });
-                }
-
-                // Default: cast for numeric types
-                _ => return Ok(parse_quote! { (#arg) as f64 }),
-            }
-        }
-
-        // Default: cast (conservative)
-        Ok(parse_quote! { (#arg) as f64 })
+        builtin_conversions::convert_float_cast(self.ctx, hir_args, arg_exprs)
     }
 
+    /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
     fn convert_str_conversion(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
-            bail!("str() requires exactly one argument");
-        }
-        let arg = &args[0];
-        Ok(parse_quote! { #arg.to_string() })
+        builtin_conversions::convert_str_conversion(args)
     }
 
+    /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
     fn convert_bool_cast(
         &self,
         hir_args: &[HirExpr],
         arg_exprs: &[syn::Expr],
     ) -> Result<syn::Expr> {
-        if arg_exprs.len() != 1 {
-            bail!("bool() requires exactly one argument");
-        }
-        let arg = &arg_exprs[0];
-
-        // DEPYLER-REFACTOR-001: First check syn::Expr for string literals
-        // This catches cases where the HirExpr may not match but the syn::Expr is a literal
-        // Also handle the case where string optimizer adds .to_string()
-        //
-        // Helper to extract string literal from various wrapping forms
-        fn extract_str_literal(expr: &syn::Expr) -> Option<String> {
-            match expr {
-                syn::Expr::Lit(expr_lit) => {
-                    if let syn::Lit::Str(lit_str) = &expr_lit.lit {
-                        return Some(lit_str.value());
-                    }
-                }
-                syn::Expr::Paren(paren) => {
-                    return extract_str_literal(&paren.expr);
-                }
-                syn::Expr::Group(group) => {
-                    return extract_str_literal(&group.expr);
-                }
-                syn::Expr::MethodCall(mc) if mc.method == "to_string" => {
-                    return extract_str_literal(&mc.receiver);
-                }
-                _ => {}
-            }
-            None
-        }
-
-        if let Some(s) = extract_str_literal(arg) {
-            let is_true = !s.is_empty();
-            return Ok(parse_quote! { #is_true });
-        }
-
-        // Python bool() checks truthiness:
-        // - Strings: non-empty → true, empty → false
-        // - Integers: non-zero → true, zero → false
-        // - Floats: non-zero → true, zero → false
-        // - Lists/collections: non-empty → true, empty → false
-        //
-        // DEPYLER-REFACTOR-001: Check HIR argument type to determine conversion method
-        if !hir_args.is_empty() {
-            match &hir_args[0] {
-                // String literals: check non-empty
-                HirExpr::Literal(Literal::String(s)) => {
-                    let is_true = !s.is_empty();
-                    return Ok(parse_quote! { #is_true });
-                }
-
-                // Integer literals: check non-zero
-                HirExpr::Literal(Literal::Int(n)) => {
-                    let is_true = *n != 0;
-                    return Ok(parse_quote! { #is_true });
-                }
-
-                // Float literals: check non-zero
-                HirExpr::Literal(Literal::Float(f)) => {
-                    let is_true = *f != 0.0;
-                    return Ok(parse_quote! { #is_true });
-                }
-
-                // Bool literals: identity
-                HirExpr::Literal(Literal::Bool(b)) => {
-                    return Ok(parse_quote! { #b });
-                }
-
-                // Variables: check type to determine truthiness check
-                HirExpr::Var(var_name) => {
-                    let var_type = self.ctx.var_types.get(var_name);
-                    match var_type {
-                        Some(Type::String) => {
-                            return Ok(parse_quote! { !#arg.is_empty() });
-                        }
-                        Some(Type::Int) => {
-                            return Ok(parse_quote! { #arg != 0 });
-                        }
-                        Some(Type::Float) => {
-                            return Ok(parse_quote! { #arg != 0.0 });
-                        }
-                        Some(Type::Bool) => {
-                            return Ok(arg.clone());
-                        }
-                        Some(Type::List(_) | Type::Set(_) | Type::Dict(_, _)) => {
-                            return Ok(parse_quote! { !#arg.is_empty() });
-                        }
-                        _ => {
-                            // Heuristic for unknown types
-                            let name = var_name.as_str();
-                            if name.ends_with("_str") || name == "s" || name == "string" {
-                                return Ok(parse_quote! { !#arg.is_empty() });
-                            }
-                            // Default: assume integer-like
-                            return Ok(parse_quote! { #arg != 0 });
-                        }
-                    }
-                }
-
-                // For other expressions, use != 0 for numbers, is_empty for collections
-                _ => {
-                    return Ok(parse_quote! { #arg != 0 });
-                }
-            }
-        }
-
-        // Default: assume integer-like
-        Ok(parse_quote! { #arg != 0 })
+        builtin_conversions::convert_bool_cast(self.ctx, hir_args, arg_exprs)
     }
 
     fn convert_range_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
@@ -10471,31 +10209,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-0327 Fix #1: Check if method call returns String type
-    /// Used to detect .get() on Vec<String> and similar patterns
-    ///
-    /// # Complexity
-    /// 6 (match + type lookup + method check + variable name check)
-    fn is_string_method_call(&self, object: &HirExpr, method: &str, _args: &[HirExpr]) -> bool {
-        // Check if object is Vec<String> and method is .get()
-        if method == "get" {
-            if let HirExpr::Var(var_name) = object {
-                // Check var_types to see if this is Vec<String>
-                if let Some(Type::List(inner_type)) = self.ctx.var_types.get(var_name) {
-                    return matches!(inner_type.as_ref(), Type::String);
-                }
-                // Heuristic: Variable names containing "data", "items", "strings", etc.
-                let name = var_name.as_str();
-                return name.contains("str") || name.contains("data") || name.contains("text");
-            }
-        }
-
-        // String methods that return String
-        matches!(
-            method,
-            "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "title" | "replace" | "format"
-        )
-    }
+    // DEPYLER-REFACTOR-001: is_string_method_call moved to builtin_conversions module
 
     fn convert_slice(
         &mut self,
@@ -11869,48 +11583,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn is_bool_expr(&self, expr: &HirExpr) -> Option<bool> {
-        match expr {
-            // Comparison operations always return bool
-            HirExpr::Binary {
-                op:
-                    BinOp::Eq
-                    | BinOp::NotEq
-                    | BinOp::Lt
-                    | BinOp::LtEq
-                    | BinOp::Gt
-                    | BinOp::GtEq
-                    | BinOp::In
-                    | BinOp::NotIn,
-                ..
-            } => Some(true),
-            // Method calls that return bool
-            HirExpr::MethodCall { method, .. }
-                if matches!(
-                    method.as_str(),
-                    "startswith"
-                        | "endswith"
-                        | "isdigit"
-                        | "isalpha"
-                        | "isspace"
-                        | "isupper"
-                        | "islower"
-                        | "issubset"
-                        | "issuperset"
-                        | "isdisjoint"
-                ) =>
-            {
-                Some(true)
-            }
-            // Boolean literals
-            HirExpr::Literal(Literal::Bool(_)) => Some(true),
-            // Logical operations
-            HirExpr::Unary {
-                op: UnaryOp::Not, ..
-            } => Some(true),
-            _ => None,
-        }
-    }
+    // DEPYLER-REFACTOR-001: is_bool_expr moved to builtin_conversions module
 
     fn convert_set_operation(
         &self,
