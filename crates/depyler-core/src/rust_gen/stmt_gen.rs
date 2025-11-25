@@ -3763,10 +3763,13 @@ fn extract_fields_recursive(
                 extract_fields_from_expr(value, args_var, dest_field, fields)
             }
             HirStmt::If {
+                condition,
                 then_body,
                 else_body,
-                ..
             } => {
+                // DEPYLER-0518: Also extract fields from condition
+                // Example: `if not validate_email(args.address)` has args.address in condition
+                extract_fields_from_expr(condition, args_var, dest_field, fields);
                 extract_fields_recursive(then_body, args_var, dest_field, fields);
                 if let Some(else_stmts) = else_body {
                     extract_fields_recursive(else_stmts, args_var, dest_field, fields);

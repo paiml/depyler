@@ -4,7 +4,8 @@
 //! idiomatic Rust code with proper borrowing and ownership patterns.
 
 use crate::borrowing_context::{BorrowingContext, BorrowingStrategy};
-use crate::hir::{AssignTarget, HirExpr, HirFunction, HirStmt};
+use crate::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Type};
+use crate::rust_gen::func_gen::infer_param_type_from_body;
 use crate::type_mapper::RustType;
 use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
@@ -158,7 +159,20 @@ impl LifetimeInference {
                 .cloned()
                 .unwrap_or(BorrowingStrategy::TakeOwnership);
 
-            let rust_type = type_mapper.map_type(&param.ty);
+            // DEPYLER-0518: Try to infer type from body usage for Unknown parameters
+            // This prevents defaulting to serde_json::Value for parameters like 'pattern' and 'text'
+            // that are used with regex operations and should be strings
+            let param_type = if matches!(param.ty, Type::Unknown) {
+                // Try to infer from function body usage patterns
+                if let Some(inferred) = infer_param_type_from_body(&param.name, &func.body) {
+                    inferred
+                } else {
+                    param.ty.clone()
+                }
+            } else {
+                param.ty.clone()
+            };
+            let rust_type = type_mapper.map_type(&param_type);
 
             let (should_borrow, needs_mut, lifetime) = match strategy {
                 BorrowingStrategy::BorrowImmutable { lifetime } => {
@@ -596,7 +610,18 @@ impl LifetimeInference {
                 .get(&param.name)
                 .cloned()
                 .unwrap_or_default();
-            let rust_type = type_mapper.map_type(&param.ty);
+
+            // DEPYLER-0518: Try to infer type from body usage for Unknown parameters
+            let param_type = if matches!(param.ty, Type::Unknown) {
+                if let Some(inferred) = infer_param_type_from_body(&param.name, &func.body) {
+                    inferred
+                } else {
+                    param.ty.clone()
+                }
+            } else {
+                param.ty.clone()
+            };
+            let rust_type = type_mapper.map_type(&param_type);
 
             // Determine if we should borrow or take ownership
             // If parameter escapes (returned) and it's the same type as return, it should be moved
