@@ -11200,8 +11200,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 false
             };
 
+            // DEPYLER-0523: Detect file variables for BufReader wrapping
+            // Same heuristics as stmt_gen.rs for loop file iteration
+            let is_file_iter = if let HirExpr::Var(var_name) = &*gen.iter {
+                var_name == "f"
+                    || var_name == "file"
+                    || var_name == "input"
+                    || var_name == "output"
+                    || var_name.ends_with("_file")
+                    || var_name.starts_with("file_")
+            } else {
+                false
+            };
+
             // DEPYLER-0511: Wrap ranges in parens before method calls
-            let iter_expr = if !is_csv_reader && !matches!(&*gen.iter, HirExpr::Var(_)) {
+            let iter_expr = if !is_csv_reader && !is_file_iter && !matches!(&*gen.iter, HirExpr::Var(_)) {
                 self.wrap_range_in_parens(iter_expr)
             } else {
                 iter_expr
@@ -11211,6 +11224,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0454: CSV reader - use deserialize pattern
                 self.ctx.needs_csv = true;
                 parse_quote! { #iter_expr.deserialize::<std::collections::HashMap<String, String>>().filter_map(|result| result.ok()) }
+            } else if is_file_iter {
+                // DEPYLER-0523: File variable - use BufReader for line iteration
+                self.ctx.needs_bufread = true;
+                parse_quote! { std::io::BufReader::new(#iter_expr).lines().map(|l| l.unwrap_or_default()) }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
                 // Variable iteration - likely borrowed, use .iter().copied()
                 parse_quote! { #iter_expr.iter().copied() }
@@ -12221,8 +12238,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 false
             };
 
+            // DEPYLER-0523: Detect file variables for BufReader wrapping
+            // Same heuristics as stmt_gen.rs for loop file iteration
+            let is_file_iter = if let HirExpr::Var(var_name) = &*gen.iter {
+                var_name == "f"
+                    || var_name == "file"
+                    || var_name == "input"
+                    || var_name == "output"
+                    || var_name.ends_with("_file")
+                    || var_name.starts_with("file_")
+            } else {
+                false
+            };
+
             // DEPYLER-0511: Wrap ranges in parens before method calls
-            let iter_expr = if !is_csv_reader && !matches!(&*gen.iter, HirExpr::Var(_)) {
+            let iter_expr = if !is_csv_reader && !is_file_iter && !matches!(&*gen.iter, HirExpr::Var(_)) {
                 self.wrap_range_in_parens(iter_expr)
             } else {
                 iter_expr
@@ -12230,6 +12260,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-0307 Fix #10: Use .iter().copied() for borrowed collections
             // DEPYLER-0454 Extension: Use .deserialize() for CSV readers
+            // DEPYLER-0523: Use BufReader for file iteration
             // When the iterator is a variable (likely a borrowed parameter like &Vec<i32>),
             // use .iter().copied() to get owned values instead of references
             // This prevents type mismatches like `&i32` vs `i32` in generator expressions
@@ -12237,6 +12268,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0454: CSV reader - use deserialize pattern
                 self.ctx.needs_csv = true;
                 parse_quote! { #iter_expr.deserialize::<std::collections::HashMap<String, String>>().filter_map(|result| result.ok()) }
+            } else if is_file_iter {
+                // DEPYLER-0523: File variable - use BufReader for line iteration
+                self.ctx.needs_bufread = true;
+                parse_quote! { std::io::BufReader::new(#iter_expr).lines().map(|l| l.unwrap_or_default()) }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
                 // Variable iteration - likely borrowed, use .iter().copied()
                 parse_quote! { #iter_expr.iter().copied() }
