@@ -9824,10 +9824,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 _ => {
                     // String variable - needs proper referencing
                     // HashMap.get() expects &K, so we need to borrow the key
+                    // DEPYLER-0521: Don't add & if variable is already &str type
                     let index_expr = index.to_rust_expr(self.ctx)?;
-                    Ok(parse_quote! {
-                        #base_expr.get(&#index_expr).cloned().unwrap_or_default()
-                    })
+                    let needs_borrow = if let HirExpr::Var(var_name) = index {
+                        // Check if variable is already a borrowed string type (&str)
+                        // Function parameters with str type annotation are &str in Rust
+                        !matches!(
+                            self.ctx.var_types.get(var_name),
+                            Some(Type::String) // owned String needs & to become &str
+                        ) && !self.is_borrowed_str_param(var_name)
+                    } else {
+                        true // Non-variable expressions typically need borrowing
+                    };
+                    if needs_borrow {
+                        Ok(parse_quote! {
+                            #base_expr.get(&#index_expr).cloned().unwrap_or_default()
+                        })
+                    } else {
+                        Ok(parse_quote! {
+                            #base_expr.get(#index_expr).cloned().unwrap_or_default()
+                        })
+                    }
                 }
             }
         } else if is_string_base {
@@ -11453,6 +11470,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             _ => false,
         }
+    }
+
+    /// DEPYLER-0521: Check if variable is a borrowed string parameter (&str)
+    ///
+    /// Function parameters with Python `str` type annotation become `&str` in Rust.
+    /// When used as dict keys, they should NOT have `&` added (already borrowed).
+    ///
+    /// Heuristic: If variable not in var_types and has a string-key-like name,
+    /// it's likely a function parameter that's &str.
+    ///
+    /// # Complexity
+    /// 2 (lookup + name check)
+    fn is_borrowed_str_param(&self, var_name: &str) -> bool {
+        // If variable is explicitly typed, use that info
+        if let Some(var_type) = self.ctx.var_types.get(var_name) {
+            // Owned String needs borrow, but if marked Unknown (untracked param), check name
+            return !matches!(var_type, Type::String);
+        }
+
+        // Variable not in var_types - likely a function parameter
+        // Use heuristic: common parameter names for dict keys
+        matches!(
+            var_name,
+            "column" | "col" | "key" | "k" | "name" | "field" | "attr" | "property"
+        )
     }
 
     /// DEPYLER-0496: Check if expression returns a Result type
