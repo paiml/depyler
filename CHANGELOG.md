@@ -11457,6 +11457,7 @@ and this project adheres to
   - Impact: Python type hints now preserved and enforced in generated Rust code
 
 ### Fixed
+- Nested function definitions not supported - Blocks itertools.groupby with key functions (#70)
 - Codegen Bug: Missing `Args::parse()` call in argparse-generated CLI code (#103)
 - Nested function definitions not supported - Blocks itertools.groupby with key functions (#70)
 - Codegen Bug: Missing `Args::parse()` call in argparse-generated CLI code (#103)
