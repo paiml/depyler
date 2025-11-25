@@ -3448,6 +3448,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         //   }
         // }
 
+        // DEPYLER-0517: Handle Option<String> for cwd parameter
+        // When cwd is a runtime variable (e.g., function parameter with default None),
+        // it may be Option<String>. Use if-let to safely handle this case.
+        //
+        // Return a tuple (i32, String, String) instead of a struct to avoid
+        // type mismatch issues when the result is used in different branches.
         let result = if capture_output {
             // Use .output() to capture stdout/stderr
             if let Some(cwd) = cwd_expr {
@@ -3456,18 +3462,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         let cmd_list = #cmd_expr;
                         let mut cmd = std::process::Command::new(&cmd_list[0]);
                         cmd.args(&cmd_list[1..]);
-                        cmd.current_dir(#cwd);
+                        if let Some(dir) = #cwd {
+                            cmd.current_dir(dir);
+                        }
                         let output = cmd.output().expect("subprocess.run() failed");
-                        struct SubprocessResult {
-                            returncode: i32,
-                            stdout: String,
-                            stderr: String,
-                        }
-                        SubprocessResult {
-                            returncode: output.status.code().unwrap_or(-1),
-                            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-                            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-                        }
+                        (
+                            output.status.code().unwrap_or(-1),
+                            String::from_utf8_lossy(&output.stdout).to_string(),
+                            String::from_utf8_lossy(&output.stderr).to_string()
+                        )
                     }
                 }
             } else {
@@ -3477,16 +3480,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         let mut cmd = std::process::Command::new(&cmd_list[0]);
                         cmd.args(&cmd_list[1..]);
                         let output = cmd.output().expect("subprocess.run() failed");
-                        struct SubprocessResult {
-                            returncode: i32,
-                            stdout: String,
-                            stderr: String,
-                        }
-                        SubprocessResult {
-                            returncode: output.status.code().unwrap_or(-1),
-                            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-                            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-                        }
+                        (
+                            output.status.code().unwrap_or(-1),
+                            String::from_utf8_lossy(&output.stdout).to_string(),
+                            String::from_utf8_lossy(&output.stderr).to_string()
+                        )
                     }
                 }
             }
@@ -3498,18 +3496,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         let cmd_list = #cmd_expr;
                         let mut cmd = std::process::Command::new(&cmd_list[0]);
                         cmd.args(&cmd_list[1..]);
-                        cmd.current_dir(#cwd);
+                        if let Some(dir) = #cwd {
+                            cmd.current_dir(dir);
+                        }
                         let status = cmd.status().expect("subprocess.run() failed");
-                        struct SubprocessResult {
-                            returncode: i32,
-                            stdout: String,
-                            stderr: String,
-                        }
-                        SubprocessResult {
-                            returncode: status.code().unwrap_or(-1),
-                            stdout: String::new(),
-                            stderr: String::new(),
-                        }
+                        (
+                            status.code().unwrap_or(-1),
+                            String::new(),
+                            String::new()
+                        )
                     }
                 }
             } else {
@@ -3519,16 +3514,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         let mut cmd = std::process::Command::new(&cmd_list[0]);
                         cmd.args(&cmd_list[1..]);
                         let status = cmd.status().expect("subprocess.run() failed");
-                        struct SubprocessResult {
-                            returncode: i32,
-                            stdout: String,
-                            stderr: String,
-                        }
-                        SubprocessResult {
-                            returncode: status.code().unwrap_or(-1),
-                            stdout: String::new(),
-                            stderr: String::new(),
-                        }
+                        (
+                            status.code().unwrap_or(-1),
+                            String::new(),
+                            String::new()
+                        )
                     }
                 }
             }
@@ -10719,6 +10709,71 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_attribute(&mut self, value: &HirExpr, attr: &str) -> Result<syn::Expr> {
+        // DEPYLER-0517: Handle subprocess result attributes
+        // When accessing .returncode/.stdout/.stderr on a subprocess.run() result,
+        // convert to tuple indexing since subprocess.run() returns (i32, String, String)
+        if let HirExpr::Var(var_name) = value {
+            // Check if this variable holds a subprocess result (tracked via type system)
+            if let Some(Type::Custom(type_name)) = self.ctx.var_types.get(var_name) {
+                if type_name == "SubprocessResult" {
+                    let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                    match attr {
+                        "returncode" => {
+                            return Ok(parse_quote! { #var_ident.0 });
+                        }
+                        "stdout" => {
+                            return Ok(parse_quote! { #var_ident.1 });
+                        }
+                        "stderr" => {
+                            return Ok(parse_quote! { #var_ident.2 });
+                        }
+                        _ => {} // Fall through to regular attribute handling
+                    }
+                }
+            }
+
+            // DEPYLER-0517: Heuristic fallback for subprocess result variables
+            // Common pattern: `result = subprocess.run(...)` then `result.returncode`
+            // Variable names "result", "proc", "process", "completed" are likely subprocess results
+            let is_likely_subprocess_result = var_name == "result"
+                || var_name == "proc"
+                || var_name == "process"
+                || var_name == "completed"
+                || var_name.ends_with("_result")
+                || var_name.ends_with("_process");
+
+            if is_likely_subprocess_result {
+                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                match attr {
+                    "returncode" => {
+                        return Ok(parse_quote! { #var_ident.0 });
+                    }
+                    "stdout" => {
+                        return Ok(parse_quote! { #var_ident.1 });
+                    }
+                    "stderr" => {
+                        return Ok(parse_quote! { #var_ident.2 });
+                    }
+                    _ => {} // Fall through to regular attribute handling
+                }
+            }
+
+            // DEPYLER-0517: Handle exception variable attributes
+            // Python: `except CalledProcessError as e: e.returncode`
+            // Rust: Box<dyn Error> doesn't have returncode, use fallback
+            // Common exception variable names: e, err, error, exc, exception
+            let is_likely_exception = var_name == "e"
+                || var_name == "err"
+                || var_name == "error"
+                || var_name == "exc"
+                || var_name == "exception";
+
+            if is_likely_exception && attr == "returncode" {
+                // Use 1 as a generic non-zero exit code for errors
+                return Ok(parse_quote! { 1 });
+            }
+        }
+
         // DEPYLER-0425: Handle subcommand field access (args.url → url)
         // If this is accessing a subcommand-specific field on args parameter,
         // generate just the field name (it's extracted via pattern matching)

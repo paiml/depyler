@@ -967,6 +967,22 @@ fn apply_truthiness_conversion(
                 _ => cond_expr,
             };
         }
+
+        // DEPYLER-0517: Heuristic fallback for common string variable names
+        // This handles variables from tuple unpacking that aren't tracked in var_types
+        // e.g., `let (returncode, stdout, stderr) = run_command(...)`
+        let var_str = var_name.as_str();
+        if var_str == "stdout"
+            || var_str == "stderr"
+            || var_str == "output"
+            || var_str == "result"
+            || var_str.ends_with("_output")
+            || var_str.ends_with("_result")
+            || var_str.ends_with("_str")
+            || var_str.ends_with("_string")
+        {
+            return parse_quote! { !#cond_expr.is_empty() };
+        }
     }
 
     // DEPYLER-0446: Check if this is an attribute access to an optional argparse field

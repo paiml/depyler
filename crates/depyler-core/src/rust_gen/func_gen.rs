@@ -1111,6 +1111,11 @@ fn infer_expr_type_with_env(
                         )));
                     }
                     ("csv", "writer") | ("csv", "DictWriter") => return Type::Unknown,
+                    // DEPYLER-0517: subprocess.run() returns CompletedProcess-like struct
+                    // with .returncode: int, .stdout: str, .stderr: str
+                    ("subprocess", "run") => {
+                        return Type::Custom("SubprocessResult".to_string());
+                    }
                     _ => {} // Fall through to regular method handling
                 }
             }
@@ -1182,6 +1187,31 @@ fn infer_expr_type_with_env(
             } else {
                 // For other types (lists, etc.), slicing returns same type
                 base_type
+            }
+        }
+        // DEPYLER-0517: Handle Attribute with environment-aware inference
+        // This is needed to resolve types like `result.returncode` where `result`
+        // is a subprocess.run() result stored in a variable
+        HirExpr::Attribute { value, attr } => {
+            // Get the base type using the environment
+            let base_type = infer_expr_type_with_env(value, var_types);
+
+            // Handle SubprocessResult attributes
+            if matches!(base_type, Type::Custom(ref s) if s == "SubprocessResult") {
+                return match attr.as_str() {
+                    "returncode" => Type::Int,
+                    "stdout" | "stderr" => Type::String,
+                    _ => Type::Unknown,
+                };
+            }
+
+            // Common attributes with known types
+            match attr.as_str() {
+                "real" | "imag" => Type::Float,
+                // DEPYLER-0517: Common subprocess result attributes (fallback)
+                "returncode" => Type::Int,
+                "stdout" | "stderr" => Type::String,
+                _ => Type::Unknown,
             }
         }
         // For other cases, use the simple version
@@ -1400,10 +1430,28 @@ fn infer_expr_type_simple(expr: &HirExpr) -> Type {
             Box::new(infer_expr_type_simple(value)),
         ),
         // DEPYLER-0414: Add Attribute type inference
-        HirExpr::Attribute { attr, .. } => {
+        HirExpr::Attribute { value, attr } => {
+            // DEPYLER-0517: Check if this is an attribute access on a subprocess result
+            // Since we don't have var_types here, check if the base is a method call
+            // on the subprocess module
+            if let HirExpr::MethodCall { object, method, .. } = value.as_ref() {
+                if let HirExpr::Var(module) = object.as_ref() {
+                    if module == "subprocess" && method == "run" {
+                        return match attr.as_str() {
+                            "returncode" => Type::Int,
+                            "stdout" | "stderr" => Type::String,
+                            _ => Type::Unknown,
+                        };
+                    }
+                }
+            }
+
             // Common attributes with known types
             match attr.as_str() {
                 "real" | "imag" => Type::Float,
+                // DEPYLER-0517: Common subprocess result attributes (fallback)
+                "returncode" => Type::Int,
+                "stdout" | "stderr" => Type::String,
                 _ => Type::Unknown,
             }
         }
