@@ -6,6 +6,7 @@
 
 use crate::hir::*;
 use crate::rust_gen::builtin_conversions; // DEPYLER-REFACTOR-001: Extracted conversions
+use crate::rust_gen::collection_constructors; // DEPYLER-REFACTOR-001: Extracted constructors
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use crate::rust_gen::return_type_expects_float;
 use crate::rust_gen::type_gen::convert_binop;
@@ -1813,142 +1814,35 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-REFACTOR-001: Delegated to collection_constructors module
     fn convert_set_constructor(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        self.ctx.needs_hashset = true;
-        if args.is_empty() {
-            // Empty set: set()
-            // DEPYLER-0409: Use default type i32 to avoid "type annotations needed" error
-            // when the variable is unused or type can't be inferred from context
-            Ok(parse_quote! { HashSet::<i32>::new() })
-        } else if args.len() == 1 {
-            // Set from iterable: set([1, 2, 3])
-            let arg = &args[0];
-            Ok(parse_quote! {
-                #arg.into_iter().collect::<HashSet<_>>()
-            })
-        } else {
-            bail!("set() takes at most 1 argument ({} given)", args.len())
-        }
+        collection_constructors::convert_set_constructor(self.ctx, args)
     }
 
+    /// DEPYLER-REFACTOR-001: Delegated to collection_constructors module
     fn convert_frozenset_constructor(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        self.ctx.needs_hashset = true;
-        if args.is_empty() {
-            // Empty frozenset: frozenset()
-            // In Rust, we can use Arc<HashSet> to make it immutable
-            // DEPYLER-0409: Use default type i32 for empty sets
-            Ok(parse_quote! { std::sync::Arc::new(HashSet::<i32>::new()) })
-        } else if args.len() == 1 {
-            // Frozenset from iterable: frozenset([1, 2, 3])
-            let arg = &args[0];
-            Ok(parse_quote! {
-                std::sync::Arc::new(#arg.into_iter().collect::<HashSet<_>>())
-            })
-        } else {
-            bail!(
-                "frozenset() takes at most 1 argument ({} given)",
-                args.len()
-            )
-        }
+        collection_constructors::convert_frozenset_constructor(self.ctx, args)
     }
 
     // ========================================================================
     // DEPYLER-0171, 0172, 0173, 0174: Collection Conversion Builtins
+    // DEPYLER-REFACTOR-001: Delegated to collection_constructors module
     // ========================================================================
 
     fn convert_counter_builtin(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        // DEPYLER-0171: Counter(iterable) counts elements and creates HashMap
-        self.ctx.needs_hashmap = true;
-        if args.is_empty() {
-            // Counter() with no args → empty HashMap
-            Ok(parse_quote! { HashMap::new() })
-        } else if args.len() == 1 {
-            // Counter(iterable) → count elements using fold
-            let arg = &args[0];
-            Ok(parse_quote! {
-                #arg.into_iter().fold(HashMap::new(), |mut acc, item| {
-                    *acc.entry(item).or_insert(0) += 1;
-                    acc
-                })
-            })
-        } else {
-            bail!("Counter() takes at most 1 argument ({} given)", args.len())
-        }
+        collection_constructors::convert_counter_builtin(self.ctx, args)
     }
 
     fn convert_dict_builtin(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        // DEPYLER-0172: dict() converts mapping/iterable to HashMap
-        self.ctx.needs_hashmap = true;
-        if args.is_empty() {
-            // dict() with no args → empty HashMap
-            Ok(parse_quote! { HashMap::new() })
-        } else if args.len() == 1 {
-            // dict(mapping) → convert to HashMap
-            let arg = &args[0];
-            Ok(parse_quote! {
-                #arg.into_iter().collect::<HashMap<_, _>>()
-            })
-        } else {
-            bail!("dict() takes at most 1 argument ({} given)", args.len())
-        }
+        collection_constructors::convert_dict_builtin(self.ctx, args)
     }
 
     fn convert_deque_builtin(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        // DEPYLER-0173: deque(iterable) creates VecDeque from iterable
-        self.ctx.needs_vecdeque = true;
-        if args.is_empty() {
-            // deque() with no args → empty VecDeque
-            Ok(parse_quote! { VecDeque::new() })
-        } else if args.len() == 1 {
-            // deque(iterable) → VecDeque::from()
-            let arg = &args[0];
-            Ok(parse_quote! {
-                VecDeque::from(#arg)
-            })
-        } else {
-            bail!("deque() takes at most 1 argument ({} given)", args.len())
-        }
+        collection_constructors::convert_deque_builtin(self.ctx, args)
     }
 
     fn convert_list_builtin(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        // DEPYLER-0174: list(iterable) converts iterable to Vec
-        if args.is_empty() {
-            // list() with no args → empty Vec
-            Ok(parse_quote! { Vec::new() })
-        } else if args.len() == 1 {
-            let arg = &args[0];
-
-            // DEPYLER-0177: Check if expression already collected
-            // map(lambda...) already includes .collect(), don't add another
-            if self.already_collected(arg) {
-                Ok(arg.clone())
-            } else if self.is_range_expr(arg) {
-                // DEPYLER-0179: range(5) → (0..5).collect()
-                Ok(parse_quote! {
-                    (#arg).collect::<Vec<_>>()
-                })
-            } else if self.is_iterator_expr(arg) {
-                // DEPYLER-0176: zip(), enumerate() return iterators
-                // Don't add redundant .into_iter()
-                Ok(parse_quote! {
-                    #arg.collect::<Vec<_>>()
-                })
-            } else if self.is_csv_reader_var(arg) {
-                // DEPYLER-0452: CSV DictReader → use deserialize() for list conversion
-                // list(reader) → reader.deserialize::<HashMap<String, String>>().collect()
-                self.ctx.needs_csv = true;
-                Ok(parse_quote! {
-                    #arg.deserialize::<HashMap<String, String>>().collect::<Vec<_>>()
-                })
-            } else {
-                // Regular iterable → collect to Vec
-                Ok(parse_quote! {
-                    #arg.into_iter().collect::<Vec<_>>()
-                })
-            }
-        } else {
-            bail!("list() takes at most 1 argument ({} given)", args.len())
-        }
+        collection_constructors::convert_list_builtin(self.ctx, args)
     }
 
     // DEPYLER-STDLIB-BUILTINS: Additional builtin function converters
@@ -2326,59 +2220,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { std::any::type_name_of_val(&#value) })
     }
 
-    /// Check if expression already ends with .collect()
-    fn already_collected(&self, expr: &syn::Expr) -> bool {
-        if let syn::Expr::MethodCall(method_call) = expr {
-            method_call.method == "collect"
-        } else {
-            false
-        }
-    }
-
-    /// Check if expression is a range (0..5, start..end, etc.)
-    fn is_range_expr(&self, expr: &syn::Expr) -> bool {
-        matches!(expr, syn::Expr::Range(_))
-    }
-
-    /// Check if expression is an iterator-producing expression
-    fn is_iterator_expr(&self, expr: &syn::Expr) -> bool {
-        // Check if it's a method call that returns an iterator
-        if let syn::Expr::MethodCall(method_call) = expr {
-            let method_name = method_call.method.to_string();
-            matches!(
-                method_name.as_str(),
-                "iter"
-                    | "iter_mut"
-                    | "into_iter"
-                    | "zip"
-                    | "map"
-                    | "filter"
-                    | "enumerate"
-                    | "chain"
-                    | "flat_map"
-                    | "take"
-                    | "skip"
-                    | "collect"
-            )
-        } else {
-            false
-        }
-    }
-
-    /// DEPYLER-0452: Check if expression is a CSV reader variable
-    /// Uses heuristic name-based detection (reader, csv_reader, etc.)
-    fn is_csv_reader_var(&self, expr: &syn::Expr) -> bool {
-        if let syn::Expr::Path(path) = expr {
-            if let Some(ident) = path.path.get_ident() {
-                let var_name = ident.to_string();
-                return var_name == "reader"
-                    || var_name.contains("csv")
-                    || var_name.ends_with("_reader")
-                    || var_name.starts_with("reader_");
-            }
-        }
-        false
-    }
+    // DEPYLER-REFACTOR-001: Helper functions moved to collection_constructors module:
+    // already_collected, is_range_expr, is_iterator_expr, is_csv_reader_var
 
     fn convert_generic_call(
         &self,
