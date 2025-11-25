@@ -581,6 +581,159 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-REFACTOR-001 Phase 2.11: Extracted stdlib type constructors helper
+    ///
+    /// Handles stdlib type constructors: Path, datetime, date, time, timedelta
+    /// Returns Some(result) if handled, None if not a stdlib type constructor.
+    ///
+    /// # Complexity: 8
+    fn try_convert_stdlib_type_call(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+    ) -> Option<Result<syn::Expr>> {
+        match func {
+            // DEPYLER-STDLIB-PATHLIB: Handle Path() constructor
+            "Path" if args.len() == 1 => {
+                let path_expr = match args[0].to_rust_expr(self.ctx) {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e)),
+                };
+                let borrowed_path = Self::borrow_if_needed(&path_expr);
+                Some(Ok(parse_quote! { std::path::PathBuf::from(#borrowed_path) }))
+            }
+
+            // DEPYLER-STDLIB-DATETIME: Handle datetime constructors
+            "datetime" if args.len() >= 3 => {
+                self.ctx.needs_chrono = true;
+                let year = match args[0].to_rust_expr(self.ctx) {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e)),
+                };
+                let month = match args[1].to_rust_expr(self.ctx) {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e)),
+                };
+                let day = match args[2].to_rust_expr(self.ctx) {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e)),
+                };
+
+                if args.len() == 3 {
+                    Some(Ok(parse_quote! {
+                        chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
+                            .unwrap()
+                            .and_hms_opt(0, 0, 0)
+                            .unwrap()
+                    }))
+                } else if args.len() >= 6 {
+                    let hour = match args[3].to_rust_expr(self.ctx) {
+                        Ok(e) => e,
+                        Err(e) => return Some(Err(e)),
+                    };
+                    let minute = match args[4].to_rust_expr(self.ctx) {
+                        Ok(e) => e,
+                        Err(e) => return Some(Err(e)),
+                    };
+                    let second = match args[5].to_rust_expr(self.ctx) {
+                        Ok(e) => e,
+                        Err(e) => return Some(Err(e)),
+                    };
+                    Some(Ok(parse_quote! {
+                        chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
+                            .unwrap()
+                            .and_hms_opt(#hour as u32, #minute as u32, #second as u32)
+                            .unwrap()
+                    }))
+                } else {
+                    Some(Err(anyhow::anyhow!(
+                        "datetime() requires 3 or 6+ arguments"
+                    )))
+                }
+            }
+            "datetime" => Some(Err(anyhow::anyhow!(
+                "datetime() requires at least 3 arguments (year, month, day)"
+            ))),
+
+            // date(year, month, day) → NaiveDate::from_ymd_opt(y, m, d).unwrap()
+            "date" if args.len() == 3 => {
+                self.ctx.needs_chrono = true;
+                let year = match args[0].to_rust_expr(self.ctx) {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e)),
+                };
+                let month = match args[1].to_rust_expr(self.ctx) {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e)),
+                };
+                let day = match args[2].to_rust_expr(self.ctx) {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e)),
+                };
+                Some(Ok(parse_quote! {
+                    chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).unwrap()
+                }))
+            }
+
+            // time(hour, minute, second) → NaiveTime::from_hms_opt(h, m, s).unwrap()
+            "time" if args.len() >= 2 => {
+                self.ctx.needs_chrono = true;
+                let hour = match args[0].to_rust_expr(self.ctx) {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e)),
+                };
+                let minute = match args[1].to_rust_expr(self.ctx) {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e)),
+                };
+
+                if args.len() == 2 {
+                    Some(Ok(parse_quote! {
+                        chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, 0).unwrap()
+                    }))
+                } else {
+                    let second = match args[2].to_rust_expr(self.ctx) {
+                        Ok(e) => e,
+                        Err(e) => return Some(Err(e)),
+                    };
+                    Some(Ok(parse_quote! {
+                        chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, #second as u32).unwrap()
+                    }))
+                }
+            }
+
+            // timedelta(days=..., seconds=...) → Duration::days(...) + Duration::seconds(...)
+            "timedelta" => {
+                self.ctx.needs_chrono = true;
+                if args.is_empty() {
+                    Some(Ok(parse_quote! { chrono::Duration::zero() }))
+                } else if args.len() == 1 {
+                    let days = match args[0].to_rust_expr(self.ctx) {
+                        Ok(e) => e,
+                        Err(e) => return Some(Err(e)),
+                    };
+                    Some(Ok(parse_quote! { chrono::Duration::days(#days as i64) }))
+                } else if args.len() == 2 {
+                    let days = match args[0].to_rust_expr(self.ctx) {
+                        Ok(e) => e,
+                        Err(e) => return Some(Err(e)),
+                    };
+                    let seconds = match args[1].to_rust_expr(self.ctx) {
+                        Ok(e) => e,
+                        Err(e) => return Some(Err(e)),
+                    };
+                    Some(Ok(parse_quote! {
+                        chrono::Duration::days(#days as i64) + chrono::Duration::seconds(#seconds as i64)
+                    }))
+                } else {
+                    None // Let it fall through
+                }
+            }
+
+            _ => None,
+        }
+    }
+
     fn convert_unary(&mut self, op: &UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
         let operand_expr = operand.to_rust_expr(self.ctx)?;
         match op {
@@ -1111,101 +1264,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             bail!("Fraction() requires 1 or 2 arguments");
         }
 
-        // DEPYLER-STDLIB-PATHLIB: Handle Path() constructor
-        // Path("/foo/bar") → PathBuf::from("/foo/bar")
-        // Path(p) / "subdir" → p.join("subdir")
-        if func == "Path" && args.len() == 1 {
-            let path_expr = args[0].to_rust_expr(self.ctx)?;
-            // DEPYLER-0465: Borrow variable paths to avoid moving String parameters
-            // If path_expr is a simple variable (not a literal or method call), add &
-            let borrowed_path = Self::borrow_if_needed(&path_expr);
-            return Ok(parse_quote! { std::path::PathBuf::from(#borrowed_path) });
-        }
-
-        // DEPYLER-STDLIB-DATETIME: Handle datetime constructors
-        // datetime(year, month, day) → NaiveDate::from_ymd_opt(y, m, d).unwrap().and_hms_opt(0, 0, 0).unwrap()
-        // datetime(year, month, day, hour, minute, second) → NaiveDate::from_ymd_opt(...).and_hms_opt(...)
-        if func == "datetime" {
-            self.ctx.needs_chrono = true;
-
-            if args.len() >= 3 {
-                let year = args[0].to_rust_expr(self.ctx)?;
-                let month = args[1].to_rust_expr(self.ctx)?;
-                let day = args[2].to_rust_expr(self.ctx)?;
-
-                if args.len() == 3 {
-                    // datetime(year, month, day) - default time to 00:00:00
-                    return Ok(parse_quote! {
-                        chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
-                            .unwrap()
-                            .and_hms_opt(0, 0, 0)
-                            .unwrap()
-                    });
-                } else if args.len() >= 6 {
-                    // datetime(year, month, day, hour, minute, second)
-                    let hour = args[3].to_rust_expr(self.ctx)?;
-                    let minute = args[4].to_rust_expr(self.ctx)?;
-                    let second = args[5].to_rust_expr(self.ctx)?;
-                    return Ok(parse_quote! {
-                        chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
-                            .unwrap()
-                            .and_hms_opt(#hour as u32, #minute as u32, #second as u32)
-                            .unwrap()
-                    });
-                }
-            }
-            bail!("datetime() requires at least 3 arguments (year, month, day)");
-        }
-
-        // date(year, month, day) → NaiveDate::from_ymd_opt(y, m, d).unwrap()
-        if func == "date" && args.len() == 3 {
-            self.ctx.needs_chrono = true;
-            let year = args[0].to_rust_expr(self.ctx)?;
-            let month = args[1].to_rust_expr(self.ctx)?;
-            let day = args[2].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! {
-                chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).unwrap()
-            });
-        }
-
-        // time(hour, minute, second) → NaiveTime::from_hms_opt(h, m, s).unwrap()
-        if func == "time" && args.len() >= 2 {
-            self.ctx.needs_chrono = true;
-            let hour = args[0].to_rust_expr(self.ctx)?;
-            let minute = args[1].to_rust_expr(self.ctx)?;
-
-            if args.len() == 2 {
-                return Ok(parse_quote! {
-                    chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, 0).unwrap()
-                });
-            } else if args.len() >= 3 {
-                let second = args[2].to_rust_expr(self.ctx)?;
-                return Ok(parse_quote! {
-                    chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, #second as u32).unwrap()
-                });
-            }
-        }
-
-        // timedelta(days=..., seconds=...) → Duration::days(...) + Duration::seconds(...)
-        // Note: Python timedelta uses keyword args, but we'll support positional for now
-        if func == "timedelta" {
-            self.ctx.needs_chrono = true;
-
-            if args.is_empty() {
-                // timedelta() with no args → zero duration
-                return Ok(parse_quote! { chrono::Duration::zero() });
-            } else if args.len() == 1 {
-                // Assume days parameter
-                let days = args[0].to_rust_expr(self.ctx)?;
-                return Ok(parse_quote! { chrono::Duration::days(#days as i64) });
-            } else if args.len() == 2 {
-                // Assume days, seconds parameters
-                let days = args[0].to_rust_expr(self.ctx)?;
-                let seconds = args[1].to_rust_expr(self.ctx)?;
-                return Ok(parse_quote! {
-                    chrono::Duration::days(#days as i64) + chrono::Duration::seconds(#seconds as i64)
-                });
-            }
+        // DEPYLER-REFACTOR-001 Phase 2.11: Delegate stdlib type constructors to helper
+        // Handles: Path, datetime, date, time, timedelta
+        if let Some(result) = self.try_convert_stdlib_type_call(func, args) {
+            return result;
         }
 
         // Handle enumerate(items) → items.into_iter().enumerate()
