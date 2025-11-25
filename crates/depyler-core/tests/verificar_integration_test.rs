@@ -374,18 +374,22 @@ def fibonacci(n: int) -> int:
 
     #[test]
     fn test_verification_stats_pass_rate() {
-        let mut stats = VerificationStats::default();
-        stats.total = 10;
-        stats.passed = 8;
+        let stats = VerificationStats {
+            total: 10,
+            passed: 8,
+            ..Default::default()
+        };
 
         assert_eq!(stats.pass_rate(), 80.0);
     }
 
     #[test]
     fn test_verification_stats_transpile_rate() {
-        let mut stats = VerificationStats::default();
-        stats.total = 10;
-        stats.transpile_errors = 2;
+        let stats = VerificationStats {
+            total: 10,
+            transpile_errors: 2,
+            ..Default::default()
+        };
 
         assert_eq!(stats.transpile_rate(), 80.0);
     }

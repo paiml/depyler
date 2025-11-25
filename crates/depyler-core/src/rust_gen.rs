@@ -16,7 +16,7 @@ mod context;
 mod error_gen;
 mod expr_gen;
 mod format;
-mod func_gen;
+pub mod func_gen; // DEPYLER-0518: Made public for type inference from lifetime_analysis
 mod generator_gen;
 mod import_gen;
 pub mod keywords; // DEPYLER-0023: Centralized keyword escaping
