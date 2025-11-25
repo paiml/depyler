@@ -13,13 +13,6 @@ use anyhow::{bail, Result};
 use quote::{quote, ToTokens};
 use syn::{self, parse_quote};
 
-/// DEPYLER-0498: Integer type for cast detection (i32 vs i64)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum IntType {
-    I32,
-    I64,
-}
-
 struct ExpressionConverter<'a, 'b> {
     ctx: &'a mut CodeGenContext<'b>,
 }
@@ -1030,10 +1023,52 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #char_expr.chars().next().unwrap() as i32 });
         }
 
-        // DEPYLER-0255: Handle bool(value) → value != 0
+        // DEPYLER-0255: Handle bool(value) → type-aware truthiness check
+        // DEPYLER-REFACTOR-001: Fixed to handle different types correctly
         if func == "bool" && args.len() == 1 {
-            let value_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #value_expr != 0 });
+            let arg = &args[0];
+            match arg {
+                // String literals: non-empty → true, empty → false
+                HirExpr::Literal(Literal::String(s)) => {
+                    let is_true = !s.is_empty();
+                    return Ok(parse_quote! { #is_true });
+                }
+                // Integer literals: non-zero → true, zero → false
+                HirExpr::Literal(Literal::Int(n)) => {
+                    let is_true = *n != 0;
+                    return Ok(parse_quote! { #is_true });
+                }
+                // Float literals: non-zero → true, zero → false
+                HirExpr::Literal(Literal::Float(f)) => {
+                    let is_true = *f != 0.0;
+                    return Ok(parse_quote! { #is_true });
+                }
+                // Bool literals: identity
+                HirExpr::Literal(Literal::Bool(b)) => {
+                    return Ok(parse_quote! { #b });
+                }
+                // Variables: check type
+                HirExpr::Var(var_name) => {
+                    let value_expr = arg.to_rust_expr(self.ctx)?;
+                    if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                        return match var_type {
+                            Type::String => Ok(parse_quote! { !#value_expr.is_empty() }),
+                            Type::Float => Ok(parse_quote! { #value_expr != 0.0 }),
+                            Type::List(_) | Type::Set(_) | Type::Dict(_, _) => {
+                                Ok(parse_quote! { !#value_expr.is_empty() })
+                            }
+                            _ => Ok(parse_quote! { #value_expr != 0 }),
+                        };
+                    }
+                    // Default for unknown variables: assume integer-like
+                    return Ok(parse_quote! { #value_expr != 0 });
+                }
+                // Other expressions: default to != 0
+                _ => {
+                    let value_expr = arg.to_rust_expr(self.ctx)?;
+                    return Ok(parse_quote! { #value_expr != 0 });
+                }
+            }
         }
 
         // DEPYLER-STDLIB-DECIMAL: Handle Decimal() constructor
@@ -1459,9 +1494,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match func {
             // Python built-in type conversions → Rust casting
             "int" => self.convert_int_cast(&all_hir_args, &arg_exprs),
-            "float" => self.convert_float_cast(&arg_exprs),
+            "float" => self.convert_float_cast(&all_hir_args, &arg_exprs),
             "str" => self.convert_str_conversion(&arg_exprs),
-            "bool" => self.convert_bool_cast(&arg_exprs),
+            "bool" => self.convert_bool_cast(&all_hir_args, &arg_exprs),
             // Other built-in functions
             "len" => self.convert_len_call(&arg_exprs),
             "range" => self.convert_range_call(&arg_exprs),
@@ -1604,6 +1639,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
         let arg = &arg_exprs[0];
 
+        // DEPYLER-REFACTOR-001: Handle int(string, base) with from_str_radix
+        if arg_exprs.len() == 2 {
+            let base = &arg_exprs[1];
+            // int("ff", 16) → i64::from_str_radix("ff", 16).unwrap()
+            return Ok(parse_quote! { i64::from_str_radix(#arg, #base).unwrap() });
+        }
+
         // Python int() serves four purposes:
         // 1. Parse strings to integers (requires .parse())
         // 2. Convert floats to integers (truncation via as i32)
@@ -1699,11 +1741,60 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { (#arg) as i32 })
     }
 
-    fn convert_float_cast(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
+    fn convert_float_cast(
+        &self,
+        hir_args: &[HirExpr],
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        if arg_exprs.len() != 1 {
             bail!("float() requires exactly one argument");
         }
-        let arg = &args[0];
+        let arg = &arg_exprs[0];
+
+        // Python float() serves two purposes:
+        // 1. Parse strings to floats (requires .parse())
+        // 2. Convert integers to floats (via as f64)
+        //
+        // DEPYLER-REFACTOR-001: Check argument type to determine conversion method
+        if !hir_args.is_empty() {
+            match &hir_args[0] {
+                // String literals need parsing
+                HirExpr::Literal(Literal::String(_)) => {
+                    return Ok(parse_quote! { #arg.parse::<f64>().unwrap() });
+                }
+
+                // Integer/float literals can use direct cast
+                HirExpr::Literal(Literal::Int(_) | Literal::Float(_)) => {
+                    return Ok(parse_quote! { (#arg) as f64 });
+                }
+
+                // Check if variable is known to be String type
+                HirExpr::Var(var_name) => {
+                    let is_string = if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                        matches!(var_type, Type::String)
+                    } else {
+                        // Heuristic: variable names that look like strings
+                        let name = var_name.as_str();
+                        name.ends_with("_str")
+                            || name.ends_with("_string")
+                            || name == "s"
+                            || name == "string"
+                            || name == "text"
+                            || name == "value"
+                    };
+
+                    if is_string {
+                        return Ok(parse_quote! { #arg.parse::<f64>().unwrap() });
+                    }
+                    return Ok(parse_quote! { (#arg) as f64 });
+                }
+
+                // Default: cast for numeric types
+                _ => return Ok(parse_quote! { (#arg) as f64 }),
+            }
+        }
+
+        // Default: cast (conservative)
         Ok(parse_quote! { (#arg) as f64 })
     }
 
@@ -1715,14 +1806,119 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { #arg.to_string() })
     }
 
-    fn convert_bool_cast(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
+    fn convert_bool_cast(
+        &self,
+        hir_args: &[HirExpr],
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        if arg_exprs.len() != 1 {
             bail!("bool() requires exactly one argument");
         }
-        let arg = &args[0];
-        // In Python, bool(x) checks truthiness
-        // In Rust, we cast to bool or use appropriate conversion
-        Ok(parse_quote! { (#arg) as bool })
+        let arg = &arg_exprs[0];
+
+        // DEPYLER-REFACTOR-001: First check syn::Expr for string literals
+        // This catches cases where the HirExpr may not match but the syn::Expr is a literal
+        // Also handle the case where string optimizer adds .to_string()
+        //
+        // Helper to extract string literal from various wrapping forms
+        fn extract_str_literal(expr: &syn::Expr) -> Option<String> {
+            match expr {
+                syn::Expr::Lit(expr_lit) => {
+                    if let syn::Lit::Str(lit_str) = &expr_lit.lit {
+                        return Some(lit_str.value());
+                    }
+                }
+                syn::Expr::Paren(paren) => {
+                    return extract_str_literal(&paren.expr);
+                }
+                syn::Expr::Group(group) => {
+                    return extract_str_literal(&group.expr);
+                }
+                syn::Expr::MethodCall(mc) if mc.method == "to_string" => {
+                    return extract_str_literal(&mc.receiver);
+                }
+                _ => {}
+            }
+            None
+        }
+
+        if let Some(s) = extract_str_literal(arg) {
+            let is_true = !s.is_empty();
+            return Ok(parse_quote! { #is_true });
+        }
+
+        // Python bool() checks truthiness:
+        // - Strings: non-empty → true, empty → false
+        // - Integers: non-zero → true, zero → false
+        // - Floats: non-zero → true, zero → false
+        // - Lists/collections: non-empty → true, empty → false
+        //
+        // DEPYLER-REFACTOR-001: Check HIR argument type to determine conversion method
+        if !hir_args.is_empty() {
+            match &hir_args[0] {
+                // String literals: check non-empty
+                HirExpr::Literal(Literal::String(s)) => {
+                    let is_true = !s.is_empty();
+                    return Ok(parse_quote! { #is_true });
+                }
+
+                // Integer literals: check non-zero
+                HirExpr::Literal(Literal::Int(n)) => {
+                    let is_true = *n != 0;
+                    return Ok(parse_quote! { #is_true });
+                }
+
+                // Float literals: check non-zero
+                HirExpr::Literal(Literal::Float(f)) => {
+                    let is_true = *f != 0.0;
+                    return Ok(parse_quote! { #is_true });
+                }
+
+                // Bool literals: identity
+                HirExpr::Literal(Literal::Bool(b)) => {
+                    return Ok(parse_quote! { #b });
+                }
+
+                // Variables: check type to determine truthiness check
+                HirExpr::Var(var_name) => {
+                    let var_type = self.ctx.var_types.get(var_name);
+                    match var_type {
+                        Some(Type::String) => {
+                            return Ok(parse_quote! { !#arg.is_empty() });
+                        }
+                        Some(Type::Int) => {
+                            return Ok(parse_quote! { #arg != 0 });
+                        }
+                        Some(Type::Float) => {
+                            return Ok(parse_quote! { #arg != 0.0 });
+                        }
+                        Some(Type::Bool) => {
+                            return Ok(arg.clone());
+                        }
+                        Some(Type::List(_) | Type::Set(_) | Type::Dict(_, _)) => {
+                            return Ok(parse_quote! { !#arg.is_empty() });
+                        }
+                        _ => {
+                            // Heuristic for unknown types
+                            let name = var_name.as_str();
+                            if name.ends_with("_str") || name == "s" || name == "string" {
+                                return Ok(parse_quote! { !#arg.is_empty() });
+                            }
+                            // Default: assume integer-like
+                            return Ok(parse_quote! { #arg != 0 });
+                        }
+                    }
+                }
+
+                // For other expressions, use != 0 for numbers, is_empty for collections
+                _ => {
+                    return Ok(parse_quote! { #arg != 0 });
+                }
+            }
+        }
+
+        // Default: assume integer-like
+        Ok(parse_quote! { #arg != 0 })
     }
 
     fn convert_range_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
@@ -2666,27 +2862,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     };
 
-                    let mut final_expr = if should_borrow {
+                    // DEPYLER-0515: Let Rust's type inference determine integer types
+                    // from function signatures, rather than blindly casting to i64.
+                    if should_borrow {
                         parse_quote! { &#arg_expr }
                     } else {
                         arg_expr.clone()
-                    };
-
-                    // DEPYLER-0515: REMOVED the DEPYLER-0498 i64 casting logic
-                    //
-                    // Previous behavior (DEPYLER-0498): Blindly cast all i32 arithmetic to i64
-                    // for user-defined functions. This caused E0308 errors when functions
-                    // actually expected i32 parameters.
-                    //
-                    // New behavior: Let Rust's type inference determine the correct integer type
-                    // from the function signature. If there's a mismatch, Rust's type checker
-                    // will report an error, which is clearer than generating incorrect code.
-                    //
-                    // If a function truly needs i64 but receives i32 arithmetic, the user
-                    // should explicitly annotate types in Python or we should infer from
-                    // function signature (future improvement).
-
-                    final_expr
+                    }
                 })
                 .collect();
 
@@ -11579,76 +11761,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 false
             }
             _ => false,
-        }
-    }
-
-    /// DEPYLER-0498: Check if expression contains integer literals
-    fn contains_int_literal(&self, expr: &HirExpr) -> bool {
-        match expr {
-            HirExpr::Literal(crate::hir::Literal::Int(_)) => true,
-            HirExpr::Binary { left, right, .. } => {
-                self.contains_int_literal(left) || self.contains_int_literal(right)
-            }
-            HirExpr::Unary { operand, .. } => self.contains_int_literal(operand),
-            _ => false,
-        }
-    }
-
-    /// DEPYLER-0498: Infer integer type from HIR expression
-    ///
-    /// Returns Some(IntType::I32) or Some(IntType::I64) if expression is integer-typed,
-    /// None otherwise.
-    ///
-    /// Five-Whys Root Cause: Need to detect i32 arithmetic expressions vs i64 parameters
-    /// Strategy: If expression contains integer literals, treat as i32 arithmetic
-    fn infer_expr_int_type(&self, expr: &HirExpr) -> Option<IntType> {
-        // Simple heuristic: if expression contains integer literals, it's i32 arithmetic
-        // This matches Rust's type inference for arithmetic expressions
-        if self.contains_int_literal(expr) {
-            return Some(IntType::I32);
-        }
-
-        match expr {
-            // Variable: check var_types (only if no literals in expression)
-            HirExpr::Var(var_name) => {
-                if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                    match var_type {
-                        Type::Int => Some(IntType::I64), // Default Int maps to i64
-                        Type::Custom(s) if s == "i32" => Some(IntType::I32),
-                        Type::Custom(s) if s == "i64" => Some(IntType::I64),
-                        _ => None,
-                    }
-                } else {
-                    None
-                }
-            }
-            // Literal already checked above
-            HirExpr::Literal(crate::hir::Literal::Int(_)) => Some(IntType::I32),
-            // Binary operation: already checked for literals
-            HirExpr::Binary { .. } => None,
-            // Unary operation: propagate type
-            HirExpr::Unary { operand, .. } => self.infer_expr_int_type(operand),
-            // Function call: check return type
-            HirExpr::Call { func, .. } => {
-                if let Some(ret_type) = self.ctx.function_return_types.get(func) {
-                    match ret_type {
-                        Type::Int => Some(IntType::I64), // Default Int
-                        Type::Custom(s) if s == "i32" => Some(IntType::I32),
-                        Type::Custom(s) if s == "i64" => Some(IntType::I64),
-                        _ => None,
-                    }
-                } else {
-                    None
-                }
-            }
-            // Method call: check return type heuristics
-            HirExpr::MethodCall { method, .. } => {
-                match method.as_str() {
-                    "len" | "count" | "capacity" => Some(IntType::I64), // usize → i64
-                    _ => None,
-                }
-            }
-            _ => None,
         }
     }
 
