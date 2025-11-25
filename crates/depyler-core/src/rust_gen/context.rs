@@ -74,6 +74,7 @@ pub struct CodeGenContext<'a> {
     pub needs_url_encoding: bool,
     pub needs_io_read: bool, // DEPYLER-0458: Track std::io::Read trait for file I/O
     pub needs_io_write: bool, // DEPYLER-0458: Track std::io::Write trait for file I/O
+    pub needs_bufread: bool, // DEPYLER-0522: Track std::io::BufRead trait for .lines() method
     pub needs_once_cell: bool, // DEPYLER-REARCH-001: Track once_cell for lazy static initialization
     pub declared_vars: Vec<HashSet<String>>,
     pub current_function_can_fail: bool,
