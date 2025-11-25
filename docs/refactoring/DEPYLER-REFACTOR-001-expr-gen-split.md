@@ -31,11 +31,11 @@
 | Function | Original | Current | Change |
 |----------|----------|---------|--------|
 | `convert_binary` | 461 lines | 175 lines | -62% |
-| `convert_call` | 862 lines | 541 lines | -37.2% |
+| `convert_call` | 862 lines | 489 lines | -43.3% |
 
 ### Phase 2 Progress (Internal Decomposition)
 
-#### Completed (Phase 2.7-2.16)
+#### Completed (Phase 2.7-2.17)
 | Change | Lines Saved | Description |
 |--------|-------------|-------------|
 | `convert_containment_op` helper | ~60 | Extracted In/NotIn handling |
@@ -50,6 +50,7 @@
 | Remove redundant zeros/ones/full | ~16 | Removed early handlers, use array_initialization module |
 | `needs_debug_format` helper | ~17 | Extracted print debug format detection |
 | `infer_numeric_type_token` helper | ~9 | Extracted sum type inference |
+| `try_convert_print_call` helper | ~52 | Extracted print() handler with stderr support |
 
 #### Analyzed but NOT Duplicates (Keep Early Handlers)
 | Handler | Reason |
