@@ -4239,6 +4239,13 @@ fn codegen_nested_function_def(
         .map(|inferred| inferred.as_slice())
         .unwrap_or(params);
 
+    // GH-70: Populate ctx.var_types with inferred param types so that
+    // expressions in body (like item[0]) can use proper type info
+    // to decide between tuple syntax (.0) and array syntax ([0])
+    for param in effective_params {
+        ctx.var_types.insert(param.name.clone(), param.ty.clone());
+    }
+
     // Generate parameters
     let param_tokens: Vec<proc_macro2::TokenStream> = effective_params
         .iter()

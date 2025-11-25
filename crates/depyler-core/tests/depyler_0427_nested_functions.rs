@@ -38,8 +38,12 @@ def outer():
 
     let rust = result.unwrap();
 
-    // Should contain inner function definition
-    assert!(rust.contains("fn inner"), "Should generate inner function");
+    // Should contain inner function definition (now generated as closure)
+    // GH-70: Changed from `fn inner` to `let inner = |...|` for better type inference
+    assert!(
+        rust.contains("let inner") || rust.contains("fn inner"),
+        "Should generate inner function/closure"
+    );
     assert!(rust.contains("x * 2"), "Should contain function body");
 }
 
@@ -61,7 +65,11 @@ def outer():
     );
 
     let rust = result.unwrap();
-    assert!(rust.contains("fn add"), "Should generate inner function");
+    // GH-70: Changed from `fn add` to `let add = |...|` for better type inference
+    assert!(
+        rust.contains("let add") || rust.contains("fn add"),
+        "Should generate inner function/closure"
+    );
 }
 
 #[test]
