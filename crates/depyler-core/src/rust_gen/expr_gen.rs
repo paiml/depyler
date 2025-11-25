@@ -734,6 +734,130 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-REFACTOR-001 Phase 2.12: Extracted numeric type constructors helper
+    ///
+    /// Handles Decimal and Fraction constructors.
+    /// Returns Some(result) if handled, None if not a numeric type constructor.
+    ///
+    /// # Complexity: 7
+    fn try_convert_numeric_type_call(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+    ) -> Option<Result<syn::Expr>> {
+        match func {
+            // DEPYLER-STDLIB-DECIMAL: Handle Decimal() constructor
+            "Decimal" if args.len() == 1 => {
+                self.ctx.needs_rust_decimal = true;
+                let arg = &args[0];
+
+                let result = match arg {
+                    HirExpr::Literal(Literal::String(_)) => {
+                        match arg.to_rust_expr(self.ctx) {
+                            Ok(arg_expr) => {
+                                Ok(parse_quote! { rust_decimal::Decimal::from_str(&#arg_expr).unwrap() })
+                            }
+                            Err(e) => Err(e),
+                        }
+                    }
+                    HirExpr::Literal(Literal::Int(_)) => {
+                        match arg.to_rust_expr(self.ctx) {
+                            Ok(arg_expr) => Ok(parse_quote! { rust_decimal::Decimal::from(#arg_expr) }),
+                            Err(e) => Err(e),
+                        }
+                    }
+                    HirExpr::Literal(Literal::Float(_)) => {
+                        match arg.to_rust_expr(self.ctx) {
+                            Ok(arg_expr) => {
+                                Ok(parse_quote! { rust_decimal::Decimal::from_f64_retain(#arg_expr).unwrap() })
+                            }
+                            Err(e) => Err(e),
+                        }
+                    }
+                    _ => {
+                        match arg.to_rust_expr(self.ctx) {
+                            Ok(arg_expr) => {
+                                Ok(parse_quote! { rust_decimal::Decimal::from_str(&(#arg_expr).to_string()).unwrap() })
+                            }
+                            Err(e) => Err(e),
+                        }
+                    }
+                };
+                Some(result)
+            }
+
+            // DEPYLER-STDLIB-FRACTIONS: Handle Fraction() constructor
+            "Fraction" if args.len() == 1 => {
+                self.ctx.needs_num_rational = true;
+                let arg = &args[0];
+
+                let result = match arg {
+                    HirExpr::Literal(Literal::String(_)) => {
+                        match arg.to_rust_expr(self.ctx) {
+                            Ok(arg_expr) => Ok(parse_quote! {
+                                {
+                                    let s = #arg_expr;
+                                    let parts: Vec<&str> = s.split('/').collect();
+                                    if parts.len() == 2 {
+                                        let num = parts[0].trim().parse::<i32>().unwrap();
+                                        let denom = parts[1].trim().parse::<i32>().unwrap();
+                                        num::rational::Ratio::new(num, denom)
+                                    } else {
+                                        let num = s.parse::<i32>().unwrap();
+                                        num::rational::Ratio::from_integer(num)
+                                    }
+                                }
+                            }),
+                            Err(e) => Err(e),
+                        }
+                    }
+                    HirExpr::Literal(Literal::Int(_)) => {
+                        match arg.to_rust_expr(self.ctx) {
+                            Ok(arg_expr) => {
+                                Ok(parse_quote! { num::rational::Ratio::from_integer(#arg_expr) })
+                            }
+                            Err(e) => Err(e),
+                        }
+                    }
+                    HirExpr::Literal(Literal::Float(_)) => {
+                        match arg.to_rust_expr(self.ctx) {
+                            Ok(arg_expr) => {
+                                Ok(parse_quote! { num::rational::Ratio::approximate_float(#arg_expr).unwrap() })
+                            }
+                            Err(e) => Err(e),
+                        }
+                    }
+                    _ => {
+                        match arg.to_rust_expr(self.ctx) {
+                            Ok(arg_expr) => {
+                                Ok(parse_quote! { num::rational::Ratio::approximate_float(#arg_expr as f64).unwrap() })
+                            }
+                            Err(e) => Err(e),
+                        }
+                    }
+                };
+                Some(result)
+            }
+
+            "Fraction" if args.len() == 2 => {
+                self.ctx.needs_num_rational = true;
+                let num_expr = match args[0].to_rust_expr(self.ctx) {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e)),
+                };
+                let denom_expr = match args[1].to_rust_expr(self.ctx) {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e)),
+                };
+                Some(Ok(parse_quote! { num::rational::Ratio::new(#num_expr, #denom_expr) }))
+            }
+
+            "Fraction" => Some(Err(anyhow::anyhow!("Fraction() requires 1 or 2 arguments"))),
+
+            _ => None,
+        }
+    }
+
     fn convert_unary(&mut self, op: &UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
         let operand_expr = operand.to_rust_expr(self.ctx)?;
         match op {
@@ -1180,88 +1304,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
-        // DEPYLER-STDLIB-DECIMAL: Handle Decimal() constructor
-        // Decimal("123.45") → Decimal::from_str("123.45").unwrap()
-        // Decimal(123) → Decimal::from(123)
-        // Decimal(3.14) → Decimal::from_f64_retain(3.14).unwrap()
-        if func == "Decimal" && args.len() == 1 {
-            self.ctx.needs_rust_decimal = true;
-            let arg = &args[0];
-
-            // Determine the conversion based on argument type
-            let result = match arg {
-                HirExpr::Literal(Literal::String(_)) => {
-                    let arg_expr = arg.to_rust_expr(self.ctx)?;
-                    parse_quote! { rust_decimal::Decimal::from_str(&#arg_expr).unwrap() }
-                }
-                HirExpr::Literal(Literal::Int(_)) => {
-                    let arg_expr = arg.to_rust_expr(self.ctx)?;
-                    parse_quote! { rust_decimal::Decimal::from(#arg_expr) }
-                }
-                HirExpr::Literal(Literal::Float(_)) => {
-                    let arg_expr = arg.to_rust_expr(self.ctx)?;
-                    parse_quote! { rust_decimal::Decimal::from_f64_retain(#arg_expr).unwrap() }
-                }
-                _ => {
-                    // Generic case: try from_str for variables
-                    let arg_expr = arg.to_rust_expr(self.ctx)?;
-                    parse_quote! { rust_decimal::Decimal::from_str(&(#arg_expr).to_string()).unwrap() }
-                }
-            };
-
-            return Ok(result);
-        }
-
-        // DEPYLER-STDLIB-FRACTIONS: Handle Fraction() constructor
-        // Fraction(numerator, denominator) → Ratio::new(num, denom)
-        // Fraction("1/2") → Ratio::from_str("1/2") (simplified - needs parsing)
-        // Fraction(3.14) → Ratio::approximate_float(3.14)
-        if func == "Fraction" {
-            self.ctx.needs_num_rational = true;
-
-            if args.len() == 1 {
-                let arg = &args[0];
-                // Determine type and convert appropriately
-                let result = match arg {
-                    HirExpr::Literal(Literal::String(_)) => {
-                        let arg_expr = arg.to_rust_expr(self.ctx)?;
-                        // Parse "numerator/denominator" format
-                        parse_quote! {
-                            {
-                                let s = #arg_expr;
-                                let parts: Vec<&str> = s.split('/').collect();
-                                if parts.len() == 2 {
-                                    let num = parts[0].trim().parse::<i32>().unwrap();
-                                    let denom = parts[1].trim().parse::<i32>().unwrap();
-                                    num::rational::Ratio::new(num, denom)
-                                } else {
-                                    let num = s.parse::<i32>().unwrap();
-                                    num::rational::Ratio::from_integer(num)
-                                }
-                            }
-                        }
-                    }
-                    HirExpr::Literal(Literal::Int(_)) => {
-                        let arg_expr = arg.to_rust_expr(self.ctx)?;
-                        parse_quote! { num::rational::Ratio::from_integer(#arg_expr) }
-                    }
-                    HirExpr::Literal(Literal::Float(_)) => {
-                        let arg_expr = arg.to_rust_expr(self.ctx)?;
-                        parse_quote! { num::rational::Ratio::approximate_float(#arg_expr).unwrap() }
-                    }
-                    _ => {
-                        let arg_expr = arg.to_rust_expr(self.ctx)?;
-                        parse_quote! { num::rational::Ratio::approximate_float(#arg_expr as f64).unwrap() }
-                    }
-                };
-                return Ok(result);
-            } else if args.len() == 2 {
-                // Fraction(numerator, denominator)
-                let num_expr = args[0].to_rust_expr(self.ctx)?;
-                let denom_expr = args[1].to_rust_expr(self.ctx)?;
-                return Ok(parse_quote! { num::rational::Ratio::new(#num_expr, #denom_expr) });
-            }
-            bail!("Fraction() requires 1 or 2 arguments");
+        // DEPYLER-REFACTOR-001 Phase 2.12: Delegate numeric type constructors to helper
+        // Handles: Decimal, Fraction
+        if let Some(result) = self.try_convert_numeric_type_call(func, args) {
+            return result;
         }
 
         // DEPYLER-REFACTOR-001 Phase 2.11: Delegate stdlib type constructors to helper
