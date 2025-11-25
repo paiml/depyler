@@ -961,6 +961,29 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-REFACTOR-001 Phase 2.16: Extracted numeric type token inference helper
+    ///
+    /// Infers the numeric type token for sum/aggregate operations based on
+    /// the current function's return type context.
+    ///
+    /// Returns:
+    /// - `quote! { i32 }` for Int return type
+    /// - `quote! { f64 }` for Float return type
+    /// - `quote! { i32 }` as default for other/unknown types
+    ///
+    /// # Complexity: 2
+    fn infer_numeric_type_token(&self) -> proc_macro2::TokenStream {
+        self.ctx
+            .current_return_type
+            .as_ref()
+            .and_then(|t| match t {
+                Type::Int => Some(quote! { i32 }),
+                Type::Float => Some(quote! { f64 }),
+                _ => None,
+            })
+            .unwrap_or_else(|| quote! { i32 })
+    }
+
     fn convert_unary(&mut self, op: &UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
         let operand_expr = operand.to_rust_expr(self.ctx)?;
         match op {
@@ -1109,19 +1132,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Need turbofish type annotation to help Rust's type inference
         if func == "sum" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
             let gen_expr = args[0].to_rust_expr(self.ctx)?;
-
-            // Infer the target type from return type context
-            let target_type = self
-                .ctx
-                .current_return_type
-                .as_ref()
-                .and_then(|t| match t {
-                    Type::Int => Some(quote! { i32 }),
-                    Type::Float => Some(quote! { f64 }),
-                    _ => None,
-                })
-                .unwrap_or_else(|| quote! { i32 });
-
+            // DEPYLER-REFACTOR-001 Phase 2.16: Use extracted helper
+            let target_type = self.infer_numeric_type_token();
             return Ok(parse_quote! { #gen_expr.sum::<#target_type>() });
         }
 
@@ -1153,18 +1165,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             {
                 if range_func == "range" {
                     let range_expr = args[0].to_rust_expr(self.ctx)?;
-
-                    let target_type = self
-                        .ctx
-                        .current_return_type
-                        .as_ref()
-                        .and_then(|t| match t {
-                            Type::Int => Some(quote! { i32 }),
-                            Type::Float => Some(quote! { f64 }),
-                            _ => None,
-                        })
-                        .unwrap_or_else(|| quote! { i32 });
-
+                    // DEPYLER-REFACTOR-001 Phase 2.16: Use extracted helper
+                    let target_type = self.infer_numeric_type_token();
                     // Wrap range in parentheses to fix precedence: (0..n).sum() not 0..n.sum()
                     return Ok(parse_quote! { (#range_expr).sum::<#target_type>() });
                 }
@@ -1224,19 +1226,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // Default: assume iterable that needs .iter()
             let iter_expr = args[0].to_rust_expr(self.ctx)?;
-
-            // Infer the target type from return type context
-            let target_type = self
-                .ctx
-                .current_return_type
-                .as_ref()
-                .and_then(|t| match t {
-                    Type::Int => Some(quote! { i32 }),
-                    Type::Float => Some(quote! { f64 }),
-                    _ => None,
-                })
-                .unwrap_or_else(|| quote! { i32 });
-
+            // DEPYLER-REFACTOR-001 Phase 2.16: Use extracted helper
+            let target_type = self.infer_numeric_type_token();
             return Ok(parse_quote! { #iter_expr.iter().sum::<#target_type>() });
         }
 
