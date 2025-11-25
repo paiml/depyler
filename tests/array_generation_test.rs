@@ -57,9 +57,11 @@ def test_init():
     let rust_code = transpile_snippet(py_code).expect("Failed to transpile");
 
     // Check array initialization functions
-    assert!(rust_code.contains("[0; 10 as usize]"));
-    assert!(rust_code.contains("[1; 5 as usize]"));
-    assert!(rust_code.contains("[42; 8 as usize]"));
+    // DEPYLER-REFACTOR-001: Extracted module generates cleaner [0; N] without unnecessary cast
+    // for small literal sizes (≤32), since the size is a compile-time constant
+    assert!(rust_code.contains("[0; 10]"));
+    assert!(rust_code.contains("[1; 5]"));
+    assert!(rust_code.contains("[42; 8]"));
 }
 
 #[test]
