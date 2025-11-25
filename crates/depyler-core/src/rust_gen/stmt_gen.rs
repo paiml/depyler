@@ -62,6 +62,59 @@ fn expr_returns_usize(expr: &HirExpr) -> bool {
     }
 }
 
+/// DEPYLER-0520: Check if an expression produces an iterator (not a collection)
+///
+/// Generator expressions and method chains ending in iterator adapters produce
+/// iterators that should NOT have .iter().cloned() added when iterated over.
+///
+/// Complexity: 4 (recursive pattern matching)
+fn is_iterator_producing_expr(expr: &HirExpr) -> bool {
+    match expr {
+        // Generator expressions always produce iterators
+        HirExpr::GeneratorExp { .. } => true,
+
+        // Method chains ending in iterator adapters
+        HirExpr::MethodCall { method, object, .. } => {
+            // Check if this method produces an iterator
+            let is_iterator_method = matches!(
+                method.as_str(),
+                "iter"
+                    | "iter_mut"
+                    | "into_iter"
+                    | "map"
+                    | "filter"
+                    | "filter_map"
+                    | "flat_map"
+                    | "enumerate"
+                    | "zip"
+                    | "chain"
+                    | "take"
+                    | "skip"
+                    | "take_while"
+                    | "skip_while"
+                    | "peekable"
+                    | "fuse"
+                    | "inspect"
+                    | "by_ref"
+                    | "rev"
+                    | "cycle"
+            );
+            // Either this method produces an iterator, or the chain does
+            is_iterator_method || is_iterator_producing_expr(object)
+        }
+
+        // Some builtin functions produce iterators
+        HirExpr::Call { func, .. } => {
+            matches!(
+                func.as_str(),
+                "iter" | "map" | "filter" | "enumerate" | "zip" | "reversed"
+            )
+        }
+
+        _ => false,
+    }
+}
+
 /// Check if a type annotation requires explicit conversion
 ///
 /// DEPYLER-0272 FIX: Now checks the actual expression to determine if cast is needed.
@@ -1668,6 +1721,10 @@ pub(crate) fn codegen_for_stmt(
             if is_string_type || is_string_name {
                 // For strings, use .chars() to iterate over characters
                 iter_expr = parse_quote! { #iter_expr.chars() };
+            } else if ctx.iterator_vars.contains(var_name) {
+                // DEPYLER-0520: Variable is already an iterator (from .filter().map() etc.)
+                // Don't add .iter().cloned() - iterators don't have .iter() method
+                // Just iterate directly
             } else {
                 // For collections, use .iter().cloned()
                 // DEPYLER-0265: Use .iter().cloned() to automatically clone items
@@ -1937,6 +1994,15 @@ pub(crate) fn codegen_assign_stmt(
                     ctx.var_types.insert(var_name.clone(), ret_type.clone());
                 }
             }
+        }
+    }
+
+    // DEPYLER-0520: Track variables assigned from iterator-producing expressions
+    // Generator expressions and method chains ending in filter/map/etc produce iterators,
+    // not collections. These variables should NOT have .iter().cloned() added in for loops.
+    if let AssignTarget::Symbol(var_name) = target {
+        if is_iterator_producing_expr(value) {
+            ctx.iterator_vars.insert(var_name.clone());
         }
     }
 
