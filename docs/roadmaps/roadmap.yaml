@@ -729,11 +729,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'New task: DEPYLER-REFACTOR-001'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2025-11-24T22:50:44.446137517+00:00
-  updated: 2025-11-25T03:32:45.184646844+00:00
+  updated: 2025-11-25T05:53:17.120345722+00:00
   spec: null
   acceptance_criteria: []
   phases: []
