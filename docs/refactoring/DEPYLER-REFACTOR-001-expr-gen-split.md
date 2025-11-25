@@ -31,11 +31,11 @@
 | Function | Original | Current | Change |
 |----------|----------|---------|--------|
 | `convert_binary` | 461 lines | 175 lines | -62% |
-| `convert_call` | 862 lines | 409 lines | -52.6% |
+| `convert_call` | 862 lines | 364 lines | -57.8% |
 
 ### Phase 2 Progress (Internal Decomposition)
 
-#### Completed (Phase 2.7-2.18)
+#### Completed (Phase 2.7-2.19)
 | Change | Lines Saved | Description |
 |--------|-------------|-------------|
 | `convert_containment_op` helper | ~60 | Extracted In/NotIn handling |
@@ -52,6 +52,7 @@
 | `infer_numeric_type_token` helper | ~9 | Extracted sum type inference |
 | `try_convert_print_call` helper | ~52 | Extracted print() handler with stderr support |
 | `try_convert_sum_call` helper | ~80 | Extracted sum() variants (generator, range, dict, iterable) |
+| `try_convert_minmax_call` helper | ~45 | Consolidated min/max handlers with float support |
 
 #### Analyzed but NOT Duplicates (Keep Early Handlers)
 | Handler | Reason |
