@@ -858,6 +858,65 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-REFACTOR-001 Phase 2.13: Extracted iterator utility call helper
+    ///
+    /// Handles enumerate, zip, and isinstance calls.
+    /// Returns Some(result) if handled, None if not an iterator utility call.
+    ///
+    /// # Complexity: 6
+    fn try_convert_iterator_util_call(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+    ) -> Option<Result<syn::Expr>> {
+        match func {
+            // enumerate(items) → items.into_iter().enumerate()
+            "enumerate" if args.len() == 1 => {
+                match args[0].to_rust_expr(self.ctx) {
+                    Ok(items_expr) => Some(Ok(parse_quote! { #items_expr.into_iter().enumerate() })),
+                    Err(e) => Some(Err(e)),
+                }
+            }
+
+            // zip(a, b, ...) → a.into_iter().zip(b.into_iter())...
+            "zip" if args.len() >= 2 => {
+                let arg_exprs: Vec<syn::Expr> = match args
+                    .iter()
+                    .map(|arg| arg.to_rust_expr(self.ctx))
+                    .collect::<Result<Vec<_>>>()
+                {
+                    Ok(exprs) => exprs,
+                    Err(e) => return Some(Err(e)),
+                };
+
+                // Determine if we should use .into_iter() or .iter()
+                let use_into_iter = args.iter().all(|arg| self.is_owned_collection(arg));
+
+                let first = &arg_exprs[0];
+                let mut chain: syn::Expr = if use_into_iter {
+                    parse_quote! { #first.into_iter() }
+                } else {
+                    parse_quote! { #first.iter() }
+                };
+
+                for arg in &arg_exprs[1..] {
+                    chain = if use_into_iter {
+                        parse_quote! { #chain.zip(#arg.into_iter()) }
+                    } else {
+                        parse_quote! { #chain.zip(#arg.iter()) }
+                    };
+                }
+
+                Some(Ok(chain))
+            }
+
+            // isinstance(value, type) → true (Rust's type system guarantees correctness)
+            "isinstance" if args.len() == 2 => Some(Ok(parse_quote! { true })),
+
+            _ => None,
+        }
+    }
+
     fn convert_unary(&mut self, op: &UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
         let operand_expr = operand.to_rust_expr(self.ctx)?;
         match op {
@@ -1316,52 +1375,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return result;
         }
 
-        // Handle enumerate(items) → items.into_iter().enumerate()
-        if func == "enumerate" && args.len() == 1 {
-            let items_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #items_expr.into_iter().enumerate() });
-        }
-
-        // Handle zip(a, b, ...) → a.into_iter().zip(b.into_iter())...
-        // DEPYLER-0303 Phase 3 Fix #6: Use .into_iter() for owned collections
-        // When zip() receives function parameters of type Vec<T>, we need to consume them
-        // to yield owned values, not references. This is critical for dict(zip(...)) patterns.
-        if func == "zip" && args.len() >= 2 {
-            let arg_exprs: Vec<syn::Expr> = args
-                .iter()
-                .map(|arg| arg.to_rust_expr(self.ctx))
-                .collect::<Result<Vec<_>>>()?;
-
-            // Determine if we should use .into_iter() or .iter()
-            // Use .into_iter() if all arguments are owned collections (Vec, not slices)
-            let use_into_iter = args.iter().all(|arg| self.is_owned_collection(arg));
-
-            // Start with first.into_iter() or first.iter()
-            let first = &arg_exprs[0];
-            let mut chain: syn::Expr = if use_into_iter {
-                parse_quote! { #first.into_iter() }
-            } else {
-                parse_quote! { #first.iter() }
-            };
-
-            // Chain .zip() for each subsequent argument
-            for arg in &arg_exprs[1..] {
-                chain = if use_into_iter {
-                    parse_quote! { #chain.zip(#arg.into_iter()) }
-                } else {
-                    parse_quote! { #chain.zip(#arg.iter()) }
-                };
-            }
-
-            return Ok(chain);
-        }
-
-        // DEPYLER-0269: Handle isinstance(value, type) → true
-        // In statically-typed Rust, type system guarantees make runtime checks unnecessary
-        // isinstance(x, T) where x: T is always true at compile-time
-        if func == "isinstance" && args.len() == 2 {
-            // Return literal true since Rust's type system guarantees correctness
-            return Ok(parse_quote! { true });
+        // DEPYLER-REFACTOR-001 Phase 2.13: Delegate iterator utility calls to helper
+        // Handles enumerate, zip, isinstance
+        if let Some(result) = self.try_convert_iterator_util_call(func, args) {
+            return result;
         }
 
         // DEPYLER-0230: Check if func is a user-defined class before treating as builtin
