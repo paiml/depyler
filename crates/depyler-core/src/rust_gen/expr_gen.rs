@@ -522,7 +522,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn convert_containment_op(
         &self,
         negate: bool,
-        left: &HirExpr,
+        _left: &HirExpr,
         right: &HirExpr,
         left_expr: syn::Expr,
         right_expr: syn::Expr,
@@ -976,18 +976,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #base_expr.pow(#exp_expr as u32) });
         }
 
-        // DEPYLER-0253: Handle chr(code) → char::from_u32(code as u32).unwrap().to_string()
-        if func == "chr" && args.len() == 1 {
-            let code_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { char::from_u32(#code_expr as u32).unwrap().to_string() });
-        }
-
-        // DEPYLER-0254: Handle ord(char) → char.chars().next().unwrap() as i32
-        // DEPYLER-0357: Python ord() returns int (i32), not unsigned
-        if func == "ord" && args.len() == 1 {
-            let char_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #char_expr.chars().next().unwrap() as i32 });
-        }
+        // DEPYLER-REFACTOR-001: chr() and ord() handlers consolidated
+        // to final match block using convert_chr_builtin/convert_ord_builtin
 
         // DEPYLER-0255: Handle bool(value) → type-aware truthiness check
         // DEPYLER-REFACTOR-001: Fixed to handle different types correctly
