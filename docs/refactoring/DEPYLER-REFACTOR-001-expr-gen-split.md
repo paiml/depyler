@@ -22,14 +22,20 @@
 
 ### Metrics
 - **Original expr_gen.rs**: 12,772 lines
-- **Current expr_gen.rs**: 12,187 lines
+- **Current expr_gen.rs**: 12,249 lines
 - **Total extracted**: 1,078 lines (8.4%)
-- **Net reduction**: 585 lines (4.6%)
+- **Net reduction**: 523 lines (4.1%)
 - **Behavior tests created**: 124 tests across 5 test files (2,450 lines)
+
+### Function Decomposition Progress
+| Function | Original | Current | Change |
+|----------|----------|---------|--------|
+| `convert_binary` | 461 lines | 175 lines | -62% |
+| `convert_call` | 862 lines | 771 lines | -10.5% |
 
 ### Phase 2 Progress (Internal Decomposition)
 
-#### Completed (Phase 2.7-2.10)
+#### Completed (Phase 2.7-2.11)
 | Change | Lines Saved | Description |
 |--------|-------------|-------------|
 | `convert_containment_op` helper | ~60 | Extracted In/NotIn handling |
@@ -38,6 +44,7 @@
 | `convert_pow_op` helper | ~55 | Extracted power operator |
 | Consolidate sorted/reversed | ~20 | Removed duplicate early handlers |
 | Consolidate chr/ord | ~10 | Removed duplicate early handlers |
+| `try_convert_stdlib_type_call` | ~91 | Extracted Path, datetime, date, time, timedelta |
 
 #### Analyzed but NOT Duplicates (Keep Early Handlers)
 | Handler | Reason |
