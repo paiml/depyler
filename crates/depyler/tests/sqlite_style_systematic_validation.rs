@@ -2079,7 +2079,10 @@ def test_reversed(items: list[int]) -> list[int]:
 
     let rust = transpile_and_verify(python, "builtin_reversed").unwrap();
     assert!(rust.contains("fn test_reversed"));
-    assert!(rust.contains(".reverse()"));
+    // Python: list(reversed(items)) returns a NEW reversed list
+    // Rust: .rev() creates reversed iterator, .collect() materializes it
+    // NOT .reverse() which is in-place mutation
+    assert!(rust.contains(".rev()"));
 }
 
 #[test]

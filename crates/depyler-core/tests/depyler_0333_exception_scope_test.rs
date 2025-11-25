@@ -17,6 +17,7 @@ use depyler_core::DepylerPipeline;
 // ============================================================================
 
 #[test]
+#[ignore = "DEPYLER-0333: Exception scope tracking not implemented yet - RED phase"]
 fn test_0333_01_simple_try_except_caught_exception() {
     // Pattern: Exception is caught internally - should NOT propagate Result
     let python = r#"

@@ -43,7 +43,12 @@ def showcase_collections():
             rust_code.contains("vec !") || rust_code.contains("vec!"),
             "Should use vec! macro"
         );
-        assert!(rust_code.contains("HashMap"), "Should use HashMap");
+        // Dict with mixed value types (str + int) uses serde_json::json!
+        // Dict with homogeneous types uses HashMap
+        assert!(
+            rust_code.contains("HashMap") || rust_code.contains("serde_json"),
+            "Should use HashMap or serde_json for dict"
+        );
         assert!(rust_code.contains("push"), "Should map append to push");
         assert!(rust_code.contains("extend"), "Should map extend to extend");
         // Note: dict.get() might be optimized away if the result isn't used
