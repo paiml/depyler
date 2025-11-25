@@ -273,6 +273,17 @@ impl ArgParserArgument {
             return format!("Option<{}>", inner_type);
         }
 
+        // DEPYLER-0527: Optional flags (--arg without required=True) → Option<T>
+        // In argparse, long arguments without required=True default to None
+        if !self.is_positional && self.required != Some(true) && self.nargs.is_none() {
+            let inner_type = self
+                .arg_type
+                .as_ref()
+                .map(type_to_rust_string)
+                .unwrap_or_else(|| "String".to_string());
+            return format!("Option<{}>", inner_type);
+        }
+
         // Use explicit type or default to String
         self.arg_type
             .as_ref()

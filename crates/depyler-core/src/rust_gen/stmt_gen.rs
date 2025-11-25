@@ -4113,10 +4113,18 @@ fn try_generate_subcommand_match(
                     }
                 }
             } else {
-                // Pattern B: Extract accessed fields
+                // Pattern B: Extract accessed fields with explicit ref patterns
+                // Using `ref` ensures consistent binding as references regardless of match ergonomics
                 let field_idents: Vec<syn::Ident> = accessed_fields
                     .iter()
                     .map(|f| format_ident!("{}", f))
+                    .collect();
+                let ref_field_patterns: Vec<proc_macro2::TokenStream> = accessed_fields
+                    .iter()
+                    .map(|f| {
+                        let ident = format_ident!("{}", f);
+                        quote! { ref #ident }
+                    })
                     .collect();
 
                 // DEPYLER-0526: Generate field conversion bindings for borrowed match variables
@@ -4172,13 +4180,16 @@ fn try_generate_subcommand_match(
                         });
 
                         // Generate conversion based on type
+                        // NOTE: With explicit `ref` patterns, all fields are bound as references:
+                        //   - Copy types (bool, int, float) need dereferencing: *field
+                        //   - Non-Copy types (String, Vec) are already &T
                         match field_type {
                             Some(Type::Bool) => {
-                                // Dereference bool: &bool → bool
+                                // With explicit `ref` pattern, bool is &bool - dereference to get bool
                                 quote! { let #field_ident = *#field_ident; }
                             }
                             Some(Type::Int) | Some(Type::Float) => {
-                                // Dereference primitives
+                                // With explicit `ref` pattern, primitives are references - dereference
                                 quote! { let #field_ident = *#field_ident; }
                             }
                             Some(Type::String) => {
@@ -4212,9 +4223,28 @@ fn try_generate_subcommand_match(
                                 quote! { let #field_ident = #field_ident.clone(); }
                             }
                             None => {
-                                // Unknown type: don't apply any conversion
-                                // Keep as reference, let function call site handle it
-                                quote! {}
+                                // Unknown type: use name-based heuristics
+                                let field_lower = field_name.to_lowercase();
+                                let owned_indicators = ["file", "path", "filepath", "input", "output", "dir", "directory"];
+                                let borrowed_indicators = ["content", "pattern", "text", "message", "data", "value"];
+
+                                let needs_owned = owned_indicators.iter().any(|ind|
+                                    field_lower == *ind || field_lower.ends_with(ind) || field_lower.starts_with(ind)
+                                );
+                                let needs_borrowed = borrowed_indicators.iter().any(|ind|
+                                    field_lower == *ind || field_lower.ends_with(ind) || field_lower.starts_with(ind)
+                                );
+
+                                if needs_borrowed {
+                                    // Keep as reference
+                                    quote! {}
+                                } else if needs_owned {
+                                    // Convert to owned String
+                                    quote! { let #field_ident = #field_ident.to_string(); }
+                                } else {
+                                    // Unknown: keep as reference (safer default)
+                                    quote! {}
+                                }
                             }
                             _ => {
                                 // For other complex types, clone
@@ -4225,7 +4255,7 @@ fn try_generate_subcommand_match(
                     .collect();
 
                 quote! {
-                    Commands::#variant_name { #(#field_idents),* } => {
+                    Commands::#variant_name { #(#ref_field_patterns),* } => {
                         #(#field_bindings)*
                         #(#body_stmts)*
                     }
