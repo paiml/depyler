@@ -1064,6 +1064,101 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Some(result)
     }
 
+    /// DEPYLER-REFACTOR-001 Phase 2.18: Extracted sum call handler
+    ///
+    /// Handles Python sum() function conversion to Rust iterator patterns.
+    ///
+    /// Variants:
+    /// - sum(generator_exp) → gen_expr.sum::<T>()
+    /// - sum(range(...)) → (range_expr).sum::<T>()
+    /// - sum(d.values()) / sum(d.keys()) → optimized iterator chain
+    /// - sum(iterable) → iterable.iter().sum::<T>()
+    ///
+    /// Returns Some(Ok(expr)) if handled, None if not a sum call.
+    ///
+    /// # Complexity: 6
+    fn try_convert_sum_call(&mut self, func: &str, args: &[HirExpr]) -> Option<Result<syn::Expr>> {
+        if func != "sum" || args.len() != 1 {
+            return None;
+        }
+
+        // DEPYLER-0247: Handle sum(generator_exp) → gen_expr.sum::<T>()
+        if matches!(args[0], HirExpr::GeneratorExp { .. }) {
+            let gen_expr = match args[0].to_rust_expr(self.ctx) {
+                Ok(e) => e,
+                Err(e) => return Some(Err(e)),
+            };
+            let target_type = self.infer_numeric_type_token();
+            return Some(Ok(parse_quote! { #gen_expr.sum::<#target_type>() }));
+        }
+
+        // DEPYLER-0307: Handle sum(range(...)) → (range_expr).sum::<T>()
+        if let HirExpr::Call {
+            func: range_func, ..
+        } = &args[0]
+        {
+            if range_func == "range" {
+                let range_expr = match args[0].to_rust_expr(self.ctx) {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e)),
+                };
+                let target_type = self.infer_numeric_type_token();
+                return Some(Ok(parse_quote! { (#range_expr).sum::<#target_type>() }));
+            }
+        }
+
+        // DEPYLER-0303: Handle sum(d.values()) and sum(d.keys()) - optimized path
+        if let HirExpr::MethodCall {
+            object,
+            method,
+            args: method_args,
+            ..
+        } = &args[0]
+        {
+            if (method == "values" || method == "keys") && method_args.is_empty() {
+                let object_expr = match object.to_rust_expr(self.ctx) {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e)),
+                };
+
+                // DEPYLER-0328: Infer sum type from collection element type
+                let target_type = if method == "values" {
+                    if let HirExpr::Var(var_name) = object.as_ref() {
+                        self.ctx.var_types.get(var_name).and_then(|var_type| {
+                            if let Type::Dict(_key_type, value_type) = var_type {
+                                match value_type.as_ref() {
+                                    Type::Int => Some(quote! { i32 }),
+                                    Type::Float => Some(quote! { f64 }),
+                                    _ => None,
+                                }
+                            } else {
+                                None
+                            }
+                        })
+                    } else {
+                        None
+                    }
+                } else {
+                    None // .keys() typically returns strings
+                }
+                .unwrap_or_else(|| quote! { i32 });
+
+                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                return Some(Ok(parse_quote! {
+                    #object_expr.#method_ident().cloned().sum::<#target_type>()
+                }));
+            }
+        }
+
+        // Default: sum(iterable) → iterable.iter().sum::<T>()
+        let iter_expr = match args[0].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+        let target_type = self.infer_numeric_type_token();
+        Some(Ok(parse_quote! { #iter_expr.iter().sum::<#target_type>() }))
+    }
+
     fn convert_unary(&mut self, op: &UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
         let operand_expr = operand.to_rust_expr(self.ctx)?;
         match op {
@@ -1208,13 +1303,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
-        // Handle sum(generator_exp) → generator_exp.sum::<T>()
-        // Need turbofish type annotation to help Rust's type inference
-        if func == "sum" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
-            let gen_expr = args[0].to_rust_expr(self.ctx)?;
-            // DEPYLER-REFACTOR-001 Phase 2.16: Use extracted helper
-            let target_type = self.infer_numeric_type_token();
-            return Ok(parse_quote! { #gen_expr.sum::<#target_type>() });
+        // DEPYLER-REFACTOR-001 Phase 2.18: Delegate sum calls to helper
+        if let Some(result) = self.try_convert_sum_call(func, args) {
+            return result;
         }
 
         // Handle max(generator_exp) → generator_exp.max()
@@ -1233,83 +1324,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return args[0].to_rust_expr(self.ctx);
         }
 
-        // DEPYLER-0247: Handle sum(iterable) → iterable.iter().sum::<T>()
-        // Need turbofish type annotation to help Rust's type inference
-        // DEPYLER-0307 Fix #2: Handle sum(range(...))
-        // Ranges in Rust (0..n) are already iterators - don't call .iter() on them
-        // DEPYLER-0307 Phase 2 Fix: Wrap range in parentheses for correct precedence
-        if func == "sum" && args.len() == 1 {
-            if let HirExpr::Call {
-                func: range_func, ..
-            } = &args[0]
-            {
-                if range_func == "range" {
-                    let range_expr = args[0].to_rust_expr(self.ctx)?;
-                    // DEPYLER-REFACTOR-001 Phase 2.16: Use extracted helper
-                    let target_type = self.infer_numeric_type_token();
-                    // Wrap range in parentheses to fix precedence: (0..n).sum() not 0..n.sum()
-                    return Ok(parse_quote! { (#range_expr).sum::<#target_type>() });
-                }
-            }
-
-            // DEPYLER-0303 Phase 3 Fix #8: Optimize sum(d.values()) and sum(d.keys())
-            // .values()/.keys() already return Vec, but we can optimize by using the iterator directly
-            // This avoids .collect::<Vec<_>>().iter() pattern
-            // DEPYLER-0328: Use element type for sum(), not return type
-            if let HirExpr::MethodCall {
-                object,
-                method,
-                args: method_args,
-                ..
-            } = &args[0]
-            {
-                if (method == "values" || method == "keys") && method_args.is_empty() {
-                    let object_expr = object.to_rust_expr(self.ctx)?;
-
-                    // DEPYLER-0328: Infer sum type from collection element type, not return type
-                    // For d.values() where d: HashMap<K, i32>, sum should be .sum::<i32>()
-                    // even if function returns f64 (the cast happens after sum)
-                    let target_type = if method == "values" {
-                        // Try to get value type from HashMap
-                        if let HirExpr::Var(var_name) = object.as_ref() {
-                            if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                                match var_type {
-                                    Type::Dict(_key_type, value_type) => {
-                                        match value_type.as_ref() {
-                                            Type::Int => Some(quote! { i32 }),
-                                            Type::Float => Some(quote! { f64 }),
-                                            _ => None,
-                                        }
-                                    }
-                                    _ => None,
-                                }
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    } else {
-                        // For .keys(), always String → can't sum strings
-                        // Fall back to default (should not happen for keys)
-                        None
-                    }
-                    .unwrap_or_else(|| quote! { i32 });
-
-                    // Use .values().cloned().sum() directly - skip the .collect()
-                    let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
-                    return Ok(parse_quote! {
-                        #object_expr.#method_ident().cloned().sum::<#target_type>()
-                    });
-                }
-            }
-
-            // Default: assume iterable that needs .iter()
-            let iter_expr = args[0].to_rust_expr(self.ctx)?;
-            // DEPYLER-REFACTOR-001 Phase 2.16: Use extracted helper
-            let target_type = self.infer_numeric_type_token();
-            return Ok(parse_quote! { #iter_expr.iter().sum::<#target_type>() });
-        }
+        // DEPYLER-REFACTOR-001 Phase 2.18: sum handlers removed - now handled by try_convert_sum_call
 
         // DEPYLER-0515 / GH-72: Handle max(a, b) with mixed numeric types
         // Python allows max(5, 3.14), but Rust's std::cmp::max requires same types
