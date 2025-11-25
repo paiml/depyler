@@ -625,11 +625,11 @@ roadmap:
   github_issue: 103
   item_type: task
   title: 'Codegen Bug: Missing `Args::parse()` call in argparse-generated CLI code'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2025-11-24T18:13:17.211159025+00:00
-  updated: 2025-11-24T22:53:27.154294430+00:00
+  updated: 2025-11-25T08:31:47.253524019+00:00
   spec: null
   acceptance_criteria: []
   phases: []

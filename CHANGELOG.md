@@ -195,6 +195,74 @@ depyler transpile script.py
 
 ---
 
+### 🐛 Fixed: Nested Function Type Inference (GH-70)
+
+**Issue**: GH-70 - Nested function definitions not supported - Blocks itertools.groupby with key functions
+**Impact**: Nested functions now transpile with correct parameter and return types inferred from usage
+**Test Status**: ✅ 5/5 GH-70 tests passing, 11/11 DEPYLER-0427 tests passing (16 total)
+**Quality Gates**: ✅ Clippy clean, all tests passing
+
+#### Nested Function Type Inference from Usage Patterns
+
+Nested Python functions now correctly infer parameter and return types by analyzing usage patterns in the function body. Previously, all nested function parameters defaulted to `()` (unit type), causing compilation errors.
+
+**Problem Fixed:**
+```python
+def outer():
+    def inner(entry):
+        return entry[0]  # entry defaulted to () - can't index
+    return inner
+```
+
+**Generated (BEFORE - BROKEN):**
+```rust
+pub fn outer() {  // Missing return type
+    fn inner(entry: ()) -> () {  // Wrong types
+        entry[0]  // ERROR: can't index ()
+    }
+    inner  // ERROR: expected (), found fn item
+}
+```
+
+**Generated (AFTER - WORKING):**
+```rust
+pub fn outer() -> Box<dyn Fn(Vec<i64>) -> i64> {
+    let inner = |entry: Vec<i64>| {
+        return entry.get(0usize).cloned().unwrap_or_default();
+    };
+    Box::new(inner)
+}
+```
+
+**Type Inference Patterns Supported:**
+- ✅ **Tuple unpacking**: `a, b, c = param` → param is tuple of 3 elements
+- ✅ **Print/println**: `print(param)` → param is String
+- ✅ **Index expressions**: `param[0]` → param is Vec<i64>
+- ✅ **Slice expressions**: `param[start:stop]` → param is String
+- ✅ **Binary operations**: `param * 2` → param is Int
+
+**Implementation:**
+1. Enhanced `infer_param_type_from_body()` in func_gen.rs to detect type usage patterns
+2. Nested functions generate as closures: `let inner = |x| { ... };`
+3. Outer functions return `Box<dyn Fn(...)>` when returning nested functions
+4. `ctx.var_types` populated with inferred param types before closure codegen
+
+**Known Limitations:**
+- `sorted(key=named_function)` not supported - use `key=lambda x: func(x)` instead
+
+**Files Modified:**
+- `crates/depyler-core/src/rust_gen/func_gen.rs` - Added type inference from usage patterns
+- `crates/depyler-core/src/rust_gen/stmt_gen.rs` - Populate var_types for closure params
+- `crates/depyler-core/tests/gh_70_nested_functions.rs` - Updated tests for closure syntax
+- `crates/depyler-core/tests/depyler_0427_nested_functions.rs` - Updated tests
+
+**Test Coverage:**
+- 5 GH-70 tests covering type inference patterns
+- 11 DEPYLER-0427 tests covering nested function scenarios
+- 1 test ignored (separate issue: sorted() key parameter limitation)
+
+---
+
 ## [3.20.0] - 2025-11-12
 
 ### ✨ Features: Single-Shot Compile Command (DEPYLER-0380)
@@ -11389,6 +11457,7 @@ and this project adheres to
   - Impact: Python type hints now preserved and enforced in generated Rust code
 
 ### Fixed
+- Codegen Bug: Missing `Args::parse()` call in argparse-generated CLI code (#103)
 - Nested function definitions not supported - Blocks itertools.groupby with key functions (#70)
 - Codegen Bug: Missing `Args::parse()` call in argparse-generated CLI code (#103)
 - **[DEPYLER-0097]** Type annotation preservation and conversion (2025-10-08)
