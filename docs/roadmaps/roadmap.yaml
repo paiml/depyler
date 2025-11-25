@@ -642,11 +642,11 @@ roadmap:
   github_issue: 70
   item_type: task
   title: Nested function definitions not supported - Blocks itertools.groupby with key functions
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2025-11-24T19:54:00.092118063+00:00
-  updated: 2025-11-24T22:59:41.306005747+00:00
+  updated: 2025-11-25T09:58:04.203719373+00:00
   spec: null
   acceptance_criteria: []
   phases: []
