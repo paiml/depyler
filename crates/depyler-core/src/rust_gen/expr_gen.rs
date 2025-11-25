@@ -870,10 +870,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
     ) -> Option<Result<syn::Expr>> {
         match func {
-            // enumerate(items) → items.into_iter().enumerate()
+            // DEPYLER-0519: enumerate(items) → items.iter().cloned().enumerate()
+            // Use iter().cloned() to preserve original collection (Python doesn't consume)
             "enumerate" if args.len() == 1 => {
                 match args[0].to_rust_expr(self.ctx) {
-                    Ok(items_expr) => Some(Ok(parse_quote! { #items_expr.into_iter().enumerate() })),
+                    Ok(items_expr) => {
+                        Some(Ok(parse_quote! { #items_expr.iter().cloned().enumerate() }))
+                    }
                     Err(e) => Some(Err(e)),
                 }
             }
@@ -1868,13 +1871,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             bail!("enumerate() requires 1 or 2 arguments");
         }
         let iterable = &args[0];
+        // DEPYLER-0519: Use .iter().cloned() instead of .into_iter()
+        // This preserves the original collection (important when returned after loop)
+        // Python: for i, x in enumerate(items): ... return items  # items still usable
+        // Rust with into_iter(): items consumed, can't return
+        // Rust with iter().cloned(): items preserved, can return
         if args.len() == 2 {
             let start = &args[1];
             Ok(
-                parse_quote! { #iterable.into_iter().enumerate().map(|(i, x)| ((i + #start as usize) as i32, x)) },
+                parse_quote! { #iterable.iter().cloned().enumerate().map(|(i, x)| ((i + #start as usize) as i32, x)) },
             )
         } else {
-            Ok(parse_quote! { #iterable.into_iter().enumerate().map(|(i, x)| (i as i32, x)) })
+            Ok(parse_quote! { #iterable.iter().cloned().enumerate().map(|(i, x)| (i as i32, x)) })
         }
     }
 
@@ -9166,20 +9174,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! { #object_expr.find(#text) })
             }
 
-            // Match object methods (these should be called on unwrapped Match, not Option<Match>)
-            // Note: These will fail if called on Option<Match> - caller must unwrap first
+            // DEPYLER-0519: Match object methods - handle Option<Match> from .find() results
+            // Python's re.match/find returns None or Match, Rust's .find() returns Option<Match>
+            // We need to unwrap before calling Match methods like .start(), .as_str()
 
             // match.group(0) → match.as_str() (for group 0)
             // match.group(n) → match.get(n).map(|m| m.as_str()) (for other groups)
             "group" => {
                 if arg_exprs.is_empty() {
                     // No args: default to group 0
-                    Ok(parse_quote! { #object_expr.as_str() })
+                    // DEPYLER-0519: Use map for Option safety
+                    Ok(parse_quote! { #object_expr.as_ref().map(|m| m.as_str()).unwrap_or("") })
                 } else {
                     // Check if group_num is literal 0
                     if matches!(arg_exprs[0], syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(ref lit), .. }) if lit.base10_parse::<i32>().ok() == Some(0))
                     {
-                        Ok(parse_quote! { #object_expr.as_str() })
+                        Ok(parse_quote! { #object_expr.as_ref().map(|m| m.as_str()).unwrap_or("") })
                     } else {
                         // Non-zero group: needs captures API
                         bail!(
@@ -9193,30 +9203,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0442: Implement match.groups() using captured group extraction
             // Python: match.groups() returns tuple of all captured groups (excluding group 0)
             // Rust: We need to track that this came from .captures() not .find()
-            // For now, return empty tuple - will be enhanced when we track capture vs match
+            // For now, return empty vec - will be enhanced when we track capture vs match
             "groups" => {
                 // match.groups() returns a tuple of captured groups
                 // This requires the regex to have been called with .captures() not .find()
                 // For generated code, we'll return an empty vec for now
                 // TODO: Track whether regex used .captures() vs .find() in type system
                 Ok(parse_quote! {
-                    vec![] as Vec<String>
+                    Vec::<String>::new()
                 })
             }
 
-            // match.start() → match.start() (passthrough)
+            // match.start() → match.start() (passthrough, with Option handling)
             "start" => {
                 if arg_exprs.is_empty() {
-                    Ok(parse_quote! { #object_expr.start() })
+                    // DEPYLER-0519: Handle Option<Match>
+                    Ok(parse_quote! { #object_expr.as_ref().map(|m| m.start()).unwrap_or(0) })
                 } else {
                     bail!("match.start(group) with group number not yet implemented")
                 }
             }
 
-            // match.end() → match.end() (passthrough)
+            // match.end() → match.end() (passthrough, with Option handling)
             "end" => {
                 if arg_exprs.is_empty() {
-                    Ok(parse_quote! { #object_expr.end() })
+                    // DEPYLER-0519: Handle Option<Match>
+                    Ok(parse_quote! { #object_expr.as_ref().map(|m| m.end()).unwrap_or(0) })
                 } else {
                     bail!("match.end(group) with group number not yet implemented")
                 }
@@ -9225,18 +9237,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // match.span() → (match.start(), match.end())
             "span" => {
                 if arg_exprs.is_empty() {
-                    Ok(parse_quote! { (#object_expr.start(), #object_expr.end()) })
+                    // DEPYLER-0519: Handle Option<Match>
+                    Ok(parse_quote! { #object_expr.as_ref().map(|m| (m.start(), m.end())).unwrap_or((0, 0)) })
                 } else {
                     bail!("match.span(group) with group number not yet implemented")
                 }
             }
 
-            // match.as_str() → match.as_str() (passthrough)
+            // match.as_str() → match.as_str() (passthrough, with Option handling)
             "as_str" => {
                 if !arg_exprs.is_empty() {
                     bail!("as_str() takes no arguments");
                 }
-                Ok(parse_quote! { #object_expr.as_str() })
+                // DEPYLER-0519: Handle Option<Match>
+                Ok(parse_quote! { #object_expr.as_ref().map(|m| m.as_str()).unwrap_or("") })
             }
 
             _ => bail!("Unknown regex method: {}", method),
@@ -9379,19 +9393,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             });
         }
 
-        // DEPYLER-0389: Handle regex Match.group() method
+        // DEPYLER-0519: Handle regex Match.group() method
         // Python: match.group(0) or match.group(n)
         // Rust: match.as_str() for group(0), or handle numbered groups
+        // NOTE: .find() returns Option<Match>, so we need to handle both cases:
+        //   - Direct Match object (from unwrapping or captures)
+        //   - Option<Match> (from .find() result)
+        // We use .as_ref().map(...).unwrap_or("") pattern for Option safety
         if method == "group" {
+            // DEPYLER-0519: Check if this is likely an Option<Match> (from .find() result)
+            // Heuristic: variable names like "match", "m", or result of find/search
+            let is_likely_option_match = matches!(object, HirExpr::Var(name) if
+                name == "match" || name == "m" || name.ends_with("_match") || name.starts_with("match_"));
+
             if arg_exprs.is_empty() || hir_args.is_empty() {
                 // match.group() with no args defaults to group(0) in Python
+                if is_likely_option_match {
+                    return Ok(parse_quote! { #object_expr.as_ref().map(|m| m.as_str()).unwrap_or("") });
+                }
                 return Ok(parse_quote! { #object_expr.as_str() });
             }
 
             // Check if argument is literal 0
             if let HirExpr::Literal(Literal::Int(n)) = &hir_args[0] {
                 if *n == 0 {
-                    // match.group(0) → match.as_str()
+                    // match.group(0) → match.as_str() (or handle Option<Match>)
+                    if is_likely_option_match {
+                        return Ok(parse_quote! { #object_expr.as_ref().map(|m| m.as_str()).unwrap_or("") });
+                    }
                     return Ok(parse_quote! { #object_expr.as_str() });
                 } else {
                     // match.group(n) → match.get(n).map(|m| m.as_str()).unwrap_or("")
@@ -11876,6 +11905,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         HirExpr::Call { func, .. } => {
                             self.ctx.result_returning_functions.contains(func)
                                 || self.ctx.option_returning_functions.contains(func)
+                        }
+                        // DEPYLER-0519: Method calls that return Vec types need {:?}
+                        HirExpr::MethodCall { method, .. } => {
+                            let vec_returning_methods = [
+                                "groups", "split", "split_whitespace", "splitlines",
+                                "findall", "keys", "values", "items",
+                            ];
+                            vec_returning_methods.contains(&method.as_str())
                         }
                         // Case 2: Attribute access (e.g., args.targets)
                         HirExpr::Attribute { value, attr } => {
