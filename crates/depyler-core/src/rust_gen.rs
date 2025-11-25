@@ -9,6 +9,7 @@ use syn::{self, parse_quote};
 
 // Module declarations for rust_gen refactoring (v3.18.0 Phases 2-7)
 mod argparse_transform;
+mod array_initialization; // DEPYLER-REFACTOR-001: Extracted from expr_gen.rs
 mod builtin_conversions; // DEPYLER-REFACTOR-001: Extracted from expr_gen.rs
 mod collection_constructors; // DEPYLER-REFACTOR-001: Extracted from expr_gen.rs
 mod context;
