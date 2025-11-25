@@ -2672,52 +2672,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         arg_expr.clone()
                     };
 
-                    // DEPYLER-0498: Integer type casting (i32 ↔ i64) - Conservative approach
-                    // When passing arithmetic expressions to functions, cast to i64
-                    // Five-Whys Root Cause: Inconsistent integer type inference between parameters and expressions
-                    // Example: is_perfect_square(5 * num * num + 4) where num is i32 but param is i64
+                    // DEPYLER-0515: REMOVED the DEPYLER-0498 i64 casting logic
                     //
-                    // Heuristic: If expression is i32 arithmetic (Binary with integer operands),
-                    // cast to i64 for user-defined functions (not builtins like len, range, etc.)
-                    let arg_type = self.infer_expr_int_type(hir_arg);
-
-                    // Check if argument is i32 AND if function is user-defined (not a builtin)
-                    let is_builtin = matches!(func,
-                        "len" | "range" | "print" | "str" | "int" | "float" | "bool" |
-                        "list" | "dict" | "set" | "tuple" | "zip" | "enumerate" | "map" |
-                        "filter" | "sum" | "max" | "min" | "abs" | "round" | "pow" |
-                        "chr" | "ord" | "hex" | "bin" | "oct" | "hash" | "repr"
-                    );
-
-                    if arg_type == Some(IntType::I32) && !is_builtin {
-                        // User-defined function with i32 arithmetic - cast to i64
-                        // DEPYLER-0509: Only wrap in parentheses if needed for precedence
-                        // Simple literals (Lit) and variables (Path) don't need wrapping
-                        let is_simple = matches!(
-                            &final_expr,
-                            syn::Expr::Lit(_) | syn::Expr::Path(_) | syn::Expr::Paren(_)
-                        );
-
-                        if let syn::Expr::Reference(ref_expr) = &final_expr {
-                            // Already borrowed - cast the inner expression
-                            let inner = &ref_expr.expr;
-                            let inner_simple = matches!(
-                                inner.as_ref(),
-                                syn::Expr::Lit(_) | syn::Expr::Path(_) | syn::Expr::Paren(_)
-                            );
-                            if inner_simple {
-                                final_expr = parse_quote! { &#inner as i64 };
-                            } else {
-                                final_expr = parse_quote! { &((#inner) as i64) };
-                            }
-                        } else if is_simple {
-                            // Simple expression - direct cast without any wrapping parens
-                            final_expr = parse_quote! { #final_expr as i64 };
-                        } else {
-                            // Complex expression - wrap in parens before cast
-                            final_expr = parse_quote! { (#final_expr) as i64 };
-                        }
-                    }
+                    // Previous behavior (DEPYLER-0498): Blindly cast all i32 arithmetic to i64
+                    // for user-defined functions. This caused E0308 errors when functions
+                    // actually expected i32 parameters.
+                    //
+                    // New behavior: Let Rust's type inference determine the correct integer type
+                    // from the function signature. If there's a mismatch, Rust's type checker
+                    // will report an error, which is clearer than generating incorrect code.
+                    //
+                    // If a function truly needs i64 but receives i32 arithmetic, the user
+                    // should explicitly annotate types in Python or we should infer from
+                    // function signature (future improvement).
 
                     final_expr
                 })
