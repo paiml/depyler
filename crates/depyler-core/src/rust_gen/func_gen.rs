@@ -549,6 +549,12 @@ fn apply_borrowing_to_type(
     inferred: &crate::lifetime_analysis::InferredParam,
     should_elide_lifetimes: bool,
 ) -> Result<syn::Type> {
+    // DEPYLER-0525: If the type is already a reference, don't add another reference
+    // This happens when the type mapper returns RustType::Reference (e.g., for File types)
+    if matches!(rust_type, crate::type_mapper::RustType::Reference { .. }) {
+        return Ok(ty);
+    }
+
     // Special case for strings: use &str instead of &String
     if matches!(rust_type, crate::type_mapper::RustType::String) {
         // DEPYLER-0275: Elide lifetime if elision rules apply
@@ -1659,6 +1665,21 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             args,
             ..
         } => {
+            // DEPYLER-0525: If param IS the object and method is a file I/O method,
+            // then param must be a file-like object that implements Write or Read
+            // Example: f.write(msg), f.read(), f.readline(), f.flush()
+            let file_object_methods = [
+                "write", "writelines", "read", "readline", "readlines",
+                "flush", "close", "seek", "tell", "truncate",
+            ];
+            if let HirExpr::Var(var_name) = object.as_ref() {
+                if var_name == param_name && file_object_methods.contains(&method.as_str()) {
+                    // Return a custom type for file handles
+                    // This will be mapped to &mut impl Write in code generation
+                    return Some(Type::Custom("File".to_string()));
+                }
+            }
+
             // DEPYLER-0524: If param IS the object and method is a string method,
             // then param must be a string. Example: content.endswith("\n")
             let string_object_methods = [
