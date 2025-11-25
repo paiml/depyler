@@ -374,6 +374,7 @@ mod tests {
             function_return_types: std::collections::HashMap::new(),
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: std::collections::HashSet::new(),
+            iterator_vars: std::collections::HashSet::new(), // DEPYLER-0520: Track iterator vars
             is_final_statement: false,
             result_bool_functions: std::collections::HashSet::new(),
             result_returning_functions: std::collections::HashSet::new(),
@@ -476,6 +477,7 @@ mod tests {
             function_return_types: std::collections::HashMap::new(),
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: HashSet::new(),
+            iterator_vars: HashSet::new(), // DEPYLER-0520: Track iterator vars
             is_final_statement: false,
             result_bool_functions: HashSet::new(),
             result_returning_functions: HashSet::new(),
@@ -575,6 +577,7 @@ mod tests {
             function_return_types: std::collections::HashMap::new(),
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: HashSet::new(),
+            iterator_vars: HashSet::new(), // DEPYLER-0520: Track iterator vars
             is_final_statement: false,
             result_bool_functions: HashSet::new(),
             result_returning_functions: HashSet::new(),
@@ -678,6 +681,7 @@ mod tests {
             function_return_types: std::collections::HashMap::new(),
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: HashSet::new(),
+            iterator_vars: HashSet::new(), // DEPYLER-0520: Track iterator vars
             is_final_statement: false,
             result_bool_functions: HashSet::new(),
             result_returning_functions: HashSet::new(),
