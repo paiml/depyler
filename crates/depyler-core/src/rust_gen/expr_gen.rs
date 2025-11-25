@@ -192,52 +192,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-REFACTOR-001 Phase 2.7: Delegate to extracted helper
             BinOp::In => self.convert_containment_op(false, left, right, left_expr, right_expr),
             BinOp::NotIn => self.convert_containment_op(true, left, right, left_expr, right_expr),
-            BinOp::Add => {
-                // DEPYLER-0290 FIX: Special handling for list concatenation
-                // DEPYLER-0299 Pattern #4 FIX: Don't assume all Var + Var is list concatenation
-                // DEPYLER-0271 FIX: Check variable types for list concatenation
-
-                // Check if we're dealing with lists/vectors (explicit detection only)
-                let is_definitely_list = self.is_list_expr(left) || self.is_list_expr(right);
-
-                // DEPYLER-0271 FIX: Also check if variables have List type
-                let is_list_var = match (left, right) {
-                    (HirExpr::Var(name), _) | (_, HirExpr::Var(name)) => self
-                        .ctx
-                        .var_types
-                        .get(name)
-                        .map(|t| matches!(t, Type::List(_)))
-                        .unwrap_or(false),
-                    _ => false,
-                };
-
-                // DEPYLER-0311 FIX: Check if we're dealing with slice expressions
-                // Slices produce Vec via .to_vec(), so slice + slice needs extend pattern
-                let is_slice_concat =
-                    matches!(left, HirExpr::Slice { .. }) || matches!(right, HirExpr::Slice { .. });
-
-                // Check if we're dealing with strings (literals or type-inferred)
-                let is_definitely_string = matches!(left, HirExpr::Literal(Literal::String(_)))
-                    || matches!(right, HirExpr::Literal(Literal::String(_)))
-                    || matches!(self.ctx.current_return_type, Some(Type::String));
-
-                if (is_definitely_list || is_slice_concat || is_list_var) && !is_definitely_string {
-                    // List/slice concatenation - use chain pattern for references
-                    // Convert: list1 + list2 (where both are &Vec or Vec)
-                    // To: list1.iter().chain(list2.iter()).cloned().collect()
-                    Ok(parse_quote! {
-                        #left_expr.iter().chain(#right_expr.iter()).cloned().collect::<Vec<_>>()
-                    })
-                } else if is_definitely_string {
-                    // This is string concatenation - use format! to handle references properly
-                    Ok(parse_quote! { format!("{}{}", #left_expr, #right_expr) })
-                } else {
-                    // Regular arithmetic addition or unknown types
-                    // Default to arithmetic - safer assumption for scalar types
-                    let rust_op = convert_binop(op)?;
-                    Ok(parse_quote! { #left_expr #rust_op #right_expr })
-                }
-            }
+            // DEPYLER-REFACTOR-001 Phase 2.8: Delegate to extracted helper
+            BinOp::Add => self.convert_add_op(left, right, left_expr, right_expr, op),
             BinOp::FloorDiv => {
                 // Python floor division semantics differ from Rust integer division
                 // Python: rounds towards negative infinity (floor)
@@ -294,69 +250,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(parse_quote! { #left_expr #rust_op #right_expr })
                 }
             }
-            BinOp::Mul => {
-                // DEPYLER-0302 Phase 2: String repetition (s * n or n * s)
-                // Check if we have string * integer or integer * string
-                let left_is_string = self.is_string_base(left);
-                let right_is_string = self.is_string_base(right);
-                let left_is_int =
-                    matches!(left, HirExpr::Literal(Literal::Int(_)) | HirExpr::Var(_));
-                let right_is_int =
-                    matches!(right, HirExpr::Literal(Literal::Int(_)) | HirExpr::Var(_));
-
-                if left_is_string && right_is_int {
-                    // Pattern: s * n (string * integer)
-                    return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
-                } else if left_is_int && right_is_string {
-                    // Pattern: n * s (integer * string)
-                    return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
-                }
-
-                // Special case: [value] * n or n * [value] creates an array
-                match (left, right) {
-                    // Pattern: [x] * n (small arrays)
-                    (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size)))
-                        if elts.len() == 1 && *size > 0 && *size <= 32 =>
-                    {
-                        let elem = elts[0].to_rust_expr(self.ctx)?;
-                        let size_lit =
-                            syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
-                        Ok(parse_quote! { [#elem; #size_lit] })
-                    }
-                    // DEPYLER-0420: Pattern: [x] * n (large arrays → Vec)
-                    (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size)))
-                        if elts.len() == 1 && *size > 32 =>
-                    {
-                        let elem = elts[0].to_rust_expr(self.ctx)?;
-                        let size_lit =
-                            syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
-                        Ok(parse_quote! { vec![#elem; #size_lit] })
-                    }
-                    // Pattern: n * [x] (small arrays)
-                    (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elts))
-                        if elts.len() == 1 && *size > 0 && *size <= 32 =>
-                    {
-                        let elem = elts[0].to_rust_expr(self.ctx)?;
-                        let size_lit =
-                            syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
-                        Ok(parse_quote! { [#elem; #size_lit] })
-                    }
-                    // DEPYLER-0420: Pattern: n * [x] (large arrays → Vec)
-                    (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elts))
-                        if elts.len() == 1 && *size > 32 =>
-                    {
-                        let elem = elts[0].to_rust_expr(self.ctx)?;
-                        let size_lit =
-                            syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
-                        Ok(parse_quote! { vec![#elem; #size_lit] })
-                    }
-                    // Default multiplication
-                    _ => {
-                        let rust_op = convert_binop(op)?;
-                        Ok(parse_quote! { #left_expr #rust_op #right_expr })
-                    }
-                }
-            }
+            // DEPYLER-REFACTOR-001 Phase 2.8: Delegate to extracted helper
+            BinOp::Mul => self.convert_mul_op(left, right, left_expr, right_expr, op),
             BinOp::Div => {
                 // v3.16.0 Phase 2: Python's `/` always returns float
                 // Rust's `/` does integer division when both operands are integers
@@ -383,73 +278,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }))
                 }
             }
-            BinOp::Pow => {
-                // Python power operator ** needs type-specific handling in Rust
-                // For integers: use .pow() with u32 exponent
-                // For floats: use .powf() with f64 exponent
-                // For negative integer exponents: convert to float
-
-                // Check if we have literals to determine types
-                match (left, right) {
-                    // Integer literal base with integer literal exponent
-                    (HirExpr::Literal(Literal::Int(_)), HirExpr::Literal(Literal::Int(exp))) => {
-                        if *exp < 0 {
-                            // Negative exponent: convert to float operation
-                            Ok(parse_quote! {
-                                (#left_expr as f64).powf(#right_expr as f64)
-                            })
-                        } else {
-                            // Positive integer exponent: use .pow() with u32
-                            // Add checked_pow for overflow safety
-                            // DEPYLER-0405: Cast to i32 to give literal a concrete type
-                            Ok(parse_quote! {
-                                (#left_expr as i32).checked_pow(#right_expr as u32)
-                                    .expect("Power operation overflowed")
-                            })
-                        }
-                    }
-                    // Float literal base: always use .powf()
-                    // DEPYLER-0408: Cast float literal to f64 for concrete type
-                    (HirExpr::Literal(Literal::Float(_)), _) => Ok(parse_quote! {
-                        (#left_expr as f64).powf(#right_expr as f64)
-                    }),
-                    // Any base with float exponent: use .powf()
-                    // DEPYLER-0408: Cast float literal exponent to f64 for concrete type
-                    (_, HirExpr::Literal(Literal::Float(_))) => Ok(parse_quote! {
-                        (#left_expr as f64).powf(#right_expr as f64)
-                    }),
-                    // Variables or complex expressions: generate type-safe code
-                    _ => {
-                        // For non-literal expressions, we need runtime type checking
-                        // This is a conservative approach that works for common cases
-                        // Determine the target type for casting from context
-                        let target_type = self
-                            .ctx
-                            .current_return_type
-                            .as_ref()
-                            .and_then(|t| match t {
-                                Type::Int => Some(quote! { i32 }),
-                                Type::Float => Some(quote! { f64 }),
-                                _ => None,
-                            })
-                            .unwrap_or_else(|| quote! { i32 });
-
-                        // DEPYLER-0405: Cast both sides to i64 for type-safe comparison
-                        Ok(parse_quote! {
-                            {
-                                // Try integer power first if exponent can be u32
-                                if #right_expr >= 0 && (#right_expr as i64) <= (u32::MAX as i64) {
-                                    (#left_expr as i32).checked_pow(#right_expr as u32)
-                                        .expect("Power operation overflowed")
-                                } else {
-                                    // Fall back to float power for negative or large exponents
-                                    (#left_expr as f64).powf(#right_expr as f64) as #target_type
-                                }
-                            }
-                        })
-                    }
-                }
-            }
+            // DEPYLER-REFACTOR-001 Phase 2.8: Delegate to extracted helper
+            BinOp::Pow => self.convert_pow_op(left, right, left_expr, right_expr),
             // DEPYLER-0422: Logical operators need Python truthiness conversion
             // Python: `if a and b:` where a, b are strings/lists/etc.
             // Rust: `if (!a.is_empty()) && (!b.is_empty())`
@@ -477,6 +307,199 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     right: Box::new(right_expr),
                 }))
             }
+        }
+    }
+
+    /// DEPYLER-REFACTOR-001 Phase 2.8: Extracted power operator helper
+    ///
+    /// Handles Python power operator with type-aware behavior:
+    /// - Integer base with positive int exp: base.checked_pow(exp as u32)
+    /// - Integer base with negative exp: (base as f64).powf(exp as f64)
+    /// - Float base or exp: (base as f64).powf(exp as f64)
+    /// - Variables: runtime type selection
+    ///
+    /// # Complexity: 7
+    fn convert_pow_op(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+    ) -> Result<syn::Expr> {
+        match (left, right) {
+            // Integer literal base with integer literal exponent
+            (HirExpr::Literal(Literal::Int(_)), HirExpr::Literal(Literal::Int(exp))) => {
+                if *exp < 0 {
+                    // Negative exponent: convert to float
+                    Ok(parse_quote! {
+                        (#left_expr as f64).powf(#right_expr as f64)
+                    })
+                } else {
+                    // Positive integer exponent: use checked_pow
+                    // DEPYLER-0405: Cast to i32 for concrete type
+                    Ok(parse_quote! {
+                        (#left_expr as i32).checked_pow(#right_expr as u32)
+                            .expect("Power operation overflowed")
+                    })
+                }
+            }
+            // Float literal base: always use .powf()
+            // DEPYLER-0408: Cast to f64 for concrete type
+            (HirExpr::Literal(Literal::Float(_)), _) => Ok(parse_quote! {
+                (#left_expr as f64).powf(#right_expr as f64)
+            }),
+            // Any base with float exponent: use .powf()
+            (_, HirExpr::Literal(Literal::Float(_))) => Ok(parse_quote! {
+                (#left_expr as f64).powf(#right_expr as f64)
+            }),
+            // Variables or complex expressions: runtime type selection
+            _ => {
+                let target_type = self
+                    .ctx
+                    .current_return_type
+                    .as_ref()
+                    .and_then(|t| match t {
+                        Type::Int => Some(quote! { i32 }),
+                        Type::Float => Some(quote! { f64 }),
+                        _ => None,
+                    })
+                    .unwrap_or_else(|| quote! { i32 });
+
+                // DEPYLER-0405: Runtime type selection
+                Ok(parse_quote! {
+                    {
+                        if #right_expr >= 0 && (#right_expr as i64) <= (u32::MAX as i64) {
+                            (#left_expr as i32).checked_pow(#right_expr as u32)
+                                .expect("Power operation overflowed")
+                        } else {
+                            (#left_expr as f64).powf(#right_expr as f64) as #target_type
+                        }
+                    }
+                })
+            }
+        }
+    }
+
+    /// DEPYLER-REFACTOR-001 Phase 2.8: Extracted multiplication operator helper
+    ///
+    /// Handles Python multiplication with type-aware behavior:
+    /// - String repetition: "abc" * 3 → "abc".repeat(3)
+    /// - Array creation: [0] * 5 → [0; 5]
+    /// - Arithmetic multiplication: a * b
+    ///
+    /// # Complexity: 7
+    fn convert_mul_op(
+        &mut self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+        op: BinOp,
+    ) -> Result<syn::Expr> {
+        // DEPYLER-0302: String repetition
+        let left_is_string = self.is_string_base(left);
+        let right_is_string = self.is_string_base(right);
+        let left_is_int = matches!(left, HirExpr::Literal(Literal::Int(_)) | HirExpr::Var(_));
+        let right_is_int = matches!(right, HirExpr::Literal(Literal::Int(_)) | HirExpr::Var(_));
+
+        if left_is_string && right_is_int {
+            return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
+        } else if left_is_int && right_is_string {
+            return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
+        }
+
+        // Array creation: [value] * n or n * [value]
+        match (left, right) {
+            // Pattern: [x] * n (small arrays ≤32)
+            (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size)))
+                if elts.len() == 1 && *size > 0 && *size <= 32 =>
+            {
+                let elem = elts[0].to_rust_expr(self.ctx)?;
+                let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                Ok(parse_quote! { [#elem; #size_lit] })
+            }
+            // DEPYLER-0420: Pattern: [x] * n (large arrays → Vec)
+            (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size)))
+                if elts.len() == 1 && *size > 32 =>
+            {
+                let elem = elts[0].to_rust_expr(self.ctx)?;
+                let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                Ok(parse_quote! { vec![#elem; #size_lit] })
+            }
+            // Pattern: n * [x] (small arrays ≤32)
+            (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elts))
+                if elts.len() == 1 && *size > 0 && *size <= 32 =>
+            {
+                let elem = elts[0].to_rust_expr(self.ctx)?;
+                let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                Ok(parse_quote! { [#elem; #size_lit] })
+            }
+            // DEPYLER-0420: Pattern: n * [x] (large arrays → Vec)
+            (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elts))
+                if elts.len() == 1 && *size > 32 =>
+            {
+                let elem = elts[0].to_rust_expr(self.ctx)?;
+                let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+                Ok(parse_quote! { vec![#elem; #size_lit] })
+            }
+            // Default multiplication
+            _ => {
+                let rust_op = convert_binop(op)?;
+                Ok(parse_quote! { #left_expr #rust_op #right_expr })
+            }
+        }
+    }
+
+    /// DEPYLER-REFACTOR-001 Phase 2.8: Extracted addition operator helper
+    ///
+    /// Handles Python addition with type-aware behavior:
+    /// - List concatenation: iter().chain().cloned().collect()
+    /// - String concatenation: format!("{}{}", a, b)
+    /// - Arithmetic addition: a + b
+    ///
+    /// # Complexity: 5
+    fn convert_add_op(
+        &self,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+        op: BinOp,
+    ) -> Result<syn::Expr> {
+        // DEPYLER-0290/0299/0271: Type-aware list detection
+        let is_definitely_list = self.is_list_expr(left) || self.is_list_expr(right);
+
+        let is_list_var = match (left, right) {
+            (HirExpr::Var(name), _) | (_, HirExpr::Var(name)) => self
+                .ctx
+                .var_types
+                .get(name)
+                .map(|t| matches!(t, Type::List(_)))
+                .unwrap_or(false),
+            _ => false,
+        };
+
+        // DEPYLER-0311: Slice concatenation
+        let is_slice_concat =
+            matches!(left, HirExpr::Slice { .. }) || matches!(right, HirExpr::Slice { .. });
+
+        // String detection
+        let is_definitely_string = matches!(left, HirExpr::Literal(Literal::String(_)))
+            || matches!(right, HirExpr::Literal(Literal::String(_)))
+            || matches!(self.ctx.current_return_type, Some(Type::String));
+
+        if (is_definitely_list || is_slice_concat || is_list_var) && !is_definitely_string {
+            // List/slice concatenation
+            Ok(parse_quote! {
+                #left_expr.iter().chain(#right_expr.iter()).cloned().collect::<Vec<_>>()
+            })
+        } else if is_definitely_string {
+            // String concatenation
+            Ok(parse_quote! { format!("{}{}", #left_expr, #right_expr) })
+        } else {
+            // Arithmetic addition
+            let rust_op = convert_binop(op)?;
+            Ok(parse_quote! { #left_expr #rust_op #right_expr })
         }
     }
 
