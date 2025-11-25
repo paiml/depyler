@@ -22,10 +22,32 @@
 
 ### Metrics
 - **Original expr_gen.rs**: 12,772 lines
-- **Current expr_gen.rs**: 12,234 lines
+- **Current expr_gen.rs**: 12,187 lines
 - **Total extracted**: 1,078 lines (8.4%)
-- **Net reduction**: 538 lines (4.2%)
+- **Net reduction**: 585 lines (4.6%)
 - **Behavior tests created**: 124 tests across 5 test files (2,450 lines)
+
+### Phase 2 Progress (Internal Decomposition)
+
+#### Completed (Phase 2.7-2.10)
+| Change | Lines Saved | Description |
+|--------|-------------|-------------|
+| `convert_containment_op` helper | ~60 | Extracted In/NotIn handling |
+| `convert_add_op` helper | ~40 | Extracted addition operator |
+| `convert_mul_op` helper | ~50 | Extracted multiplication operator |
+| `convert_pow_op` helper | ~55 | Extracted power operator |
+| Consolidate sorted/reversed | ~20 | Removed duplicate early handlers |
+| Consolidate chr/ord | ~10 | Removed duplicate early handlers |
+
+#### Analyzed but NOT Duplicates (Keep Early Handlers)
+| Handler | Reason |
+|---------|--------|
+| max/min | Mixed numeric types handling (DEPYLER-0515) |
+| any/all | Generator expression handling (DEPYLER-0307) |
+| round | Different casting behavior between handlers |
+| pow | Early handler casts exponent to u32 |
+| bool | Type-aware truthiness checking |
+| abs | Similar but early handler always matches first |
 
 ### Key Decisions
 1. **Operators and Call Resolution Deferred**: These functions are too large and tightly coupled for safe extraction. They require internal refactoring (breaking into smaller functions) before they can be cleanly extracted.
