@@ -1159,6 +1159,76 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Some(Ok(parse_quote! { #iter_expr.iter().sum::<#target_type>() }))
     }
 
+    /// DEPYLER-REFACTOR-001 Phase 2.19: Extracted min/max call handler
+    ///
+    /// Handles Python min()/max() function conversion to Rust.
+    ///
+    /// Variants:
+    /// - max(a, b) / min(a, b) → std::cmp::max/min or f64.max/min for floats
+    /// - max(iterable) / min(iterable) → iter.max/min().unwrap()
+    ///
+    /// Returns Some(Ok(expr)) if handled, None if not a min/max call.
+    ///
+    /// # Complexity: 5
+    fn try_convert_minmax_call(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+    ) -> Option<Result<syn::Expr>> {
+        if func != "max" && func != "min" {
+            return None;
+        }
+
+        let is_max = func == "max";
+
+        // Handle max(a, b) / min(a, b) with mixed numeric types
+        if args.len() == 2 {
+            let arg1 = match args[0].to_rust_expr(self.ctx) {
+                Ok(e) => e,
+                Err(e) => return Some(Err(e)),
+            };
+            let arg2 = match args[1].to_rust_expr(self.ctx) {
+                Ok(e) => e,
+                Err(e) => return Some(Err(e)),
+            };
+
+            // DEPYLER-0515: Check if either argument is a float literal
+            let has_float = matches!(args[0], HirExpr::Literal(Literal::Float(_)))
+                || matches!(args[1], HirExpr::Literal(Literal::Float(_)));
+
+            if has_float {
+                // Use f64 method call: (a as f64).max/min(b as f64)
+                return if is_max {
+                    Some(Ok(parse_quote! { (#arg1 as f64).max(#arg2 as f64) }))
+                } else {
+                    Some(Ok(parse_quote! { (#arg1 as f64).min(#arg2 as f64) }))
+                };
+            }
+
+            return if is_max {
+                Some(Ok(parse_quote! { std::cmp::max(#arg1, #arg2) }))
+            } else {
+                Some(Ok(parse_quote! { std::cmp::min(#arg1, #arg2) }))
+            };
+        }
+
+        // Handle max(iterable) / min(iterable)
+        if args.len() == 1 {
+            let iter_expr = match args[0].to_rust_expr(self.ctx) {
+                Ok(e) => e,
+                Err(e) => return Some(Err(e)),
+            };
+
+            return if is_max {
+                Some(Ok(parse_quote! { *#iter_expr.iter().max().unwrap() }))
+            } else {
+                Some(Ok(parse_quote! { *#iter_expr.iter().min().unwrap() }))
+            };
+        }
+
+        None
+    }
+
     fn convert_unary(&mut self, op: &UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
         let operand_expr = operand.to_rust_expr(self.ctx)?;
         match op {
@@ -1326,54 +1396,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-REFACTOR-001 Phase 2.18: sum handlers removed - now handled by try_convert_sum_call
 
-        // DEPYLER-0515 / GH-72: Handle max(a, b) with mixed numeric types
-        // Python allows max(5, 3.14), but Rust's std::cmp::max requires same types
-        if func == "max" && args.len() == 2 {
-            let arg1 = args[0].to_rust_expr(self.ctx)?;
-            let arg2 = args[1].to_rust_expr(self.ctx)?;
-
-            // DEPYLER-0515: Check if either argument is a float literal
-            // If so, use f64 method calls with explicit casting
-            let has_float = matches!(args[0], HirExpr::Literal(Literal::Float(_)))
-                || matches!(args[1], HirExpr::Literal(Literal::Float(_)));
-
-            if has_float {
-                // Use f64 method call: (a as f64).max(b as f64)
-                return Ok(parse_quote! { (#arg1 as f64).max(#arg2 as f64) });
-            }
-
-            return Ok(parse_quote! { std::cmp::max(#arg1, #arg2) });
-        }
-
-        // DEPYLER-0193: Handle max(iterable) → iterable.iter().copied().max().unwrap()
-        if func == "max" && args.len() == 1 {
-            let iter_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { *#iter_expr.iter().max().unwrap() });
-        }
-
-        // DEPYLER-0515 / GH-72: Handle min(a, b) with mixed numeric types
-        // Python allows min(5, 3.14), but Rust's std::cmp::min requires same types
-        if func == "min" && args.len() == 2 {
-            let arg1 = args[0].to_rust_expr(self.ctx)?;
-            let arg2 = args[1].to_rust_expr(self.ctx)?;
-
-            // DEPYLER-0515: Check if either argument is a float literal
-            // If so, use f64 method calls with explicit casting
-            let has_float = matches!(args[0], HirExpr::Literal(Literal::Float(_)))
-                || matches!(args[1], HirExpr::Literal(Literal::Float(_)));
-
-            if has_float {
-                // Use f64 method call: (a as f64).min(b as f64)
-                return Ok(parse_quote! { (#arg1 as f64).min(#arg2 as f64) });
-            }
-
-            return Ok(parse_quote! { std::cmp::min(#arg1, #arg2) });
-        }
-
-        // DEPYLER-0194: Handle min(iterable) → iterable.iter().copied().min().unwrap()
-        if func == "min" && args.len() == 1 {
-            let iter_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { *#iter_expr.iter().min().unwrap() });
+        // DEPYLER-REFACTOR-001 Phase 2.19: Delegate min/max calls to helper
+        if let Some(result) = self.try_convert_minmax_call(func, args) {
+            return result;
         }
 
         // DEPYLER-0248: Handle abs(value) → value.abs()
