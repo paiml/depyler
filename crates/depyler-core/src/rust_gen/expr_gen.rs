@@ -10891,6 +10891,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 return Ok(result);
             }
 
+            // DEPYLER-0518: Handle re module constants
+            // Python regex flags: re.IGNORECASE, re.MULTILINE, etc.
+            // These are integer flags in Python but Rust regex uses builder methods.
+            // For now, map them to constants that can be used in conditional checks.
+            if module_name == "re" {
+                let result = match attr {
+                    // Map to integer constants (matching Python values for compatibility)
+                    "IGNORECASE" | "I" => parse_quote! { 2i32 },
+                    "MULTILINE" | "M" => parse_quote! { 8i32 },
+                    "DOTALL" | "S" => parse_quote! { 16i32 },
+                    "VERBOSE" | "X" => parse_quote! { 64i32 },
+                    "ASCII" | "A" => parse_quote! { 256i32 },
+                    "LOCALE" | "L" => parse_quote! { 4i32 },
+                    "UNICODE" | "U" => parse_quote! { 32i32 },
+                    _ => {
+                        // Not a recognized constant - fall through to default handling
+                        let module_ident =
+                            syn::Ident::new(module_name, proc_macro2::Span::call_site());
+                        let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+                        return Ok(parse_quote! { #module_ident.#attr_ident });
+                    }
+                };
+                return Ok(result);
+            }
+
             // DEPYLER-STDLIB-SYS: Handle sys module attributes
             // sys.argv → std::env::args().collect()
             // sys.platform → compile-time platform string
