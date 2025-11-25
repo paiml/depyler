@@ -4119,8 +4119,114 @@ fn try_generate_subcommand_match(
                     .map(|f| format_ident!("{}", f))
                     .collect();
 
+                // DEPYLER-0526: Generate field conversion bindings for borrowed match variables
+                // When matching &args.command, destructured fields are references (&String, &bool)
+                // Convert to owned values so they work with functions expecting either owned or borrowed:
+                // - String fields: .to_string() converts &String → String
+                //   String can then deref-coerce to &str if needed
+                // - bool/primitives: dereference with *
+                let field_bindings: Vec<proc_macro2::TokenStream> = accessed_fields
+                    .iter()
+                    .map(|field_name| {
+                        let field_ident = format_ident!("{}", field_name);
+
+                        // Look up field type from subcommand arguments
+                        // Check both arg_type and action (for store_true/store_false bool flags)
+                        let maybe_arg = ctx.argparser_tracker.subcommands
+                            .values()
+                            .find(|sc| sc.name == *cmd_name)
+                            .and_then(|sc| {
+                                sc.arguments.iter().find(|arg| {
+                                    // Match by field name (from long flag or positional name)
+                                    let arg_field_name = arg.long.as_ref()
+                                        .map(|s| s.trim_start_matches('-').to_string())
+                                        .unwrap_or_else(|| arg.name.clone());
+                                    arg_field_name == *field_name
+                                })
+                            });
+
+                        // Determine type: check arg_type first, then action for bool flags
+                        let field_type = maybe_arg.and_then(|arg| {
+                            // If arg_type is set, use it
+                            if arg.arg_type.is_some() {
+                                return arg.arg_type.clone();
+                            }
+                            // Check action for bool flags: store_true/store_false → Bool
+                            if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false") | Some("store_const")) {
+                                return Some(Type::Bool);
+                            }
+                            None
+                        }).or_else(|| {
+                            // DEPYLER-0526: Name-based fallback for common boolean fields
+                            // If argument lookup failed, use heuristics based on field name
+                            let field_lower = field_name.to_lowercase();
+                            let bool_indicators = [
+                                "binary", "append", "verbose", "quiet", "force", "dry_run",
+                                "recursive", "debug", "silent", "capture", "overwrite",
+                            ];
+                            if bool_indicators.iter().any(|ind| field_lower == *ind || field_lower.ends_with(ind)) {
+                                Some(Type::Bool)
+                            } else {
+                                None
+                            }
+                        });
+
+                        // Generate conversion based on type
+                        match field_type {
+                            Some(Type::Bool) => {
+                                // Dereference bool: &bool → bool
+                                quote! { let #field_ident = *#field_ident; }
+                            }
+                            Some(Type::Int) | Some(Type::Float) => {
+                                // Dereference primitives
+                                quote! { let #field_ident = *#field_ident; }
+                            }
+                            Some(Type::String) => {
+                                // DEPYLER-0526: Heuristic for known String fields
+                                // File/path fields usually need owned String: convert with .to_string()
+                                // Content/pattern fields usually need &str: keep as &String (auto-derefs)
+                                let field_lower = field_name.to_lowercase();
+                                let owned_indicators = ["file", "path", "filepath", "input", "output", "dir", "directory"];
+                                let borrowed_indicators = ["content", "pattern", "text", "message", "data", "value"];
+
+                                let needs_owned = owned_indicators.iter().any(|ind|
+                                    field_lower == *ind || field_lower.ends_with(ind) || field_lower.starts_with(ind)
+                                );
+                                let needs_borrowed = borrowed_indicators.iter().any(|ind|
+                                    field_lower == *ind || field_lower.ends_with(ind) || field_lower.starts_with(ind)
+                                );
+
+                                if needs_borrowed {
+                                    // Keep as &String, auto-derefs to &str
+                                    quote! {}
+                                } else if needs_owned {
+                                    // Convert to owned String
+                                    quote! { let #field_ident = #field_ident.to_string(); }
+                                } else {
+                                    // Default for String: convert to owned (safer for function calls)
+                                    quote! { let #field_ident = #field_ident.to_string(); }
+                                }
+                            }
+                            Some(Type::Optional(_)) | Some(Type::List(_)) | Some(Type::Dict(_, _)) => {
+                                // For complex container types, clone the reference
+                                quote! { let #field_ident = #field_ident.clone(); }
+                            }
+                            None => {
+                                // Unknown type: don't apply any conversion
+                                // Keep as reference, let function call site handle it
+                                quote! {}
+                            }
+                            _ => {
+                                // For other complex types, clone
+                                quote! { let #field_ident = #field_ident.clone(); }
+                            }
+                        }
+                    })
+                    .collect();
+
                 quote! {
                     Commands::#variant_name { #(#field_idents),* } => {
+                        #(#field_bindings)*
                         #(#body_stmts)*
                     }
                 }
