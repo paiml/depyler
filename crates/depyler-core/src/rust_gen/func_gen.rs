@@ -1477,8 +1477,9 @@ fn literal_to_type(lit: &Literal) -> Type {
 /// Detects patterns:
 /// - `a, b, c = param` → param is 3-tuple of strings
 /// - `print(param)` → param needs Display trait → String
+/// - `re.match(param, ...)` → param is String
 /// - Other usage patterns
-fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<Type> {
+pub fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<Type> {
     for stmt in body {
         // Pattern 1: Tuple unpacking - `a, b, c = param`
         if let HirStmt::Assign {
@@ -1497,6 +1498,14 @@ fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<Type
             }
         }
 
+        // DEPYLER-0518: Pattern 1b: Assignment where value is an expression using param
+        // Example: match = re.match(pattern, text, flags)
+        if let HirStmt::Assign { value, .. } = stmt {
+            if let Some(ty) = infer_type_from_expr_usage(param_name, value) {
+                return Some(ty);
+            }
+        }
+
         // Pattern 2: Expression statement with print/println call
         if let HirStmt::Expr(expr) = stmt {
             if let Some(ty) = infer_type_from_expr_usage(param_name, expr) {
@@ -1509,6 +1518,28 @@ fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<Type
         if let HirStmt::Return(Some(expr)) = stmt {
             if let Some(ty) = infer_type_from_expr_usage(param_name, expr) {
                 return Some(ty);
+            }
+        }
+
+        // DEPYLER-0518: Pattern 4: If statement - check condition and body
+        if let HirStmt::If {
+            condition,
+            then_body,
+            else_body,
+        } = stmt
+        {
+            if let Some(ty) = infer_type_from_expr_usage(param_name, condition) {
+                return Some(ty);
+            }
+            // Recursively check then body
+            if let Some(ty) = infer_param_type_from_body(param_name, then_body) {
+                return Some(ty);
+            }
+            // Recursively check else body
+            if let Some(else_stmts) = else_body {
+                if let Some(ty) = infer_param_type_from_body(param_name, else_stmts) {
+                    return Some(ty);
+                }
             }
         }
     }
@@ -1531,6 +1562,19 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
                     }
                 }
             }
+
+            // DEPYLER-0518: Pattern: re.match(pattern, text), re.search(pattern, text), etc.
+            // Both pattern and text parameters should be strings
+            if func.starts_with("re.") || func == "re" {
+                for arg in args {
+                    if let HirExpr::Var(var_name) = arg {
+                        if var_name == param_name {
+                            return Some(Type::String);
+                        }
+                    }
+                }
+            }
+
             // Recursively check arguments
             for arg in args {
                 if let Some(ty) = infer_type_from_expr_usage(param_name, arg) {
@@ -1538,6 +1582,61 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
                 }
             }
             None
+        }
+
+        // DEPYLER-0518: Pattern: method_call(param) where method expects string
+        // Example: regex::Regex::new(pattern), compiled.find(text), re.match(pattern, text)
+        HirExpr::MethodCall {
+            object,
+            method,
+            args,
+            ..
+        } => {
+            // DEPYLER-0518: Check if this is a module method call like re.match(), re.search()
+            // These expect string arguments
+            if let HirExpr::Var(module_name) = object.as_ref() {
+                let regex_modules = ["re", "regex"];
+                let regex_methods = ["match", "search", "findall", "sub", "subn", "split", "compile"];
+
+                if regex_modules.contains(&module_name.as_str())
+                    && regex_methods.contains(&method.as_str())
+                {
+                    // First two args (pattern, text) are strings
+                    for arg in args.iter().take(2) {
+                        if let HirExpr::Var(var_name) = arg {
+                            if var_name == param_name {
+                                return Some(Type::String);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Methods that expect string arguments (for method calls on objects)
+            let string_methods = [
+                "find", "search", "match", "sub", "replace", "replace_all",
+                "is_match", "captures", "find_iter", "split",
+                "strip", "lstrip", "rstrip", "startswith", "endswith",
+                "contains", "encode", "decode",
+            ];
+            if string_methods.contains(&method.as_str()) {
+                for arg in args {
+                    if let HirExpr::Var(var_name) = arg {
+                        if var_name == param_name {
+                            return Some(Type::String);
+                        }
+                    }
+                }
+            }
+
+            // Recursively check arguments
+            for arg in args {
+                if let Some(ty) = infer_type_from_expr_usage(param_name, arg) {
+                    return Some(ty);
+                }
+            }
+            // Also check the object expression
+            infer_type_from_expr_usage(param_name, object)
         }
         // Pattern: f-string with param → param needs Display → String
         HirExpr::FString { parts } => {
