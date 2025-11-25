@@ -10,7 +10,7 @@ roadmap:
   priority: critical
   assigned_to: Claude
   created: 2025-11-23T21:30:00+00:00
-  updated: 2025-11-24T21:05:46.903967072+00:00
+  updated: 2025-11-25T10:04:13.517391531+00:00
   spec: docs/bugs/DEPYLER-0496-result-binop-error-propagation.md
   acceptance_criteria:
   - fibonacci_memoized(n-1) + fibonacci_memoized(n-2) uses ? operator
