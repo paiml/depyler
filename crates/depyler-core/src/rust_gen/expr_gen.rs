@@ -189,126 +189,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         match op {
-            BinOp::In => {
-                // Convert "x in container" to appropriate method call
-                // - String: string.contains(substring)
-                // - HashSet: container.contains(&x)
-                // - HashMap/dict: container.contains_key(&x)
-
-                // DEPYLER-0380 Bug #3: Handle `var in os.environ`
-                // os.environ in Python is like a dict, but in Rust we check with std::env::var().is_ok()
-                if let HirExpr::Attribute { value, attr } = right {
-                    if let HirExpr::Var(module_name) = &**value {
-                        if module_name == "os" && attr == "environ" {
-                            // var in os.environ → std::env::var(var).is_ok()
-                            return Ok(parse_quote! { std::env::var(#left_expr).is_ok() });
-                        }
-                    }
-                }
-
-                // DEPYLER-0321: Use type-aware string detection
-                let is_string = self.is_string_type(right);
-
-                // Check if right side is a set based on type information
-                let is_set = self.is_set_expr(right) || self.is_set_var(right);
-
-                // Check if right side is a list/array
-                let is_list = self.is_list_expr(right);
-
-                // DEPYLER-0321 + DEPYLER-0304: Type-aware containment method selection
-                // - String: .contains() method
-                // - Set: .contains() method
-                // - List/Array: .contains() method
-                // - HashMap: .contains_key() method with smart reference handling
-
-                // DEPYLER-0422 Fix #12: HashMap borrowing for owned values
-                // Five-Whys Root Cause:
-                // 1. Why: E0308 - expected `&_`, found `String` for contains_key(item)
-                // 2. Why: The transpiler doesn't add & when item is owned
-                // 3. Why: needs_borrow returns false when type is Type::String
-                // 4. Why: Logic is inverted: !matches!(...Type::String) returns false for owned String
-                // 5. ROOT CAUSE: The borrowing detection logic is backwards
-                //
-                // Always add & for HashMap methods. The HIR Type::String doesn't
-                // distinguish between owned String and borrowed &str, so we can't reliably
-                // detect when to skip the borrow. Since most cases (iterators with .cloned(),
-                // owned variables) need the borrow, we default to always borrowing.
-                let needs_borrow = true;
-
-                if is_string || is_set || is_list {
-                    // Strings, Sets, and Lists all use .contains(&value)
-                    if needs_borrow {
-                        Ok(parse_quote! { #right_expr.contains(&#left_expr) })
-                    } else {
-                        Ok(parse_quote! { #right_expr.contains(#left_expr) })
-                    }
-                } else {
-                    // DEPYLER-0449: Dict/HashMap uses .get(key).is_some() for compatibility
-                    // This works for BOTH HashMap AND serde_json::Value:
-                    // - HashMap<K, V>: .get(&K) -> Option<&V>
-                    // - serde_json::Value: .get(&str) -> Option<&Value>
-                    //
-                    // Using .get().is_some() instead of .contains_key() because:
-                    // 1. serde_json::Value doesn't have .contains_key() method
-                    // 2. .get().is_some() is equivalent to .contains_key() for HashMap
-                    // 3. Works universally for both HashMap and Value types
-                    if needs_borrow {
-                        Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
-                    } else {
-                        Ok(parse_quote! { #right_expr.get(#left_expr).is_some() })
-                    }
-                }
-            }
-            BinOp::NotIn => {
-                // Convert "x not in container" to !container.method(&x)
-
-                // DEPYLER-0380 Bug #3: Handle `var not in os.environ`
-                // os.environ in Python is like a dict, but in Rust we check with !std::env::var().is_ok()
-                if let HirExpr::Attribute { value, attr } = right {
-                    if let HirExpr::Var(module_name) = &**value {
-                        if module_name == "os" && attr == "environ" {
-                            // var not in os.environ → !std::env::var(var).is_ok()
-                            return Ok(parse_quote! { !std::env::var(#left_expr).is_ok() });
-                        }
-                    }
-                }
-
-                // DEPYLER-0321: Use type-aware string detection
-                let is_string = self.is_string_type(right);
-
-                // Check if right side is a set based on type information
-                let is_set = self.is_set_expr(right) || self.is_set_var(right);
-
-                // Check if right side is a list/array
-                let is_list = self.is_list_expr(right);
-
-                // DEPYLER-0321 + DEPYLER-0304: Type-aware containment method selection
-                // Same logic as BinOp::In, but negated
-
-                // DEPYLER-0473: Always borrow keys for .get() and .contains()
-                // HIR Type::String doesn't distinguish owned String vs &str,
-                // so we can't reliably detect when to skip borrow. Default to always borrowing.
-                let needs_borrow = true;
-
-                if is_string || is_set || is_list {
-                    // Strings, Sets, and Lists all use .contains(&value)
-                    if needs_borrow {
-                        Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
-                    } else {
-                        Ok(parse_quote! { !#right_expr.contains(#left_expr) })
-                    }
-                } else {
-                    // DEPYLER-0449: Dict/HashMap uses .get(key).is_some() for compatibility
-                    // Same as BinOp::In, but negated - works for both HashMap and Value
-                    // (DEPYLER-0326: Fix Phase 2A auto-borrowing in condition contexts)
-                    // (DEPYLER-0329: Avoid double-borrowing for reference-type parameters)
-                    if needs_borrow {
-                        Ok(parse_quote! { !#right_expr.get(&#left_expr).is_some() })
-                    } else {
-                        Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() })
-                    }
-                }
-            }
+            // DEPYLER-REFACTOR-001 Phase 2.7: Delegate to extracted helper
+            BinOp::In => self.convert_containment_op(false, left, right, left_expr, right_expr),
+            BinOp::NotIn => self.convert_containment_op(true, left, right, left_expr, right_expr),
             BinOp::Add => {
                 // DEPYLER-0290 FIX: Special handling for list concatenation
                 // DEPYLER-0299 Pattern #4 FIX: Don't assume all Var + Var is list concatenation
@@ -593,6 +476,84 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     op: rust_op,
                     right: Box::new(right_expr),
                 }))
+            }
+        }
+    }
+
+    /// DEPYLER-REFACTOR-001 Phase 2.7: Extracted containment operator helper
+    ///
+    /// Handles `In` and `NotIn` binary operators with type-aware method selection.
+    /// - String: .contains(&value)
+    /// - Set: .contains(&value)
+    /// - List: .contains(&value)
+    /// - Dict/HashMap: .get(&key).is_some()
+    ///
+    /// # Arguments
+    /// * `negate` - true for NotIn operator, false for In operator
+    /// * `left` - HIR expression for the left operand (for os.environ detection)
+    /// * `right` - HIR expression for the right operand (container, for type detection)
+    /// * `left_expr` - Generated Rust expression for left operand
+    /// * `right_expr` - Generated Rust expression for right operand
+    ///
+    /// # Complexity: 6
+    fn convert_containment_op(
+        &self,
+        negate: bool,
+        left: &HirExpr,
+        right: &HirExpr,
+        left_expr: syn::Expr,
+        right_expr: syn::Expr,
+    ) -> Result<syn::Expr> {
+        // DEPYLER-0380 Bug #3: Handle `var in os.environ` / `var not in os.environ`
+        if let HirExpr::Attribute { value, attr } = right {
+            if let HirExpr::Var(module_name) = &**value {
+                if module_name == "os" && attr == "environ" {
+                    // os.environ maps to std::env::var().is_ok()
+                    return if negate {
+                        Ok(parse_quote! { !std::env::var(#left_expr).is_ok() })
+                    } else {
+                        Ok(parse_quote! { std::env::var(#left_expr).is_ok() })
+                    };
+                }
+            }
+        }
+
+        // DEPYLER-0321: Type-aware container detection
+        let is_string = self.is_string_type(right);
+        let is_set = self.is_set_expr(right) || self.is_set_var(right);
+        let is_list = self.is_list_expr(right);
+
+        // DEPYLER-0422/0473: Always borrow keys for HashMap methods
+        // HIR Type::String doesn't distinguish owned String vs &str,
+        // so we can't reliably detect when to skip borrow.
+        let needs_borrow = true;
+
+        if is_string || is_set || is_list {
+            // String, Set, List all use .contains(&value)
+            if negate {
+                if needs_borrow {
+                    Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
+                } else {
+                    Ok(parse_quote! { !#right_expr.contains(#left_expr) })
+                }
+            } else if needs_borrow {
+                Ok(parse_quote! { #right_expr.contains(&#left_expr) })
+            } else {
+                Ok(parse_quote! { #right_expr.contains(#left_expr) })
+            }
+        } else {
+            // DEPYLER-0449: Dict/HashMap uses .get(key).is_some() for compatibility
+            // Works for both HashMap and serde_json::Value
+            if negate {
+                if needs_borrow {
+                    Ok(parse_quote! { !#right_expr.get(&#left_expr).is_some() })
+                } else {
+                    Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() })
+                }
+            } else if needs_borrow {
+                Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
+            } else {
+                Ok(parse_quote! { #right_expr.get(#left_expr).is_some() })
             }
         }
     }
