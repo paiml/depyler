@@ -259,6 +259,102 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 - ✅ **Property tests validate invariants**
 - ✅ **Comprehensive rustdoc** for all public APIs
 
+---
+
+## Phase 2: Internal Decomposition Plan
+
+### Overview
+Before extracting `operators.rs` and `call_resolution.rs`, the large functions must be internally decomposed into smaller, cohesive helpers.
+
+### 2.7 `convert_binary` Internal Decomposition (461 lines → ~150 lines + helpers)
+
+**Current Structure Analysis**:
+| Section | Lines | Description |
+|---------|-------|-------------|
+| Preamble | 137-189 (52) | Result/Option handling |
+| In/NotIn | 192-311 (120) | Containment operators |
+| Add | 312-357 (45) | List concat, string concat, arithmetic |
+| FloorDiv | 358-378 (20) | Python floor division semantics |
+| Dict merge | 379-391 (12) | `dict1 \| dict2` |
+| Set ops | 392-401 (10) | &, \|, ^, - for sets |
+| Sub | 402-413 (12) | Subtraction with saturating_sub |
+| Mul | 414-476 (62) | String repeat, array creation |
+| Div | 477-502 (25) | Float division |
+| Pow | 503-568 (65) | Power operator |
+| And/Or | 570-585 (15) | Logical with truthiness |
+| Default | 586-597 (12) | Fallback |
+
+**Proposed Helpers** (in-file first, then extract):
+1. `convert_containment_op(&self, op, left, right) -> Result` (~120 lines)
+   - Handles `In`, `NotIn` with all type detection
+2. `convert_add_op(&self, left, right) -> Result` (~45 lines)
+   - List concat, string concat, arithmetic
+3. `convert_mul_op(&self, left, right) -> Result` (~62 lines)
+   - String repeat, array creation, arithmetic
+4. `convert_pow_op(&self, left, right) -> Result` (~65 lines)
+   - Power with type-specific handling
+
+**After decomposition**: `convert_binary` becomes a ~150-line dispatcher.
+
+### 2.8 `convert_call` Internal Decomposition (891 lines → ~200 lines + helpers)
+
+**Current Structure Analysis**:
+| Section | Lines | Description |
+|---------|-------|-------------|
+| Special starred | 666-697 (31) | `__os_path_join_starred`, `__print_starred` |
+| Array init | 700-727 (27) | `zeros`, `ones`, `full` (ALREADY EXTRACTED) |
+| Iterator w/gen | 738-811 (73) | `map`, `filter`, `sum`, `max`, `sorted`, `reversed` with generators |
+| Math builtins | 918-1029 (111) | `max`, `min`, `abs`, `any`, `all`, `round`, `pow`, `chr`, `ord` |
+| Type conversions | 1031-1163 (132) | `bool`, `Decimal`, `Fraction` |
+| Stdlib types | 1164-1258 (94) | `Path`, `datetime`, `date`, `time`, `timedelta` |
+| Enumerate/zip | 1259-1380 (121) | `enumerate`, `zip`, `isinstance` |
+| Print | 1381+ | `print` with special handling |
+| Final match | 1499+ | Routes to helper methods |
+
+**Proposed Helpers** (in-file first, then extract):
+1. `convert_iterator_call(&self, func, args) -> Option<Result>` (~150 lines)
+   - `map`, `filter`, `zip`, `enumerate`, `sorted`, `reversed`
+2. `convert_math_call(&self, func, args) -> Option<Result>` (~111 lines)
+   - `abs`, `min`, `max`, `sum`, `round`, `pow`, `chr`, `ord`, `any`, `all`
+3. `convert_datetime_call(&self, func, args, kwargs) -> Option<Result>` (~94 lines)
+   - `Path`, `datetime`, `date`, `time`, `timedelta`
+4. `convert_numeric_type_call(&self, func, args) -> Option<Result>` (~80 lines)
+   - `Decimal`, `Fraction`
+
+**After decomposition**: `convert_call` becomes a ~200-line dispatcher.
+
+### Implementation Strategy
+
+**Step 1: Create in-file helpers** (no extraction yet)
+- Move logic to private helper methods within `ExpressionGenerator`
+- Validate all tests pass after each helper
+- TDD: Write unit tests for each helper
+
+**Step 2: Validate decomposition quality**
+- Each helper ≤50 lines
+- Each helper complexity ≤10
+- All 124 behavior tests pass
+
+**Step 3: Extract to modules** (after internal decomposition)
+- `operators.rs`: Contains operator helpers + dispatcher
+- `call_resolution.rs`: Contains call helpers + dispatcher
+
+### Test-First Protocol for Phase 2
+
+Before implementing ANY helper:
+```rust
+// tests/refactor_operators_internal_test.rs
+#[test]
+fn test_convert_containment_op_in_list() {
+    // Test in operator with list
+}
+
+#[test]
+fn test_convert_containment_op_in_dict() {
+    // Test in operator with dict
+}
+```
+
 ## Timeline
 
 - **Week 1**: Golden test harness (95% coverage, property tests, mutation tests)
