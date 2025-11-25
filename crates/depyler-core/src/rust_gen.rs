@@ -455,6 +455,7 @@ fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenS
         (ctx.needs_serde_json, quote! { use serde_json; }),
         (ctx.needs_io_read, quote! { use std::io::Read; }), // DEPYLER-0458
         (ctx.needs_io_write, quote! { use std::io::Write; }), // DEPYLER-0458
+        (ctx.needs_bufread, quote! { use std::io::BufRead; }), // DEPYLER-0522
         (ctx.needs_once_cell, quote! { use once_cell::sync::Lazy; }), // DEPYLER-REARCH-001
     ];
 
@@ -790,6 +791,7 @@ pub fn generate_rust_file(
         needs_url_encoding: false,
         needs_io_read: false,   // DEPYLER-0458
         needs_io_write: false,  // DEPYLER-0458
+        needs_bufread: false,  // DEPYLER-0522
         needs_once_cell: false, // DEPYLER-REARCH-001
         declared_vars: vec![HashSet::new()],
         current_function_can_fail: false,
@@ -1003,6 +1005,7 @@ mod tests {
             needs_url_encoding: false,
             needs_io_read: false,   // DEPYLER-0458
             needs_io_write: false,  // DEPYLER-0458
+        needs_bufread: false,  // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,

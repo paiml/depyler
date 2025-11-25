@@ -1639,6 +1639,8 @@ pub(crate) fn codegen_for_stmt(
         // DEPYLER-0452 Phase 3: Use BufReader::new(f).lines() for File iteration
         // This is the idiomatic Rust way to iterate over file lines
         // Method call syntax (.lines()) is preferred over trait syntax (BufRead::lines())
+        // DEPYLER-0522: .lines() requires BufRead trait to be in scope
+        ctx.needs_bufread = true;
         iter_expr = parse_quote! {
             std::io::BufReader::new(#iter_expr).lines()
                 .map(|l| l.unwrap_or_default())
