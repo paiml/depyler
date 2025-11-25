@@ -213,8 +213,17 @@ fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
             quote! { fn(#(#param_types),*) -> #ret_type }
         }
         Type::Custom(name) => {
-            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-            quote! { #ident }
+            // DEPYLER-0525: Handle special custom types
+            match name.as_str() {
+                // File-like objects use std::fs::File with mutable reference for Write trait
+                "File" => quote! { std::fs::File },
+                // serde_json::Value needs the :: path separator
+                "serde_json::Value" => quote! { serde_json::Value },
+                _ => {
+                    let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                    quote! { #ident }
+                }
+            }
         }
         Type::Unknown => quote! { () },
         Type::TypeVar(name) => {

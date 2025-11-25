@@ -168,6 +168,13 @@ impl TypeMapper {
                         // Python `-> tuple` (without type parameters) maps to empty Rust tuple `()`
                         // This is a fallback - ideally type should be inferred from return value
                         "tuple" => RustType::Tuple(vec![]),
+                        // DEPYLER-0525: File-like objects that implement Write trait
+                        // Map to mutable reference to File for parameter positions
+                        "File" => RustType::Reference {
+                            lifetime: None,
+                            mutable: true,
+                            inner: Box::new(RustType::Custom("std::fs::File".to_string())),
+                        },
                         _ => RustType::Custom(name.clone()),
                     }
                 }
