@@ -1229,6 +1229,54 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         None
     }
 
+    /// DEPYLER-REFACTOR-001 Phase 2.20: Extracted any/all call handler
+    ///
+    /// Handles Python any()/all() function conversion to Rust.
+    ///
+    /// Variants:
+    /// - any(generator_exp) / all(generator_exp) → gen.any/all(|x| x)
+    /// - any(iterable) / all(iterable) → iter.any/all(|&x| x)
+    ///
+    /// Returns Some(Ok(expr)) if handled, None if not an any/all call.
+    ///
+    /// # Complexity: 4
+    fn try_convert_any_all_call(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+    ) -> Option<Result<syn::Expr>> {
+        if (func != "any" && func != "all") || args.len() != 1 {
+            return None;
+        }
+
+        let is_any = func == "any";
+
+        // Handle any/all with generator expressions - don't call .iter()
+        if matches!(args[0], HirExpr::GeneratorExp { .. }) {
+            let gen_expr = match args[0].to_rust_expr(self.ctx) {
+                Ok(e) => e,
+                Err(e) => return Some(Err(e)),
+            };
+            return if is_any {
+                Some(Ok(parse_quote! { #gen_expr.any(|x| x) }))
+            } else {
+                Some(Ok(parse_quote! { #gen_expr.all(|x| x) }))
+            };
+        }
+
+        // Handle any/all with iterables - need .iter()
+        let iter_expr = match args[0].to_rust_expr(self.ctx) {
+            Ok(e) => e,
+            Err(e) => return Some(Err(e)),
+        };
+
+        if is_any {
+            Some(Ok(parse_quote! { #iter_expr.iter().any(|&x| x) }))
+        } else {
+            Some(Ok(parse_quote! { #iter_expr.iter().all(|&x| x) }))
+        }
+    }
+
     fn convert_unary(&mut self, op: &UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
         let operand_expr = operand.to_rust_expr(self.ctx)?;
         match op {
@@ -1407,32 +1455,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #value_expr.abs() });
         }
 
-        // DEPYLER-0307 Fix #1: Handle any() with generator expressions
-        // Generator expressions (e.g., any(n > 0 for n in numbers)) return iterators
-        // Don't call .iter() on them - call .any() directly
-        if func == "any" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
-            let gen_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #gen_expr.any(|x| x) });
-        }
-
-        // DEPYLER-0249: Handle any(iterable) → iterable.iter().any(|&x| x)
-        if func == "any" && args.len() == 1 {
-            let iter_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #iter_expr.iter().any(|&x| x) });
-        }
-
-        // DEPYLER-0307 Fix #1: Handle all() with generator expressions
-        // Generator expressions (e.g., all(n > 0 for n in numbers)) return iterators
-        // Don't call .iter() on them - call .all() directly
-        if func == "all" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
-            let gen_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #gen_expr.all(|x| x) });
-        }
-
-        // DEPYLER-0250: Handle all(iterable) → iterable.iter().all(|&x| x)
-        if func == "all" && args.len() == 1 {
-            let iter_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #iter_expr.iter().all(|&x| x) });
+        // DEPYLER-REFACTOR-001 Phase 2.20: Delegate any/all calls to helper
+        if let Some(result) = self.try_convert_any_all_call(func, args) {
+            return result;
         }
 
         // DEPYLER-0251: Handle round(value) → value.round() as i32
