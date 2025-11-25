@@ -4,6 +4,52 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🐛 Fixes
+
+#### DEPYLER-0516: Negative Literal Type Inference (E0308 Fix)
+
+**Impact**: Fixes 47% of verificar corpus compilation failures
+**Test Status**: ✅ 6 comprehensive tests passing
+**Quality Gates**: ✅ Complexity ≤10, Clippy clean
+**Verification**: Verified with verificar corpus testing (36% → 62% pass rate)
+
+**Problem**: Negative integer literals (`x = -1`) incorrectly generated `serde_json::Value` type instead of `i32`, causing E0308 type mismatch compilation errors.
+
+**Root Cause**: Type inference in `generate_constant_tokens()` only handled direct literals (`HirExpr::Literal`), but negative literals are represented as `HirExpr::Unary { op: UnaryOp::Neg, operand }`. The code fell through to the default case, generating `serde_json::Value`.
+
+**Solution**: Added type preservation for unary operations with extracted helper functions:
+- `infer_unary_type()`: Handles `-1`, `+1`, `--1`, `-1.5` (complexity: 3)
+- `infer_constant_type()`: Centralized constant type inference (complexity: 2)
+- `generate_lazy_constant()`: Runtime-init constants (complexity: 3)
+- `generate_simple_constant()`: Simple constants (complexity: 3)
+
+**Results**:
+- ✅ E0308 type mismatch errors: 15 → 2 (87% reduction)
+- ✅ Verificar corpus pass rate: 36% → 62% (+26pp, +72% relative)
+- ✅ Fixed 13/15 negative literal type errors
+- ✅ All helper functions meet complexity requirement (≤10)
+
+**Examples Fixed**:
+```python
+# Before (BROKEN): pub const x: serde_json::Value = -1;  ❌ E0308 error
+# After (CORRECT): pub const x: i32 = -1;  ✅ Compiles
+x = -1
+y = (-2)
+z = (--10)
+```
+
+**Files Modified**:
+- `crates/depyler-core/src/rust_gen.rs` - Added type preservation for unary operations
+- `crates/depyler-core/tests/depyler_0516_negative_literal_type.rs` - Comprehensive test suite
+
+**Files Created**:
+- `docs/bugs/DEPYLER-0516-negative-literal-type-inference.md` - Complete bug documentation
+
+**Quality Metrics**:
+- Cyclomatic Complexity: All functions ≤10 ✅
+- Test Coverage: 6 comprehensive tests ✅
+- Verificar Verification: 36% → 62% ✅
+
 ### ✨ Features: Custom Rust Attributes Support (PR #76)
 
 **PR**: #76

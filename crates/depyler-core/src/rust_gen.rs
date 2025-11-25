@@ -555,6 +555,119 @@ fn generate_interned_string_tokens(optimizer: &StringOptimizer) -> Vec<proc_macr
         .collect()
 }
 
+/// Generate a single runtime-initialized constant (Lazy)
+///
+/// Used for complex constants like Dict/List that need runtime initialization.
+/// Complexity: 6 (nested if-else with match arms)
+fn generate_lazy_constant(
+    constant: &HirConstant,
+    name_ident: syn::Ident,
+    value_expr: syn::Expr,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    ctx.needs_once_cell = true;
+
+    let type_annotation = if let Some(ref ty) = constant.type_annotation {
+        let rust_type = ctx.type_mapper.map_type(ty);
+        let syn_type = type_gen::rust_type_to_syn(&rust_type)?;
+        quote! { #syn_type }
+    } else {
+        // All complex types default to serde_json::Value
+        ctx.needs_serde_json = true;
+        quote! { serde_json::Value }
+    };
+
+    Ok(quote! {
+        pub static #name_ident: once_cell::sync::Lazy<#type_annotation> = once_cell::sync::Lazy::new(|| #value_expr);
+    })
+}
+
+/// Generate a single simple constant (pub const)
+///
+/// Used for literals and simple expressions that can be const-evaluated.
+/// Complexity: 4 (if-else with helper call)
+fn generate_simple_constant(
+    constant: &HirConstant,
+    name_ident: syn::Ident,
+    value_expr: syn::Expr,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    let type_annotation = if let Some(ref ty) = constant.type_annotation {
+        let rust_type = ctx.type_mapper.map_type(ty);
+        let syn_type = type_gen::rust_type_to_syn(&rust_type)?;
+        quote! { : #syn_type }
+    } else {
+        infer_constant_type(&constant.value, ctx)
+    };
+
+    Ok(quote! {
+        pub const #name_ident #type_annotation = #value_expr;
+    })
+}
+
+/// DEPYLER-0516: Infer type annotation for constant expression
+///
+/// Determines the Rust type for module-level constant expressions.
+/// Complexity: 7 (match with 6 arms + default)
+fn infer_constant_type(
+    value: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> proc_macro2::TokenStream {
+    match value {
+        // Literal types
+        HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
+        HirExpr::Literal(Literal::Float(_)) => quote! { : f64 },
+        HirExpr::Literal(Literal::String(_)) => quote! { : &str },
+        HirExpr::Literal(Literal::Bool(_)) => quote! { : bool },
+
+        // DEPYLER-0516: Unary operations preserve type (helper extracts unary logic)
+        HirExpr::Unary { op, operand } => infer_unary_type(op, operand, ctx),
+
+        // Default fallback
+        _ => {
+            ctx.needs_serde_json = true;
+            quote! { : serde_json::Value }
+        }
+    }
+}
+
+/// DEPYLER-0516: Infer type annotation for unary expressions (negative/positive literals)
+///
+/// Handles type inference for unary operations like -1, +1, --1, -1.5, etc.
+/// Complexity: 5 (recursive pattern matching with early returns)
+fn infer_unary_type(
+    op: &UnaryOp,
+    operand: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> proc_macro2::TokenStream {
+    match (op, operand) {
+        // Negation/Positive of int literal → i32
+        (UnaryOp::Neg | UnaryOp::Pos, HirExpr::Literal(Literal::Int(_))) => {
+            quote! { : i32 }
+        }
+        // Negation/Positive of float literal → f64
+        (UnaryOp::Neg | UnaryOp::Pos, HirExpr::Literal(Literal::Float(_))) => {
+            quote! { : f64 }
+        }
+        // Nested unary (e.g., --1) - recursively check inner operand
+        (UnaryOp::Neg | UnaryOp::Pos, HirExpr::Unary { operand: inner, .. }) => {
+            match inner.as_ref() {
+                HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
+                HirExpr::Literal(Literal::Float(_)) => quote! { : f64 },
+                _ => {
+                    ctx.needs_serde_json = true;
+                    quote! { : serde_json::Value }
+                }
+            }
+        }
+        // Other unary operations - fallback
+        _ => {
+            ctx.needs_serde_json = true;
+            quote! { : serde_json::Value }
+        }
+    }
+}
+
 /// Generate module-level constant tokens
 ///
 /// Generates `pub const` declarations for module-level constants.
@@ -574,75 +687,21 @@ fn generate_constant_tokens(
 
     for constant in constants {
         let name_ident = syn::Ident::new(&constant.name, proc_macro2::Span::call_site());
-
-        // Generate the value expression
         let value_expr = constant.value.to_rust_expr(ctx)?;
 
-        // DEPYLER-REARCH-001: Check if this value needs runtime initialization
+        // DEPYLER-REARCH-001: Complex types need runtime initialization (Lazy)
         let needs_runtime_init = matches!(
             &constant.value,
             HirExpr::Dict(_) | HirExpr::List(_) | HirExpr::Set(_) | HirExpr::Tuple(_)
         );
 
-        if needs_runtime_init {
-            // Use once_cell::Lazy for runtime-initialized constants
-            ctx.needs_once_cell = true;
-
-            // Generate type annotation
-            let type_annotation = if let Some(ref ty) = constant.type_annotation {
-                let rust_type = ctx.type_mapper.map_type(ty);
-                let syn_type = type_gen::rust_type_to_syn(&rust_type)?;
-                quote! { #syn_type }
-            } else {
-                // Infer type from expression
-                match &constant.value {
-                    HirExpr::Dict { .. } => {
-                        ctx.needs_serde_json = true;
-                        quote! { serde_json::Value }
-                    }
-                    HirExpr::List { .. } | HirExpr::Tuple(_) | HirExpr::Set(_) => {
-                        ctx.needs_serde_json = true;
-                        quote! { serde_json::Value }
-                    }
-                    _ => {
-                        ctx.needs_serde_json = true;
-                        quote! { serde_json::Value }
-                    }
-                }
-            };
-
-            // Generate: pub static NAME: Lazy<Type> = Lazy::new(|| { ... });
-            items.push(quote! {
-                pub static #name_ident: once_cell::sync::Lazy<#type_annotation> = once_cell::sync::Lazy::new(|| #value_expr);
-            });
+        let token = if needs_runtime_init {
+            generate_lazy_constant(constant, name_ident, value_expr, ctx)?
         } else {
-            // Simple literals can use pub const
-            let type_annotation = if let Some(ref ty) = constant.type_annotation {
-                let rust_type = ctx.type_mapper.map_type(ty);
-                let syn_type = type_gen::rust_type_to_syn(&rust_type)?;
-                quote! { : #syn_type }
-            } else {
-                // DEPYLER-0448: Infer type from expression (not just literals)
-                match &constant.value {
-                    // Literal types
-                    HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
-                    HirExpr::Literal(Literal::Float(_)) => quote! { : f64 },
-                    HirExpr::Literal(Literal::String(_)) => quote! { : &str },
-                    HirExpr::Literal(Literal::Bool(_)) => quote! { : bool },
+            generate_simple_constant(constant, name_ident, value_expr, ctx)?
+        };
 
-                    // Default fallback
-                    _ => {
-                        ctx.needs_serde_json = true;
-                        quote! { : serde_json::Value }
-                    }
-                }
-            };
-
-            // Generate: pub const NAME: Type = value;
-            items.push(quote! {
-                pub const #name_ident #type_annotation = #value_expr;
-            });
-        }
+        items.push(token);
     }
 
     Ok(items)
