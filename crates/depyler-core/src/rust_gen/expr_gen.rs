@@ -767,29 +767,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #gen_expr.max() });
         }
 
-        // DEPYLER-0190: Handle sorted(iterable) → { let mut result = iterable.clone(); result.sort(); result }
-        if func == "sorted" && args.len() == 1 {
-            let iter_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! {
-                {
-                    let mut __sorted_result = #iter_expr.clone();
-                    __sorted_result.sort();
-                    __sorted_result
-                }
-            });
-        }
-
-        // DEPYLER-0191: Handle reversed(iterable) → iterable.into_iter().rev().collect()
-        if func == "reversed" && args.len() == 1 {
-            let iter_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! {
-                {
-                    let mut __reversed_result = #iter_expr.clone();
-                    __reversed_result.reverse();
-                    __reversed_result
-                }
-            });
-        }
+        // DEPYLER-REFACTOR-001: sorted() and reversed() handlers consolidated
+        // to final match block using convert_sorted_builtin/convert_reversed_builtin
 
         // DEPYLER-0022: Handle memoryview(data) → data (identity/no-op)
         // Rust byte slices (&[u8]) already provide memoryview functionality (zero-copy view)
