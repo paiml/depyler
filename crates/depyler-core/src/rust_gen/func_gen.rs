@@ -455,10 +455,21 @@ fn codegen_single_param(
             quote! { #param_ident: #ty }
         })
     } else {
-        // Fallback to original mapping
+        // DEPYLER-0524: Check if we have an inferred type from body usage analysis
+        // This allows inferring String for parameters used with .endswith(), etc.
+        let effective_type = if matches!(param.ty, Type::Unknown) {
+            ctx.var_types
+                .get(&param.name)
+                .cloned()
+                .unwrap_or_else(|| param.ty.clone())
+        } else {
+            param.ty.clone()
+        };
+
+        // Fallback to original mapping using effective (possibly inferred) type
         let rust_type = ctx
             .annotation_aware_mapper
-            .map_type_with_annotations(&param.ty, &func.annotations);
+            .map_type_with_annotations(&effective_type, &func.annotations);
         update_import_needs(ctx, &rust_type);
         let ty = rust_type_to_syn(&rust_type)?;
 
@@ -1542,6 +1553,62 @@ pub fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<
                 }
             }
         }
+
+        // DEPYLER-0524: Pattern 5: With statement - check body for parameter usage
+        // Example: with open(...) as f: f.write(content); content.endswith("\n")
+        if let HirStmt::With { body, .. } = stmt {
+            if let Some(ty) = infer_param_type_from_body(param_name, body) {
+                return Some(ty);
+            }
+        }
+
+        // DEPYLER-0524: Pattern 6: For loop - check body for parameter usage
+        if let HirStmt::For { body, .. } = stmt {
+            if let Some(ty) = infer_param_type_from_body(param_name, body) {
+                return Some(ty);
+            }
+        }
+
+        // DEPYLER-0524: Pattern 7: While loop - check condition and body
+        if let HirStmt::While {
+            condition, body, ..
+        } = stmt
+        {
+            if let Some(ty) = infer_type_from_expr_usage(param_name, condition) {
+                return Some(ty);
+            }
+            if let Some(ty) = infer_param_type_from_body(param_name, body) {
+                return Some(ty);
+            }
+        }
+
+        // DEPYLER-0524: Pattern 8: Try/except - check all bodies
+        if let HirStmt::Try {
+            body,
+            handlers,
+            orelse,
+            finalbody,
+        } = stmt
+        {
+            if let Some(ty) = infer_param_type_from_body(param_name, body) {
+                return Some(ty);
+            }
+            for handler in handlers {
+                if let Some(ty) = infer_param_type_from_body(param_name, &handler.body) {
+                    return Some(ty);
+                }
+            }
+            if let Some(else_stmts) = orelse {
+                if let Some(ty) = infer_param_type_from_body(param_name, else_stmts) {
+                    return Some(ty);
+                }
+            }
+            if let Some(finally_stmts) = finalbody {
+                if let Some(ty) = infer_param_type_from_body(param_name, finally_stmts) {
+                    return Some(ty);
+                }
+            }
+        }
     }
     None
 }
@@ -1592,6 +1659,22 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             args,
             ..
         } => {
+            // DEPYLER-0524: If param IS the object and method is a string method,
+            // then param must be a string. Example: content.endswith("\n")
+            let string_object_methods = [
+                "strip", "lstrip", "rstrip", "startswith", "endswith",
+                "split", "splitlines", "join", "upper", "lower", "title", "capitalize",
+                "replace", "find", "rfind", "index", "rindex", "count",
+                "isalpha", "isdigit", "isalnum", "isspace", "isupper", "islower",
+                "encode", "format", "center", "ljust", "rjust", "zfill",
+                "partition", "rpartition", "expandtabs", "swapcase", "casefold",
+            ];
+            if let HirExpr::Var(var_name) = object.as_ref() {
+                if var_name == param_name && string_object_methods.contains(&method.as_str()) {
+                    return Some(Type::String);
+                }
+            }
+
             // DEPYLER-0518: Check if this is a module method call like re.match(), re.search()
             // These expect string arguments
             if let HirExpr::Var(module_name) = object.as_ref() {
@@ -1676,11 +1759,23 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
         // Pattern: param * N, param + N, etc. → param is numeric → Int
         // GH-70: Binary operations with param suggest numeric type
         HirExpr::Binary { left, right, op, .. } => {
+            use crate::hir::BinOp;
+
+            // DEPYLER-0524: Pattern: param in string → param is String (substring check)
+            // Example: if pattern in line: → pattern must be String for .contains()
+            if matches!(op, BinOp::In) {
+                if let HirExpr::Var(var_name) = left.as_ref() {
+                    if var_name == param_name {
+                        // In Python, "x in y" where y is string → x is also string
+                        return Some(Type::String);
+                    }
+                }
+            }
+
             // Check if param is used on left side
             if let HirExpr::Var(var_name) = left.as_ref() {
                 if var_name == param_name {
                     // For arithmetic ops, infer numeric type
-                    use crate::hir::BinOp;
                     if matches!(
                         op,
                         BinOp::Add
@@ -1697,7 +1792,6 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             // Check if param is used on right side
             if let HirExpr::Var(var_name) = right.as_ref() {
                 if var_name == param_name {
-                    use crate::hir::BinOp;
                     if matches!(
                         op,
                         BinOp::Add
@@ -1714,6 +1808,50 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             // Recursively check subexpressions
             infer_type_from_expr_usage(param_name, left)
                 .or_else(|| infer_type_from_expr_usage(param_name, right))
+        }
+        // DEPYLER-0524: Unary expressions - check the operand
+        // Example: not content.endswith("\n") → check content.endswith("\n")
+        HirExpr::Unary { operand, .. } => infer_type_from_expr_usage(param_name, operand),
+        // DEPYLER-0524: List comprehensions - check element and generators
+        HirExpr::ListComp {
+            element,
+            generators,
+        } => {
+            // Check element expression
+            if let Some(ty) = infer_type_from_expr_usage(param_name, element) {
+                return Some(ty);
+            }
+            // Check generator conditions
+            for gen in generators {
+                if let HirExpr::Var(var_name) = &*gen.iter {
+                    if var_name == param_name {
+                        return Some(Type::String); // Iterating over param suggests it's iterable
+                    }
+                }
+                for cond in &gen.conditions {
+                    if let Some(ty) = infer_type_from_expr_usage(param_name, cond) {
+                        return Some(ty);
+                    }
+                }
+            }
+            None
+        }
+        // DEPYLER-0524: Generator expressions - same as list comprehensions
+        HirExpr::GeneratorExp {
+            element,
+            generators,
+        } => {
+            if let Some(ty) = infer_type_from_expr_usage(param_name, element) {
+                return Some(ty);
+            }
+            for gen in generators {
+                for cond in &gen.conditions {
+                    if let Some(ty) = infer_type_from_expr_usage(param_name, cond) {
+                        return Some(ty);
+                    }
+                }
+            }
+            None
         }
         _ => None,
     }
@@ -2125,6 +2263,17 @@ impl RustCodeGen for HirFunction {
         // DEPYLER-0312: Analyze mutability BEFORE generating parameters
         // This populates ctx.mutable_vars which codegen_single_param uses to determine `mut` keyword
         analyze_mutable_vars(&self.body, ctx, &self.params);
+
+        // DEPYLER-0524: Infer parameter types from usage in function body
+        // This updates var_types so parameters with Unknown type can be inferred from usage
+        // Must run BEFORE codegen_function_params to affect parameter type generation
+        for param in &self.params {
+            if matches!(param.ty, Type::Unknown) {
+                if let Some(inferred_ty) = infer_param_type_from_body(&param.name, &self.body) {
+                    ctx.var_types.insert(param.name.clone(), inferred_ty);
+                }
+            }
+        }
 
         // Convert parameters using lifetime analysis results
         let params = codegen_function_params(self, &lifetime_result, ctx)?;
