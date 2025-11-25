@@ -50,3 +50,4 @@ proptest.workspace = true
 quickcheck.workspace = true
 tempfile.workspace = true
 toml.workspace = true
+verificar = { path = "../../../verificar" }
