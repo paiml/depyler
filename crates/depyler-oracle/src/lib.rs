@@ -15,11 +15,13 @@ use aprender::tree::DecisionTreeClassifier;
 use serde::{Deserialize, Serialize};
 
 pub mod classifier;
+pub mod depyler_training;
 pub mod features;
 pub mod ngram;
 pub mod patterns;
 pub mod tfidf;
 pub mod training;
+pub mod verificar_integration;
 
 #[cfg(test)]
 mod proptests;
