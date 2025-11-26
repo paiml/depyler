@@ -1,0 +1,32 @@
+[package]
+name = "depyler-oracle"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "ML-powered compile error classification and auto-fixing using aprender models"
+keywords = ["depyler", "ml", "error-classification", "auto-fix"]
+categories = ["development-tools"]
+
+[dependencies]
+# Depyler core for error types
+depyler-core = { path = "../depyler-core" }
+
+# ML models from aprender
+aprender = { path = "../../../aprender" }
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Error handling
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Logging
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+proptest.workspace = true
