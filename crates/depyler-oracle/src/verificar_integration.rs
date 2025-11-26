@@ -39,6 +39,7 @@ pub fn build_verificar_corpus() -> TrainingDataset {
     add_trait_bound_patterns(&mut dataset);
     add_scope_patterns(&mut dataset);
     add_borrow_patterns(&mut dataset);
+    add_extended_patterns(&mut dataset);
 
     dataset
 }
@@ -190,6 +191,177 @@ fn add_borrow_patterns(dataset: &mut TrainingDataset) {
             "error[E0499]: cannot borrow `*self` as mutable more than once",
             ErrorCategory::BorrowChecker,
             "Use Cell/RefCell for interior mutability or restructure",
+        ),
+        TrainingSample::with_fix(
+            "error[E0507]: cannot move out of borrowed content",
+            ErrorCategory::BorrowChecker,
+            "Use .clone() or change to reference",
+        ),
+        TrainingSample::with_fix(
+            "error[E0382]: borrow of moved value",
+            ErrorCategory::BorrowChecker,
+            "Clone value before move or restructure ownership",
+        ),
+    ]);
+}
+
+/// Additional synthetic patterns for edge cases.
+fn add_extended_patterns(dataset: &mut TrainingDataset) {
+    // More type mismatch variants
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `()`, found `String`",
+            ErrorCategory::TypeMismatch,
+            "Function missing return type - add -> String",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `()`, found `i32`",
+            ErrorCategory::TypeMismatch,
+            "Function missing return type - add -> i32",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `()`, found `bool`",
+            ErrorCategory::TypeMismatch,
+            "Function missing return type - add -> bool",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `Vec<String>`, found `&[String]`",
+            ErrorCategory::TypeMismatch,
+            "Convert slice to Vec: .to_vec()",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `&mut`, found `&`",
+            ErrorCategory::TypeMismatch,
+            "Need mutable reference: change & to &mut",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected tuple, found struct",
+            ErrorCategory::TypeMismatch,
+            "Destructuring mismatch - check pattern syntax",
+        ),
+    ]);
+
+    // Iterator and collection errors
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error[E0599]: no method named `iter` found for type `HashMap`",
+            ErrorCategory::TraitBound,
+            "Use .iter() on HashMap or convert to iterator",
+        ),
+        TrainingSample::with_fix(
+            "error[E0599]: no method named `map` found for struct `Vec`",
+            ErrorCategory::TraitBound,
+            "Call .iter().map() instead of .map() directly on Vec",
+        ),
+        TrainingSample::with_fix(
+            "error[E0599]: no method named `collect` found",
+            ErrorCategory::TraitBound,
+            "Need iterator - call .iter() first or check type",
+        ),
+        TrainingSample::with_fix(
+            "error[E0277]: `()` is not an iterator",
+            ErrorCategory::TraitBound,
+            "Expression doesn't return iterator - check for loop source",
+        ),
+    ]);
+
+    // String/str errors
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error[E0599]: no method named `push` found for type `&str`",
+            ErrorCategory::TraitBound,
+            "&str is immutable - use String::from() then .push()",
+        ),
+        TrainingSample::with_fix(
+            "error[E0599]: no method named `clear` found for type `&str`",
+            ErrorCategory::TraitBound,
+            "&str is immutable - convert to String first",
+        ),
+        TrainingSample::with_fix(
+            "error[E0277]: the size for values of type `str` cannot be known",
+            ErrorCategory::TraitBound,
+            "Use &str or String instead of bare str",
+        ),
+    ]);
+
+    // Closure and function errors
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected closure, found fn pointer",
+            ErrorCategory::TypeMismatch,
+            "Use closure |args| body or Box<dyn Fn>",
+        ),
+        TrainingSample::with_fix(
+            "error[E0277]: expected a `Fn<()>` closure, found",
+            ErrorCategory::TraitBound,
+            "Closure signature doesn't match - check arguments",
+        ),
+        TrainingSample::with_fix(
+            "error[E0373]: closure may outlive the current function",
+            ErrorCategory::BorrowChecker,
+            "Add 'move' keyword: move |args| body",
+        ),
+    ]);
+
+    // Option/Result errors
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error[E0599]: no method named `unwrap` found for type `()`",
+            ErrorCategory::TypeMismatch,
+            "Expression doesn't return Option/Result",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `Option<T>`, found `T`",
+            ErrorCategory::TypeMismatch,
+            "Wrap value in Some(): Some(value)",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `Result<T, E>`, found `T`",
+            ErrorCategory::TypeMismatch,
+            "Wrap value in Ok(): Ok(value)",
+        ),
+        TrainingSample::with_fix(
+            "error[E0277]: the `?` operator can only be applied to values that implement `Try`",
+            ErrorCategory::TraitBound,
+            "Expression doesn't return Option/Result - remove ?",
+        ),
+    ]);
+
+    // Async errors
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error[E0728]: `await` is only allowed inside `async` functions",
+            ErrorCategory::SyntaxError,
+            "Mark function as async: async fn name()",
+        ),
+        TrainingSample::with_fix(
+            "error[E0277]: `impl Future` is not a `Future`",
+            ErrorCategory::TraitBound,
+            "Missing .await on async function call",
+        ),
+    ]);
+
+    // Derive and attribute errors
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error[E0277]: `MyStruct` doesn't implement `Debug`",
+            ErrorCategory::TraitBound,
+            "Add #[derive(Debug)] to struct definition",
+        ),
+        TrainingSample::with_fix(
+            "error[E0277]: `MyStruct` doesn't implement `Clone`",
+            ErrorCategory::TraitBound,
+            "Add #[derive(Clone)] to struct definition",
+        ),
+        TrainingSample::with_fix(
+            "error[E0277]: `MyStruct` doesn't implement `Default`",
+            ErrorCategory::TraitBound,
+            "Add #[derive(Default)] or impl Default manually",
+        ),
+        TrainingSample::with_fix(
+            "error[E0277]: the trait bound `MyStruct: Serialize` is not satisfied",
+            ErrorCategory::TraitBound,
+            "Add #[derive(Serialize)] and serde dependency",
         ),
     ]);
 }
