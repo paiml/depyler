@@ -101,4 +101,7 @@ playground/node_modules/
 # Rust build artifacts
 *.rlib
 *.rmeta
+
+# Oracle ML models (reproducible from training data)
+*.apr
 examples/marco_polo_cli/target/

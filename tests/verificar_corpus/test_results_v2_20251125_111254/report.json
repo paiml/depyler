@@ -1,0 +1,52 @@
+{
+  "stats": {
+    "total": 10,
+    "transpile_success": 10,
+    "transpile_fail": 0,
+    "compile_success": 6,
+    "compile_fail": 4
+  },
+  "error_categories": {
+    "E0308_type_mismatch": 1,
+    "E0425_cannot_find": 2
+  },
+  "error_details": [
+    {
+      "test_id": 4,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "x = -1"
+    },
+    {
+      "test_id": 7,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = x"
+    },
+    {
+      "test_id": 8,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "x = y"
+    },
+    {
+      "test_id": 9,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "x = z"
+    }
+  ],
+  "timestamp": "2025-11-25T11:13:24.955920",
+  "corpus_file": "corpus_d2_c10.json",
+  "version": "v2_cargo"
+}

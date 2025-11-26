@@ -2395,18 +2395,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if let Some(rust_path) = self.ctx.imported_items.get(func) {
             // DEPYLER-0557: Special handling for itertools.groupby
             // It's a trait method, not a standalone function
-            if rust_path == "itertools::Itertools" && func == "groupby" {
-                if args.len() >= 2 {
-                    let iterable = &args[0];
-                    let key_func = &args[1];
-                    // needs_itertools is already set from import processing
-                    return Ok(parse_quote! {
-                        {
-                            use itertools::Itertools;
-                            #iterable.into_iter().group_by(#key_func)
-                        }
-                    });
-                }
+            if rust_path == "itertools::Itertools" && func == "groupby" && args.len() >= 2 {
+                let iterable = &args[0];
+                let key_func = &args[1];
+                // needs_itertools is already set from import processing
+                return Ok(parse_quote! {
+                    {
+                        use itertools::Itertools;
+                        #iterable.into_iter().group_by(#key_func)
+                    }
+                });
             }
 
             // Parse the rust path and generate the call
@@ -2678,7 +2676,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
 
                     if should_borrow {
-                        parse_quote! { &#arg_expr }
+                        // DEPYLER-0574: Check if function expects &mut for this param
+                        let needs_mut = self.ctx
+                            .function_param_muts
+                            .get(func)
+                            .and_then(|muts| muts.get(param_idx))
+                            .copied()
+                            .unwrap_or(false);
+
+                        if needs_mut {
+                            parse_quote! { &mut #arg_expr }
+                        } else {
+                            parse_quote! { &#arg_expr }
+                        }
                     } else {
                         arg_expr.clone()
                     }
@@ -8844,10 +8854,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if let HirExpr::Index { base, .. } = hir_object {
             if let HirExpr::Var(var_name) = base.as_ref() {
                 // Check if the variable is tracked as a Dict with Unknown value type
-                if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                    if let Type::Dict(_, val_type) = var_type {
-                        return matches!(val_type.as_ref(), Type::Unknown);
-                    }
+                if let Some(Type::Dict(_, val_type)) = self.ctx.var_types.get(var_name) {
+                    return matches!(val_type.as_ref(), Type::Unknown);
                 }
                 // Heuristic: common dict variable names
                 let name = var_name.as_str();
@@ -10670,6 +10678,46 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 true
             }
             HirExpr::Call { func, .. } if func.as_str() == "str" => true,
+            // DEPYLER-0573: Dict value access with string-like keys
+            // Pattern: dict["hash"], dict.get("hash")... - these return string values
+            HirExpr::Index { base, index } if self.is_dict_expr(base) => {
+                // Check if key suggests string value
+                if let HirExpr::Literal(Literal::String(key)) = index.as_ref() {
+                    let k = key.to_lowercase();
+                    k.contains("hash")
+                        || k.contains("name")
+                        || k.contains("path")
+                        || k.contains("text")
+                        || k.contains("message")
+                        || k.contains("algorithm")
+                        || k.contains("filename")
+                        || k.contains("modified")
+                } else {
+                    false
+                }
+            }
+            // DEPYLER-0573: Dict.get() chain with string-like keys
+            HirExpr::MethodCall { object, method, args, .. }
+                if (method == "get" || method == "cloned" || method == "unwrap_or_default")
+                    && self.is_dict_value_access(object) =>
+            {
+                // If it's a get() call, check the key
+                if method == "get" && !args.is_empty() {
+                    if let HirExpr::Literal(Literal::String(key)) = &args[0] {
+                        let k = key.to_lowercase();
+                        return k.contains("hash")
+                            || k.contains("name")
+                            || k.contains("path")
+                            || k.contains("text")
+                            || k.contains("message")
+                            || k.contains("algorithm")
+                            || k.contains("filename")
+                            || k.contains("modified");
+                    }
+                }
+                // For cloned/unwrap_or_default, check the chain
+                self.is_string_base(object)
+            }
             _ => false,
         }
     }
@@ -10709,7 +10757,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0302 Phase 3: Generate string-specific slice code
         if is_string {
-            return self.convert_string_slice(base_expr, start_expr, stop_expr, step_expr);
+            // DEPYLER-0573: If base is dict value access returning Value, convert to owned String
+            // Value.as_str() returns &str with limited lifetime, so convert to String
+            let final_base_expr = if self.is_dict_value_access(base) {
+                parse_quote! { #base_expr.as_str().map(|s| s.to_string()).unwrap_or_default() }
+            } else {
+                base_expr
+            };
+            return self.convert_string_slice(final_base_expr, start_expr, stop_expr, step_expr);
         }
 
         // Generate slice code based on the parameters (for Vec/List)
@@ -11140,12 +11195,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0269 FIX: Convert string literals to owned Strings
         // List literals with string elements should use Vec<String> not Vec<&str>
         // This ensures they can be passed to functions expecting &Vec<String>
+
+        // DEPYLER-0572: Detect if list has mixed types (dict access Value + format! String)
+        // If so, unify to String by converting Value elements via .to_string()
+        let has_dict_access = elts.iter().any(|e| self.is_dict_value_access(e));
+        let has_fstring = elts.iter().any(|e| matches!(e, HirExpr::FString { .. }));
+        let needs_string_unify = has_dict_access && has_fstring;
+
         let elt_exprs: Vec<syn::Expr> = elts
             .iter()
             .map(|e| {
                 let mut expr = e.to_rust_expr(self.ctx)?;
                 // Check if element is a string literal
                 if matches!(e, HirExpr::Literal(Literal::String(_))) {
+                    expr = parse_quote! { #expr.to_string() };
+                }
+                // DEPYLER-0572: Convert dict Value to String when mixed with f-strings
+                if needs_string_unify && self.is_dict_value_access(e) {
                     expr = parse_quote! { #expr.to_string() };
                 }
                 Ok(expr)
@@ -12205,6 +12271,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check var_types to see if this variable is a dict/HashMap
                 if let Some(var_type) = self.ctx.var_types.get(name) {
                     matches!(var_type, Type::Dict(_, _))
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0572: Check if expression is a dict value access (returns serde_json::Value)
+    /// Pattern: dict[key] or dict.get(key).cloned().unwrap_or_default()
+    /// These return Value which needs .to_string() when mixed with String in lists
+    fn is_dict_value_access(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // dict[key] index access
+            HirExpr::Index { base, .. } => self.is_dict_expr(base),
+            // dict.get(key)... chain
+            HirExpr::MethodCall { object, method, .. } => {
+                if method == "get" {
+                    self.is_dict_expr(object)
+                } else if method == "cloned" || method == "unwrap_or_default" || method == "unwrap" {
+                    // Check the chain for dict access
+                    self.is_dict_value_access(object)
                 } else {
                     false
                 }

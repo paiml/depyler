@@ -32,5 +32,8 @@ tempfile.workspace = true
 # Testing utilities
 proptest = { workspace = true, optional = true }
 
+# Synthetic test generation
+verificar.workspace = true
+
 [dev-dependencies]
 proptest.workspace = true

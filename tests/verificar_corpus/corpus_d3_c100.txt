@@ -1,0 +1,328 @@
+--- Program 1 (depth: 1) ---
+pass
+
+--- Program 2 (depth: 2) ---
+x = 0
+
+--- Program 3 (depth: 2) ---
+x = 1
+
+--- Program 4 (depth: 2) ---
+x = -1
+
+--- Program 5 (depth: 2) ---
+x = 2
+
+--- Program 6 (depth: 2) ---
+x = 10
+
+--- Program 7 (depth: 2) ---
+x = x
+
+--- Program 8 (depth: 2) ---
+x = y
+
+--- Program 9 (depth: 2) ---
+x = z
+
+--- Program 10 (depth: 2) ---
+x = True
+
+--- Program 11 (depth: 2) ---
+x = False
+
+--- Program 12 (depth: 2) ---
+x = None
+
+--- Program 13 (depth: 3) ---
+x = (-0)
+
+--- Program 14 (depth: 3) ---
+x = (-1)
+
+--- Program 15 (depth: 3) ---
+x = (--1)
+
+--- Program 16 (depth: 3) ---
+x = (-2)
+
+--- Program 17 (depth: 3) ---
+x = (-10)
+
+--- Program 18 (depth: 3) ---
+x = (-x)
+
+--- Program 19 (depth: 3) ---
+x = (-y)
+
+--- Program 20 (depth: 3) ---
+x = (-z)
+
+--- Program 21 (depth: 3) ---
+x = (-True)
+
+--- Program 22 (depth: 2) ---
+y = 0
+
+--- Program 23 (depth: 2) ---
+y = 1
+
+--- Program 24 (depth: 2) ---
+y = -1
+
+--- Program 25 (depth: 2) ---
+y = 2
+
+--- Program 26 (depth: 2) ---
+y = 10
+
+--- Program 27 (depth: 2) ---
+y = x
+
+--- Program 28 (depth: 2) ---
+y = y
+
+--- Program 29 (depth: 2) ---
+y = z
+
+--- Program 30 (depth: 2) ---
+y = True
+
+--- Program 31 (depth: 2) ---
+y = False
+
+--- Program 32 (depth: 2) ---
+y = None
+
+--- Program 33 (depth: 3) ---
+y = (-0)
+
+--- Program 34 (depth: 3) ---
+y = (-1)
+
+--- Program 35 (depth: 3) ---
+y = (--1)
+
+--- Program 36 (depth: 3) ---
+y = (-2)
+
+--- Program 37 (depth: 3) ---
+y = (-10)
+
+--- Program 38 (depth: 3) ---
+y = (-x)
+
+--- Program 39 (depth: 3) ---
+y = (-y)
+
+--- Program 40 (depth: 3) ---
+y = (-z)
+
+--- Program 41 (depth: 3) ---
+y = (-True)
+
+--- Program 42 (depth: 2) ---
+z = 0
+
+--- Program 43 (depth: 2) ---
+z = 1
+
+--- Program 44 (depth: 2) ---
+z = -1
+
+--- Program 45 (depth: 2) ---
+z = 2
+
+--- Program 46 (depth: 2) ---
+z = 10
+
+--- Program 47 (depth: 2) ---
+z = x
+
+--- Program 48 (depth: 2) ---
+z = y
+
+--- Program 49 (depth: 2) ---
+z = z
+
+--- Program 50 (depth: 2) ---
+z = True
+
+--- Program 51 (depth: 2) ---
+z = False
+
+--- Program 52 (depth: 2) ---
+z = None
+
+--- Program 53 (depth: 3) ---
+z = (-0)
+
+--- Program 54 (depth: 3) ---
+z = (-1)
+
+--- Program 55 (depth: 3) ---
+z = (--1)
+
+--- Program 56 (depth: 3) ---
+z = (-2)
+
+--- Program 57 (depth: 3) ---
+z = (-10)
+
+--- Program 58 (depth: 3) ---
+z = (-x)
+
+--- Program 59 (depth: 3) ---
+z = (-y)
+
+--- Program 60 (depth: 3) ---
+z = (-z)
+
+--- Program 61 (depth: 3) ---
+z = (-True)
+
+--- Program 62 (depth: 1) ---
+return
+
+--- Program 63 (depth: 2) ---
+return 0
+
+--- Program 64 (depth: 2) ---
+return 1
+
+--- Program 65 (depth: 2) ---
+return -1
+
+--- Program 66 (depth: 2) ---
+return 2
+
+--- Program 67 (depth: 2) ---
+return 10
+
+--- Program 68 (depth: 2) ---
+return x
+
+--- Program 69 (depth: 2) ---
+return y
+
+--- Program 70 (depth: 2) ---
+return z
+
+--- Program 71 (depth: 2) ---
+return True
+
+--- Program 72 (depth: 2) ---
+return False
+
+--- Program 73 (depth: 2) ---
+if x:
+    pass
+
+--- Program 74 (depth: 3) ---
+if x:
+    x = 0
+
+--- Program 75 (depth: 3) ---
+if x:
+    x = 1
+
+--- Program 76 (depth: 3) ---
+if x:
+    x = -1
+
+--- Program 77 (depth: 3) ---
+if x:
+    x = 2
+
+--- Program 78 (depth: 2) ---
+if y:
+    pass
+
+--- Program 79 (depth: 3) ---
+if y:
+    x = 0
+
+--- Program 80 (depth: 3) ---
+if y:
+    x = 1
+
+--- Program 81 (depth: 3) ---
+if y:
+    x = -1
+
+--- Program 82 (depth: 3) ---
+if y:
+    x = 2
+
+--- Program 83 (depth: 2) ---
+if z:
+    pass
+
+--- Program 84 (depth: 3) ---
+if z:
+    x = 0
+
+--- Program 85 (depth: 3) ---
+if z:
+    x = 1
+
+--- Program 86 (depth: 3) ---
+if z:
+    x = -1
+
+--- Program 87 (depth: 3) ---
+if z:
+    x = 2
+
+--- Program 88 (depth: 2) ---
+if True:
+    pass
+
+--- Program 89 (depth: 3) ---
+if True:
+    x = 0
+
+--- Program 90 (depth: 3) ---
+if True:
+    x = 1
+
+--- Program 91 (depth: 3) ---
+if True:
+    x = -1
+
+--- Program 92 (depth: 3) ---
+if True:
+    x = 2
+
+--- Program 93 (depth: 2) ---
+if False:
+    pass
+
+--- Program 94 (depth: 3) ---
+if False:
+    x = 0
+
+--- Program 95 (depth: 3) ---
+if False:
+    x = 1
+
+--- Program 96 (depth: 3) ---
+if False:
+    x = -1
+
+--- Program 97 (depth: 3) ---
+if False:
+    x = 2
+
+--- Program 98 (depth: 2) ---
+while x:
+    break
+
+--- Program 99 (depth: 2) ---
+while y:
+    break
+
+--- Program 100 (depth: 2) ---
+while z:
+    break
+

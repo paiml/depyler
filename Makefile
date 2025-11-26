@@ -739,6 +739,100 @@ pmat-rust-score: ## Run Rust Project Score assessment
 	@pmat rust-project-score --verbose
 	@echo "✅ Rust Project Score complete!"
 
+##@ Verificar Synthetic Testing (1000+ Program Variants)
+
+.PHONY: verificar-install verificar-generate verificar-test verificar-report verificar-ci
+
+verificar-install: ## Install verificar for synthetic test generation
+	@echo "📦 Installing verificar..."
+	@cargo install --path ../verificar 2>/dev/null || cargo install verificar
+	@echo "✅ Verificar installed!"
+
+verificar-generate: ## Generate synthetic Python test corpus (1000+ variants)
+	@echo "🔬 Generating synthetic Python test programs..."
+	@which verificar > /dev/null 2>&1 || { echo "❌ verificar not found! Run: make verificar-install"; exit 1; }
+	@mkdir -p target/verificar/corpus
+	@verificar depyler --max-depth 4 --output files --output-dir target/verificar/corpus
+	@echo "✅ Generated $$(ls target/verificar/corpus/*.py 2>/dev/null | wc -l) Python test programs"
+
+verificar-test: ## Run verificar corpus through depyler and check compilation
+	@echo "🧪 Testing depyler with verificar synthetic corpus..."
+	@which verificar > /dev/null 2>&1 || { echo "❌ verificar not found! Run: make verificar-install"; exit 1; }
+	@mkdir -p target/verificar/corpus target/verificar/output target/verificar/results
+	@# Generate corpus if not exists
+	@if [ ! -d "target/verificar/corpus" ] || [ -z "$$(ls target/verificar/corpus/*.py 2>/dev/null)" ]; then \
+		echo "📝 Generating test corpus first..."; \
+		verificar depyler --max-depth 4 --output files --output-dir target/verificar/corpus; \
+	fi
+	@echo "🔄 Transpiling $$(ls target/verificar/corpus/*.py 2>/dev/null | wc -l) Python programs..."
+	@mkdir -p target/verificar/bin
+	@PASS=0; FAIL=0; \
+	for py in target/verificar/corpus/*.py; do \
+		name=$$(basename "$$py" .py); \
+		if ./target/release/depyler transpile "$$py" -o "target/verificar/output/$$name.rs" 2>/dev/null; then \
+			if rustc --crate-type lib --edition 2021 "target/verificar/output/$$name.rs" -o "target/verificar/bin/$$name" 2>/dev/null; then \
+				PASS=$$((PASS + 1)); \
+				echo "✅ $$name"; \
+			else \
+				FAIL=$$((FAIL + 1)); \
+				echo "❌ $$name (compile fail)"; \
+			fi; \
+		else \
+			FAIL=$$((FAIL + 1)); \
+			echo "❌ $$name (transpile fail)"; \
+		fi; \
+	done; \
+	TOTAL=$$((PASS + FAIL)); \
+	RATE=$$((PASS * 100 / (TOTAL > 0 ? TOTAL : 1))); \
+	echo ""; \
+	echo "══════════════════════════════════════"; \
+	echo "📊 VERIFICAR RESULTS: $$PASS/$$TOTAL ($$RATE%)"; \
+	echo "══════════════════════════════════════"; \
+	echo "$$PASS $$FAIL $$TOTAL $$RATE" > target/verificar/results/summary.txt
+
+verificar-report: ## Generate detailed verificar test report
+	@echo "📊 Generating verificar test report..."
+	@if [ ! -f "target/verificar/results/summary.txt" ]; then \
+		echo "⚠️  No results found. Run 'make verificar-test' first."; \
+		exit 1; \
+	fi
+	@read PASS FAIL TOTAL RATE < target/verificar/results/summary.txt; \
+	echo "# Verificar Synthetic Test Report" > target/verificar/results/report.md; \
+	echo "" >> target/verificar/results/report.md; \
+	echo "Generated: $$(date)" >> target/verificar/results/report.md; \
+	echo "" >> target/verificar/results/report.md; \
+	echo "## Summary" >> target/verificar/results/report.md; \
+	echo "- **Pass Rate**: $$RATE%" >> target/verificar/results/report.md; \
+	echo "- **Passed**: $$PASS" >> target/verificar/results/report.md; \
+	echo "- **Failed**: $$FAIL" >> target/verificar/results/report.md; \
+	echo "- **Total**: $$TOTAL" >> target/verificar/results/report.md; \
+	echo "" >> target/verificar/results/report.md; \
+	echo "## Quality Gate" >> target/verificar/results/report.md; \
+	if [ "$$RATE" -ge 90 ]; then \
+		echo "✅ **PASS** (≥90% threshold)" >> target/verificar/results/report.md; \
+	elif [ "$$RATE" -ge 80 ]; then \
+		echo "⚠️  **WARNING** (80-90% range)" >> target/verificar/results/report.md; \
+	else \
+		echo "❌ **FAIL** (<80% threshold)" >> target/verificar/results/report.md; \
+	fi; \
+	cat target/verificar/results/report.md
+
+verificar-ci: ## CI-ready verificar validation (fail on <80% pass rate)
+	@echo "🔬 Running verificar CI validation..."
+	@$(MAKE) verificar-test
+	@read PASS FAIL TOTAL RATE < target/verificar/results/summary.txt; \
+	if [ "$$RATE" -lt 80 ]; then \
+		echo "❌ VERIFICAR CI FAILED: $$RATE% pass rate (minimum 80%)"; \
+		exit 1; \
+	else \
+		echo "✅ VERIFICAR CI PASSED: $$RATE% pass rate"; \
+	fi
+
+verificar-clean: ## Clean verificar test artifacts
+	@echo "🧹 Cleaning verificar artifacts..."
+	@rm -rf target/verificar/
+	@echo "✅ Cleaned"
+
 ##@ bashrs Validation
 
 .PHONY: validate-makefiles

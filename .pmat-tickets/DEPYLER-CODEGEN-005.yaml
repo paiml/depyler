@@ -1,0 +1,93 @@
+id: DEPYLER-CODEGEN-005
+title: "Incorrect Python Stdlib Method Mapping"
+description: |
+  Python stdlib methods mapped to non-existent or incorrect Rust equivalents,
+  causing E0599 "method not found" errors.
+
+priority: P1
+type: bug
+status: todo
+
+evidence:
+  error_code: E0599
+  error_message: "no method named 'X' found"
+  total_errors: 15+
+
+method_mapping_fixes:
+  # pathlib methods
+  - python: "path.stat()"
+    generated: "path.stat()"
+    correct: "std::fs::metadata(&path)?"
+    module: pathlib
+
+  - python: "path.name"
+    generated: "path.name"
+    correct: "path.file_name().and_then(|n| n.to_str())"
+    module: pathlib
+
+  - python: "path.absolute()"
+    generated: "path.absolute()"
+    correct: "std::fs::canonicalize(&path)?"
+    module: pathlib
+
+  # subprocess methods
+  - python: "result.returncode"
+    generated: "result.returncode"
+    correct: "result.status.code()"
+    module: subprocess
+
+  # regex methods
+  - python: "match.as_str()"
+    generated: "opt.as_str()"
+    correct: "opt.as_ref().map(|m| m.as_str())"
+    module: re
+    note: "Option<Match> not Match"
+
+  - python: "match.start()"
+    generated: "opt.start()"
+    correct: "opt.as_ref().map(|m| m.start())"
+    module: re
+
+  # file/io methods
+  - python: "file.iter()"
+    generated: "file.iter()"
+    correct: "BufReader::new(file).lines()"
+    module: io
+
+  - python: "reader.readline()"
+    generated: "reader.readline()"
+    correct: "reader.read_line(&mut buf)?"
+    module: io
+
+  # context managers
+  - python: "with open(path) as f:"
+    generated: "result.__enter__()"
+    correct: "File::open(path)?"
+    note: "Context manager not applicable in Rust"
+
+  # string methods
+  - python: "s.to_vec()"
+    generated: "s.to_vec()"
+    correct: "s.as_bytes().to_vec()"
+    note: "str has no to_vec, bytes does"
+
+fix_location:
+  - Python stdlib API mapping tables
+  - pathlib → std::path + std::fs
+  - subprocess → std::process
+  - re → regex crate
+  - io → std::io + BufReader
+
+acceptance_criteria:
+  - pathlib methods map to std::fs/std::path equivalents
+  - subprocess results map to std::process::Output
+  - regex Match methods account for Option<Match>
+  - File iteration uses BufReader::lines()
+  - Context managers transpile to ? operator pattern
+  - All E0599 method errors resolved
+
+testing:
+  - Unit tests for each method mapping
+  - Integration test: pattern_matcher regex methods
+  - Integration test: stream_processor file iteration
+  - Integration test: task_runner subprocess

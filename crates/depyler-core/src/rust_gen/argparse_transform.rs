@@ -275,7 +275,13 @@ impl ArgParserArgument {
 
         // DEPYLER-0527: Optional flags (--arg without required=True) → Option<T>
         // In argparse, long arguments without required=True default to None
-        if !self.is_positional && self.required != Some(true) && self.nargs.is_none() {
+        // DEPYLER-0530: BUT if there's a default value, don't wrap in Option
+        // because clap will always provide a value via default_value attribute
+        if !self.is_positional
+            && self.required != Some(true)
+            && self.nargs.is_none()
+            && self.default.is_none()
+        {
             let inner_type = self
                 .arg_type
                 .as_ref()

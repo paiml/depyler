@@ -1,0 +1,75 @@
+id: DEPYLER-CODEGEN-004
+title: "JSON/Dict Indexing API Mismatch"
+description: |
+  Python dict access `d["key"]` transpiled directly to Rust indexing, but serde_json::Value
+  requires different API (.get() method) causing E0277 errors.
+
+priority: P1
+type: bug
+status: todo
+
+evidence:
+  error_code: E0277
+  error_message: "the type `[serde_json::Value]` cannot be indexed by `&str`"
+  affected_examples:
+    - stdlib_integration: 15 errors
+  total_errors: 15
+
+root_cause: |
+  Python dict indexing: d["key"]
+  Transpiles to: d["key"] (direct Rust indexing)
+
+  But serde_json::Value requires:
+  - d.get("key") for safe access (returns Option)
+  - d["key"] only works on serde_json::Map, not Value
+  - Array indexing by string is invalid
+
+python_patterns:
+  - pattern: "d['key']"
+    usage: "Direct dict access"
+    frequency: "Very common"
+
+  - pattern: "d.get('key', default)"
+    usage: "Safe access with default"
+    frequency: "Common"
+
+  - pattern: "d['key1']['key2']"
+    usage: "Nested access"
+    frequency: "Common"
+
+rust_mapping:
+  - python: "d['key']"
+    rust: "d.get(\"key\").and_then(|v| v.as_str())"
+    note: "For string values"
+
+  - python: "d['key']"
+    rust: "d.get(\"key\").and_then(|v| v.as_i64())"
+    note: "For integer values"
+
+  - python: "d.get('key', default)"
+    rust: "d.get(\"key\").and_then(|v| v.as_str()).unwrap_or(default)"
+    note: "With default value"
+
+  - python: "d['key1']['key2']"
+    rust: "d.get(\"key1\").and_then(|v| v.get(\"key2\")).and_then(|v| v.as_str())"
+    note: "Nested access"
+
+  - python: "'key' in d"
+    rust: "d.get(\"key\").is_some()"
+    note: "Key existence check"
+
+fix_location:
+  - Dict access codegen
+  - serde_json::Value handling
+  - Type-aware accessor generation
+
+acceptance_criteria:
+  - Python d["key"] generates d.get("key")...
+  - Nested access generates chained .get() calls
+  - Value extraction matches expected type (as_str, as_i64, etc.)
+  - All E0277 JSON indexing errors resolved
+
+testing:
+  - Unit tests for each dict access pattern
+  - Integration test: stdlib_integration JSON handling
+  - Property tests for nested dict access

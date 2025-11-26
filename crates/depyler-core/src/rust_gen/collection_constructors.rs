@@ -91,6 +91,28 @@ pub fn convert_counter_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> 
     }
 }
 
+/// Convert Python defaultdict() to Rust HashMap
+///
+/// DEPYLER-0556: defaultdict(factory) creates HashMap with default values
+///
+/// - `defaultdict(int)` → `HashMap::new()` (use entry API for default 0)
+/// - `defaultdict(list)` → `HashMap::new()` (use entry API for default vec)
+/// - `defaultdict()` → `HashMap::new()`
+///
+/// Note: Python's defaultdict auto-creates missing values. In Rust, we use
+/// the entry API: `map.entry(key).or_insert_with(factory)` or `.or_default()`
+///
+/// # Complexity: 3
+pub fn convert_defaultdict_builtin(
+    ctx: &mut CodeGenContext,
+    _args: &[syn::Expr],
+) -> Result<syn::Expr> {
+    ctx.needs_hashmap = true;
+    // defaultdict(int), defaultdict(list), defaultdict(str), defaultdict()
+    // All translate to HashMap::new() since Rust uses entry API for defaults
+    Ok(parse_quote! { HashMap::new() })
+}
+
 /// Convert Python dict() constructor to Rust HashMap
 ///
 /// DEPYLER-0172: dict() converts mapping/iterable to HashMap

@@ -1,0 +1,81 @@
+id: DEPYLER-CODEGEN-006
+title: "Missing Imports and Cargo.toml Dependencies"
+description: |
+  Generated Rust code uses external crates that are not added to Cargo.toml,
+  or has incorrect import paths, causing E0432 errors.
+
+priority: P2
+type: bug
+status: todo
+
+evidence:
+  error_code: E0432
+  error_message: "unresolved import"
+  cases:
+    - import: "use sha2 as hashlib"
+      issue: "sha2 crate not in Cargo.toml"
+      example: stdlib_integration
+
+    - import: "use regex"
+      issue: "regex crate not in Cargo.toml"
+      example: log_analyzer
+
+    - import: "use itertools::group_by"
+      issue: "Wrong path - should be Itertools trait method"
+      example: log_analyzer
+  total_errors: 3
+
+root_cause: |
+  1. External crate dependencies not auto-added to Cargo.toml
+  2. Import paths incorrect for some crates (itertools)
+  3. No dependency resolution during transpilation
+
+required_crate_mappings:
+  - python_module: hashlib
+    rust_crate: sha2
+    cargo_toml: 'sha2 = "0.10"'
+    import: "use sha2::{Sha256, Digest};"
+
+  - python_module: re
+    rust_crate: regex
+    cargo_toml: 'regex = "1"'
+    import: "use regex::Regex;"
+
+  - python_module: itertools
+    rust_crate: itertools
+    cargo_toml: 'itertools = "0.12"'
+    import: "use itertools::Itertools;"
+    note: "group_by is a trait method, not a function"
+
+  - python_module: datetime
+    rust_crate: chrono
+    cargo_toml: 'chrono = "0.4"'
+    import: "use chrono::{DateTime, Utc};"
+
+  - python_module: json
+    rust_crate: serde_json
+    cargo_toml: 'serde_json = "1"'
+    import: "use serde_json::Value;"
+
+fix_strategy: |
+  1. Detect Python imports during AST analysis
+  2. Map to required Rust crates
+  3. Auto-generate/update Cargo.toml dependencies
+  4. Use correct import paths for each crate
+
+fix_location:
+  - Import resolution phase
+  - Cargo.toml generation/update
+  - Crate → import path mapping table
+
+acceptance_criteria:
+  - hashlib usage adds sha2 to Cargo.toml
+  - re module adds regex to Cargo.toml
+  - itertools uses correct import path (Itertools trait)
+  - datetime adds chrono to Cargo.toml
+  - All E0432 import errors resolved
+
+testing:
+  - Unit tests for crate dependency detection
+  - Integration test: Cargo.toml generation
+  - Verify correct import paths for all supported modules

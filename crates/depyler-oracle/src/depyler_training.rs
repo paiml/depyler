@@ -33,6 +33,9 @@ pub fn build_depyler_corpus() -> TrainingDataset {
     // Type inference: serde_json::Value defaults
     add_type_inference_samples(&mut dataset);
 
+    // DEPYLER-0559: Real errors from stdlib_integration + log_analyzer
+    add_stdlib_real_errors(&mut dataset);
+
     dataset
 }
 
@@ -201,6 +204,262 @@ fn add_type_inference_samples(dataset: &mut TrainingDataset) {
     ]);
 }
 
+/// DEPYLER-0559: Real errors from stdlib_integration + log_analyzer examples
+/// These are actual compilation errors encountered during transpilation.
+fn add_stdlib_real_errors(dataset: &mut TrainingDataset) {
+    dataset.add_many(vec![
+        // Function return type inference failures
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `()`, found `String` arguments to this enum variant are incorrect",
+            ErrorCategory::TypeMismatch,
+            "FIX_RETURN_TYPE: Function returns String but declared as Result<(), _>. Infer return type from actual return statements.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: `?` operator has incompatible types expected `String`, found `()`",
+            ErrorCategory::TypeMismatch,
+            "FIX_RETURN_TYPE: Called function returns () but caller expects String. Fix callee's return type annotation.",
+        ),
+        // HashMap key type issues
+        TrainingSample::with_fix(
+            "error[E0277]: the trait bound `String: Borrow<&str>` is not satisfied required by a bound introduced by this call",
+            ErrorCategory::TraitBound,
+            "FIX_HASHMAP_KEY: Use .get(\"key\") not .get(&\"key\"). HashMap<String, V>::get takes &str directly.",
+        ),
+        TrainingSample::with_fix(
+            "the trait `Borrow<&_>` is not implemented for `String` but trait `Borrow<_>` is implemented",
+            ErrorCategory::TraitBound,
+            "FIX_HASHMAP_KEY: Extra & before string literal in .get(). Remove the extra reference.",
+        ),
+        // Mixed dict value types
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `String`, found `u64` HashMap<String, String>",
+            ErrorCategory::TypeMismatch,
+            "FIX_DICT_VALUE_TYPE: Dict has mixed value types (String + u64). Use serde_json::Value or convert all to String with .to_string().",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: expected `HashMap<String, Value>`, found `HashMap<String, String>`",
+            ErrorCategory::TypeMismatch,
+            "FIX_DICT_TYPE_CONSISTENCY: Return type expects Value but built with String. Unify dict value types.",
+        ),
+        // Value vs concrete type method calls
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `bool`, found `Value` in if condition",
+            ErrorCategory::TypeMismatch,
+            "FIX_CONDITION_TYPE: Value used in if condition. Use .as_bool().unwrap_or(false) or infer concrete bool type.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: expected `bool`, found `&Value` in && expression",
+            ErrorCategory::TypeMismatch,
+            "FIX_BOOL_PARAM: Parameter has wrong type - should be bool not &serde_json::Value.",
+        ),
+        // Option handling
+        TrainingSample::with_fix(
+            "error[E0277]: the trait bound `PathBuf: From<Option<String>>` is not satisfied",
+            ErrorCategory::TypeMismatch,
+            "FIX_OPTION_UNWRAP: Cannot construct PathBuf from Option. Use args.output.map(PathBuf::from) or unwrap first.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: expected `String`, found `Option<String>` insert arguments incorrect",
+            ErrorCategory::TypeMismatch,
+            "FIX_OPTION_VALUE: Option<String> used where String expected. Add .unwrap_or_default() or handle None case.",
+        ),
+        // Function argument type mismatches
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `&f64`, found `f64` consider borrowing here",
+            ErrorCategory::TypeMismatch,
+            "FIX_BORROW: Function expects reference but got owned value. Add & before argument.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `String`, found `&PathBuf`",
+            ErrorCategory::TypeMismatch,
+            "FIX_PATH_TO_STRING: Expected String but got PathBuf reference. Use path.to_string_lossy().to_string().",
+        ),
+        // Mutability mismatches
+        TrainingSample::with_fix(
+            "error[E0308]: types differ in mutability expected `&mut HashMap`, found `&HashMap`",
+            ErrorCategory::BorrowChecker,
+            "FIX_MUTABILITY: Function expects mutable reference. Change &info to &mut info at call site.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: expected mutable reference `&mut serde_json::Value` found reference `&HashMap`",
+            ErrorCategory::TypeMismatch,
+            "FIX_PARAM_TYPE: Parameter type mismatch - function expects Value but called with HashMap.",
+        ),
+        // Generator/yield errors (log_analyzer)
+        TrainingSample::with_fix(
+            "error[E0658]: yield syntax is experimental",
+            ErrorCategory::SyntaxError,
+            "FIX_YIELD: Python yield requires #![feature(coroutines)] or rewrite as Iterator impl.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0627]: yield expression outside of coroutine literal",
+            ErrorCategory::SyntaxError,
+            "FIX_COROUTINE: yield must be in #[coroutine] closure. Convert generator to iterator pattern.",
+        ),
+        // GroupBy/itertools errors
+        TrainingSample::with_fix(
+            "error[E0277]: `GroupBy<_, _, _>` is not an iterator",
+            ErrorCategory::TraitBound,
+            "FIX_GROUPBY: itertools group_by returns GroupBy. Use .into_iter() on result groups.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0425]: cannot find value `group` in this scope",
+            ErrorCategory::SyntaxError,
+            "FIX_CLOSURE_CAPTURE: Variable not in scope. Check closure captures or function parameters.",
+        ),
+        // Tuple field access
+        TrainingSample::with_fix(
+            "error[E0609]: no field `0` on type `()`",
+            ErrorCategory::TypeMismatch,
+            "FIX_TUPLE_TYPE: Trying to access tuple field on unit type. Check iterator element type.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0631]: type mismatch in closure arguments expected closure signature `fn((&K, &V))`",
+            ErrorCategory::TypeMismatch,
+            "FIX_CLOSURE_SIG: Closure parameter types don't match. Adjust parameter patterns or types.",
+        ),
+        // === ADDITIONAL SERDE_JSON::VALUE PATTERNS ===
+        // These are the most common errors in stdlib_integration
+        TrainingSample::with_fix(
+            "error[E0308]: expected `String`, found `u64` HashMap<String, String>",
+            ErrorCategory::TypeMismatch,
+            "FIX_MIXED_DICT_VALUES: Dict inserts String and u64. Convert u64 to String: stats.len().to_string()",
+        ),
+        TrainingSample::with_fix(
+            "error[E0599]: no method named `to_uppercase` found for enum `serde_json::Value`",
+            ErrorCategory::TypeMismatch,
+            "FIX_VALUE_TO_STRING: Value.to_uppercase() invalid. Use .as_str().unwrap().to_uppercase() or infer String type.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0599]: no method named `len` found for reference `&serde_json::Value`",
+            ErrorCategory::TypeMismatch,
+            "FIX_VALUE_LEN: Value.len() invalid. Type should be String or Vec. Use .as_str().unwrap().len() or fix type inference.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0599]: the method `join` exists for struct `Vec<serde_json::Value>`, but its trait bounds were not satisfied",
+            ErrorCategory::TraitBound,
+            "FIX_VEC_VALUE_JOIN: Vec<Value> can't join. Change to Vec<String> or convert elements: vec.iter().map(|v| v.to_string()).collect::<Vec<_>>().join()",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: expected `HashMap<String, Value>`, found `HashMap<String, String>`",
+            ErrorCategory::TypeMismatch,
+            "FIX_DICT_TYPE_UNIFY: Return type HashMap<String, Value> but built HashMap<String, String>. Unify: use serde_json::json!() or convert values.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `bool`, found `serde_json::Value`",
+            ErrorCategory::TypeMismatch,
+            "FIX_VALUE_TO_BOOL: Value used as bool. Use value.as_bool().unwrap_or(false) or fix type to bool.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: expected `Value`, found `String` in push/insert",
+            ErrorCategory::TypeMismatch,
+            "FIX_STRING_TO_VALUE: Vec<Value> expects Value. Convert: serde_json::Value::String(s) or s.into()",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: arguments to this function are incorrect expected `&mut HashMap<_, _>` found `&HashMap`",
+            ErrorCategory::BorrowChecker,
+            "FIX_MUT_BORROW: Function needs &mut but got &. Change call site to pass &mut variable.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: expected `&Value`, found `bool` arguments to this function are incorrect",
+            ErrorCategory::TypeMismatch,
+            "FIX_PARAM_TYPE_VALUE: Function param is &Value but passed bool. Fix function signature or convert argument.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0282]: type annotations needed PathBuf as_ref",
+            ErrorCategory::TypeMismatch,
+            "FIX_PATHBUF_ASREF: Type inference failed on PathBuf.as_ref(). Use explicit path or avoid double .as_ref().unwrap() chains.",
+        ),
+    ]);
+}
+
+/// Add samples from historical bug documentation (mined from docs/bugs/*.md)
+fn add_bug_doc_samples(dataset: &mut TrainingDataset) {
+    dataset.add_many(vec![
+        // From DEPYLER-0161: Dead code elimination bug
+        TrainingSample::with_fix(
+            "error[E0425]: cannot find value `arr1` in this scope",
+            ErrorCategory::SyntaxError,
+            "FIX_DCE_TUPLE: Dead code elimination removed tuple return. Disable DCE for tuple assignments.",
+        ),
+        // From DEPYLER-0264: DynamicType not found
+        TrainingSample::with_fix(
+            "error[E0412]: cannot find type `DynamicType` in this scope",
+            ErrorCategory::MissingImport,
+            "FIX_DYNAMIC_TYPE: Unknown type annotation. Use serde_json::Value for dynamic typing.",
+        ),
+        // From DEPYLER-0265: Reference vs value in comparisons
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `&i32`, found `i32`",
+            ErrorCategory::TypeMismatch,
+            "FIX_REF_COMPARE: Comparison with borrowed value. Add & to value or dereference borrowed.",
+        ),
+        // From DEPYLER-0266: Unary operator on collection
+        TrainingSample::with_fix(
+            "error[E0600]: cannot apply unary operator `!` to type `&'a Vec<i32>`",
+            ErrorCategory::TraitBound,
+            "FIX_NOT_COLLECTION: Python `not list` → Rust `.is_empty()`. Convert truthiness check.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0600]: cannot apply unary operator `!` to type `&'a Vec<String>`",
+            ErrorCategory::TraitBound,
+            "FIX_NOT_COLLECTION: Python `not list` → Rust `.is_empty()`. Convert truthiness check.",
+        ),
+        // From DEPYLER-0267: String doesn't implement Copy
+        TrainingSample::with_fix(
+            "error[E0277]: the trait bound `String: Copy` is not satisfied",
+            ErrorCategory::TraitBound,
+            "FIX_STRING_COPY: String isn't Copy. Use .cloned() instead of .copied().",
+        ),
+        // From DEPYLER-0268: Unary minus on usize
+        TrainingSample::with_fix(
+            "error[E0600]: cannot apply unary operator `-` to type `usize`",
+            ErrorCategory::TypeMismatch,
+            "FIX_USIZE_NEG: usize can't be negative. Cast to isize first or use wrapping_neg.",
+        ),
+        // From DEPYLER-0432: ? operator in non-Result function
+        TrainingSample::with_fix(
+            "error[E0277]: the `?` operator can only be used in a function that returns `Result`",
+            ErrorCategory::TypeMismatch,
+            "FIX_QUESTION_RESULT: ? requires Result return. Add -> Result<T, E> or use match.",
+        ),
+        // From DEPYLER-0448: Return type defaults to i32
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `i32`, found `HashMap`",
+            ErrorCategory::TypeMismatch,
+            "FIX_RETURN_TYPE_INFERENCE: Return type incorrectly inferred as i32. Check return statements.",
+        ),
+        // From DEPYLER-0455: Option doesn't implement Display
+        TrainingSample::with_fix(
+            "error[E0277]: `Option<String>` doesn't implement `std::fmt::Display`",
+            ErrorCategory::TraitBound,
+            "FIX_OPTION_DISPLAY: Option lacks Display. Use {:?} or .unwrap_or_default().",
+        ),
+        // From DEPYLER-0467: Value auto-borrowing
+        TrainingSample::with_fix(
+            "error[E0308]: arguments to this function are incorrect expected `&Value`",
+            ErrorCategory::TypeMismatch,
+            "FIX_VALUE_BORROW: serde_json::Value needs &. Add borrow for function argument.",
+        ),
+        // Common Vec<Value> issues (current stdlib errors)
+        TrainingSample::with_fix(
+            "error[E0599]: no method named `join` found for struct `Vec<Value>`",
+            ErrorCategory::TraitBound,
+            "FIX_VEC_VALUE_JOIN: Vec<Value> has no join(). Convert to Vec<String> first.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0599]: no method named `len` found for struct `Value`",
+            ErrorCategory::TraitBound,
+            "FIX_VALUE_LEN: serde_json::Value has no .len(). Use .as_str().map(|s| s.len()).",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `Vec<String>`, found `Vec<Value>`",
+            ErrorCategory::TypeMismatch,
+            "FIX_VEC_VALUE_STRING: List literal inferred as Vec<Value>. Use explicit String type.",
+        ),
+    ]);
+}
+
 /// Build combined corpus from real fixes + synthetic verificar patterns.
 #[must_use]
 pub fn build_combined_corpus() -> TrainingDataset {
@@ -212,7 +471,213 @@ pub fn build_combined_corpus() -> TrainingDataset {
         real.add(sample.clone());
     }
 
+    // Add samples mined from bug documentation
+    add_bug_doc_samples(&mut real);
+
+    // Add additional samples to balance underrepresented categories
+    add_borrow_checker_samples(&mut real);
+    add_syntax_error_samples(&mut real);
+    add_missing_import_samples(&mut real);
+
     real
+}
+
+/// Additional BorrowChecker samples to balance corpus (Issue #106)
+fn add_borrow_checker_samples(dataset: &mut TrainingDataset) {
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error[E0502]: cannot borrow `x` as mutable because it is also borrowed as immutable",
+            ErrorCategory::BorrowChecker,
+            "FIX_BORROW_CONFLICT: Split the borrow - use immutable borrow first, then mutable.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0499]: cannot borrow `x` as mutable more than once at a time",
+            ErrorCategory::BorrowChecker,
+            "FIX_DOUBLE_MUT: Only one &mut reference allowed. Clone or restructure code.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0507]: cannot move out of borrowed content",
+            ErrorCategory::BorrowChecker,
+            "FIX_MOVE_BORROW: Cannot move from &T. Use .clone() or restructure ownership.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0382]: borrow of moved value",
+            ErrorCategory::BorrowChecker,
+            "FIX_USE_AFTER_MOVE: Value moved earlier. Clone before move or use reference.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0382]: use of moved value: `x`",
+            ErrorCategory::BorrowChecker,
+            "FIX_MOVED_VALUE: Ownership transferred. Clone the value before the move.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0596]: cannot borrow `x` as mutable, as it is not declared as mutable",
+            ErrorCategory::BorrowChecker,
+            "FIX_NOT_MUT: Add `mut` keyword: `let mut x = ...`",
+        ),
+        TrainingSample::with_fix(
+            "error[E0597]: `x` does not live long enough",
+            ErrorCategory::BorrowChecker,
+            "FIX_LIFETIME: Reference outlives value. Extend lifetime or restructure.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0505]: cannot move out of `x` because it is borrowed",
+            ErrorCategory::BorrowChecker,
+            "FIX_MOVE_WHILE_BORROWED: Drop the borrow before moving the value.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0503]: cannot use `x` because it was mutably borrowed",
+            ErrorCategory::BorrowChecker,
+            "FIX_MUT_BORROW_USE: Mutable borrow active. End borrow scope first.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0594]: cannot assign to `x`, as it is not declared as mutable",
+            ErrorCategory::BorrowChecker,
+            "FIX_ASSIGN_IMMUT: Variable is immutable. Declare with `let mut`.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable",
+            ErrorCategory::BorrowChecker,
+            "FIX_SELF_BORROW: Split self borrows - extract immutable data first.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0499]: cannot borrow `*self` as mutable more than once",
+            ErrorCategory::BorrowChecker,
+            "FIX_SELF_DOUBLE_MUT: Multiple &mut self. Use interior mutability or restructure.",
+        ),
+    ]);
+}
+
+/// Additional SyntaxError samples to balance corpus (Issue #106)
+fn add_syntax_error_samples(dataset: &mut TrainingDataset) {
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error: expected `;`, found `}`",
+            ErrorCategory::SyntaxError,
+            "FIX_MISSING_SEMI: Add semicolon at end of statement.",
+        ),
+        TrainingSample::with_fix(
+            "error: expected expression, found `let`",
+            ErrorCategory::SyntaxError,
+            "FIX_LET_EXPR: let is a statement, not expression. Use block or match.",
+        ),
+        TrainingSample::with_fix(
+            "error: expected `{`, found `=>`",
+            ErrorCategory::SyntaxError,
+            "FIX_MATCH_SYNTAX: Match arm syntax error. Check braces and commas.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0425]: cannot find value `x` in this scope",
+            ErrorCategory::SyntaxError,
+            "FIX_UNDEFINED_VAR: Variable not defined. Check spelling or add definition.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0412]: cannot find type `Foo` in this scope",
+            ErrorCategory::SyntaxError,
+            "FIX_UNDEFINED_TYPE: Type not in scope. Add use statement or define type.",
+        ),
+        TrainingSample::with_fix(
+            "error: expected one of `,` or `>`, found `:`",
+            ErrorCategory::SyntaxError,
+            "FIX_GENERIC_SYNTAX: Generic parameter syntax error. Check angle brackets.",
+        ),
+        TrainingSample::with_fix(
+            "error: unexpected token: `)`",
+            ErrorCategory::SyntaxError,
+            "FIX_PAREN_MISMATCH: Mismatched parentheses. Check function call syntax.",
+        ),
+        TrainingSample::with_fix(
+            "error: expected item, found `let`",
+            ErrorCategory::SyntaxError,
+            "FIX_TOP_LEVEL_LET: let not allowed at module level. Use const or static.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0433]: failed to resolve: could not find `foo` in `bar`",
+            ErrorCategory::SyntaxError,
+            "FIX_PATH_RESOLVE: Module path invalid. Check module structure.",
+        ),
+        TrainingSample::with_fix(
+            "error: expected pattern, found `123`",
+            ErrorCategory::SyntaxError,
+            "FIX_PATTERN_SYNTAX: Invalid pattern in match arm or let binding.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0423]: expected value, found struct `Foo`",
+            ErrorCategory::SyntaxError,
+            "FIX_STRUCT_VALUE: Use Foo { } or Foo::new() to create instance.",
+        ),
+        TrainingSample::with_fix(
+            "error: lifetime arguments must be declared prior to type arguments",
+            ErrorCategory::SyntaxError,
+            "FIX_LIFETIME_ORDER: Lifetimes before types: <'a, T> not <T, 'a>.",
+        ),
+    ]);
+}
+
+/// Additional MissingImport samples to balance corpus (Issue #106)
+fn add_missing_import_samples(dataset: &mut TrainingDataset) {
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error[E0432]: unresolved import `std::collections::hashmap`",
+            ErrorCategory::MissingImport,
+            "FIX_IMPORT_CASE: Case sensitive - use HashMap not hashmap.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0433]: failed to resolve: use of undeclared type `Vec`",
+            ErrorCategory::MissingImport,
+            "FIX_PRELUDE: Vec is in prelude. Check if std prelude is available.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0432]: unresolved import `serde`",
+            ErrorCategory::MissingImport,
+            "FIX_CRATE_DEP: Add serde to Cargo.toml dependencies.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0433]: failed to resolve: use of undeclared crate or module `tokio`",
+            ErrorCategory::MissingImport,
+            "FIX_ASYNC_CRATE: Add tokio to Cargo.toml with features.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0432]: unresolved import `chrono::NaiveDateTime`",
+            ErrorCategory::MissingImport,
+            "FIX_CHRONO_IMPORT: Add chrono crate and use correct path.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0599]: no function or associated item named `new` found for struct `HashMap`",
+            ErrorCategory::MissingImport,
+            "FIX_HASHMAP_NEW: Use HashMap::new() - ensure std::collections::HashMap imported.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0432]: unresolved import `itertools`",
+            ErrorCategory::MissingImport,
+            "FIX_ITERTOOLS: Add itertools = \"0.12\" to Cargo.toml.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0433]: failed to resolve: use of undeclared type `Regex`",
+            ErrorCategory::MissingImport,
+            "FIX_REGEX_IMPORT: Add use regex::Regex after adding regex crate.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0432]: unresolved import `std::fs::read_to_string`",
+            ErrorCategory::MissingImport,
+            "FIX_FS_IMPORT: Use std::fs or import specific functions.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0433]: failed to resolve: use of undeclared type `PathBuf`",
+            ErrorCategory::MissingImport,
+            "FIX_PATHBUF_IMPORT: Add use std::path::PathBuf;",
+        ),
+        TrainingSample::with_fix(
+            "error[E0432]: unresolved import `anyhow`",
+            ErrorCategory::MissingImport,
+            "FIX_ANYHOW: Add anyhow = \"1.0\" to Cargo.toml dependencies.",
+        ),
+        TrainingSample::with_fix(
+            "error[E0433]: failed to resolve: use of undeclared type `Arc`",
+            ErrorCategory::MissingImport,
+            "FIX_ARC_IMPORT: Add use std::sync::Arc;",
+        ),
+    ]);
 }
 
 /// Get error-fix pairs formatted for NgramFixPredictor training.

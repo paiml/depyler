@@ -1,0 +1,61 @@
+Verificar Corpus Testing Summary
+=================================
+
+Total programs tested: 50
+
+Transpilation:
+  Success: 50 (100.0%)
+  Failure: 0 (0.0%)
+
+Compilation (of transpiled programs):
+  Success: 18 (36.0%)
+  Failure: 32 (64.0%)
+
+Overall pass rate: 36.0%
+
+Error Categories (top failures):
+  E0432_unresolved_import: 32
+  E0425_cannot_find: 10
+
+Detailed Failures:
+==================
+
+Test #4 (depth=2)
+  Errors: E0432_unresolved_import
+  Code: x = -1...
+
+Test #7 (depth=2)
+  Errors: E0432_unresolved_import
+  Code: x = x...
+
+Test #8 (depth=2)
+  Errors: E0425_cannot_find, E0432_unresolved_import
+  Code: x = y...
+
+Test #9 (depth=2)
+  Errors: E0425_cannot_find, E0432_unresolved_import
+  Code: x = z...
+
+Test #12 (depth=2)
+  Errors: E0432_unresolved_import
+  Code: x = None...
+
+Test #13 (depth=3)
+  Errors: E0432_unresolved_import
+  Code: x = (-0)...
+
+Test #14 (depth=3)
+  Errors: E0432_unresolved_import
+  Code: x = (-1)...
+
+Test #15 (depth=3)
+  Errors: E0432_unresolved_import
+  Code: x = (--1)...
+
+Test #16 (depth=3)
+  Errors: E0432_unresolved_import
+  Code: x = (-2)...
+
+Test #17 (depth=3)
+  Errors: E0432_unresolved_import
+  Code: x = (-10)...

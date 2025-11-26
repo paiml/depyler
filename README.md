@@ -481,6 +481,36 @@ pmat quality-gate
 - [Changelog](CHANGELOG.md)
 - [Contributing](CONTRIBUTING.md)
 
+## Citation
+
+If you use Depyler in your research, please cite it as:
+
+### BibTeX
+
+```bibtex
+@software{depyler2025,
+  author       = {Gift, Noah and Contributors},
+  title        = {Depyler: A Python-to-Rust Transpiler with Semantic Verification},
+  year         = {2025},
+  publisher    = {GitHub},
+  url          = {https://github.com/paiml/depyler},
+  version      = {3.20.0},
+  note         = {Python-to-Rust transpiler with memory safety analysis and semantic verification}
+}
+```
+
+### APA Format
+
+Gift, N., & Contributors. (2025). *Depyler: A Python-to-Rust Transpiler with Semantic Verification* (Version 3.20.0) [Computer software]. GitHub. https://github.com/paiml/depyler
+
+### Chicago Style
+
+Gift, Noah, and Contributors. "Depyler: A Python-to-Rust Transpiler with Semantic Verification." Version 3.20.0. GitHub, 2025. https://github.com/paiml/depyler.
+
+### CITATION.cff
+
+This repository includes a [`CITATION.cff`](CITATION.cff) file for automatic citation parsing by GitHub and other platforms.
+
 ## License
 
 Licensed under MIT License. See [LICENSE](LICENSE) for details.
