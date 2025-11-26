@@ -253,7 +253,14 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[H
             // Dict methods
             "update" | "setdefault" | "popitem" |
             // Set methods
-            "add" | "discard" | "difference_update" | "intersection_update"
+            "add" | "discard" | "difference_update" | "intersection_update" |
+            // DEPYLER-0529: File I/O methods that require mutable access
+            "write" | "write_all" | "writelines" | "flush" | "seek" | "truncate" |
+            // DEPYLER-0549: CSV reader/writer methods that require mutable access
+            // csv::Reader requires &mut self for headers(), records(), deserialize()
+            // csv::Writer requires &mut self for write_record(), serialize()
+            "headers" | "records" | "deserialize" | "serialize" | "write_record" |
+            "writeheader" | "writerow"
         )
     }
 
@@ -275,6 +282,28 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[H
                         if let HirExpr::Call { func, .. } = value {
                             // Store the type (class name) for this variable
                             var_types.insert(name.clone(), func.clone());
+                        }
+
+                        // DEPYLER-0549: Mark csv readers/writers as mutable
+                        // In Rust, csv::Reader and csv::Writer require &mut self for most operations
+                        // Detection: variable names or call patterns involving csv/reader/writer
+                        let needs_csv_mut = if let HirExpr::MethodCall { object, method, .. } = value {
+                            // csv.DictReader() or csv.reader()
+                            if let HirExpr::Var(module) = object.as_ref() {
+                                module == "csv" && (method.contains("Reader") || method.contains("reader") || method.contains("Writer") || method.contains("writer"))
+                            } else {
+                                false
+                            }
+                        } else if let HirExpr::Call { func, .. } = value {
+                            // DictReader(f) or csv.ReaderBuilder...
+                            func.contains("Reader") || func.contains("Writer") || func.contains("reader") || func.contains("writer")
+                        } else {
+                            // Name heuristic: variables named reader/writer
+                            name == "reader" || name == "writer" || name.contains("reader") || name.contains("writer")
+                        };
+
+                        if needs_csv_mut {
+                            mutable.insert(name.clone());
                         }
 
                         if declared.contains(name) {
@@ -349,6 +378,39 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[H
             HirStmt::For { body, .. } => {
                 for stmt in body {
                     analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                }
+            }
+            // DEPYLER-0549: Handle WITH statements - analyze body for mutations
+            HirStmt::With { body, .. } => {
+                for stmt in body {
+                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                }
+            }
+            // DEPYLER-0549: Handle Try - analyze all branches
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+                ..
+            } => {
+                for stmt in body {
+                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                }
+                for handler in handlers {
+                    for stmt in &handler.body {
+                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                    }
+                }
+                if let Some(else_stmts) = orelse {
+                    for stmt in else_stmts {
+                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                    }
+                }
+                if let Some(final_stmts) = finalbody {
+                    for stmt in final_stmts {
+                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                    }
                 }
             }
             _ => {}
@@ -804,6 +866,8 @@ pub fn generate_rust_file(
         needs_indexerror: false,
         needs_valueerror: false,
         needs_argumenttypeerror: false,
+        needs_runtimeerror: false,      // DEPYLER-0551
+        needs_filenotfounderror: false, // DEPYLER-0551
         in_generator: false,
         is_classmethod: false,
         generator_state_vars: HashSet::new(),
@@ -830,6 +894,7 @@ pub fn generate_rust_file(
         hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
         cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2: Track CSE subcommand temps
         nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
+        fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type (become &str in Rust)
     };
 
     // Analyze all functions first for string optimization
@@ -1018,6 +1083,8 @@ mod tests {
             needs_indexerror: false,
             needs_valueerror: false,
             needs_argumenttypeerror: false,
+            needs_runtimeerror: false,      // DEPYLER-0551
+            needs_filenotfounderror: false, // DEPYLER-0551
             is_classmethod: false,
             in_generator: false,
             generator_state_vars: HashSet::new(),
@@ -1044,6 +1111,7 @@ mod tests {
             hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2: Track CSE subcommand temps
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
+            fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
         }
     }
 
