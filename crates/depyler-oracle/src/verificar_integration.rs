@@ -364,6 +364,121 @@ fn add_extended_patterns(dataset: &mut TrainingDataset) {
             "Add #[derive(Serialize)] and serde dependency",
         ),
     ]);
+
+    // Numeric type errors
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `usize`, found `i32`",
+            ErrorCategory::TypeMismatch,
+            "Cast with 'as usize' or use .try_into()",
+        ),
+        TrainingSample::with_fix(
+            "error[E0308]: mismatched types expected `f32`, found `f64`",
+            ErrorCategory::TypeMismatch,
+            "Cast with 'as f32' (may lose precision)",
+        ),
+        TrainingSample::with_fix(
+            "error[E0277]: cannot multiply `f64` by `i32`",
+            ErrorCategory::TypeMismatch,
+            "Convert operands to same type: value as f64",
+        ),
+        TrainingSample::with_fix(
+            "error[E0277]: cannot add `String` to `&str`",
+            ErrorCategory::TypeMismatch,
+            "Use format!() or convert both to String",
+        ),
+    ]);
+
+    // Lifetime errors
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error[E0106]: missing lifetime specifier",
+            ErrorCategory::BorrowChecker,
+            "Add lifetime parameter: fn foo<'a>(x: &'a str)",
+        ),
+        TrainingSample::with_fix(
+            "error[E0597]: borrowed value does not live long enough",
+            ErrorCategory::BorrowChecker,
+            "Extend lifetime or clone the value",
+        ),
+        TrainingSample::with_fix(
+            "error[E0515]: cannot return value referencing local variable",
+            ErrorCategory::BorrowChecker,
+            "Return owned value instead of reference",
+        ),
+        TrainingSample::with_fix(
+            "error[E0621]: explicit lifetime required",
+            ErrorCategory::BorrowChecker,
+            "Add lifetime annotation to struct/function",
+        ),
+    ]);
+
+    // Module and visibility errors
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error[E0603]: module `internal` is private",
+            ErrorCategory::MissingImport,
+            "Make module public: pub mod internal",
+        ),
+        TrainingSample::with_fix(
+            "error[E0603]: function `helper` is private",
+            ErrorCategory::MissingImport,
+            "Make function public: pub fn helper()",
+        ),
+        TrainingSample::with_fix(
+            "error[E0412]: cannot find type `Config` in this scope",
+            ErrorCategory::MissingImport,
+            "Add use statement: use crate::config::Config",
+        ),
+        TrainingSample::with_fix(
+            "error[E0433]: failed to resolve: could not find `module`",
+            ErrorCategory::MissingImport,
+            "Add mod declaration or check module path",
+        ),
+    ]);
+
+    // Pattern matching errors
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error[E0004]: non-exhaustive patterns: `None` not covered",
+            ErrorCategory::SyntaxError,
+            "Add missing match arm: None => { ... }",
+        ),
+        TrainingSample::with_fix(
+            "error[E0004]: non-exhaustive patterns: `Err(_)` not covered",
+            ErrorCategory::SyntaxError,
+            "Add error handling arm or use if let",
+        ),
+        TrainingSample::with_fix(
+            "error[E0005]: refutable pattern in local binding",
+            ErrorCategory::SyntaxError,
+            "Use if let or match instead of let",
+        ),
+        TrainingSample::with_fix(
+            "error[E0026]: struct does not have a field named `foo`",
+            ErrorCategory::TypeMismatch,
+            "Check struct definition for correct field names",
+        ),
+    ]);
+
+    // Macro and const errors
+    dataset.add_many(vec![
+        TrainingSample::with_fix(
+            "error[E0658]: `const fn` is not yet stable",
+            ErrorCategory::SyntaxError,
+            "Add #![feature(const_fn)] or wait for stabilization",
+        ),
+        TrainingSample::with_fix(
+            "error[E0015]: calls in constants are limited",
+            ErrorCategory::SyntaxError,
+            "Use const fn or compute value at runtime",
+        ),
+        TrainingSample::with_fix(
+            "error: cannot find macro `println` in this scope",
+            ErrorCategory::MissingImport,
+            "println! is in std prelude - check macro name",
+        ),
+    ]);
 }
 
 /// Get category for a rustc error code.
