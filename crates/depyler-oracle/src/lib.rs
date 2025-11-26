@@ -16,12 +16,15 @@ use serde::{Deserialize, Serialize};
 
 pub mod classifier;
 pub mod depyler_training;
+pub mod estimator;
 pub mod features;
 pub mod ngram;
 pub mod patterns;
 pub mod tfidf;
 pub mod training;
 pub mod verificar_integration;
+
+pub use estimator::{OracleEstimator, samples_to_features};
 
 #[cfg(test)]
 mod proptests;
