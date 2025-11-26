@@ -528,7 +528,7 @@ mod integration_tests {
             // Classify query
             let category = classifier.classify_by_keywords(&query);
             let confidence = classifier.confidence(&query, category);
-            prop_assert!(confidence >= 0.0 && confidence <= 1.0);
+            prop_assert!((0.0..=1.0).contains(&confidence));
 
             // Extract features
             let features = ErrorFeatures::from_error_message(&query);

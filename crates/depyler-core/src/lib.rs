@@ -335,7 +335,12 @@ fn collect_var_types_from_stmts(
             } => {
                 collect_var_types_from_stmts(then_body, func_name, func_return_types, var_types);
                 if let Some(else_stmts) = else_body {
-                    collect_var_types_from_stmts(else_stmts, func_name, func_return_types, var_types);
+                    collect_var_types_from_stmts(
+                        else_stmts,
+                        func_name,
+                        func_return_types,
+                        var_types,
+                    );
                 }
             }
             hir::HirStmt::While { body, .. } | hir::HirStmt::For { body, .. } => {
@@ -349,7 +354,12 @@ fn collect_var_types_from_stmts(
             } => {
                 collect_var_types_from_stmts(body, func_name, func_return_types, var_types);
                 for handler in handlers {
-                    collect_var_types_from_stmts(&handler.body, func_name, func_return_types, var_types);
+                    collect_var_types_from_stmts(
+                        &handler.body,
+                        func_name,
+                        func_return_types,
+                        var_types,
+                    );
                 }
                 if let Some(finally) = finalbody {
                     collect_var_types_from_stmts(finally, func_name, func_return_types, var_types);
@@ -384,7 +394,10 @@ fn infer_expr_type_with_returns(
             _ => return None,
         }),
         hir::HirExpr::List(elems) => {
-            let elem_type = elems.first().and_then(|e| infer_expr_type_with_returns(e, func_return_types)).unwrap_or(hir::Type::Unknown);
+            let elem_type = elems
+                .first()
+                .and_then(|e| infer_expr_type_with_returns(e, func_return_types))
+                .unwrap_or(hir::Type::Unknown);
             Some(hir::Type::List(Box::new(elem_type)))
         }
         hir::HirExpr::Dict(_) => Some(hir::Type::Dict(
@@ -392,9 +405,7 @@ fn infer_expr_type_with_returns(
             Box::new(hir::Type::Custom("serde_json::Value".to_string())),
         )),
         // DEPYLER-0575: Infer type from function call return type
-        hir::HirExpr::Call { func, .. } => {
-            func_return_types.get(func).cloned()
-        }
+        hir::HirExpr::Call { func, .. } => func_return_types.get(func).cloned(),
         _ => None,
     }
 }
@@ -558,10 +569,13 @@ fn collect_call_site_types_from_expr(
                 for (idx, arg) in args.iter().enumerate() {
                     if let hir::HirExpr::Var(var_name) = arg {
                         // Look up the variable's type in the caller's scope
-                        if let Some(ty) = var_types.get(&(caller_func_name.to_string(), var_name.clone())) {
+                        if let Some(ty) =
+                            var_types.get(&(caller_func_name.to_string(), var_name.clone()))
+                        {
                             // DEPYLER-0575: Skip Unknown and Optional types
                             // Optional types often get unwrapped before use, so don't propagate them
-                            let should_propagate = !matches!(ty, hir::Type::Unknown | hir::Type::Optional(_));
+                            let should_propagate =
+                                !matches!(ty, hir::Type::Unknown | hir::Type::Optional(_));
                             if should_propagate {
                                 call_site_types.insert((func.clone(), idx), ty.clone());
                             }

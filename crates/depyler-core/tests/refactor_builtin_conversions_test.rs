@@ -262,8 +262,7 @@ def test_int():
 "#;
 
     let rust = pipeline.transpile(python).expect("Should transpile");
-    compile_rust_code(&rust, "int_conversion")
-        .expect("Generated int conversion code must compile");
+    compile_rust_code(&rust, "int_conversion").expect("Generated int conversion code must compile");
 }
 
 /// Test that float conversion generates compilable Rust
@@ -296,8 +295,7 @@ def test_str():
 "#;
 
     let rust = pipeline.transpile(python).expect("Should transpile");
-    compile_rust_code(&rust, "str_conversion")
-        .expect("Generated str conversion code must compile");
+    compile_rust_code(&rust, "str_conversion").expect("Generated str conversion code must compile");
 }
 
 /// Test that bool conversion generates compilable Rust
@@ -331,8 +329,7 @@ def test_len():
 "#;
 
     let rust = pipeline.transpile(python).expect("Should transpile");
-    compile_rust_code(&rust, "len_conversion")
-        .expect("Generated len conversion code must compile");
+    compile_rust_code(&rust, "len_conversion").expect("Generated len conversion code must compile");
 }
 
 // ============================================================================

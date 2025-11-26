@@ -29,24 +29,26 @@ pub mod training;
 pub mod tuning;
 pub mod verificar_integration;
 
-pub use automl_tuning::{automl_optimize, automl_quick, automl_full, AutoMLConfig, AutoMLResult};
-pub use estimator::{OracleEstimator, samples_to_features};
-pub use synthetic::{generate_synthetic_corpus, generate_synthetic_corpus_sized, SyntheticGenerator, SyntheticConfig};
-pub use tuning::{TuningConfig, TuningResult, find_best_config, quick_tune};
+pub use automl_tuning::{automl_full, automl_optimize, automl_quick, AutoMLConfig, AutoMLResult};
+pub use estimator::{samples_to_features, OracleEstimator};
+pub use synthetic::{
+    generate_synthetic_corpus, generate_synthetic_corpus_sized, SyntheticConfig, SyntheticGenerator,
+};
+pub use tuning::{find_best_config, quick_tune, TuningConfig, TuningResult};
 
 #[cfg(test)]
 mod proptests;
 
-pub use classifier::{ErrorClassifier, ErrorCategory};
+pub use classifier::{ErrorCategory, ErrorClassifier};
 pub use features::ErrorFeatures;
-pub use ngram::{FixPattern, FixSuggestion, NgramFixPredictor};
-pub use patterns::{CodeTransform, FixTemplate, FixTemplateRegistry};
-pub use tfidf::{CombinedFeatureExtractor, TfidfConfig, TfidfFeatureExtractor};
-pub use training::{TrainingDataset, TrainingSample};
 pub use hybrid::{
     HybridConfig, HybridTranspiler, PatternComplexity, Strategy, TrainingDataCollector,
     TranslationPair, TranspileError, TranspileResult, TranspileStats,
 };
+pub use ngram::{FixPattern, FixSuggestion, NgramFixPredictor};
+pub use patterns::{CodeTransform, FixTemplate, FixTemplateRegistry};
+pub use tfidf::{CombinedFeatureExtractor, TfidfConfig, TfidfFeatureExtractor};
+pub use training::{TrainingDataset, TrainingSample};
 
 /// Error types for the oracle.
 #[derive(Debug, thiserror::Error)]
@@ -202,8 +204,8 @@ impl Oracle {
     /// Create a new oracle with custom configuration.
     #[must_use]
     pub fn with_config(config: OracleConfig) -> Self {
-        let mut classifier = RandomForestClassifier::new(config.n_estimators)
-            .with_max_depth(config.max_depth);
+        let mut classifier =
+            RandomForestClassifier::new(config.n_estimators).with_max_depth(config.max_depth);
         if let Some(seed) = config.random_state {
             classifier = classifier.with_random_state(seed);
         }
@@ -319,7 +321,11 @@ impl Oracle {
         }
 
         let pred_idx = predictions.as_slice()[0];
-        let category = self.categories.get(pred_idx).copied().unwrap_or(ErrorCategory::Other);
+        let category = self
+            .categories
+            .get(pred_idx)
+            .copied()
+            .unwrap_or(ErrorCategory::Other);
 
         let suggested_fix = self
             .fix_templates
@@ -348,10 +354,13 @@ impl Oracle {
             return DriftStatus::NoDrift;
         }
 
-        let baseline: Vec<f32> = self.performance_history[..self.performance_history.len() / 2].to_vec();
-        let current: Vec<f32> = self.performance_history[self.performance_history.len() / 2..].to_vec();
+        let baseline: Vec<f32> =
+            self.performance_history[..self.performance_history.len() / 2].to_vec();
+        let current: Vec<f32> =
+            self.performance_history[self.performance_history.len() / 2..].to_vec();
 
-        self.drift_detector.detect_performance_drift(&baseline, &current)
+        self.drift_detector
+            .detect_performance_drift(&baseline, &current)
     }
 
     /// Save the oracle model to a file.
@@ -376,9 +385,8 @@ impl Oracle {
     ///
     /// Returns error if loading fails.
     pub fn load(path: &Path) -> Result<Self> {
-        let classifier: RandomForestClassifier =
-            format::load(path, ModelType::RandomForest)
-                .map_err(|e| OracleError::Model(e.to_string()))?;
+        let classifier: RandomForestClassifier = format::load(path, ModelType::RandomForest)
+            .map_err(|e| OracleError::Model(e.to_string()))?;
 
         let config = OracleConfig::default();
         Ok(Self {
@@ -423,8 +431,12 @@ mod tests {
     #[test]
     fn test_fix_templates() {
         let oracle = Oracle::new();
-        assert!(oracle.fix_templates.contains_key(&ErrorCategory::TypeMismatch));
-        assert!(oracle.fix_templates.contains_key(&ErrorCategory::BorrowChecker));
+        assert!(oracle
+            .fix_templates
+            .contains_key(&ErrorCategory::TypeMismatch));
+        assert!(oracle
+            .fix_templates
+            .contains_key(&ErrorCategory::BorrowChecker));
     }
 
     #[test]

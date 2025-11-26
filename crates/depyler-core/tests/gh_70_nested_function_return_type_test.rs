@@ -17,8 +17,7 @@ use std::process::Command;
 fn compile_rust_code(rust_code: &str, test_name: &str) -> Result<(), String> {
     // Write to temporary file
     let temp_file = format!("/tmp/gh70_{}.rs", test_name);
-    std::fs::write(&temp_file, rust_code)
-        .map_err(|e| format!("Write failed: {}", e))?;
+    std::fs::write(&temp_file, rust_code).map_err(|e| format!("Write failed: {}", e))?;
 
     // Try to compile
     let output = Command::new("rustc")
@@ -47,7 +46,8 @@ def outer():
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline.transpile(python_code)
+    let rust_code = pipeline
+        .transpile(python_code)
         .expect("Transpilation should succeed");
 
     // ASSERTION 1: Generated code should compile without errors
@@ -75,7 +75,8 @@ def get_first_element():
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline.transpile(python_code)
+    let rust_code = pipeline
+        .transpile(python_code)
         .expect("Transpilation should succeed");
 
     // Must compile
@@ -95,7 +96,8 @@ def outer():
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline.transpile(python_code)
+    let rust_code = pipeline
+        .transpile(python_code)
         .expect("Transpilation should succeed");
 
     // Should have explicit return type when annotated
@@ -105,8 +107,7 @@ def outer():
         rust_code
     );
 
-    compile_rust_code(&rust_code, "with_annotation")
-        .expect("Generated Rust code MUST compile");
+    compile_rust_code(&rust_code, "with_annotation").expect("Generated Rust code MUST compile");
 }
 
 #[test]
@@ -123,7 +124,8 @@ def group_by_hour(entries):
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline.transpile(python_code)
+    let rust_code = pipeline
+        .transpile(python_code)
         .expect("Transpilation should succeed");
 
     compile_rust_code(&rust_code, "groupby_pattern")
@@ -142,10 +144,10 @@ def outer():
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let rust_code = pipeline.transpile(python_code)
+    let rust_code = pipeline
+        .transpile(python_code)
         .expect("Transpilation should succeed");
 
     // Void function can have `-> ()` or omit it
-    compile_rust_code(&rust_code, "void_function")
-        .expect("Void nested function MUST compile");
+    compile_rust_code(&rust_code, "void_function").expect("Void nested function MUST compile");
 }

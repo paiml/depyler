@@ -24,9 +24,8 @@ use proptest::prelude::*;
 fn test_collection_constructors_module_exists() {
     // This test will pass once the module is extracted
     // For now, it's ignored to allow the test suite to run
-    let _module_path = std::path::Path::new(
-        "crates/depyler-core/src/rust_gen/collection_constructors.rs",
-    );
+    let _module_path =
+        std::path::Path::new("crates/depyler-core/src/rust_gen/collection_constructors.rs");
     // Module should export the conversion functions
 }
 

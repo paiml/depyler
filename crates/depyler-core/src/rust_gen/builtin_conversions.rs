@@ -157,18 +157,20 @@ pub fn convert_float_cast(
 
             // Check if variable is known to be String type
             HirExpr::Var(var_name) => {
-                let is_string = ctx.var_types.get(var_name).is_some_and(|t| {
-                    matches!(t, Type::String)
-                }) || {
-                    // Heuristic: only names that strongly suggest string type
-                    // Note: "value" is NOT included - it's too generic and could be any type
-                    let name = var_name.as_str();
-                    name.ends_with("_str")
-                        || name.ends_with("_string")
-                        || name == "s"
-                        || name == "string"
-                        || name == "text"
-                };
+                let is_string = ctx
+                    .var_types
+                    .get(var_name)
+                    .is_some_and(|t| matches!(t, Type::String))
+                    || {
+                        // Heuristic: only names that strongly suggest string type
+                        // Note: "value" is NOT included - it's too generic and could be any type
+                        let name = var_name.as_str();
+                        name.ends_with("_str")
+                            || name.ends_with("_string")
+                            || name == "s"
+                            || name == "string"
+                            || name == "text"
+                    };
 
                 if is_string {
                     return Ok(parse_quote! { #arg.parse::<f64>().unwrap() });
@@ -263,11 +265,7 @@ pub fn convert_bool_cast(
 /// Convert bool() for a variable based on its type
 ///
 /// # Complexity: 7
-fn convert_bool_var(
-    ctx: &CodeGenContext,
-    var_name: &str,
-    arg: &syn::Expr,
-) -> Result<syn::Expr> {
+fn convert_bool_var(ctx: &CodeGenContext, var_name: &str, arg: &syn::Expr) -> Result<syn::Expr> {
     let var_type = ctx.var_types.get(var_name);
     match var_type {
         Some(Type::String) => Ok(parse_quote! { !#arg.is_empty() }),

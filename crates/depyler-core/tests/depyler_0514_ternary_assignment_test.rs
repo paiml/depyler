@@ -44,7 +44,9 @@ def calculate_hash(file_path, algorithm):
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline.transpile(python_code).expect("Transpilation should succeed");
+    let result = pipeline
+        .transpile(python_code)
+        .expect("Transpilation should succeed");
     let rust_code = result;
 
     // MUST have hasher variable declaration
@@ -98,7 +100,9 @@ def select_value(flag):
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline.transpile(python_code).expect("Transpilation should succeed");
+    let result = pipeline
+        .transpile(python_code)
+        .expect("Transpilation should succeed");
     let rust_code = result;
 
     // Simple ternary should work (regression check)
@@ -120,7 +124,9 @@ def get_hasher(algorithm):
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline.transpile(python_code).expect("Transpilation should succeed");
+    let result = pipeline
+        .transpile(python_code)
+        .expect("Transpilation should succeed");
     let rust_code = result;
 
     // Ternary with function calls should generate let binding
