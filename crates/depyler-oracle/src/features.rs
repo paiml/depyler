@@ -44,32 +44,66 @@ impl ErrorFeatures {
         Self {
             message_length: (message.len() as f32 / 500.0).min(1.0),
 
-            type_keywords: count_keywords(&lower, &[
-                "expected", "found", "mismatched", "type",
-                "cannot coerce", "incompatible",
-            ]),
+            type_keywords: count_keywords(
+                &lower,
+                &[
+                    "expected",
+                    "found",
+                    "mismatched",
+                    "type",
+                    "cannot coerce",
+                    "incompatible",
+                ],
+            ),
 
-            borrow_keywords: count_keywords(&lower, &[
-                "borrow", "borrowed", "move", "moved",
-                "ownership", "cannot move",
-            ]),
+            borrow_keywords: count_keywords(
+                &lower,
+                &[
+                    "borrow",
+                    "borrowed",
+                    "move",
+                    "moved",
+                    "ownership",
+                    "cannot move",
+                ],
+            ),
 
-            import_keywords: count_keywords(&lower, &[
-                "not found", "unresolved", "cannot find",
-                "undefined", "undeclared",
-            ]),
+            import_keywords: count_keywords(
+                &lower,
+                &[
+                    "not found",
+                    "unresolved",
+                    "cannot find",
+                    "undefined",
+                    "undeclared",
+                ],
+            ),
 
-            lifetime_keywords: count_keywords(&lower, &[
-                "lifetime", "'a", "'static", "live long enough",
-                "dangling", "borrowed value",
-            ]),
+            lifetime_keywords: count_keywords(
+                &lower,
+                &[
+                    "lifetime",
+                    "'a",
+                    "'static",
+                    "live long enough",
+                    "dangling",
+                    "borrowed value",
+                ],
+            ),
 
-            trait_keywords: count_keywords(&lower, &[
-                "trait", "impl", "not implemented", "bound",
-                "doesn't implement",
-            ]),
+            trait_keywords: count_keywords(
+                &lower,
+                &[
+                    "trait",
+                    "impl",
+                    "not implemented",
+                    "bound",
+                    "doesn't implement",
+                ],
+            ),
 
-            has_line_number: if message.contains(':') && message.chars().any(|c| c.is_ascii_digit()) {
+            has_line_number: if message.contains(':') && message.chars().any(|c| c.is_ascii_digit())
+            {
                 1.0
             } else {
                 0.0
@@ -95,17 +129,17 @@ impl ErrorFeatures {
                 0.0
             },
 
-            suggestion_count: count_keywords(&lower, &[
-                "help:", "suggestion:", "consider", "try", "perhaps",
-            ]),
+            suggestion_count: count_keywords(
+                &lower,
+                &["help:", "suggestion:", "consider", "try", "perhaps"],
+            ),
         }
     }
 
     /// Convert features to a row matrix for ML model.
     #[must_use]
     pub fn to_matrix(&self) -> Matrix<f32> {
-        Matrix::from_vec(1, Self::DIM, self.to_vec())
-            .expect("Feature dimensions are correct")
+        Matrix::from_vec(1, Self::DIM, self.to_vec()).expect("Feature dimensions are correct")
     }
 
     /// Convert features to a vector.
@@ -134,7 +168,12 @@ impl ErrorFeatures {
     /// Panics if vector length doesn't match DIM.
     #[must_use]
     pub fn from_vec(v: &[f32]) -> Self {
-        assert_eq!(v.len(), Self::DIM, "Feature vector must have {} elements", Self::DIM);
+        assert_eq!(
+            v.len(),
+            Self::DIM,
+            "Feature vector must have {} elements",
+            Self::DIM
+        );
 
         Self {
             message_length: v[0],

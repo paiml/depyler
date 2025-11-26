@@ -144,7 +144,10 @@ def total(items: list) -> int:
     let rust = pipeline.transpile(python).expect("Should transpile");
     // sum() may use .sum(), .iter().sum(), or fold pattern
     assert!(
-        rust.contains(".sum()") || rust.contains("sum(") || rust.contains("fold") || rust.contains("iter"),
+        rust.contains(".sum()")
+            || rust.contains("sum(")
+            || rust.contains("fold")
+            || rust.contains("iter"),
         "sum() should generate summing code. Got:\n{rust}"
     );
 }
@@ -292,7 +295,10 @@ def to_bool(x: int) -> bool:
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
     assert!(
-        rust.contains("!= 0") || rust.contains("is_empty") || rust.contains("true") || rust.contains("false"),
+        rust.contains("!= 0")
+            || rust.contains("is_empty")
+            || rust.contains("true")
+            || rust.contains("false"),
         "bool() should check truthiness. Got:\n{rust}"
     );
 }
@@ -311,7 +317,10 @@ def is_string(x) -> bool:
     let rust = pipeline.transpile(python).expect("Should transpile");
     // isinstance is tricky in Rust - may generate type checks or always true/false
     assert!(
-        rust.contains("true") || rust.contains("false") || rust.contains("is_") || rust.contains("match"),
+        rust.contains("true")
+            || rust.contains("false")
+            || rust.contains("is_")
+            || rust.contains("match"),
         "isinstance() should generate type check. Got:\n{rust}"
     );
 }

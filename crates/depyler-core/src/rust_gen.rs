@@ -287,20 +287,31 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[H
                         // DEPYLER-0549: Mark csv readers/writers as mutable
                         // In Rust, csv::Reader and csv::Writer require &mut self for most operations
                         // Detection: variable names or call patterns involving csv/reader/writer
-                        let needs_csv_mut = if let HirExpr::MethodCall { object, method, .. } = value {
-                            // csv.DictReader() or csv.reader()
-                            if let HirExpr::Var(module) = object.as_ref() {
-                                module == "csv" && (method.contains("Reader") || method.contains("reader") || method.contains("Writer") || method.contains("writer"))
+                        let needs_csv_mut =
+                            if let HirExpr::MethodCall { object, method, .. } = value {
+                                // csv.DictReader() or csv.reader()
+                                if let HirExpr::Var(module) = object.as_ref() {
+                                    module == "csv"
+                                        && (method.contains("Reader")
+                                            || method.contains("reader")
+                                            || method.contains("Writer")
+                                            || method.contains("writer"))
+                                } else {
+                                    false
+                                }
+                            } else if let HirExpr::Call { func, .. } = value {
+                                // DictReader(f) or csv.ReaderBuilder...
+                                func.contains("Reader")
+                                    || func.contains("Writer")
+                                    || func.contains("reader")
+                                    || func.contains("writer")
                             } else {
-                                false
-                            }
-                        } else if let HirExpr::Call { func, .. } = value {
-                            // DictReader(f) or csv.ReaderBuilder...
-                            func.contains("Reader") || func.contains("Writer") || func.contains("reader") || func.contains("writer")
-                        } else {
-                            // Name heuristic: variables named reader/writer
-                            name == "reader" || name == "writer" || name.contains("reader") || name.contains("writer")
-                        };
+                                // Name heuristic: variables named reader/writer
+                                name == "reader"
+                                    || name == "writer"
+                                    || name.contains("reader")
+                                    || name.contains("writer")
+                            };
 
                         if needs_csv_mut {
                             mutable.insert(name.clone());
@@ -672,10 +683,7 @@ fn generate_simple_constant(
 ///
 /// Determines the Rust type for module-level constant expressions.
 /// Complexity: 7 (match with 6 arms + default)
-fn infer_constant_type(
-    value: &HirExpr,
-    ctx: &mut CodeGenContext,
-) -> proc_macro2::TokenStream {
+fn infer_constant_type(value: &HirExpr, ctx: &mut CodeGenContext) -> proc_macro2::TokenStream {
     match value {
         // Literal types
         HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
@@ -854,7 +862,7 @@ pub fn generate_rust_file(
         needs_url_encoding: false,
         needs_io_read: false,   // DEPYLER-0458
         needs_io_write: false,  // DEPYLER-0458
-        needs_bufread: false,  // DEPYLER-0522
+        needs_bufread: false,   // DEPYLER-0522
         needs_once_cell: false, // DEPYLER-REARCH-001
         declared_vars: vec![HashSet::new()],
         current_function_can_fail: false,
@@ -1072,7 +1080,7 @@ mod tests {
             needs_url_encoding: false,
             needs_io_read: false,   // DEPYLER-0458
             needs_io_write: false,  // DEPYLER-0458
-        needs_bufread: false,  // DEPYLER-0522
+            needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
@@ -1097,7 +1105,7 @@ mod tests {
             function_param_borrows: std::collections::HashMap::new(), // DEPYLER-0270: Track parameter borrowing
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
             tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
-            iterator_vars: HashSet::new(),   // DEPYLER-0520: Track variables assigned from iterators
+            iterator_vars: HashSet::new(), // DEPYLER-0520: Track variables assigned from iterators
             is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
             result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
             result_returning_functions: HashSet::new(), // DEPYLER-0270: Track ALL Result-returning functions
@@ -1115,7 +1123,7 @@ mod tests {
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2: Track CSE subcommand temps
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
-            needs_digest: false, // DEPYLER-0558: Track digest crate dependency
+            needs_digest: false,           // DEPYLER-0558: Track digest crate dependency
         }
     }
 

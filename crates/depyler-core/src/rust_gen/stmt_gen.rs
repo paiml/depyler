@@ -1176,7 +1176,13 @@ fn apply_truthiness_conversion(
     // Python: `if match.groups():` checks if groups is non-empty
     // Rust: `if !groups().is_empty()`
     if let HirExpr::MethodCall { method, .. } = condition {
-        let vec_returning_methods = ["groups", "split", "split_whitespace", "splitlines", "findall"];
+        let vec_returning_methods = [
+            "groups",
+            "split",
+            "split_whitespace",
+            "splitlines",
+            "findall",
+        ];
         if vec_returning_methods.contains(&method.as_str()) {
             return parse_quote! { !#cond_expr.is_empty() };
         }
@@ -1561,21 +1567,40 @@ fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
         }),
         // DEPYLER-0569: Handle generator expressions and comprehensions
         // These can reference loop variables in their iterable or element expressions
-        HirExpr::GeneratorExp { element, generators } |
-        HirExpr::ListComp { element, generators } |
-        HirExpr::SetComp { element, generators } => {
+        HirExpr::GeneratorExp {
+            element,
+            generators,
+        }
+        | HirExpr::ListComp {
+            element,
+            generators,
+        }
+        | HirExpr::SetComp {
+            element,
+            generators,
+        } => {
             is_var_used_in_expr(var_name, element)
                 || generators.iter().any(|gen| {
                     is_var_used_in_expr(var_name, &gen.iter)
-                        || gen.conditions.iter().any(|cond| is_var_used_in_expr(var_name, cond))
+                        || gen
+                            .conditions
+                            .iter()
+                            .any(|cond| is_var_used_in_expr(var_name, cond))
                 })
         }
-        HirExpr::DictComp { key, value, generators } => {
+        HirExpr::DictComp {
+            key,
+            value,
+            generators,
+        } => {
             is_var_used_in_expr(var_name, key)
                 || is_var_used_in_expr(var_name, value)
                 || generators.iter().any(|gen| {
                     is_var_used_in_expr(var_name, &gen.iter)
-                        || gen.conditions.iter().any(|cond| is_var_used_in_expr(var_name, cond))
+                        || gen
+                            .conditions
+                            .iter()
+                            .any(|cond| is_var_used_in_expr(var_name, cond))
                 })
         }
         _ => false, // Literals and other expressions don't reference variables
@@ -4449,13 +4474,17 @@ fn try_generate_subcommand_match(
 
                         // Look up field type from subcommand arguments
                         // Check both arg_type and action (for store_true/store_false bool flags)
-                        let maybe_arg = ctx.argparser_tracker.subcommands
+                        let maybe_arg = ctx
+                            .argparser_tracker
+                            .subcommands
                             .values()
                             .find(|sc| sc.name == *cmd_name)
                             .and_then(|sc| {
                                 sc.arguments.iter().find(|arg| {
                                     // Match by field name (from long flag or positional name)
-                                    let arg_field_name = arg.long.as_ref()
+                                    let arg_field_name = arg
+                                        .long
+                                        .as_ref()
                                         .map(|s| s.trim_start_matches('-').to_string())
                                         .unwrap_or_else(|| arg.name.clone());
                                     arg_field_name == *field_name
@@ -4463,30 +4492,47 @@ fn try_generate_subcommand_match(
                             });
 
                         // Determine type: check arg_type first, then action for bool flags
-                        let field_type = maybe_arg.and_then(|arg| {
-                            // If arg_type is set, use it
-                            if arg.arg_type.is_some() {
-                                return arg.arg_type.clone();
-                            }
-                            // Check action for bool flags: store_true/store_false → Bool
-                            if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false") | Some("store_const")) {
-                                return Some(Type::Bool);
-                            }
-                            None
-                        }).or_else(|| {
-                            // DEPYLER-0526: Name-based fallback for common boolean fields
-                            // If argument lookup failed, use heuristics based on field name
-                            let field_lower = field_name.to_lowercase();
-                            let bool_indicators = [
-                                "binary", "append", "verbose", "quiet", "force", "dry_run",
-                                "recursive", "debug", "silent", "capture", "overwrite",
-                            ];
-                            if bool_indicators.iter().any(|ind| field_lower == *ind || field_lower.ends_with(ind)) {
-                                Some(Type::Bool)
-                            } else {
+                        let field_type = maybe_arg
+                            .and_then(|arg| {
+                                // If arg_type is set, use it
+                                if arg.arg_type.is_some() {
+                                    return arg.arg_type.clone();
+                                }
+                                // Check action for bool flags: store_true/store_false → Bool
+                                if matches!(
+                                    arg.action.as_deref(),
+                                    Some("store_true") | Some("store_false") | Some("store_const")
+                                ) {
+                                    return Some(Type::Bool);
+                                }
                                 None
-                            }
-                        });
+                            })
+                            .or_else(|| {
+                                // DEPYLER-0526: Name-based fallback for common boolean fields
+                                // If argument lookup failed, use heuristics based on field name
+                                let field_lower = field_name.to_lowercase();
+                                let bool_indicators = [
+                                    "binary",
+                                    "append",
+                                    "verbose",
+                                    "quiet",
+                                    "force",
+                                    "dry_run",
+                                    "recursive",
+                                    "debug",
+                                    "silent",
+                                    "capture",
+                                    "overwrite",
+                                ];
+                                if bool_indicators
+                                    .iter()
+                                    .any(|ind| field_lower == *ind || field_lower.ends_with(ind))
+                                {
+                                    Some(Type::Bool)
+                                } else {
+                                    None
+                                }
+                            });
 
                         // Generate conversion based on type
                         // NOTE: With explicit `ref` patterns, all fields are bound as references:
@@ -4506,15 +4552,28 @@ fn try_generate_subcommand_match(
                                 // File/path fields usually need owned String: convert with .to_string()
                                 // Content/pattern fields usually need &str: keep as &String (auto-derefs)
                                 let field_lower = field_name.to_lowercase();
-                                let owned_indicators = ["file", "path", "filepath", "input", "output", "dir", "directory"];
-                                let borrowed_indicators = ["content", "pattern", "text", "message", "data", "value"];
+                                let owned_indicators = [
+                                    "file",
+                                    "path",
+                                    "filepath",
+                                    "input",
+                                    "output",
+                                    "dir",
+                                    "directory",
+                                ];
+                                let borrowed_indicators =
+                                    ["content", "pattern", "text", "message", "data", "value"];
 
-                                let needs_owned = owned_indicators.iter().any(|ind|
-                                    field_lower == *ind || field_lower.ends_with(ind) || field_lower.starts_with(ind)
-                                );
-                                let needs_borrowed = borrowed_indicators.iter().any(|ind|
-                                    field_lower == *ind || field_lower.ends_with(ind) || field_lower.starts_with(ind)
-                                );
+                                let needs_owned = owned_indicators.iter().any(|ind| {
+                                    field_lower == *ind
+                                        || field_lower.ends_with(ind)
+                                        || field_lower.starts_with(ind)
+                                });
+                                let needs_borrowed = borrowed_indicators.iter().any(|ind| {
+                                    field_lower == *ind
+                                        || field_lower.ends_with(ind)
+                                        || field_lower.starts_with(ind)
+                                });
 
                                 if needs_borrowed {
                                     // Keep as &String, auto-derefs to &str
@@ -4527,22 +4586,37 @@ fn try_generate_subcommand_match(
                                     quote! { let #field_ident = #field_ident.to_string(); }
                                 }
                             }
-                            Some(Type::Optional(_)) | Some(Type::List(_)) | Some(Type::Dict(_, _)) => {
+                            Some(Type::Optional(_))
+                            | Some(Type::List(_))
+                            | Some(Type::Dict(_, _)) => {
                                 // For complex container types, clone the reference
                                 quote! { let #field_ident = #field_ident.clone(); }
                             }
                             None => {
                                 // Unknown type: use name-based heuristics
                                 let field_lower = field_name.to_lowercase();
-                                let owned_indicators = ["file", "path", "filepath", "input", "output", "dir", "directory"];
-                                let borrowed_indicators = ["content", "pattern", "text", "message", "data", "value"];
+                                let owned_indicators = [
+                                    "file",
+                                    "path",
+                                    "filepath",
+                                    "input",
+                                    "output",
+                                    "dir",
+                                    "directory",
+                                ];
+                                let borrowed_indicators =
+                                    ["content", "pattern", "text", "message", "data", "value"];
 
-                                let needs_owned = owned_indicators.iter().any(|ind|
-                                    field_lower == *ind || field_lower.ends_with(ind) || field_lower.starts_with(ind)
-                                );
-                                let needs_borrowed = borrowed_indicators.iter().any(|ind|
-                                    field_lower == *ind || field_lower.ends_with(ind) || field_lower.starts_with(ind)
-                                );
+                                let needs_owned = owned_indicators.iter().any(|ind| {
+                                    field_lower == *ind
+                                        || field_lower.ends_with(ind)
+                                        || field_lower.starts_with(ind)
+                                });
+                                let needs_borrowed = borrowed_indicators.iter().any(|ind| {
+                                    field_lower == *ind
+                                        || field_lower.ends_with(ind)
+                                        || field_lower.starts_with(ind)
+                                });
 
                                 if needs_borrowed {
                                     // Keep as reference

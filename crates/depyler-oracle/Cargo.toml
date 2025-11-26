@@ -9,6 +9,10 @@ description = "ML-powered compile error classification and auto-fixing using apr
 keywords = ["depyler", "ml", "error-classification", "auto-fix"]
 categories = ["development-tools"]
 
+[features]
+default = []
+local-llm = ["llama-cpp-2"]
+
 [dependencies]
 # Depyler core for error types
 depyler-core = { path = "../depyler-core" }
@@ -35,6 +39,9 @@ tracing.workspace = true
 
 # HTTP client for API fallback
 ureq = { version = "2.9", features = ["json"] }
+
+# Local LLM inference via llama.cpp
+llama-cpp-2 = { version = "0.1", optional = true }
 
 [dev-dependencies]
 tempfile.workspace = true

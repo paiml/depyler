@@ -95,18 +95,19 @@ impl Estimator for OracleEstimator {
             if i < y.len() {
                 // Use fix if available, otherwise use a generic fix hint
                 let fix = sample.fix.as_deref().unwrap_or("Check error details");
-                self.predictor.learn_pattern(&sample.message, fix, sample.category);
+                self.predictor
+                    .learn_pattern(&sample.message, fix, sample.category);
             }
         }
 
         // Fit the vectorizer
-        self.predictor.fit().map_err(|e| {
-            AprenderError::InvalidHyperparameter {
+        self.predictor
+            .fit()
+            .map_err(|e| AprenderError::InvalidHyperparameter {
                 param: "predictor".to_string(),
                 value: format!("fit failed: {e}"),
                 constraint: "Must have training patterns".to_string(),
-            }
-        })?;
+            })?;
 
         Ok(())
     }
@@ -141,6 +142,7 @@ impl Estimator for OracleEstimator {
 /// - Error code one-hot encoding (25 features)
 /// - Keyword occurrence counts (28 features)
 /// - ErrorFeatures hand-crafted features (12 features)
+///
 /// Total: 65 features for better classification accuracy.
 #[must_use]
 pub fn samples_to_features(samples: &[TrainingSample]) -> (Matrix<f32>, Vector<f32>) {
@@ -148,30 +150,57 @@ pub fn samples_to_features(samples: &[TrainingSample]) -> (Matrix<f32>, Vector<f
     // Extended error codes for better discrimination (Issue #106)
     let error_codes = [
         // Type mismatch errors
-        "E0308", "E0282", "E0609", "E0606", "E0631",
-        // Import/resolution errors
-        "E0432", "E0433", "E0412", "E0425",
-        // Trait bound errors
-        "E0277", "E0599",
-        // Borrow checker errors
+        "E0308", "E0282", "E0609", "E0606", "E0631", // Import/resolution errors
+        "E0432", "E0433", "E0412", "E0425", // Trait bound errors
+        "E0277", "E0599", // Borrow checker errors
         "E0502", "E0499", "E0507", "E0382", "E0596", "E0597", "E0505", "E0503", "E0594",
         // Syntax errors
-        "E0423", "E0658", "E0627",
-        // Move/ownership
+        "E0423", "E0658", "E0627", // Move/ownership
         "E0373", "E0061",
     ];
     // Extended keywords for better category discrimination
     let keywords = [
         // Type-related
-        "mismatch", "expected", "found", "type", "types", "i32", "f64", "String", "Value",
+        "mismatch",
+        "expected",
+        "found",
+        "type",
+        "types",
+        "i32",
+        "f64",
+        "String",
+        "Value",
         // Trait-related
-        "trait", "bound", "satisfied", "implement", "Display", "Copy",
+        "trait",
+        "bound",
+        "satisfied",
+        "implement",
+        "Display",
+        "Copy",
         // Borrow-related
-        "borrow", "borrowed", "mut", "mutable", "move", "moved", "lifetime", "reference",
+        "borrow",
+        "borrowed",
+        "mut",
+        "mutable",
+        "move",
+        "moved",
+        "lifetime",
+        "reference",
         // Import-related
-        "import", "unresolved", "undeclared", "crate", "module",
+        "import",
+        "unresolved",
+        "undeclared",
+        "crate",
+        "module",
         // Misc
-        "method", "field", "closure", "async", "Option", "Result", "HashMap", "Vec",
+        "method",
+        "field",
+        "closure",
+        "async",
+        "Option",
+        "Result",
+        "HashMap",
+        "Vec",
     ];
 
     // Total features: error codes (25) + keywords (28) + ErrorFeatures (12) = 65

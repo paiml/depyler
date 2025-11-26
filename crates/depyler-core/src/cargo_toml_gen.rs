@@ -359,7 +359,7 @@ mod tests {
             needs_clap: true,
             needs_io_read: false,   // DEPYLER-0458
             needs_io_write: false,  // DEPYLER-0458
-            needs_bufread: false,  // DEPYLER-0522
+            needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![std::collections::HashSet::new()],
             current_function_can_fail: false,
@@ -468,7 +468,7 @@ mod tests {
             needs_itertools: true,  // DEPYLER-0493
             needs_io_read: false,   // DEPYLER-0458
             needs_io_write: false,  // DEPYLER-0458
-            needs_bufread: false,  // DEPYLER-0522
+            needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
@@ -574,7 +574,7 @@ mod tests {
             needs_clap: false,
             needs_io_read: false,   // DEPYLER-0458
             needs_io_write: false,  // DEPYLER-0458
-            needs_bufread: false,  // DEPYLER-0522
+            needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
@@ -684,7 +684,7 @@ mod tests {
             needs_clap: true,       // Enable clap
             needs_io_read: false,   // DEPYLER-0458
             needs_io_write: false,  // DEPYLER-0458
-            needs_bufread: false,  // DEPYLER-0522
+            needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,

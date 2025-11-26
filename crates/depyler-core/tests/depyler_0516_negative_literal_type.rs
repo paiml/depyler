@@ -79,7 +79,10 @@ fn test_DEPYLER_0516_negative_integer_literal() {
     // Should compile
     match check_rust_compiles(&rust_code) {
         Ok(_) => {}
-        Err(e) => panic!("DEPYLER-0516: Generated code should compile.\nError:\n{}\nCode:\n{}", e, rust_code),
+        Err(e) => panic!(
+            "DEPYLER-0516: Generated code should compile.\nError:\n{}\nCode:\n{}",
+            e, rust_code
+        ),
     }
 }
 
@@ -123,12 +126,14 @@ fn test_DEPYLER_0516_various_negatives() {
         assert!(
             rust_code.contains("i32"),
             "DEPYLER-0516: '{}' should infer i32.\nGenerated:\n{}",
-            val, rust_code
+            val,
+            rust_code
         );
         assert!(
             !rust_code.contains("serde_json::Value"),
             "DEPYLER-0516: '{}' should not use serde_json::Value.\nGenerated:\n{}",
-            val, rust_code
+            val,
+            rust_code
         );
 
         check_rust_compiles(&rust_code)
@@ -146,11 +151,16 @@ fn test_DEPYLER_0516_positive_still_works() {
         assert!(
             rust_code.contains("i32"),
             "DEPYLER-0516: Positive '{}' should still infer i32.\nGenerated:\n{}",
-            val, rust_code
+            val,
+            rust_code
         );
 
-        check_rust_compiles(&rust_code)
-            .unwrap_or_else(|e| panic!("DEPYLER-0516: '{}' should still compile.\nError:\n{}", val, e));
+        check_rust_compiles(&rust_code).unwrap_or_else(|e| {
+            panic!(
+                "DEPYLER-0516: '{}' should still compile.\nError:\n{}",
+                val, e
+            )
+        });
     }
 }
 

@@ -64,6 +64,7 @@ use depyler_core::{
     lambda_testing::LambdaTestHarness,
     DepylerPipeline,
 };
+use depyler_oracle::{ErrorFeatures, HybridTranspiler, Oracle};
 use depyler_quality::QualityAnalyzer;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
@@ -123,6 +124,18 @@ pub enum Commands {
         /// Explain transformation decisions in detail
         #[arg(long)]
         explain: bool,
+
+        /// Auto-fix compile errors using ML oracle (Issue #105)
+        #[arg(long)]
+        auto_fix: bool,
+
+        /// Show suggested fixes without applying (Issue #105)
+        #[arg(long)]
+        suggest_fixes: bool,
+
+        /// Minimum confidence threshold for auto-fix (0.0-1.0)
+        #[arg(long, default_value = "0.80")]
+        fix_confidence: f64,
     },
 
     /// Compile Python to standalone binary (DEPYLER-0380)
@@ -543,6 +556,9 @@ pub fn transpile_command(
     source_map: bool,
     trace: bool,
     explain: bool,
+    auto_fix: bool,
+    suggest_fixes: bool,
+    fix_confidence: f64,
 ) -> Result<()> {
     let start = Instant::now();
 
@@ -645,6 +661,74 @@ pub fn transpile_command(
         // Analysis would happen here
         pb.inc(1);
     }
+
+    // ML-powered auto-fix / suggest-fixes (Issue #105)
+    let rust_code = if auto_fix || suggest_fixes {
+        pb.set_message("Running ML oracle...");
+
+        // Try hybrid transpiler first (uses ML when AST fails)
+        let mut hybrid = HybridTranspiler::new();
+        match hybrid.transpile(&python_source) {
+            Ok(result) => {
+                if trace {
+                    eprintln!("\n=== ML Oracle Analysis ===");
+                    eprintln!("  Strategy: {:?}", result.strategy);
+                    eprintln!("  Confidence: {:.2}%", result.confidence * 100.0);
+                }
+
+                if result.confidence >= fix_confidence as f32 {
+                    if suggest_fixes {
+                        println!("\n🔮 ML Oracle Suggestions:");
+                        println!(
+                            "  ✓ High confidence ({:.2}%) - auto-fix would apply",
+                            result.confidence * 100.0
+                        );
+                    }
+                    if auto_fix {
+                        println!(
+                            "\n🔧 Auto-fix applied with {:.2}% confidence",
+                            result.confidence * 100.0
+                        );
+                    }
+                    result.rust_code
+                } else {
+                    if suggest_fixes {
+                        println!("\n🔮 ML Oracle Suggestions:");
+                        println!(
+                            "  ⚠ Low confidence ({:.2}%) - manual review recommended",
+                            result.confidence * 100.0
+                        );
+
+                        // Try to get fix suggestions from ngram predictor
+                        let oracle = Oracle::load_or_train().ok();
+                        if let Some(oracle) = oracle {
+                            let features = ErrorFeatures::from_error_message(&format!(
+                                "transpilation: {:?}",
+                                result.strategy
+                            ));
+                            if let Ok(classification) = oracle.classify(&features) {
+                                println!("  Category: {:?}", classification.category);
+                                if let Some(fix) = &classification.suggested_fix {
+                                    println!("  Suggested fix: {}", fix);
+                                }
+                            }
+                        }
+                    }
+                    rust_code // Use original if confidence too low
+                }
+            }
+            Err(e) => {
+                if suggest_fixes {
+                    println!("\n🔮 ML Oracle Suggestions:");
+                    println!("  ✗ Transpilation error: {}", e);
+                    println!("  → Check for unsupported Python patterns");
+                }
+                rust_code // Fallback to original
+            }
+        }
+    } else {
+        rust_code
+    };
 
     // Generate output
     pb.set_message("Writing output...");
@@ -1826,7 +1910,7 @@ mod tests {
     fn test_transpile_command_basic() {
         let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
 
-        let result = transpile_command(input_path, None, false, false, false, false, false, false);
+        let result = transpile_command(input_path, None, false, false, false, false, false, false, false, false, 0.8);
         assert!(result.is_ok());
     }
 
@@ -1844,6 +1928,9 @@ mod tests {
             false,
             false,
             false,
+            false,  // auto_fix
+            false,  // suggest_fixes
+            0.8,    // fix_confidence
         );
         assert!(result.is_ok());
         assert!(output_path.exists());
