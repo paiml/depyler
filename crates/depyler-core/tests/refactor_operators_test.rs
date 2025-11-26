@@ -66,10 +66,7 @@ def subtract(a: int, b: int) -> int:
     return a - b
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("-"),
-        "Subtraction should use -. Got:\n{rust}"
-    );
+    assert!(rust.contains("-"), "Subtraction should use -. Got:\n{rust}");
 }
 
 #[test]
@@ -94,10 +91,7 @@ def divide(a: float, b: float) -> float:
     return a / b
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("/"),
-        "Division should use /. Got:\n{rust}"
-    );
+    assert!(rust.contains("/"), "Division should use /. Got:\n{rust}");
 }
 
 #[test]
@@ -123,10 +117,7 @@ def modulo(a: int, b: int) -> int:
     return a % b
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("%"),
-        "Modulo should use %. Got:\n{rust}"
-    );
+    assert!(rust.contains("%"), "Modulo should use %. Got:\n{rust}");
 }
 
 #[test]
@@ -155,10 +146,7 @@ def less_than(a: int, b: int) -> bool:
     return a < b
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("<"),
-        "Less than should use <. Got:\n{rust}"
-    );
+    assert!(rust.contains("<"), "Less than should use <. Got:\n{rust}");
 }
 
 #[test]
@@ -183,10 +171,7 @@ def equals(a: int, b: int) -> bool:
     return a == b
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("=="),
-        "Equality should use ==. Got:\n{rust}"
-    );
+    assert!(rust.contains("=="), "Equality should use ==. Got:\n{rust}");
 }
 
 #[test]
@@ -197,10 +182,7 @@ def not_equals(a: int, b: int) -> bool:
     return a != b
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("!="),
-        "Not equal should use !=. Got:\n{rust}"
-    );
+    assert!(rust.contains("!="), "Not equal should use !=. Got:\n{rust}");
 }
 
 // ============================================================================
@@ -296,10 +278,7 @@ def negate_bool(x: bool) -> bool:
     return not x
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("!"),
-        "not should use !. Got:\n{rust}"
-    );
+    assert!(rust.contains("!"), "not should use !. Got:\n{rust}");
 }
 
 #[test]
@@ -324,10 +303,7 @@ def negate_int(x: int) -> int:
     return -x
 "#;
     let rust = pipeline.transpile(python).expect("Should transpile");
-    assert!(
-        rust.contains("-"),
-        "Negation should use -. Got:\n{rust}"
-    );
+    assert!(rust.contains("-"), "Negation should use -. Got:\n{rust}");
 }
 
 // ============================================================================

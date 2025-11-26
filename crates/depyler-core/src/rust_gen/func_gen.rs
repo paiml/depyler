@@ -1031,9 +1031,13 @@ fn infer_expr_type_with_env(
             // GH-70: Fallback heuristic for common string variable names
             // (useful when variables come from tuple unpacking not tracked in environment)
             let name_str = name.as_str();
-            if name_str == "timestamp" || name_str == "message" || name_str == "level"
-                || name_str.ends_with("_str") || name_str.ends_with("_string")
-                || name_str.ends_with("_message") || name_str.ends_with("timestamp")
+            if name_str == "timestamp"
+                || name_str == "message"
+                || name_str == "level"
+                || name_str.ends_with("_str")
+                || name_str.ends_with("_string")
+                || name_str.ends_with("_message")
+                || name_str.ends_with("timestamp")
             {
                 Type::String
             } else {
@@ -1152,7 +1156,10 @@ fn infer_expr_type_with_env(
                     ("re", "findall") | ("regex", "findall") => {
                         return Type::List(Box::new(Type::String));
                     }
-                    ("re", "match") | ("re", "search") | ("regex", "match") | ("regex", "search") => {
+                    ("re", "match")
+                    | ("re", "search")
+                    | ("regex", "match")
+                    | ("regex", "search") => {
                         return Type::Optional(Box::new(Type::Custom("Match".to_string())));
                     }
                     ("re", "split") | ("regex", "split") => {
@@ -1209,8 +1216,8 @@ fn infer_expr_type_with_env(
                 // DEPYLER-0555: Additional string-returning methods for return type inference
                 // DEPYLER-0565: Added hexdigest for hashlib
                 // Note: upper/lower/strip/etc already covered above
-                "isoformat" | "strftime" | "to_string" | "to_str"
-                | "encode" | "decode" | "hexdigest" | "digest" => Type::String,
+                "isoformat" | "strftime" | "to_string" | "to_str" | "encode" | "decode"
+                | "hexdigest" | "digest" => Type::String,
                 // datetime methods that return other types
                 "timestamp" => Type::Float,
                 "date" | "time" => Type::Custom("NaiveDate".to_string()),
@@ -1708,8 +1715,16 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             // then param must be a file-like object that implements Write or Read
             // Example: f.write(msg), f.read(), f.readline(), f.flush()
             let file_object_methods = [
-                "write", "writelines", "read", "readline", "readlines",
-                "flush", "close", "seek", "tell", "truncate",
+                "write",
+                "writelines",
+                "read",
+                "readline",
+                "readlines",
+                "flush",
+                "close",
+                "seek",
+                "tell",
+                "truncate",
             ];
             if let HirExpr::Var(var_name) = object.as_ref() {
                 if var_name == param_name && file_object_methods.contains(&method.as_str()) {
@@ -1722,12 +1737,41 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             // DEPYLER-0524: If param IS the object and method is a string method,
             // then param must be a string. Example: content.endswith("\n")
             let string_object_methods = [
-                "strip", "lstrip", "rstrip", "startswith", "endswith",
-                "split", "splitlines", "join", "upper", "lower", "title", "capitalize",
-                "replace", "find", "rfind", "index", "rindex", "count",
-                "isalpha", "isdigit", "isalnum", "isspace", "isupper", "islower",
-                "encode", "format", "center", "ljust", "rjust", "zfill",
-                "partition", "rpartition", "expandtabs", "swapcase", "casefold",
+                "strip",
+                "lstrip",
+                "rstrip",
+                "startswith",
+                "endswith",
+                "split",
+                "splitlines",
+                "join",
+                "upper",
+                "lower",
+                "title",
+                "capitalize",
+                "replace",
+                "find",
+                "rfind",
+                "index",
+                "rindex",
+                "count",
+                "isalpha",
+                "isdigit",
+                "isalnum",
+                "isspace",
+                "isupper",
+                "islower",
+                "encode",
+                "format",
+                "center",
+                "ljust",
+                "rjust",
+                "zfill",
+                "partition",
+                "rpartition",
+                "expandtabs",
+                "swapcase",
+                "casefold",
             ];
             if let HirExpr::Var(var_name) = object.as_ref() {
                 if var_name == param_name && string_object_methods.contains(&method.as_str()) {
@@ -1739,8 +1783,16 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             // then param must be a dict. Example: row.get(col), row.items()
             // This is critical for csv filter predicates like: row.get(column) == value
             let dict_object_methods = [
-                "get", "items", "keys", "values", "pop", "popitem",
-                "update", "setdefault", "clear", "copy",
+                "get",
+                "items",
+                "keys",
+                "values",
+                "pop",
+                "popitem",
+                "update",
+                "setdefault",
+                "clear",
+                "copy",
             ];
             if let HirExpr::Var(var_name) = object.as_ref() {
                 if var_name == param_name && dict_object_methods.contains(&method.as_str()) {
@@ -1753,7 +1805,9 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             // These expect string arguments
             if let HirExpr::Var(module_name) = object.as_ref() {
                 let regex_modules = ["re", "regex"];
-                let regex_methods = ["match", "search", "findall", "sub", "subn", "split", "compile"];
+                let regex_methods = [
+                    "match", "search", "findall", "sub", "subn", "split", "compile",
+                ];
 
                 if regex_modules.contains(&module_name.as_str())
                     && regex_methods.contains(&method.as_str())
@@ -1783,7 +1837,8 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             // Pattern: datetime.datetime.fromtimestamp(timestamp) where datetime.datetime is the object
             if let HirExpr::Attribute { value, attr } = object.as_ref() {
                 if let HirExpr::Var(module_name) = value.as_ref() {
-                    if module_name == "datetime" && attr == "datetime" && method == "fromtimestamp" {
+                    if module_name == "datetime" && attr == "datetime" && method == "fromtimestamp"
+                    {
                         if let Some(HirExpr::Var(var_name)) = args.first() {
                             if var_name == param_name {
                                 return Some(Type::Float);
@@ -1795,10 +1850,24 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
 
             // Methods that expect string arguments (for method calls on objects)
             let string_methods = [
-                "find", "search", "match", "sub", "replace", "replace_all",
-                "is_match", "captures", "find_iter", "split",
-                "strip", "lstrip", "rstrip", "startswith", "endswith",
-                "contains", "encode", "decode",
+                "find",
+                "search",
+                "match",
+                "sub",
+                "replace",
+                "replace_all",
+                "is_match",
+                "captures",
+                "find_iter",
+                "split",
+                "strip",
+                "lstrip",
+                "rstrip",
+                "startswith",
+                "endswith",
+                "contains",
+                "encode",
+                "decode",
             ];
             if string_methods.contains(&method.as_str()) {
                 for arg in args {
@@ -1879,7 +1948,9 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
         }
         // Pattern: param * N, param + N, etc. → param is numeric → Int
         // GH-70: Binary operations with param suggest numeric type
-        HirExpr::Binary { left, right, op, .. } => {
+        HirExpr::Binary {
+            left, right, op, ..
+        } => {
             use crate::hir::BinOp;
 
             // DEPYLER-0554: Pattern: param == "literal" or param != "literal" → param is String
@@ -1888,7 +1959,10 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
                 // Check if param is compared to a string literal
                 if let HirExpr::Var(var_name) = left.as_ref() {
                     if var_name == param_name
-                        && matches!(right.as_ref(), HirExpr::Literal(crate::hir::Literal::String(_)))
+                        && matches!(
+                            right.as_ref(),
+                            HirExpr::Literal(crate::hir::Literal::String(_))
+                        )
                     {
                         return Some(Type::String);
                     }
@@ -1896,7 +1970,10 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
                 // Also check the reverse: "literal" == param
                 if let HirExpr::Var(var_name) = right.as_ref() {
                     if var_name == param_name
-                        && matches!(left.as_ref(), HirExpr::Literal(crate::hir::Literal::String(_)))
+                        && matches!(
+                            left.as_ref(),
+                            HirExpr::Literal(crate::hir::Literal::String(_))
+                        )
                     {
                         return Some(Type::String);
                     }
@@ -1927,7 +2004,9 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
                     if var_name == param_name {
                         // Check if right side is a list of strings
                         if let HirExpr::List(elements) = right.as_ref() {
-                            if elements.iter().all(|e| matches!(e, HirExpr::Literal(crate::hir::Literal::String(_)))) {
+                            if elements.iter().all(|e| {
+                                matches!(e, HirExpr::Literal(crate::hir::Literal::String(_)))
+                            }) {
                                 return Some(Type::String);
                             }
                         }
@@ -2132,7 +2211,8 @@ pub(crate) fn codegen_return_type(
     Option<crate::rust_gen::context::ErrorType>,
 )> {
     // GH-70: Check if function returns a nested function/closure
-    if let Some((_nested_name, params, nested_ret_type)) = detect_returns_nested_function(func, ctx) {
+    if let Some((_nested_name, params, nested_ret_type)) = detect_returns_nested_function(func, ctx)
+    {
         use quote::quote;
 
         // Build Box<dyn Fn(params) -> ret> type

@@ -87,17 +87,19 @@ impl Default for HybridConfig {
 impl HybridConfig {
     /// Create config with API enabled (reads ANTHROPIC_API_KEY from env)
     pub fn with_api() -> Self {
-        let mut config = Self::default();
-        config.enable_api = std::env::var("ANTHROPIC_API_KEY").is_ok();
-        config
+        Self {
+            enable_api: std::env::var("ANTHROPIC_API_KEY").is_ok(),
+            ..Self::default()
+        }
     }
 
     /// Create config with local model
     pub fn with_local_model(path: &str) -> Self {
-        let mut config = Self::default();
-        config.enable_local_model = true;
-        config.local_model_path = Some(path.to_string());
-        config
+        Self {
+            enable_local_model: true,
+            local_model_path: Some(path.to_string()),
+            ..Self::default()
+        }
     }
 }
 
@@ -277,31 +279,133 @@ impl HybridTranspiler {
         }
     }
 
-    /// Try local fine-tuned model (placeholder for llama.cpp integration)
+    /// Try local fine-tuned model via llama.cpp
+    #[cfg(feature = "local-llm")]
     fn try_local_model(&self, python_code: &str) -> Result<TranspileResult, TranspileError> {
-        let model_path = self.config.local_model_path.as_ref()
+        use llama_cpp_2::context::params::LlamaContextParams;
+        use llama_cpp_2::llama_backend::LlamaBackend;
+        use llama_cpp_2::llama_batch::LlamaBatch;
+        use llama_cpp_2::model::params::LlamaModelParams;
+        use llama_cpp_2::model::{AddBos, LlamaModel, Special};
+        use llama_cpp_2::token::data_array::LlamaTokenDataArray;
+
+        let model_path = self
+            .config
+            .local_model_path
+            .as_ref()
             .ok_or(TranspileError::ModelNotLoaded)?;
 
-        // TODO: Integrate llama-cpp-rs or similar
-        // For now, check if model file exists
         if !std::path::Path::new(model_path).exists() {
             return Err(TranspileError::ModelNotLoaded);
         }
 
-        // Placeholder - would use llama.cpp bindings here
-        // let ctx = LlamaContext::load(model_path)?;
-        // let prompt = format!("Convert Python to Rust:\n```python\n{}\n```\n\nRust:", python_code);
-        // let response = ctx.generate(&prompt)?;
+        // Initialize backend
+        let backend = LlamaBackend::init()
+            .map_err(|e| TranspileError::ModelFailed(format!("Backend init failed: {}", e)))?;
 
-        let _ = python_code;
-        Err(TranspileError::ModelFailed("Local model inference not yet implemented".to_string()))
+        // Load model
+        let model_params = LlamaModelParams::default();
+        let model = LlamaModel::load_from_file(&backend, model_path, &model_params)
+            .map_err(|e| TranspileError::ModelFailed(format!("Model load failed: {}", e)))?;
+
+        // Create context
+        let ctx_params = LlamaContextParams::default().with_n_ctx(std::num::NonZeroU32::new(2048));
+        let mut ctx = model
+            .new_context(&backend, ctx_params)
+            .map_err(|e| TranspileError::ModelFailed(format!("Context creation failed: {}", e)))?;
+
+        // Create prompt
+        let prompt = format!(
+            "<|im_start|>user\nConvert this Python code to idiomatic Rust. Only output Rust code:\n```python\n{}\n```<|im_end|>\n<|im_start|>assistant\n```rust\n",
+            python_code
+        );
+
+        // Tokenize
+        let tokens = model
+            .str_to_token(&prompt, AddBos::Always)
+            .map_err(|e| TranspileError::ModelFailed(format!("Tokenization failed: {}", e)))?;
+
+        // Create batch and decode
+        let mut batch = LlamaBatch::new(2048, 1);
+        for (i, token) in tokens.iter().enumerate() {
+            batch
+                .add(*token, i as i32, &[0], i == tokens.len() - 1)
+                .map_err(|e| TranspileError::ModelFailed(format!("Batch add failed: {}", e)))?;
+        }
+
+        ctx.decode(&mut batch)
+            .map_err(|e| TranspileError::ModelFailed(format!("Decode failed: {}", e)))?;
+
+        // Generate tokens
+        let mut output_tokens = Vec::new();
+        let max_tokens = 1024;
+
+        for _ in 0..max_tokens {
+            let candidates = ctx.candidates();
+            let mut candidates_data = LlamaTokenDataArray::from_iter(candidates, false);
+
+            // Sample greedy
+            let token = candidates_data.sample_token_greedy();
+
+            // Check for EOS
+            if token == model.token_eos() {
+                break;
+            }
+
+            output_tokens.push(token);
+
+            // Prepare next batch
+            batch.clear();
+            batch
+                .add(
+                    token,
+                    tokens.len() as i32 + output_tokens.len() as i32 - 1,
+                    &[0],
+                    true,
+                )
+                .map_err(|e| TranspileError::ModelFailed(format!("Batch add failed: {}", e)))?;
+
+            ctx.decode(&mut batch)
+                .map_err(|e| TranspileError::ModelFailed(format!("Decode failed: {}", e)))?;
+        }
+
+        // Detokenize
+        let rust_code: String = output_tokens
+            .iter()
+            .filter_map(|t| model.token_to_str(*t, Special::Plaintext).ok())
+            .collect();
+
+        // Clean up code blocks
+        let rust_code = rust_code.trim().trim_end_matches("```").trim().to_string();
+
+        Ok(TranspileResult {
+            rust_code,
+            strategy: Strategy::LocalModel,
+            confidence: 0.85,
+            latency_ms: 0,
+            warnings: vec!["Generated via local model - review before use".to_string()],
+        })
+    }
+
+    /// Try local fine-tuned model (stub when feature disabled)
+    #[cfg(not(feature = "local-llm"))]
+    fn try_local_model(&self, _python_code: &str) -> Result<TranspileResult, TranspileError> {
+        Err(TranspileError::ModelFailed(
+            "Local LLM support not compiled. Enable 'local-llm' feature.".to_string(),
+        ))
     }
 
     /// Try API-based transpilation (Claude/OpenAI)
     fn try_api_transpile(&self, python_code: &str) -> Result<TranspileResult, TranspileError> {
-        let endpoint = self.config.api_endpoint.as_ref()
+        let endpoint = self
+            .config
+            .api_endpoint
+            .as_ref()
             .ok_or(TranspileError::ApiNotConfigured)?;
-        let api_key = self.config.api_key.as_ref()
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
             .ok_or(TranspileError::ApiNotConfigured)?;
 
         let prompt = format!(
@@ -328,7 +432,8 @@ impl HybridTranspiler {
             .send_json(&request_body)
             .map_err(|e| TranspileError::ApiFailed(e.to_string()))?;
 
-        let response_json: serde_json::Value = response.into_json()
+        let response_json: serde_json::Value = response
+            .into_json()
             .map_err(|e| TranspileError::ApiFailed(e.to_string()))?;
 
         // Extract content from Anthropic response
@@ -366,9 +471,18 @@ impl HybridTranspiler {
 
         TranspileStats {
             total_attempts: total,
-            ast_success_rate: safe_rate(self.pattern_stats.ast_success, self.pattern_stats.ast_failure),
-            model_success_rate: safe_rate(self.pattern_stats.model_success, self.pattern_stats.model_failure),
-            api_success_rate: safe_rate(self.pattern_stats.api_success, self.pattern_stats.api_failure),
+            ast_success_rate: safe_rate(
+                self.pattern_stats.ast_success,
+                self.pattern_stats.ast_failure,
+            ),
+            model_success_rate: safe_rate(
+                self.pattern_stats.model_success,
+                self.pattern_stats.model_failure,
+            ),
+            api_success_rate: safe_rate(
+                self.pattern_stats.api_success,
+                self.pattern_stats.api_failure,
+            ),
         }
     }
 }
@@ -453,7 +567,11 @@ impl TrainingDataCollector {
     }
 
     /// Collect from successful AST transpilations
-    pub fn collect_from_transpiler(&mut self, transpiler: &mut HybridTranspiler, python_samples: &[&str]) {
+    pub fn collect_from_transpiler(
+        &mut self,
+        transpiler: &mut HybridTranspiler,
+        python_samples: &[&str],
+    ) {
         for python in python_samples {
             if let Ok(result) = transpiler.transpile(python) {
                 if result.strategy == Strategy::Ast && result.confidence >= 0.9 {
@@ -555,7 +673,11 @@ mod tests {
     fn test_transpile_simple_function() {
         let mut t = HybridTranspiler::new();
         let result = t.transpile("def add(a: int, b: int) -> int:\n    return a + b");
-        assert!(result.is_ok(), "Simple function should transpile: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "Simple function should transpile: {:?}",
+            result
+        );
         let r = result.unwrap();
         assert_eq!(r.strategy, Strategy::Ast);
         assert!(r.confidence >= 0.8);
@@ -622,7 +744,10 @@ def factorial(n: int) -> int:
     fn test_config_with_api() {
         // This will enable API if ANTHROPIC_API_KEY is set
         let config = HybridConfig::with_api();
-        assert_eq!(config.enable_api, std::env::var("ANTHROPIC_API_KEY").is_ok());
+        assert_eq!(
+            config.enable_api,
+            std::env::var("ANTHROPIC_API_KEY").is_ok()
+        );
     }
 }
 

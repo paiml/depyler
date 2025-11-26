@@ -522,12 +522,24 @@ mod tests {
 
         assert!(!dataset.is_empty());
         // Should have samples for all categories
-        assert!(!dataset.samples_for_category(ErrorCategory::TypeMismatch).is_empty());
-        assert!(!dataset.samples_for_category(ErrorCategory::BorrowChecker).is_empty());
-        assert!(!dataset.samples_for_category(ErrorCategory::LifetimeError).is_empty());
-        assert!(!dataset.samples_for_category(ErrorCategory::TraitBound).is_empty());
-        assert!(!dataset.samples_for_category(ErrorCategory::MissingImport).is_empty());
-        assert!(!dataset.samples_for_category(ErrorCategory::SyntaxError).is_empty());
+        assert!(!dataset
+            .samples_for_category(ErrorCategory::TypeMismatch)
+            .is_empty());
+        assert!(!dataset
+            .samples_for_category(ErrorCategory::BorrowChecker)
+            .is_empty());
+        assert!(!dataset
+            .samples_for_category(ErrorCategory::LifetimeError)
+            .is_empty());
+        assert!(!dataset
+            .samples_for_category(ErrorCategory::TraitBound)
+            .is_empty());
+        assert!(!dataset
+            .samples_for_category(ErrorCategory::MissingImport)
+            .is_empty());
+        assert!(!dataset
+            .samples_for_category(ErrorCategory::SyntaxError)
+            .is_empty());
     }
 
     #[test]
@@ -594,7 +606,11 @@ mod tests {
     fn test_error_fix_pairs() {
         let mut dataset = TrainingDataset::new();
         dataset.add(TrainingSample::new("no fix", ErrorCategory::Other));
-        dataset.add(TrainingSample::with_fix("has fix", ErrorCategory::TypeMismatch, "the fix"));
+        dataset.add(TrainingSample::with_fix(
+            "has fix",
+            ErrorCategory::TypeMismatch,
+            "the fix",
+        ));
 
         let pairs = dataset.error_fix_pairs();
 
@@ -634,8 +650,12 @@ mod tests {
 
         // Check for different error codes
         assert!(messages.iter().any(|m| m.contains("String")));
-        assert!(messages.iter().any(|m| m.contains("i32") || m.contains("i64")));
-        assert!(messages.iter().any(|m| m.contains("Option") || m.contains("Result")));
+        assert!(messages
+            .iter()
+            .any(|m| m.contains("i32") || m.contains("i64")));
+        assert!(messages
+            .iter()
+            .any(|m| m.contains("Option") || m.contains("Result")));
     }
 
     #[test]
@@ -656,12 +676,24 @@ mod tests {
         let dataset = TrainingDataset::with_rustc_defaults();
 
         // Should have reasonable coverage for each category
-        let type_count = dataset.samples_for_category(ErrorCategory::TypeMismatch).len();
-        let borrow_count = dataset.samples_for_category(ErrorCategory::BorrowChecker).len();
-        let lifetime_count = dataset.samples_for_category(ErrorCategory::LifetimeError).len();
-        let trait_count = dataset.samples_for_category(ErrorCategory::TraitBound).len();
-        let import_count = dataset.samples_for_category(ErrorCategory::MissingImport).len();
-        let syntax_count = dataset.samples_for_category(ErrorCategory::SyntaxError).len();
+        let type_count = dataset
+            .samples_for_category(ErrorCategory::TypeMismatch)
+            .len();
+        let borrow_count = dataset
+            .samples_for_category(ErrorCategory::BorrowChecker)
+            .len();
+        let lifetime_count = dataset
+            .samples_for_category(ErrorCategory::LifetimeError)
+            .len();
+        let trait_count = dataset
+            .samples_for_category(ErrorCategory::TraitBound)
+            .len();
+        let import_count = dataset
+            .samples_for_category(ErrorCategory::MissingImport)
+            .len();
+        let syntax_count = dataset
+            .samples_for_category(ErrorCategory::SyntaxError)
+            .len();
 
         // Each category should have multiple samples
         assert!(type_count >= 5, "Type mismatch: {}", type_count);

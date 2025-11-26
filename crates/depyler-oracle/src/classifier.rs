@@ -99,24 +99,45 @@ impl ErrorClassifier {
     pub fn new() -> Self {
         Self {
             type_keywords: vec![
-                "expected", "found", "mismatched types", "type mismatch",
-                "cannot coerce", "incompatible types",
+                "expected",
+                "found",
+                "mismatched types",
+                "type mismatch",
+                "cannot coerce",
+                "incompatible types",
             ],
             borrow_keywords: vec![
-                "borrow", "borrowed", "move", "moved", "cannot move",
-                "value used after move", "ownership",
+                "borrow",
+                "borrowed",
+                "move",
+                "moved",
+                "cannot move",
+                "value used after move",
+                "ownership",
             ],
             import_keywords: vec![
-                "not found", "unresolved", "cannot find",
-                "no such", "undefined", "use of undeclared",
+                "not found",
+                "unresolved",
+                "cannot find",
+                "no such",
+                "undefined",
+                "use of undeclared",
             ],
             lifetime_keywords: vec![
-                "lifetime", "'a", "'static", "does not live long enough",
-                "borrowed value", "dangling",
+                "lifetime",
+                "'a",
+                "'static",
+                "does not live long enough",
+                "borrowed value",
+                "dangling",
             ],
             trait_keywords: vec![
-                "trait", "impl", "not implemented", "bound",
-                "doesn't implement", "the trait bound",
+                "trait",
+                "impl",
+                "not implemented",
+                "bound",
+                "doesn't implement",
+                "the trait bound",
             ],
         }
     }
@@ -207,35 +228,50 @@ mod tests {
     fn test_classify_type_mismatch() {
         let classifier = ErrorClassifier::new();
         let msg = "error: expected `i32`, found `&str`";
-        assert_eq!(classifier.classify_by_keywords(msg), ErrorCategory::TypeMismatch);
+        assert_eq!(
+            classifier.classify_by_keywords(msg),
+            ErrorCategory::TypeMismatch
+        );
     }
 
     #[test]
     fn test_classify_borrow_checker() {
         let classifier = ErrorClassifier::new();
         let msg = "error: cannot move out of borrowed content";
-        assert_eq!(classifier.classify_by_keywords(msg), ErrorCategory::BorrowChecker);
+        assert_eq!(
+            classifier.classify_by_keywords(msg),
+            ErrorCategory::BorrowChecker
+        );
     }
 
     #[test]
     fn test_classify_missing_import() {
         let classifier = ErrorClassifier::new();
         let msg = "error: cannot find type `HashMap` in this scope";
-        assert_eq!(classifier.classify_by_keywords(msg), ErrorCategory::MissingImport);
+        assert_eq!(
+            classifier.classify_by_keywords(msg),
+            ErrorCategory::MissingImport
+        );
     }
 
     #[test]
     fn test_classify_lifetime() {
         let classifier = ErrorClassifier::new();
         let msg = "error: `x` does not live long enough";
-        assert_eq!(classifier.classify_by_keywords(msg), ErrorCategory::LifetimeError);
+        assert_eq!(
+            classifier.classify_by_keywords(msg),
+            ErrorCategory::LifetimeError
+        );
     }
 
     #[test]
     fn test_classify_trait_bound() {
         let classifier = ErrorClassifier::new();
         let msg = "error: the trait bound `Foo: Clone` is not satisfied";
-        assert_eq!(classifier.classify_by_keywords(msg), ErrorCategory::TraitBound);
+        assert_eq!(
+            classifier.classify_by_keywords(msg),
+            ErrorCategory::TraitBound
+        );
     }
 
     #[test]

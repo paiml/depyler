@@ -82,7 +82,8 @@ def main():
     // Should have proper return type for outer function (Box<dyn Fn> or impl Fn)
     // GH-70: Now generates Box<dyn Fn(...)> for nested functions returned
     assert!(
-        rust_code.contains("fn outer()") && (rust_code.contains("-> Box<dyn Fn") || rust_code.contains("-> impl Fn")),
+        rust_code.contains("fn outer()")
+            && (rust_code.contains("-> Box<dyn Fn") || rust_code.contains("-> impl Fn")),
         "GH-70: outer() should have return type annotation.\nGenerated:\n{}",
         rust_code
     );
@@ -303,7 +304,8 @@ def outer():
 
     // Should return inner (now wrapped in Box::new)
     assert!(
-        rust_code.contains("inner") && (rust_code.contains("Box::new(inner)") || rust_code.contains("return inner")),
+        rust_code.contains("inner")
+            && (rust_code.contains("Box::new(inner)") || rust_code.contains("return inner")),
         "GH-70: outer should return inner.\nGenerated:\n{}",
         rust_code
     );

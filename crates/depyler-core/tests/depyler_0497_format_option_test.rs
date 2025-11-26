@@ -12,7 +12,6 @@ use std::process::Command;
 
 /// Helper function to compile generated Rust code and check for errors
 fn compile_rust_code(rust_code: &str, test_name: &str) -> Result<(), String> {
-
     // Write to temporary file with unique name per test
     let temp_file = format!("/tmp/depyler_0497_{}.rs", test_name);
     std::fs::write(&temp_file, rust_code).map_err(|e| format!("Write failed: {}", e))?;

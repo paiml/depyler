@@ -698,11 +698,36 @@ pub fn get_real_training_pairs() -> Vec<(String, String, ErrorCategory)> {
 pub fn corpus_stats() -> Vec<(ErrorCategory, usize)> {
     let dataset = build_combined_corpus();
     vec![
-        (ErrorCategory::TypeMismatch, dataset.samples_for_category(ErrorCategory::TypeMismatch).len()),
-        (ErrorCategory::TraitBound, dataset.samples_for_category(ErrorCategory::TraitBound).len()),
-        (ErrorCategory::MissingImport, dataset.samples_for_category(ErrorCategory::MissingImport).len()),
-        (ErrorCategory::BorrowChecker, dataset.samples_for_category(ErrorCategory::BorrowChecker).len()),
-        (ErrorCategory::SyntaxError, dataset.samples_for_category(ErrorCategory::SyntaxError).len()),
+        (
+            ErrorCategory::TypeMismatch,
+            dataset
+                .samples_for_category(ErrorCategory::TypeMismatch)
+                .len(),
+        ),
+        (
+            ErrorCategory::TraitBound,
+            dataset
+                .samples_for_category(ErrorCategory::TraitBound)
+                .len(),
+        ),
+        (
+            ErrorCategory::MissingImport,
+            dataset
+                .samples_for_category(ErrorCategory::MissingImport)
+                .len(),
+        ),
+        (
+            ErrorCategory::BorrowChecker,
+            dataset
+                .samples_for_category(ErrorCategory::BorrowChecker)
+                .len(),
+        ),
+        (
+            ErrorCategory::SyntaxError,
+            dataset
+                .samples_for_category(ErrorCategory::SyntaxError)
+                .len(),
+        ),
     ]
 }
 
@@ -730,11 +755,15 @@ mod tests {
         assert!(total >= 20);
 
         // TypeMismatch should be the largest category (our main issue)
-        let type_mismatch_count = stats.iter()
+        let type_mismatch_count = stats
+            .iter()
             .find(|(cat, _)| *cat == ErrorCategory::TypeMismatch)
             .map(|(_, c)| *c)
             .unwrap_or(0);
-        assert!(type_mismatch_count >= 8, "TypeMismatch should have most samples");
+        assert!(
+            type_mismatch_count >= 8,
+            "TypeMismatch should have most samples"
+        );
     }
 
     #[test]

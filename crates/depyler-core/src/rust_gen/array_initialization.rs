@@ -268,7 +268,8 @@ mod tests {
 
     #[test]
     fn test_range_with_positive_step() {
-        let args: Vec<syn::Expr> = vec![parse_quote! { 0 }, parse_quote! { 10 }, parse_quote! { 2 }];
+        let args: Vec<syn::Expr> =
+            vec![parse_quote! { 0 }, parse_quote! { 10 }, parse_quote! { 2 }];
         let result = convert_range_call(&args).unwrap();
         let result_str = quote::quote!(#result).to_string();
         assert!(result_str.contains("step_by") || result_str.contains("step"));
@@ -276,11 +277,8 @@ mod tests {
 
     #[test]
     fn test_range_with_negative_step() {
-        let args: Vec<syn::Expr> = vec![
-            parse_quote! { 10 },
-            parse_quote! { 0 },
-            parse_quote! { -1 },
-        ];
+        let args: Vec<syn::Expr> =
+            vec![parse_quote! { 10 }, parse_quote! { 0 }, parse_quote! { -1 }];
         let result = convert_range_call(&args).unwrap();
         let result_str = quote::quote!(#result).to_string();
         assert!(result_str.contains("rev"));
