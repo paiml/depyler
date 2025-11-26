@@ -845,6 +845,7 @@ pub fn generate_rust_file(
         needs_md5: false,
         needs_sha2: false,
         needs_sha3: false,
+        needs_digest: false, // DEPYLER-0558
         needs_blake2: false,
         needs_hex: false,
         needs_uuid: false,
@@ -876,6 +877,7 @@ pub fn generate_rust_file(
         mutating_methods,
         function_return_types: std::collections::HashMap::new(), // DEPYLER-0269: Track function return types
         function_param_borrows: std::collections::HashMap::new(), // DEPYLER-0270: Track parameter borrowing
+        function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
         tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
         iterator_vars: HashSet::new(),   // DEPYLER-0520: Track variables assigned from iterators
         is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
@@ -1093,6 +1095,7 @@ mod tests {
             mutating_methods: std::collections::HashMap::new(),
             function_return_types: std::collections::HashMap::new(), // DEPYLER-0269: Track function return types
             function_param_borrows: std::collections::HashMap::new(), // DEPYLER-0270: Track parameter borrowing
+            function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
             tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
             iterator_vars: HashSet::new(),   // DEPYLER-0520: Track variables assigned from iterators
             is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
@@ -1112,6 +1115,7 @@ mod tests {
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2: Track CSE subcommand temps
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
+            needs_digest: false, // DEPYLER-0558: Track digest crate dependency
         }
     }
 

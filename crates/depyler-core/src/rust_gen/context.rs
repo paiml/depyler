@@ -66,6 +66,7 @@ pub struct CodeGenContext<'a> {
     pub needs_md5: bool,
     pub needs_sha2: bool,
     pub needs_sha3: bool,
+    pub needs_digest: bool, // DEPYLER-0558: For Box<dyn DynDigest> type-erased hashers
     pub needs_blake2: bool,
     pub needs_hex: bool,
     pub needs_uuid: bool,
@@ -103,6 +104,10 @@ pub struct CodeGenContext<'a> {
     /// Maps function name -> Vec of booleans (true if param is borrowed, false if owned)
     /// Used to determine whether to add & when passing List/Dict/Set arguments
     pub function_param_borrows: HashMap<String, Vec<bool>>,
+    /// DEPYLER-0574: Track function parameters that need &mut (mutable borrow)
+    /// Maps function name -> Vec of booleans (true if param is &mut, false if &)
+    /// Used to determine whether to add &mut when passing arguments
+    pub function_param_muts: HashMap<String, Vec<bool>>,
     /// DEPYLER-0307 Fix #9: Track variables that iterate over tuples (from zip())
     /// Used to generate tuple field access syntax (tuple.0, tuple.1) instead of vector indexing
     pub tuple_iter_vars: HashSet<String>,

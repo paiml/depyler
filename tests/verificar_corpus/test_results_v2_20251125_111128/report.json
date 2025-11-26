@@ -1,0 +1,14 @@
+{
+  "stats": {
+    "total": 10,
+    "transpile_success": 10,
+    "transpile_fail": 10,
+    "compile_success": 0,
+    "compile_fail": 0
+  },
+  "error_categories": {},
+  "error_details": [],
+  "timestamp": "2025-11-25T11:11:28.753513",
+  "corpus_file": "corpus_d2_c10.json",
+  "version": "v2_cargo"
+}

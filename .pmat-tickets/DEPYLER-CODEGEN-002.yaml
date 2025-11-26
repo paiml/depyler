@@ -1,0 +1,80 @@
+id: DEPYLER-CODEGEN-002
+title: "Missing Variable Definitions in Codegen"
+description: |
+  Python variable creation in certain patterns not generating corresponding Rust `let` bindings.
+  Variables are used but never defined, causing E0425 errors.
+
+priority: P0
+type: bug
+status: todo
+
+evidence:
+  error_code: E0425
+  error_message: "cannot find value 'X' in this scope"
+  affected_variables:
+    - hasher: stdlib_integration (hashlib.md5() result)
+    - cmd: task_runner (subprocess command)
+    - DateTime: stdlib_integration (datetime module)
+    - pattern: log_analyzer (regex pattern)
+    - parser: log_analyzer (ArgumentParser)
+    - group: log_analyzer (itertools.groupby result)
+    - address: pattern_matcher (regex match group)
+  total_errors: 6+
+
+root_cause: |
+  Several Python patterns create variables implicitly that are not captured:
+
+  1. hashlib.md5() - creates hasher object, not bound to variable
+  2. subprocess patterns - cmd variable from loop/comprehension
+  3. datetime module - DateTime class reference not imported
+  4. regex match groups - captured groups not assigned
+  5. ArgumentParser() - parser instance not bound
+  6. itertools.groupby() - group variable in for loop
+
+patterns_to_fix:
+  - name: "hashlib hasher creation"
+    python: |
+      hasher = hashlib.md5()
+      for k, v in items:
+          hasher.update(f"{k}:{v}".encode())
+      return hasher.hexdigest()
+    rust_should_be: |
+      let mut hasher = md5::Context::new();
+      for (k, v) in items {
+          hasher.consume(format!("{}:{}", k, v).as_bytes());
+      }
+      format!("{:x}", hasher.compute())
+
+  - name: "datetime import"
+    python: |
+      from datetime import datetime
+      dt = datetime.fromtimestamp(ts)
+    rust_should_be: |
+      use chrono::{DateTime, Utc, TimeZone};
+      let dt = Utc.timestamp_opt(ts, 0).unwrap();
+
+  - name: "subprocess cmd"
+    python: |
+      result = subprocess.run(cmd, capture_output=True)
+    rust_should_be: |
+      let output = std::process::Command::new(&cmd[0])
+          .args(&cmd[1..])
+          .output()?;
+
+fix_location:
+  - Variable binding detection in codegen
+  - Module import resolution (datetime, hashlib)
+  - Loop variable extraction (for group in groupby)
+
+acceptance_criteria:
+  - hashlib.md5() generates proper hasher binding
+  - datetime module maps to chrono crate
+  - subprocess.run() cmd variable properly defined
+  - itertools.groupby() loop variable bound
+  - All E0425 errors for missing variables resolved
+
+testing:
+  - Unit tests for each variable binding pattern
+  - Integration test: stdlib_integration hasher usage
+  - Integration test: task_runner subprocess
+  - Integration test: log_analyzer groupby

@@ -1,0 +1,175 @@
+{
+  "stats": {
+    "total": 50,
+    "transpile_success": 50,
+    "transpile_fail": 0,
+    "compile_success": 31,
+    "compile_fail": 19
+  },
+  "error_categories": {
+    "E0425_cannot_find": 10,
+    "E0308_type_mismatch": 2
+  },
+  "error_details": [
+    {
+      "test_id": 7,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = x"
+    },
+    {
+      "test_id": 8,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "x = y"
+    },
+    {
+      "test_id": 9,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "x = z"
+    },
+    {
+      "test_id": 12,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "x = None"
+    },
+    {
+      "test_id": 18,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = (-x)"
+    },
+    {
+      "test_id": 19,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "x = (-y)"
+    },
+    {
+      "test_id": 20,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "x = (-z)"
+    },
+    {
+      "test_id": 21,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = (-True)"
+    },
+    {
+      "test_id": 27,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "y = x"
+    },
+    {
+      "test_id": 28,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "y = y"
+    },
+    {
+      "test_id": 29,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "y = z"
+    },
+    {
+      "test_id": 32,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "y = None"
+    },
+    {
+      "test_id": 38,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "y = (-x)"
+    },
+    {
+      "test_id": 39,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "y = (-y)"
+    },
+    {
+      "test_id": 40,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "y = (-z)"
+    },
+    {
+      "test_id": 41,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "y = (-True)"
+    },
+    {
+      "test_id": 47,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "z = x"
+    },
+    {
+      "test_id": 48,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "z = y"
+    },
+    {
+      "test_id": 49,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "z = z"
+    }
+  ],
+  "timestamp": "2025-11-25T11:34:22.367046",
+  "corpus_file": "corpus_d3_c50.json",
+  "version": "v2_cargo"
+}

@@ -91,8 +91,7 @@ fn weight_error_codes(message: &str, weight: f32) -> String {
         if let Some(code_end) = message[code_start..].find(']') {
             let code = &message[code_start..code_start + code_end + 1];
             let repeat_count = weight.round() as usize;
-            let repeated = std::iter::repeat(code)
-                .take(repeat_count)
+            let repeated = std::iter::repeat_n(code, repeat_count)
                 .collect::<Vec<_>>()
                 .join(" ");
             return format!("{} {}", repeated, message);
@@ -150,7 +149,7 @@ pub fn quick_tune() -> TuningResult {
     let samples: Vec<_> = corpus.samples().to_vec();
 
     // Test key configurations
-    let configs = vec![
+    let configs = [
         TuningConfig {
             min_similarity: 0.1,
             ngram_range: (1, 3),

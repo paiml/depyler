@@ -1,0 +1,20 @@
+roadmap_version: '1.0'
+github_enabled: true
+github_repo: null
+roadmap:
+- id: DEPYLER-0516
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0516'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-25T10:19:08.177457246+00:00
+  updated: 2025-11-25T10:19:08.177457246+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

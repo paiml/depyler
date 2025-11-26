@@ -885,3 +885,97 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: DEPYLER-0529
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0529'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-26T07:19:23.454351914+00:00
+  updated: 2025-11-26T07:19:23.454351914+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0562
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0562'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-26T17:53:16.286129533+00:00
+  updated: 2025-11-26T17:53:16.286129533+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-105
+  github_issue: 105
+  item_type: task
+  title: 'feat: depyler-oracle - ML-powered compile error auto-fixer using aprender'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-11-26T22:11:39.364507537+00:00
+  updated: 2025-11-26T22:17:53.674590452+00:00
+  spec: null
+  acceptance_criteria:
+  - Hook into depyler verify pipeline
+  - Log (error_msg, AST_location, fix_diff) tuples
+  - Export to verificar-compatible parquet format
+  - Error classifier using aprender Decision Tree
+  - Fix pattern predictor using N-gram model
+  - Template-based fix application
+  - Integration tests with known error patterns
+  - '`--auto-fix` and `--suggest-fixes` CLI flags'
+  - Confidence threshold configuration
+  - Ship pre-trained .apr model in depyler binary
+  - Incremental model updates from user fixes
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-106
+  github_issue: 106
+  item_type: task
+  title: 'feat: Wire aprender RandomForestClassifier to oracle'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-11-26T22:11:40.555608012+00:00
+  updated: 2025-11-26T22:17:55.186662281+00:00
+  spec: null
+  acceptance_criteria:
+  - '`aprender::tree::RandomForestClassifier` used for error classification'
+  - Model trained on verificar synthetic corpus
+  - AUC-ROC > 0.80 on held-out test set
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0574
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0574'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-26T22:18:35.606131965+00:00
+  updated: 2025-11-26T22:18:35.606131965+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

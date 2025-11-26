@@ -236,6 +236,465 @@ pub struct ValidationResult {
     pub warnings: Vec<String>,
 }
 
+/// DEPYLER-0575: Cross-function type propagation from call sites
+/// When a variable with known type is passed to a function, propagate that type
+/// to the function's parameter if the parameter type is still Unknown.
+fn propagate_call_site_types(hir: &mut hir::HirModule) {
+    use std::collections::HashMap;
+
+    // Phase 1: Build map of function names to their parameter counts and return types
+    let func_param_counts: HashMap<String, usize> = hir
+        .functions
+        .iter()
+        .map(|f| (f.name.clone(), f.params.len()))
+        .collect();
+
+    let func_return_types: HashMap<String, hir::Type> = hir
+        .functions
+        .iter()
+        .filter(|f| !matches!(f.ret_type, hir::Type::Unknown))
+        .map(|f| (f.name.clone(), f.ret_type.clone()))
+        .collect();
+
+    // Phase 2: Build map of variable types from all functions
+    // Collect from: parameters with types, return values, locals
+    let mut var_types: HashMap<(String, String), hir::Type> = HashMap::new(); // (func_name, var_name) -> Type
+
+    for func in &hir.functions {
+        // Collect parameter types
+        for param in &func.params {
+            if !matches!(param.ty, hir::Type::Unknown) {
+                var_types.insert((func.name.clone(), param.name.clone()), param.ty.clone());
+            }
+        }
+
+        // Collect variable types from assignments (including from function calls)
+        collect_var_types_from_stmts(&func.body, &func.name, &func_return_types, &mut var_types);
+    }
+
+    // Phase 3: Collect call site argument types
+    // Maps (called_func_name, param_index) -> inferred_type
+    let mut call_site_types: HashMap<(String, usize), hir::Type> = HashMap::new();
+
+    for func in &hir.functions {
+        collect_call_site_types(
+            &func.body,
+            &func.name,
+            &var_types,
+            &func_param_counts,
+            &mut call_site_types,
+        );
+    }
+
+    // Phase 4: Apply call site types to function parameters
+    for func in &mut hir.functions {
+        for (idx, param) in func.params.iter_mut().enumerate() {
+            if matches!(param.ty, hir::Type::Unknown) {
+                if let Some(inferred_type) = call_site_types.get(&(func.name.clone(), idx)) {
+                    param.ty = inferred_type.clone();
+                    eprintln!(
+                        "DEPYLER-0575: Applied call-site type: {}::{} -> {:?}",
+                        func.name, param.name, param.ty
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// Collect variable types from statements (assignments, etc.)
+fn collect_var_types_from_stmts(
+    stmts: &[hir::HirStmt],
+    func_name: &str,
+    func_return_types: &std::collections::HashMap<String, hir::Type>,
+    var_types: &mut std::collections::HashMap<(String, String), hir::Type>,
+) {
+    for stmt in stmts {
+        match stmt {
+            hir::HirStmt::Assign {
+                target: hir::AssignTarget::Symbol(var_name),
+                value,
+                type_annotation,
+            } => {
+                // If there's a type annotation, use that
+                if let Some(ty) = type_annotation {
+                    if !matches!(ty, hir::Type::Unknown) {
+                        var_types.insert((func_name.to_string(), var_name.clone()), ty.clone());
+                        continue;
+                    }
+                }
+                // Otherwise infer from value (including function call return types)
+                if let Some(ty) = infer_expr_type_with_returns(value, func_return_types) {
+                    var_types.insert((func_name.to_string(), var_name.clone()), ty);
+                }
+            }
+            hir::HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                collect_var_types_from_stmts(then_body, func_name, func_return_types, var_types);
+                if let Some(else_stmts) = else_body {
+                    collect_var_types_from_stmts(else_stmts, func_name, func_return_types, var_types);
+                }
+            }
+            hir::HirStmt::While { body, .. } | hir::HirStmt::For { body, .. } => {
+                collect_var_types_from_stmts(body, func_name, func_return_types, var_types);
+            }
+            hir::HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => {
+                collect_var_types_from_stmts(body, func_name, func_return_types, var_types);
+                for handler in handlers {
+                    collect_var_types_from_stmts(&handler.body, func_name, func_return_types, var_types);
+                }
+                if let Some(finally) = finalbody {
+                    collect_var_types_from_stmts(finally, func_name, func_return_types, var_types);
+                }
+            }
+            hir::HirStmt::With { body, .. } => {
+                collect_var_types_from_stmts(body, func_name, func_return_types, var_types);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Infer type from an expression (simple cases only)
+#[allow(dead_code)]
+fn infer_expr_type(expr: &hir::HirExpr) -> Option<hir::Type> {
+    infer_expr_type_with_returns(expr, &std::collections::HashMap::new())
+}
+
+/// Infer type from an expression, including function return types
+fn infer_expr_type_with_returns(
+    expr: &hir::HirExpr,
+    func_return_types: &std::collections::HashMap<String, hir::Type>,
+) -> Option<hir::Type> {
+    match expr {
+        hir::HirExpr::Literal(lit) => Some(match lit {
+            hir::Literal::Int(_) => hir::Type::Int,
+            hir::Literal::Float(_) => hir::Type::Float,
+            hir::Literal::String(_) => hir::Type::String,
+            hir::Literal::Bool(_) => hir::Type::Bool,
+            hir::Literal::None => hir::Type::None,
+            _ => return None,
+        }),
+        hir::HirExpr::List(elems) => {
+            let elem_type = elems.first().and_then(|e| infer_expr_type_with_returns(e, func_return_types)).unwrap_or(hir::Type::Unknown);
+            Some(hir::Type::List(Box::new(elem_type)))
+        }
+        hir::HirExpr::Dict(_) => Some(hir::Type::Dict(
+            Box::new(hir::Type::String),
+            Box::new(hir::Type::Custom("serde_json::Value".to_string())),
+        )),
+        // DEPYLER-0575: Infer type from function call return type
+        hir::HirExpr::Call { func, .. } => {
+            func_return_types.get(func).cloned()
+        }
+        _ => None,
+    }
+}
+
+/// Collect call site types: when func(var) is called and var has a known type,
+/// record that type for the function's parameter at that position
+fn collect_call_site_types(
+    stmts: &[hir::HirStmt],
+    caller_func_name: &str,
+    var_types: &std::collections::HashMap<(String, String), hir::Type>,
+    func_param_counts: &std::collections::HashMap<String, usize>,
+    call_site_types: &mut std::collections::HashMap<(String, usize), hir::Type>,
+) {
+    for stmt in stmts {
+        match stmt {
+            hir::HirStmt::Assign { value, .. } => {
+                collect_call_site_types_from_expr(
+                    value,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+            }
+            hir::HirStmt::Expr(expr) | hir::HirStmt::Return(Some(expr)) => {
+                collect_call_site_types_from_expr(
+                    expr,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+            }
+            hir::HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
+                collect_call_site_types_from_expr(
+                    condition,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+                collect_call_site_types(
+                    then_body,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+                if let Some(else_stmts) = else_body {
+                    collect_call_site_types(
+                        else_stmts,
+                        caller_func_name,
+                        var_types,
+                        func_param_counts,
+                        call_site_types,
+                    );
+                }
+            }
+            hir::HirStmt::While { condition, body } => {
+                collect_call_site_types_from_expr(
+                    condition,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+                collect_call_site_types(
+                    body,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+            }
+            hir::HirStmt::For { iter, body, .. } => {
+                collect_call_site_types_from_expr(
+                    iter,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+                collect_call_site_types(
+                    body,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+            }
+            hir::HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => {
+                collect_call_site_types(
+                    body,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+                for handler in handlers {
+                    collect_call_site_types(
+                        &handler.body,
+                        caller_func_name,
+                        var_types,
+                        func_param_counts,
+                        call_site_types,
+                    );
+                }
+                if let Some(finally) = finalbody {
+                    collect_call_site_types(
+                        finally,
+                        caller_func_name,
+                        var_types,
+                        func_param_counts,
+                        call_site_types,
+                    );
+                }
+            }
+            hir::HirStmt::With { context, body, .. } => {
+                collect_call_site_types_from_expr(
+                    context,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+                collect_call_site_types(
+                    body,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Collect call site types from an expression
+fn collect_call_site_types_from_expr(
+    expr: &hir::HirExpr,
+    caller_func_name: &str,
+    var_types: &std::collections::HashMap<(String, String), hir::Type>,
+    func_param_counts: &std::collections::HashMap<String, usize>,
+    call_site_types: &mut std::collections::HashMap<(String, usize), hir::Type>,
+) {
+    match expr {
+        hir::HirExpr::Call { func, args, .. } => {
+            // Check if this is a call to a user-defined function
+            if func_param_counts.contains_key(func) {
+                // For each argument, if it's a variable with known type, record it
+                for (idx, arg) in args.iter().enumerate() {
+                    if let hir::HirExpr::Var(var_name) = arg {
+                        // Look up the variable's type in the caller's scope
+                        if let Some(ty) = var_types.get(&(caller_func_name.to_string(), var_name.clone())) {
+                            // DEPYLER-0575: Skip Unknown and Optional types
+                            // Optional types often get unwrapped before use, so don't propagate them
+                            let should_propagate = !matches!(ty, hir::Type::Unknown | hir::Type::Optional(_));
+                            if should_propagate {
+                                call_site_types.insert((func.clone(), idx), ty.clone());
+                            }
+                        }
+                    }
+                }
+            }
+            // Recurse into arguments
+            for arg in args {
+                collect_call_site_types_from_expr(
+                    arg,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+            }
+        }
+        hir::HirExpr::MethodCall { object, args, .. } => {
+            collect_call_site_types_from_expr(
+                object,
+                caller_func_name,
+                var_types,
+                func_param_counts,
+                call_site_types,
+            );
+            for arg in args {
+                collect_call_site_types_from_expr(
+                    arg,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+            }
+        }
+        hir::HirExpr::Binary { left, right, .. } => {
+            collect_call_site_types_from_expr(
+                left,
+                caller_func_name,
+                var_types,
+                func_param_counts,
+                call_site_types,
+            );
+            collect_call_site_types_from_expr(
+                right,
+                caller_func_name,
+                var_types,
+                func_param_counts,
+                call_site_types,
+            );
+        }
+        hir::HirExpr::Unary { operand, .. } => {
+            collect_call_site_types_from_expr(
+                operand,
+                caller_func_name,
+                var_types,
+                func_param_counts,
+                call_site_types,
+            );
+        }
+        hir::HirExpr::Index { base, index } => {
+            collect_call_site_types_from_expr(
+                base,
+                caller_func_name,
+                var_types,
+                func_param_counts,
+                call_site_types,
+            );
+            collect_call_site_types_from_expr(
+                index,
+                caller_func_name,
+                var_types,
+                func_param_counts,
+                call_site_types,
+            );
+        }
+        hir::HirExpr::List(elems) => {
+            for elem in elems {
+                collect_call_site_types_from_expr(
+                    elem,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+            }
+        }
+        hir::HirExpr::Dict(items) => {
+            for (k, v) in items {
+                collect_call_site_types_from_expr(
+                    k,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+                collect_call_site_types_from_expr(
+                    v,
+                    caller_func_name,
+                    var_types,
+                    func_param_counts,
+                    call_site_types,
+                );
+            }
+        }
+        hir::HirExpr::IfExpr { test, body, orelse } => {
+            collect_call_site_types_from_expr(
+                test,
+                caller_func_name,
+                var_types,
+                func_param_counts,
+                call_site_types,
+            );
+            collect_call_site_types_from_expr(
+                body,
+                caller_func_name,
+                var_types,
+                func_param_counts,
+                call_site_types,
+            );
+            collect_call_site_types_from_expr(
+                orelse,
+                caller_func_name,
+                var_types,
+                func_param_counts,
+                call_site_types,
+            );
+        }
+        _ => {}
+    }
+}
+
 impl Default for DepylerPipeline {
     fn default() -> Self {
         Self::new()
@@ -437,6 +896,9 @@ impl DepylerPipeline {
             }
         }
 
+        // DEPYLER-0575: Cross-function type propagation from call sites
+        propagate_call_site_types(&mut hir);
+
         // Apply optimization passes based on annotations
         optimization::optimize_module(&mut hir);
 
@@ -574,6 +1036,9 @@ impl DepylerPipeline {
                 }
             }
         }
+
+        // DEPYLER-0575: Cross-function type propagation from call sites
+        propagate_call_site_types(&mut hir);
 
         // Apply optimization passes based on annotations
         optimization::optimize_module(&mut hir);
