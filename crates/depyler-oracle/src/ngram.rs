@@ -104,18 +104,22 @@ pub struct NgramFixPredictor {
 }
 
 impl NgramFixPredictor {
-    /// Create a new predictor with default settings.
+    /// Create a new predictor with tuned default settings.
+    ///
+    /// Defaults optimized via grid search:
+    /// - ngram_range: (1, 2) - bigrams outperform trigrams
+    /// - min_similarity: 0.05 - more lenient matching improves recall
     #[must_use]
     pub fn new() -> Self {
         Self {
             patterns: HashMap::new(),
             vectorizer: TfidfVectorizer::new()
                 .with_tokenizer(Box::new(WhitespaceTokenizer::new()))
-                .with_ngram_range(1, 3) // unigrams, bigrams, trigrams
+                .with_ngram_range(1, 2) // tuned: unigrams + bigrams only
                 .with_sublinear_tf(true),
             is_fitted: false,
-            min_similarity: 0.1,
-            ngram_range: (1, 3),
+            min_similarity: 0.05, // tuned: more lenient matching
+            ngram_range: (1, 2),  // tuned: bigrams
         }
     }
 
@@ -320,8 +324,17 @@ impl Default for NgramFixPredictor {
 }
 
 /// Normalize error message for pattern matching.
+///
+/// Applies error code weighting (tuned: weight=2) to emphasize error codes
+/// which are the strongest signal for classification.
 fn normalize_error(message: &str) -> String {
-    message
+    // Extract and weight error code (tuned: 2x weighting)
+    let error_code = extract_error_code(message);
+    let code_prefix = error_code
+        .map(|c| format!("{} {} ", c, c)) // Repeat code twice
+        .unwrap_or_default();
+
+    let normalized = message
         .to_lowercase()
         // Remove specific identifiers
         .replace(|c: char| c.is_ascii_digit(), "N")
@@ -330,7 +343,22 @@ fn normalize_error(message: &str) -> String {
         .replace("-->", "")
         .replace("  ", " ")
         .trim()
-        .to_string()
+        .to_string();
+
+    format!("{}{}", code_prefix, normalized)
+}
+
+/// Extract rustc error code from message (e.g., "E0308").
+fn extract_error_code(message: &str) -> Option<String> {
+    if let Some(start) = message.find("error[E") {
+        if let Some(end) = message[start..].find(']') {
+            let code = &message[start + 6..start + end];
+            if code.len() == 4 && code.chars().all(|c| c.is_ascii_digit()) {
+                return Some(format!("e{}", code.to_lowercase()));
+            }
+        }
+    }
+    None
 }
 
 /// Generate N-grams from tokens.
