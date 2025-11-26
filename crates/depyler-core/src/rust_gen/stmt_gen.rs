@@ -1055,6 +1055,45 @@ fn apply_truthiness_conversion(
         }
     }
 
+    // DEPYLER-0570: Handle dict index access in conditions
+    // Python: `if info["extension"]:` checks if the value is truthy (non-empty string)
+    // Rust: info.get("extension")... returns serde_json::Value, need to check truthiness
+    // Convert to: `.as_str().map_or(false, |s| !s.is_empty())` for string values
+    if let HirExpr::Index { base, index } = condition {
+        // Check if using string key (dict-like access)
+        let has_string_key = matches!(index.as_ref(), HirExpr::Literal(Literal::String(_)));
+
+        // Check if base is a dict (HashMap) or common dict variable name
+        let is_dict_access = if let HirExpr::Var(var_name) = base.as_ref() {
+            // Known dict type
+            if let Some(var_type) = ctx.var_types.get(var_name) {
+                matches!(var_type, Type::Dict(_, _))
+            } else {
+                // Unknown type - use string key OR common dict variable names as heuristics
+                let name = var_name.as_str();
+                has_string_key
+                    || name == "info"
+                    || name == "data"
+                    || name == "config"
+                    || name == "options"
+                    || name == "result"
+                    || name == "response"
+                    || name.ends_with("_info")
+                    || name.ends_with("_data")
+                    || name.ends_with("_dict")
+            }
+        } else {
+            // Nested access or other expression - use string key as heuristic
+            has_string_key
+        };
+
+        if is_dict_access {
+            // Dict value access - check if the Value is truthy
+            // serde_json::Value truthiness: string must be non-empty
+            return parse_quote! { #cond_expr.as_str().map_or(false, |s| !s.is_empty()) };
+        }
+    }
+
     // DEPYLER-0446: Check if this is an attribute access to an optional argparse field
     // Python: if args.output (where output is optional)
     // Rust: if args.output.is_some()
@@ -1148,6 +1187,14 @@ fn apply_truthiness_conversion(
     // - Method calls that return Option (dict.get(), etc.)
     if looks_like_option_expr(condition) {
         return parse_quote! { #cond_expr.is_some() };
+    }
+
+    // DEPYLER-0570: Fallback - check if the generated expression looks like dict access
+    // Pattern: something.get("key").cloned().unwrap_or_default()
+    // This returns serde_json::Value which doesn't coerce to bool
+    let cond_str = quote::quote!(#cond_expr).to_string();
+    if cond_str.contains(".get(") && cond_str.contains("unwrap_or_default") {
+        return parse_quote! { #cond_expr.as_str().map_or(false, |s| !s.is_empty()) };
     }
 
     // Not a variable or no type info - use as-is
@@ -1512,6 +1559,25 @@ fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
             crate::hir::FStringPart::Expr(expr) => is_var_used_in_expr(var_name, expr),
             crate::hir::FStringPart::Literal(_) => false,
         }),
+        // DEPYLER-0569: Handle generator expressions and comprehensions
+        // These can reference loop variables in their iterable or element expressions
+        HirExpr::GeneratorExp { element, generators } |
+        HirExpr::ListComp { element, generators } |
+        HirExpr::SetComp { element, generators } => {
+            is_var_used_in_expr(var_name, element)
+                || generators.iter().any(|gen| {
+                    is_var_used_in_expr(var_name, &gen.iter)
+                        || gen.conditions.iter().any(|cond| is_var_used_in_expr(var_name, cond))
+                })
+        }
+        HirExpr::DictComp { key, value, generators } => {
+            is_var_used_in_expr(var_name, key)
+                || is_var_used_in_expr(var_name, value)
+                || generators.iter().any(|gen| {
+                    is_var_used_in_expr(var_name, &gen.iter)
+                        || gen.conditions.iter().any(|cond| is_var_used_in_expr(var_name, cond))
+                })
+        }
         _ => false, // Literals and other expressions don't reference variables
     }
 }
@@ -2344,7 +2410,11 @@ pub(crate) fn codegen_assign_stmt(
             HirExpr::Dict(items) => {
                 // DEPYLER-0269: Track dict type from literal for auto-borrowing
                 // When info = {"a": 1}, mark info as Dict(String, Int) so it gets borrowed
+                // DEPYLER-0560: Check function return type for Dict[str, Any] pattern
                 let (key_type, val_type) = if let Some(Type::Dict(k, v)) = type_annotation {
+                    (k.as_ref().clone(), v.as_ref().clone())
+                } else if let Some(Type::Dict(k, v)) = &ctx.current_return_type {
+                    // Use return type's dict value type (handles Dict[str, Any] → Unknown)
                     (k.as_ref().clone(), v.as_ref().clone())
                 } else if !items.is_empty() {
                     // Infer from first item (assume homogeneous dict)
@@ -2791,40 +2861,81 @@ pub(crate) fn codegen_assign_index(
     };
 
     // DEPYLER-0449: Detect if base is serde_json::Value (needs .as_object_mut())
-    // Heuristic: check variable name patterns that suggest Value type
-    let needs_as_object_mut = if let HirExpr::Var(base_name) = base {
+    // DEPYLER-0560: Also detect if base is HashMap<String, serde_json::Value>
+    let (needs_as_object_mut, needs_json_value_wrap) = if let HirExpr::Var(base_name) = base {
         if !is_numeric_index {
-            let name_str = base_name.as_str();
-            // Variables commonly used with serde_json::Value
-            name_str == "config"
-                || name_str == "data"
-                || name_str == "value"
-                || name_str == "current"
-                || name_str == "obj"
-                || name_str == "json"
+            // Check actual type from var_types
+            if let Some(base_type) = ctx.var_types.get(base_name) {
+                match base_type {
+                    // Pure serde_json::Value - needs .as_object_mut()
+                    Type::Custom(s) if s == "serde_json::Value" || s == "Value" => (true, false),
+                    // HashMap<String, serde_json::Value> - needs json!() wrap on values
+                    Type::Dict(_, val_type) => {
+                        let val_needs_json = match val_type.as_ref() {
+                            Type::Unknown => true,
+                            Type::Custom(s) => s == "serde_json::Value" || s == "Value",
+                            _ => false,
+                        };
+                        (false, val_needs_json)
+                    }
+                    _ => (false, false),
+                }
+            } else {
+                // Fallback heuristic: check variable name patterns
+                let name_str = base_name.as_str();
+                let is_value_name = name_str == "config"
+                    || name_str == "data"
+                    || name_str == "value"
+                    || name_str == "current"
+                    || name_str == "obj"
+                    || name_str == "json";
+                // DEPYLER-0560: Also check common dict names that may have Value type
+                let is_dict_value_name = name_str == "info"
+                    || name_str == "result"
+                    || name_str == "stats"
+                    || name_str == "metadata"
+                    || name_str == "output"
+                    || name_str == "response";
+                (is_value_name, is_dict_value_name)
+            }
         } else {
-            false
+            (false, false)
         }
     } else {
-        false
+        (false, false)
     };
 
     // DEPYLER-0472: Wrap value in serde_json::Value when assigning to Value dicts
+    // DEPYLER-0560: Also wrap when dict value type is serde_json::Value
     // Check if value needs wrapping (not already json!() or Value variant)
-    let final_value_expr = if needs_as_object_mut {
+    let final_value_expr = if needs_as_object_mut || needs_json_value_wrap {
         // Check if value_expr is already a json!() or Value expression
         let value_str = quote! { #value_expr }.to_string();
         if value_str.contains("serde_json :: json !") || value_str.contains("serde_json :: Value") {
             // Already wrapped, use as-is
             value_expr
         } else {
-            // Need to wrap in serde_json::to_value() for safe conversion
-            // This handles all types (String, &str, numbers, etc.)
+            // Need to wrap in serde_json::json!() for HashMap<String, Value>
+            // Use json!() instead of to_value() for consistency with dict literals
             ctx.needs_serde_json = true;
-            parse_quote! { serde_json::to_value(#value_expr).unwrap() }
+            parse_quote! { serde_json::json!(#value_expr) }
         }
     } else {
         value_expr
+    };
+
+    // DEPYLER-0567: Convert string literal keys to String for HashMap<String, ...>
+    // Check if the index is a string literal that needs .to_string()
+    let final_index = if !is_numeric_index {
+        let idx_str = quote! { #final_index }.to_string();
+        // If it's a string literal like "key", convert to "key".to_string()
+        if idx_str.starts_with('"') && !idx_str.contains(".to_string()") {
+            parse_quote! { #final_index.to_string() }
+        } else {
+            final_index
+        }
+    } else {
+        final_index
     };
 
     if indices.is_empty() {
@@ -2988,6 +3099,170 @@ pub(crate) fn codegen_assign_tuple(
         None => {
             bail!("Complex tuple unpacking not yet supported")
         }
+    }
+}
+
+/// DEPYLER-0562: Generate code for tuple unpacking from regex match.groups()
+///
+/// Python: timestamp, level, message = match.groups()
+/// Rust: Extract capture groups from Option<Captures<'_>>
+///
+/// NOTE: Currently unused - requires DEPYLER-0563 (regex type tracking) to be activated.
+/// This function is ready for use when proper regex type inference is implemented.
+///
+/// # Arguments
+/// * `targets` - The tuple target variables (e.g., [timestamp, level, message])
+/// * `match_obj` - The HirExpr representing the match object (source of .groups())
+/// * `ctx` - Code generation context
+///
+/// # Complexity: 8 (within ≤10 target)
+#[inline]
+#[allow(dead_code)] // Waiting for DEPYLER-0563
+#[allow(clippy::unnecessary_to_owned)]
+pub(crate) fn codegen_assign_tuple_groups(
+    targets: &[AssignTarget],
+    match_obj: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    // Convert match object to Rust expression
+    let match_expr = match_obj.to_rust_expr(ctx)?;
+
+    // Extract symbol names from targets
+    let symbols: Vec<&str> = targets
+        .iter()
+        .filter_map(|t| match t {
+            AssignTarget::Symbol(s) => Some(s.as_str()),
+            _ => None,
+        })
+        .collect();
+
+    if symbols.len() != targets.len() {
+        bail!("Complex tuple unpacking in match.groups() not yet supported");
+    }
+
+    // Generate capture group extraction for each target
+    // Capture groups are 1-indexed (group 0 is the full match)
+    let assignments: Vec<proc_macro2::TokenStream> = symbols
+        .iter()
+        .enumerate()
+        .map(|(idx, s)| {
+            let ident = safe_ident(s);
+            let group_idx = idx + 1; // 1-indexed capture groups
+
+            // Generate: var = caps.as_ref().and_then(|c| c.get(N)).map(|m| m.as_str().to_string()).unwrap_or_default()
+            let extraction = quote! {
+                #match_expr.as_ref().and_then(|c| c.get(#group_idx)).map(|m| m.as_str().to_string()).unwrap_or_default()
+            };
+
+            if ctx.in_generator && ctx.generator_state_vars.contains(&s.to_string()) {
+                // Generator state variable: self.field = extraction
+                quote! { self.#ident = #extraction; }
+            } else if ctx.is_declared(s) {
+                // Already declared: assignment
+                quote! { #ident = #extraction; }
+            } else {
+                // New declaration
+                ctx.declare_var(s);
+                let mut_token = if ctx.mutable_vars.contains(*s) {
+                    quote! { mut }
+                } else {
+                    quote! {}
+                };
+                quote! { let #mut_token #ident = #extraction; }
+            }
+        })
+        .collect();
+
+    Ok(quote! { #(#assignments)* })
+}
+
+/// DEPYLER-0565: Infer the return type from try block body statements
+/// Returns None if the try block doesn't return a value, Some(type) otherwise
+/// This is used to generate the correct closure return type for try/except
+#[inline]
+fn infer_try_body_return_type(body: &[HirStmt]) -> Option<Type> {
+    for stmt in body {
+        match stmt {
+            HirStmt::Return(Some(expr)) => {
+                // Found a return with a value - infer its type
+                return Some(infer_expr_return_type(expr));
+            }
+            HirStmt::While { body: inner, .. } | HirStmt::For { body: inner, .. } => {
+                // Check inside loops
+                if let Some(ty) = infer_try_body_return_type(inner) {
+                    return Some(ty);
+                }
+            }
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                // Check inside if/else
+                if let Some(ty) = infer_try_body_return_type(then_body) {
+                    return Some(ty);
+                }
+                if let Some(else_stmts) = else_body {
+                    if let Some(ty) = infer_try_body_return_type(else_stmts) {
+                        return Some(ty);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// DEPYLER-0565: Infer the type of an expression for try/except closure return type
+#[inline]
+fn infer_expr_return_type(expr: &HirExpr) -> Type {
+    match expr {
+        HirExpr::Literal(lit) => match lit {
+            Literal::Int(_) => Type::Int,
+            Literal::Float(_) => Type::Float,
+            Literal::String(_) => Type::String,
+            Literal::Bool(_) => Type::Bool,
+            Literal::None => Type::None,
+            Literal::Bytes(_) => Type::Custom("bytes".to_string()),
+        },
+        HirExpr::MethodCall { method, .. } => {
+            // Common method return types
+            match method.as_str() {
+                "hexdigest" | "encode" | "decode" | "strip" | "upper" | "lower" | "to_string" => {
+                    Type::String
+                }
+                "len" | "count" => Type::Int,
+                "is_empty" | "startswith" | "endswith" | "exists" | "is_file" | "is_dir" => {
+                    Type::Bool
+                }
+                _ => Type::Unknown,
+            }
+        }
+        HirExpr::Call { func, .. } => {
+            // Common function return types
+            match func.as_str() {
+                "str" | "format" | "hex::encode" => Type::String,
+                "int" | "len" => Type::Int,
+                "float" => Type::Float,
+                "bool" => Type::Bool,
+                _ => Type::Unknown,
+            }
+        }
+        _ => Type::Unknown,
+    }
+}
+
+/// DEPYLER-0565: Convert HIR Type to closure return type tokens
+#[inline]
+fn try_return_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
+    match ty {
+        Type::Int => quote! { i64 },
+        Type::Float => quote! { f64 },
+        Type::String => quote! { String },
+        Type::Bool => quote! { bool },
+        Type::None | Type::Unknown => quote! { () },
+        _ => quote! { () },
     }
 }
 
@@ -3320,7 +3595,24 @@ pub(crate) fn codegen_try_stmt(
 
             if needs_error_binding {
                 // DEPYLER-0489: Generate Result-returning closure + match pattern
-                // Pattern: (|| -> Result<(), Box<dyn std::error::Error>> { try_body })().unwrap_or_else(|e| { handler })
+                // DEPYLER-0565: Infer closure return type from try body return statements
+                // Pattern: (|| -> Result<T, Box<dyn std::error::Error>> { try_body })().unwrap_or_else(|e| { handler })
+
+                // DEPYLER-0565: Infer return type from try body
+                let try_return_type = infer_try_body_return_type(body);
+                let return_type_tokens = try_return_type
+                    .as_ref()
+                    .map(try_return_type_to_tokens)
+                    .unwrap_or_else(|| quote! { () });
+                let ok_value = try_return_type
+                    .as_ref()
+                    .map(|_| quote! { _result })
+                    .unwrap_or_else(|| quote! { () });
+                let ok_arm_body = if try_return_type.is_some() {
+                    quote! { return Ok(_result); }
+                } else {
+                    quote! {}
+                };
 
                 let handler_body = if handlers.len() == 1 {
                     // Single handler - use match pattern
@@ -3336,11 +3628,11 @@ pub(crate) fn codegen_try_stmt(
                     if let Some(finally_code) = finally_stmts {
                         quote! {
                             {
-                                match (|| -> Result<(), Box<dyn std::error::Error>> {
+                                match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
                                     #(#try_stmts)*
-                                    Ok(())
+                                    Ok(Default::default())
                                 })() {
-                                    Ok(()) => {},
+                                    Ok(#ok_value) => { #ok_arm_body },
                                     #err_pattern => { #handler_code }
                                 }
                                 #finally_code
@@ -3348,11 +3640,11 @@ pub(crate) fn codegen_try_stmt(
                         }
                     } else {
                         quote! {
-                            match (|| -> Result<(), Box<dyn std::error::Error>> {
+                            match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
                                 #(#try_stmts)*
-                                Ok(())
+                                Ok(Default::default())
                             })() {
-                                Ok(()) => {},
+                                Ok(#ok_value) => { #ok_arm_body },
                                 #err_pattern => { #handler_code }
                             }
                         }
@@ -3370,11 +3662,11 @@ pub(crate) fn codegen_try_stmt(
                         if let Some(finally_code) = finally_stmts {
                             quote! {
                                 {
-                                    match (|| -> Result<(), Box<dyn std::error::Error>> {
+                                    match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
                                         #(#try_stmts)*
-                                        Ok(())
+                                        Ok(Default::default())
                                     })() {
-                                        Ok(()) => {},
+                                        Ok(#ok_value) => { #ok_arm_body },
                                         Err(#exc_ident) => { #handler_code }
                                     }
                                     #finally_code
@@ -3382,11 +3674,11 @@ pub(crate) fn codegen_try_stmt(
                             }
                         } else {
                             quote! {
-                                match (|| -> Result<(), Box<dyn std::error::Error>> {
+                                match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
                                     #(#try_stmts)*
-                                    Ok(())
+                                    Ok(Default::default())
                                 })() {
-                                    Ok(()) => {},
+                                    Ok(#ok_value) => { #ok_arm_body },
                                     Err(#exc_ident) => { #handler_code }
                                 }
                             }
