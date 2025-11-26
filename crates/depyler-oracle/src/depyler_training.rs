@@ -228,14 +228,15 @@ pub fn get_real_training_pairs() -> Vec<(String, String, ErrorCategory)> {
     build_depyler_corpus().error_fix_pairs()
 }
 
-/// Category distribution for depyler corpus.
+/// Category distribution for combined corpus (real + synthetic).
 #[must_use]
 pub fn corpus_stats() -> Vec<(ErrorCategory, usize)> {
-    let dataset = build_depyler_corpus();
+    let dataset = build_combined_corpus();
     vec![
         (ErrorCategory::TypeMismatch, dataset.samples_for_category(ErrorCategory::TypeMismatch).len()),
         (ErrorCategory::TraitBound, dataset.samples_for_category(ErrorCategory::TraitBound).len()),
         (ErrorCategory::MissingImport, dataset.samples_for_category(ErrorCategory::MissingImport).len()),
+        (ErrorCategory::BorrowChecker, dataset.samples_for_category(ErrorCategory::BorrowChecker).len()),
         (ErrorCategory::SyntaxError, dataset.samples_for_category(ErrorCategory::SyntaxError).len()),
     ]
 }
