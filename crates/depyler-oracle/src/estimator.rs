@@ -7,6 +7,7 @@ use aprender::primitives::{Matrix, Vector};
 use aprender::traits::Estimator;
 
 use crate::classifier::ErrorCategory;
+use crate::features::ErrorFeatures;
 use crate::ngram::NgramFixPredictor;
 use crate::training::TrainingSample;
 
@@ -136,10 +137,14 @@ impl Estimator for OracleEstimator {
 
 /// Convert training samples to feature matrix and label vector.
 ///
-/// Uses simple bag-of-words features (error code presence, keyword counts).
+/// Uses enhanced features combining:
+/// - Error code one-hot encoding (15 features)
+/// - Keyword occurrence counts (16 features)
+/// - ErrorFeatures hand-crafted features (12 features)
+/// Total: 43 features for better classification accuracy.
 #[must_use]
 pub fn samples_to_features(samples: &[TrainingSample]) -> (Matrix<f32>, Vector<f32>) {
-    // Feature extraction: error codes + common keywords
+    // Feature extraction: error codes + keywords + hand-crafted
     let error_codes = [
         "E0308", "E0432", "E0277", "E0425", "E0599", "E0609", "E0282", "E0061", "E0596", "E0502",
         "E0499", "E0507", "E0382", "E0373", "E0728",
@@ -149,7 +154,11 @@ pub fn samples_to_features(samples: &[TrainingSample]) -> (Matrix<f32>, Vector<f
         "method", "field", "type", "closure", "async", "Option", "Result",
     ];
 
-    let n_features = error_codes.len() + keywords.len();
+    // Total features: error codes (15) + keywords (16) + ErrorFeatures (12)
+    let n_error_codes = error_codes.len();
+    let n_keywords = keywords.len();
+    let n_handcrafted = ErrorFeatures::DIM;
+    let n_features = n_error_codes + n_keywords + n_handcrafted;
     let n_samples = samples.len();
 
     let mut features = vec![0.0f32; n_samples * n_features];
@@ -157,18 +166,26 @@ pub fn samples_to_features(samples: &[TrainingSample]) -> (Matrix<f32>, Vector<f
 
     for (i, sample) in samples.iter().enumerate() {
         let msg = &sample.message;
+        let base_idx = i * n_features;
 
-        // Error code features
+        // Error code features (one-hot encoding)
         for (j, code) in error_codes.iter().enumerate() {
             if msg.contains(code) {
-                features[i * n_features + j] = 1.0;
+                features[base_idx + j] = 1.0;
             }
         }
 
-        // Keyword features
+        // Keyword features (count-based)
         for (j, kw) in keywords.iter().enumerate() {
             let count = msg.matches(kw).count();
-            features[i * n_features + error_codes.len() + j] = count as f32;
+            features[base_idx + n_error_codes + j] = count as f32;
+        }
+
+        // Hand-crafted ErrorFeatures (normalized)
+        let error_features = ErrorFeatures::from_error_message(msg);
+        let feature_vec = error_features.to_vec();
+        for (j, &val) in feature_vec.iter().enumerate() {
+            features[base_idx + n_error_codes + n_keywords + j] = val;
         }
 
         labels.push(sample.category.index() as f32);
