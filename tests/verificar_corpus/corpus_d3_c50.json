@@ -1,0 +1,400 @@
+[
+  {
+    "ast_depth": 1,
+    "code": "pass",
+    "features": [],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = 0",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = 1",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = -1",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = 2",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = 10",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = x",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = y",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = z",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = True",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = False",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = None",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "x = (-0)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "x = (-1)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "x = (--1)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "x = (-2)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "x = (-10)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "x = (-x)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "x = (-y)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "x = (-z)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "x = (-True)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "y = 0",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "y = 1",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "y = -1",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "y = 2",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "y = 10",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "y = x",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "y = y",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "y = z",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "y = True",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "y = False",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "y = None",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "y = (-0)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "y = (-1)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "y = (--1)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "y = (-2)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "y = (-10)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "y = (-x)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "y = (-y)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "y = (-z)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 3,
+    "code": "y = (-True)",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "z = 0",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "z = 1",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "z = -1",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "z = 2",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "z = 10",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "z = x",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "z = y",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "z = z",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "z = True",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  }
+]

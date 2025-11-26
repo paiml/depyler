@@ -315,6 +315,8 @@ impl FunctionAnalyzer {
                             Vec::new()
                         }
                     }
+                    // DEPYLER-0529: File I/O operations can fail with IOError
+                    "open" => vec!["std::io::Error".to_string()],
                     _ => Vec::new(),
                 };
 
@@ -418,6 +420,10 @@ impl FunctionAnalyzer {
                 orelse,
                 finalbody,
             } => Self::check_try_for_yield(body, handlers, orelse, finalbody),
+            // DEPYLER-0561: Check for yield inside with statements (context managers)
+            HirStmt::With { body, context, .. } => {
+                Self::expr_has_yield(context) || body.iter().any(Self::stmt_has_yield)
+            }
             _ => false,
         }
     }

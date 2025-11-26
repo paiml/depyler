@@ -7,6 +7,7 @@ use crate::generator_state::GeneratorStateInfo;
 use crate::generator_yield_analysis::YieldAnalysis;
 use crate::hir::{HirExpr, HirFunction, HirStmt, Literal, Type};
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
+use crate::rust_gen::keywords::safe_ident; // DEPYLER-0562: Escape keywords like 'match'
 use crate::rust_gen::type_gen::rust_type_to_syn;
 use anyhow::Result;
 use quote::quote;
@@ -25,7 +26,8 @@ fn generate_state_fields(
         .state_variables
         .iter()
         .map(|var| {
-            let field_name = syn::Ident::new(&var.name, proc_macro2::Span::call_site());
+            // DEPYLER-0562: Use safe_ident to escape keywords like 'match'
+            let field_name = safe_ident(&var.name);
             let rust_type = ctx.type_mapper.map_type(&var.ty);
             let field_type = rust_type_to_syn(&rust_type)?;
             Ok(quote! { #field_name: #field_type })
@@ -49,7 +51,8 @@ fn generate_param_fields(
         .iter()
         .filter(|p| state_info.captured_params.contains(&p.name))
         .map(|param| {
-            let field_name = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
+            // DEPYLER-0562: Use safe_ident to escape keywords like 'match'
+            let field_name = safe_ident(&param.name);
             let rust_type = ctx.type_mapper.map_type(&param.ty);
             let field_type = rust_type_to_syn(&rust_type)?;
             Ok(quote! { #field_name: #field_type })
@@ -124,7 +127,8 @@ fn generate_state_initializers(state_info: &GeneratorStateInfo) -> Vec<proc_macr
         .state_variables
         .iter()
         .map(|var| {
-            let field_name = syn::Ident::new(&var.name, proc_macro2::Span::call_site());
+            // DEPYLER-0562: Use safe_ident to escape keywords like 'match'
+            let field_name = safe_ident(&var.name);
             // Initialize with type-appropriate default (0 for int, false for bool, etc.)
             let default_value = get_default_value_for_type(&var.ty);
             quote! { #field_name: #default_value }
@@ -147,7 +151,8 @@ fn generate_param_initializers(
         .iter()
         .filter(|p| state_info.captured_params.contains(&p.name))
         .map(|param| {
-            let field_name = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
+            // DEPYLER-0562: Use safe_ident to escape keywords like 'match'
+            let field_name = safe_ident(&param.name);
 
             // DEPYLER-0498: Dereference Option parameters (&Option<T> -> Option<T>)
             // Five-Whys Root Cause: Parameters are borrowed but struct fields are owned

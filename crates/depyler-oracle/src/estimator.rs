@@ -138,23 +138,43 @@ impl Estimator for OracleEstimator {
 /// Convert training samples to feature matrix and label vector.
 ///
 /// Uses enhanced features combining:
-/// - Error code one-hot encoding (15 features)
-/// - Keyword occurrence counts (16 features)
+/// - Error code one-hot encoding (25 features)
+/// - Keyword occurrence counts (28 features)
 /// - ErrorFeatures hand-crafted features (12 features)
-/// Total: 43 features for better classification accuracy.
+/// Total: 65 features for better classification accuracy.
 #[must_use]
 pub fn samples_to_features(samples: &[TrainingSample]) -> (Matrix<f32>, Vector<f32>) {
     // Feature extraction: error codes + keywords + hand-crafted
+    // Extended error codes for better discrimination (Issue #106)
     let error_codes = [
-        "E0308", "E0432", "E0277", "E0425", "E0599", "E0609", "E0282", "E0061", "E0596", "E0502",
-        "E0499", "E0507", "E0382", "E0373", "E0728",
+        // Type mismatch errors
+        "E0308", "E0282", "E0609", "E0606", "E0631",
+        // Import/resolution errors
+        "E0432", "E0433", "E0412", "E0425",
+        // Trait bound errors
+        "E0277", "E0599",
+        // Borrow checker errors
+        "E0502", "E0499", "E0507", "E0382", "E0596", "E0597", "E0505", "E0503", "E0594",
+        // Syntax errors
+        "E0423", "E0658", "E0627",
+        // Move/ownership
+        "E0373", "E0061",
     ];
+    // Extended keywords for better category discrimination
     let keywords = [
-        "mismatch", "expected", "found", "trait", "bound", "borrow", "mut", "lifetime", "import",
-        "method", "field", "type", "closure", "async", "Option", "Result",
+        // Type-related
+        "mismatch", "expected", "found", "type", "types", "i32", "f64", "String", "Value",
+        // Trait-related
+        "trait", "bound", "satisfied", "implement", "Display", "Copy",
+        // Borrow-related
+        "borrow", "borrowed", "mut", "mutable", "move", "moved", "lifetime", "reference",
+        // Import-related
+        "import", "unresolved", "undeclared", "crate", "module",
+        // Misc
+        "method", "field", "closure", "async", "Option", "Result", "HashMap", "Vec",
     ];
 
-    // Total features: error codes (15) + keywords (16) + ErrorFeatures (12)
+    // Total features: error codes (25) + keywords (28) + ErrorFeatures (12) = 65
     let n_error_codes = error_codes.len();
     let n_keywords = keywords.len();
     let n_handcrafted = ErrorFeatures::DIM;

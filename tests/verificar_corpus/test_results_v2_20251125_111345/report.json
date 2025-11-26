@@ -1,0 +1,292 @@
+{
+  "stats": {
+    "total": 50,
+    "transpile_success": 50,
+    "transpile_fail": 0,
+    "compile_success": 18,
+    "compile_fail": 32
+  },
+  "error_categories": {
+    "E0308_type_mismatch": 15,
+    "E0425_cannot_find": 10
+  },
+  "error_details": [
+    {
+      "test_id": 4,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "x = -1"
+    },
+    {
+      "test_id": 7,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = x"
+    },
+    {
+      "test_id": 8,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "x = y"
+    },
+    {
+      "test_id": 9,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "x = z"
+    },
+    {
+      "test_id": 12,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "x = None"
+    },
+    {
+      "test_id": 13,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "x = (-0)"
+    },
+    {
+      "test_id": 14,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "x = (-1)"
+    },
+    {
+      "test_id": 15,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "x = (--1)"
+    },
+    {
+      "test_id": 16,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "x = (-2)"
+    },
+    {
+      "test_id": 17,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "x = (-10)"
+    },
+    {
+      "test_id": 18,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = (-x)"
+    },
+    {
+      "test_id": 19,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "x = (-y)"
+    },
+    {
+      "test_id": 20,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "x = (-z)"
+    },
+    {
+      "test_id": 21,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = (-True)"
+    },
+    {
+      "test_id": 24,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "y = -1"
+    },
+    {
+      "test_id": 27,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "y = x"
+    },
+    {
+      "test_id": 28,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "y = y"
+    },
+    {
+      "test_id": 29,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "y = z"
+    },
+    {
+      "test_id": 32,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "y = None"
+    },
+    {
+      "test_id": 33,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "y = (-0)"
+    },
+    {
+      "test_id": 34,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "y = (-1)"
+    },
+    {
+      "test_id": 35,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "y = (--1)"
+    },
+    {
+      "test_id": 36,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "y = (-2)"
+    },
+    {
+      "test_id": 37,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "y = (-10)"
+    },
+    {
+      "test_id": 38,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "y = (-x)"
+    },
+    {
+      "test_id": 39,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "y = (-y)"
+    },
+    {
+      "test_id": 40,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "y = (-z)"
+    },
+    {
+      "test_id": 41,
+      "depth": 3,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "y = (-True)"
+    },
+    {
+      "test_id": 44,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0308_type_mismatch"
+      ],
+      "code_snippet": "z = -1"
+    },
+    {
+      "test_id": 47,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "z = x"
+    },
+    {
+      "test_id": 48,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [
+        "E0425_cannot_find"
+      ],
+      "code_snippet": "z = y"
+    },
+    {
+      "test_id": 49,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "z = z"
+    }
+  ],
+  "timestamp": "2025-11-25T11:16:10.917272",
+  "corpus_file": "corpus_d3_c50.json",
+  "version": "v2_cargo"
+}

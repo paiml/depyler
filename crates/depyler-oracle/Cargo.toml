@@ -13,8 +13,14 @@ categories = ["development-tools"]
 # Depyler core for error types
 depyler-core = { path = "../depyler-core" }
 
-# ML models from aprender
+# ML models from aprender (local with AutoML enhancements)
 aprender = { path = "../../../aprender" }
+
+# Data loading and versioning (deferred - dependency conflicts)
+# TODO: Re-enable when aprender/alimentar are aligned
+# alimentar = "0.1.0"
+# arrow = { version = "53", default-features = false, features = ["prettyprint"] }
+# parquet = { version = "53", default-features = false, features = ["arrow", "snap"] }
 
 # Serialization
 serde.workspace = true
@@ -30,3 +36,6 @@ tracing.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 proptest.workspace = true
+
+# Synthetic data factory for corpus generation
+verificar = "0.3"

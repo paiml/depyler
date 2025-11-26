@@ -1206,12 +1206,11 @@ fn infer_expr_type_with_env(
                 // DEPYLER-0532: Regex methods that return lists
                 "findall" | "finditer" => Type::List(Box::new(Type::String)),
                 "groups" => Type::List(Box::new(Type::String)),
-                // DEPYLER-0555: String-returning methods for return type inference
+                // DEPYLER-0555: Additional string-returning methods for return type inference
                 // DEPYLER-0565: Added hexdigest for hashlib
-                "isoformat" | "strftime" | "format" | "to_string" | "to_str"
-                | "upper" | "lower" | "strip" | "lstrip" | "rstrip"
-                | "replace" | "join" | "split" | "encode" | "decode"
-                | "hexdigest" | "digest" => Type::String,
+                // Note: upper/lower/strip/etc already covered above
+                "isoformat" | "strftime" | "to_string" | "to_str"
+                | "encode" | "decode" | "hexdigest" | "digest" => Type::String,
                 // datetime methods that return other types
                 "timestamp" => Type::Float,
                 "date" | "time" => Type::Custom("NaiveDate".to_string()),
@@ -1772,11 +1771,9 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
                 // DEPYLER-0554: datetime.datetime.fromtimestamp(param) → param is f64
                 // datetime.datetime.now() doesn't have param, but fromtimestamp does
                 if module_name == "datetime" && method == "fromtimestamp" {
-                    if let Some(first_arg) = args.first() {
-                        if let HirExpr::Var(var_name) = first_arg {
-                            if var_name == param_name {
-                                return Some(Type::Float);
-                            }
+                    if let Some(HirExpr::Var(var_name)) = args.first() {
+                        if var_name == param_name {
+                            return Some(Type::Float);
                         }
                     }
                 }
@@ -1787,11 +1784,9 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             if let HirExpr::Attribute { value, attr } = object.as_ref() {
                 if let HirExpr::Var(module_name) = value.as_ref() {
                     if module_name == "datetime" && attr == "datetime" && method == "fromtimestamp" {
-                        if let Some(first_arg) = args.first() {
-                            if let HirExpr::Var(var_name) = first_arg {
-                                if var_name == param_name {
-                                    return Some(Type::Float);
-                                }
+                        if let Some(HirExpr::Var(var_name)) = args.first() {
+                            if var_name == param_name {
+                                return Some(Type::Float);
                             }
                         }
                     }
@@ -1892,18 +1887,18 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             if matches!(op, BinOp::Eq | BinOp::NotEq) {
                 // Check if param is compared to a string literal
                 if let HirExpr::Var(var_name) = left.as_ref() {
-                    if var_name == param_name {
-                        if matches!(right.as_ref(), HirExpr::Literal(crate::hir::Literal::String(_))) {
-                            return Some(Type::String);
-                        }
+                    if var_name == param_name
+                        && matches!(right.as_ref(), HirExpr::Literal(crate::hir::Literal::String(_)))
+                    {
+                        return Some(Type::String);
                     }
                 }
                 // Also check the reverse: "literal" == param
                 if let HirExpr::Var(var_name) = right.as_ref() {
-                    if var_name == param_name {
-                        if matches!(left.as_ref(), HirExpr::Literal(crate::hir::Literal::String(_))) {
-                            return Some(Type::String);
-                        }
+                    if var_name == param_name
+                        && matches!(left.as_ref(), HirExpr::Literal(crate::hir::Literal::String(_)))
+                    {
+                        return Some(Type::String);
                     }
                 }
             }
@@ -2476,6 +2471,25 @@ impl RustCodeGen for HirFunction {
             .collect();
         ctx.function_param_borrows
             .insert(self.name.clone(), param_borrows);
+
+        // DEPYLER-0574: Extract parameter mutability information for &mut decisions
+        // Check which borrowed parameters need &mut (mutable borrow)
+        let param_muts: Vec<bool> = self
+            .params
+            .iter()
+            .map(|p| {
+                let is_mutated = ctx.mutable_vars.contains(&p.name);
+                let should_borrow = lifetime_result
+                    .param_lifetimes
+                    .get(&p.name)
+                    .map(|inf| inf.should_borrow)
+                    .unwrap_or(false);
+                // needs_mut = mutated in body AND borrowed (not owned)
+                is_mutated && should_borrow
+            })
+            .collect();
+        ctx.function_param_muts
+            .insert(self.name.clone(), param_muts);
 
         // Generate return type with Result wrapper and lifetime handling
         let (return_type, rust_ret_type, can_fail, error_type) =

@@ -1,0 +1,107 @@
+id: DEPYLER-CODEGEN-008
+title: "Closure Environment Capture Issues"
+description: |
+  Python nested functions accessing outer scope translated to Rust `fn` instead of
+  closures, causing E0434 errors about capturing dynamic environment.
+
+priority: P2
+type: bug
+status: todo
+
+evidence:
+  error_code: E0434
+  error_message: "can't capture dynamic environment in a fn item"
+  affected_examples:
+    - csv_filter: 1 error
+  total_errors: 1
+
+root_cause: |
+  Python nested function with captured variables:
+  ```python
+  def outer():
+      threshold = 10
+      def inner(x):
+          return x > threshold  # captures threshold
+      return filter(inner, data)
+  ```
+
+  Transpiled to (incorrect):
+  ```rust
+  fn outer() {
+      let threshold = 10;
+      fn inner(x: i32) -> bool {
+          x > threshold  // ❌ Can't capture in fn item
+      }
+      data.into_iter().filter(inner)
+  }
+  ```
+
+  Should be:
+  ```rust
+  fn outer() {
+      let threshold = 10;
+      let inner = |x: i32| x > threshold;  // ✅ Closure captures
+      data.into_iter().filter(inner)
+  }
+  ```
+
+detection_strategy: |
+  1. Identify nested function definitions
+  2. Analyze free variables (variables used but not defined locally)
+  3. If free variables exist, use closure syntax instead of fn
+
+patterns_to_handle:
+  - name: "Simple capture"
+    python: |
+      def outer():
+          x = 1
+          def inner():
+              return x
+    rust: |
+      fn outer() {
+          let x = 1;
+          let inner = || x;
+      }
+
+  - name: "Capture with parameters"
+    python: |
+      def outer():
+          factor = 2
+          def multiply(x):
+              return x * factor
+    rust: |
+      fn outer() {
+          let factor = 2;
+          let multiply = |x| x * factor;
+      }
+
+  - name: "Mutable capture"
+    python: |
+      def outer():
+          count = 0
+          def increment():
+              nonlocal count
+              count += 1
+    rust: |
+      fn outer() {
+          let mut count = 0;
+          let mut increment = || { count += 1; };
+      }
+    note: "Requires move semantics or RefCell"
+
+fix_location:
+  - Nested function detection
+  - Free variable analysis
+  - Closure codegen (|| syntax)
+  - Capture mode detection (move vs borrow)
+
+acceptance_criteria:
+  - Nested functions with captures become closures
+  - Closure capture mode determined correctly
+  - No E0434 errors in generated code
+  - csv_filter compiles successfully
+
+testing:
+  - Unit tests for free variable detection
+  - Unit tests for closure generation
+  - Integration test: csv_filter nested functions

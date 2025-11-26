@@ -1,0 +1,78 @@
+id: DEPYLER-CODEGEN-003
+title: "Type Mismatches in Generated Code (E0308)"
+description: |
+  Largest category of errors (45+). Generated Rust code has type mismatches between
+  expected and actual types, particularly around Option<T>, Result<T,E>, String/&str,
+  and iterator types.
+
+priority: P1
+type: bug
+status: todo
+
+evidence:
+  error_code: E0308
+  error_message: "mismatched types"
+  distribution:
+    stdlib_integration: 10
+    task_runner: 9
+    pattern_matcher: 13
+    stream_processor: 2
+    csv_filter: 2
+    log_analyzer: 11
+  total_errors: 47
+
+common_patterns:
+  - name: "Option<T> vs T"
+    description: "Optional values used without unwrapping"
+    example:
+      generated: "if args.format == \"json\""
+      correct: "if args.format.as_deref() == Some(\"json\")"
+
+  - name: "Result<T,E> vs T"
+    description: "Results used without ? or unwrap"
+    example:
+      generated: "let file = File::open(path)"
+      correct: "let file = File::open(path)?;"
+
+  - name: "String vs &str"
+    description: "Owned strings where borrowed expected, or vice versa"
+    example:
+      generated: "println!(\"{}\", string)"
+      correct: "println!(\"{}\", &string)"
+
+  - name: "Iterator vs Vec"
+    description: "Iterators used where Vec expected"
+    example:
+      generated: "let items = data.iter()"
+      correct: "let items: Vec<_> = data.iter().collect()"
+
+  - name: "bool inference failures"
+    description: "Parameters inferred as bool instead of correct type"
+    example:
+      generated: "output_file: bool"
+      correct: "output_file: Option<String>"
+
+fix_strategy: |
+  1. Improve type inference for optional parameters
+  2. Add proper Option/Result handling at usage sites
+  3. Distinguish String vs &str based on ownership analysis
+  4. Detect when .collect() is needed on iterators
+  5. Use type annotations where inference fails
+
+fix_location:
+  - Type inference engine
+  - Optional parameter detection
+  - Result propagation analysis
+  - Iterator/collection conversion
+
+acceptance_criteria:
+  - Optional fields generate Option<T> and proper access patterns
+  - Results propagated correctly with ? operator
+  - String/&str chosen based on ownership
+  - Iterators collected when needed
+  - E0308 errors reduced by >80%
+
+testing:
+  - Property tests for type inference accuracy
+  - Unit tests for each mismatch pattern
+  - Integration tests for all affected examples

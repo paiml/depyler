@@ -1,0 +1,80 @@
+[
+  {
+    "ast_depth": 1,
+    "code": "pass",
+    "features": [],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = 0",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = 1",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = -1",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = 2",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = 10",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = x",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = y",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = z",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  },
+  {
+    "ast_depth": 2,
+    "code": "x = True",
+    "features": [
+      "assignment"
+    ],
+    "language": "python"
+  }
+]

@@ -1,0 +1,12 @@
+[package]
+name = "test_9"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "test_9"
+path = "test_9.rs"
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }

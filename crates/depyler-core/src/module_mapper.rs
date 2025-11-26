@@ -259,7 +259,8 @@ impl ModuleMapper {
                     ("combinations".to_string(), "combinations".to_string()),
                     ("permutations".to_string(), "permutations".to_string()),
                     ("product".to_string(), "iproduct".to_string()),
-                    ("groupby".to_string(), "group_by".to_string()),
+                    // DEPYLER-0557: groupby uses Itertools trait method, not standalone function
+                    ("groupby".to_string(), "Itertools".to_string()),
                     ("accumulate".to_string(), "scan".to_string()),
                     ("takewhile".to_string(), "take_while".to_string()),
                     ("dropwhile".to_string(), "drop_while".to_string()),
