@@ -814,11 +814,14 @@ pub(crate) fn codegen_raise_stmt(
         let exception_type = extract_exception_type(exc);
 
         // DEPYLER-0438: Set error type flag for generation
+        // DEPYLER-0551: Added RuntimeError and FileNotFoundError
         match exception_type.as_str() {
             "ValueError" => ctx.needs_valueerror = true,
             "ArgumentTypeError" => ctx.needs_argumenttypeerror = true,
             "ZeroDivisionError" => ctx.needs_zerodivisionerror = true,
             "IndexError" => ctx.needs_indexerror = true,
+            "RuntimeError" => ctx.needs_runtimeerror = true,
+            "FileNotFoundError" => ctx.needs_filenotfounderror = true,
             _ => {}
         }
 
@@ -845,12 +848,15 @@ pub(crate) fn codegen_raise_stmt(
                     HirExpr::Call { func, .. } if func == &exception_type
                 );
 
+                // DEPYLER-0551: Added RuntimeError and FileNotFoundError
                 if !is_already_wrapped
                     && (exception_type == "ValueError"
                         || exception_type == "ArgumentTypeError"
                         || exception_type == "TypeError"
                         || exception_type == "KeyError"
-                        || exception_type == "IndexError")
+                        || exception_type == "IndexError"
+                        || exception_type == "RuntimeError"
+                        || exception_type == "FileNotFoundError")
                 {
                     let exc_type = safe_ident(&exception_type);
                     Ok(quote! { return Err(Box::new(#exc_type::new(#exc_expr))); })
@@ -866,12 +872,15 @@ pub(crate) fn codegen_raise_stmt(
                     HirExpr::Call { func, .. } if func == &exception_type
                 );
 
+                // DEPYLER-0551: Added RuntimeError and FileNotFoundError
                 if !is_already_wrapped
                     && (exception_type == "ValueError"
                         || exception_type == "ArgumentTypeError"
                         || exception_type == "TypeError"
                         || exception_type == "KeyError"
-                        || exception_type == "IndexError")
+                        || exception_type == "IndexError"
+                        || exception_type == "RuntimeError"
+                        || exception_type == "FileNotFoundError")
                 {
                     let exc_type = safe_ident(&exception_type);
                     Ok(quote! { return Err(#exc_type::new(#exc_expr)); })
@@ -928,11 +937,18 @@ pub(crate) fn codegen_with_stmt(
     ctx.is_final_statement = saved_is_final;
 
     // DEPYLER-0387: Detect if context is from open() builtin
-    // open() returns std::fs::File which doesn't have __enter__() method
-    // For File objects, bind directly; for custom context managers, call __enter__()
-    let is_file_open = matches!(
+    // DEPYLER-0533: Also detect tempfile patterns (NamedTemporaryFile, TemporaryDirectory)
+    // These return file-like objects that bind directly without __enter__()
+    let is_file_context_manager = matches!(
         context,
         HirExpr::Call { func, .. } if func.as_str() == "open"
+    ) || matches!(
+        context,
+        HirExpr::MethodCall { object, method, .. }
+        if matches!(object.as_ref(), HirExpr::Var(module) if module == "tempfile")
+            && (method == "NamedTemporaryFile" || method == "TemporaryDirectory"
+                || method == "TemporaryFile" || method == "SpooledTemporaryFile"
+                || method == "NamedTempFile")
     );
 
     // Generate code that calls __enter__() for custom context managers
@@ -942,8 +958,9 @@ pub(crate) fn codegen_with_stmt(
         let var_ident = safe_ident(var_name); // DEPYLER-0023
         ctx.declare_var(var_name);
 
-        if is_file_open {
+        if is_file_context_manager {
             // DEPYLER-0387: For open() calls, bind File directly (no __enter__)
+            // DEPYLER-0533: Also for tempfile patterns
             // DEPYLER-0417: No block wrapper - Python allows accessing variables from with blocks
             // DEPYLER-0458: Add mut to file handles for Read/Write trait methods
             Ok(quote! {
@@ -4115,7 +4132,7 @@ fn try_generate_subcommand_match(
             } else {
                 // Pattern B: Extract accessed fields with explicit ref patterns
                 // Using `ref` ensures consistent binding as references regardless of match ergonomics
-                let field_idents: Vec<syn::Ident> = accessed_fields
+                let _field_idents: Vec<syn::Ident> = accessed_fields
                     .iter()
                     .map(|f| format_ident!("{}", f))
                     .collect();
@@ -4480,24 +4497,41 @@ fn codegen_nested_function_def(
     }
 
     // Generate parameters
+    // DEPYLER-0550: For collection types (Dict, List), use references
+    // This is more idiomatic in Rust and works correctly with filter() closures
     let param_tokens: Vec<proc_macro2::TokenStream> = effective_params
         .iter()
         .map(|p| {
             let param_name = syn::Ident::new(&p.name, proc_macro2::Span::call_site());
             let param_type = hir_type_to_tokens(&p.ty, ctx);
 
-            quote! { #param_name: #param_type }
+            // For collection types, take by reference for idiomatic Rust
+            // This is necessary for closures used with filter() which provides &T
+            if matches!(p.ty, Type::Dict(_, _) | Type::List(_) | Type::Set(_)) {
+                quote! { #param_name: &#param_type }
+            } else {
+                quote! { #param_name: #param_type }
+            }
         })
         .collect();
 
     // Generate return type
     let return_type = hir_type_to_tokens(ret_type, ctx);
 
+    // DEPYLER-0550: Save and restore can_fail flag for nested closures
+    // Nested closures should NOT inherit can_fail from parent function
+    // Otherwise return statements get incorrectly wrapped in Ok()
+    let saved_can_fail = ctx.current_function_can_fail;
+    ctx.current_function_can_fail = false;
+
     // Generate body
     let body_tokens: Vec<proc_macro2::TokenStream> = body
         .iter()
         .map(|stmt| stmt.to_rust_tokens(ctx))
         .collect::<Result<Vec<_>>>()?;
+
+    // Restore can_fail flag
+    ctx.current_function_can_fail = saved_can_fail;
 
     // GH-70 FIX: Generate as closure instead of fn item
     // Closures can be returned as values and have better type inference

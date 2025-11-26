@@ -312,6 +312,7 @@ mod tests {
     fn test_property_extract_dependencies_idempotent() {
         use crate::rust_gen::CodeGenContext;
         use crate::type_mapper::TypeMapper;
+        use std::collections::HashSet;
 
         let type_mapper: &'static TypeMapper = Box::leak(Box::new(TypeMapper::default()));
         let ctx = CodeGenContext {
@@ -366,6 +367,8 @@ mod tests {
             needs_indexerror: false,
             needs_valueerror: false,
             needs_argumenttypeerror: false,
+            needs_runtimeerror: false,
+            needs_filenotfounderror: false,
             in_generator: false,
             is_classmethod: false,
             generator_state_vars: std::collections::HashSet::new(),
@@ -392,6 +395,7 @@ mod tests {
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
+            fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -470,6 +474,8 @@ mod tests {
             needs_indexerror: false,
             needs_valueerror: false,
             needs_argumenttypeerror: false,
+            needs_runtimeerror: false,
+            needs_filenotfounderror: false,
             in_generator: false,
             is_classmethod: false,
             generator_state_vars: HashSet::new(),
@@ -496,6 +502,7 @@ mod tests {
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
+            fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
         };
 
         let deps = extract_dependencies(&ctx);
@@ -571,6 +578,8 @@ mod tests {
             needs_indexerror: false,
             needs_valueerror: false,
             needs_argumenttypeerror: false,
+            needs_runtimeerror: false,
+            needs_filenotfounderror: false,
             in_generator: false,
             is_classmethod: false,
             generator_state_vars: HashSet::new(),
@@ -597,6 +606,7 @@ mod tests {
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
+            fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
         };
 
         let deps = extract_dependencies(&ctx);
@@ -676,6 +686,8 @@ mod tests {
             needs_indexerror: false,
             needs_valueerror: false,
             needs_argumenttypeerror: false,
+            needs_runtimeerror: false,
+            needs_filenotfounderror: false,
             in_generator: false,
             is_classmethod: false,
             generator_state_vars: HashSet::new(),
@@ -702,6 +714,7 @@ mod tests {
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
+            fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
         };
 
         let deps = extract_dependencies(&ctx);

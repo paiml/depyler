@@ -87,6 +87,8 @@ pub struct CodeGenContext<'a> {
     pub needs_indexerror: bool,
     pub needs_valueerror: bool,
     pub needs_argumenttypeerror: bool,
+    pub needs_runtimeerror: bool,      // DEPYLER-0551: Python RuntimeError
+    pub needs_filenotfounderror: bool, // DEPYLER-0551: Python FileNotFoundError
     pub is_classmethod: bool,
     pub in_generator: bool,
     pub generator_state_vars: HashSet<String>,
@@ -172,6 +174,11 @@ pub struct CodeGenContext<'a> {
     /// Used by stmt_gen.rs when generating closures to apply inferred parameter types
     /// instead of defaulting all parameters to () for Unknown types
     pub nested_function_params: std::collections::HashMap<String, Vec<crate::hir::HirParam>>,
+
+    /// DEPYLER-0543: Track function parameters with `str` type annotation
+    /// These become `&str` in Rust and should NOT have `&` added when used as dict keys
+    /// Populated when generating function signatures
+    pub fn_str_params: HashSet<String>,
 }
 
 impl<'a> CodeGenContext<'a> {

@@ -51,6 +51,9 @@ struct InferenceContext {
     /// Loop variable sources (DEPYLER-0451 Phase 1c)
     /// Maps loop variable → iterable variable (e.g., "item" → "items")
     loop_var_sources: HashMap<String, String>,
+    /// DEPYLER-0531: Variables assigned from parameters, indexing, or dict operations
+    /// These should NOT default to List<String> even if they have Container pattern
+    non_list_variables: std::collections::HashSet<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -84,8 +87,10 @@ enum UsagePattern {
     Numeric,
     /// Used with string methods
     StringLike,
-    /// Used as container
+    /// Used as container (list-like, integer indexing)
     Container,
+    /// DEPYLER-0552: Used as dictionary (string-keyed access)
+    DictAccess,
     /// Used as callable
     #[allow(dead_code)]
     Callable,
@@ -447,6 +452,62 @@ impl TypeHintProvider {
     fn analyze_assignment(&mut self, var_name: &str, value: &HirExpr) -> Result<()> {
         self.infer_from_literal(var_name, value);
         self.infer_from_collection(var_name, value);
+
+        // DEPYLER-0531: Track variables assigned from non-list sources
+        // These should NOT default to List<String> even if they have Container pattern
+        match value {
+            // Variable assigned from another variable (might be a parameter or dict)
+            HirExpr::Var(_) => {
+                self.context
+                    .non_list_variables
+                    .insert(var_name.to_string());
+            }
+            // Variable assigned from indexing (e.g., value = config["key"])
+            HirExpr::Index { .. } => {
+                self.context
+                    .non_list_variables
+                    .insert(var_name.to_string());
+            }
+            // Variable assigned from dict literal
+            HirExpr::Dict(_) => {
+                self.context
+                    .non_list_variables
+                    .insert(var_name.to_string());
+            }
+            // Variable assigned from attribute access (e.g., obj.value)
+            HirExpr::Attribute { .. } => {
+                self.context
+                    .non_list_variables
+                    .insert(var_name.to_string());
+            }
+            // DEPYLER-0532: Handle method calls that return known types
+            HirExpr::MethodCall { object, method, .. } => {
+                // Check for module method calls with known return types
+                if let HirExpr::Var(module_name) = object.as_ref() {
+                    let module_method_type =
+                        match (module_name.as_str(), method.as_str()) {
+                            // Regex methods that return lists
+                            ("re", "findall") | ("regex", "findall") => {
+                                Some(Type::List(Box::new(Type::String)))
+                            }
+                            ("re", "split") | ("regex", "split") => {
+                                Some(Type::List(Box::new(Type::String)))
+                            }
+                            // JSON methods
+                            ("json", "loads") | ("json", "load") => {
+                                Some(Type::Custom("serde_json::Value".to_string()))
+                            }
+                            ("json", "dumps") => Some(Type::String),
+                            _ => None,
+                        };
+                    if let Some(ty) = module_method_type {
+                        self.add_compatible_constraint(var_name, ty);
+                    }
+                }
+            }
+            _ => {}
+        }
+
         self.analyze_expr(value)
     }
 
@@ -785,7 +846,26 @@ impl TypeHintProvider {
 
     fn analyze_indexing(&mut self, base: &HirExpr, index: &HirExpr) -> Result<()> {
         if let HirExpr::Var(var) = base {
-            self.record_usage_pattern(var, UsagePattern::Container);
+            // DEPYLER-0552: Check if index is a string literal (dict access)
+            // or an integer/variable (list access)
+            let is_string_key = matches!(
+                index,
+                HirExpr::Literal(crate::hir::Literal::String(_)) | HirExpr::FString { .. }
+            );
+            // Also check for common string key variable names
+            let is_likely_string_key = if let HirExpr::Var(idx_name) = index {
+                idx_name == "key" || idx_name == "k" || idx_name.ends_with("_key")
+            } else {
+                false
+            };
+
+            if is_string_key || is_likely_string_key {
+                // Dict access: info["path"] → HashMap<String, Value>
+                self.record_usage_pattern(var, UsagePattern::DictAccess);
+            } else {
+                // List access: items[0] → Vec<T>
+                self.record_usage_pattern(var, UsagePattern::Container);
+            }
         }
         self.analyze_expr(base)?;
         self.analyze_expr(index)?;
@@ -925,8 +1005,10 @@ impl TypeHintProvider {
             UsagePattern::Numeric => self.add_numeric_evidence(type_votes),
             UsagePattern::StringLike => self.add_string_evidence(type_votes),
             UsagePattern::Iterator => self.add_iterator_evidence(type_votes),
-            // DEPYLER-0492: Container pattern from indexing/slicing
+            // DEPYLER-0492: Container pattern from integer indexing/slicing
             UsagePattern::Container => self.add_container_evidence(type_votes),
+            // DEPYLER-0552: Dict pattern from string-keyed access
+            UsagePattern::DictAccess => self.add_dict_access_evidence(type_votes),
             _ => {}
         }
     }
@@ -951,13 +1033,25 @@ impl TypeHintProvider {
         reasons.push("used as iterator".to_string());
     }
 
-    /// DEPYLER-0492: High-confidence evidence from indexing/slicing operations
+    /// DEPYLER-0492: High-confidence evidence from integer indexing/slicing operations
     fn add_container_evidence(&self, type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
         let (count, reasons) = type_votes
             .entry(Type::List(Box::new(Type::Unknown)))
             .or_default();
         *count += 4; // High confidence - indexing strongly implies list type
         reasons.push("indexing/slicing operation".to_string());
+    }
+
+    /// DEPYLER-0552: High-confidence evidence from string-keyed access (dict access)
+    fn add_dict_access_evidence(&self, type_votes: &mut HashMap<Type, (u32, Vec<String>)>) {
+        let (count, reasons) = type_votes
+            .entry(Type::Dict(
+                Box::new(Type::String),
+                Box::new(Type::Custom("serde_json::Value".to_string())),
+            ))
+            .or_default();
+        *count += 5; // Higher confidence than list - string keys are definitive dict access
+        reasons.push("string-keyed access (dict)".to_string());
     }
 
     fn build_type_hint_from_votes(
@@ -1054,11 +1148,20 @@ impl TypeHintProvider {
         match pattern {
             UsagePattern::Numeric => *type_score.entry(Type::Int).or_insert(0) += 1,
             UsagePattern::StringLike => *type_score.entry(Type::String).or_insert(0) += 2,
-            // DEPYLER-0492: Indexing/slicing strongly implies list type (High confidence)
+            // DEPYLER-0492: Integer indexing/slicing strongly implies list type (High confidence)
             UsagePattern::Container => {
                 *type_score
                     .entry(Type::List(Box::new(Type::Unknown)))
                     .or_insert(0) += 4 // High confidence (was 1)
+            }
+            // DEPYLER-0552: String-keyed access strongly implies dict type (Higher confidence)
+            UsagePattern::DictAccess => {
+                *type_score
+                    .entry(Type::Dict(
+                        Box::new(Type::String),
+                        Box::new(Type::Custom("serde_json::Value".to_string())),
+                    ))
+                    .or_insert(0) += 5 // Higher confidence than list
             }
             _ => {}
         }
@@ -1113,27 +1216,48 @@ impl TypeHintProvider {
     }
 
     fn infer_var_type(&self, name: &str) -> Type {
-        // DEPYLER-0519: First check usage patterns for Container/Iterator
-        // This takes priority because f-string analysis adds String constraints
-        // to ANY variable used in formatting, even lists. But if we see the
-        // variable used with iteration or len(), it's definitely a list.
-        if let Some(patterns) = self.context.usage_patterns.get(name) {
-            for pattern in patterns {
-                match pattern {
-                    UsagePattern::Container | UsagePattern::Iterator => {
-                        // Variable is used as a container/iterator, definitely a list
-                        return Type::List(Box::new(Type::String));
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        // Then check explicit Compatible constraints
+        // DEPYLER-0531: First check explicit Compatible constraints
+        // This takes priority because Container/Iterator patterns only tell us
+        // a variable can be indexed/iterated, not its actual type. A dict or
+        // serde_json::Value can also be indexed, so we shouldn't assume List.
         for constraint in &self.context.constraints {
             if let TypeConstraint::Compatible { var, ty } = constraint {
                 if var == name {
                     return ty.clone();
+                }
+            }
+        }
+
+        // DEPYLER-0531: Skip List inference for variables assigned from non-list sources
+        // (parameters, indexing, dicts, attribute access)
+        if self.context.non_list_variables.contains(name) {
+            return Type::Unknown;
+        }
+
+        // DEPYLER-0519/0531: Then check usage patterns for Container/Iterator
+        // This is lower priority because f-string analysis adds String constraints
+        // to ANY variable used in formatting, even lists. But if we see the
+        // variable used with iteration or len() AND no explicit constraint,
+        // it's likely a list.
+        //
+        // Note: Container pattern (from indexing/len) could be dict OR list,
+        // but without explicit constraints, we default to list since that's
+        // more common in Python code being transpiled.
+        if let Some(patterns) = self.context.usage_patterns.get(name) {
+            for pattern in patterns {
+                match pattern {
+                    // DEPYLER-0552: Dict access takes priority
+                    UsagePattern::DictAccess => {
+                        return Type::Dict(
+                            Box::new(Type::String),
+                            Box::new(Type::Custom("serde_json::Value".to_string())),
+                        );
+                    }
+                    UsagePattern::Container | UsagePattern::Iterator => {
+                        // Both patterns suggest a collection type
+                        return Type::List(Box::new(Type::String));
+                    }
+                    _ => {}
                 }
             }
         }

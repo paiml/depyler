@@ -269,6 +269,12 @@ pub(crate) fn codegen_function_body(
         ctx.declare_var(&param.name);
         // Store parameter type information for set/dict disambiguation
         ctx.var_types.insert(param.name.clone(), param.ty.clone());
+
+        // DEPYLER-0543: Track function params with str type (become &str in Rust)
+        // These should NOT have & added when used as dict keys
+        if matches!(param.ty, Type::String) {
+            ctx.fn_str_params.insert(param.name.clone());
+        }
     }
 
     // DEPYLER-0312 NOTE: analyze_mutable_vars is now called in impl RustCodeGen BEFORE
@@ -1133,6 +1139,19 @@ fn infer_expr_type_with_env(
                     ("subprocess", "run") => {
                         return Type::Custom("SubprocessResult".to_string());
                     }
+                    // DEPYLER-0532: regex module methods
+                    ("re", "findall") | ("regex", "findall") => {
+                        return Type::List(Box::new(Type::String));
+                    }
+                    ("re", "match") | ("re", "search") | ("regex", "match") | ("regex", "search") => {
+                        return Type::Optional(Box::new(Type::Custom("Match".to_string())));
+                    }
+                    ("re", "split") | ("regex", "split") => {
+                        return Type::List(Box::new(Type::String));
+                    }
+                    ("re", "sub") | ("regex", "sub") | ("re", "replace") | ("regex", "replace") => {
+                        return Type::String;
+                    }
                     _ => {} // Fall through to regular method handling
                 }
             }
@@ -1175,6 +1194,9 @@ fn infer_expr_type_with_env(
                 "keys" => Type::List(Box::new(Type::Unknown)),
                 "values" => Type::List(Box::new(Type::Unknown)),
                 "items" => Type::List(Box::new(Type::Tuple(vec![Type::Unknown, Type::Unknown]))),
+                // DEPYLER-0532: Regex methods that return lists
+                "findall" | "finditer" => Type::List(Box::new(Type::String)),
+                "groups" => Type::List(Box::new(Type::String)),
                 _ => Type::Unknown,
             }
         }
@@ -1696,6 +1718,20 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
                 }
             }
 
+            // DEPYLER-0550: If param IS the object and method is a dict method,
+            // then param must be a dict. Example: row.get(col), row.items()
+            // This is critical for csv filter predicates like: row.get(column) == value
+            let dict_object_methods = [
+                "get", "items", "keys", "values", "pop", "popitem",
+                "update", "setdefault", "clear", "copy",
+            ];
+            if let HirExpr::Var(var_name) = object.as_ref() {
+                if var_name == param_name && dict_object_methods.contains(&method.as_str()) {
+                    // Default to Dict<String, String> which is most common for CSV rows
+                    return Some(Type::Dict(Box::new(Type::String), Box::new(Type::String)));
+                }
+            }
+
             // DEPYLER-0518: Check if this is a module method call like re.match(), re.search()
             // These expect string arguments
             if let HirExpr::Var(module_name) = object.as_ref() {
@@ -1755,11 +1791,34 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             }
             None
         }
-        // Pattern: param[index] → param is indexable → Vec<i64> (default assumption)
-        // GH-70: When a parameter is used with indexing like item[0], infer as Vec
-        HirExpr::Index { base, .. } => {
+        // Pattern: param[index] → param is indexable
+        // GH-70 + DEPYLER-0552: When a parameter is used with indexing:
+        // - param["key"] (string index) → Dict<String, Value> (dictionary access)
+        // - param[0] (integer index) → Vec<Int> (list access)
+        HirExpr::Index { base, index } => {
             if let HirExpr::Var(var_name) = base.as_ref() {
                 if var_name == param_name {
+                    // DEPYLER-0552: Check if index is a string literal (dict access)
+                    // or an f-string (also dict access)
+                    let is_string_key = matches!(
+                        index.as_ref(),
+                        HirExpr::Literal(crate::hir::Literal::String(_)) | HirExpr::FString { .. }
+                    );
+                    // Also check for string variable patterns like info[key] where key is "path"
+                    let is_likely_string_key = if let HirExpr::Var(idx_name) = index.as_ref() {
+                        // Common string key variable names
+                        idx_name == "key" || idx_name == "k" || idx_name.ends_with("_key")
+                    } else {
+                        false
+                    };
+
+                    if is_string_key || is_likely_string_key {
+                        // Dict access: param["key"] → HashMap<String, serde_json::Value>
+                        return Some(Type::Dict(
+                            Box::new(Type::String),
+                            Box::new(Type::Custom("serde_json::Value".to_string())),
+                        ));
+                    }
                     // Default to Vec<i64> for integer indexing
                     return Some(Type::List(Box::new(Type::Int)));
                 }
@@ -1812,8 +1871,8 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             }
             // Check if param is used on right side
             if let HirExpr::Var(var_name) = right.as_ref() {
-                if var_name == param_name {
-                    if matches!(
+                if var_name == param_name
+                    && matches!(
                         op,
                         BinOp::Add
                             | BinOp::Sub
@@ -1821,9 +1880,9 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
                             | BinOp::Div
                             | BinOp::FloorDiv
                             | BinOp::Mod
-                    ) {
-                        return Some(Type::Int);
-                    }
+                    )
+                {
+                    return Some(Type::Int);
                 }
             }
             // Recursively check subexpressions
@@ -2099,6 +2158,7 @@ pub(crate) fn codegen_return_type(
     // DEPYLER-0327 Fix #5: Mark error types as needed for type generation
     // Check BOTH error_type_str (for functions that return Result) AND
     // func.properties.error_types (for types used in try/except blocks)
+    // DEPYLER-0551: Added RuntimeError and FileNotFoundError
     if error_type_str.contains("ZeroDivisionError") {
         ctx.needs_zerodivisionerror = true;
     }
@@ -2107,6 +2167,12 @@ pub(crate) fn codegen_return_type(
     }
     if error_type_str.contains("ValueError") {
         ctx.needs_valueerror = true;
+    }
+    if error_type_str.contains("RuntimeError") {
+        ctx.needs_runtimeerror = true;
+    }
+    if error_type_str.contains("FileNotFoundError") {
+        ctx.needs_filenotfounderror = true;
     }
 
     // Also check all error_types from properties (even if can_fail=false)
@@ -2120,6 +2186,12 @@ pub(crate) fn codegen_return_type(
         }
         if err_type.contains("ValueError") {
             ctx.needs_valueerror = true;
+        }
+        if err_type.contains("RuntimeError") {
+            ctx.needs_runtimeerror = true;
+        }
+        if err_type.contains("FileNotFoundError") {
+            ctx.needs_filenotfounderror = true;
         }
     }
 

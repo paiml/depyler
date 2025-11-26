@@ -104,6 +104,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-0541: Handle borrowing for potentially Option-typed path variables
+    /// When path variable is Option<String>, use .as_ref().unwrap() for file operations
+    fn borrow_path_with_option_check(&self, path_expr: &syn::Expr, hir_arg: &HirExpr) -> syn::Expr {
+        // Check if the HIR arg is a variable that might be Option-typed
+        if let HirExpr::Var(var_name) = hir_arg {
+            // Check if variable is Option-typed
+            if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                if matches!(var_type, Type::Optional(_)) {
+                    // Option<String> → use .as_ref().unwrap() for path
+                    return parse_quote! { #path_expr.as_ref().unwrap() };
+                }
+            }
+            // DEPYLER-0541: Heuristic for common optional file path param names
+            if matches!(
+                var_name.as_str(),
+                "output_file" | "out_file" | "outfile" | "output_path" | "out_path"
+            ) {
+                return parse_quote! { #path_expr.as_ref().unwrap() };
+            }
+        }
+        // Fall back to standard borrow
+        Self::borrow_if_needed(path_expr)
+    }
+
     fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
         // Check for special keywords that cannot be raw identifiers
         if Self::is_non_raw_keyword(name) {
@@ -185,6 +209,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         right_expr = parse_quote! { #right_expr.unwrap_or_default() };
                     }
                 }
+            }
+
+            // DEPYLER-0550: Handle serde_json::Value comparisons
+            // When comparing Option<String> (from dict.get()) with serde_json::Value,
+            // convert the Value to Option<String> for compatibility
+            // Pattern: row.get(col).cloned() == val where val comes from JSON .items()
+            let left_is_dict_get = matches!(left, HirExpr::MethodCall { method, .. } if method == "get");
+            let right_is_json_value = self.is_serde_json_value_expr(right);
+
+            if left_is_dict_get && right_is_json_value {
+                // Convert serde_json::Value to Option<String> for comparison
+                right_expr = parse_quote! { #right_expr.as_str().map(|s| s.to_string()) };
+            }
+
+            // Also handle the reverse case
+            let right_is_dict_get = matches!(right, HirExpr::MethodCall { method, .. } if method == "get");
+            let left_is_json_value = self.is_serde_json_value_expr(left);
+
+            if right_is_dict_get && left_is_json_value {
+                left_expr = parse_quote! { #left_expr.as_str().map(|s| s.to_string()) };
             }
         }
 
@@ -522,7 +566,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn convert_containment_op(
         &self,
         negate: bool,
-        _left: &HirExpr,
+        left: &HirExpr,
         right: &HirExpr,
         left_expr: syn::Expr,
         right_expr: syn::Expr,
@@ -546,10 +590,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let is_set = self.is_set_expr(right) || self.is_set_var(right);
         let is_list = self.is_list_expr(right);
 
-        // DEPYLER-0422/0473: Always borrow keys for HashMap methods
-        // HIR Type::String doesn't distinguish owned String vs &str,
-        // so we can't reliably detect when to skip borrow.
-        let needs_borrow = true;
+        // DEPYLER-0539: Check if left side is already a borrowed &str parameter
+        // &str params don't need additional borrowing
+        let needs_borrow = if let HirExpr::Var(var_name) = left {
+            !self.is_borrowed_str_param(var_name)
+        } else {
+            true // Non-variable expressions typically need borrowing
+        };
 
         if is_string || is_set || is_list {
             // String, Set, List all use .contains(&value)
@@ -2118,8 +2165,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "r" // Default mode
         };
 
+        // DEPYLER-0541: Handle Option<String> paths with proper unwrapping
         // DEPYLER-0465: Borrow path to avoid moving String parameters
-        let borrowed_path = Self::borrow_if_needed(path);
+        let borrowed_path = if let Some(hir_arg) = hir_args.first() {
+            self.borrow_path_with_option_check(path, hir_arg)
+        } else {
+            Self::borrow_if_needed(path)
+        };
 
         match mode {
             "r" | "rb" => {
@@ -2434,6 +2486,36 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 .and_then(|borrows| borrows.get(param_idx))
                                 .copied()
                                 .unwrap_or(true) // Default to borrow if unknown
+                        }
+                        // DEPYLER-0550: Handle attribute access like args.column, args.value
+                        // These are String fields from CLI args struct that need borrowing
+                        // when passed to functions expecting &str
+                        HirExpr::Attribute { value, attr } => {
+                            // Check if accessing args struct field
+                            let is_args_field = if let HirExpr::Var(v) = value.as_ref() {
+                                v == "args"
+                            } else {
+                                false
+                            };
+
+                            // Check if function expects borrow at this position
+                            if is_args_field {
+                                // For args struct fields (typically String), check function signature
+                                self.ctx
+                                    .function_param_borrows
+                                    .get(func)
+                                    .and_then(|borrows| borrows.get(param_idx))
+                                    .copied()
+                                    .unwrap_or(
+                                        // Heuristic: borrow common string-like field names
+                                        matches!(attr.as_str(),
+                                            "column" | "value" | "name" | "key" | "pattern" |
+                                            "text" | "query" | "path" | "config" | "file"
+                                        )
+                                    )
+                            } else {
+                                false
+                            }
                         }
                         _ => {
                             // Fallback: check if expression creates a Vec via .to_vec()
@@ -3568,10 +3650,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         matches!(var_type, Type::String)
                     } else {
                         // Unknown type: use heuristic based on name
-                        matches!(
-                            var_name.as_str(),
-                            "path" | "expanded" | "p" | "file" | "dir"
-                        )
+                        // DEPYLER-0535: Include pattern matching for common path variable names
+                        let name = var_name.as_str();
+                        name == "path"
+                            || name == "expanded"
+                            || name == "p"
+                            || name == "file"
+                            || name == "dir"
+                            || name.contains("path")
+                            || name.contains("_dir")
+                            || name.contains("_file")
                     }
                 }
                 HirExpr::Literal(Literal::String(_)) => false, // String literals are already &str
@@ -3779,7 +3867,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.getsize() requires exactly 1 argument");
                 }
-                let path = &arg_exprs[0];
+                // DEPYLER-0535: Auto-borrow String arguments for std::fs::metadata()
+                let path = maybe_borrow(&args[0], &arg_exprs[0]);
 
                 // os.path.getsize(path) → std::fs::metadata().len()
                 parse_quote! {
@@ -3791,7 +3880,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.getmtime() requires exactly 1 argument");
                 }
-                let path = &arg_exprs[0];
+                // DEPYLER-0535: Auto-borrow String arguments for std::fs::metadata()
+                let path = maybe_borrow(&args[0], &arg_exprs[0]);
 
                 // os.path.getmtime(path) → std::fs::metadata().modified()
                 parse_quote! {
@@ -3809,7 +3899,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.getctime() requires exactly 1 argument");
                 }
-                let path = &arg_exprs[0];
+                // DEPYLER-0535: Auto-borrow String arguments for std::fs::metadata()
+                let path = maybe_borrow(&args[0], &arg_exprs[0]);
 
                 // os.path.getctime(path) → std::fs::metadata().created()
                 // Note: On Unix, this is ctime (change time), but Rust only has created()
@@ -7704,6 +7795,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // Clone what we need to avoid borrow checker issues
                         let rust_path_str = format!("{}::{}", module_mapping.rust_path, rust_name);
                         let constructor_pattern_owned = constructor_pattern.clone();
+                        let rust_name_owned = rust_name.clone(); // DEPYLER-0534: Clone for later use
 
                         // Build the full Rust path
                         let path_parts: Vec<&str> = rust_path_str.split("::").collect();
@@ -7752,6 +7844,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 }
                             }
                         };
+
+                        // DEPYLER-0534: Unwrap fallible constructors
+                        // tempfile functions return Result<T, io::Error>
+                        // Use .unwrap() for simplicity (matches Python's exception-on-failure behavior)
+                        let is_fallible_constructor = module_name == "tempfile"
+                            && (rust_name_owned == "NamedTempFile"
+                                || rust_name_owned == "TempFile"
+                                || rust_name_owned == "TempDir");
+
+                        let result = if is_fallible_constructor {
+                            parse_quote! { #result.unwrap() }
+                        } else {
+                            result
+                        };
+
                         return Ok(Some(result));
                     }
                 }
@@ -8353,14 +8460,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// Handle dict methods (get, keys, values, items, update)
+    /// DEPYLER-0540: Added hir_object param to detect serde_json::Value types
     #[inline]
     fn convert_dict_method(
         &mut self,
         object_expr: &syn::Expr,
+        hir_object: &HirExpr,
         method: &str,
         arg_exprs: &[syn::Expr],
         hir_args: &[HirExpr],
     ) -> Result<syn::Expr> {
+        // DEPYLER-0540: Check if this is a serde_json::Value that needs special handling
+        let is_json_value = self.is_serde_json_value(hir_object);
+
         match method {
             "get" => {
                 if arg_exprs.len() == 1 {
@@ -8369,15 +8481,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Python: result = d.get(key); if result is None: ...
                     // Rust: let result = d.get(key).cloned(); if result.is_none() { ... }
 
-                    // DEPYLER-0227: String literals need & prefix, but variables with &str type don't
-                    // Check if key is a string literal that was converted to .to_string()
+                    // DEPYLER-0542: Always borrow the key to prevent move semantics issues
+                    // HashMap::get() expects &Q where Q: Borrow<K>. Using & prevents:
+                    // 1. Moving owned String keys (error E0382: use of moved value)
+                    // 2. Type mismatches when key is &str vs String
+                    // For &str params, &key becomes &&str but HashMap::get handles this fine
                     let key_expr: syn::Expr =
-                        if matches!(hir_args.first(), Some(HirExpr::Literal(Literal::String(_)))) {
-                            // String literal - add & to borrow the String
-                            parse_quote! { &#key }
+                        if let Some(HirExpr::Var(var_name)) = hir_args.first() {
+                            // DEPYLER-0539: Check if var is known &str param - don't double borrow
+                            if self.is_borrowed_str_param(var_name) {
+                                parse_quote! { #key }
+                            } else {
+                                // Owned String or unknown - borrow to prevent move
+                                parse_quote! { &#key }
+                            }
                         } else {
-                            // Variable or other expression - already properly typed
-                            parse_quote! { #key }
+                            // String literal or expression - borrow
+                            parse_quote! { &#key }
                         };
 
                     // Return Option - downstream code will handle unwrapping if needed
@@ -8385,14 +8505,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else if arg_exprs.len() == 2 {
                     let key = &arg_exprs[0];
                     let default = &arg_exprs[1];
-                    // DEPYLER-0227: String literals need & prefix, but variables with &str type don't
+                    // DEPYLER-0542: Always borrow keys for dict.get()
                     let key_expr: syn::Expr =
-                        if matches!(hir_args.first(), Some(HirExpr::Literal(Literal::String(_)))) {
-                            // String literal - add & to borrow the String
-                            parse_quote! { &#key }
+                        if let Some(HirExpr::Var(var_name)) = hir_args.first() {
+                            if self.is_borrowed_str_param(var_name) {
+                                parse_quote! { #key }
+                            } else {
+                                parse_quote! { &#key }
+                            }
                         } else {
-                            // Variable or other expression - already properly typed
-                            parse_quote! { #key }
+                            parse_quote! { &#key }
                         };
                     Ok(parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#default) })
                 } else {
@@ -8406,7 +8528,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0303 Phase 3 Fix #8: Return Vec for compatibility
                 // .keys() returns an iterator, but Python's dict.keys() returns a list-like view
                 // We collect to Vec for better ergonomics (indexing, len(), etc.)
-                Ok(parse_quote! { #object_expr.keys().cloned().collect::<Vec<_>>() })
+                // DEPYLER-0540: serde_json::Value needs .as_object().unwrap() before .keys()
+                if is_json_value {
+                    Ok(parse_quote! { #object_expr.as_object().unwrap().keys().cloned().collect::<Vec<_>>() })
+                } else {
+                    Ok(parse_quote! { #object_expr.keys().cloned().collect::<Vec<_>>() })
+                }
             }
             "values" => {
                 if !arg_exprs.is_empty() {
@@ -8415,15 +8542,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0303 Phase 3 Fix #8: Return Vec for compatibility
                 // However, this causes redundant .collect().iter() in sum(d.values())
                 // NOTE: Consider context-aware return type (Vec vs Iterator) for optimization (tracked in DEPYLER-0303)
-                Ok(parse_quote! { #object_expr.values().cloned().collect::<Vec<_>>() })
+                // DEPYLER-0540: serde_json::Value needs .as_object().unwrap() before .values()
+                if is_json_value {
+                    Ok(parse_quote! { #object_expr.as_object().unwrap().values().cloned().collect::<Vec<_>>() })
+                } else {
+                    Ok(parse_quote! { #object_expr.values().cloned().collect::<Vec<_>>() })
+                }
             }
             "items" => {
                 if !arg_exprs.is_empty() {
                     bail!("items() takes no arguments");
                 }
-                Ok(
-                    parse_quote! { #object_expr.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>() },
-                )
+                // DEPYLER-0540: serde_json::Value needs .as_object().unwrap() before .iter()
+                if is_json_value {
+                    Ok(
+                        parse_quote! { #object_expr.as_object().unwrap().iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>() },
+                    )
+                } else {
+                    Ok(
+                        parse_quote! { #object_expr.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>() },
+                    )
+                }
             }
             "update" => {
                 if arg_exprs.len() != 1 {
@@ -8969,6 +9108,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 })
             }
 
+            // DEPYLER-0538: str/bytes.hex() - convert bytes to hexadecimal string
+            "hex" => {
+                if !arg_exprs.is_empty() {
+                    bail!("hex() takes no arguments");
+                }
+                // Python: b"hello".hex() → "68656c6c6f"
+                // Rust: convert each byte to 2-char hex string
+                Ok(parse_quote! {
+                    #object_expr.bytes().map(|b| format!("{:02x}", b)).collect::<String>()
+                })
+            }
+
             _ => bail!("Unknown string method: {}", method),
         }
     }
@@ -9383,13 +9534,98 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // DEPYLER-0458: Handle file I/O .write() method
-        // Python: f.write(string) → Rust: f.write_all(bytes)?
+        // DEPYLER-0537: Use .unwrap() instead of ? for functions without explicit error handling
+        // DEPYLER-0536: Handle Option<String> arguments by unwrapping
+        // Python: f.write(string) → Rust: f.write_all(bytes).unwrap()
         if method == "write" && arg_exprs.len() == 1 {
             let content = &arg_exprs[0];
+            // Check if content might be an Option type based on HIR expression
+            // If it's a variable that's known to be Option, unwrap it first
+            // DEPYLER-0536: Detect Option type for write() content argument
+            // Priority: type system > name heuristics (only use heuristics when no type info)
+            let is_option_content = if let HirExpr::Var(var_name) = &hir_args[0] {
+                match self.ctx.var_types.get(var_name) {
+                    Some(Type::Optional(_)) => true,
+                    Some(_) => false, // Known non-Option type - don't use name heuristic
+                    None => {
+                        // No type info - fall back to name heuristic
+                        var_name == "content"
+                            || var_name.ends_with("_content")
+                            || var_name.ends_with("_text")
+                    }
+                }
+            } else {
+                false
+            };
+
             // Convert string to bytes and use write_all()
             // Python's write() returns bytes written, but we simplify to just the operation
+            // Use unwrap() since Python would raise exception on failure (matches behavior)
+            if is_option_content {
+                return Ok(parse_quote! {
+                    #object_expr.write_all(#content.as_ref().unwrap().as_bytes()).unwrap()
+                });
+            } else {
+                return Ok(parse_quote! {
+                    #object_expr.write_all(#content.as_bytes()).unwrap()
+                });
+            }
+        }
+
+        // DEPYLER-0529: Handle file .close() method
+        // Python: f.close() → Rust: no-op (files auto-close on drop via RAII)
+        // DEPYLER-0550: Generate () instead of drop() because the file may have been
+        // moved into a writer (e.g., csv::Writer::from_writer(output)), and we can't
+        // drop a moved value. Rust's RAII handles cleanup automatically.
+        if method == "close" && arg_exprs.is_empty() {
+            // In Rust, files are automatically closed when dropped
+            // No explicit close needed - RAII handles it
+            return Ok(parse_quote! { () });
+        }
+
+        // DEPYLER-0551: Handle pathlib.Path instance methods
+        // Python Path methods that need mapping to Rust std::path/std::fs equivalents
+        // Check if object is a path variable (named "path" or known PathBuf type)
+        let is_path_object = if let HirExpr::Var(var_name) = object {
+            var_name == "path"
+                || var_name.ends_with("_path")
+                || var_name == "p"
+        } else {
+            false
+        };
+
+        if is_path_object {
+            match method {
+                // path.stat() → std::fs::metadata(&path).unwrap()
+                "stat" if arg_exprs.is_empty() => {
+                    return Ok(parse_quote! { std::fs::metadata(&#object_expr).unwrap() });
+                }
+                // path.absolute() or path.resolve() → path.canonicalize().unwrap()
+                "absolute" | "resolve" if arg_exprs.is_empty() => {
+                    return Ok(
+                        parse_quote! { #object_expr.canonicalize().unwrap().to_string_lossy().to_string() },
+                    );
+                }
+                _ => {} // Fall through to default handling
+            }
+        }
+
+        // DEPYLER-0548: Handle csv.DictWriter methods
+        // Python csv module methods need mapping to Rust csv crate equivalents
+        if method == "writeheader" && arg_exprs.is_empty() {
+            // writeheader() → no-op in Rust csv crate
+            // Headers are typically written automatically or need explicit handling
+            // TODO: Track fieldnames from DictWriter constructor to write proper header
+            return Ok(parse_quote! { () });
+        }
+
+        if method == "writerow" && arg_exprs.len() == 1 {
+            // writerow(row) → writer.serialize(&row).unwrap()
+            // Python's DictWriter.writerow expects a dict
+            // Rust's csv::Writer.serialize can handle HashMap
+            let row = &arg_exprs[0];
             return Ok(parse_quote! {
-                #object_expr.write_all(#content.as_bytes())?
+                #object_expr.serialize(&#row).unwrap()
             });
         }
 
@@ -9469,6 +9705,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 | "ljust"
                 | "rjust"
                 | "zfill"
+                | "hex"
                 | "format"
         ) {
             return self.convert_string_method(object, object_expr, method, arg_exprs, hir_args);
@@ -9517,7 +9754,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if self.is_dict_expr(object) {
             match method {
                 "get" | "keys" | "values" | "items" | "update" => {
-                    return self.convert_dict_method(object_expr, method, arg_exprs, hir_args);
+                    // DEPYLER-0540: Pass object for serde_json::Value detection
+                    return self.convert_dict_method(object_expr, object, method, arg_exprs, hir_args);
                 }
                 _ => {}
             }
@@ -9560,7 +9798,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     self.convert_set_method(object_expr, method, arg_exprs)
                 } else {
                     // data.update({"b": 2}) - dict update (default for variables)
-                    self.convert_dict_method(object_expr, method, arg_exprs, hir_args)
+                    // DEPYLER-0540: Pass object for serde_json::Value detection
+                    self.convert_dict_method(object_expr, object, method, arg_exprs, hir_args)
                 }
             }
 
@@ -9579,13 +9818,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(parse_quote! { #object_expr.get(#index as usize).cloned() })
                 } else {
                     // Dict .get() - use existing dict handler (supports 1 or 2 args)
-                    self.convert_dict_method(object_expr, method, arg_exprs, hir_args)
+                    // DEPYLER-0540: Pass object for serde_json::Value detection
+                    self.convert_dict_method(object_expr, object, method, arg_exprs, hir_args)
                 }
             }
 
             // Dict methods (for variables without type info)
             "keys" | "values" | "items" | "setdefault" | "popitem" => {
-                self.convert_dict_method(object_expr, method, arg_exprs, hir_args)
+                // DEPYLER-0540: Pass object for serde_json::Value detection
+                self.convert_dict_method(object_expr, object, method, arg_exprs, hir_args)
             }
 
             // String methods
@@ -9594,7 +9835,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
             | "split" | "splitlines" | "join" | "replace" | "find" | "rfind" | "rindex"
             | "isdigit" | "isalpha" | "isalnum" | "title" | "center" | "ljust" | "rjust"
-            | "zfill" => {
+            | "zfill" | "hex" => {
                 self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
             }
 
@@ -9676,6 +9917,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 | "ljust"
                 | "rjust"
                 | "zfill"
+                | "hex"
                 | "format"
         ) {
             let object_expr = object.to_rust_expr(self.ctx)?;
@@ -9825,14 +10067,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // String variable - needs proper referencing
                     // HashMap.get() expects &K, so we need to borrow the key
                     // DEPYLER-0521: Don't add & if variable is already &str type
+                    // DEPYLER-0528: Fixed logic - owned String NEEDS borrow, &str does NOT
                     let index_expr = index.to_rust_expr(self.ctx)?;
+                    // DEPYLER-0539: Fix dict key borrowing for &str parameters
+                    // Check is_borrowed_str_param FIRST - &str params are tracked as Type::String
+                    // but should NOT be borrowed again
                     let needs_borrow = if let HirExpr::Var(var_name) = index {
-                        // Check if variable is already a borrowed string type (&str)
-                        // Function parameters with str type annotation are &str in Rust
-                        !matches!(
+                        if self.is_borrowed_str_param(var_name) {
+                            false // Already &str from function parameter, no borrow needed
+                        } else if matches!(
                             self.ctx.var_types.get(var_name),
-                            Some(Type::String) // owned String needs & to become &str
-                        ) && !self.is_borrowed_str_param(var_name)
+                            Some(Type::String) // owned String → needs &
+                        ) {
+                            true // Owned String needs borrow
+                        } else {
+                            // Unknown type - default to borrowing for safety
+                            true
+                        }
                     } else {
                         true // Non-variable expressions typically need borrowing
                     };
@@ -10051,6 +10302,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     || name == "s"
                     || name == "string"
                     || name == "line"
+                    || name == "content"     // DEPYLER-0538: File content is usually String
                     || name == "timestamp"  // GH-70: Common string field (ISO 8601, etc.)
                     || name == "message"     // GH-70: Log messages are strings
                     || name == "level"       // GH-70: Log levels are strings ("INFO", "ERROR")
@@ -10818,6 +11070,92 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Use 1 as a generic non-zero exit code for errors
                 return Ok(parse_quote! { 1 });
             }
+
+            // DEPYLER-0535: Handle tempfile file handle attributes
+            // Python: f.name → Rust: f.path().to_string_lossy().to_string()
+            // Common tempfile variable names: f, temp, temp_file, tmpfile
+            let is_likely_tempfile = var_name == "f"
+                || var_name == "temp"
+                || var_name == "tmp"
+                || var_name.contains("temp")
+                || var_name.contains("tmp");
+
+            if is_likely_tempfile && attr == "name" {
+                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                return Ok(parse_quote! { #var_ident.path().to_string_lossy().to_string() });
+            }
+
+            // DEPYLER-0551: Handle os.stat_result attributes (from path.stat() / std::fs::metadata)
+            // Python: stats.st_size → Rust: stats.len()
+            // Python: stats.st_mtime → Rust: stats.modified().unwrap().duration_since(UNIX_EPOCH).unwrap().as_secs_f64()
+            let is_likely_stats = var_name == "stats"
+                || var_name == "stat"
+                || var_name.ends_with("_stats");
+
+            if is_likely_stats {
+                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                match attr {
+                    "st_size" => {
+                        return Ok(parse_quote! { #var_ident.len() });
+                    }
+                    "st_mtime" => {
+                        return Ok(parse_quote! {
+                            #var_ident.modified().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64()
+                        });
+                    }
+                    "st_ctime" => {
+                        // Creation time (use modified as fallback on Unix)
+                        return Ok(parse_quote! {
+                            #var_ident.created().unwrap_or_else(|_| #var_ident.modified().unwrap())
+                                .duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64()
+                        });
+                    }
+                    "st_atime" => {
+                        return Ok(parse_quote! {
+                            #var_ident.accessed().unwrap().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64()
+                        });
+                    }
+                    "st_mode" => {
+                        // File permissions
+                        return Ok(parse_quote! { #var_ident.permissions().mode() });
+                    }
+                    _ => {} // Fall through
+                }
+            }
+
+            // DEPYLER-0551: Handle pathlib.Path attributes
+            // Python: path.name → Rust: path.file_name().and_then(|n| n.to_str()).unwrap_or("")
+            // Python: path.suffix → Rust: path.extension().map(|e| format!(".{}", e.to_str().unwrap())).unwrap_or_default()
+            let is_likely_path = var_name == "path"
+                || var_name.ends_with("_path")
+                || var_name == "p";
+
+            if is_likely_path {
+                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                match attr {
+                    "name" => {
+                        return Ok(parse_quote! {
+                            #var_ident.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string()
+                        });
+                    }
+                    "suffix" => {
+                        return Ok(parse_quote! {
+                            #var_ident.extension().map(|e| format!(".{}", e.to_str().unwrap())).unwrap_or_default()
+                        });
+                    }
+                    "stem" => {
+                        return Ok(parse_quote! {
+                            #var_ident.file_stem().and_then(|n| n.to_str()).unwrap_or("").to_string()
+                        });
+                    }
+                    "parent" => {
+                        return Ok(parse_quote! {
+                            #var_ident.parent().map(|p| p.to_path_buf()).unwrap_or_default()
+                        });
+                    }
+                    _ => {} // Fall through to regular attribute handling
+                }
+            }
         }
 
         // DEPYLER-0425: Handle subcommand field access (args.url → url)
@@ -11476,6 +11814,77 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-0540: Check if expression is typed as serde_json::Value
+    /// serde_json::Value needs special handling for .keys(), .values(), .items()
+    /// because it requires .as_object().unwrap() before iteration methods.
+    fn is_serde_json_value(&self, expr: &HirExpr) -> bool {
+        if let HirExpr::Var(name) = expr {
+            // Check explicit type info first - this is authoritative
+            if let Some(var_type) = self.ctx.var_types.get(name) {
+                // Check for explicit serde_json::Value type
+                if matches!(var_type, Type::Custom(ref s) if s == "serde_json::Value") {
+                    return true;
+                }
+                // Check for Dict with Unknown value type (often mapped to Value)
+                if matches!(var_type, Type::Dict(_, ref v) if matches!(**v, Type::Unknown)) {
+                    return true;
+                }
+                // DEPYLER-0543: If we have type info and it's a typed Dict (non-Unknown),
+                // it's a regular HashMap, NOT serde_json::Value
+                if matches!(var_type, Type::Dict(_, _)) {
+                    return false;
+                }
+                // DEPYLER-0545: Type::Unknown should fall through to name heuristic
+                // This allows variables like "filters" to be detected as JSON even when
+                // their type is Unknown (common in nested closures/functions)
+                if !matches!(var_type, Type::Unknown) {
+                    // For other explicitly typed variables, not a JSON value
+                    return false;
+                }
+                // Type::Unknown falls through to name heuristic below
+            }
+
+            // DEPYLER-0540: Use name heuristic when NO type info OR Type::Unknown
+            // (e.g., in nested closures where parent param types aren't tracked)
+            // Be conservative - only match explicitly json-like names
+            // Note: "filters" is commonly used for serde_json::Value filter dicts
+            let is_json_by_name = matches!(
+                name.as_str(),
+                "filters" | "json_data" | "json_obj" | "json_value" | "json_config"
+            );
+            if is_json_by_name {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// DEPYLER-0550: Check if expression could be a serde_json::Value
+    /// Used for comparison handling when .get() returns Option<String>
+    /// but the other side is a JSON Value from .items() iteration
+    fn is_serde_json_value_expr(&self, expr: &HirExpr) -> bool {
+        // First check using the existing helper
+        if self.is_serde_json_value(expr) {
+            return true;
+        }
+
+        // DEPYLER-0550: Check for pattern variables from JSON iteration
+        // When iterating over filters.items(), we get (col, val) where val is Value
+        // The variable "val" in this context is a JSON Value
+        if let HirExpr::Var(name) = expr {
+            // Variables commonly used for JSON values in iteration patterns
+            // "val" is the most common from: for col, val in filters.items()
+            if matches!(name.as_str(), "val" | "v" | "value" | "json_val") {
+                // Additional context check: if there's no type info, assume JSON in iteration
+                if !self.ctx.var_types.contains_key(name) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
     fn is_list_expr(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::List(_) => true,
@@ -11500,18 +11909,48 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// # Complexity
     /// 2 (lookup + name check)
     fn is_borrowed_str_param(&self, var_name: &str) -> bool {
-        // If variable is explicitly typed, use that info
-        if let Some(var_type) = self.ctx.var_types.get(var_name) {
-            // Owned String needs borrow, but if marked Unknown (untracked param), check name
-            return !matches!(var_type, Type::String);
+        // DEPYLER-0543: Check if variable is a function param with str type
+        // These become &str in Rust and should NOT have & added
+        if self.ctx.fn_str_params.contains(var_name) {
+            return true; // already &str, don't add &
         }
 
-        // Variable not in var_types - likely a function parameter
-        // Use heuristic: common parameter names for dict keys
-        matches!(
+        // When we have type info, use it
+        if let Some(var_type) = self.ctx.var_types.get(var_name) {
+            match var_type {
+                Type::String => {
+                    // Variable has Type::String but is NOT in fn_str_params
+                    // This means it's a local variable (loop var, assignment) → owned String
+                    return false; // needs borrowing
+                }
+                Type::Unknown => {
+                    // Unknown type - use name heuristic as fallback
+                }
+                _ => {
+                    // Other types - likely not a string key situation
+                    return false;
+                }
+            }
+        }
+
+        // DEPYLER-0550: Removed "col" from heuristic - commonly used as loop variable
+        // when iterating over dict items: for col, val in filters.items()
+        // In that context, col is owned String from k.clone(), NOT a borrowed param
+        // No type info or Unknown type - use name heuristics for function params
+        // These are function parameters that typically become &str in Rust
+        // Keep list minimal - only include names that are DEFINITELY function params
+        let fn_param_names = matches!(
             var_name,
-            "column" | "col" | "key" | "k" | "name" | "field" | "attr" | "property"
-        )
+            "column" | "field" | "attr" | "property"
+        );
+
+        if fn_param_names {
+            return true;
+        }
+
+        // Variable not in var_types and not a known borrowed name
+        // Default: assume needs borrowing (safer)
+        false
     }
 
     /// DEPYLER-0496: Check if expression returns a Result type
@@ -12101,9 +12540,61 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // With conversion: `if !val.is_empty()` / `if val.is_some()` / `if val != 0`
         test_expr = Self::apply_truthiness_conversion(test, test_expr, self.ctx);
 
+        // DEPYLER-0544: Detect File vs Stdout type mismatch
+        // Python: `open(path, "w") if path else sys.stdout`
+        // Rust: Needs Box<dyn Write> to unify File and Stdout types
+        let body_is_file = self.is_file_creating_expr(body);
+        let orelse_is_stdout = self.is_stdout_expr(orelse);
+        let orelse_is_file = self.is_file_creating_expr(orelse);
+        let body_is_stdout = self.is_stdout_expr(body);
+
+        if (body_is_file && orelse_is_stdout) || (body_is_stdout && orelse_is_file) {
+            // Wrap both sides in Box::new() for trait object unification
+            return Ok(parse_quote! {
+                if #test_expr { Box::new(#body_expr) as Box<dyn std::io::Write> } else { Box::new(#orelse_expr) }
+            });
+        }
+
         Ok(parse_quote! {
             if #test_expr { #body_expr } else { #orelse_expr }
         })
+    }
+
+    /// DEPYLER-0544: Check if expression creates a File (open() or File::create())
+    fn is_file_creating_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Call { func: Symbol, .. } - func is a simple function name like "open"
+            HirExpr::Call { func, .. } => {
+                // Check for open() builtin
+                func == "open"
+            }
+            // MethodCall { object, method, .. } - e.g., File.create()
+            HirExpr::MethodCall { object, method, .. } => {
+                if method == "create" || method == "open" {
+                    if let HirExpr::Var(name) = object.as_ref() {
+                        return name == "File";
+                    }
+                    // std.fs.File.create()
+                    if let HirExpr::Attribute { attr, .. } = object.as_ref() {
+                        return attr == "File";
+                    }
+                }
+                false
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0544: Check if expression is sys.stdout
+    fn is_stdout_expr(&self, expr: &HirExpr) -> bool {
+        if let HirExpr::Attribute { value, attr } = expr {
+            if attr == "stdout" {
+                if let HirExpr::Var(name) = value.as_ref() {
+                    return name == "sys";
+                }
+            }
+        }
+        false
     }
 
     /// Apply Python truthiness conversion to non-boolean conditions
