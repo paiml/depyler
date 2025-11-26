@@ -33,6 +33,9 @@ thiserror.workspace = true
 # Logging
 tracing.workspace = true
 
+# HTTP client for API fallback
+ureq = { version = "2.9", features = ["json"] }
+
 [dev-dependencies]
 tempfile.workspace = true
 proptest.workspace = true
