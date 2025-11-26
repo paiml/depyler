@@ -120,6 +120,54 @@ pub fn generate_error_type_definitions(ctx: &CodeGenContext) -> Vec<proc_macro2:
         });
     }
 
+    // DEPYLER-0551: RuntimeError for generic runtime failures
+    if ctx.needs_runtimeerror {
+        definitions.push(quote! {
+            #[derive(Debug, Clone)]
+            pub struct RuntimeError {
+                message: String,
+            }
+
+            impl std::fmt::Display for RuntimeError {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "runtime error: {}", self.message)
+                }
+            }
+
+            impl std::error::Error for RuntimeError {}
+
+            impl RuntimeError {
+                pub fn new(message: impl Into<String>) -> Self {
+                    Self { message: message.into() }
+                }
+            }
+        });
+    }
+
+    // DEPYLER-0551: FileNotFoundError for file system errors
+    if ctx.needs_filenotfounderror {
+        definitions.push(quote! {
+            #[derive(Debug, Clone)]
+            pub struct FileNotFoundError {
+                message: String,
+            }
+
+            impl std::fmt::Display for FileNotFoundError {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "file not found: {}", self.message)
+                }
+            }
+
+            impl std::error::Error for FileNotFoundError {}
+
+            impl FileNotFoundError {
+                pub fn new(message: impl Into<String>) -> Self {
+                    Self { message: message.into() }
+                }
+            }
+        });
+    }
+
     definitions
 }
 
