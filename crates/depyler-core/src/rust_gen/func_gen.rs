@@ -1750,6 +1750,34 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
                         }
                     }
                 }
+
+                // DEPYLER-0554: datetime.datetime.fromtimestamp(param) → param is f64
+                // datetime.datetime.now() doesn't have param, but fromtimestamp does
+                if module_name == "datetime" && method == "fromtimestamp" {
+                    if let Some(first_arg) = args.first() {
+                        if let HirExpr::Var(var_name) = first_arg {
+                            if var_name == param_name {
+                                return Some(Type::Float);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // DEPYLER-0554: Handle datetime.datetime attribute access → fromtimestamp method
+            // Pattern: datetime.datetime.fromtimestamp(timestamp) where datetime.datetime is the object
+            if let HirExpr::Attribute { value, attr } = object.as_ref() {
+                if let HirExpr::Var(module_name) = value.as_ref() {
+                    if module_name == "datetime" && attr == "datetime" && method == "fromtimestamp" {
+                        if let Some(first_arg) = args.first() {
+                            if let HirExpr::Var(var_name) = first_arg {
+                                if var_name == param_name {
+                                    return Some(Type::Float);
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // Methods that expect string arguments (for method calls on objects)
@@ -1841,11 +1869,39 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
         HirExpr::Binary { left, right, op, .. } => {
             use crate::hir::BinOp;
 
-            // DEPYLER-0524: Pattern: param in string → param is String (substring check)
-            // Example: if pattern in line: → pattern must be String for .contains()
-            if matches!(op, BinOp::In) {
+            // DEPYLER-0554: Pattern: param == "literal" or param != "literal" → param is String
+            // Example: if algorithm == "md5": → algorithm must be String/&str
+            if matches!(op, BinOp::Eq | BinOp::NotEq) {
+                // Check if param is compared to a string literal
                 if let HirExpr::Var(var_name) = left.as_ref() {
                     if var_name == param_name {
+                        if matches!(right.as_ref(), HirExpr::Literal(crate::hir::Literal::String(_))) {
+                            return Some(Type::String);
+                        }
+                    }
+                }
+                // Also check the reverse: "literal" == param
+                if let HirExpr::Var(var_name) = right.as_ref() {
+                    if var_name == param_name {
+                        if matches!(left.as_ref(), HirExpr::Literal(crate::hir::Literal::String(_))) {
+                            return Some(Type::String);
+                        }
+                    }
+                }
+            }
+
+            // DEPYLER-0524: Pattern: param in string → param is String (substring check)
+            // Example: if pattern in line: → pattern must be String for .contains()
+            // DEPYLER-0554: Pattern: param in ["a", "b"] or param not in [...] → param is String
+            if matches!(op, BinOp::In | BinOp::NotIn) {
+                if let HirExpr::Var(var_name) = left.as_ref() {
+                    if var_name == param_name {
+                        // Check if right side is a list of strings
+                        if let HirExpr::List(elements) = right.as_ref() {
+                            if elements.iter().all(|e| matches!(e, HirExpr::Literal(crate::hir::Literal::String(_)))) {
+                                return Some(Type::String);
+                            }
+                        }
                         // In Python, "x in y" where y is string → x is also string
                         return Some(Type::String);
                     }
