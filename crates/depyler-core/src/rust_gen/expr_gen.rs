@@ -7879,6 +7879,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if module_name == "os" && attr == "path" {
                     return self.try_convert_os_path_method(method, args);
                 }
+                // DEPYLER-0553: Handle datetime.datetime.method() calls
+                // datetime.datetime.fromtimestamp(ts) → chrono::DateTime::from_timestamp(ts, 0)
+                // datetime.datetime.now() → chrono::Local::now()
+                if module_name == "datetime" && attr == "datetime" {
+                    return self.try_convert_datetime_method(method, args);
+                }
             }
         }
 
@@ -9605,6 +9611,48 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     return Ok(
                         parse_quote! { #object_expr.canonicalize().unwrap().to_string_lossy().to_string() },
                     );
+                }
+                _ => {} // Fall through to default handling
+            }
+        }
+
+        // DEPYLER-0553: Handle datetime instance methods
+        // Python datetime methods that need mapping to chrono equivalents
+        // Check if object is likely a datetime variable
+        let is_datetime_object = if let HirExpr::Var(var_name) = object {
+            var_name == "dt"
+                || var_name == "datetime"
+                || var_name.ends_with("_dt")
+                || var_name.ends_with("_datetime")
+                || var_name.ends_with("_date")
+                || var_name.ends_with("_time")
+        } else {
+            false
+        };
+
+        if is_datetime_object {
+            self.ctx.needs_chrono = true;
+            match method {
+                // dt.isoformat() → dt.to_string() (chrono's Display produces ISO format)
+                "isoformat" if arg_exprs.is_empty() => {
+                    return Ok(parse_quote! { #object_expr.to_string() });
+                }
+                // dt.strftime(fmt) → dt.format(fmt).to_string()
+                "strftime" if arg_exprs.len() == 1 => {
+                    let fmt = &arg_exprs[0];
+                    return Ok(parse_quote! { #object_expr.format(#fmt).to_string() });
+                }
+                // dt.timestamp() → dt.timestamp() (same in chrono)
+                "timestamp" if arg_exprs.is_empty() => {
+                    return Ok(parse_quote! { #object_expr.and_utc().timestamp() as f64 });
+                }
+                // dt.date() → dt.date() (chrono NaiveDateTime has date())
+                "date" if arg_exprs.is_empty() => {
+                    return Ok(parse_quote! { #object_expr.date() });
+                }
+                // dt.time() → dt.time() (chrono NaiveDateTime has time())
+                "time" if arg_exprs.is_empty() => {
+                    return Ok(parse_quote! { #object_expr.time() });
                 }
                 _ => {} // Fall through to default handling
             }
