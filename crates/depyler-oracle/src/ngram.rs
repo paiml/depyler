@@ -154,10 +154,7 @@ impl NgramFixPredictor {
         let patterns = self.patterns.entry(category).or_default();
 
         // Check if pattern already exists
-        if let Some(existing) = patterns
-            .iter_mut()
-            .find(|p| p.error_pattern == normalized)
-        {
+        if let Some(existing) = patterns.iter_mut().find(|p| p.error_pattern == normalized) {
             existing.increment();
         } else {
             patterns.push(FixPattern::new(&normalized, fix_template, category));
@@ -554,7 +551,11 @@ mod tests {
             "Use .parse::<u32>()",
             ErrorCategory::TypeMismatch,
         );
-        predictor.learn_pattern("cannot borrow", "Use .clone()", ErrorCategory::BorrowChecker);
+        predictor.learn_pattern(
+            "cannot borrow",
+            "Use .clone()",
+            ErrorCategory::BorrowChecker,
+        );
 
         predictor.fit().expect("fit should succeed");
 
@@ -752,7 +753,11 @@ mod tests {
         predictor.learn_pattern("type error", "type fix", ErrorCategory::TypeMismatch);
         predictor.learn_pattern("borrow error", "borrow fix", ErrorCategory::BorrowChecker);
         predictor.learn_pattern("import error", "import fix", ErrorCategory::MissingImport);
-        predictor.learn_pattern("lifetime error", "lifetime fix", ErrorCategory::LifetimeError);
+        predictor.learn_pattern(
+            "lifetime error",
+            "lifetime fix",
+            ErrorCategory::LifetimeError,
+        );
 
         assert_eq!(predictor.pattern_count(), 4);
 

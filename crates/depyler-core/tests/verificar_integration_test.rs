@@ -128,7 +128,11 @@ mod tests {
         let version = transpiler.version();
         assert!(!version.is_empty());
         // Version should be semver format
-        assert!(version.contains('.'), "Version should be semver: {}", version);
+        assert!(
+            version.contains('.'),
+            "Version should be semver: {}",
+            version
+        );
     }
 
     #[test]

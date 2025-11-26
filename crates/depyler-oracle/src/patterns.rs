@@ -235,10 +235,7 @@ impl FixTemplateRegistry {
             })
             .collect();
 
-        matches.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        matches.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         matches.into_iter().map(|(t, _)| t).collect()
     }
@@ -275,27 +272,33 @@ impl Default for FixTemplateRegistry {
 fn register_type_mismatch_templates(registry: &mut FixTemplateRegistry) {
     // Integer type conversion
     registry.register(
-        FixTemplate::builder("type-int-convert", "Integer Type Conversion", ErrorCategory::TypeMismatch)
-            .with_keywords(&["expected", "found", "i32", "i64", "u32", "u64", "isize", "usize"])
-            .with_explanation(
-                "Rust has strict type checking for integers. Different integer types \
-                 cannot be implicitly converted. Use explicit conversion with `as` or `.into()`."
-            )
-            .with_transform(CodeTransform::new(
-                "Convert using `as`",
-                r"(\w+)",
-                "$1 as TARGET_TYPE",
-                "let x: i32 = some_u64;",
-                "let x: i32 = some_u64 as i32;",
-            ))
-            .with_suggestions(&[
-                "Use `as` for explicit numeric conversion",
-                "Consider using `.try_into()` for fallible conversion",
-                "Check if the source value fits in the target type",
-            ])
-            .with_docs(&["https://doc.rust-lang.org/std/convert/trait.Into.html"])
-            .with_priority(80)
-            .build(),
+        FixTemplate::builder(
+            "type-int-convert",
+            "Integer Type Conversion",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&[
+            "expected", "found", "i32", "i64", "u32", "u64", "isize", "usize",
+        ])
+        .with_explanation(
+            "Rust has strict type checking for integers. Different integer types \
+                 cannot be implicitly converted. Use explicit conversion with `as` or `.into()`.",
+        )
+        .with_transform(CodeTransform::new(
+            "Convert using `as`",
+            r"(\w+)",
+            "$1 as TARGET_TYPE",
+            "let x: i32 = some_u64;",
+            "let x: i32 = some_u64 as i32;",
+        ))
+        .with_suggestions(&[
+            "Use `as` for explicit numeric conversion",
+            "Consider using `.try_into()` for fallible conversion",
+            "Check if the source value fits in the target type",
+        ])
+        .with_docs(&["https://doc.rust-lang.org/std/convert/trait.Into.html"])
+        .with_priority(80)
+        .build(),
     );
 
     // String type conversion
@@ -362,235 +365,295 @@ fn register_type_mismatch_templates(registry: &mut FixTemplateRegistry) {
 fn register_borrow_checker_templates(registry: &mut FixTemplateRegistry) {
     // Cannot move out of borrowed
     registry.register(
-        FixTemplate::builder("borrow-move", "Cannot Move Out of Borrowed", ErrorCategory::BorrowChecker)
-            .with_keywords(&["cannot move", "borrowed", "move out of"])
-            .with_explanation(
-                "You're trying to take ownership of a value that is only borrowed. \
-                 You need to either clone the value or restructure your code."
-            )
-            .with_transform(CodeTransform::new(
-                "Clone the value",
-                r"(\w+)",
-                "$1.clone()",
-                "let x = borrowed_value;",
-                "let x = borrowed_value.clone();",
-            ))
-            .with_suggestions(&[
-                "Clone the value if it implements Clone",
-                "Take ownership of the original instead of borrowing",
-                "Use a reference instead of owned value",
-                "Restructure to avoid needing ownership",
-            ])
-            .with_priority(85)
-            .build(),
+        FixTemplate::builder(
+            "borrow-move",
+            "Cannot Move Out of Borrowed",
+            ErrorCategory::BorrowChecker,
+        )
+        .with_keywords(&["cannot move", "borrowed", "move out of"])
+        .with_explanation(
+            "You're trying to take ownership of a value that is only borrowed. \
+                 You need to either clone the value or restructure your code.",
+        )
+        .with_transform(CodeTransform::new(
+            "Clone the value",
+            r"(\w+)",
+            "$1.clone()",
+            "let x = borrowed_value;",
+            "let x = borrowed_value.clone();",
+        ))
+        .with_suggestions(&[
+            "Clone the value if it implements Clone",
+            "Take ownership of the original instead of borrowing",
+            "Use a reference instead of owned value",
+            "Restructure to avoid needing ownership",
+        ])
+        .with_priority(85)
+        .build(),
     );
 
     // Value used after move
     registry.register(
-        FixTemplate::builder("borrow-use-after-move", "Value Used After Move", ErrorCategory::BorrowChecker)
-            .with_keywords(&["value used", "after move", "moved", "borrowed"])
-            .with_explanation(
-                "Once a value is moved, it can no longer be used. Clone the value before moving, \
-                 or restructure your code to avoid the second use."
-            )
-            .with_suggestions(&[
-                "Clone the value before the first use if you need it twice",
-                "Pass by reference instead of by value",
-                "Use Rc/Arc for shared ownership",
-                "Restructure to use the value only once",
-            ])
-            .with_docs(&["https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"])
-            .with_priority(80)
-            .build(),
+        FixTemplate::builder(
+            "borrow-use-after-move",
+            "Value Used After Move",
+            ErrorCategory::BorrowChecker,
+        )
+        .with_keywords(&["value used", "after move", "moved", "borrowed"])
+        .with_explanation(
+            "Once a value is moved, it can no longer be used. Clone the value before moving, \
+                 or restructure your code to avoid the second use.",
+        )
+        .with_suggestions(&[
+            "Clone the value before the first use if you need it twice",
+            "Pass by reference instead of by value",
+            "Use Rc/Arc for shared ownership",
+            "Restructure to use the value only once",
+        ])
+        .with_docs(&["https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"])
+        .with_priority(80)
+        .build(),
     );
 
     // Mutable borrow conflict
     registry.register(
-        FixTemplate::builder("borrow-mut-conflict", "Mutable Borrow Conflict", ErrorCategory::BorrowChecker)
-            .with_keywords(&["mutable", "immutable", "borrow", "cannot borrow", "already borrowed"])
-            .with_explanation(
-                "Rust prevents having mutable and immutable borrows at the same time. \
-                 Restructure your code to separate the borrows or use interior mutability."
-            )
-            .with_suggestions(&[
-                "Separate the mutable and immutable operations",
-                "Use interior mutability (Cell, RefCell, Mutex)",
-                "Clone data instead of borrowing",
-                "Restructure to avoid overlapping borrows",
-            ])
-            .with_docs(&["https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html"])
-            .with_priority(85)
-            .build(),
+        FixTemplate::builder(
+            "borrow-mut-conflict",
+            "Mutable Borrow Conflict",
+            ErrorCategory::BorrowChecker,
+        )
+        .with_keywords(&[
+            "mutable",
+            "immutable",
+            "borrow",
+            "cannot borrow",
+            "already borrowed",
+        ])
+        .with_explanation(
+            "Rust prevents having mutable and immutable borrows at the same time. \
+                 Restructure your code to separate the borrows or use interior mutability.",
+        )
+        .with_suggestions(&[
+            "Separate the mutable and immutable operations",
+            "Use interior mutability (Cell, RefCell, Mutex)",
+            "Clone data instead of borrowing",
+            "Restructure to avoid overlapping borrows",
+        ])
+        .with_docs(&["https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html"])
+        .with_priority(85)
+        .build(),
     );
 }
 
 fn register_lifetime_templates(registry: &mut FixTemplateRegistry) {
     // Does not live long enough
     registry.register(
-        FixTemplate::builder("lifetime-short", "Value Does Not Live Long Enough", ErrorCategory::LifetimeError)
-            .with_keywords(&["does not live long enough", "lifetime", "dropped", "borrowed value"])
-            .with_explanation(
-                "The borrowed value is dropped before the borrow ends. \
-                 You need to ensure the value lives as long as the reference."
-            )
-            .with_suggestions(&[
-                "Move the value to a longer-lived scope",
-                "Return an owned value instead of a reference",
-                "Use 'static lifetime for truly long-lived data",
-                "Clone the data to create owned value",
-            ])
-            .with_priority(80)
-            .build(),
+        FixTemplate::builder(
+            "lifetime-short",
+            "Value Does Not Live Long Enough",
+            ErrorCategory::LifetimeError,
+        )
+        .with_keywords(&[
+            "does not live long enough",
+            "lifetime",
+            "dropped",
+            "borrowed value",
+        ])
+        .with_explanation(
+            "The borrowed value is dropped before the borrow ends. \
+                 You need to ensure the value lives as long as the reference.",
+        )
+        .with_suggestions(&[
+            "Move the value to a longer-lived scope",
+            "Return an owned value instead of a reference",
+            "Use 'static lifetime for truly long-lived data",
+            "Clone the data to create owned value",
+        ])
+        .with_priority(80)
+        .build(),
     );
 
     // Explicit lifetime needed
     registry.register(
-        FixTemplate::builder("lifetime-explicit", "Explicit Lifetime Annotation Needed", ErrorCategory::LifetimeError)
-            .with_keywords(&["lifetime", "annotation", "explicit", "'a", "parameter"])
-            .with_explanation(
-                "The compiler cannot infer the lifetime relationship. \
-                 Add explicit lifetime parameters to clarify."
-            )
-            .with_transform(CodeTransform::new(
-                "Add lifetime parameter",
-                r"fn (\w+)\((.*)\) -> &(\w+)",
-                "fn $1<'a>($2) -> &'a $3",
-                "fn get_str(s: &String) -> &str",
-                "fn get_str<'a>(s: &'a String) -> &'a str",
-            ))
-            .with_suggestions(&[
-                "Add lifetime parameter <'a> to function signature",
-                "Annotate references with the same lifetime",
-                "Consider returning owned data instead",
-            ])
-            .with_docs(&["https://doc.rust-lang.org/book/ch10-03-lifetime-syntax.html"])
-            .with_priority(75)
-            .build(),
+        FixTemplate::builder(
+            "lifetime-explicit",
+            "Explicit Lifetime Annotation Needed",
+            ErrorCategory::LifetimeError,
+        )
+        .with_keywords(&["lifetime", "annotation", "explicit", "'a", "parameter"])
+        .with_explanation(
+            "The compiler cannot infer the lifetime relationship. \
+                 Add explicit lifetime parameters to clarify.",
+        )
+        .with_transform(CodeTransform::new(
+            "Add lifetime parameter",
+            r"fn (\w+)\((.*)\) -> &(\w+)",
+            "fn $1<'a>($2) -> &'a $3",
+            "fn get_str(s: &String) -> &str",
+            "fn get_str<'a>(s: &'a String) -> &'a str",
+        ))
+        .with_suggestions(&[
+            "Add lifetime parameter <'a> to function signature",
+            "Annotate references with the same lifetime",
+            "Consider returning owned data instead",
+        ])
+        .with_docs(&["https://doc.rust-lang.org/book/ch10-03-lifetime-syntax.html"])
+        .with_priority(75)
+        .build(),
     );
 }
 
 fn register_trait_bound_templates(registry: &mut FixTemplateRegistry) {
     // Trait not implemented
     registry.register(
-        FixTemplate::builder("trait-not-impl", "Trait Not Implemented", ErrorCategory::TraitBound)
-            .with_keywords(&["trait", "not implemented", "bound", "doesn't implement"])
-            .with_explanation(
-                "The type doesn't implement a required trait. \
-                 Either implement the trait or use a different approach."
-            )
-            .with_suggestions(&[
-                "Derive the trait if possible: #[derive(Clone, Debug, ...)]",
-                "Implement the trait manually",
-                "Use a wrapper type that implements the trait",
-                "Change the function to not require the trait",
-            ])
-            .with_priority(80)
-            .build(),
+        FixTemplate::builder(
+            "trait-not-impl",
+            "Trait Not Implemented",
+            ErrorCategory::TraitBound,
+        )
+        .with_keywords(&["trait", "not implemented", "bound", "doesn't implement"])
+        .with_explanation(
+            "The type doesn't implement a required trait. \
+                 Either implement the trait or use a different approach.",
+        )
+        .with_suggestions(&[
+            "Derive the trait if possible: #[derive(Clone, Debug, ...)]",
+            "Implement the trait manually",
+            "Use a wrapper type that implements the trait",
+            "Change the function to not require the trait",
+        ])
+        .with_priority(80)
+        .build(),
     );
 
     // Missing derive
     registry.register(
-        FixTemplate::builder("trait-derive", "Missing Derive Attribute", ErrorCategory::TraitBound)
-            .with_keywords(&["Clone", "Copy", "Debug", "Default", "derive", "cannot"])
-            .with_explanation(
-                "Common traits like Clone, Copy, Debug can be automatically derived. \
-                 Add #[derive(...)] to your struct or enum."
-            )
-            .with_transform(CodeTransform::new(
-                "Add derive attribute",
-                r"struct (\w+)",
-                "#[derive(Clone, Debug)]\nstruct $1",
-                "struct MyStruct { ... }",
-                "#[derive(Clone, Debug)]\nstruct MyStruct { ... }",
-            ))
-            .with_suggestions(&[
-                "Add #[derive(Clone)] for Clone trait",
-                "Add #[derive(Debug)] for Debug trait",
-                "Add #[derive(Default)] for Default trait",
-                "Combine derives: #[derive(Clone, Debug, Default)]",
-            ])
-            .with_priority(85)
-            .build(),
+        FixTemplate::builder(
+            "trait-derive",
+            "Missing Derive Attribute",
+            ErrorCategory::TraitBound,
+        )
+        .with_keywords(&["Clone", "Copy", "Debug", "Default", "derive", "cannot"])
+        .with_explanation(
+            "Common traits like Clone, Copy, Debug can be automatically derived. \
+                 Add #[derive(...)] to your struct or enum.",
+        )
+        .with_transform(CodeTransform::new(
+            "Add derive attribute",
+            r"struct (\w+)",
+            "#[derive(Clone, Debug)]\nstruct $1",
+            "struct MyStruct { ... }",
+            "#[derive(Clone, Debug)]\nstruct MyStruct { ... }",
+        ))
+        .with_suggestions(&[
+            "Add #[derive(Clone)] for Clone trait",
+            "Add #[derive(Debug)] for Debug trait",
+            "Add #[derive(Default)] for Default trait",
+            "Combine derives: #[derive(Clone, Debug, Default)]",
+        ])
+        .with_priority(85)
+        .build(),
     );
 }
 
 fn register_import_templates(registry: &mut FixTemplateRegistry) {
     // Not found in scope
     registry.register(
-        FixTemplate::builder("import-not-found", "Item Not Found in Scope", ErrorCategory::MissingImport)
-            .with_keywords(&["not found", "cannot find", "unresolved", "use of undeclared"])
-            .with_explanation(
-                "The item is not in scope. You need to import it with `use` \
-                 or use the fully qualified path."
-            )
-            .with_suggestions(&[
-                "Add `use` statement at the top of the file",
-                "Use fully qualified path: std::collections::HashMap",
-                "Check if the crate is in Cargo.toml dependencies",
-                "Verify the item exists in that module",
-            ])
-            .with_priority(80)
-            .build(),
+        FixTemplate::builder(
+            "import-not-found",
+            "Item Not Found in Scope",
+            ErrorCategory::MissingImport,
+        )
+        .with_keywords(&[
+            "not found",
+            "cannot find",
+            "unresolved",
+            "use of undeclared",
+        ])
+        .with_explanation(
+            "The item is not in scope. You need to import it with `use` \
+                 or use the fully qualified path.",
+        )
+        .with_suggestions(&[
+            "Add `use` statement at the top of the file",
+            "Use fully qualified path: std::collections::HashMap",
+            "Check if the crate is in Cargo.toml dependencies",
+            "Verify the item exists in that module",
+        ])
+        .with_priority(80)
+        .build(),
     );
 
     // Common std imports
     registry.register(
-        FixTemplate::builder("import-std-common", "Common Standard Library Imports", ErrorCategory::MissingImport)
-            .with_keywords(&["HashMap", "HashSet", "Vec", "String", "Box", "Rc", "Arc", "Cell", "RefCell"])
-            .with_explanation(
-                "Common standard library types need to be imported."
-            )
-            .with_transform(CodeTransform::new(
-                "Import HashMap",
-                "HashMap",
-                "use std::collections::HashMap;\n\nHashMap",
-                "let map: HashMap<K, V>",
-                "use std::collections::HashMap;\n\nlet map: HashMap<K, V>",
-            ))
-            .with_suggestions(&[
-                "use std::collections::{HashMap, HashSet};",
-                "use std::rc::Rc;",
-                "use std::sync::Arc;",
-                "use std::cell::{Cell, RefCell};",
-            ])
-            .with_priority(85)
-            .build(),
+        FixTemplate::builder(
+            "import-std-common",
+            "Common Standard Library Imports",
+            ErrorCategory::MissingImport,
+        )
+        .with_keywords(&[
+            "HashMap", "HashSet", "Vec", "String", "Box", "Rc", "Arc", "Cell", "RefCell",
+        ])
+        .with_explanation("Common standard library types need to be imported.")
+        .with_transform(CodeTransform::new(
+            "Import HashMap",
+            "HashMap",
+            "use std::collections::HashMap;\n\nHashMap",
+            "let map: HashMap<K, V>",
+            "use std::collections::HashMap;\n\nlet map: HashMap<K, V>",
+        ))
+        .with_suggestions(&[
+            "use std::collections::{HashMap, HashSet};",
+            "use std::rc::Rc;",
+            "use std::sync::Arc;",
+            "use std::cell::{Cell, RefCell};",
+        ])
+        .with_priority(85)
+        .build(),
     );
 }
 
 fn register_syntax_templates(registry: &mut FixTemplateRegistry) {
     // Missing semicolon
     registry.register(
-        FixTemplate::builder("syntax-semicolon", "Missing Semicolon", ErrorCategory::SyntaxError)
-            .with_keywords(&["expected", ";", "semicolon", "statement"])
-            .with_explanation(
-                "Statements in Rust must end with a semicolon (;). \
-                 Expressions that are returned don't need semicolons."
-            )
-            .with_suggestions(&[
-                "Add semicolon at end of statement",
-                "If this is a return expression, remove the semicolon",
-                "Check for unmatched brackets or braces above",
-            ])
-            .with_priority(90)
-            .build(),
+        FixTemplate::builder(
+            "syntax-semicolon",
+            "Missing Semicolon",
+            ErrorCategory::SyntaxError,
+        )
+        .with_keywords(&["expected", ";", "semicolon", "statement"])
+        .with_explanation(
+            "Statements in Rust must end with a semicolon (;). \
+                 Expressions that are returned don't need semicolons.",
+        )
+        .with_suggestions(&[
+            "Add semicolon at end of statement",
+            "If this is a return expression, remove the semicolon",
+            "Check for unmatched brackets or braces above",
+        ])
+        .with_priority(90)
+        .build(),
     );
 
     // Unmatched brackets
     registry.register(
-        FixTemplate::builder("syntax-brackets", "Unmatched Brackets", ErrorCategory::SyntaxError)
-            .with_keywords(&["expected", "}", ")", "]", "unmatched", "unclosed"])
-            .with_explanation(
-                "Opening and closing brackets must be balanced. \
-                 Check for missing or extra brackets."
-            )
-            .with_suggestions(&[
-                "Count opening and closing brackets",
-                "Use editor bracket matching feature",
-                "Check recent changes for missing brackets",
-            ])
-            .with_priority(85)
-            .build(),
+        FixTemplate::builder(
+            "syntax-brackets",
+            "Unmatched Brackets",
+            ErrorCategory::SyntaxError,
+        )
+        .with_keywords(&["expected", "}", ")", "]", "unmatched", "unclosed"])
+        .with_explanation(
+            "Opening and closing brackets must be balanced. \
+                 Check for missing or extra brackets.",
+        )
+        .with_suggestions(&[
+            "Count opening and closing brackets",
+            "Use editor bracket matching feature",
+            "Check recent changes for missing brackets",
+        ])
+        .with_priority(85)
+        .build(),
     );
 }
 
@@ -624,12 +687,13 @@ mod tests {
 
     #[test]
     fn test_fix_template_builder() {
-        let template = FixTemplate::builder("test-id", "Test Template", ErrorCategory::TypeMismatch)
-            .with_keywords(&["expected", "found"])
-            .with_explanation("Test explanation")
-            .with_suggestions(&["Suggestion 1", "Suggestion 2"])
-            .with_priority(75)
-            .build();
+        let template =
+            FixTemplate::builder("test-id", "Test Template", ErrorCategory::TypeMismatch)
+                .with_keywords(&["expected", "found"])
+                .with_explanation("Test explanation")
+                .with_suggestions(&["Suggestion 1", "Suggestion 2"])
+                .with_priority(75)
+                .build();
 
         assert_eq!(template.id, "test-id");
         assert_eq!(template.name, "Test Template");
@@ -668,8 +732,7 @@ mod tests {
 
     #[test]
     fn test_fix_template_empty_keywords() {
-        let template = FixTemplate::builder("test", "Test", ErrorCategory::TypeMismatch)
-            .build();
+        let template = FixTemplate::builder("test", "Test", ErrorCategory::TypeMismatch).build();
 
         let score = template.match_score("anything");
         assert!((score - 0.0).abs() < 1e-6);
@@ -695,10 +758,8 @@ mod tests {
     fn test_registry_register() {
         let mut registry = FixTemplateRegistry::new();
 
-        registry.register(
-            FixTemplate::builder("test", "Test", ErrorCategory::TypeMismatch)
-                .build(),
-        );
+        registry
+            .register(FixTemplate::builder("test", "Test", ErrorCategory::TypeMismatch).build());
 
         assert_eq!(registry.template_count(), 1);
     }

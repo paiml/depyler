@@ -88,7 +88,7 @@ pub struct CodeGenContext<'a> {
     pub needs_indexerror: bool,
     pub needs_valueerror: bool,
     pub needs_argumenttypeerror: bool,
-    pub needs_runtimeerror: bool,      // DEPYLER-0551: Python RuntimeError
+    pub needs_runtimeerror: bool, // DEPYLER-0551: Python RuntimeError
     pub needs_filenotfounderror: bool, // DEPYLER-0551: Python FileNotFoundError
     pub is_classmethod: bool,
     pub in_generator: bool,

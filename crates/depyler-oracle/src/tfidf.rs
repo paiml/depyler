@@ -268,10 +268,7 @@ impl TfidfFeatureExtractor {
             })
             .collect();
 
-        features.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        features.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         features.truncate(n);
         features
@@ -304,36 +301,9 @@ fn preprocess(message: &str) -> String {
 /// Rust-specific stop words for error messages.
 const RUST_ERROR_STOPWORDS: [&str; 30] = [
     // Common error message words
-    "error",
-    "warning",
-    "note",
-    "help",
-    "the",
-    "a",
-    "an",
-    "is",
-    "are",
-    "was",
-    "were",
-    "this",
-    "that",
-    "in",
-    "at",
-    "to",
-    "for",
-    "of",
-    "with",
-    "as",
-    "by",
-    "on",
-    "from",
-    "or",
-    "and",
-    "not",
-    "be",
-    "can",
-    "has",
-    "have",
+    "error", "warning", "note", "help", "the", "a", "an", "is", "are", "was", "were", "this",
+    "that", "in", "at", "to", "for", "of", "with", "as", "by", "on", "from", "or", "and", "not",
+    "be", "can", "has", "have",
 ];
 
 /// Combined feature extractor using both hand-crafted and TF-IDF features.
@@ -533,11 +503,7 @@ mod tests {
     #[test]
     fn test_transform_success() {
         let mut extractor = TfidfFeatureExtractor::new();
-        let training = vec![
-            "expected i32 found str",
-            "cannot borrow",
-            "type needed",
-        ];
+        let training = vec!["expected i32 found str", "cannot borrow", "type needed"];
 
         extractor.fit(&training).unwrap();
 
@@ -549,11 +515,7 @@ mod tests {
     #[test]
     fn test_fit_transform() {
         let mut extractor = TfidfFeatureExtractor::new();
-        let docs = vec![
-            "expected i32 found str",
-            "cannot borrow",
-            "type needed",
-        ];
+        let docs = vec!["expected i32 found str", "cannot borrow", "type needed"];
 
         let matrix = extractor.fit_transform(&docs).unwrap();
 
@@ -563,8 +525,7 @@ mod tests {
 
     #[test]
     fn test_ngram_range_config() {
-        let extractor = TfidfFeatureExtractor::new()
-            .with_ngram_range(1, 3);
+        let extractor = TfidfFeatureExtractor::new().with_ngram_range(1, 3);
 
         assert_eq!(extractor.config().ngram_range, (1, 3));
         assert!(!extractor.is_fitted());
@@ -572,16 +533,14 @@ mod tests {
 
     #[test]
     fn test_max_features_config() {
-        let extractor = TfidfFeatureExtractor::new()
-            .with_max_features(50);
+        let extractor = TfidfFeatureExtractor::new().with_max_features(50);
 
         assert_eq!(extractor.config().max_features, Some(50));
     }
 
     #[test]
     fn test_top_features() {
-        let mut extractor = TfidfFeatureExtractor::new()
-            .with_max_features(20);
+        let mut extractor = TfidfFeatureExtractor::new().with_max_features(20);
 
         let docs = vec![
             "expected type i32 found type str",
@@ -661,11 +620,7 @@ mod tests {
     #[test]
     fn test_combined_transform() {
         let mut extractor = CombinedFeatureExtractor::new();
-        let docs = vec![
-            "expected i32 found str",
-            "cannot borrow",
-            "type needed",
-        ];
+        let docs = vec!["expected i32 found str", "cannot borrow", "type needed"];
 
         extractor.fit(&docs).unwrap();
 
@@ -677,8 +632,7 @@ mod tests {
 
     #[test]
     fn test_combined_without_handcrafted() {
-        let mut extractor = CombinedFeatureExtractor::new()
-            .with_handcrafted(false);
+        let mut extractor = CombinedFeatureExtractor::new().with_handcrafted(false);
 
         let docs = vec!["error one", "error two"];
         extractor.fit(&docs).unwrap();

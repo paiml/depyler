@@ -458,48 +458,39 @@ impl TypeHintProvider {
         match value {
             // Variable assigned from another variable (might be a parameter or dict)
             HirExpr::Var(_) => {
-                self.context
-                    .non_list_variables
-                    .insert(var_name.to_string());
+                self.context.non_list_variables.insert(var_name.to_string());
             }
             // Variable assigned from indexing (e.g., value = config["key"])
             HirExpr::Index { .. } => {
-                self.context
-                    .non_list_variables
-                    .insert(var_name.to_string());
+                self.context.non_list_variables.insert(var_name.to_string());
             }
             // Variable assigned from dict literal
             HirExpr::Dict(_) => {
-                self.context
-                    .non_list_variables
-                    .insert(var_name.to_string());
+                self.context.non_list_variables.insert(var_name.to_string());
             }
             // Variable assigned from attribute access (e.g., obj.value)
             HirExpr::Attribute { .. } => {
-                self.context
-                    .non_list_variables
-                    .insert(var_name.to_string());
+                self.context.non_list_variables.insert(var_name.to_string());
             }
             // DEPYLER-0532: Handle method calls that return known types
             HirExpr::MethodCall { object, method, .. } => {
                 // Check for module method calls with known return types
                 if let HirExpr::Var(module_name) = object.as_ref() {
-                    let module_method_type =
-                        match (module_name.as_str(), method.as_str()) {
-                            // Regex methods that return lists
-                            ("re", "findall") | ("regex", "findall") => {
-                                Some(Type::List(Box::new(Type::String)))
-                            }
-                            ("re", "split") | ("regex", "split") => {
-                                Some(Type::List(Box::new(Type::String)))
-                            }
-                            // JSON methods
-                            ("json", "loads") | ("json", "load") => {
-                                Some(Type::Custom("serde_json::Value".to_string()))
-                            }
-                            ("json", "dumps") => Some(Type::String),
-                            _ => None,
-                        };
+                    let module_method_type = match (module_name.as_str(), method.as_str()) {
+                        // Regex methods that return lists
+                        ("re", "findall") | ("regex", "findall") => {
+                            Some(Type::List(Box::new(Type::String)))
+                        }
+                        ("re", "split") | ("regex", "split") => {
+                            Some(Type::List(Box::new(Type::String)))
+                        }
+                        // JSON methods
+                        ("json", "loads") | ("json", "load") => {
+                            Some(Type::Custom("serde_json::Value".to_string()))
+                        }
+                        ("json", "dumps") => Some(Type::String),
+                        _ => None,
+                    };
                     if let Some(ty) = module_method_type {
                         self.add_compatible_constraint(var_name, ty);
                     }

@@ -62,14 +62,36 @@ impl SyntheticGenerator {
 
         // Type pairs for mismatches
         let type_pairs = [
-            ("i32", "i64"), ("i64", "i32"), ("u32", "usize"), ("usize", "u32"),
-            ("i8", "i16"), ("i16", "i32"), ("i32", "isize"), ("u8", "u16"),
-            ("u16", "u32"), ("u32", "u64"), ("f32", "f64"), ("f64", "f32"),
-            ("String", "&str"), ("&str", "String"), ("&String", "&str"),
-            ("Option<T>", "T"), ("T", "Option<T>"), ("Result<T, E>", "T"),
-            ("&T", "T"), ("T", "&T"), ("&mut T", "&T"), ("&T", "&mut T"),
-            ("Box<T>", "T"), ("T", "Box<T>"), ("Vec<T>", "&[T]"), ("&[T]", "Vec<T>"),
-            ("char", "u8"), ("u8", "char"), ("bool", "i32"), ("()", "i32"),
+            ("i32", "i64"),
+            ("i64", "i32"),
+            ("u32", "usize"),
+            ("usize", "u32"),
+            ("i8", "i16"),
+            ("i16", "i32"),
+            ("i32", "isize"),
+            ("u8", "u16"),
+            ("u16", "u32"),
+            ("u32", "u64"),
+            ("f32", "f64"),
+            ("f64", "f32"),
+            ("String", "&str"),
+            ("&str", "String"),
+            ("&String", "&str"),
+            ("Option<T>", "T"),
+            ("T", "Option<T>"),
+            ("Result<T, E>", "T"),
+            ("&T", "T"),
+            ("T", "&T"),
+            ("&mut T", "&T"),
+            ("&T", "&mut T"),
+            ("Box<T>", "T"),
+            ("T", "Box<T>"),
+            ("Vec<T>", "&[T]"),
+            ("&[T]", "Vec<T>"),
+            ("char", "u8"),
+            ("u8", "char"),
+            ("bool", "i32"),
+            ("()", "i32"),
         ];
 
         // Error code patterns
@@ -77,9 +99,16 @@ impl SyntheticGenerator {
 
         // Context variations
         let contexts = [
-            "in this expression", "in return type", "in function argument",
-            "in assignment", "in match arm", "in if condition", "in loop body",
-            "in closure", "in trait implementation", "in generic bound",
+            "in this expression",
+            "in return type",
+            "in function argument",
+            "in assignment",
+            "in match arm",
+            "in if condition",
+            "in loop body",
+            "in closure",
+            "in trait implementation",
+            "in generic bound",
         ];
 
         let mut idx = 0;
@@ -96,8 +125,12 @@ impl SyntheticGenerator {
             let fix = match (expected, found) {
                 ("String", "&str") => "Use .to_string() to convert",
                 ("&str", "String") => "Use & or .as_str() to borrow",
-                (e, f) if e.starts_with("i") && f.starts_with("i") => "Use as cast for integer conversion",
-                (e, f) if e.starts_with("u") && f.starts_with("u") => "Use as cast for unsigned conversion",
+                (e, f) if e.starts_with("i") && f.starts_with("i") => {
+                    "Use as cast for integer conversion"
+                }
+                (e, f) if e.starts_with("u") && f.starts_with("u") => {
+                    "Use as cast for unsigned conversion"
+                }
                 ("Option<T>", "T") => "Wrap with Some(value)",
                 ("T", "Option<T>") => "Unwrap with .unwrap() or pattern match",
                 ("&T", "T") => "Add & to take reference",
@@ -105,7 +138,11 @@ impl SyntheticGenerator {
                 _ => "Check type annotations and conversions",
             };
 
-            samples.push(TrainingSample::with_fix(&msg, ErrorCategory::TypeMismatch, fix));
+            samples.push(TrainingSample::with_fix(
+                &msg,
+                ErrorCategory::TypeMismatch,
+                fix,
+            ));
             idx += 1;
         }
 
@@ -116,34 +153,74 @@ impl SyntheticGenerator {
     fn generate_borrow_checker_samples(&self) -> Vec<TrainingSample> {
         let mut samples = Vec::with_capacity(self.config.samples_per_category);
 
-        let var_names = ["x", "y", "data", "value", "item", "result", "buf", "config", "state", "cache"];
-        let error_codes = ["E0382", "E0502", "E0499", "E0505", "E0507", "E0596", "E0597", "E0373"];
+        let var_names = [
+            "x", "y", "data", "value", "item", "result", "buf", "config", "state", "cache",
+        ];
+        let error_codes = [
+            "E0382", "E0502", "E0499", "E0505", "E0507", "E0596", "E0597", "E0373",
+        ];
 
         let patterns = [
             ("use of moved value", "Clone before moving or use reference"),
-            ("borrow of moved value", "Restructure to avoid move before borrow"),
-            ("cannot borrow as mutable because also borrowed as immutable", "Separate mutable and immutable borrows"),
-            ("cannot borrow as mutable more than once", "Use RefCell for interior mutability"),
-            ("cannot move out of borrowed content", "Clone or change signature"),
-            ("cannot borrow as mutable, as it is not declared as mutable", "Add mut to declaration"),
-            ("does not live long enough", "Extend lifetime or use owned data"),
-            ("closure may outlive current function", "Use move keyword in closure"),
+            (
+                "borrow of moved value",
+                "Restructure to avoid move before borrow",
+            ),
+            (
+                "cannot borrow as mutable because also borrowed as immutable",
+                "Separate mutable and immutable borrows",
+            ),
+            (
+                "cannot borrow as mutable more than once",
+                "Use RefCell for interior mutability",
+            ),
+            (
+                "cannot move out of borrowed content",
+                "Clone or change signature",
+            ),
+            (
+                "cannot borrow as mutable, as it is not declared as mutable",
+                "Add mut to declaration",
+            ),
+            (
+                "does not live long enough",
+                "Extend lifetime or use owned data",
+            ),
+            (
+                "closure may outlive current function",
+                "Use move keyword in closure",
+            ),
         ];
 
         let mut idx = 0;
         while samples.len() < self.config.samples_per_category {
             let var = var_names[idx % var_names.len()];
             let code = error_codes[(idx / var_names.len()) % error_codes.len()];
-            let (pattern, fix) = patterns[(idx / (var_names.len() * error_codes.len())) % patterns.len()];
+            let (pattern, fix) =
+                patterns[(idx / (var_names.len() * error_codes.len())) % patterns.len()];
 
             let msg = format!(
                 "error[{}]: {}: `{}`\n  value {} here\n  {} here",
-                code, pattern, var,
-                if pattern.contains("moved") { "moved" } else { "borrowed" },
-                if pattern.contains("moved") { "used" } else { "borrowed again" }
+                code,
+                pattern,
+                var,
+                if pattern.contains("moved") {
+                    "moved"
+                } else {
+                    "borrowed"
+                },
+                if pattern.contains("moved") {
+                    "used"
+                } else {
+                    "borrowed again"
+                }
             );
 
-            samples.push(TrainingSample::with_fix(&msg, ErrorCategory::BorrowChecker, fix));
+            samples.push(TrainingSample::with_fix(
+                &msg,
+                ErrorCategory::BorrowChecker,
+                fix,
+            ));
             idx += 1;
         }
 
@@ -160,24 +237,41 @@ impl SyntheticGenerator {
         let patterns = [
             ("missing lifetime specifier", "Add lifetime parameter: <'a>"),
             ("explicit lifetime required", "Add lifetime annotation"),
-            ("cannot infer appropriate lifetime", "Add explicit lifetime bounds"),
-            ("needs to satisfy 'static requirement", "Use Box or Arc for 'static"),
-            ("cannot return reference to temporary", "Return owned value instead"),
-            ("temporary value dropped while borrowed", "Bind temporary to variable"),
+            (
+                "cannot infer appropriate lifetime",
+                "Add explicit lifetime bounds",
+            ),
+            (
+                "needs to satisfy 'static requirement",
+                "Use Box or Arc for 'static",
+            ),
+            (
+                "cannot return reference to temporary",
+                "Return owned value instead",
+            ),
+            (
+                "temporary value dropped while borrowed",
+                "Bind temporary to variable",
+            ),
         ];
 
         let mut idx = 0;
         while samples.len() < self.config.samples_per_category {
             let lt = lifetimes[idx % lifetimes.len()];
             let code = error_codes[(idx / lifetimes.len()) % error_codes.len()];
-            let (pattern, fix) = patterns[(idx / (lifetimes.len() * error_codes.len())) % patterns.len()];
+            let (pattern, fix) =
+                patterns[(idx / (lifetimes.len() * error_codes.len())) % patterns.len()];
 
             let msg = format!(
                 "error[{}]: {}\n  expected named lifetime parameter `{}`",
                 code, pattern, lt
             );
 
-            samples.push(TrainingSample::with_fix(&msg, ErrorCategory::LifetimeError, fix));
+            samples.push(TrainingSample::with_fix(
+                &msg,
+                ErrorCategory::LifetimeError,
+                fix,
+            ));
             idx += 1;
         }
 
@@ -189,10 +283,27 @@ impl SyntheticGenerator {
         let mut samples = Vec::with_capacity(self.config.samples_per_category);
 
         let traits = [
-            "Clone", "Copy", "Debug", "Default", "Send", "Sync",
-            "Eq", "PartialEq", "Ord", "PartialOrd", "Hash",
-            "Serialize", "Deserialize", "Display", "FromStr",
-            "Iterator", "IntoIterator", "From", "Into", "TryFrom", "TryInto",
+            "Clone",
+            "Copy",
+            "Debug",
+            "Default",
+            "Send",
+            "Sync",
+            "Eq",
+            "PartialEq",
+            "Ord",
+            "PartialOrd",
+            "Hash",
+            "Serialize",
+            "Deserialize",
+            "Display",
+            "FromStr",
+            "Iterator",
+            "IntoIterator",
+            "From",
+            "Into",
+            "TryFrom",
+            "TryInto",
         ];
 
         let types = ["T", "MyStruct", "Config", "Data", "Handler", "Service"];
@@ -208,14 +319,22 @@ impl SyntheticGenerator {
             );
 
             let fix = match trait_name {
-                "Clone" | "Copy" | "Debug" | "Default" | "Eq" | "PartialEq" | "Ord" | "PartialOrd" | "Hash"
-                    => format!("Add #[derive({})] to type definition", trait_name),
+                "Clone" | "Copy" | "Debug" | "Default" | "Eq" | "PartialEq" | "Ord"
+                | "PartialOrd" | "Hash" => {
+                    format!("Add #[derive({})] to type definition", trait_name)
+                }
                 "Send" | "Sync" => "Ensure all fields are thread-safe".to_string(),
-                "Serialize" | "Deserialize" => "Add #[derive(Serialize, Deserialize)] with serde".to_string(),
+                "Serialize" | "Deserialize" => {
+                    "Add #[derive(Serialize, Deserialize)] with serde".to_string()
+                }
                 _ => format!("Implement {} for the type", trait_name),
             };
 
-            samples.push(TrainingSample::with_fix(&msg, ErrorCategory::TraitBound, &fix));
+            samples.push(TrainingSample::with_fix(
+                &msg,
+                ErrorCategory::TraitBound,
+                &fix,
+            ));
             idx += 1;
         }
 
@@ -227,13 +346,25 @@ impl SyntheticGenerator {
         let mut samples = Vec::with_capacity(self.config.samples_per_category);
 
         let modules = [
-            "std::collections::HashMap", "std::collections::HashSet",
-            "std::collections::BTreeMap", "std::collections::VecDeque",
-            "std::sync::Arc", "std::sync::Mutex", "std::sync::RwLock",
-            "std::io::Read", "std::io::Write", "std::io::BufReader",
-            "std::path::Path", "std::path::PathBuf", "std::fs::File",
-            "serde::Serialize", "serde::Deserialize", "serde_json::Value",
-            "tokio::spawn", "tokio::sync::mpsc", "anyhow::Result",
+            "std::collections::HashMap",
+            "std::collections::HashSet",
+            "std::collections::BTreeMap",
+            "std::collections::VecDeque",
+            "std::sync::Arc",
+            "std::sync::Mutex",
+            "std::sync::RwLock",
+            "std::io::Read",
+            "std::io::Write",
+            "std::io::BufReader",
+            "std::path::Path",
+            "std::path::PathBuf",
+            "std::fs::File",
+            "serde::Serialize",
+            "serde::Deserialize",
+            "serde_json::Value",
+            "tokio::spawn",
+            "tokio::sync::mpsc",
+            "anyhow::Result",
         ];
 
         let error_codes = ["E0433", "E0412", "E0425", "E0432", "E0603", "E0599"];
@@ -245,18 +376,37 @@ impl SyntheticGenerator {
             let item = module.split("::").last().unwrap_or("unknown");
 
             let msg = match code {
-                "E0433" => format!("error[{}]: failed to resolve: use of undeclared crate or module `{}`", code, item),
+                "E0433" => format!(
+                    "error[{}]: failed to resolve: use of undeclared crate or module `{}`",
+                    code, item
+                ),
                 "E0412" => format!("error[{}]: cannot find type `{}` in this scope", code, item),
-                "E0425" => format!("error[{}]: cannot find value `{}` in this scope", code, item.to_lowercase()),
+                "E0425" => format!(
+                    "error[{}]: cannot find value `{}` in this scope",
+                    code,
+                    item.to_lowercase()
+                ),
                 "E0432" => format!("error[{}]: unresolved import `{}`", code, module),
-                "E0603" => format!("error[{}]: module `{}` is private", code, item.to_lowercase()),
-                "E0599" => format!("error[{}]: no method named `{}` found", code, item.to_lowercase()),
+                "E0603" => format!(
+                    "error[{}]: module `{}` is private",
+                    code,
+                    item.to_lowercase()
+                ),
+                "E0599" => format!(
+                    "error[{}]: no method named `{}` found",
+                    code,
+                    item.to_lowercase()
+                ),
                 _ => format!("error[{}]: import error for `{}`", code, module),
             };
 
             let fix = format!("Add: use {};", module);
 
-            samples.push(TrainingSample::with_fix(&msg, ErrorCategory::MissingImport, &fix));
+            samples.push(TrainingSample::with_fix(
+                &msg,
+                ErrorCategory::MissingImport,
+                &fix,
+            ));
             idx += 1;
         }
 
@@ -271,18 +421,35 @@ impl SyntheticGenerator {
             ("expected `;`, found `}`", "Add missing semicolon"),
             ("expected `{`, found `=>`", "Check match arm syntax"),
             ("unexpected token `)`", "Check for extra parentheses"),
-            ("expected expression, found `let`", "Remove let in expression position"),
+            (
+                "expected expression, found `let`",
+                "Remove let in expression position",
+            ),
             ("unclosed delimiter", "Add missing closing bracket/brace"),
-            ("expected identifier, found keyword", "Use raw identifier r#keyword"),
-            ("expected pattern, found expression", "Use pattern syntax in match"),
+            (
+                "expected identifier, found keyword",
+                "Use raw identifier r#keyword",
+            ),
+            (
+                "expected pattern, found expression",
+                "Use pattern syntax in match",
+            ),
             ("expected type, found `=`", "Check type annotation syntax"),
             ("missing `fn` for method definition", "Add fn keyword"),
-            ("expected `->`, found `=>`", "Use -> for return type, => for match arms"),
+            (
+                "expected `->`, found `=>`",
+                "Use -> for return type, => for match arms",
+            ),
         ];
 
         let contexts = [
-            "at line 10", "at line 25", "at line 42", "at line 100",
-            "in function main", "in impl block", "in match expression",
+            "at line 10",
+            "at line 25",
+            "at line 42",
+            "at line 100",
+            "in function main",
+            "in impl block",
+            "in match expression",
         ];
 
         let mut idx = 0;
@@ -290,9 +457,18 @@ impl SyntheticGenerator {
             let (pattern, fix) = patterns[idx % patterns.len()];
             let context = contexts[(idx / patterns.len()) % contexts.len()];
 
-            let msg = format!("error: {}\n  --> src/lib.rs:{}:1\n  {}", pattern, (idx % 200) + 1, context);
+            let msg = format!(
+                "error: {}\n  --> src/lib.rs:{}:1\n  {}",
+                pattern,
+                (idx % 200) + 1,
+                context
+            );
 
-            samples.push(TrainingSample::with_fix(&msg, ErrorCategory::SyntaxError, fix));
+            samples.push(TrainingSample::with_fix(
+                &msg,
+                ErrorCategory::SyntaxError,
+                fix,
+            ));
             idx += 1;
         }
 
@@ -318,7 +494,8 @@ pub fn generate_synthetic_corpus_sized(samples_per_category: usize) -> TrainingD
     SyntheticGenerator::with_config(SyntheticConfig {
         samples_per_category,
         ..Default::default()
-    }).generate()
+    })
+    .generate()
 }
 
 #[cfg(test)]
@@ -343,9 +520,15 @@ mod tests {
     fn test_category_balance() {
         let dataset = generate_synthetic_corpus_sized(100);
 
-        let type_count = dataset.samples_for_category(ErrorCategory::TypeMismatch).len();
-        let borrow_count = dataset.samples_for_category(ErrorCategory::BorrowChecker).len();
-        let lifetime_count = dataset.samples_for_category(ErrorCategory::LifetimeError).len();
+        let type_count = dataset
+            .samples_for_category(ErrorCategory::TypeMismatch)
+            .len();
+        let borrow_count = dataset
+            .samples_for_category(ErrorCategory::BorrowChecker)
+            .len();
+        let lifetime_count = dataset
+            .samples_for_category(ErrorCategory::LifetimeError)
+            .len();
 
         // Each category should have ~100 samples
         assert!(type_count >= 100, "TypeMismatch: {}", type_count);
@@ -358,7 +541,11 @@ mod tests {
         let dataset = generate_synthetic_corpus_sized(10);
 
         for sample in dataset.samples() {
-            assert!(sample.fix.is_some(), "Sample missing fix: {}", sample.message);
+            assert!(
+                sample.fix.is_some(),
+                "Sample missing fix: {}",
+                sample.message
+            );
         }
     }
 
@@ -369,14 +556,18 @@ mod tests {
             dataset.samples().iter().map(|s| &s.message).collect();
 
         // Should have high variety (mostly unique messages)
-        assert!(messages.len() > dataset.len() * 8 / 10,
-            "Low variety: {} unique out of {}", messages.len(), dataset.len());
+        assert!(
+            messages.len() > dataset.len() * 8 / 10,
+            "Low variety: {} unique out of {}",
+            messages.len(),
+            dataset.len()
+        );
     }
 
     #[test]
     fn test_corpus_composition() {
-        use crate::verificar_integration::build_verificar_corpus;
         use crate::depyler_training::build_combined_corpus;
+        use crate::verificar_integration::build_verificar_corpus;
 
         let verificar = build_verificar_corpus();
         let depyler = build_combined_corpus();
@@ -387,7 +578,10 @@ mod tests {
         eprintln!("  Depyler:    {:>6} samples", depyler.len());
         eprintln!("  Synthetic:  {:>6} samples", synthetic.len());
         eprintln!("  -----------------------------------");
-        eprintln!("  Total:      {:>6} samples", verificar.len() + depyler.len() + synthetic.len());
+        eprintln!(
+            "  Total:      {:>6} samples",
+            verificar.len() + depyler.len() + synthetic.len()
+        );
         eprintln!("===========================================\n");
 
         // Total should be > 12,000 (synthetic alone is 12,000)
