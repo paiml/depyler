@@ -561,6 +561,15 @@ fn apply_borrowing_to_type(
         return Ok(ty);
     }
 
+    // DEPYLER-0566: Primitive types implement Copy, so pass by value (no reference needed)
+    // bool, i32, i64, f32, f64, char, etc. should NOT be borrowed
+    if matches!(
+        rust_type,
+        crate::type_mapper::RustType::Primitive(_) | crate::type_mapper::RustType::Unit
+    ) {
+        return Ok(ty);
+    }
+
     // Special case for strings: use &str instead of &String
     if matches!(rust_type, crate::type_mapper::RustType::String) {
         // DEPYLER-0275: Elide lifetime if elision rules apply
@@ -1197,6 +1206,15 @@ fn infer_expr_type_with_env(
                 // DEPYLER-0532: Regex methods that return lists
                 "findall" | "finditer" => Type::List(Box::new(Type::String)),
                 "groups" => Type::List(Box::new(Type::String)),
+                // DEPYLER-0555: String-returning methods for return type inference
+                // DEPYLER-0565: Added hexdigest for hashlib
+                "isoformat" | "strftime" | "format" | "to_string" | "to_str"
+                | "upper" | "lower" | "strip" | "lstrip" | "rstrip"
+                | "replace" | "join" | "split" | "encode" | "decode"
+                | "hexdigest" | "digest" => Type::String,
+                // datetime methods that return other types
+                "timestamp" => Type::Float,
+                "date" | "time" => Type::Custom("NaiveDate".to_string()),
                 _ => Type::Unknown,
             }
         }
@@ -1886,6 +1904,22 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
                         if matches!(left.as_ref(), HirExpr::Literal(crate::hir::Literal::String(_))) {
                             return Some(Type::String);
                         }
+                    }
+                }
+            }
+
+            // DEPYLER-0566: Pattern: param and something, param or something → param is Bool
+            // Example: if include_hash and "hash" in info: → include_hash must be bool
+            if matches!(op, BinOp::And | BinOp::Or) {
+                // Check if param is used directly as a boolean operand
+                if let HirExpr::Var(var_name) = left.as_ref() {
+                    if var_name == param_name {
+                        return Some(Type::Bool);
+                    }
+                }
+                if let HirExpr::Var(var_name) = right.as_ref() {
+                    if var_name == param_name {
+                        return Some(Type::Bool);
                     }
                 }
             }
