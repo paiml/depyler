@@ -1,0 +1,85 @@
+{
+  "stats": {
+    "total": 10,
+    "transpile_success": 10,
+    "transpile_fail": 0,
+    "compile_success": 0,
+    "compile_fail": 10
+  },
+  "error_categories": {},
+  "error_details": [
+    {
+      "test_id": 1,
+      "depth": 1,
+      "features": "",
+      "errors": [],
+      "code_snippet": "pass"
+    },
+    {
+      "test_id": 2,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = 0"
+    },
+    {
+      "test_id": 3,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = 1"
+    },
+    {
+      "test_id": 4,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = -1"
+    },
+    {
+      "test_id": 5,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = 2"
+    },
+    {
+      "test_id": 6,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = 10"
+    },
+    {
+      "test_id": 7,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = x"
+    },
+    {
+      "test_id": 8,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = y"
+    },
+    {
+      "test_id": 9,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = z"
+    },
+    {
+      "test_id": 10,
+      "depth": 2,
+      "features": "assignment",
+      "errors": [],
+      "code_snippet": "x = True"
+    }
+  ],
+  "timestamp": "2025-11-25T11:12:11.823518",
+  "corpus_file": "corpus_d2_c10.json",
+  "version": "v2_cargo"
+}

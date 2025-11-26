@@ -6,26 +6,32 @@
 //! - Detect error drift requiring model retraining
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use aprender::format::{self, ModelType, SaveOptions};
 use aprender::metrics::drift::{DriftConfig, DriftDetector, DriftStatus};
 use aprender::primitives::Matrix;
-use aprender::tree::DecisionTreeClassifier;
+use aprender::tree::RandomForestClassifier;
 use serde::{Deserialize, Serialize};
 
+pub mod automl_tuning;
 pub mod classifier;
+// pub mod data_store; // TODO: Re-enable when alimentar integrated
 pub mod depyler_training;
 pub mod estimator;
 pub mod features;
+pub mod hybrid;
 pub mod ngram;
 pub mod patterns;
+pub mod synthetic;
 pub mod tfidf;
 pub mod training;
 pub mod tuning;
 pub mod verificar_integration;
 
+pub use automl_tuning::{automl_optimize, automl_quick, automl_full, AutoMLConfig, AutoMLResult};
 pub use estimator::{OracleEstimator, samples_to_features};
+pub use synthetic::{generate_synthetic_corpus, generate_synthetic_corpus_sized, SyntheticGenerator, SyntheticConfig};
 pub use tuning::{TuningConfig, TuningResult, find_best_config, quick_tune};
 
 #[cfg(test)]
@@ -37,6 +43,10 @@ pub use ngram::{FixPattern, FixSuggestion, NgramFixPredictor};
 pub use patterns::{CodeTransform, FixTemplate, FixTemplateRegistry};
 pub use tfidf::{CombinedFeatureExtractor, TfidfConfig, TfidfFeatureExtractor};
 pub use training::{TrainingDataset, TrainingSample};
+pub use hybrid::{
+    HybridConfig, HybridTranspiler, PatternComplexity, Strategy, TrainingDataCollector,
+    TranslationPair, TranspileError, TranspileResult, TranspileStats,
+};
 
 /// Error types for the oracle.
 #[derive(Debug, thiserror::Error)]
@@ -83,9 +93,33 @@ pub struct ClassificationResult {
 /// let result = oracle.classify(&features)?;
 /// println!("Category: {:?}, Confidence: {}", result.category, result.confidence);
 /// ```
+/// Configuration for the Random Forest classifier.
+#[derive(Clone, Debug)]
+pub struct OracleConfig {
+    /// Number of trees in the forest (default: 100)
+    pub n_estimators: usize,
+    /// Maximum tree depth (default: 10)
+    pub max_depth: usize,
+    /// Random seed for reproducibility
+    pub random_state: Option<u64>,
+}
+
+impl Default for OracleConfig {
+    fn default() -> Self {
+        Self {
+            n_estimators: 10_000,
+            max_depth: 10,
+            random_state: Some(42),
+        }
+    }
+}
+
 pub struct Oracle {
-    /// Decision tree classifier
-    classifier: DecisionTreeClassifier,
+    /// Random Forest classifier (replaces DecisionTree per GH-106)
+    classifier: RandomForestClassifier,
+    /// Configuration used to create the classifier (kept for model introspection)
+    #[allow(dead_code)]
+    config: OracleConfig,
     /// Category mappings
     categories: Vec<ErrorCategory>,
     /// Fix templates per category
@@ -96,13 +130,87 @@ pub struct Oracle {
     performance_history: Vec<f32>,
 }
 
+/// Default model filename
+const DEFAULT_MODEL_NAME: &str = "depyler_oracle.apr";
+
 impl Oracle {
+    /// Get the default model path (in project root or current dir).
+    #[must_use]
+    pub fn default_model_path() -> PathBuf {
+        // Try to find project root via Cargo.toml
+        let mut path = std::env::current_dir().unwrap_or_default();
+        for _ in 0..5 {
+            if path.join("Cargo.toml").exists() {
+                return path.join(DEFAULT_MODEL_NAME);
+            }
+            if !path.pop() {
+                break;
+            }
+        }
+        // Fallback to current directory
+        PathBuf::from(DEFAULT_MODEL_NAME)
+    }
+
+    /// Load model from default path, or train and save if not found.
+    ///
+    /// This is the recommended way to get an Oracle instance - it caches
+    /// the trained model to disk for faster subsequent loads.
+    pub fn load_or_train() -> Result<Self> {
+        let path = Self::default_model_path();
+
+        if path.exists() {
+            match Self::load(&path) {
+                Ok(oracle) => return Ok(oracle),
+                Err(e) => {
+                    eprintln!("Warning: Failed to load cached model: {e}. Retraining...");
+                }
+            }
+        }
+
+        // Train using verificar corpus + depyler training data + synthetic data
+        let mut dataset = verificar_integration::build_verificar_corpus();
+        let depyler_corpus = depyler_training::build_combined_corpus();
+        for sample in depyler_corpus.samples() {
+            dataset.add(sample.clone());
+        }
+
+        // Add synthetic data for robust training (12,000+ samples)
+        let synthetic_corpus = synthetic::generate_synthetic_corpus();
+        for sample in synthetic_corpus.samples() {
+            dataset.add(sample.clone());
+        }
+        let (features, labels_vec) = samples_to_features(dataset.samples());
+        let labels: Vec<usize> = labels_vec.as_slice().iter().map(|&x| x as usize).collect();
+
+        let mut oracle = Self::new();
+        oracle.train(&features, &labels)?;
+
+        // Save for next time
+        if let Err(e) = oracle.save(&path) {
+            eprintln!("Warning: Failed to cache model to {}: {e}", path.display());
+        }
+
+        Ok(oracle)
+    }
+
     /// Create a new oracle with default configuration.
     #[must_use]
     pub fn new() -> Self {
+        Self::with_config(OracleConfig::default())
+    }
+
+    /// Create a new oracle with custom configuration.
+    #[must_use]
+    pub fn with_config(config: OracleConfig) -> Self {
+        let mut classifier = RandomForestClassifier::new(config.n_estimators)
+            .with_max_depth(config.max_depth);
+        if let Some(seed) = config.random_state {
+            classifier = classifier.with_random_state(seed);
+        }
+
         Self {
-            classifier: DecisionTreeClassifier::new()
-                .with_max_depth(10),
+            classifier,
+            config,
             categories: vec![
                 ErrorCategory::TypeMismatch,
                 ErrorCategory::BorrowChecker,
@@ -254,9 +362,9 @@ impl Oracle {
     pub fn save(&self, path: &Path) -> Result<()> {
         let options = SaveOptions::default()
             .with_name("depyler-oracle")
-            .with_description("Error classification model for Depyler transpiler");
+            .with_description("RandomForest error classification model for Depyler transpiler");
 
-        format::save(&self.classifier, ModelType::DecisionTree, path, options)
+        format::save(&self.classifier, ModelType::RandomForest, path, options)
             .map_err(|e| OracleError::Model(e.to_string()))?;
 
         Ok(())
@@ -268,13 +376,30 @@ impl Oracle {
     ///
     /// Returns error if loading fails.
     pub fn load(path: &Path) -> Result<Self> {
-        let classifier: DecisionTreeClassifier =
-            format::load(path, ModelType::DecisionTree)
+        let classifier: RandomForestClassifier =
+            format::load(path, ModelType::RandomForest)
                 .map_err(|e| OracleError::Model(e.to_string()))?;
 
+        let config = OracleConfig::default();
         Ok(Self {
             classifier,
-            ..Self::new()
+            config,
+            categories: vec![
+                ErrorCategory::TypeMismatch,
+                ErrorCategory::BorrowChecker,
+                ErrorCategory::MissingImport,
+                ErrorCategory::SyntaxError,
+                ErrorCategory::LifetimeError,
+                ErrorCategory::TraitBound,
+                ErrorCategory::Other,
+            ],
+            fix_templates: Self::default_fix_templates(),
+            drift_detector: DriftDetector::new(
+                DriftConfig::default()
+                    .with_min_samples(10)
+                    .with_window_size(50),
+            ),
+            performance_history: Vec::new(),
         })
     }
 }
@@ -307,5 +432,29 @@ mod tests {
         let mut oracle = Oracle::new();
         let status = oracle.check_drift(0.95);
         assert!(matches!(status, DriftStatus::NoDrift));
+    }
+
+    #[test]
+    fn test_load_or_train() {
+        // First call trains and saves
+        let oracle = Oracle::load_or_train().expect("load_or_train should succeed");
+        assert_eq!(oracle.categories.len(), 7);
+
+        // Verify model file was created
+        let path = Oracle::default_model_path();
+        assert!(path.exists(), "Model file should be created at {:?}", path);
+
+        // Second call should load from disk (faster)
+        let oracle2 = Oracle::load_or_train().expect("second load_or_train should succeed");
+        assert_eq!(oracle2.categories.len(), 7);
+
+        // Clean up
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_default_model_path() {
+        let path = Oracle::default_model_path();
+        assert!(path.to_string_lossy().contains("depyler_oracle.apr"));
     }
 }

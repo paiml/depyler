@@ -1,0 +1,74 @@
+id: DEPYLER-CODEGEN-001
+title: "Missing Args::parse() Call in Argparse Codegen"
+description: |
+  Depyler generates clap-based CLI code that references `args` variable without first
+  calling `Args::parse()`, causing E0425 compile errors.
+
+priority: P0
+type: bug
+status: todo
+github_issue: 103
+
+evidence:
+  error_code: E0425
+  error_message: "cannot find value `args` in this scope"
+  affected_examples:
+    - trivial_cli: 1 error
+    - positional_args: 2 errors
+    - stdlib_integration: 10 errors
+  total_errors: 13+
+
+root_cause: |
+  In argparse-to-clap codegen path:
+  1. ✅ Correctly generates `use clap::Parser;`
+  2. ✅ Correctly generates `#[derive(clap::Parser)]` struct
+  3. ❌ MISSING: Does NOT generate `let args = Args::parse();` in main()
+  4. ❌ Generated code references `args.field` → compile error
+
+generated_code_example: |
+  ```rust
+  use clap::Parser;
+  #[derive(clap::Parser)]
+  struct Args {
+      #[arg(long)]
+      name: String,
+  }
+  pub fn main() {
+      // ❌ MISSING: let args = Args::parse();
+      println!("{}", format!("Hello, {}!", args.name));
+  }
+  ```
+
+expected_code: |
+  ```rust
+  use clap::Parser;
+  #[derive(clap::Parser)]
+  struct Args {
+      #[arg(long)]
+      name: String,
+  }
+  pub fn main() {
+      let args = Args::parse();  // ← MUST BE GENERATED
+      println!("{}", format!("Hello, {}!", args.name));
+  }
+  ```
+
+fix_location:
+  - crates/depyler/src/codegen/argparse.rs (or equivalent)
+  - Function that emits main() body for CLI programs
+
+acceptance_criteria:
+  - All argparse-based CLIs emit `let args = Args::parse();` at start of main()
+  - trivial_cli compiles successfully
+  - positional_args compiles successfully
+  - stdlib_integration args-related errors resolved
+
+testing:
+  - Add unit test for argparse codegen with Args::parse() emission
+  - Add integration test: transpile trivial_cli.py → verify Rust compiles
+  - Add regression test to prevent future regressions
+
+reproduction:
+  commands:
+    - cd /home/noah/src/reprorusted-python-cli/examples/example_simple
+    - cargo build --release 2>&1 | grep E0425

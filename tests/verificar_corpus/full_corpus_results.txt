@@ -1,0 +1,271 @@
+🧪 Verificar Corpus Testing V2 (with Cargo)
+============================================
+Corpus: corpus_d3_c50.json
+Output: test_results_v2_20251125_111345
+
+[1/50] Testing depth=1 features=
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[2/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[3/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[4/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[5/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[6/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[7/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[8/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[9/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[10/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[11/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[12/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[13/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[14/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[15/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[16/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[17/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[18/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[19/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[20/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[21/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[22/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[23/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[24/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[25/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[26/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[27/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[28/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[29/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[30/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[31/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[32/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[33/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[34/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[35/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[36/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[37/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[38/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[39/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[40/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[41/50] Testing depth=3 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[42/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[43/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[44/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[45/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[46/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+[47/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[48/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[49/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ❌ Compilation failed
+
+[50/50] Testing depth=2 features=assignment
+  ✅ Transpilation succeeded
+  ✅ Compilation succeeded
+
+Verificar Corpus Testing Summary (V2 - Cargo Build)
+=====================================================
+
+Total programs tested: 50
+
+Transpilation:
+  Success: 50 (100.0%)
+  Failure: 0 (0.0%)
+
+Compilation (of transpiled programs):
+  Success: 18 (36.0%)
+  Failure: 32 (64.0%)
+
+Overall pass rate: 36.0%
+
+Error Categories (top failures):
+  E0308_type_mismatch: 15
+  E0425_cannot_find: 10
+
+Detailed Failures:
+==================
+
+Test #4 (depth=2)
+  Errors: E0308_type_mismatch
+  Code: x = -1...
+
+Test #7 (depth=2)
+  Errors: 
+  Code: x = x...
+
+Test #8 (depth=2)
+  Errors: E0425_cannot_find
+  Code: x = y...
+
+Test #9 (depth=2)
+  Errors: E0425_cannot_find
+  Code: x = z...
+
+Test #12 (depth=2)
+  Errors: E0308_type_mismatch
+  Code: x = None...
+
+Test #13 (depth=3)
+  Errors: E0308_type_mismatch
+  Code: x = (-0)...
+
+Test #14 (depth=3)
+  Errors: E0308_type_mismatch
+  Code: x = (-1)...
+
+Test #15 (depth=3)
+  Errors: E0308_type_mismatch
+  Code: x = (--1)...
+
+Test #16 (depth=3)
+  Errors: E0308_type_mismatch
+  Code: x = (-2)...
+
+Test #17 (depth=3)
+  Errors: E0308_type_mismatch
+  Code: x = (-10)...
+
+
+📊 Results saved to: test_results_v2_20251125_111345
+📄 Summary: test_results_v2_20251125_111345/SUMMARY.txt
+📊 JSON Report: test_results_v2_20251125_111345/report.json

@@ -99,6 +99,11 @@ pub fn extract_dependencies(ctx: &CodeGenContext) -> Vec<Dependency> {
         deps.push(Dependency::new("sha2", "0.10"));
     }
 
+    // DEPYLER-0558: digest crate for DynDigest trait (type-erased hashers)
+    if ctx.needs_digest {
+        deps.push(Dependency::new("digest", "0.10"));
+    }
+
     if ctx.needs_sha3 {
         deps.push(Dependency::new("sha3", "0.10"));
     }
@@ -396,6 +401,8 @@ mod tests {
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
+            function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
+            needs_digest: false, // DEPYLER-0575: Track digest crate dependency
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -503,6 +510,8 @@ mod tests {
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
+            function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
+            needs_digest: false, // DEPYLER-0575: Track digest crate dependency
         };
 
         let deps = extract_dependencies(&ctx);
@@ -607,6 +616,8 @@ mod tests {
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
+            function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
+            needs_digest: false, // DEPYLER-0575: Track digest crate dependency
         };
 
         let deps = extract_dependencies(&ctx);
@@ -715,6 +726,8 @@ mod tests {
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
+            function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
+            needs_digest: false, // DEPYLER-0575: Track digest crate dependency
         };
 
         let deps = extract_dependencies(&ctx);

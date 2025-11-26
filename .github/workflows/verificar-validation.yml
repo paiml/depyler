@@ -1,0 +1,208 @@
+# Verificar Synthetic Test Validation
+# Generates 1000+ Python program variants and validates depyler transpilation
+name: Verificar Validation
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'crates/depyler-core/**'
+      - 'crates/depyler/**'
+      - '.github/workflows/verificar-validation.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'crates/depyler-core/**'
+      - 'crates/depyler/**'
+  schedule:
+    # Run weekly on Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      depth:
+        description: 'Pattern depth (1-4)'
+        required: false
+        default: '4'
+      threshold:
+        description: 'Minimum pass rate %'
+        required: false
+        default: '80'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  verificar-test:
+    name: Synthetic Test Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout depyler
+        uses: actions/checkout@v4
+
+      - name: Checkout verificar
+        uses: actions/checkout@v4
+        with:
+          repository: paiml/verificar
+          path: verificar
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+            verificar/target
+          key: ${{ runner.os }}-cargo-verificar-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-verificar-
+
+      - name: Build depyler
+        run: cargo build --release
+
+      - name: Install verificar
+        run: |
+          cd verificar
+          cargo install --path .
+
+      - name: Generate synthetic test corpus
+        run: |
+          mkdir -p target/verificar/corpus target/verificar/output target/verificar/results
+          DEPTH=${{ github.event.inputs.depth || '4' }}
+          echo "Generating patterns at depth $DEPTH..."
+          verificar depyler --max-depth $DEPTH --output files --output-dir target/verificar/corpus
+          echo "Generated $(ls target/verificar/corpus/*.py 2>/dev/null | wc -l) test programs"
+
+      - name: Run transpilation tests
+        id: test
+        run: |
+          PASS=0
+          FAIL=0
+          FAILED_FILES=""
+
+          for py in target/verificar/corpus/*.py; do
+            name=$(basename "$py" .py)
+
+            # Try transpile
+            if ./target/release/depyler transpile "$py" -o "target/verificar/output/$name.rs" 2>/dev/null; then
+              # Try compile
+              if rustc --crate-type lib --edition 2021 "target/verificar/output/$name.rs" -o /dev/null 2>/dev/null; then
+                PASS=$((PASS + 1))
+                echo "✅ $name"
+              else
+                FAIL=$((FAIL + 1))
+                FAILED_FILES="$FAILED_FILES $name(compile)"
+                echo "❌ $name (compile fail)"
+              fi
+            else
+              FAIL=$((FAIL + 1))
+              FAILED_FILES="$FAILED_FILES $name(transpile)"
+              echo "❌ $name (transpile fail)"
+            fi
+          done
+
+          TOTAL=$((PASS + FAIL))
+          if [ $TOTAL -gt 0 ]; then
+            RATE=$((PASS * 100 / TOTAL))
+          else
+            RATE=0
+          fi
+
+          echo ""
+          echo "══════════════════════════════════════"
+          echo "📊 VERIFICAR RESULTS: $PASS/$TOTAL ($RATE%)"
+          echo "══════════════════════════════════════"
+
+          # Save results
+          echo "pass=$PASS" >> $GITHUB_OUTPUT
+          echo "fail=$FAIL" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "rate=$RATE" >> $GITHUB_OUTPUT
+          echo "$PASS $FAIL $TOTAL $RATE" > target/verificar/results/summary.txt
+
+          if [ -n "$FAILED_FILES" ]; then
+            echo "failed_files=$FAILED_FILES" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate report
+        run: |
+          read PASS FAIL TOTAL RATE < target/verificar/results/summary.txt
+
+          cat > target/verificar/results/report.md << EOF
+          # Verificar Synthetic Test Report
+
+          **Generated**: $(date -u)
+          **Commit**: ${{ github.sha }}
+          **Branch**: ${{ github.ref_name }}
+
+          ## Summary
+
+          | Metric | Value |
+          |--------|-------|
+          | Pass Rate | **${RATE}%** |
+          | Passed | $PASS |
+          | Failed | $FAIL |
+          | Total | $TOTAL |
+
+          ## Quality Gate
+
+          EOF
+
+          THRESHOLD=${{ github.event.inputs.threshold || '80' }}
+          if [ "$RATE" -ge 90 ]; then
+            echo "✅ **EXCELLENT** (≥90%)" >> target/verificar/results/report.md
+          elif [ "$RATE" -ge "$THRESHOLD" ]; then
+            echo "✅ **PASS** (≥${THRESHOLD}%)" >> target/verificar/results/report.md
+          else
+            echo "❌ **FAIL** (<${THRESHOLD}%)" >> target/verificar/results/report.md
+          fi
+
+          cat target/verificar/results/report.md
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: verificar-results
+          path: |
+            target/verificar/results/
+            target/verificar/output/
+          retention-days: 30
+
+      - name: Check quality gate
+        run: |
+          read PASS FAIL TOTAL RATE < target/verificar/results/summary.txt
+          THRESHOLD=${{ github.event.inputs.threshold || '80' }}
+
+          if [ "$RATE" -lt "$THRESHOLD" ]; then
+            echo "❌ VERIFICAR QUALITY GATE FAILED"
+            echo "   Pass rate: $RATE%"
+            echo "   Threshold: $THRESHOLD%"
+            echo ""
+            echo "Failed patterns:"
+            echo "${{ steps.test.outputs.failed_files }}"
+            exit 1
+          else
+            echo "✅ VERIFICAR QUALITY GATE PASSED ($RATE% >= $THRESHOLD%)"
+          fi
+
+      - name: Post summary to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('target/verificar/results/report.md', 'utf8');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });

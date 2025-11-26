@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+title: "Depyler: A Python-to-Rust Transpiler with Semantic Verification"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: Gift
+    given-names: Noah
+    orcid: "https://orcid.org/0000-0000-0000-0000"
+  - name: "Contributors"
+repository-code: "https://github.com/paiml/depyler"
+url: "https://docs.rs/depyler"
+abstract: >-
+  Depyler is a Python-to-Rust transpiler that translates annotated Python code
+  into idiomatic Rust, preserving program semantics while providing compile-time
+  safety guarantees. It features type-directed transpilation, memory safety
+  analysis, semantic verification through property-based testing, and support
+  for 27+ Python standard library modules with 100% test validation coverage.
+keywords:
+  - transpiler
+  - python
+  - rust
+  - compiler
+  - type-safety
+  - memory-safety
+  - semantic-verification
+  - code-generation
+license: MIT
+version: "3.20.0"
+date-released: "2025-11-26"
+preferred-citation:
+  type: software
+  authors:
+    - family-names: Gift
+      given-names: Noah
+    - name: "Contributors"
+  title: "Depyler: A Python-to-Rust Transpiler with Semantic Verification"
+  year: 2025
+  url: "https://github.com/paiml/depyler"
+  version: "3.20.0"

@@ -10,6 +10,7 @@ members = [
     "crates/depyler-wasm",
     "crates/depyler-ruchy",
     "crates/depyler-testing",
+    "crates/depyler-oracle",
 ]
 exclude = [
     "examples/argparse_cli",
@@ -110,6 +111,9 @@ url = "2.5"
 # Benchmarking
 criterion = { version = "0.5", features = ["html_reports"] }
 pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
+
+# Testing infrastructure
+verificar = "0.3.2"
 
 # WASM dependencies
 wasm-bindgen = "0.2.100"

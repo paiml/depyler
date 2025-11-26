@@ -97,6 +97,28 @@ impl StateAnalyzer {
             HirStmt::Expr(expr) | HirStmt::Return(Some(expr)) => {
                 self.analyze_expression(expr);
             }
+            // DEPYLER-0561: Analyze with statements for generator state capture
+            HirStmt::With { context, body, .. } => {
+                self.analyze_expression(context);
+                self.analyze_statements(body);
+            }
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
+                self.analyze_statements(body);
+                for handler in handlers {
+                    self.analyze_statements(&handler.body);
+                }
+                if let Some(else_stmts) = orelse {
+                    self.analyze_statements(else_stmts);
+                }
+                if let Some(final_stmts) = finalbody {
+                    self.analyze_statements(final_stmts);
+                }
+            }
             _ => {}
         }
     }

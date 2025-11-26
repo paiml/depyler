@@ -1,0 +1,107 @@
+id: DEPYLER-CODEGEN-007
+title: "Python Generators/Yield Not Supported"
+description: |
+  Python yield statements transpiled directly to Rust yield, but Rust generators
+  are unstable/experimental, causing E0658 and E0627 errors.
+
+priority: P2
+type: feature
+status: todo
+
+evidence:
+  error_codes:
+    - E0658: "yield syntax is experimental"
+    - E0627: "yield expression outside of coroutine literal"
+  affected_examples:
+    - log_analyzer: 2 errors
+  total_errors: 2
+
+root_cause: |
+  Python generators with yield:
+  ```python
+  def gen():
+      yield 1
+      yield 2
+  ```
+
+  Transpiled to (incorrect):
+  ```rust
+  fn gen() {
+      yield 1;  // ❌ Experimental, requires nightly
+      yield 2;
+  }
+  ```
+
+solution_options:
+  - name: "Iterator struct"
+    complexity: "Medium"
+    description: "Convert generator to custom iterator struct"
+    example: |
+      ```rust
+      struct Gen {
+          state: usize,
+      }
+      impl Iterator for Gen {
+          type Item = i32;
+          fn next(&mut self) -> Option<Self::Item> {
+              self.state += 1;
+              match self.state {
+                  1 => Some(1),
+                  2 => Some(2),
+                  _ => None,
+              }
+          }
+      }
+      ```
+
+  - name: "Collect to Vec"
+    complexity: "Low"
+    description: "For simple cases, collect all yields into Vec"
+    example: |
+      ```rust
+      fn gen() -> Vec<i32> {
+          vec![1, 2]
+      }
+      ```
+
+  - name: "impl Iterator return"
+    complexity: "Low"
+    description: "Return iterator over collected values"
+    example: |
+      ```rust
+      fn gen() -> impl Iterator<Item = i32> {
+          [1, 2].into_iter()
+      }
+      ```
+
+  - name: "genawaiter crate"
+    complexity: "High"
+    description: "Use genawaiter for async-like generators"
+    note: "Adds dependency, more complex"
+
+recommended_approach: |
+  1. Simple generators (finite yields): Collect to Vec or array iterator
+  2. Complex generators (loops, conditionals): Custom iterator struct
+  3. Infinite generators: Custom iterator struct with state machine
+
+fix_location:
+  - Generator detection in AST
+  - Yield statement handling
+  - Iterator codegen
+
+acceptance_criteria:
+  - Simple Python generators transpile to Vec or array iterator
+  - Complex generators transpile to iterator structs
+  - No use of experimental Rust yield
+  - log_analyzer generator errors resolved
+
+testing:
+  - Unit tests for generator pattern detection
+  - Unit tests for each conversion strategy
+  - Integration test: log_analyzer with generators
+
+complexity_note: |
+  This is the most complex fix. Consider:
+  1. Deferring complex generators (document as unsupported)
+  2. Implementing simple cases first (finite yields)
+  3. Adding generator support incrementally
