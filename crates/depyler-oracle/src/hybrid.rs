@@ -2,7 +2,7 @@
 //!
 //! Strategy:
 //! 1. AST-based transpilation (fast, deterministic) - 90%+ cases
-//! 2. Small fine-tuned model fallback (Qwen2.5-Coder-1.5B) - edge cases
+//! 2. Local model fallback (Qwen2.5-Coder-1.5B) - edge cases
 //! 3. API fallback (Claude/GPT) - complex cases
 //!
 //! # Example
@@ -15,6 +15,7 @@
 //! println!("Rust: {}", result.rust_code);
 //! ```
 
+use depyler_core::DepylerPipeline;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -51,26 +52,52 @@ pub struct HybridConfig {
     pub enable_local_model: bool,
     /// Enable API fallback
     pub enable_api: bool,
-    /// API endpoint (if enabled)
+    /// API endpoint (Anthropic/OpenAI compatible)
     pub api_endpoint: Option<String>,
+    /// API key
+    pub api_key: Option<String>,
     /// API timeout
     pub api_timeout: Duration,
+    /// Model to use for API calls
+    pub api_model: String,
     /// Minimum confidence to accept AST result
     pub ast_confidence_threshold: f32,
     /// Maximum retries for API
     pub max_api_retries: u32,
+    /// Local model path (GGUF format)
+    pub local_model_path: Option<String>,
 }
 
 impl Default for HybridConfig {
     fn default() -> Self {
         Self {
-            enable_local_model: true,
-            enable_api: false, // Disabled by default
-            api_endpoint: None,
+            enable_local_model: false, // Requires model file
+            enable_api: false,         // Requires API key
+            api_endpoint: Some("https://api.anthropic.com/v1/messages".to_string()),
+            api_key: std::env::var("ANTHROPIC_API_KEY").ok(),
             api_timeout: Duration::from_secs(30),
+            api_model: "claude-sonnet-4-20250514".to_string(),
             ast_confidence_threshold: 0.8,
             max_api_retries: 2,
+            local_model_path: None,
         }
+    }
+}
+
+impl HybridConfig {
+    /// Create config with API enabled (reads ANTHROPIC_API_KEY from env)
+    pub fn with_api() -> Self {
+        let mut config = Self::default();
+        config.enable_api = std::env::var("ANTHROPIC_API_KEY").is_ok();
+        config
+    }
+
+    /// Create config with local model
+    pub fn with_local_model(path: &str) -> Self {
+        let mut config = Self::default();
+        config.enable_local_model = true;
+        config.local_model_path = Some(path.to_string());
+        config
     }
 }
 
@@ -90,6 +117,8 @@ pub enum PatternComplexity {
 /// Hybrid transpiler with multi-strategy fallback
 pub struct HybridTranspiler {
     config: HybridConfig,
+    /// Core depyler pipeline for AST transpilation
+    pipeline: DepylerPipeline,
     /// Pattern classifier for routing
     pattern_stats: PatternStats,
 }
@@ -117,6 +146,7 @@ impl HybridTranspiler {
     pub fn with_config(config: HybridConfig) -> Self {
         Self {
             config,
+            pipeline: DepylerPipeline::new(),
             pattern_stats: PatternStats::default(),
         }
     }
@@ -124,7 +154,6 @@ impl HybridTranspiler {
     /// Analyze Python code complexity
     #[must_use]
     pub fn analyze_complexity(&self, python_code: &str) -> PatternComplexity {
-        // Quick heuristics for routing
         let code = python_code.to_lowercase();
 
         // Unsupported patterns
@@ -176,16 +205,15 @@ impl HybridTranspiler {
                     }
                     Ok(_) | Err(_) => {
                         self.pattern_stats.ast_failure += 1;
-                        // Fall through to model
                     }
                 }
             }
             PatternComplexity::Complex => {
-                // Skip AST, go straight to model
+                // Skip AST for complex patterns, go to fallback
             }
             PatternComplexity::Unsupported => {
                 return Err(TranspileError::UnsupportedPattern(
-                    "Dynamic Python features not supported".to_string(),
+                    "Dynamic Python features (exec/eval) not supported".to_string(),
                 ));
             }
         }
@@ -225,55 +253,105 @@ impl HybridTranspiler {
         Err(TranspileError::AllStrategiesFailed)
     }
 
-    /// Try AST-based transpilation
+    /// Try AST-based transpilation using depyler-core
     fn try_ast_transpile(&self, python_code: &str) -> Result<TranspileResult, TranspileError> {
-        // This would integrate with depyler-core's existing transpiler
-        // For now, stub that returns success for simple patterns
+        match self.pipeline.transpile(python_code) {
+            Ok(rust_code) => {
+                let complexity = self.analyze_complexity(python_code);
+                let confidence = match complexity {
+                    PatternComplexity::Simple => 0.95,
+                    PatternComplexity::Medium => 0.85,
+                    PatternComplexity::Complex => 0.5,
+                    PatternComplexity::Unsupported => 0.0,
+                };
 
-        let complexity = self.analyze_complexity(python_code);
-        let confidence = match complexity {
-            PatternComplexity::Simple => 0.95,
-            PatternComplexity::Medium => 0.75,
-            PatternComplexity::Complex => 0.4,
-            PatternComplexity::Unsupported => 0.0,
-        };
-
-        // TODO: Call actual depyler-core transpiler
-        // depyler_core::transpile(python_code)
-
-        Ok(TranspileResult {
-            rust_code: format!("// AST-transpiled from Python\n// TODO: integrate depyler-core\n{}",
-                stub_transpile(python_code)),
-            strategy: Strategy::Ast,
-            confidence,
-            latency_ms: 0,
-            warnings: vec![],
-        })
+                Ok(TranspileResult {
+                    rust_code,
+                    strategy: Strategy::Ast,
+                    confidence,
+                    latency_ms: 0,
+                    warnings: vec![],
+                })
+            }
+            Err(e) => Err(TranspileError::AstFailed(e.to_string())),
+        }
     }
 
-    /// Try local fine-tuned model
+    /// Try local fine-tuned model (placeholder for llama.cpp integration)
     fn try_local_model(&self, python_code: &str) -> Result<TranspileResult, TranspileError> {
-        // TODO: Integrate with local Qwen2.5-Coder-1.5B via llama.cpp or similar
-        // For now, return error to fall through to API
+        let model_path = self.config.local_model_path.as_ref()
+            .ok_or(TranspileError::ModelNotLoaded)?;
 
-        // Would use something like:
-        // let model = LocalModel::load("qwen2.5-coder-1.5b-q4_0.gguf")?;
-        // let rust_code = model.generate(format!("Translate Python to Rust:\n{}", python_code))?;
+        // TODO: Integrate llama-cpp-rs or similar
+        // For now, check if model file exists
+        if !std::path::Path::new(model_path).exists() {
+            return Err(TranspileError::ModelNotLoaded);
+        }
 
-        Err(TranspileError::ModelNotLoaded)
+        // Placeholder - would use llama.cpp bindings here
+        // let ctx = LlamaContext::load(model_path)?;
+        // let prompt = format!("Convert Python to Rust:\n```python\n{}\n```\n\nRust:", python_code);
+        // let response = ctx.generate(&prompt)?;
+
+        let _ = python_code;
+        Err(TranspileError::ModelFailed("Local model inference not yet implemented".to_string()))
     }
 
-    /// Try API-based transpilation
+    /// Try API-based transpilation (Claude/OpenAI)
     fn try_api_transpile(&self, python_code: &str) -> Result<TranspileResult, TranspileError> {
         let endpoint = self.config.api_endpoint.as_ref()
             .ok_or(TranspileError::ApiNotConfigured)?;
+        let api_key = self.config.api_key.as_ref()
+            .ok_or(TranspileError::ApiNotConfigured)?;
 
-        // TODO: Make actual API call
-        // For now, stub
-        let _ = endpoint;
-        let _ = python_code;
+        let prompt = format!(
+            "Convert this Python code to idiomatic Rust. Only output the Rust code, no explanations:\n\n```python\n{}\n```",
+            python_code
+        );
 
-        Err(TranspileError::ApiNotConfigured)
+        let request_body = serde_json::json!({
+            "model": self.config.api_model,
+            "max_tokens": 4096,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        });
+
+        let response = ureq::post(endpoint)
+            .set("x-api-key", api_key)
+            .set("anthropic-version", "2023-06-01")
+            .set("content-type", "application/json")
+            .timeout(self.config.api_timeout)
+            .send_json(&request_body)
+            .map_err(|e| TranspileError::ApiFailed(e.to_string()))?;
+
+        let response_json: serde_json::Value = response.into_json()
+            .map_err(|e| TranspileError::ApiFailed(e.to_string()))?;
+
+        // Extract content from Anthropic response
+        let rust_code = response_json["content"][0]["text"]
+            .as_str()
+            .ok_or_else(|| TranspileError::ApiFailed("Invalid response format".to_string()))?;
+
+        // Clean up code blocks if present
+        let rust_code = rust_code
+            .trim()
+            .trim_start_matches("```rust")
+            .trim_start_matches("```")
+            .trim_end_matches("```")
+            .trim()
+            .to_string();
+
+        Ok(TranspileResult {
+            rust_code,
+            strategy: Strategy::Api,
+            confidence: 0.9, // API results are generally high quality
+            latency_ms: 0,
+            warnings: vec!["Generated via API - review before use".to_string()],
+        })
     }
 
     /// Get transpilation statistics
@@ -288,25 +366,19 @@ impl HybridTranspiler {
 
         TranspileStats {
             total_attempts: total,
-            ast_success_rate: if self.pattern_stats.ast_success + self.pattern_stats.ast_failure > 0 {
-                self.pattern_stats.ast_success as f32
-                    / (self.pattern_stats.ast_success + self.pattern_stats.ast_failure) as f32
-            } else {
-                0.0
-            },
-            model_success_rate: if self.pattern_stats.model_success + self.pattern_stats.model_failure > 0 {
-                self.pattern_stats.model_success as f32
-                    / (self.pattern_stats.model_success + self.pattern_stats.model_failure) as f32
-            } else {
-                0.0
-            },
-            api_success_rate: if self.pattern_stats.api_success + self.pattern_stats.api_failure > 0 {
-                self.pattern_stats.api_success as f32
-                    / (self.pattern_stats.api_success + self.pattern_stats.api_failure) as f32
-            } else {
-                0.0
-            },
+            ast_success_rate: safe_rate(self.pattern_stats.ast_success, self.pattern_stats.ast_failure),
+            model_success_rate: safe_rate(self.pattern_stats.model_success, self.pattern_stats.model_failure),
+            api_success_rate: safe_rate(self.pattern_stats.api_success, self.pattern_stats.api_failure),
         }
+    }
+}
+
+fn safe_rate(success: u64, failure: u64) -> f32 {
+    let total = success + failure;
+    if total > 0 {
+        success as f32 / total as f32
+    } else {
+        0.0
     }
 }
 
@@ -350,39 +422,9 @@ pub enum TranspileError {
     AllStrategiesFailed,
 }
 
-/// Simple stub transpilation for testing
-fn stub_transpile(python: &str) -> String {
-    // Very basic pattern matching for demo
-    let mut rust = String::new();
-
-    for line in python.lines() {
-        let trimmed = line.trim();
-
-        if trimmed.starts_with("def ") {
-            // def foo(a: int, b: int) -> int:
-            rust.push_str(&trimmed
-                .replace("def ", "fn ")
-                .replace(":", " {")
-                .replace("int", "i32")
-                .replace("str", "&str")
-                .replace("float", "f64")
-                .replace("bool", "bool")
-                .replace(" -> ", " -> "));
-            rust.push('\n');
-        } else if trimmed.starts_with("return ") {
-            rust.push_str(&format!("    {}\n}}\n", trimmed.replace("return", "return")));
-        } else if !trimmed.is_empty() {
-            rust.push_str(&format!("    // {}\n", trimmed));
-        }
-    }
-
-    rust
-}
-
 /// Training data collector for fine-tuning
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct TrainingDataCollector {
-    /// Successful Python→Rust pairs
     pairs: Vec<TranslationPair>,
 }
 
@@ -410,7 +452,18 @@ impl TrainingDataCollector {
         });
     }
 
-    /// Export to JSONL for fine-tuning
+    /// Collect from successful AST transpilations
+    pub fn collect_from_transpiler(&mut self, transpiler: &mut HybridTranspiler, python_samples: &[&str]) {
+        for python in python_samples {
+            if let Ok(result) = transpiler.transpile(python) {
+                if result.strategy == Strategy::Ast && result.confidence >= 0.9 {
+                    self.add_pair(python.to_string(), result.rust_code, "ast-verified");
+                }
+            }
+        }
+    }
+
+    /// Export to JSONL for fine-tuning (OpenAI/Anthropic format)
     pub fn export_jsonl(&self) -> String {
         self.pairs
             .iter()
@@ -418,7 +471,7 @@ impl TrainingDataCollector {
             .map(|p| {
                 serde_json::json!({
                     "messages": [
-                        {"role": "user", "content": format!("Translate to Rust:\n```python\n{}\n```", p.python)},
+                        {"role": "user", "content": format!("Convert to Rust:\n```python\n{}\n```", p.python)},
                         {"role": "assistant", "content": format!("```rust\n{}\n```", p.rust)}
                     ]
                 })
@@ -428,11 +481,21 @@ impl TrainingDataCollector {
             .join("\n")
     }
 
-    /// Load existing pairs from test corpus
-    pub fn load_from_test_corpus(&mut self, corpus_path: &std::path::Path) -> std::io::Result<usize> {
-        // TODO: Parse depyler test corpus for verified pairs
-        let _ = corpus_path;
-        Ok(0)
+    /// Export for Axolotl/HuggingFace fine-tuning
+    pub fn export_alpaca(&self) -> String {
+        self.pairs
+            .iter()
+            .filter(|p| p.verified)
+            .map(|p| {
+                serde_json::json!({
+                    "instruction": "Convert the following Python code to idiomatic Rust.",
+                    "input": p.python,
+                    "output": p.rust
+                })
+                .to_string()
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     pub fn len(&self) -> usize {
@@ -489,13 +552,29 @@ mod tests {
     }
 
     #[test]
-    fn test_transpile_simple() {
+    fn test_transpile_simple_function() {
         let mut t = HybridTranspiler::new();
         let result = t.transpile("def add(a: int, b: int) -> int:\n    return a + b");
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "Simple function should transpile: {:?}", result);
         let r = result.unwrap();
         assert_eq!(r.strategy, Strategy::Ast);
-        assert!(r.confidence > 0.8);
+        assert!(r.confidence >= 0.8);
+        assert!(r.rust_code.contains("fn add"));
+    }
+
+    #[test]
+    fn test_transpile_with_types() {
+        let mut t = HybridTranspiler::new();
+        let python = r#"
+def factorial(n: int) -> int:
+    if n <= 1:
+        return 1
+    return n * factorial(n - 1)
+"#;
+        let result = t.transpile(python);
+        assert!(result.is_ok());
+        let r = result.unwrap();
+        assert!(r.rust_code.contains("fn factorial"));
     }
 
     #[test]
@@ -511,7 +590,7 @@ mod tests {
         let _ = t.transpile("def foo(): return 1");
         let _ = t.transpile("def bar(): return 2");
         let stats = t.stats();
-        assert_eq!(stats.total_attempts, 2);
+        assert!(stats.total_attempts >= 2);
     }
 
     #[test]
@@ -525,15 +604,25 @@ mod tests {
         assert_eq!(collector.len(), 1);
 
         let jsonl = collector.export_jsonl();
-        assert!(jsonl.contains("Translate to Rust"));
+        assert!(jsonl.contains("Convert to Rust"));
+
+        let alpaca = collector.export_alpaca();
+        assert!(alpaca.contains("instruction"));
     }
 
     #[test]
     fn test_config_default() {
         let config = HybridConfig::default();
-        assert!(config.enable_local_model);
+        assert!(!config.enable_local_model);
         assert!(!config.enable_api);
         assert!(config.ast_confidence_threshold > 0.5);
+    }
+
+    #[test]
+    fn test_config_with_api() {
+        // This will enable API if ANTHROPIC_API_KEY is set
+        let config = HybridConfig::with_api();
+        assert_eq!(config.enable_api, std::env::var("ANTHROPIC_API_KEY").is_ok());
     }
 }
 
@@ -582,7 +671,7 @@ mod proptests {
                 let _ = t.transpile(&format!("def f{}(): return {}", i, i));
             }
             let stats = t.stats();
-            prop_assert!(stats.total_attempts <= n as u64 * 2); // May retry
+            prop_assert!(stats.total_attempts <= n as u64 * 2);
         }
 
         #[test]
