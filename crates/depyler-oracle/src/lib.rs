@@ -22,9 +22,11 @@ pub mod ngram;
 pub mod patterns;
 pub mod tfidf;
 pub mod training;
+pub mod tuning;
 pub mod verificar_integration;
 
 pub use estimator::{OracleEstimator, samples_to_features};
+pub use tuning::{TuningConfig, TuningResult, find_best_config, quick_tune};
 
 #[cfg(test)]
 mod proptests;
