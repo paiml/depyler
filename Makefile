@@ -366,8 +366,9 @@ coverage: ## Generate coverage report (< 10 min, pforge pattern)
 	@echo "⚡ OPTIMIZATION: Property tests reduced to 10 cases for faster coverage"
 	@echo "   - PROPTEST_CASES=10 (from 256 default for proptest)"
 	@echo "   - QUICKCHECK_TESTS=10 (from 100 default for quickcheck)"
+	@echo "   - DEPYLER_FAST_TESTS=1 (reduces oracle ML model iterations)"
 	@echo "   - Skipping benchmark tests (use 'make test-benchmark' for those)"
-	@PROPTEST_CASES=10 QUICKCHECK_TESTS=10 $(CARGO) llvm-cov --no-report --ignore-run-fail nextest --no-tests=warn --all-features --workspace -E 'not test(property_test_benchmarks) and not test(integration_benchmarks)'
+	@PROPTEST_CASES=10 QUICKCHECK_TESTS=10 DEPYLER_FAST_TESTS=1 $(CARGO) llvm-cov --no-report --ignore-run-fail nextest --no-tests=warn --all-features --workspace -E 'not test(property_test_benchmarks) and not test(integration_benchmarks)'
 	@echo "📊 Phase 2: Generating coverage reports..."
 	@$(CARGO) llvm-cov report --html --output-dir target/coverage/html
 	@$(CARGO) llvm-cov report --lcov --output-path target/coverage/lcov.info
