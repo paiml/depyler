@@ -469,7 +469,7 @@ impl SelfSupervisedCorpusGenerator {
 ///
 /// The DE optimizer finds the best combination of these parameters
 /// to maximize Oracle classification accuracy on the generated corpus.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GenerationParams {
     /// Weight for DocstringMining strategy (0.0-1.0)
     pub weight_docstring: f64,

@@ -23,6 +23,7 @@ pub mod estimator;
 pub mod features;
 pub mod hybrid;
 pub mod ngram;
+pub mod params_persistence;
 pub mod patterns;
 pub mod self_supervised;
 pub mod synthetic;
@@ -34,6 +35,9 @@ pub mod verificar_integration;
 pub use autofixer::{AutoFixer, FixContext, FixResult, TransformRule};
 pub use automl_tuning::{automl_full, automl_optimize, automl_quick, AutoMLConfig, AutoMLResult};
 pub use estimator::{samples_to_features, OracleEstimator};
+pub use params_persistence::{
+    default_params_path, load_params, params_exist, save_params, OptimizedParams,
+};
 pub use synthetic::{
     generate_synthetic_corpus, generate_synthetic_corpus_sized, SyntheticConfig, SyntheticGenerator,
 };
