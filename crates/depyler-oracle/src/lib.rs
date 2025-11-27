@@ -14,6 +14,7 @@ use aprender::primitives::Matrix;
 use aprender::tree::RandomForestClassifier;
 use serde::{Deserialize, Serialize};
 
+pub mod autofixer;
 pub mod automl_tuning;
 pub mod classifier;
 // pub mod data_store; // TODO: Re-enable when alimentar integrated
@@ -23,12 +24,14 @@ pub mod features;
 pub mod hybrid;
 pub mod ngram;
 pub mod patterns;
+pub mod self_supervised;
 pub mod synthetic;
 pub mod tfidf;
 pub mod training;
 pub mod tuning;
 pub mod verificar_integration;
 
+pub use autofixer::{AutoFixer, FixContext, FixResult, TransformRule};
 pub use automl_tuning::{automl_full, automl_optimize, automl_quick, AutoMLConfig, AutoMLResult};
 pub use estimator::{samples_to_features, OracleEstimator};
 pub use synthetic::{
@@ -448,6 +451,14 @@ mod tests {
 
     #[test]
     fn test_load_or_train() {
+        // Skip full training in fast test mode (coverage runs)
+        if std::env::var("DEPYLER_FAST_TESTS").is_ok() {
+            // Just test Oracle creation, not full training
+            let oracle = Oracle::new();
+            assert_eq!(oracle.categories.len(), 7);
+            return;
+        }
+
         // First call trains and saves
         let oracle = Oracle::load_or_train().expect("load_or_train should succeed");
         assert_eq!(oracle.categories.len(), 7);
