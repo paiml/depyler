@@ -351,6 +351,10 @@ pub enum Commands {
     /// Background agent mode with MCP integration
     #[command(subcommand)]
     Agent(AgentCommands),
+
+    /// Oracle ML model commands (optimization, training)
+    #[command(subcommand)]
+    Oracle(OracleCommands),
 }
 
 #[derive(Subcommand)]
@@ -427,6 +431,46 @@ pub enum AgentCommands {
         /// Follow log output
         #[arg(short, long)]
         follow: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum OracleCommands {
+    /// Optimize generation parameters using Differential Evolution
+    Optimize {
+        /// Number of stdlib functions to use in evaluation
+        #[arg(long, default_value = "5")]
+        stdlib_count: usize,
+
+        /// Samples per evaluation
+        #[arg(long, default_value = "50")]
+        eval_samples: usize,
+
+        /// Maximum evaluations
+        #[arg(long, default_value = "100")]
+        max_evaluations: usize,
+
+        /// Enable curriculum learning
+        #[arg(long)]
+        curriculum: bool,
+
+        /// Output path for optimized parameters (default: ~/.depyler/oracle_params.json)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Show current optimized parameters
+    Show,
+
+    /// Train Oracle model from corpus
+    Train {
+        /// Minimum samples for training (default: 100)
+        #[arg(long, default_value = "100")]
+        min_samples: usize,
+
+        /// Enable synthetic data augmentation
+        #[arg(long)]
+        synthetic: bool,
     },
 }
 
@@ -1892,6 +1936,215 @@ pub fn agent_logs_command(lines: usize, follow: bool) -> Result<()> {
 }
 
 // Note: parse_python method is now available in DepylerPipeline
+
+// ============================================================================
+// Oracle Commands
+// ============================================================================
+
+/// Run Differential Evolution to optimize generation parameters.
+///
+/// This command uses the Metaheuristic Optimizer to find optimal parameters
+/// for corpus generation, maximizing Oracle classification accuracy.
+///
+/// # Errors
+///
+/// Returns error if optimization fails or file saving fails.
+pub fn oracle_optimize_command(
+    stdlib_count: usize,
+    eval_samples: usize,
+    max_evaluations: usize,
+    curriculum: bool,
+    output: Option<PathBuf>,
+) -> Result<()> {
+    use depyler_oracle::self_supervised::{run_optimization, OptimizationRunConfig};
+    use depyler_oracle::{save_params, OptimizedParams};
+
+    println!("🧬 Depyler Oracle Parameter Optimizer");
+    println!("=====================================\n");
+
+    // Create sample stdlib functions for optimization
+    let stdlib_funcs = create_sample_stdlib_functions();
+    println!("📚 Using {} stdlib functions for evaluation", stdlib_funcs.len().min(stdlib_count));
+
+    // Configure optimization
+    let config = OptimizationRunConfig {
+        eval_stdlib_count: stdlib_count,
+        eval_samples,
+        max_evaluations,
+        use_curriculum: curriculum,
+    };
+
+    println!("⚙️  Configuration:");
+    println!("    Max evaluations: {}", max_evaluations);
+    println!("    Samples per eval: {}", eval_samples);
+    println!("    Curriculum learning: {}", if curriculum { "enabled" } else { "disabled" });
+    println!();
+
+    // Create progress bar
+    let pb = ProgressBar::new(max_evaluations as u64);
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} evaluations ({msg})")
+            .unwrap()
+            .progress_chars("#>-"),
+    );
+
+    // Run optimization
+    pb.set_message("optimizing...");
+    let result = run_optimization(&stdlib_funcs, &config);
+
+    pb.finish_with_message(format!("fitness: {:.4}", result.fitness));
+    println!();
+
+    // Display results
+    println!("✅ Optimization Complete!");
+    println!("📊 Results:");
+    println!("    Best fitness: {:.4}", result.fitness);
+    println!("    Evaluations: {}", result.evaluations);
+    println!();
+
+    println!("🎯 Optimized Parameters:");
+    println!("    weight_docstring: {:.3}", result.params.weight_docstring);
+    println!("    weight_type_enum: {:.3}", result.params.weight_type_enum);
+    println!("    weight_edge_cases: {:.3}", result.params.weight_edge_cases);
+    println!("    weight_error_induction: {:.3}", result.params.weight_error_induction);
+    println!("    weight_composition: {:.3}", result.params.weight_composition);
+    println!("    quality_threshold: {:.3}", result.params.quality_threshold);
+    println!("    min_diversity: {:.3}", result.params.min_diversity);
+    println!("    augmentation_ratio: {:.3}", result.params.augmentation_ratio);
+    println!();
+
+    // Save parameters
+    let optimized = OptimizedParams::new(
+        result.params,
+        result.fitness,
+        result.evaluations,
+        curriculum,
+    );
+
+    let saved_path = save_params(&optimized, output.as_ref())?;
+    println!("💾 Parameters saved to: {}", saved_path.display());
+
+    Ok(())
+}
+
+/// Create sample stdlib functions for optimization evaluation.
+fn create_sample_stdlib_functions() -> Vec<depyler_oracle::self_supervised::StdlibFunction> {
+    use depyler_oracle::self_supervised::{PyType, StdlibFunction};
+
+    vec![
+        StdlibFunction {
+            module: "os.path".to_string(),
+            name: "join".to_string(),
+            signature: "(path, *paths) -> str".to_string(),
+            arg_types: vec![PyType::Str, PyType::Str],
+            return_type: Some(PyType::Str),
+            docstring_examples: vec!["os.path.join('/home', 'user')".to_string()],
+        },
+        StdlibFunction {
+            module: "os.path".to_string(),
+            name: "exists".to_string(),
+            signature: "(path) -> bool".to_string(),
+            arg_types: vec![PyType::Str],
+            return_type: Some(PyType::Bool),
+            docstring_examples: vec!["os.path.exists('/tmp')".to_string()],
+        },
+        StdlibFunction {
+            module: "json".to_string(),
+            name: "loads".to_string(),
+            signature: "(s) -> Any".to_string(),
+            arg_types: vec![PyType::Str],
+            return_type: Some(PyType::Any),
+            docstring_examples: vec!["json.loads('{\"key\": \"value\"}')".to_string()],
+        },
+        StdlibFunction {
+            module: "os".to_string(),
+            name: "listdir".to_string(),
+            signature: "(path) -> list".to_string(),
+            arg_types: vec![PyType::Str],
+            return_type: Some(PyType::List(Box::new(PyType::Str))),
+            docstring_examples: vec!["os.listdir('.')".to_string()],
+        },
+        StdlibFunction {
+            module: "datetime".to_string(),
+            name: "now".to_string(),
+            signature: "() -> datetime".to_string(),
+            arg_types: vec![],
+            return_type: Some(PyType::Any),
+            docstring_examples: vec!["datetime.datetime.now()".to_string()],
+        },
+    ]
+}
+
+/// Show current optimized parameters.
+pub fn oracle_show_command() -> Result<()> {
+    use depyler_oracle::{load_params, params_exist, default_params_path};
+
+    let path = default_params_path();
+
+    if !params_exist(None) {
+        println!("❌ No optimized parameters found at: {}", path.display());
+        println!("   Run 'depyler oracle optimize' to generate parameters.");
+        return Ok(());
+    }
+
+    let params = load_params(None)?;
+
+    println!("📊 Optimized Oracle Parameters");
+    println!("==============================\n");
+    println!("📁 Path: {}", path.display());
+    println!("📅 Timestamp: {}", params.timestamp);
+    println!("📦 Version: {}", params.version);
+    println!("🎯 Fitness: {:.4}", params.fitness);
+    println!("🔄 Evaluations: {}", params.evaluations);
+    println!("📚 Curriculum: {}", if params.curriculum { "yes" } else { "no" });
+    println!();
+    println!("⚙️  Generation Parameters:");
+    println!("    weight_docstring: {:.3}", params.params.weight_docstring);
+    println!("    weight_type_enum: {:.3}", params.params.weight_type_enum);
+    println!("    weight_edge_cases: {:.3}", params.params.weight_edge_cases);
+    println!("    weight_error_induction: {:.3}", params.params.weight_error_induction);
+    println!("    weight_composition: {:.3}", params.params.weight_composition);
+    println!("    quality_threshold: {:.3}", params.params.quality_threshold);
+    println!("    min_diversity: {:.3}", params.params.min_diversity);
+    println!("    augmentation_ratio: {:.3}", params.params.augmentation_ratio);
+
+    Ok(())
+}
+
+/// Train Oracle model from corpus.
+pub fn oracle_train_command(min_samples: usize, synthetic: bool) -> Result<()> {
+    use depyler_oracle::Oracle;
+
+    println!("🧠 Training Depyler Oracle Model");
+    println!("================================\n");
+
+    println!("⚙️  Configuration:");
+    println!("    Min samples: {}", min_samples);
+    println!("    Synthetic augmentation: {}", if synthetic { "enabled" } else { "disabled" });
+    println!();
+
+    // Create progress bar
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::default_spinner()
+            .template("{spinner:.green} {msg}")
+            .unwrap(),
+    );
+    pb.set_message("Loading and training model...");
+
+    // Train model (uses load_or_train internally which handles everything)
+    let _oracle = Oracle::load_or_train()?;
+
+    pb.finish_with_message("Training complete!");
+    println!();
+
+    let model_path = Oracle::default_model_path();
+    println!("✅ Oracle model trained successfully!");
+    println!("💾 Model saved to: {}", model_path.display());
+
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests {

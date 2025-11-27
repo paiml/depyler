@@ -40,6 +40,9 @@ tracing.workspace = true
 # Regex for pattern matching in autofixer
 regex.workspace = true
 
+# Home directory detection
+dirs = "5"
+
 # HTTP client for API fallback
 ureq = { version = "2.9", features = ["json"] }
 
