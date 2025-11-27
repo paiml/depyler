@@ -62,6 +62,123 @@ fn is_rust_keyword(name: &str) -> bool {
     )
 }
 
+/// DEPYLER-0596: Parse a target pattern string into a syn::Pat
+/// Handles tuple patterns like "(name, t)" and simple identifiers
+fn parse_target_pattern(target: &str) -> syn::Pat {
+    if target.starts_with('(') {
+        // Manually construct tuple pattern
+        let inner = target.trim_start_matches('(').trim_end_matches(')');
+        let parts: Vec<syn::Pat> = inner.split(',')
+            .map(|s| {
+                let ident = make_ident(s.trim());
+                syn::Pat::Ident(syn::PatIdent {
+                    attrs: vec![],
+                    by_ref: None,
+                    mutability: None,
+                    ident,
+                    subpat: None,
+                })
+            })
+            .collect();
+        syn::Pat::Tuple(syn::PatTuple {
+            attrs: vec![],
+            paren_token: syn::token::Paren::default(),
+            elems: parts.into_iter().collect(),
+        })
+    } else {
+        let target_ident = make_ident(target);
+        syn::Pat::Ident(syn::PatIdent {
+            attrs: vec![],
+            by_ref: None,
+            mutability: None,
+            ident: target_ident,
+            subpat: None,
+        })
+    }
+}
+
+/// DEPYLER-0596: Safe identifier creation that handles keywords with raw identifiers
+/// This prevents panics when creating identifiers from Python names that are Rust keywords
+fn make_ident(name: &str) -> syn::Ident {
+    if name.is_empty() {
+        return syn::Ident::new("_empty", proc_macro2::Span::call_site());
+    }
+    // Special case: "self", "super", "crate", "Self" cannot be raw identifiers
+    // Convert them to name with underscore suffix
+    match name {
+        "self" | "super" | "crate" | "Self" => {
+            let suffixed = format!("{}_", name);
+            return syn::Ident::new(&suffixed, proc_macro2::Span::call_site());
+        }
+        _ => {}
+    }
+    // Check if it's a valid identifier that's also a keyword
+    if is_rust_keyword(name) {
+        // Use raw identifier r#keyword
+        return syn::Ident::new_raw(name, proc_macro2::Span::call_site());
+    }
+    // Check if name is a valid identifier
+    let is_valid = name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+    if is_valid {
+        syn::Ident::new(name, proc_macro2::Span::call_site())
+    } else {
+        // Sanitize and create
+        let sanitized = sanitize_identifier(name);
+        syn::Ident::new(&sanitized, proc_macro2::Span::call_site())
+    }
+}
+
+/// DEPYLER-0586: Sanitize a name to be a valid Rust identifier
+/// - Replaces invalid characters with underscores
+/// - Ensures it doesn't start with a number
+/// - Handles empty names
+/// - Prefixes Rust keywords with r# for raw identifiers
+fn sanitize_identifier(name: &str) -> String {
+    if name.is_empty() {
+        return "_empty".to_string();
+    }
+
+    let mut sanitized = String::with_capacity(name.len());
+
+    for (i, c) in name.chars().enumerate() {
+        if i == 0 {
+            // First character must be letter or underscore
+            if c.is_ascii_alphabetic() || c == '_' {
+                sanitized.push(c);
+            } else if c.is_ascii_digit() {
+                // Prefix with underscore if starts with digit
+                sanitized.push('_');
+                sanitized.push(c);
+            } else {
+                // Replace invalid char with underscore
+                sanitized.push('_');
+            }
+        } else {
+            // Subsequent characters can be alphanumeric or underscore
+            if c.is_ascii_alphanumeric() || c == '_' {
+                sanitized.push(c);
+            } else {
+                sanitized.push('_');
+            }
+        }
+    }
+
+    // Ensure we have at least one character
+    if sanitized.is_empty() {
+        return "_unnamed".to_string();
+    }
+
+    // Handle Rust keywords by prefixing with underscore
+    // We can't use r# raw identifiers in syn::Ident::new easily,
+    // so we append underscore suffix instead
+    if is_rust_keyword(&sanitized) {
+        sanitized.push('_');
+    }
+
+    sanitized
+}
+
 /// Helper to build nested dictionary access for assignment
 /// Returns (base_expr, access_chain) where access_chain is a vec of index expressions
 fn extract_nested_indices(
@@ -181,7 +298,7 @@ pub fn apply_rules(module: &HirModule, type_mapper: &TypeMapper) -> Result<syn::
 }
 
 fn convert_type_alias(type_alias: &TypeAlias, type_mapper: &TypeMapper) -> Result<syn::Item> {
-    let alias_name = syn::Ident::new(&type_alias.name, proc_macro2::Span::call_site());
+    let alias_name = make_ident(&type_alias.name);
     let rust_type = type_mapper.map_type(&type_alias.target_type);
     let target_type = rust_type_to_syn_type(&rust_type)?;
 
@@ -200,7 +317,7 @@ fn convert_type_alias(type_alias: &TypeAlias, type_mapper: &TypeMapper) -> Resul
 }
 
 fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> Result<syn::Item> {
-    let trait_name = syn::Ident::new(&protocol.name, proc_macro2::Span::call_site());
+    let trait_name = make_ident(&protocol.name);
 
     // Convert type parameters to generic parameters
     let generics = if protocol.type_params.is_empty() {
@@ -210,7 +327,7 @@ fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> R
             .type_params
             .iter()
             .map(|param| {
-                let ident = syn::Ident::new(param, proc_macro2::Span::call_site());
+                let ident = make_ident(&param);
                 syn::GenericParam::Type(syn::TypeParam {
                     attrs: vec![],
                     ident,
@@ -312,7 +429,7 @@ pub fn convert_class_to_struct(
     type_mapper: &TypeMapper,
 ) -> Result<Vec<syn::Item>> {
     let mut items = Vec::new();
-    let struct_name = syn::Ident::new(&class.name, proc_macro2::Span::call_site());
+    let struct_name = make_ident(&class.name);
 
     // Separate instance fields from class fields (constants/statics)
     let (instance_fields, class_fields): (Vec<_>, Vec<_>) =
@@ -321,7 +438,7 @@ pub fn convert_class_to_struct(
     // Generate struct fields (only instance fields)
     let mut fields = Vec::new();
     for field in instance_fields {
-        let field_name = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
+        let field_name = syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
         let rust_type = type_mapper.map_type(&field.field_type);
         let field_type = rust_type_to_syn_type(&rust_type)?;
 
@@ -360,7 +477,7 @@ pub fn convert_class_to_struct(
     // Add class constants first
     for class_field in &class_fields {
         if let Some(default_value) = &class_field.default_value {
-            let const_name = syn::Ident::new(&class_field.name, proc_macro2::Span::call_site());
+            let const_name = make_ident(&class_field.name);
             let rust_type = type_mapper.map_type(&class_field.field_type);
             let const_type = rust_type_to_syn_type(&rust_type)?;
             let value_expr = convert_expr(default_value, type_mapper)?;
@@ -438,7 +555,7 @@ fn generate_dataclass_new(
         .collect();
 
     for field in &fields_without_defaults {
-        let param_ident = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
+        let param_ident = syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
         let rust_type = type_mapper.map_type(&field.field_type);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
 
@@ -462,7 +579,7 @@ fn generate_dataclass_new(
         .iter()
         .filter(|f| !f.is_class_var) // Skip class constants
         .map(|field| {
-            let field_ident = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
+            let field_ident = syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
             if field.default_value.is_some() {
                 // Use default value - for now just use Default::default() or 0 for int
                 if field.field_type == Type::Int {
@@ -519,7 +636,7 @@ fn convert_init_to_new(
     let mut inputs = syn::punctuated::Punctuated::new();
 
     for param in &init_method.params {
-        let param_ident = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
+        let param_ident = make_ident(&param.name);
         let rust_type = type_mapper.map_type(&param.ty);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
 
@@ -547,7 +664,7 @@ fn convert_init_to_new(
             continue;
         }
 
-        let field_ident = syn::Ident::new(&field.name, proc_macro2::Span::call_site());
+        let field_ident = syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
 
         // Check if this field matches a parameter name
         if init_method
@@ -758,7 +875,7 @@ fn convert_method_to_impl_item(
     let method_name = if is_rust_keyword(&method.name) {
         syn::Ident::new_raw(&method.name, proc_macro2::Span::call_site())
     } else {
-        syn::Ident::new(&method.name, proc_macro2::Span::call_site())
+        make_ident(&method.name)
     };
 
     // Convert parameters
@@ -785,7 +902,7 @@ fn convert_method_to_impl_item(
 
     // Add other parameters
     for param in &method.params {
-        let param_ident = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
+        let param_ident = make_ident(&param.name);
         let rust_type = type_mapper.map_type(&param.ty);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
 
@@ -864,7 +981,7 @@ fn convert_protocol_method_to_trait_method(
     method: &ProtocolMethod,
     type_mapper: &TypeMapper,
 ) -> Result<syn::TraitItem> {
-    let method_name = syn::Ident::new(&method.name, proc_macro2::Span::call_site());
+    let method_name = make_ident(&method.name);
 
     // Convert parameters
     let mut inputs = syn::punctuated::Punctuated::new();
@@ -887,7 +1004,7 @@ fn convert_protocol_method_to_trait_method(
 
     // Add remaining parameters
     for param in method_params {
-        let param_ident = syn::Ident::new(&param.name, proc_macro2::Span::call_site());
+        let param_ident = make_ident(&param.name);
         let rust_type = type_mapper.map_type(&param.ty);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
 
@@ -963,16 +1080,16 @@ fn convert_simple_type(rust_type: &RustType) -> Result<syn::Type> {
                     .unwrap_or_else(|_| panic!("Failed to parse type path: {}", name));
                 parse_quote! { #path }
             } else {
-                let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                let ident = make_ident(&name);
                 parse_quote! { #ident }
             }
         }
         TypeParam(name) => {
-            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            let ident = make_ident(&name);
             parse_quote! { #ident }
         }
         Enum { name, .. } => {
-            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            let ident = make_ident(&name);
             parse_quote! { #ident }
         }
         _ => unreachable!("convert_simple_type called with non-simple type"),
@@ -1078,7 +1195,7 @@ fn convert_complex_type(rust_type: &RustType) -> Result<syn::Type> {
             parse_quote! { (#(#type_tokens),*) }
         }
         Generic { base, params } => {
-            let base_ident = syn::Ident::new(base, proc_macro2::Span::call_site());
+            let base_ident = make_ident(&base);
             let param_types: anyhow::Result<std::vec::Vec<_>> =
                 params.iter().map(rust_type_to_syn_type).collect();
             let param_types = param_types?;
@@ -1108,7 +1225,7 @@ fn convert_array_type(rust_type: &RustType) -> Result<syn::Type> {
                 parse_quote! { [#element; #size_lit] }
             }
             crate::type_mapper::RustConstGeneric::Parameter(name) => {
-                let param_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                let param_ident = make_ident(&name);
                 parse_quote! { [#element; #param_ident] }
             }
             crate::type_mapper::RustConstGeneric::Expression(expr) => {
@@ -1152,7 +1269,7 @@ fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
 }
 
 fn convert_function(func: &HirFunction, type_mapper: &TypeMapper) -> Result<syn::ItemFn> {
-    let name = syn::Ident::new(&func.name, proc_macro2::Span::call_site());
+    let name = make_ident(&func.name);
 
     // Convert parameters
     let mut inputs = Vec::new();
@@ -1163,7 +1280,7 @@ fn convert_function(func: &HirFunction, type_mapper: &TypeMapper) -> Result<syn:
             attrs: vec![],
             by_ref: None,
             mutability: None,
-            ident: syn::Ident::new(&param.name, proc_macro2::Span::call_site()),
+            ident: make_ident(&param.name),
             subpat: None,
         });
 
@@ -1268,7 +1385,7 @@ fn rust_type_to_syn(rust_type: &RustType) -> Result<syn::Type> {
                     parse_quote! { [#element; #size_lit] }
                 }
                 crate::type_mapper::RustConstGeneric::Parameter(name) => {
-                    let param_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                    let param_ident = make_ident(&name);
                     parse_quote! { [#element; #param_ident] }
                 }
                 crate::type_mapper::RustConstGeneric::Expression(expr) => {
@@ -1302,7 +1419,7 @@ fn convert_body_with_context(
 ///
 /// Complexity: 1 (no branching)
 fn convert_symbol_assignment(symbol: &str, value_expr: syn::Expr) -> Result<syn::Stmt> {
-    let target_ident = syn::Ident::new(symbol, proc_macro2::Span::call_site());
+    let target_ident = make_ident(&symbol);
     let stmt = syn::Stmt::Local(syn::Local {
         attrs: vec![],
         let_token: Default::default(),
@@ -1369,7 +1486,7 @@ fn convert_attribute_assignment(
     type_mapper: &TypeMapper,
 ) -> Result<syn::Stmt> {
     let base_expr = convert_expr(base, type_mapper)?;
-    let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+    let attr_ident = make_ident(&attr);
 
     let assign_expr = parse_quote! {
         #base_expr.#attr_ident = #value_expr
@@ -1423,7 +1540,7 @@ fn convert_assign_stmt_with_expr(
                 Some(symbols) => {
                     let idents: Vec<_> = symbols
                         .iter()
-                        .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
+                        .map(|s| make_ident(&s))
                         .collect();
                     let pat = syn::Pat::Tuple(syn::PatTuple {
                         attrs: vec![],
@@ -1524,7 +1641,7 @@ fn convert_stmt_with_context(
             // Generate target pattern based on AssignTarget type
             let target_pattern: syn::Pat = match target {
                 AssignTarget::Symbol(name) => {
-                    let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                    let ident = make_ident(&name);
                     parse_quote! { #ident }
                 }
                 AssignTarget::Tuple(targets) => {
@@ -1532,7 +1649,7 @@ fn convert_stmt_with_context(
                         .iter()
                         .map(|t| match t {
                             AssignTarget::Symbol(s) => {
-                                syn::Ident::new(s, proc_macro2::Span::call_site())
+                                make_ident(&s)
                             }
                             _ => panic!("Nested tuple unpacking not supported in for loops"),
                         })
@@ -1601,7 +1718,7 @@ fn convert_stmt_with_context(
 
             // Generate a scope block with optional variable binding
             let block_expr = if let Some(var_name) = target {
-                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                let var_ident = make_ident(&var_name);
                 parse_quote! {
                     {
                         let mut #var_ident = #context_expr;
@@ -1769,6 +1886,8 @@ impl<'a> ExprConverter<'a> {
             HirExpr::Unary { op, operand } => self.convert_unary(*op, operand),
             HirExpr::Call { func, args, .. } => self.convert_call(func, args),
             HirExpr::Index { base, index } => self.convert_index(base, index),
+            // DEPYLER-0596: Add Slice support for string slicing with negative indices
+            HirExpr::Slice { base, start, stop, step } => self.convert_slice(base, start, stop, step),
             HirExpr::List(elts) => self.convert_list(elts),
             HirExpr::Dict(items) => self.convert_dict(items),
             HirExpr::Tuple(elts) => self.convert_tuple(elts),
@@ -1849,7 +1968,8 @@ impl<'a> ExprConverter<'a> {
     }
 
     fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
-        let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+        // DEPYLER-0596: Use make_ident to handle keywords like "match"
+        let ident = make_ident(name);
         Ok(parse_quote! { #ident })
     }
 
@@ -2194,7 +2314,7 @@ impl<'a> ExprConverter<'a> {
             .unwrap_or(false)
         {
             // Treat as constructor call - ClassName::new(args)
-            let class_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+            let class_ident = make_ident(&func);
             if args.is_empty() {
                 // Note: Constructor default parameter handling uses simple heuristics.
                 // Ideally this would be context-aware and know the actual default values
@@ -2209,7 +2329,7 @@ impl<'a> ExprConverter<'a> {
             }
         } else {
             // Regular function call
-            let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+            let func_ident = make_ident(&func);
             Ok(parse_quote! { #func_ident(#(#args),*) })
         }
     }
@@ -2222,6 +2342,89 @@ impl<'a> ExprConverter<'a> {
         Ok(parse_quote! {
             #base_expr[#index_expr as usize]
         })
+    }
+
+    /// DEPYLER-0596: Convert slice expression (e.g., value[1:-1])
+    fn convert_slice(
+        &self,
+        base: &HirExpr,
+        start: &Option<Box<HirExpr>>,
+        stop: &Option<Box<HirExpr>>,
+        step: &Option<Box<HirExpr>>,
+    ) -> Result<syn::Expr> {
+        let base_expr = self.convert(base)?;
+
+        // Convert start/stop/step expressions
+        let start_expr = start.as_ref().map(|e| self.convert(e)).transpose()?;
+        let stop_expr = stop.as_ref().map(|e| self.convert(e)).transpose()?;
+        let _step_expr = step.as_ref().map(|e| self.convert(e)).transpose()?;
+
+        // For strings: use chars().skip().take() pattern with negative index handling
+        // This handles cases like value[1:-1] (remove first and last chars)
+        match (start_expr, stop_expr) {
+            (Some(start), Some(stop)) => {
+                // value[start:stop] - handles negative indices
+                Ok(parse_quote! {
+                    {
+                        let s = &#base_expr;
+                        let len = s.chars().count() as isize;
+                        let start_idx = #start as isize;
+                        let stop_idx = #stop as isize;
+                        let start = if start_idx < 0 {
+                            (len + start_idx).max(0) as usize
+                        } else {
+                            start_idx as usize
+                        };
+                        let stop = if stop_idx < 0 {
+                            (len + stop_idx).max(0) as usize
+                        } else {
+                            stop_idx as usize
+                        };
+                        if stop > start {
+                            s.chars().skip(start).take(stop - start).collect::<String>()
+                        } else {
+                            String::new()
+                        }
+                    }
+                })
+            }
+            (Some(start), None) => {
+                // value[start:] - from start to end
+                Ok(parse_quote! {
+                    {
+                        let s = &#base_expr;
+                        let len = s.chars().count() as isize;
+                        let start_idx = #start as isize;
+                        let start = if start_idx < 0 {
+                            (len + start_idx).max(0) as usize
+                        } else {
+                            start_idx as usize
+                        };
+                        s.chars().skip(start).collect::<String>()
+                    }
+                })
+            }
+            (None, Some(stop)) => {
+                // value[:stop] - from beginning to stop
+                Ok(parse_quote! {
+                    {
+                        let s = &#base_expr;
+                        let len = s.chars().count() as isize;
+                        let stop_idx = #stop as isize;
+                        let stop = if stop_idx < 0 {
+                            (len + stop_idx).max(0) as usize
+                        } else {
+                            stop_idx as usize
+                        };
+                        s.chars().take(stop).collect::<String>()
+                    }
+                })
+            }
+            (None, None) => {
+                // value[:] - full clone
+                Ok(parse_quote! { #base_expr.clone() })
+            }
+        }
     }
 
     fn convert_list(&self, elts: &[HirExpr]) -> Result<syn::Expr> {
@@ -2358,7 +2561,7 @@ impl<'a> ExprConverter<'a> {
         // Handle classmethod cls.method() → Self::method()
         if let HirExpr::Var(var_name) = object {
             if var_name == "cls" && self.is_classmethod {
-                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                let method_ident = make_ident(&method);
                 let arg_exprs: Vec<syn::Expr> = args
                     .iter()
                     .map(|arg| self.convert(arg))
@@ -2376,8 +2579,8 @@ impl<'a> ExprConverter<'a> {
                 .unwrap_or(false)
             {
                 // This is likely a static method call - convert to ClassName::method(args)
-                let class_ident = syn::Ident::new(class_name, proc_macro2::Span::call_site());
-                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                let class_ident = make_ident(&class_name);
+                let method_ident = make_ident(&method);
                 let arg_exprs: Vec<syn::Expr> = args
                     .iter()
                     .map(|arg| self.convert(arg))
@@ -2586,7 +2789,24 @@ impl<'a> ExprConverter<'a> {
 
             // Generic method call fallback
             _ => {
-                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                // DEPYLER-0596: Validate method name before creating identifier
+                // Method names must be valid Rust identifiers (no empty, no special chars)
+                if method.is_empty() {
+                    bail!("Empty method name in method call");
+                }
+                // Check if method is a valid identifier (starts with letter/underscore, alphanumeric)
+                let is_valid_ident = method.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+                    && method.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+                if !is_valid_ident {
+                    bail!("Invalid method name '{}' - not a valid Rust identifier", method);
+                }
+                // Debug: Check if method is a Rust keyword
+                if syn::parse_str::<syn::Ident>(method).is_err() {
+                    // Method is a Rust keyword - use raw identifier
+                    let method_ident = syn::Ident::new_raw(method, proc_macro2::Span::call_site());
+                    return Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) });
+                }
+                let method_ident = make_ident(&method);
                 Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) })
             }
         }
@@ -2599,7 +2819,7 @@ impl<'a> ExprConverter<'a> {
         iter: &HirExpr,
         condition: &Option<Box<HirExpr>>,
     ) -> Result<syn::Expr> {
-        let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+        let target_pat = parse_target_pattern(target);
         let iter_expr = self.convert(iter)?;
         let element_expr = self.convert(element)?;
 
@@ -2609,8 +2829,8 @@ impl<'a> ExprConverter<'a> {
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
-                    .filter(|#target_ident| #cond_expr)
-                    .map(|#target_ident| #element_expr)
+                    .filter(|#target_pat| #cond_expr)
+                    .map(|#target_pat| #element_expr)
                     .collect::<Vec<_>>()
             })
         } else {
@@ -2618,7 +2838,7 @@ impl<'a> ExprConverter<'a> {
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
-                    .map(|#target_ident| #element_expr)
+                    .map(|#target_pat| #element_expr)
                     .collect::<Vec<_>>()
             })
         }
@@ -2631,7 +2851,7 @@ impl<'a> ExprConverter<'a> {
         iter: &HirExpr,
         condition: &Option<Box<HirExpr>>,
     ) -> Result<syn::Expr> {
-        let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+        let target_pat = parse_target_pattern(target);
         let iter_expr = self.convert(iter)?;
         let element_expr = self.convert(element)?;
 
@@ -2641,8 +2861,8 @@ impl<'a> ExprConverter<'a> {
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
-                    .filter(|#target_ident| #cond_expr)
-                    .map(|#target_ident| #element_expr)
+                    .filter(|#target_pat| #cond_expr)
+                    .map(|#target_pat| #element_expr)
                     .collect::<HashSet<_>>()
             })
         } else {
@@ -2650,7 +2870,7 @@ impl<'a> ExprConverter<'a> {
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
-                    .map(|#target_ident| #element_expr)
+                    .map(|#target_pat| #element_expr)
                     .collect::<HashSet<_>>()
             })
         }
@@ -2664,7 +2884,7 @@ impl<'a> ExprConverter<'a> {
         iter: &HirExpr,
         condition: &Option<Box<HirExpr>>,
     ) -> Result<syn::Expr> {
-        let target_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+        let target_pat = parse_target_pattern(target);
         let iter_expr = self.convert(iter)?;
         let key_expr = self.convert(key)?;
         let value_expr = self.convert(value)?;
@@ -2675,8 +2895,8 @@ impl<'a> ExprConverter<'a> {
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
-                    .filter(|#target_ident| #cond_expr)
-                    .map(|#target_ident| (#key_expr, #value_expr))
+                    .filter(|#target_pat| #cond_expr)
+                    .map(|#target_pat| (#key_expr, #value_expr))
                     .collect::<HashMap<_, _>>()
             })
         } else {
@@ -2684,7 +2904,7 @@ impl<'a> ExprConverter<'a> {
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
-                    .map(|#target_ident| (#key_expr, #value_expr))
+                    .map(|#target_pat| (#key_expr, #value_expr))
                     .collect::<HashMap<_, _>>()
             })
         }
@@ -2695,7 +2915,7 @@ impl<'a> ExprConverter<'a> {
         let param_pats: Vec<syn::Pat> = params
             .iter()
             .map(|p| {
-                let ident = syn::Ident::new(p, proc_macro2::Span::call_site());
+                let ident = make_ident(&p);
                 parse_quote! { #ident }
             })
             .collect();
@@ -2777,13 +2997,14 @@ impl<'a> ExprConverter<'a> {
         // Handle classmethod cls.ATTR → Self::ATTR
         if let HirExpr::Var(var_name) = value {
             if var_name == "cls" && self.is_classmethod {
-                let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+                let attr_ident = make_ident(attr);
                 return Ok(parse_quote! { Self::#attr_ident });
             }
         }
 
         let value_expr = self.convert(value)?;
-        let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+        // DEPYLER-0596: Use make_ident to handle keywords like "match"
+        let attr_ident = make_ident(attr);
         Ok(parse_quote! { #value_expr.#attr_ident })
     }
 }
