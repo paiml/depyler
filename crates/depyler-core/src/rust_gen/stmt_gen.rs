@@ -1133,6 +1133,14 @@ fn apply_truthiness_conversion(
                 });
 
                 if is_optional_field {
+                    // DEPYLER-0108: Check if this field has been precomputed
+                    // to avoid borrow-after-move when Option is passed then checked
+                    if ctx.precomputed_option_fields.contains(attr) {
+                        let has_var_name = format!("has_{}", attr);
+                        let has_ident =
+                            syn::Ident::new(&has_var_name, proc_macro2::Span::call_site());
+                        return parse_quote! { #has_ident };
+                    }
                     // Convert Option<T> to boolean using .is_some()
                     return parse_quote! { #cond_expr.is_some() };
                 }
@@ -4544,8 +4552,37 @@ fn try_generate_subcommand_match(
                                 quote! { let #field_ident = *#field_ident; }
                             }
                             Some(Type::Int) | Some(Type::Float) => {
-                                // With explicit `ref` pattern, primitives are references - dereference
-                                quote! { let #field_ident = *#field_ident; }
+                                // DEPYLER-0576: Check if field has a default value (is Option<T>)
+                                // Clap represents optional args with defaults as Option<T>
+                                // ref binding gives &Option<T>, need to unwrap with default
+                                let has_default = maybe_arg
+                                    .as_ref()
+                                    .map(|a| a.default.is_some())
+                                    .unwrap_or(false);
+
+                                if has_default {
+                                    // Field is Option<T>, unwrap with default
+                                    // Clone the default expression to release borrow on ctx
+                                    let default_expr_opt = maybe_arg
+                                        .and_then(|a| a.default.clone());
+
+                                    let default_val = if let Some(ref d) = default_expr_opt {
+                                        d.to_rust_expr(ctx).ok()
+                                    } else {
+                                        None
+                                    }.unwrap_or_else(|| {
+                                        // Fallback to 0.0 for Float, 0 for Int
+                                        if matches!(field_type, Some(Type::Float)) {
+                                            syn::parse_quote! { 0.0 }
+                                        } else {
+                                            syn::parse_quote! { 0 }
+                                        }
+                                    });
+                                    quote! { let #field_ident = #field_ident.unwrap_or(#default_val); }
+                                } else {
+                                    // Required field (not Option), just dereference
+                                    quote! { let #field_ident = *#field_ident; }
+                                }
                             }
                             Some(Type::String) => {
                                 // DEPYLER-0526: Heuristic for known String fields
@@ -4606,6 +4643,15 @@ fn try_generate_subcommand_match(
                                 ];
                                 let borrowed_indicators =
                                     ["content", "pattern", "text", "message", "data", "value"];
+                                // DEPYLER-0576: Numeric field indicators (likely f64 with defaults)
+                                let numeric_indicators = [
+                                    "x", "y", "z", "a", "b", "c", "n", "m", "i", "j", "k",
+                                    "x1", "x2", "y1", "y2", "z1", "z2",
+                                    "val", "num", "count", "rate", "coef", "factor",
+                                    "min", "max", "sum", "avg", "mean", "std",
+                                    "width", "height", "size", "len", "length",
+                                    "alpha", "beta", "gamma", "theta", "lr",
+                                ];
 
                                 let needs_owned = owned_indicators.iter().any(|ind| {
                                     field_lower == *ind
@@ -4617,6 +4663,11 @@ fn try_generate_subcommand_match(
                                         || field_lower.ends_with(ind)
                                         || field_lower.starts_with(ind)
                                 });
+                                let needs_numeric_unwrap = numeric_indicators.iter().any(|ind| {
+                                    field_lower == *ind
+                                        || field_lower.ends_with(ind)
+                                        || field_lower.starts_with(ind)
+                                });
 
                                 if needs_borrowed {
                                     // Keep as reference
@@ -4624,6 +4675,9 @@ fn try_generate_subcommand_match(
                                 } else if needs_owned {
                                     // Convert to owned String
                                     quote! { let #field_ident = #field_ident.to_string(); }
+                                } else if needs_numeric_unwrap {
+                                    // DEPYLER-0576: Likely numeric Option<f64> field, unwrap with default
+                                    quote! { let #field_ident = #field_ident.unwrap_or(0.0); }
                                 } else {
                                     // Unknown: keep as reference (safer default)
                                     quote! {}
