@@ -81,7 +81,7 @@ impl Default for TranspileOptions {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TranspileResponse {
     pub rust_code: String,
     pub metrics: TranspileMetrics,
@@ -89,7 +89,7 @@ pub struct TranspileResponse {
     pub compilation_command: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TranspileMetrics {
     pub estimated_energy_reduction: f64,
     pub memory_safety_score: f64,
