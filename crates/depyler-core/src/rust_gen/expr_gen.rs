@@ -7240,12 +7240,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .collect::<Result<Vec<_>>>()?;
 
         let result = match method {
-            // datetime.datetime.now() → Local::now()
+            // datetime.datetime.now([tz]) → Local::now() or Utc::now()
             "now" => {
                 if arg_exprs.is_empty() {
                     parse_quote! { chrono::Local::now().naive_local() }
                 } else {
-                    bail!("datetime.now() takes no arguments");
+                    // DEPYLER-0595: datetime.now(tz) - use Utc for UTC, Local otherwise
+                    // For simplicity, assume UTC if any tz provided
+                    parse_quote! { chrono::Utc::now().naive_utc() }
                 }
             }
 
@@ -9463,10 +9465,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! { #obj.to_lowercase() })
             }
             "strip" => {
-                if !arg_exprs.is_empty() {
-                    bail!("strip() with arguments not supported in V1");
+                // DEPYLER-0595: str.strip([chars]) → trim_matches
+                if arg_exprs.is_empty() {
+                    Ok(parse_quote! { #obj.trim().to_string() })
+                } else {
+                    let chars = &arg_exprs[0];
+                    Ok(parse_quote! { #obj.trim_matches(|c: char| #chars.contains(c)).to_string() })
                 }
-                Ok(parse_quote! { #obj.trim().to_string() })
             }
             "startswith" => {
                 if hir_args.len() != 1 {
@@ -9536,8 +9541,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "replace" => {
                 // DEPYLER-0195: str.replace(old, new) → .replace(old, new)
                 // DEPYLER-0301: str.replace(old, new, count) → .replacen(old, new, count)
+                // DEPYLER-0595: datetime.replace() uses kwargs, has 0-1 positional args
                 // Use bare string literals without .to_string() for correct types
-                if hir_args.len() < 2 || hir_args.len() > 3 {
+                if hir_args.len() < 2 {
+                    // Not str.replace - could be datetime.replace() with kwargs
+                    // Fall through to generic method call
+                    return Ok(parse_quote! { #object_expr.replace() });
+                }
+                if hir_args.len() > 3 {
                     bail!("replace() requires 2 or 3 arguments");
                 }
                 // Extract bare string literals for arguments
@@ -9621,18 +9632,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! { #object_expr.chars().all(|c| c.is_alphabetic()) })
             }
             "lstrip" => {
-                // DEPYLER-0302: str.lstrip() → .trim_start()
-                if !arg_exprs.is_empty() {
-                    bail!("lstrip() with arguments not supported in V1");
+                // DEPYLER-0302/0595: str.lstrip([chars]) → .trim_start_matches
+                if arg_exprs.is_empty() {
+                    Ok(parse_quote! { #object_expr.trim_start().to_string() })
+                } else {
+                    let chars = &arg_exprs[0];
+                    Ok(parse_quote! { #object_expr.trim_start_matches(|c: char| #chars.contains(c)).to_string() })
                 }
-                Ok(parse_quote! { #object_expr.trim_start().to_string() })
             }
             "rstrip" => {
-                // DEPYLER-0302: str.rstrip() → .trim_end()
-                if !arg_exprs.is_empty() {
-                    bail!("rstrip() with arguments not supported in V1");
+                // DEPYLER-0302/0595: str.rstrip([chars]) → .trim_end_matches
+                if arg_exprs.is_empty() {
+                    Ok(parse_quote! { #object_expr.trim_end().to_string() })
+                } else {
+                    let chars = &arg_exprs[0];
+                    Ok(parse_quote! { #object_expr.trim_end_matches(|c: char| #chars.contains(c)).to_string() })
                 }
-                Ok(parse_quote! { #object_expr.trim_end().to_string() })
             }
             "encode" => {
                 // DEPYLER-0594: str.encode([encoding]) → .as_bytes().to_vec()
@@ -12323,8 +12338,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     "tau" => parse_quote! { std::f64::consts::TAU },
                     "inf" => parse_quote! { f64::INFINITY },
                     "nan" => parse_quote! { f64::NAN },
+                    // DEPYLER-0595: Math functions as first-class values
+                    "sin" => parse_quote! { f64::sin },
+                    "cos" => parse_quote! { f64::cos },
+                    "tan" => parse_quote! { f64::tan },
+                    "asin" => parse_quote! { f64::asin },
+                    "acos" => parse_quote! { f64::acos },
+                    "atan" => parse_quote! { f64::atan },
+                    "sqrt" => parse_quote! { f64::sqrt },
+                    "exp" => parse_quote! { f64::exp },
+                    "log" => parse_quote! { f64::ln },
+                    "log10" => parse_quote! { f64::log10 },
+                    "floor" => parse_quote! { f64::floor },
+                    "ceil" => parse_quote! { f64::ceil },
+                    "abs" => parse_quote! { f64::abs },
                     _ => {
-                        // If it's not a recognized constant, it might be a typo
+                        // If it's not a recognized constant/function, it might be a typo
                         bail!("math.{} is not a recognized constant or method", attr);
                     }
                 };
