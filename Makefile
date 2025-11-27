@@ -862,3 +862,37 @@ lint-scripts: ## Lint all shell scripts with bashrs
 bashrs-report: ## Generate comprehensive bashrs validation report
 	@echo "📊 Generating bashrs validation report..."
 	@cat bashrs_validation_summary.md
+
+##@ Oracle Training (GH-153)
+
+.PHONY: train-oracle
+train-oracle: ## Train Oracle model from unified corpus (reprorusted + OIP)
+	@echo "🧠 Training Oracle model from unified corpus..."
+	@chmod +x ./scripts/extract_training_data.sh ./scripts/extract_oip_training_data.sh
+	@echo "📥 Step 1: Extract real compilation errors..."
+	./scripts/extract_training_data.sh
+	@echo "📥 Step 2: Extract OIP training data..."
+	./scripts/extract_oip_training_data.sh
+	@echo "🏋️ Step 3: Train unified model..."
+	cargo run --release --example train_unified_corpus -p depyler-oracle -- \
+		--errors training_corpus/errors.jsonl \
+		--oip training_corpus/oip_data.json \
+		--output depyler_oracle.apr \
+		--balance --max-per-class 2000
+	@echo "✅ Oracle training complete: depyler_oracle.apr"
+
+.PHONY: train-oracle-fast
+train-oracle-fast: ## Quick oracle training (synthetic only, for testing)
+	@echo "⚡ Quick Oracle training (synthetic only)..."
+	cargo run --release --example train_unified_corpus -p depyler-oracle -- \
+		--synthetic-samples 5000 \
+		--output depyler_oracle.apr
+	@echo "✅ Quick training complete"
+
+.PHONY: oracle-extract
+oracle-extract: ## Extract training data only (no training)
+	@echo "📥 Extracting training data..."
+	@chmod +x ./scripts/extract_training_data.sh ./scripts/extract_oip_training_data.sh
+	./scripts/extract_training_data.sh
+	./scripts/extract_oip_training_data.sh
+	@echo "✅ Data extracted to training_corpus/"
