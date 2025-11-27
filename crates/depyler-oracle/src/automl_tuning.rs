@@ -261,9 +261,12 @@ mod tests {
 
     #[test]
     fn test_automl_quick() {
-        let result = automl_quick();
+        // Use fewer trials for coverage runs (DEPYLER_FAST_TESTS=1)
+        let fast_mode = std::env::var("DEPYLER_FAST_TESTS").is_ok();
+        let trials = if fast_mode { 3 } else { 20 };
+        let result = automl_optimize(trials);
         assert!(result.accuracy > 0.0);
-        assert_eq!(result.trials, 20);
+        assert_eq!(result.trials, trials);
         assert!(!result.history.is_empty());
         println!(
             "AutoML Quick: {:.2}% accuracy with sim={:.3}, ngram={:?}, weight={:.1}",
