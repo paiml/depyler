@@ -11,6 +11,7 @@ use syn::{self, parse_quote};
 mod argparse_transform;
 mod array_initialization; // DEPYLER-REFACTOR-001: Extracted from expr_gen.rs
 mod builtin_conversions; // DEPYLER-REFACTOR-001: Extracted from expr_gen.rs
+pub mod numpy_gen; // Phase 3: NumPy→Trueno codegen
 mod collection_constructors; // DEPYLER-REFACTOR-001: Extracted from expr_gen.rs
 mod context;
 mod error_gen;
@@ -530,6 +531,7 @@ fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenS
         (ctx.needs_io_write, quote! { use std::io::Write; }), // DEPYLER-0458
         (ctx.needs_bufread, quote! { use std::io::BufRead; }), // DEPYLER-0522
         (ctx.needs_once_cell, quote! { use once_cell::sync::Lazy; }), // DEPYLER-REARCH-001
+        (ctx.needs_trueno, quote! { use trueno::Vector; }), // Phase 3: NumPy→Trueno
     ];
 
     // Add imports where needed
@@ -646,14 +648,40 @@ fn generate_lazy_constant(
         let syn_type = type_gen::rust_type_to_syn(&rust_type)?;
         quote! { #syn_type }
     } else {
-        // All complex types default to serde_json::Value
-        ctx.needs_serde_json = true;
-        quote! { serde_json::Value }
+        // DEPYLER-0107: Infer type from value expression
+        infer_lazy_constant_type(&constant.value, ctx)
+    };
+
+    // DEPYLER-0107: Dict/List literals return HashMap/Vec, convert to Value type
+    let final_expr = if constant.type_annotation.is_none() {
+        match &constant.value {
+            HirExpr::Dict(_) | HirExpr::List(_) => {
+                ctx.needs_serde_json = true;
+                quote! { serde_json::to_value(#value_expr).unwrap() }
+            }
+            _ => quote! { #value_expr }
+        }
+    } else {
+        quote! { #value_expr }
     };
 
     Ok(quote! {
-        pub static #name_ident: once_cell::sync::Lazy<#type_annotation> = once_cell::sync::Lazy::new(|| #value_expr);
+        pub static #name_ident: once_cell::sync::Lazy<#type_annotation> = once_cell::sync::Lazy::new(|| #final_expr);
     })
+}
+
+/// DEPYLER-0107: Infer type for Lazy constants based on value expression
+///
+/// All complex constants default to serde_json::Value for compatibility.
+/// The value expression must be wrapped with json!() when it returns HashMap.
+fn infer_lazy_constant_type(
+    _value: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> proc_macro2::TokenStream {
+    // Always use serde_json::Value for Lazy constants
+    // The convert_dict function already wraps values with json!() in json context
+    ctx.needs_serde_json = true;
+    quote! { serde_json::Value }
 }
 
 /// Generate a single simple constant (pub const)
@@ -864,6 +892,7 @@ pub fn generate_rust_file(
         needs_io_write: false,  // DEPYLER-0458
         needs_bufread: false,   // DEPYLER-0522
         needs_once_cell: false, // DEPYLER-REARCH-001
+        needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
         declared_vars: vec![HashSet::new()],
         current_function_can_fail: false,
         current_return_type: None,
@@ -903,6 +932,7 @@ pub fn generate_rust_file(
         stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452: Stdlib API mappings
         hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
         cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2: Track CSE subcommand temps
+        precomputed_option_fields: HashSet::new(), // DEPYLER-0108: Track precomputed Option checks for argparse
         nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
         fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type (become &str in Rust)
     };
@@ -1082,6 +1112,7 @@ mod tests {
             needs_io_write: false,  // DEPYLER-0458
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
+            needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -1120,6 +1151,7 @@ mod tests {
             in_json_context: false, // DEPYLER-0461: Track json!() macro context for nested dicts
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
+            precomputed_option_fields: HashSet::new(), // DEPYLER-0108: Track precomputed Option checks
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2: Track CSE subcommand temps
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type

@@ -77,6 +77,7 @@ pub struct CodeGenContext<'a> {
     pub needs_io_write: bool, // DEPYLER-0458: Track std::io::Write trait for file I/O
     pub needs_bufread: bool, // DEPYLER-0522: Track std::io::BufRead trait for .lines() method
     pub needs_once_cell: bool, // DEPYLER-REARCH-001: Track once_cell for lazy static initialization
+    pub needs_trueno: bool,    // Phase 3: NumPy→Trueno codegen (SIMD-accelerated tensor lib)
     pub declared_vars: Vec<HashSet<String>>,
     pub current_function_can_fail: bool,
     pub current_return_type: Option<Type>,
@@ -168,6 +169,11 @@ pub struct CodeGenContext<'a> {
     /// Without normalization: &str vs String type mismatch
     /// With normalization: String vs String (consistent)
     pub hoisted_inference_vars: HashSet<String>,
+
+    /// DEPYLER-0108: Track precomputed Option field checks for argparse
+    /// Contains field names (e.g., "hash") where we've precomputed `let has_<field> = args.<field>.is_some();`
+    /// Used by convert_method_call to substitute `args.<field>.is_some()` with `has_<field>`
+    pub precomputed_option_fields: HashSet<String>,
 
     /// DEPYLER-0456 Bug #2: Track CSE temp variables for subcommand checks
     /// Maps CSE temp variable names (e.g., "_cse_temp_0") to command names (e.g., "init")

@@ -8,6 +8,7 @@ use crate::hir::*;
 use crate::rust_gen::array_initialization; // DEPYLER-REFACTOR-001: Extracted array/range
 use crate::rust_gen::builtin_conversions; // DEPYLER-REFACTOR-001: Extracted conversions
 use crate::rust_gen::collection_constructors; // DEPYLER-REFACTOR-001: Extracted constructors
+use crate::rust_gen::numpy_gen; // Phase 3: NumPy→Trueno codegen
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use crate::rust_gen::return_type_expects_float;
 use crate::rust_gen::type_gen::convert_binop;
@@ -3772,6 +3773,208 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         };
 
         Ok(result)
+    }
+
+    /// Try to convert numpy module calls to trueno equivalents.
+    ///
+    /// Phase 3: NumPy→Trueno codegen
+    ///
+    /// Maps numpy API calls to trueno (SIMD-accelerated tensor library):
+    /// - np.array([...]) → Vector::from_slice(&[...])
+    /// - np.dot(a, b) → a.dot(&b)?
+    /// - np.sum(a) → a.sum()?
+    /// - np.mean(a) → a.mean()?
+    /// - np.sqrt(a) → a.sqrt()?
+    ///
+    /// Returns None if the method is not a recognized numpy function.
+    fn try_convert_numpy_call(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Check if this is a recognized numpy function
+        if numpy_gen::parse_numpy_function(method).is_none() {
+            return Ok(None);
+        }
+
+        // Mark that we need trueno dependency
+        self.ctx.needs_trueno = true;
+
+        // Convert arguments to syn::Expr
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Generate trueno code based on the numpy function
+        let result = match method {
+            "array" => {
+                // np.array([1.0, 2.0, 3.0]) → Vector::from_slice(&[1.0f32, 2.0, 3.0])
+                // The argument should be a list literal
+                if let Some(HirExpr::List(elements)) = args.first() {
+                    let element_exprs: Vec<proc_macro2::TokenStream> = elements
+                        .iter()
+                        .map(|e| {
+                            let expr = e.to_rust_expr(self.ctx)?;
+                            Ok(quote::quote! { #expr })
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    let call = numpy_gen::NumpyCall::Array {
+                        elements: element_exprs,
+                    };
+                    let tokens = numpy_gen::generate_trueno_code(&call);
+                    return Ok(Some(syn::parse2(tokens)?));
+                }
+                // Fallback: pass through as vec!
+                if let Some(arg) = arg_exprs.first() {
+                    parse_quote! { Vector::from_vec(#arg) }
+                } else {
+                    parse_quote! { Vector::new() }
+                }
+            }
+            "dot" => {
+                // np.dot(a, b) → a.dot(&b).unwrap()
+                if arg_exprs.len() >= 2 {
+                    let a = &arg_exprs[0];
+                    let b = &arg_exprs[1];
+                    parse_quote! { #a.dot(&#b).unwrap() }
+                } else {
+                    bail!("np.dot() requires 2 arguments");
+                }
+            }
+            "sum" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.sum().unwrap() }
+                } else {
+                    bail!("np.sum() requires 1 argument");
+                }
+            }
+            "mean" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.mean().unwrap() }
+                } else {
+                    bail!("np.mean() requires 1 argument");
+                }
+            }
+            "sqrt" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.sqrt().unwrap() }
+                } else {
+                    bail!("np.sqrt() requires 1 argument");
+                }
+            }
+            "abs" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.abs().unwrap() }
+                } else {
+                    bail!("np.abs() requires 1 argument");
+                }
+            }
+            "min" | "amin" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.min().unwrap() }
+                } else {
+                    bail!("np.min() requires 1 argument");
+                }
+            }
+            "max" | "amax" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.max().unwrap() }
+                } else {
+                    bail!("np.max() requires 1 argument");
+                }
+            }
+            "exp" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.exp().unwrap() }
+                } else {
+                    bail!("np.exp() requires 1 argument");
+                }
+            }
+            "log" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.ln().unwrap() }
+                } else {
+                    bail!("np.log() requires 1 argument");
+                }
+            }
+            "sin" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.sin().unwrap() }
+                } else {
+                    bail!("np.sin() requires 1 argument");
+                }
+            }
+            "cos" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.cos().unwrap() }
+                } else {
+                    bail!("np.cos() requires 1 argument");
+                }
+            }
+            "clip" => {
+                if arg_exprs.len() >= 3 {
+                    let arr = &arg_exprs[0];
+                    let min = &arg_exprs[1];
+                    let max = &arg_exprs[2];
+                    parse_quote! { #arr.clamp(#min, #max).unwrap() }
+                } else {
+                    bail!("np.clip() requires 3 arguments (array, min, max)");
+                }
+            }
+            "argmax" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.argmax().unwrap() }
+                } else {
+                    bail!("np.argmax() requires 1 argument");
+                }
+            }
+            "argmin" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.argmin().unwrap() }
+                } else {
+                    bail!("np.argmin() requires 1 argument");
+                }
+            }
+            "std" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.std().unwrap() }
+                } else {
+                    bail!("np.std() requires 1 argument");
+                }
+            }
+            "var" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.variance().unwrap() }
+                } else {
+                    bail!("np.var() requires 1 argument");
+                }
+            }
+            "zeros" => {
+                if let Some(size) = arg_exprs.first() {
+                    parse_quote! { Vector::zeros(#size) }
+                } else {
+                    bail!("np.zeros() requires 1 argument");
+                }
+            }
+            "ones" => {
+                if let Some(size) = arg_exprs.first() {
+                    parse_quote! { Vector::ones(#size) }
+                } else {
+                    bail!("np.ones() requires 1 argument");
+                }
+            }
+            "norm" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.norm().unwrap() }
+                } else {
+                    bail!("np.norm() requires 1 argument");
+                }
+            }
+            _ => return Ok(None),
+        };
+
+        Ok(Some(result))
     }
 
     /// Try to convert os.path module method calls
@@ -9781,6 +9984,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { () });
         }
 
+        // DEPYLER-0109: Handle parser.print_help() → Args::command().print_help()
+        // Python: parser.print_help() prints help and continues
+        // Rust/clap: Args::command().print_help()? with CommandFactory trait
+        if method == "print_help" {
+            // Generate clap help printing using CommandFactory
+            return Ok(parse_quote! {
+                {
+                    use clap::CommandFactory;
+                    Args::command().print_help().unwrap()
+                }
+            });
+        }
+
         // DEPYLER-0381: Handle sys I/O stream method calls
         // Check if object is a sys I/O stream (sys.stdin(), sys.stdout(), sys.stderr())
         if let HirExpr::Attribute { value, attr } = object {
@@ -10234,6 +10450,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
         kwargs: &[(String, HirExpr)],
     ) -> Result<syn::Expr> {
+        // DEPYLER-0108: Handle is_some/is_none on precomputed argparse Option fields
+        // This prevents borrow-after-move when Option field is passed to a function then checked
+        if (method == "is_some" || method == "is_none") && args.is_empty() {
+            if let HirExpr::Attribute { value, attr } = object {
+                if let HirExpr::Var(_) = value.as_ref() {
+                    // Check if this field has been precomputed
+                    if self.ctx.precomputed_option_fields.contains(attr) {
+                        let has_var_name = format!("has_{}", attr);
+                        let has_ident =
+                            syn::Ident::new(&has_var_name, proc_macro2::Span::call_site());
+                        if method == "is_some" {
+                            return Ok(parse_quote! { #has_ident });
+                        } else {
+                            return Ok(parse_quote! { !#has_ident });
+                        }
+                    }
+                }
+            }
+        }
+
         // DEPYLER-0558: Handle hasher methods (hexdigest, update) for incremental hashing
         if method == "hexdigest" {
             self.ctx.needs_hex = true;
@@ -13428,6 +13664,14 @@ impl ToRustExpr for HirExpr {
                 if let HirExpr::Var(module_name) = &**object {
                     if module_name == "subprocess" && method == "run" {
                         return converter.convert_subprocess_run(args, kwargs);
+                    }
+
+                    // Phase 3: NumPy→Trueno codegen
+                    // Handle numpy module calls: np.array(), np.dot(), np.sum(), etc.
+                    if numpy_gen::is_numpy_module(module_name) {
+                        if let Some(result) = converter.try_convert_numpy_call(method, args)? {
+                            return Ok(result);
+                        }
                     }
                 }
 
