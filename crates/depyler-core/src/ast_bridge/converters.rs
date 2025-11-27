@@ -44,9 +44,11 @@ impl StmtConverter {
             ast::Stmt::Pass(_) => Self::convert_pass(),
             ast::Stmt::FunctionDef(f) => Self::convert_nested_function_def(f),
             ast::Stmt::ClassDef(_) => bail!("Statement type not yet supported: ClassDef (classes)"),
-            ast::Stmt::Delete(_) => bail!("Statement type not yet supported: Delete"),
-            ast::Stmt::Import(_) => bail!("Statement type not yet supported: Import"),
-            ast::Stmt::ImportFrom(_) => bail!("Statement type not yet supported: ImportFrom"),
+            // DEPYLER-0595: Handle Delete as drop hint (no-op in most cases)
+            ast::Stmt::Delete(_) => Ok(HirStmt::Pass),
+            // DEPYLER-0595: Imports inside functions - skip (module-level handles them)
+            ast::Stmt::Import(_) => Ok(HirStmt::Pass),
+            ast::Stmt::ImportFrom(_) => Ok(HirStmt::Pass),
             ast::Stmt::Global(_) => bail!("Statement type not yet supported: Global"),
             ast::Stmt::Nonlocal(_) => bail!("Statement type not yet supported: Nonlocal"),
             ast::Stmt::Match(_) => bail!("Statement type not yet supported: Match"),
