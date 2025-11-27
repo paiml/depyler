@@ -188,13 +188,18 @@ pub fn convert_float_cast(
 
 /// Convert Python str() call to Rust .to_string()
 ///
+/// # DEPYLER-GH121: Wrap argument in parentheses to handle cast expressions
+/// Without parens, `x as f32.to_string()` is invalid Rust syntax.
+/// With parens, `(x as f32).to_string()` is valid.
+///
 /// # Complexity: 2
 pub fn convert_str_conversion(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() != 1 {
         bail!("str() requires exactly one argument");
     }
     let arg = &args[0];
-    Ok(parse_quote! { #arg.to_string() })
+    // DEPYLER-GH121: Wrap in parens to handle cast expressions
+    Ok(parse_quote! { (#arg).to_string() })
 }
 
 /// Convert Python bool() call to Rust truthiness check
