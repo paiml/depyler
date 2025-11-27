@@ -750,6 +750,243 @@ pub fn evaluate_fitness(
 }
 
 // ============================================================================
+// Phase 5: Evaluation and Benchmarking
+// ============================================================================
+
+/// Metrics for evaluating corpus quality.
+#[derive(Debug, Clone, Default)]
+pub struct EvaluationMetrics {
+    /// Number of samples in corpus
+    pub corpus_size: usize,
+    /// Percentage of unique samples (non-duplicate)
+    pub uniqueness_rate: f64,
+    /// Class balance score (1.0 = perfectly balanced)
+    pub class_balance: f64,
+    /// Coverage of error categories (0.0-1.0)
+    pub category_coverage: f64,
+    /// Diversity score from DiversityMonitor (0.0-1.0)
+    pub diversity_score: f64,
+    /// Estimated Oracle accuracy (from k-fold CV)
+    pub estimated_accuracy: f64,
+    /// F1 score (macro-averaged)
+    pub macro_f1: f64,
+}
+
+impl EvaluationMetrics {
+    /// Create metrics from corpus generation results.
+    #[must_use]
+    pub fn from_corpus(metrics: &CorpusMetrics, k_fold_accuracy: f64, macro_f1: f64) -> Self {
+        let total_categories = 7; // ErrorCategory variants
+        let covered_categories = metrics.category_distribution.len();
+
+        Self {
+            corpus_size: metrics.accepted,
+            uniqueness_rate: 1.0 - metrics.duplicate_rate() as f64,
+            class_balance: 1.0 / (1.0 + metrics.imbalance_ratio() as f64 / 10.0),
+            category_coverage: covered_categories as f64 / total_categories as f64,
+            diversity_score: metrics.diversity_score as f64,
+            estimated_accuracy: k_fold_accuracy,
+            macro_f1,
+        }
+    }
+
+    /// Check if metrics meet minimum quality thresholds.
+    #[must_use]
+    pub fn meets_thresholds(&self, min_accuracy: f64, min_diversity: f64) -> bool {
+        self.estimated_accuracy >= min_accuracy && self.diversity_score >= min_diversity
+    }
+
+    /// Calculate overall quality score (0.0-1.0).
+    #[must_use]
+    pub fn overall_score(&self) -> f64 {
+        // Weighted combination of all metrics
+        let weights = [
+            (self.estimated_accuracy, 0.35),
+            (self.macro_f1, 0.25),
+            (self.diversity_score, 0.15),
+            (self.class_balance, 0.15),
+            (self.category_coverage, 0.10),
+        ];
+
+        weights.iter().map(|(v, w)| v * w).sum()
+    }
+}
+
+/// Configuration for evaluation runs.
+#[derive(Debug, Clone)]
+pub struct EvaluationConfig {
+    /// Number of folds for k-fold cross-validation.
+    pub k_folds: usize,
+    /// Minimum accuracy threshold for success.
+    pub min_accuracy: f64,
+    /// Minimum diversity threshold.
+    pub min_diversity: f64,
+    /// Random seed for reproducibility.
+    pub seed: u64,
+}
+
+impl Default for EvaluationConfig {
+    fn default() -> Self {
+        Self {
+            k_folds: 5,
+            min_accuracy: 0.85,
+            min_diversity: 0.5,
+            seed: 42,
+        }
+    }
+}
+
+/// Benchmark results comparing different configurations.
+#[derive(Debug, Clone)]
+pub struct BenchmarkResult {
+    /// Configuration name/description.
+    pub name: String,
+    /// Generation parameters used.
+    pub params: GenerationParams,
+    /// Evaluation metrics achieved.
+    pub metrics: EvaluationMetrics,
+    /// Time taken for corpus generation (seconds).
+    pub generation_time_secs: f64,
+    /// Time taken for Oracle training (seconds).
+    pub training_time_secs: f64,
+}
+
+impl BenchmarkResult {
+    /// Create a new benchmark result.
+    #[must_use]
+    pub fn new(
+        name: impl Into<String>,
+        params: GenerationParams,
+        metrics: EvaluationMetrics,
+        generation_time_secs: f64,
+        training_time_secs: f64,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            params,
+            metrics,
+            generation_time_secs,
+            training_time_secs,
+        }
+    }
+
+    /// Check if this result is better than another.
+    #[must_use]
+    pub fn is_better_than(&self, other: &Self) -> bool {
+        self.metrics.overall_score() > other.metrics.overall_score()
+    }
+}
+
+/// Evaluator for running benchmarks and comparisons.
+pub struct Evaluator {
+    config: EvaluationConfig,
+    results: Vec<BenchmarkResult>,
+}
+
+impl Evaluator {
+    /// Create a new evaluator.
+    #[must_use]
+    pub fn new(config: EvaluationConfig) -> Self {
+        Self {
+            config,
+            results: Vec::new(),
+        }
+    }
+
+    /// Get the evaluation configuration.
+    #[must_use]
+    pub fn config(&self) -> &EvaluationConfig {
+        &self.config
+    }
+
+    /// Get all benchmark results.
+    #[must_use]
+    pub fn results(&self) -> &[BenchmarkResult] {
+        &self.results
+    }
+
+    /// Add a benchmark result.
+    pub fn add_result(&mut self, result: BenchmarkResult) {
+        self.results.push(result);
+    }
+
+    /// Find the best result by overall score.
+    #[must_use]
+    pub fn best_result(&self) -> Option<&BenchmarkResult> {
+        self.results
+            .iter()
+            .max_by(|a, b| {
+                a.metrics
+                    .overall_score()
+                    .partial_cmp(&b.metrics.overall_score())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+    }
+
+    /// Calculate baseline metrics for comparison.
+    #[must_use]
+    pub fn baseline_metrics(&self) -> EvaluationMetrics {
+        // Default baseline represents current Oracle without self-supervised corpus
+        EvaluationMetrics {
+            corpus_size: 99, // Current verificar corpus size
+            uniqueness_rate: 0.95,
+            class_balance: 0.6,
+            category_coverage: 0.71, // 5/7 categories
+            diversity_score: 0.7,
+            estimated_accuracy: 0.84, // Current Oracle accuracy
+            macro_f1: 0.80,
+        }
+    }
+
+    /// Check if a result improves over baseline.
+    #[must_use]
+    pub fn improves_over_baseline(&self, metrics: &EvaluationMetrics) -> bool {
+        let baseline = self.baseline_metrics();
+        metrics.overall_score() > baseline.overall_score()
+    }
+
+    /// Generate a summary report of all results.
+    #[must_use]
+    pub fn summary_report(&self) -> String {
+        let mut report = String::new();
+        report.push_str("=== Self-Supervised Corpus Evaluation Report ===\n\n");
+
+        let baseline = self.baseline_metrics();
+        report.push_str(&format!(
+            "Baseline: accuracy={:.2}%, F1={:.2}, score={:.3}\n\n",
+            baseline.estimated_accuracy * 100.0,
+            baseline.macro_f1,
+            baseline.overall_score()
+        ));
+
+        for (i, result) in self.results.iter().enumerate() {
+            let improvement = result.metrics.overall_score() - baseline.overall_score();
+            let status = if improvement > 0.0 { "✓" } else { "✗" };
+
+            report.push_str(&format!(
+                "{}. {} {}\n   Accuracy: {:.2}% | F1: {:.2} | Diversity: {:.2}\n   Score: {:.3} ({:+.3})\n   Time: {:.1}s gen + {:.1}s train\n\n",
+                i + 1,
+                result.name,
+                status,
+                result.metrics.estimated_accuracy * 100.0,
+                result.metrics.macro_f1,
+                result.metrics.diversity_score,
+                result.metrics.overall_score(),
+                improvement,
+                result.generation_time_secs,
+                result.training_time_secs,
+            ));
+        }
+
+        if let Some(best) = self.best_result() {
+            report.push_str(&format!("Best configuration: {}\n", best.name));
+        }
+
+        report
+    }
+}
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 
@@ -1322,5 +1559,276 @@ mod tests {
 
         // Should produce valid fitness
         assert!(fitness >= 0.0 && fitness <= 1.0);
+    }
+
+    // ========================================================================
+    // Phase 5: Evaluation and Benchmarking Tests
+    // ========================================================================
+
+    #[test]
+    fn test_evaluation_metrics_default() {
+        let metrics = EvaluationMetrics::default();
+
+        assert_eq!(metrics.corpus_size, 0);
+        assert!((metrics.estimated_accuracy - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_evaluation_metrics_from_corpus() {
+        let mut corpus_metrics = CorpusMetrics::default();
+        corpus_metrics.accepted = 1000;
+        corpus_metrics.total_generated = 1100;
+        corpus_metrics.rejected_duplicate = 50;
+        corpus_metrics.diversity_score = 0.8;
+        corpus_metrics.category_distribution.insert(ErrorCategory::TypeMismatch, 300);
+        corpus_metrics.category_distribution.insert(ErrorCategory::BorrowChecker, 200);
+        corpus_metrics.category_distribution.insert(ErrorCategory::Other, 500);
+
+        let eval_metrics = EvaluationMetrics::from_corpus(&corpus_metrics, 0.92, 0.88);
+
+        assert_eq!(eval_metrics.corpus_size, 1000);
+        assert!(eval_metrics.uniqueness_rate > 0.9);
+        assert!((eval_metrics.estimated_accuracy - 0.92).abs() < 0.001);
+        assert!((eval_metrics.macro_f1 - 0.88).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_evaluation_metrics_meets_thresholds() {
+        let metrics = EvaluationMetrics {
+            estimated_accuracy: 0.90,
+            diversity_score: 0.7,
+            ..Default::default()
+        };
+
+        assert!(metrics.meets_thresholds(0.85, 0.5));
+        assert!(!metrics.meets_thresholds(0.95, 0.5));
+        assert!(!metrics.meets_thresholds(0.85, 0.8));
+    }
+
+    #[test]
+    fn test_evaluation_metrics_overall_score() {
+        let metrics = EvaluationMetrics {
+            estimated_accuracy: 0.95,
+            macro_f1: 0.93,
+            diversity_score: 0.8,
+            class_balance: 0.9,
+            category_coverage: 1.0,
+            ..Default::default()
+        };
+
+        let score = metrics.overall_score();
+
+        // Score should be weighted combination
+        let expected = 0.95 * 0.35 + 0.93 * 0.25 + 0.8 * 0.15 + 0.9 * 0.15 + 1.0 * 0.10;
+        assert!((score - expected).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_evaluation_config_default() {
+        let config = EvaluationConfig::default();
+
+        assert_eq!(config.k_folds, 5);
+        assert!((config.min_accuracy - 0.85).abs() < 0.001);
+        assert!((config.min_diversity - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_benchmark_result_creation() {
+        let params = GenerationParams::default();
+        let metrics = EvaluationMetrics {
+            estimated_accuracy: 0.92,
+            ..Default::default()
+        };
+
+        let result = BenchmarkResult::new("Test Config", params, metrics, 10.5, 5.2);
+
+        assert_eq!(result.name, "Test Config");
+        assert!((result.generation_time_secs - 10.5).abs() < 0.001);
+        assert!((result.training_time_secs - 5.2).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_benchmark_result_comparison() {
+        let params = GenerationParams::default();
+
+        let better = BenchmarkResult::new(
+            "Better",
+            params.clone(),
+            EvaluationMetrics {
+                estimated_accuracy: 0.95,
+                macro_f1: 0.93,
+                ..Default::default()
+            },
+            1.0,
+            1.0,
+        );
+
+        let worse = BenchmarkResult::new(
+            "Worse",
+            params,
+            EvaluationMetrics {
+                estimated_accuracy: 0.80,
+                macro_f1: 0.75,
+                ..Default::default()
+            },
+            1.0,
+            1.0,
+        );
+
+        assert!(better.is_better_than(&worse));
+        assert!(!worse.is_better_than(&better));
+    }
+
+    #[test]
+    fn test_evaluator_creation() {
+        let config = EvaluationConfig::default();
+        let evaluator = Evaluator::new(config);
+
+        assert!(evaluator.results().is_empty());
+        assert_eq!(evaluator.config().k_folds, 5);
+    }
+
+    #[test]
+    fn test_evaluator_add_results() {
+        let config = EvaluationConfig::default();
+        let mut evaluator = Evaluator::new(config);
+
+        let result1 = BenchmarkResult::new(
+            "Config A",
+            GenerationParams::default(),
+            EvaluationMetrics {
+                estimated_accuracy: 0.90,
+                ..Default::default()
+            },
+            1.0,
+            1.0,
+        );
+
+        let result2 = BenchmarkResult::new(
+            "Config B",
+            GenerationParams::default(),
+            EvaluationMetrics {
+                estimated_accuracy: 0.95,
+                ..Default::default()
+            },
+            1.0,
+            1.0,
+        );
+
+        evaluator.add_result(result1);
+        evaluator.add_result(result2);
+
+        assert_eq!(evaluator.results().len(), 2);
+    }
+
+    #[test]
+    fn test_evaluator_best_result() {
+        let config = EvaluationConfig::default();
+        let mut evaluator = Evaluator::new(config);
+
+        evaluator.add_result(BenchmarkResult::new(
+            "Low",
+            GenerationParams::default(),
+            EvaluationMetrics {
+                estimated_accuracy: 0.80,
+                macro_f1: 0.75,
+                ..Default::default()
+            },
+            1.0,
+            1.0,
+        ));
+
+        evaluator.add_result(BenchmarkResult::new(
+            "High",
+            GenerationParams::default(),
+            EvaluationMetrics {
+                estimated_accuracy: 0.95,
+                macro_f1: 0.93,
+                ..Default::default()
+            },
+            1.0,
+            1.0,
+        ));
+
+        evaluator.add_result(BenchmarkResult::new(
+            "Medium",
+            GenerationParams::default(),
+            EvaluationMetrics {
+                estimated_accuracy: 0.88,
+                macro_f1: 0.85,
+                ..Default::default()
+            },
+            1.0,
+            1.0,
+        ));
+
+        let best = evaluator.best_result().expect("Should have best result");
+        assert_eq!(best.name, "High");
+    }
+
+    #[test]
+    fn test_evaluator_baseline_metrics() {
+        let evaluator = Evaluator::new(EvaluationConfig::default());
+        let baseline = evaluator.baseline_metrics();
+
+        // Should match current Oracle metrics
+        assert_eq!(baseline.corpus_size, 99);
+        assert!((baseline.estimated_accuracy - 0.84).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_evaluator_improves_over_baseline() {
+        let evaluator = Evaluator::new(EvaluationConfig::default());
+
+        let improved = EvaluationMetrics {
+            corpus_size: 5000,
+            uniqueness_rate: 0.98,
+            class_balance: 0.9,
+            category_coverage: 1.0,
+            diversity_score: 0.85,
+            estimated_accuracy: 0.95,
+            macro_f1: 0.93,
+        };
+
+        let worse = EvaluationMetrics {
+            estimated_accuracy: 0.70,
+            macro_f1: 0.65,
+            ..Default::default()
+        };
+
+        assert!(evaluator.improves_over_baseline(&improved));
+        assert!(!evaluator.improves_over_baseline(&worse));
+    }
+
+    #[test]
+    fn test_evaluator_summary_report() {
+        let config = EvaluationConfig::default();
+        let mut evaluator = Evaluator::new(config);
+
+        evaluator.add_result(BenchmarkResult::new(
+            "Test Config",
+            GenerationParams::default(),
+            EvaluationMetrics {
+                estimated_accuracy: 0.92,
+                macro_f1: 0.90,
+                diversity_score: 0.8,
+                ..Default::default()
+            },
+            15.5,
+            3.2,
+        ));
+
+        let report = evaluator.summary_report();
+
+        assert!(report.contains("Self-Supervised Corpus Evaluation Report"));
+        assert!(report.contains("Baseline"));
+        assert!(report.contains("Test Config"));
+        assert!(report.contains("92.00%")); // Accuracy
+    }
+
+    #[test]
+    fn test_evaluator_empty_best_result() {
+        let evaluator = Evaluator::new(EvaluationConfig::default());
+        assert!(evaluator.best_result().is_none());
     }
 }
