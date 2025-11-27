@@ -4468,7 +4468,7 @@ fn try_generate_subcommand_match(
                         &arg_name == field_name
                     }) {
                         if let Some(ref ty) = arg.arg_type {
-                            ctx.var_types.insert(field_name.clone().into(), ty.clone());
+                            ctx.var_types.insert(field_name.clone(), ty.clone());
                         }
                     }
                 }
