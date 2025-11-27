@@ -12382,7 +12382,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0523: File variable - use BufReader for line iteration
                 self.ctx.needs_bufread = true;
                 parse_quote! { std::io::BufReader::new(#iter_expr).lines().map(|l| l.unwrap_or_default()) }
-            } else if self.is_numpy_array_expr(&*gen.iter) {
+            } else if self.is_numpy_array_expr(&gen.iter) {
                 // DEPYLER-0575: trueno Vector uses .as_slice().iter()
                 parse_quote! { #iter_expr.as_slice().iter().copied() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
@@ -12978,7 +12978,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 iter_expr
             };
 
-            let mut chain: syn::Expr = if self.is_numpy_array_expr(&*gen.iter) {
+            let mut chain: syn::Expr = if self.is_numpy_array_expr(&gen.iter) {
                 // DEPYLER-0575: trueno Vector uses .as_slice().iter()
                 parse_quote! { #iter_expr.as_slice().iter().copied() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
@@ -13037,7 +13037,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 iter_expr
             };
 
-            let mut chain: syn::Expr = if self.is_numpy_array_expr(&*gen.iter) {
+            let mut chain: syn::Expr = if self.is_numpy_array_expr(&gen.iter) {
                 // DEPYLER-0575: trueno Vector uses .as_slice().iter()
                 parse_quote! { #iter_expr.as_slice().iter().copied() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
@@ -13676,7 +13676,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0523: File variable - use BufReader for line iteration
                 self.ctx.needs_bufread = true;
                 parse_quote! { std::io::BufReader::new(#iter_expr).lines().map(|l| l.unwrap_or_default()) }
-            } else if self.is_numpy_array_expr(&*gen.iter) {
+            } else if self.is_numpy_array_expr(&gen.iter) {
                 // DEPYLER-0575: trueno Vector uses .as_slice().iter()
                 parse_quote! { #iter_expr.as_slice().iter().copied() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
