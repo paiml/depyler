@@ -395,6 +395,175 @@ oracle.train(&features, &labels)?;
 - Real provides depth (domain-specific patterns)
 - Together: robust classification across error types
 
+## Unified Training Pipeline
+
+For reproducible, deterministic training, use the **Unified Training Pipeline**. This merges all data sources with guaranteed reproducibility.
+
+### Architecture
+
+```
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│  Synthetic  │  │   Depyler   │  │  Verificar  │  │ OIP GitHub  │  │ Real Errors │
+│   Corpus    │  │   Corpus    │  │   Corpus    │  │   Corpus    │  │    File     │
+└──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘
+       │                │                │                │                │
+       └────────────────┴────────────────┴────────────────┴────────────────┘
+                                         │
+                                         ▼
+                              ┌─────────────────────┐
+                              │   Merge & Dedupe    │
+                              │   (by error hash)   │
+                              └──────────┬──────────┘
+                                         │
+                                         ▼
+                              ┌─────────────────────┐
+                              │  Deterministic      │
+                              │  Shuffle (seed=42)  │
+                              └──────────┬──────────┘
+                                         │
+                                         ▼
+                              ┌─────────────────────┐
+                              │   Train Oracle      │
+                              │   (Random Forest)   │
+                              └──────────┬──────────┘
+                                         │
+                                         ▼
+                              ┌─────────────────────┐
+                              │  Save Model (.apr)  │
+                              └─────────────────────┘
+```
+
+### Basic Usage
+
+```rust
+use depyler_oracle::{
+    build_unified_corpus, build_default_unified_corpus,
+    UnifiedTrainingConfig, print_merge_stats
+};
+
+// Default configuration (12,000 synthetic samples, seed=42)
+let result = build_default_unified_corpus();
+print_merge_stats(&result.stats);
+
+// Use the dataset for training
+let dataset = result.dataset;
+```
+
+### Custom Configuration
+
+```rust
+let config = UnifiedTrainingConfig {
+    seed: 42,                          // Reproducibility seed
+    synthetic_samples: 20_000,         // More synthetic data
+    oip_data_path: Some("training-data.json".to_string()),
+    real_errors_path: Some("production_errors.txt".to_string()),
+    balance_classes: true,             // Balance class distribution
+    max_per_class: Some(5000),         // Cap samples per category
+};
+
+let result = build_unified_corpus(&config);
+```
+
+### With OIP Data
+
+```rust
+use depyler_oracle::build_unified_corpus_with_oip;
+
+// Convenience function for OIP integration
+let result = build_unified_corpus_with_oip("training-data.json");
+
+println!("Merge Statistics:");
+println!("  Synthetic:     {} samples", result.stats.synthetic_count);
+println!("  Depyler:       {} samples", result.stats.depyler_count);
+println!("  Verificar:     {} samples", result.stats.verificar_count);
+println!("  OIP GitHub:    {} samples", result.stats.oip_count);
+println!("  Duplicates:    {} removed", result.stats.duplicates_removed);
+println!("  Final count:   {} samples", result.stats.final_count);
+```
+
+### Real Errors File Format
+
+Load production errors from a simple text file:
+
+```
+# Format: ERROR_CODE|context|category|fix
+E0308|expected i32, found String|TypeMismatch|Use .parse() or change type
+E0382|value moved here|BorrowChecker|Clone the value or use reference
+E0433|unresolved import|MissingImport|Add use statement
+```
+
+### Deduplication
+
+The pipeline deduplicates samples by normalizing error messages:
+- Convert to lowercase
+- Collapse whitespace
+- Hash for O(1) lookup
+
+This prevents duplicate samples from different sources from skewing training.
+
+### Deterministic Shuffling
+
+Uses a Linear Congruential Generator (LCG) for reproducible shuffling:
+
+```rust
+// Same seed = same order, every time
+let config = UnifiedTrainingConfig {
+    seed: 42,  // Change seed for different shuffle
+    ..Default::default()
+};
+```
+
+This ensures:
+- Reproducible experiments
+- Consistent cross-validation splits
+- Debuggable training issues
+
+### Class Balancing
+
+Prevent majority class dominance:
+
+```rust
+let config = UnifiedTrainingConfig {
+    balance_classes: true,
+    max_per_class: Some(2000),  // Cap at 2000 samples per category
+    ..Default::default()
+};
+```
+
+### Statistics
+
+The pipeline returns detailed statistics:
+
+```rust
+let result = build_unified_corpus(&config);
+
+// Category distribution
+for (category, count) in &result.stats.by_category {
+    let pct = (*count as f64 / result.stats.final_count as f64) * 100.0;
+    println!("  {:?}: {} ({:.1}%)", category, count, pct);
+}
+```
+
+Example output:
+```
+Unified Corpus Statistics:
+  Data Sources:
+    Synthetic:     12000 samples
+    Depyler:          45 samples
+    Verificar:       120 samples
+    OIP GitHub:       31 samples
+    Real Errors:       0 samples
+  Merge Results:
+    Before dedupe: 12196 samples
+    Duplicates:       23 removed
+    Final count:   12173 samples
+  By Category:
+    TypeMismatch: 4521 (37.1%)
+    BorrowChecker: 2890 (23.7%)
+    MissingImport: 1834 (15.1%)
+    ...
+```
+
 ## Advanced: Full Custom Pipeline
 
 For organizations with large codebases and compute budget:
