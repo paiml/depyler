@@ -122,6 +122,9 @@ fn apply_string_replacements(code: String) -> String {
         .replace(".. ", "..")
         // Fix 'in' keyword spacing
         .replace("in(", "in (")
+        // DEPYLER-0576: Fix comparison with negative literals (x<- 20 -> x < -20)
+        // This must come after generic type spacing fixes since <T> uses < without space
+        .replace("<-", "< -")
 }
 
 #[cfg(test)]
