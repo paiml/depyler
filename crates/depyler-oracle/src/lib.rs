@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use aprender::format::{self, ModelType, SaveOptions};
+use aprender::format::{self, Compression, ModelType, SaveOptions};
 use aprender::metrics::drift::{DriftConfig, DriftDetector, DriftStatus};
 use aprender::primitives::Matrix;
 use aprender::tree::RandomForestClassifier;
@@ -381,7 +381,8 @@ impl Oracle {
     pub fn save(&self, path: &Path) -> Result<()> {
         let options = SaveOptions::default()
             .with_name("depyler-oracle")
-            .with_description("RandomForest error classification model for Depyler transpiler");
+            .with_description("RandomForest error classification model for Depyler transpiler")
+            .with_compression(Compression::ZstdDefault);
 
         format::save(&self.classifier, ModelType::RandomForest, path, options)
             .map_err(|e| OracleError::Model(e.to_string()))?;
