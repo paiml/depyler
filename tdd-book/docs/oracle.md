@@ -238,6 +238,163 @@ AutoML searches the hyperparameter space (tree count, depth, features) to maximi
 
 **Workflow**: Synthetic generation + AutoML = scalable corpus without manual labeling.
 
+## Learning from GitHub History (OIP Integration)
+
+The Oracle can learn from Git commit history using the **organizational-intelligence-plugin (OIP)**. This provides real-world training data extracted from how developers actually fix errors.
+
+### The Recipe
+
+```bash
+# Step 1: Use OIP to extract training data from a Rust repository
+oip extract-training-data --repo ../depyler --output training-data.json
+
+# Step 2: Load and convert in depyler-oracle
+```
+
+```rust
+use depyler_oracle::{
+    load_oip_training_data, convert_oip_to_depyler,
+    analyze_corpus, get_moe_samples_from_oip
+};
+use std::path::Path;
+
+// Load OIP training data
+let oip_data = load_oip_training_data(Path::new("training-data.json"))?;
+
+// Analyze what we loaded
+let stats = analyze_corpus(&oip_data);
+println!("Loaded {} examples", stats.total_examples);
+println!("By expert domain:");
+for (domain, count) in &stats.by_expert {
+    println!("  {:?}: {}", domain, count);
+}
+
+// Convert to depyler format
+let depyler_dataset = convert_oip_to_depyler(&oip_data);
+
+// Or get MoE training samples
+let moe_samples = get_moe_samples_from_oip(&oip_data);
+```
+
+### Category Mapping
+
+OIP uses 18 defect categories (10 general + 8 transpiler-specific). These map to depyler's `ErrorCategory` and `ExpertDomain`:
+
+| OIP Category | depyler ErrorCategory | MoE ExpertDomain |
+|-------------|----------------------|------------------|
+| `OwnershipBorrow` | `BorrowChecker` | `SyntaxBorrowing` |
+| `MemorySafety` | `BorrowChecker` | `SyntaxBorrowing` |
+| `TypeErrors` | `TypeMismatch` | `TypeSystem` |
+| `TypeAnnotationGaps` | `TypeMismatch` | `TypeSystem` |
+| `TraitBounds` | `TraitBound` | `TypeSystem` |
+| `StdlibMapping` | `MissingImport` | `ScopeResolution` |
+| `ASTTransform` | `MissingImport` | `ScopeResolution` |
+| `ConfigurationErrors` | `MissingImport` | `ScopeResolution` |
+| `ApiMisuse` | `Other` | `MethodField` |
+| `IteratorChain` | `Other` | `MethodField` |
+| `ComprehensionBugs` | `Other` | `MethodField` |
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                organizational-intelligence-plugin                │
+│                                                                 │
+│  oip extract-training-data --repo ../depyler                    │
+│      │                                                          │
+│      ▼                                                          │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Git History Mining                                     │    │
+│  │  - Filter fix commits (fix:, bug:, patch:)              │    │
+│  │  - Extract commit messages                              │    │
+│  │  - Auto-label with rule-based classifier               │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│      │                                                          │
+│      ▼                                                          │
+│  training-data.json                                             │
+│  {train: [...], validation: [...], test: [...]}                 │
+└──────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      depyler-oracle                             │
+│                                                                 │
+│  load_oip_training_data("training-data.json")                   │
+│      │                                                          │
+│      ▼                                                          │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Category Mapping                                       │    │
+│  │  OipDefectCategory → ErrorCategory / ExpertDomain       │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│      │                                                          │
+│      ▼                                                          │
+│  TrainingDataset / MoE training samples                         │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Real Example
+
+From OIP's training on the organizational-intelligence-plugin repo:
+
+```
+OIP Corpus Statistics:
+  Total examples: 31
+  Avg confidence: 0.83
+  By category:
+    ASTTransform: 9 (29%)
+    OwnershipBorrow: 5 (16%)
+    ConfigurationErrors: 5 (16%)
+    TypeErrors: 4 (13%)
+    TraitBounds: 3 (10%)
+    MemorySafety: 3 (10%)
+    SecurityVulnerabilities: 1 (3%)
+    ComprehensionBugs: 1 (3%)
+  By expert domain:
+    ScopeResolution: 14 (45%)
+    SyntaxBorrowing: 9 (29%)
+    TypeSystem: 7 (23%)
+    MethodField: 1 (3%)
+```
+
+### Benefits
+
+1. **Real patterns**: Learns from how developers actually fix errors, not synthetic examples
+2. **Domain-specific**: Your codebase's unique error patterns are captured
+3. **Continuous learning**: Re-extract as commit history grows
+4. **No manual labeling**: OIP auto-labels based on commit message analysis
+
+### Combining with Synthetic Data
+
+Best results come from mixing real and synthetic data:
+
+```rust
+use depyler_oracle::{
+    generate_synthetic_corpus,
+    load_oip_training_data,
+    convert_oip_to_depyler
+};
+
+// Start with synthetic corpus (10,000+ samples)
+let mut corpus = generate_synthetic_corpus();
+
+// Add real GitHub data
+let oip_data = load_oip_training_data(Path::new("training-data.json"))?;
+let real_data = convert_oip_to_depyler(&oip_data);
+
+for sample in real_data.samples() {
+    corpus.add(sample.clone());
+}
+
+// Train on combined corpus
+let (features, labels) = samples_to_features(corpus.samples());
+oracle.train(&features, &labels)?;
+```
+
+**Why combine?**
+- Synthetic provides breadth (all error codes)
+- Real provides depth (domain-specific patterns)
+- Together: robust classification across error types
+
 ## Advanced: Full Custom Pipeline
 
 For organizations with large codebases and compute budget:
