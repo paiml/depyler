@@ -4214,39 +4214,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .map(|arg| arg.to_rust_expr(self.ctx))
             .collect::<Result<Vec<_>>>()?;
 
-        // Helper function to auto-borrow String arguments for Path::new()
-        // Path::new() expects &str, but we often have String variables
-        // DEPYLER-0484: Auto-borrow String types when passing to Path::new()
-        let maybe_borrow = |hir_arg: &HirExpr, arg_expr: &syn::Expr| -> syn::Expr {
-            let needs_borrow = match hir_arg {
-                HirExpr::Var(var_name) => {
-                    // Check if variable is String type
-                    if let Some(var_type) = self.ctx.var_types.get(var_name) {
-                        matches!(var_type, Type::String)
-                    } else {
-                        // Unknown type: use heuristic based on name
-                        // DEPYLER-0535: Include pattern matching for common path variable names
-                        let name = var_name.as_str();
-                        name == "path"
-                            || name == "expanded"
-                            || name == "p"
-                            || name == "file"
-                            || name == "dir"
-                            || name.contains("path")
-                            || name.contains("_dir")
-                            || name.contains("_file")
-                    }
-                }
-                HirExpr::Literal(Literal::String(_)) => false, // String literals are already &str
-                _ => false,
-            };
-
-            if needs_borrow {
-                parse_quote! { &#arg_expr }
-            } else {
-                arg_expr.clone()
-            }
-        };
+        // DEPYLER-0594: Removed maybe_borrow closure - always use explicit & for Path::new()
+        // Path::new() requires &S, and subcommand field bindings create owned Strings
+        // Using & consistently is simpler and works for both owned and borrowed values
 
         let result = match method {
             // Path construction
@@ -4273,11 +4243,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.basename() requires exactly 1 argument");
                 }
-                let path = maybe_borrow(&args[0], &arg_exprs[0]);
+                // DEPYLER-0594: Always use reference for Path::new()
+                // Path::new() requires &S where S: AsRef<OsStr>
+                // Subcommand field bindings create owned Strings that need borrowing
+                let path = &arg_exprs[0];
 
-                // os.path.basename(path) → Path::new(path).file_name()
+                // os.path.basename(path) → Path::new(&path).file_name()
                 parse_quote! {
-                    std::path::Path::new(#path)
+                    std::path::Path::new(&#path)
                         .file_name()
                         .and_then(|n| n.to_str())
                         .unwrap_or("")
@@ -4289,11 +4262,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.dirname() requires exactly 1 argument");
                 }
-                let path = maybe_borrow(&args[0], &arg_exprs[0]);
+                // DEPYLER-0594: Always use reference for Path::new()
+                let path = &arg_exprs[0];
 
-                // os.path.dirname(path) → Path::new(path).parent()
+                // os.path.dirname(path) → Path::new(&path).parent()
                 parse_quote! {
-                    std::path::Path::new(#path)
+                    std::path::Path::new(&#path)
                         .parent()
                         .and_then(|p| p.to_str())
                         .unwrap_or("")
@@ -4305,12 +4279,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.split() requires exactly 1 argument");
                 }
-                let path = maybe_borrow(&args[0], &arg_exprs[0]);
+                // DEPYLER-0594: Always use reference for Path::new()
+                let path = &arg_exprs[0];
 
                 // os.path.split(path) → (dirname, basename) tuple
                 parse_quote! {
                     {
-                        let p = std::path::Path::new(#path);
+                        let p = std::path::Path::new(&#path);
                         let dirname = p.parent().and_then(|p| p.to_str()).unwrap_or("").to_string();
                         let basename = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
                         (dirname, basename)
@@ -4322,12 +4297,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.splitext() requires exactly 1 argument");
                 }
-                let path = maybe_borrow(&args[0], &arg_exprs[0]);
+                // DEPYLER-0594: Always use reference for Path::new()
+                let path = &arg_exprs[0];
 
                 // os.path.splitext(path) → (stem, extension) tuple
                 parse_quote! {
                     {
-                        let p = std::path::Path::new(#path);
+                        let p = std::path::Path::new(&#path);
                         let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
                         let ext = p.extension().and_then(|e| e.to_str()).map(|e| format!(".{}", e)).unwrap_or_default();
                         (stem, ext)
@@ -4340,40 +4316,44 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.exists() requires exactly 1 argument");
                 }
-                let path = maybe_borrow(&args[0], &arg_exprs[0]);
+                // DEPYLER-0594: Always use reference for Path::new()
+                let path = &arg_exprs[0];
 
-                // os.path.exists(path) → Path::new(path).exists()
-                parse_quote! { std::path::Path::new(#path).exists() }
+                // os.path.exists(path) → Path::new(&path).exists()
+                parse_quote! { std::path::Path::new(&#path).exists() }
             }
 
             "isfile" => {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.isfile() requires exactly 1 argument");
                 }
-                let path = maybe_borrow(&args[0], &arg_exprs[0]);
+                // DEPYLER-0594: Always use reference for Path::new()
+                let path = &arg_exprs[0];
 
-                // os.path.isfile(path) → Path::new(path).is_file()
-                parse_quote! { std::path::Path::new(#path).is_file() }
+                // os.path.isfile(path) → Path::new(&path).is_file()
+                parse_quote! { std::path::Path::new(&#path).is_file() }
             }
 
             "isdir" => {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.isdir() requires exactly 1 argument");
                 }
-                let path = maybe_borrow(&args[0], &arg_exprs[0]);
+                // DEPYLER-0594: Always use reference for Path::new()
+                let path = &arg_exprs[0];
 
-                // os.path.isdir(path) → Path::new(path).is_dir()
-                parse_quote! { std::path::Path::new(#path).is_dir() }
+                // os.path.isdir(path) → Path::new(&path).is_dir()
+                parse_quote! { std::path::Path::new(&#path).is_dir() }
             }
 
             "isabs" => {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.isabs() requires exactly 1 argument");
                 }
-                let path = maybe_borrow(&args[0], &arg_exprs[0]);
+                // DEPYLER-0594: Always use reference for Path::new()
+                let path = &arg_exprs[0];
 
-                // os.path.isabs(path) → Path::new(path).is_absolute()
-                parse_quote! { std::path::Path::new(#path).is_absolute() }
+                // os.path.isabs(path) → Path::new(&path).is_absolute()
+                parse_quote! { std::path::Path::new(&#path).is_absolute() }
             }
 
             // Path normalization
@@ -4381,13 +4361,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.abspath() requires exactly 1 argument");
                 }
-                let path = maybe_borrow(&args[0], &arg_exprs[0]);
+                // DEPYLER-0594: Always use reference for fs::canonicalize and PathBuf::from
+                let path = &arg_exprs[0];
 
                 // os.path.abspath(path) → std::fs::canonicalize() or manual absolute path
                 // Using canonicalize (resolves symlinks too, like realpath)
                 parse_quote! {
-                    std::fs::canonicalize(#path)
-                        .unwrap_or_else(|_| std::path::PathBuf::from(#path))
+                    std::fs::canonicalize(&#path)
+                        .unwrap_or_else(|_| std::path::PathBuf::from(&#path))
                         .to_string_lossy()
                         .to_string()
                 }
@@ -4397,13 +4378,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.normpath() requires exactly 1 argument");
                 }
-                let path = maybe_borrow(&args[0], &arg_exprs[0]);
+                // DEPYLER-0594: Always use reference for Path::new()
+                let path = &arg_exprs[0];
 
                 // os.path.normpath(path) → normalize path components
                 // Rust Path doesn't have direct normpath, but we can use PathBuf operations
                 parse_quote! {
                     {
-                        let p = std::path::Path::new(#path);
+                        let p = std::path::Path::new(&#path);
                         let mut components = Vec::new();
                         for component in p.components() {
                             match component {
@@ -4442,12 +4424,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.getsize() requires exactly 1 argument");
                 }
-                // DEPYLER-0535: Auto-borrow String arguments for std::fs::metadata()
-                let path = maybe_borrow(&args[0], &arg_exprs[0]);
+                // DEPYLER-0594: Always use reference for std::fs::metadata()
+                let path = &arg_exprs[0];
 
                 // os.path.getsize(path) → std::fs::metadata().len()
                 parse_quote! {
-                    std::fs::metadata(#path).unwrap().len() as i64
+                    std::fs::metadata(&#path).unwrap().len() as i64
                 }
             }
 
@@ -4455,12 +4437,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.getmtime() requires exactly 1 argument");
                 }
-                // DEPYLER-0535: Auto-borrow String arguments for std::fs::metadata()
-                let path = maybe_borrow(&args[0], &arg_exprs[0]);
+                // DEPYLER-0594: Always use reference for std::fs::metadata()
+                let path = &arg_exprs[0];
 
                 // os.path.getmtime(path) → std::fs::metadata().modified()
                 parse_quote! {
-                    std::fs::metadata(#path)
+                    std::fs::metadata(&#path)
                         .unwrap()
                         .modified()
                         .unwrap()
@@ -4474,13 +4456,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("os.path.getctime() requires exactly 1 argument");
                 }
-                // DEPYLER-0535: Auto-borrow String arguments for std::fs::metadata()
-                let path = maybe_borrow(&args[0], &arg_exprs[0]);
+                // DEPYLER-0594: Always use reference for std::fs::metadata()
+                let path = &arg_exprs[0];
 
                 // os.path.getctime(path) → std::fs::metadata().created()
                 // Note: On Unix, this is ctime (change time), but Rust only has created()
                 parse_quote! {
-                    std::fs::metadata(#path)
+                    std::fs::metadata(&#path)
                         .unwrap()
                         .created()
                         .unwrap()
@@ -14124,6 +14106,13 @@ impl ToRustExpr for HirExpr {
                         if numpy_gen::is_numpy_module(module_name) && attr == "linalg" {
                             // Map linalg.norm to norm
                             if let Some(result) = converter.try_convert_numpy_call(method, args)? {
+                                return Ok(result);
+                            }
+                        }
+                        // DEPYLER-0593: Handle os.path.join(), os.path.exists(), etc.
+                        // Pattern: os.path.join(a, b) where object is Attribute { value: os, attr: path }
+                        if module_name == "os" && attr == "path" {
+                            if let Some(result) = converter.try_convert_os_path_method(method, args)? {
                                 return Ok(result);
                             }
                         }

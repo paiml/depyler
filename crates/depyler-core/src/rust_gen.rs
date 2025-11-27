@@ -601,6 +601,13 @@ fn generate_import_tokens(
             continue;
         }
 
+        // DEPYLER-0593: Skip os/os.path module aliases
+        // These modules are handled specially in expr_gen.rs (try_convert_os_path_method)
+        // Generating `use std as os;` breaks the module recognition
+        if import.alias.as_deref() == Some("os") || import.alias.as_deref() == Some("os_path") {
+            continue;
+        }
+
         // Create unique key from path + alias
         let key = format!("{}:{:?}", import.path, import.alias);
         if !seen_paths.insert(key) {
