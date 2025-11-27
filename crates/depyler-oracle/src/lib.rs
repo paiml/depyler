@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 pub mod autofixer;
 pub mod automl_tuning;
 pub mod classifier;
+pub mod moe_oracle;
 // pub mod data_store; // TODO: Re-enable when alimentar integrated
 pub mod depyler_training;
 pub mod estimator;
@@ -57,6 +58,10 @@ pub use ngram::{FixPattern, FixSuggestion, NgramFixPredictor};
 pub use patterns::{CodeTransform, FixTemplate, FixTemplateRegistry};
 pub use tfidf::{CombinedFeatureExtractor, TfidfConfig, TfidfFeatureExtractor};
 pub use training::{TrainingDataset, TrainingSample};
+
+// MoE Oracle exports
+pub use moe_oracle::{ExpertDomain, MoeClassificationResult, MoeOracle, MoeOracleConfig};
+pub use depyler_training::{classify_with_moe, load_real_corpus, train_moe_on_real_corpus, train_moe_oracle};
 
 /// Error types for the oracle.
 #[derive(Debug, thiserror::Error)]

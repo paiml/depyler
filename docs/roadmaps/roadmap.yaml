@@ -979,3 +979,136 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: GH-107
+  github_issue: 107
+  item_type: task
+  title: 'CODEGEN: Module-level dict returns HashMap instead of serde_json::Value'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-11-26T23:57:27.782709586+00:00
+  updated: 2025-11-27T00:12:37.153240031+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-108
+  github_issue: 108
+  item_type: task
+  title: 'CODEGEN: Option<String> moved then borrowed - needs clone or reference'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-11-27T00:12:37.633674694+00:00
+  updated: 2025-11-27T09:56:03.851326977+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-109
+  github_issue: 109
+  item_type: task
+  title: 'CODEGEN: log_analyzer example has 28 errors - multiple codegen issues'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-27T00:16:14.737931590+00:00
+  updated: 2025-11-27T09:56:19.725907696+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'Metaheuristic Oracle: Self-Supervised Corpus Generation'
+  github_issue: null
+  item_type: task
+  title: 'New task: Metaheuristic Oracle: Self-Supervised Corpus Generation'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-11-27T09:40:57.194014341+00:00
+  updated: 2025-11-27T09:53:56.674013178+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'Metaheuristic Oracle Phase 2: Optimizer Execution and Autofixer Integration'
+  github_issue: null
+  item_type: task
+  title: 'New task: Metaheuristic Oracle Phase 2: Optimizer Execution and Autofixer Integration'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-11-27T09:58:29.426785470+00:00
+  updated: 2025-11-27T09:58:29.426785470+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: reprorusted-python-cli compiles ALL using oracle
+  github_issue: null
+  item_type: task
+  title: 'New task: reprorusted-python-cli compiles ALL using oracle'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-11-27T13:59:28.242745022+00:00
+  updated: 2025-11-27T14:05:05.753702337+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0580
+  github_issue: null
+  item_type: feature
+  title: 'MoE Oracle for Error Classification'
+  status: completed
+  priority: medium
+  assigned_to: Claude
+  created: 2025-11-27T15:40:06.959385125+00:00
+  updated: 2025-11-27T16:30:00+00:00
+  spec: tdd-book/docs/oracle.md
+  acceptance_criteria:
+  - Implement 4 specialized experts (TypeSystem, ScopeResolution, MethodField, SyntaxBorrowing)
+  - Route errors by error code (E0308, E0425, E0599, E0369, etc.)
+  - Provide domain-specific fix suggestions
+  - Works without training (default patterns)
+  - Integrate with depyler training corpus
+  phases:
+  - name: Phase 1 - Create failing tests (RED)
+    status: completed
+    estimated_effort: 30m
+    completion: 100
+  - name: Phase 2 - Implement MoE Oracle (GREEN)
+    status: completed
+    estimated_effort: 1h
+    completion: 100
+  - name: Phase 3 - Integration tests (REFACTOR)
+    status: completed
+    estimated_effort: 30m
+    completion: 100
+  subtasks: []
+  estimated_effort: 2h
+  labels:
+  - oracle
+  - ml
+  - moe
+  - error-classification
+  notes: 'Implemented Mixture of Experts model with 4 domain experts. 27 tests passing. Exports: classify_with_moe(), train_moe_oracle(), MoeOracle, ExpertDomain'
