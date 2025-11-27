@@ -1823,6 +1823,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "hex" => self.convert_hex_builtin(&arg_exprs),
             "bin" => self.convert_bin_builtin(&arg_exprs),
             "oct" => self.convert_oct_builtin(&arg_exprs),
+            // DEPYLER-0579: format(value, spec) builtin
+            "format" => self.convert_format_builtin(&arg_exprs, &all_hir_args),
             "chr" => self.convert_chr_builtin(&arg_exprs),
             "ord" => self.convert_ord_builtin(&arg_exprs),
             "hash" => self.convert_hash_builtin(&arg_exprs),
@@ -2222,6 +2224,40 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
         let value = &args[0];
         Ok(parse_quote! { format!("0o{:o}", #value) })
+    }
+
+    /// DEPYLER-0579: Python format(value, spec) builtin
+    /// format(num, "b") → binary string
+    /// format(num, "o") → octal string
+    /// format(num, "x") → hex string
+    /// format(num, "d") → decimal string
+    fn convert_format_builtin(&self, args: &[syn::Expr], hir_args: &[HirExpr]) -> Result<syn::Expr> {
+        if args.len() != 2 {
+            bail!("format() requires exactly 2 arguments (value, spec)");
+        }
+        let value = &args[0];
+        // Extract format spec from HIR to get the actual string
+        if let HirExpr::Literal(Literal::String(spec)) = &hir_args[1] {
+            match spec.as_str() {
+                "b" => Ok(parse_quote! { format!("{:b}", #value) }),
+                "o" => Ok(parse_quote! { format!("{:o}", #value) }),
+                "x" => Ok(parse_quote! { format!("{:x}", #value) }),
+                "X" => Ok(parse_quote! { format!("{:X}", #value) }),
+                "d" => Ok(parse_quote! { format!("{}", #value) }),
+                "" => Ok(parse_quote! { format!("{}", #value) }),
+                _ => {
+                    // For unknown format specs, fall back to generic format
+                    let spec_str = spec.as_str();
+                    // Try to parse as f-string format spec
+                    let format_str = format!("{{:{}}}", spec_str);
+                    let format_lit: syn::LitStr = syn::parse_str(&format!("\"{}\"", format_str))?;
+                    Ok(parse_quote! { format!(#format_lit, #value) })
+                }
+            }
+        } else {
+            // Dynamic format spec - can't handle at compile time
+            bail!("format() requires a string literal format specifier");
+        }
     }
 
     fn convert_chr_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
@@ -10928,7 +10964,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Var(sym) => {
                 // DEPYLER-0479: Check type system first (most reliable)
                 if let Some(ty) = self.ctx.var_types.get(sym) {
-                    return matches!(ty, Type::String);
+                    // Return true if definitely String, false if definitely NOT string
+                    // Fall through to heuristics for Unknown/Any types
+                    match ty {
+                        Type::String => return true,
+                        // DEPYLER-0579: Optional<String> is still string-like
+                        Type::Optional(inner) if matches!(**inner, Type::String) => return true,
+                        Type::Int | Type::Float | Type::Bool | Type::List(_) | Type::Dict(_, _) => {
+                            return false;
+                        }
+                        _ => {} // Unknown/Any - fall through to heuristics
+                    }
                 }
 
                 // DEPYLER-0267 FIX: Only match singular string-like names, NOT plurals
@@ -10954,6 +11000,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     || (name.ends_with("_text") && is_singular)
                     || (name.ends_with("timestamp") && is_singular)  // GH-70: created_timestamp, etc.
                     || (name.ends_with("_message") && is_singular) // GH-70: error_message, etc.
+            }
+            // DEPYLER-0577: Handle attribute access (e.g., args.text)
+            HirExpr::Attribute { attr, .. } => {
+                let name = attr.as_str();
+                let is_singular = !name.ends_with('s');
+                name == "text"
+                    || name == "s"
+                    || name == "string"
+                    || name == "line"
+                    || name == "content"
+                    || name == "message"
+                    || (name.starts_with("text") && is_singular)
+                    || (name.ends_with("_text") && is_singular)
+                    || (name.ends_with("_string") && is_singular)
             }
             HirExpr::MethodCall { method, .. }
                 if method.as_str().contains("upper")
@@ -12322,7 +12382,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0523: File variable - use BufReader for line iteration
                 self.ctx.needs_bufread = true;
                 parse_quote! { std::io::BufReader::new(#iter_expr).lines().map(|l| l.unwrap_or_default()) }
-            } else if self.is_numpy_array_expr(&gen.iter) {
+            } else if self.is_numpy_array_expr(&*gen.iter) {
                 // DEPYLER-0575: trueno Vector uses .as_slice().iter()
                 parse_quote! { #iter_expr.as_slice().iter().copied() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
@@ -12482,9 +12542,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match expr {
             // np.array() call
             HirExpr::Call { func, .. } if func == "array" => true,
+            // np.abs(), np.sqrt(), etc. calls that return vectors
+            HirExpr::Call { func, .. } => {
+                matches!(func.as_str(), "abs" | "sqrt" | "sin" | "cos" | "exp" | "log" |
+                         "zeros" | "ones" | "clip" | "clamp" | "normalize")
+            }
+            // Method calls on numpy arrays return numpy arrays
+            HirExpr::MethodCall { method, .. } => {
+                matches!(method.as_str(), "abs" | "sqrt" | "sin" | "cos" | "exp" | "log" |
+                         "clamp" | "clip" | "unwrap")
+            }
             // Variable named 'arr' or with numpy-array semantics
             HirExpr::Var(name) => {
-                matches!(name.as_str(), "arr" | "array" | "data" | "values" | "x" | "y" | "result")
+                let n = name.as_str();
+                matches!(n, "arr" | "array" | "data" | "values" | "x" | "y" | "result" | "vec" | "vector")
+                    || n.starts_with("arr_") || n.ends_with("_arr")
+                    || n.starts_with("vec_") || n.ends_with("_vec")
             }
             // Recursive: binary op on vector yields vector
             HirExpr::Binary { left, .. } => self.is_numpy_array_expr(left),
@@ -12786,6 +12859,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     "mean" | "std" | "variance" | "sum" | "norm" | "result"
                 )
             }
+            // DEPYLER-0577: Attribute access (e.g., args.x) - check if attr is float type
+            HirExpr::Attribute { attr, .. } => {
+                // Only use var_types lookup - no heuristics, as "x" could be int or float
+                matches!(self.ctx.var_types.get(attr), Some(Type::Float))
+            }
             // NumPy/trueno methods that return f32
             HirExpr::MethodCall { method, .. } => {
                 matches!(
@@ -12900,7 +12978,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 iter_expr
             };
 
-            let mut chain: syn::Expr = if self.is_numpy_array_expr(&gen.iter) {
+            let mut chain: syn::Expr = if self.is_numpy_array_expr(&*gen.iter) {
                 // DEPYLER-0575: trueno Vector uses .as_slice().iter()
                 parse_quote! { #iter_expr.as_slice().iter().copied() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
@@ -12959,7 +13037,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 iter_expr
             };
 
-            let mut chain: syn::Expr = if self.is_numpy_array_expr(&gen.iter) {
+            let mut chain: syn::Expr = if self.is_numpy_array_expr(&*gen.iter) {
                 // DEPYLER-0575: trueno Vector uses .as_slice().iter()
                 parse_quote! { #iter_expr.as_slice().iter().copied() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
@@ -13598,7 +13676,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0523: File variable - use BufReader for line iteration
                 self.ctx.needs_bufread = true;
                 parse_quote! { std::io::BufReader::new(#iter_expr).lines().map(|l| l.unwrap_or_default()) }
-            } else if self.is_numpy_array_expr(&gen.iter) {
+            } else if self.is_numpy_array_expr(&*gen.iter) {
                 // DEPYLER-0575: trueno Vector uses .as_slice().iter()
                 parse_quote! { #iter_expr.as_slice().iter().copied() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
