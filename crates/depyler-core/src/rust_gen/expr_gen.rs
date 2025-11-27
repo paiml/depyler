@@ -89,6 +89,107 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         matches!(name, "self" | "Self" | "super" | "crate")
     }
 
+    /// DEPYLER-0582: Wrap expression in parentheses if it's a binary operation with lower precedence
+    /// This preserves Python's parenthesized expressions in Rust output
+    /// e.g., (1 - beta1) * x should become (1.0 - beta1) * x, not 1.0 - beta1 * x
+    fn parenthesize_if_lower_precedence(expr: syn::Expr, parent_op: BinOp) -> syn::Expr {
+        // Check if expression is a binary operation
+        if let syn::Expr::Binary(bin_expr) = &expr {
+            let child_precedence = Self::get_rust_op_precedence(&bin_expr.op);
+            let parent_precedence = Self::get_python_op_precedence(parent_op);
+
+            // If child has lower precedence, wrap in parentheses
+            if child_precedence < parent_precedence {
+                return parse_quote! { (#expr) };
+            }
+        }
+        expr
+    }
+
+    /// Get precedence of Rust binary operator (higher = binds tighter)
+    fn get_rust_op_precedence(op: &syn::BinOp) -> u8 {
+        match op {
+            syn::BinOp::Mul(_) | syn::BinOp::Div(_) | syn::BinOp::Rem(_) => 13,
+            syn::BinOp::Add(_) | syn::BinOp::Sub(_) => 12,
+            syn::BinOp::Shl(_) | syn::BinOp::Shr(_) => 11,
+            syn::BinOp::BitAnd(_) => 10,
+            syn::BinOp::BitXor(_) => 9,
+            syn::BinOp::BitOr(_) => 8,
+            syn::BinOp::Lt(_)
+            | syn::BinOp::Le(_)
+            | syn::BinOp::Gt(_)
+            | syn::BinOp::Ge(_)
+            | syn::BinOp::Eq(_)
+            | syn::BinOp::Ne(_) => 7,
+            syn::BinOp::And(_) => 6,
+            syn::BinOp::Or(_) => 5,
+            _ => 0, // Compound assignment operators, etc.
+        }
+    }
+
+    /// Get precedence of Python binary operator for our HIR
+    fn get_python_op_precedence(op: BinOp) -> u8 {
+        match op {
+            BinOp::Pow => 14,
+            BinOp::Mul | BinOp::Div | BinOp::Mod | BinOp::FloorDiv => 13,
+            BinOp::Add | BinOp::Sub => 12,
+            BinOp::LShift | BinOp::RShift => 11,
+            BinOp::BitAnd => 10,
+            BinOp::BitXor => 9,
+            BinOp::BitOr => 8,
+            BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq | BinOp::Eq | BinOp::NotEq => 7,
+            BinOp::In | BinOp::NotIn => 7,
+            BinOp::And => 6,
+            BinOp::Or => 5,
+        }
+    }
+
+    /// DEPYLER-0582: Coerce integer literal to float if other operand is float-typed
+    /// Python automatically promotes int to float in arithmetic with floats
+    /// e.g., `1 - beta1` where beta1:float → `1.0 - beta1` in Rust
+    fn coerce_int_to_float_if_needed(
+        &self,
+        expr: syn::Expr,
+        hir_expr: &HirExpr,
+        other_hir: &HirExpr,
+    ) -> syn::Expr {
+        // Only coerce integer literals
+        if let HirExpr::Literal(Literal::Int(val)) = hir_expr {
+            // Check if other operand is float-typed
+            if self.expr_returns_float(other_hir) || self.is_float_var(other_hir) {
+                // Convert integer to float literal
+                let float_val = *val as f64;
+                return parse_quote! { #float_val };
+            }
+        }
+        expr
+    }
+
+    /// Check if expression is a variable with float type
+    fn is_float_var(&self, expr: &HirExpr) -> bool {
+        if let HirExpr::Var(name) = expr {
+            if let Some(var_type) = self.ctx.var_types.get(name) {
+                if matches!(var_type, Type::Float) {
+                    return true;
+                }
+                if let Type::Custom(s) = var_type {
+                    if s == "f64" || s == "f32" {
+                        return true;
+                    }
+                }
+            }
+            // Heuristic: common float parameter names
+            let name_lower = name.to_lowercase();
+            return name_lower.contains("beta")
+                || name_lower.contains("alpha")
+                || name_lower.contains("lr")
+                || name_lower.contains("eps")
+                || name_lower.contains("rate")
+                || name_lower.contains("momentum");
+        }
+        false
+    }
+
     /// DEPYLER-0465: Add & to borrow a path expression if it's a simple variable
     /// This prevents moving String parameters in PathBuf::from() and File::open()
     ///
@@ -322,7 +423,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(parse_quote! { (#left_expr).saturating_sub(#right_expr) })
                 } else {
                     let rust_op = convert_binop(op)?;
-                    Ok(parse_quote! { #left_expr #rust_op #right_expr })
+                    // DEPYLER-0582: Coerce int to float if operating with float
+                    let left_coerced = self.coerce_int_to_float_if_needed(left_expr, left, right);
+                    let right_coerced = self.coerce_int_to_float_if_needed(right_expr, right, left);
+                    Ok(parse_quote! { #left_coerced #rust_op #right_coerced })
                 }
             }
             // DEPYLER-REFACTOR-001 Phase 2.8: Delegate to extracted helper
@@ -351,12 +455,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else {
                     // Regular division (int/int → int, float/float → float)
                     let rust_op = convert_binop(op)?;
-                    // DEPYLER-0339: Construct syn::ExprBinary directly instead of using parse_quote!
+                    // DEPYLER-0582: Wrap operands in parens if they have lower precedence
+                    let left_wrapped = Self::parenthesize_if_lower_precedence(left_expr, op);
+                    let right_wrapped = Self::parenthesize_if_lower_precedence(right_expr, op);
                     Ok(syn::Expr::Binary(syn::ExprBinary {
                         attrs: vec![],
-                        left: Box::new(left_expr),
+                        left: Box::new(left_wrapped),
                         op: rust_op,
-                        right: Box::new(right_expr),
+                        right: Box::new(right_wrapped),
                     }))
                 }
             }
@@ -533,10 +639,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
                 Ok(parse_quote! { vec![#elem; #size_lit] })
             }
+            // DEPYLER-0579: Pattern: [x] * var (variable size → Vec)
+            // Example: [0.0] * n_params → vec![0.0; n_params as usize]
+            (HirExpr::List(elts), HirExpr::Var(_)) if elts.len() == 1 => {
+                let elem = elts[0].to_rust_expr(self.ctx)?;
+                Ok(parse_quote! { vec![#elem; #right_expr as usize] })
+            }
+            // DEPYLER-0579: Pattern: var * [x] (variable size → Vec)
+            (HirExpr::Var(_), HirExpr::List(elts)) if elts.len() == 1 => {
+                let elem = elts[0].to_rust_expr(self.ctx)?;
+                Ok(parse_quote! { vec![#elem; #left_expr as usize] })
+            }
             // Default multiplication
             _ => {
                 let rust_op = convert_binop(op)?;
-                Ok(parse_quote! { #left_expr #rust_op #right_expr })
+                // DEPYLER-0582: Coerce int to float if operating with float
+                let left_coerced = self.coerce_int_to_float_if_needed(left_expr, left, right);
+                let right_coerced = self.coerce_int_to_float_if_needed(right_expr, right, left);
+                // DEPYLER-0582: Wrap operands in parens if they have lower precedence
+                let left_wrapped = Self::parenthesize_if_lower_precedence(left_coerced, op);
+                let right_wrapped = Self::parenthesize_if_lower_precedence(right_coerced, op);
+                Ok(parse_quote! { #left_wrapped #rust_op #right_wrapped })
             }
         }
     }
@@ -590,7 +713,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         } else {
             // Arithmetic addition
             let rust_op = convert_binop(op)?;
-            Ok(parse_quote! { #left_expr #rust_op #right_expr })
+            // DEPYLER-0582: Coerce int to float if operating with float
+            let left_coerced = self.coerce_int_to_float_if_needed(left_expr, left, right);
+            let right_coerced = self.coerce_int_to_float_if_needed(right_expr, right, left);
+            Ok(parse_quote! { #left_coerced #rust_op #right_coerced })
         }
     }
 
@@ -2553,7 +2679,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         } else {
             // Regular function call
-            let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+            // DEPYLER-0588: Use safe_ident to handle keywords and invalid characters
+            let func_ident = crate::rust_gen::keywords::safe_ident(func);
 
             // DEPYLER-0301 Fix: Auto-borrow Vec/List arguments when calling functions
             // DEPYLER-0269 Fix: Auto-borrow Dict/HashMap/Set arguments when calling functions
@@ -2777,7 +2904,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Solution: Don't automatically add `?` to function calls. Let explicit error handling
             // in Python (try/except) determine when Result types are needed.
             // If specific cases need `?` for recursive calls, those should be handled specially.
-            let call_expr: syn::Expr = parse_quote! { #func_ident(#(#borrowed_args),*) };
+            //
+            // DEPYLER-0588: Use try_parse to avoid panics on invalid expressions
+            let args_tokens: Vec<_> = borrowed_args.iter().map(|a| quote::quote! { #a }).collect();
+            let call_str = format!("{}({})", func_ident, args_tokens.iter().map(|t| t.to_string()).collect::<Vec<_>>().join(", "));
+            let call_expr: syn::Expr = match syn::parse_str(&call_str) {
+                Ok(expr) => expr,
+                Err(_) => {
+                    // DEPYLER-0588: Fallback using syn::parse_str instead of parse_quote!
+                    // This avoids panics even with unusual function names
+                    let simple_call = format!("{}()", func_ident);
+                    syn::parse_str(&simple_call).unwrap_or_else(|_| {
+                        // Ultimate fallback: create a unit expression
+                        syn::parse_str("()").unwrap()
+                    })
+                }
+            };
             Ok(call_expr)
         }
     }
@@ -4038,7 +4180,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             "norm" => {
                 if let Some(arr) = arg_exprs.first() {
-                    parse_quote! { #arr.norm().unwrap() }
+                    // DEPYLER-0583: trueno uses norm_l2() for L2 (Euclidean) norm
+                    parse_quote! { #arr.norm_l2().unwrap() }
                 } else {
                     bail!("np.norm() requires 1 argument");
                 }
@@ -9260,8 +9403,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(
                         parse_quote! { #obj.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() },
                     )
+                } else if arg_exprs.len() == 2 {
+                    // DEPYLER-0590: str.split(sep, maxsplit) → splitn(maxsplit+1, sep)
+                    // Python's maxsplit is the max number of splits; Rust's splitn takes n parts
+                    let sep = match &hir_args[0] {
+                        HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                        _ => arg_exprs[0].clone(),
+                    };
+                    let maxsplit = &arg_exprs[1];
+                    Ok(
+                        parse_quote! { #obj.splitn((#maxsplit + 1) as usize, #sep).map(|s| s.to_string()).collect::<Vec<String>>() },
+                    )
                 } else {
-                    bail!("split() with maxsplit not supported in V1");
+                    bail!("split() accepts at most 2 arguments (separator, maxsplit)");
                 }
             }
             "join" => {
@@ -13840,6 +13994,19 @@ impl ToRustExpr for HirExpr {
                     if numpy_gen::is_numpy_module(module_name) {
                         if let Some(result) = converter.try_convert_numpy_call(method, args)? {
                             return Ok(result);
+                        }
+                    }
+                }
+
+                // DEPYLER-0583: Handle np.linalg.norm() and other submodule calls
+                // Pattern: np.linalg.norm(a) where object is Attribute { value: np, attr: linalg }
+                if let HirExpr::Attribute { value, attr } = &**object {
+                    if let HirExpr::Var(module_name) = &**value {
+                        if numpy_gen::is_numpy_module(module_name) && attr == "linalg" {
+                            // Map linalg.norm to norm
+                            if let Some(result) = converter.try_convert_numpy_call(method, args)? {
+                                return Ok(result);
+                            }
                         }
                     }
                 }

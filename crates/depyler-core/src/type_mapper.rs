@@ -175,6 +175,22 @@ impl TypeMapper {
                             mutable: true,
                             inner: Box::new(RustType::Custom("std::fs::File".to_string())),
                         },
+                        // DEPYLER-0580: argparse.Namespace maps to Args struct in clap
+                        // Python: def cmd_step(args: argparse.Namespace) → Rust: fn cmd_step(args: Args)
+                        "Namespace" | "argparse.Namespace" => {
+                            RustType::Custom("Args".to_string())
+                        }
+                        // DEPYLER-0584: Python bytes type maps to Vec<u8>
+                        "bytes" => RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::U8))),
+                        // DEPYLER-0584: Python Callable type maps to Box<dyn Fn>
+                        "Callable" | "typing.Callable" | "callable" => {
+                            RustType::Custom("Box<dyn Fn()>".to_string())
+                        }
+                        // DEPYLER-0589: Python Any type maps to serde_json::Value
+                        // Both typing.Any and bare 'any' need to be handled
+                        "Any" | "typing.Any" | "any" => {
+                            RustType::Custom("serde_json::Value".to_string())
+                        }
                         _ => RustType::Custom(name.clone()),
                     }
                 }
@@ -623,6 +639,58 @@ mod tests {
             assert_eq!(desc, "function");
         } else {
             panic!("Expected unsupported function type");
+        }
+    }
+
+    #[test]
+    fn test_depyler_0589_any_type_mapping() {
+        // DEPYLER-0589: Python `any` and `Any` should map to serde_json::Value
+        let mapper = TypeMapper::new();
+
+        // Lowercase 'any'
+        let any_lower = PythonType::Custom("any".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&any_lower) {
+            assert_eq!(name, "serde_json::Value");
+        } else {
+            panic!("Expected Custom type for 'any'");
+        }
+
+        // Uppercase 'Any'
+        let any_upper = PythonType::Custom("Any".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&any_upper) {
+            assert_eq!(name, "serde_json::Value");
+        } else {
+            panic!("Expected Custom type for 'Any'");
+        }
+
+        // typing.Any
+        let typing_any = PythonType::Custom("typing.Any".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&typing_any) {
+            assert_eq!(name, "serde_json::Value");
+        } else {
+            panic!("Expected Custom type for 'typing.Any'");
+        }
+    }
+
+    #[test]
+    fn test_depyler_0589_callable_type_mapping() {
+        // DEPYLER-0589: Python `callable` and `Callable` should map to Box<dyn Fn()>
+        let mapper = TypeMapper::new();
+
+        // Lowercase 'callable'
+        let callable_lower = PythonType::Custom("callable".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&callable_lower) {
+            assert_eq!(name, "Box<dyn Fn()>");
+        } else {
+            panic!("Expected Custom type for 'callable'");
+        }
+
+        // Uppercase 'Callable'
+        let callable_upper = PythonType::Custom("Callable".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&callable_upper) {
+            assert_eq!(name, "Box<dyn Fn()>");
+        } else {
+            panic!("Expected Custom type for 'Callable'");
         }
     }
 
