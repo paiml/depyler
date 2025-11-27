@@ -1,0 +1,402 @@
+# Oracle: ML-Powered Error Classification
+
+The Depyler Oracle is an internal ML system that classifies transpilation compile errors and suggests fixes. It uses a Random Forest classifier trained on error patterns to accelerate the debug-fix cycle.
+
+## What the Oracle Does
+
+When transpiled Rust code fails to compile, the Oracle:
+
+1. **Extracts features** from the error message (TF-IDF, error codes, keywords)
+2. **Classifies** the error into categories (TypeMismatch, BorrowChecker, MissingImport, etc.)
+3. **Suggests fixes** based on historical patterns
+4. **Detects drift** to signal when retraining is needed
+
+## Workflow: The Compile Heuristic
+
+```
+Python Source
+     │
+     ▼
+┌─────────────┐
+│  Transpile  │
+└─────────────┘
+     │
+     ▼
+┌─────────────┐
+│   rustc     │───── Success ─────► Done
+└─────────────┘
+     │
+   Error
+     │
+     ▼
+┌─────────────┐
+│  Featurize  │  Extract TF-IDF features from error text
+└─────────────┘
+     │
+     ▼
+┌─────────────┐
+│  Classify   │  Random Forest predicts error category
+└─────────────┘
+     │
+     ▼
+┌─────────────┐
+│   Suggest   │  Return fix templates for category
+└─────────────┘
+     │
+     ▼
+Developer applies fix to TRANSPILER (never to generated code)
+```
+
+## Error Categories
+
+| Category | Description | Example Fix |
+|----------|-------------|-------------|
+| `TypeMismatch` | Type conversion needed | Use `.into()` or `as` |
+| `BorrowChecker` | Ownership/borrowing issue | Clone or use reference |
+| `MissingImport` | Missing `use` statement | Add import |
+| `SyntaxError` | Malformed syntax | Check braces/semicolons |
+| `LifetimeError` | Lifetime annotation needed | Add `'a` annotation |
+| `TraitBound` | Missing trait impl | Implement trait or add bound |
+| `Other` | Uncategorized | Review full error |
+
+## Model Architecture
+
+### Primary: Random Forest Classifier
+- **Algorithm**: Random Forest Classifier (100 trees, max depth 10)
+- **Features**: TF-IDF vectors from error messages
+- **Training data**: Synthetic corpus + verificar integration + depyler-specific patterns
+- **Model file**: `depyler_oracle.apr` (generated on first use)
+
+### NEW: MoE Oracle (DEPYLER-0580)
+
+The **Mixture of Experts (MoE) Oracle** provides specialized error classification with 4 domain experts:
+
+```
+                    ┌─────────────────┐
+   Error Code ─────►│  Gating Network │
+   + Context        └────────┬────────┘
+                             │
+         ┌───────────────────┼───────────────────┐
+         ▼                   ▼                   ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│   TypeSystem    │ │ ScopeResolution │ │   MethodField   │
+│   Expert (0)    │ │   Expert (1)    │ │   Expert (2)    │
+│ E0308,E0277,    │ │ E0425,E0412,    │ │ E0599,E0609,    │
+│ E0606,E0061     │ │ E0433,E0423     │ │ E0615           │
+└────────┬────────┘ └────────┬────────┘ └────────┬────────┘
+         │                   │                   │
+         └───────────────────┼───────────────────┘
+                             ▼
+                  ┌─────────────────────┐
+                  │  SyntaxBorrowing    │
+                  │     Expert (3)      │
+                  │ E0369,E0282,E0027   │
+                  └─────────────────────┘
+```
+
+**Expert Domains**:
+
+| Expert | Error Codes | Specialization |
+|--------|-------------|----------------|
+| TypeSystem | E0308, E0277, E0606 | Type mismatches, trait bounds |
+| ScopeResolution | E0425, E0412, E0433 | Missing imports, undefined names |
+| MethodField | E0599, E0609 | Method/field not found |
+| SyntaxBorrowing | E0369, E0282, E0027 | Operators, type annotations |
+
+**Usage**:
+
+```rust
+use depyler_oracle::{classify_with_moe, ExpertDomain};
+
+let result = classify_with_moe("E0308", "mismatched types expected i32, found String");
+println!("Expert: {:?}", result.primary_expert);  // TypeSystem
+println!("Fix: {:?}", result.suggested_fix);      // Some("Add type coercion...")
+println!("Confidence: {:.2}", result.confidence); // 0.85
+```
+
+**Why MoE?**
+- **Specialization**: Each expert learns domain-specific patterns
+- **Interpretability**: Clear routing based on error codes
+- **Extensibility**: Easy to add new experts for new error domains
+- **Robustness**: Works without training (uses default fix patterns)
+
+## Using the Oracle
+
+The Oracle is **not** a user-facing feature. It's internal developer infrastructure.
+
+### Automatic Loading
+
+```rust
+use depyler_oracle::Oracle;
+
+// Loads from disk or trains and saves
+let oracle = Oracle::load_or_train()?;
+```
+
+On first call, `load_or_train()`:
+1. Checks for `depyler_oracle.apr` in project root
+2. If found, loads the trained model
+3. If not found, trains on the combined corpus and saves
+
+Subsequent calls load the cached model (~100ms vs ~60s training).
+
+### Classifying Errors
+
+```rust
+use depyler_oracle::{Oracle, ErrorFeatures};
+
+let oracle = Oracle::load_or_train()?;
+let features = ErrorFeatures::from_error_message(
+    "error[E0308]: mismatched types - expected `i32`, found `&str`"
+);
+let result = oracle.classify(&features)?;
+
+println!("Category: {:?}", result.category);      // TypeMismatch
+println!("Confidence: {}", result.confidence);    // 0.85
+println!("Suggested: {:?}", result.suggested_fix); // Some("Convert type using `.into()` or `as`")
+```
+
+## Training on Custom Corpus
+
+Organizations can train the Oracle on their own error patterns:
+
+```rust
+use depyler_oracle::{Oracle, TrainingDataset, TrainingSample, ErrorCategory};
+use aprender::primitives::Matrix;
+
+// Build custom corpus
+let mut dataset = TrainingDataset::new();
+dataset.add(TrainingSample::new(
+    "error[E0277]: the trait bound `MyType: Display` is not satisfied",
+    ErrorCategory::TraitBound,
+));
+// ... add more samples
+
+// Convert to features
+let (features, labels) = depyler_oracle::samples_to_features(dataset.samples());
+let labels: Vec<usize> = labels.as_slice().iter().map(|&x| x as usize).collect();
+
+// Train
+let mut oracle = Oracle::new();
+oracle.train(&features, &labels)?;
+
+// Save for reuse
+oracle.save(Path::new("my_company_oracle.apr"))?;
+```
+
+### Training Data Requirements
+
+- **Minimum**: 50+ samples for basic accuracy
+- **Recommended**: 500+ samples for robust classification
+- **Optimal**: 1,000+ samples for production use
+
+Each sample needs:
+- Error message text (the `rustc` output)
+- Correct category label
+
+## Synthetic Data Generation
+
+Instead of manually labeling errors, use combinatorial generation:
+
+```rust
+use depyler_oracle::{generate_synthetic_corpus, generate_synthetic_corpus_sized};
+
+// Default: 12,000+ samples via template × type × context combinations
+let corpus = generate_synthetic_corpus();
+
+// Custom size
+let corpus = generate_synthetic_corpus_sized(50_000);
+```
+
+The generator combines:
+- Error message templates (E0308, E0382, E0433, etc.)
+- Type variations (i32, String, Vec<T>, etc.)
+- Context patterns (function calls, assignments, returns)
+
+This produces diverse training data without real compilation.
+
+## AutoML Hyperparameter Tuning
+
+Automatically find optimal model configuration:
+
+```rust
+use depyler_oracle::{automl_optimize, automl_quick, AutoMLConfig};
+
+// Quick tuning (fewer iterations)
+let result = automl_quick(&corpus)?;
+
+// Full optimization
+let config = AutoMLConfig::default();
+let result = automl_optimize(&corpus, config)?;
+
+println!("Best n_trees: {}", result.best_n_trees);
+println!("Best max_depth: {}", result.best_max_depth);
+println!("Accuracy: {:.2}%", result.accuracy * 100.0);
+```
+
+AutoML searches the hyperparameter space (tree count, depth, features) to maximize cross-validation accuracy.
+
+**Workflow**: Synthetic generation + AutoML = scalable corpus without manual labeling.
+
+## Advanced: Full Custom Pipeline
+
+For organizations with large codebases and compute budget:
+
+### 1. Mass Transpile Your Codebase
+
+```bash
+find . -name "*.py" | xargs -I {} depyler transpile {} -o {}.rs
+```
+
+### 2. Capture Real Compile Errors
+
+```rust
+use std::process::Command;
+
+fn capture_errors(rs_file: &str) -> Option<String> {
+    let output = Command::new("rustc")
+        .args(["--crate-type", "lib", rs_file])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        Some(String::from_utf8_lossy(&output.stderr).to_string())
+    } else {
+        None
+    }
+}
+```
+
+### 3. Auto-Label by Error Code
+
+```rust
+fn auto_label(error: &str) -> ErrorCategory {
+    if error.contains("E0308") { ErrorCategory::TypeMismatch }
+    else if error.contains("E0382") || error.contains("E0505") { ErrorCategory::BorrowChecker }
+    else if error.contains("E0433") || error.contains("E0412") { ErrorCategory::MissingImport }
+    else if error.contains("E0106") || error.contains("E0495") { ErrorCategory::LifetimeError }
+    else if error.contains("E0277") { ErrorCategory::TraitBound }
+    else { ErrorCategory::Other }
+}
+```
+
+### 4. Merge Real + Synthetic Corpora
+
+```rust
+let mut corpus = generate_synthetic_corpus();
+
+// Add real errors from your codebase
+for (error_msg, category) in real_errors {
+    corpus.add(TrainingSample::new(&error_msg, category));
+}
+```
+
+### 5. Extended AutoML Search
+
+```rust
+let config = AutoMLConfig {
+    max_iterations: 1000,      // 10× default
+    n_trees_range: (50, 500),  // wider search
+    max_depth_range: (5, 20),  // deeper trees
+    cv_folds: 10,              // more rigorous
+};
+
+let result = automl_full(&corpus, config)?;
+```
+
+### 6. Continuous Learning
+
+Re-train periodically as transpiler evolves:
+
+```rust
+// Weekly cron job
+let new_errors = collect_recent_failures();
+corpus.extend(new_errors);
+let result = automl_optimize(&corpus, config)?;
+oracle.save(Path::new("updated_oracle.apr"))?;
+```
+
+**Key insight**: Real errors from *your* codebase capture domain-specific patterns that synthetic data misses.
+
+## Drift Detection
+
+The Oracle monitors classification accuracy over time:
+
+```rust
+let mut oracle = Oracle::load_or_train()?;
+
+// After each classification batch, report accuracy
+let status = oracle.check_drift(recent_accuracy);
+
+match status {
+    DriftStatus::NoDrift => { /* Model performing well */ }
+    DriftStatus::Warning => { /* Consider retraining soon */ }
+    DriftStatus::Drift => { /* Retrain immediately */ }
+}
+```
+
+Drift detection uses a sliding window comparison of historical vs. recent accuracy.
+
+## Configuration
+
+```rust
+use depyler_oracle::{Oracle, OracleConfig};
+
+let config = OracleConfig {
+    n_estimators: 10_000,  // Number of trees
+    max_depth: 10,         // Maximum tree depth
+    random_state: Some(42), // Reproducibility seed
+};
+
+let oracle = Oracle::with_config(config);
+```
+
+## Performance Characteristics
+
+| Operation | Time |
+|-----------|------|
+| Load cached model | ~100ms |
+| Train full corpus | ~60s |
+| Single classification | ~1ms |
+| Feature extraction | ~0.1ms |
+
+## Integration with Depyler
+
+The Oracle integrates at two points:
+
+1. **Autofixer**: Automatically applies suggested fixes during iterative compilation
+2. **Error reporting**: Enriches error messages with category and suggestions
+
+```rust
+use depyler_oracle::{AutoFixer, FixContext};
+
+let autofixer = AutoFixer::new();
+let context = FixContext {
+    error_message: "...",
+    source_code: "...",
+    // ...
+};
+
+if let Some(fix) = autofixer.suggest_fix(&context) {
+    // Apply fix to transpiler logic
+}
+```
+
+## Why Not Ship the Model?
+
+The model file (`depyler_oracle.apr`) is **not** distributed because:
+
+1. **Size**: ~50MB serialized Random Forest
+2. **Freshness**: Should be trained on current error patterns
+3. **Customization**: Different codebases have different patterns
+4. **Training is fast**: ~60s on first use, then cached
+
+## Summary
+
+The Oracle is a compile-error classification system that:
+- Classifies errors into actionable categories
+- Suggests fixes based on learned patterns
+- Supports custom training for bespoke codebases
+- Detects model drift for retraining triggers
+
+It's internal infrastructure that helps maintainers fix transpiler bugs faster by providing structured feedback on error patterns.
