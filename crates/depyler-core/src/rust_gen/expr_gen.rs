@@ -242,6 +242,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             if right_is_dict_get && left_is_json_value {
                 left_expr = parse_quote! { #left_expr.as_str().map(|s| s.to_string()) };
             }
+
+            // DEPYLER-0575: Coerce integer literal to float when comparing with float expression
+            // Example: `std > 0` -> `std > 0.0` when std is f32
+            let left_is_float = self.expr_returns_float(left);
+            let right_is_float = self.expr_returns_float(right);
+
+            if left_is_float && matches!(right, HirExpr::Literal(Literal::Int(n)) if *n == 0) {
+                right_expr = parse_quote! { 0.0 };
+            } else if right_is_float && matches!(left, HirExpr::Literal(Literal::Int(n)) if *n == 0)
+            {
+                left_expr = parse_quote! { 0.0 };
+            }
         }
 
         match op {
@@ -294,6 +306,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Set difference operation
                 self.convert_set_operation(op, left_expr, right_expr)
             }
+            // DEPYLER-0575: Vector-scalar subtraction for trueno
+            // trueno Vector doesn't implement Sub<f32>, so use as_slice().iter().map()
+            BinOp::Sub if self.is_numpy_array_expr(left) && self.expr_returns_float(right) => {
+                Ok(parse_quote! {
+                    Vector::from_vec(#left_expr.as_slice().iter().map(|&x| x - #right_expr).collect())
+                })
+            }
             BinOp::Sub => {
                 // Check if we're subtracting from a .len() call to prevent underflow
                 if self.is_len_call(left) {
@@ -308,6 +327,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             // DEPYLER-REFACTOR-001 Phase 2.8: Delegate to extracted helper
             BinOp::Mul => self.convert_mul_op(left, right, left_expr, right_expr, op),
+            // DEPYLER-0575: Vector-scalar division for trueno
+            // trueno Vector doesn't implement Div<f32>, so use as_slice().iter().map()
+            BinOp::Div if self.is_numpy_array_expr(left) && self.expr_returns_float(right) => {
+                Ok(parse_quote! {
+                    Vector::from_vec(#left_expr.as_slice().iter().map(|&x| x / #right_expr).collect())
+                })
+            }
             BinOp::Div => {
                 // v3.16.0 Phase 2: Python's `/` always returns float
                 // Rust's `/` does integer division when both operands are integers
@@ -9194,8 +9220,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             "join" => {
-                // DEPYLER-0196: sep.join(iterable) → iterable.join(sep)
-                // Use bare string literal for separator without .to_string()
+                // DEPYLER-0196: sep.join(iterable) → iterable.collect::<Vec<_>>().join(sep)
+                // DEPYLER-0575: Generator expressions yield iterators, need collect() before join()
                 if hir_args.len() != 1 {
                     bail!("join() requires exactly one argument");
                 }
@@ -9205,7 +9231,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
                     _ => object_expr.clone(),
                 };
-                Ok(parse_quote! { #iterable.join(#separator) })
+                Ok(parse_quote! { #iterable.collect::<Vec<_>>().join(#separator) })
             }
             "replace" => {
                 // DEPYLER-0195: str.replace(old, new) → .replace(old, new)
@@ -12287,6 +12313,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0523: File variable - use BufReader for line iteration
                 self.ctx.needs_bufread = true;
                 parse_quote! { std::io::BufReader::new(#iter_expr).lines().map(|l| l.unwrap_or_default()) }
+            } else if self.is_numpy_array_expr(&gen.iter) {
+                // DEPYLER-0575: trueno Vector uses .as_slice().iter()
+                parse_quote! { #iter_expr.as_slice().iter().copied() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
                 // Variable iteration - likely borrowed, use .iter().copied()
                 parse_quote! { #iter_expr.iter().copied() }
@@ -12435,6 +12464,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check type information in context for variables
                 self.is_set_var(expr)
             }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0575: Check if expression is a numpy array (trueno Vector)
+    fn is_numpy_array_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // np.array() call
+            HirExpr::Call { func, .. } if func == "array" => true,
+            // Variable named 'arr' or with numpy-array semantics
+            HirExpr::Var(name) => {
+                matches!(name.as_str(), "arr" | "array" | "data" | "values" | "x" | "y" | "result")
+            }
+            // Recursive: binary op on vector yields vector
+            HirExpr::Binary { left, .. } => self.is_numpy_array_expr(left),
             _ => false,
         }
     }
@@ -12716,6 +12760,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-0575: Check if expression returns a float type
+    /// Used to coerce integer literals to floats in comparisons
+    fn expr_returns_float(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Float literals
+            HirExpr::Literal(Literal::Float(_)) => true,
+            // Variable with Float type, or variable from numpy float methods
+            HirExpr::Var(name) => {
+                if matches!(self.ctx.var_types.get(name), Some(Type::Float)) {
+                    return true;
+                }
+                // Common float result variable names from numpy operations
+                matches!(
+                    name.as_str(),
+                    "mean" | "std" | "variance" | "sum" | "norm" | "result"
+                )
+            }
+            // NumPy/trueno methods that return f32
+            HirExpr::MethodCall { method, .. } => {
+                matches!(
+                    method.as_str(),
+                    "mean" | "sum" | "std" | "stddev" | "var" | "variance" | "min" | "max" | "norm"
+                )
+            }
+            _ => false,
+        }
+    }
+
     /// DEPYLER-0303 Phase 3 Fix #6: Check if expression is an owned collection
     /// Used to determine if zip() should use .into_iter() (owned) vs .iter() (borrowed)
     ///
@@ -12819,7 +12891,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 iter_expr
             };
 
-            let mut chain: syn::Expr = if matches!(&*gen.iter, HirExpr::Var(_)) {
+            let mut chain: syn::Expr = if self.is_numpy_array_expr(&gen.iter) {
+                // DEPYLER-0575: trueno Vector uses .as_slice().iter()
+                parse_quote! { #iter_expr.as_slice().iter().copied() }
+            } else if matches!(&*gen.iter, HirExpr::Var(_)) {
                 // Variable iteration - likely borrowed, use .iter().copied()
                 parse_quote! { #iter_expr.iter().copied() }
             } else {
@@ -12875,7 +12950,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 iter_expr
             };
 
-            let mut chain: syn::Expr = if matches!(&*gen.iter, HirExpr::Var(_)) {
+            let mut chain: syn::Expr = if self.is_numpy_array_expr(&gen.iter) {
+                // DEPYLER-0575: trueno Vector uses .as_slice().iter()
+                parse_quote! { #iter_expr.as_slice().iter().copied() }
+            } else if matches!(&*gen.iter, HirExpr::Var(_)) {
                 // Variable iteration - likely borrowed, use .iter().copied()
                 parse_quote! { #iter_expr.iter().copied() }
             } else {
@@ -13511,6 +13589,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0523: File variable - use BufReader for line iteration
                 self.ctx.needs_bufread = true;
                 parse_quote! { std::io::BufReader::new(#iter_expr).lines().map(|l| l.unwrap_or_default()) }
+            } else if self.is_numpy_array_expr(&gen.iter) {
+                // DEPYLER-0575: trueno Vector uses .as_slice().iter()
+                parse_quote! { #iter_expr.as_slice().iter().copied() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
                 // Variable iteration - likely borrowed, use .iter().copied()
                 parse_quote! { #iter_expr.iter().copied() }
