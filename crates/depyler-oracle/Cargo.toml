@@ -55,6 +55,7 @@ llama-cpp-2 = { version = "0.1", optional = true }
 [dev-dependencies]
 tempfile.workspace = true
 proptest.workspace = true
+clap = { version = "4", features = ["derive"] }
 
 # Synthetic data factory for corpus generation
 verificar = "0.3"
