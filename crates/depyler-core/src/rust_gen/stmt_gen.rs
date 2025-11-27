@@ -227,6 +227,40 @@ pub(crate) fn codegen_expr_stmt(
         kwargs,
     } = expr
     {
+        // DEPYLER-0581: Handle chained method calls like subparsers.add_parser(...).set_defaults(...)
+        // Pattern: subparsers.add_parser("step").set_defaults(func=cmd_step)
+        // This creates HIR: MethodCall { object: MethodCall { object: Var("subparsers"), method: "add_parser" }, method: "set_defaults" }
+        if method == "set_defaults" {
+            if let HirExpr::MethodCall {
+                object: inner_obj,
+                method: inner_method,
+                args: inner_args,
+                ..
+            } = object.as_ref()
+            {
+                if inner_method == "add_parser" {
+                    if let HirExpr::Var(subparsers_var) = inner_obj.as_ref() {
+                        if ctx.argparser_tracker.get_subparsers(subparsers_var).is_some() {
+                            // Register the subcommand and skip code generation
+                            if !inner_args.is_empty() {
+                                let command_name = extract_string_literal(&inner_args[0]);
+                                ctx.argparser_tracker.register_subcommand(
+                                    command_name,
+                                    crate::rust_gen::argparse_transform::SubcommandInfo {
+                                        name: extract_string_literal(&inner_args[0]),
+                                        help: None,
+                                        arguments: vec![],
+                                        subparsers_var: subparsers_var.clone(),
+                                    },
+                                );
+                            }
+                            return Ok(quote! {});
+                        }
+                    }
+                }
+            }
+        }
+
         // DEPYLER-0394: Skip ALL parser method calls when using clap derive
         // ArgumentParser methods that should be ignored:
         // - add_argument() → accumulated into Args struct
@@ -1713,7 +1747,7 @@ pub(crate) fn codegen_for_stmt(
                         };
                         safe_ident(&var_name) // DEPYLER-0023
                     }
-                    _ => panic!("Nested tuple unpacking not supported in for loops"),
+                    _ => safe_ident("_nested"), // Nested tuple unpacking - use placeholder
                 })
                 .collect();
             parse_quote! { (#(#idents),*) }
@@ -3299,6 +3333,163 @@ fn try_return_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
     }
 }
 
+/// DEPYLER-0578: Check if handler ends with sys.exit() or process::exit()
+/// This indicates the variable WILL be assigned if we reach code after the try/except
+#[inline]
+fn handler_ends_with_exit(handler_body: &[HirStmt]) -> bool {
+    if let Some(last_stmt) = handler_body.last() {
+        match last_stmt {
+            // sys.exit(N) or exit(N)
+            HirStmt::Expr(HirExpr::Call { func, .. }) => {
+                func == "exit" || func == "sys.exit"
+            }
+            HirStmt::Expr(HirExpr::MethodCall { object, method, .. }) => {
+                // sys.exit() as method call
+                if let HirExpr::Var(module) = &**object {
+                    module == "sys" && method == "exit"
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    } else {
+        false
+    }
+}
+
+/// DEPYLER-0578: Try to detect and generate json.load(sys.stdin) pattern
+/// Pattern: try { data = json.load(sys.stdin) } except JSONDecodeError as e: { print; exit }
+/// Returns: let data = match serde_json::from_reader(...) { Ok(d) => d, Err(e) => { ... } };
+///
+/// # Complexity
+/// 8 (pattern matching + code generation)
+#[inline]
+fn try_generate_json_stdin_match(
+    body: &[HirStmt],
+    handlers: &[ExceptHandler],
+    finalbody: &Option<Vec<HirStmt>>,
+    ctx: &mut CodeGenContext,
+) -> Result<Option<proc_macro2::TokenStream>> {
+    // Must have single assignment in try body
+    if body.len() != 1 {
+        return Ok(None);
+    }
+
+    // Must have single handler that ends with exit
+    if handlers.len() != 1 || !handler_ends_with_exit(&handlers[0].body) {
+        return Ok(None);
+    }
+
+    // Check for: data = json.load(sys.stdin) OR data = json.load(file)
+    let (var_name, is_json_load) = match &body[0] {
+        HirStmt::Assign {
+            target: AssignTarget::Symbol(name),
+            value,
+            ..
+        } => {
+            // Check if value is json.load(sys.stdin) or json.load(file)
+            let is_json = match value {
+                HirExpr::MethodCall {
+                    object,
+                    method,
+                    args,
+                    ..
+                } => {
+                    if method == "load" {
+                        if let HirExpr::Var(module) = &**object {
+                            if module == "json" && args.len() == 1 {
+                                // Check if argument is sys.stdin
+                                match &args[0] {
+                                    HirExpr::Attribute { value: v, attr } => {
+                                        if let HirExpr::Var(m) = &**v {
+                                            m == "sys" && attr == "stdin"
+                                        } else {
+                                            false
+                                        }
+                                    }
+                                    // Also allow json.load(f) where f is a file variable
+                                    HirExpr::Var(_) => true,
+                                    _ => false,
+                                }
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            };
+            (name.clone(), is_json)
+        }
+        _ => return Ok(None),
+    };
+
+    if !is_json_load {
+        return Ok(None);
+    }
+
+    // Generate handler body statements
+    ctx.enter_scope();
+    if let Some(exc_var) = &handlers[0].name {
+        ctx.declare_var(exc_var);
+    }
+
+    let handler_stmts: Vec<_> = handlers[0]
+        .body
+        .iter()
+        .map(|s| s.to_rust_tokens(ctx))
+        .collect::<Result<Vec<_>>>()?;
+    ctx.exit_scope();
+
+    // Generate the error pattern
+    let err_pattern = if let Some(exc_var) = &handlers[0].name {
+        let exc_ident = safe_ident(exc_var);
+        quote! { Err(#exc_ident) }
+    } else {
+        quote! { Err(_) }
+    };
+
+    // Variable identifier
+    let var_ident = safe_ident(&var_name);
+
+    // Mark that we need serde_json
+    ctx.needs_serde_json = true;
+
+    // Generate the match expression for json.load(sys.stdin)
+    let match_expr = quote! {
+        let #var_ident = match serde_json::from_reader::<_, serde_json::Value>(std::io::stdin()) {
+            Ok(__json_data) => __json_data,
+            #err_pattern => {
+                #(#handler_stmts)*
+            }
+        };
+    };
+
+    // Add finally block if present
+    let result = if let Some(finally_body) = finalbody {
+        let finally_stmts: Vec<_> = finally_body
+            .iter()
+            .map(|s| s.to_rust_tokens(ctx))
+            .collect::<Result<Vec<_>>>()?;
+        quote! {
+            #match_expr
+            #(#finally_stmts)*
+        }
+    } else {
+        match_expr
+    };
+
+    // Declare the variable in context so it's accessible after the try/except
+    ctx.declare_var(&var_name);
+
+    Ok(Some(result))
+}
+
 /// Generate code for Try/except/finally statement
 #[inline]
 pub(crate) fn codegen_try_stmt(
@@ -3307,6 +3498,14 @@ pub(crate) fn codegen_try_stmt(
     finalbody: &Option<Vec<HirStmt>>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0578: Detect json.load(sys.stdin) pattern with exit handler
+    // Pattern: try { data = json.load(sys.stdin) } except JSONDecodeError as e: { print; exit }
+    // This pattern assigns a variable that must be accessible AFTER the try/except block
+    // Generate: let data = match serde_json::from_reader(...) { Ok(d) => d, Err(e) => { handler } };
+    if let Some(result) = try_generate_json_stdin_match(body, handlers, finalbody, ctx)? {
+        return Ok(result);
+    }
+
     // DEPYLER-0358: Detect simple try-except pattern for optimization
     // Pattern: try { return int(str_var) } except ValueError { return literal }
     // We can optimize this to: s.parse::<i32>().unwrap_or(literal)
@@ -3519,7 +3718,10 @@ pub(crate) fn codegen_try_stmt(
                 extract_parse_from_tokens(&try_stmts)
             {
                 // Parse the expression string back to token stream
-                let parse_expr: proc_macro2::TokenStream = parse_expr_str.parse().unwrap();
+                let parse_expr: proc_macro2::TokenStream = match parse_expr_str.parse() {
+                    Ok(ts) => ts,
+                    Err(_) => return Ok(quote! { #(#try_stmts)* }), // Fallback on parse error
+                };
                 let ok_var = safe_ident(&var_name);
 
                 // Generate Ok branch (remaining statements after parse)
@@ -4476,9 +4678,17 @@ fn try_generate_subcommand_match(
 
             let body_stmts: Vec<_> = body
                 .iter()
-                .map(|s| s.to_rust_tokens(ctx))
-                .collect::<Result<Vec<_>>>()
-                .unwrap_or_default();
+                .filter_map(|s| {
+                    match s.to_rust_tokens(ctx) {
+                        Ok(tokens) => Some(tokens),
+                        Err(e) => {
+                            // DEPYLER-0593: Log conversion errors instead of silently dropping
+                            tracing::warn!("argparse body stmt conversion failed: {}", e);
+                            None
+                        }
+                    }
+                })
+                .collect();
             ctx.exit_scope();
 
             // DEPYLER-0456 Bug #3 FIX: Always use struct variant syntax `{}`
@@ -4690,8 +4900,8 @@ fn try_generate_subcommand_match(
                                     "hex", "oct", // hex/oct values are string representations
                                 ];
                                 // DEPYLER-0576: Numeric field indicators (likely f64 with defaults)
+                                // DEPYLER-0592: Removed single letters - too ambiguous, often strings
                                 let numeric_indicators = [
-                                    "x", "y", "z", "a", "b", "c", "n", "m", "i", "j", "k",
                                     "x1", "x2", "y1", "y2", "z1", "z2",
                                     "val", "num", "count", "rate", "coef", "factor",
                                     "min", "max", "sum", "avg", "mean", "std",
