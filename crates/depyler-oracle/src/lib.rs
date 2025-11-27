@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 pub mod autofixer;
 pub mod automl_tuning;
 pub mod classifier;
+pub mod github_corpus;
 pub mod moe_oracle;
 // pub mod data_store; // TODO: Re-enable when alimentar integrated
 pub mod depyler_training;
@@ -62,6 +63,13 @@ pub use training::{TrainingDataset, TrainingSample};
 // MoE Oracle exports
 pub use moe_oracle::{ExpertDomain, MoeClassificationResult, MoeOracle, MoeOracleConfig};
 pub use depyler_training::{classify_with_moe, load_real_corpus, train_moe_on_real_corpus, train_moe_oracle};
+
+// GitHub corpus integration (via OIP)
+pub use github_corpus::{
+    build_github_corpus, convert_oip_to_depyler, load_oip_training_data,
+    OipDefectCategory, OipTrainingDataset, OipTrainingExample,
+    analyze_corpus, get_moe_samples_from_oip, CorpusStats,
+};
 
 /// Error types for the oracle.
 #[derive(Debug, thiserror::Error)]
