@@ -5,8 +5,9 @@ use depyler::{
     agent_stop_command, analyze_command, check_command, compile_command, debug_command,
     docs_cmd::handle_docs_command, inspect_command, interactive_command, lambda_analyze_command,
     lambda_build_command, lambda_convert_command, lambda_deploy_command, lambda_test_command,
-    lsp_command, profile_cmd::handle_profile_command, quality_check_command, transpile_command,
-    AgentCommands, Cli, Commands, LambdaCommands,
+    lsp_command, oracle_optimize_command, oracle_show_command, oracle_train_command,
+    profile_cmd::handle_profile_command, quality_check_command, transpile_command,
+    AgentCommands, Cli, Commands, LambdaCommands, OracleCommands,
 };
 use std::path::PathBuf;
 
@@ -74,6 +75,25 @@ async fn handle_agent_command(agent_cmd: AgentCommands) -> Result<()> {
         AgentCommands::RemoveProject { project } => agent_remove_project_command(project),
         AgentCommands::ListProjects => agent_list_projects_command(),
         AgentCommands::Logs { lines, follow } => agent_logs_command(lines, follow),
+    }
+}
+
+/// Handle Oracle subcommands
+/// Complexity: 3 (one per oracle subcommand, within ≤10 target)
+fn handle_oracle_command(oracle_cmd: OracleCommands) -> Result<()> {
+    match oracle_cmd {
+        OracleCommands::Optimize {
+            stdlib_count,
+            eval_samples,
+            max_evaluations,
+            curriculum,
+            output,
+        } => oracle_optimize_command(stdlib_count, eval_samples, max_evaluations, curriculum, output),
+        OracleCommands::Show => oracle_show_command(),
+        OracleCommands::Train {
+            min_samples,
+            synthetic,
+        } => oracle_train_command(min_samples, synthetic),
     }
 }
 
@@ -240,6 +260,7 @@ async fn handle_command(command: Commands) -> Result<()> {
             handle_profile_command(args)
         }
         Commands::Agent(agent_cmd) => handle_agent_command(agent_cmd).await,
+        Commands::Oracle(oracle_cmd) => handle_oracle_command(oracle_cmd),
     }
 }
 
