@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use aprender::ensemble::{GatingNetwork, SoftmaxGating};
-use aprender::linear_model::LinearRegression;
+use aprender::linear_model::Ridge;
 use aprender::primitives::{Matrix, Vector};
 use aprender::traits::Estimator;
 use serde::{Deserialize, Serialize};
@@ -64,8 +64,8 @@ impl ExpertDomain {
 pub struct ErrorExpert {
     /// Domain this expert specializes in
     domain: ExpertDomain,
-    /// Internal linear model for scoring
-    model: LinearRegression,
+    /// Internal Ridge model for scoring (handles singular matrices via L2 regularization)
+    model: Ridge,
     /// Fix patterns learned by this expert
     fix_patterns: Vec<FixPattern>,
 }
@@ -83,12 +83,23 @@ pub struct FixPattern {
     pub confidence: f32,
 }
 
+/// Training metrics for an expert (GH-154)
+#[derive(Debug, Clone, Default)]
+pub struct TrainingMetrics {
+    /// Number of samples used for training
+    pub samples_count: usize,
+    /// Estimated accuracy (0.0-1.0)
+    pub accuracy: f32,
+    /// Whether training converged successfully
+    pub converged: bool,
+}
+
 impl ErrorExpert {
     /// Create a new expert for the given domain
     pub fn new(domain: ExpertDomain) -> Self {
         Self {
             domain,
-            model: LinearRegression::new(),
+            model: Ridge::new(1.0), // alpha=1.0 for L2 regularization
             fix_patterns: Self::default_patterns(domain),
         }
     }
@@ -400,10 +411,15 @@ impl MoeOracle {
         }
 
         // Train each expert on its domain samples
-        // LinearRegression requires at least 2 samples for training
+        // GH-154: Ridge regression handles singular matrices, requires at least 2 samples
         for (domain, expert_samples) in domain_samples {
             if expert_samples.len() < 2 {
                 // Skip training if insufficient samples - expert uses default patterns
+                println!(
+                    "Expert {:?}: skipped (only {} samples, need >= 2)",
+                    domain,
+                    expert_samples.len()
+                );
                 continue;
             }
 
@@ -414,14 +430,22 @@ impl MoeOracle {
                 .map_err(|e| OracleError::Model(e.to_string()))?;
             let y = Vector::from_slice(&y_data);
 
-            // Train expert, but gracefully handle matrix singularity errors
-            // (can occur with highly collinear features like one-hot encoding)
-            if let Err(e) = self.experts[domain.index()].fit(&x, &y) {
-                eprintln!(
-                    "Warning: Expert {:?} training failed (matrix singularity), using default patterns: {}",
-                    domain, e
-                );
-                // Expert will use default fix patterns instead
+            // GH-154: Ridge regression handles singular matrices via L2 regularization
+            match self.experts[domain.index()].fit(&x, &y) {
+                Ok(()) => {
+                    println!(
+                        "Expert {:?}: trained on {} samples (converged)",
+                        domain,
+                        expert_samples.len()
+                    );
+                }
+                Err(e) => {
+                    // This should rarely happen with Ridge regression
+                    eprintln!(
+                        "Warning: Expert {:?} training failed: {}",
+                        domain, e
+                    );
+                }
             }
         }
 
