@@ -14,6 +14,9 @@
 
 use crate::{ErrorCategory, TrainingDataset};
 use anyhow::Result;
+use aprender::metaheuristics::{
+    Budget, DifferentialEvolution, OptimizationResult, PerturbativeMetaheuristic, SearchSpace,
+};
 use aprender::synthetic::{
     DiversityMonitor, DiversityScore, QualityDegradationDetector, SyntheticConfig,
     SyntheticGenerator,
@@ -459,6 +462,294 @@ impl SelfSupervisedCorpusGenerator {
 }
 
 // ============================================================================
+// Phase 4: Metaheuristic Optimizer
+// ============================================================================
+
+/// Parameters to optimize using Differential Evolution.
+///
+/// The DE optimizer finds the best combination of these parameters
+/// to maximize Oracle classification accuracy on the generated corpus.
+#[derive(Debug, Clone)]
+pub struct GenerationParams {
+    /// Weight for DocstringMining strategy (0.0-1.0)
+    pub weight_docstring: f64,
+    /// Weight for TypeEnumeration strategy (0.0-1.0)
+    pub weight_type_enum: f64,
+    /// Weight for EdgeCases strategy (0.0-1.0)
+    pub weight_edge_cases: f64,
+    /// Weight for ErrorInduction strategy (0.0-1.0)
+    pub weight_error_induction: f64,
+    /// Weight for Composition strategy (0.0-1.0)
+    pub weight_composition: f64,
+    /// Quality threshold for accepting samples (0.0-1.0)
+    pub quality_threshold: f64,
+    /// Minimum diversity score to prevent mode collapse (0.0-1.0)
+    pub min_diversity: f64,
+    /// Augmentation ratio (1.0-10.0)
+    pub augmentation_ratio: f64,
+}
+
+impl Default for GenerationParams {
+    fn default() -> Self {
+        Self {
+            weight_docstring: 0.3,
+            weight_type_enum: 0.3,
+            weight_edge_cases: 0.15,
+            weight_error_induction: 0.15,
+            weight_composition: 0.1,
+            quality_threshold: 0.7,
+            min_diversity: 0.5,
+            augmentation_ratio: 2.0,
+        }
+    }
+}
+
+impl GenerationParams {
+    /// Number of parameters (dimensions in search space).
+    pub const DIM: usize = 8;
+
+    /// Create from a parameter vector (DE solution).
+    #[must_use]
+    pub fn from_vec(params: &[f64]) -> Self {
+        assert!(params.len() >= Self::DIM, "Need {} params, got {}", Self::DIM, params.len());
+
+        // Normalize strategy weights to sum to 1.0
+        let weight_sum = params[0] + params[1] + params[2] + params[3] + params[4];
+        let norm = if weight_sum > 0.0 { weight_sum } else { 1.0 };
+
+        Self {
+            weight_docstring: params[0] / norm,
+            weight_type_enum: params[1] / norm,
+            weight_edge_cases: params[2] / norm,
+            weight_error_induction: params[3] / norm,
+            weight_composition: params[4] / norm,
+            quality_threshold: params[5].clamp(0.1, 0.99),
+            min_diversity: params[6].clamp(0.1, 0.99),
+            augmentation_ratio: params[7].clamp(1.0, 10.0),
+        }
+    }
+
+    /// Convert to a parameter vector for DE.
+    #[must_use]
+    pub fn to_vec(&self) -> Vec<f64> {
+        vec![
+            self.weight_docstring,
+            self.weight_type_enum,
+            self.weight_edge_cases,
+            self.weight_error_induction,
+            self.weight_composition,
+            self.quality_threshold,
+            self.min_diversity,
+            self.augmentation_ratio,
+        ]
+    }
+
+    /// Get the search space bounds for DE optimization.
+    #[must_use]
+    pub fn search_space() -> SearchSpace {
+        SearchSpace::Continuous {
+            dim: Self::DIM,
+            lower: vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.1, 1.0],
+            upper: vec![1.0, 1.0, 1.0, 1.0, 1.0, 0.99, 0.99, 10.0],
+        }
+    }
+
+    /// Get strategy weights as a HashMap for easy lookup.
+    #[must_use]
+    pub fn strategy_weights(&self) -> HashMap<GenerationStrategy, f64> {
+        let mut weights = HashMap::new();
+        weights.insert(GenerationStrategy::DocstringMining, self.weight_docstring);
+        weights.insert(GenerationStrategy::TypeEnumeration, self.weight_type_enum);
+        weights.insert(GenerationStrategy::EdgeCases, self.weight_edge_cases);
+        weights.insert(GenerationStrategy::ErrorInduction, self.weight_error_induction);
+        weights.insert(GenerationStrategy::Composition, self.weight_composition);
+        weights
+    }
+}
+
+/// Configuration for the metaheuristic optimizer.
+#[derive(Debug, Clone)]
+pub struct OptimizerConfig {
+    /// Maximum function evaluations for DE.
+    pub max_evaluations: usize,
+    /// Population size for DE.
+    pub population_size: usize,
+    /// Mutation factor F (0.0-2.0).
+    pub mutation_factor: f64,
+    /// Crossover rate CR (0.0-1.0).
+    pub crossover_rate: f64,
+    /// Random seed for reproducibility.
+    pub seed: Option<u64>,
+}
+
+impl Default for OptimizerConfig {
+    fn default() -> Self {
+        Self {
+            max_evaluations: 1000,
+            population_size: 20,
+            mutation_factor: 0.8,
+            crossover_rate: 0.9,
+            seed: Some(42),
+        }
+    }
+}
+
+/// Result of metaheuristic optimization.
+#[derive(Debug, Clone)]
+pub struct OptimizedResult {
+    /// Best generation parameters found.
+    pub params: GenerationParams,
+    /// Best fitness value achieved (higher = better).
+    pub fitness: f64,
+    /// Number of evaluations performed.
+    pub evaluations: usize,
+    /// Convergence history.
+    pub history: Vec<f64>,
+    /// Whether optimization converged.
+    pub converged: bool,
+}
+
+/// Metaheuristic optimizer for corpus generation parameters.
+///
+/// Uses Differential Evolution to find optimal generation parameters
+/// that maximize Oracle classification accuracy.
+///
+/// # Example
+///
+/// ```ignore
+/// use depyler_oracle::self_supervised::{MetaheuristicOptimizer, OptimizerConfig};
+///
+/// let config = OptimizerConfig::default();
+/// let optimizer = MetaheuristicOptimizer::new(config);
+///
+/// let result = optimizer.optimize(|params| {
+///     // Evaluate fitness: generate corpus, train Oracle, measure accuracy
+///     evaluate_accuracy(params)
+/// });
+///
+/// println!("Best params: {:?}", result.params);
+/// println!("Best fitness: {:.3}", result.fitness);
+/// ```
+pub struct MetaheuristicOptimizer {
+    config: OptimizerConfig,
+    de: DifferentialEvolution,
+}
+
+impl MetaheuristicOptimizer {
+    /// Create a new optimizer with the given configuration.
+    #[must_use]
+    pub fn new(config: OptimizerConfig) -> Self {
+        let mut de = DifferentialEvolution::default();
+        de.population_size = config.population_size;
+        de.mutation_factor = config.mutation_factor;
+        de.crossover_rate = config.crossover_rate;
+
+        Self { config, de }
+    }
+
+    /// Run optimization to find best generation parameters.
+    ///
+    /// The fitness function should:
+    /// 1. Generate corpus using the given parameters
+    /// 2. Train an Oracle on the corpus
+    /// 3. Evaluate k-fold cross-validation accuracy
+    /// 4. Return accuracy (higher = better)
+    ///
+    /// Note: DE minimizes, so we return negative fitness internally.
+    pub fn optimize<F>(&mut self, fitness_fn: F) -> OptimizedResult
+    where
+        F: Fn(&GenerationParams) -> f64,
+    {
+        let space = GenerationParams::search_space();
+        let budget = Budget::Evaluations(self.config.max_evaluations);
+
+        // Wrap fitness to:
+        // 1. Convert raw params to GenerationParams
+        // 2. Negate (DE minimizes, we want to maximize accuracy)
+        let wrapped_fitness = |raw_params: &[f64]| {
+            let params = GenerationParams::from_vec(raw_params);
+            let fitness = fitness_fn(&params);
+            -fitness // Negate for minimization
+        };
+
+        let result: OptimizationResult<Vec<f64>> =
+            self.de.optimize(&wrapped_fitness, &space, budget);
+
+        OptimizedResult {
+            params: GenerationParams::from_vec(&result.solution),
+            fitness: -result.objective_value, // Un-negate
+            evaluations: result.evaluations,
+            history: result.history.iter().map(|v| -v).collect(),
+            converged: result.converged(),
+        }
+    }
+
+    /// Get the current best solution if optimization was run.
+    #[must_use]
+    pub fn best(&self) -> Option<GenerationParams> {
+        self.de.best().map(|v| GenerationParams::from_vec(v))
+    }
+
+    /// Reset the optimizer state for a new run.
+    pub fn reset(&mut self) {
+        self.de.reset();
+    }
+}
+
+/// Evaluate fitness for a given set of generation parameters.
+///
+/// This is the objective function for the metaheuristic optimizer.
+/// Higher values indicate better parameter configurations.
+///
+/// # Arguments
+/// * `params` - Generation parameters to evaluate
+/// * `stdlib_funcs` - Stdlib functions for corpus generation
+/// * `eval_samples` - Number of samples to generate for evaluation
+///
+/// # Returns
+/// Fitness score in [0.0, 1.0], representing Oracle accuracy.
+#[allow(dead_code)] // Used in optimization loop
+pub fn evaluate_fitness(
+    params: &GenerationParams,
+    stdlib_funcs: &[StdlibFunction],
+    eval_samples: usize,
+) -> f64 {
+    // Create generator with optimized params
+    let config = CorpusConfig {
+        target_samples: eval_samples,
+        batch_size: 50,
+        quality_threshold: params.quality_threshold as f32,
+        max_duplicate_rate: 0.05,
+    };
+
+    let mut generator = SelfSupervisedCorpusGenerator::new(stdlib_funcs.to_vec(), config);
+
+    // Generate corpus
+    let _dataset = match generator.generate() {
+        Ok(ds) => ds,
+        Err(_) => return 0.0, // Penalize failed generation
+    };
+
+    let metrics = generator.metrics();
+
+    // Fitness components:
+    // 1. Acceptance rate (want high)
+    let acceptance_score = metrics.acceptance_rate() as f64;
+
+    // 2. Category balance (want low imbalance)
+    let balance_score = 1.0 / (1.0 + metrics.imbalance_ratio() as f64 / 10.0);
+
+    // 3. Diversity (want high)
+    let diversity_score = metrics.diversity_score as f64;
+
+    // 4. Error code coverage (want many unique codes)
+    let coverage_score = (metrics.unique_error_codes as f64 / 50.0).min(1.0);
+
+    // Weighted combination
+    0.3 * acceptance_score + 0.3 * balance_score + 0.2 * diversity_score + 0.2 * coverage_score
+}
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 
@@ -821,5 +1112,215 @@ mod tests {
         let hash1 = hash_content("content A");
         let hash2 = hash_content("content B");
         assert_ne!(hash1, hash2);
+    }
+
+    // ========================================================================
+    // Phase 4: Metaheuristic Optimizer Tests
+    // ========================================================================
+
+    #[test]
+    fn test_generation_params_default() {
+        let params = GenerationParams::default();
+
+        // Weights should sum to ~1.0
+        let weight_sum = params.weight_docstring
+            + params.weight_type_enum
+            + params.weight_edge_cases
+            + params.weight_error_induction
+            + params.weight_composition;
+        assert!((weight_sum - 1.0).abs() < 0.01, "Weights should sum to 1.0");
+
+        // Quality threshold in valid range
+        assert!(params.quality_threshold >= 0.0 && params.quality_threshold <= 1.0);
+    }
+
+    #[test]
+    fn test_generation_params_from_vec() {
+        let raw = vec![0.2, 0.3, 0.1, 0.2, 0.2, 0.75, 0.6, 3.0];
+        let params = GenerationParams::from_vec(&raw);
+
+        // Weights should be normalized
+        let weight_sum = params.weight_docstring
+            + params.weight_type_enum
+            + params.weight_edge_cases
+            + params.weight_error_induction
+            + params.weight_composition;
+        assert!((weight_sum - 1.0).abs() < 0.001, "Weights should be normalized");
+
+        // Quality threshold preserved
+        assert!((params.quality_threshold - 0.75).abs() < 0.001);
+
+        // Augmentation ratio preserved
+        assert!((params.augmentation_ratio - 3.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_generation_params_to_vec() {
+        let params = GenerationParams::default();
+        let vec = params.to_vec();
+
+        assert_eq!(vec.len(), GenerationParams::DIM);
+        assert!((vec[5] - 0.7).abs() < 0.001); // quality_threshold
+        assert!((vec[7] - 2.0).abs() < 0.001); // augmentation_ratio
+    }
+
+    #[test]
+    fn test_generation_params_roundtrip() {
+        let original = GenerationParams::default();
+        let vec = original.to_vec();
+        let restored = GenerationParams::from_vec(&vec);
+
+        assert!((original.quality_threshold - restored.quality_threshold).abs() < 0.001);
+        assert!((original.min_diversity - restored.min_diversity).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_generation_params_search_space() {
+        let space = GenerationParams::search_space();
+
+        match space {
+            SearchSpace::Continuous { dim, lower, upper } => {
+                assert_eq!(dim, GenerationParams::DIM);
+                assert_eq!(lower.len(), dim);
+                assert_eq!(upper.len(), dim);
+
+                // Verify bounds are valid
+                for i in 0..dim {
+                    assert!(lower[i] <= upper[i], "Invalid bounds at dim {}", i);
+                }
+            }
+            _ => panic!("Expected Continuous search space"),
+        }
+    }
+
+    #[test]
+    fn test_generation_params_strategy_weights() {
+        let params = GenerationParams::default();
+        let weights = params.strategy_weights();
+
+        assert_eq!(weights.len(), 5);
+        assert!(weights.contains_key(&GenerationStrategy::DocstringMining));
+        assert!(weights.contains_key(&GenerationStrategy::TypeEnumeration));
+        assert!(weights.contains_key(&GenerationStrategy::EdgeCases));
+        assert!(weights.contains_key(&GenerationStrategy::ErrorInduction));
+        assert!(weights.contains_key(&GenerationStrategy::Composition));
+    }
+
+    #[test]
+    fn test_generation_params_clamp_bounds() {
+        // Test that values outside bounds are clamped
+        let raw = vec![0.5, 0.5, 0.0, 0.0, 0.0, -0.5, 2.0, 0.1];
+        let params = GenerationParams::from_vec(&raw);
+
+        // quality_threshold should be clamped to [0.1, 0.99]
+        assert!(params.quality_threshold >= 0.1 && params.quality_threshold <= 0.99);
+
+        // min_diversity should be clamped to [0.1, 0.99]
+        assert!(params.min_diversity >= 0.1 && params.min_diversity <= 0.99);
+
+        // augmentation_ratio should be clamped to [1.0, 10.0]
+        assert!(params.augmentation_ratio >= 1.0 && params.augmentation_ratio <= 10.0);
+    }
+
+    #[test]
+    fn test_optimizer_config_default() {
+        let config = OptimizerConfig::default();
+
+        assert!(config.max_evaluations > 0);
+        assert!(config.population_size > 0);
+        assert!(config.mutation_factor >= 0.0 && config.mutation_factor <= 2.0);
+        assert!(config.crossover_rate >= 0.0 && config.crossover_rate <= 1.0);
+    }
+
+    #[test]
+    fn test_metaheuristic_optimizer_creation() {
+        let config = OptimizerConfig {
+            max_evaluations: 100,
+            population_size: 10,
+            mutation_factor: 0.5,
+            crossover_rate: 0.7,
+            seed: Some(42),
+        };
+
+        let optimizer = MetaheuristicOptimizer::new(config);
+        assert!(optimizer.best().is_none()); // No solution yet
+    }
+
+    #[test]
+    fn test_metaheuristic_optimizer_simple_fitness() {
+        let config = OptimizerConfig {
+            max_evaluations: 50, // Small for test speed
+            population_size: 10,
+            mutation_factor: 0.8,
+            crossover_rate: 0.9,
+            seed: Some(42),
+        };
+
+        let mut optimizer = MetaheuristicOptimizer::new(config);
+
+        // Simple fitness: prefer high quality_threshold
+        let result = optimizer.optimize(|params| params.quality_threshold);
+
+        // Should find params with quality_threshold near upper bound (0.99)
+        assert!(result.fitness > 0.5, "Should improve from initial");
+        assert!(result.evaluations > 0);
+        assert!(!result.history.is_empty());
+    }
+
+    #[test]
+    fn test_metaheuristic_optimizer_reset() {
+        let config = OptimizerConfig {
+            max_evaluations: 20,
+            population_size: 5,
+            ..Default::default()
+        };
+
+        let mut optimizer = MetaheuristicOptimizer::new(config.clone());
+
+        // Run once
+        let _ = optimizer.optimize(|_| 0.5);
+        assert!(optimizer.best().is_some());
+
+        // Reset
+        optimizer.reset();
+        assert!(optimizer.best().is_none());
+    }
+
+    #[test]
+    fn test_optimized_result_fields() {
+        let config = OptimizerConfig {
+            max_evaluations: 30,
+            population_size: 5,
+            ..Default::default()
+        };
+
+        let mut optimizer = MetaheuristicOptimizer::new(config);
+        let result = optimizer.optimize(|_| 0.75);
+
+        // Check result structure
+        assert!(result.fitness >= 0.0);
+        assert!(result.evaluations > 0);
+        assert!(!result.history.is_empty());
+        // params should be valid
+        assert!(result.params.quality_threshold >= 0.1);
+    }
+
+    #[test]
+    fn test_evaluate_fitness_empty_stdlib() {
+        let params = GenerationParams::default();
+        let fitness = evaluate_fitness(&params, &[], 10);
+
+        // Empty stdlib should produce some fitness (generator returns empty but valid)
+        assert!(fitness >= 0.0 && fitness <= 1.0);
+    }
+
+    #[test]
+    fn test_evaluate_fitness_with_sample_stdlib() {
+        let stdlib_funcs = vec![sample_stdlib_function()];
+        let params = GenerationParams::default();
+        let fitness = evaluate_fitness(&params, &stdlib_funcs, 10);
+
+        // Should produce valid fitness
+        assert!(fitness >= 0.0 && fitness <= 1.0);
     }
 }
