@@ -149,8 +149,9 @@ pub fn generate_trueno_code(call: &NumpyCall) -> TokenStream {
             }
         }
         NumpyCall::Std { arr } => {
+            // trueno uses stddev(), not std()
             quote! {
-                #arr.std().unwrap()
+                #arr.stddev().unwrap()
             }
         }
         NumpyCall::Var { arr } => {
@@ -414,9 +415,10 @@ mod tests {
         let code = generate_trueno_code(&call);
         let code_str = code.to_string();
 
+        // trueno uses stddev(), not std()
         assert!(
-            code_str.contains("std"),
-            "Should generate std call: {}",
+            code_str.contains("stddev"),
+            "Should generate stddev call (trueno API): {}",
             code_str
         );
     }
