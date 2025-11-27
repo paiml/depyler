@@ -38,3 +38,4 @@ full = ["stdio", "websocket", "http", "validation"]
 [dev-dependencies]
 insta.workspace = true
 proptest = "1.0"
+tempfile.workspace = true
