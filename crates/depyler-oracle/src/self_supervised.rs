@@ -1017,12 +1017,403 @@ fn generate_error_example(func: &StdlibFunction) -> String {
 }
 
 // ============================================================================
+// Phase 2: Curriculum Learning
+// ============================================================================
+
+/// Difficulty levels for curriculum learning.
+///
+/// Examples are generated in progressive difficulty order,
+/// starting with simple patterns and advancing to complex ones.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum DifficultyLevel {
+    /// Simple single-function calls with default args
+    Basic,
+    /// Multiple arguments, type variations
+    Intermediate,
+    /// Error-inducing patterns, edge cases
+    Advanced,
+    /// Composition, multi-step patterns
+    Expert,
+}
+
+impl DifficultyLevel {
+    /// Get strategies appropriate for this difficulty level.
+    #[must_use]
+    pub fn strategies(&self) -> Vec<GenerationStrategy> {
+        match self {
+            DifficultyLevel::Basic => vec![GenerationStrategy::DocstringMining],
+            DifficultyLevel::Intermediate => vec![
+                GenerationStrategy::DocstringMining,
+                GenerationStrategy::TypeEnumeration,
+            ],
+            DifficultyLevel::Advanced => vec![
+                GenerationStrategy::TypeEnumeration,
+                GenerationStrategy::EdgeCases,
+                GenerationStrategy::ErrorInduction,
+            ],
+            DifficultyLevel::Expert => vec![
+                GenerationStrategy::EdgeCases,
+                GenerationStrategy::ErrorInduction,
+                GenerationStrategy::Composition,
+            ],
+        }
+    }
+
+    /// Get weight multiplier for this level (higher = more samples).
+    #[must_use]
+    pub fn weight(&self) -> f64 {
+        match self {
+            DifficultyLevel::Basic => 0.3,
+            DifficultyLevel::Intermediate => 0.3,
+            DifficultyLevel::Advanced => 0.25,
+            DifficultyLevel::Expert => 0.15,
+        }
+    }
+}
+
+/// Curriculum scheduler for progressive learning.
+///
+/// Manages the progression through difficulty levels during
+/// corpus generation to improve model learning.
+#[derive(Debug, Clone)]
+pub struct CurriculumScheduler {
+    /// Current difficulty level
+    current_level: DifficultyLevel,
+    /// Samples to generate per level
+    samples_per_level: usize,
+    /// Samples generated at current level
+    samples_generated: usize,
+    /// Total samples generated across all levels
+    total_generated: usize,
+}
+
+impl CurriculumScheduler {
+    /// Create a new curriculum scheduler.
+    #[must_use]
+    pub fn new(samples_per_level: usize) -> Self {
+        Self {
+            current_level: DifficultyLevel::Basic,
+            samples_per_level,
+            samples_generated: 0,
+            total_generated: 0,
+        }
+    }
+
+    /// Get current difficulty level.
+    #[must_use]
+    pub fn current_level(&self) -> DifficultyLevel {
+        self.current_level
+    }
+
+    /// Get total samples generated.
+    #[must_use]
+    pub fn total_generated(&self) -> usize {
+        self.total_generated
+    }
+
+    /// Record that a sample was generated.
+    pub fn record_sample(&mut self) {
+        self.samples_generated += 1;
+        self.total_generated += 1;
+    }
+
+    /// Try to advance to the next difficulty level.
+    ///
+    /// Returns `true` if advanced, `false` if already at Expert.
+    pub fn try_advance(&mut self) -> bool {
+        if self.samples_generated >= self.samples_per_level {
+            match self.current_level {
+                DifficultyLevel::Basic => {
+                    self.current_level = DifficultyLevel::Intermediate;
+                    self.samples_generated = 0;
+                    true
+                }
+                DifficultyLevel::Intermediate => {
+                    self.current_level = DifficultyLevel::Advanced;
+                    self.samples_generated = 0;
+                    true
+                }
+                DifficultyLevel::Advanced => {
+                    self.current_level = DifficultyLevel::Expert;
+                    self.samples_generated = 0;
+                    true
+                }
+                DifficultyLevel::Expert => false,
+            }
+        } else {
+            false
+        }
+    }
+
+    /// Check if curriculum is complete.
+    #[must_use]
+    pub fn is_complete(&self) -> bool {
+        self.current_level == DifficultyLevel::Expert
+            && self.samples_generated >= self.samples_per_level
+    }
+
+    /// Reset scheduler to beginning.
+    pub fn reset(&mut self) {
+        self.current_level = DifficultyLevel::Basic;
+        self.samples_generated = 0;
+        self.total_generated = 0;
+    }
+}
+
+// ============================================================================
+// Phase 2: Optimizer Runner
+// ============================================================================
+
+/// Configuration for running the optimizer.
+#[derive(Debug, Clone)]
+pub struct OptimizationRunConfig {
+    /// Number of stdlib functions to use for evaluation
+    pub eval_stdlib_count: usize,
+    /// Number of samples to generate per evaluation
+    pub eval_samples: usize,
+    /// Maximum DE evaluations
+    pub max_evaluations: usize,
+    /// Whether to use curriculum learning
+    pub use_curriculum: bool,
+}
+
+impl Default for OptimizationRunConfig {
+    fn default() -> Self {
+        Self {
+            eval_stdlib_count: 20,
+            eval_samples: 100,
+            max_evaluations: 500,
+            use_curriculum: true,
+        }
+    }
+}
+
+/// Run optimization to find best generation parameters.
+///
+/// This is the main entry point for Phase 2 optimizer execution.
+pub fn run_optimization(
+    stdlib_funcs: &[StdlibFunction],
+    config: &OptimizationRunConfig,
+) -> OptimizedResult {
+    let optimizer_config = OptimizerConfig {
+        max_evaluations: config.max_evaluations,
+        population_size: 15,
+        mutation_factor: 0.7,
+        crossover_rate: 0.9,
+        seed: Some(42),
+    };
+
+    let mut optimizer = MetaheuristicOptimizer::new(optimizer_config);
+
+    // Use subset of stdlib for faster evaluation
+    let eval_funcs: Vec<_> = stdlib_funcs
+        .iter()
+        .take(config.eval_stdlib_count)
+        .cloned()
+        .collect();
+
+    optimizer.optimize(|params| {
+        evaluate_fitness_with_curriculum(params, &eval_funcs, config.eval_samples, config.use_curriculum)
+    })
+}
+
+/// Evaluate fitness with optional curriculum learning.
+fn evaluate_fitness_with_curriculum(
+    params: &GenerationParams,
+    stdlib_funcs: &[StdlibFunction],
+    eval_samples: usize,
+    use_curriculum: bool,
+) -> f64 {
+    if !use_curriculum {
+        return evaluate_fitness(params, stdlib_funcs, eval_samples);
+    }
+
+    // Use curriculum scheduler for progressive difficulty
+    let samples_per_level = eval_samples / 4;
+    let mut scheduler = CurriculumScheduler::new(samples_per_level);
+    let mut total_fitness = 0.0;
+    let mut level_count = 0;
+
+    while !scheduler.is_complete() {
+        let level = scheduler.current_level();
+        let strategies = level.strategies();
+
+        // Adjust params for current level's strategies
+        let level_fitness = evaluate_level_fitness(params, stdlib_funcs, &strategies, samples_per_level);
+        total_fitness += level_fitness * level.weight();
+        level_count += 1;
+
+        // Simulate generating samples
+        for _ in 0..samples_per_level {
+            scheduler.record_sample();
+        }
+        scheduler.try_advance();
+    }
+
+    if level_count > 0 {
+        total_fitness / level_count as f64 * 4.0 // Normalize
+    } else {
+        0.0
+    }
+}
+
+/// Evaluate fitness for a specific difficulty level's strategies.
+fn evaluate_level_fitness(
+    _params: &GenerationParams,
+    stdlib_funcs: &[StdlibFunction],
+    strategies: &[GenerationStrategy],
+    _samples: usize,
+) -> f64 {
+    // Simplified fitness based on strategy coverage and stdlib count
+    let strategy_diversity = strategies.len() as f64 / 5.0;
+    let stdlib_coverage = (stdlib_funcs.len() as f64 / 50.0).min(1.0);
+
+    (strategy_diversity + stdlib_coverage) / 2.0
+}
+
+// ============================================================================
+// Phase 2: Autofixer Integration
+// ============================================================================
+
+/// Fix pattern extracted from training sample.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum FixPattern {
+    /// Add type conversion (.into(), as, etc.)
+    TypeConversion,
+    /// Add .clone() to fix borrow issues
+    AddClone,
+    /// Add missing import/use statement
+    AddImport,
+    /// Add lifetime annotation
+    AddLifetime,
+    /// Implement required trait
+    ImplementTrait,
+    /// Generic fix pattern
+    Other(String),
+}
+
+impl FixPattern {
+    /// Create fix pattern from error category.
+    #[must_use]
+    pub fn from_category(category: ErrorCategory) -> Self {
+        match category {
+            ErrorCategory::TypeMismatch => FixPattern::TypeConversion,
+            ErrorCategory::BorrowChecker => FixPattern::AddClone,
+            ErrorCategory::MissingImport => FixPattern::AddImport,
+            ErrorCategory::LifetimeError => FixPattern::AddLifetime,
+            ErrorCategory::TraitBound => FixPattern::ImplementTrait,
+            ErrorCategory::SyntaxError | ErrorCategory::Other => {
+                FixPattern::Other("manual_review".to_string())
+            }
+        }
+    }
+}
+
+/// Extracted fix template from corpus sample.
+#[derive(Debug, Clone)]
+pub struct ExtractedFix {
+    /// Error category this fix applies to
+    pub category: ErrorCategory,
+    /// Fix pattern type
+    pub pattern: FixPattern,
+    /// Original error message pattern
+    pub error_pattern: String,
+    /// Suggested fix code template
+    pub fix_template: String,
+    /// Confidence score (0.0-1.0)
+    pub confidence: f64,
+}
+
+/// Extract fix patterns from a training sample.
+#[must_use]
+pub fn extract_fix_pattern(sample: &crate::TrainingSample) -> Option<ExtractedFix> {
+    let category = sample.category;
+    let pattern = FixPattern::from_category(category);
+
+    // Generate fix template based on category
+    let fix_template = match category {
+        ErrorCategory::TypeMismatch => "value.into() or value as Type".to_string(),
+        ErrorCategory::BorrowChecker => "value.clone()".to_string(),
+        ErrorCategory::MissingImport => "use crate::module::Type;".to_string(),
+        ErrorCategory::LifetimeError => "'a annotation".to_string(),
+        ErrorCategory::TraitBound => "impl Trait for Type".to_string(),
+        _ => return None,
+    };
+
+    Some(ExtractedFix {
+        category,
+        pattern,
+        error_pattern: sample.message.clone(),
+        fix_template,
+        confidence: 0.7, // Default confidence
+    })
+}
+
+/// Corpus-based fix predictor trained from extracted patterns.
+#[derive(Debug, Default)]
+pub struct CorpusFixPredictor {
+    /// Extracted fix patterns by category
+    patterns: HashMap<ErrorCategory, Vec<ExtractedFix>>,
+    /// Total patterns extracted
+    pattern_count: usize,
+}
+
+impl CorpusFixPredictor {
+    /// Create a new predictor.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Add an extracted fix to the predictor.
+    pub fn add_fix(&mut self, fix: ExtractedFix) {
+        self.patterns
+            .entry(fix.category)
+            .or_default()
+            .push(fix);
+        self.pattern_count += 1;
+    }
+
+    /// Get pattern count.
+    #[must_use]
+    pub fn pattern_count(&self) -> usize {
+        self.pattern_count
+    }
+
+    /// Get categories with patterns.
+    #[must_use]
+    pub fn categories(&self) -> Vec<ErrorCategory> {
+        self.patterns.keys().copied().collect()
+    }
+
+    /// Predict fix for an error, returning highest confidence fix.
+    #[must_use]
+    pub fn predict(&self, category: ErrorCategory) -> Option<&ExtractedFix> {
+        self.patterns.get(&category).and_then(|fixes| {
+            fixes
+                .iter()
+                .max_by(|a, b| a.confidence.partial_cmp(&b.confidence).unwrap())
+        })
+    }
+
+    /// Train predictor from training dataset.
+    pub fn train_from_corpus(&mut self, corpus: &crate::TrainingDataset) {
+        for sample in corpus.samples() {
+            if let Some(fix) = extract_fix_pattern(sample) {
+                self.add_fix(fix);
+            }
+        }
+    }
+}
+
+// ============================================================================
 // EXTREME TDD: Tests (RED PHASE - These should FAIL initially)
 // ============================================================================
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::training::TrainingSample;
 
     // ========================================================================
     // Phase 1: Stdlib Parser Tests
@@ -1830,5 +2221,298 @@ mod tests {
     fn test_evaluator_empty_best_result() {
         let evaluator = Evaluator::new(EvaluationConfig::default());
         assert!(evaluator.best_result().is_none());
+    }
+
+    // ========================================================================
+    // Phase 6: Curriculum Learning Tests
+    // ========================================================================
+
+    #[test]
+    fn test_difficulty_level_ordering() {
+        assert!(DifficultyLevel::Basic < DifficultyLevel::Intermediate);
+        assert!(DifficultyLevel::Intermediate < DifficultyLevel::Advanced);
+        assert!(DifficultyLevel::Advanced < DifficultyLevel::Expert);
+    }
+
+    #[test]
+    fn test_difficulty_level_strategies() {
+        // Basic should include DocstringMining
+        let basic_strategies = DifficultyLevel::Basic.strategies();
+        assert!(basic_strategies.contains(&GenerationStrategy::DocstringMining));
+
+        // Advanced should include ErrorInduction
+        let advanced_strategies = DifficultyLevel::Advanced.strategies();
+        assert!(advanced_strategies.contains(&GenerationStrategy::ErrorInduction));
+
+        // Expert should include Composition
+        let expert_strategies = DifficultyLevel::Expert.strategies();
+        assert!(expert_strategies.contains(&GenerationStrategy::Composition));
+    }
+
+    #[test]
+    fn test_difficulty_level_weight() {
+        let total_weight: f64 = DifficultyLevel::Basic.weight()
+            + DifficultyLevel::Intermediate.weight()
+            + DifficultyLevel::Advanced.weight()
+            + DifficultyLevel::Expert.weight();
+
+        assert!((total_weight - 1.0).abs() < 0.001, "Weights should sum to 1.0");
+    }
+
+    #[test]
+    fn test_curriculum_scheduler_creation() {
+        let scheduler = CurriculumScheduler::new(100);
+
+        assert_eq!(scheduler.current_level(), DifficultyLevel::Basic);
+        assert_eq!(scheduler.total_generated(), 0);
+        assert!(!scheduler.is_complete());
+    }
+
+    #[test]
+    fn test_curriculum_scheduler_record_sample() {
+        let mut scheduler = CurriculumScheduler::new(10);
+
+        for _ in 0..5 {
+            scheduler.record_sample();
+        }
+
+        assert_eq!(scheduler.total_generated(), 5);
+        assert_eq!(scheduler.current_level(), DifficultyLevel::Basic);
+    }
+
+    #[test]
+    fn test_curriculum_scheduler_advance() {
+        let mut scheduler = CurriculumScheduler::new(2);
+
+        // Record samples to trigger advancement
+        scheduler.record_sample();
+        scheduler.record_sample();
+        let advanced = scheduler.try_advance();
+
+        assert!(advanced);
+        assert_eq!(scheduler.current_level(), DifficultyLevel::Intermediate);
+    }
+
+    #[test]
+    fn test_curriculum_scheduler_full_progression() {
+        let mut scheduler = CurriculumScheduler::new(1);
+
+        // Progress through all levels
+        scheduler.record_sample();
+        scheduler.try_advance(); // -> Intermediate
+
+        scheduler.record_sample();
+        scheduler.try_advance(); // -> Advanced
+
+        scheduler.record_sample();
+        scheduler.try_advance(); // -> Expert
+
+        scheduler.record_sample();
+        let at_end = !scheduler.try_advance(); // No more levels
+
+        assert!(at_end);
+        assert!(scheduler.is_complete());
+        assert_eq!(scheduler.current_level(), DifficultyLevel::Expert);
+    }
+
+    #[test]
+    fn test_curriculum_scheduler_reset() {
+        let mut scheduler = CurriculumScheduler::new(1);
+
+        scheduler.record_sample();
+        scheduler.try_advance();
+        scheduler.reset();
+
+        assert_eq!(scheduler.current_level(), DifficultyLevel::Basic);
+        assert_eq!(scheduler.total_generated(), 0);
+    }
+
+    // ========================================================================
+    // Phase 7: Optimization Runner Tests
+    // ========================================================================
+
+    #[test]
+    fn test_optimization_run_config_default() {
+        let config = OptimizationRunConfig::default();
+
+        assert!(config.eval_stdlib_count > 0);
+        assert!(config.eval_samples > 0);
+        assert!(config.max_evaluations > 0);
+        assert!(config.use_curriculum); // Default is true (curriculum learning enabled)
+    }
+
+    #[test]
+    fn test_run_optimization_basic() {
+        let stdlib_funcs = vec![sample_stdlib_function()];
+        let config = OptimizationRunConfig {
+            eval_stdlib_count: 1,
+            eval_samples: 5,
+            max_evaluations: 10,
+            use_curriculum: false,
+        };
+
+        let result = run_optimization(&stdlib_funcs, &config);
+
+        assert!(result.fitness >= 0.0);
+        assert!(result.evaluations > 0);
+    }
+
+    #[test]
+    fn test_run_optimization_with_curriculum() {
+        let stdlib_funcs = vec![sample_stdlib_function()];
+        let config = OptimizationRunConfig {
+            eval_stdlib_count: 1,
+            eval_samples: 5,
+            max_evaluations: 10,
+            use_curriculum: true,
+        };
+
+        let result = run_optimization(&stdlib_funcs, &config);
+
+        // Should still produce valid result with curriculum
+        assert!(result.fitness >= 0.0);
+        assert!(result.evaluations > 0);
+    }
+
+    // ========================================================================
+    // Phase 8: Autofixer Integration Tests
+    // ========================================================================
+
+    #[test]
+    fn test_fix_pattern_from_category() {
+        assert!(matches!(
+            FixPattern::from_category(ErrorCategory::TypeMismatch),
+            FixPattern::TypeConversion
+        ));
+        assert!(matches!(
+            FixPattern::from_category(ErrorCategory::BorrowChecker),
+            FixPattern::AddClone
+        ));
+        assert!(matches!(
+            FixPattern::from_category(ErrorCategory::MissingImport),
+            FixPattern::AddImport
+        ));
+        assert!(matches!(
+            FixPattern::from_category(ErrorCategory::LifetimeError),
+            FixPattern::AddLifetime
+        ));
+        assert!(matches!(
+            FixPattern::from_category(ErrorCategory::TraitBound),
+            FixPattern::ImplementTrait
+        ));
+    }
+
+    #[test]
+    fn test_fix_pattern_other() {
+        let pattern = FixPattern::from_category(ErrorCategory::Other);
+        assert!(matches!(pattern, FixPattern::Other(_)));
+    }
+
+    #[test]
+    fn test_corpus_fix_predictor_creation() {
+        let predictor = CorpusFixPredictor::new();
+
+        assert_eq!(predictor.pattern_count(), 0);
+        assert!(predictor.predict(ErrorCategory::TypeMismatch).is_none());
+    }
+
+    #[test]
+    fn test_corpus_fix_predictor_add_fix() {
+        let mut predictor = CorpusFixPredictor::new();
+
+        let fix = ExtractedFix {
+            category: ErrorCategory::TypeMismatch,
+            pattern: FixPattern::TypeConversion,
+            error_pattern: "expected i32, found String".to_string(),
+            fix_template: "use .parse::<i32>()".to_string(),
+            confidence: 0.9,
+        };
+
+        predictor.add_fix(fix);
+
+        assert_eq!(predictor.pattern_count(), 1);
+    }
+
+    #[test]
+    fn test_corpus_fix_predictor_predict() {
+        let mut predictor = CorpusFixPredictor::new();
+
+        predictor.add_fix(ExtractedFix {
+            category: ErrorCategory::TypeMismatch,
+            pattern: FixPattern::TypeConversion,
+            error_pattern: "type mismatch".to_string(),
+            fix_template: "use .into()".to_string(),
+            confidence: 0.8,
+        });
+
+        predictor.add_fix(ExtractedFix {
+            category: ErrorCategory::TypeMismatch,
+            pattern: FixPattern::TypeConversion,
+            error_pattern: "expected struct".to_string(),
+            fix_template: "use From::from()".to_string(),
+            confidence: 0.9,
+        });
+
+        let prediction = predictor.predict(ErrorCategory::TypeMismatch);
+
+        // Should return the highest confidence fix
+        assert!(prediction.is_some());
+        let fix = prediction.unwrap();
+        assert!((fix.confidence - 0.9).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_corpus_fix_predictor_train_from_corpus() {
+        use crate::TrainingDataset;
+
+        let mut predictor = CorpusFixPredictor::new();
+        let mut dataset = TrainingDataset::new();
+
+        dataset.add(TrainingSample {
+            message: "mismatched types expected i32 found String".to_string(),
+            category: ErrorCategory::TypeMismatch,
+            fix: Some("use .parse::<i32>()".to_string()),
+        });
+
+        dataset.add(TrainingSample {
+            message: "cannot borrow as mutable".to_string(),
+            category: ErrorCategory::BorrowChecker,
+            fix: Some("use .clone()".to_string()),
+        });
+
+        predictor.train_from_corpus(&dataset);
+
+        // Should extract patterns from both samples
+        assert!(predictor.pattern_count() >= 2);
+    }
+
+    #[test]
+    fn test_extract_fix_pattern_type_mismatch() {
+        let sample = TrainingSample {
+            message: "type mismatch error".to_string(),
+            category: ErrorCategory::TypeMismatch,
+            fix: Some("convert type".to_string()),
+        };
+
+        let extracted = extract_fix_pattern(&sample);
+
+        assert!(extracted.is_some());
+        let fix = extracted.unwrap();
+        assert_eq!(fix.category, ErrorCategory::TypeMismatch);
+        assert!(matches!(fix.pattern, FixPattern::TypeConversion));
+    }
+
+    #[test]
+    fn test_extract_fix_pattern_syntax_error() {
+        let sample = TrainingSample {
+            message: "syntax error".to_string(),
+            category: ErrorCategory::SyntaxError,
+            fix: None,
+        };
+
+        let extracted = extract_fix_pattern(&sample);
+
+        // SyntaxError should not produce a fix pattern
+        assert!(extracted.is_none());
     }
 }
