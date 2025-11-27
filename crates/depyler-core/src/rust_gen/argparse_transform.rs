@@ -1501,6 +1501,40 @@ pub fn analyze_subcommand_field_access(
     }
 }
 
+/// DEPYLER-0108: Generate pre-computation statements for Option fields
+///
+/// This generates `let has_X = args.X.is_some();` for each Option field
+/// to avoid borrow-after-move errors when the Option is passed to a function
+/// and later checked with `.is_some()`.
+///
+/// # Complexity
+/// 4 (iteration + quote)
+pub fn generate_option_precompute(parser_info: &ArgParserInfo) -> Vec<proc_macro2::TokenStream> {
+    use quote::{format_ident, quote};
+
+    let args_var = match &parser_info.args_var {
+        Some(var) => var.clone(),
+        None => return vec![],
+    };
+
+    let args_ident = format_ident!("{}", args_var);
+
+    parser_info
+        .arguments
+        .iter()
+        .filter(|arg| arg.rust_type().starts_with("Option<"))
+        .map(|arg| {
+            let field_name = arg.rust_field_name();
+            let field_ident = format_ident!("{}", field_name);
+            let has_ident = format_ident!("has_{}", field_name);
+            quote! {
+                // DEPYLER-0108: Pre-compute before Option is moved
+                let #has_ident = #args_ident.#field_ident.is_some();
+            }
+        })
+        .collect()
+}
+
 /// DEPYLER-0425: Wrap function body statements in pattern matching for subcommand field extraction
 ///
 /// # Complexity
