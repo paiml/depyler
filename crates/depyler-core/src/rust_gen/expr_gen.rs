@@ -9240,19 +9240,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             "keys" => {
-                if !arg_exprs.is_empty() {
-                    bail!("keys() takes no arguments");
-                }
-                // DEPYLER-0303 Phase 3 Fix #8: Return Vec for compatibility
-                // .keys() returns an iterator, but Python's dict.keys() returns a list-like view
-                // We collect to Vec for better ergonomics (indexing, len(), etc.)
-                // DEPYLER-0540: serde_json::Value needs .as_object().unwrap() before .keys()
-                if is_json_value {
-                    Ok(
-                        parse_quote! { #object_expr.as_object().unwrap().keys().cloned().collect::<Vec<_>>() },
-                    )
+                // DEPYLER-0596: If keys() has arguments, it's a user-defined method, not dict.keys()
+                // Fall through to generic handler for user-defined keys(section) methods
+                if arg_exprs.is_empty() {
+                    // DEPYLER-0303 Phase 3 Fix #8: Return Vec for compatibility
+                    // .keys() returns an iterator, but Python's dict.keys() returns a list-like view
+                    // We collect to Vec for better ergonomics (indexing, len(), etc.)
+                    // DEPYLER-0540: serde_json::Value needs .as_object().unwrap() before .keys()
+                    if is_json_value {
+                        Ok(
+                            parse_quote! { #object_expr.as_object().unwrap().keys().cloned().collect::<Vec<_>>() },
+                        )
+                    } else {
+                        Ok(parse_quote! { #object_expr.keys().cloned().collect::<Vec<_>>() })
+                    }
                 } else {
-                    Ok(parse_quote! { #object_expr.keys().cloned().collect::<Vec<_>>() })
+                    // User-defined keys() method with arguments - use generic call
+                    let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                    Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) })
                 }
             }
             "values" => {
