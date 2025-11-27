@@ -9634,6 +9634,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 Ok(parse_quote! { #object_expr.trim_end().to_string() })
             }
+            "encode" => {
+                // DEPYLER-0594: str.encode([encoding]) → .as_bytes().to_vec()
+                // Python: s.encode() or s.encode('utf-8')
+                // Rust: s.as_bytes().to_vec() (returns Vec<u8>)
+                // Note: Only UTF-8 encoding is supported
+                Ok(parse_quote! { #object_expr.as_bytes().to_vec() })
+            }
+            "decode" => {
+                // DEPYLER-0594: bytes.decode([encoding]) → String::from_utf8_lossy()
+                // Python: b.decode() or b.decode('utf-8')
+                // Rust: String::from_utf8_lossy(bytes).to_string()
+                Ok(parse_quote! { String::from_utf8_lossy(&#object_expr).to_string() })
+            }
             "isalnum" => {
                 // DEPYLER-0302: str.isalnum() → .chars().all(|c| c.is_alphanumeric())
                 if !arg_exprs.is_empty() {
