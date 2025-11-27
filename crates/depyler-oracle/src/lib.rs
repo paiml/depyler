@@ -33,6 +33,7 @@ pub mod synthetic;
 pub mod tfidf;
 pub mod training;
 pub mod tuning;
+pub mod unified_training;
 pub mod verificar_integration;
 
 pub use autofixer::{AutoFixer, FixContext, FixResult, TransformRule};
@@ -69,6 +70,12 @@ pub use github_corpus::{
     build_github_corpus, convert_oip_to_depyler, load_oip_training_data,
     OipDefectCategory, OipTrainingDataset, OipTrainingExample,
     analyze_corpus, get_moe_samples_from_oip, CorpusStats,
+};
+
+// Unified training pipeline
+pub use unified_training::{
+    build_unified_corpus, build_default_unified_corpus, build_unified_corpus_with_oip,
+    print_merge_stats, UnifiedTrainingConfig, UnifiedTrainingResult, MergeStats,
 };
 
 /// Error types for the oracle.
