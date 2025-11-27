@@ -241,9 +241,6 @@ test-compilation: ## Validate generated Rust compiles
 test-semantic: ## Test semantic equivalence
 	@echo "Testing semantic equivalence..."
 	$(CARGO) test semantic $(TEST_FLAGS)
-test-integration: ## Run integration tests
-	@echo "Running integration tests..."
-	$(CARGO) test --test integration $(TEST_FLAGS)
 test-unit: ## Run unit tests only
 	@echo "Running unit tests..."
 	$(CARGO) test --lib $(TEST_FLAGS)
