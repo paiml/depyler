@@ -8,6 +8,31 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 
+#[allow(clippy::result_large_err)]
+fn validate_path(path_str: &str) -> Result<std::path::PathBuf, McpError> {
+    let path = Path::new(path_str);
+    let cwd = std::env::current_dir().map_err(|e| McpError::internal(format!("Failed to get current directory: {}", e)))?;
+    
+    let abs_path = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        cwd.join(path)
+    };
+
+    // Canonicalize to resolve .. and symlinks
+    // Note: canonicalize requires the file to exist.
+    let canonical_path = abs_path.canonicalize().map_err(|e| McpError::invalid_params(format!("Invalid path '{}': {}", path_str, e)))?;
+    
+    // Check if it starts with CWD
+    let canonical_cwd = cwd.canonicalize().map_err(|e| McpError::internal(format!("Failed to canonicalize CWD: {}", e)))?;
+
+    if !canonical_path.starts_with(&canonical_cwd) {
+        return Err(McpError::invalid_params(format!("Path '{}' is outside the project root", path_str)));
+    }
+
+    Ok(canonical_path)
+}
+
 pub struct DepylerMcpServer {
     transpiler: Arc<DepylerPipeline>,
     #[allow(dead_code)]
@@ -79,10 +104,14 @@ impl ToolHandler for TranspileTool {
 
         let python_source = match request.mode {
             Mode::Inline => request.source,
-            Mode::File => std::fs::read_to_string(&request.source)
-                .map_err(|e| McpError::internal(format!("Failed to read file: {}", e)))?,
+            Mode::File => {
+                let valid_path = validate_path(&request.source)?;
+                std::fs::read_to_string(valid_path)
+                    .map_err(|e| McpError::internal(format!("Failed to read file: {}", e)))?
+            }
             Mode::Project => {
-                let main_file = Path::new(&request.source).join("main.py");
+                let valid_path = validate_path(&request.source)?;
+                let main_file = valid_path.join("main.py");
                 std::fs::read_to_string(&main_file).map_err(|e| {
                     McpError::internal(format!("Failed to read project main file: {}", e))
                 })?
@@ -132,12 +161,7 @@ impl AnalyzeTool {
 
     #[allow(clippy::result_large_err)]
     fn count_python_lines(&self, project_path: &str) -> Result<usize, McpError> {
-        let path = Path::new(project_path);
-        if !path.exists() {
-            return Err(McpError::invalid_params(format!(
-                "Project path does not exist: {project_path}"
-            )));
-        }
+        let path = validate_path(project_path)?;
 
         let mut total_lines = 0;
         if path.is_file() && path.extension().is_some_and(|ext| ext == "py") {
@@ -333,5 +357,47 @@ impl ToolHandler for PmatQualityTool {
                 "reduce_complexity": lines > 500,
             }
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::TempDir;
+    use tokio_util::sync::CancellationToken;
+
+    #[tokio::test]
+    async fn test_arbitrary_file_read_prevented() {
+        // Setup: Create a secret file outside of any "project" structure
+        let temp_dir = TempDir::new().unwrap();
+        let secret_path = temp_dir.path().join("secret.txt");
+        let secret_content = "<<<< SUPER_SECRET_PASSWORD_DATA >>>>";
+        {
+            let mut file = File::create(&secret_path).unwrap();
+            write!(file, "{}", secret_content).unwrap();
+        }
+
+        // Act: Try to read it using the TranspileTool
+        let transpiler = Arc::new(DepylerPipeline::new());
+        let tool = TranspileTool::new(transpiler);
+        
+        let args = serde_json::json!({
+            "source": secret_path.to_str().unwrap(),
+            "mode": "file"
+        });
+        
+        let extra = RequestHandlerExtra::new("test-id".to_string(), CancellationToken::new());
+        let result = tool.handle(args, extra).await;
+        
+        // Assert: The security check should prevent reading the file
+        match result {
+            Ok(_) => panic!("VULNERABILITY: Arbitrary file read should have been blocked"),
+            Err(e) => {
+                let msg = e.to_string();
+                assert!(msg.contains("outside the project root"), "Unexpected error message: {}", msg);
+            }
+        }
     }
 }
