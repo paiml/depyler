@@ -22,6 +22,7 @@ pub mod depyler_training;
 pub mod estimator;
 pub mod features;
 pub mod hybrid;
+// pub mod mlp_classifier; // TODO: GH-XXX - Implement GPU-accelerated MLP classifier
 pub mod ngram;
 pub mod params_persistence;
 pub mod patterns;
@@ -116,7 +117,9 @@ pub struct OracleConfig {
 impl Default for OracleConfig {
     fn default() -> Self {
         Self {
-            n_estimators: 10_000,
+            // 100 trees is usually sufficient for classification
+            // 10,000 was excessive and caused 15+ min training times
+            n_estimators: 100,
             max_depth: 10,
             random_state: Some(42),
         }
