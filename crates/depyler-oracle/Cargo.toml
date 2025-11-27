@@ -10,8 +10,9 @@ keywords = ["depyler", "ml", "error-classification", "auto-fix"]
 categories = ["development-tools"]
 
 [features]
-default = ["gpu"]
+default = ["gpu", "compressed-models"]
 gpu = ["aprender/gpu"]  # Enable GPU acceleration for ML training
+compressed-models = ["aprender/format-compression"]  # Zstd compression (lossless, 14x smaller)
 local-llm = ["llama-cpp-2"]
 
 [dependencies]
