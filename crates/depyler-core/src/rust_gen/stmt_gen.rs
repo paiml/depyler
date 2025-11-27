@@ -4195,12 +4195,21 @@ fn extract_fields_recursive(
                     extract_fields_recursive(else_stmts, args_var, dest_field, fields);
                 }
             }
+            // DEPYLER-0577: Recurse into While condition (may contain args.field)
             HirStmt::While {
-                body: loop_body, ..
-            }
-            | HirStmt::For {
-                body: loop_body, ..
+                condition,
+                body: loop_body,
             } => {
+                extract_fields_from_expr(condition, args_var, dest_field, fields);
+                extract_fields_recursive(loop_body, args_var, dest_field, fields);
+            }
+            // DEPYLER-0577: Recurse into For iterator (may contain args.field)
+            HirStmt::For {
+                iter,
+                body: loop_body,
+                ..
+            } => {
+                extract_fields_from_expr(iter, args_var, dest_field, fields);
                 extract_fields_recursive(loop_body, args_var, dest_field, fields);
             }
             HirStmt::Try {
@@ -4300,6 +4309,14 @@ fn extract_fields_from_expr(
             extract_fields_from_expr(object, args_var, dest_field, fields);
             for arg in method_args {
                 extract_fields_from_expr(arg, args_var, dest_field, fields);
+            }
+        }
+        // DEPYLER-0577: Handle f-strings - recurse into expression parts
+        HirExpr::FString { parts } => {
+            for part in parts {
+                if let crate::hir::FStringPart::Expr(expr) = part {
+                    extract_fields_from_expr(expr, args_var, dest_field, fields);
+                }
             }
         }
         _ => {}
@@ -4434,6 +4451,29 @@ fn try_generate_subcommand_match(
 
             // Generate body statements
             ctx.enter_scope();
+
+            // DEPYLER-0577: Register field types in var_types before processing body
+            // This allows type-aware codegen (e.g., float vs int comparisons)
+            for field_name in &accessed_fields {
+                if let Some(subcommand) = ctx
+                    .argparser_tracker
+                    .subcommands
+                    .values()
+                    .find(|sc| sc.name == *cmd_name)
+                {
+                    if let Some(arg) = subcommand.arguments.iter().find(|a| {
+                        let arg_name = a.long.as_ref()
+                            .map(|s| s.trim_start_matches('-').to_string())
+                            .unwrap_or_else(|| a.name.clone());
+                        &arg_name == field_name
+                    }) {
+                        if let Some(ref ty) = arg.arg_type {
+                            ctx.var_types.insert(field_name.clone().into(), ty.clone());
+                        }
+                    }
+                }
+            }
+
             let body_stmts: Vec<_> = body
                 .iter()
                 .map(|s| s.to_rust_tokens(ctx))
@@ -4643,6 +4683,12 @@ fn try_generate_subcommand_match(
                                 ];
                                 let borrowed_indicators =
                                     ["content", "pattern", "text", "message", "data", "value"];
+                                // DEPYLER-0579: String-like field indicators (should NOT be numeric-unwrapped)
+                                let string_indicators = [
+                                    "str", "string", "name", "line", "word", "char", "cmd",
+                                    "url", "uri", "host", "token", "key", "id", "code",
+                                    "hex", "oct", // hex/oct values are string representations
+                                ];
                                 // DEPYLER-0576: Numeric field indicators (likely f64 with defaults)
                                 let numeric_indicators = [
                                     "x", "y", "z", "a", "b", "c", "n", "m", "i", "j", "k",
@@ -4663,16 +4709,25 @@ fn try_generate_subcommand_match(
                                         || field_lower.ends_with(ind)
                                         || field_lower.starts_with(ind)
                                 });
-                                let needs_numeric_unwrap = numeric_indicators.iter().any(|ind| {
+                                // DEPYLER-0579: Check if this looks like a string field
+                                let looks_like_string = string_indicators.iter().any(|ind| {
                                     field_lower == *ind
                                         || field_lower.ends_with(ind)
                                         || field_lower.starts_with(ind)
+                                        || field_lower.contains(ind)
                                 });
+                                // Only apply numeric unwrap if NOT string-like
+                                let needs_numeric_unwrap = !looks_like_string
+                                    && numeric_indicators.iter().any(|ind| {
+                                        field_lower == *ind
+                                            || field_lower.ends_with(ind)
+                                            || field_lower.starts_with(ind)
+                                    });
 
                                 if needs_borrowed {
                                     // Keep as reference
                                     quote! {}
-                                } else if needs_owned {
+                                } else if needs_owned || looks_like_string {
                                     // Convert to owned String
                                     quote! { let #field_ident = #field_ident.to_string(); }
                                 } else if needs_numeric_unwrap {
@@ -4691,8 +4746,10 @@ fn try_generate_subcommand_match(
                     })
                     .collect();
 
+                // DEPYLER-0578: Add `..` to pattern to ignore unmentioned fields (fixes E0027)
+                // The subcommand may have more fields than we extract from body statements
                 quote! {
-                    Commands::#variant_name { #(#ref_field_patterns),* } => {
+                    Commands::#variant_name { #(#ref_field_patterns,)* .. } => {
                         #(#field_bindings)*
                         #(#body_stmts)*
                     }

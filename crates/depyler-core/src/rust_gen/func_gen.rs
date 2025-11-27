@@ -2599,6 +2599,20 @@ impl RustCodeGen for HirFunction {
             &mut ctx.argparser_tracker,
         );
 
+        // DEPYLER-0108: Pre-populate Option fields for substitution BEFORE body codegen
+        // This must happen before codegen_function_body() so that convert_method_call
+        // can substitute args.<field>.is_some() with has_<field>
+        if ctx.argparser_tracker.has_parsers() {
+            if let Some(parser_info) = ctx.argparser_tracker.get_first_parser() {
+                for arg in &parser_info.arguments {
+                    if arg.rust_type().starts_with("Option<") {
+                        ctx.precomputed_option_fields
+                            .insert(arg.rust_field_name().to_string());
+                    }
+                }
+            }
+        }
+
         // Process function body with proper scoping (expressions will now be rewritten if needed)
         let mut body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
 
@@ -2642,6 +2656,53 @@ impl RustCodeGen for HirFunction {
                     &ctx.argparser_tracker,
                 );
                 ctx.generated_args_struct = Some(args_struct);
+
+                // DEPYLER-0108: Inject precompute statements for Option fields
+                // This prevents borrow-after-move when Option is passed then checked with is_some()
+                let precompute_stmts =
+                    crate::rust_gen::argparse_transform::generate_option_precompute(parser_info);
+                if !precompute_stmts.is_empty() {
+                    // DEPYLER-0108: FIRST post-process body to replace args.<field>.is_some() with has_<field>
+                    // This must happen BEFORE injecting precompute statements to avoid replacing them too
+                    let option_fields: Vec<String> = parser_info
+                        .arguments
+                        .iter()
+                        .filter(|arg| arg.rust_type().starts_with("Option<"))
+                        .map(|arg| arg.rust_field_name().to_string())
+                        .collect();
+
+                    if !option_fields.is_empty() {
+                        body_stmts = body_stmts
+                            .into_iter()
+                            .map(|stmt| {
+                                let mut stmt_str = stmt.to_string();
+                                for field in &option_fields {
+                                    // Replace "args . <field> . is_some ()" with "has_<field>"
+                                    let pattern = format!("args . {} . is_some ()", field);
+                                    let replacement = format!("has_{}", field);
+                                    stmt_str = stmt_str.replace(&pattern, &replacement);
+                                    // Also handle is_none
+                                    let pattern_none = format!("args . {} . is_none ()", field);
+                                    let replacement_none = format!("! has_{}", field);
+                                    stmt_str = stmt_str.replace(&pattern_none, &replacement_none);
+                                }
+                                syn::parse_str(&stmt_str).unwrap_or(stmt)
+                            })
+                            .collect();
+                    }
+
+                    // THEN inject precompute statements after replacement
+                    // Find the Args::parse() statement index and insert after it
+                    // The parse() call is typically the first statement in main()
+                    let insert_idx = body_stmts
+                        .iter()
+                        .position(|s| s.to_string().contains("Args :: parse"))
+                        .map(|i| i + 1)
+                        .unwrap_or(0);
+                    for (offset, stmt) in precompute_stmts.into_iter().enumerate() {
+                        body_stmts.insert(insert_idx + offset, stmt);
+                    }
+                }
 
                 // Note: ArgumentParser-related statements are filtered in stmt_gen.rs
                 // parse_args() calls are transformed in stmt_gen.rs::codegen_assign_stmt
