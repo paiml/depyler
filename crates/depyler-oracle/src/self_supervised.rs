@@ -1627,17 +1627,21 @@ mod tests {
 
     #[test]
     fn test_corpus_metrics_acceptance_rate() {
-        let mut metrics = CorpusMetrics::default();
-        metrics.total_generated = 100;
-        metrics.accepted = 80;
+        let metrics = CorpusMetrics {
+            total_generated: 100,
+            accepted: 80,
+            ..Default::default()
+        };
         assert!((metrics.acceptance_rate() - 0.8).abs() < f32::EPSILON);
     }
 
     #[test]
     fn test_corpus_metrics_duplicate_rate() {
-        let mut metrics = CorpusMetrics::default();
-        metrics.total_generated = 100;
-        metrics.rejected_duplicate = 5;
+        let metrics = CorpusMetrics {
+            total_generated: 100,
+            rejected_duplicate: 5,
+            ..Default::default()
+        };
         assert!((metrics.duplicate_rate() - 0.05).abs() < f32::EPSILON);
     }
 
@@ -1939,7 +1943,7 @@ mod tests {
         let fitness = evaluate_fitness(&params, &[], 10);
 
         // Empty stdlib should produce some fitness (generator returns empty but valid)
-        assert!(fitness >= 0.0 && fitness <= 1.0);
+        assert!((0.0..=1.0).contains(&fitness));
     }
 
     #[test]
@@ -1949,7 +1953,7 @@ mod tests {
         let fitness = evaluate_fitness(&params, &stdlib_funcs, 10);
 
         // Should produce valid fitness
-        assert!(fitness >= 0.0 && fitness <= 1.0);
+        assert!((0.0..=1.0).contains(&fitness));
     }
 
     // ========================================================================
@@ -1966,11 +1970,13 @@ mod tests {
 
     #[test]
     fn test_evaluation_metrics_from_corpus() {
-        let mut corpus_metrics = CorpusMetrics::default();
-        corpus_metrics.accepted = 1000;
-        corpus_metrics.total_generated = 1100;
-        corpus_metrics.rejected_duplicate = 50;
-        corpus_metrics.diversity_score = 0.8;
+        let mut corpus_metrics = CorpusMetrics {
+            accepted: 1000,
+            total_generated: 1100,
+            rejected_duplicate: 50,
+            diversity_score: 0.8,
+            ..Default::default()
+        };
         corpus_metrics.category_distribution.insert(ErrorCategory::TypeMismatch, 300);
         corpus_metrics.category_distribution.insert(ErrorCategory::BorrowChecker, 200);
         corpus_metrics.category_distribution.insert(ErrorCategory::Other, 500);
