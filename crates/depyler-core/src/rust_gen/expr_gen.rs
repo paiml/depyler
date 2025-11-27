@@ -3937,8 +3937,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             "std" => {
+                // trueno uses stddev(), not std()
                 if let Some(arr) = arg_exprs.first() {
-                    parse_quote! { #arr.std().unwrap() }
+                    parse_quote! { #arr.stddev().unwrap() }
                 } else {
                     bail!("np.std() requires 1 argument");
                 }
