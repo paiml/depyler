@@ -61,5 +61,6 @@
 
 # Development Guide
 
+- [Oracle: ML Error Classification](./oracle.md)
 - [Contributing](../../CONTRIBUTING.md)
 - [Quality Standards](../../CLAUDE.md)
