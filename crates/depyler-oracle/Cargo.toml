@@ -17,7 +17,7 @@ local-llm = ["llama-cpp-2"]
 # Depyler core for error types
 depyler-core = { path = "../depyler-core" }
 
-# ML models from aprender (local with AutoML enhancements)
+# ML models from aprender (local dev)
 aprender = { path = "../../../aprender" }
 
 # Data loading and versioning (deferred - dependency conflicts)
@@ -36,6 +36,9 @@ thiserror.workspace = true
 
 # Logging
 tracing.workspace = true
+
+# Regex for pattern matching in autofixer
+regex.workspace = true
 
 # HTTP client for API fallback
 ureq = { version = "2.9", features = ["json"] }
