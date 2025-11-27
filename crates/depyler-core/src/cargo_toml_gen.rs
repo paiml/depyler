@@ -112,6 +112,11 @@ pub fn extract_dependencies(ctx: &CodeGenContext) -> Vec<Dependency> {
         deps.push(Dependency::new("blake2", "0.10"));
     }
 
+    // Phase 3: NumPy→Trueno codegen
+    if ctx.needs_trueno {
+        deps.push(Dependency::new("trueno", "0.7"));
+    }
+
     if ctx.needs_hex {
         deps.push(Dependency::new("hex", "0.4"));
     }
@@ -361,6 +366,7 @@ mod tests {
             needs_io_write: false,  // DEPYLER-0458
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
+            needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
             declared_vars: vec![std::collections::HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -398,6 +404,7 @@ mod tests {
             in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
@@ -470,6 +477,7 @@ mod tests {
             needs_io_write: false,  // DEPYLER-0458
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
+            needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -507,6 +515,7 @@ mod tests {
             in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
@@ -576,6 +585,7 @@ mod tests {
             needs_io_write: false,  // DEPYLER-0458
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
+            needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -613,6 +623,7 @@ mod tests {
             in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
@@ -686,6 +697,7 @@ mod tests {
             needs_io_write: false,  // DEPYLER-0458
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
+            needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -723,6 +735,7 @@ mod tests {
             in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
