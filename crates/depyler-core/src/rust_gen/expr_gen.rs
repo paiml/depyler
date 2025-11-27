@@ -382,11 +382,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let rust_op = convert_binop(op)?;
                 // DEPYLER-0339: Construct syn::ExprBinary directly instead of using parse_quote!
                 // parse_quote! doesn't properly handle interpolated syn::BinOp values
+
+                // DEPYLER-0576: Parenthesize right side when it's a unary negation
+                // Prevents "<-" tokenization issue: x < -20.0 becomes x<- 20.0 without parens
+                let right_expr_final = if matches!(right, HirExpr::Unary { op: UnaryOp::Neg, .. }) {
+                    parse_quote! { (#right_expr) }
+                } else {
+                    right_expr
+                };
+
                 Ok(syn::Expr::Binary(syn::ExprBinary {
                     attrs: vec![],
                     left: Box::new(left_expr),
                     op: rust_op,
-                    right: Box::new(right_expr),
+                    right: Box::new(right_expr_final),
                 }))
             }
         }

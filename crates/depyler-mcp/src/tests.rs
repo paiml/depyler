@@ -42,8 +42,11 @@ async fn test_analyze_tool_handler() {
     let transpiler = std::sync::Arc::new(depyler_core::DepylerPipeline::new());
     let tool = AnalyzeTool::new(transpiler);
 
-    // Create a temporary directory with a Python file for testing
-    let temp_dir = std::env::temp_dir().join("depyler_test_analyze");
+    // Create a temporary directory under CWD (validate_path checks path is under CWD)
+    let temp_dir = std::env::current_dir()
+        .unwrap()
+        .join("target")
+        .join("test_analyze_tmp");
     std::fs::create_dir_all(&temp_dir).unwrap();
     let test_file = temp_dir.join("test.py");
     std::fs::write(&test_file, "def hello():\n    print('Hello, world!')").unwrap();
