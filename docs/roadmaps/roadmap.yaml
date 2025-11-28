@@ -1160,3 +1160,62 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: GH-158
+  github_issue: 158
+  item_type: task
+  title: 'feat: `depyler converge` - Automated finish line command'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-28T16:17:29.860100827+00:00
+  updated: 2025-11-28T16:17:29.860100827+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - enhancement
+  notes: null
+- id: DEPYLER-0600
+  github_issue: null
+  item_type: enhancement
+  title: reprorusted-python-cli restructured as CITL-only training corpus
+  status: completed
+  priority: high
+  assigned_to: Claude
+  created: 2025-11-28T22:30:00+00:00
+  updated: 2025-11-28T22:30:00+00:00
+  spec: null
+  acceptance_criteria:
+  - Removed root Cargo.toml and Rust I/O equivalence tests
+  - Removed 1054 hand-written .rs files from examples
+  - Removed 573 Cargo.toml/Cargo.lock files from examples
+  - Kept 607 Python source files and 296 test files
+  - All 6745 Python tests passing
+  - New Makefile with citl-train, citl-improve, citl-export commands
+  - README updated to reflect CITL-only purpose
+  phases:
+  - name: Phase 1 - Remove Rust infrastructure
+    status: completed
+    estimated_effort: 15m
+    completion: 100
+  - name: Phase 2 - Update Makefile for CITL
+    status: completed
+    estimated_effort: 10m
+    completion: 100
+  - name: Phase 3 - Update README
+    status: completed
+    estimated_effort: 10m
+    completion: 100
+  subtasks: []
+  estimated_effort: 35m
+  labels:
+  - citl
+  - training-corpus
+  - reprorusted
+  notes: |
+    reprorusted-python-cli is now a pure Python training corpus for CITL.
+    No pre-written Rust code - depyler generates all Rust during transpilation.
+    Integration commands: make citl-train, make citl-improve, make citl-export.
+    See: https://github.com/paiml/reprorusted-python-cli
