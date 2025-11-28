@@ -136,76 +136,93 @@ impl Estimator for OracleEstimator {
     }
 }
 
+/// Feature extraction constants used for both training and prediction.
+pub mod feature_config {
+    /// Error codes for one-hot encoding.
+    pub const ERROR_CODES: &[&str] = &[
+        // Type mismatch errors
+        "E0308", "E0282", "E0609", "E0606", "E0631",
+        // Import/resolution errors
+        "E0432", "E0433", "E0412", "E0425",
+        // Trait bound errors
+        "E0277", "E0599",
+        // Borrow checker errors
+        "E0502", "E0499", "E0507", "E0382", "E0596", "E0597", "E0505", "E0503", "E0594",
+        // Syntax errors
+        "E0423", "E0658", "E0627",
+        // Move/ownership
+        "E0373", "E0061",
+    ];
+
+    /// Keywords for occurrence counting.
+    pub const KEYWORDS: &[&str] = &[
+        // Type-related
+        "mismatch", "expected", "found", "type", "types", "i32", "f64", "String", "Value",
+        // Trait-related
+        "trait", "bound", "satisfied", "implement", "Display", "Copy",
+        // Borrow-related
+        "borrow", "borrowed", "mut", "mutable", "move", "moved", "lifetime", "reference",
+        // Import-related
+        "import", "unresolved", "undeclared", "crate", "module",
+        // Misc
+        "method", "field", "closure", "async", "Option", "Result", "HashMap", "Vec",
+    ];
+
+    /// Total number of features.
+    pub const TOTAL_FEATURES: usize = 25 + 36 + 12; // error codes + keywords + ErrorFeatures
+}
+
+/// Convert a single error message to feature vector.
+///
+/// Uses the same feature extraction as `samples_to_features` for consistency.
+#[must_use]
+pub fn message_to_features(message: &str) -> Matrix<f32> {
+    use feature_config::{ERROR_CODES, KEYWORDS};
+
+    let n_error_codes = ERROR_CODES.len();
+    let n_keywords = KEYWORDS.len();
+    let n_handcrafted = crate::ErrorFeatures::DIM;
+    let n_features = n_error_codes + n_keywords + n_handcrafted;
+
+    let mut features = vec![0.0f32; n_features];
+
+    // Error code features (one-hot encoding)
+    for (j, code) in ERROR_CODES.iter().enumerate() {
+        if message.contains(code) {
+            features[j] = 1.0;
+        }
+    }
+
+    // Keyword features (count-based)
+    for (j, kw) in KEYWORDS.iter().enumerate() {
+        let count = message.matches(kw).count();
+        features[n_error_codes + j] = count as f32;
+    }
+
+    // Hand-crafted ErrorFeatures (normalized)
+    let error_features = crate::ErrorFeatures::from_error_message(message);
+    let feature_vec = error_features.to_vec();
+    for (j, &val) in feature_vec.iter().enumerate() {
+        features[n_error_codes + n_keywords + j] = val;
+    }
+
+    Matrix::from_vec(1, n_features, features).expect("Feature matrix dimensions should be valid")
+}
+
 /// Convert training samples to feature matrix and label vector.
 ///
 /// Uses enhanced features combining:
 /// - Error code one-hot encoding (25 features)
-/// - Keyword occurrence counts (28 features)
+/// - Keyword occurrence counts (36 features)
 /// - ErrorFeatures hand-crafted features (12 features)
 ///
-/// Total: 65 features for better classification accuracy.
+/// Total: 73 features for better classification accuracy.
 #[must_use]
 pub fn samples_to_features(samples: &[TrainingSample]) -> (Matrix<f32>, Vector<f32>) {
-    // Feature extraction: error codes + keywords + hand-crafted
-    // Extended error codes for better discrimination (Issue #106)
-    let error_codes = [
-        // Type mismatch errors
-        "E0308", "E0282", "E0609", "E0606", "E0631", // Import/resolution errors
-        "E0432", "E0433", "E0412", "E0425", // Trait bound errors
-        "E0277", "E0599", // Borrow checker errors
-        "E0502", "E0499", "E0507", "E0382", "E0596", "E0597", "E0505", "E0503", "E0594",
-        // Syntax errors
-        "E0423", "E0658", "E0627", // Move/ownership
-        "E0373", "E0061",
-    ];
-    // Extended keywords for better category discrimination
-    let keywords = [
-        // Type-related
-        "mismatch",
-        "expected",
-        "found",
-        "type",
-        "types",
-        "i32",
-        "f64",
-        "String",
-        "Value",
-        // Trait-related
-        "trait",
-        "bound",
-        "satisfied",
-        "implement",
-        "Display",
-        "Copy",
-        // Borrow-related
-        "borrow",
-        "borrowed",
-        "mut",
-        "mutable",
-        "move",
-        "moved",
-        "lifetime",
-        "reference",
-        // Import-related
-        "import",
-        "unresolved",
-        "undeclared",
-        "crate",
-        "module",
-        // Misc
-        "method",
-        "field",
-        "closure",
-        "async",
-        "Option",
-        "Result",
-        "HashMap",
-        "Vec",
-    ];
+    use feature_config::{ERROR_CODES, KEYWORDS};
 
-    // Total features: error codes (25) + keywords (28) + ErrorFeatures (12) = 65
-    let n_error_codes = error_codes.len();
-    let n_keywords = keywords.len();
+    let n_error_codes = ERROR_CODES.len();
+    let n_keywords = KEYWORDS.len();
     let n_handcrafted = ErrorFeatures::DIM;
     let n_features = n_error_codes + n_keywords + n_handcrafted;
     let n_samples = samples.len();
@@ -218,14 +235,14 @@ pub fn samples_to_features(samples: &[TrainingSample]) -> (Matrix<f32>, Vector<f
         let base_idx = i * n_features;
 
         // Error code features (one-hot encoding)
-        for (j, code) in error_codes.iter().enumerate() {
+        for (j, code) in ERROR_CODES.iter().enumerate() {
             if msg.contains(code) {
                 features[base_idx + j] = 1.0;
             }
         }
 
         // Keyword features (count-based)
-        for (j, kw) in keywords.iter().enumerate() {
+        for (j, kw) in KEYWORDS.iter().enumerate() {
             let count = msg.matches(kw).count();
             features[base_idx + n_error_codes + j] = count as f32;
         }

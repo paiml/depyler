@@ -569,6 +569,16 @@ pub enum OracleCommands {
         #[arg(long, default_value = "1.0")]
         reweight: f32,
     },
+
+    /// Classify a Rust compiler error and suggest fixes
+    Classify {
+        /// Error message to classify (e.g., "error[E0308]: mismatched types")
+        error: String,
+
+        /// Output format: text (default) or json
+        #[arg(short, long, default_value = "text")]
+        format: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -2507,6 +2517,62 @@ pub fn oracle_export_oip_command(
     println!("    2. Validate: oip validate --model ./oip_model");
 
     Ok(())
+}
+
+/// Classify a Rust compiler error and suggest fixes
+pub fn oracle_classify_command(error: String, format: String) -> Result<()> {
+    use depyler_oracle::{classify_with_moe, KeywordClassifier};
+
+    println!("🔮 Depyler Oracle Classification");
+    println!("================================\n");
+
+    // Extract error code from the error message (e.g., E0308 from "error[E0308]")
+    let error_code = extract_error_code(&error).unwrap_or_default();
+
+    // Use MoE oracle for classification (more robust than RandomForest)
+    let moe_result = classify_with_moe(&error_code, &error);
+
+    // Also get keyword-based classification as backup
+    let keyword_classifier = KeywordClassifier::new();
+    let keyword_category = keyword_classifier.classify_by_keywords(&error);
+
+    // Combine results: prefer MoE if confident, else use keyword classifier
+    let (category, confidence) = if moe_result.confidence > 0.5 {
+        (moe_result.category, moe_result.confidence)
+    } else {
+        (keyword_category, 0.7) // Keyword classifier has decent accuracy
+    };
+
+    if format == "json" {
+        let json_result = serde_json::json!({
+            "category": format!("{:?}", category),
+            "confidence": confidence,
+            "suggested_fix": moe_result.suggested_fix,
+            "expert_used": format!("{:?}", moe_result.expert_used),
+        });
+        println!("{}", serde_json::to_string_pretty(&json_result)?);
+    } else {
+        println!("📝 Error: {}", error);
+        println!();
+        println!("🏷️  Category: {:?}", category);
+        println!("📊 Confidence: {:.1}%", confidence * 100.0);
+        println!("🧠 Expert: {:?}", moe_result.expert_used);
+        println!();
+
+        if let Some(fix) = &moe_result.suggested_fix {
+            println!("💡 Suggested Fix:");
+            println!("   {}", fix);
+        }
+    }
+
+    Ok(())
+}
+
+/// Extract error code from a Rust compiler error message (e.g., "E0308" from "error[E0308]")
+fn extract_error_code(error: &str) -> Option<String> {
+    // Match patterns like "error[E0308]" or just "E0308"
+    let re = regex::Regex::new(r"E\d{4}").ok()?;
+    re.find(error).map(|m| m.as_str().to_string())
 }
 
 /// DEPYLER-0595: Result of CITL (Compiler-in-the-Loop) execution
