@@ -263,14 +263,229 @@ depyler oracle improve \
 | E0282 | 147 | Type annotations needed |
 | E0425 | 133 | Cannot find value |
 
-## 7. References
+## 7. CITL MLOps Pipeline (GH-156)
+
+### 7.1 Problem Statement
+
+Depyler generates Rust code that sometimes fails to compile. We need a closed-loop system to:
+1. **Collect** real compilation errors from transpilation attempts
+2. **Train** ML models on actual error patterns (not synthetic)
+3. **Fix** the transpiler to prevent future errors
+4. **Share** training data with OIP for cross-project learning
+
+### 7.2 Complete MLOps Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    CITL (Compiler-in-the-Loop) Pipeline                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐          │
+│  │  Python  │───▶│ Depyler  │───▶│   rustc  │───▶│  Errors  │          │
+│  │  Source  │    │Transpile │    │ Compile  │    │  Corpus  │          │
+│  └──────────┘    └──────────┘    └──────────┘    └────┬─────┘          │
+│                                                        │                │
+│                    ┌───────────────────────────────────┘                │
+│                    ▼                                                    │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                    depyler oracle improve                        │   │
+│  │  • Iterates until target compile rate (default: 100%)           │   │
+│  │  • Exports corpus to .depyler-improve/<timestamp>/              │   │
+│  │  • Tracks error category distribution                            │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                    │                                                    │
+│                    ▼                                                    │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                  depyler oracle export-oip                       │   │
+│  │  • Converts corpus to OIP format (Parquet/JSONL)                │   │
+│  │  • Maps E0xxx codes to OIP DefectCategory taxonomy              │   │
+│  │  • Applies Feldman (2020) long-tail reweighting                 │   │
+│  │  • Exports to alimentar-compatible Arrow batches                │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                    │                                                    │
+│                    ▼                                                    │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                   OIP (Organizational Intelligence)              │   │
+│  │  • Imports via import_depyler_corpus()                          │   │
+│  │  • Combines with other project training data                    │   │
+│  │  • Trains unified defect prediction model                       │   │
+│  │  • Exports back to depyler for autofixer training               │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 7.3 Pipeline Steps (Exact Commands)
+
+**Step 1: Generate Training Corpus**
+```bash
+# Run improve loop on Python codebase
+depyler oracle improve \
+  --input-dir ./python-project \
+  --target-rate 1.0 \
+  --max-iterations 50 \
+  --export-corpus ./.depyler-improve
+
+# Output: .depyler-improve/<timestamp>/corpus.jsonl
+```
+
+**Step 2: Export to OIP Format**
+```bash
+# Convert to Parquet with long-tail reweighting
+depyler oracle export-oip \
+  --input-dir ./.depyler-improve/latest \
+  --output ./training_data.parquet \
+  --format parquet \
+  --min-confidence 0.80 \
+  --include-clippy \
+  --reweight 1.5
+
+# Output: training_data.parquet (alimentar-compatible)
+```
+
+**Step 3: Import into OIP**
+```rust
+// In organization-intelligence-plugin
+use oip::citl::import_depyler_corpus;
+
+let examples = import_depyler_corpus("training_data.parquet")?;
+// Returns Vec<DepylerExport> with mapped categories
+```
+
+**Step 4: Train and Deploy**
+```bash
+# Train MoE oracle on combined corpus
+depyler oracle train --corpus ./data/unified_corpus.parquet
+
+# Test autofixer on new errors
+depyler oracle classify "error[E0308]: mismatched types"
+```
+
+### 7.4 Error Category Mapping
+
+| Rust Error | OIP DefectCategory | Confidence | Weight |
+|------------|-------------------|------------|--------|
+| E0308 | TypeErrors | 0.95 | 1.0 |
+| E0277 | TraitBounds | 0.95 | 1.5 |
+| E0502/E0503/E0505 | OwnershipBorrow | 0.95 | 1.5 |
+| E0106/E0621 | LifetimeErrors | 0.90 | 2.0 |
+| E0433/E0432 | ImportErrors | 0.90 | 1.0 |
+| E0599 | MethodNotFound | 0.85 | 1.2 |
+| E0425 | UndefinedVariable | 0.85 | 1.0 |
+| clippy::* | StyleViolations | 0.75 | 0.5 |
+
+**Feldman Reweighting**: Rare error categories (LifetimeErrors, TraitBounds) receive higher weights to prevent model bias toward common errors.
+
+### 7.5 Data Format Specifications
+
+**CITL Corpus (JSONL)**:
+```json
+{"file":"example.py","rust_file":"example.rs","error":"error[E0308]: mismatched types","error_code":"E0308","line":42,"suggestion":"expected `i32`, found `&str`"}
+```
+
+**OIP Export (Parquet Schema)**:
+```
+source_file: Utf8
+rust_file: Utf8
+error_code: Utf8 (nullable)
+clippy_lint: Utf8 (nullable)
+level: Utf8
+message: Utf8
+oip_category: Utf8
+confidence: Float64
+line_start: Int64
+line_end: Int64
+suggestion: Utf8 (nullable)
+python_construct: Utf8 (nullable)
+timestamp: Int64
+depyler_version: Utf8
+weight: Float32
+```
+
+## 8. Implementation Verification (GH-156, GH-157)
+
+### 8.1 Depyler Components ✅
+
+| Component | File | Status | Tests |
+|-----------|------|--------|-------|
+| OipTrainingExample | `compilation_trainer.rs:1400` | ✅ Done | 2 |
+| map_error_to_oip_category | `compilation_trainer.rs:1420` | ✅ Done | - |
+| OipExportFormat | `compilation_trainer.rs:1470` | ✅ Done | - |
+| export_oip_corpus | `compilation_trainer.rs:1480` | ✅ Done | 2 |
+| load_corpus_cache | `compilation_trainer.rs:1550` | ✅ Done | - |
+| ExportOip CLI | `lib.rs:OracleCommands` | ✅ Done | - |
+| data_store module | `data_store.rs` | ✅ Done | 2 |
+
+### 8.2 OIP Components ✅
+
+| Component | File | Status | Tests |
+|-----------|------|--------|-------|
+| DepylerExport struct | `citl/mod.rs` | ✅ Done | 1 |
+| import_depyler_corpus | `citl/mod.rs` | ✅ Done | 3 |
+| Category mapping | `citl/mod.rs` | ✅ Done | 1 |
+
+### 8.3 Sister Project Integration ✅
+
+| Project | Purpose | Status |
+|---------|---------|--------|
+| alimentar | Arrow/Parquet I/O | ✅ Synced |
+| aprender | ML models, book chapter | ✅ Synced |
+| depyler | CITL training, OIP export | ✅ Synced |
+| OIP | Cross-project corpus import | ✅ Synced |
+
+### 8.4 Test Results
+
+```
+# CITL Spec Tests
+cargo test --package depyler citl_spec
+running 20 tests ... ok
+
+# Data Store Tests
+cargo test --package depyler-oracle data_store
+running 2 tests ... ok
+
+# OIP Import Tests
+cargo test --lib depyler (in OIP)
+running 3 tests ... ok
+```
+
+## 9. How This Solves Our Problem
+
+### 9.1 Before CITL
+- Transpiler bugs discovered ad-hoc
+- No systematic error collection
+- Manual fix pattern identification
+- No cross-project learning
+
+### 9.2 After CITL
+1. **Automated Error Collection**: Every compilation failure captured
+2. **Categorized Corpus**: Errors mapped to actionable categories
+3. **ML-Powered Fixes**: Oracle suggests fixes based on patterns
+4. **Cross-Project Learning**: OIP combines depyler data with other tools
+5. **Continuous Improvement**: Feedback loop improves transpiler
+
+### 9.3 Expected Outcomes
+
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Error Classification | Manual | Automated | ∞ |
+| Fix Suggestion Rate | 0% | 30%+ | +30% |
+| Corpus Size | 99 synthetic | 1000+ real | 10x |
+| Category Coverage | 5/7 | 7/7 | 100% |
+| Cross-Project Data | None | Full OIP | New |
+
+## 10. References
 
 - Phase 1 Spec: `docs/specifications/metaheuristic-oracle-spec.md`
 - Phase 1 Review: `docs/reviews/metaheuristic-oracle-spec-review.md`
 - Storn & Price (1997): Differential Evolution
 - Bengio et al. (2009): Curriculum Learning
+- Feldman (2020): Does Learning Require Memorization? (Long-tail reweighting)
+- alimentar: Arrow-based dataset management
+- OIP: Organizational Intelligence Plugin architecture
 
 ---
 
 *Specification created: 2025-11-27*
 *Updated: 2025-11-27 - Added Oracle Improve Command (DEPYLER-0585)*
+*Updated: 2025-11-28 - Added CITL MLOps Pipeline, Implementation Verification (GH-156, GH-157)*
