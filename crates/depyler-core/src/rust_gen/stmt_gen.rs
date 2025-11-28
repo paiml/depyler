@@ -2696,6 +2696,23 @@ pub(crate) fn codegen_assign_stmt(
         }
     }
 
+    // DEPYLER-0598: String literal normalization for mutable variables
+    // When a mutable variable is first assigned a string literal (no type annotation),
+    // convert to .to_string() to avoid &str vs String type mismatch on reassignment
+    // Example: let mut result = "hello";  // &str
+    //          result = format!(...);     // String - TYPE MISMATCH!
+    // Solution: let mut result = "hello".to_string();
+    if let AssignTarget::Symbol(var_name) = target {
+        let is_first_assignment = !ctx.is_declared(var_name);
+        let is_mutable = ctx.mutable_vars.contains(var_name);
+        let no_type_annotation = type_annotation.is_none();
+        let is_string_literal = matches!(value, HirExpr::Literal(Literal::String(_)));
+
+        if is_first_assignment && is_mutable && no_type_annotation && is_string_literal {
+            value_expr = parse_quote! { #value_expr.to_string() };
+        }
+    }
+
     match target {
         AssignTarget::Symbol(symbol) => {
             codegen_assign_symbol(symbol, value_expr, type_annotation_tokens, is_final, ctx)
@@ -4357,11 +4374,16 @@ fn extract_accessed_subcommand_fields(
 
     // DEPYLER-0481: Filter out top-level args that don't belong to this subcommand
     // Only keep fields that are actual arguments of the subcommand
+    // DEPYLER-0605: Fix duplicate SubcommandInfo issue - prefer the one with arguments
+    // When preregister_subcommands_from_hir runs, it may create an empty SubcommandInfo
+    // with KEY = command_name. Later, assignment processing creates another with
+    // KEY = variable_name and the actual arguments. We need to find the one with args.
     let subcommand_arg_names: std::collections::HashSet<String> = ctx
         .argparser_tracker
         .subcommands
         .values()
-        .find(|sub| sub.name == cmd_name)
+        .filter(|sub| sub.name == cmd_name)
+        .max_by_key(|sub| sub.arguments.len())
         .map(|sub| {
             sub.arguments
                 .iter()
@@ -4672,20 +4694,66 @@ fn try_generate_subcommand_match(
             // This determines whether we use Pattern A ({ .. }) or Pattern B ({ field1, field2, ... })
             // DEPYLER-0480: Pass dest_field to dynamically filter based on actual dest parameter
             // DEPYLER-0481: Pass cmd_name and ctx to filter out top-level args
-            let accessed_fields =
+            let mut accessed_fields =
                 extract_accessed_subcommand_fields(body, "args", &dest_field, cmd_name, ctx);
+
+            // DEPYLER-0608: Detect if body calls a cmd_* handler
+            // If so, get ALL subcommand fields since the handler accesses them internally
+            // Pattern: the match arm body is `cmd_list(args)` which needs all `list` subcommand fields
+            let calls_cmd_handler = body.iter().any(|stmt| {
+                if let HirStmt::Expr(expr) = stmt {
+                    if let HirExpr::Call { func: func_name, args: call_args, .. } = expr {
+                        // func is Symbol (String), not Box<HirExpr>
+                        // Check if it's a cmd_* or handle_* function call with args parameter
+                        let is_handler = func_name.starts_with("cmd_") || func_name.starts_with("handle_");
+                        let has_args_param = call_args.iter().any(|a| matches!(a, HirExpr::Var(v) if v == "args"));
+                        return is_handler && has_args_param;
+                    }
+                }
+                false
+            });
+
+            if calls_cmd_handler && accessed_fields.is_empty() {
+                // Get ALL fields for this subcommand
+                if let Some(subcommand) = ctx
+                    .argparser_tracker
+                    .subcommands
+                    .values()
+                    .filter(|sc| sc.name == *cmd_name)
+                    .max_by_key(|sc| sc.arguments.len())
+                {
+                    for arg in &subcommand.arguments {
+                        let field_name = arg.long.as_ref()
+                            .map(|s| s.trim_start_matches('-').to_string())
+                            .unwrap_or_else(|| arg.name.clone());
+                        accessed_fields.push(field_name);
+                    }
+                }
+            }
+
+            // DEPYLER-0608: Set context flags for handler call transformation
+            // When in a subcommand match arm that calls a handler, expr_gen will
+            // transform cmd_X(args) → cmd_X(field1, field2, ...)
+            let was_in_match_arm = ctx.in_subcommand_match_arm;
+            let old_match_fields = std::mem::take(&mut ctx.subcommand_match_fields);
+            if calls_cmd_handler {
+                ctx.in_subcommand_match_arm = true;
+                ctx.subcommand_match_fields = accessed_fields.clone();
+            }
 
             // Generate body statements
             ctx.enter_scope();
 
             // DEPYLER-0577: Register field types in var_types before processing body
             // This allows type-aware codegen (e.g., float vs int comparisons)
+            // DEPYLER-0605: Use filter + max_by_key to find the SubcommandInfo with most arguments
             for field_name in &accessed_fields {
                 if let Some(subcommand) = ctx
                     .argparser_tracker
                     .subcommands
                     .values()
-                    .find(|sc| sc.name == *cmd_name)
+                    .filter(|sc| sc.name == *cmd_name)
+                    .max_by_key(|sc| sc.arguments.len())
                 {
                     if let Some(arg) = subcommand.arguments.iter().find(|a| {
                         let arg_name = a.long.as_ref()
@@ -4714,6 +4782,10 @@ fn try_generate_subcommand_match(
                 })
                 .collect();
             ctx.exit_scope();
+
+            // DEPYLER-0608: Restore context flags
+            ctx.in_subcommand_match_arm = was_in_match_arm;
+            ctx.subcommand_match_fields = old_match_fields;
 
             // DEPYLER-0456 Bug #3 FIX: Always use struct variant syntax `{}`
             // Clap generates struct variants (e.g., `Init {}`) not unit variants (e.g., `Init`)
@@ -4756,11 +4828,13 @@ fn try_generate_subcommand_match(
 
                         // Look up field type from subcommand arguments
                         // Check both arg_type and action (for store_true/store_false bool flags)
+                        // DEPYLER-0605: Use filter + max_by_key to find the SubcommandInfo with most arguments
                         let maybe_arg = ctx
                             .argparser_tracker
                             .subcommands
                             .values()
-                            .find(|sc| sc.name == *cmd_name)
+                            .filter(|sc| sc.name == *cmd_name)
+                            .max_by_key(|sc| sc.arguments.len())
                             .and_then(|sc| {
                                 sc.arguments.iter().find(|arg| {
                                     // Match by field name (from long flag or positional name)

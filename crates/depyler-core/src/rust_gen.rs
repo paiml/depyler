@@ -695,6 +695,9 @@ fn infer_lazy_constant_type(
 ///
 /// Used for literals and simple expressions that can be const-evaluated.
 /// Complexity: 4 (if-else with helper call)
+///
+/// DEPYLER-0599: Fixed string literal const type mismatch.
+/// String literals at module level should be `&str` without `.to_string()`.
 fn generate_simple_constant(
     constant: &HirConstant,
     name_ident: syn::Ident,
@@ -709,8 +712,18 @@ fn generate_simple_constant(
         infer_constant_type(&constant.value, ctx)
     };
 
+    // DEPYLER-0599: For string literals assigned to const, use raw literal (no .to_string())
+    // The string optimizer may have added .to_string() but for const &str we need the bare literal
+    let final_value_expr = if let HirExpr::Literal(Literal::String(s)) = &constant.value {
+        // Generate raw string literal for const &str
+        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+        syn::parse_quote! { #lit }
+    } else {
+        value_expr
+    };
+
     Ok(quote! {
-        pub const #name_ident #type_annotation = #value_expr;
+        pub const #name_ident #type_annotation = #final_value_expr;
     })
 }
 
@@ -942,6 +955,10 @@ pub fn generate_rust_file(
         precomputed_option_fields: HashSet::new(), // DEPYLER-0108: Track precomputed Option checks for argparse
         nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
         fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type (become &str in Rust)
+        in_cmd_handler: false, // DEPYLER-0608: Track if in cmd_* handler function
+        cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
+        in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
+        subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
     };
 
     // Analyze all functions first for string optimization
@@ -1163,6 +1180,10 @@ mod tests {
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             needs_digest: false,           // DEPYLER-0558: Track digest crate dependency
+            in_cmd_handler: false, // DEPYLER-0608: Track if in cmd_* handler function
+            cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
+            in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
+            subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields in match arm
         }
     }
 
