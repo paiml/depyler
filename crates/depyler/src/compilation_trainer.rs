@@ -790,7 +790,7 @@ impl CompilationTrainer {
                                 fs::create_dir_all(&project_dir).map_err(|e| format!("mkdir: {}", e))?;
                                 let rs_file = project_dir.join("lib.rs");
                                 fs::write(&rs_file, &rust_code).map_err(|e| format!("Write: {}", e))?;
-                                let cargo_toml = cargo_toml_gen::generate_cargo_toml(&file_stem, "lib.rs", &dependencies);
+                                let cargo_toml = cargo_toml_gen::generate_cargo_toml_lib(&file_stem, "lib.rs", &dependencies);
                                 fs::write(project_dir.join("Cargo.toml"), &cargo_toml)
                                     .map_err(|e| format!("Cargo.toml: {}", e))?;
                                 Ok(project_dir.clone())
