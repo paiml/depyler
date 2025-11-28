@@ -190,6 +190,22 @@ pub struct CodeGenContext<'a> {
     /// These become `&str` in Rust and should NOT have `&` added when used as dict keys
     /// Populated when generating function signatures
     pub fn_str_params: HashSet<String>,
+
+    /// DEPYLER-0608: Track if currently generating a cmd_* handler function
+    /// When true, expr_gen should transform args.X → X (field is now a direct parameter)
+    pub in_cmd_handler: bool,
+
+    /// DEPYLER-0608: Track which fields were extracted from args.X accesses
+    /// Used in cmd_* handlers to know which field names are now parameters
+    pub cmd_handler_args_fields: Vec<String>,
+
+    /// DEPYLER-0608: Track if in a subcommand match arm that calls a handler
+    /// When true and calling cmd_*/handle_* with args, pass extracted fields instead
+    pub in_subcommand_match_arm: bool,
+
+    /// DEPYLER-0608: Track extracted subcommand fields for match arm context
+    /// These fields are bound via `ref field` patterns in the match arm
+    pub subcommand_match_fields: Vec<String>,
 }
 
 impl<'a> CodeGenContext<'a> {
