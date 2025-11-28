@@ -2708,8 +2708,13 @@ pub(crate) fn codegen_return_type(
 
                 // Convert to syn type
                 if let Ok(ty) = rust_type_to_syn(&inferred_rust_type) {
-                    // Use inferred type instead of ()
-                    quote! { -> Result<#ty, #error_type> }
+                    // DEPYLER-0612: main() can only return () or Result<(), E>
+                    if func.name == "main" {
+                        quote! { -> Result<(), #error_type> }
+                    } else {
+                        // Use inferred type instead of ()
+                        quote! { -> Result<#ty, #error_type> }
+                    }
                 } else {
                     // Fallback to () if conversion fails
                     quote! { -> Result<(), #error_type> }
@@ -2800,7 +2805,14 @@ pub(crate) fn codegen_return_type(
         if can_fail {
             let error_type: syn::Type = syn::parse_str(&error_type_str)
                 .unwrap_or_else(|_| parse_quote! { Box<dyn std::error::Error> });
-            quote! { -> Result<#ty, #error_type> }
+
+            // DEPYLER-0612: main() can only return () or Result<(), E>
+            // Convert Result<i32, E> to Result<(), E> for main
+            if func.name == "main" {
+                quote! { -> Result<(), #error_type> }
+            } else {
+                quote! { -> Result<#ty, #error_type> }
+            }
         } else {
             quote! { -> #ty }
         }
