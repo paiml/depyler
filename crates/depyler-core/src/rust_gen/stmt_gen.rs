@@ -1701,6 +1701,30 @@ fn is_var_used_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
                     .as_ref()
                     .is_some_and(|m| is_var_used_in_expr(var_name, m))
         }
+        // DEPYLER-0593: Handle Try statements for variable usage detection
+        // Without this, loop variables used inside try/except are incorrectly marked unused
+        HirStmt::Try {
+            body,
+            handlers,
+            orelse,
+            finalbody,
+        } => {
+            body.iter().any(|s| is_var_used_in_stmt(var_name, s))
+                || handlers
+                    .iter()
+                    .any(|h| h.body.iter().any(|s| is_var_used_in_stmt(var_name, s)))
+                || orelse
+                    .as_ref()
+                    .is_some_and(|stmts| stmts.iter().any(|s| is_var_used_in_stmt(var_name, s)))
+                || finalbody
+                    .as_ref()
+                    .is_some_and(|stmts| stmts.iter().any(|s| is_var_used_in_stmt(var_name, s)))
+        }
+        // DEPYLER-0593: Handle With statements for variable usage detection
+        HirStmt::With { context, body, .. } => {
+            is_var_used_in_expr(var_name, context)
+                || body.iter().any(|s| is_var_used_in_stmt(var_name, s))
+        }
         _ => false,
     }
 }

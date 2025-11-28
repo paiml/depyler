@@ -327,7 +327,7 @@ fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> R
             .type_params
             .iter()
             .map(|param| {
-                let ident = make_ident(&param);
+                let ident = make_ident(param);
                 syn::GenericParam::Type(syn::TypeParam {
                     attrs: vec![],
                     ident,
@@ -1080,16 +1080,16 @@ fn convert_simple_type(rust_type: &RustType) -> Result<syn::Type> {
                     .unwrap_or_else(|_| panic!("Failed to parse type path: {}", name));
                 parse_quote! { #path }
             } else {
-                let ident = make_ident(&name);
+                let ident = make_ident(name);
                 parse_quote! { #ident }
             }
         }
         TypeParam(name) => {
-            let ident = make_ident(&name);
+            let ident = make_ident(name);
             parse_quote! { #ident }
         }
         Enum { name, .. } => {
-            let ident = make_ident(&name);
+            let ident = make_ident(name);
             parse_quote! { #ident }
         }
         _ => unreachable!("convert_simple_type called with non-simple type"),
@@ -1195,7 +1195,7 @@ fn convert_complex_type(rust_type: &RustType) -> Result<syn::Type> {
             parse_quote! { (#(#type_tokens),*) }
         }
         Generic { base, params } => {
-            let base_ident = make_ident(&base);
+            let base_ident = make_ident(base);
             let param_types: anyhow::Result<std::vec::Vec<_>> =
                 params.iter().map(rust_type_to_syn_type).collect();
             let param_types = param_types?;
@@ -1225,7 +1225,7 @@ fn convert_array_type(rust_type: &RustType) -> Result<syn::Type> {
                 parse_quote! { [#element; #size_lit] }
             }
             crate::type_mapper::RustConstGeneric::Parameter(name) => {
-                let param_ident = make_ident(&name);
+                let param_ident = make_ident(name);
                 parse_quote! { [#element; #param_ident] }
             }
             crate::type_mapper::RustConstGeneric::Expression(expr) => {
@@ -1385,7 +1385,7 @@ fn rust_type_to_syn(rust_type: &RustType) -> Result<syn::Type> {
                     parse_quote! { [#element; #size_lit] }
                 }
                 crate::type_mapper::RustConstGeneric::Parameter(name) => {
-                    let param_ident = make_ident(&name);
+                    let param_ident = make_ident(name);
                     parse_quote! { [#element; #param_ident] }
                 }
                 crate::type_mapper::RustConstGeneric::Expression(expr) => {
@@ -1419,7 +1419,7 @@ fn convert_body_with_context(
 ///
 /// Complexity: 1 (no branching)
 fn convert_symbol_assignment(symbol: &str, value_expr: syn::Expr) -> Result<syn::Stmt> {
-    let target_ident = make_ident(&symbol);
+    let target_ident = make_ident(symbol);
     let stmt = syn::Stmt::Local(syn::Local {
         attrs: vec![],
         let_token: Default::default(),
@@ -1486,7 +1486,7 @@ fn convert_attribute_assignment(
     type_mapper: &TypeMapper,
 ) -> Result<syn::Stmt> {
     let base_expr = convert_expr(base, type_mapper)?;
-    let attr_ident = make_ident(&attr);
+    let attr_ident = make_ident(attr);
 
     let assign_expr = parse_quote! {
         #base_expr.#attr_ident = #value_expr
@@ -1540,7 +1540,7 @@ fn convert_assign_stmt_with_expr(
                 Some(symbols) => {
                     let idents: Vec<_> = symbols
                         .iter()
-                        .map(|s| make_ident(&s))
+                        .map(|s| make_ident(s))
                         .collect();
                     let pat = syn::Pat::Tuple(syn::PatTuple {
                         attrs: vec![],
@@ -1641,7 +1641,7 @@ fn convert_stmt_with_context(
             // Generate target pattern based on AssignTarget type
             let target_pattern: syn::Pat = match target {
                 AssignTarget::Symbol(name) => {
-                    let ident = make_ident(&name);
+                    let ident = make_ident(name);
                     parse_quote! { #ident }
                 }
                 AssignTarget::Tuple(targets) => {
@@ -1649,7 +1649,7 @@ fn convert_stmt_with_context(
                         .iter()
                         .map(|t| match t {
                             AssignTarget::Symbol(s) => {
-                                make_ident(&s)
+                                make_ident(s)
                             }
                             _ => panic!("Nested tuple unpacking not supported in for loops"),
                         })
@@ -1718,7 +1718,7 @@ fn convert_stmt_with_context(
 
             // Generate a scope block with optional variable binding
             let block_expr = if let Some(var_name) = target {
-                let var_ident = make_ident(&var_name);
+                let var_ident = make_ident(var_name);
                 parse_quote! {
                     {
                         let mut #var_ident = #context_expr;
@@ -2314,7 +2314,7 @@ impl<'a> ExprConverter<'a> {
             .unwrap_or(false)
         {
             // Treat as constructor call - ClassName::new(args)
-            let class_ident = make_ident(&func);
+            let class_ident = make_ident(func);
             if args.is_empty() {
                 // Note: Constructor default parameter handling uses simple heuristics.
                 // Ideally this would be context-aware and know the actual default values
@@ -2329,7 +2329,7 @@ impl<'a> ExprConverter<'a> {
             }
         } else {
             // Regular function call
-            let func_ident = make_ident(&func);
+            let func_ident = make_ident(func);
             Ok(parse_quote! { #func_ident(#(#args),*) })
         }
     }
@@ -2561,7 +2561,7 @@ impl<'a> ExprConverter<'a> {
         // Handle classmethod cls.method() → Self::method()
         if let HirExpr::Var(var_name) = object {
             if var_name == "cls" && self.is_classmethod {
-                let method_ident = make_ident(&method);
+                let method_ident = make_ident(method);
                 let arg_exprs: Vec<syn::Expr> = args
                     .iter()
                     .map(|arg| self.convert(arg))
@@ -2579,8 +2579,8 @@ impl<'a> ExprConverter<'a> {
                 .unwrap_or(false)
             {
                 // This is likely a static method call - convert to ClassName::method(args)
-                let class_ident = make_ident(&class_name);
-                let method_ident = make_ident(&method);
+                let class_ident = make_ident(class_name);
+                let method_ident = make_ident(method);
                 let arg_exprs: Vec<syn::Expr> = args
                     .iter()
                     .map(|arg| self.convert(arg))
@@ -2806,7 +2806,7 @@ impl<'a> ExprConverter<'a> {
                     let method_ident = syn::Ident::new_raw(method, proc_macro2::Span::call_site());
                     return Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) });
                 }
-                let method_ident = make_ident(&method);
+                let method_ident = make_ident(method);
                 Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) })
             }
         }
@@ -2915,7 +2915,7 @@ impl<'a> ExprConverter<'a> {
         let param_pats: Vec<syn::Pat> = params
             .iter()
             .map(|p| {
-                let ident = make_ident(&p);
+                let ident = make_ident(p);
                 parse_quote! { #ident }
             })
             .collect();

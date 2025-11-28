@@ -343,7 +343,15 @@ fn collect_var_types_from_stmts(
                     );
                 }
             }
-            hir::HirStmt::While { body, .. } | hir::HirStmt::For { body, .. } => {
+            hir::HirStmt::While { body, .. } => {
+                collect_var_types_from_stmts(body, func_name, func_return_types, var_types);
+            }
+            hir::HirStmt::For { target, iter, body } => {
+                // DEPYLER-0587: Track loop variable types from iterator
+                if let Some(iter_type) = infer_expr_type_with_returns(iter, func_return_types) {
+                    let elem_type = extract_element_type(&iter_type);
+                    add_target_to_var_types(target, &elem_type, func_name, var_types);
+                }
                 collect_var_types_from_stmts(body, func_name, func_return_types, var_types);
             }
             hir::HirStmt::Try {
@@ -370,6 +378,49 @@ fn collect_var_types_from_stmts(
             }
             _ => {}
         }
+    }
+}
+
+/// DEPYLER-0587: Extract element type from iterator type (Vec<T> → T)
+fn extract_element_type(iter_type: &hir::Type) -> hir::Type {
+    match iter_type {
+        hir::Type::List(elem) => (**elem).clone(),
+        hir::Type::Dict(k, _) => (**k).clone(), // dict iteration yields keys
+        hir::Type::Tuple(elems) => {
+            // Tuple iteration - return first element type as approximation
+            elems.first().cloned().unwrap_or(hir::Type::Unknown)
+        }
+        hir::Type::String => hir::Type::String, // str iteration yields str (chars)
+        _ => hir::Type::Unknown,
+    }
+}
+
+/// DEPYLER-0587: Add target variable(s) to var_types map
+fn add_target_to_var_types(
+    target: &hir::AssignTarget,
+    elem_type: &hir::Type,
+    func_name: &str,
+    var_types: &mut std::collections::HashMap<(String, String), hir::Type>,
+) {
+    match target {
+        hir::AssignTarget::Symbol(var_name) => {
+            var_types.insert((func_name.to_string(), var_name.clone()), elem_type.clone());
+        }
+        hir::AssignTarget::Tuple(targets) => {
+            // Handle tuple unpacking: for (i, x) in enumerate(items)
+            // elem_type should be Tuple type for enumerate
+            if let hir::Type::Tuple(elem_types) = elem_type {
+                for (target, ty) in targets.iter().zip(elem_types.iter()) {
+                    add_target_to_var_types(target, ty, func_name, var_types);
+                }
+            } else {
+                // Fallback: all targets get Unknown type
+                for t in targets {
+                    add_target_to_var_types(t, &hir::Type::Unknown, func_name, var_types);
+                }
+            }
+        }
+        _ => {} // Index and Attribute targets not typical in for loops
     }
 }
 
