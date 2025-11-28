@@ -40,7 +40,7 @@ pub mod verificar_integration;
 pub use autofixer::{AutoFixer, FixContext, FixResult, TransformRule};
 pub use automl_tuning::{automl_full, automl_optimize, automl_quick, AutoMLConfig, AutoMLResult};
 pub use citl_fixer::{CITLFixer, CITLFixerConfig, IterativeFixResult};
-pub use estimator::{samples_to_features, OracleEstimator};
+pub use estimator::{message_to_features, samples_to_features, OracleEstimator};
 pub use params_persistence::{
     default_params_path, load_params, params_exist, save_params, OptimizedParams,
 };
@@ -341,18 +341,49 @@ impl Oracle {
         Ok(())
     }
 
-    /// Classify an error based on its features.
-    pub fn classify(&self, features: &ErrorFeatures) -> Result<ClassificationResult> {
-        let feature_matrix = features.to_matrix();
+    /// Classify an error based on its message.
+    ///
+    /// Uses the same feature extraction as training (73 features: error codes + keywords + handcrafted).
+    pub fn classify_message(&self, message: &str) -> Result<ClassificationResult> {
+        let feature_matrix = message_to_features(message);
         let predictions = self.classifier.predict(&feature_matrix);
 
+        self.build_classification_result(predictions)
+    }
+
+    /// Classify an error based on its features (legacy API).
+    ///
+    /// **Note**: This uses only 12 handcrafted features. For better accuracy with
+    /// models trained on the full 73-feature set, use `classify_message` instead.
+    #[deprecated(since = "3.22.0", note = "Use classify_message for better accuracy")]
+    pub fn classify(&self, features: &ErrorFeatures) -> Result<ClassificationResult> {
+        // Convert to full feature vector with zero padding for error codes and keywords
+        let error_features = features.to_vec();
+        let n_error_codes = estimator::feature_config::ERROR_CODES.len();
+        let n_keywords = estimator::feature_config::KEYWORDS.len();
+        let n_total = n_error_codes + n_keywords + ErrorFeatures::DIM;
+
+        let mut full_features = vec![0.0f32; n_total];
+        // Copy handcrafted features to the end
+        for (i, &val) in error_features.iter().enumerate() {
+            full_features[n_error_codes + n_keywords + i] = val;
+        }
+
+        let feature_matrix = aprender::primitives::Matrix::from_vec(1, n_total, full_features)
+            .expect("Feature matrix dimensions are correct");
+        let predictions = self.classifier.predict(&feature_matrix);
+
+        self.build_classification_result(predictions)
+    }
+
+    fn build_classification_result(&self, predictions: Vec<usize>) -> Result<ClassificationResult> {
         if predictions.is_empty() {
             return Err(OracleError::Classification(
                 "No prediction produced".to_string(),
             ));
         }
 
-        let pred_idx = predictions.as_slice()[0];
+        let pred_idx = predictions[0];
         let category = self
             .categories
             .get(pred_idx)

@@ -5,8 +5,9 @@ use depyler::{
     agent_stop_command, analyze_command, check_command, compile_command, debug_command,
     docs_cmd::handle_docs_command, inspect_command, interactive_command, lambda_analyze_command,
     lambda_build_command, lambda_convert_command, lambda_deploy_command, lambda_test_command,
-    lsp_command, oracle_export_oip_command, oracle_improve_command, oracle_optimize_command,
-    oracle_show_command, oracle_train_command, profile_cmd::handle_profile_command, quality_check_command,
+    lsp_command, oracle_classify_command, oracle_export_oip_command, oracle_improve_command,
+    oracle_optimize_command, oracle_show_command, oracle_train_command,
+    profile_cmd::handle_profile_command, quality_check_command,
     transpile_command, AgentCommands, Cli, Commands, LambdaCommands, OracleCommands,
 };
 use std::path::PathBuf;
@@ -140,6 +141,7 @@ fn handle_oracle_command(oracle_cmd: OracleCommands) -> Result<()> {
             include_clippy,
             reweight,
         ),
+        OracleCommands::Classify { error, format } => oracle_classify_command(error, format),
     }
 }
 

@@ -2,7 +2,7 @@
 //!
 //! Uses the 97% accurate oracle to classify errors and apply fixes.
 
-use crate::{ErrorCategory, ErrorFeatures, Oracle, OracleError};
+use crate::{ErrorCategory, Oracle, OracleError};
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -132,9 +132,8 @@ impl AutoFixer {
 
         // Parse each error from rustc output
         for error_block in Self::parse_errors(errors) {
-            // Classify with oracle
-            let features = ErrorFeatures::from_error_message(&error_block.message);
-            if let Ok(classification) = self.oracle.classify(&features) {
+            // Classify with oracle using full feature extraction
+            if let Ok(classification) = self.oracle.classify_message(&error_block.message) {
                 // Try to apply fixes for this category
                 if let Some(rules) = self.rules.get(&classification.category) {
                     for rule in rules {
