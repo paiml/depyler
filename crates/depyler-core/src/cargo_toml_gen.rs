@@ -450,6 +450,10 @@ mod tests {
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
             needs_digest: false, // DEPYLER-0575: Track digest crate dependency
+            in_cmd_handler: false, // DEPYLER-0608: Track if in cmd_* handler function
+            cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
+            in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
+            subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -561,6 +565,10 @@ mod tests {
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
             needs_digest: false, // DEPYLER-0575: Track digest crate dependency
+            in_cmd_handler: false, // DEPYLER-0608: Track if in cmd_* handler function
+            cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
+            in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
+            subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
         };
 
         let deps = extract_dependencies(&ctx);
@@ -669,6 +677,10 @@ mod tests {
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
             needs_digest: false, // DEPYLER-0575: Track digest crate dependency
+            in_cmd_handler: false, // DEPYLER-0608: Track if in cmd_* handler function
+            cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
+            in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
+            subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
         };
 
         let deps = extract_dependencies(&ctx);
@@ -781,6 +793,10 @@ mod tests {
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
             needs_digest: false, // DEPYLER-0575: Track digest crate dependency
+            in_cmd_handler: false, // DEPYLER-0608: Track if in cmd_* handler function
+            cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
+            in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
+            subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
         };
 
         let deps = extract_dependencies(&ctx);

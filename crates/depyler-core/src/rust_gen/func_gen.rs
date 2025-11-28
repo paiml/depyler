@@ -73,6 +73,198 @@ fn is_rust_keyword(name: &str) -> bool {
     )
 }
 
+/// DEPYLER-0608: Extract field names accessed via args.X pattern in a function body
+/// Used to generate individual parameters for cmd_* handler functions
+/// instead of taking &Args (which doesn't have subcommand fields)
+fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String> {
+    use std::collections::HashSet;
+    let mut fields: HashSet<String> = HashSet::new();
+
+    fn walk_expr(expr: &HirExpr, args_name: &str, fields: &mut HashSet<String>) {
+        match expr {
+            HirExpr::Attribute { value, attr } => {
+                // Check if this is args.X pattern
+                if let HirExpr::Var(name) = value.as_ref() {
+                    if name == args_name {
+                        fields.insert(attr.clone());
+                    }
+                }
+                walk_expr(value, args_name, fields);
+            }
+            HirExpr::Binary { left, right, .. } => {
+                walk_expr(left, args_name, fields);
+                walk_expr(right, args_name, fields);
+            }
+            HirExpr::Unary { operand, .. } => {
+                walk_expr(operand, args_name, fields);
+            }
+            HirExpr::Call { args: call_args, kwargs, .. } => {
+                // Note: func is Symbol, not Box<HirExpr>, so don't walk it
+                for arg in call_args {
+                    walk_expr(arg, args_name, fields);
+                }
+                for (_, kwarg_val) in kwargs {
+                    walk_expr(kwarg_val, args_name, fields);
+                }
+            }
+            HirExpr::MethodCall { object, args: method_args, kwargs, .. } => {
+                walk_expr(object, args_name, fields);
+                for arg in method_args {
+                    walk_expr(arg, args_name, fields);
+                }
+                for (_, kwarg_val) in kwargs {
+                    walk_expr(kwarg_val, args_name, fields);
+                }
+            }
+            HirExpr::List(elems) | HirExpr::Tuple(elems) | HirExpr::Set(elems) => {
+                for elem in elems {
+                    walk_expr(elem, args_name, fields);
+                }
+            }
+            HirExpr::Dict(items) => {
+                for (key, value) in items {
+                    walk_expr(key, args_name, fields);
+                    walk_expr(value, args_name, fields);
+                }
+            }
+            HirExpr::Index { base, index } => {
+                walk_expr(base, args_name, fields);
+                walk_expr(index, args_name, fields);
+            }
+            HirExpr::IfExpr { test, body, orelse } => {
+                walk_expr(test, args_name, fields);
+                walk_expr(body, args_name, fields);
+                walk_expr(orelse, args_name, fields);
+            }
+            HirExpr::FString { parts } => {
+                for part in parts {
+                    if let crate::hir::FStringPart::Expr(fstring_expr) = part {
+                        walk_expr(fstring_expr, args_name, fields);
+                    }
+                }
+            }
+            HirExpr::Slice { base, start, stop, step } => {
+                walk_expr(base, args_name, fields);
+                if let Some(s) = start {
+                    walk_expr(s, args_name, fields);
+                }
+                if let Some(s) = stop {
+                    walk_expr(s, args_name, fields);
+                }
+                if let Some(s) = step {
+                    walk_expr(s, args_name, fields);
+                }
+            }
+            HirExpr::ListComp { element, generators } | HirExpr::SetComp { element, generators } => {
+                walk_expr(element, args_name, fields);
+                for gen in generators {
+                    walk_expr(&gen.iter, args_name, fields);
+                    for cond in &gen.conditions {
+                        walk_expr(cond, args_name, fields);
+                    }
+                }
+            }
+            HirExpr::DictComp { key, value, generators } => {
+                walk_expr(key, args_name, fields);
+                walk_expr(value, args_name, fields);
+                for gen in generators {
+                    walk_expr(&gen.iter, args_name, fields);
+                    for cond in &gen.conditions {
+                        walk_expr(cond, args_name, fields);
+                    }
+                }
+            }
+            HirExpr::Lambda { body, .. } => {
+                walk_expr(body, args_name, fields);
+            }
+            HirExpr::Borrow { expr: borrow_expr, .. } => {
+                walk_expr(borrow_expr, args_name, fields);
+            }
+            HirExpr::Yield { value } => {
+                if let Some(v) = value {
+                    walk_expr(v, args_name, fields);
+                }
+            }
+            HirExpr::Await { value } => {
+                walk_expr(value, args_name, fields);
+            }
+            _ => {}
+        }
+    }
+
+    fn walk_stmt(stmt: &HirStmt, args_name: &str, fields: &mut HashSet<String>) {
+        match stmt {
+            HirStmt::Expr(expr) => walk_expr(expr, args_name, fields),
+            HirStmt::Assign { value, .. } => walk_expr(value, args_name, fields),
+            HirStmt::Return(Some(expr)) => walk_expr(expr, args_name, fields),
+            HirStmt::If { condition, then_body, else_body } => {
+                walk_expr(condition, args_name, fields);
+                for s in then_body {
+                    walk_stmt(s, args_name, fields);
+                }
+                if let Some(else_stmts) = else_body {
+                    for s in else_stmts {
+                        walk_stmt(s, args_name, fields);
+                    }
+                }
+            }
+            HirStmt::While { condition, body } => {
+                walk_expr(condition, args_name, fields);
+                for s in body {
+                    walk_stmt(s, args_name, fields);
+                }
+            }
+            HirStmt::For { iter, body, .. } => {
+                walk_expr(iter, args_name, fields);
+                for s in body {
+                    walk_stmt(s, args_name, fields);
+                }
+            }
+            HirStmt::With { context, body, .. } => {
+                walk_expr(context, args_name, fields);
+                for s in body {
+                    walk_stmt(s, args_name, fields);
+                }
+            }
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
+                for s in body {
+                    walk_stmt(s, args_name, fields);
+                }
+                for handler in handlers {
+                    for s in &handler.body {
+                        walk_stmt(s, args_name, fields);
+                    }
+                }
+                if let Some(else_stmts) = orelse {
+                    for s in else_stmts {
+                        walk_stmt(s, args_name, fields);
+                    }
+                }
+                if let Some(final_stmts) = finalbody {
+                    for s in final_stmts {
+                        walk_stmt(s, args_name, fields);
+                    }
+                }
+            }
+            HirStmt::FunctionDef { body, .. } => {
+                for s in body {
+                    walk_stmt(s, args_name, fields);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    for stmt in body {
+        walk_stmt(stmt, args_name, &mut fields);
+    }
+
+    // Sort for deterministic output
+    let mut result: Vec<String> = fields.into_iter().collect();
+    result.sort();
+    result
+}
+
 /// Check if a statement always returns or raises (never falls through)
 /// Used to determine if Ok(()) needs to be appended to Result-returning functions
 ///
@@ -313,6 +505,47 @@ pub(crate) fn codegen_function_params(
     lifetime_result: &crate::lifetime_analysis::LifetimeResult,
     ctx: &mut CodeGenContext,
 ) -> Result<Vec<proc_macro2::TokenStream>> {
+    // DEPYLER-0608: For cmd_* handler functions, replace the `args` parameter
+    // with individual field parameters based on args.X accesses in the body.
+    // This is because subcommand fields are on Commands::Variant, not on Args struct.
+    let is_cmd_handler = func.name.starts_with("cmd_") || func.name.starts_with("handle_");
+    let has_args_param = func.params.iter().any(|p| p.name == "args");
+
+    if is_cmd_handler && has_args_param {
+        // Extract which fields are accessed via args.X
+        let accessed_fields = extract_args_field_accesses(&func.body, "args");
+
+        // Mark that we're in a cmd handler so expr_gen knows to transform args.X → X
+        ctx.in_cmd_handler = true;
+        ctx.cmd_handler_args_fields = accessed_fields.clone();
+
+        let mut params = Vec::new();
+
+        // Process non-args params normally
+        for param in &func.params {
+            if param.name != "args" {
+                params.push(codegen_single_param(param, func, lifetime_result, ctx)?);
+            }
+        }
+
+        // Add individual field params for each accessed field
+        // Type them as &str by default (most common for argparse fields)
+        // For fields that look like lists (plural names), use &[String]
+        for field in &accessed_fields {
+            let field_ident = quote::format_ident!("{}", field);
+            let is_list_field = field.ends_with('s')
+                && !["status", "args", "class", "process"].contains(&field.as_str());
+            let param_tokens = if is_list_field {
+                quote::quote! { #field_ident: &[String] }
+            } else {
+                quote::quote! { #field_ident: &str }
+            };
+            params.push(param_tokens);
+        }
+
+        return Ok(params);
+    }
+
     func.params
         .iter()
         .map(|param| codegen_single_param(param, func, lifetime_result, ctx))
@@ -416,6 +649,22 @@ fn codegen_single_param(
         return Ok(ty);
     }
 
+    // DEPYLER-0607: Infer Args type for argparse command handler functions
+    // When a function takes "args" parameter with Unknown type and it's a command handler,
+    // the parameter should be &Args (reference to clap Args struct)
+    // Pattern: def cmd_list(args): args.archive → fn cmd_list(args: &Args)
+    // Heuristic: Function starts with "cmd_" or "handle_" and has "args" parameter
+    // This must run BEFORE lifetime inference check to override serde_json::Value fallback
+    let is_cmd_handler = func.name.starts_with("cmd_") || func.name.starts_with("handle_");
+    if param.name == "args" && is_cmd_handler && matches!(param.ty, Type::Unknown) {
+        let ty: syn::Type = syn::parse_quote! { &Args };
+        return Ok(if is_param_mutated {
+            quote! { mut #param_ident: #ty }
+        } else {
+            quote! { #param_ident: #ty }
+        });
+    }
+
     // Get the inferred parameter info
     if let Some(inferred) = lifetime_result.param_lifetimes.get(&param.name) {
         let rust_type = &inferred.rust_type;
@@ -464,10 +713,21 @@ fn codegen_single_param(
         // DEPYLER-0524: Check if we have an inferred type from body usage analysis
         // This allows inferring String for parameters used with .endswith(), etc.
         let effective_type = if matches!(param.ty, Type::Unknown) {
-            ctx.var_types
-                .get(&param.name)
-                .cloned()
-                .unwrap_or_else(|| param.ty.clone())
+            // DEPYLER-0607: Infer Args type for argparse command handler functions
+            // When a function takes "args" parameter with Unknown type and it's a command handler,
+            // the parameter should be &Args (reference to clap Args struct)
+            // Pattern: def cmd_list(args): args.archive → fn cmd_list(args: &Args)
+            // Heuristic: Function starts with "cmd_" and has "args" parameter
+            // This works even when argparse detection hasn't run yet (functions processed before main)
+            let is_cmd_handler = func.name.starts_with("cmd_") || func.name.starts_with("handle_");
+            if param.name == "args" && is_cmd_handler {
+                Type::Custom("Args".to_string())
+            } else {
+                ctx.var_types
+                    .get(&param.name)
+                    .cloned()
+                    .unwrap_or_else(|| param.ty.clone())
+            }
         } else {
             param.ty.clone()
         };
@@ -652,6 +912,7 @@ fn classify_string_method(method_name: &str) -> StringMethodReturnType {
 }
 
 /// Check if an expression contains a string method call that returns owned String
+/// DEPYLER-0598: Also detect string literals (which get .to_string() in codegen)
 fn contains_owned_string_method(expr: &HirExpr) -> bool {
     match expr {
         HirExpr::MethodCall { method, .. } => {
@@ -667,9 +928,13 @@ fn contains_owned_string_method(expr: &HirExpr) -> bool {
             // Check both branches of conditional
             contains_owned_string_method(body) || contains_owned_string_method(orelse)
         }
+        // DEPYLER-0598: String literals get .to_string() in codegen, so they're owned
+        HirExpr::Literal(crate::hir::Literal::String(_)) => true,
+        // F-strings generate format!() which returns owned String
+        HirExpr::FString { .. } => true,
         HirExpr::Call { .. }
         | HirExpr::Var(_)
-        | HirExpr::Literal(_)
+        | HirExpr::Literal(_) // Non-string literals
         | HirExpr::List(_)
         | HirExpr::Dict(_)
         | HirExpr::Tuple(_)
@@ -684,7 +949,6 @@ fn contains_owned_string_method(expr: &HirExpr) -> bool {
         | HirExpr::DictComp { .. }
         | HirExpr::Lambda { .. }
         | HirExpr::Await { .. }
-        | HirExpr::FString { .. }
         | HirExpr::Yield { .. }
         | HirExpr::SortByKey { .. }
         | HirExpr::GeneratorExp { .. } => false,
@@ -692,16 +956,58 @@ fn contains_owned_string_method(expr: &HirExpr) -> bool {
 }
 
 /// Check if the function's return expressions contain owned-returning string methods
+/// DEPYLER-0598: Now recursively checks nested blocks (if/while/for)
 fn function_returns_owned_string(func: &HirFunction) -> bool {
-    // Check all return statements in the function body
-    for stmt in &func.body {
-        if let HirStmt::Return(Some(expr)) = stmt {
-            if contains_owned_string_method(expr) {
-                return true;
-            }
+    // Recursively check all return statements in the function body
+    stmt_block_returns_owned_string(&func.body)
+}
+
+/// Helper to recursively check a block of statements for owned string returns
+fn stmt_block_returns_owned_string(stmts: &[HirStmt]) -> bool {
+    for stmt in stmts {
+        if stmt_returns_owned_string(stmt) {
+            return true;
         }
     }
     false
+}
+
+/// Check if a single statement returns an owned string (recursively checks nested blocks)
+fn stmt_returns_owned_string(stmt: &HirStmt) -> bool {
+    match stmt {
+        HirStmt::Return(Some(expr)) => contains_owned_string_method(expr),
+        HirStmt::If {
+            then_body,
+            else_body,
+            ..
+        } => {
+            stmt_block_returns_owned_string(then_body)
+                || else_body
+                    .as_ref()
+                    .is_some_and(|body| stmt_block_returns_owned_string(body))
+        }
+        HirStmt::While { body, .. } => stmt_block_returns_owned_string(body),
+        HirStmt::For { body, .. } => stmt_block_returns_owned_string(body),
+        HirStmt::With { body, .. } => stmt_block_returns_owned_string(body),
+        HirStmt::Try {
+            body,
+            handlers,
+            orelse,
+            finalbody,
+        } => {
+            stmt_block_returns_owned_string(body)
+                || handlers
+                    .iter()
+                    .any(|h| stmt_block_returns_owned_string(&h.body))
+                || orelse
+                    .as_ref()
+                    .is_some_and(|body| stmt_block_returns_owned_string(body))
+                || finalbody
+                    .as_ref()
+                    .is_some_and(|body| stmt_block_returns_owned_string(body))
+        }
+        _ => false,
+    }
 }
 
 // DEPYLER-0270: String Concatenation Detection
