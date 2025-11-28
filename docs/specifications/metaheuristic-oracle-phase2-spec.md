@@ -213,7 +213,57 @@ fn extract_fix_pattern(sample: &TrainingSample) -> Option<TransformRule> {
 | Autofixer | 5 | 2 | 1 |
 | E2E Pipeline | - | 3 | - |
 
-## 6. References
+## 6. Oracle Improve Command (DEPYLER-0585)
+
+Enterprise-grade continuous improvement loop for production codebases.
+
+### 6.1 Usage
+
+```bash
+depyler oracle improve \
+  --input-dir ./python-codebase \
+  --target-rate 1.0 \
+  --max-iterations 50 \
+  --export-corpus ./corpus \
+  --verbose
+```
+
+### 6.2 Training-Style Output
+
+```
+🧠 Training Loop Started
+──────────────────────────────────────────────────────────────────────
+ Epoch    Transpile      Compile         Rate            Δ     Status
+──────────────────────────────────────────────────────────────────────
+     1      155/212        64/212        30.2%          +64  ↑ improving
+     2      155/212        89/212        42.0%          +25  ↑ improving
+     3      155/212       112/212        52.8%          +23  ↑ improving
+     ...
+    47      155/212       212/212       100.0%           +1  ✓ DONE
+──────────────────────────────────────────────────────────────────────
+🎉 Target achieved: 100.0% compilation rate
+```
+
+### 6.3 Corpus Export Format
+
+```jsonl
+{"file":"example.py","error":"error[E0308]: mismatched types"}
+{"file":"example.py","error":"error[E0599]: no method named `foo`"}
+```
+
+### 6.4 Error Category Distribution (Real Data)
+
+| Error Code | Count | Description |
+|------------|-------|-------------|
+| E0308 | 434 | Mismatched types |
+| E0599 | 373 | Method not found |
+| E0433 | 327 | Unresolved module |
+| E0432 | 291 | Unresolved import |
+| E0277 | 232 | Trait not satisfied |
+| E0282 | 147 | Type annotations needed |
+| E0425 | 133 | Cannot find value |
+
+## 7. References
 
 - Phase 1 Spec: `docs/specifications/metaheuristic-oracle-spec.md`
 - Phase 1 Review: `docs/reviews/metaheuristic-oracle-spec-review.md`
@@ -223,3 +273,4 @@ fn extract_fix_pattern(sample: &TrainingSample) -> Option<TransformRule> {
 ---
 
 *Specification created: 2025-11-27*
+*Updated: 2025-11-27 - Added Oracle Improve Command (DEPYLER-0585)*
