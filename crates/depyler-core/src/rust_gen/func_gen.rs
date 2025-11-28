@@ -1220,7 +1220,9 @@ fn infer_expr_type_with_env(
                 | "hexdigest" | "digest" => Type::String,
                 // datetime methods that return other types
                 "timestamp" => Type::Float,
-                "date" | "time" => Type::Custom("NaiveDate".to_string()),
+                // DEPYLER-0592: Use fully qualified chrono types
+                "date" => Type::Custom("chrono::NaiveDate".to_string()),
+                "time" => Type::Custom("chrono::NaiveTime".to_string()),
                 _ => Type::Unknown,
             }
         }
@@ -2300,6 +2302,23 @@ pub(crate) fn codegen_return_type(
         }
     } else {
         "Box<dyn std::error::Error>".to_string()
+    };
+
+    // DEPYLER-0597: Map Python exception types to Rust error types
+    // This ensures function signatures like `-> Result<T, OSError>` compile
+    // Using Box<dyn std::error::Error> for most exceptions since it doesn't require external crates
+    error_type_str = match error_type_str.as_str() {
+        // File/IO related exceptions map to std::io::Error for idiomatic Rust
+        "OSError" | "IOError" | "FileNotFoundError" | "PermissionError" => {
+            "std::io::Error".to_string()
+        }
+        // General exceptions map to Box<dyn std::error::Error> (no external crate needed)
+        "Exception" | "BaseException" | "ValueError" | "TypeError" | "KeyError"
+        | "IndexError" | "RuntimeError" | "AttributeError" | "NotImplementedError"
+        | "AssertionError" | "StopIteration" | "ZeroDivisionError" | "OverflowError"
+        | "ArithmeticError" => "Box<dyn std::error::Error>".to_string(),
+        // Keep other types as-is (might be custom error types)
+        _ => error_type_str,
     };
 
     // DEPYLER-0447: Validators always use Box<dyn Error> for compatibility with clap
