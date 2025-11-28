@@ -191,6 +191,33 @@ impl TypeMapper {
                         "Any" | "typing.Any" | "any" => {
                             RustType::Custom("serde_json::Value".to_string())
                         }
+                        // DEPYLER-0592: Python datetime module types map to chrono types
+                        // This fixes E0412 errors where 'date', 'datetime', 'time' are unknown types
+                        "date" | "datetime.date" => {
+                            RustType::Custom("chrono::NaiveDate".to_string())
+                        }
+                        "datetime" | "datetime.datetime" => {
+                            RustType::Custom("chrono::NaiveDateTime".to_string())
+                        }
+                        "time" | "datetime.time" => {
+                            RustType::Custom("chrono::NaiveTime".to_string())
+                        }
+                        "timedelta" | "datetime.timedelta" => {
+                            RustType::Custom("chrono::Duration".to_string())
+                        }
+                        // DEPYLER-0597: Python exception types map to Rust error types
+                        // OSError maps to std::io::Error for file/system operations
+                        "OSError" | "IOError" | "FileNotFoundError" | "PermissionError" => {
+                            RustType::Custom("std::io::Error".to_string())
+                        }
+                        // General Python exceptions map to Box<dyn std::error::Error>
+                        // Using Box<dyn Error> since it doesn't require external crates
+                        "Exception" | "BaseException" | "ValueError" | "TypeError"
+                        | "KeyError" | "IndexError" | "RuntimeError" | "AttributeError"
+                        | "NotImplementedError" | "AssertionError" | "StopIteration"
+                        | "ZeroDivisionError" | "OverflowError" | "ArithmeticError" => {
+                            RustType::Custom("Box<dyn std::error::Error>".to_string())
+                        }
                         _ => RustType::Custom(name.clone()),
                     }
                 }
