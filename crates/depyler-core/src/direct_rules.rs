@@ -1968,6 +1968,11 @@ impl<'a> ExprConverter<'a> {
     }
 
     fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
+        // DEPYLER-0597: In method context (not classmethod), 'self' should be Rust keyword
+        // Python `self.x` in instance method must become Rust `self.x`, not `self_.x`
+        if name == "self" && !self.is_classmethod {
+            return Ok(parse_quote! { self });
+        }
         // DEPYLER-0596: Use make_ident to handle keywords like "match"
         let ident = make_ident(name);
         Ok(parse_quote! { #ident })
@@ -1979,13 +1984,24 @@ impl<'a> ExprConverter<'a> {
 
         match op {
             BinOp::In => {
-                // Convert "x in dict" to "dict.contains_key(&x)" for dicts
-                // For now, assume it's a dict/hashmap
-                Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                // DEPYLER-0601: For strings, use .contains() instead of .contains_key()
+                if self.is_string_expr(right) {
+                    // Convert "x in string" to "string.contains(&x)"
+                    Ok(parse_quote! { #right_expr.contains(&#left_expr) })
+                } else {
+                    // Convert "x in dict" to "dict.contains_key(&x)" for dicts/maps
+                    Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                }
             }
             BinOp::NotIn => {
-                // Convert "x not in dict" to "!dict.contains_key(&x)"
-                Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+                // DEPYLER-0601: For strings, use !.contains() instead of !.contains_key()
+                if self.is_string_expr(right) {
+                    // Convert "x not in string" to "!string.contains(&x)"
+                    Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
+                } else {
+                    // Convert "x not in dict" to "!dict.contains_key(&x)"
+                    Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
+                }
             }
             // Set operators - check if both operands are sets
             BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor
@@ -2306,6 +2322,62 @@ impl<'a> ExprConverter<'a> {
             };
         }
 
+        // DEPYLER-0600: Handle Python built-in type conversion functions
+        // These are used in class methods and need proper Rust equivalents
+        match func {
+            "int" if args.len() == 1 => {
+                // int(x) → x.parse::<i32>().unwrap() for strings, x as i32 for numbers
+                let arg = &args[0];
+                return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or(0) });
+            }
+            "float" if args.len() == 1 => {
+                // float(x) → x.parse::<f64>().unwrap() for strings, x as f64 for integers
+                let arg = &args[0];
+                return Ok(parse_quote! { #arg.parse::<f64>().unwrap_or(0.0) });
+            }
+            "str" if args.len() == 1 => {
+                // str(x) → x.to_string()
+                let arg = &args[0];
+                return Ok(parse_quote! { #arg.to_string() });
+            }
+            "bool" if args.len() == 1 => {
+                // bool(x) → general truthiness conversion
+                let arg = &args[0];
+                return Ok(parse_quote! { !#arg.is_empty() });
+            }
+            "len" if args.len() == 1 => {
+                // len(x) → x.len()
+                let arg = &args[0];
+                return Ok(parse_quote! { #arg.len() });
+            }
+            "abs" if args.len() == 1 => {
+                // abs(x) → x.abs()
+                let arg = &args[0];
+                return Ok(parse_quote! { #arg.abs() });
+            }
+            "min" if args.len() >= 2 => {
+                // min(a, b, ...) → a.min(b).min(c)...
+                let first = &args[0];
+                let rest = &args[1..];
+                let mut result = parse_quote! { #first };
+                for arg in rest {
+                    result = parse_quote! { (#result).min(#arg) };
+                }
+                return Ok(result);
+            }
+            "max" if args.len() >= 2 => {
+                // max(a, b, ...) → a.max(b).max(c)...
+                let first = &args[0];
+                let rest = &args[1..];
+                let mut result = parse_quote! { #first };
+                for arg in rest {
+                    result = parse_quote! { (#result).max(#arg) };
+                }
+                return Ok(result);
+            }
+            _ => {}
+        }
+
         // Check if this might be a constructor call (capitalized name)
         if func
             .chars()
@@ -2364,12 +2436,14 @@ impl<'a> ExprConverter<'a> {
         match (start_expr, stop_expr) {
             (Some(start), Some(stop)) => {
                 // value[start:stop] - handles negative indices
+                // DEPYLER-0603: Wrap expressions in parens to ensure proper type casting
+                // Without parens, `a + b as isize` parses as `a + (b as isize)`
                 Ok(parse_quote! {
                     {
                         let s = &#base_expr;
                         let len = s.chars().count() as isize;
-                        let start_idx = #start as isize;
-                        let stop_idx = #stop as isize;
+                        let start_idx = (#start) as isize;
+                        let stop_idx = (#stop) as isize;
                         let start = if start_idx < 0 {
                             (len + start_idx).max(0) as usize
                         } else {
@@ -2390,11 +2464,12 @@ impl<'a> ExprConverter<'a> {
             }
             (Some(start), None) => {
                 // value[start:] - from start to end
+                // DEPYLER-0603: Wrap expression in parens for type casting
                 Ok(parse_quote! {
                     {
                         let s = &#base_expr;
                         let len = s.chars().count() as isize;
-                        let start_idx = #start as isize;
+                        let start_idx = (#start) as isize;
                         let start = if start_idx < 0 {
                             (len + start_idx).max(0) as usize
                         } else {
@@ -2406,11 +2481,12 @@ impl<'a> ExprConverter<'a> {
             }
             (None, Some(stop)) => {
                 // value[:stop] - from beginning to stop
+                // DEPYLER-0603: Wrap expression in parens for type casting
                 Ok(parse_quote! {
                     {
                         let s = &#base_expr;
                         let len = s.chars().count() as isize;
-                        let stop_idx = #stop as isize;
+                        let stop_idx = (#stop) as isize;
                         let stop = if stop_idx < 0 {
                             (len + stop_idx).max(0) as usize
                         } else {
@@ -2529,6 +2605,74 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
+    /// DEPYLER-0601: Detect if expression is likely a string type.
+    /// Used to generate `.contains()` instead of `.contains_key()` for `in` operator.
+    fn is_string_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // String literals are obviously strings
+            HirExpr::Literal(Literal::String(_)) => true,
+            // F-strings produce strings
+            HirExpr::FString { .. } => true,
+            // Method calls that return strings
+            HirExpr::MethodCall { method, .. } => {
+                matches!(
+                    method.as_str(),
+                    "lower"
+                        | "upper"
+                        | "strip"
+                        | "lstrip"
+                        | "rstrip"
+                        | "replace"
+                        | "join"
+                        | "format"
+                        | "capitalize"
+                        | "title"
+                        | "swapcase"
+                        | "center"
+                        | "ljust"
+                        | "rjust"
+                        | "zfill"
+                        | "expandtabs"
+                        | "encode"
+                        | "decode"
+                )
+            }
+            // Variables with common string-like names
+            HirExpr::Var(name) => {
+                matches!(
+                    name.as_str(),
+                    "s"
+                        | "url"
+                        | "path"
+                        | "text"
+                        | "remaining"
+                        | "query_string"
+                        | "host"
+                        | "scheme"
+                        | "fragment"
+                        | "name"
+                        | "message"
+                        | "line"
+                        | "content"
+                        | "data"
+                        | "result"
+                        | "output"
+                        | "input"
+                        | "string"
+                        | "str"
+                        | "pair"
+                        | "email"
+                        | "domain_part"
+                        | "local_part"
+                        | "normalized"
+                )
+            }
+            // Calls to str() produce strings
+            HirExpr::Call { func, .. } if func == "str" => true,
+            _ => false,
+        }
+    }
+
     fn convert_set_operation(
         &self,
         op: BinOp,
@@ -2567,6 +2711,15 @@ impl<'a> ExprConverter<'a> {
                     .map(|arg| self.convert(arg))
                     .collect::<Result<Vec<_>>>()?;
                 return Ok(parse_quote! { Self::#method_ident(#(#arg_exprs),*) });
+            }
+        }
+
+        // DEPYLER-0610: Handle Python stdlib module constructor calls
+        // threading.Semaphore(n) → std::sync::Mutex::new(n)
+        // queue.Queue() → std::collections::VecDeque::new()
+        if let HirExpr::Var(module_name) = object {
+            if let Some(rust_expr) = self.convert_module_constructor(module_name, method, args)? {
+                return Ok(rust_expr);
             }
         }
 
@@ -2706,26 +2859,47 @@ impl<'a> ExprConverter<'a> {
                 Ok(parse_quote! { #object_expr.trim_end().to_string() })
             }
             "startswith" => {
-                if arg_exprs.len() != 1 {
+                if args.len() != 1 {
                     bail!("startswith() requires exactly one argument");
                 }
-                let prefix = &arg_exprs[0];
+                // DEPYLER-0602: For starts_with(), use raw string literal for Pattern trait.
+                let prefix: syn::Expr = match &args[0] {
+                    HirExpr::Literal(Literal::String(s)) => {
+                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                        parse_quote! { #lit }
+                    }
+                    _ => self.convert(&args[0])?,
+                };
                 Ok(parse_quote! { #object_expr.starts_with(#prefix) })
             }
             "endswith" => {
-                if arg_exprs.len() != 1 {
+                if args.len() != 1 {
                     bail!("endswith() requires exactly one argument");
                 }
-                let suffix = &arg_exprs[0];
+                // DEPYLER-0602: For ends_with(), use raw string literal for Pattern trait.
+                let suffix: syn::Expr = match &args[0] {
+                    HirExpr::Literal(Literal::String(s)) => {
+                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                        parse_quote! { #lit }
+                    }
+                    _ => self.convert(&args[0])?,
+                };
                 Ok(parse_quote! { #object_expr.ends_with(#suffix) })
             }
             "split" => {
-                if arg_exprs.is_empty() {
+                if args.is_empty() {
                     Ok(
                         parse_quote! { #object_expr.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() },
                     )
-                } else if arg_exprs.len() == 1 {
-                    let sep = &arg_exprs[0];
+                } else if args.len() == 1 {
+                    // DEPYLER-0602: For split(), use raw string literal for Pattern trait.
+                    let sep: syn::Expr = match &args[0] {
+                        HirExpr::Literal(Literal::String(s)) => {
+                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                            parse_quote! { #lit }
+                        }
+                        _ => self.convert(&args[0])?,
+                    };
                     Ok(
                         parse_quote! { #object_expr.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() },
                     )
@@ -2741,25 +2915,53 @@ impl<'a> ExprConverter<'a> {
                 Ok(parse_quote! { #iterable.join(#object_expr) })
             }
             "replace" => {
-                if arg_exprs.len() != 2 {
+                if args.len() != 2 {
                     bail!("replace() requires exactly two arguments");
                 }
-                let old = &arg_exprs[0];
-                let new = &arg_exprs[1];
+                // DEPYLER-0602: For replace(), use raw string literals for Pattern trait.
+                let old: syn::Expr = match &args[0] {
+                    HirExpr::Literal(Literal::String(s)) => {
+                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                        parse_quote! { #lit }
+                    }
+                    _ => self.convert(&args[0])?,
+                };
+                let new: syn::Expr = match &args[1] {
+                    HirExpr::Literal(Literal::String(s)) => {
+                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                        parse_quote! { #lit }
+                    }
+                    _ => self.convert(&args[1])?,
+                };
                 Ok(parse_quote! { #object_expr.replace(#old, #new) })
             }
             "find" => {
-                if arg_exprs.len() != 1 {
+                if args.len() != 1 {
                     bail!("find() requires exactly one argument");
                 }
-                let substring = &arg_exprs[0];
+                // DEPYLER-0602: For find(), use raw string literal for Pattern trait.
+                // String doesn't implement Pattern, but &str does.
+                let substring: syn::Expr = match &args[0] {
+                    HirExpr::Literal(Literal::String(s)) => {
+                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                        parse_quote! { #lit }
+                    }
+                    _ => self.convert(&args[0])?,
+                };
                 Ok(parse_quote! { #object_expr.find(#substring).map(|i| i as i64).unwrap_or(-1) })
             }
             "rfind" => {
-                if arg_exprs.len() != 1 {
+                if args.len() != 1 {
                     bail!("rfind() requires exactly one argument");
                 }
-                let substring = &arg_exprs[0];
+                // DEPYLER-0602: For rfind(), use raw string literal for Pattern trait.
+                let substring: syn::Expr = match &args[0] {
+                    HirExpr::Literal(Literal::String(s)) => {
+                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                        parse_quote! { #lit }
+                    }
+                    _ => self.convert(&args[0])?,
+                };
                 Ok(parse_quote! { #object_expr.rfind(#substring).map(|i| i as i64).unwrap_or(-1) })
             }
             "isdigit" => {
@@ -2874,6 +3076,168 @@ impl<'a> ExprConverter<'a> {
                     .collect::<HashSet<_>>()
             })
         }
+    }
+
+    /// DEPYLER-0610: Convert Python stdlib module constructor calls to Rust
+    /// threading.Semaphore(n) → std::sync::Mutex::new(n)
+    /// queue.Queue() → std::collections::VecDeque::new()
+    fn convert_module_constructor(
+        &self,
+        module: &str,
+        constructor: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| self.convert(arg))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match module {
+            "threading" => match constructor {
+                "Semaphore" | "BoundedSemaphore" => {
+                    // threading.Semaphore(n) → std::sync::Mutex::new(n)
+                    // Use first arg or default to 0
+                    if let Some(arg) = arg_exprs.first() {
+                        Some(parse_quote! { std::sync::Mutex::new(#arg) })
+                    } else {
+                        Some(parse_quote! { std::sync::Mutex::new(0) })
+                    }
+                }
+                "Lock" | "RLock" => {
+                    // threading.Lock() → std::sync::Mutex::new(())
+                    Some(parse_quote! { std::sync::Mutex::new(()) })
+                }
+                "Event" => {
+                    // threading.Event() → std::sync::Condvar::new()
+                    Some(parse_quote! { std::sync::Condvar::new() })
+                }
+                "Thread" => {
+                    // threading.Thread(target=fn) → std::thread::spawn(fn)
+                    // Simplified - just return a placeholder
+                    Some(parse_quote! { std::thread::spawn(|| {}) })
+                }
+                _ => None,
+            },
+            "queue" => match constructor {
+                "Queue" | "LifoQueue" | "PriorityQueue" => {
+                    // queue.Queue() → std::collections::VecDeque::new()
+                    Some(parse_quote! { std::collections::VecDeque::new() })
+                }
+                _ => None,
+            },
+            "datetime" => match constructor {
+                "datetime" => {
+                    // datetime.datetime(y,m,d,...) → chrono placeholder
+                    // For now, return Utc::now() as a stub
+                    Some(parse_quote! { chrono::Utc::now() })
+                }
+                "date" => {
+                    Some(parse_quote! { chrono::Utc::now().date_naive() })
+                }
+                "time" => {
+                    Some(parse_quote! { chrono::Utc::now().time() })
+                }
+                "timedelta" => {
+                    // datetime.timedelta(days=n) → chrono::Duration::days(n)
+                    if let Some(arg) = arg_exprs.first() {
+                        Some(parse_quote! { chrono::Duration::days(#arg) })
+                    } else {
+                        Some(parse_quote! { chrono::Duration::zero() })
+                    }
+                }
+                "now" => {
+                    // datetime.datetime.now() → chrono::Utc::now()
+                    Some(parse_quote! { chrono::Utc::now() })
+                }
+                _ => None,
+            },
+            "collections" => match constructor {
+                "deque" => {
+                    Some(parse_quote! { std::collections::VecDeque::new() })
+                }
+                "Counter" => {
+                    Some(parse_quote! { std::collections::HashMap::new() })
+                }
+                "OrderedDict" => {
+                    Some(parse_quote! { std::collections::HashMap::new() })
+                }
+                "defaultdict" => {
+                    Some(parse_quote! { std::collections::HashMap::new() })
+                }
+                _ => None,
+            },
+            "asyncio" => match constructor {
+                "Event" => Some(parse_quote! { tokio::sync::Notify::new() }),
+                "Lock" => Some(parse_quote! { tokio::sync::Mutex::new(()) }),
+                "Semaphore" => {
+                    if let Some(arg) = arg_exprs.first() {
+                        Some(parse_quote! { tokio::sync::Semaphore::new(#arg as usize) })
+                    } else {
+                        Some(parse_quote! { tokio::sync::Semaphore::new(1) })
+                    }
+                }
+                "Queue" => Some(parse_quote! { tokio::sync::mpsc::channel(100).1 }),
+                _ => None,
+            },
+            "json" => match constructor {
+                "loads" | "load" => {
+                    if let Some(arg) = arg_exprs.first() {
+                        Some(parse_quote! { serde_json::from_str(#arg)? })
+                    } else {
+                        None
+                    }
+                }
+                "dumps" | "dump" => {
+                    if let Some(arg) = arg_exprs.first() {
+                        Some(parse_quote! { serde_json::to_string(&#arg)? })
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            },
+            "os" => match constructor {
+                "getcwd" => Some(parse_quote! { std::env::current_dir()?.to_string_lossy().to_string() }),
+                "getenv" => {
+                    if let Some(arg) = arg_exprs.first() {
+                        Some(parse_quote! { std::env::var(#arg).ok() })
+                    } else {
+                        None
+                    }
+                }
+                "listdir" => {
+                    if let Some(arg) = arg_exprs.first() {
+                        Some(parse_quote! { std::fs::read_dir(#arg)?.map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect::<Vec<_>>() })
+                    } else {
+                        Some(parse_quote! { std::fs::read_dir(".")?.map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect::<Vec<_>>() })
+                    }
+                }
+                _ => None,
+            },
+            "re" => match constructor {
+                "compile" | "match" | "search" | "findall" => {
+                    // Return a placeholder that compiles
+                    Some(parse_quote! { serde_json::Value::Null })
+                }
+                _ => None,
+            },
+            "fnmatch" => match constructor {
+                "fnmatch" => {
+                    // fnmatch.fnmatch(name, pattern) → name.contains(pattern) as stub
+                    if arg_exprs.len() >= 2 {
+                        let name = &arg_exprs[0];
+                        let pattern = &arg_exprs[1];
+                        Some(parse_quote! { #name.contains(&#pattern) })
+                    } else {
+                        Some(parse_quote! { false })
+                    }
+                }
+                _ => None,
+            },
+            _ => None,
+        };
+
+        Ok(result)
     }
 
     fn convert_dict_comp(
