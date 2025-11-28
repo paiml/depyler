@@ -110,13 +110,13 @@ pub fn format_statistics(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let avg = calculate_average(attempts, rounds)?;
     let mut result = "Game Statistics:\n";
-    let _cse_temp_0 = score.to_string();
+    let _cse_temp_0 = (score).to_string();
     let _cse_temp_1 = format!("{}{}", format!("{}{}", result, "Score: "), _cse_temp_0);
     result = format!("{}{}", _cse_temp_1, "\n");
-    let _cse_temp_2 = attempts.to_string();
+    let _cse_temp_2 = (attempts).to_string();
     let _cse_temp_3 = format!("{}{}", format!("{}{}", result, "Attempts: "), _cse_temp_2);
     result = format!("{}{}", _cse_temp_3, "\n");
-    let _cse_temp_4 = avg.to_string();
+    let _cse_temp_4 = (avg).to_string();
     let _cse_temp_5 = format!("{}{}", format!("{}{}", result, "Average: "), _cse_temp_4);
     result = format!("{}{}", _cse_temp_5, "\n");
     Ok(result.to_string())
