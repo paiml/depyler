@@ -1698,7 +1698,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("filter() lambda must have exactly one parameter");
                 }
                 let iterable_expr = args[1].to_rust_expr(self.ctx)?;
-                let param_ident = syn::Ident::new(&params[0], proc_macro2::Span::call_site());
+                // DEPYLER-0597: Use safe_ident to escape Rust keywords in lambda parameters
+                let param_ident = crate::rust_gen::keywords::safe_ident(&params[0]);
                 let body_expr = body.to_rust_expr(self.ctx)?;
 
                 return Ok(parse_quote! {
@@ -1986,10 +1987,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 iterable_exprs.push(iterable.to_rust_expr(self.ctx)?);
             }
 
-            // Create lambda parameter pattern
+            // DEPYLER-0597: Use safe_ident to escape Rust keywords in lambda parameters
             let param_idents: Vec<syn::Ident> = params
                 .iter()
-                .map(|p| syn::Ident::new(p, proc_macro2::Span::call_site()))
+                .map(|p| crate::rust_gen::keywords::safe_ident(p))
                 .collect();
 
             // Convert lambda body
@@ -2233,7 +2234,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             if params.len() != 1 {
                 bail!("filter() lambda must have exactly 1 parameter");
             }
-            let param_ident = syn::Ident::new(&params[0], proc_macro2::Span::call_site());
+            // DEPYLER-0597: Use safe_ident to escape Rust keywords in lambda parameters
+            let param_ident = crate::rust_gen::keywords::safe_ident(&params[0]);
             let body_expr = body.to_rust_expr(self.ctx)?;
             let iterable = &args[1];
             Ok(parse_quote! {
@@ -8641,8 +8643,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // datetime.datetime.now() → Local::now().naive_local()
             // datetime.datetime.utcnow() → Utc::now().naive_utc()
             // datetime.date.today() → Local::now().date_naive()
-            if module_name == "datetime" {
+            // DEPYLER-0594: Also handle "date" and "time" when imported directly
+            // (from datetime import date; date.today())
+            if module_name == "datetime" || module_name == "date" || module_name == "time" {
                 return self.try_convert_datetime_method(method, args);
+            }
+
+            // DEPYLER-0595: Handle bytes class methods
+            // bytes.fromhex("aabbcc") → hex string to byte array
+            if module_name == "bytes" && method == "fromhex" && args.len() == 1 {
+                let hex_str = args[0].to_rust_expr(self.ctx)?;
+                // Convert hex string to Vec<u8> using inline parsing
+                return Ok(Some(parse_quote! {
+                    (#hex_str).as_bytes()
+                        .chunks(2)
+                        .map(|c| u8::from_str_radix(std::str::from_utf8(c).unwrap(), 16).unwrap())
+                        .collect::<Vec<u8>>()
+                }));
             }
 
             // DEPYLER-STDLIB-DECIMAL: Handle decimal module functions
@@ -9530,8 +9547,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             "join" => {
-                // DEPYLER-0196: sep.join(iterable) → iterable.collect::<Vec<_>>().join(sep)
+                // DEPYLER-0196: sep.join(iterable) → iterable.join(sep) or iterable.collect::<Vec<_>>().join(sep)
                 // DEPYLER-0575: Generator expressions yield iterators, need collect() before join()
+                // DEPYLER-0597: Only use collect() for iterators, not for Vec/slice types
                 if hir_args.len() != 1 {
                     bail!("join() requires exactly one argument");
                 }
@@ -9541,7 +9559,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
                     _ => object_expr.clone(),
                 };
-                Ok(parse_quote! { #iterable.collect::<Vec<_>>().join(#separator) })
+                // Check if the iterable is already a collection (Var, List, etc.) vs an iterator
+                // DEPYLER-0597: Vecs don't have .collect(), only iterators do
+                let needs_collect = match &hir_args[0] {
+                    HirExpr::GeneratorExp { .. } => true,
+                    HirExpr::Call { func, .. } if func == "map" || func == "filter" || func == "iter" || func == "enumerate" => true,
+                    _ => false,
+                };
+                if needs_collect {
+                    Ok(parse_quote! { #iterable.collect::<Vec<_>>().join(#separator) })
+                } else {
+                    Ok(parse_quote! { #iterable.join(#separator) })
+                }
             }
             "replace" => {
                 // DEPYLER-0195: str.replace(old, new) → .replace(old, new)
@@ -13441,11 +13470,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_lambda(&mut self, params: &[String], body: &HirExpr) -> Result<syn::Expr> {
-        // Convert parameters to pattern identifiers
+        // DEPYLER-0597: Use safe_ident to escape Rust keywords in lambda parameters
+        // Parameters named 'fn', 'match', 'type', etc. need to use raw identifier syntax
         let param_pats: Vec<syn::Pat> = params
             .iter()
             .map(|p| {
-                let ident = syn::Ident::new(p, proc_macro2::Span::call_site());
+                let ident = crate::rust_gen::keywords::safe_ident(p);
                 parse_quote! { #ident }
             })
             .collect();
@@ -13893,9 +13923,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Non-identity key function: use sort_by_key
         let body_expr = key_body.to_rust_expr(self.ctx)?;
 
-        // Create the closure parameter pattern
+        // DEPYLER-0597: Use safe_ident to escape Rust keywords in sorted key lambda parameters
         let param_pat: syn::Pat = if key_params.len() == 1 {
-            let param = syn::Ident::new(&key_params[0], proc_macro2::Span::call_site());
+            let param = crate::rust_gen::keywords::safe_ident(&key_params[0]);
             parse_quote! { #param }
         } else {
             bail!("sorted() key lambda must have exactly one parameter");
