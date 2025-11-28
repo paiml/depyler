@@ -437,10 +437,21 @@ pub fn convert_class_to_struct(
 
     // Generate struct fields (only instance fields)
     let mut fields = Vec::new();
+    let mut has_non_clone_field = false;
+
     for field in instance_fields {
         let field_name = syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
         let rust_type = type_mapper.map_type(&field.field_type);
         let field_type = rust_type_to_syn_type(&rust_type)?;
+
+        // DEPYLER-0611: Check if field type contains non-Clone types
+        let type_str = quote::quote!(#field_type).to_string();
+        if type_str.contains("Mutex") || type_str.contains("RefCell")
+            || type_str.contains("Condvar") || type_str.contains("RwLock")
+            || type_str.contains("mpsc::") || type_str.contains("Receiver")
+            || type_str.contains("Sender") || type_str.contains("JoinHandle") {
+            has_non_clone_field = true;
+        }
 
         fields.push(syn::Field {
             attrs: vec![],
@@ -452,9 +463,12 @@ pub fn convert_class_to_struct(
         });
     }
 
-    // Create the struct
+    // Create the struct - skip Clone derive for non-Clone field types
     let struct_item = syn::Item::Struct(syn::ItemStruct {
-        attrs: if class.is_dataclass {
+        attrs: if has_non_clone_field {
+            // DEPYLER-0611: Skip Clone for structs with Mutex/RefCell/etc fields
+            vec![parse_quote! { #[derive(Debug)] }]
+        } else if class.is_dataclass {
             vec![parse_quote! { #[derive(Debug, Clone, PartialEq)] }]
         } else {
             vec![parse_quote! { #[derive(Debug, Clone)] }]
