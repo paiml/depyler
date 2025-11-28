@@ -1315,6 +1315,21 @@ fn convert_function(func: &HirFunction, type_mapper: &TypeMapper) -> Result<syn:
 
     // Convert return type
     let rust_ret_type = type_mapper.map_return_type(&func.ret_type);
+
+    // DEPYLER-0612: Fix main() return type - Rust main can only return () or Result<(), E>
+    // Cannot return Result<i32, E> - convert to Result<(), E>
+    let rust_ret_type = if func.name == "main" {
+        match &rust_ret_type {
+            RustType::Result(inner, err) if matches!(**inner, RustType::Primitive(_)) => {
+                // Result<i32, E> -> Result<(), E> for main
+                RustType::Result(Box::new(RustType::Unit), err.clone())
+            }
+            _ => rust_ret_type,
+        }
+    } else {
+        rust_ret_type
+    };
+
     let output = if matches!(rust_ret_type, RustType::Unit) {
         syn::ReturnType::Default
     } else {
