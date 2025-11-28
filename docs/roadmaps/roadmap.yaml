@@ -1078,7 +1078,7 @@ roadmap:
 - id: DEPYLER-0580
   github_issue: null
   item_type: feature
-  title: 'MoE Oracle for Error Classification'
+  title: MoE Oracle for Error Classification
   status: completed
   priority: medium
   assigned_to: Claude
@@ -1112,3 +1112,51 @@ roadmap:
   - moe
   - error-classification
   notes: 'Implemented Mixture of Experts model with 4 domain experts. 27 tests passing. Exports: classify_with_moe(), train_moe_oracle(), MoeOracle, ExpertDomain'
+- id: DEPYLER-0590
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0590'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-27T20:11:08.744961197+00:00
+  updated: 2025-11-27T20:11:08.744961197+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0595
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0595'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-27T21:51:59.074849969+00:00
+  updated: 2025-11-27T21:51:59.074849969+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'DEPYLER-0599: Complete entrenar CITL spec integration'
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0599: Complete entrenar CITL spec integration'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-28T12:20:19.069893876+00:00
+  updated: 2025-11-28T12:20:19.069893876+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

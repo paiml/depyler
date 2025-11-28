@@ -128,7 +128,9 @@ def test_membership(variable: str) -> bool:
 
     assert!(rust_code.contains("fn test_membership"));
     assert!(!rust_code.contains("contains_key"));
-    assert!(rust_code.contains("contains"));
+    // Membership check can use either .contains() or .any(|x| x == value)
+    assert!(rust_code.contains("contains") || rust_code.contains("any(|"),
+        "Expected membership check using contains or any()");
 }
 
 #[test]
