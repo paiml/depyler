@@ -8,7 +8,7 @@
 use crate::classifier::ErrorCategory;
 use crate::training::{TrainingDataset, TrainingSample};
 use alimentar::{ArrowDataset, Dataset};
-use arrow::array::{ArrayRef, RecordBatch, StringArray, UInt8Array};
+use arrow::array::{Array, ArrayRef, RecordBatch, StringArray, UInt8Array};
 use arrow::datatypes::{DataType, Field, Schema};
 use std::path::Path;
 use std::sync::Arc;
@@ -94,7 +94,6 @@ pub fn arrow_to_dataset(batch: &RecordBatch) -> TrainingDataset {
 
 /// Save training corpus to Parquet file.
 pub fn save_corpus(dataset: &TrainingDataset, path: &Path) -> crate::Result<()> {
-    use arrow::array::RecordBatchWriter;
     use parquet::arrow::ArrowWriter;
     use std::fs::File;
 
@@ -145,7 +144,7 @@ pub fn load_or_create_corpus() -> crate::Result<TrainingDataset> {
         load_corpus(path)
     } else {
         // Generate from hardcoded + synthetic
-        let dataset = crate::synthetic::build_augmented_corpus(0.5);
+        let dataset = crate::synthetic::generate_synthetic_corpus();
 
         // Save for next time
         if let Err(e) = save_corpus(&dataset, path) {

@@ -20,7 +20,7 @@ pub mod citl_fixer;
 pub mod classifier;
 pub mod github_corpus;
 pub mod moe_oracle;
-// pub mod data_store; // TODO: Re-enable when alimentar integrated
+pub mod data_store;
 pub mod depyler_training;
 pub mod estimator;
 pub mod features;
