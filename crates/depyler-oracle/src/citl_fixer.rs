@@ -216,7 +216,7 @@ impl CITLFixer {
             for (idx, m) in matches.iter().enumerate() {
                 if m.similarity >= self.confidence_threshold {
                     // Apply the fix
-                    if let Some(new_source) = self.apply_pattern_fix(&current, error, &m) {
+                    if let Some(new_source) = self.apply_pattern_fix(&current, error, m) {
                         self.metrics.record_fix_attempt(true, error_code);
                         self.metrics.record_pattern_use(idx, true);
                         applied_fixes.push(m.pattern.fix_template.description.clone());
