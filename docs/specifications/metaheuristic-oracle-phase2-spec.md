@@ -474,7 +474,149 @@ running 3 tests ... ok
 | Category Coverage | 5/7 | 7/7 | 100% |
 | Cross-Project Data | None | Full OIP | New |
 
-## 10. References
+## 10. Code Review & External QA Validation
+
+### 10.1 Review Checklist
+
+**Architecture Review** (Lead Engineer)
+- [ ] Pipeline stages are decoupled and testable independently
+- [ ] Data formats documented with schemas (§7.5)
+- [ ] Error category mapping is exhaustive for Rust errors
+- [ ] Feldman reweighting rationale documented
+- [ ] Cross-project integration points clearly defined
+
+**Code Quality Review** (Senior Developer)
+- [ ] All public APIs have doc comments
+- [ ] Error handling uses `Result<T>` with descriptive errors
+- [ ] No unwrap/expect in production paths
+- [ ] Complexity ≤10 per function (PMAT enforced)
+- [ ] Test coverage ≥80% (cargo-llvm-cov)
+
+**Security Review** (Security Engineer)
+- [ ] No arbitrary code execution from corpus data
+- [ ] Parquet files validated before deserialization
+- [ ] File paths sanitized in export commands
+- [ ] No secrets in training data schemas
+
+### 10.2 QA Validation Commands
+
+**Step 1: Verify Test Suite**
+```bash
+# All CITL-related tests
+cargo test --package depyler citl_spec -- --nocapture
+cargo test --package depyler-oracle data_store -- --nocapture
+
+# Expected: 22 tests passing
+```
+
+**Step 2: End-to-End Pipeline Test**
+```bash
+# Create test corpus
+mkdir -p /tmp/qa_test
+echo 'def add(x: int, y: int) -> int: return x + y' > /tmp/qa_test/test.py
+
+# Run improve loop (1 iteration)
+cargo run -- oracle improve \
+  --input-dir /tmp/qa_test \
+  --max-iterations 1 \
+  --export-corpus /tmp/qa_corpus
+
+# Verify corpus created
+ls -la /tmp/qa_corpus/
+# Expected: corpus.jsonl file
+
+# Export to OIP format
+cargo run -- oracle export-oip \
+  --input-dir /tmp/qa_corpus \
+  --output /tmp/qa_test.parquet \
+  --format parquet
+
+# Verify Parquet created
+file /tmp/qa_test.parquet
+# Expected: Apache Parquet file
+```
+
+**Step 3: Verify OIP Import**
+```bash
+cd ../organization-intelligence-plugin
+cargo test --lib depyler -- --nocapture
+
+# Expected: 3 tests passing
+```
+
+**Step 4: Verify Sister Projects**
+```bash
+# All repos should be clean
+for repo in alimentar aprender depyler organization-intelligence-plugin; do
+  echo "=== $repo ==="
+  (cd ../$repo && git status --short)
+done
+# Expected: No uncommitted changes
+```
+
+### 10.3 Acceptance Criteria
+
+| Criterion | Validation Method | Pass/Fail |
+|-----------|------------------|-----------|
+| Corpus generation works | `oracle improve` creates JSONL | |
+| OIP export works | `oracle export-oip` creates Parquet | |
+| Category mapping complete | 8+ error codes mapped | |
+| Tests pass | 25+ tests green | |
+| No regressions | `cargo test --workspace` | |
+| Documentation complete | §7-9 filled in | |
+
+### 10.4 Sign-Off Requirements
+
+**Required Approvals**:
+1. **Tech Lead**: Architecture and design approval
+2. **QA Engineer**: All validation commands pass
+3. **Security**: No vulnerabilities in data handling
+4. **Product Owner**: Feature meets requirements
+
+**Sign-Off Template**:
+```
+CITL MLOps Pipeline Review Sign-Off
+
+Date: ____________
+Reviewer: ____________
+Role: ____________
+
+[ ] I have reviewed the specification (§7-9)
+[ ] I have executed the QA validation commands (§10.2)
+[ ] All acceptance criteria pass (§10.3)
+[ ] I approve this implementation for production
+
+Signature: ____________
+Notes: ____________
+```
+
+### 10.5 Known Limitations
+
+| Limitation | Impact | Mitigation |
+|------------|--------|------------|
+| Clippy lints not fully mapped | Some style issues uncategorized | Default to StyleViolations |
+| Parquet schema fixed | Adding fields requires migration | Version schema in header |
+| OIP import is one-way | No bidirectional sync | Future: Add export-from-oip |
+| Reweighting is static | Doesn't adapt to corpus changes | Future: Dynamic reweighting |
+
+### 10.6 Rollback Procedure
+
+If issues discovered post-deployment:
+
+```bash
+# 1. Disable export command
+git revert <commit-hash>
+
+# 2. Clear generated corpora
+rm -rf .depyler-improve/
+
+# 3. Restore previous Oracle model
+cp ~/.depyler/oracle_params.json.bak ~/.depyler/oracle_params.json
+
+# 4. Notify OIP team to discard imported data
+```
+
+## 11. References
 
 - Phase 1 Spec: `docs/specifications/metaheuristic-oracle-spec.md`
 - Phase 1 Review: `docs/reviews/metaheuristic-oracle-spec-review.md`
@@ -489,3 +631,4 @@ running 3 tests ... ok
 *Specification created: 2025-11-27*
 *Updated: 2025-11-27 - Added Oracle Improve Command (DEPYLER-0585)*
 *Updated: 2025-11-28 - Added CITL MLOps Pipeline, Implementation Verification (GH-156, GH-157)*
+*Updated: 2025-11-28 - Added Code Review & External QA Validation (§10)*
