@@ -2521,7 +2521,7 @@ pub fn oracle_export_oip_command(
 
 /// Classify a Rust compiler error and suggest fixes
 pub fn oracle_classify_command(error: String, format: String) -> Result<()> {
-    use depyler_oracle::{classify_with_moe, KeywordClassifier};
+    use depyler_oracle::{classify_with_moe, ErrorClassifier};
 
     println!("🔮 Depyler Oracle Classification");
     println!("================================\n");
@@ -2533,7 +2533,7 @@ pub fn oracle_classify_command(error: String, format: String) -> Result<()> {
     let moe_result = classify_with_moe(&error_code, &error);
 
     // Also get keyword-based classification as backup
-    let keyword_classifier = KeywordClassifier::new();
+    let keyword_classifier = ErrorClassifier::new();
     let keyword_category = keyword_classifier.classify_by_keywords(&error);
 
     // Combine results: prefer MoE if confident, else use keyword classifier
@@ -2548,7 +2548,7 @@ pub fn oracle_classify_command(error: String, format: String) -> Result<()> {
             "category": format!("{:?}", category),
             "confidence": confidence,
             "suggested_fix": moe_result.suggested_fix,
-            "expert_used": format!("{:?}", moe_result.expert_used),
+            "expert_used": format!("{:?}", moe_result.primary_expert),
         });
         println!("{}", serde_json::to_string_pretty(&json_result)?);
     } else {
@@ -2556,7 +2556,7 @@ pub fn oracle_classify_command(error: String, format: String) -> Result<()> {
         println!();
         println!("🏷️  Category: {:?}", category);
         println!("📊 Confidence: {:.1}%", confidence * 100.0);
-        println!("🧠 Expert: {:?}", moe_result.expert_used);
+        println!("🧠 Expert: {:?}", moe_result.primary_expert);
         println!();
 
         if let Some(fix) = &moe_result.suggested_fix {
@@ -2570,9 +2570,18 @@ pub fn oracle_classify_command(error: String, format: String) -> Result<()> {
 
 /// Extract error code from a Rust compiler error message (e.g., "E0308" from "error[E0308]")
 fn extract_error_code(error: &str) -> Option<String> {
-    // Match patterns like "error[E0308]" or just "E0308"
-    let re = regex::Regex::new(r"E\d{4}").ok()?;
-    re.find(error).map(|m| m.as_str().to_string())
+    // Simple string-based extraction: find "E" followed by 4 digits
+    error
+        .char_indices()
+        .find_map(|(i, c)| {
+            if c == 'E' && error.len() >= i + 5 {
+                let candidate = &error[i..i + 5];
+                if candidate.chars().skip(1).all(|d| d.is_ascii_digit()) {
+                    return Some(candidate.to_string());
+                }
+            }
+            None
+        })
 }
 
 /// DEPYLER-0595: Result of CITL (Compiler-in-the-Loop) execution
