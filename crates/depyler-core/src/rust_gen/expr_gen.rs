@@ -1154,12 +1154,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match func {
             // DEPYLER-0519: enumerate(items) → items.iter().cloned().enumerate()
             // Use iter().cloned() to preserve original collection (Python doesn't consume)
-            "enumerate" if args.len() == 1 => match args[0].to_rust_expr(self.ctx) {
-                Ok(items_expr) => {
-                    Some(Ok(parse_quote! { #items_expr.iter().cloned().enumerate() }))
+            // DEPYLER-0305: For file variables, use BufReader for line iteration
+            "enumerate" if args.len() == 1 => {
+                // Check if arg is a file variable (heuristic based on name)
+                let is_file_var = if let HirExpr::Var(var_name) = &args[0] {
+                    var_name == "f"
+                        || var_name == "file"
+                        || var_name == "input"
+                        || var_name == "output"
+                        || var_name.ends_with("_file")
+                        || var_name.starts_with("file_")
+                } else {
+                    false
+                };
+
+                match args[0].to_rust_expr(self.ctx) {
+                    Ok(items_expr) => {
+                        if is_file_var {
+                            // DEPYLER-0305: File iteration with enumerate
+                            self.ctx.needs_bufread = true;
+                            Some(Ok(parse_quote! {
+                                std::io::BufReader::new(#items_expr)
+                                    .lines()
+                                    .map(|l| l.unwrap_or_default())
+                                    .enumerate()
+                            }))
+                        } else {
+                            Some(Ok(parse_quote! { #items_expr.iter().cloned().enumerate() }))
+                        }
+                    }
+                    Err(e) => Some(Err(e)),
                 }
-                Err(e) => Some(Err(e)),
-            },
+            }
 
             // zip(a, b, ...) → a.into_iter().zip(b.into_iter())...
             "zip" if args.len() >= 2 => {
@@ -1628,6 +1654,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
         kwargs: &[(String, HirExpr)],
     ) -> Result<syn::Expr> {
+        // DEPYLER-0608: Transform calls to cmd_*/handle_* handlers in subcommand match arms
+        // When calling a handler with `args`, pass the extracted subcommand fields instead
+        // Pattern: cmd_list(args) → cmd_list(archive) (where archive is extracted in match pattern)
+        if self.ctx.in_subcommand_match_arm
+            && (func.starts_with("cmd_") || func.starts_with("handle_"))
+            && args.len() == 1
+            && matches!(&args[0], HirExpr::Var(v) if v == "args")
+        {
+            let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+            let field_args: Vec<syn::Expr> = self.ctx.subcommand_match_fields
+                .iter()
+                .map(|f| {
+                    let field_ident = syn::Ident::new(f, proc_macro2::Span::call_site());
+                    parse_quote! { #field_ident }
+                })
+                .collect();
+            return Ok(parse_quote! { #func_ident(#(#field_args),*) });
+        }
+
         // DEPYLER-0382: Handle os.path.join(*parts) starred unpacking
         if func == "__os_path_join_starred" {
             if args.len() != 1 {
@@ -10427,6 +10472,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             });
         }
 
+        // DEPYLER-0305: Handle file I/O .readlines() method
+        // Python: lines = f.readlines() → Rust: BufReader::new(f).lines().collect()
+        if method == "readlines" && arg_exprs.is_empty() {
+            self.ctx.needs_bufread = true;
+            return Ok(parse_quote! {
+                std::io::BufReader::new(#object_expr)
+                    .lines()
+                    .map(|l| l.unwrap_or_default())
+                    .collect::<Vec<_>>()
+            });
+        }
+
+        // DEPYLER-0305: Handle file I/O .readline() method
+        // Python: line = f.readline() → Rust: read one line
+        if method == "readline" && arg_exprs.is_empty() {
+            self.ctx.needs_bufread = true;
+            return Ok(parse_quote! {
+                {
+                    let mut _line = String::new();
+                    std::io::BufReader::new(&mut #object_expr).read_line(&mut _line).unwrap_or(0);
+                    _line
+                }
+            });
+        }
+
         // DEPYLER-0458: Handle file I/O .write() method
         // DEPYLER-0537: Use .unwrap() instead of ? for functions without explicit error handling
         // DEPYLER-0536: Handle Option<String> arguments by unwrapping
@@ -12141,6 +12211,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_attribute(&mut self, value: &HirExpr, attr: &str) -> Result<syn::Expr> {
+        // DEPYLER-0608: In cmd_* handlers, args.X → X (field is now a direct parameter)
+        // This is because subcommand fields live in Commands::Variant, not on Args
+        // The handler function now takes individual field parameters instead of &Args
+        if self.ctx.in_cmd_handler {
+            if let HirExpr::Var(var_name) = value {
+                if var_name == "args" && self.ctx.cmd_handler_args_fields.contains(&attr.to_string())
+                {
+                    // Transform args.field → field (the field is now a direct parameter)
+                    let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+                    return Ok(parse_quote! { #attr_ident });
+                }
+            }
+        }
+
         // DEPYLER-0517: Handle subprocess result attributes
         // When accessing .returncode/.stdout/.stderr on a subprocess.run() result,
         // convert to tuple indexing since subprocess.run() returns (i32, String, String)
