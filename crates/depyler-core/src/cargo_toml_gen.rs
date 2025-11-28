@@ -190,6 +190,46 @@ pub fn generate_cargo_toml(
     toml
 }
 
+/// Generate Cargo.toml for library crates (DEPYLER-0600)
+///
+/// Used by oracle improve loop where generated code has no main function.
+/// Automatically includes quickcheck as dev-dependency for generated tests.
+pub fn generate_cargo_toml_lib(
+    package_name: &str,
+    source_file_path: &str,
+    dependencies: &[Dependency],
+) -> String {
+    let mut toml = String::new();
+
+    // Package section
+    toml.push_str("[package]\n");
+    toml.push_str(&format!("name = \"{}\"\n", package_name));
+    toml.push_str("version = \"0.1.0\"\n");
+    toml.push_str("edition = \"2021\"\n");
+    toml.push('\n');
+
+    // Library section (not binary)
+    toml.push_str("[lib]\n");
+    toml.push_str(&format!("path = \"{}\"\n", source_file_path));
+    toml.push('\n');
+
+    // Dependencies section
+    if !dependencies.is_empty() {
+        toml.push_str("[dependencies]\n");
+        for dep in dependencies {
+            toml.push_str(&dep.to_toml_line());
+            toml.push('\n');
+        }
+        toml.push('\n');
+    }
+
+    // Dev-dependencies for generated tests (DEPYLER-0600)
+    toml.push_str("[dev-dependencies]\n");
+    toml.push_str("quickcheck = \"1\"\n");
+
+    toml
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
