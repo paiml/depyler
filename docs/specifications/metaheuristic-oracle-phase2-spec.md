@@ -402,9 +402,247 @@ depyler_version: Utf8
 weight: Float32
 ```
 
-## 8. Implementation Verification (GH-156, GH-157)
+## 8. Model Training with alimentar/entrenar
 
-### 8.1 Depyler Components ✅
+### 8.1 Training Data Pipeline
+
+The training pipeline uses alimentar for data loading and entrenar for model training:
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                         Model Training Pipeline                           │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌──────────┐  │
+│  │   Parquet   │───▶│  alimentar  │───▶│  entrenar   │───▶│  Model   │  │
+│  │   Corpus    │    │  DataLoader │    │   Trainer   │    │  .gguf   │  │
+│  └─────────────┘    └─────────────┘    └─────────────┘    └──────────┘  │
+│                                                                          │
+│  Features:                                                               │
+│  • WeightedDataLoader for Feldman reweighting (--reweight 1.5)          │
+│  • AsyncPrefetchDataset for parallel I/O                                 │
+│  • TieredCurriculum for progressive difficulty                          │
+│  • ExplainabilityCallback for feature attribution                       │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### 8.2 Training Commands
+
+**Step 1: Load Corpus with alimentar**
+```rust
+use alimentar::{ArrowDataset, WeightedDataLoader, AsyncPrefetchDataset};
+use alimentar::streaming::ParquetSource;
+
+// Load training corpus with weighted sampling
+let dataset = ArrowDataset::from_parquet("training_data.parquet")?;
+let weights = dataset.column_as_vec::<f32>("weight")?;
+
+let loader = WeightedDataLoader::new(dataset, weights)?
+    .batch_size(32)
+    .num_samples(10_000)
+    .seed(42);
+
+// Or use async prefetch for large datasets
+let source = ParquetSource::new("training_data.parquet", 1024)?;
+let streaming = AsyncPrefetchDataset::from_parquet("training_data.parquet", 512, 4)?;
+```
+
+**Step 2: Train with entrenar**
+```rust
+use entrenar::train::{Trainer, TrainConfig, EarlyStopping, CheckpointCallback};
+use entrenar::train::{TieredCurriculum, ExplainabilityCallback, ExplainMethod};
+use entrenar::optim::AdamW;
+
+// Create trainer with callbacks
+let mut trainer = Trainer::new(params, Box::new(AdamW::new(0.0001, 0.9, 0.999, 1e-8, 0.01)),
+    TrainConfig::default());
+
+// Add CITL-specific callbacks
+trainer.add_callback(EarlyStopping::new(5, 0.001));
+trainer.add_callback(CheckpointCallback::new("./checkpoints"));
+trainer.add_callback(TieredCurriculum::new(vec![0.6, 0.7, 0.8]));  // 60%→70%→80%
+trainer.add_callback(ExplainabilityCallback::new(ExplainMethod::PermutationImportance)
+    .with_top_k(10));
+
+// Train
+let result = trainer.train(100, || loader.iter(), |batch| model.forward(batch));
+println!("Final loss: {:.4}, Efficiency: {:.4}",
+    result.final_loss,
+    result.accuracy / (result.corpus_size as f64).ln());
+```
+
+**Step 3: CLI Training Command**
+```bash
+# Train oracle model
+depyler oracle train \
+  --corpus ./training_data.parquet \
+  --epochs 100 \
+  --batch-size 32 \
+  --lr 0.0001 \
+  --curriculum 60,70,80 \
+  --reweight 1.5 \
+  --output ./oracle_model.gguf
+
+# Expected output:
+# Epoch  1/100: loss=2.3456, acc=45.2%, tier=1
+# Epoch 10/100: loss=1.2345, acc=62.1%, tier=1 → tier=2 ↑
+# Epoch 25/100: loss=0.5678, acc=71.5%, tier=2 → tier=3 ↑
+# ...
+# Training complete: acc=89.3%, efficiency=0.847
+```
+
+### 8.3 Training Configuration (YAML)
+
+```yaml
+# oracle-train.yaml
+model:
+  type: moe_oracle
+  experts: 8
+  hidden_dim: 256
+
+data:
+  train: training_data.parquet
+  batch_size: 32
+  weighted: true
+  prefetch: 4
+
+optimizer:
+  name: adamw
+  lr: 0.0001
+  weight_decay: 0.01
+
+training:
+  epochs: 100
+  grad_clip: 1.0
+  early_stopping:
+    patience: 5
+    min_delta: 0.001
+
+curriculum:
+  thresholds: [0.6, 0.7, 0.8]
+
+callbacks:
+  - checkpoint:
+      dir: ./checkpoints
+      save_best: true
+  - explainability:
+      method: permutation_importance
+      top_k: 10
+```
+
+```bash
+entrenar train oracle-train.yaml
+```
+
+### 8.4 Monitoring Training Progress
+
+**Real-time Metrics** (via MonitorCallback):
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Oracle Training Monitor                                         │
+├─────────────────────────────────────────────────────────────────┤
+│ Epoch: 25/100          Tier: 2 (Intermediate)                   │
+│ Loss:  0.5678          Accuracy: 71.5%                          │
+│ LR:    0.00008         Grad Norm: 0.234                         │
+│ ETA:   12m 34s         Efficiency: 0.723                        │
+├─────────────────────────────────────────────────────────────────┤
+│ Top Features (Permutation Importance):                          │
+│   1. error_code      0.342                                      │
+│   2. message_length  0.187                                      │
+│   3. has_suggestion  0.156                                      │
+│   4. line_number     0.089                                      │
+│   5. file_type       0.067                                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## 9. Work Tracking & Monitoring
+
+### 9.1 GitHub Issue Tracking
+
+| Issue | Description | Status | Assignee |
+|-------|-------------|--------|----------|
+| [GH-156](https://github.com/paiml/depyler/issues/156) | OIP Export Command | ✅ Done | - |
+| [GH-157](https://github.com/paiml/depyler/issues/157) | CITL Integration QA | 🔄 Open | - |
+| alimentar#3 | WeightedDataLoader | ✅ Closed | - |
+| alimentar#4 | AsyncPrefetchDataset | ✅ Closed | - |
+
+### 9.2 Monitor When Training Starts
+
+**Option 1: Watch GH-157 for activity**
+```bash
+# Check issue status
+gh issue view 157 -R paiml/depyler --json state,assignees,comments
+
+# Subscribe to notifications
+gh issue edit 157 -R paiml/depyler --add-assignee @me
+```
+
+**Option 2: Check CI/CD for training jobs**
+```bash
+# List recent workflow runs
+gh run list -R paiml/depyler --workflow=train
+
+# Watch for new runs
+gh run watch -R paiml/depyler
+```
+
+**Option 3: Monitor corpus directory**
+```bash
+# Check if training corpus exists
+ls -la ~/.depyler/training_corpus/
+
+# Watch for model checkpoints
+watch -n 60 'ls -la ~/.depyler/checkpoints/ 2>/dev/null'
+```
+
+### 9.3 Training Readiness Checklist
+
+Before starting model training, verify:
+
+- [ ] `training_data.parquet` exists and has >1000 samples
+- [ ] alimentar WeightedDataLoader tested (`cargo test -p alimentar weighted`)
+- [ ] entrenar TieredCurriculum tested (`cargo test -p entrenar curriculum`)
+- [ ] GH-157 QA validation complete
+- [ ] Oracle improve loop run on real codebase
+
+**Verification Script**:
+```bash
+#!/bin/bash
+# check_training_ready.sh
+
+echo "=== Training Readiness Check ==="
+
+# Check corpus
+if [ -f "training_data.parquet" ]; then
+  rows=$(python3 -c "import pyarrow.parquet as pq; print(pq.read_table('training_data.parquet').num_rows)")
+  echo "✅ Corpus: $rows samples"
+else
+  echo "❌ Corpus: training_data.parquet not found"
+fi
+
+# Check alimentar
+if cargo test -p alimentar weighted --quiet 2>/dev/null; then
+  echo "✅ alimentar: WeightedDataLoader tests pass"
+else
+  echo "❌ alimentar: WeightedDataLoader tests fail"
+fi
+
+# Check entrenar
+if cargo test -p entrenar curriculum --quiet 2>/dev/null; then
+  echo "✅ entrenar: Curriculum tests pass"
+else
+  echo "❌ entrenar: Curriculum tests fail"
+fi
+
+# Check GH-157 status
+status=$(gh issue view 157 -R paiml/depyler --json state -q '.state')
+echo "📋 GH-157 Status: $status"
+```
+
+## 10. Implementation Verification (GH-156, GH-157)
+
+### 10.1 Depyler Components ✅
 
 | Component | File | Status | Tests |
 |-----------|------|--------|-------|
@@ -416,7 +654,7 @@ weight: Float32
 | ExportOip CLI | `lib.rs:OracleCommands` | ✅ Done | - |
 | data_store module | `data_store.rs` | ✅ Done | 2 |
 
-### 8.2 OIP Components ✅
+### 10.2 OIP Components ✅
 
 | Component | File | Status | Tests |
 |-----------|------|--------|-------|
@@ -424,7 +662,7 @@ weight: Float32
 | import_depyler_corpus | `citl/mod.rs` | ✅ Done | 3 |
 | Category mapping | `citl/mod.rs` | ✅ Done | 1 |
 
-### 8.3 Sister Project Integration ✅
+### 10.3 Sister Project Integration ✅
 
 | Project | Purpose | Status |
 |---------|---------|--------|
@@ -433,7 +671,7 @@ weight: Float32
 | depyler | CITL training, OIP export | ✅ Synced |
 | OIP | Cross-project corpus import | ✅ Synced |
 
-### 8.4 Test Results
+### 10.4 Test Results
 
 ```
 # CITL Spec Tests
@@ -449,22 +687,22 @@ cargo test --lib depyler (in OIP)
 running 3 tests ... ok
 ```
 
-## 9. How This Solves Our Problem
+## 11. How This Solves Our Problem
 
-### 9.1 Before CITL
+### 11.1 Before CITL
 - Transpiler bugs discovered ad-hoc
 - No systematic error collection
 - Manual fix pattern identification
 - No cross-project learning
 
-### 9.2 After CITL
+### 11.2 After CITL
 1. **Automated Error Collection**: Every compilation failure captured
 2. **Categorized Corpus**: Errors mapped to actionable categories
 3. **ML-Powered Fixes**: Oracle suggests fixes based on patterns
 4. **Cross-Project Learning**: OIP combines depyler data with other tools
 5. **Continuous Improvement**: Feedback loop improves transpiler
 
-### 9.3 Expected Outcomes
+### 11.3 Expected Outcomes
 
 | Metric | Before | After | Improvement |
 |--------|--------|-------|-------------|
@@ -474,9 +712,9 @@ running 3 tests ... ok
 | Category Coverage | 5/7 | 7/7 | 100% |
 | Cross-Project Data | None | Full OIP | New |
 
-## 10. Code Review & External QA Validation
+## 12. Code Review & External QA Validation
 
-### 10.1 Review Checklist
+### 12.1 Review Checklist
 
 **Architecture Review** (Lead Engineer)
 - [ ] Pipeline stages are decoupled and testable independently
@@ -498,7 +736,7 @@ running 3 tests ... ok
 - [ ] File paths sanitized in export commands
 - [ ] No secrets in training data schemas
 
-### 10.2 QA Validation Commands
+### 12.2 QA Validation Commands
 
 **Step 1: Verify Test Suite**
 ```bash
@@ -554,7 +792,7 @@ done
 # Expected: No uncommitted changes
 ```
 
-### 10.3 Acceptance Criteria
+### 12.3 Acceptance Criteria
 
 | Criterion | Validation Method | Pass/Fail |
 |-----------|------------------|-----------|
@@ -565,7 +803,7 @@ done
 | No regressions | `cargo test --workspace` | |
 | Documentation complete | §7-9 filled in | |
 
-### 10.4 Sign-Off Requirements
+### 12.4 Sign-Off Requirements
 
 **Required Approvals**:
 1. **Tech Lead**: Architecture and design approval
@@ -590,7 +828,7 @@ Signature: ____________
 Notes: ____________
 ```
 
-### 10.5 Known Limitations
+### 12.5 Known Limitations
 
 | Limitation | Impact | Mitigation |
 |------------|--------|------------|
@@ -599,7 +837,7 @@ Notes: ____________
 | OIP import is one-way | No bidirectional sync | Future: Add export-from-oip |
 | Reweighting is static | Doesn't adapt to corpus changes | Future: Dynamic reweighting |
 
-### 10.6 Rollback Procedure
+### 12.6 Rollback Procedure
 
 If issues discovered post-deployment:
 
@@ -616,7 +854,7 @@ cp ~/.depyler/oracle_params.json.bak ~/.depyler/oracle_params.json
 # 4. Notify OIP team to discard imported data
 ```
 
-## 11. References
+## 13. References
 
 - Phase 1 Spec: `docs/specifications/metaheuristic-oracle-spec.md`
 - Phase 1 Review: `docs/reviews/metaheuristic-oracle-spec-review.md`
@@ -631,4 +869,5 @@ cp ~/.depyler/oracle_params.json.bak ~/.depyler/oracle_params.json
 *Specification created: 2025-11-27*
 *Updated: 2025-11-27 - Added Oracle Improve Command (DEPYLER-0585)*
 *Updated: 2025-11-28 - Added CITL MLOps Pipeline, Implementation Verification (GH-156, GH-157)*
-*Updated: 2025-11-28 - Added Code Review & External QA Validation (§10)*
+*Updated: 2025-11-28 - Added Code Review & External QA Validation (§12)*
+*Updated: 2025-11-28 - Added Model Training with alimentar/entrenar (§8), Work Tracking & Monitoring (§9)*
