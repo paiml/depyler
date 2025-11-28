@@ -107,3 +107,6 @@ playground/node_modules/
 examples/marco_polo_cli/target/
 models/
 .depyler-improve/
+proptest-regressions/
+training_corpus/
+lib.long-type-*.txt
