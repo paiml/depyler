@@ -5,9 +5,9 @@ use depyler::{
     agent_stop_command, analyze_command, check_command, compile_command, debug_command,
     docs_cmd::handle_docs_command, inspect_command, interactive_command, lambda_analyze_command,
     lambda_build_command, lambda_convert_command, lambda_deploy_command, lambda_test_command,
-    lsp_command, oracle_optimize_command, oracle_show_command, oracle_train_command,
-    profile_cmd::handle_profile_command, quality_check_command, transpile_command,
-    AgentCommands, Cli, Commands, LambdaCommands, OracleCommands,
+    lsp_command, oracle_export_oip_command, oracle_improve_command, oracle_optimize_command,
+    oracle_show_command, oracle_train_command, profile_cmd::handle_profile_command, quality_check_command,
+    transpile_command, AgentCommands, Cli, Commands, LambdaCommands, OracleCommands,
 };
 use std::path::PathBuf;
 
@@ -79,7 +79,7 @@ async fn handle_agent_command(agent_cmd: AgentCommands) -> Result<()> {
 }
 
 /// Handle Oracle subcommands
-/// Complexity: 3 (one per oracle subcommand, within ≤10 target)
+/// Complexity: 4 (one per oracle subcommand, within ≤10 target)
 fn handle_oracle_command(oracle_cmd: OracleCommands) -> Result<()> {
     match oracle_cmd {
         OracleCommands::Optimize {
@@ -94,6 +94,52 @@ fn handle_oracle_command(oracle_cmd: OracleCommands) -> Result<()> {
             min_samples,
             synthetic,
         } => oracle_train_command(min_samples, synthetic),
+        OracleCommands::Improve {
+            input_dir,
+            target_rate,
+            max_iterations,
+            auto_apply,
+            min_confidence,
+            output,
+            export_corpus,
+            resume,
+            verbose,
+            monitor,
+            verbosity_tier,
+            clippy_level,
+            adaptive_verbosity,
+            reweight,
+        } => oracle_improve_command(
+            input_dir,
+            target_rate,
+            max_iterations,
+            auto_apply,
+            min_confidence,
+            output,
+            export_corpus,
+            resume,
+            verbose,
+            monitor,
+            verbosity_tier,
+            clippy_level,
+            adaptive_verbosity,
+            reweight,
+        ),
+        OracleCommands::ExportOip {
+            input_dir,
+            output,
+            format,
+            min_confidence,
+            include_clippy,
+            reweight,
+        } => oracle_export_oip_command(
+            input_dir,
+            output,
+            format,
+            min_confidence,
+            include_clippy,
+            reweight,
+        ),
     }
 }
 
