@@ -62,6 +62,7 @@
 # Development Guide
 
 - [Oracle: ML Error Classification](./oracle.md)
+- [CITL Corpus Extraction](./citl-corpus-extraction.md)
 - [Doctest Transpilation](../../docs/specifications/doctest-transpilation-citl-spec.md)
 - [Contributing](../../CONTRIBUTING.md)
 - [Quality Standards](../../CLAUDE.md)
