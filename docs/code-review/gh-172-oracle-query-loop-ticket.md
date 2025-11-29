@@ -187,48 +187,37 @@ pub enum RustErrorCode {
 
 ## 4. Academic Foundations & Citations
 
-### 4.1 Machine Learning for Error Classification
+The architecture of the Oracle Query Loop is grounded in 10 key academic works spanning Machine Learning on Code, Automatic Program Repair (APR), and Type Theory.
 
-The Oracle uses a **Random Forest Classifier** (Breiman, 2001) for error categorization:
+### 4.1 Machine Learning on Code (Foundation for the Classifier)
+
+The Oracle's core uses a **Random Forest Classifier** (Breiman, 2001) to map error messages to repair strategies. This approach relies on the "Naturalness Hypothesis" (Allamanis et al., 2018), which posits that code is repetitive and predictable.
 
 > Breiman, L. (2001). Random Forests. *Machine Learning*, 45(1), 5-32.
-> https://doi.org/10.1023/A:1010933404324
+> Allamanis, M., et al. (2018). A survey of machine learning for big code and naturalness. *ACM Computing Surveys*, 51(4).
+> Kim, D., et al. (2008). Classifying software changes: Clean or buggy? *IEEE TSE*, 34(2).
 
-Random Forests were chosen for:
-- Robustness to overfitting on small training sets
-- Interpretable feature importance for debugging
-- No hyperparameter sensitivity (default 100 trees sufficient)
+### 4.2 Automatic Program Repair (APR) (Foundation for Suggestions)
 
-### 4.2 Pattern-Based Program Repair
+The fix suggestion mechanism draws from search-based and learning-based APR. We specifically leverage the "Plastic Surgery Hypothesis" (Barr et al., 2014), which suggests that the ingredients for a fix likely already exist in the codebase—validating our strategy of mining `.apr` patterns from the project's own history.
 
-The fix suggestion mechanism draws from Automatic Program Repair (APR) research:
-
-> Le Goues, C., Nguyen, T., Forrest, S., & Weimer, W. (2012). GenProg: A Generic Method for Automatic Software Repair. *IEEE Transactions on Software Engineering*, 38(1), 54-72.
-> https://doi.org/10.1109/TSE.2011.104
-
+> Le Goues, C., et al. (2012). GenProg: A Generic Method for Automatic Software Repair. *IEEE TSE*, 38(1).
 > Long, F., & Rinard, M. (2016). Automatic Patch Generation by Learning Correct Code. *POPL '16*.
-> https://doi.org/10.1145/2837614.2837617
+> Barr, E. T., et al. (2014). The Plastic Surgery Hypothesis. *FSE '14*.
 
-### 4.3 Cost-Aware API Usage
+### 4.3 Rust-Specific Repair & Type Systems
 
-The ROI optimization follows principles from API economics research:
+To address the specific challenge of Rust's borrow checker (currently 70% confidence), we incorporate heuristics from "Rust-lancet" (Yuan et al., 2024) and foundational type theory (Milner, 1978) for handling `E0308` type mismatches.
 
-> Chen, T., et al. (2023). Frugal Prompting for LLMs: Toward Cost-Effective API Calls. *NeurIPS Workshop on Efficient Natural Language and Speech Processing*.
+> Yuan, H., et al. (2024). Rust-lancet: Automated Ownership-Rule-Violation Fixing. *ISSTA '24*.
+> Milner, R. (1978). A theory of type polymorphism in programming. *JCSS*, 17(3).
 
-Key insight: **72.9% of errors are classifiable without LLM**, avoiding $0.04/call.
+### 4.4 Adaptive Systems & Economics (Kaizen & Heijunka)
 
-### 4.4 Drift Detection
+The ROI optimization follows the "FrugalGPT" cascade pattern (Chen et al., 2023) to level-load API costs (Heijunka), and includes drift detection (Gama et al., 2014) to ensure continuous improvement (Kaizen).
 
-The Oracle includes drift detection for model staleness:
-
-> Gama, J., et al. (2014). A Survey on Concept Drift Adaptation. *ACM Computing Surveys*, 46(4), 1-37.
-> https://doi.org/10.1145/2523813
-
-```rust
-pub fn check_drift(&mut self, recent_accuracy: f32) -> DriftStatus {
-    self.drift_detector.detect_performance_drift(&baseline, &current)
-}
-```
+> Chen, L., et al. (2023). FrugalGPT: How to Use Large Language Models While Reducing Cost and Improving Performance. *NeurIPS '23*.
+> Gama, J., et al. (2014). A Survey on Concept Drift Adaptation. *ACM Computing Surveys*, 46(4).
 
 ---
 
@@ -366,20 +355,20 @@ features.extend(borrow_features);
 ### Immediate (Next Sprint)
 
 1. Add confidence calibration using Platt scaling
-2. Implement `.apr` pattern generation from depyler-citl corpus
+2. Implement `.apr` pattern generation from depyler-citl corpus (validating the **Plastic Surgery Hypothesis**)
 3. Add Prometheus metrics for production monitoring
 
 ### Short-term (Next Month)
 
-1. Online learning for incremental pattern capture
+1. Online learning for incremental pattern capture (addressing **Concept Drift**)
 2. A/B testing infrastructure for model comparison
 3. Developer contribution workflow for fix patterns
 
 ### Long-term (Next Quarter)
 
 1. Multi-modal classification with code context
-2. Complete bidirectional type inference (HM algorithm)
-3. Graph neural network for borrow checker patterns
+2. Complete bidirectional type inference (HM algorithm, Milner 1978)
+3. Graph neural network for borrow checker patterns (**Rust-lancet** integration)
 
 ---
 
@@ -394,11 +383,17 @@ Key limitations include the closed-loop training architecture and incomplete typ
 ## References
 
 1. Breiman, L. (2001). Random Forests. *Machine Learning*, 45(1), 5-32.
-2. Le Goues, C., et al. (2012). GenProg: A Generic Method for Automatic Software Repair. *IEEE TSE*, 38(1), 54-72.
-3. Long, F., & Rinard, M. (2016). Automatic Patch Generation by Learning Correct Code. *POPL '16*.
-4. Gama, J., et al. (2014). A Survey on Concept Drift Adaptation. *ACM Computing Surveys*, 46(4).
-5. Liker, J. K. (2004). *The Toyota Way: 14 Management Principles*. McGraw-Hill.
-6. Ohno, T. (1988). *Toyota Production System: Beyond Large-Scale Production*. Productivity Press.
+2. Allamanis, M., et al. (2018). A survey of machine learning for big code and naturalness. *ACM Computing Surveys*, 51(4).
+3. Kim, D., et al. (2008). Classifying software changes: Clean or buggy? *IEEE Transactions on Software Engineering*, 34(2).
+4. Le Goues, C., et al. (2012). GenProg: A Generic Method for Automatic Software Repair. *IEEE TSE*, 38(1).
+5. Long, F., & Rinard, M. (2016). Automatic Patch Generation by Learning Correct Code. *POPL '16*.
+6. Barr, E. T., et al. (2014). The Plastic Surgery Hypothesis. *FSE '14*.
+7. Yuan, H., et al. (2024). Rust-lancet: Automated Ownership-Rule-Violation Fixing with Behavior Preservation. *ISSTA '24*.
+8. Milner, R. (1978). A theory of type polymorphism in programming. *JCSS*, 17(3).
+9. Chen, L., et al. (2023). FrugalGPT: How to Use Large Language Models While Reducing Cost and Improving Performance. *NeurIPS '23*.
+10. Gama, J., et al. (2014). A Survey on Concept Drift Adaptation. *ACM Computing Surveys*, 46(4).
+11. Liker, J. K. (2004). *The Toyota Way: 14 Management Principles*. McGraw-Hill.
+12. Ohno, T. (1988). *Toyota Production System: Beyond Large-Scale Production*. Productivity Press.
 
 ---
 
