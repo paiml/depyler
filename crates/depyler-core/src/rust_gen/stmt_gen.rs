@@ -1671,6 +1671,10 @@ fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
                             .any(|cond| is_var_used_in_expr(var_name, cond))
                 })
         }
+        // DEPYLER-0619: Handle await expressions for variable usage detection
+        // Without this, loop variables used in async function calls inside await
+        // are incorrectly marked as unused and prefixed with underscore
+        HirExpr::Await { value } => is_var_used_in_expr(var_name, value),
         _ => false, // Literals and other expressions don't reference variables
     }
 }
