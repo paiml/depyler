@@ -413,9 +413,10 @@ pub enum Commands {
         parallel_jobs: usize,
     },
 
-    /// Extract doctests from Python source files (GH-173)
+    /// Extract doctests from Python source files (GH-173, GH-174)
     ///
     /// Parses Python docstrings to extract `>>>` blocks for CITL training.
+    /// Optionally extracts pytest assertions from test_*.py files.
     /// Outputs structured JSON format suitable for doctest transpilation.
     ExtractDoctests {
         /// Input directory containing Python files
@@ -432,6 +433,10 @@ pub enum Commands {
         /// Include doctests from class methods
         #[arg(long, default_value = "true")]
         include_classes: bool,
+
+        /// Also extract simple assertions from test_*.py files (GH-174)
+        #[arg(long)]
+        include_pytest: bool,
     },
 }
 
@@ -2879,6 +2884,34 @@ fn find_python_files(dir: &Path) -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
+/// Find all Python files in a directory (including test files).
+fn find_all_python_files(dir: &Path) -> Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+
+    fn visit_dir(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.is_dir() {
+                // Skip __pycache__, .git, venv, etc.
+                let dir_name = path.file_name().unwrap_or_default().to_string_lossy();
+                if !dir_name.starts_with('.') && dir_name != "__pycache__" && dir_name != "venv" {
+                    visit_dir(&path, files)?;
+                }
+            } else if path.extension().is_some_and(|e| e == "py") {
+                // Include all Python files (including test files)
+                files.push(path);
+            }
+        }
+        Ok(())
+    }
+
+    visit_dir(dir, &mut files)?;
+    files.sort();
+    Ok(files)
+}
+
 // ============================================================================
 // Doctest Extraction Command (GH-173)
 // ============================================================================
@@ -2894,6 +2927,7 @@ fn find_python_files(dir: &Path) -> Result<Vec<PathBuf>> {
 /// * `output` - Output JSON file path
 /// * `module_prefix` - Optional prefix for module names
 /// * `include_classes` - Whether to include class method doctests
+/// * `include_pytest` - Whether to extract assertions from test_*.py files (GH-174)
 ///
 /// # Errors
 ///
@@ -2903,22 +2937,36 @@ pub fn extract_doctests_command(
     output: PathBuf,
     module_prefix: String,
     _include_classes: bool,
+    include_pytest: bool,
 ) -> Result<()> {
-    use depyler_core::doctest_extractor::{DoctestExtractor, DoctestResult, FunctionDoctests};
+    use depyler_core::doctest_extractor::{Doctest, DoctestExtractor, DoctestResult, FunctionDoctests};
+    use depyler_core::pytest_extractor::PytestExtractor;
 
     println!("📝 Extracting doctests from {}", input.display());
+    if include_pytest {
+        println!("   (including pytest assertions from test_*.py files)");
+    }
 
-    let extractor = DoctestExtractor::new();
+    let doctest_extractor = DoctestExtractor::new();
+    let pytest_extractor = PytestExtractor::new();
     let mut all_results: Vec<DoctestResult> = Vec::new();
     let mut total_doctests = 0;
+    let mut total_pytest = 0;
     let mut total_functions = 0;
     let mut total_files = 0;
 
-    // Find all Python files
-    let python_files = find_python_files(&input)?;
+    // Find all Python files (including test files if include_pytest is set)
+    let python_files = if include_pytest {
+        find_all_python_files(&input)?
+    } else {
+        find_python_files(&input)?
+    };
 
     for py_file in &python_files {
         let relative_path = py_file.strip_prefix(&input).unwrap_or(py_file);
+        let file_name = py_file.file_name().unwrap_or_default().to_string_lossy();
+        let is_test_file = file_name.starts_with("test_") || file_name.ends_with("_test.py");
+
         let module_name = if module_prefix.is_empty() {
             relative_path
                 .with_extension("")
@@ -2943,27 +2991,74 @@ pub fn extract_doctests_command(
             }
         };
 
-        match extractor.extract_to_result(&source, &module_name) {
-            Ok(result) => {
-                if !result.doctests.is_empty() {
-                    let doctest_count: usize =
-                        result.doctests.iter().map(|f| f.examples.len()).sum();
-                    if doctest_count > 0 {
-                        println!(
-                            "  ✓ {}: {} functions, {} doctests",
-                            module_name,
-                            result.doctests.len(),
-                            doctest_count
-                        );
-                        total_doctests += doctest_count;
-                        total_functions += result.doctests.len();
-                        total_files += 1;
-                        all_results.push(result);
+        // Extract doctests from non-test files
+        if !is_test_file {
+            match doctest_extractor.extract_to_result(&source, &module_name) {
+                Ok(result) => {
+                    if !result.doctests.is_empty() {
+                        let doctest_count: usize =
+                            result.doctests.iter().map(|f| f.examples.len()).sum();
+                        if doctest_count > 0 {
+                            println!(
+                                "  ✓ {}: {} functions, {} doctests",
+                                module_name,
+                                result.doctests.len(),
+                                doctest_count
+                            );
+                            total_doctests += doctest_count;
+                            total_functions += result.doctests.len();
+                            total_files += 1;
+                            all_results.push(result);
+                        }
                     }
                 }
+                Err(e) => {
+                    eprintln!("  ⚠️  Error parsing {}: {}", py_file.display(), e);
+                }
             }
-            Err(e) => {
-                eprintln!("  ⚠️  Error parsing {}: {}", py_file.display(), e);
+        }
+
+        // Extract pytest assertions from test files
+        if include_pytest && is_test_file {
+            match pytest_extractor.extract(&source) {
+                Ok(assertions) => {
+                    if !assertions.is_empty() {
+                        println!(
+                            "  ✓ {}: {} pytest assertions",
+                            module_name,
+                            assertions.len()
+                        );
+                        total_pytest += assertions.len();
+                        total_files += 1;
+
+                        // Group assertions by function
+                        let mut by_function: std::collections::HashMap<String, Vec<Doctest>> =
+                            std::collections::HashMap::new();
+                        for a in assertions {
+                            by_function.entry(a.function.clone()).or_default().push(a);
+                        }
+
+                        let function_doctests: Vec<FunctionDoctests> = by_function
+                            .into_iter()
+                            .map(|(function, examples)| FunctionDoctests {
+                                function,
+                                signature: None,
+                                docstring: None,
+                                examples,
+                            })
+                            .collect();
+
+                        total_functions += function_doctests.len();
+                        all_results.push(DoctestResult {
+                            source: module_name.clone(),
+                            module: module_name,
+                            doctests: function_doctests,
+                        });
+                    }
+                }
+                Err(e) => {
+                    eprintln!("  ⚠️  Error parsing pytest {}: {}", py_file.display(), e);
+                }
             }
         }
     }
@@ -2985,9 +3080,13 @@ pub fn extract_doctests_command(
     println!();
     println!("📊 Extraction Summary:");
     println!("   Files processed: {}", python_files.len());
-    println!("   Files with doctests: {}", total_files);
-    println!("   Functions with doctests: {}", total_functions);
-    println!("   Total doctests extracted: {}", total_doctests);
+    println!("   Files with examples: {}", total_files);
+    println!("   Functions with examples: {}", total_functions);
+    println!("   Doctests extracted: {}", total_doctests);
+    if include_pytest {
+        println!("   Pytest assertions extracted: {}", total_pytest);
+    }
+    println!("   Total examples: {}", total_doctests + total_pytest);
     println!();
     println!("✅ Output written to: {}", output.display());
 
