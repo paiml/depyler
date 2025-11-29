@@ -448,10 +448,9 @@ mod integration_tests {
             .with_reweight(1.5);
 
         // Trainer should be creatable with CITL config
+        // DEPYLER-0626: Removed assert!(true) - creation itself is the test
         let _trainer = CompilationTrainer::new(vec![], config);
-
-        // Verify trainer has CITL components
-        // (this will be verified by the train() method using curriculum)
-        assert!(true, "Trainer created with CITL config");
+        // Trainer was successfully created with CITL config
+        // (functionality verified by the train() method using curriculum)
     }
 }
