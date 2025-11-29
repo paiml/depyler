@@ -633,8 +633,14 @@ impl LifetimeInference {
             // If parameter escapes (returned) and it's the same type as return, it should be moved
             let escapes_as_self =
                 usage.escapes && rust_type == type_mapper.map_return_type(&func.ret_type);
+
+            // DEPYLER-0629: Don't borrow Function types (Callable) - they're already boxed as Box<dyn Fn()>
+            // Also skip Optional<Function> since the inner type is already indirected
+            let is_callable_type = matches!(&param_type, Type::Function { .. })
+                || matches!(&param_type, Type::Optional(inner) if matches!(inner.as_ref(), Type::Function { .. }));
+
             let should_borrow =
-                !usage.is_moved && !escapes_as_self && (usage.is_read_only || usage.is_mutated);
+                !is_callable_type && !usage.is_moved && !escapes_as_self && (usage.is_read_only || usage.is_mutated);
             let needs_mut = usage.is_mutated;
 
             let lifetime = if should_borrow {
