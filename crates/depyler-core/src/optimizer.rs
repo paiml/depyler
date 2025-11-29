@@ -628,6 +628,24 @@ impl Optimizer {
                     self.collect_truly_used_vars_stmt(s, used);
                 }
             }
+            // DEPYLER-0627: Handle Assert statements - variables in test/msg are used
+            HirStmt::Assert { test, msg } => {
+                self.collect_used_vars_expr(test, used);
+                if let Some(msg_expr) = msg {
+                    self.collect_used_vars_expr(msg_expr, used);
+                }
+            }
+            // DEPYLER-0627: Handle Raise statements - variables in exception are used
+            HirStmt::Raise { exception, cause } => {
+                if let Some(exc) = exception {
+                    self.collect_used_vars_expr(exc, used);
+                }
+                if let Some(c) = cause {
+                    self.collect_used_vars_expr(c, used);
+                }
+            }
+            // Other statements (Pass, Break, Continue, Return(None), Block, FunctionDef)
+            // don't reference variables that need tracking for DCE purposes
             _ => {}
         }
     }
