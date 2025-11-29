@@ -388,6 +388,290 @@ pub fn record_decision(decision: DepylerDecision) {
 #[cfg(not(feature = "decision-tracing"))]
 pub fn record_decision(_decision: DepylerDecision) {}
 
+// ============================================================================
+// Error-Decision Correlation (Spec Section 9.1-9.2)
+// ============================================================================
+
+/// Compilation outcome for CITL training correlation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum CompileOutcome {
+    /// Successful compilation
+    Success,
+    /// Compilation error with error code and message
+    Error {
+        /// Rustc error code (e.g., "E0308")
+        code: String,
+        /// Error message
+        message: String,
+        /// Error span in Rust source (line, column)
+        span: Option<(usize, usize)>,
+    },
+}
+
+/// Find decisions that contributed to error at given Rust span
+///
+/// Uses span overlap to correlate decisions with error locations.
+/// Returns decisions sorted by relevance (closest span match first).
+///
+/// # Arguments
+/// * `decisions` - All decisions captured during transpilation
+/// * `error_span` - The Rust source span where the error occurred (start, end)
+///
+/// # Returns
+/// Decisions whose output overlaps with the error location
+pub fn correlate_error(
+    decisions: &[DepylerDecision],
+    error_span: (usize, usize),
+) -> Vec<&DepylerDecision> {
+    let mut correlated: Vec<_> = decisions
+        .iter()
+        .filter(|d| {
+            d.rs_span.is_some_and(|(start, end)| {
+                // Decision's output overlaps with error location
+                start <= error_span.1 && end >= error_span.0
+            })
+        })
+        .collect();
+
+    // Sort by span proximity (tightest overlap first)
+    correlated.sort_by_key(|d| {
+        d.rs_span.map_or(usize::MAX, |(start, end)| {
+            let overlap_start = start.max(error_span.0);
+            let overlap_end = end.min(error_span.1);
+            // Smaller spans (more precise) rank higher
+            if overlap_end > overlap_start {
+                end - start
+            } else {
+                usize::MAX
+            }
+        })
+    });
+
+    correlated
+}
+
+/// A causal chain link in decision dependency graph
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CausalLink {
+    /// The decision at this point in the chain
+    pub decision: DepylerDecision,
+    /// Depth in the causal chain (0 = closest to error)
+    pub depth: usize,
+}
+
+/// Build causal chain from error back to root decisions
+///
+/// Reconstructs the decision dependency graph to find the root cause
+/// of a compilation error.
+///
+/// # Arguments
+/// * `decisions` - All decisions captured during transpilation
+/// * `error_span` - The Rust source span where the error occurred
+/// * `max_depth` - Maximum depth to traverse (default: 5)
+///
+/// # Returns
+/// Causal chain from error location back to root decisions
+pub fn build_causal_chain(
+    decisions: &[DepylerDecision],
+    error_span: (usize, usize),
+    max_depth: usize,
+) -> Vec<CausalLink> {
+    let mut chain = Vec::new();
+    let mut current_span = error_span;
+    let mut visited = std::collections::HashSet::new();
+
+    for depth in 0..max_depth {
+        let correlated = correlate_error(decisions, current_span);
+
+        if correlated.is_empty() {
+            break;
+        }
+
+        // Take the most specific decision at this level
+        if let Some(decision) = correlated.first() {
+            if visited.contains(&decision.id) {
+                break; // Avoid cycles
+            }
+            visited.insert(decision.id);
+
+            chain.push(CausalLink {
+                decision: (*decision).clone(),
+                depth,
+            });
+
+            // Move to Python span for next iteration
+            current_span = decision.py_span;
+        }
+    }
+
+    chain
+}
+
+// ============================================================================
+// Graceful Degradation - JSON Fallback (Spec Section 10)
+// ============================================================================
+
+/// Decision writer trait for abstraction over storage backends
+pub trait DecisionWriter: Send + Sync {
+    /// Append a decision to the writer
+    fn append(&mut self, decision: &DepylerDecision) -> Result<(), String>;
+
+    /// Flush buffered decisions to storage
+    fn flush(&mut self) -> Result<(), String>;
+
+    /// Get the number of buffered decisions
+    fn len(&self) -> usize;
+
+    /// Check if buffer is empty
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+/// JSON Lines fallback writer when mmap is unavailable
+///
+/// Writes decisions as newline-delimited JSON for compatibility
+/// with tools that don't support MessagePack.
+pub struct JsonFileWriter {
+    path: std::path::PathBuf,
+    buffer: Vec<DepylerDecision>,
+    max_buffer_size: usize,
+}
+
+impl JsonFileWriter {
+    /// Create a new JSON file writer
+    pub fn new(path: &std::path::Path) -> Self {
+        Self {
+            path: path.to_path_buf(),
+            buffer: Vec::new(),
+            max_buffer_size: 1000,
+        }
+    }
+
+    /// Create with custom buffer size
+    pub fn with_buffer_size(path: &std::path::Path, max_size: usize) -> Self {
+        Self {
+            path: path.to_path_buf(),
+            buffer: Vec::new(),
+            max_buffer_size: max_size,
+        }
+    }
+}
+
+impl DecisionWriter for JsonFileWriter {
+    fn append(&mut self, decision: &DepylerDecision) -> Result<(), String> {
+        self.buffer.push(decision.clone());
+
+        // Auto-flush at buffer capacity
+        if self.buffer.len() >= self.max_buffer_size {
+            self.flush()?;
+        }
+
+        Ok(())
+    }
+
+    fn flush(&mut self) -> Result<(), String> {
+        use std::io::Write;
+
+        if self.buffer.is_empty() {
+            return Ok(());
+        }
+
+        // Create parent directory if needed
+        if let Some(parent) = self.path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create parent directory: {}", e))?;
+        }
+
+        // Append to file (JSONL format)
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.path)
+            .map_err(|e| format!("Failed to open file: {}", e))?;
+
+        let mut writer = std::io::BufWriter::new(file);
+
+        for decision in &self.buffer {
+            let json = serde_json::to_string(decision)
+                .map_err(|e| format!("Failed to serialize decision: {}", e))?;
+            writeln!(writer, "{}", json)
+                .map_err(|e| format!("Failed to write decision: {}", e))?;
+        }
+
+        writer
+            .flush()
+            .map_err(|e| format!("Failed to flush writer: {}", e))?;
+
+        self.buffer.clear();
+        Ok(())
+    }
+
+    fn len(&self) -> usize {
+        self.buffer.len()
+    }
+}
+
+impl Drop for JsonFileWriter {
+    fn drop(&mut self) {
+        let _ = self.flush();
+    }
+}
+
+#[cfg(feature = "decision-tracing")]
+impl DecisionWriter for MmapDecisionWriter {
+    fn append(&mut self, decision: &DepylerDecision) -> Result<(), String> {
+        MmapDecisionWriter::append(self, decision)
+    }
+
+    fn flush(&mut self) -> Result<(), String> {
+        MmapDecisionWriter::flush(self)
+    }
+
+    fn len(&self) -> usize {
+        MmapDecisionWriter::len(self)
+    }
+}
+
+/// Create appropriate decision writer based on environment
+///
+/// Prefers mmap when available, falls back to JSON for compatibility.
+#[cfg(feature = "decision-tracing")]
+pub fn create_decision_writer(path: &std::path::Path) -> Box<dyn DecisionWriter> {
+    // Try mmap first
+    match MmapDecisionWriter::new(path, MmapDecisionWriter::DEFAULT_SIZE) {
+        Ok(writer) => Box::new(writer),
+        Err(_) => {
+            // Fallback to JSON
+            let json_path = path.with_extension("jsonl");
+            Box::new(JsonFileWriter::new(&json_path))
+        }
+    }
+}
+
+/// Create decision writer (no-op implementation when feature disabled)
+#[cfg(not(feature = "decision-tracing"))]
+pub fn create_decision_writer(_path: &std::path::Path) -> Box<dyn DecisionWriter> {
+    Box::new(NoOpWriter)
+}
+
+/// No-op writer for when tracing is disabled
+#[cfg(not(feature = "decision-tracing"))]
+struct NoOpWriter;
+
+#[cfg(not(feature = "decision-tracing"))]
+impl DecisionWriter for NoOpWriter {
+    fn append(&mut self, _decision: &DepylerDecision) -> Result<(), String> {
+        Ok(())
+    }
+    fn flush(&mut self) -> Result<(), String> {
+        Ok(())
+    }
+    fn len(&self) -> usize {
+        0
+    }
+}
+
 /// Macro for instrumenting decision points in codegen
 ///
 /// This macro captures a decision made during transpilation. When the
@@ -603,5 +887,266 @@ mod tests {
     fn test_decision_category_equality() {
         assert_eq!(DecisionCategory::TypeMapping, DecisionCategory::TypeMapping);
         assert_ne!(DecisionCategory::TypeMapping, DecisionCategory::Ownership);
+    }
+
+    // ========================================================================
+    // Error-Decision Correlation Tests (Spec Section 9.1-9.2)
+    // ========================================================================
+
+    #[test]
+    fn test_correlate_error_finds_overlapping_decisions() {
+        let decisions = vec![
+            DepylerDecision::new(
+                DecisionCategory::TypeMapping,
+                "type1",
+                "i32",
+                &[],
+                0.9,
+                "file.rs",
+                10,
+            )
+            .with_rs_span(100, 150),
+            DepylerDecision::new(
+                DecisionCategory::BorrowStrategy,
+                "borrow1",
+                "&str",
+                &[],
+                0.8,
+                "file.rs",
+                20,
+            )
+            .with_rs_span(200, 250),
+        ];
+
+        // Error at span 120-130 should match first decision
+        let correlated = correlate_error(&decisions, (120, 130));
+        assert_eq!(correlated.len(), 1);
+        assert_eq!(correlated[0].name, "type1");
+
+        // Error at span 300-350 should match nothing
+        let correlated = correlate_error(&decisions, (300, 350));
+        assert!(correlated.is_empty());
+    }
+
+    #[test]
+    fn test_correlate_error_returns_empty_for_no_spans() {
+        let decisions = vec![DepylerDecision::new(
+            DecisionCategory::TypeMapping,
+            "no_span",
+            "i32",
+            &[],
+            0.9,
+            "file.rs",
+            10,
+        )];
+
+        let correlated = correlate_error(&decisions, (100, 150));
+        assert!(correlated.is_empty());
+    }
+
+    #[test]
+    fn test_correlate_error_sorts_by_span_size() {
+        let decisions = vec![
+            DepylerDecision::new(
+                DecisionCategory::TypeMapping,
+                "large",
+                "i32",
+                &[],
+                0.9,
+                "file.rs",
+                10,
+            )
+            .with_rs_span(100, 200), // Large span
+            DepylerDecision::new(
+                DecisionCategory::BorrowStrategy,
+                "small",
+                "&str",
+                &[],
+                0.8,
+                "file.rs",
+                20,
+            )
+            .with_rs_span(120, 140), // Small span (more precise)
+        ];
+
+        let correlated = correlate_error(&decisions, (125, 135));
+        assert_eq!(correlated.len(), 2);
+        // Smaller span should come first (more precise match)
+        assert_eq!(correlated[0].name, "small");
+        assert_eq!(correlated[1].name, "large");
+    }
+
+    #[test]
+    fn test_build_causal_chain_basic() {
+        let decisions = vec![DepylerDecision::new(
+            DecisionCategory::TypeMapping,
+            "root",
+            "i32",
+            &[],
+            0.9,
+            "file.rs",
+            10,
+        )
+        .with_py_span(10, 20)
+        .with_rs_span(100, 150)];
+
+        let chain = build_causal_chain(&decisions, (120, 130), 5);
+        assert_eq!(chain.len(), 1);
+        assert_eq!(chain[0].depth, 0);
+        assert_eq!(chain[0].decision.name, "root");
+    }
+
+    #[test]
+    fn test_build_causal_chain_empty_for_no_match() {
+        let decisions = vec![DepylerDecision::new(
+            DecisionCategory::TypeMapping,
+            "unrelated",
+            "i32",
+            &[],
+            0.9,
+            "file.rs",
+            10,
+        )
+        .with_rs_span(500, 600)];
+
+        let chain = build_causal_chain(&decisions, (100, 150), 5);
+        assert!(chain.is_empty());
+    }
+
+    #[test]
+    fn test_compile_outcome_serialization() {
+        let success = CompileOutcome::Success;
+        let json = serde_json::to_string(&success).unwrap();
+        assert!(json.contains("Success"));
+
+        let error = CompileOutcome::Error {
+            code: "E0308".to_string(),
+            message: "mismatched types".to_string(),
+            span: Some((10, 20)),
+        };
+        let json = serde_json::to_string(&error).unwrap();
+        assert!(json.contains("E0308"));
+        assert!(json.contains("mismatched types"));
+    }
+
+    #[test]
+    fn test_causal_link_serialization() {
+        let link = CausalLink {
+            decision: DepylerDecision::new(
+                DecisionCategory::TypeMapping,
+                "test",
+                "i32",
+                &[],
+                0.9,
+                "file.rs",
+                10,
+            ),
+            depth: 2,
+        };
+
+        let json = serde_json::to_string(&link).unwrap();
+        assert!(json.contains("depth"));
+        assert!(json.contains("decision"));
+    }
+
+    // ========================================================================
+    // Graceful Degradation Tests (Spec Section 10)
+    // ========================================================================
+
+    #[test]
+    fn test_json_file_writer_creation() {
+        let path = std::path::Path::new("/tmp/test_decisions.jsonl");
+        let writer = JsonFileWriter::new(path);
+        assert!(writer.is_empty());
+        assert_eq!(writer.len(), 0);
+    }
+
+    #[test]
+    fn test_json_file_writer_with_buffer_size() {
+        let path = std::path::Path::new("/tmp/test_decisions.jsonl");
+        let writer = JsonFileWriter::with_buffer_size(path, 500);
+        assert_eq!(writer.max_buffer_size, 500);
+    }
+
+    #[test]
+    fn test_json_file_writer_append() {
+        let path = std::path::Path::new("/tmp/test_decisions_append.jsonl");
+        let mut writer = JsonFileWriter::new(path);
+
+        let decision = DepylerDecision::new(
+            DecisionCategory::TypeMapping,
+            "test",
+            "i32",
+            &[],
+            0.9,
+            "file.rs",
+            10,
+        );
+
+        let result = writer.append(&decision);
+        assert!(result.is_ok());
+        assert_eq!(writer.len(), 1);
+    }
+
+    #[test]
+    fn test_json_file_writer_flush() {
+        use std::io::Read;
+
+        let path = std::path::PathBuf::from("/tmp/test_decisions_flush.jsonl");
+
+        // Clean up any existing file
+        let _ = std::fs::remove_file(&path);
+
+        {
+            let mut writer = JsonFileWriter::new(&path);
+            let decision = DepylerDecision::new(
+                DecisionCategory::TypeMapping,
+                "flush_test",
+                "i32",
+                &[],
+                0.9,
+                "file.rs",
+                10,
+            );
+            writer.append(&decision).unwrap();
+            writer.flush().unwrap();
+            assert!(writer.is_empty()); // Buffer cleared after flush
+        }
+
+        // Verify file was written
+        let mut file = std::fs::File::open(&path).unwrap();
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).unwrap();
+        assert!(contents.contains("flush_test"));
+        assert!(contents.contains("TypeMapping"));
+
+        // Clean up
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_decision_writer_trait_is_empty() {
+        let path = std::path::Path::new("/tmp/test_is_empty.jsonl");
+        let mut writer = JsonFileWriter::new(path);
+        assert!(writer.is_empty());
+
+        let decision = DepylerDecision::new(
+            DecisionCategory::TypeMapping,
+            "test",
+            "i32",
+            &[],
+            0.9,
+            "file.rs",
+            10,
+        );
+        writer.append(&decision).unwrap();
+        assert!(!writer.is_empty());
+    }
+
+    #[test]
+    fn test_create_decision_writer_returns_boxed_trait() {
+        let path = std::path::Path::new("/tmp/test_create_writer.msgpack");
+        let writer = create_decision_writer(path);
+        assert!(writer.is_empty());
     }
 }
