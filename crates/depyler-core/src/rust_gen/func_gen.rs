@@ -3020,8 +3020,16 @@ impl RustCodeGen for HirFunction {
             }
         }
 
+        // DEPYLER-0617: Set flag if we're generating main() function
+        // This affects return statement handling (integer returns → process::exit)
+        let was_main = ctx.is_main_function;
+        ctx.is_main_function = self.name == "main";
+
         // Process function body with proper scoping (expressions will now be rewritten if needed)
         let mut body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
+
+        // DEPYLER-0617: Restore flag after body generation
+        ctx.is_main_function = was_main;
 
         // GH-70: Wrap returned closure in Box::new() if function returns Box<dyn Fn>
         if let Some((nested_name, _, _)) = detect_returns_nested_function(self, ctx) {

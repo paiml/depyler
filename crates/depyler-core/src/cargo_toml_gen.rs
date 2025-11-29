@@ -455,6 +455,7 @@ mod tests {
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
             subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
             hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
+            is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -571,6 +572,7 @@ mod tests {
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
             subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
             hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
+            is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
         };
 
         let deps = extract_dependencies(&ctx);
@@ -684,6 +686,7 @@ mod tests {
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
             subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
             hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
+            is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
         };
 
         let deps = extract_dependencies(&ctx);
@@ -801,6 +804,7 @@ mod tests {
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
             subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
             hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
+            is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
         };
 
         let deps = extract_dependencies(&ctx);
