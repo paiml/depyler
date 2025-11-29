@@ -3423,6 +3423,19 @@ impl<'a> ExprConverter<'a> {
                 let attr_ident = make_ident(attr);
                 return Ok(parse_quote! { Self::#attr_ident });
             }
+
+            // DEPYLER-0616: Detect enum/type constant access patterns
+            // TypeName.CONSTANT → TypeName::CONSTANT
+            // Heuristic: If name starts with uppercase and attr is ALL_CAPS, it's likely an enum constant
+            let first_char = var_name.chars().next().unwrap_or('a');
+            let is_type_name = first_char.is_uppercase();
+            let is_constant = attr.chars().all(|c| c.is_uppercase() || c == '_');
+
+            if is_type_name && is_constant {
+                let type_ident = make_ident(var_name);
+                let attr_ident = make_ident(attr);
+                return Ok(parse_quote! { #type_ident::#attr_ident });
+            }
         }
 
         let value_expr = self.convert(value)?;
