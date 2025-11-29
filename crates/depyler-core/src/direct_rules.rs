@@ -2577,9 +2577,10 @@ impl<'a> ExprConverter<'a> {
             })
             .collect::<Result<Vec<_>>>()?;
 
+        // DEPYLER-0623: Use fully qualified path to avoid missing import
         Ok(parse_quote! {
             {
-                let mut map = HashMap::new();
+                let mut map = std::collections::HashMap::new();
                 #(#insert_exprs;)*
                 map
             }
@@ -2603,9 +2604,10 @@ impl<'a> ExprConverter<'a> {
             })
             .collect::<Result<Vec<_>>>()?;
 
+        // DEPYLER-0623: Use fully qualified path to avoid missing import
         Ok(parse_quote! {
             {
-                let mut set = HashSet::new();
+                let mut set = std::collections::HashSet::new();
                 #(#insert_exprs;)*
                 set
             }
@@ -2621,9 +2623,10 @@ impl<'a> ExprConverter<'a> {
             })
             .collect::<Result<Vec<_>>>()?;
 
+        // DEPYLER-0623: Use fully qualified path to avoid missing import
         Ok(parse_quote! {
             {
-                let mut set = HashSet::new();
+                let mut set = std::collections::HashSet::new();
                 #(#insert_exprs;)*
                 std::sync::Arc::new(set)
             }
