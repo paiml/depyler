@@ -827,4 +827,291 @@ mod tests {
         assert!(formatted.contains("|> filter(|x| x > 1)"));
         assert!(formatted.contains("|> map(|x| x * 2)"));
     }
+
+    #[test]
+    fn test_format_identifier() {
+        let formatter = RuchyFormatter::new();
+        let expr = RuchyExpr::Identifier("my_variable".to_string());
+        assert_eq!(formatter.format(&expr), "my_variable");
+    }
+
+    #[test]
+    fn test_format_binary_operators() {
+        let formatter = RuchyFormatter::new();
+
+        // Test addition
+        let add_expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Identifier("a".to_string())),
+            op: BinaryOp::Add,
+            right: Box::new(RuchyExpr::Identifier("b".to_string())),
+        };
+        assert_eq!(formatter.format(&add_expr), "a + b");
+
+        // Test subtraction
+        let sub_expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Identifier("a".to_string())),
+            op: BinaryOp::Subtract,
+            right: Box::new(RuchyExpr::Identifier("b".to_string())),
+        };
+        assert_eq!(formatter.format(&sub_expr), "a - b");
+
+        // Test multiplication
+        let mul_expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Identifier("a".to_string())),
+            op: BinaryOp::Multiply,
+            right: Box::new(RuchyExpr::Identifier("b".to_string())),
+        };
+        assert_eq!(formatter.format(&mul_expr), "a * b");
+
+        // Test division
+        let div_expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Identifier("a".to_string())),
+            op: BinaryOp::Divide,
+            right: Box::new(RuchyExpr::Identifier("b".to_string())),
+        };
+        assert_eq!(formatter.format(&div_expr), "a / b");
+    }
+
+    #[test]
+    fn test_format_comparison_operators() {
+        let formatter = RuchyFormatter::new();
+
+        let eq_expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Identifier("a".to_string())),
+            op: BinaryOp::Equal,
+            right: Box::new(RuchyExpr::Identifier("b".to_string())),
+        };
+        assert_eq!(formatter.format(&eq_expr), "a == b");
+
+        let ne_expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Identifier("a".to_string())),
+            op: BinaryOp::NotEqual,
+            right: Box::new(RuchyExpr::Identifier("b".to_string())),
+        };
+        assert_eq!(formatter.format(&ne_expr), "a != b");
+    }
+
+    #[test]
+    fn test_format_unary_operators() {
+        let formatter = RuchyFormatter::new();
+
+        let not_expr = RuchyExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(RuchyExpr::Identifier("flag".to_string())),
+        };
+        assert_eq!(formatter.format(&not_expr), "!flag");
+
+        let neg_expr = RuchyExpr::Unary {
+            op: UnaryOp::Negate,
+            operand: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+        };
+        assert_eq!(formatter.format(&neg_expr), "-5");
+    }
+
+    #[test]
+    fn test_format_call() {
+        let formatter = RuchyFormatter::new();
+
+        let call_expr = RuchyExpr::Call {
+            func: Box::new(RuchyExpr::Identifier("print".to_string())),
+            args: vec![RuchyExpr::Literal(Literal::String("hello".to_string()))],
+        };
+        assert_eq!(formatter.format(&call_expr), "print(\"hello\")");
+    }
+
+    #[test]
+    fn test_format_list() {
+        let formatter = RuchyFormatter::new();
+
+        let list_expr = RuchyExpr::List(vec![
+            RuchyExpr::Literal(Literal::Integer(1)),
+            RuchyExpr::Literal(Literal::Integer(2)),
+            RuchyExpr::Literal(Literal::Integer(3)),
+        ]);
+        assert_eq!(formatter.format(&list_expr), "[1, 2, 3]");
+    }
+
+    #[test]
+    fn test_format_if_else() {
+        let formatter = RuchyFormatter::new();
+
+        let if_expr = RuchyExpr::If {
+            condition: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Identifier("x".to_string())),
+                op: BinaryOp::Greater,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(0))),
+            }),
+            then_branch: Box::new(RuchyExpr::Literal(Literal::String("positive".to_string()))),
+            else_branch: Some(Box::new(RuchyExpr::Literal(Literal::String("non-positive".to_string())))),
+        };
+
+        let formatted = formatter.format(&if_expr);
+        assert!(formatted.contains("if"));
+        assert!(formatted.contains("else"));
+    }
+
+    #[test]
+    fn test_format_lambda() {
+        let formatter = RuchyFormatter::new();
+
+        let lambda_expr = RuchyExpr::Lambda {
+            params: vec![Param {
+                name: "x".to_string(),
+                typ: Some(RuchyType::I64),
+                default: None,
+            }],
+            body: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Identifier("x".to_string())),
+                op: BinaryOp::Multiply,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+            }),
+        };
+
+        let formatted = formatter.format(&lambda_expr);
+        assert!(formatted.contains("|x: i64|"));
+        assert!(formatted.contains("x * 2"));
+    }
+
+    #[test]
+    fn test_format_async_function() {
+        let formatter = RuchyFormatter::new();
+
+        let async_fn = RuchyExpr::Function {
+            name: "fetch_data".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Literal(Literal::Unit)),
+            is_async: true,
+            return_type: None,
+        };
+
+        let formatted = formatter.format(&async_fn);
+        assert!(formatted.contains("async fun fetch_data"));
+    }
+
+    #[test]
+    fn test_format_block() {
+        let formatter = RuchyFormatter::new();
+
+        let block_expr = RuchyExpr::Block(vec![
+            RuchyExpr::Identifier("x".to_string()),
+            RuchyExpr::Identifier("y".to_string()),
+        ]);
+
+        let formatted = formatter.format(&block_expr);
+        assert!(formatted.contains("{"));
+        assert!(formatted.contains("}"));
+    }
+
+    #[test]
+    fn test_format_range() {
+        let formatter = RuchyFormatter::new();
+
+        // Exclusive range
+        let range_expr = RuchyExpr::Range {
+            start: Box::new(RuchyExpr::Literal(Literal::Integer(0))),
+            end: Box::new(RuchyExpr::Literal(Literal::Integer(10))),
+            inclusive: false,
+        };
+        assert_eq!(formatter.format(&range_expr), "0..10");
+
+        // Inclusive range
+        let inclusive_range = RuchyExpr::Range {
+            start: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            end: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+            inclusive: true,
+        };
+        assert_eq!(formatter.format(&inclusive_range), "1..=5");
+    }
+
+    #[test]
+    fn test_format_break_continue() {
+        let formatter = RuchyFormatter::new();
+
+        let break_expr = RuchyExpr::Break { label: None };
+        assert_eq!(formatter.format(&break_expr), "break");
+
+        let break_with_label = RuchyExpr::Break { label: Some("outer".to_string()) };
+        assert_eq!(formatter.format(&break_with_label), "break 'outer");
+
+        let continue_expr = RuchyExpr::Continue { label: None };
+        assert_eq!(formatter.format(&continue_expr), "continue");
+    }
+
+    #[test]
+    fn test_format_return() {
+        let formatter = RuchyFormatter::new();
+
+        let return_nothing = RuchyExpr::Return { value: None };
+        assert_eq!(formatter.format(&return_nothing), "return");
+
+        let return_value = RuchyExpr::Return {
+            value: Some(Box::new(RuchyExpr::Literal(Literal::Integer(42)))),
+        };
+        assert_eq!(formatter.format(&return_value), "return 42");
+    }
+
+    #[test]
+    fn test_format_float_literal() {
+        let formatter = RuchyFormatter::new();
+
+        let float_expr = RuchyExpr::Literal(Literal::Float(3.14));
+        let formatted = formatter.format(&float_expr);
+        assert!(formatted.contains("3.14"));
+
+        let whole_float = RuchyExpr::Literal(Literal::Float(5.0));
+        let formatted = formatter.format(&whole_float);
+        assert!(formatted.contains(".0") || formatted.contains("5"));
+    }
+
+    #[test]
+    fn test_format_char_literal() {
+        let formatter = RuchyFormatter::new();
+        let char_expr = RuchyExpr::Literal(Literal::Char('a'));
+        assert_eq!(formatter.format(&char_expr), "'a'");
+    }
+
+    #[test]
+    fn test_format_unit_literal() {
+        let formatter = RuchyFormatter::new();
+        let unit_expr = RuchyExpr::Literal(Literal::Unit);
+        assert_eq!(formatter.format(&unit_expr), "()");
+    }
+
+    #[test]
+    fn test_formatter_default() {
+        let formatter = RuchyFormatter::default();
+        assert_eq!(formatter.indent_width, 4);
+        assert_eq!(formatter.max_line_length, 100);
+    }
+
+    #[test]
+    fn test_format_field_access() {
+        let formatter = RuchyFormatter::new();
+
+        let field_access = RuchyExpr::FieldAccess {
+            object: Box::new(RuchyExpr::Identifier("person".to_string())),
+            field: "name".to_string(),
+        };
+        assert_eq!(formatter.format(&field_access), "person.name");
+    }
+
+    #[test]
+    fn test_format_await() {
+        let formatter = RuchyFormatter::new();
+
+        let await_expr = RuchyExpr::Await {
+            expr: Box::new(RuchyExpr::Identifier("future".to_string())),
+        };
+        assert_eq!(formatter.format(&await_expr), "future.await");
+    }
+
+    #[test]
+    fn test_format_try() {
+        let formatter = RuchyFormatter::new();
+
+        let try_expr = RuchyExpr::Try {
+            expr: Box::new(RuchyExpr::Identifier("result".to_string())),
+        };
+        assert_eq!(formatter.format(&try_expr), "result?");
+    }
 }

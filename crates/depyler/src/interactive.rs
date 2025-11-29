@@ -92,7 +92,7 @@ pub enum SuggestionType {
 /// impacts.sort();
 /// assert_eq!(impacts, vec![ImpactLevel::Low, ImpactLevel::Medium, ImpactLevel::High]);
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ImpactLevel {
     Low,
     Medium,

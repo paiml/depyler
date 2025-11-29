@@ -119,3 +119,66 @@ impl std::fmt::Display for TypeConstraint {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_constraint_eq() {
+        let c = TypeConstraint::eq(Type::Int, Type::Int, "test");
+        assert_eq!(c.kind, ConstraintKind::Eq);
+        assert_eq!(c.lhs, Type::Int);
+        assert_eq!(c.rhs, Type::Int);
+        assert_eq!(c.reason, "test");
+    }
+
+    #[test]
+    fn test_constraint_subtype() {
+        let c = TypeConstraint::subtype(Type::Int, Type::Float, "widening");
+        assert_eq!(c.kind, ConstraintKind::Subtype);
+        assert_eq!(c.lhs, Type::Int);
+        assert_eq!(c.rhs, Type::Float);
+    }
+
+    #[test]
+    fn test_constraint_supertype() {
+        let c = TypeConstraint::supertype(Type::Float, Type::Int, "narrowing");
+        assert_eq!(c.kind, ConstraintKind::Supertype);
+    }
+
+    #[test]
+    fn test_constraint_kind_display() {
+        assert_eq!(format!("{}", ConstraintKind::Eq), "==");
+        assert_eq!(format!("{}", ConstraintKind::Subtype), "<:");
+        assert_eq!(format!("{}", ConstraintKind::Supertype), ":>");
+        assert_eq!(format!("{}", ConstraintKind::Callable), "callable");
+        assert_eq!(format!("{}", ConstraintKind::HasField("x".into())), "has field x");
+        assert_eq!(format!("{}", ConstraintKind::Arithmetic), "arithmetic");
+    }
+
+    #[test]
+    fn test_type_constraint_display() {
+        let c = TypeConstraint::eq(Type::Int, Type::Float, "mismatch");
+        let s = format!("{}", c);
+        assert!(s.contains("=="));
+        assert!(s.contains("mismatch"));
+    }
+
+    #[test]
+    fn test_constraint_clone() {
+        let c1 = TypeConstraint::subtype(Type::String, Type::String, "clone test");
+        let c2 = c1.clone();
+        assert_eq!(c1, c2);
+    }
+
+    #[test]
+    fn test_constraint_kind_eq() {
+        assert_eq!(ConstraintKind::Eq, ConstraintKind::Eq);
+        assert_ne!(ConstraintKind::Eq, ConstraintKind::Subtype);
+        assert_eq!(
+            ConstraintKind::HasField("a".into()),
+            ConstraintKind::HasField("a".into())
+        );
+    }
+}
