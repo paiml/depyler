@@ -20,8 +20,9 @@ use chrono::Utc;
 use depyler_core::cargo_toml_gen;
 use depyler_core::DepylerPipeline;
 use entrenar::train::{
-    efficiency_score, AdaptiveCurriculum, CallbackAction, CallbackContext, CallbackManager,
-    CurriculumScheduler, EarlyStopping, MonitorCallback, TieredCurriculum,
+    efficiency_score, sparkline, AdaptiveCurriculum, CallbackAction, CallbackContext,
+    CallbackManager, CurriculumScheduler, EarlyStopping, MetricsBuffer, MonitorCallback,
+    TieredCurriculum,
 };
 use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::HashMap;
@@ -569,6 +570,8 @@ pub struct CompilationTrainer {
     curriculum: TieredCurriculum,
     /// Corpus size tracking for efficiency scoring
     corpus_bytes: usize,
+    /// Compilation rate buffer for sparkline visualization (GH-155)
+    rates_buffer: MetricsBuffer,
 }
 
 impl CompilationTrainer {
@@ -591,6 +594,7 @@ impl CompilationTrainer {
             error_corpus: Vec::new(),
             curriculum,
             corpus_bytes: 0,
+            rates_buffer: MetricsBuffer::new(100), // Last 100 epochs for sparkline
         }
     }
 
@@ -788,9 +792,16 @@ impl CompilationTrainer {
                         match pipeline.transpile_with_dependencies(&source) {
                             Ok((rust_code, dependencies)) => {
                                 fs::create_dir_all(&project_dir).map_err(|e| format!("mkdir: {}", e))?;
-                                let rs_file = project_dir.join("lib.rs");
+                                // DEPYLER-0606: Check if code has fn main() to determine crate type
+                                // CLIs with argparse have main(), pure libraries don't
+                                let is_binary = rust_code.contains("fn main()") || rust_code.contains("pub fn main()");
+                                let (rs_filename, cargo_toml) = if is_binary {
+                                    ("main.rs", cargo_toml_gen::generate_cargo_toml(&file_stem, "main.rs", &dependencies))
+                                } else {
+                                    ("lib.rs", cargo_toml_gen::generate_cargo_toml_lib(&file_stem, "lib.rs", &dependencies))
+                                };
+                                let rs_file = project_dir.join(rs_filename);
                                 fs::write(&rs_file, &rust_code).map_err(|e| format!("Write: {}", e))?;
-                                let cargo_toml = cargo_toml_gen::generate_cargo_toml_lib(&file_stem, "lib.rs", &dependencies);
                                 fs::write(project_dir.join("Cargo.toml"), &cargo_toml)
                                     .map_err(|e| format!("Cargo.toml: {}", e))?;
                                 Ok(project_dir.clone())
@@ -885,7 +896,10 @@ impl CompilationTrainer {
         Ok(results)
     }
 
-    fn display_progress(&self, epoch: usize, rate: f64, transpile_ok: usize, compile_ok: usize, delta: i32) {
+    fn display_progress(&mut self, epoch: usize, rate: f64, transpile_ok: usize, compile_ok: usize, delta: i32) {
+        // Record rate in buffer for sparkline visualization (GH-155)
+        self.rates_buffer.push(rate as f32);
+
         let total = self.files.len();
         let bar_width = 20;
         let filled = (rate * bar_width as f64) as usize;
@@ -909,19 +923,25 @@ impl CompilationTrainer {
             "↓"
         };
 
+        // Generate sparkline from recent compilation rates (GH-155)
+        let spark = sparkline(&self.rates_buffer.last_n(20), 20);
+
         print!(
-            "\rEpoch {}/{} [{}] {:>5.1}% | trans: {}/{} | comp: {}/{} | Δ: {:>3} {}",
+            "\rEpoch {}/{} [{}] {:>5.1}% {} {}/{} Δ{:>3} {}",
             epoch + 1,
             self.config.max_epochs,
             bar,
             rate * 100.0,
-            transpile_ok,
-            total,
+            spark,
             compile_ok,
             total,
             delta_str,
             status
         );
+        // Show transpile stats only when different from compile
+        if transpile_ok != compile_ok {
+            print!(" (trans:{}/{})", transpile_ok, total);
+        }
         std::io::Write::flush(&mut std::io::stdout()).ok();
         println!();
     }

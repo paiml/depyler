@@ -206,6 +206,11 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-0608: Track extracted subcommand fields for match arm context
     /// These fields are bound via `ref field` patterns in the match arm
     pub subcommand_match_fields: Vec<String>,
+
+    /// DEPYLER-0613: Track names of functions that have been hoisted to top of body
+    /// These should be skipped when processing nested blocks (if/while/for/try)
+    /// to avoid duplicate emission
+    pub hoisted_function_names: Vec<String>,
 }
 
 impl<'a> CodeGenContext<'a> {

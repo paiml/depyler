@@ -349,23 +349,18 @@ security-audit: ## Run security audit
 	$(CARGO) audit
 # #@ Coverage
 .PHONY: coverage
-coverage: ## Generate coverage report (< 10 min, pforge pattern)
-	@echo "📊 Running comprehensive test coverage analysis..."
+coverage: ## Generate HTML coverage report
+	@echo "📊 Running test coverage analysis..."
 	@echo "🔍 Checking for cargo-llvm-cov and cargo-nextest..."
 	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
 	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
 	@echo "🧹 Cleaning old coverage data..."
 	@$(CARGO) llvm-cov clean --workspace
 	@mkdir -p target/coverage
-	@echo "⚙️  Temporarily disabling global cargo config (linker may break coverage)..."
+	@echo "⚙️  Temporarily disabling global cargo config (mold breaks coverage)..."
 	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
 	@echo "🧪 Phase 1: Running tests with instrumentation (no report)..."
-	@echo "⚡ OPTIMIZATION: Property tests reduced to 10 cases for faster coverage"
-	@echo "   - PROPTEST_CASES=10 (from 256 default for proptest)"
-	@echo "   - QUICKCHECK_TESTS=10 (from 100 default for quickcheck)"
-	@echo "   - DEPYLER_FAST_TESTS=1 (reduces oracle ML model iterations)"
-	@echo "   - Skipping benchmark tests (use 'make test-benchmark' for those)"
-	@PROPTEST_CASES=10 QUICKCHECK_TESTS=10 DEPYLER_FAST_TESTS=1 $(CARGO) llvm-cov --no-report --ignore-run-fail nextest --no-tests=warn --all-features --workspace -E 'not test(property_test_benchmarks) and not test(integration_benchmarks)'
+	@env PROPTEST_CASES=10 QUICKCHECK_TESTS=10 $(CARGO) llvm-cov --no-report nextest --no-tests=warn --no-fail-fast --all-features --workspace
 	@echo "📊 Phase 2: Generating coverage reports..."
 	@$(CARGO) llvm-cov report --html --output-dir target/coverage/html
 	@$(CARGO) llvm-cov report --lcov --output-path target/coverage/lcov.info
@@ -376,11 +371,7 @@ coverage: ## Generate coverage report (< 10 min, pforge pattern)
 	@echo "=================="
 	@$(CARGO) llvm-cov report --summary-only
 	@echo ""
-	@echo "💡 COVERAGE INSIGHTS:"
-	@echo "- HTML report: target/coverage/html/index.html"
-	@echo "- LCOV file: target/coverage/lcov.info"
-	@echo "- Property tests: 10 cases per test (fast mode for coverage)"
-	@echo "- Optimization: PROPTEST_CASES=10, QUICKCHECK_TESTS=10 (reduces timeout risk)"
+	@echo "💡 HTML report: target/coverage/html/index.html"
 coverage-summary: ## Display coverage summary (run 'make coverage' first)
 	@echo "📊 Coverage Summary:"
 	@echo "=================="

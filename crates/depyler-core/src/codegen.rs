@@ -620,6 +620,14 @@ fn stmt_to_rust_tokens_with_scope(
             // Pass statement generates no code
             Ok(quote! {})
         }
+        // DEPYLER-0614: Handle Block of statements
+        HirStmt::Block(stmts) => {
+            let mut tokens = proc_macro2::TokenStream::new();
+            for s in stmts {
+                tokens.extend(stmt_to_rust_tokens_with_scope(s, scope_tracker)?);
+            }
+            Ok(tokens)
+        }
         // DEPYLER-0427: Nested function support - delegate to rust_gen module
         HirStmt::FunctionDef { .. } => {
             // This is handled by the main rust_gen module

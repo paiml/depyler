@@ -309,6 +309,12 @@ impl LifetimeInference {
             HirStmt::Break { .. } | HirStmt::Continue { .. } | HirStmt::Pass => {
                 // Break, continue, and pass don't contain expressions to analyze
             }
+            // DEPYLER-0614: Recursively analyze Block statements
+            HirStmt::Block(stmts) => {
+                for s in stmts {
+                    self.analyze_stmt_for_param(param, s, usage, in_loop);
+                }
+            }
             HirStmt::Assert { test, msg } => {
                 // Analyze the test expression and optional message
                 self.analyze_expr_for_param(param, test, usage, in_loop, false);

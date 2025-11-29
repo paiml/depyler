@@ -347,6 +347,9 @@ pub enum HirStmt {
         msg: Option<HirExpr>,
     },
     Pass,
+    /// Block of statements (used for multi-target assignment: i = j = 0)
+    /// DEPYLER-0614: Support Python chained assignment
+    Block(Vec<HirStmt>),
     /// Nested function definition (inner functions)
     FunctionDef {
         name: Symbol,

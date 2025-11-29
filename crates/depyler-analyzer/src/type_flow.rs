@@ -216,6 +216,12 @@ impl TypeInferencer {
             HirStmt::FunctionDef { body, .. } => {
                 self.infer_body(body)?;
             }
+            // DEPYLER-0614: Recursively infer types in Block statements (for multi-target assignment: i = j = 0)
+            HirStmt::Block(stmts) => {
+                for s in stmts {
+                    self.infer_stmt(s)?;
+                }
+            }
         }
         Ok(())
     }
