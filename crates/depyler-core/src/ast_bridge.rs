@@ -1096,27 +1096,54 @@ impl AstBridge {
 
         // Look for self.field assignments in __init__
         for stmt in &init.body {
-            if let ast::Stmt::Assign(assign) = stmt {
-                // Check if it's a self.field assignment
-                if assign.targets.len() == 1 {
-                    if let ast::Expr::Attribute(attr) = &assign.targets[0] {
+            // DEPYLER-0609: Handle both Assign and AnnAssign (annotated assignment)
+            // Python: self._size: int = size  (AnnAssign)
+            // Python: self._size = size       (Assign)
+            match stmt {
+                ast::Stmt::Assign(assign) => {
+                    // Check if it's a self.field assignment
+                    if assign.targets.len() == 1 {
+                        if let ast::Expr::Attribute(attr) = &assign.targets[0] {
+                            if let ast::Expr::Name(name) = attr.value.as_ref() {
+                                if name.id.as_str() == "self" {
+                                    let field_name = attr.attr.to_string();
+
+                                    // Try to infer type from the assigned value
+                                    let field_type =
+                                        if let ast::Expr::Name(value_name) = assign.value.as_ref() {
+                                            // If assigning a parameter, use its type
+                                            param_types
+                                                .get(value_name.id.as_str())
+                                                .cloned()
+                                                .unwrap_or(Type::Unknown)
+                                        } else {
+                                            // Otherwise, try to infer from literal or default to Unknown
+                                            self.infer_type_from_expr(assign.value.as_ref())
+                                                .unwrap_or(Type::Unknown)
+                                        };
+
+                                    fields.push(HirField {
+                                        name: field_name,
+                                        field_type,
+                                        default_value: None,
+                                        is_class_var: false,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                ast::Stmt::AnnAssign(ann_assign) => {
+                    // Handle annotated assignment: self._size: int = size
+                    if let ast::Expr::Attribute(attr) = ann_assign.target.as_ref() {
                         if let ast::Expr::Name(name) = attr.value.as_ref() {
                             if name.id.as_str() == "self" {
                                 let field_name = attr.attr.to_string();
 
-                                // Try to infer type from the assigned value
+                                // Use the annotation for the type
                                 let field_type =
-                                    if let ast::Expr::Name(value_name) = assign.value.as_ref() {
-                                        // If assigning a parameter, use its type
-                                        param_types
-                                            .get(value_name.id.as_str())
-                                            .cloned()
-                                            .unwrap_or(Type::Unknown)
-                                    } else {
-                                        // Otherwise, try to infer from literal or default to Unknown
-                                        self.infer_type_from_expr(assign.value.as_ref())
-                                            .unwrap_or(Type::Unknown)
-                                    };
+                                    TypeExtractor::extract_type(&ann_assign.annotation)
+                                        .unwrap_or(Type::Unknown);
 
                                 fields.push(HirField {
                                     name: field_name,
@@ -1128,6 +1155,7 @@ impl AstBridge {
                         }
                     }
                 }
+                _ => {}
             }
         }
 

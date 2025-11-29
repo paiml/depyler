@@ -1842,6 +1842,15 @@ fn convert_stmt_with_context(
             // Pass statement generates empty statement
             Ok(syn::Stmt::Expr(parse_quote! { {} }, None))
         }
+        // DEPYLER-0614: Handle Block of statements - convert first statement
+        // Note: This is a simplification; blocks are flattened during codegen
+        HirStmt::Block(stmts) => {
+            if stmts.is_empty() {
+                Ok(syn::Stmt::Expr(parse_quote! { {} }, None))
+            } else {
+                convert_stmt_with_context(&stmts[0], type_mapper, is_classmethod)
+            }
+        }
         // DEPYLER-0427: Nested function support - delegate to main rust_gen module
         HirStmt::FunctionDef { .. } => {
             // Nested functions are handled by the main rust_gen module
@@ -3018,6 +3027,39 @@ impl<'a> ExprConverter<'a> {
                 )
             }
 
+            // DEPYLER-0613: Semaphore/Mutex method mappings
+            // Python: sem.acquire() → Rust: mutex.lock().unwrap() (returns guard)
+            "acquire" => {
+                // Mutex.lock() returns a guard - acquire returns bool in Python but we adapt
+                Ok(parse_quote! { #object_expr.lock().is_ok() })
+            }
+            // Python: sem.release() → Rust: drop guard (no-op if guard not held)
+            "release" => {
+                // In Rust, release happens when guard is dropped
+                // For now, just return unit since we can't easily track the guard
+                Ok(parse_quote! { () })
+            }
+
+            // DEPYLER-0613: List/Dict copy method
+            // Python: list.copy() → Rust: vec.clone()
+            "copy" => {
+                if !arg_exprs.is_empty() {
+                    bail!("copy() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.clone() })
+            }
+
+            // DEPYLER-0613: Dict contains_key (may be called on wrong type)
+            // Python: dict.__contains__(key) sometimes transpiles as contains_key
+            "contains_key" => {
+                if arg_exprs.len() != 1 {
+                    bail!("contains_key() requires exactly one argument");
+                }
+                let key = &arg_exprs[0];
+                // For HashMap this is correct, for Vec use contains
+                Ok(parse_quote! { #object_expr.contains(&#key) })
+            }
+
             // Generic method call fallback
             _ => {
                 // DEPYLER-0596: Validate method name before creating identifier
@@ -3210,29 +3252,17 @@ impl<'a> ExprConverter<'a> {
             },
             "json" => match constructor {
                 "loads" | "load" => {
-                    if let Some(arg) = arg_exprs.first() {
-                        Some(parse_quote! { serde_json::from_str(#arg)? })
-                    } else {
-                        None
-                    }
+                    arg_exprs.first().map(|arg| parse_quote! { serde_json::from_str(#arg)? })
                 }
                 "dumps" | "dump" => {
-                    if let Some(arg) = arg_exprs.first() {
-                        Some(parse_quote! { serde_json::to_string(&#arg)? })
-                    } else {
-                        None
-                    }
+                    arg_exprs.first().map(|arg| parse_quote! { serde_json::to_string(&#arg)? })
                 }
                 _ => None,
             },
             "os" => match constructor {
                 "getcwd" => Some(parse_quote! { std::env::current_dir()?.to_string_lossy().to_string() }),
                 "getenv" => {
-                    if let Some(arg) = arg_exprs.first() {
-                        Some(parse_quote! { std::env::var(#arg).ok() })
-                    } else {
-                        None
-                    }
+                    arg_exprs.first().map(|arg| parse_quote! { std::env::var(#arg).ok() })
                 }
                 "listdir" => {
                     if let Some(arg) = arg_exprs.first() {

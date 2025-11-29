@@ -488,6 +488,87 @@ depyler transpile input.py --debug --source-map
 depyler transpile input.py --debug --source-map --verify-level none
 ```
 
+### `converge` - Automated Compilation Convergence (GH-158)
+
+Automated convergence loop to achieve 100% compilation rate across all examples.
+The command iteratively compiles examples, classifies errors by root cause, and
+optionally applies fixes to reach the target compilation rate.
+
+```bash
+depyler converge [OPTIONS]
+
+Options:
+  -i, --input-dir <DIR>        Directory containing Python examples [default: ./examples]
+  -t, --target-rate <RATE>     Target compilation rate (0-100) [default: 100]
+  -m, --max-iterations <N>     Maximum iterations before stopping [default: 50]
+      --auto-fix               Automatically apply transpiler fixes
+      --dry-run                Show what would be fixed without applying
+      --fix-confidence <F>     Minimum confidence for auto-fix (0.0-1.0) [default: 0.8]
+      --checkpoint-dir <DIR>   Directory to save/resume checkpoints
+  -p, --parallel-jobs <N>      Number of parallel compilation jobs [default: 4]
+```
+
+#### Examples
+
+```bash
+# Basic convergence check (dry run)
+depyler converge --input-dir examples --dry-run
+
+# Run until 100% compilation rate
+depyler converge --input-dir examples --target-rate 100
+
+# Auto-fix with checkpointing for resumability
+depyler converge --input-dir examples --auto-fix --checkpoint-dir .converge
+
+# Run with lower confidence threshold
+depyler converge --input-dir examples --auto-fix --fix-confidence 0.6
+
+# Target 95% compilation rate with parallel jobs
+depyler converge --input-dir examples --target-rate 95 --parallel-jobs 8
+```
+
+#### Output Format
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║               DEPYLER CONVERGENCE LOOP                       ║
+╠══════════════════════════════════════════════════════════════╣
+║ Input Directory: ./examples                                  ║
+║ Target Rate:     100.0%                                      ║
+║ Max Iterations:     50                                       ║
+║ Auto-fix:           ON                                       ║
+╚══════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────┐
+│ Iteration   1 │ Rate:  75.0% │ Passing:   75/100            │
+├──────────────────────────────────────────────────────────────┤
+│ Top Cluster: E0599 (15 blocked, 90% confidence)              │
+│ Root Cause: missing_method @ expr_gen.rs                     │
+└──────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════╗
+║                    CONVERGENCE COMPLETE                      ║
+╠══════════════════════════════════════════════════════════════╣
+║ Status:          ✅ TARGET REACHED                           ║
+║ Final Rate:      100.0% (100/100)                            ║
+║ Iterations:          5                                       ║
+║ Fixes Applied:       3                                       ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+#### Error Categories
+
+The convergence loop classifies errors into categories:
+
+| Error Code | Category | Description |
+| ---------- | -------- | ----------- |
+| E0599 | TranspilerGap | Missing method or field |
+| E0308 | TranspilerGap | Type mismatch |
+| E0277 | TranspilerGap | Missing trait implementation |
+| E0425 | TranspilerGap | Undefined variable |
+| E0433 | TranspilerGap | Missing import |
+| E0382/E0502/E0507 | TranspilerGap | Borrow checker issues |
+
 ## Configuration
 
 ### Project Configuration File
