@@ -696,6 +696,250 @@ queue_size = 10000
 3. **Local-first**: Full traces local only; sampled subset to remote
 4. **Authenticated export**: OTLP export requires auth token
 
+## 13. Oracle Query Loop (CRITICAL)
+
+**Status: NOT IMPLEMENTED - Required for feedback loop**
+
+Without this section, pattern capture has zero ROI. This closes the loop.
+
+### 13.1 Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        TRANSPILATION WITH ORACLE                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Python AST ──► depyler transpile ──► Rust code ──► rustc               │
+│                        │                              │                  │
+│                        │ (on error)                   │                  │
+│                        ▼                              ▼                  │
+│              ┌─────────────────┐              ┌─────────────┐           │
+│              │ Query Oracle    │◄─────────────│ E0308, E0433│           │
+│              │ (entrenar CITL) │              │ error code  │           │
+│              └────────┬────────┘              └─────────────┘           │
+│                       │                                                  │
+│                       ▼                                                  │
+│              ┌─────────────────┐                                        │
+│              │ Suggestions     │                                        │
+│              │ confidence > θ  │──► Apply fix ──► Retry transpile       │
+│              └─────────────────┘                                        │
+│                       │                                                  │
+│                       ▼ (if no suggestion or low confidence)            │
+│              ┌─────────────────┐                                        │
+│              │ Capture pattern │──► patterns.apr (for next session)     │
+│              └─────────────────┘                                        │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 13.2 CLI Interface
+
+```bash
+# Enable oracle suggestions during transpilation
+depyler transpile input.py --oracle
+
+# With confidence threshold (default: 0.7)
+depyler transpile input.py --oracle --oracle-threshold 0.8
+
+# Auto-apply high-confidence suggestions
+depyler transpile input.py --oracle --auto-fix
+
+# Specify patterns file
+depyler transpile input.py --oracle --patterns ./decision_patterns.apr
+```
+
+### 13.3 Implementation
+
+```rust
+// src/oracle/mod.rs
+use entrenar::citl::DecisionPatternStore;
+
+pub struct OracleConfig {
+    pub enabled: bool,
+    pub patterns_path: PathBuf,
+    pub confidence_threshold: f64,
+    pub auto_fix: bool,
+    pub max_retries: usize,
+}
+
+impl Default for OracleConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            patterns_path: PathBuf::from("decision_patterns.apr"),
+            confidence_threshold: 0.7,
+            auto_fix: false,
+            max_retries: 3,
+        }
+    }
+}
+
+pub struct Oracle {
+    store: Option<DecisionPatternStore>,
+    config: OracleConfig,
+}
+
+impl Oracle {
+    pub fn new(config: OracleConfig) -> Result<Self, Error> {
+        let store = if config.enabled && config.patterns_path.exists() {
+            Some(DecisionPatternStore::load_apr(&config.patterns_path)?)
+        } else {
+            None
+        };
+        Ok(Self { store, config })
+    }
+
+    /// Query oracle for fix suggestion
+    pub fn suggest_fix(
+        &self,
+        error_code: &str,
+        context: &DecisionContext,
+    ) -> Option<FixSuggestion> {
+        let store = self.store.as_ref()?;
+        let suggestions = store.suggest_fix(error_code, context, 5).ok()?;
+
+        suggestions
+            .into_iter()
+            .find(|s| s.confidence >= self.config.confidence_threshold)
+    }
+
+    /// Apply suggestion to transpiled code
+    pub fn apply_suggestion(
+        &self,
+        code: &str,
+        suggestion: &FixSuggestion,
+    ) -> Result<String, Error> {
+        // Apply the fix_diff from the suggestion
+        apply_unified_diff(code, &suggestion.fix_diff)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FixSuggestion {
+    pub error_code: String,
+    pub confidence: f64,
+    pub fix_diff: String,
+    pub explanation: String,
+    pub source_pattern_id: Uuid,
+}
+
+#[derive(Debug, Clone)]
+pub struct DecisionContext {
+    pub py_ast_hash: u64,
+    pub decision_sequence: Vec<String>,
+    pub error_span: (usize, usize),
+    pub surrounding_code: String,
+}
+```
+
+### 13.4 Integration in Transpile Pipeline
+
+```rust
+// src/commands/transpile.rs
+
+pub fn transpile_with_oracle(
+    input: &Path,
+    oracle: &Oracle,
+) -> Result<TranspileResult, Error> {
+    let mut attempts = 0;
+    let max_attempts = oracle.config.max_retries + 1;
+
+    loop {
+        attempts += 1;
+
+        // Transpile
+        let rust_code = transpile(input)?;
+
+        // Compile
+        match compile_check(&rust_code) {
+            Ok(()) => {
+                return Ok(TranspileResult::Success {
+                    code: rust_code,
+                    attempts,
+                });
+            }
+            Err(errors) if attempts < max_attempts && oracle.config.auto_fix => {
+                // Query oracle for each error
+                let mut fixed_code = rust_code.clone();
+                let mut any_fix_applied = false;
+
+                for error in &errors {
+                    let context = build_context(input, &rust_code, error);
+
+                    if let Some(suggestion) = oracle.suggest_fix(&error.code, &context) {
+                        if let Ok(new_code) = oracle.apply_suggestion(&fixed_code, &suggestion) {
+                            fixed_code = new_code;
+                            any_fix_applied = true;
+
+                            eprintln!(
+                                "Oracle fix applied: {} (confidence: {:.0}%)",
+                                error.code,
+                                suggestion.confidence * 100.0
+                            );
+                        }
+                    }
+                }
+
+                if !any_fix_applied {
+                    // No fixes available, capture patterns for learning
+                    capture_patterns(&errors, &rust_code);
+                    return Ok(TranspileResult::Failed {
+                        code: rust_code,
+                        errors,
+                        attempts,
+                    });
+                }
+
+                // Retry with fixed code
+                // (loop continues with next attempt)
+            }
+            Err(errors) => {
+                // Capture patterns for learning
+                capture_patterns(&errors, &rust_code);
+                return Ok(TranspileResult::Failed {
+                    code: rust_code,
+                    errors,
+                    attempts,
+                });
+            }
+        }
+    }
+}
+```
+
+### 13.5 entrenar Integration
+
+depyler depends on entrenar with the `citl` feature:
+
+```toml
+# depyler/Cargo.toml
+[dependencies]
+entrenar = { version = "0.2", features = ["citl"], optional = true }
+
+[features]
+oracle = ["entrenar"]
+```
+
+### 13.6 Metrics
+
+| Metric | Description |
+|--------|-------------|
+| `depyler_oracle_queries_total` | Total oracle queries |
+| `depyler_oracle_hits` | Queries with suggestion above threshold |
+| `depyler_oracle_misses` | Queries with no/low-confidence suggestion |
+| `depyler_oracle_fix_applied` | Fixes successfully applied |
+| `depyler_oracle_fix_verified` | Applied fixes that compiled |
+
+### 13.7 Bootstrap vs Steady-State
+
+```
+Session 1-5:   Oracle hits ~10%, LLM does heavy lifting, patterns accumulate
+Session 5-20:  Oracle hits ~40%, LLM handles edge cases
+Session 20+:   Oracle hits ~80%, LLM rarely needed
+```
+
+The oracle "earns" its suggestions from prior LLM sessions. No magic—just pattern matching on accumulated (error, fix) pairs.
+
 ---
 
 ## References
