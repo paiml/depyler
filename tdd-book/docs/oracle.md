@@ -717,6 +717,112 @@ The model file (`depyler_oracle.apr`) is **not** distributed because:
 3. **Customization**: Different codebases have different patterns
 4. **Training is fast**: ~60s on first use, then cached
 
+## Doctest Transpilation: Semantic Equivalence Training
+
+The **highest-fidelity training signal** comes from transpiling Python doctests to Rust doc tests. Unlike compile-only validation, a passing doc test proves **semantic equivalence**.
+
+### Training Signal Hierarchy
+
+| Signal | What It Proves | Strength |
+|--------|----------------|----------|
+| `rustc` exit code | Compiles | Low |
+| `rustc` error message | Type/syntax correct | Medium |
+| `cargo test --doc` compile | Doc test syntax valid | High |
+| **`cargo test --doc` pass** | **Semantic equivalence** | **Highest** |
+
+### How It Works
+
+**Python Source with Doctest:**
+```python
+def fibonacci(n: int) -> int:
+    """Calculate the nth Fibonacci number.
+
+    >>> fibonacci(0)
+    0
+    >>> fibonacci(10)
+    55
+    """
+    if n <= 1:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+```
+
+**Transpiled Rust with Doc Test:**
+```rust
+/// Calculate the nth Fibonacci number.
+///
+/// ```
+/// use mylib::fibonacci;
+/// assert_eq!(fibonacci(0), 0);
+/// assert_eq!(fibonacci(10), 55);
+/// ```
+fn fibonacci(n: i32) -> i32 {
+    if n <= 1 { n } else { fibonacci(n - 1) + fibonacci(n - 2) }
+}
+```
+
+### Why Doctests Matter for CITL
+
+1. **Zero-cost corpus**: Python stdlib has ~10,000 doctests—no generation needed
+2. **Human-verified**: Documentation is reviewed; synthetic data is not
+3. **Micro-granular I/O pairs**: One function, one input, one expected output
+4. **Type oracle**: `fibonacci(10) → 55` implies return type is `i32`
+5. **Ground truth**: Pass = semantics preserved, not just "compiles"
+
+### Doctest Result Types
+
+```rust
+pub enum DoctestResult {
+    /// Doc test passed - semantic equivalence proven
+    Pass { python_input: String, rust_input: String, output: String },
+
+    /// Compiled but failed at runtime (semantic bug)
+    RuntimeFail { expected: String, actual: String },
+
+    /// Doc test failed to compile (type/syntax error)
+    CompileFail { error_code: String, error_message: String },
+
+    /// Could not transpile the doctest expression
+    TranspileFail { python_input: String, error: String },
+}
+```
+
+Each result type generates a training signal:
+- **Pass** → Positive example for Oracle success
+- **RuntimeFail** → Semantic bug in transpiler logic
+- **CompileFail** → Type/syntax error for Oracle classification
+- **TranspileFail** → Unsupported construct (gap identification)
+
+### Corpus Size Estimates
+
+| Source | Estimated Doctests |
+|--------|-------------------|
+| Python stdlib | 5,000+ |
+| NumPy | 3,000+ |
+| Pandas | 5,000+ |
+| **Total** | **13,500+** |
+
+### Integration with Oracle Training
+
+```rust
+use depyler_oracle::{DoctestResult, TrainingSignal};
+
+fn doctest_to_training_signal(result: &DoctestResult) -> TrainingSignal {
+    match result {
+        DoctestResult::Pass { .. } => TrainingSignal::positive(),
+        DoctestResult::RuntimeFail { .. } => TrainingSignal::semantic_bug(),
+        DoctestResult::CompileFail { error_code, .. } => {
+            TrainingSignal::from_rustc_error(error_code)
+        }
+        DoctestResult::TranspileFail { .. } => TrainingSignal::unsupported(),
+    }
+}
+```
+
+> **See also**: `docs/specifications/doctest-transpilation-citl-spec.md` for full implementation details.
+
+---
+
 ## Summary
 
 The Oracle is a compile-error classification system that:
@@ -724,5 +830,6 @@ The Oracle is a compile-error classification system that:
 - Suggests fixes based on learned patterns
 - Supports custom training for bespoke codebases
 - Detects model drift for retraining triggers
+- **Uses doctest transpilation for highest-fidelity training signals**
 
 It's internal infrastructure that helps maintainers fix transpiler bugs faster by providing structured feedback on error patterns.
