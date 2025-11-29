@@ -10607,15 +10607,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0553: Handle datetime instance methods
         // Python datetime methods that need mapping to chrono equivalents
         // Check if object is likely a datetime variable
+        // DEPYLER-0620: Expanded heuristics to catch common date variable names
         let is_datetime_object = if let HirExpr::Var(var_name) = object {
             var_name == "dt"
+                || var_name == "d"  // DEPYLER-0620: Common date variable name
+                || var_name == "t"  // DEPYLER-0620: Common time variable name
                 || var_name == "datetime"
+                || var_name == "date"  // DEPYLER-0620: Common date variable name
+                || var_name == "time"  // DEPYLER-0620: Common time variable name
                 || var_name.ends_with("_dt")
                 || var_name.ends_with("_datetime")
                 || var_name.ends_with("_date")
                 || var_name.ends_with("_time")
+                || var_name.starts_with("date_")  // DEPYLER-0620: date_xyz pattern
+                || var_name.starts_with("time_")  // DEPYLER-0620: time_xyz pattern
         } else {
-            false
+            // DEPYLER-0620: Also detect datetime methods being called regardless of variable name
+            // If the method is datetime-specific (strftime, isoformat), assume datetime object
+            matches!(method, "strftime" | "isoformat" | "timestamp" | "weekday" | "isoweekday")
         };
 
         if is_datetime_object {
