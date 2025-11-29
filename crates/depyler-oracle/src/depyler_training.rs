@@ -1141,15 +1141,15 @@ mod tests {
         // This is expected behavior - the MoE Oracle still works with default patterns
         let result = train_moe_oracle();
         // Even if training fails, verify we can classify with the default oracle
-        if result.is_err() {
+        // DEPYLER-0625: Use if-let pattern instead of is_err() + unwrap()
+        if let Ok(oracle) = result {
+            // Training succeeded - verify trained oracle can classify
+            let classification = oracle.classify("E0308", "type mismatch");
+            assert!(classification.confidence > 0.0);
+        } else {
             // Verify default classification still works
             let default_result = classify_with_moe("E0308", "type mismatch");
             assert!(default_result.confidence > 0.0);
-        } else {
-            // Training succeeded - verify trained oracle can classify
-            let oracle = result.unwrap();
-            let classification = oracle.classify("E0308", "type mismatch");
-            assert!(classification.confidence > 0.0);
         }
     }
 }
