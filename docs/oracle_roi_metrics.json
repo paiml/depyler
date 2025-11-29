@@ -1,0 +1,33 @@
+{
+  "timestamp": "2025-11-29T11:57:49+01:00",
+  "session": "overnight-bootstrap",
+  "baseline": {
+    "files_processed": 50,
+    "transpile_success": 35,
+    "transpile_rate": 0.70,
+    "compile_errors": 1002
+  },
+  "error_distribution": {
+    "E0308_type_mismatch": 254,
+    "E0433_failed_resolve": 169,
+    "E0599_method_not_found": 142,
+    "E0277_trait_bound": 106,
+    "E0425_cannot_find": 81,
+    "E0432_unresolved_import": 60,
+    "other": 190
+  },
+  "oracle_performance": {
+    "type_mismatch_confidence": 0.925,
+    "trait_bound_confidence": 0.90,
+    "borrow_checker_confidence": 0.70,
+    "missing_import_confidence": 0.70
+  },
+  "roi_metrics": {
+    "high_confidence_errors": 396,
+    "medium_confidence_errors": 335,
+    "total_classifiable": 731,
+    "classifiable_rate": 0.729,
+    "estimated_savings_cents": 2924
+  },
+  "issue": "#172"
+}
