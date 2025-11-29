@@ -77,6 +77,46 @@ else
     echo "│ No commits yet"
 fi
 echo "└──────────────────────────────────────────────────────────────┘"
+echo ""
+
+# Decision Traces (CITL Integration - Spec Section 6.2)
+readonly TRACE_FILE="${DEPYLER_DECISION_FILE:-/tmp/depyler_decisions.msgpack}"
+readonly TRACE_JSONL="${TRACE_FILE%.msgpack}.jsonl"
+
+echo "┌─ DECISION TRACES ─────────────────────────────────────────────┐"
+if [ -f "$TRACE_FILE" ]; then
+    # Get file stats
+    trace_size=$(stat -c%s "$TRACE_FILE" 2>/dev/null || stat -f%z "$TRACE_FILE" 2>/dev/null || echo "0")
+    trace_mtime=$(stat -c%Y "$TRACE_FILE" 2>/dev/null || stat -f%m "$TRACE_FILE" 2>/dev/null || echo "0")
+    trace_age=$(($(date +%s) - trace_mtime))
+
+    printf "│ Trace file: %s\n" "$TRACE_FILE"
+    printf "│ Size: %s bytes\n" "$trace_size"
+    printf "│ Age: %ds ago\n" "$trace_age"
+
+    # Check for renacer stats (if available)
+    if command -v renacer >/dev/null 2>&1; then
+        trace_count=$(renacer stats "$TRACE_FILE" 2>/dev/null | grep -E "^count:" | awk '{print $2}' || echo "unknown")
+        printf "│ Decisions captured: %s\n" "$trace_count"
+    fi
+elif [ -f "$TRACE_JSONL" ]; then
+    # Fallback: count lines in JSONL file
+    jsonl_count=$(wc -l < "$TRACE_JSONL" 2>/dev/null || echo "0")
+    printf "│ Trace file (JSONL fallback): %s\n" "$TRACE_JSONL"
+    printf "│ Decisions captured: %s\n" "$jsonl_count"
+
+    # Show category distribution from JSONL
+    if [ "$jsonl_count" -gt 0 ]; then
+        echo "│ Category distribution:"
+        jq -r '.category' "$TRACE_JSONL" 2>/dev/null | sort | uniq -c | sort -rn | head -5 | while read -r count cat; do
+            printf "│   %s: %s\n" "$cat" "$count"
+        done || echo "│   (unable to parse)"
+    fi
+else
+    echo "│ No decision traces"
+    echo "│ Enable with: cargo build --features decision-tracing"
+fi
+echo "└──────────────────────────────────────────────────────────────┘"
 
 echo ""
 echo "Refresh: watch -n10 $0"
