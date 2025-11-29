@@ -1,4 +1,7 @@
+#[cfg(feature = "decision-tracing")]
+use crate::decision_trace::DecisionCategory;
 use crate::hir::{ConstGeneric, Type as PythonType};
+use crate::trace_decision;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -118,6 +121,15 @@ impl TypeMapper {
     }
 
     pub fn map_type(&self, py_type: &PythonType) -> RustType {
+        // CITL: Trace Python→Rust type mapping decision
+        trace_decision!(
+            category = DecisionCategory::TypeMapping,
+            name = "python_to_rust_type",
+            chosen = &format!("{:?}", py_type),
+            alternatives = ["primitive", "owned", "borrowed", "option", "result"],
+            confidence = 0.90
+        );
+
         match py_type {
             // DEPYLER-0264: Map Unknown to serde_json::Value instead of undefined DynamicType
             // This matches the pattern used for untyped Dict/List (lines 158-161)
@@ -284,6 +296,15 @@ impl TypeMapper {
     }
 
     pub fn map_return_type(&self, py_type: &PythonType) -> RustType {
+        // CITL: Trace return type mapping decision
+        trace_decision!(
+            category = DecisionCategory::TypeMapping,
+            name = "return_type_mapping",
+            chosen = &format!("{:?}", py_type),
+            alternatives = ["unit", "result", "option", "owned"],
+            confidence = 0.92
+        );
+
         match py_type {
             PythonType::None => RustType::Unit,
             PythonType::Unknown => RustType::Unit, // Functions without return annotation implicitly return None/()
@@ -292,6 +313,14 @@ impl TypeMapper {
     }
 
     pub fn needs_reference(&self, rust_type: &RustType) -> bool {
+        // CITL: Trace reference need decision
+        trace_decision!(
+            category = DecisionCategory::BorrowStrategy,
+            name = "needs_reference",
+            chosen = &format!("{:?}", rust_type),
+            alternatives = ["by_value", "by_ref", "by_mut_ref"],
+            confidence = 0.88
+        );
         match rust_type {
             RustType::String => false, // V1: Always owned
             RustType::Vec(_) | RustType::HashMap(_, _) | RustType::HashSet(_) => true,
