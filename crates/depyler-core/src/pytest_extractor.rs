@@ -104,7 +104,7 @@ impl PytestExtractor {
         &self,
         line: &str,
         line_num: usize,
-        current_function: &Option<String>,
+        _current_function: &Option<String>,
     ) -> Option<Doctest> {
         // Remove "assert " prefix
         let assertion = line.strip_prefix("assert ")?.trim();

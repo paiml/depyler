@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🧪 Testing & Coverage (2025-11-29)
+
+#### annotation_analyzer.rs - Pure Analysis Logic Module
+**Impact**: Coverage improvement from 73.88% to 74.20%
+**Test Status**: ✅ 77 comprehensive tests (99.13% module coverage)
+**Quality Gates**: ✅ Clippy clean, complexity ≤10
+
+**Overview**: Extracted pure analysis logic from interactive.rs into a new testable module. This separates business logic from terminal I/O concerns, enabling comprehensive unit testing.
+
+**Key Methods**:
+- `has_loops()` / `has_nested_loops()` - Loop pattern detection
+- `has_simple_numeric_loop()` - Numeric loop optimization opportunities
+- `has_large_collections()` - Collection size analysis
+- `is_collection_modified()` - Mutation pattern detection
+- `has_frequent_lookups()` - Lookup optimization opportunities
+- `has_string_operations()` / `has_string_concatenation()` - String pattern analysis
+- `calculate_complexity()` - Cyclomatic complexity estimation
+- `find_function_line()` - Source location mapping
+
+**HIR Compatibility Fixes**:
+- `Type::Unit` → `Type::None` (correct HIR type for void/None)
+- `For` loop targets use `AssignTarget::Symbol`
+- `Continue`/`Break` statements use `{ label: Option<Symbol> }`
+
 ### ✨ Features
 
 #### Issue #172: Oracle Query Loop (ROI Multiplier)

@@ -473,3 +473,434 @@ impl TranspilationMonitorEngine {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Test TranspilationMonitorConfig
+    #[test]
+    fn test_transpilation_monitor_config_default() {
+        let config = TranspilationMonitorConfig::default();
+        assert_eq!(config.update_interval, Duration::from_secs(2));
+        assert_eq!(config.watch_patterns, vec!["**/*.py".to_string()]);
+        assert_eq!(config.debounce_interval, Duration::from_millis(500));
+        assert_eq!(config.max_batch_size, 20);
+        assert!(config.auto_transpile);
+        assert_eq!(config.verification_level, "basic");
+    }
+
+    #[test]
+    fn test_transpilation_monitor_config_serialization() {
+        let config = TranspilationMonitorConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("update_interval"));
+        assert!(json.contains("watch_patterns"));
+    }
+
+    #[test]
+    fn test_transpilation_monitor_config_deserialization() {
+        let config = TranspilationMonitorConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: TranspilationMonitorConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(config.max_batch_size, deserialized.max_batch_size);
+    }
+
+    #[test]
+    fn test_transpilation_monitor_config_clone() {
+        let config = TranspilationMonitorConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.max_batch_size, cloned.max_batch_size);
+    }
+
+    #[test]
+    fn test_transpilation_monitor_config_debug() {
+        let config = TranspilationMonitorConfig::default();
+        let debug = format!("{:?}", config);
+        assert!(debug.contains("update_interval"));
+    }
+
+    // Test TranspilationMetrics
+    #[test]
+    fn test_transpilation_metrics_default() {
+        let metrics = TranspilationMetrics::default();
+        assert_eq!(metrics.project_id, "");
+        assert_eq!(metrics.files_transpiled, 0);
+        assert_eq!(metrics.successful_transpilations, 0);
+        assert_eq!(metrics.failed_transpilations, 0);
+        assert_eq!(metrics.avg_transpilation_time_ms, 0);
+        assert_eq!(metrics.total_python_lines, 0);
+        assert_eq!(metrics.total_rust_lines, 0);
+        assert!(metrics.last_error.is_none());
+    }
+
+    #[test]
+    fn test_transpilation_metrics_with_project() {
+        let metrics = TranspilationMetrics {
+            project_id: "test_project".to_string(),
+            files_transpiled: 10,
+            successful_transpilations: 8,
+            failed_transpilations: 2,
+            avg_transpilation_time_ms: 150,
+            total_python_lines: 1000,
+            total_rust_lines: 800,
+            last_error: Some("Test error".to_string()),
+            ..Default::default()
+        };
+
+        assert_eq!(metrics.project_id, "test_project");
+        assert_eq!(metrics.files_transpiled, 10);
+        assert_eq!(metrics.successful_transpilations, 8);
+        assert_eq!(metrics.failed_transpilations, 2);
+    }
+
+    #[test]
+    fn test_transpilation_metrics_serialization() {
+        let metrics = TranspilationMetrics::default();
+        let json = serde_json::to_string(&metrics).unwrap();
+        assert!(json.contains("project_id"));
+        assert!(json.contains("files_transpiled"));
+    }
+
+    #[test]
+    fn test_transpilation_metrics_clone() {
+        let metrics = TranspilationMetrics::default();
+        let cloned = metrics.clone();
+        assert_eq!(metrics.project_id, cloned.project_id);
+    }
+
+    #[test]
+    fn test_transpilation_metrics_debug() {
+        let metrics = TranspilationMetrics::default();
+        let debug = format!("{:?}", metrics);
+        assert!(debug.contains("project_id"));
+    }
+
+    // Test FileEventType
+    #[test]
+    fn test_file_event_type_variants() {
+        let created = FileEventType::Created;
+        let modified = FileEventType::Modified;
+        let deleted = FileEventType::Deleted;
+        let renamed = FileEventType::Renamed;
+
+        assert!(format!("{:?}", created).contains("Created"));
+        assert!(format!("{:?}", modified).contains("Modified"));
+        assert!(format!("{:?}", deleted).contains("Deleted"));
+        assert!(format!("{:?}", renamed).contains("Renamed"));
+    }
+
+    #[test]
+    fn test_file_event_type_serialization() {
+        let event_type = FileEventType::Modified;
+        let json = serde_json::to_string(&event_type).unwrap();
+        assert!(json.contains("Modified"));
+    }
+
+    #[test]
+    fn test_file_event_type_deserialization() {
+        let json = r#""Created""#;
+        let event_type: FileEventType = serde_json::from_str(json).unwrap();
+        assert!(matches!(event_type, FileEventType::Created));
+    }
+
+    #[test]
+    fn test_file_event_type_clone() {
+        let event_type = FileEventType::Modified;
+        let cloned = event_type.clone();
+        assert!(matches!(cloned, FileEventType::Modified));
+    }
+
+    // Test TranspilationEvent
+    #[test]
+    fn test_transpilation_event_file_changed() {
+        let event = TranspilationEvent::FileChanged {
+            project_id: "test".to_string(),
+            path: PathBuf::from("/tmp/test.py"),
+            event_type: FileEventType::Modified,
+            timestamp: SystemTime::now(),
+        };
+
+        if let TranspilationEvent::FileChanged { project_id, path, .. } = event {
+            assert_eq!(project_id, "test");
+            assert_eq!(path, PathBuf::from("/tmp/test.py"));
+        } else {
+            panic!("Expected FileChanged event");
+        }
+    }
+
+    #[test]
+    fn test_transpilation_event_succeeded() {
+        let event = TranspilationEvent::TranspilationSucceeded {
+            project_id: "test".to_string(),
+            python_file: PathBuf::from("/tmp/test.py"),
+            rust_file: PathBuf::from("/tmp/test.rs"),
+            transpilation_time_ms: 100,
+            python_lines: 50,
+            rust_lines: 60,
+        };
+
+        if let TranspilationEvent::TranspilationSucceeded { transpilation_time_ms, python_lines, rust_lines, .. } = event {
+            assert_eq!(transpilation_time_ms, 100);
+            assert_eq!(python_lines, 50);
+            assert_eq!(rust_lines, 60);
+        } else {
+            panic!("Expected TranspilationSucceeded event");
+        }
+    }
+
+    #[test]
+    fn test_transpilation_event_failed() {
+        let event = TranspilationEvent::TranspilationFailed {
+            project_id: "test".to_string(),
+            python_file: PathBuf::from("/tmp/test.py"),
+            error: "Transpilation error".to_string(),
+            timestamp: SystemTime::now(),
+        };
+
+        if let TranspilationEvent::TranspilationFailed { error, .. } = event {
+            assert_eq!(error, "Transpilation error");
+        } else {
+            panic!("Expected TranspilationFailed event");
+        }
+    }
+
+    #[test]
+    fn test_transpilation_event_project_added() {
+        let event = TranspilationEvent::ProjectAdded {
+            project_id: "new_project".to_string(),
+            path: PathBuf::from("/home/user/project"),
+            patterns: vec!["**/*.py".to_string()],
+        };
+
+        if let TranspilationEvent::ProjectAdded { project_id, patterns, .. } = event {
+            assert_eq!(project_id, "new_project");
+            assert_eq!(patterns.len(), 1);
+        } else {
+            panic!("Expected ProjectAdded event");
+        }
+    }
+
+    #[test]
+    fn test_transpilation_event_project_removed() {
+        let event = TranspilationEvent::ProjectRemoved {
+            project_id: "removed_project".to_string(),
+        };
+
+        if let TranspilationEvent::ProjectRemoved { project_id } = event {
+            assert_eq!(project_id, "removed_project");
+        } else {
+            panic!("Expected ProjectRemoved event");
+        }
+    }
+
+    #[test]
+    fn test_transpilation_event_status_update() {
+        let mut metrics = HashMap::new();
+        metrics.insert("project1".to_string(), TranspilationMetrics::default());
+
+        let event = TranspilationEvent::StatusUpdate {
+            metrics: metrics.clone(),
+            timestamp: SystemTime::now(),
+        };
+
+        if let TranspilationEvent::StatusUpdate { metrics: m, .. } = event {
+            assert_eq!(m.len(), 1);
+        } else {
+            panic!("Expected StatusUpdate event");
+        }
+    }
+
+    #[test]
+    fn test_transpilation_event_serialization() {
+        let event = TranspilationEvent::ProjectAdded {
+            project_id: "test".to_string(),
+            path: PathBuf::from("/tmp"),
+            patterns: vec!["**/*.py".to_string()],
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("ProjectAdded"));
+    }
+
+    #[test]
+    fn test_transpilation_event_clone() {
+        let event = TranspilationEvent::ProjectRemoved {
+            project_id: "test".to_string(),
+        };
+        let cloned = event.clone();
+
+        if let TranspilationEvent::ProjectRemoved { project_id } = cloned {
+            assert_eq!(project_id, "test");
+        }
+    }
+
+    // Test TranspilationMonitorEngine
+    #[tokio::test]
+    async fn test_transpilation_monitor_engine_new() {
+        let config = TranspilationMonitorConfig::default();
+        let result = TranspilationMonitorEngine::new(config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_transpilation_monitor_engine_get_all_metrics_empty() {
+        let config = TranspilationMonitorConfig::default();
+        let monitor = TranspilationMonitorEngine::new(config).await.unwrap();
+        let metrics = monitor.get_all_metrics().await;
+        assert!(metrics.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_transpilation_monitor_engine_get_project_metrics_none() {
+        let config = TranspilationMonitorConfig::default();
+        let monitor = TranspilationMonitorEngine::new(config).await.unwrap();
+        let metrics = monitor.get_project_metrics("nonexistent").await;
+        assert!(metrics.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_transpilation_monitor_engine_shutdown() {
+        let config = TranspilationMonitorConfig::default();
+        let mut monitor = TranspilationMonitorEngine::new(config).await.unwrap();
+        let result = monitor.shutdown().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_transpilation_monitor_engine_update_metrics() {
+        let config = TranspilationMonitorConfig::default();
+        let monitor = TranspilationMonitorEngine::new(config).await.unwrap();
+
+        // Initialize metrics with a project
+        {
+            let mut metrics = monitor.metrics.write().await;
+            metrics.insert(
+                "test_project".to_string(),
+                TranspilationMetrics {
+                    project_id: "test_project".to_string(),
+                    ..Default::default()
+                },
+            );
+        }
+
+        // Update metrics
+        monitor
+            .update_metrics("test_project", true, 100, 50, 60, None)
+            .await;
+
+        let project_metrics = monitor.get_project_metrics("test_project").await.unwrap();
+        assert_eq!(project_metrics.files_transpiled, 1);
+        assert_eq!(project_metrics.successful_transpilations, 1);
+        assert_eq!(project_metrics.total_python_lines, 50);
+        assert_eq!(project_metrics.total_rust_lines, 60);
+    }
+
+    #[tokio::test]
+    async fn test_transpilation_monitor_engine_update_metrics_failure() {
+        let config = TranspilationMonitorConfig::default();
+        let monitor = TranspilationMonitorEngine::new(config).await.unwrap();
+
+        // Initialize metrics with a project
+        {
+            let mut metrics = monitor.metrics.write().await;
+            metrics.insert(
+                "test_project".to_string(),
+                TranspilationMetrics {
+                    project_id: "test_project".to_string(),
+                    ..Default::default()
+                },
+            );
+        }
+
+        // Update metrics with failure
+        monitor
+            .update_metrics(
+                "test_project",
+                false,
+                0,
+                0,
+                0,
+                Some("Test error".to_string()),
+            )
+            .await;
+
+        let project_metrics = monitor.get_project_metrics("test_project").await.unwrap();
+        assert_eq!(project_metrics.files_transpiled, 1);
+        assert_eq!(project_metrics.failed_transpilations, 1);
+        assert_eq!(project_metrics.last_error, Some("Test error".to_string()));
+    }
+
+    // Test matches_patterns helper
+    #[test]
+    fn test_matches_patterns_python_file() {
+        let patterns = vec!["**/*.py".to_string()];
+        let path = Path::new("/tmp/test.py");
+        assert!(TranspilationMonitorEngine::matches_patterns(path, &patterns));
+    }
+
+    #[test]
+    fn test_matches_patterns_non_python_file() {
+        let patterns = vec!["**/*.py".to_string()];
+        let path = Path::new("/tmp/test.rs");
+        assert!(!TranspilationMonitorEngine::matches_patterns(path, &patterns));
+    }
+
+    #[test]
+    fn test_matches_patterns_no_extension() {
+        let patterns = vec!["**/*.py".to_string()];
+        let path = Path::new("/tmp/test");
+        assert!(!TranspilationMonitorEngine::matches_patterns(path, &patterns));
+    }
+
+    #[test]
+    fn test_matches_patterns_empty_patterns() {
+        let patterns: Vec<String> = vec![];
+        let path = Path::new("/tmp/test.py");
+        assert!(!TranspilationMonitorEngine::matches_patterns(path, &patterns));
+    }
+
+    // Test metrics round trip
+    #[test]
+    fn test_transpilation_metrics_round_trip() {
+        let metrics = TranspilationMetrics {
+            project_id: "round_trip_test".to_string(),
+            files_transpiled: 100,
+            successful_transpilations: 95,
+            failed_transpilations: 5,
+            avg_transpilation_time_ms: 150,
+            total_python_lines: 5000,
+            total_rust_lines: 4500,
+            last_error: Some("Last error".to_string()),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&metrics).unwrap();
+        let deserialized: TranspilationMetrics = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(metrics.project_id, deserialized.project_id);
+        assert_eq!(metrics.files_transpiled, deserialized.files_transpiled);
+        assert_eq!(metrics.successful_transpilations, deserialized.successful_transpilations);
+        assert_eq!(metrics.failed_transpilations, deserialized.failed_transpilations);
+        assert_eq!(metrics.last_error, deserialized.last_error);
+    }
+
+    // Test config round trip
+    #[test]
+    fn test_transpilation_monitor_config_round_trip() {
+        let config = TranspilationMonitorConfig {
+            update_interval: Duration::from_secs(5),
+            watch_patterns: vec!["**/*.py".to_string(), "**/*.pyw".to_string()],
+            debounce_interval: Duration::from_millis(1000),
+            max_batch_size: 50,
+            auto_transpile: false,
+            verification_level: "full".to_string(),
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: TranspilationMonitorConfig = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(config.max_batch_size, deserialized.max_batch_size);
+        assert_eq!(config.auto_transpile, deserialized.auto_transpile);
+        assert_eq!(config.verification_level, deserialized.verification_level);
+    }
+}
