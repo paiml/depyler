@@ -2,7 +2,6 @@ use regex as re;
 use serde_json;
 use serde_json::from_str;
 use serde_json::to_string;
-use std as os;
 use std as sys;
 use std::collections::HashMap;
 use std::path::Path::join as path_join;
@@ -20,12 +19,12 @@ pub fn parse_json(data: String) -> HashMap<String, serde_json::Value> {
     serde_json::from_str(data)
 }
 #[doc = " Depyler: verified panic-free"]
-pub fn join_paths(base: &str) -> String {
-    let mut result = base;
+pub fn join_paths<'a, 'b>(base: &'a str, paths: &[String]) -> String {
+    let mut result = base.clone();
     for p in paths.iter().cloned() {
         result = std::path::Path::join(result, p);
     }
-    result
+    result.to_string()
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

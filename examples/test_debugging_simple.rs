@@ -26,7 +26,7 @@ pub fn calculate_sum(numbers: &Vec<i32>) -> i32 {
     total
 }
 #[doc = "Find maximum value."]
-pub fn find_max(values: &Vec<i32>) -> Result<i32, IndexError> {
+pub fn find_max(values: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
     if values.is_empty() {
         return Ok(0);
     }

@@ -29,7 +29,7 @@ pub fn test_power(x: i32) -> i32 {
     }
 }
 #[doc = " Depyler: proven to terminate"]
-pub fn test_floor_div(x: i32, y: i32) -> Result<i32, ZeroDivisionError> {
+pub fn test_floor_div(x: i32, y: i32) -> Result<i32, Box<dyn std::error::Error>> {
     Ok({
         let a = x;
         let b = y;

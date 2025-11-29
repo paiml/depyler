@@ -34,8 +34,8 @@ impl IndexError {
 }
 #[doc = "Reverse a string"]
 #[doc = " Depyler: proven to terminate"]
-pub fn reverse_string(s: &str) -> Result<String, IndexError> {
-    let mut result = "".to_string();
+pub fn reverse_string(s: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let mut result = "".to_string().to_string();
     for i in {
         let step = (-1 as i32).abs() as usize;
         if step == 0 {
@@ -59,7 +59,7 @@ pub fn reverse_string(s: &str) -> Result<String, IndexError> {
                 .unwrap_or_default()
         });
     }
-    Ok(result)
+    Ok(result.to_string())
 }
 #[doc = "Count vowels in string"]
 #[doc = " Depyler: verified panic-free"]
@@ -68,7 +68,7 @@ pub fn count_vowels(s: &str) -> i32 {
     let mut count = 0;
     for _char in s.chars() {
         let char = _char.to_string();
-        if vowels.contains_key(&char) {
+        if vowels.get(&char).is_some() {
             count = count + 1;
         }
     }
@@ -76,7 +76,7 @@ pub fn count_vowels(s: &str) -> i32 {
 }
 #[doc = "Check if string is palindrome"]
 pub fn is_palindrome_simple(s: &str) -> Result<bool, Box<dyn std::error::Error>> {
-    let mut cleaned = "".to_string();
+    let mut cleaned = "".to_string().to_string();
     for _char in s.chars() {
         let char = _char.to_string();
         if char.chars().all(|c| c.is_alphabetic()) {

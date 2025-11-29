@@ -10,14 +10,6 @@ pub fn test_set_creation() -> HashSet<i32> {
         set.insert(3);
         set
     };
-    let s2 = {
-        let mut set = HashSet::new();
-        set.insert(3);
-        set.insert(4);
-        set.insert(5);
-        set
-    };
-    let empty = HashSet::<i32>::new();
     s1
 }
 #[doc = "Test set operators"]
@@ -43,26 +35,12 @@ pub fn test_set_operators() -> HashSet<i32> {
         .cloned()
         .collect::<std::collections::HashSet<_>>();
     let union = _cse_temp_0;
-    let _cse_temp_1 = s1
-        .intersection(&s2)
-        .cloned()
-        .collect::<std::collections::HashSet<_>>();
-    let intersection = _cse_temp_1;
-    let diff = s1
-        .difference(&s2)
-        .cloned()
-        .collect::<std::collections::HashSet<_>>();
-    let _cse_temp_2 = s1
-        .symmetric_difference(&s2)
-        .cloned()
-        .collect::<std::collections::HashSet<_>>();
-    let sym_diff = _cse_temp_2;
     union
 }
 #[doc = "Test set mutation methods"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_methods() -> HashSet<i32> {
+pub fn test_set_methods() -> Vec<String> {
     let mut s = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -81,8 +59,8 @@ pub fn test_set_methods() -> HashSet<i32> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_comprehension() -> HashSet<i32> {
-    let squares = (0..5).map(|x| x * x).collect::<HashSet<_>>();
     let even_squares = (0..10)
+        .into_iter()
         .filter(|x| x % 2 == 0)
         .map(|x| x * x)
         .collect::<HashSet<_>>();

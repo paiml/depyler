@@ -16,11 +16,10 @@ impl IndexError {
     }
 }
 #[doc = " Depyler: proven to terminate"]
-pub fn test_array_functions() -> Result<i32, IndexError> {
-    let z1 = vec![0; 5 as usize];
-    let o1 = vec![1; 10 as usize];
-    let f1 = vec![42; 8 as usize];
-    let z2 = vec![0; 100 as usize];
+pub fn test_array_functions() -> Result<i32, Box<dyn std::error::Error>> {
+    let z1 = [0; 5];
+    let o1 = [1; 10];
+    let f1 = [42; 8];
     Ok(z1.get(0usize).cloned().unwrap_or_default()
         + o1.get(0usize).cloned().unwrap_or_default()
         + f1.get(0usize).cloned().unwrap_or_default())

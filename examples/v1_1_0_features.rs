@@ -23,22 +23,25 @@ impl ZeroDivisionError {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dictionary_assignment() -> HashMap<serde_json::Value, serde_json::Value> {
     let mut d = {
-        let map = HashMap::new();
+        let mut map = std::collections::HashMap::new();
         map
     };
-    d.insert("key".to_string(), "value");
+    d.insert("key".to_string().to_string(), serde_json::json!("value"));
     let mut nested = {
-        let map = HashMap::new();
+        let mut map = std::collections::HashMap::new();
         map
     };
-    nested.insert("level1".to_string(), {
-        let map = HashMap::new();
-        map
-    });
+    nested.insert(
+        "level1".to_string().to_string(),
+        serde_json::json!({
+            let mut map = std::collections::HashMap::new();
+            map
+        }),
+    );
     nested
         .get_mut(&"level1".to_string())
         .unwrap()
-        .insert("level2".to_string(), "deep");
+        .insert("level2".to_string().to_string(), "deep");
     nested
 }
 #[doc = "Set operations with operators"]
@@ -87,7 +90,7 @@ pub fn test_power_operator() -> i32 {
 }
 #[doc = "Break and continue in loops"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_break_continue() -> Result<i32, ZeroDivisionError> {
+pub fn test_break_continue() -> Result<i32, Box<dyn std::error::Error>> {
     for i in 0..10 {
         if i == 5 {
             break;

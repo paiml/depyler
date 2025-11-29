@@ -37,7 +37,7 @@ pub fn factorial(n: i32) -> i32 {
 }
 #[doc = "Check if a number is prime"]
 #[doc = " Depyler: proven to terminate"]
-pub fn is_prime(n: i32) -> Result<bool, ZeroDivisionError> {
+pub fn is_prime(n: i32) -> Result<bool, Box<dyn std::error::Error>> {
     let _cse_temp_0 = n < 2;
     if _cse_temp_0 {
         return Ok(false);

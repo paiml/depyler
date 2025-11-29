@@ -17,10 +17,12 @@ impl IndexError {
     }
 }
 #[derive(Debug, Clone)]
-pub struct Stack {}
+pub struct Stack {
+    pub _items: Vec<i32>,
+}
 impl Stack {
     pub fn new() -> Self {
-        Self {}
+        Self { _items: Vec::new() }
     }
     pub fn push(&self, item: i32) {
         self._items.push(item);
@@ -45,7 +47,7 @@ impl Stack {
     }
 }
 #[doc = "Check if parentheses are balanced using a stack"]
-pub fn balanced_parentheses(expression: &str) -> Result<bool, IndexError> {
+pub fn balanced_parentheses(expression: &str) -> Result<bool, Box<dyn std::error::Error>> {
     let mut stack = Stack::new();
     let opening = "({[";
     let closing = ")}]";
@@ -57,10 +59,10 @@ pub fn balanced_parentheses(expression: &str) -> Result<bool, IndexError> {
         map
     };
     for char in expression.chars() {
-        if opening.contains_key(&char) {
+        if opening.get(&char).is_some() {
             stack.push(char.chars().next().unwrap() as i32);
         } else {
-            if closing.contains_key(&char) {
+            if closing.get(&char).is_some() {
                 if stack.is_empty() {
                     return Ok(false);
                 }
@@ -68,19 +70,13 @@ pub fn balanced_parentheses(expression: &str) -> Result<bool, IndexError> {
                 if last.is_none() {
                     return Ok(false);
                 }
-                let expected = {
-                    let base = &pairs;
-                    let idx: i32 = char::from_u32(last as u32).unwrap().to_string();
-                    let actual_idx = if idx < 0 {
-                        base.len().saturating_sub(idx.abs() as usize)
-                    } else {
-                        idx as usize
-                    };
-                    base.get(actual_idx).cloned().unwrap_or_default()
-                }
-                .chars()
-                .next()
-                .unwrap() as i32;
+                let expected = pairs
+                    .get(&char::from_u32(last as u32).unwrap().to_string())
+                    .cloned()
+                    .unwrap_or_default()
+                    .chars()
+                    .next()
+                    .unwrap() as i32;
                 if char.chars().next().unwrap() as i32 != expected {
                     return Ok(false);
                 }

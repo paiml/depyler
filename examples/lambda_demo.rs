@@ -21,25 +21,20 @@ impl IndexError {
 }
 #[doc = "\n    Process S3 events and return processed results.\n    \n    This function demonstrates:\n    - S3 event processing\n    - Error handling\n    - JSON response formatting\n    "]
 pub fn lambda_handler(
-    event: &HashMap<String, Any>,
-    context: Any,
-) -> Result<HashMap<String, Any>, IndexError> {
-    let _cse_temp_0 = !event.contains_key(&"Records");
+    event: &HashMap<String, serde_json::Value>,
+    context: serde_json::Value,
+) -> Result<HashMap<String, serde_json::Value>, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = !event.get("Records").is_some();
     if _cse_temp_0 {
         return Ok({
-            let mut map = HashMap::new();
-            map.insert("statusCode".to_string(), 400);
+            let mut map = std::collections::HashMap::new();
+            map.insert("statusCode".to_string(), serde_json::json!(400));
             map.insert(
                 "body".to_string(),
-                serde_json::to_string(&{
-                    let mut map = HashMap::new();
-                    map.insert(
-                        "error".to_string().to_string(),
-                        "Invalid event format".to_string(),
-                    );
-                    map
-                })
-                .unwrap(),
+                serde_json::json!(serde_json::to_string(
+                    &serde_json::json!({ "error": "Invalid event format".to_string() })
+                )
+                .unwrap()),
             );
             map
         });
@@ -47,7 +42,7 @@ pub fn lambda_handler(
     let mut processed_files = vec![];
     let mut total_size = 0;
     for record in event.get("Records").cloned().unwrap_or_default() {
-        if record.contains_key(&"s3") {
+        if record.get("s3").is_some() {
             let bucket = record
                 .get("s3")
                 .cloned()
@@ -78,16 +73,13 @@ pub fn lambda_handler(
                 .get(&"size".to_string())
                 .cloned()
                 .unwrap_or(0);
-            let mut file_type = "unknown";
-            let mut file_type;
+            let mut file_type = "unknown".to_string();
             if (key.ends_with(".jpg")) || (key.ends_with(".jpeg")) {
                 file_type = "image/jpeg";
             } else {
-                let mut file_type;
                 if key.ends_with(".png") {
                     file_type = "image/png";
                 } else {
-                    let mut file_type;
                     if key.ends_with(".pdf") {
                         file_type = "document/pdf";
                     } else {
@@ -98,37 +90,47 @@ pub fn lambda_handler(
                 }
             }
             processed_files.push({
-                let mut map = HashMap::new();
-                map.insert("bucket".to_string().to_string(), bucket);
-                map.insert("key".to_string().to_string(), key);
-                map.insert("size".to_string().to_string(), size);
-                map.insert("type".to_string().to_string(), file_type);
-                map.insert("processed".to_string().to_string(), true);
+                let mut map = std::collections::HashMap::new();
+                map.insert("bucket".to_string(), serde_json::json!(bucket));
+                map.insert("key".to_string(), serde_json::json!(key));
+                map.insert("size".to_string(), serde_json::json!(size));
+                map.insert("type".to_string(), serde_json::json!(file_type));
+                map.insert("processed".to_string(), serde_json::json!(true));
                 map
             });
             total_size = total_size + size;
         }
     }
     let result = {
-        let mut map = HashMap::new();
-        map.insert("files_processed".to_string(), processed_files.len() as i32);
-        map.insert("total_size_bytes".to_string(), total_size);
+        let mut map = std::collections::HashMap::new();
+        map.insert(
+            "files_processed".to_string(),
+            serde_json::json!(processed_files.len() as i32),
+        );
+        map.insert(
+            "total_size_bytes".to_string(),
+            serde_json::json!(total_size),
+        );
         map.insert(
             "total_size_mb".to_string(),
-            (total_size / 1048576 as f64).round() as i32,
+            serde_json::json!((total_size / 1048576 as f64).round() as i32),
         );
-        map.insert("files".to_string(), processed_files);
+        map.insert("files".to_string(), serde_json::json!(processed_files));
         map
     };
     Ok({
-        let mut map = HashMap::new();
-        map.insert("statusCode".to_string(), 200);
-        map.insert("headers".to_string(), {
-            let mut map = HashMap::new();
-            map.insert("Content-Type".to_string(), "application/json".to_string());
-            map
-        });
-        map.insert("body".to_string(), serde_json::to_string(&result).unwrap());
+        let mut map = std::collections::HashMap::new();
+        map.insert("statusCode".to_string(), serde_json::json!(200));
+        map.insert(
+            "headers".to_string(),
+            serde_json::json!(
+                serde_json::json!({ "Content-Type": "application/json".to_string() })
+            ),
+        );
+        map.insert(
+            "body".to_string(),
+            serde_json::json!(serde_json::to_string(&result).unwrap()),
+        );
         map
     })
 }

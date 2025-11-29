@@ -1,4 +1,3 @@
-use std as os;
 use std as sys;
 const STR_EMPTY: &'static str = "";
 const STR__: &'static str = "/";
@@ -32,14 +31,14 @@ pub fn test_sys_argv() -> Vec<String> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sys_version_info() -> String {
     let version: String = "Python 3.x".to_string();
-    version
+    version.to_string()
 }
 #[doc = "Test platform detection"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sys_platform() -> String {
     let platform: String = "linux".to_string();
-    platform
+    platform.to_string()
 }
 #[doc = "Test exit code handling(without actually exiting)"]
 #[doc = " Depyler: verified panic-free"]
@@ -58,7 +57,7 @@ pub fn test_sys_exit_code() -> i32 {
 pub fn test_env_variable_access() -> String {
     let home: String =
         std::env::var("HOME".to_string()).unwrap_or_else(|_| "/home/user".to_string());
-    home
+    home.to_string()
 }
 #[doc = "Test if environment variable exists"]
 #[doc = " Depyler: verified panic-free"]
@@ -77,7 +76,7 @@ pub fn test_current_directory() -> String {
         .unwrap()
         .to_string_lossy()
         .to_string();
-    cwd
+    cwd.to_string()
 }
 #[doc = "Test path joining"]
 #[doc = " Depyler: verified panic-free"]
@@ -88,12 +87,12 @@ pub fn test_path_join() -> String {
     let filename: String = "file.txt".to_string();
     let _cse_temp_0 = format!("{}{}", format!("{}{}", base, STR__), relative);
     let _cse_temp_1 = format!("{}{}", format!("{}{}", _cse_temp_0, STR__), filename);
-    let full_path: String = _cse_temp_1;
-    full_path
+    let full_path: String = _cse_temp_1.to_string();
+    full_path.to_string()
 }
 #[doc = "Test extracting basename from path"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_path_basename() -> Result<String, IndexError> {
+pub fn test_path_basename() -> Result<String, Box<dyn std::error::Error>> {
     let path: String = "/home/user/documents/file.txt".to_string();
     let mut last_slash: i32 = -1;
     for i in {
@@ -114,8 +113,13 @@ pub fn test_path_basename() -> Result<String, IndexError> {
     let mut basename: String;
     if _cse_temp_0 {
         basename = {
-            let base = path;
-            let start = (format!("{}{}", last_slash, 1)).max(0) as usize;
+            let base = &path;
+            let start_idx = format!("{}{}", last_slash, 1) as isize;
+            let start = if start_idx < 0 {
+                (base.len() as isize + start_idx).max(0) as usize
+            } else {
+                start_idx as usize
+            };
             if start < base.len() {
                 base[start..].to_vec()
             } else {
@@ -123,13 +127,13 @@ pub fn test_path_basename() -> Result<String, IndexError> {
             }
         };
     } else {
-        basename = path;
+        basename = path.to_string();
     }
-    Ok(basename)
+    Ok(basename.to_string())
 }
 #[doc = "Test extracting directory name from path"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_path_dirname() -> Result<String, IndexError> {
+pub fn test_path_dirname() -> Result<String, Box<dyn std::error::Error>> {
     let path: String = "/home/user/documents/file.txt".to_string();
     let mut last_slash: i32 = -1;
     for i in {
@@ -150,18 +154,23 @@ pub fn test_path_dirname() -> Result<String, IndexError> {
     let mut dirname: String;
     if _cse_temp_0 {
         dirname = {
-            let base = path;
-            let stop = (last_slash).max(0) as usize;
+            let base = &path;
+            let stop_idx = last_slash as isize;
+            let stop = if stop_idx < 0 {
+                (base.len() as isize + stop_idx).max(0) as usize
+            } else {
+                stop_idx as usize
+            };
             base[..stop.min(base.len())].to_vec()
         };
     } else {
         dirname = STR__.to_string();
     }
-    Ok(dirname)
+    Ok(dirname.to_string())
 }
 #[doc = "Test splitting path into directory and basename"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_path_split() -> Result<(), IndexError> {
+pub fn test_path_split() -> Result<(), Box<dyn std::error::Error>> {
     let path: String = "/home/user/documents/file.txt".to_string();
     let mut last_slash: i32 = -1;
     for i in {
@@ -179,17 +188,27 @@ pub fn test_path_split() -> Result<(), IndexError> {
         }
     }
     let _cse_temp_0 = last_slash >= 0;
-    let mut basename: String;
     let mut dirname: String;
+    let mut basename: String;
     if _cse_temp_0 {
         dirname = {
-            let base = path;
-            let stop = (last_slash).max(0) as usize;
+            let base = &path;
+            let stop_idx = last_slash as isize;
+            let stop = if stop_idx < 0 {
+                (base.len() as isize + stop_idx).max(0) as usize
+            } else {
+                stop_idx as usize
+            };
             base[..stop.min(base.len())].to_vec()
         };
         basename = {
-            let base = path;
-            let start = (last_slash + 1).max(0) as usize;
+            let base = &path;
+            let start_idx = last_slash + 1 as isize;
+            let start = if start_idx < 0 {
+                (base.len() as isize + start_idx).max(0) as usize
+            } else {
+                start_idx as usize
+            };
             if start < base.len() {
                 base[start..].to_vec()
             } else {
@@ -198,13 +217,13 @@ pub fn test_path_split() -> Result<(), IndexError> {
         };
     } else {
         dirname = STR_EMPTY.to_string();
-        basename = path;
+        basename = path.to_string();
     }
     Ok((dirname, basename))
 }
 #[doc = "Test splitting path into name and extension"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_path_splitext() -> Result<(), IndexError> {
+pub fn test_path_splitext() -> Result<(), Box<dyn std::error::Error>> {
     let path: String = "document.txt".to_string();
     let mut last_dot: i32 = -1;
     for i in {
@@ -226,13 +245,23 @@ pub fn test_path_splitext() -> Result<(), IndexError> {
     let mut name: String;
     if _cse_temp_0 {
         name = {
-            let base = path;
-            let stop = (last_dot).max(0) as usize;
+            let base = &path;
+            let stop_idx = last_dot as isize;
+            let stop = if stop_idx < 0 {
+                (base.len() as isize + stop_idx).max(0) as usize
+            } else {
+                stop_idx as usize
+            };
             base[..stop.min(base.len())].to_vec()
         };
         ext = {
-            let base = path;
-            let start = (last_dot).max(0) as usize;
+            let base = &path;
+            let start_idx = last_dot as isize;
+            let start = if start_idx < 0 {
+                (base.len() as isize + start_idx).max(0) as usize
+            } else {
+                start_idx as usize
+            };
             if start < base.len() {
                 base[start..].to_vec()
             } else {
@@ -240,14 +269,14 @@ pub fn test_path_splitext() -> Result<(), IndexError> {
             }
         };
     } else {
-        name = path;
+        name = path.to_string();
         ext = STR_EMPTY.to_string();
     }
     Ok((name, ext))
 }
 #[doc = "Test if path is absolute"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_path_isabs() -> Result<bool, IndexError> {
+pub fn test_path_isabs() -> Result<bool, Box<dyn std::error::Error>> {
     let path: String = "/home/user/file.txt".to_string();
     let _cse_temp_0 = path.len() as i32;
     let _cse_temp_1 = _cse_temp_0 > 0;
@@ -262,11 +291,11 @@ pub fn test_path_isabs() -> Result<bool, IndexError> {
 pub fn test_path_normpath() -> String {
     let path: String = "/home//user/../user/./documents".to_string();
     let normalized: String = path.replace("//", "/");
-    normalized
+    normalized.to_string()
 }
 #[doc = "Get file extension from filename"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_file_extension(filename: &str) -> Result<String, IndexError> {
+pub fn get_file_extension(filename: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut last_dot: i32 = -1;
     for i in {
         let step = (-1 as i32).abs() as usize;
@@ -277,7 +306,20 @@ pub fn get_file_extension(filename: &str) -> Result<String, IndexError> {
             .rev()
             .step_by(step.max(1))
     } {
-        if filename.get(i as usize).cloned().unwrap_or_default() == "." {
+        if {
+            let base = &filename;
+            let idx: i32 = i;
+            let actual_idx = if idx < 0 {
+                base.chars().count().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.chars()
+                .nth(actual_idx)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
+        } == "."
+        {
             last_dot = i;
             break;
         }
@@ -287,33 +329,47 @@ pub fn get_file_extension(filename: &str) -> Result<String, IndexError> {
     if _cse_temp_0 {
         extension = {
             let base = filename;
-            let start = (format!("{}{}", last_dot, 1)).max(0) as usize;
-            if start < base.len() {
-                base[start..].to_vec()
+            let start_idx: i32 = format!("{}{}", last_dot, 1);
+            let len = base.chars().count() as i32;
+            let actual_start = if start_idx < 0 {
+                (len + start_idx).max(0) as usize
             } else {
-                Vec::new()
-            }
+                start_idx.min(len) as usize
+            };
+            base.chars().skip(actual_start).collect::<String>()
         };
     } else {
         extension = STR_EMPTY.to_string();
     }
-    Ok(extension)
+    Ok(extension.to_string())
 }
 #[doc = "Check if file is hidden(starts with dot)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn is_hidden_file(filename: &str) -> Result<bool, IndexError> {
+pub fn is_hidden_file(filename: &str) -> Result<bool, Box<dyn std::error::Error>> {
     let _cse_temp_0 = filename.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
         return Ok(false);
     }
-    let _cse_temp_2 = filename.get(0usize).cloned().unwrap_or_default() == ".";
+    let _cse_temp_2 = {
+        let base = &filename;
+        let idx: i32 = 0;
+        let actual_idx = if idx < 0 {
+            base.chars().count().saturating_sub(idx.abs() as usize)
+        } else {
+            idx as usize
+        };
+        base.chars()
+            .nth(actual_idx)
+            .map(|c| c.to_string())
+            .unwrap_or_default()
+    } == ".";
     let is_hidden: bool = _cse_temp_2;
     Ok(is_hidden)
 }
 #[doc = "Build path from list of components"]
 #[doc = " Depyler: proven to terminate"]
-pub fn build_path_from_parts(parts: &Vec<String>) -> Result<String, IndexError> {
+pub fn build_path_from_parts(parts: &Vec<String>) -> Result<String, Box<dyn std::error::Error>> {
     let _cse_temp_0 = parts.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -327,7 +383,7 @@ pub fn build_path_from_parts(parts: &Vec<String>) -> Result<String, IndexError> 
             parts.get(i as usize).cloned().unwrap_or_default()
         );
     }
-    Ok(path)
+    Ok(path.to_string())
 }
 #[doc = "Simulate directory listing(manual implementation)"]
 #[doc = " Depyler: verified panic-free"]
@@ -343,13 +399,13 @@ pub fn test_listdir_simulation() -> Vec<String> {
 }
 #[doc = "Filter files by extension"]
 #[doc = " Depyler: verified panic-free"]
-pub fn filter_by_extension<'b, 'a>(
+pub fn filter_by_extension<'a, 'b>(
     files: &'a Vec<String>,
     ext: &'b mut str,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut filtered: Vec<String> = vec![];
     for file in files.iter().cloned() {
-        let file_ext: String = get_file_extension(file)?;
+        let file_ext: String = get_file_extension(&file)?;
         if file_ext == ext {
             filtered.push(file);
         }
@@ -357,17 +413,19 @@ pub fn filter_by_extension<'b, 'a>(
     Ok(filtered)
 }
 #[doc = "Count files grouped by extension"]
-pub fn count_files_by_extension(files: &Vec<String>) -> Result<HashMap<String, i32>, IndexError> {
+pub fn count_files_by_extension(
+    files: &Vec<String>,
+) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let mut counts: HashMap<String, i32> = {
         let map = HashMap::new();
         map
     };
     for file in files.iter().cloned() {
-        let mut ext: String = get_file_extension(file)?;
+        let mut ext: String = get_file_extension(&file)?;
         if ext == STR_EMPTY {
             ext = "no_extension";
         }
-        if counts.contains_key(&ext) {
+        if counts.get(ext).is_some() {
             {
                 let _key = ext;
                 let _old_val = counts.get(&_key).cloned().unwrap_or_default();
@@ -388,8 +446,6 @@ pub fn test_path_traversal(path: &mut str, max_depth: i32) -> i32 {
             depth = depth + 1;
         }
     }
-    let _cse_temp_0 = depth <= max_depth;
-    let is_within_limit: bool = _cse_temp_0;
     depth
 }
 #[doc = "Remove invalid characters from filename"]
@@ -409,39 +465,18 @@ pub fn sanitize_filename(filename: &str) -> String {
             sanitized = format!("{}{}", sanitized, char);
         }
     }
-    sanitized
+    sanitized.to_string()
 }
 #[doc = "Run all os/sys module tests"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_os_sys_features() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = test_sys_argv();
-    let version: String = test_sys_version_info();
-    let platform: String = test_sys_platform();
-    let mut exit_code: i32 = test_sys_exit_code();
-    let home: String = test_env_variable_access();
-    let env_exists: bool = test_env_variable_exists();
-    let cwd: String = test_current_directory();
-    let joined: String = test_path_join();
-    let mut basename: String = test_path_basename()?;
-    let mut dirname: String = test_path_dirname()?;
-    let split_result: () = test_path_split()?;
-    let splitext_result: () = test_path_splitext()?;
-    let is_abs: bool = test_path_isabs()?;
-    let normalized: String = test_path_normpath();
-    let mut ext: String = get_file_extension("document.txt")?;
-    let hidden: bool = is_hidden_file(".gitignore")?;
     let parts: Vec<String> = vec![
         "home".to_string(),
         "user".to_string(),
         "documents".to_string(),
     ];
-    let built_path: String = build_path_from_parts(&parts)?;
     let files: Vec<String> = test_listdir_simulation();
-    let txt_files: Vec<String> = filter_by_extension(&files, "txt")?;
-    let file_counts: HashMap<String, i32> = count_files_by_extension(&files)?;
-    let mut depth: i32 = test_path_traversal("/home/user/docs", 5);
-    let safe_name: String = sanitize_filename("file<>name.txt");
     println!("{}", "All os/sys module tests completed successfully");
     Ok(())
 }

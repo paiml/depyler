@@ -25,19 +25,18 @@ pub fn process_list(items: &Vec<i32>) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn string_concatenation_in_loop(n: i32) -> String {
-    let mut result = "";
+    let mut result = "".to_string();
     for i in 0..n {
-        result = format!("{}{}", result, i.to_string());
+        result = format!("{}{}", result, (i).to_string());
         result = format!("{}{}", result, ", ");
     }
-    result
+    result.to_string()
 }
 #[doc = "Function with many type checks that Rust can optimize away."]
 #[doc = " Depyler: verified panic-free"]
 pub fn type_check_heavy(values: &Vec<object>) -> i32 {
     let mut count = 0;
     for value in values.iter().cloned() {
-        let mut count;
         if true {
             count = count + value;
         } else {

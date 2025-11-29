@@ -23,7 +23,7 @@ pub fn test_lambda_with_list_operations() -> (
         .into_iter()
         .filter(|x| x % 2 == 0)
         .collect::<Vec<_>>();
-    let double = |lst| lst.clone().into_iter().map(|x| x * 2).collect::<Vec<_>>();
+    let double = |lst| lst.iter().copied().map(|x| x * 2).collect::<Vec<_>>();
     let doubled = double(&numbers);
     (squares, evens, doubled)
 }
@@ -37,7 +37,7 @@ pub fn test_lambda_in_expressions() -> (serde_json::Value, serde_json::Value) {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_lambda_with_closure() -> i32 {
+pub fn test_lambda_with_closure() {
     let multiplier = 3;
     let scale = |x| x * multiplier;
     let result = scale(7);

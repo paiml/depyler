@@ -57,7 +57,7 @@ impl Counter {
 #[doc = "Demonstrate with statement support"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn demo_with_statement() -> i32 {
+pub fn demo_with_statement() {
     let _context = ResourceManager::new("test".to_string().to_string());
     let rm = _context.__enter__();
     let result = rm.use_resource();
@@ -78,7 +78,7 @@ pub fn demo_iterator() -> i32 {
 #[doc = "Run all v1.3.0 feature demos"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn main() -> i32 {
+pub fn main() {
     let with_result = demo_with_statement();
     let iter_result = demo_iterator();
     with_result + iter_result

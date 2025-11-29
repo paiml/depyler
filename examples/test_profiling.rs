@@ -34,14 +34,14 @@ pub fn fibonacci_iterative(n: i32) -> i32 {
         return n;
     }
     let (mut a, mut b) = (0, 1);
-    for __ in 2..n + 1 {
+    for __sanitized in 2..n + 1 {
         (a, b) = (b, a + b);
     }
     b
 }
 #[doc = "Process a list with nested loops - O(n²) complexity."]
 #[doc = " Depyler: proven to terminate"]
-pub fn process_list(items: &Vec<i32>) -> Result<i32, IndexError> {
+pub fn process_list(items: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
     let mut total = 0;
     for i in 0..items.len() as i32 {
         for j in i..items.len() as i32 {
@@ -60,11 +60,11 @@ pub fn process_list(items: &Vec<i32>) -> Result<i32, IndexError> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn string_concatenation_in_loop(n: i32) -> String {
-    let mut result = "";
-    for _i in 0..n {
+    let mut result = "".to_string();
+    for i in 0..n {
         result = format!("{}{}", result, format!("Item {:?}, ", i));
     }
-    result
+    result.to_string()
 }
 #[doc = "Function with many allocations."]
 #[doc = " Depyler: verified panic-free"]
@@ -85,11 +85,9 @@ pub fn allocate_many_lists(n: i32) -> Vec<Vec<i32>> {
 pub fn type_check_heavy(values: &Vec<object>) -> i32 {
     let mut count = 0;
     for value in values.iter().cloned() {
-        let mut count;
         if true {
             count = count + value;
         } else {
-            let mut count;
             if true {
                 count = count + value.len() as i32;
             } else {
@@ -106,7 +104,7 @@ pub fn type_check_heavy(values: &Vec<object>) -> i32 {
 pub fn matrix_multiply<'b, 'a>(
     a: &'a mut Vec<Vec<f64>>,
     b: &'b mut Vec<Vec<f64>>,
-) -> Result<Vec<Vec<f64>>, IndexError> {
+) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = a.len() as i32;
     let rows_a = _cse_temp_0;
     let cols_a = if !a.is_empty() {
@@ -120,7 +118,8 @@ pub fn matrix_multiply<'b, 'a>(
         0
     };
     let mut result = (0..rows_a)
-        .map(|_| (0..cols_b).map(|_| 0.0).collect::<Vec<_>>())
+        .into_iter()
+        .map(|_| (0..cols_b).into_iter().map(|_| 0.0).collect::<Vec<_>>())
         .collect::<Vec<_>>();
     for i in 0..rows_a {
         for j in 0..cols_b {
@@ -137,10 +136,10 @@ pub fn matrix_multiply<'b, 'a>(
                         + a.get(i as usize)
                             .cloned()
                             .unwrap_or_default()
-                            .get(k as usize)
+                            .get(&k)
                             .cloned()
                             .unwrap_or_default()
-                            * b.get(k as usize)
+                            * b.get(&k)
                                 .cloned()
                                 .unwrap_or_default()
                                 .get(j as usize)
@@ -180,8 +179,9 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     type_check_heavy(&mixed_values);
     let mat_a = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
     let mat_b = vec![vec![5.0, 6.0], vec![7.0, 8.0]];
-    matrix_multiply(&mat_a, &mat_b);
+    matrix_multiply(&mut mat_a, &mut mat_b);
     simple_function(10, 20);
+    Ok(())
 }
 #[cfg(test)]
 mod tests {

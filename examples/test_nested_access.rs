@@ -18,7 +18,7 @@ impl IndexError {
 }
 #[doc = "Test reading nested dictionary values"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_nested_access() -> Result<i32, IndexError> {
+pub fn test_nested_access() -> Result<String, Box<dyn std::error::Error>> {
     let d = {
         let mut map = HashMap::new();
         map.insert("outer".to_string(), {
@@ -35,5 +35,5 @@ pub fn test_nested_access() -> Result<i32, IndexError> {
         .get("inner")
         .cloned()
         .unwrap_or_default();
-    Ok(val)
+    Ok(val.to_string())
 }
