@@ -698,6 +698,32 @@ pub(crate) fn codegen_return_stmt(
                 } else {
                     Ok(quote! { Ok(None) })
                 }
+            } else if ctx.is_main_function {
+                // DEPYLER-0617: Handle exit code returns in main() function
+                // Python pattern: `def main() -> int: ... return 1`
+                // Rust main() can only return () or Result<(), E>, so integer returns
+                // must be converted to process::exit() for non-zero or Ok(()) for zero
+                if let HirExpr::Literal(Literal::Int(exit_code)) = e {
+                    if *exit_code == 0 {
+                        // Success exit code -> Ok(())
+                        if use_return_keyword {
+                            Ok(quote! { return Ok(()); })
+                        } else {
+                            Ok(quote! { Ok(()) })
+                        }
+                    } else {
+                        // Non-zero exit code -> std::process::exit(N)
+                        let code = *exit_code as i32;
+                        Ok(quote! { std::process::exit(#code) })
+                    }
+                } else {
+                    // Other expressions in main - just return Ok(())
+                    if use_return_keyword {
+                        Ok(quote! { return Ok(()); })
+                    } else {
+                        Ok(quote! { Ok(()) })
+                    }
+                }
             } else if use_return_keyword {
                 Ok(quote! { return Ok(#expr_tokens); })
             } else {

@@ -211,6 +211,11 @@ pub struct CodeGenContext<'a> {
     /// These should be skipped when processing nested blocks (if/while/for/try)
     /// to avoid duplicate emission
     pub hoisted_function_names: Vec<String>,
+
+    /// DEPYLER-0617: Track if currently generating code inside main() function
+    /// When true, integer returns should become process::exit() or Ok(())
+    /// because Rust main can only return () or Result<(), E>
+    pub is_main_function: bool,
 }
 
 impl<'a> CodeGenContext<'a> {
