@@ -1018,8 +1018,8 @@ roadmap:
   status: inprogress
   priority: medium
   assigned_to: null
-  created: 2025-11-27T00:16:14.737931590+00:00
-  updated: 2025-11-27T09:56:19.725907696+00:00
+  created: 2025-11-29T11:26:47.496293815+00:00
+  updated: 2025-11-29T11:26:47.496293815+00:00
   spec: null
   acceptance_criteria: []
   phases: []
@@ -1242,8 +1242,8 @@ roadmap:
   status: completed
   priority: medium
   assigned_to: null
-  created: 2025-11-29T09:58:48.171855329+00:00
-  updated: 2025-11-29T10:17:48.269263116+00:00
+  created: 2025-11-29T11:21:57.885546958+00:00
+  updated: 2025-11-29T11:26:00.381915826+00:00
   spec: null
   acceptance_criteria:
   - Add \`--oracle\` flag to transpile command
