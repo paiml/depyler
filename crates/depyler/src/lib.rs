@@ -412,6 +412,27 @@ pub enum Commands {
         #[arg(short, long, default_value = "4")]
         parallel_jobs: usize,
     },
+
+    /// Extract doctests from Python source files (GH-173)
+    ///
+    /// Parses Python docstrings to extract `>>>` blocks for CITL training.
+    /// Outputs structured JSON format suitable for doctest transpilation.
+    ExtractDoctests {
+        /// Input directory containing Python files
+        input: PathBuf,
+
+        /// Output JSON file for extracted doctests
+        #[arg(short, long)]
+        output: PathBuf,
+
+        /// Module name prefix for output
+        #[arg(long, default_value = "")]
+        module_prefix: String,
+
+        /// Include doctests from class methods
+        #[arg(long, default_value = "true")]
+        include_classes: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -2856,6 +2877,121 @@ fn find_python_files(dir: &Path) -> Result<Vec<PathBuf>> {
     visit_dir(dir, &mut files)?;
     files.sort();
     Ok(files)
+}
+
+// ============================================================================
+// Doctest Extraction Command (GH-173)
+// ============================================================================
+
+/// Extract doctests from Python source files
+///
+/// Parses Python docstrings to extract `>>>` blocks for CITL training.
+/// Outputs structured JSON format suitable for doctest transpilation.
+///
+/// # Arguments
+///
+/// * `input` - Directory containing Python files
+/// * `output` - Output JSON file path
+/// * `module_prefix` - Optional prefix for module names
+/// * `include_classes` - Whether to include class method doctests
+///
+/// # Errors
+///
+/// Returns error if directory reading or JSON serialization fails.
+pub fn extract_doctests_command(
+    input: PathBuf,
+    output: PathBuf,
+    module_prefix: String,
+    _include_classes: bool,
+) -> Result<()> {
+    use depyler_core::doctest_extractor::{DoctestExtractor, DoctestResult, FunctionDoctests};
+
+    println!("📝 Extracting doctests from {}", input.display());
+
+    let extractor = DoctestExtractor::new();
+    let mut all_results: Vec<DoctestResult> = Vec::new();
+    let mut total_doctests = 0;
+    let mut total_functions = 0;
+    let mut total_files = 0;
+
+    // Find all Python files
+    let python_files = find_python_files(&input)?;
+
+    for py_file in &python_files {
+        let relative_path = py_file.strip_prefix(&input).unwrap_or(py_file);
+        let module_name = if module_prefix.is_empty() {
+            relative_path
+                .with_extension("")
+                .to_string_lossy()
+                .replace(std::path::MAIN_SEPARATOR, ".")
+        } else {
+            format!(
+                "{}.{}",
+                module_prefix,
+                relative_path
+                    .with_extension("")
+                    .to_string_lossy()
+                    .replace(std::path::MAIN_SEPARATOR, ".")
+            )
+        };
+
+        let source = match fs::read_to_string(py_file) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("  ⚠️  Skipping {}: {}", py_file.display(), e);
+                continue;
+            }
+        };
+
+        match extractor.extract_to_result(&source, &module_name) {
+            Ok(result) => {
+                if !result.doctests.is_empty() {
+                    let doctest_count: usize =
+                        result.doctests.iter().map(|f| f.examples.len()).sum();
+                    if doctest_count > 0 {
+                        println!(
+                            "  ✓ {}: {} functions, {} doctests",
+                            module_name,
+                            result.doctests.len(),
+                            doctest_count
+                        );
+                        total_doctests += doctest_count;
+                        total_functions += result.doctests.len();
+                        total_files += 1;
+                        all_results.push(result);
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("  ⚠️  Error parsing {}: {}", py_file.display(), e);
+            }
+        }
+    }
+
+    // Merge all results into a single output
+    let merged_doctests: Vec<FunctionDoctests> =
+        all_results.into_iter().flat_map(|r| r.doctests).collect();
+
+    let final_result = DoctestResult {
+        source: input.to_string_lossy().to_string(),
+        module: module_prefix.clone(),
+        doctests: merged_doctests,
+    };
+
+    // Write JSON output
+    let json = serde_json::to_string_pretty(&final_result)?;
+    fs::write(&output, &json)?;
+
+    println!();
+    println!("📊 Extraction Summary:");
+    println!("   Files processed: {}", python_files.len());
+    println!("   Files with doctests: {}", total_files);
+    println!("   Functions with doctests: {}", total_functions);
+    println!("   Total doctests extracted: {}", total_doctests);
+    println!();
+    println!("✅ Output written to: {}", output.display());
+
+    Ok(())
 }
 
 #[cfg(test)]

@@ -57,6 +57,7 @@ pub mod const_generic_inference;
 pub mod debug;
 pub mod decision_trace;
 pub mod direct_rules;
+pub mod doctest_extractor;
 pub mod documentation;
 pub mod error;
 pub mod error_reporting;
