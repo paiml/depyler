@@ -3,10 +3,13 @@
 //! This module handles converting HIR statements to Rust token streams.
 //! It includes all statement conversion helpers and the HirStmt RustCodeGen trait implementation.
 
+#[cfg(feature = "decision-tracing")]
+use crate::decision_trace::DecisionCategory;
 use crate::hir::*;
 use crate::rust_gen::context::{CodeGenContext, RustCodeGen, ToRustExpr};
 use crate::rust_gen::keywords::safe_ident; // DEPYLER-0023: Keyword escaping
 use crate::rust_gen::type_gen::rust_type_to_syn;
+use crate::trace_decision;
 use anyhow::{bail, Result};
 use quote::{quote, ToTokens};
 use syn::{self, parse_quote};
@@ -615,6 +618,15 @@ pub(crate) fn codegen_return_stmt(
     expr: &Option<HirExpr>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // CITL: Trace return type handling decision
+    trace_decision!(
+        category = DecisionCategory::TypeMapping,
+        name = "return_stmt",
+        chosen = "return_expr",
+        alternatives = ["return_unit", "return_result", "return_option", "implicit_return"],
+        confidence = 0.92
+    );
+
     if let Some(e) = expr {
         let mut expr_tokens = e.to_rust_expr(ctx)?;
 
@@ -1441,6 +1453,15 @@ pub(crate) fn codegen_if_stmt(
 ) -> Result<proc_macro2::TokenStream> {
     use std::collections::HashSet;
 
+    // CITL: Trace if statement pattern decision
+    trace_decision!(
+        category = DecisionCategory::TypeMapping,
+        name = "if_statement",
+        chosen = "if_else",
+        alternatives = ["match_pattern", "if_let", "guard", "ternary"],
+        confidence = 0.85
+    );
+
     // DEPYLER-0399: Detect subcommand dispatch pattern and convert to match
     if ctx.argparser_tracker.has_subcommands() {
         if let Some(match_stmt) =
@@ -1767,6 +1788,15 @@ pub(crate) fn codegen_for_stmt(
     body: &[HirStmt],
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // CITL: Trace for loop iteration strategy
+    trace_decision!(
+        category = DecisionCategory::BorrowStrategy,
+        name = "for_loop_iter",
+        chosen = "for_in_iter",
+        alternatives = ["iter", "into_iter", "iter_mut", "drain", "range"],
+        confidence = 0.88
+    );
+
     // DEPYLER-0272: Check if loop variable(s) are used in body
     // If unused, prefix with _ to avoid unused variable warnings with -D warnings
 
@@ -2154,6 +2184,15 @@ pub(crate) fn codegen_assign_stmt(
     type_annotation: &Option<Type>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // CITL: Trace assignment target strategy
+    trace_decision!(
+        category = DecisionCategory::Ownership,
+        name = "assign_target",
+        chosen = "let_binding",
+        alternatives = ["let_mut", "reassign", "destructure", "augmented"],
+        confidence = 0.90
+    );
+
     // DEPYLER-0399: Transform CSE assignments for subcommand comparisons
     // DEPYLER-0456 Bug #2: Use dest_field instead of hardcoded "command"
     // When we have subcommands, assignments like `_cse_temp_0 = args.action == "clone"`
@@ -3569,6 +3608,15 @@ pub(crate) fn codegen_try_stmt(
     finalbody: &Option<Vec<HirStmt>>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // CITL: Trace error handling strategy
+    trace_decision!(
+        category = DecisionCategory::ErrorHandling,
+        name = "try_except",
+        chosen = "match_result",
+        alternatives = ["unwrap_or", "question_mark", "anyhow_context", "custom_error"],
+        confidence = 0.80
+    );
+
     // DEPYLER-0578: Detect json.load(sys.stdin) pattern with exit handler
     // Pattern: try { data = json.load(sys.stdin) } except JSONDecodeError as e: { print; exit }
     // This pattern assigns a variable that must be accessible AFTER the try/except block
