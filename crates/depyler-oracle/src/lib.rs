@@ -36,6 +36,7 @@ pub mod training;
 pub mod tuning;
 pub mod unified_training;
 pub mod verificar_integration;
+pub mod query_loop;
 
 pub use autofixer::{AutoFixer, FixContext, FixResult, TransformRule};
 pub use automl_tuning::{automl_full, automl_optimize, automl_quick, AutoMLConfig, AutoMLResult};
@@ -66,6 +67,13 @@ pub use training::{TrainingDataset, TrainingSample};
 // MoE Oracle exports
 pub use moe_oracle::{ExpertDomain, MoeClassificationResult, MoeOracle, MoeOracleConfig};
 pub use depyler_training::{classify_with_moe, load_real_corpus, train_moe_on_real_corpus, train_moe_oracle};
+
+// Oracle Query Loop exports (Issue #172)
+pub use query_loop::{
+    apply_simple_diff, auto_fix_loop, AutoFixResult, ErrorContext, OracleMetrics,
+    OracleQueryError, OracleQueryLoop, OracleSuggestion, OracleStats, ParseRustErrorCodeError,
+    QueryLoopConfig, RustErrorCode,
+};
 
 // GitHub corpus integration (via OIP)
 pub use github_corpus::{
