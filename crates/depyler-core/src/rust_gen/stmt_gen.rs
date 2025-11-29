@@ -3274,6 +3274,52 @@ pub(crate) fn codegen_assign_tuple(
             }
         }
         None => {
+            // GH-109: Handle tuple unpacking with Index targets
+            // Pattern: list[i], list[j] = list[j], list[i] (swap)
+            // Strategy: Store RHS in temp tuple, then assign each element
+
+            // Check if all targets are Index expressions (subscripts)
+            let all_indices: Option<Vec<_>> = targets
+                .iter()
+                .map(|t| match t {
+                    AssignTarget::Index { base, index } => Some((base, index)),
+                    _ => None,
+                })
+                .collect();
+
+            if let Some(indices) = all_indices {
+                // All targets are subscripts - generate temp-based assignment
+                let temp_var = syn::Ident::new("_swap_temp", proc_macro2::Span::call_site());
+
+                // Generate assignments for each target from temp tuple
+                let mut assignments = Vec::new();
+                for (idx, (base, index)) in indices.iter().enumerate() {
+                    let base_expr = base.to_rust_expr(ctx)?;
+                    let index_expr = index.to_rust_expr(ctx)?;
+                    let tuple_idx = syn::Index::from(idx);
+
+                    // Check if base is a Vec (numeric index) or HashMap (string key)
+                    let is_numeric = matches!(index.as_ref(), HirExpr::Literal(Literal::Int(_)));
+
+                    if is_numeric {
+                        // Vec assignment: base[index as usize] = temp.N
+                        assignments.push(quote! {
+                            #base_expr[(#index_expr) as usize] = #temp_var.#tuple_idx;
+                        });
+                    } else {
+                        // HashMap assignment: base.insert(key, temp.N)
+                        assignments.push(quote! {
+                            #base_expr.insert(#index_expr, #temp_var.#tuple_idx);
+                        });
+                    }
+                }
+
+                return Ok(quote! {
+                    let #temp_var = #value_expr;
+                    #(#assignments)*
+                });
+            }
+
             bail!("Complex tuple unpacking not yet supported")
         }
     }

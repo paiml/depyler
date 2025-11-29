@@ -334,6 +334,38 @@ fn handle_assign_target(
                     }
                 }
                 None => {
+                    // GH-109: Handle tuple unpacking with Index targets
+                    // Pattern: list[i], list[j] = list[j], list[i] (swap)
+                    let all_indices: Option<Vec<_>> = targets
+                        .iter()
+                        .map(|t| match t {
+                            AssignTarget::Index { base, index } => Some((base, index)),
+                            _ => None,
+                        })
+                        .collect();
+
+                    if let Some(indices) = all_indices {
+                        let temp_var =
+                            syn::Ident::new("_swap_temp", proc_macro2::Span::call_site());
+
+                        let mut assignments = Vec::new();
+                        for (idx, (base, index)) in indices.iter().enumerate() {
+                            let base_expr = expr_to_rust_tokens(base)?;
+                            let index_expr = expr_to_rust_tokens(index)?;
+                            let tuple_idx = syn::Index::from(idx);
+
+                            // Vec assignment: base[index as usize] = temp.N
+                            assignments.push(quote! {
+                                #base_expr[(#index_expr) as usize] = #temp_var.#tuple_idx;
+                            });
+                        }
+
+                        return Ok(quote! {
+                            let #temp_var = #value_tokens;
+                            #(#assignments)*
+                        });
+                    }
+
                     anyhow::bail!("Complex tuple unpacking not yet supported")
                 }
             }
