@@ -35,7 +35,7 @@ impl IndexError {
     }
 }
 #[doc = "Count word frequencies in text"]
-pub fn word_frequency(text: &str) -> Result<HashMap<String, i32>, IndexError> {
+pub fn word_frequency(text: &str) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let words = text
         .to_lowercase()
         .split_whitespace()
@@ -46,7 +46,7 @@ pub fn word_frequency(text: &str) -> Result<HashMap<String, i32>, IndexError> {
         map
     };
     for word in words.iter().cloned() {
-        let mut clean_word = STR_EMPTY;
+        let mut clean_word = STR_EMPTY.to_string();
         for _char in word.chars() {
             let char = _char.to_string();
             if char.chars().all(|c| c.is_alphabetic()) {
@@ -54,7 +54,7 @@ pub fn word_frequency(text: &str) -> Result<HashMap<String, i32>, IndexError> {
             }
         }
         if clean_word {
-            if frequency.contains_key(&clean_word) {
+            if frequency.get(&clean_word).is_some() {
                 {
                     let _key = clean_word;
                     let _old_val = frequency.get(&_key).cloned().unwrap_or_default();
@@ -76,14 +76,14 @@ pub fn find_anagrams(words: &Vec<String>) -> Vec<Vec<String>> {
     };
     for word in words.iter().cloned() {
         let sorted_chars = {
-            let mut __sorted_result = word.to_lowercase().clone();
-            __sorted_result.sort();
-            __sorted_result
+            let mut sorted_vec = word.to_lowercase().into_iter().collect::<Vec<_>>();
+            sorted_vec.sort();
+            sorted_vec
         }
         .join("");
-        if groups.contains_key(&sorted_chars) {
+        if groups.get(&sorted_chars).is_some() {
             groups
-                .get(sorted_chars as usize)
+                .get(&sorted_chars)
                 .cloned()
                 .unwrap_or_default()
                 .push(word);
@@ -100,7 +100,7 @@ pub fn find_anagrams(words: &Vec<String>) -> Vec<Vec<String>> {
     result
 }
 #[doc = "Find the longest common prefix among strings"]
-pub fn longest_common_prefix(strings: &Vec<String>) -> Result<String, IndexError> {
+pub fn longest_common_prefix(strings: &Vec<String>) -> Result<String, Box<dyn std::error::Error>> {
     if strings.is_empty() {
         return Ok(STR_EMPTY);
     }
@@ -110,10 +110,15 @@ pub fn longest_common_prefix(strings: &Vec<String>) -> Result<String, IndexError
         return Ok(strings.get(0usize).cloned().unwrap_or_default());
     }
     let _cse_temp_2 = strings.get(0usize).cloned().unwrap_or_default().len() as i32;
-    let mut min_length = _cse_temp_2;
+    let mut min_length = _cse_temp_2.clone();
     for s in {
-        let base = strings;
-        let start = (1).max(0) as usize;
+        let base = &strings;
+        let start_idx = 1 as isize;
+        let start = if start_idx < 0 {
+            (base.len() as isize + start_idx).max(0) as usize
+        } else {
+            start_idx as usize
+        };
         if start < base.len() {
             base[start..].to_vec()
         } else {
@@ -124,7 +129,7 @@ pub fn longest_common_prefix(strings: &Vec<String>) -> Result<String, IndexError
             min_length = s.len() as i32;
         }
     }
-    let mut prefix = STR_EMPTY;
+    let mut prefix = STR_EMPTY.to_string();
     for i in 0..min_length {
         let char = strings
             .get(0usize)
@@ -135,8 +140,13 @@ pub fn longest_common_prefix(strings: &Vec<String>) -> Result<String, IndexError
             .unwrap_or_default();
         let mut all_match = true;
         for s in {
-            let base = strings;
-            let start = (1).max(0) as usize;
+            let base = &strings;
+            let start_idx = 1 as isize;
+            let start = if start_idx < 0 {
+                (base.len() as isize + start_idx).max(0) as usize
+            } else {
+                start_idx as usize
+            };
             if start < base.len() {
                 base[start..].to_vec()
             } else {
@@ -167,11 +177,11 @@ pub fn longest_common_prefix(strings: &Vec<String>) -> Result<String, IndexError
             break;
         }
     }
-    Ok(prefix)
+    Ok(prefix.to_string())
 }
 #[doc = "Check if string is a palindrome(ignoring case and non-alphanumeric)"]
 pub fn is_palindrome(s: &str) -> Result<bool, Box<dyn std::error::Error>> {
-    let mut cleaned = STR_EMPTY;
+    let mut cleaned = STR_EMPTY.to_string();
     for char in s.to_lowercase() {
         if char.chars().all(|c| c.is_alphanumeric()) {
             cleaned = cleaned + char;

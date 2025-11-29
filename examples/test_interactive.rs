@@ -79,7 +79,7 @@ pub fn binary_search(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::er
 #[doc = "Process strings with concatenation."]
 #[doc = " Depyler: verified panic-free"]
 pub fn process_strings(strings: &Vec<String>) -> String {
-    let mut result = "";
+    let mut result = "".to_string();
     for s in strings.iter().cloned() {
         result = format!("{}{}", result, format!("{}{}", s, " "));
     }
@@ -87,10 +87,10 @@ pub fn process_strings(strings: &Vec<String>) -> String {
 }
 #[doc = "Function with frequent dictionary lookups."]
 #[doc = " Depyler: verified panic-free"]
-pub fn lookup_values<'b, 'a>(data: &'a HashMap<String, i32>, keys: &'b Vec<String>) -> Vec<i32> {
+pub fn lookup_values<'a, 'b>(data: &'a HashMap<String, i32>, keys: &'b Vec<String>) -> Vec<i32> {
     let mut results = vec![];
     for key in keys.iter().cloned() {
-        if data.contains_key(&key) {
+        if data.get(&key).is_some() {
             results.push(data.get(&key).cloned().unwrap_or_default());
         } else {
             results.push(0);

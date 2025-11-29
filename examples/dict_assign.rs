@@ -5,18 +5,21 @@ use std::collections::HashMap;
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dict_assignment() -> HashMap<serde_json::Value, serde_json::Value> {
     let mut d = {
-        let map = HashMap::new();
+        let mut map = std::collections::HashMap::new();
         map
     };
-    d.insert("key".to_string(), "value");
-    d.insert(42, "number key");
+    d.insert("key".to_string().to_string(), serde_json::json!("value"));
+    d.insert(42, serde_json::json!("number key"));
     let mut nested = {
-        let map = HashMap::new();
+        let mut map = std::collections::HashMap::new();
         map
     };
-    nested.insert("outer".to_string(), {
-        let map = HashMap::new();
-        map
-    });
+    nested.insert(
+        "outer".to_string().to_string(),
+        serde_json::json!({
+            let mut map = std::collections::HashMap::new();
+            map
+        }),
+    );
     d
 }

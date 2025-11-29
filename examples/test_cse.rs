@@ -3,7 +3,7 @@ use serde_json;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn repeated_complex_expressions(a: i32, b: i32, c: i32) -> i32 {
-    let _cse_temp_0 = a + b * c;
+    let _cse_temp_0 = (a + b) * c;
     let x = _cse_temp_0 + 10;
     let y = _cse_temp_0 - 5;
     let _cse_temp_1 = _cse_temp_0 * 2;
@@ -34,7 +34,7 @@ pub fn nested_expressions(x: i32, y: i32) -> i32 {
     let a = _cse_temp_0 + _cse_temp_1;
     let _cse_temp_2 = _cse_temp_0 * _cse_temp_0;
     let b = _cse_temp_2;
-    let _cse_temp_3 = x + 1 * y + 1;
+    let _cse_temp_3 = (x + 1) * (y + 1);
     let c = _cse_temp_3 + 10;
     let d = _cse_temp_3 - 20;
     a + b + c + d
@@ -61,7 +61,7 @@ pub fn loop_invariant_expressions(items: &Vec<serde_json::Value>) -> i32 {
     let y = 20;
     let mut total = 0;
     for item in items.iter().cloned() {
-        total = total + item + x + y * 2;
+        total = total + item + (x + y) * 2;
     }
     total
 }

@@ -1,66 +1,66 @@
-Type inference hints:
-Hint: list[Any] for variable 'results' [Medium] (usage patterns suggest this type)
-
-Inlining function 'hello_async': Trivial (cost-benefit: 10.00)
-
-Migration Suggestions
-══════════════════════════════════════════════════
-
-[1] [Warning] Consider using iterator methods in 'process_batch'
-   Category: Iterator
-   Why: This function uses an accumulator pattern that could be replaced with iterator methods
-   Location: process_batch line 0
-
-   Python pattern:
-   │ result = []
-   │ for item in items:
-   │     if condition(item):
-   │         result.append(transform(item))
-
-   Rust idiom:
-   │ let result: Vec<_> = items.iter()
-   │     .filter(|item| condition(item))
-   │     .map(|item| transform(item))
-   │     .collect();
-
-Summary: 1 suggestions (0 critical, 0 important)
-
-
-Performance Warnings
-══════════════════════════════════════════════════
-
-[1] [Low] Multiple append calls in loop
-   Location: process_batch, line 1 (in loop, depth: 1)
-   Impact: Complexity: O(1) amortized, but more calls, Scales: Yes, Hot path: Yes
-   Why: Multiple append operations can be less efficient than extend
-   Fix: Consider collecting items and using extend() once
-
-Summary: Found 1 warnings (0 critical, 0 high severity)
-
-
-Profiling Report
-══════════════════════════════════════════════════
-
-Summary
-  Total estimated instructions: 237
-  Total estimated allocations: 3
-  Functions analyzed: 5
-
-Hot Paths
-  [1] process_batch (232.1% of execution time)
-  [2] main (666.7% of execution time)
-
-Function Metrics
-🔥 main                            666.7% time |    158 inst |    1 alloc
-🔥 process_batch                   232.1% time |     55 inst |    1 alloc
-   fetch_user                        8.9% time |     21 inst |    1 alloc
-   hello_async                       0.8% time |      2 inst |    0 alloc
-   async_sleep                       0.4% time |      1 inst |    0 alloc
-
-Performance Predictions
-  • Rust's iterator fusion can optimize chained operations (1.2x speedup, 80% confidence)
-  • Rust's memory layout is more cache-friendly than Python (1.3x speedup, 70% confidence)
-
-🚀 Estimated overall speedup: 1.6x
-
-Error: Expression type not yet supported: FString { parts: [Expr(Attribute { value: Var("self"), attr: "name" }), Literal(" processed: "), Expr(Var("result"))] }
+use std::collections::HashMap;
+    #[derive(Debug, Clone)] pub struct AsyncService {
+    pub name: String, pub requests_count: i32
+}
+impl AsyncService {
+    pub fn new(name: String) -> Self {
+    Self {
+    name, requests_count: 0
+}
+} pub async fn handle_request(&mut self, request_id: i32) -> String {
+    self.requests_count = self.requests_count + 1;
+    let mut result = self._process(request_id).await;
+    return format!("{} processed: {}", self.name, result);
+   
+}
+pub async fn _process(&self, request_id: i32) -> String {
+    async_sleep(0.05).await;
+    return format!("Request#{}", request_id);
+   
+}
+} #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn hello_async() -> String {
+    "Hello from async!".to_string()
+}
+#[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn fetch_user(user_id: i32) -> HashMap<String, String>{
+    async_sleep(0.1).await;
+    {
+    let mut map = HashMap::new();
+    map.insert("id".to_string() ,(user_id).to_string());
+    map.insert("name".to_string(), format!("User{}", user_id));
+    map
+}
+} #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_sleep(seconds: f64) {
+   
+}
+#[doc = " Depyler: verified panic-free"] pub async fn process_batch(items: & Vec<i32>) -> Vec<String>{
+    let mut results = vec! [];
+    for _item in items.iter().cloned() {
+    let user = fetch_user(item).await;
+    let result = format!("Processed {}", user.get("name").cloned().unwrap_or_default());
+    results.push(result);
+   
+}
+results
+}
+#[doc = " Depyler: verified panic-free"] pub async fn main () {
+    let greeting = hello_async().await;
+    println!("{}", greeting);
+    let service = AsyncService::new("API-Service".to_string());
+    let response = service.handle_request(123).await;
+    println!("{}", response);
+    let items = vec! [1, 2, 3, 4, 5];
+    let batch_results = process_batch(& items).await;
+    for result in batch_results.iter().cloned() {
+    println!("{}", result);
+   
+}
+} #[cfg(test)] mod tests {
+    use super::*;
+    use quickcheck::{
+    quickcheck, TestResult };
+    #[test] fn test_process_batch_examples() {
+    assert_eq!(process_batch(vec! []), vec! []);
+    assert_eq!(process_batch(vec! [1]), vec! [1]);
+   
+}
+}

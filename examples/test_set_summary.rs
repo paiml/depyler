@@ -10,7 +10,6 @@ pub fn test_all_set_features() -> HashSet<i32> {
         set
     };
     let mut s2 = vec![4, 5, 6].into_iter().collect::<HashSet<_>>();
-    let empty = HashSet::<i32>::new();
     let _cse_temp_0 = s1
         .union(&s2)
         .cloned()

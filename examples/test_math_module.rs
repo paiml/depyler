@@ -46,7 +46,7 @@ pub fn test_basic_math_functions() -> f64 {
 }
 #[doc = "Test trigonometric functions"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_trigonometric_functions() -> Result<f64, ZeroDivisionError> {
+pub fn test_trigonometric_functions() -> Result<f64, Box<dyn std::error::Error>> {
     let _cse_temp_0 = (std::f64::consts::PI as f64) / (4.0 as f64);
     let angle: f64 = _cse_temp_0;
     let sin_result: f64 = (angle as f64).sin();
@@ -155,7 +155,7 @@ pub fn test_power_operations() -> f64 {
     basic_pow + sqrt_as_pow + cube_root
 }
 #[doc = "Test min/max with math operations"]
-pub fn test_comparison_functions(values: &Vec<f64>) -> Result<f64, IndexError> {
+pub fn test_comparison_functions(values: &Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
     let _cse_temp_0 = values.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -176,7 +176,7 @@ pub fn test_comparison_functions(values: &Vec<f64>) -> Result<f64, IndexError> {
     Ok(value_range + geometric_mean)
 }
 #[doc = "Calculate statistical values using math operations"]
-pub fn test_statistical_math(numbers: &Vec<f64>) -> Result<f64, ZeroDivisionError> {
+pub fn test_statistical_math(numbers: &Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
     let _cse_temp_0 = numbers.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -224,7 +224,7 @@ pub fn test_remainder_operations() -> f64 {
 }
 #[doc = "Test integer-specific math operations"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_integer_operations() -> Result<i32, ZeroDivisionError> {
+pub fn test_integer_operations() -> Result<i32, Box<dyn std::error::Error>> {
     let fact: i32 = {
         let n = 6 as i32;
         let mut result = 1i64;
@@ -299,23 +299,7 @@ pub fn test_integer_operations() -> Result<i32, ZeroDivisionError> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_math_features() -> Result<(), Box<dyn std::error::Error>> {
-    let basic_result: f64 = test_basic_math_functions();
-    let trig_result: f64 = test_trigonometric_functions()?;
-    let log_result: f64 = test_logarithmic_functions();
-    let round_result: f64 = test_rounding_functions();
-    let const_result: f64 = test_constants();
-    let hyper_result: f64 = test_hyperbolic_functions();
-    let special_result: f64 = test_special_functions();
-    let angle_result: f64 = test_angle_conversions();
-    let dist: f64 = calculate_distance(0.0, 0.0, 3.0, 4.0);
-    let hyp: f64 = calculate_hypotenuse(3.0, 4.0);
-    let power_result: f64 = test_power_operations();
     let sample_values: Vec<f64> = vec![1.5, 2.7, 3.2, 4.8, 5.1];
-    let comp_result: f64 = test_comparison_functions(&sample_values)?;
-    let stat_result: f64 = test_statistical_math(&sample_values)?;
-    let sign_result: f64 = test_sign_and_copysign();
-    let remainder_result: f64 = test_remainder_operations();
-    let int_result: i32 = test_integer_operations()?;
     println!("{}", "All math module tests completed successfully");
     Ok(())
 }

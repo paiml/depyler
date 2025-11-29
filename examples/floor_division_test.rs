@@ -17,7 +17,7 @@ impl ZeroDivisionError {
 }
 #[doc = "Test floor division with positive operands"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_floor_division_positive() -> Result<i32, ZeroDivisionError> {
+pub fn test_floor_division_positive() -> Result<i32, Box<dyn std::error::Error>> {
     let a = 7;
     let b = 3;
     let _cse_temp_0 = {
@@ -41,7 +41,7 @@ pub fn test_floor_division_positive() -> Result<i32, ZeroDivisionError> {
 }
 #[doc = "Test floor division with negative dividend"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_floor_division_negative() -> Result<i32, ZeroDivisionError> {
+pub fn test_floor_division_negative() -> Result<i32, Box<dyn std::error::Error>> {
     let a = -7;
     let b = 3;
     let _cse_temp_0 = {
@@ -65,7 +65,7 @@ pub fn test_floor_division_negative() -> Result<i32, ZeroDivisionError> {
 }
 #[doc = "Test floor division with negative divisor"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_floor_division_negative_divisor() -> Result<i32, ZeroDivisionError> {
+pub fn test_floor_division_negative_divisor() -> Result<i32, Box<dyn std::error::Error>> {
     let a = 7;
     let b = -3;
     let _cse_temp_0 = {
@@ -89,7 +89,7 @@ pub fn test_floor_division_negative_divisor() -> Result<i32, ZeroDivisionError> 
 }
 #[doc = "Test floor division with both operands negative"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_floor_division_both_negative() -> Result<i32, ZeroDivisionError> {
+pub fn test_floor_division_both_negative() -> Result<i32, Box<dyn std::error::Error>> {
     let a = -7;
     let b = -3;
     let _cse_temp_0 = {
@@ -113,7 +113,7 @@ pub fn test_floor_division_both_negative() -> Result<i32, ZeroDivisionError> {
 }
 #[doc = "Test floor division with exact result"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_floor_division_exact() -> Result<i32, ZeroDivisionError> {
+pub fn test_floor_division_exact() -> Result<i32, Box<dyn std::error::Error>> {
     let a = 9;
     let b = 3;
     let _cse_temp_0 = {
@@ -137,7 +137,7 @@ pub fn test_floor_division_exact() -> Result<i32, ZeroDivisionError> {
 }
 #[doc = "Test floor division with zero remainder edge case"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_floor_division_zero_remainder() -> Result<i32, ZeroDivisionError> {
+pub fn test_floor_division_zero_remainder() -> Result<i32, Box<dyn std::error::Error>> {
     let a = -9;
     let b = 3;
     let _cse_temp_0 = {

@@ -28,13 +28,14 @@ pub fn test_simple_break() {
 }
 #[doc = "Test basic continue statement"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_simple_continue() -> Result<(), ZeroDivisionError> {
+pub fn test_simple_continue() -> Result<(), Box<dyn std::error::Error>> {
     for i in 0..10 {
         if i % 2 == 0 {
             continue;
         }
         println!("{}", i);
     }
+    Ok(())
 }
 #[doc = "Test break in nested loops"]
 #[doc = " Depyler: verified panic-free"]
@@ -62,7 +63,7 @@ pub fn test_while_break() {
     }
 }
 #[doc = "Test continue in while loop"]
-pub fn test_while_continue() -> Result<(), ZeroDivisionError> {
+pub fn test_while_continue() -> Result<(), Box<dyn std::error::Error>> {
     let mut i = 0;
     while i < 10 {
         i = i + 1;
@@ -71,4 +72,5 @@ pub fn test_while_continue() -> Result<(), ZeroDivisionError> {
         }
         println!("{}", i);
     }
+    Ok(())
 }

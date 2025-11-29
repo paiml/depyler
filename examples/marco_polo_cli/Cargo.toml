@@ -1,23 +1,13 @@
 [package]
-name = "marco-polo-cli"
-version = "1.0.0"
+name = "marco_polo"
+version = "0.1.0"
 edition = "2021"
-authors = ["Depyler Example"]
-description = "Marco Polo CLI - A canonical Depyler example"
-license = "MIT OR Apache-2.0"
 
 [[bin]]
-name = "marco-polo"
-path = "src/main.rs"
+name = "marco_polo"
+path = "marco_polo.rs"
 
 [dependencies]
-clap = { version = "4.0", features = ["derive"] }
-rand = "0.8"
-colored = "2.0"
-anyhow = "1.0"
-
-[dev-dependencies]
-assert_cmd = "2.0"
-predicates = "3.0"
-
-[workspace]
+clap = { version = "4.5", features = ["derive"] }
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }

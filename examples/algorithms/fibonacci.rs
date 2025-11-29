@@ -1,3 +1,4 @@
+use serde_json;
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct IndexError {
@@ -28,26 +29,29 @@ pub fn fibonacci_recursive(n: i32) -> i32 {
 }
 #[doc = "Memoized fibonacci - demonstrates optimization patterns"]
 #[doc = " Depyler: proven to terminate"]
-pub fn fibonacci_memoized(n: i32, mut memo: HashMap<i32, i32>) -> Result<i32, IndexError> {
+pub fn fibonacci_memoized(
+    n: i32,
+    mut memo: Option<HashMap<i32, i32>>,
+) -> Result<i32, Box<dyn std::error::Error>> {
     if memo.is_none() {
         memo = {
             let map = HashMap::new();
             map
         };
     }
-    let _cse_temp_0 = memo.contains_key(&n);
+    let _cse_temp_0 = memo.get(&n).is_some();
     if _cse_temp_0 {
-        return Ok(memo.get(n as usize).cloned().unwrap_or_default());
+        return Ok(memo.get(&n).cloned().unwrap_or_default());
     }
     let _cse_temp_1 = n <= 1;
     let mut result;
     if _cse_temp_1 {
         result = n;
     } else {
-        let _cse_temp_2 = fibonacci_memoized(n - 1, memo) + fibonacci_memoized(n - 2, memo);
+        let _cse_temp_2 = fibonacci_memoized(n - 1, &memo)? + fibonacci_memoized(n - 2, &memo)?;
         result = _cse_temp_2;
     }
-    memo.insert(n, result);
+    memo.insert(n, serde_json::json!(result));
     Ok(result)
 }
 #[doc = "Iterative fibonacci - demonstrates loops and efficiency"]
@@ -59,7 +63,7 @@ pub fn fibonacci_iterative(n: i32) -> i32 {
         return n;
     }
     let (mut a, mut b) = (0, 1);
-    for __ in 2..n + 1 {
+    for __sanitized in 2..n + 1 {
         (a, b) = (b, a + b);
     }
     b

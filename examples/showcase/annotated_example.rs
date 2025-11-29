@@ -52,7 +52,7 @@ pub fn process_text(text: &str) -> String {
     text.to_uppercase()
 }
 #[doc = "Count word frequencies with FNV hash strategy."]
-pub fn count_words(text: &str) -> Result<HashMap<String, i32>, IndexError> {
+pub fn count_words(text: &str) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let mut word_count = {
         let map = HashMap::new();
         map
@@ -62,7 +62,7 @@ pub fn count_words(text: &str) -> Result<HashMap<String, i32>, IndexError> {
         .map(|s| s.to_string())
         .collect::<Vec<String>>();
     for word in words.iter().cloned() {
-        if word_count.contains_key(&word) {
+        if word_count.get(&word).is_some() {
             {
                 let _key = word;
                 let _old_val = word_count.get(&_key).cloned().unwrap_or_default();
@@ -76,7 +76,7 @@ pub fn count_words(text: &str) -> Result<HashMap<String, i32>, IndexError> {
 }
 #[doc = "Safe division with Result type."]
 #[doc = " Depyler: proven to terminate"]
-pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, ZeroDivisionError> {
+pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = b == 0;
     if _cse_temp_0 {
         return Ok(None);
@@ -85,7 +85,10 @@ pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, ZeroDivisionError> {
 }
 #[doc = "Compute dot product with SIMD hints."]
 #[doc = " Depyler: proven to terminate"]
-pub fn dot_product<'a, 'b>(v1: &'a Vec<f64>, v2: &'b Vec<f64>) -> Result<f64, IndexError> {
+pub fn dot_product<'b, 'a>(
+    v1: &'a Vec<f64>,
+    v2: &'b Vec<f64>,
+) -> Result<f64, Box<dyn std::error::Error>> {
     let mut result = 0.0;
     for i in 0..v1.len() as i32 {
         result = result

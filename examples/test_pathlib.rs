@@ -20,39 +20,47 @@ impl ZeroDivisionError {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn get_python_files(directory: String) -> Vec<String> {
-    let path = std::path::PathBuf::from(directory);
+    let path = std::path::PathBuf::from(&directory);
     path.glob("*.py".to_string())
-        .clone()
         .into_iter()
-        .map(|p| p.to_string())
+        .map(|p| (p).to_string())
         .collect::<Vec<_>>()
 }
 #[doc = "Create a nested path from parts"]
-pub fn create_nested_path(base: String) -> Result<String, ZeroDivisionError> {
-    let mut path = std::path::PathBuf::from(base);
+pub fn create_nested_path(
+    base: String,
+    parts: &[String],
+) -> Result<String, Box<dyn std::error::Error>> {
+    let mut path = std::path::PathBuf::from(&base);
     for part in parts.iter().cloned() {
         path = path / part;
     }
-    Ok(path.to_string())
+    Ok((path).to_string())
 }
 #[doc = "Get file information"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn get_file_info(filepath: String) -> () {
-    let mut path = std::path::PathBuf::from(filepath);
+    let mut path = std::path::PathBuf::from(&filepath);
     (
-        path.name,
+        path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string(),
         path.extension()
             .map(|e| format!(".{}", e.to_str().unwrap()))
             .unwrap_or_default(),
-        path.parent().unwrap().to_path_buf().name,
+        path.parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_default()
+            .name,
     )
 }
 #[doc = "Check if a path exists"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn check_path_exists(filepath: String) -> bool {
-    std::path::PathBuf::from(filepath).exists()
+    std::path::PathBuf::from(&filepath).exists()
 }
 #[cfg(test)]
 mod tests {

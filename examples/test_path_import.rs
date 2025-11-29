@@ -1,4 +1,3 @@
-use std as os;
 use std::path::splitext;
 use std::path::Path::exists;
 use std::path::Path::file_name;
@@ -7,7 +6,7 @@ use std::path::Path::parent;
 #[doc = "Build a file path from components"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn build_file_path(base_dir: String) -> String {
+pub fn build_file_path(base_dir: String, components: &[String]) -> String {
     std::path::Path::join(base_dir, components)
 }
 #[doc = "Check if a file exists"]
@@ -42,13 +41,37 @@ pub fn find_python_files(directory: &str) -> Vec<String> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn normalize_path(path: &str) -> String {
-    std::path::Path.normpath(path)
+    {
+        let p = std::path::Path::new(&path);
+        let mut components = Vec::new();
+        for component in p.components() {
+            match component {
+                std::path::Component::CurDir => {}
+                std::path::Component::ParentDir => {
+                    components.pop();
+                }
+                _ => components.push(component),
+            }
+        }
+        components
+            .iter()
+            .map(|c| c.as_os_str().to_string_lossy())
+            .collect::<Vec<_>>()
+            .join(std::path::MAIN_SEPARATOR_STR)
+    }
 }
 #[doc = "Get relative path from start to path"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn get_relative_path<'a, 'b>(path: &'a str, start: &'b str) -> String {
-    std::path::Path.relpath(path, start)
+    {
+        let path_obj = std::path::Path::new(path);
+        let start_obj = std::path::Path::new(start);
+        path_obj
+            .strip_prefix(start_obj)
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|_| path.to_string())
+    }
 }
 #[cfg(test)]
 mod tests {

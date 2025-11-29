@@ -45,7 +45,7 @@ pub fn test_integer_power() -> (i32, i32, i32, i32) {
     (a, b, c, d)
 }
 #[doc = " Depyler: proven to terminate"]
-pub fn test_float_power() -> Result<(f64, f64, f64, i32), ZeroDivisionError> {
+pub fn test_float_power() -> Result<(f64, f64, f64, i32), Box<dyn std::error::Error>> {
     let _cse_temp_0 = (2.5 as f64).powf(2 as f64);
     let a = _cse_temp_0;
     let _cse_temp_1 = (10.0 as f64).powf(3 as f64);

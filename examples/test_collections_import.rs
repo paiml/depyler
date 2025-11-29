@@ -38,7 +38,7 @@ pub fn count_words(text: &str) -> HashMap<String, i32> {
 #[doc = "Group words by their length using defaultdict"]
 #[doc = " Depyler: verified panic-free"]
 pub fn group_by_length(words: &Vec<String>) -> HashMap<i32, Vec<String>> {
-    let groups = std::collections::HashMap(list);
+    let groups = HashMap::new();
     for word in words.iter().cloned() {
         {
             let base = &groups;
@@ -55,7 +55,7 @@ pub fn group_by_length(words: &Vec<String>) -> HashMap<i32, Vec<String>> {
     groups.into_iter().collect::<HashMap<_, _>>()
 }
 #[doc = "Process items using a deque"]
-pub fn process_queue(items: Vec<i32>) -> Result<Vec<i32>, ZeroDivisionError> {
+pub fn process_queue(items: Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut queue = VecDeque::from(items);
     let mut results = vec![];
     while queue {
@@ -76,14 +76,24 @@ pub fn sliding_window(data: &Vec<i32>, window_size: i32) -> Vec<Vec<i32>> {
         return vec![];
     }
     let mut window = VecDeque::from({
-        let base = data;
-        let stop = (window_size).max(0) as usize;
+        let base = &data;
+        let stop_idx = window_size as isize;
+        let stop = if stop_idx < 0 {
+            (base.len() as isize + stop_idx).max(0) as usize
+        } else {
+            stop_idx as usize
+        };
         base[..stop.min(base.len())].to_vec()
     });
     let mut windows = vec![window.into_iter().collect::<Vec<_>>()];
     for item in {
-        let base = data;
-        let start = (window_size).max(0) as usize;
+        let base = &data;
+        let start_idx = window_size as isize;
+        let start = if start_idx < 0 {
+            (base.len() as isize + start_idx).max(0) as usize
+        } else {
+            start_idx as usize
+        };
         if start < base.len() {
             base[start..].to_vec()
         } else {

@@ -53,7 +53,7 @@ pub fn binary_search(items: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::
 }
 #[doc = "\n    Safe division with contracts.\n    \n    @requires denominator!= 0\n    @ensures result == numerator / denominator\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn safe_divide(numerator: f64, denominator: f64) -> Result<f64, ZeroDivisionError> {
+pub fn safe_divide(numerator: f64, denominator: f64) -> Result<f64, Box<dyn std::error::Error>> {
     Ok((numerator as f64) / (denominator as f64))
 }
 #[doc = "\n    Sum all numbers in a list.\n    \n    @requires numbers is not None\n    @ensures result>= 0 if all(n>= 0 for n in numbers) else True\n    "]

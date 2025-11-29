@@ -16,7 +16,7 @@ impl Logger {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_logger() -> i32 {
+pub fn test_logger() {
     let logger = Logger::new();
     let count = logger.log("Hello".to_string());
     count

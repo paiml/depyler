@@ -33,7 +33,7 @@ impl IndexError {
     }
 }
 #[doc = "Filter out even numbers from list"]
-pub fn filter_even_numbers(numbers: &Vec<i32>) -> Result<Vec<i32>, ZeroDivisionError> {
+pub fn filter_even_numbers(numbers: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut result: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
         if num % 2 == 0 {
@@ -48,8 +48,8 @@ pub fn find_duplicates(numbers: &Vec<i32>) -> Vec<i32> {
     let mut seen: Vec<i32> = vec![];
     let mut duplicates: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
-        if seen.contains_key(&num) {
-            if !duplicates.contains_key(&num) {
+        if seen.get(&num).is_some() {
+            if !duplicates.get(&num).is_some() {
                 duplicates.push(num);
             }
         } else {
@@ -62,7 +62,7 @@ pub fn find_duplicates(numbers: &Vec<i32>) -> Vec<i32> {
 pub fn merge_sorted_lists<'a, 'b>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
-) -> Result<Vec<i32>, IndexError> {
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut result: Vec<i32> = vec![];
     let mut i = 0;
     let mut j = 0;
@@ -106,7 +106,7 @@ pub fn calculate_running_sum(numbers: &Vec<i32>) -> Vec<i32> {
 pub fn rotate_list_left(
     numbers: Vec<i32>,
     mut positions: i32,
-) -> Result<Vec<i32>, ZeroDivisionError> {
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = positions <= 0;
     let _cse_temp_1 = (numbers.is_empty()) || (_cse_temp_0);
     if _cse_temp_1 {

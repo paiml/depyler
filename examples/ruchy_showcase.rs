@@ -1,4 +1,3 @@
-use serde_json;
 #[derive(Debug, Clone)] pub struct IndexError {
     message: String ,
 }
@@ -40,7 +39,7 @@ pub fn transform_data(&self, data: Vec<i32>) -> Vec<i32>{
 }
 fibonacci(n - 1) + fibonacci(n - 2)
 }
-#[doc = "Sort array using quicksort algorithm."] #[doc = " Depyler: proven to terminate"] pub fn quicksort(arr: Vec<i32>) -> Result<Vec<i32>, IndexError>{
+#[doc = "Sort array using quicksort algorithm."] #[doc = " Depyler: proven to terminate"] pub fn quicksort(arr: Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
     let _cse_temp_0 = arr.len() as i32;
     let _cse_temp_1 = _cse_temp_0 <= 1;
     if _cse_temp_1 {
@@ -49,60 +48,70 @@ fibonacci(n - 1) + fibonacci(n - 2)
 }
 let pivot = arr.get(0usize).cloned().unwrap_or_default();
     let less = {
-    let base = arr;
-    let start = (1).max(0) as usize;
+    let base = & arr;
+    let start_idx = 1 as isize;
+    let start = if start_idx<0 {
+   (base.len() as isize + start_idx).max(0) as usize
+}
+else {
+    start_idx as usize };
     if start<base.len() {
     base [start..].to_vec()
 }
 else {
     Vec::new()
 }
-}.clone().into_iter().filter(| x | * x<pivot).map(| x | x).collect::<Vec<_>>();
+}.into_iter().filter(| x | x<pivot).map(| x | x).collect::<Vec<_>>();
     let greater = {
-    let base = arr;
-    let start = (1).max(0) as usize;
+    let base = & arr;
+    let start_idx = 1 as isize;
+    let start = if start_idx<0 {
+   (base.len() as isize + start_idx).max(0) as usize
+}
+else {
+    start_idx as usize };
     if start<base.len() {
     base [start..].to_vec()
 }
 else {
     Vec::new()
 }
-}.clone().into_iter().filter(| x | * x>= pivot).map(| x | x).collect::<Vec<_>>();
-    Ok(quicksort(less).iter().chain (vec! [pivot].iter()).cloned().collect::<Vec<_>>() + quicksort(greater))
+}.into_iter().filter(| x | x>= pivot).map(| x | x).collect::<Vec<_>>();
+    Ok(quicksort(less) ?.iter().chain (vec! [pivot].iter()).cloned().collect::<Vec<_>>() + quicksort(greater) ?)
 }
 #[doc = "Process data using functional pipeline style."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn process_data(numbers: & Vec<i32>) -> Vec<i32>{
-    let result = numbers.clone().into_iter().filter(| x | * x>0).map(| x | x * 2).collect::<Vec<_>>();
+    let result = numbers.iter().copied().filter(| x | x>0).map(| x | x * 2).collect::<Vec<_>>();
     result
 }
 #[doc = "Create a greeting with optional title."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn greet(name: String, title: & Option<String>) -> String {
     if title.is_some() {
-    format!("Hello, {:?} {:?}!", title, name)
+    format!("Hello, {:?} {}!", title, name)
 }
 else {
-    format!("Hello, {:?}!", name)
+    format!("Hello, {}!", name)
 }
 } #[doc = "Async function that will map to Ruchy's async support."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn fetch_and_process(url: String) -> String {
-    let data = fetch_data(url).await;
-    let processed = process_text(data);
-    processed
+    let data = fetch_data(& url).await;
+    let processed = process_text(& data);
+    processed.to_string()
 }
 #[doc = "Simulate fetching data."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn fetch_data(url: String) -> String {
-    format!("Data from {:?}", url)
+    format!("Data from {}", url)
 }
 #[doc = "Process text data."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn process_text(text: & str) -> String {
     text.to_uppercase()
 }
-#[doc = "Example that could be transformed to match expression."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn pattern_matching_example(value: & serde_json::Value) -> String {
+#[doc = "Example that could be transformed to match expression."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn pattern_matching_example(value: & str) -> String {
     if true {
-    format!("Integer: {:?}", value)
+    format!("Integer: {}", value)
 }
 else {
     if true {
-    format!("String: {:?}", value)
+    format!("String: {}", value)
 }
 else {
     if true {
-    format!("List with {:?} items", value.len() as i32)
+    format!("List with {} items", value.len() as i32)
 }
 else {
     "Unknown type".to_string()
@@ -110,7 +119,7 @@ else {
 }
 }
 } #[doc = "Main entry point."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn main () -> Result <(), Box<dyn std::error::Error>>{
-    println!("{}", format!("Fibonacci(10) = {:?}", fibonacci(10)));
+    println!("{}", format!("Fibonacci(10) = {}", fibonacci(10)));
     let arr = vec! [64, 34, 25, 12, 22, 11, 90];
     let sorted_arr = quicksort(arr) ?;
     println!("{}", format!("Sorted array: {:?}", sorted_arr));
@@ -119,7 +128,7 @@ else {
     println!("{}", format!("Processed: {:?}", processed));
     println!("{}", greet("Alice"));
     println!("{}", greet("Bob", "Dr."));
-    let processor = DataProcessor::new();
+    let processor = DataProcessor::new(10);
     let data = vec! [5, 10, 15, 20, 25];
     let filtered = processor.filter_data(data);
     let transformed = processor.transform_data(filtered);
@@ -127,7 +136,7 @@ else {
     println!("{}", pattern_matching_example(42));
     println!("{}", pattern_matching_example("hello"));
     println!("{}", pattern_matching_example(& vec! [1, 2, 3]));
-   
+    Ok(())
 }
 #[cfg(test)] mod tests {
     use super::*;

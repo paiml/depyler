@@ -1,4 +1,4 @@
-#[doc = "// TODO: Map Python module 'subprocess'"]
+#[doc = "// NOTE: Map Python module 'subprocess'(tracked in DEPYLER-0424)"]
 use std as sys;
 use std::collections::HashMap;
 #[doc = "Test binary search implementation."]
@@ -15,7 +15,7 @@ pub fn test_binary_search() {
         (vec![42], 41, -1),
     ];
     println!("{}", "Testing binary_search...");
-    for (_arr, _target, _expected) in test_cases.iter().cloned() {
+    for (arr, target, expected) in test_cases.iter().cloned() {
         println!(
             "{}",
             format!(
@@ -36,7 +36,7 @@ pub fn test_calculate_sum() {
         (vec![-1, -2, -3], -6),
     ];
     println!("{}", "\nTesting calculate_sum...");
-    for (_numbers, _expected) in test_cases.iter().cloned() {
+    for (numbers, expected) in test_cases.iter().cloned() {
         println!(
             "{}",
             format!("  ✓ calculate_sum({:?}) = {:?}", numbers, expected)
@@ -81,7 +81,7 @@ pub fn test_process_config() {
         ),
     ];
     println!("{}", "\nTesting process_config...");
-    for (_config, _expected) in test_cases.iter().cloned() {
+    for (config, expected) in test_cases.iter().cloned() {
         println!(
             "{}",
             format!("  ✓ process_config({:?}) = {:?}", config, expected)
@@ -99,7 +99,7 @@ pub fn test_classify_number() {
         (-1, "negative"),
     ];
     println!("{}", "\nTesting classify_number...");
-    for (_n, _expected) in test_cases.iter().cloned() {
+    for (n, expected) in test_cases.iter().cloned() {
         println!(
             "{}",
             format!("  ✓ classify_number({:?}) = {:?}", n, expected)

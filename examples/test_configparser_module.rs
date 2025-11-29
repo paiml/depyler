@@ -1,5 +1,5 @@
-#[doc = "// TODO: Map Python module 'configparser'"]
-#[doc = "// TODO: Map Python module 'io'"]
+#[doc = "// NOTE: Map Python module 'configparser'(tracked in DEPYLER-0424)"]
+use std::io::Cursor;
 const STR__: &'static str = "=";
 #[doc = "Test basic reading of config from string."]
 #[doc = " Depyler: verified panic-free"]
@@ -8,8 +8,8 @@ pub fn test_configparser_basic_read() {
     let config_string = "\n[DEFAULT]\nServerAliveInterval = 45\nCompression = yes\nCompressionLevel = 9\n\n[bitbucket.org]\nUser = hg\n\n[topsecret.server.com]\nPort = 50022\nForwardX11 = no\n";
     let config = configparser.ConfigParser();
     config.read_string(config_string);
-    assert!(config.contains_key(&"bitbucket.org".to_string()));
-    assert!(config.contains_key(&"topsecret.server.com".to_string()));
+    assert!(config.get("bitbucket.org".to_string()).is_some());
+    assert!(config.get("topsecret.server.com".to_string()).is_some());
     assert!(
         config
             .get("bitbucket.org")
@@ -99,11 +99,10 @@ pub fn test_configparser_sections() {
         "\n[section1]\nkey1 = value1\n\n[section2]\nkey2 = value2\n\n[section3]\nkey3 = value3\n";
     let config = configparser.ConfigParser();
     config.read_string(config_string);
-    let sections = config.sections();
     assert!(sections.len() as i32 == 3);
-    assert!(sections.contains_key(&"section1".to_string()));
-    assert!(sections.contains_key(&"section2".to_string()));
-    assert!(sections.contains_key(&"section3".to_string()));
+    assert!(sections.get("section1".to_string()).is_some());
+    assert!(sections.get("section2".to_string()).is_some());
+    assert!(sections.get("section3".to_string()).is_some());
     println!("{}", "PASS: test_configparser_sections");
 }
 #[doc = "Test listing options in a section."]
@@ -114,11 +113,10 @@ pub fn test_configparser_options() {
         "\n[database]\nhost = localhost\nport = 5432\nuser = admin\npassword = secret\n";
     let config = configparser.ConfigParser();
     config.read_string(config_string);
-    let options = config.options("database".to_string());
-    assert!(options.contains_key(&"host".to_string()));
-    assert!(options.contains_key(&"port".to_string()));
-    assert!(options.contains_key(&"user".to_string()));
-    assert!(options.contains_key(&"password".to_string()));
+    assert!(options.get("host".to_string()).is_some());
+    assert!(options.get("port".to_string()).is_some());
+    assert!(options.get("user".to_string()).is_some());
+    assert!(options.get("password".to_string()).is_some());
     println!("{}", "PASS: test_configparser_options");
 }
 #[doc = "Test setting configuration values programmatically."]

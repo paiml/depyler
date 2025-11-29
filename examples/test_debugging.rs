@@ -43,7 +43,7 @@ pub fn fibonacci(n: i32) -> i32 {
     fibonacci(n - 1) + fibonacci(n - 2)
 }
 #[doc = "Find all prime factors of a number."]
-pub fn find_prime_factors(mut n: i32) -> Result<Vec<i32>, ZeroDivisionError> {
+pub fn find_prime_factors(mut n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut factors = vec![];
     let mut d = 2;
     while d * d <= n {
@@ -118,6 +118,7 @@ pub fn test_functions() -> Result<(), Box<dyn std::error::Error>> {
     let test_array = vec![1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
     let index = binary_search(&test_array, 7)?;
     println!("{}", format!("Index of 7: {:?}", index));
+    Ok(())
 }
 #[cfg(test)]
 mod tests {

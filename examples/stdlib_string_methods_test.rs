@@ -6,7 +6,7 @@ const STR_HELLO: &'static str = "hello";
 pub fn test_str_upper() -> String {
     let text = STR_HELLO_WORLD;
     let result = text.to_uppercase();
-    result
+    result.to_string()
 }
 #[doc = "Test str.lower() method"]
 #[doc = " Depyler: verified panic-free"]
@@ -14,7 +14,7 @@ pub fn test_str_upper() -> String {
 pub fn test_str_lower() -> String {
     let text = "HELLO WORLD";
     let result = text.to_lowercase();
-    result
+    result.to_string()
 }
 #[doc = "Test str.strip() method"]
 #[doc = " Depyler: verified panic-free"]
@@ -22,7 +22,7 @@ pub fn test_str_lower() -> String {
 pub fn test_str_strip() -> String {
     let text = "  hello world  ";
     let result = text.trim().to_string();
-    result
+    result.to_string()
 }
 #[doc = "Test str.startswith() method"]
 #[doc = " Depyler: verified panic-free"]
@@ -84,7 +84,7 @@ pub fn test_str_split_separator() -> i32 {
 pub fn test_str_join() -> String {
     let parts = vec![STR_HELLO.to_string(), "world".to_string()];
     let result = parts.join(",");
-    result
+    result.to_string()
 }
 #[doc = "Test str.join () with space separator"]
 #[doc = " Depyler: verified panic-free"]
@@ -96,7 +96,7 @@ pub fn test_str_join_space() -> String {
         "foo".to_string(),
     ];
     let result = parts.join(" ");
-    result
+    result.to_string()
 }
 #[doc = "Test str.find() when substring exists"]
 #[doc = " Depyler: verified panic-free"]
@@ -120,7 +120,7 @@ pub fn test_str_find_not_found() -> i32 {
 pub fn test_str_replace() -> String {
     let text = STR_HELLO_WORLD;
     let result = text.replace("world", "rust");
-    result
+    result.to_string()
 }
 #[doc = "Test str.replace() with multiple occurrences"]
 #[doc = " Depyler: verified panic-free"]
@@ -128,7 +128,7 @@ pub fn test_str_replace() -> String {
 pub fn test_str_replace_multiple() -> String {
     let text = "hello hello hello";
     let result = text.replace("hello", "hi");
-    result
+    result.to_string()
 }
 #[doc = "Test str.count() method"]
 #[doc = " Depyler: verified panic-free"]
@@ -203,7 +203,7 @@ pub fn test_str_empty_split() -> i32 {
 pub fn test_str_single_char() -> String {
     let text = "a";
     let result = text.to_uppercase();
-    result
+    result.to_string()
 }
 #[doc = "Test string methods with special characters"]
 #[doc = " Depyler: verified panic-free"]
