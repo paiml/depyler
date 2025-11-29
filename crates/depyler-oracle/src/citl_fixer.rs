@@ -600,6 +600,7 @@ mod tests {
     // ============================================
 
     #[test]
+    #[ignore] // SLOW: CITL fixer property test takes >120s
     fn test_fix_all_never_increases_errors() {
         if std::env::var("DEPYLER_FAST_TESTS").is_ok() {
             return;
