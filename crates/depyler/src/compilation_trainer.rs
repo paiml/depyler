@@ -1620,3 +1620,437 @@ pub fn load_corpus_cache(cache_path: &Path) -> Result<Vec<(String, String, Strin
 
     Ok(corpus)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    // ========================================
+    // DiagnosticTier tests
+    // ========================================
+
+    #[test]
+    fn test_diagnostic_tier_from_level() {
+        assert_eq!(DiagnosticTier::from_level(1), DiagnosticTier::Tier1);
+        assert_eq!(DiagnosticTier::from_level(2), DiagnosticTier::Tier2);
+        assert_eq!(DiagnosticTier::from_level(3), DiagnosticTier::Tier3);
+        assert_eq!(DiagnosticTier::from_level(4), DiagnosticTier::Tier4);
+        assert_eq!(DiagnosticTier::from_level(5), DiagnosticTier::Tier4);
+        assert_eq!(DiagnosticTier::from_level(0), DiagnosticTier::Tier1);
+    }
+
+    #[test]
+    fn test_diagnostic_tier_level() {
+        assert_eq!(DiagnosticTier::Tier1.level(), 1);
+        assert_eq!(DiagnosticTier::Tier2.level(), 2);
+        assert_eq!(DiagnosticTier::Tier3.level(), 3);
+        assert_eq!(DiagnosticTier::Tier4.level(), 4);
+    }
+
+    #[test]
+    fn test_diagnostic_tier_default() {
+        let tier: DiagnosticTier = Default::default();
+        assert_eq!(tier, DiagnosticTier::Tier1);
+    }
+
+    #[test]
+    fn test_diagnostic_tier_clone() {
+        let tier = DiagnosticTier::Tier3;
+        let cloned = tier.clone();
+        assert_eq!(tier, cloned);
+    }
+
+    // ========================================
+    // ClippyLevel tests
+    // ========================================
+
+    #[test]
+    fn test_clippy_level_from_cli_arg() {
+        assert_eq!(ClippyLevel::from_cli_arg("standard"), ClippyLevel::Standard);
+        assert_eq!(ClippyLevel::from_cli_arg("all"), ClippyLevel::Standard);
+        assert_eq!(ClippyLevel::from_cli_arg("pedantic"), ClippyLevel::Pedantic);
+        assert_eq!(ClippyLevel::from_cli_arg("nursery"), ClippyLevel::Nursery);
+        assert_eq!(ClippyLevel::from_cli_arg("full"), ClippyLevel::Full);
+        assert_eq!(ClippyLevel::from_cli_arg("cargo"), ClippyLevel::Full);
+        assert_eq!(ClippyLevel::from_cli_arg("unknown"), ClippyLevel::Nursery);
+    }
+
+    #[test]
+    fn test_clippy_level_case_insensitive() {
+        assert_eq!(ClippyLevel::from_cli_arg("STANDARD"), ClippyLevel::Standard);
+        assert_eq!(ClippyLevel::from_cli_arg("Pedantic"), ClippyLevel::Pedantic);
+    }
+
+    #[test]
+    fn test_clippy_level_default() {
+        let level: ClippyLevel = Default::default();
+        assert_eq!(level, ClippyLevel::Nursery);
+    }
+
+    // ========================================
+    // VerbosityConfig tests
+    // ========================================
+
+    #[test]
+    fn test_verbosity_config_new() {
+        let config = VerbosityConfig::new();
+        assert_eq!(config.tier, DiagnosticTier::Tier1);
+        assert_eq!(config.clippy_level, ClippyLevel::Nursery);
+        assert!(config.adaptive);
+        assert_eq!(config.timeout_secs, 300);
+    }
+
+    #[test]
+    fn test_verbosity_config_default() {
+        let config = VerbosityConfig::default();
+        assert_eq!(config.tier, DiagnosticTier::Tier1);
+        assert!(config.trace_errors.contains(&"E0308".to_string()));
+        assert!(config.trace_errors.contains(&"E0277".to_string()));
+    }
+
+    #[test]
+    fn test_verbosity_config_builder() {
+        let config = VerbosityConfig::new()
+            .with_tier(DiagnosticTier::Tier3)
+            .with_clippy_level(ClippyLevel::Full)
+            .with_adaptive(false)
+            .with_trace_errors(vec!["E0001".to_string()]);
+
+        assert_eq!(config.tier, DiagnosticTier::Tier3);
+        assert_eq!(config.clippy_level, ClippyLevel::Full);
+        assert!(!config.adaptive);
+        assert_eq!(config.trace_errors, vec!["E0001".to_string()]);
+    }
+
+    #[test]
+    fn test_verbosity_config_build_command_tier1() {
+        let config = VerbosityConfig::new().with_tier(DiagnosticTier::Tier1);
+        let temp = TempDir::new().unwrap();
+        let manifest = temp.path().join("Cargo.toml");
+        std::fs::write(&manifest, "[package]\nname = \"test\"").unwrap();
+        let cmd = config.build_command(&manifest);
+        // Just verify it doesn't panic and creates a command
+        let program = cmd.get_program();
+        assert_eq!(program.to_str().unwrap(), "cargo");
+    }
+
+    #[test]
+    fn test_verbosity_config_build_command_tier2() {
+        let config = VerbosityConfig::new().with_tier(DiagnosticTier::Tier2);
+        let temp = TempDir::new().unwrap();
+        let manifest = temp.path().join("Cargo.toml");
+        std::fs::write(&manifest, "[package]\nname = \"test\"").unwrap();
+        let cmd = config.build_command(&manifest);
+        let args: Vec<_> = cmd.get_args().collect();
+        assert!(args.iter().any(|a| a.to_str() == Some("-v")));
+    }
+
+    #[test]
+    fn test_verbosity_config_select_tier_non_adaptive() {
+        let config = VerbosityConfig::new()
+            .with_tier(DiagnosticTier::Tier2)
+            .with_adaptive(false);
+        let tier = config.select_tier_for_error("E0308", 1);
+        assert_eq!(tier, DiagnosticTier::Tier2);
+    }
+
+    #[test]
+    fn test_verbosity_config_weight_for_error_class() {
+        let config = VerbosityConfig::new();
+        let weight = config.weight_for_error_class("E0308");
+        assert!(weight > 0.0);
+    }
+
+    // ========================================
+    // DiagnosticFeatures tests
+    // ========================================
+
+    #[test]
+    fn test_diagnostic_features_default() {
+        let features: DiagnosticFeatures = Default::default();
+        assert!(features.error_code.is_none());
+        assert!(features.message.is_empty());
+        assert!(features.spans.is_empty());
+    }
+
+    #[test]
+    fn test_diagnostic_features_clone() {
+        let features = DiagnosticFeatures {
+            error_code: Some("E0308".to_string()),
+            level: "error".to_string(),
+            message: "mismatched types".to_string(),
+            spans: vec![],
+            suggestions: vec!["try this".to_string()],
+            clippy_lints: vec![],
+            trace_lines: vec![],
+            backtrace: None,
+        };
+        let cloned = features.clone();
+        assert_eq!(cloned.error_code, Some("E0308".to_string()));
+        assert_eq!(cloned.message, "mismatched types");
+    }
+
+    // ========================================
+    // DiagnosticSpan tests
+    // ========================================
+
+    #[test]
+    fn test_diagnostic_span_clone() {
+        let span = DiagnosticSpan {
+            file_name: "test.rs".to_string(),
+            line_start: 10,
+            line_end: 15,
+            column_start: 5,
+            column_end: 20,
+            text: "let x = 5;".to_string(),
+            label: Some("here".to_string()),
+        };
+        let cloned = span.clone();
+        assert_eq!(cloned.file_name, "test.rs");
+        assert_eq!(cloned.line_start, 10);
+        assert_eq!(cloned.text, "let x = 5;");
+    }
+
+    // ========================================
+    // CompilationResult tests
+    // ========================================
+
+    #[test]
+    fn test_compilation_result_clone() {
+        let result = CompilationResult {
+            final_epoch: 5,
+            final_rate: 0.95,
+            best_rate: 0.98,
+            stopped_early: true,
+            elapsed_secs: 120.5,
+            files_processed: 100,
+            files_compiled: 95,
+            files_transpiled: 100,
+            target_achieved: true,
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.final_epoch, 5);
+        assert_eq!(cloned.final_rate, 0.95);
+        assert!(cloned.target_achieved);
+    }
+
+    // ========================================
+    // CompilationConfig tests
+    // ========================================
+
+    #[test]
+    fn test_compilation_config_new() {
+        let config = CompilationConfig::new();
+        assert_eq!(config.target_rate, 1.0);
+        assert_eq!(config.max_epochs, 10);
+        assert_eq!(config.patience, 3);
+    }
+
+    #[test]
+    fn test_compilation_config_default() {
+        let config: CompilationConfig = Default::default();
+        assert!(!config.verbose);
+        assert!(!config.monitor);
+        assert_eq!(config.min_delta, 0.001);
+    }
+
+    #[test]
+    fn test_compilation_config_builder() {
+        let config = CompilationConfig::new()
+            .with_target_rate(0.9)
+            .with_max_epochs(20)
+            .with_patience(5)
+            .with_verbose(true)
+            .with_monitor(true)
+            .with_reweight(1.5);
+
+        assert_eq!(config.target_rate, 0.9);
+        assert_eq!(config.max_epochs, 20);
+        assert_eq!(config.patience, 5);
+        assert!(config.verbose);
+        assert!(config.monitor);
+        assert_eq!(config.reweight, 1.5);
+    }
+
+    #[test]
+    fn test_compilation_config_with_report_dir() {
+        let config = CompilationConfig::new().with_report_dir(PathBuf::from("/tmp/reports"));
+        assert_eq!(config.report_dir, PathBuf::from("/tmp/reports"));
+    }
+
+    #[test]
+    fn test_compilation_config_with_export_corpus() {
+        let config = CompilationConfig::new().with_export_corpus(PathBuf::from("/tmp/corpus"));
+        assert_eq!(config.export_corpus, Some(PathBuf::from("/tmp/corpus")));
+    }
+
+    #[test]
+    fn test_compilation_config_with_verbosity_tier() {
+        let config = CompilationConfig::new().with_verbosity_tier(3);
+        assert_eq!(config.verbosity.tier, DiagnosticTier::Tier3);
+    }
+
+    #[test]
+    fn test_compilation_config_with_clippy_level() {
+        let config = CompilationConfig::new().with_clippy_level("pedantic");
+        assert_eq!(config.verbosity.clippy_level, ClippyLevel::Pedantic);
+    }
+
+    #[test]
+    fn test_compilation_config_with_verbosity() {
+        let verbosity = VerbosityConfig::new().with_tier(DiagnosticTier::Tier4);
+        let config = CompilationConfig::new().with_verbosity(verbosity);
+        assert_eq!(config.verbosity.tier, DiagnosticTier::Tier4);
+    }
+
+    #[test]
+    fn test_compilation_config_with_adaptive_verbosity() {
+        let config = CompilationConfig::new().with_adaptive_verbosity(false);
+        assert!(!config.verbosity.adaptive);
+    }
+
+    // ========================================
+    // CompilationTrainer tests
+    // ========================================
+
+    #[test]
+    fn test_compilation_trainer_new() {
+        let config = CompilationConfig::new();
+        let trainer = CompilationTrainer::new(vec![], config);
+        // Just verify it doesn't panic
+        assert!(trainer.files.is_empty());
+    }
+
+    #[test]
+    fn test_compilation_trainer_with_custom_config() {
+        let config = CompilationConfig::new()
+            .with_target_rate(0.95)
+            .with_max_epochs(5);
+        let trainer = CompilationTrainer::new(vec![], config);
+        assert_eq!(trainer.config.target_rate, 0.95);
+        assert_eq!(trainer.config.max_epochs, 5);
+    }
+
+    #[test]
+    fn test_compilation_trainer_with_files() {
+        let files = vec![PathBuf::from("test.py"), PathBuf::from("other.py")];
+        let config = CompilationConfig::new();
+        let trainer = CompilationTrainer::new(files, config);
+        assert_eq!(trainer.files.len(), 2);
+    }
+
+    // ========================================
+    // OipTrainingExample tests
+    // ========================================
+
+    #[test]
+    fn test_oip_training_example_creation() {
+        let example = OipTrainingExample {
+            source_file: "test.py".to_string(),
+            rust_file: "test.rs".to_string(),
+            error_code: Some("E0308".to_string()),
+            clippy_lint: None,
+            level: "error".to_string(),
+            message: "mismatched types".to_string(),
+            oip_category: "type_mismatch".to_string(),
+            confidence: 0.9,
+            line_start: 1,
+            line_end: 5,
+            suggestion: Some("change type".to_string()),
+            python_construct: Some("def".to_string()),
+            timestamp: 1234567890,
+            depyler_version: "3.21.0".to_string(),
+            weight: 1.0,
+        };
+        assert_eq!(example.error_code, Some("E0308".to_string()));
+        assert_eq!(example.weight, 1.0);
+    }
+
+    // ========================================
+    // OipExportFormat tests
+    // ========================================
+
+    #[test]
+    fn test_oip_export_format_parse() {
+        assert_eq!(OipExportFormat::parse("parquet"), OipExportFormat::Parquet);
+        assert_eq!(OipExportFormat::parse("pq"), OipExportFormat::Parquet);
+        assert_eq!(OipExportFormat::parse("jsonl"), OipExportFormat::JsonL);
+        assert_eq!(OipExportFormat::parse("json"), OipExportFormat::JsonL);
+        assert_eq!(OipExportFormat::parse("ndjson"), OipExportFormat::JsonL);
+        assert_eq!(OipExportFormat::parse("invalid"), OipExportFormat::Parquet); // default
+    }
+
+    // ========================================
+    // OipExportStats tests
+    // ========================================
+
+    #[test]
+    fn test_oip_export_stats_default() {
+        let stats: OipExportStats = Default::default();
+        assert_eq!(stats.total_samples, 0);
+        assert_eq!(stats.unique_error_codes, 0);
+        assert_eq!(stats.total_weight, 0.0);
+        assert!(stats.category_distribution.is_empty());
+    }
+
+    // ========================================
+    // load_corpus_cache tests
+    // ========================================
+
+    #[test]
+    fn test_load_corpus_cache_empty() {
+        let temp = TempDir::new().unwrap();
+        let cache_path = temp.path().join("cache.jsonl");
+        std::fs::write(&cache_path, "").unwrap();
+
+        let corpus = load_corpus_cache(&cache_path).unwrap();
+        assert!(corpus.is_empty());
+    }
+
+    #[test]
+    fn test_load_corpus_cache_with_entries() {
+        let temp = TempDir::new().unwrap();
+        let cache_path = temp.path().join("cache.jsonl");
+        let content = r#"{"source_file":"test.py","rust_code":"fn test() {}","diagnostics":"error"}
+{"source_file":"other.py","rust_code":"fn other() {}","diagnostics":"warning"}"#;
+        std::fs::write(&cache_path, content).unwrap();
+
+        let corpus = load_corpus_cache(&cache_path).unwrap();
+        assert_eq!(corpus.len(), 2);
+        assert_eq!(corpus[0].0, "test.py");
+        assert_eq!(corpus[0].1, "fn test() {}");
+        assert_eq!(corpus[1].0, "other.py");
+    }
+
+    #[test]
+    fn test_load_corpus_cache_missing_fields() {
+        let temp = TempDir::new().unwrap();
+        let cache_path = temp.path().join("cache.jsonl");
+        let content = r#"{"source_file":"test.py"}"#;
+        std::fs::write(&cache_path, content).unwrap();
+
+        let corpus = load_corpus_cache(&cache_path).unwrap();
+        assert_eq!(corpus.len(), 1);
+        assert_eq!(corpus[0].0, "test.py");
+        assert_eq!(corpus[0].1, ""); // default empty
+    }
+
+    #[test]
+    fn test_load_corpus_cache_invalid_json() {
+        let temp = TempDir::new().unwrap();
+        let cache_path = temp.path().join("cache.jsonl");
+        let content = "not valid json\n{\"source_file\":\"test.py\"}";
+        std::fs::write(&cache_path, content).unwrap();
+
+        let corpus = load_corpus_cache(&cache_path).unwrap();
+        // Invalid line is skipped, only valid entry is loaded
+        assert_eq!(corpus.len(), 1);
+    }
+
+    #[test]
+    fn test_load_corpus_cache_nonexistent() {
+        let result = load_corpus_cache(Path::new("/nonexistent/path.jsonl"));
+        assert!(result.is_err());
+    }
+}

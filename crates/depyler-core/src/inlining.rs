@@ -996,7 +996,7 @@ mod tests {
         let mut body = Vec::new();
         for i in 0..size {
             body.push(HirStmt::Assign {
-                target: AssignTarget::Symbol(format!("x{}", i)),
+                target: AssignTarget::Symbol(Symbol::from(format!("x{}", i).as_str())),
                 value: HirExpr::Literal(Literal::Int(i as i64)),
                 type_annotation: None,
             });
@@ -1069,5 +1069,231 @@ mod tests {
         assert_eq!(config.max_inline_depth, 3);
         assert!(config.inline_single_use);
         assert!(config.inline_trivial);
+    }
+
+    #[test]
+    fn test_inlining_config_custom() {
+        let config = InliningConfig {
+            max_inline_size: 50,
+            max_inline_depth: 5,
+            inline_single_use: false,
+            inline_trivial: false,
+            cost_threshold: 2.0,
+            inline_loops: true,
+        };
+        assert_eq!(config.max_inline_size, 50);
+        assert_eq!(config.max_inline_depth, 5);
+        assert!(!config.inline_single_use);
+        assert!(!config.inline_trivial);
+        assert_eq!(config.cost_threshold, 2.0);
+        assert!(config.inline_loops);
+    }
+
+    #[test]
+    fn test_inlining_reason_variants() {
+        let reasons = [
+            InliningReason::Trivial,
+            InliningReason::SingleUse,
+            InliningReason::SmallHotFunction,
+            InliningReason::EnablesOptimization,
+            InliningReason::TooLarge,
+            InliningReason::Recursive,
+            InliningReason::HasSideEffects,
+            InliningReason::ContainsLoops,
+        ];
+        for reason in &reasons {
+            let _ = format!("{:?}", reason);
+        }
+    }
+
+    #[test]
+    fn test_inlining_decision_creation() {
+        let decision = InliningDecision {
+            should_inline: true,
+            reason: InliningReason::Trivial,
+            cost_benefit: 1.5,
+        };
+        assert!(decision.should_inline);
+        assert_eq!(decision.cost_benefit, 1.5);
+    }
+
+    #[test]
+    fn test_analyzer_new() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        assert!(std::mem::size_of_val(&analyzer) > 0);
+    }
+
+    #[test]
+    fn test_non_trivial_function() {
+        let func = HirFunction {
+            name: "complex".to_string(),
+            params: smallvec![HirParam::new("x".to_string(), Type::Int)],
+            ret_type: Type::Int,
+            body: vec![
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("y".to_string()),
+                    value: HirExpr::Var("x".to_string()),
+                    type_annotation: None,
+                },
+                HirStmt::Return(Some(HirExpr::Var("y".to_string()))),
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        assert!(!analyzer.is_trivial_function(&func));
+    }
+
+    #[test]
+    fn test_for_loop_detection() {
+        let body = vec![HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Call {
+                func: "range".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(10))],
+                kwargs: vec![],
+            },
+            body: vec![],
+        }];
+        assert!(contains_loops_inner(&body));
+    }
+
+    #[test]
+    fn test_if_no_loop() {
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            else_body: None,
+        }];
+        assert!(!contains_loops_inner(&body));
+    }
+
+    #[test]
+    fn test_print_side_effect() {
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("hello".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_append_side_effect() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("list".to_string())),
+            method: "append".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        };
+        assert!(expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_pure_function_no_side_effect() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(!expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_function_size_empty() {
+        let func = HirFunction {
+            name: "empty".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        assert_eq!(analyzer.calculate_function_size(&func), 0);
+    }
+
+    #[test]
+    fn test_call_graph_default() {
+        let cg = CallGraph::default();
+        assert!(cg.calls.is_empty());
+        assert!(cg.called_by.is_empty());
+        assert!(cg.recursive.is_empty());
+    }
+
+    #[test]
+    fn test_expr_size_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert_eq!(calculate_expr_size_inner(&expr), 1);
+    }
+
+    #[test]
+    fn test_expr_size_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert_eq!(calculate_expr_size_inner(&expr), 1);
+    }
+
+    #[test]
+    fn test_expr_size_binary() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert_eq!(calculate_expr_size_inner(&expr), 3);
+    }
+
+    #[test]
+    fn test_expr_size_list() {
+        let expr = HirExpr::List(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ]);
+        assert_eq!(calculate_expr_size_inner(&expr), 3);
+    }
+
+    #[test]
+    fn test_stmt_size_return_none() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let stmt = HirStmt::Return(None);
+        assert_eq!(analyzer.calculate_stmt_size(&stmt), 1);
+    }
+
+    #[test]
+    fn test_stmt_size_return_some() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let stmt = HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))));
+        assert_eq!(analyzer.calculate_stmt_size(&stmt), 2);
+    }
+
+    #[test]
+    fn test_stmt_size_expr() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let stmt = HirStmt::Expr(HirExpr::Literal(Literal::Int(42)));
+        assert_eq!(analyzer.calculate_stmt_size(&stmt), 1);
+    }
+
+    #[test]
+    fn test_stmt_size_pass() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let stmt = HirStmt::Pass;
+        assert_eq!(analyzer.calculate_stmt_size(&stmt), 1);
+    }
+
+    #[test]
+    fn test_stmt_size_break() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let stmt = HirStmt::Break { label: None };
+        assert_eq!(analyzer.calculate_stmt_size(&stmt), 1);
+    }
+
+    #[test]
+    fn test_stmt_size_continue() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let stmt = HirStmt::Continue { label: None };
+        assert_eq!(analyzer.calculate_stmt_size(&stmt), 1);
     }
 }

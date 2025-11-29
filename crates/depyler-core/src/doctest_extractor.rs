@@ -201,8 +201,8 @@ impl DoctestExtractor {
         // Handle multi-line input with ... continuation
         while next_idx < lines.len() {
             let next_line = lines[next_idx].trim();
-            if next_line.starts_with("...") {
-                let continuation = next_line.strip_prefix("... ").unwrap_or(&next_line[3..]);
+            if let Some(stripped) = next_line.strip_prefix("...") {
+                let continuation = stripped.strip_prefix(' ').unwrap_or(stripped);
                 input.push('\n');
                 input.push_str(continuation);
                 consumed += 1;

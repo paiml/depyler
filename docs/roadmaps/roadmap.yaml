@@ -1291,3 +1291,19 @@ roadmap:
   labels:
   - enhancement
   notes: null
+- id: Improve test coverage
+  github_issue: null
+  item_type: task
+  title: 'New task: Improve test coverage'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-29T15:44:56.204839671+00:00
+  updated: 2025-11-29T15:44:56.204839671+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
