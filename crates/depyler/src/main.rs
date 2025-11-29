@@ -389,7 +389,8 @@ async fn handle_command(command: Commands) -> Result<()> {
             output,
             module_prefix,
             include_classes,
-        } => extract_doctests_command(input, output, module_prefix, include_classes),
+            include_pytest,
+        } => extract_doctests_command(input, output, module_prefix, include_classes, include_pytest),
     }
 }
 
