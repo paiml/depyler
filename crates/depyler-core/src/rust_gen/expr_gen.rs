@@ -4,6 +4,8 @@
 //! It includes the ExpressionConverter for complex expression transformations
 //! and the ToRustExpr trait implementation for HirExpr.
 
+#[cfg(feature = "decision-tracing")]
+use crate::decision_trace::DecisionCategory;
 use crate::hir::*;
 use crate::rust_gen::array_initialization; // DEPYLER-REFACTOR-001: Extracted array/range
 use crate::rust_gen::builtin_conversions; // DEPYLER-REFACTOR-001: Extracted conversions
@@ -13,6 +15,7 @@ use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use crate::rust_gen::return_type_expects_float;
 use crate::rust_gen::type_gen::convert_binop;
 use crate::string_optimization::{StringContext, StringOptimizer};
+use crate::trace_decision;
 use anyhow::{bail, Result};
 use quote::{quote, ToTokens};
 use syn::{self, parse_quote};
@@ -282,6 +285,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_binary(&mut self, op: BinOp, left: &HirExpr, right: &HirExpr) -> Result<syn::Expr> {
+        // CITL: Trace binary operation type mapping decision
+        trace_decision!(
+            category = DecisionCategory::TypeMapping,
+            name = "binop_conversion",
+            chosen = &format!("{:?}", op),
+            alternatives = ["arithmetic", "comparison", "logical", "bitwise"],
+            confidence = 0.95
+        );
+
         // DEPYLER-0496: Check if operands return Result types (need ? operator)
         let left_returns_result = self.expr_returns_result(left);
         let right_returns_result = self.expr_returns_result(right);
@@ -535,6 +547,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         left_expr: syn::Expr,
         right_expr: syn::Expr,
     ) -> Result<syn::Expr> {
+        // CITL: Trace power operation type decision
+        trace_decision!(
+            category = DecisionCategory::TypeMapping,
+            name = "pow_operation",
+            chosen = "runtime_dispatch",
+            alternatives = ["checked_pow", "powf_float", "powi_int"],
+            confidence = 0.82
+        );
+
         match (left, right) {
             // Integer literal base with integer literal exponent
             (HirExpr::Literal(Literal::Int(_)), HirExpr::Literal(Literal::Int(exp))) => {
@@ -1634,6 +1655,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_unary(&mut self, op: &UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
+        // CITL: Trace unary operation decision
+        trace_decision!(
+            category = DecisionCategory::TypeMapping,
+            name = "unary_operation",
+            chosen = &format!("{:?}", op),
+            alternatives = ["not_bool", "is_empty", "is_none", "negate"],
+            confidence = 0.88
+        );
+
         let operand_expr = operand.to_rust_expr(self.ctx)?;
         match op {
             UnaryOp::Not => {
@@ -1698,6 +1728,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
         kwargs: &[(String, HirExpr)],
     ) -> Result<syn::Expr> {
+        // CITL: Trace function call dispatch decision
+        trace_decision!(
+            category = DecisionCategory::MethodDispatch,
+            name = "function_call",
+            chosen = func,
+            alternatives = ["builtin", "stdlib", "user_defined", "constructor"],
+            confidence = 0.90
+        );
+
         // DEPYLER-0608: Transform calls to cmd_*/handle_* handlers in subcommand match arms
         // When calling a handler with `args`, pass the extracted subcommand fields instead
         // Pattern: cmd_list(args) → cmd_list(archive) (where archive is extracted in match pattern)
@@ -10975,6 +11014,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         args: &[HirExpr],
         kwargs: &[(String, HirExpr)],
     ) -> Result<syn::Expr> {
+        // CITL: Trace method dispatch decision
+        trace_decision!(
+            category = DecisionCategory::MethodDispatch,
+            name = "method_call",
+            chosen = method,
+            alternatives = ["trait_method", "inherent_method", "extension", "ufcs"],
+            confidence = 0.88
+        );
+
         // DEPYLER-0108: Handle is_some/is_none on precomputed argparse Option fields
         // This prevents borrow-after-move when Option field is passed to a function then checked
         if (method == "is_some" || method == "is_none") && args.is_empty() {
@@ -11104,6 +11152,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_index(&mut self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
+        // CITL: Trace subscript/indexing strategy decision
+        trace_decision!(
+            category = DecisionCategory::BorrowStrategy,
+            name = "subscript_access",
+            chosen = "get_or_index",
+            alternatives = ["direct_index", "get_method", "get_unchecked", "slice"],
+            confidence = 0.85
+        );
+
         // DEPYLER-0386: Handle os.environ['VAR'] → std::env::var('VAR').unwrap_or_default()
         // Must check this before evaluating base_expr to avoid trying to convert os.environ
         if let HirExpr::Attribute { value, attr } = base {
@@ -11997,6 +12054,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_list(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
+        // CITL: Trace list construction decision
+        trace_decision!(
+            category = DecisionCategory::TypeMapping,
+            name = "list_construction",
+            chosen = "vec_macro",
+            alternatives = ["Vec_new", "array_literal", "smallvec", "tinyvec"],
+            confidence = 0.90
+        );
+
         // DEPYLER-0269 FIX: Convert string literals to owned Strings
         // List literals with string elements should use Vec<String> not Vec<&str>
         // This ensures they can be passed to functions expecting &Vec<String>
@@ -12029,6 +12095,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_dict(&mut self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
+        // CITL: Trace dict construction decision
+        trace_decision!(
+            category = DecisionCategory::TypeMapping,
+            name = "dict_construction",
+            chosen = "hashmap_or_json",
+            alternatives = ["HashMap", "BTreeMap", "serde_json", "IndexMap"],
+            confidence = 0.85
+        );
+
         // DEPYLER-0376: Detect heterogeneous dicts (mixed value types)
         // DEPYLER-0461: Also check if we're in json!() context (nested dicts must use json!())
         // DEPYLER-0560: Check if function returns Dict with Any/Unknown value type
@@ -12796,6 +12871,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_borrow(&mut self, expr: &HirExpr, mutable: bool) -> Result<syn::Expr> {
+        // CITL: Trace borrowing strategy decision
+        #[cfg(feature = "decision-tracing")]
+        let borrow_type = if mutable { "&mut" } else { "&" };
+        trace_decision!(
+            category = DecisionCategory::BorrowStrategy,
+            name = "explicit_borrow",
+            chosen = borrow_type,
+            alternatives = ["&ref", "&mut_ref", "move", "clone"],
+            confidence = 0.92
+        );
+
         let expr_tokens = expr.to_rust_expr(self.ctx)?;
         if mutable {
             Ok(parse_quote! { &mut #expr_tokens })
@@ -13620,6 +13706,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_lambda(&mut self, params: &[String], body: &HirExpr) -> Result<syn::Expr> {
+        // CITL: Trace lambda/closure conversion decision
+        trace_decision!(
+            category = DecisionCategory::Ownership,
+            name = "lambda_closure",
+            chosen = "closure",
+            alternatives = ["fn_pointer", "closure_move", "closure_ref", "boxed_fn"],
+            confidence = 0.87
+        );
+
         // DEPYLER-0597: Use safe_ident to escape Rust keywords in lambda parameters
         // Parameters named 'fn', 'match', 'type', etc. need to use raw identifier syntax
         let param_pats: Vec<syn::Pat> = params
