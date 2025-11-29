@@ -7364,12 +7364,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // datetime.datetime.strptime(string, format) → NaiveDateTime::parse_from_str(string, format)
+            // DEPYLER-0622: chrono's parse_from_str expects &str, not String
             "strptime" => {
                 if arg_exprs.len() != 2 {
                     bail!("strptime() requires exactly 2 arguments (string, format)");
                 }
                 let s = &arg_exprs[0];
-                let fmt = &arg_exprs[1];
+                // DEPYLER-0622: Extract bare string literal for &str compatibility
+                // If fmt is a variable (not a literal), it might be String from iteration
+                let fmt: syn::Expr = match &args[1] {
+                    HirExpr::Literal(Literal::String(fmt_str)) => parse_quote! { #fmt_str },
+                    _ => {
+                        // For non-literals, add & to borrow as &str
+                        let fmt_expr = &arg_exprs[1];
+                        parse_quote! { &#fmt_expr }
+                    }
+                };
                 parse_quote! {
                     chrono::NaiveDateTime::parse_from_str(#s, #fmt).unwrap()
                 }
