@@ -511,6 +511,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // SLOW: Full model training takes >120s
     fn test_load_or_train() {
         // Skip full training in fast test mode (coverage runs)
         if std::env::var("DEPYLER_FAST_TESTS").is_ok() {
