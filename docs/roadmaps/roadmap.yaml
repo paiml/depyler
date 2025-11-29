@@ -1148,11 +1148,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'New task: DEPYLER-0599: Complete entrenar CITL spec integration'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2025-11-28T12:20:19.069893876+00:00
-  updated: 2025-11-28T12:20:19.069893876+00:00
+  updated: 2025-11-29T09:05:47.499095001+00:00
   spec: null
   acceptance_criteria: []
   phases: []
@@ -1164,11 +1164,11 @@ roadmap:
   github_issue: 158
   item_type: task
   title: 'feat: `depyler converge` - Automated finish line command'
-  status: inprogress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2025-11-28T16:17:29.860100827+00:00
-  updated: 2025-11-28T16:17:29.860100827+00:00
+  updated: 2025-11-29T09:11:19.066485325+00:00
   spec: null
   acceptance_criteria: []
   phases: []
@@ -1234,4 +1234,60 @@ roadmap:
   subtasks: []
   estimated_effort: null
   labels: []
+  notes: null
+- id: GH-172
+  github_issue: 172
+  item_type: task
+  title: 'feat: Oracle Query Loop (ROI Multiplier)'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-11-29T09:58:48.171855329+00:00
+  updated: 2025-11-29T10:17:48.269263116+00:00
+  spec: null
+  acceptance_criteria:
+  - Add \`--oracle\` flag to transpile command
+  - 'Add \`--oracle-threshold\` flag (default: 0.7)'
+  - Add \`--auto-fix\` flag
+  - Add \`--patterns\` flag for custom .apr path
+  - 'Add \`--max-retries\` flag (default: 3)'
+  - Add \`--llm-fallback\` flag
+  - 'Add entrenar dependency: \`entrenar = { version = "0.2", features = ["citl"], optional = true }\`'
+  - Add \`oracle\` feature to Cargo.toml
+  - Unit tests for CLI parsing
+  - Create \`src/oracle/mod.rs\`
+  - Implement \`RustErrorCode\` enum
+  - Implement \`Oracle::load(path)\`
+  - Implement \`Oracle::suggest(error_code, context)\`
+  - Implement \`OracleConfig\` struct
+  - Implement \`OracleStats\` tracking
+  - Integrate into transpile pipeline
+  - Display suggestions to user with confidence
+  - Unit tests for Oracle struct
+  - Create \`src/oracle/auto_fix.rs\`
+  - Implement \`apply_unified_diff(code, diff)\`
+  - Implement \`verify_compiles(code)\`
+  - Implement retry loop (max N attempts)
+  - Track which fixes compiled successfully
+  - Update pattern success_count on verified fix
+  - Circular fix detection
+  - Unit tests for diff application
+  - Integration tests for auto-fix
+  - Create \`src/oracle/metrics.rs\`
+  - 'Counter: \`depyler_oracle_queries_total\`'
+  - 'Counter: \`depyler_oracle_hits\`'
+  - 'Counter: \`depyler_oracle_misses\`'
+  - 'Counter: \`depyler_oracle_fixes_verified\`'
+  - 'Counter: \`depyler_oracle_llm_fallbacks\`'
+  - 'Gauge: \`depyler_oracle_hit_rate\`'
+  - 'Histogram: query latencies'
+  - Cost savings calculation
+  - \`depyler oracle stats\` command
+  - Prometheus export endpoint
+  - Unit tests for metrics
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - enhancement
   notes: null

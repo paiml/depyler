@@ -244,6 +244,10 @@ async fn handle_command(command: Commands) -> Result<()> {
             auto_fix,
             suggest_fixes,
             fix_confidence,
+            oracle,
+            patterns,
+            max_retries,
+            llm_fallback,
         } => transpile_command(
             input,
             output,
@@ -256,6 +260,10 @@ async fn handle_command(command: Commands) -> Result<()> {
             auto_fix,
             suggest_fixes,
             fix_confidence,
+            oracle,
+            patterns,
+            max_retries,
+            llm_fallback,
         ),
         Commands::Compile {
             input,

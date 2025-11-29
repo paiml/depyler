@@ -64,7 +64,9 @@ use depyler_core::{
     lambda_testing::LambdaTestHarness,
     DepylerPipeline,
 };
-use depyler_oracle::{CITLFixer, CITLFixerConfig, HybridTranspiler, Oracle};
+use depyler_oracle::{
+    CITLFixer, CITLFixerConfig, HybridTranspiler, Oracle, OracleQueryLoop, QueryLoopConfig,
+};
 use depyler_quality::QualityAnalyzer;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
@@ -139,6 +141,23 @@ pub enum Commands {
         /// Minimum confidence threshold for auto-fix (0.0-1.0)
         #[arg(long, default_value = "0.80")]
         fix_confidence: f64,
+
+        // Oracle Query Loop flags (Issue #172)
+        /// Enable oracle-based error suggestions from .apr patterns
+        #[arg(long)]
+        oracle: bool,
+
+        /// Path to .apr pattern file (default: ~/.depyler/patterns.apr)
+        #[arg(long)]
+        patterns: Option<PathBuf>,
+
+        /// Maximum fix attempts per error (default: 3)
+        #[arg(long, default_value = "3")]
+        max_retries: usize,
+
+        /// Fallback to LLM for low-confidence matches
+        #[arg(long)]
+        llm_fallback: bool,
     },
 
     /// Compile Python to standalone binary (DEPYLER-0380)
@@ -746,6 +765,10 @@ pub fn transpile_command(
     auto_fix: bool,
     suggest_fixes: bool,
     fix_confidence: f64,
+    oracle: bool,
+    patterns: Option<PathBuf>,
+    max_retries: usize,
+    llm_fallback: bool,
 ) -> Result<()> {
     let start = Instant::now();
 
@@ -848,6 +871,39 @@ pub fn transpile_command(
         // Analysis would happen here
         pb.inc(1);
     }
+
+    // Oracle Query Loop initialization (Issue #172)
+    let mut query_loop = if oracle {
+        let pattern_path = patterns.unwrap_or_else(OracleQueryLoop::default_pattern_path);
+        let config = QueryLoopConfig {
+            threshold: fix_confidence,
+            max_retries,
+            llm_fallback,
+            ..QueryLoopConfig::default()
+        };
+        let mut loop_instance = OracleQueryLoop::with_config(config);
+
+        if pattern_path.exists() {
+            if let Err(e) = loop_instance.load(&pattern_path) {
+                eprintln!("⚠ Warning: Failed to load oracle patterns: {}", e);
+            } else if trace {
+                eprintln!("\n🔮 Oracle Query Loop enabled");
+                eprintln!("  - Pattern file: {}", pattern_path.display());
+                eprintln!("  - Threshold: {:.0}%", fix_confidence * 100.0);
+                eprintln!("  - Max retries: {}", max_retries);
+                eprintln!("  - LLM fallback: {}", if llm_fallback { "enabled" } else { "disabled" });
+            }
+        } else if trace {
+            eprintln!("\n⚠ Oracle enabled but no pattern file found at: {}", pattern_path.display());
+            eprintln!("  - Run 'depyler oracle train' to create patterns");
+        }
+        Some(loop_instance)
+    } else {
+        None
+    };
+
+    // Suppress unused variable warning until Phase 2 integration
+    let _ = &mut query_loop;
 
     // ML-powered auto-fix / suggest-fixes (Issue #105)
     let rust_code = if auto_fix || suggest_fixes {
@@ -2819,7 +2875,10 @@ mod tests {
     fn test_transpile_command_basic() {
         let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
 
-        let result = transpile_command(input_path, None, false, false, false, false, false, false, false, false, 0.8);
+        let result = transpile_command(
+            input_path, None, false, false, false, false, false, false, false, false, 0.8,
+            false, None, 3, false,  // oracle, patterns, max_retries, llm_fallback
+        );
         assert!(result.is_ok());
     }
 
@@ -2840,6 +2899,10 @@ mod tests {
             false,  // auto_fix
             false,  // suggest_fixes
             0.8,    // fix_confidence
+            false,  // oracle
+            None,   // patterns
+            3,      // max_retries
+            false,  // llm_fallback
         );
         assert!(result.is_ok());
         assert!(output_path.exists());

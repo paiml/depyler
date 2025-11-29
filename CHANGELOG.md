@@ -4,6 +4,89 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### ✨ Features
+
+#### Issue #172: Oracle Query Loop (ROI Multiplier)
+
+**Impact**: Pattern-based error resolution using entrenar CITL for cost-effective auto-fixing
+**Test Status**: ✅ 29 comprehensive tests passing
+**Quality Gates**: ✅ Clippy clean, complexity ≤10
+
+**Overview**: Implements an ROI-optimized error resolution pipeline that queries pattern databases before falling back to expensive LLM calls. Uses hybrid retrieval (BM25 + dense embeddings + RRF fusion) from entrenar's CITL module.
+
+**CLI Flags**:
+- `--oracle`: Enable pattern-based error resolution
+- `--patterns <path>`: Path to `.apr` pattern file
+- `--max-retries <n>`: Maximum fix attempts per error (default: 3)
+- `--llm-fallback`: Fall back to LLM API when patterns miss
+
+**Example Usage**:
+```bash
+# Transpile with oracle-assisted error fixing
+depyler transpile input.py --oracle --patterns ~/.depyler/patterns.apr
+
+# Run the demo example
+cargo run -p depyler-oracle --example oracle_query_loop_demo
+```
+
+**Demo Output**:
+```
+=== Oracle Query Loop Demo (Issue #172) ===
+
+Phase 1: Configuration
+  - Confidence threshold: 0.7
+  - Max retries: 3
+
+Phase 3: Error Code Parsing
+  - E0308 -> E0308 -> E0308
+  - E0382 -> E0382 -> E0382
+
+Phase 6: Prometheus Metrics Export
+  - queries_total: 100
+  - hits_total: 85
+  - hit_rate: 0.85
+  - fix_success_rate: 0.94
+```
+
+**Architecture**:
+```
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  Rust Error  │───►│  Pattern     │───►│  Fix         │
+│  (E0308...)  │    │  Matching    │    │  Suggestion  │
+└──────────────┘    └──────────────┘    └──────────────┘
+                           │
+                           ▼
+                    ┌──────────────┐
+                    │  .apr File   │
+                    │  (entrenar)  │
+                    └──────────────┘
+```
+
+**Key Types**:
+- `RustErrorCode`: Typed enum for common Rust errors (E0308, E0382, E0277, etc.)
+- `QueryLoopConfig`: Configuration (threshold, max_suggestions, retries, llm_fallback)
+- `OracleQueryLoop`: Main query interface with `suggest()` and `load_patterns()`
+- `AutoFixResult`: Result enum (Success, Exhausted, NoSuggestion)
+- `OracleMetrics`: Prometheus-compatible metrics with `to_prometheus()` export
+
+**Files Added**:
+- `crates/depyler-oracle/src/query_loop.rs` - Core implementation (~650 lines)
+- `crates/depyler-oracle/examples/oracle_query_loop_demo.rs` - Demo example
+
+**Files Modified**:
+- `crates/depyler-oracle/src/lib.rs` - Added query_loop module and exports
+- `crates/depyler-oracle/Cargo.toml` - Added entrenar citl feature
+- `crates/depyler/src/lib.rs` - Added CLI flags to transpile command
+- `crates/depyler/src/main.rs` - Updated command dispatch
+
+**Dependencies**:
+- `entrenar` with `citl` feature for `DecisionPatternStore`
+
+**Test Coverage**:
+- 29 tests covering all 4 phases
+- Property-based tests for error code roundtrip
+- Prometheus format validation tests
+
 ### 🐛 Fixes
 
 #### DEPYLER-0516: Negative Literal Type Inference (E0308 Fix)
@@ -11494,6 +11577,8 @@ and this project adheres to
 ## [Unreleased]
 
 ### Added
+- feat: Oracle Query Loop (ROI Multiplier) (#172)
+- feat: `depyler converge` - Automated finish line command (#158)
 - **[DEPYLER-0097]** Complete type annotation preservation system (2025-10-08)
   - Phase 1: TDD test suite with 4 comprehensive tests
   - Phase 2: Full implementation with HIR support, AST extraction, and code generation

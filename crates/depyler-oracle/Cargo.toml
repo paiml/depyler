@@ -23,6 +23,9 @@ depyler-core = { path = "../depyler-core" }
 # Features: parallel (rayon), gpu (wgpu via trueno)
 aprender = { path = "../../../aprender", default-features = true }
 
+# CITL training framework for pattern store (Issue #172)
+entrenar = { path = "../../../entrenar", features = ["citl"] }
+
 # Data loading and versioning
 alimentar = { path = "../../../alimentar" }
 arrow = { version = "53", default-features = false, features = ["prettyprint"] }
@@ -44,6 +47,9 @@ regex.workspace = true
 
 # Home directory detection
 dirs = "5"
+
+# UUID parsing for pattern IDs
+uuid = "1.8"
 
 # HTTP client for API fallback
 ureq = { version = "2.9", features = ["json"] }
