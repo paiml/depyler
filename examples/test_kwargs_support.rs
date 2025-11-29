@@ -1,5 +1,4 @@
 use serde_json;
-use std::borrow::Cow;
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct MyObject {}
@@ -17,9 +16,9 @@ impl MyObject {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_function_kwargs() -> (serde_json::Value, serde_json::Value, serde_json::Value) {
-    let result1 = greet();
-    let result2 = calculate(10, 20);
-    let result3 = configure();
+    let result1 = greet("Alice".to_string(), "Hello".to_string());
+    let result2 = calculate(10, 20, "add", true);
+    let result3 = configure(800, 600, "My App".to_string());
     (result1, result2, result3)
 }
 #[doc = "Test method calls with keyword arguments"]
@@ -30,41 +29,39 @@ pub fn demo_method_kwargs() -> String {
     obj.setup();
     let text = "hello world";
     let formatted = text.replace("world", "Python");
-    formatted
+    formatted.to_string()
 }
 #[doc = "Test builtin functions with keyword arguments"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn demo_builtin_kwargs() -> HashMap<serde_json::Value, serde_json::Value> {
-    let f = std::fs::File::open("data.txt")?;
-    let numbers = vec![3, 1, 4, 1, 5, 9, 2, 6];
-    let sorted_desc = {
-        let mut __sorted_result = numbers.clone();
-        __sorted_result.sort();
-        __sorted_result.reverse();
-        __sorted_result
-    };
+pub fn demo_builtin_kwargs() -> Result<HashMap<serde_json::Value, serde_json::Value>, std::io::Error>
+{
     let config = HashMap::new();
-    config
+    Ok(config)
 }
 #[doc = "Test nested function calls with kwargs"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn demo_nested_kwargs() -> i32 {
-    let result = outer(inner());
+pub fn demo_nested_kwargs() {
+    let result = outer(inner(10, 20), 2.0, inner(5, 5));
     result
 }
 #[doc = "Test kwargs with complex expressions"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn demo_complex_kwargs() -> i32 {
-    let settings = configure();
+pub fn demo_complex_kwargs() {
+    let settings = configure(
+        100 + 200,
+        get_height(),
+        (true) && (!false),
+        format!("{}{}", "App ".to_string(), (42).to_string()),
+    );
     settings
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn greet(name: String, greeting: String) -> String {
-    format!("{:?}, {:?}!", greeting, name)
+    format!("{}, {}!", greeting, name)
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
@@ -89,20 +86,16 @@ pub fn configure(
     title: &str,
 ) -> HashMap<serde_json::Value, serde_json::Value> {
     {
-        let mut map = HashMap::new();
-        map.insert("width".to_string(), width);
-        map.insert("height".to_string(), height);
-        map.insert(std::borrow::Cow::Borrowed("title").to_string(), title);
+        let mut map = std::collections::HashMap::new();
+        map.insert("width".to_string(), serde_json::json!(width));
+        map.insert("height".to_string(), serde_json::json!(height));
+        map.insert("title".to_string(), serde_json::json!(title));
         map
     }
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn outer<'a, 'b>(
-    inner_result: &'a serde_json::Value,
-    scale: f64,
-    offset: &'b serde_json::Value,
-) -> i32 {
+pub fn outer<'b, 'a>(inner_result: i32, scale: f64, offset: &'b Option<String>) -> f64 {
     inner_result * scale + offset
 }
 #[doc = " Depyler: verified panic-free"]

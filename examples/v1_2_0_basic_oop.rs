@@ -40,7 +40,7 @@ impl Rectangle {
 #[doc = "Test Point class"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_point() -> i32 {
+pub fn test_point() {
     let mut p = Point::new(3, 4);
     p.translate(1, 2);
     let dist_sq = p.distance_squared();
@@ -49,26 +49,24 @@ pub fn test_point() -> i32 {
 #[doc = "Test Rectangle class"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_rectangle() -> i32 {
+pub fn test_rectangle() {
     let rect = Rectangle::new(10, 20);
     let area = rect.area();
     let perim = rect.perimeter();
-    let square = rect.is_square();
     let sq = Rectangle::new(5, 5);
-    let is_sq = sq.is_square();
     area + perim
 }
 #[doc = "Test static methods"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_static() -> i32 {
+pub fn test_static() {
     let zero = Point::origin();
     zero
 }
 #[doc = "Run all tests"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn main() -> i32 {
+pub fn main() {
     let point_result = test_point();
     let rect_result = test_rectangle();
     let static_result = test_static();

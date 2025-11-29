@@ -37,7 +37,7 @@ pub fn factorial(n: i32) -> i32 {
     result
 }
 #[doc = "Find maximum in a list"]
-pub fn find_max(numbers: &Vec<serde_json::Value>) -> Result<i32, IndexError> {
+pub fn find_max(numbers: &Vec<serde_json::Value>) -> Result<i32, Box<dyn std::error::Error>> {
     if numbers.is_empty() {
         return Ok(0);
     }
@@ -53,8 +53,8 @@ pub fn find_max(numbers: &Vec<serde_json::Value>) -> Result<i32, IndexError> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() {
-    println!("{}", format!("Fibonacci(10) = {:?}", fibonacci(10)));
-    println!("{}", format!("Factorial(5) = {:?}", factorial(5)));
+    println!("{}", format!("Fibonacci(10) = {}", fibonacci(10)));
+    println!("{}", format!("Factorial(5) = {}", factorial(5)));
     let numbers = vec![3, 7, 2, 9, 1, 5];
     println!(
         "{}",

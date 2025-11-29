@@ -1,4 +1,4 @@
-#[doc = "// TODO: Map Python module 'string'"]
+#[doc = "// NOTE: Map Python module 'string'(tracked in DEPYLER-0424)"]
 use std::collections::HashMap;
 const STR_EMPTY: &'static str = "";
 #[derive(Debug, Clone)]
@@ -49,7 +49,6 @@ pub fn tokenize_text(text: &str) -> Vec<String> {
                 break;
             }
         }
-        let mut cleaned;
         if !is_punct {
             cleaned = cleaned + char;
         } else {
@@ -67,13 +66,15 @@ pub fn tokenize_text(text: &str) -> Vec<String> {
     normalized
 }
 #[doc = "Count word frequencies using Counter pattern"]
-pub fn count_word_frequencies(words: &Vec<String>) -> Result<HashMap<String, i32>, IndexError> {
+pub fn count_word_frequencies(
+    words: &Vec<String>,
+) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let mut frequencies: HashMap<String, i32> = {
         let map = HashMap::new();
         map
     };
     for word in words.iter().cloned() {
-        if frequencies.contains_key(&word) {
+        if frequencies.get(&word).is_some() {
             {
                 let _key = word;
                 let _old_val = frequencies.get(&_key).cloned().unwrap_or_default();
@@ -89,7 +90,7 @@ pub fn count_word_frequencies(words: &Vec<String>) -> Result<HashMap<String, i32
 pub fn get_most_common_words(
     frequencies: &mut HashMap<String, i32>,
     n: i32,
-) -> Result<Vec<(String, i32)>, IndexError> {
+) -> Result<Vec<(String, i32)>, Box<dyn std::error::Error>> {
     let mut word_counts: Vec<(String, i32)> = vec![];
     for word in frequencies.keys().cloned().collect::<Vec<_>>() {
         let count: i32 = frequencies.get(&word).cloned().unwrap_or_default();
@@ -116,7 +117,9 @@ pub fn get_most_common_words(
     Ok(result)
 }
 #[doc = "Analyze character types using string module patterns"]
-pub fn analyze_character_distribution(text: &str) -> Result<HashMap<String, i32>, IndexError> {
+pub fn analyze_character_distribution(
+    text: &str,
+) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let mut distribution: HashMap<String, i32> = {
         let mut map = HashMap::new();
         map.insert("letters".to_string(), 0);
@@ -130,30 +133,30 @@ pub fn analyze_character_distribution(text: &str) -> Result<HashMap<String, i32>
         let char = _char.to_string();
         if char.chars().all(|c| c.is_alphabetic()) {
             distribution.insert(
-                "letters",
+                "letters".to_string(),
                 distribution.get("letters").cloned().unwrap_or_default() + 1,
             );
         } else {
             if char.chars().all(|c| c.is_numeric()) {
                 distribution.insert(
-                    "digits",
+                    "digits".to_string(),
                     distribution.get("digits").cloned().unwrap_or_default() + 1,
                 );
             } else {
                 if char.isspace() {
                     distribution.insert(
-                        "spaces",
+                        "spaces".to_string(),
                         distribution.get("spaces").cloned().unwrap_or_default() + 1,
                     );
                 } else {
                     if ".,!?;:".contains(&char) {
                         distribution.insert(
-                            "punctuation",
+                            "punctuation".to_string(),
                             distribution.get("punctuation").cloned().unwrap_or_default() + 1,
                         );
                     } else {
                         distribution.insert(
-                            "other",
+                            "other".to_string(),
                             distribution.get("other").cloned().unwrap_or_default() + 1,
                         );
                     }
@@ -189,19 +192,19 @@ pub fn extract_sentences(text: &str) -> Vec<String> {
 #[doc = "Calculate readability metrics combining multiple operations"]
 pub fn calculate_readability_metrics(
     text: String,
-) -> Result<HashMap<String, f64>, ZeroDivisionError> {
+) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
     let mut metrics: HashMap<String, f64> = {
         let map = HashMap::new();
         map
     };
-    let words: Vec<String> = tokenize_text(text);
-    let mut sentences: Vec<String> = extract_sentences(text);
+    let words: Vec<String> = tokenize_text(&text);
+    let mut sentences: Vec<String> = extract_sentences(&text);
     let _cse_temp_0 = words.len() as i32;
     let _cse_temp_1 = (_cse_temp_0) as f64;
-    metrics.insert("word_count".to_string(), _cse_temp_1);
+    metrics.insert("word_count".to_string().to_string(), _cse_temp_1);
     let _cse_temp_2 = sentences.len() as i32;
     let _cse_temp_3 = (_cse_temp_2) as f64;
-    metrics.insert("sentence_count".to_string(), _cse_temp_3);
+    metrics.insert("sentence_count".to_string().to_string(), _cse_temp_3);
     let mut total_chars: i32 = 0;
     for word in words.iter().cloned() {
         total_chars = total_chars + word.len() as i32;
@@ -210,16 +213,16 @@ pub fn calculate_readability_metrics(
     if _cse_temp_4 {
         let _cse_temp_5 = (total_chars) as f64;
         let _cse_temp_6 = _cse_temp_5 / _cse_temp_1;
-        metrics.insert("avg_word_length".to_string(), _cse_temp_6);
+        metrics.insert("avg_word_length".to_string().to_string(), _cse_temp_6);
     } else {
-        metrics.insert("avg_word_length".to_string(), 0.0);
+        metrics.insert("avg_word_length".to_string().to_string(), 0.0);
     }
     let _cse_temp_7 = _cse_temp_2 > 0;
     if _cse_temp_7 {
         let _cse_temp_8 = _cse_temp_1 / _cse_temp_3;
-        metrics.insert("avg_sentence_length".to_string(), _cse_temp_8);
+        metrics.insert("avg_sentence_length".to_string().to_string(), _cse_temp_8);
     } else {
-        metrics.insert("avg_sentence_length".to_string(), 0.0);
+        metrics.insert("avg_sentence_length".to_string().to_string(), 0.0);
     }
     Ok(metrics)
 }
@@ -232,19 +235,17 @@ pub fn group_words_by_length(words: &Vec<String>) -> HashMap<i32, Vec<String>> {
     };
     for word in words.iter().cloned() {
         let length: i32 = word.len() as i32 as i32;
-        if !groups.contains_key(&length) {
+        if !groups.get(&length).is_some() {
             groups.insert(length, vec![]);
         }
-        groups
-            .get(length as usize)
-            .cloned()
-            .unwrap_or_default()
-            .push(word);
+        groups.get(&length).cloned().unwrap_or_default().push(word);
     }
     groups
 }
 #[doc = "Find words matching patterns(starts with, ends with, contains)"]
-pub fn find_word_patterns(words: &Vec<String>) -> Result<HashMap<String, Vec<String>>, IndexError> {
+pub fn find_word_patterns(
+    words: &Vec<String>,
+) -> Result<HashMap<String, Vec<String>>, Box<dyn std::error::Error>> {
     let patterns: HashMap<String, Vec<String>> = {
         let mut map = HashMap::new();
         map.insert("starts_with_a".to_string(), vec![]);
@@ -293,7 +294,7 @@ pub fn find_word_patterns(words: &Vec<String>) -> Result<HashMap<String, Vec<Str
                 .unwrap_or_default()
                 .push(word);
         }
-        if word.contains(&"th") {
+        if word.contains("th") {
             patterns
                 .get("contains_th")
                 .cloned()
@@ -328,7 +329,7 @@ pub fn create_ngrams(words: &Vec<String>, n: i32) -> Vec<String> {
     ngrams
 }
 #[doc = "Calculate lexical diversity(unique words / total words)"]
-pub fn calculate_word_diversity(words: &Vec<String>) -> Result<f64, ZeroDivisionError> {
+pub fn calculate_word_diversity(words: &Vec<String>) -> Result<f64, Box<dyn std::error::Error>> {
     let _cse_temp_0 = words.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -349,7 +350,7 @@ pub fn calculate_word_diversity(words: &Vec<String>) -> Result<f64, ZeroDivision
     Ok(diversity)
 }
 #[doc = "Find palindrome words"]
-pub fn find_palindromes(words: &Vec<String>) -> Result<Vec<String>, IndexError> {
+pub fn find_palindromes(words: &Vec<String>) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut palindromes: Vec<String> = vec![];
     for word in words.iter().cloned() {
         let mut reversed_word: String = STR_EMPTY.to_string();
@@ -394,14 +395,14 @@ pub fn find_palindromes(words: &Vec<String>) -> Result<Vec<String>, IndexError> 
 #[doc = "Analyze vowel to consonant ratio"]
 pub fn analyze_vowel_consonant_ratio(
     text: &str,
-) -> Result<HashMap<String, f64>, ZeroDivisionError> {
+) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
     let vowels: String = "aeiouAEIOU".to_string();
     let mut vowel_count: i32 = 0;
     let mut consonant_count: i32 = 0;
     for _char in text.chars() {
         let char = _char.to_string();
         if char.chars().all(|c| c.is_alphabetic()) {
-            if vowels.contains_key(&char) {
+            if vowels.get(&char).is_some() {
                 vowel_count = vowel_count + 1;
             } else {
                 consonant_count = consonant_count + 1;
@@ -418,18 +419,18 @@ pub fn analyze_vowel_consonant_ratio(
         let _cse_temp_1 = (vowel_count) as f64;
         let _cse_temp_2 = (total_letters) as f64;
         let _cse_temp_3 = _cse_temp_1 / _cse_temp_2;
-        result.insert("vowel_ratio".to_string(), _cse_temp_3);
+        result.insert("vowel_ratio".to_string().to_string(), _cse_temp_3);
         let _cse_temp_4 = (consonant_count) as f64;
         let _cse_temp_5 = _cse_temp_4 / _cse_temp_2;
-        result.insert("consonant_ratio".to_string(), _cse_temp_5);
+        result.insert("consonant_ratio".to_string().to_string(), _cse_temp_5);
     } else {
-        result.insert("vowel_ratio".to_string(), 0.0);
-        result.insert("consonant_ratio".to_string(), 0.0);
+        result.insert("vowel_ratio".to_string().to_string(), 0.0);
+        result.insert("consonant_ratio".to_string().to_string(), 0.0);
     }
     let _cse_temp_6 = (vowel_count) as f64;
-    result.insert("vowel_count".to_string(), _cse_temp_6);
+    result.insert("vowel_count".to_string().to_string(), _cse_temp_6);
     let _cse_temp_7 = (consonant_count) as f64;
-    result.insert("consonant_count".to_string(), _cse_temp_7);
+    result.insert("consonant_count".to_string().to_string(), _cse_temp_7);
     Ok(result)
 }
 #[doc = "Main text processing pipeline"]
@@ -439,43 +440,40 @@ pub fn process_text_pipeline() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "=== Comprehensive Text Processing Demo ===");
     let sample_text: String = "\n    The quick brown fox jumps over the lazy dog. This is a sample text\n    for demonstrating text processing capabilities. Python is amazing!\n    We can analyze words, count frequencies, and find patterns easily.\n    ".to_string();
     let words: Vec<String> = tokenize_text(sample_text);
-    println!("{}", format!("Total words: {:?}", words.len() as i32));
+    println!("{}", format!("Total words: {}", words.len() as i32));
     let mut frequencies: HashMap<String, i32> = count_word_frequencies(&words)?;
-    println!(
-        "{}",
-        format!("Unique words: {:?}", frequencies.len() as i32)
-    );
-    let top_words: Vec<(String, i32)> = get_most_common_words(&frequencies, 5)?;
-    println!("{}", format!("Top 5 words: {:?}", top_words.len() as i32));
+    println!("{}", format!("Unique words: {}", frequencies.len() as i32));
+    let top_words: Vec<(String, i32)> = get_most_common_words(&mut frequencies, 5)?;
+    println!("{}", format!("Top 5 words: {}", top_words.len() as i32));
     let char_dist: HashMap<String, i32> = analyze_character_distribution(sample_text)?;
     println!(
         "{}",
         format!(
-            "Letters: {:?}, Digits: {:?}",
+            "Letters: {}, Digits: {}",
             char_dist.get("letters").cloned().unwrap_or_default(),
             char_dist.get("digits").cloned().unwrap_or_default()
         )
     );
     let mut sentences: Vec<String> = extract_sentences(sample_text);
-    println!("{}", format!("Sentences: {:?}", sentences.len() as i32));
+    println!("{}", format!("Sentences: {}", sentences.len() as i32));
     let mut metrics: HashMap<String, f64> = calculate_readability_metrics(sample_text)?;
     println!(
         "{}",
         format!(
-            "Avg word length: {:?}",
+            "Avg word length: {}",
             metrics.get("avg_word_length").cloned().unwrap_or_default()
         )
     );
     let length_groups: HashMap<i32, Vec<String>> = group_words_by_length(&words);
     println!(
         "{}",
-        format!("Length groups: {:?}", length_groups.len() as i32)
+        format!("Length groups: {}", length_groups.len() as i32)
     );
     let patterns: HashMap<String, Vec<String>> = find_word_patterns(&words)?;
     println!(
         "{}",
         format!(
-            "Words starting with 'a': {:?}",
+            "Words starting with 'a': {}",
             patterns
                 .get("starts_with_a")
                 .cloned()
@@ -484,19 +482,19 @@ pub fn process_text_pipeline() -> Result<(), Box<dyn std::error::Error>> {
         )
     );
     let bigrams: Vec<String> = create_ngrams(&words, 2);
-    println!("{}", format!("Bigrams created: {:?}", bigrams.len() as i32));
+    println!("{}", format!("Bigrams created: {}", bigrams.len() as i32));
     let diversity: f64 = calculate_word_diversity(&words)?;
     println!("{}", format!("Lexical diversity: {:?}", diversity));
     let mut palindromes: Vec<String> = find_palindromes(&words)?;
     println!(
         "{}",
-        format!("Palindromes found: {:?}", palindromes.len() as i32)
+        format!("Palindromes found: {}", palindromes.len() as i32)
     );
     let ratios: HashMap<String, f64> = analyze_vowel_consonant_ratio(sample_text)?;
     println!(
         "{}",
         format!(
-            "Vowel ratio: {:?}",
+            "Vowel ratio: {}",
             ratios.get("vowel_ratio").cloned().unwrap_or_default()
         )
     );

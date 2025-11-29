@@ -23,7 +23,7 @@ pub fn get_length(s: &str) -> i32 {
 }
 #[doc = "Extract the first word from a string"]
 #[doc = " Depyler: proven to terminate"]
-pub fn first_word(s: &str) -> Result<String, IndexError> {
+pub fn first_word(s: &str) -> Result<String, Box<dyn std::error::Error>> {
     let words = s
         .split_whitespace()
         .map(|s| s.to_string())
@@ -38,7 +38,7 @@ pub fn first_word(s: &str) -> Result<String, IndexError> {
 #[doc = " Depyler: proven to terminate"]
 pub fn append_exclamation(mut s: String) -> String {
     s = format!("{}{}", s, "!");
-    s
+    s.to_string()
 }
 #[doc = "Return the longest of two strings"]
 #[doc = " Depyler: verified panic-free"]
@@ -48,9 +48,9 @@ pub fn longest(x: String, y: String) -> String {
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 > _cse_temp_1;
     if _cse_temp_2 {
-        x
+        x.to_string()
     } else {
-        y
+        y.to_string()
     }
 }
 #[doc = "Modify a string in place"]

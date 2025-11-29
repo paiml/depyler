@@ -5,7 +5,6 @@ const STR__: &'static str = "=";
 #[doc = " Depyler: proven to terminate"]
 pub fn test_base64_encode_basic() {
     let data = b"Hello, World!";
-    let encoded = base64::engine::general_purpose::STANDARD.encode(data);
     assert!(encoded == b"SGVsbG8sIFdvcmxkIQ==");
     println!("{}", "PASS: test_base64_encode_basic");
 }
@@ -14,9 +13,6 @@ pub fn test_base64_encode_basic() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_base64_decode_basic() {
     let encoded = b"SGVsbG8sIFdvcmxkIQ==";
-    let decoded = base64::engine::general_purpose::STANDARD
-        .decode(encoded)
-        .unwrap();
     assert!(decoded == b"Hello, World!");
     println!("{}", "PASS: test_base64_decode_basic");
 }
@@ -26,9 +22,6 @@ pub fn test_base64_decode_basic() {
 pub fn test_base64_roundtrip() {
     let original = b"Python to Rust transpilation!";
     let encoded = base64::engine::general_purpose::STANDARD.encode(original);
-    let decoded = base64::engine::general_purpose::STANDARD
-        .decode(encoded)
-        .unwrap();
     assert!(decoded == original);
     println!("{}", "PASS: test_base64_roundtrip");
 }
@@ -37,11 +30,7 @@ pub fn test_base64_roundtrip() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_base64_empty() {
     let data = b"";
-    let encoded = base64::engine::general_purpose::STANDARD.encode(data);
     assert!(encoded == b"");
-    let decoded = base64::engine::general_purpose::STANDARD
-        .decode(b"")
-        .unwrap();
     assert!(decoded == b"");
     println!("{}", "PASS: test_base64_empty");
 }
@@ -51,9 +40,6 @@ pub fn test_base64_empty() {
 pub fn test_base64_binary_data() {
     let data = bytes(0..256);
     let encoded = base64::engine::general_purpose::STANDARD.encode(data);
-    let decoded = base64::engine::general_purpose::STANDARD
-        .decode(encoded)
-        .unwrap();
     assert!(decoded == data);
     println!("{}", "PASS: test_base64_binary_data");
 }
@@ -62,9 +48,8 @@ pub fn test_base64_binary_data() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_base64_urlsafe_encode() {
     let data = b"Hello>>???World";
-    let encoded = base64::engine::general_purpose::URL_SAFE.encode(data);
-    assert!(!encoded.contains_key(&b"+"));
-    assert!(!encoded.contains_key(&b"/"));
+    assert!(!encoded.get(&b"+").is_some());
+    assert!(!encoded.get(&b"/").is_some());
     println!("{}", "PASS: test_base64_urlsafe_encode");
 }
 #[doc = "Test URL-safe base64 decoding."]
@@ -73,9 +58,6 @@ pub fn test_base64_urlsafe_encode() {
 pub fn test_base64_urlsafe_decode() {
     let data = b"Test data with special chars";
     let encoded = base64::engine::general_purpose::URL_SAFE.encode(data);
-    let decoded = base64::engine::general_purpose::URL_SAFE
-        .decode(encoded)
-        .unwrap();
     assert!(decoded == data);
     println!("{}", "PASS: test_base64_urlsafe_decode");
 }
@@ -84,13 +66,10 @@ pub fn test_base64_urlsafe_decode() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_base64_padding() {
     let data1 = b"a";
-    let encoded1 = base64::engine::general_purpose::STANDARD.encode(data1);
     assert!(encoded1 == b"YQ==");
     let data2 = b"ab";
-    let encoded2 = base64::engine::general_purpose::STANDARD.encode(data2);
     assert!(encoded2 == b"YWI=");
     let data3 = b"abc";
-    let encoded3 = base64::engine::general_purpose::STANDARD.encode(data3);
     assert!(encoded3 == b"YWJj");
     println!("{}", "PASS: test_base64_padding");
 }
@@ -101,9 +80,6 @@ pub fn test_base64_multiline() {
     let _cse_temp_0 = b"The quick brown fox jumps over the lazy dog. " * 10;
     let data = _cse_temp_0;
     let encoded = base64::engine::general_purpose::STANDARD.encode(data);
-    let decoded = base64::engine::general_purpose::STANDARD
-        .decode(encoded)
-        .unwrap();
     assert!(decoded == data);
     println!("{}", "PASS: test_base64_multiline");
 }
@@ -117,7 +93,6 @@ pub fn test_base64_unicode() {
     let decoded = base64::engine::general_purpose::STANDARD
         .decode(encoded)
         .unwrap();
-    let result = decoded.decode("utf-8".to_string());
     assert!(result == text);
     println!("{}", "PASS: test_base64_unicode");
 }

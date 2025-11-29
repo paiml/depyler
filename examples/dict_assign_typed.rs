@@ -7,8 +7,8 @@ pub fn test_string_dict() -> HashMap<String, String> {
         let map = HashMap::new();
         map
     };
-    d.insert("key1".to_string(), "value1".to_string());
-    d.insert("key2".to_string(), "value2".to_string());
+    d.insert("key1".to_string().to_string(), "value1".to_string());
+    d.insert("key2".to_string().to_string(), "value2".to_string());
     d
 }
 #[doc = "Test dictionary assignment with integer keys"]
@@ -31,7 +31,7 @@ pub fn test_nested_dict() -> HashMap<String, HashMap<String, String>> {
         let map = HashMap::new();
         map
     };
-    d.insert("outer".to_string(), {
+    d.insert("outer".to_string().to_string(), {
         let map = HashMap::new();
         map
     });

@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::collections::IndexMap;
 use std::collections::VecDeque;
-const STR_A: &'static str = "a";
 const STR_B: &'static str = "b";
 const STR_APPLE: &'static str = "apple";
+const STR_A: &'static str = "a";
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -63,7 +63,7 @@ pub fn test_deque_rotate() -> Vec<i32> {
     result
 }
 #[doc = "Test Counter basic functionality"]
-pub fn test_counter_basic() -> Result<HashMap<String, i32>, IndexError> {
+pub fn test_counter_basic() -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let items: Vec<String> = vec![
         STR_APPLE.to_string(),
         "banana".to_string(),
@@ -77,7 +77,7 @@ pub fn test_counter_basic() -> Result<HashMap<String, i32>, IndexError> {
         map
     };
     for item in items.iter().cloned() {
-        if counts.contains_key(&item) {
+        if counts.get(&item).is_some() {
             {
                 let _key = item;
                 let _old_val = counts.get(&_key).cloned().unwrap_or_default();
@@ -93,13 +93,13 @@ pub fn test_counter_basic() -> Result<HashMap<String, i32>, IndexError> {
 pub fn test_counter_most_common(
     items: &Vec<String>,
     n: i32,
-) -> Result<Vec<(String, i32)>, IndexError> {
+) -> Result<Vec<(String, i32)>, Box<dyn std::error::Error>> {
     let mut counts: HashMap<String, i32> = {
         let map = HashMap::new();
         map
     };
     for item in items.iter().cloned() {
-        if counts.contains_key(&item) {
+        if counts.get(&item).is_some() {
             {
                 let _key = item;
                 let _old_val = counts.get(&_key).cloned().unwrap_or_default();
@@ -129,14 +129,19 @@ pub fn test_counter_most_common(
         }
     }
     let result: Vec<(String, i32)> = {
-        let base = count_list;
-        let stop = (n).max(0) as usize;
+        let base = &count_list;
+        let stop_idx = n as isize;
+        let stop = if stop_idx < 0 {
+            (base.len() as isize + stop_idx).max(0) as usize
+        } else {
+            stop_idx as usize
+        };
         base[..stop.min(base.len())].to_vec()
     };
     Ok(result)
 }
 #[doc = "Test Counter arithmetic operations"]
-pub fn test_counter_arithmetic() -> Result<HashMap<String, i32>, IndexError> {
+pub fn test_counter_arithmetic() -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let counter1: HashMap<String, i32> = {
         let mut map = HashMap::new();
         map.insert(STR_A.to_string(), 3);
@@ -158,7 +163,7 @@ pub fn test_counter_arithmetic() -> Result<HashMap<String, i32>, IndexError> {
         result.insert(key, counter1.get(&key).cloned().unwrap_or_default());
     }
     for key in counter2.keys().cloned().collect::<Vec<_>>() {
-        if result.contains_key(&key) {
+        if result.get(&key).is_some() {
             {
                 let _key = key;
                 let _old_val = result.get(&_key).cloned().unwrap_or_default();
@@ -189,13 +194,13 @@ pub fn test_defaultdict_int() -> HashMap<String, i32> {
         "hello".to_string(),
     ];
     for word in words.iter().cloned() {
-        let current: i32 = counts.get(word).cloned().unwrap_or(0);
+        let current: i32 = counts.get(&word).cloned().unwrap_or(0);
         counts.insert(word, current + 1);
     }
     counts
 }
 #[doc = "Test defaultdict with list default"]
-pub fn test_defaultdict_list() -> Result<HashMap<String, Vec<i32>>, IndexError> {
+pub fn test_defaultdict_list() -> Result<HashMap<String, Vec<i32>>, Box<dyn std::error::Error>> {
     let mut groups: HashMap<String, Vec<i32>> = {
         let map = HashMap::new();
         map
@@ -205,7 +210,7 @@ pub fn test_defaultdict_list() -> Result<HashMap<String, Vec<i32>>, IndexError> 
     for pair in pairs.iter().cloned() {
         let key: String = pair.0;
         let value: i32 = pair.1;
-        if !groups.contains_key(&key) {
+        if !groups.get(&key).is_some() {
             groups.insert(key, vec![]);
         }
         groups.get(&key).cloned().unwrap_or_default().push(value);
@@ -219,9 +224,9 @@ pub fn test_ordereddict_basic() -> Vec<(String, i32)> {
         let map = HashMap::new();
         map
     };
-    od.insert("first".to_string(), 1);
-    od.insert("second".to_string(), 2);
-    od.insert("third".to_string(), 3);
+    od.insert("first".to_string().to_string(), 1);
+    od.insert("second".to_string().to_string(), 2);
+    od.insert("third".to_string().to_string(), 3);
     let mut result: Vec<(String, i32)> = vec![];
     for key in od.keys().cloned().collect::<Vec<_>>() {
         let pair: (String, i32) = (key, od.get(&key).cloned().unwrap_or_default());
@@ -250,13 +255,13 @@ pub fn test_ordereddict_move_to_end() -> Vec<String> {
 pub fn test_chainmap<'a, 'b>(
     dict1: &'a HashMap<String, i32>,
     dict2: &'b HashMap<String, i32>,
-) -> Result<i32, IndexError> {
+) -> Result<i32, Box<dyn std::error::Error>> {
     let key: String = "x".to_string();
-    let _cse_temp_0 = dict1.contains_key(&key);
+    let _cse_temp_0 = dict1.get(&key).is_some();
     if _cse_temp_0 {
         Ok(dict1.get(&key).cloned().unwrap_or_default())
     } else {
-        let _cse_temp_1 = dict2.contains_key(&key);
+        let _cse_temp_1 = dict2.get(&key).is_some();
         if _cse_temp_1 {
             Ok(dict2.get(&key).cloned().unwrap_or_default())
         } else {
@@ -265,7 +270,9 @@ pub fn test_chainmap<'a, 'b>(
     }
 }
 #[doc = "Count word frequencies using Counter concept"]
-pub fn word_frequency_counter(text: &str) -> Result<HashMap<String, i32>, IndexError> {
+pub fn word_frequency_counter(
+    text: &str,
+) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let words: Vec<String> = text
         .split_whitespace()
         .map(|s| s.to_string())
@@ -275,7 +282,7 @@ pub fn word_frequency_counter(text: &str) -> Result<HashMap<String, i32>, IndexE
         map
     };
     for word in words.iter().cloned() {
-        if freq.contains_key(&word) {
+        if freq.get(&word).is_some() {
             {
                 let _key = word;
                 let _old_val = freq.get(&_key).cloned().unwrap_or_default();
@@ -290,7 +297,7 @@ pub fn word_frequency_counter(text: &str) -> Result<HashMap<String, i32>, IndexE
 #[doc = "Group words by first letter using defaultdict concept"]
 pub fn group_by_first_letter(
     words: &Vec<String>,
-) -> Result<HashMap<String, Vec<String>>, IndexError> {
+) -> Result<HashMap<String, Vec<String>>, Box<dyn std::error::Error>> {
     let mut groups: HashMap<String, Vec<String>> = {
         let map = HashMap::new();
         map
@@ -312,11 +319,11 @@ pub fn group_by_first_letter(
                 .map(|c| c.to_string())
                 .unwrap_or_default()
         };
-        if !groups.contains_key(&first_letter) {
+        if !groups.get(&first_letter).is_some() {
             groups.insert(first_letter, vec![]);
         }
         groups
-            .get(first_letter as usize)
+            .get(&first_letter)
             .cloned()
             .unwrap_or_default()
             .push(word);
@@ -380,11 +387,6 @@ pub fn test_lru_cache_manual(cache_size: i32) -> Vec<i32> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_collections_features() -> Result<(), Box<dyn std::error::Error>> {
-    let deque_basic: Vec<i32> = test_deque_basic();
-    let deque_pops: (i32, i32) = test_deque_pop();
-    let deque_extended: Vec<i32> = test_deque_extend();
-    let deque_rotated: Vec<i32> = test_deque_rotate();
-    let mut counts: HashMap<String, i32> = test_counter_basic()?;
     let items: Vec<String> = vec![
         STR_A.to_string(),
         STR_B.to_string(),
@@ -395,12 +397,6 @@ pub fn test_all_collections_features() -> Result<(), Box<dyn std::error::Error>>
         "d".to_string(),
         STR_A.to_string(),
     ];
-    let most_common: Vec<(String, i32)> = test_counter_most_common(&items, 2)?;
-    let merged: HashMap<String, i32> = test_counter_arithmetic()?;
-    let int_default: HashMap<String, i32> = test_defaultdict_int();
-    let list_default: HashMap<String, Vec<i32>> = test_defaultdict_list()?;
-    let ordered: Vec<(String, i32)> = test_ordereddict_basic();
-    let moved: Vec<String> = test_ordereddict_move_to_end();
     let d1: HashMap<String, i32> = {
         let mut map = HashMap::new();
         map.insert("x".to_string(), 1);
@@ -413,9 +409,7 @@ pub fn test_all_collections_features() -> Result<(), Box<dyn std::error::Error>>
         map.insert("z".to_string(), 4);
         map
     };
-    let chain_result: i32 = test_chainmap(&d1, &d2)?;
     let text: String = "hello world hello python world".to_string();
-    let mut freq: HashMap<String, i32> = word_frequency_counter(text)?;
     let words: Vec<String> = vec![
         STR_APPLE.to_string(),
         "banana".to_string(),
@@ -423,10 +417,6 @@ pub fn test_all_collections_features() -> Result<(), Box<dyn std::error::Error>>
         "blueberry".to_string(),
         "cherry".to_string(),
     ];
-    let grouped: HashMap<String, Vec<String>> = group_by_first_letter(&words)?;
-    let stack_result: Vec<i32> = test_deque_as_stack();
-    let queue_result: Vec<i32> = test_deque_as_queue();
-    let lru_result: Vec<i32> = test_lru_cache_manual(3);
     println!("{}", "All collections module tests completed successfully");
     Ok(())
 }

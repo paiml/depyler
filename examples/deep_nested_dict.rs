@@ -7,13 +7,13 @@ pub fn test_deep_nested() -> HashMap<String, HashMap<String, HashMap<String, Str
         let map = HashMap::new();
         map
     };
-    d.insert("level1".to_string(), {
+    d.insert("level1".to_string().to_string(), {
         let map = HashMap::new();
         map
     });
     d.get_mut(&"level1".to_string())
         .unwrap()
-        .insert("level2".to_string(), {
+        .insert("level2".to_string().to_string(), {
             let map = HashMap::new();
             map
         });
@@ -21,6 +21,6 @@ pub fn test_deep_nested() -> HashMap<String, HashMap<String, HashMap<String, Str
         .unwrap()
         .get_mut(&"level2".to_string())
         .unwrap()
-        .insert("level3".to_string(), "deep value".to_string());
+        .insert("level3".to_string().to_string(), "deep value".to_string());
     d
 }

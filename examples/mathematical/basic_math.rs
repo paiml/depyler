@@ -30,7 +30,7 @@ pub fn factorial(n: i32) -> i32 {
     result
 }
 #[doc = "Greatest common divisor using Euclidean algorithm"]
-pub fn gcd(mut a: i32, mut b: i32) -> Result<i32, ZeroDivisionError> {
+pub fn gcd(mut a: i32, mut b: i32) -> Result<i32, Box<dyn std::error::Error>> {
     while b != 0 {
         let temp = b;
         b = a % b;
@@ -39,7 +39,7 @@ pub fn gcd(mut a: i32, mut b: i32) -> Result<i32, ZeroDivisionError> {
     Ok(a)
 }
 #[doc = "Check if number is prime"]
-pub fn is_prime(n: i32) -> Result<bool, ZeroDivisionError> {
+pub fn is_prime(n: i32) -> Result<bool, Box<dyn std::error::Error>> {
     let _cse_temp_0 = n < 2;
     if _cse_temp_0 {
         return Ok(false);
@@ -72,7 +72,7 @@ pub fn sum_of_squares(numbers: &Vec<i32>) -> i32 {
     total
 }
 #[doc = "Calculate power using exponentiation by squaring"]
-pub fn power(mut base: i32, mut exponent: i32) -> Result<i32, ZeroDivisionError> {
+pub fn power(mut base: i32, mut exponent: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let _cse_temp_0 = exponent == 0;
     if _cse_temp_0 {
         return Ok(1);

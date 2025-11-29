@@ -1,18 +1,23 @@
-#[doc = "// TODO: Map Python module 'zipfile'"]
-#[doc = "// TODO: Map Python module 'io'"]
+#[doc = "// NOTE: Map Python module 'zipfile'(tracked in DEPYLER-0424)"]
+use std::io::Cursor;
 const STR__: &'static str = "=";
 #[doc = "Test creating a ZIP file and reading it back."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_create_and_read() {
-    let buffer = BytesIO::new();
+    let mut buffer = std::io::Cursor();
     let _context = zipfile.ZipFile(buffer, "w".to_string());
     let zf = _context.__enter__();
     zf.writestr("test.txt".to_string(), "Hello, ZIP!".to_string());
     buffer.seek(0);
     let _context = zipfile.ZipFile(buffer, "r".to_string());
     let zf = _context.__enter__();
-    let content = zf.read("test.txt".to_string());
+    let content = {
+        let mut _read_buf = vec![0u8; "test.txt".to_string()];
+        let _n = zf.read(&mut _read_buf).unwrap_or(0);
+        _read_buf.truncate(_n);
+        _read_buf
+    };
     assert!(content == b"Hello, ZIP!");
     println!("{}", "PASS: test_zipfile_create_and_read");
 }
@@ -20,7 +25,7 @@ pub fn test_zipfile_create_and_read() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_multiple_files() {
-    let buffer = BytesIO::new();
+    let mut buffer = std::io::Cursor();
     let _context = zipfile.ZipFile(buffer, "w".to_string());
     let zf = _context.__enter__();
     zf.writestr("file1.txt".to_string(), "Content 1".to_string());
@@ -30,17 +35,24 @@ pub fn test_zipfile_multiple_files() {
     let _context = zipfile.ZipFile(buffer, "r".to_string());
     let zf = _context.__enter__();
     assert!(zf.namelist().len() as i32 == 3);
-    assert!(zf.namelist().contains_key(&"file1.txt".to_string()));
-    assert!(zf.namelist().contains_key(&"file2.txt".to_string()));
-    assert!(zf.namelist().contains_key(&"file3.txt".to_string()));
-    assert!(zf.read("file2.txt".to_string()) == b"Content 2");
+    assert!(zf.namelist().get("file1.txt".to_string()).is_some());
+    assert!(zf.namelist().get("file2.txt".to_string()).is_some());
+    assert!(zf.namelist().get("file3.txt".to_string()).is_some());
+    assert!(
+        {
+            let mut _read_buf = vec![0u8; "file2.txt".to_string()];
+            let _n = zf.read(&mut _read_buf).unwrap_or(0);
+            _read_buf.truncate(_n);
+            _read_buf
+        } == b"Content 2"
+    );
     println!("{}", "PASS: test_zipfile_multiple_files");
 }
 #[doc = "Test listing files in ZIP archive."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_namelist() {
-    let buffer = BytesIO::new();
+    let mut buffer = std::io::Cursor();
     let _context = zipfile.ZipFile(buffer, "w".to_string());
     let zf = _context.__enter__();
     zf.writestr("alpha.txt".to_string(), "A".to_string());
@@ -51,16 +63,16 @@ pub fn test_zipfile_namelist() {
     let zf = _context.__enter__();
     let names = zf.namelist();
     assert!(names.len() as i32 == 3);
-    assert!(names.contains_key(&"alpha.txt".to_string()));
-    assert!(names.contains_key(&"beta.txt".to_string()));
-    assert!(names.contains_key(&"gamma.txt".to_string()));
+    assert!(names.get("alpha.txt".to_string()).is_some());
+    assert!(names.get("beta.txt".to_string()).is_some());
+    assert!(names.get("gamma.txt".to_string()).is_some());
     println!("{}", "PASS: test_zipfile_namelist");
 }
 #[doc = "Test getting file info from ZIP."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_getinfo() {
-    let buffer = BytesIO::new();
+    let mut buffer = std::io::Cursor();
     let _context = zipfile.ZipFile(buffer, "w".to_string());
     let zf = _context.__enter__();
     zf.writestr("data.txt".to_string(), "Test data content".to_string());
@@ -76,7 +88,7 @@ pub fn test_zipfile_getinfo() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_compression() {
-    let buffer = BytesIO::new();
+    let mut buffer = std::io::Cursor();
     let _cse_temp_0 = "This is test data that should compress well! ".repeat(10 as usize);
     let data = _cse_temp_0;
     let _context = zipfile.ZipFile(buffer, "w".to_string(), zipfile.ZIP_DEFLATED);
@@ -85,9 +97,13 @@ pub fn test_zipfile_compression() {
     buffer.seek(0);
     let _context = zipfile.ZipFile(buffer, "r".to_string());
     let zf = _context.__enter__();
-    let content = zf
-        .read("compressed.txt".to_string())
-        .decode("utf-8".to_string());
+    let content = {
+        let mut _read_buf = vec![0u8; "compressed.txt".to_string()];
+        let _n = zf.read(&mut _read_buf).unwrap_or(0);
+        _read_buf.truncate(_n);
+        _read_buf
+    }
+    .decode("utf-8".to_string());
     assert!(content == data);
     println!("{}", "PASS: test_zipfile_compression");
 }
@@ -95,7 +111,7 @@ pub fn test_zipfile_compression() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_binary_data() {
-    let buffer = BytesIO::new();
+    let mut buffer = std::io::Cursor();
     let binary_data = bytes(0..256);
     let _context = zipfile.ZipFile(buffer, "w".to_string());
     let zf = _context.__enter__();
@@ -103,7 +119,12 @@ pub fn test_zipfile_binary_data() {
     buffer.seek(0);
     let _context = zipfile.ZipFile(buffer, "r".to_string());
     let zf = _context.__enter__();
-    let content = zf.read("binary.dat".to_string());
+    let content = {
+        let mut _read_buf = vec![0u8; "binary.dat".to_string()];
+        let _n = zf.read(&mut _read_buf).unwrap_or(0);
+        _read_buf.truncate(_n);
+        _read_buf
+    };
     assert!(content == binary_data);
     println!("{}", "PASS: test_zipfile_binary_data");
 }
@@ -111,7 +132,7 @@ pub fn test_zipfile_binary_data() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_empty() {
-    let buffer = BytesIO::new();
+    let mut buffer = std::io::Cursor();
     let _context = zipfile.ZipFile(buffer, "w".to_string());
     let zf = _context.__enter__();
     buffer.seek(0);
@@ -124,14 +145,19 @@ pub fn test_zipfile_empty() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_zipfile_read_mode() {
-    let buffer = BytesIO::new();
+    let mut buffer = std::io::Cursor();
     let _context = zipfile.ZipFile(buffer, "w".to_string());
     let zf = _context.__enter__();
     zf.writestr("readonly.txt".to_string(), "Read-only content".to_string());
     buffer.seek(0);
     let _context = zipfile.ZipFile(buffer, "r".to_string());
     let zf = _context.__enter__();
-    let content = zf.read("readonly.txt".to_string());
+    let content = {
+        let mut _read_buf = vec![0u8; "readonly.txt".to_string()];
+        let _n = zf.read(&mut _read_buf).unwrap_or(0);
+        _read_buf.truncate(_n);
+        _read_buf
+    };
     assert!(content == b"Read-only content");
     println!("{}", "PASS: test_zipfile_read_mode");
 }

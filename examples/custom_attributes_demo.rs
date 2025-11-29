@@ -49,7 +49,7 @@ pub fn handle_panic(message: String) {
 #[doc = "Hash function with multiple attributes."]
 #[inline]
 #[must_use]
-pub fn compute_hash(text: &str) -> Result<i32, ZeroDivisionError> {
+pub fn compute_hash(text: &str) -> Result<i32, Box<dyn std::error::Error>> {
     let mut hash_val = 0;
     for _char in text.chars() {
         let char = _char.to_string();

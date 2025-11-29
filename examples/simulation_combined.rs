@@ -52,14 +52,14 @@ pub fn simulate_dice_rolls(
     num_dice: i32,
     num_sides: i32,
     num_trials: i32,
-) -> Result<HashMap<i32, i32>, IndexError> {
+) -> Result<HashMap<i32, i32>, Box<dyn std::error::Error>> {
     let mut results: HashMap<i32, i32> = {
         let map = HashMap::new();
         map
     };
     for _trial in 0..num_trials {
         let mut total: i32 = roll_dice(num_dice, num_sides);
-        if results.contains_key(&total) {
+        if results.get(&total).is_some() {
             {
                 let _key = total;
                 let _old_val = results.get(&_key).cloned().unwrap_or_default();
@@ -88,7 +88,9 @@ pub fn coin_flip_sequence(num_flips: i32) -> Vec<String> {
 }
 #[doc = "Count longest streaks in sequence"]
 #[doc = " Depyler: proven to terminate"]
-pub fn count_streaks(sequence: &Vec<String>) -> Result<HashMap<String, i32>, IndexError> {
+pub fn count_streaks(
+    sequence: &Vec<String>,
+) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = sequence.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -102,7 +104,6 @@ pub fn count_streaks(sequence: &Vec<String>) -> Result<HashMap<String, i32>, Ind
     let mut current_streak: i32 = 1;
     let mut current_type: String = sequence.get(0usize).cloned().unwrap_or_default();
     for i in 1..sequence.len() as i32 {
-        let mut current_streak;
         if sequence.get(i as usize).cloned().unwrap_or_default() == current_type {
             current_streak = current_streak + 1;
         } else {
@@ -140,7 +141,9 @@ pub fn count_streaks(sequence: &Vec<String>) -> Result<HashMap<String, i32>, Ind
 }
 #[doc = "Estimate pi using Monte Carlo method"]
 #[doc = " Depyler: proven to terminate"]
-pub fn monte_carlo_pi_estimation(num_samples: i32) -> Result<(f64, f64), ZeroDivisionError> {
+pub fn monte_carlo_pi_estimation(
+    num_samples: i32,
+) -> Result<(f64, f64), Box<dyn std::error::Error>> {
     let mut inside_circle: i32 = 0;
     for _i in 0..num_samples {
         let x: f64 = rand::random::<f64>();
@@ -168,11 +171,9 @@ pub fn simulate_random_walk(num_steps: i32) -> (i32, i32) {
     let mut y: i32 = 0;
     for _step in 0..num_steps {
         let direction: i32 = rand::thread_rng().gen_range(0..=3);
-        let mut y;
         if direction == 0 {
             y = y + 1;
         } else {
-            let mut x;
             if direction == 1 {
                 x = x + 1;
             } else {
@@ -188,7 +189,7 @@ pub fn simulate_random_walk(num_steps: i32) -> (i32, i32) {
 }
 #[doc = "Calculate Euclidean distance from origin"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_walk_distance(position: (i32, i32)) -> Result<f64, IndexError> {
+pub fn calculate_walk_distance(position: (i32, i32)) -> Result<f64, Box<dyn std::error::Error>> {
     let mut x: i32 = position.0;
     let mut y: i32 = position.1;
     let distance: f64 = ((x * x + y * y) as f64 as f64).sqrt();
@@ -241,7 +242,9 @@ pub fn simulate_queue_system(
 }
 #[doc = "Simulate card game results"]
 #[doc = " Depyler: proven to terminate"]
-pub fn simulate_card_game(num_games: i32) -> Result<HashMap<String, i32>, IndexError> {
+pub fn simulate_card_game(
+    num_games: i32,
+) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let mut results: HashMap<String, i32> = {
         let mut map = HashMap::new();
         map.insert("wins".to_string(), 0);
@@ -253,15 +256,21 @@ pub fn simulate_card_game(num_games: i32) -> Result<HashMap<String, i32>, IndexE
         let player_card: i32 = rand::thread_rng().gen_range(1..=13);
         let dealer_card: i32 = rand::thread_rng().gen_range(1..=13);
         if player_card > dealer_card {
-            results.insert("wins", results.get("wins").cloned().unwrap_or_default() + 1);
+            results.insert(
+                "wins".to_string(),
+                results.get("wins").cloned().unwrap_or_default() + 1,
+            );
         } else {
             if player_card < dealer_card {
                 results.insert(
-                    "losses",
+                    "losses".to_string(),
                     results.get("losses").cloned().unwrap_or_default() + 1,
                 );
             } else {
-                results.insert("ties", results.get("ties").cloned().unwrap_or_default() + 1);
+                results.insert(
+                    "ties".to_string(),
+                    results.get("ties").cloned().unwrap_or_default() + 1,
+                );
             }
         }
     }
@@ -295,7 +304,7 @@ pub fn simulate_population_growth(
     num_generations: i32,
 ) -> Vec<i32> {
     let mut populations: Vec<i32> = vec![initial_population];
-    let mut current_population: i32 = initial_population;
+    let mut current_population: i32 = initial_population.clone();
     for _generation in 0..num_generations {
         let random_factor: f64 = rand::random::<f64>() * 0.2 - 0.1;
         let actual_growth: f64 = growth_rate + random_factor;
@@ -378,10 +387,10 @@ pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
     };
     println!("{}", "\n1. Dice Rolling Simulation");
     let dice_results: HashMap<i32, i32> = simulate_dice_rolls(2, 6, 1000)?;
-    println!("{}", format!("   Simulated {:?} rolls of 2d6", 1000));
+    println!("{}", format!("   Simulated {} rolls of 2d6", 1000));
     println!(
         "{}",
-        format!("   Unique outcomes: {:?}", dice_results.len() as i32)
+        format!("   Unique outcomes: {}", dice_results.len() as i32)
     );
     println!("{}", "\n2. Coin Flip Sequence");
     let mut flips: Vec<String> = coin_flip_sequence(100);
@@ -389,7 +398,7 @@ pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "{}",
         format!(
-            "   100 flips, max heads streak: {:?}",
+            "   100 flips, max heads streak: {}",
             streaks.get("max_heads").cloned().unwrap_or_default()
         )
     );
@@ -398,7 +407,7 @@ pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "{}",
         format!(
-            "   Pi estimate: {:?}, Error: {:?}",
+            "   Pi estimate: {}, Error: {}",
             pi_result.get(0usize).cloned().unwrap_or_default(),
             pi_result.get(1usize).cloned().unwrap_or_default()
         )
@@ -409,7 +418,7 @@ pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "{}",
         format!(
-            "   Final position:({:?}, {:?}), Distance: {:?}",
+            "   Final position:({}, {}), Distance: {:?}",
             final_pos.get(0usize).cloned().unwrap_or_default(),
             final_pos.get(1usize).cloned().unwrap_or_default(),
             distance
@@ -420,28 +429,28 @@ pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "{}",
         format!(
-            "   Avg wait time: {:?}",
+            "   Avg wait time: {}",
             queue_stats.get("avg_wait").cloned().unwrap_or_default()
         )
     );
     println!("{}", "\n6. Card Game Simulation");
     let game_results: HashMap<String, i32> = simulate_card_game(1000)?;
-    let win_rate: f64 = calculate_win_rate(&game_results)?;
+    let win_rate: f64 = calculate_win_rate(&mut game_results)?;
     println!(
         "{}",
         format!(
-            "   Win rate: {:?}, Wins: {:?}",
+            "   Win rate: {:?}, Wins: {}",
             win_rate,
             game_results.get("wins").cloned().unwrap_or_default()
         )
     );
     println!("{}", "\n7. Population Growth Simulation");
     let mut populations: Vec<i32> = simulate_population_growth(100, 0.1, 20);
-    let pop_analysis: HashMap<String, f64> = analyze_population_trend(&populations)?;
+    let pop_analysis: HashMap<String, f64> = analyze_population_trend(&mut populations)?;
     println!(
         "{}",
         format!(
-            "   Final population: {:?}",
+            "   Final population: {}",
             pop_analysis
                 .get("final_population")
                 .cloned()

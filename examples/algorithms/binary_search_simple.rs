@@ -68,7 +68,7 @@ pub fn binary_search(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::er
 }
 #[doc = "Linear search for comparison"]
 #[doc = " Depyler: proven to terminate"]
-pub fn linear_search(arr: &Vec<i32>, target: i32) -> Result<i32, IndexError> {
+pub fn linear_search(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::error::Error>> {
     for i in 0..arr.len() as i32 {
         if arr.get(i as usize).cloned().unwrap_or_default() == target {
             return Ok(i);
@@ -77,7 +77,7 @@ pub fn linear_search(arr: &Vec<i32>, target: i32) -> Result<i32, IndexError> {
     Ok(-1)
 }
 #[doc = "Find maximum element in array"]
-pub fn find_maximum(arr: &Vec<i32>) -> Result<i32, IndexError> {
+pub fn find_maximum(arr: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
     if arr.is_empty() {
         return Ok(0);
     }

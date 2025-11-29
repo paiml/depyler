@@ -8,7 +8,7 @@ pub fn get_len(s: &str) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn identity(x: String) -> String {
-    x
+    x.to_string()
 }
 #[cfg(test)]
 mod tests {

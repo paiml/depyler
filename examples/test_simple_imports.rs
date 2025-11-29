@@ -1,6 +1,5 @@
 use serde_json as json;
 use serde_json;
-use std as os;
 use std as sys;
 use std::collections::HashMap;
 #[doc = "Parse JSON from string"]

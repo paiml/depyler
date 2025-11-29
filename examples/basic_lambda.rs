@@ -10,9 +10,9 @@ pub fn lambda_handler(
     let status = 200;
     let message = "OK";
     {
-        let mut map = HashMap::new();
-        map.insert("statusCode".to_string(), status);
-        map.insert("message".to_string(), message);
+        let mut map = std::collections::HashMap::new();
+        map.insert("statusCode".to_string(), serde_json::json!(status));
+        map.insert("message".to_string(), serde_json::json!(message));
         map
     }
 }

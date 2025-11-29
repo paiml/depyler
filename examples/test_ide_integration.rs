@@ -1,3 +1,7 @@
+pub const result: serde_json::Value = calculate_fibonacci(10);
+pub const math_util: serde_json::Value = MathUtils::new();
+pub const rounded: serde_json::Value = math_util.round_number(3.14159);
+use serde_json;
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct IndexError {
@@ -31,7 +35,7 @@ impl MathUtils {
         if n < 2 {
             return false;
         };
-        for i in 2..int((n as f64).powf(0.5 as f64)) + 1 {
+        for i in 2..(n as f64).powf(0.5 as f64).parse::<i32>().unwrap_or(0) + 1 {
             if n % i == 0 {
                 return false;
             };
@@ -50,7 +54,7 @@ pub fn calculate_fibonacci(n: i32) -> i32 {
     calculate_fibonacci(n - 1) + calculate_fibonacci(n - 2)
 }
 #[doc = "Process a list of integers and return statistics."]
-pub fn process_data(items: Vec<i32>) -> Result<HashMap<String, i32>, IndexError> {
+pub fn process_data(items: Vec<i32>) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let utils = MathUtils::new();
     let mut stats = {
         let mut map = HashMap::new();
@@ -62,7 +66,7 @@ pub fn process_data(items: Vec<i32>) -> Result<HashMap<String, i32>, IndexError>
     for item in items.iter().cloned() {
         if utils.is_prime(item) {
             stats.insert(
-                "primes",
+                "primes".to_string(),
                 stats.get("primes").cloned().unwrap_or_default() + 1,
             );
         }

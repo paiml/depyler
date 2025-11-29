@@ -34,11 +34,15 @@ impl IndexError {
 }
 #[derive(Debug, Clone)]
 pub struct VerifiedStack {
+    pub items: Vec<i32>,
     pub capacity: i32,
 }
 impl VerifiedStack {
     pub fn new(capacity: i32) -> Self {
-        Self { capacity }
+        Self {
+            items: Vec::new(),
+            capacity,
+        }
     }
     pub fn push(&self, item: i32) {
         if self.items.len() < self.capacity {
@@ -69,7 +73,10 @@ pub fn add(a: i32, b: i32) -> i32 {
 }
 #[doc = "Safe array access with bounds checking"]
 #[doc = " Depyler: proven to terminate"]
-pub fn safe_access(items: &Vec<i32>, index: i32) -> Result<Option<i32>, IndexError> {
+pub fn safe_access(
+    items: &Vec<i32>,
+    index: i32,
+) -> Result<Option<i32>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = 0 <= index;
     let _cse_temp_1 = items.len() as i32;
     let _cse_temp_2 = index < _cse_temp_1;
@@ -101,7 +108,7 @@ pub fn factorial(n: i32) -> i32 {
 }
 #[doc = "Division that never panics"]
 #[doc = " Depyler: proven to terminate"]
-pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, ZeroDivisionError> {
+pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = b == 0;
     if _cse_temp_0 {
         return Ok(None);
@@ -109,14 +116,19 @@ pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, ZeroDivisionError> {
     Ok(Some((a as f64) / (b as f64)))
 }
 #[doc = "Returns reference to max value with proper lifetime"]
-pub fn find_max(numbers: &Vec<i32>) -> Result<Option<i32>, IndexError> {
+pub fn find_max(numbers: &Vec<i32>) -> Result<Option<i32>, Box<dyn std::error::Error>> {
     if numbers.is_empty() {
         return Ok(None);
     }
     let mut max_val = numbers.get(0usize).cloned().unwrap_or_default();
     for num in {
-        let base = numbers;
-        let start = (1).max(0) as usize;
+        let base = &numbers;
+        let start_idx = 1 as isize;
+        let start = if start_idx < 0 {
+            (base.len() as isize + start_idx).max(0) as usize
+        } else {
+            start_idx as usize
+        };
         if start < base.len() {
             base[start..].to_vec()
         } else {
@@ -152,11 +164,8 @@ pub fn main() {
         "{}",
         format!("Safe access OOB: {:?}", safe_access(&items, 10))
     );
-    println!(
-        "{}",
-        format!("Concurrent: {:?}", concurrent_counter(100, 5))
-    );
-    println!("{}", format!("Factorial(5): {:?}", factorial(5)));
+    println!("{}", format!("Concurrent: {}", concurrent_counter(100, 5)));
+    println!("{}", format!("Factorial(5): {}", factorial(5)));
     println!("{}", format!("Safe divide: {:?}", safe_divide(10, 2)));
     println!(
         "{}",
@@ -165,8 +174,8 @@ pub fn main() {
     let stack = VerifiedStack::new(3);
     stack.push(1);
     stack.push(2);
-    println!("{}", format!("Stack size: {:?}", stack.size()));
-    println!("{}", format!("Stack pop: {:?}", stack.pop()));
+    println!("{}", format!("Stack size: {}", stack.size()));
+    println!("{}", format!("Stack pop: {}", stack.pop()));
 }
 #[cfg(test)]
 mod tests {

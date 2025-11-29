@@ -35,7 +35,7 @@ impl IndexError {
 }
 #[doc = "Calculate arithmetic mean"]
 #[doc = " Depyler: proven to terminate"]
-pub fn mean(numbers: Vec<f64>) -> Result<f64, ZeroDivisionError> {
+pub fn mean(numbers: Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
     if numbers.is_empty() {
         return Ok(0.0);
     }
@@ -48,9 +48,9 @@ pub fn median(numbers: Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
         return Ok(0.0);
     }
     let sorted_nums = {
-        let mut __sorted_result = numbers.clone();
-        __sorted_result.sort();
-        __sorted_result
+        let mut sorted_vec = numbers.into_iter().collect::<Vec<_>>();
+        sorted_vec.sort();
+        sorted_vec
     };
     let _cse_temp_0 = sorted_nums.len() as i32;
     let n = _cse_temp_0;
@@ -136,7 +136,7 @@ pub fn median(numbers: Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
     }
 }
 #[doc = "Find the most frequently occurring number"]
-pub fn mode(numbers: &Vec<i32>) -> Result<Option<i32>, IndexError> {
+pub fn mode(numbers: &Vec<i32>) -> Result<Option<i32>, Box<dyn std::error::Error>> {
     if numbers.is_empty() {
         return Ok(None);
     }
@@ -145,7 +145,7 @@ pub fn mode(numbers: &Vec<i32>) -> Result<Option<i32>, IndexError> {
         map
     };
     for num in numbers.iter().cloned() {
-        if frequency.contains_key(&num) {
+        if frequency.get(&num).is_some() {
             {
                 let _key = num;
                 let _old_val = frequency.get(&_key).cloned().unwrap_or_default();
@@ -170,7 +170,7 @@ pub fn mode(numbers: &Vec<i32>) -> Result<Option<i32>, IndexError> {
     Ok(Some(mode_value))
 }
 #[doc = "Calculate sample variance"]
-pub fn variance(numbers: Vec<f64>) -> Result<f64, ZeroDivisionError> {
+pub fn variance(numbers: Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
     let _cse_temp_0 = numbers.len() as i32;
     let _cse_temp_1 = _cse_temp_0 < 2;
     if _cse_temp_1 {
@@ -186,16 +186,18 @@ pub fn variance(numbers: Vec<f64>) -> Result<f64, ZeroDivisionError> {
 }
 #[doc = "Calculate sample standard deviation"]
 #[doc = " Depyler: proven to terminate"]
-pub fn standard_deviation(numbers: Vec<f64>) -> Result<f64, ZeroDivisionError> {
+pub fn standard_deviation(numbers: Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
     let var = variance(numbers)?;
     let _cse_temp_0 = var == 0.0;
     if _cse_temp_0 {
         return Ok(0.0);
     }
     let _cse_temp_1 = (var as f64) / (2.0 as f64);
-    let mut x = _cse_temp_1;
-    for __ in 0..10 {
-        x = (x + (var as f64) / (x as f64) as f64) / (2.0 as f64);
+    let mut x = _cse_temp_1.clone();
+    for __sanitized in 0..10 {
+        x = Vector::from_vec(
+            x + (var as f64) / (x as f64).as_slice().iter().map(|&x| x / 2.0).collect(),
+        );
     }
     Ok(x)
 }
@@ -230,8 +232,8 @@ pub fn correlation(mut x: Vec<f64>, y: Vec<f64>) -> Result<f64, Box<dyn std::err
         return Ok(0.0);
     }
     let _cse_temp_7 = (denominator_squared as f64) / (2.0 as f64);
-    let mut denominator = _cse_temp_7;
-    for __ in 0..10 {
+    let mut denominator = _cse_temp_7.clone();
+    for __sanitized in 0..10 {
         denominator = (denominator + (denominator_squared as f64) / (denominator as f64) as f64)
             / (2.0 as f64);
     }

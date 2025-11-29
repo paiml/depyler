@@ -19,7 +19,7 @@ impl ZeroDivisionError {
 #[doc = "Add two numbers - should infer numeric types."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn add_numbers<'a, 'b>(a: &'a serde_json::Value, b: &'b serde_json::Value) -> i32 {
+pub fn add_numbers<'b, 'a>(a: i32, b: i32) {
     a + b
 }
 #[doc = "Process text - should infer string type."]
@@ -27,10 +27,10 @@ pub fn add_numbers<'a, 'b>(a: &'a serde_json::Value, b: &'b serde_json::Value) -
 #[doc = " Depyler: proven to terminate"]
 pub fn process_text(text: &str) -> String {
     let result = text.to_uppercase();
-    result
+    result.to_string()
 }
 #[doc = "Calculate average - should infer list of numbers."]
-pub fn calculate_average(numbers: &serde_json::Value) -> Result<i32, ZeroDivisionError> {
+pub fn calculate_average(numbers: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
     let mut total = 0;
     let mut count = 0;
     for num in numbers.iter().cloned() {
@@ -55,9 +55,9 @@ pub fn string_checker(s: &str) -> bool {
 #[doc = "Perform list operations."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn list_operations(items: &mut serde_json::Value) -> i32 {
+pub fn list_operations(items: &mut Vec<serde_json::Value>) -> i32 {
     items.push(42);
-    items.len() as i32
+    items.len() as i32 as i32
 }
 #[cfg(test)]
 mod tests {
@@ -74,6 +74,12 @@ mod tests {
             TestResult::passed()
         }
         quickcheck(prop as fn((), ()) -> TestResult);
+    }
+    #[test]
+    fn test_calculate_average_examples() {
+        assert_eq!(calculate_average(&vec![]), 0);
+        assert_eq!(calculate_average(&vec![1]), 1);
+        assert_eq!(calculate_average(&vec![1, 2, 3]), 3);
     }
     #[test]
     fn test_string_checker_examples() {

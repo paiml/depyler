@@ -37,7 +37,7 @@ pub fn test_list_extend() -> i32 {
 }
 #[doc = "Test list.insert() method"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_list_insert() -> Result<i32, IndexError> {
+pub fn test_list_insert() -> Result<i32, Box<dyn std::error::Error>> {
     let mut numbers = vec![1, 3];
     numbers.insert(1 as usize, 2);
     Ok(numbers.get(1usize).cloned().unwrap_or_default())
@@ -100,14 +100,14 @@ pub fn test_list_count() -> i32 {
 }
 #[doc = "Test list.reverse() method"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_list_reverse() -> Result<i32, IndexError> {
+pub fn test_list_reverse() -> Result<i32, Box<dyn std::error::Error>> {
     let mut numbers = vec![1, 2, 3];
     numbers.reverse();
     Ok(numbers.get(0usize).cloned().unwrap_or_default())
 }
 #[doc = "Test list.sort() method"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_list_sort() -> Result<i32, IndexError> {
+pub fn test_list_sort() -> Result<i32, Box<dyn std::error::Error>> {
     let mut numbers = vec![3, 1, 2];
     numbers.sort();
     Ok(numbers.get(0usize).cloned().unwrap_or_default())
@@ -218,13 +218,11 @@ pub fn test_dict_update() -> i32 {
         map.insert(STR_A.to_string(), 1);
         map
     };
-    for (k, v) in {
+    data.update(&{
         let mut map = HashMap::new();
         map.insert(STR_B.to_string(), 2);
         map
-    } {
-        data.insert(k, v);
-    }
+    });
     data.len() as i32 as i32
 }
 #[doc = "Test dict.setdefault() method - existing key"]
@@ -328,15 +326,6 @@ pub fn test_set_pop() -> bool {
         set.insert(3);
         set
     };
-    let value = numbers
-        .iter()
-        .next()
-        .cloned()
-        .map(|x| {
-            numbers.remove(&x);
-            x
-        })
-        .expect("pop from empty set");
     numbers.len() as i32 == 2
 }
 #[doc = "Test set.clear() method"]
@@ -432,14 +421,12 @@ pub fn test_set_update() -> i32 {
         set.insert(2);
         set
     };
-    for item in {
+    numbers.update(&{
         let mut set = HashSet::new();
         set.insert(3);
         set.insert(4);
         set
-    } {
-        numbers.insert(item);
-    }
+    });
     numbers.len() as i32 as i32
 }
 #[cfg(test)]

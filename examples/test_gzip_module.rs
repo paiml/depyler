@@ -1,5 +1,5 @@
-#[doc = "// TODO: Map Python module 'gzip'"]
-#[doc = "// TODO: Map Python module 'io'"]
+#[doc = "// NOTE: Map Python module 'gzip'(tracked in DEPYLER-0424)"]
+use std::io::Cursor;
 const STR__: &'static str = "=";
 #[doc = "Test basic compression and decompression."]
 #[doc = " Depyler: verified panic-free"]
@@ -7,7 +7,6 @@ const STR__: &'static str = "=";
 pub fn test_gzip_compress_decompress() {
     let data = b"Hello, this is a test string for compression!";
     let compressed = gzip.compress(data);
-    let decompressed = gzip.decompress(compressed);
     assert!(decompressed == data);
     println!("{}", "PASS: test_gzip_compress_decompress");
 }
@@ -19,7 +18,6 @@ pub fn test_gzip_compress_text() {
     let text = _cse_temp_0;
     let data = text.encode("utf-8".to_string());
     let compressed = gzip.compress(data);
-    let decompressed = gzip.decompress(compressed);
     assert!(decompressed.decode("utf-8".to_string()) == text);
     println!("{}", "PASS: test_gzip_compress_text");
 }
@@ -29,7 +27,6 @@ pub fn test_gzip_compress_text() {
 pub fn test_gzip_compress_empty() {
     let data = b"";
     let compressed = gzip.compress(data);
-    let decompressed = gzip.decompress(compressed);
     assert!(decompressed == b"");
     println!("{}", "PASS: test_gzip_compress_empty");
 }
@@ -40,10 +37,8 @@ pub fn test_gzip_compress_levels() {
     let _cse_temp_0 = b"Test data for compression levels! " * 100;
     let data = _cse_temp_0;
     let compressed_1 = gzip.compress(data);
-    let decompressed_1 = gzip.decompress(compressed_1);
     assert!(decompressed_1 == data);
     let compressed_9 = gzip.compress(data);
-    let decompressed_9 = gzip.decompress(compressed_9);
     assert!(decompressed_9 == data);
     assert!(compressed_9.len() as i32 <= compressed_1.len() as i32);
     println!("{}", "PASS: test_gzip_compress_levels");
@@ -55,7 +50,6 @@ pub fn test_gzip_large_data() {
     let _cse_temp_0 = b"ABCDEFGHIJ" * 100;
     let data = _cse_temp_0;
     let compressed = gzip.compress(data);
-    let decompressed = gzip.decompress(compressed);
     assert!(decompressed == data);
     assert!((compressed.len() as i32) < data.len() as i32 / 2);
     println!("{}", "PASS: test_gzip_large_data");
@@ -66,7 +60,6 @@ pub fn test_gzip_large_data() {
 pub fn test_gzip_binary_data() {
     let data = bytes(0..256);
     let compressed = gzip.compress(data);
-    let decompressed = gzip.decompress(compressed);
     assert!(decompressed == data);
     println!("{}", "PASS: test_gzip_binary_data");
 }
@@ -77,7 +70,6 @@ pub fn test_gzip_unicode_text() {
     let text = "Hello 世界 🌍 Привет مرحبا";
     let data = text.encode("utf-8".to_string());
     let compressed = gzip.compress(data);
-    let decompressed = gzip.decompress(compressed);
     assert!(decompressed.decode("utf-8".to_string()) == text);
     println!("{}", "PASS: test_gzip_unicode_text");
 }
@@ -89,7 +81,6 @@ pub fn test_gzip_multiple_compress() {
     let compressed_once = gzip.compress(data);
     let compressed_twice = gzip.compress(compressed_once);
     let decompressed_once = gzip.decompress(compressed_twice);
-    let decompressed_twice = gzip.decompress(decompressed_once);
     assert!(decompressed_twice == data);
     println!("{}", "PASS: test_gzip_multiple_compress");
 }

@@ -74,11 +74,11 @@ pub fn test_enumerate() -> Vec<(i32, String)> {
         "banana".to_string(),
         "cherry".to_string(),
     ];
-    let enumerated: Vec<(i32, String)> = items.into_iter().enumerate().collect::<Vec<_>>();
+    let enumerated: Vec<(i32, String)> = items.iter().cloned().enumerate().collect::<Vec<_>>();
     enumerated
 }
 #[doc = "Test filtering iterables"]
-pub fn test_filter() -> Result<Vec<i32>, ZeroDivisionError> {
+pub fn test_filter() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let numbers: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let mut evens: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
@@ -113,7 +113,10 @@ pub fn test_count(start: i32, step: i32, limit: i32) -> Vec<i32> {
 }
 #[doc = "Test cycle() to repeat iterable indefinitely"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_cycle(items: &Vec<String>, num_items: i32) -> Result<Vec<String>, ZeroDivisionError> {
+pub fn test_cycle(
+    items: &Vec<String>,
+    num_items: i32,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut result: Vec<String> = vec![];
     let mut idx: i32 = 0;
     for _i in 0..num_items {
@@ -218,7 +221,9 @@ pub fn test_pairwise(items: &Vec<i32>) -> Vec<(i32, i32)> {
 }
 #[doc = "Test groupby-like functionality(manual implementation)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_groupby_manual(items: &Vec<i32>) -> Result<Vec<(bool, Vec<i32>)>, ZeroDivisionError> {
+pub fn test_groupby_manual(
+    items: &Vec<i32>,
+) -> Result<Vec<(bool, Vec<i32>)>, Box<dyn std::error::Error>> {
     let mut groups: Vec<(bool, Vec<i32>)> = vec![];
     let _cse_temp_0 = items.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -247,7 +252,7 @@ pub fn test_groupby_manual(items: &Vec<i32>) -> Result<Vec<(bool, Vec<i32>)>, Ze
 pub fn test_compress<'a, 'b>(
     data: &'a Vec<String>,
     selectors: &'b Vec<bool>,
-) -> Result<Vec<String>, IndexError> {
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut result: Vec<String> = vec![];
     for i in 0..std::cmp::min(data.len() as i32, selectors.len() as i32) {
         if selectors.get(i as usize).cloned().unwrap_or_default() {
@@ -280,7 +285,7 @@ pub fn flatten_nested_lists(nested: &Vec<Vec<i32>>) -> Vec<i32> {
 }
 #[doc = "Manual implementation of Cartesian product"]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product_manual<'a, 'b>(
+pub fn cartesian_product_manual<'b, 'a>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
 ) -> Vec<(i32, i32)> {
@@ -295,11 +300,11 @@ pub fn cartesian_product_manual<'a, 'b>(
 }
 #[doc = "Manual implementation of zip_longest"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_zip_longest<'a, 'b>(
+pub fn test_zip_longest<'b, 'a>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
     fillvalue: i32,
-) -> Result<Vec<(i32, i32)>, IndexError> {
+) -> Result<Vec<(i32, i32)>, Box<dyn std::error::Error>> {
     let mut result: Vec<(i32, i32)> = vec![];
     let _cse_temp_0 = list1.len() as i32;
     let _cse_temp_1 = list2.len() as i32;
@@ -370,7 +375,7 @@ pub fn test_sliding_window(items: &Vec<i32>, window_size: i32) -> Vec<Vec<i32>> 
 }
 #[doc = "Remove consecutive duplicates"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_unique_justseen(items: &Vec<i32>) -> Result<Vec<i32>, IndexError> {
+pub fn test_unique_justseen(items: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = items.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -395,7 +400,11 @@ pub fn test_unique_justseen(items: &Vec<i32>) -> Result<Vec<i32>, IndexError> {
 }
 #[doc = "Get nth item from iterable"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_nth_item(items: &Vec<i32>, n: i32, default: i32) -> Result<i32, IndexError> {
+pub fn test_nth_item(
+    items: &Vec<i32>,
+    n: i32,
+    default: i32,
+) -> Result<i32, Box<dyn std::error::Error>> {
     let _cse_temp_0 = n < 0;
     let _cse_temp_1 = items.len() as i32;
     let _cse_temp_2 = n >= _cse_temp_1;
@@ -406,7 +415,7 @@ pub fn test_nth_item(items: &Vec<i32>, n: i32, default: i32) -> Result<i32, Inde
     Ok(items.get(n as usize).cloned().unwrap_or_default())
 }
 #[doc = "Check if all items in iterable are equal"]
-pub fn test_all_equal(items: &Vec<i32>) -> Result<bool, IndexError> {
+pub fn test_all_equal(items: &Vec<i32>) -> Result<bool, Box<dyn std::error::Error>> {
     let _cse_temp_0 = items.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
