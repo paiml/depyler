@@ -454,6 +454,7 @@ mod tests {
             cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
             subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
+            hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -569,6 +570,7 @@ mod tests {
             cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
             subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
+            hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
         };
 
         let deps = extract_dependencies(&ctx);
@@ -681,6 +683,7 @@ mod tests {
             cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
             subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
+            hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
         };
 
         let deps = extract_dependencies(&ctx);
@@ -797,6 +800,7 @@ mod tests {
             cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
             subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
+            hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
         };
 
         let deps = extract_dependencies(&ctx);

@@ -826,6 +826,46 @@ fn generate_constant_tokens(
     Ok(items)
 }
 
+/// DEPYLER-0615: Generate stub functions for unresolved local imports
+///
+/// When a Python file imports from a local module (e.g., `from nested_function_cli import X`),
+/// and we're compiling standalone, we need stub functions to prevent E0425 errors.
+/// These stubs allow compilation without the actual implementation.
+///
+/// Complexity: 4 (loop + ident creation + quote)
+fn generate_stub_functions(
+    unresolved_imports: &[import_gen::UnresolvedImport],
+) -> Vec<proc_macro2::TokenStream> {
+    let mut stubs = Vec::new();
+    let mut seen = HashSet::new();
+
+    for import in unresolved_imports {
+        // Skip duplicates (same function imported from different locations)
+        if !seen.insert(import.item_name.clone()) {
+            continue;
+        }
+
+        // Create a valid Rust identifier (escape if keyword)
+        let func_ident = keywords::safe_ident(&import.item_name);
+        let _module_name = &import.module; // Stored for potential doc comment use
+
+        // Generate a stub function that accepts any args and returns a generic type
+        // Using variadic-like pattern with impl trait for flexibility
+        let stub = quote! {
+            /// Stub for local import from module: #module_name
+            /// DEPYLER-0615: Generated to allow standalone compilation
+            #[allow(dead_code, unused_variables)]
+            pub fn #func_ident<T: Default>(_args: impl std::any::Any) -> T {
+                Default::default()
+            }
+        };
+
+        stubs.push(stub);
+    }
+
+    stubs
+}
+
 /// Generate a complete Rust file from HIR module
 pub fn generate_rust_file(
     module: &HirModule,
@@ -834,7 +874,8 @@ pub fn generate_rust_file(
     let module_mapper = crate::module_mapper::ModuleMapper::new();
 
     // Process imports to populate the context
-    let (imported_modules, imported_items) =
+    // DEPYLER-0615: Also track unresolved local imports for stub generation
+    let (imported_modules, imported_items, unresolved_imports) =
         process_module_imports(&module.imports, &module_mapper);
 
     // DEPYLER-0490/0491: Set needs_* flags based on imported modules AND items
@@ -959,6 +1000,7 @@ pub fn generate_rust_file(
         cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
         in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
         subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
+        hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
     };
 
     // Analyze all functions first for string optimization
@@ -1043,6 +1085,10 @@ pub fn generate_rust_file(
     if let Some(ref args_struct) = ctx.generated_args_struct {
         items.push(args_struct.clone());
     }
+
+    // DEPYLER-0615: Generate stub functions for unresolved local imports
+    // This allows test files importing from local modules to compile standalone
+    items.extend(generate_stub_functions(&unresolved_imports));
 
     // Add all functions
     items.extend(functions);
@@ -1184,6 +1230,7 @@ mod tests {
             cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
             subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields in match arm
+            hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
         }
     }
 

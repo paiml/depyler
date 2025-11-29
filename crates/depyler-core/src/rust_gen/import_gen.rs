@@ -81,39 +81,64 @@ fn process_specific_items_import(
     }
 }
 
+/// DEPYLER-0615: Track unresolved local imports
+/// These are imports from local modules (no stdlib mapping) that need stub functions
+#[derive(Debug, Clone)]
+pub struct UnresolvedImport {
+    pub module: String,
+    pub item_name: String,
+}
+
 /// Process module imports and populate import mappings
 ///
 /// This is the main entry point for import processing. It processes all imports
-/// in a module and returns two maps:
+/// in a module and returns three maps:
 /// - imported_modules: Full module imports (e.g., `import math`)
 /// - imported_items: Specific item imports (e.g., `from typing import List`)
+/// - unresolved_imports: Local imports that need stub functions (DEPYLER-0615)
 ///
 /// # Arguments
 /// * `imports` - List of all imports in the module
 /// * `module_mapper` - Module mapper for Python->Rust mappings
 ///
 /// # Returns
-/// Tuple of (imported_modules, imported_items)
+/// Tuple of (imported_modules, imported_items, unresolved_imports)
 ///
 /// # Complexity
-/// 3 (loop + if/else)
+/// 4 (loop + if/else + inner loop for unresolved)
 pub fn process_module_imports(
     imports: &[Import],
     module_mapper: &crate::module_mapper::ModuleMapper,
 ) -> (
     std::collections::HashMap<String, crate::module_mapper::ModuleMapping>,
     std::collections::HashMap<String, String>,
+    Vec<UnresolvedImport>,
 ) {
     let mut imported_modules = std::collections::HashMap::new();
     let mut imported_items = std::collections::HashMap::new();
+    let mut unresolved_imports = Vec::new();
 
     for import in imports {
         if import.items.is_empty() {
             process_whole_module_import(import, module_mapper, &mut imported_modules);
         } else {
+            // DEPYLER-0615: Track unresolved imports for stub generation
+            if module_mapper.get_mapping(&import.module).is_none() {
+                // This is a local module import - track for stub generation
+                for item in &import.items {
+                    let item_name = match item {
+                        ImportItem::Named(name) => name.clone(),
+                        ImportItem::Aliased { name, .. } => name.clone(),
+                    };
+                    unresolved_imports.push(UnresolvedImport {
+                        module: import.module.clone(),
+                        item_name,
+                    });
+                }
+            }
             process_specific_items_import(import, module_mapper, &mut imported_items);
         }
     }
 
-    (imported_modules, imported_items)
+    (imported_modules, imported_items, unresolved_imports)
 }

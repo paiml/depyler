@@ -64,7 +64,7 @@ use depyler_core::{
     lambda_testing::LambdaTestHarness,
     DepylerPipeline,
 };
-use depyler_oracle::{CITLFixer, CITLFixerConfig, ErrorFeatures, HybridTranspiler, Oracle};
+use depyler_oracle::{CITLFixer, CITLFixerConfig, HybridTranspiler, Oracle};
 use depyler_quality::QualityAnalyzer;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
@@ -75,6 +75,7 @@ use std::time::{Duration, Instant};
 pub mod agent;
 pub mod compilation_trainer;
 pub mod compile_cmd;
+pub mod converge;
 pub mod debug_cmd;
 pub mod docs_cmd;
 pub mod interactive;
@@ -357,6 +358,41 @@ pub enum Commands {
     /// Oracle ML model commands (optimization, training)
     #[command(subcommand)]
     Oracle(OracleCommands),
+
+    /// Automated convergence loop to achieve 100% compilation rate (GH-158)
+    Converge {
+        /// Directory containing Python examples
+        #[arg(short, long, default_value = "./examples")]
+        input_dir: PathBuf,
+
+        /// Target compilation rate (0-100)
+        #[arg(short, long, default_value = "100")]
+        target_rate: f64,
+
+        /// Maximum iterations before stopping
+        #[arg(short, long, default_value = "50")]
+        max_iterations: usize,
+
+        /// Automatically apply transpiler fixes
+        #[arg(long)]
+        auto_fix: bool,
+
+        /// Show what would be fixed without applying
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Minimum confidence for auto-fix (0.0-1.0)
+        #[arg(long, default_value = "0.8")]
+        fix_confidence: f64,
+
+        /// Directory to save/resume checkpoints
+        #[arg(long)]
+        checkpoint_dir: Option<PathBuf>,
+
+        /// Number of parallel compilation jobs
+        #[arg(short, long, default_value = "4")]
+        parallel_jobs: usize,
+    },
 }
 
 #[derive(Subcommand)]
@@ -853,11 +889,8 @@ pub fn transpile_command(
                         // Try to get fix suggestions from ngram predictor
                         let oracle = Oracle::load_or_train().ok();
                         if let Some(oracle) = oracle {
-                            let features = ErrorFeatures::from_error_message(&format!(
-                                "transpilation: {:?}",
-                                result.strategy
-                            ));
-                            if let Ok(classification) = oracle.classify(&features) {
+                            let message = format!("transpilation: {:?}", result.strategy);
+                            if let Ok(classification) = oracle.classify_message(&message) {
                                 println!("  Category: {:?}", classification.category);
                                 if let Some(fix) = &classification.suggested_fix {
                                     println!("  Suggested fix: {}", fix);

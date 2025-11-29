@@ -180,11 +180,10 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
             HirExpr::Borrow { expr: borrow_expr, .. } => {
                 walk_expr(borrow_expr, args_name, fields);
             }
-            HirExpr::Yield { value } => {
-                if let Some(v) = value {
-                    walk_expr(v, args_name, fields);
-                }
+            HirExpr::Yield { value: Some(v) } => {
+                walk_expr(v, args_name, fields);
             }
+            HirExpr::Yield { value: None } => {}
             HirExpr::Await { value } => {
                 walk_expr(value, args_name, fields);
             }
@@ -416,6 +415,46 @@ pub(crate) fn codegen_function_attrs(
 // DEPYLER-0141 Phase 2: Medium Complexity Helpers
 // ============================================================================
 
+/// DEPYLER-0613: Recursively extract all FunctionDef statements from a block
+/// Returns the FunctionDef statements that should be hoisted to the top
+/// Note: Rust closures can't be forward-declared, so we must emit full definitions first
+/// Recursively collect all nested function names from a block of statements
+/// This is used to hoist function declarations to the top level
+fn collect_nested_function_names(stmts: &[HirStmt], names: &mut Vec<String>) {
+    for stmt in stmts {
+        match stmt {
+            HirStmt::FunctionDef { name, body, .. } => {
+                if !names.contains(name) {
+                    names.push(name.clone());
+                }
+                collect_nested_function_names(body, names);
+            }
+            HirStmt::If { then_body, else_body, .. } => {
+                collect_nested_function_names(then_body, names);
+                if let Some(else_stmts) = else_body {
+                    collect_nested_function_names(else_stmts, names);
+                }
+            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } | HirStmt::With { body, .. } => {
+                collect_nested_function_names(body, names);
+            }
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
+                collect_nested_function_names(body, names);
+                for handler in handlers {
+                    collect_nested_function_names(&handler.body, names);
+                }
+                if let Some(stmts) = orelse {
+                    collect_nested_function_names(stmts, names);
+                }
+                if let Some(stmts) = finalbody {
+                    collect_nested_function_names(stmts, names);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 /// Process function body statements with proper scoping
 #[inline]
 pub(crate) fn codegen_function_body(
@@ -472,18 +511,49 @@ pub(crate) fn codegen_function_body(
     // DEPYLER-0312 NOTE: analyze_mutable_vars is now called in impl RustCodeGen BEFORE
     // codegen_function_params, so ctx.mutable_vars is already populated here
 
-    // DEPYLER-0271: Convert body, marking final statement for expression-based returns
-    let body_len = func.body.len();
-    let body_stmts: Vec<_> = func
+    // DEPYLER-0613: Recursively find and declare nested functions to support hoisting
+    // This fixes E0425 where helper functions are called before they're defined,
+    // even if they are defined inside blocks (if/else/try).
+    let mut all_nested_fns = Vec::new();
+    collect_nested_function_names(&func.body, &mut all_nested_fns);
+    
+    // Start with an empty body
+    let mut body_stmts: Vec<proc_macro2::TokenStream> = Vec::new();
+
+    // Emit declarations for all nested functions
+    for name in &all_nested_fns {
+        if !ctx.is_declared(name) {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            // Declare as mutable variable to allow assignment later
+            // Use explicit type if known? No, closures have anonymous types.
+            // Rust allows `let mut x; x = ||...` and infers the type.
+            body_stmts.push(quote! { let mut #ident; });
+            ctx.declare_var(name);
+        }
+    }
+
+    // Partition top-level functions from other statements
+    // We still emit top-level definitions first to keep things clean,
+    // but now they will be assignments instead of let bindings.
+    let (nested_fns, other_stmts): (Vec<_>, Vec<_>) = func
         .body
         .iter()
-        .enumerate()
-        .map(|(i, stmt)| {
-            // Mark final statement for idiomatic expression-based return
-            ctx.is_final_statement = i == body_len - 1;
-            stmt.to_rust_tokens(ctx)
-        })
-        .collect::<Result<Vec<_>>>()?;
+        .partition(|stmt| matches!(stmt, HirStmt::FunctionDef { .. }));
+
+    // DEPYLER-0271: Convert body, marking final statement for expression-based returns
+    // First emit top-level nested function definitions (now assignments)
+    for stmt in &nested_fns {
+        body_stmts.push(stmt.to_rust_tokens(ctx)?);
+    }
+
+    // Then emit other statements with final statement tracking
+    // Any nested functions inside these statements will also be emitted as assignments
+    let other_len = other_stmts.len();
+    for (i, stmt) in other_stmts.iter().enumerate() {
+        // Mark final statement for idiomatic expression-based return
+        ctx.is_final_statement = i == other_len - 1;
+        body_stmts.push(stmt.to_rust_tokens(ctx)?);
+    }
 
     ctx.exit_scope();
     ctx.current_function_can_fail = false;

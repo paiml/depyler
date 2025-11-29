@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 use depyler::{
     agent_logs_command, agent_restart_command, agent_start_command, agent_status_command,
-    agent_stop_command, analyze_command, check_command, compile_command, debug_command,
+    agent_stop_command, analyze_command, check_command, compile_command, converge, debug_command,
     docs_cmd::handle_docs_command, inspect_command, interactive_command, lambda_analyze_command,
     lambda_build_command, lambda_convert_command, lambda_deploy_command, lambda_test_command,
     lsp_command, oracle_classify_command, oracle_export_oip_command, oracle_improve_command,
@@ -51,6 +51,51 @@ fn agent_list_projects_command() -> Result<()> {
     println!("📋 Monitored Projects:");
     println!("(This would list active projects from daemon state)");
     Ok(())
+}
+
+/// Handle converge command (GH-158)
+/// Runs the convergence loop to achieve target compilation rate
+/// Complexity: 3 (within ≤10 target)
+#[allow(clippy::too_many_arguments)]
+async fn handle_converge_command(
+    input_dir: PathBuf,
+    target_rate: f64,
+    max_iterations: usize,
+    auto_fix: bool,
+    dry_run: bool,
+    fix_confidence: f64,
+    checkpoint_dir: Option<PathBuf>,
+    parallel_jobs: usize,
+) -> Result<()> {
+    let config = converge::ConvergenceConfig {
+        input_dir,
+        target_rate,
+        max_iterations,
+        auto_fix,
+        dry_run,
+        verbose: true, // Always verbose for CLI
+        fix_confidence_threshold: fix_confidence,
+        checkpoint_dir,
+        parallel_jobs,
+    };
+
+    // Validate configuration
+    config.validate()?;
+
+    // Run the convergence loop
+    let state = converge::run_convergence_loop(config).await?;
+
+    // Return success if target was reached
+    if state.compilation_rate >= state.config.target_rate {
+        println!("✅ Target rate reached: {:.1}%", state.compilation_rate);
+        Ok(())
+    } else {
+        anyhow::bail!(
+            "Target rate not reached: {:.1}% < {:.1}%",
+            state.compilation_rate,
+            state.config.target_rate
+        )
+    }
 }
 
 /// Handle Agent subcommands
@@ -309,6 +354,28 @@ async fn handle_command(command: Commands) -> Result<()> {
         }
         Commands::Agent(agent_cmd) => handle_agent_command(agent_cmd).await,
         Commands::Oracle(oracle_cmd) => handle_oracle_command(oracle_cmd),
+        Commands::Converge {
+            input_dir,
+            target_rate,
+            max_iterations,
+            auto_fix,
+            dry_run,
+            fix_confidence,
+            checkpoint_dir,
+            parallel_jobs,
+        } => {
+            handle_converge_command(
+                input_dir,
+                target_rate,
+                max_iterations,
+                auto_fix,
+                dry_run,
+                fix_confidence,
+                checkpoint_dir,
+                parallel_jobs,
+            )
+            .await
+        }
     }
 }
 

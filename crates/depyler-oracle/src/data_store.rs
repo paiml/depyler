@@ -99,13 +99,13 @@ pub fn save_corpus(dataset: &TrainingDataset, path: &Path) -> crate::Result<()> 
 
     // Ensure parent directory exists
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| crate::OracleError::Io(e))?;
+        std::fs::create_dir_all(parent).map_err(crate::OracleError::Io)?;
     }
 
     let batch = dataset_to_arrow(dataset)
         .map_err(|e| crate::OracleError::Model(format!("Arrow conversion failed: {e}")))?;
 
-    let file = File::create(path).map_err(|e| crate::OracleError::Io(e))?;
+    let file = File::create(path).map_err(crate::OracleError::Io)?;
     let mut writer = ArrowWriter::try_new(file, batch.schema(), None)
         .map_err(|e| crate::OracleError::Model(format!("Parquet writer failed: {e}")))?;
 

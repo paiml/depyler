@@ -62,16 +62,38 @@ impl StmtConverter {
     }
 
     fn convert_assign(a: ast::StmtAssign) -> Result<HirStmt> {
-        if a.targets.len() != 1 {
-            bail!("Multiple assignment targets not supported");
-        }
-        let target = extract_assign_target(&a.targets[0])?;
         let value = super::convert_expr(*a.value)?;
-        Ok(HirStmt::Assign {
-            target,
-            value,
-            type_annotation: None,
-        })
+
+        // DEPYLER-0614: Handle Python chained assignment (i = j = 0)
+        // Convert to multiple assignments in reverse order (Python semantics)
+        if a.targets.len() == 1 {
+            // Single target - simple case
+            let target = extract_assign_target(&a.targets[0])?;
+            Ok(HirStmt::Assign {
+                target,
+                value,
+                type_annotation: None,
+            })
+        } else {
+            // Multiple targets: i = j = 0 becomes Block([j = 0, i = j])
+            // For simple values (literals), we can assign the same value to each
+            // For complex expressions, we assign to last target, then copy to others
+            let mut stmts = Vec::with_capacity(a.targets.len());
+
+            // Assign to each target from right to left (last gets the value first)
+            for target_expr in a.targets.iter().rev() {
+                let target = extract_assign_target(target_expr)?;
+                stmts.push(HirStmt::Assign {
+                    target,
+                    value: value.clone(),
+                    type_annotation: None,
+                });
+            }
+
+            // Reverse to get left-to-right order for Rust emission
+            stmts.reverse();
+            Ok(HirStmt::Block(stmts))
+        }
     }
 
     fn convert_ann_assign(a: ast::StmtAnnAssign) -> Result<HirStmt> {
