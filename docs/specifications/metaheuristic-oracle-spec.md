@@ -122,10 +122,121 @@ impl SyntheticGenerator for PythonExampleGenerator {
 | Strategy | Description | Examples/Function |
 |----------|-------------|-------------------|
 | Docstring Mining | Extract examples from docstrings | 1-3 |
+| **Doctest Transpilation** | **Transpile `>>>` to Rust doc tests** | **1-10** |
 | Type Enumeration | Enumerate valid type combinations | 10-50 |
 | Edge Cases | Boundary values, None, empty | 5-10 |
 | Error Induction | Invalid types, missing args | 10-20 |
 | Composition | Chain multiple stdlib calls | 20-100 |
+
+### 3.2.1 Doctest Transpilation (Enhanced Training Signal)
+
+Python doctests provide **executable specifications** that can be transpiled to Rust doc tests, yielding the highest-fidelity training signal.
+
+**Python Source:**
+```python
+def fibonacci(n: int) -> int:
+    """Calculate the nth Fibonacci number.
+
+    >>> fibonacci(0)
+    0
+    >>> fibonacci(1)
+    1
+    >>> fibonacci(10)
+    55
+    """
+    if n <= 1:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+```
+
+**Transpiled Rust with Doc Tests:**
+```rust
+/// Calculate the nth Fibonacci number.
+///
+/// ```
+/// use mylib::fibonacci;
+/// assert_eq!(fibonacci(0), 0);
+/// assert_eq!(fibonacci(1), 1);
+/// assert_eq!(fibonacci(10), 55);
+/// ```
+fn fibonacci(n: i32) -> i32 {
+    if n <= 1 {
+        n
+    } else {
+        fibonacci(n - 1) + fibonacci(n - 2)
+    }
+}
+```
+
+**Training Signal Hierarchy:**
+
+| Signal Type | What It Validates | Strength |
+|-------------|-------------------|----------|
+| `rustc` compile | Syntax + types correct | Medium |
+| `cargo test --doc` compile | Doc test syntax correct | High |
+| `cargo test --doc` pass | **Semantic equivalence** | **Highest** |
+
+**Implementation:**
+
+```rust
+pub struct DoctestExtractor;
+
+impl DoctestExtractor {
+    /// Extract doctest examples from Python docstring
+    pub fn extract(docstring: &str) -> Vec<DoctestExample> {
+        let mut examples = Vec::new();
+        let mut current_input = String::new();
+        let mut current_output = String::new();
+
+        for line in docstring.lines() {
+            if line.trim().starts_with(">>>") {
+                if !current_input.is_empty() {
+                    examples.push(DoctestExample {
+                        input: current_input.clone(),
+                        expected_output: current_output.trim().to_string(),
+                    });
+                }
+                current_input = line.trim()[4..].to_string();
+                current_output.clear();
+            } else if line.trim().starts_with("...") {
+                current_input.push_str(&line.trim()[4..]);
+            } else if !line.trim().is_empty() && !current_input.is_empty() {
+                current_output.push_str(line.trim());
+                current_output.push('\n');
+            }
+        }
+
+        if !current_input.is_empty() {
+            examples.push(DoctestExample {
+                input: current_input,
+                expected_output: current_output.trim().to_string(),
+            });
+        }
+
+        examples
+    }
+
+    /// Transpile Python doctest to Rust doc test assertion
+    pub fn to_rust_doctest(example: &DoctestExample) -> String {
+        format!("assert_eq!({}, {});", example.input, example.expected_output)
+    }
+}
+
+pub struct DoctestExample {
+    pub input: String,
+    pub expected_output: String,
+}
+```
+
+**CITL Training Value:**
+
+1. **Zero-cost corpus expansion**: Python stdlib has ~10,000 doctest examples
+2. **Human-verified ground truth**: Doctests are documentation, not synthetic
+3. **Micro-granular I/O pairs**: One function, one input, one expected output
+4. **Type inference oracle**: `fibonacci(10) → 55` implies `i32` return type
+5. **Semantic equivalence proof**: Pass = transpilation is *correct*, not just *compiles*
+
+> **Academic Reference:** Doctest transpilation extends the "Plastic Surgery Hypothesis" (Barr et al., 2014) by treating existing documentation as a repair oracle—the fix ingredients exist in the docstring.
 
 ### 3.3 Transpile/Compile Pipeline
 
