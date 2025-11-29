@@ -1600,6 +1600,75 @@ fn convert_assign_stmt_with_expr(
                     }))
                 }
                 None => {
+                    // GH-109: Handle tuple unpacking with Index targets
+                    // Pattern: list[i], list[j] = list[j], list[i] (swap)
+                    let all_indices: Option<Vec<_>> = targets
+                        .iter()
+                        .map(|t| match t {
+                            AssignTarget::Index { base, index } => Some((base, index)),
+                            _ => None,
+                        })
+                        .collect();
+
+                    if let Some(indices) = all_indices {
+                        // All targets are subscripts - generate temp-based assignment
+                        let temp_ident = make_ident("_swap_temp");
+
+                        // Build assignments for each target from temp tuple
+                        let mut stmts: Vec<syn::Stmt> = Vec::new();
+
+                        // First: let _swap_temp = value_expr;
+                        stmts.push(syn::Stmt::Local(syn::Local {
+                            attrs: vec![],
+                            let_token: syn::token::Let::default(),
+                            pat: syn::Pat::Ident(syn::PatIdent {
+                                attrs: vec![],
+                                by_ref: None,
+                                mutability: None,
+                                ident: temp_ident.clone(),
+                                subpat: None,
+                            }),
+                            init: Some(syn::LocalInit {
+                                eq_token: syn::token::Eq::default(),
+                                expr: Box::new(value_expr),
+                                diverge: None,
+                            }),
+                            semi_token: syn::token::Semi::default(),
+                        }));
+
+                        // Then: base[index] = _swap_temp.N for each target
+                        for (idx, (base, index)) in indices.iter().enumerate() {
+                            let base_expr = convert_expr(base, type_mapper)?;
+                            let index_expr = convert_expr(index, type_mapper)?;
+                            let tuple_index = syn::Index::from(idx);
+
+                            let assign_expr: syn::Expr = parse_quote! {
+                                #base_expr[(#index_expr) as usize] = #temp_ident.#tuple_index
+                            };
+                            stmts.push(syn::Stmt::Expr(assign_expr, Some(Default::default())));
+                        }
+
+                        // Return a block containing all statements
+                        // Note: We return just the first statement; caller may need to handle block
+                        if stmts.len() == 1 {
+                            return Ok(stmts.remove(0));
+                        } else {
+                            // Wrap in a block expression
+                            let block = syn::Block {
+                                brace_token: syn::token::Brace::default(),
+                                stmts,
+                            };
+                            return Ok(syn::Stmt::Expr(
+                                syn::Expr::Block(syn::ExprBlock {
+                                    attrs: vec![],
+                                    label: None,
+                                    block,
+                                }),
+                                None,
+                            ));
+                        }
+                    }
+
                     bail!("Complex tuple unpacking not yet supported")
                 }
             }
