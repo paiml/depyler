@@ -428,9 +428,117 @@ if [[ -f "$TRACE_FILE" ]]; then
 fi
 ```
 
-## 6. Dashboard Integration
+## 6. APR Persistence Integration
 
-### 6.1 Metrics Exposed
+### 6.1 Overview
+
+Decision patterns persist to `.apr` format (aprender model format) for cross-session learning. This enables the "LLM bootstrap → traditional ML oracle" pattern:
+
+```
+Session N: LLM generates fixes → patterns.apr captures (error, fix)
+Session N+1: Local oracle suggests fixes → no LLM needed for common cases
+```
+
+### 6.2 entrenar Integration Point
+
+The `DecisionPatternStore` in entrenar provides `.apr` persistence:
+
+```rust
+use entrenar::citl::DecisionPatternStore;
+
+// After overnight session: save accumulated patterns
+let store = DecisionPatternStore::new()?;
+for pattern in session_patterns {
+    store.index_fix(pattern)?;
+}
+store.save_apr("decision_patterns.apr")?;
+
+// Next session: load and query
+let store = DecisionPatternStore::load_apr("decision_patterns.apr")?;
+let suggestions = store.suggest_fix("E0308", &decision_context, 5)?;
+```
+
+### 6.3 APR Format Details
+
+The `.apr` format provides:
+- **CRC32 checksum**: Integrity verification
+- **Zstd compression**: ~3x size reduction
+- **MessagePack payload**: Fast serialization
+- **Version field**: Future compatibility
+
+```
+┌─────────────────────────────────────────┐
+│ Header (32 bytes)                       │
+│   magic: "APRN"                         │
+│   version: 1.0                          │
+│   model_type: Custom (0x00FF)           │
+│   compression: ZstdDefault              │
+├─────────────────────────────────────────┤
+│ Payload (MessagePack, compressed)       │
+│   version: u32                          │
+│   config: PatternStoreConfig            │
+│   patterns: Vec<FixPattern>             │
+├─────────────────────────────────────────┤
+│ CRC32 (4 bytes)                         │
+└─────────────────────────────────────────┘
+```
+
+### 6.4 Pattern Store Schema
+
+```rust
+/// Persisted pattern store data
+struct PatternStoreData {
+    version: u32,                    // Format version (currently 1)
+    config: PatternStoreConfig,      // RAG pipeline config
+    patterns: Vec<FixPattern>,       // All indexed patterns
+}
+
+/// Individual fix pattern
+struct FixPattern {
+    id: ChunkId,
+    error_code: String,              // e.g., "E0308"
+    decision_sequence: Vec<String>,  // e.g., ["type_mismatch", "promote_lhs"]
+    fix_diff: String,                // Unified diff format
+    success_count: u32,
+    attempt_count: u32,
+    metadata: HashMap<String, String>,
+}
+```
+
+### 6.5 depyler Integration
+
+Add to depyler's overnight session workflow:
+
+```bash
+# scripts/persist_patterns.sh
+
+#!/bin/bash
+set -euo pipefail
+
+TRACE_FILE="/tmp/depyler_decisions.msgpack"
+APR_FILE="${DEPYLER_PATTERNS:-$HOME/.depyler/patterns.apr}"
+
+# Ingest traces and persist
+if [[ -f "$TRACE_FILE" ]]; then
+    renacer ingest "$TRACE_FILE" | entrenar citl ingest --output "$APR_FILE"
+    echo "Patterns persisted to $APR_FILE"
+fi
+```
+
+### 6.6 Cost Reduction Model
+
+| Session | LLM Calls | Oracle Hits | Cost |
+|---------|-----------|-------------|------|
+| 1 | 100% | 0% | $$ |
+| 5 | 70% | 30% | $ |
+| 10 | 40% | 60% | ¢ |
+| N→∞ | ~10% | ~90% | ~$0 |
+
+The oracle handles common error patterns; LLM handles novel cases only.
+
+## 7. Dashboard Integration
+
+### 7.1 Metrics Exposed
 
 | Metric | Type | Description |
 |--------|------|-------------|
@@ -440,7 +548,7 @@ fi
 | `depyler_decision_alternatives` | Histogram | Alternatives considered |
 | `depyler_decision_success_rate` | Gauge | Success rate per path |
 
-### 6.2 CLI Dashboard Extension
+### 7.2 CLI Dashboard Extension
 
 ```bash
 # Add to overnight_dashboard.sh
@@ -456,7 +564,7 @@ fi
 echo "└──────────────────────────────────────────────────────────┘"
 ```
 
-## 7. Implementation Plan
+## 8. Implementation Plan
 
 ### Phase 1: Core Infrastructure (Week 1)
 1. Add `decision-tracing` feature flag to depyler-core
@@ -482,9 +590,9 @@ echo "└───────────────────────�
 3. Implement suggestion API
 4. Validate on held-out examples
 
-## 8. Performance Considerations
+## 9. Performance Considerations
 
-### 8.1 Overhead Budget
+### 9.1 Overhead Budget
 
 | Component | Target | Measurement |
 |-----------|--------|-------------|
@@ -493,16 +601,16 @@ echo "└───────────────────────�
 | Remote export | <5% | Async, batched |
 | Total transpile overhead | <10% | End-to-end |
 
-### 8.2 Memory Budget
+### 9.2 Memory Budget
 
 - Decision trace: ~128 bytes/decision
 - Typical file: ~50 decisions
 - Session buffer: 10MB mmap (78,000 decisions)
 - Circular buffer eviction at 80% capacity
 
-## 9. Error-Decision Correlation
+## 10. Error-Decision Correlation
 
-### 9.1 Span Mapping Algorithm
+### 10.1 Span Mapping Algorithm
 
 When rustc reports an error at a Rust span, correlate with decisions:
 
@@ -524,7 +632,7 @@ fn correlate_error(
 }
 ```
 
-### 9.2 Causal Chain Reconstruction
+### 10.2 Causal Chain Reconstruction
 
 Build decision dependency graph to find root cause:
 
@@ -535,9 +643,9 @@ Error E0308 at line 47
             └── Decision: ImportResolve → "std::convert" (line 3)
 ```
 
-## 10. Graceful Degradation
+## 11. Graceful Degradation
 
-### 10.1 Renacer Unavailable
+### 11.1 Renacer Unavailable
 
 If renacer is not installed, fall back to JSON logging:
 
@@ -553,7 +661,7 @@ fn get_writer() -> Box<dyn DecisionWriter> {
 }
 ```
 
-### 10.2 Remote Endpoint Unavailable
+### 11.2 Remote Endpoint Unavailable
 
 Queue traces locally, retry with exponential backoff:
 
@@ -565,7 +673,7 @@ max_backoff_ms = 30000
 queue_size = 10000
 ```
 
-## 11. Security Considerations
+## 12. Security Considerations
 
 1. **No secrets in traces**: Decision traces contain only structural info
 2. **Rate limiting**: Circuit breaker prevents DoS via trace flooding
