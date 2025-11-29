@@ -3,12 +3,12 @@ use clap::Parser;
 use depyler::{
     agent_logs_command, agent_restart_command, agent_start_command, agent_status_command,
     agent_stop_command, analyze_command, check_command, compile_command, converge, debug_command,
-    docs_cmd::handle_docs_command, inspect_command, interactive_command, lambda_analyze_command,
-    lambda_build_command, lambda_convert_command, lambda_deploy_command, lambda_test_command,
-    lsp_command, oracle_classify_command, oracle_export_oip_command, oracle_improve_command,
-    oracle_optimize_command, oracle_show_command, oracle_train_command,
-    profile_cmd::handle_profile_command, quality_check_command,
-    transpile_command, AgentCommands, Cli, Commands, LambdaCommands, OracleCommands,
+    docs_cmd::handle_docs_command, extract_doctests_command, inspect_command, interactive_command,
+    lambda_analyze_command, lambda_build_command, lambda_convert_command, lambda_deploy_command,
+    lambda_test_command, lsp_command, oracle_classify_command, oracle_export_oip_command,
+    oracle_improve_command, oracle_optimize_command, oracle_show_command, oracle_train_command,
+    profile_cmd::handle_profile_command, quality_check_command, transpile_command, AgentCommands,
+    Cli, Commands, LambdaCommands, OracleCommands,
 };
 use std::path::PathBuf;
 
@@ -384,6 +384,12 @@ async fn handle_command(command: Commands) -> Result<()> {
             )
             .await
         }
+        Commands::ExtractDoctests {
+            input,
+            output,
+            module_prefix,
+            include_classes,
+        } => extract_doctests_command(input, output, module_prefix, include_classes),
     }
 }
 
