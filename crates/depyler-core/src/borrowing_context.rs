@@ -3,7 +3,10 @@
 //! This module provides comprehensive analysis of parameter usage patterns
 //! to determine optimal borrowing strategies for function parameters.
 
+#[cfg(feature = "decision-tracing")]
+use crate::decision_trace::DecisionCategory;
 use crate::hir::{AssignTarget, HirExpr, HirFunction, HirStmt, Type as PythonType};
+use crate::trace_decision;
 use crate::type_mapper::{RustType, TypeMapper};
 use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
@@ -687,6 +690,15 @@ impl BorrowingContext {
         python_type: &PythonType,
         insights: &mut Vec<BorrowingInsight>,
     ) -> BorrowingStrategy {
+        // CITL: Trace borrow strategy determination
+        trace_decision!(
+            category = DecisionCategory::BorrowStrategy,
+            name = "param_strategy",
+            chosen = param_name,
+            alternatives = ["owned", "borrowed", "mutable_ref", "copy", "arc"],
+            confidence = 0.85
+        );
+
         // Always check if type is Copy for insights
         if self.is_copy_type(rust_type) {
             insights.push(BorrowingInsight::SuggestCopyDerive(param_name.to_string()));
@@ -751,6 +763,15 @@ impl BorrowingContext {
         _param_name: &str,
         usage: &ParameterUsagePattern,
     ) -> BorrowingStrategy {
+        // CITL: Trace string strategy determination
+        trace_decision!(
+            category = DecisionCategory::BorrowStrategy,
+            name = "string_strategy",
+            chosen = "string_analysis",
+            alternatives = ["String", "&str", "Cow", "AsRef", "Into"],
+            confidence = 0.82
+        );
+
         // For strings that are reassigned (not string mutation itself),
         // we can actually take ownership since we're replacing the entire string
         // This is a Python-specific pattern where `s = s + "!"` creates a new string
