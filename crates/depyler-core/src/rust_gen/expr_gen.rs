@@ -762,6 +762,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let is_string = self.is_string_type(right);
         let is_set = self.is_set_expr(right) || self.is_set_var(right);
         let is_list = self.is_list_expr(right);
+        // DEPYLER-0618: Detect tuple expressions for containment check
+        let is_tuple = matches!(right, HirExpr::Tuple(_));
 
         // DEPYLER-0559: Check if left side is already a borrowed &str
         // &str params and string literals don't need additional borrowing
@@ -770,6 +772,36 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Literal(Literal::String(_)) => false, // String literals are &str, no borrow needed
             _ => true, // Other expressions typically need borrowing
         };
+
+        // DEPYLER-0618: Handle tuple containment check
+        // Python: x in ("a", "b", "c") → Rust: [a, b, c].contains(&x)
+        // Tuples don't have .contains() or .get(), so wrap in array slice and use .contains()
+        // The right_expr is already converted, e.g., ("a".to_string(), "b".to_string())
+        // We convert tuple (a, b, c) to [a, b, c] by string manipulation
+        if is_tuple {
+            // Convert tuple expression to array slice for .contains() support
+            let right_str = right_expr.to_token_stream().to_string();
+            // Replace outer parens with brackets: (a, b) → [a, b]
+            let array_str = if right_str.starts_with('(') && right_str.ends_with(')') {
+                format!("[{}]", &right_str[1..right_str.len() - 1])
+            } else {
+                format!("[{}]", right_str)
+            };
+            if let Ok(array_expr) = syn::parse_str::<syn::Expr>(&array_str) {
+                if negate {
+                    if needs_borrow {
+                        return Ok(parse_quote! { !#array_expr.contains(&#left_expr) });
+                    } else {
+                        return Ok(parse_quote! { !#array_expr.contains(#left_expr) });
+                    }
+                } else if needs_borrow {
+                    return Ok(parse_quote! { #array_expr.contains(&#left_expr) });
+                } else {
+                    return Ok(parse_quote! { #array_expr.contains(#left_expr) });
+                }
+            }
+            // If parsing fails, fall through to default
+        }
 
         if is_string || is_set || is_list {
             // DEPYLER-0555: For list contains with strings, use .iter().any(|s| s == value)
