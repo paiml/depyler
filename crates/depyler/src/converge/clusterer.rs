@@ -200,6 +200,7 @@ mod tests {
                 category: ErrorCategory::TranspilerGap,
                 subcategory: "missing_method".to_string(),
                 confidence: 0.9,
+                suggested_fix: None,
             },
             ErrorClassification {
                 error: CompilationError {
@@ -212,6 +213,7 @@ mod tests {
                 category: ErrorCategory::TranspilerGap,
                 subcategory: "missing_method".to_string(),
                 confidence: 0.85,
+                suggested_fix: None,
             },
         ];
 
