@@ -5,6 +5,7 @@
 # and known-safe hardcoded paths for monitoring state
 scripts/overnight_*.sh
 scripts/capture_rustc_diagnostics.sh
+scripts/decision_trace_export.sh
 
 # Rule-based suppressions (for other scripts)
 # DET002: Timestamps are required for monitoring - intentional non-determinism
