@@ -710,9 +710,10 @@ fn dict_literal_to_rust_tokens(items: &[(HirExpr, HirExpr)]) -> Result<proc_macr
         let value_tokens = expr_to_rust_tokens(value)?;
         entries.push(quote! { (#key_tokens, #value_tokens) });
     }
+    // DEPYLER-0623: Use fully qualified path for consistent HashMap resolution
     Ok(quote! {
         {
-            let mut map = HashMap::new();
+            let mut map = std::collections::HashMap::new();
             #(map.insert #entries;)*
             map
         }
@@ -848,9 +849,10 @@ fn set_literal_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStr
         .iter()
         .map(expr_to_rust_tokens)
         .collect::<Result<Vec<_>>>()?;
+    // DEPYLER-0623: Use fully qualified path for consistent HashSet resolution
     Ok(quote! {
         {
-            let mut set = HashSet::new();
+            let mut set = std::collections::HashSet::new();
             #(set.insert(#item_tokens);)*
             set
         }
@@ -864,9 +866,10 @@ fn frozen_set_to_rust_tokens(items: &[HirExpr]) -> Result<proc_macro2::TokenStre
         .iter()
         .map(expr_to_rust_tokens)
         .collect::<Result<Vec<_>>>()?;
+    // DEPYLER-0623: Use fully qualified path for consistent HashSet resolution
     Ok(quote! {
         {
-            let mut set = HashSet::new();
+            let mut set = std::collections::HashSet::new();
             #(set.insert(#item_tokens);)*
             std::sync::Arc::new(set)
         }
