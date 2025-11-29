@@ -1219,3 +1219,19 @@ roadmap:
     No pre-written Rust code - depyler generates all Rust during transpilation.
     Integration commands: make citl-train, make citl-improve, make citl-export.
     See: https://github.com/paiml/reprorusted-python-cli
+- id: DEPYLER-0628
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0628'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-29T08:26:12.650555747+00:00
+  updated: 2025-11-29T08:26:12.650555747+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

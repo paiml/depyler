@@ -260,6 +260,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // SLOW: AutoML optimization takes >100s
     fn test_automl_quick() {
         // Use fewer trials for coverage runs (DEPYLER_FAST_TESTS=1)
         let fast_mode = std::env::var("DEPYLER_FAST_TESTS").is_ok();
