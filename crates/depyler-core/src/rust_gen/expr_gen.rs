@@ -240,6 +240,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
+        // DEPYLER-0624: Handle Python's magic dunder variables
+        // __file__ gives the path to the current file → file!() macro
+        // __name__ gives the module name → "__main__" for main module
+        if name == "__file__" {
+            return Ok(parse_quote! { file!() });
+        }
+        if name == "__name__" {
+            // In Rust binaries, this is always "__main__"
+            // For library code, this would need more sophisticated handling
+            return Ok(parse_quote! { "__main__" });
+        }
+
         // Check for special keywords that cannot be raw identifiers
         if Self::is_non_raw_keyword(name) {
             bail!(
