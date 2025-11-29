@@ -740,4 +740,644 @@ mod tests {
             RuchyType::Actor
         );
     }
+
+    // Additional tests for better coverage
+
+    #[test]
+    fn test_type_mapper_default() {
+        let mapper = TypeMapper::default();
+        assert!(!mapper.type_cache.is_empty());
+    }
+
+    #[test]
+    fn test_type_mapper_new() {
+        let mapper = TypeMapper::new();
+        // Check builtin types are initialized
+        assert!(mapper.type_cache.contains_key("int"));
+        assert!(mapper.type_cache.contains_key("float"));
+        assert!(mapper.type_cache.contains_key("str"));
+        assert!(mapper.type_cache.contains_key("bool"));
+    }
+
+    #[test]
+    fn test_type_mapper_with_config() {
+        let config = crate::RuchyConfig::default();
+        let mapper = TypeMapper::with_config(&config);
+        assert!(!mapper.type_cache.is_empty());
+    }
+
+    #[test]
+    fn test_map_bytes_type() {
+        let mut mapper = TypeMapper::new();
+        let result = mapper.map_type(&PythonType::Named("bytes".to_string())).unwrap();
+        assert_eq!(result, RuchyType::Vec(Box::new(RuchyType::U8)));
+    }
+
+    #[test]
+    fn test_map_none_type() {
+        let mut mapper = TypeMapper::new();
+        let result = mapper.map_type(&PythonType::Named("None".to_string())).unwrap();
+        assert_eq!(result, RuchyType::Unit);
+    }
+
+    #[test]
+    fn test_map_any_type() {
+        let mut mapper = TypeMapper::new();
+        let result = mapper.map_type(&PythonType::Named("Any".to_string())).unwrap();
+        assert_eq!(result, RuchyType::Dynamic);
+    }
+
+    #[test]
+    fn test_map_set_type() {
+        let mut mapper = TypeMapper::new();
+        let set_type = PythonType::Set(Box::new(PythonType::Named("int".to_string())));
+        let result = mapper.map_type(&set_type).unwrap();
+        assert_eq!(result, RuchyType::HashSet(Box::new(RuchyType::I64)));
+    }
+
+    #[test]
+    fn test_map_tuple_type() {
+        let mut mapper = TypeMapper::new();
+        let tuple_type = PythonType::Tuple(vec![
+            PythonType::Named("int".to_string()),
+            PythonType::Named("str".to_string()),
+        ]);
+        let result = mapper.map_type(&tuple_type).unwrap();
+        assert_eq!(result, RuchyType::Tuple(vec![RuchyType::I64, RuchyType::String]));
+    }
+
+    #[test]
+    fn test_map_callable_type() {
+        let mut mapper = TypeMapper::new();
+        let callable_type = PythonType::Callable(
+            vec![PythonType::Named("int".to_string())],
+            Box::new(PythonType::Named("str".to_string())),
+        );
+        let result = mapper.map_type(&callable_type).unwrap();
+        assert!(matches!(result, RuchyType::Function { .. }));
+    }
+
+    #[test]
+    fn test_map_python_type_any() {
+        let mut mapper = TypeMapper::new();
+        let result = mapper.map_type(&PythonType::Any).unwrap();
+        assert_eq!(result, RuchyType::Dynamic);
+    }
+
+    #[test]
+    fn test_map_literal_int() {
+        let mut mapper = TypeMapper::new();
+        let lit = PythonType::Literal(PythonLiteral::Int(42));
+        let result = mapper.map_type(&lit).unwrap();
+        assert_eq!(result, RuchyType::I64);
+    }
+
+    #[test]
+    fn test_map_literal_float() {
+        let mut mapper = TypeMapper::new();
+        let lit = PythonType::Literal(PythonLiteral::Float(3.14));
+        let result = mapper.map_type(&lit).unwrap();
+        assert_eq!(result, RuchyType::F64);
+    }
+
+    #[test]
+    fn test_map_literal_str() {
+        let mut mapper = TypeMapper::new();
+        let lit = PythonType::Literal(PythonLiteral::Str("hello".to_string()));
+        let result = mapper.map_type(&lit).unwrap();
+        assert_eq!(result, RuchyType::String);
+    }
+
+    #[test]
+    fn test_map_literal_bool() {
+        let mut mapper = TypeMapper::new();
+        let lit = PythonType::Literal(PythonLiteral::Bool(true));
+        let result = mapper.map_type(&lit).unwrap();
+        assert_eq!(result, RuchyType::Bool);
+    }
+
+    #[test]
+    fn test_map_literal_none() {
+        let mut mapper = TypeMapper::new();
+        let lit = PythonType::Literal(PythonLiteral::None);
+        let result = mapper.map_type(&lit).unwrap();
+        assert_eq!(result, RuchyType::Unit);
+    }
+
+    #[test]
+    fn test_map_union_optional() {
+        let mut mapper = TypeMapper::new();
+        // Union[str, None] should become Option<String>
+        let union_type = PythonType::Union(vec![
+            PythonType::Named("str".to_string()),
+            PythonType::Named("None".to_string()),
+        ]);
+        let result = mapper.map_type(&union_type).unwrap();
+        assert_eq!(result, RuchyType::Option(Box::new(RuchyType::String)));
+    }
+
+    #[test]
+    fn test_map_union_multiple() {
+        let mut mapper = TypeMapper::new();
+        // Union[int, str, bool] should become an Enum
+        let union_type = PythonType::Union(vec![
+            PythonType::Named("int".to_string()),
+            PythonType::Named("str".to_string()),
+            PythonType::Named("bool".to_string()),
+        ]);
+        let result = mapper.map_type(&union_type).unwrap();
+        assert!(matches!(result, RuchyType::Enum(_)));
+    }
+
+    #[test]
+    fn test_map_generic_list() {
+        let mut mapper = TypeMapper::new();
+        let generic_type = PythonType::Generic(
+            "List".to_string(),
+            vec![PythonType::Named("str".to_string())],
+        );
+        let result = mapper.map_type(&generic_type).unwrap();
+        assert_eq!(result, RuchyType::Vec(Box::new(RuchyType::String)));
+    }
+
+    #[test]
+    fn test_map_generic_dict() {
+        let mut mapper = TypeMapper::new();
+        let generic_type = PythonType::Generic(
+            "Dict".to_string(),
+            vec![
+                PythonType::Named("str".to_string()),
+                PythonType::Named("int".to_string()),
+            ],
+        );
+        let result = mapper.map_type(&generic_type).unwrap();
+        assert_eq!(result, RuchyType::HashMap(Box::new(RuchyType::String), Box::new(RuchyType::I64)));
+    }
+
+    #[test]
+    fn test_map_generic_set() {
+        let mut mapper = TypeMapper::new();
+        let generic_type = PythonType::Generic(
+            "Set".to_string(),
+            vec![PythonType::Named("int".to_string())],
+        );
+        let result = mapper.map_type(&generic_type).unwrap();
+        assert_eq!(result, RuchyType::HashSet(Box::new(RuchyType::I64)));
+    }
+
+    #[test]
+    fn test_map_generic_optional() {
+        let mut mapper = TypeMapper::new();
+        let generic_type = PythonType::Generic(
+            "Optional".to_string(),
+            vec![PythonType::Named("int".to_string())],
+        );
+        let result = mapper.map_type(&generic_type).unwrap();
+        assert_eq!(result, RuchyType::Option(Box::new(RuchyType::I64)));
+    }
+
+    #[test]
+    fn test_map_generic_awaitable() {
+        let mut mapper = TypeMapper::new();
+        let generic_type = PythonType::Generic(
+            "Awaitable".to_string(),
+            vec![PythonType::Named("str".to_string())],
+        );
+        let result = mapper.map_type(&generic_type).unwrap();
+        assert_eq!(result, RuchyType::Future(Box::new(RuchyType::String)));
+    }
+
+    #[test]
+    fn test_map_generic_coroutine() {
+        let mut mapper = TypeMapper::new();
+        let generic_type = PythonType::Generic(
+            "Coroutine".to_string(),
+            vec![
+                PythonType::Named("int".to_string()),
+                PythonType::Named("str".to_string()),
+                PythonType::Named("bool".to_string()),
+            ],
+        );
+        let result = mapper.map_type(&generic_type).unwrap();
+        // Should use the last type arg
+        assert_eq!(result, RuchyType::Future(Box::new(RuchyType::Bool)));
+    }
+
+    #[test]
+    fn test_map_generic_iterator() {
+        let mut mapper = TypeMapper::new();
+        let generic_type = PythonType::Generic(
+            "Iterator".to_string(),
+            vec![PythonType::Named("int".to_string())],
+        );
+        let result = mapper.map_type(&generic_type).unwrap();
+        assert_eq!(result, RuchyType::Iterator(Box::new(RuchyType::I64)));
+    }
+
+    #[test]
+    fn test_map_generic_dataframe() {
+        let mut mapper = TypeMapper::new();
+        let generic_type = PythonType::Generic(
+            "DataFrame".to_string(),
+            vec![],
+        );
+        let result = mapper.map_type(&generic_type).unwrap();
+        assert_eq!(result, RuchyType::DataFrame);
+    }
+
+    #[test]
+    fn test_map_generic_actor() {
+        let mut mapper = TypeMapper::new();
+        let generic_type = PythonType::Generic(
+            "Actor".to_string(),
+            vec![PythonType::Named("str".to_string())],
+        );
+        let result = mapper.map_type(&generic_type).unwrap();
+        assert_eq!(result, RuchyType::Actor);
+    }
+
+    #[test]
+    fn test_map_generic_range() {
+        let mut mapper = TypeMapper::new();
+        let generic_type = PythonType::Generic("Range".to_string(), vec![]);
+        let result = mapper.map_type(&generic_type).unwrap();
+        assert_eq!(result, RuchyType::Range);
+    }
+
+    #[test]
+    fn test_map_user_generic() {
+        let mut mapper = TypeMapper::new();
+        let generic_type = PythonType::Generic(
+            "MyCustomType".to_string(),
+            vec![PythonType::Named("str".to_string())],
+        );
+        let result = mapper.map_type(&generic_type).unwrap();
+        assert!(matches!(result, RuchyType::Generic(_, _)));
+    }
+
+    #[test]
+    fn test_register_type() {
+        let mut mapper = TypeMapper::new();
+        mapper.register_type("CustomType".to_string(), RuchyType::I32);
+
+        let result = mapper.map_type(&PythonType::Named("CustomType".to_string())).unwrap();
+        assert_eq!(result, RuchyType::I32);
+    }
+
+    #[test]
+    fn test_unknown_type_error() {
+        let mut mapper = TypeMapper::new();
+        let result = mapper.map_type(&PythonType::Named("UnknownType".to_string()));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_dataframe_type_with_schema() {
+        let mut mapper = TypeMapper::new();
+        let result = mapper.map_dataframe_type(Some("schema info")).unwrap();
+        assert_eq!(result, RuchyType::DataFrame);
+    }
+
+    #[test]
+    fn test_actor_type_without_message() {
+        let mut mapper = TypeMapper::new();
+        let result = mapper.map_actor_type(None).unwrap();
+        assert_eq!(result, RuchyType::Actor);
+    }
+
+    #[test]
+    fn test_range_type_non_int() {
+        let mapper = TypeMapper::new();
+        let result = mapper.map_range_type(
+            Some(PythonType::Named("float".to_string())),
+            Some(PythonType::Named("float".to_string())),
+        ).unwrap();
+        assert_eq!(result, RuchyType::Range);
+    }
+
+    #[test]
+    fn test_range_type_partial() {
+        let mapper = TypeMapper::new();
+        let result = mapper.map_range_type(
+            Some(PythonType::Named("int".to_string())),
+            None,
+        ).unwrap();
+        assert_eq!(result, RuchyType::Range);
+    }
+
+    #[test]
+    fn test_range_type_none() {
+        let mapper = TypeMapper::new();
+        let result = mapper.map_range_type(None, None).unwrap();
+        assert_eq!(result, RuchyType::Range);
+    }
+
+    // Test type inference
+    #[test]
+    fn test_infer_string_type() {
+        let mut mapper = TypeMapper::new();
+        let usage = TypeUsage {
+            operations: vec![Operation::StringOp],
+            assignments: vec![],
+            calls: vec![],
+        };
+        let result = mapper.infer_type(&usage).unwrap();
+        assert_eq!(result, RuchyType::String);
+    }
+
+    #[test]
+    fn test_infer_numeric_type() {
+        let mut mapper = TypeMapper::new();
+        let usage = TypeUsage {
+            operations: vec![Operation::Arithmetic],
+            assignments: vec![],
+            calls: vec![],
+        };
+        let result = mapper.infer_type(&usage).unwrap();
+        assert_eq!(result, RuchyType::I64);
+    }
+
+    #[test]
+    fn test_infer_boolean_type() {
+        let mut mapper = TypeMapper::new();
+        let usage = TypeUsage {
+            operations: vec![Operation::Logical],
+            assignments: vec![],
+            calls: vec![],
+        };
+        let result = mapper.infer_type(&usage).unwrap();
+        assert_eq!(result, RuchyType::Bool);
+    }
+
+    #[test]
+    fn test_infer_iterable_type() {
+        let mut mapper = TypeMapper::new();
+        let usage = TypeUsage {
+            operations: vec![Operation::Iteration],
+            assignments: vec![],
+            calls: vec![],
+        };
+        let result = mapper.infer_type(&usage).unwrap();
+        assert_eq!(result, RuchyType::Vec(Box::new(RuchyType::Dynamic)));
+    }
+
+    #[test]
+    fn test_infer_dataframe_type() {
+        let mut mapper = TypeMapper::new();
+        let usage = TypeUsage {
+            operations: vec![Operation::DataFrameOp],
+            assignments: vec![],
+            calls: vec![],
+        };
+        let result = mapper.infer_type(&usage).unwrap();
+        assert_eq!(result, RuchyType::DataFrame);
+    }
+
+    #[test]
+    fn test_infer_actor_type() {
+        let mut mapper = TypeMapper::new();
+        let usage = TypeUsage {
+            operations: vec![Operation::ActorSend],
+            assignments: vec![],
+            calls: vec![],
+        };
+        let result = mapper.infer_type(&usage).unwrap();
+        assert_eq!(result, RuchyType::Actor);
+    }
+
+    #[test]
+    fn test_infer_dynamic_type() {
+        let mut mapper = TypeMapper::new();
+        let usage = TypeUsage {
+            operations: vec![],
+            assignments: vec![],
+            calls: vec![],
+        };
+        let result = mapper.infer_type(&usage).unwrap();
+        assert_eq!(result, RuchyType::Dynamic);
+    }
+
+    #[test]
+    fn test_infer_comparison_type() {
+        let mut mapper = TypeMapper::new();
+        let usage = TypeUsage {
+            operations: vec![Operation::Comparison],
+            assignments: vec![],
+            calls: vec![],
+        };
+        let result = mapper.infer_type(&usage).unwrap();
+        // Comparison alone doesn't constrain to a specific type
+        assert_eq!(result, RuchyType::Dynamic);
+    }
+
+    #[test]
+    fn test_infer_indexing_type() {
+        let mut mapper = TypeMapper::new();
+        let usage = TypeUsage {
+            operations: vec![Operation::Indexing],
+            assignments: vec![],
+            calls: vec![],
+        };
+        let result = mapper.infer_type(&usage).unwrap();
+        assert_eq!(result, RuchyType::Dynamic);
+    }
+
+    #[test]
+    fn test_infer_pattern_match_type() {
+        let mut mapper = TypeMapper::new();
+        let usage = TypeUsage {
+            operations: vec![Operation::PatternMatch],
+            assignments: vec![],
+            calls: vec![],
+        };
+        let result = mapper.infer_type(&usage).unwrap();
+        assert_eq!(result, RuchyType::Dynamic);
+    }
+
+    // Test PythonType variants
+    #[test]
+    fn test_python_type_debug() {
+        let py_type = PythonType::Named("int".to_string());
+        let debug = format!("{:?}", py_type);
+        assert!(debug.contains("Named"));
+        assert!(debug.contains("int"));
+    }
+
+    #[test]
+    fn test_python_type_clone() {
+        let py_type = PythonType::Named("str".to_string());
+        let cloned = py_type.clone();
+        assert_eq!(py_type, cloned);
+    }
+
+    #[test]
+    fn test_python_type_eq() {
+        let t1 = PythonType::Named("int".to_string());
+        let t2 = PythonType::Named("int".to_string());
+        let t3 = PythonType::Named("str".to_string());
+        assert_eq!(t1, t2);
+        assert_ne!(t1, t3);
+    }
+
+    // Test PythonLiteral variants
+    #[test]
+    fn test_python_literal_debug() {
+        let lit = PythonLiteral::Int(42);
+        let debug = format!("{:?}", lit);
+        assert!(debug.contains("Int"));
+        assert!(debug.contains("42"));
+    }
+
+    #[test]
+    fn test_python_literal_clone() {
+        let lit = PythonLiteral::Str("test".to_string());
+        let cloned = lit.clone();
+        assert_eq!(lit, cloned);
+    }
+
+    // Test RuchyType variants
+    #[test]
+    fn test_ruchy_type_debug() {
+        let ty = RuchyType::I64;
+        let debug = format!("{:?}", ty);
+        assert!(debug.contains("I64"));
+    }
+
+    #[test]
+    fn test_ruchy_type_clone() {
+        let ty = RuchyType::Vec(Box::new(RuchyType::String));
+        let cloned = ty.clone();
+        assert_eq!(ty, cloned);
+    }
+
+    #[test]
+    fn test_ruchy_type_eq() {
+        let t1 = RuchyType::I64;
+        let t2 = RuchyType::I64;
+        let t3 = RuchyType::F64;
+        assert_eq!(t1, t2);
+        assert_ne!(t1, t3);
+    }
+
+    // Test TypeUsage
+    #[test]
+    fn test_type_usage_debug() {
+        let usage = TypeUsage {
+            operations: vec![Operation::Arithmetic],
+            assignments: vec![],
+            calls: vec![],
+        };
+        let debug = format!("{:?}", usage);
+        assert!(debug.contains("operations"));
+    }
+
+    #[test]
+    fn test_type_usage_clone() {
+        let usage = TypeUsage {
+            operations: vec![Operation::Arithmetic],
+            assignments: vec![],
+            calls: vec![],
+        };
+        let cloned = usage.clone();
+        assert_eq!(usage.operations.len(), cloned.operations.len());
+    }
+
+    // Test Operation
+    #[test]
+    fn test_operation_debug() {
+        let op = Operation::Arithmetic;
+        let debug = format!("{:?}", op);
+        assert!(debug.contains("Arithmetic"));
+    }
+
+    #[test]
+    fn test_operation_clone() {
+        let op = Operation::StringOp;
+        let cloned = op.clone();
+        assert!(matches!(cloned, Operation::StringOp));
+    }
+
+    // Test Assignment
+    #[test]
+    fn test_assignment_debug() {
+        let assignment = Assignment { value_type: None };
+        let debug = format!("{:?}", assignment);
+        assert!(debug.contains("value_type"));
+    }
+
+    #[test]
+    fn test_assignment_clone() {
+        let assignment = Assignment {
+            value_type: Some(PythonType::Named("int".to_string())),
+        };
+        let cloned = assignment.clone();
+        assert_eq!(assignment.value_type, cloned.value_type);
+    }
+
+    // Test FunctionCall
+    #[test]
+    fn test_function_call_debug() {
+        let call = FunctionCall {
+            function: "print".to_string(),
+            arg_types: vec![],
+        };
+        let debug = format!("{:?}", call);
+        assert!(debug.contains("print"));
+    }
+
+    #[test]
+    fn test_function_call_clone() {
+        let call = FunctionCall {
+            function: "len".to_string(),
+            arg_types: vec![Some(PythonType::Named("str".to_string()))],
+        };
+        let cloned = call.clone();
+        assert_eq!(call.function, cloned.function);
+        assert_eq!(call.arg_types.len(), cloned.arg_types.len());
+    }
+
+    // Test TypeMapperConfig
+    #[test]
+    fn test_type_mapper_config_default() {
+        let config = TypeMapperConfig::default();
+        assert!(!config.use_i32_default);
+        assert!(!config.prefer_str_slice);
+        assert!(config.use_hashmap);
+    }
+
+    #[test]
+    fn test_type_mapper_config_from_ruchy_config() {
+        let ruchy_config = crate::RuchyConfig::default();
+        let config = TypeMapperConfig::from_ruchy_config(&ruchy_config);
+        // Should return defaults
+        assert!(!config.use_i32_default);
+    }
+
+    // Test empty generic type args
+    #[test]
+    fn test_map_generic_list_empty_args() {
+        let mut mapper = TypeMapper::new();
+        let generic_type = PythonType::Generic("list".to_string(), vec![]);
+        let result = mapper.map_type(&generic_type).unwrap();
+        assert_eq!(result, RuchyType::Vec(Box::new(RuchyType::Dynamic)));
+    }
+
+    #[test]
+    fn test_map_generic_dict_single_arg() {
+        let mut mapper = TypeMapper::new();
+        let generic_type = PythonType::Generic(
+            "dict".to_string(),
+            vec![PythonType::Named("str".to_string())],
+        );
+        let result = mapper.map_type(&generic_type).unwrap();
+        assert_eq!(result, RuchyType::HashMap(Box::new(RuchyType::String), Box::new(RuchyType::Dynamic)));
+    }
+
+    #[test]
+    fn test_map_generic_optional_missing_arg() {
+        let mut mapper = TypeMapper::new();
+        let generic_type = PythonType::Generic("Optional".to_string(), vec![]);
+        let result = mapper.map_type(&generic_type);
+        assert!(result.is_err());
+    }
 }

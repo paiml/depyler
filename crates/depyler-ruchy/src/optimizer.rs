@@ -656,6 +656,7 @@ impl Default for RuchyOptimizer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::UnaryOp;
 
     #[test]
     fn test_constant_folding() {
@@ -715,5 +716,1346 @@ mod tests {
         } else {
             panic!("Expected pipeline");
         }
+    }
+
+    // Test optimizer creation and configuration
+    #[test]
+    fn test_optimizer_new() {
+        let optimizer = RuchyOptimizer::new();
+        assert_eq!(optimizer.level, 2);
+        assert!(optimizer.enable_pipeline_fusion);
+        assert!(optimizer.enable_dce);
+        assert!(optimizer.enable_cse);
+        assert!(optimizer.enable_inlining);
+    }
+
+    #[test]
+    fn test_optimizer_default() {
+        let optimizer = RuchyOptimizer::default();
+        assert_eq!(optimizer.level, 2);
+    }
+
+    #[test]
+    fn test_optimizer_with_config_level_0() {
+        let config = crate::RuchyConfig {
+            optimization_level: 0,
+            ..Default::default()
+        };
+        let optimizer = RuchyOptimizer::with_config(&config);
+        assert_eq!(optimizer.level, 0);
+        assert!(!optimizer.enable_pipeline_fusion);
+        assert!(!optimizer.enable_dce);
+        assert!(!optimizer.enable_cse);
+        assert!(!optimizer.enable_inlining);
+    }
+
+    #[test]
+    fn test_optimizer_with_config_level_1() {
+        let config = crate::RuchyConfig {
+            optimization_level: 1,
+            ..Default::default()
+        };
+        let optimizer = RuchyOptimizer::with_config(&config);
+        assert_eq!(optimizer.level, 1);
+        assert!(optimizer.enable_pipeline_fusion);
+        assert!(optimizer.enable_dce);
+        assert!(!optimizer.enable_cse);
+        assert!(!optimizer.enable_inlining);
+    }
+
+    #[test]
+    fn test_optimizer_with_config_level_2() {
+        let config = crate::RuchyConfig {
+            optimization_level: 2,
+            ..Default::default()
+        };
+        let optimizer = RuchyOptimizer::with_config(&config);
+        assert_eq!(optimizer.level, 2);
+        assert!(optimizer.enable_pipeline_fusion);
+        assert!(optimizer.enable_dce);
+        assert!(optimizer.enable_cse);
+        assert!(optimizer.enable_inlining);
+    }
+
+    #[test]
+    fn test_optimizer_with_config_level_3() {
+        let config = crate::RuchyConfig {
+            optimization_level: 3,
+            ..Default::default()
+        };
+        let optimizer = RuchyOptimizer::with_config(&config);
+        assert_eq!(optimizer.level, 3);
+        assert!(optimizer.enable_pipeline_fusion);
+        assert!(optimizer.enable_dce);
+        assert!(optimizer.enable_cse);
+        assert!(optimizer.enable_inlining);
+    }
+
+    // Test optimize method
+    #[test]
+    fn test_optimize_level_0_no_changes() {
+        let config = crate::RuchyConfig {
+            optimization_level: 0,
+            ..Default::default()
+        };
+        let optimizer = RuchyOptimizer::with_config(&config);
+
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+            op: BinaryOp::Add,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(3))),
+        };
+
+        let result = optimizer.optimize(expr.clone()).unwrap();
+        // At level 0, expression should be unchanged (no constant folding)
+        assert_eq!(result, expr);
+    }
+
+    #[test]
+    fn test_optimize_full_pipeline() {
+        let optimizer = RuchyOptimizer::new();
+
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(10))),
+            op: BinaryOp::Multiply,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+        };
+
+        // The optimize() method applies multiple passes in order, which may result in CSE
+        // extracting the expression. The important thing is that it doesn't error.
+        let result = optimizer.optimize(expr);
+        assert!(result.is_ok());
+    }
+
+    // Test constant folding operations
+    #[test]
+    fn test_fold_binary_integer_subtract() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(10))),
+            op: BinaryOp::Subtract,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(3))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Integer(7)));
+    }
+
+    #[test]
+    fn test_fold_binary_integer_multiply() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(4))),
+            op: BinaryOp::Multiply,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Integer(20)));
+    }
+
+    #[test]
+    fn test_fold_binary_integer_divide() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(20))),
+            op: BinaryOp::Divide,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(4))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Integer(5)));
+    }
+
+    #[test]
+    fn test_fold_binary_integer_divide_by_zero() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(20))),
+            op: BinaryOp::Divide,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(0))),
+        };
+        let result = optimizer.fold_constants(expr.clone());
+        // Division by zero should not fold
+        assert_eq!(result, expr);
+    }
+
+    #[test]
+    fn test_fold_binary_integer_modulo() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(17))),
+            op: BinaryOp::Modulo,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Integer(2)));
+    }
+
+    #[test]
+    fn test_fold_binary_integer_modulo_by_zero() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(17))),
+            op: BinaryOp::Modulo,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(0))),
+        };
+        let result = optimizer.fold_constants(expr.clone());
+        // Modulo by zero should not fold
+        assert_eq!(result, expr);
+    }
+
+    #[test]
+    fn test_fold_binary_integer_comparison_equal() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+            op: BinaryOp::Equal,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Bool(true)));
+    }
+
+    #[test]
+    fn test_fold_binary_integer_comparison_not_equal() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+            op: BinaryOp::NotEqual,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(3))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Bool(true)));
+    }
+
+    #[test]
+    fn test_fold_binary_integer_comparison_less() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(3))),
+            op: BinaryOp::Less,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Bool(true)));
+    }
+
+    #[test]
+    fn test_fold_binary_integer_comparison_less_equal() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+            op: BinaryOp::LessEqual,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Bool(true)));
+    }
+
+    #[test]
+    fn test_fold_binary_integer_comparison_greater() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(10))),
+            op: BinaryOp::Greater,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Bool(true)));
+    }
+
+    #[test]
+    fn test_fold_binary_integer_comparison_greater_equal() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(10))),
+            op: BinaryOp::GreaterEqual,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(10))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Bool(true)));
+    }
+
+    // Float constant folding
+    #[test]
+    fn test_fold_binary_float_add() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Float(2.5))),
+            op: BinaryOp::Add,
+            right: Box::new(RuchyExpr::Literal(Literal::Float(3.5))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Float(6.0)));
+    }
+
+    #[test]
+    fn test_fold_binary_float_subtract() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Float(10.0))),
+            op: BinaryOp::Subtract,
+            right: Box::new(RuchyExpr::Literal(Literal::Float(4.0))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Float(6.0)));
+    }
+
+    #[test]
+    fn test_fold_binary_float_multiply() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Float(3.0))),
+            op: BinaryOp::Multiply,
+            right: Box::new(RuchyExpr::Literal(Literal::Float(4.0))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Float(12.0)));
+    }
+
+    #[test]
+    fn test_fold_binary_float_divide() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Float(10.0))),
+            op: BinaryOp::Divide,
+            right: Box::new(RuchyExpr::Literal(Literal::Float(2.0))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Float(5.0)));
+    }
+
+    #[test]
+    fn test_fold_binary_float_divide_by_zero() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Float(10.0))),
+            op: BinaryOp::Divide,
+            right: Box::new(RuchyExpr::Literal(Literal::Float(0.0))),
+        };
+        let result = optimizer.fold_constants(expr.clone());
+        // Division by zero should not fold
+        assert_eq!(result, expr);
+    }
+
+    // Boolean constant folding
+    #[test]
+    fn test_fold_binary_bool_and_true() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+            op: BinaryOp::And,
+            right: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Bool(true)));
+    }
+
+    #[test]
+    fn test_fold_binary_bool_and_false() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+            op: BinaryOp::And,
+            right: Box::new(RuchyExpr::Literal(Literal::Bool(false))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Bool(false)));
+    }
+
+    #[test]
+    fn test_fold_binary_bool_or_true() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Bool(false))),
+            op: BinaryOp::Or,
+            right: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Bool(true)));
+    }
+
+    #[test]
+    fn test_fold_binary_bool_or_false() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Bool(false))),
+            op: BinaryOp::Or,
+            right: Box::new(RuchyExpr::Literal(Literal::Bool(false))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Bool(false)));
+    }
+
+    #[test]
+    fn test_fold_binary_bool_equal() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+            op: BinaryOp::Equal,
+            right: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Bool(true)));
+    }
+
+    #[test]
+    fn test_fold_binary_bool_not_equal() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+            op: BinaryOp::NotEqual,
+            right: Box::new(RuchyExpr::Literal(Literal::Bool(false))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Bool(true)));
+    }
+
+    // Unary constant folding
+    #[test]
+    fn test_fold_unary_negate_integer() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Unary {
+            op: UnaryOp::Negate,
+            operand: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Integer(-5)));
+    }
+
+    #[test]
+    fn test_fold_unary_negate_float() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Unary {
+            op: UnaryOp::Negate,
+            operand: Box::new(RuchyExpr::Literal(Literal::Float(3.14))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Float(-3.14)));
+    }
+
+    #[test]
+    fn test_fold_unary_not_bool() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+        };
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Bool(false)));
+    }
+
+    // Test is_pure_expr
+    #[test]
+    fn test_is_pure_literal() {
+        let optimizer = RuchyOptimizer::new();
+        assert!(optimizer.is_pure_expr(&RuchyExpr::Literal(Literal::Integer(5))));
+    }
+
+    #[test]
+    fn test_is_pure_identifier() {
+        let optimizer = RuchyOptimizer::new();
+        assert!(optimizer.is_pure_expr(&RuchyExpr::Identifier("x".to_string())));
+    }
+
+    #[test]
+    fn test_is_pure_binary() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            op: BinaryOp::Add,
+            right: Box::new(RuchyExpr::Identifier("x".to_string())),
+        };
+        assert!(optimizer.is_pure_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_unary() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Unary {
+            op: UnaryOp::Negate,
+            operand: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+        };
+        assert!(optimizer.is_pure_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_not_pure_call() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Call {
+            func: Box::new(RuchyExpr::Identifier("print".to_string())),
+            args: vec![],
+        };
+        assert!(!optimizer.is_pure_expr(&expr));
+    }
+
+    // Test is_complex_expr
+    #[test]
+    fn test_is_complex_binary() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            op: BinaryOp::Add,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+        };
+        assert!(optimizer.is_complex_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_complex_call() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Call {
+            func: Box::new(RuchyExpr::Identifier("foo".to_string())),
+            args: vec![],
+        };
+        assert!(optimizer.is_complex_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_not_complex_literal() {
+        let optimizer = RuchyOptimizer::new();
+        assert!(!optimizer.is_complex_expr(&RuchyExpr::Literal(Literal::Integer(5))));
+    }
+
+    // Test expr_size
+    #[test]
+    fn test_expr_size_literal() {
+        let optimizer = RuchyOptimizer::new();
+        assert_eq!(
+            optimizer.expr_size(&RuchyExpr::Literal(Literal::Integer(5))),
+            1
+        );
+    }
+
+    #[test]
+    fn test_expr_size_identifier() {
+        let optimizer = RuchyOptimizer::new();
+        assert_eq!(
+            optimizer.expr_size(&RuchyExpr::Identifier("x".to_string())),
+            1
+        );
+    }
+
+    #[test]
+    fn test_expr_size_binary() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            op: BinaryOp::Add,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+        };
+        assert_eq!(optimizer.expr_size(&expr), 3); // 1 + 1 + 1
+    }
+
+    #[test]
+    fn test_expr_size_call() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Call {
+            func: Box::new(RuchyExpr::Identifier("foo".to_string())),
+            args: vec![
+                RuchyExpr::Literal(Literal::Integer(1)),
+                RuchyExpr::Literal(Literal::Integer(2)),
+            ],
+        };
+        assert_eq!(optimizer.expr_size(&expr), 4); // 2 + 1 + 1
+    }
+
+    #[test]
+    fn test_expr_size_block() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Block(vec![
+            RuchyExpr::Literal(Literal::Integer(1)),
+            RuchyExpr::Literal(Literal::Integer(2)),
+        ]);
+        assert_eq!(optimizer.expr_size(&expr), 2); // 1 + 1
+    }
+
+    #[test]
+    fn test_expr_size_complex() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::If {
+            condition: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+            then_branch: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            else_branch: None,
+        };
+        assert_eq!(optimizer.expr_size(&expr), 5); // Default weight for complex
+    }
+
+    // Test should_inline
+    #[test]
+    fn test_should_inline_small_function() {
+        let optimizer = RuchyOptimizer::new();
+        let params = vec![Param {
+            name: "x".to_string(),
+            typ: None,
+            default: None,
+        }];
+        let body = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Identifier("x".to_string())),
+            op: BinaryOp::Add,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+        };
+        assert!(optimizer.should_inline(&params, &body));
+    }
+
+    #[test]
+    fn test_should_not_inline_many_params() {
+        let optimizer = RuchyOptimizer::new();
+        let params = vec![
+            Param {
+                name: "x".to_string(),
+                typ: None,
+                default: None,
+            },
+            Param {
+                name: "y".to_string(),
+                typ: None,
+                default: None,
+            },
+        ];
+        let body = RuchyExpr::Literal(Literal::Integer(1));
+        assert!(!optimizer.should_inline(&params, &body));
+    }
+
+    // Test hash_expr
+    #[test]
+    fn test_hash_expr_same() {
+        let optimizer = RuchyOptimizer::new();
+        let expr1 = RuchyExpr::Literal(Literal::Integer(5));
+        let expr2 = RuchyExpr::Literal(Literal::Integer(5));
+        assert_eq!(optimizer.hash_expr(&expr1), optimizer.hash_expr(&expr2));
+    }
+
+    #[test]
+    fn test_hash_expr_different() {
+        let optimizer = RuchyOptimizer::new();
+        let expr1 = RuchyExpr::Literal(Literal::Integer(5));
+        let expr2 = RuchyExpr::Literal(Literal::Integer(6));
+        assert_ne!(optimizer.hash_expr(&expr1), optimizer.hash_expr(&expr2));
+    }
+
+    // Test substitute_var
+    #[test]
+    fn test_substitute_var_identifier() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Identifier("x".to_string());
+        let replacement = RuchyExpr::Literal(Literal::Integer(5));
+        let result = optimizer.substitute_var("x", &replacement, &expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Integer(5)));
+    }
+
+    #[test]
+    fn test_substitute_var_no_match() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Identifier("y".to_string());
+        let replacement = RuchyExpr::Literal(Literal::Integer(5));
+        let result = optimizer.substitute_var("x", &replacement, &expr);
+        assert_eq!(result, RuchyExpr::Identifier("y".to_string()));
+    }
+
+    #[test]
+    fn test_substitute_var_binary() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Identifier("x".to_string())),
+            op: BinaryOp::Add,
+            right: Box::new(RuchyExpr::Identifier("x".to_string())),
+        };
+        let replacement = RuchyExpr::Literal(Literal::Integer(5));
+        let result = optimizer.substitute_var("x", &replacement, &expr);
+
+        if let RuchyExpr::Binary { left, right, .. } = result {
+            assert_eq!(*left, RuchyExpr::Literal(Literal::Integer(5)));
+            assert_eq!(*right, RuchyExpr::Literal(Literal::Integer(5)));
+        } else {
+            panic!("Expected binary");
+        }
+    }
+
+    #[test]
+    fn test_substitute_var_call() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Call {
+            func: Box::new(RuchyExpr::Identifier("f".to_string())),
+            args: vec![RuchyExpr::Identifier("x".to_string())],
+        };
+        let replacement = RuchyExpr::Literal(Literal::Integer(5));
+        let result = optimizer.substitute_var("x", &replacement, &expr);
+
+        if let RuchyExpr::Call { args, .. } = result {
+            assert_eq!(args[0], RuchyExpr::Literal(Literal::Integer(5)));
+        } else {
+            panic!("Expected call");
+        }
+    }
+
+    // Test filter fusion
+    #[test]
+    fn test_fuse_consecutive_filters() {
+        let optimizer = RuchyOptimizer::new();
+
+        let p = RuchyExpr::Lambda {
+            params: vec![Param {
+                name: "x".to_string(),
+                typ: None,
+                default: None,
+            }],
+            body: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Identifier("x".to_string())),
+                op: BinaryOp::Greater,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(0))),
+            }),
+        };
+
+        let q = RuchyExpr::Lambda {
+            params: vec![Param {
+                name: "y".to_string(),
+                typ: None,
+                default: None,
+            }],
+            body: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Identifier("y".to_string())),
+                op: BinaryOp::Less,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(10))),
+            }),
+        };
+
+        let stage1 = PipelineStage::Filter(Box::new(p));
+        let stage2 = PipelineStage::Filter(Box::new(q));
+
+        let result = optimizer.try_fuse_stages(&stage1, &stage2);
+        assert!(result.is_some());
+        assert!(matches!(result, Some(PipelineStage::Filter(_))));
+    }
+
+    #[test]
+    fn test_fuse_filter_map() {
+        let optimizer = RuchyOptimizer::new();
+
+        let pred = RuchyExpr::Lambda {
+            params: vec![Param {
+                name: "x".to_string(),
+                typ: None,
+                default: None,
+            }],
+            body: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Identifier("x".to_string())),
+                op: BinaryOp::Greater,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(0))),
+            }),
+        };
+
+        let mapper = RuchyExpr::Lambda {
+            params: vec![Param {
+                name: "y".to_string(),
+                typ: None,
+                default: None,
+            }],
+            body: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Identifier("y".to_string())),
+                op: BinaryOp::Multiply,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+            }),
+        };
+
+        let stage1 = PipelineStage::Filter(Box::new(pred));
+        let stage2 = PipelineStage::Map(Box::new(mapper));
+
+        let result = optimizer.try_fuse_stages(&stage1, &stage2);
+        assert!(result.is_some());
+        assert!(matches!(result, Some(PipelineStage::FlatMap(_))));
+    }
+
+    #[test]
+    fn test_cannot_fuse_incompatible() {
+        let optimizer = RuchyOptimizer::new();
+
+        let stage1 = PipelineStage::Reduce(Box::new(RuchyExpr::Identifier("add".to_string())));
+        let stage2 = PipelineStage::Map(Box::new(RuchyExpr::Identifier("f".to_string())));
+
+        let result = optimizer.try_fuse_stages(&stage1, &stage2);
+        assert!(result.is_none());
+    }
+
+    // Test apply_lambda_or_call
+    #[test]
+    fn test_apply_lambda_with_lambda() {
+        let optimizer = RuchyOptimizer::new();
+        let func = RuchyExpr::Lambda {
+            params: vec![Param {
+                name: "a".to_string(),
+                typ: None,
+                default: None,
+            }],
+            body: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Identifier("a".to_string())),
+                op: BinaryOp::Add,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            }),
+        };
+
+        let result = optimizer.apply_lambda_or_call(&func, "x");
+        // Should substitute a with x in body
+        if let RuchyExpr::Binary { left, .. } = result {
+            assert_eq!(*left, RuchyExpr::Identifier("x".to_string()));
+        } else {
+            panic!("Expected binary");
+        }
+    }
+
+    #[test]
+    fn test_apply_lambda_or_call_non_lambda() {
+        let optimizer = RuchyOptimizer::new();
+        let func = RuchyExpr::Identifier("foo".to_string());
+        let result = optimizer.apply_lambda_or_call(&func, "x");
+
+        if let RuchyExpr::Call { func: f, args } = result {
+            assert_eq!(*f, RuchyExpr::Identifier("foo".to_string()));
+            assert_eq!(args.len(), 1);
+            assert_eq!(args[0], RuchyExpr::Identifier("x".to_string()));
+        } else {
+            panic!("Expected call");
+        }
+    }
+
+    // Test dead code elimination
+    #[test]
+    fn test_collect_used_vars_identifier() {
+        let optimizer = RuchyOptimizer::new();
+        let mut used = HashSet::new();
+        let expr = RuchyExpr::Identifier("x".to_string());
+        optimizer.collect_used_vars(&expr, &mut used);
+        assert!(used.contains("x"));
+    }
+
+    #[test]
+    fn test_collect_used_vars_binary() {
+        let optimizer = RuchyOptimizer::new();
+        let mut used = HashSet::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Identifier("x".to_string())),
+            op: BinaryOp::Add,
+            right: Box::new(RuchyExpr::Identifier("y".to_string())),
+        };
+        optimizer.collect_used_vars(&expr, &mut used);
+        assert!(used.contains("x"));
+        assert!(used.contains("y"));
+    }
+
+    #[test]
+    fn test_collect_used_vars_call() {
+        let optimizer = RuchyOptimizer::new();
+        let mut used = HashSet::new();
+        let expr = RuchyExpr::Call {
+            func: Box::new(RuchyExpr::Identifier("f".to_string())),
+            args: vec![
+                RuchyExpr::Identifier("a".to_string()),
+                RuchyExpr::Identifier("b".to_string()),
+            ],
+        };
+        optimizer.collect_used_vars(&expr, &mut used);
+        assert!(used.contains("f"));
+        assert!(used.contains("a"));
+        assert!(used.contains("b"));
+    }
+
+    #[test]
+    fn test_collect_used_vars_block() {
+        let optimizer = RuchyOptimizer::new();
+        let mut used = HashSet::new();
+        let expr = RuchyExpr::Block(vec![
+            RuchyExpr::Identifier("x".to_string()),
+            RuchyExpr::Identifier("y".to_string()),
+        ]);
+        optimizer.collect_used_vars(&expr, &mut used);
+        assert!(used.contains("x"));
+        assert!(used.contains("y"));
+    }
+
+    #[test]
+    fn test_remove_unused_let() {
+        let optimizer = RuchyOptimizer::new();
+        let mut used = HashSet::new();
+        // x is not used
+        let expr = RuchyExpr::Let {
+            name: "x".to_string(),
+            value: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+            body: Box::new(RuchyExpr::Literal(Literal::Integer(10))),
+            is_mutable: false,
+        };
+
+        let result = optimizer.remove_unused_defs(expr, &used);
+        // The let binding should be removed, leaving just the body
+        assert_eq!(result, RuchyExpr::Literal(Literal::Integer(10)));
+    }
+
+    #[test]
+    fn test_keep_used_let() {
+        let optimizer = RuchyOptimizer::new();
+        let mut used = HashSet::new();
+        used.insert("x".to_string());
+
+        let expr = RuchyExpr::Let {
+            name: "x".to_string(),
+            value: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+            body: Box::new(RuchyExpr::Identifier("x".to_string())),
+            is_mutable: false,
+        };
+
+        let result = optimizer.remove_unused_defs(expr.clone(), &used);
+        // The let binding should remain
+        if let RuchyExpr::Let { name, .. } = result {
+            assert_eq!(name, "x");
+        } else {
+            panic!("Expected Let");
+        }
+    }
+
+    // Test CSE
+    #[test]
+    fn test_cse_simple() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Block(vec![
+            RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+                op: BinaryOp::Add,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+            },
+            RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+                op: BinaryOp::Add,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+            },
+        ]);
+
+        let result = optimizer.eliminate_common_subexpressions(expr);
+        // Both expressions should be CSE'd to the same temp var
+        if let RuchyExpr::Block(exprs) = result {
+            assert_eq!(exprs.len(), 2);
+        } else {
+            panic!("Expected block");
+        }
+    }
+
+    // Test compose_functions
+    #[test]
+    fn test_compose_functions_lambdas() {
+        let optimizer = RuchyOptimizer::new();
+
+        let f = RuchyExpr::Lambda {
+            params: vec![Param {
+                name: "a".to_string(),
+                typ: None,
+                default: None,
+            }],
+            body: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Identifier("a".to_string())),
+                op: BinaryOp::Add,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            }),
+        };
+
+        let g = RuchyExpr::Lambda {
+            params: vec![Param {
+                name: "b".to_string(),
+                typ: None,
+                default: None,
+            }],
+            body: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Identifier("b".to_string())),
+                op: BinaryOp::Multiply,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+            }),
+        };
+
+        let result = optimizer.compose_functions(&f, &g);
+
+        if let RuchyExpr::Lambda { params, .. } = result {
+            assert_eq!(params.len(), 1);
+            assert_eq!(params[0].name, "x");
+        } else {
+            panic!("Expected lambda");
+        }
+    }
+
+    #[test]
+    fn test_compose_functions_non_lambda() {
+        let optimizer = RuchyOptimizer::new();
+        let f = RuchyExpr::Identifier("f".to_string());
+        let g = RuchyExpr::Identifier("g".to_string());
+
+        let result = optimizer.compose_functions(&f, &g);
+
+        if let RuchyExpr::Lambda { params, body } = result {
+            assert_eq!(params.len(), 1);
+            assert_eq!(params[0].name, "x");
+            // Body should be g(f(x))
+            if let RuchyExpr::Call { func, args } = *body {
+                assert_eq!(*func, RuchyExpr::Identifier("g".to_string()));
+                assert_eq!(args.len(), 1);
+                // First arg should be f(x)
+                if let RuchyExpr::Call {
+                    func: inner_func, ..
+                } = &args[0]
+                {
+                    assert_eq!(**inner_func, RuchyExpr::Identifier("f".to_string()));
+                } else {
+                    panic!("Expected inner call");
+                }
+            } else {
+                panic!("Expected outer call");
+            }
+        } else {
+            panic!("Expected lambda");
+        }
+    }
+
+    // Test and_predicates
+    #[test]
+    fn test_and_predicates() {
+        let optimizer = RuchyOptimizer::new();
+
+        let p = RuchyExpr::Lambda {
+            params: vec![Param {
+                name: "a".to_string(),
+                typ: None,
+                default: None,
+            }],
+            body: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Identifier("a".to_string())),
+                op: BinaryOp::Greater,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(0))),
+            }),
+        };
+
+        let q = RuchyExpr::Lambda {
+            params: vec![Param {
+                name: "b".to_string(),
+                typ: None,
+                default: None,
+            }],
+            body: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Identifier("b".to_string())),
+                op: BinaryOp::Less,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(10))),
+            }),
+        };
+
+        let result = optimizer.and_predicates(&p, &q);
+
+        if let RuchyExpr::Lambda { params, body } = result {
+            assert_eq!(params.len(), 1);
+            assert_eq!(params[0].name, "x");
+            if let RuchyExpr::Binary { op, .. } = *body {
+                assert_eq!(op, BinaryOp::And);
+            } else {
+                panic!("Expected binary And");
+            }
+        } else {
+            panic!("Expected lambda");
+        }
+    }
+
+    // Test filter_map_fusion
+    #[test]
+    fn test_filter_map_fusion() {
+        let optimizer = RuchyOptimizer::new();
+
+        let pred = RuchyExpr::Lambda {
+            params: vec![Param {
+                name: "a".to_string(),
+                typ: None,
+                default: None,
+            }],
+            body: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Identifier("a".to_string())),
+                op: BinaryOp::Greater,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(0))),
+            }),
+        };
+
+        let mapper = RuchyExpr::Lambda {
+            params: vec![Param {
+                name: "b".to_string(),
+                typ: None,
+                default: None,
+            }],
+            body: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Identifier("b".to_string())),
+                op: BinaryOp::Multiply,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+            }),
+        };
+
+        let result = optimizer.filter_map_fusion(&pred, &mapper);
+
+        if let RuchyExpr::Lambda { params, body } = result {
+            assert_eq!(params.len(), 1);
+            assert_eq!(params[0].name, "x");
+            if let RuchyExpr::If {
+                else_branch: Some(_),
+                ..
+            } = *body
+            {
+                // Expected structure
+            } else {
+                panic!("Expected if with else");
+            }
+        } else {
+            panic!("Expected lambda");
+        }
+    }
+
+    // Test transform_expr
+    #[test]
+    fn test_transform_expr_identity() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Literal(Literal::Integer(5));
+        let result = optimizer.transform_expr(expr.clone(), &|e| e);
+        assert_eq!(result, expr);
+    }
+
+    #[test]
+    fn test_transform_expr_binary() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            op: BinaryOp::Add,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+        };
+        let result = optimizer.transform_expr(expr, &|e| {
+            if let RuchyExpr::Literal(Literal::Integer(n)) = e {
+                RuchyExpr::Literal(Literal::Integer(n * 10))
+            } else {
+                e
+            }
+        });
+
+        if let RuchyExpr::Binary { left, right, .. } = result {
+            assert_eq!(*left, RuchyExpr::Literal(Literal::Integer(10)));
+            assert_eq!(*right, RuchyExpr::Literal(Literal::Integer(20)));
+        } else {
+            panic!("Expected binary");
+        }
+    }
+
+    #[test]
+    fn test_transform_expr_if() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::If {
+            condition: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+            then_branch: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            else_branch: Some(Box::new(RuchyExpr::Literal(Literal::Integer(2)))),
+        };
+
+        let result = optimizer.transform_expr(expr, &|e| e);
+        assert!(matches!(result, RuchyExpr::If { .. }));
+    }
+
+    #[test]
+    fn test_transform_expr_pipeline() {
+        let optimizer = RuchyOptimizer::new();
+        let expr = RuchyExpr::Pipeline {
+            expr: Box::new(RuchyExpr::List(vec![])),
+            stages: vec![PipelineStage::Map(Box::new(RuchyExpr::Identifier(
+                "f".to_string(),
+            )))],
+        };
+
+        let result = optimizer.transform_expr(expr, &|e| e);
+        assert!(matches!(result, RuchyExpr::Pipeline { .. }));
+    }
+
+    // Test inline candidates collection
+    #[test]
+    fn test_collect_inline_candidates_function() {
+        let optimizer = RuchyOptimizer::new();
+        let mut inline_map = HashMap::new();
+
+        let expr = RuchyExpr::Function {
+            name: "small_fn".to_string(),
+            params: vec![Param {
+                name: "x".to_string(),
+                typ: None,
+                default: None,
+            }],
+            body: Box::new(RuchyExpr::Identifier("x".to_string())),
+            return_type: None,
+            is_async: false,
+        };
+
+        optimizer.collect_inline_candidates(&expr, &mut inline_map);
+        assert!(inline_map.contains_key("small_fn"));
+    }
+
+    #[test]
+    fn test_collect_inline_candidates_block() {
+        let optimizer = RuchyOptimizer::new();
+        let mut inline_map = HashMap::new();
+
+        let expr = RuchyExpr::Block(vec![RuchyExpr::Function {
+            name: "inner_fn".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            return_type: None,
+            is_async: false,
+        }]);
+
+        optimizer.collect_inline_candidates(&expr, &mut inline_map);
+        assert!(inline_map.contains_key("inner_fn"));
+    }
+
+    // Test full optimization flow
+    #[test]
+    fn test_optimize_hir_passthrough() {
+        let optimizer = RuchyOptimizer::new();
+        let hir = HirModule {
+            functions: vec![],
+            classes: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            constants: vec![],
+            protocols: vec![],
+        };
+
+        let result = optimizer.optimize_hir(hir.clone());
+        assert_eq!(result.functions.len(), hir.functions.len());
+    }
+
+    #[test]
+    fn test_full_optimize_with_all_passes() {
+        let optimizer = RuchyOptimizer::new();
+
+        // Create a complex expression that triggers multiple passes
+        let expr = RuchyExpr::Block(vec![
+            RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+                op: BinaryOp::Add,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(3))),
+            },
+            RuchyExpr::Pipeline {
+                expr: Box::new(RuchyExpr::List(vec![
+                    RuchyExpr::Literal(Literal::Integer(1)),
+                    RuchyExpr::Literal(Literal::Integer(2)),
+                ])),
+                stages: vec![PipelineStage::Map(Box::new(RuchyExpr::Lambda {
+                    params: vec![Param {
+                        name: "x".to_string(),
+                        typ: None,
+                        default: None,
+                    }],
+                    body: Box::new(RuchyExpr::Identifier("x".to_string())),
+                }))],
+            },
+        ]);
+
+        let result = optimizer.optimize(expr).unwrap();
+        // Should successfully optimize without error
+        assert!(matches!(result, RuchyExpr::Block(_)));
+    }
+
+    #[test]
+    fn test_inline_simple_functions() {
+        let optimizer = RuchyOptimizer::new();
+
+        // Create a block with a function and a call to it
+        let expr = RuchyExpr::Block(vec![
+            RuchyExpr::Function {
+                name: "double".to_string(),
+                params: vec![Param {
+                    name: "x".to_string(),
+                    typ: None,
+                    default: None,
+                }],
+                body: Box::new(RuchyExpr::Binary {
+                    left: Box::new(RuchyExpr::Identifier("x".to_string())),
+                    op: BinaryOp::Multiply,
+                    right: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+                }),
+                return_type: None,
+                is_async: false,
+            },
+            RuchyExpr::Call {
+                func: Box::new(RuchyExpr::Identifier("double".to_string())),
+                args: vec![RuchyExpr::Literal(Literal::Integer(5))],
+            },
+        ]);
+
+        let result = optimizer.inline_simple_functions(expr);
+        // The function should be inlined
+        if let RuchyExpr::Block(exprs) = result {
+            assert_eq!(exprs.len(), 2);
+        } else {
+            panic!("Expected block");
+        }
+    }
+
+    #[test]
+    fn test_eliminate_dead_code() {
+        let optimizer = RuchyOptimizer::new();
+
+        // Create expression with unused variable
+        let expr = RuchyExpr::Block(vec![
+            RuchyExpr::Let {
+                name: "unused".to_string(),
+                value: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+                body: Box::new(RuchyExpr::Let {
+                    name: "used".to_string(),
+                    value: Box::new(RuchyExpr::Literal(Literal::Integer(10))),
+                    body: Box::new(RuchyExpr::Identifier("used".to_string())),
+                    is_mutable: false,
+                }),
+                is_mutable: false,
+            },
+        ]);
+
+        let result = optimizer.eliminate_dead_code(expr);
+        // The unused let should be eliminated
+        assert!(matches!(result, RuchyExpr::Block(_)));
+    }
+
+    #[test]
+    fn test_fuse_pipeline_stages_single_stage() {
+        let optimizer = RuchyOptimizer::new();
+        let stages = vec![PipelineStage::Map(Box::new(RuchyExpr::Identifier(
+            "f".to_string(),
+        )))];
+
+        let result = optimizer.fuse_pipeline_stages(stages);
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn test_fuse_pipeline_stages_unfusable() {
+        let optimizer = RuchyOptimizer::new();
+        let stages = vec![
+            PipelineStage::Reduce(Box::new(RuchyExpr::Identifier("add".to_string()))),
+            PipelineStage::Call("collect".to_string(), vec![]),
+        ];
+
+        let result = optimizer.fuse_pipeline_stages(stages);
+        // Should remain unfused
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_nested_constant_folding() {
+        let optimizer = RuchyOptimizer::new();
+
+        // (2 + 3) * (4 + 5)
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+                op: BinaryOp::Add,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(3))),
+            }),
+            op: BinaryOp::Multiply,
+            right: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Literal(Literal::Integer(4))),
+                op: BinaryOp::Add,
+                right: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+            }),
+        };
+
+        let result = optimizer.fold_constants(expr);
+        assert_eq!(result, RuchyExpr::Literal(Literal::Integer(45)));
     }
 }

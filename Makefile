@@ -348,6 +348,8 @@ security-audit: ## Run security audit
 	@echo "Running security audit..."
 	$(CARGO) audit
 # #@ Coverage
+# Filter out external dependencies from coverage reports (only show depyler crates)
+COVERAGE_IGNORE_REGEX := "alimentar|aprender|entrenar|verificar|trueno"
 .PHONY: coverage
 coverage: ## Generate HTML coverage report
 	@echo "📊 Running test coverage analysis..."
@@ -362,27 +364,27 @@ coverage: ## Generate HTML coverage report
 	@echo "🧪 Phase 1: Running tests with instrumentation (no report)..."
 	@env PROPTEST_CASES=10 QUICKCHECK_TESTS=10 $(CARGO) llvm-cov --no-report nextest --no-tests=warn --no-fail-fast --all-features --workspace
 	@echo "📊 Phase 2: Generating coverage reports..."
-	@$(CARGO) llvm-cov report --html --output-dir target/coverage/html
-	@$(CARGO) llvm-cov report --lcov --output-path target/coverage/lcov.info
+	@$(CARGO) llvm-cov report --html --output-dir target/coverage/html --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
+	@$(CARGO) llvm-cov report --lcov --output-path target/coverage/lcov.info --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
 	@echo "⚙️  Restoring global cargo config..."
 	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
 	@echo ""
 	@echo "📊 Coverage Summary:"
 	@echo "=================="
-	@$(CARGO) llvm-cov report --summary-only
+	@$(CARGO) llvm-cov report --summary-only --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
 	@echo ""
 	@echo "💡 HTML report: target/coverage/html/index.html"
 coverage-summary: ## Display coverage summary (run 'make coverage' first)
 	@echo "📊 Coverage Summary:"
 	@echo "=================="
-	@$(CARGO) llvm-cov report --summary-only || echo "⚠️  Run 'make coverage' first to generate coverage data"
+	@$(CARGO) llvm-cov report --summary-only --ignore-filename-regex $(COVERAGE_IGNORE_REGEX) || echo "⚠️  Run 'make coverage' first to generate coverage data"
 coverage-open: ## Open HTML coverage report in browser (run 'make coverage' first)
 	@echo "🌐 Opening coverage report in browser..."
 	@if [ ! -f target/coverage/html/index.html ]; then echo "⚠️  Coverage report not found. Run 'make coverage' first."; exit 1; fi
 	@if command -v xdg-open > /dev/null; then xdg-open target/coverage/html/index.html; elif command -v open > /dev/null; then open target/coverage/html/index.html; else echo "💡 Cannot auto-open. View report at: target/coverage/html/index.html"; fi
 coverage-check: ## Check coverage threshold (assumes coverage already collected)
 	@echo "Checking coverage threshold..."
-	@COVERAGE=$$($(CARGO) llvm-cov report --summary-only | grep "TOTAL" | awk '{print $$4}' | sed 's/%//'); if [ "$$COVERAGE" -lt "$(COVERAGE_THRESHOLD)" ]; then echo "❌ Coverage $$COVERAGE% below threshold $(COVERAGE_THRESHOLD)%"; exit 1; else echo "✅ Coverage $$COVERAGE% meets threshold $(COVERAGE_THRESHOLD)%"; fi
+	@COVERAGE=$$($(CARGO) llvm-cov report --summary-only --ignore-filename-regex $(COVERAGE_IGNORE_REGEX) | grep "TOTAL" | awk '{print $$4}' | sed 's/%//'); if [ "$$COVERAGE" -lt "$(COVERAGE_THRESHOLD)" ]; then echo "❌ Coverage $$COVERAGE% below threshold $(COVERAGE_THRESHOLD)%"; exit 1; else echo "✅ Coverage $$COVERAGE% meets threshold $(COVERAGE_THRESHOLD)%"; fi
 # #@ Test Data Management
 generate-fixtures: ## Generate additional test fixtures
 	@echo "Generating test fixtures..."

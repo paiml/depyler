@@ -1,22 +1,23 @@
 # PMAT Enforced Extreme YAML Roadmap
 # Schema Version: 1.0
-# Last Updated: 2025-10-31
+# Last Updated: 2025-11-29
 # Validation: pmat roadmap validate docs/execution/roadmap.yaml
 
 ---
 metadata:
   project_name: Depyler
   current_version: v3.19.29
-  last_active: 2025-10-31
+  last_active: 2025-11-29
   status: ACTIVE_DEVELOPMENT
   next_version: v3.19.30
 
 test_status:
-  total_tests: 690
-  passing: 690
+  total_tests: 767
+  passing: 767
   failing: 0
   ignored: 8
   pass_rate: 100%
+  coverage: 74.20%
   packages:
     depyler_core: "453 passed, 0 failed, 5 ignored"
     depyler_analyzer: "90 passed, 0 failed, 0 ignored"
@@ -24,6 +25,7 @@ test_status:
     depyler_quality: "9 passed, 0 failed, 0 ignored"
     depyler_mcp: "33 passed, 0 failed, 0 ignored"
     depyler_integration: "29 passed, 0 failed, 2 ignored"
+    depyler: "77 passed, 0 failed, 0 ignored (annotation_analyzer)"
 
 matrix_project:
   pass_rate: 75%
@@ -130,22 +132,22 @@ matrix_project:
           fix: "Map bytes to Vec<u8>"
 
 session_context:
-  achievement: "📋 DEPYLER-0333 CREATED - Exception Scope Tracking Architecture Documented - 2025-10-31"
-  latest_work: "DEPYLER-0333 (created): Comprehensive architectural ticket for exception scope tracking (4-6 hours). Documents 3 core issues blocking 05_error_handling completion: (1) Result unwrapping in try/except, (2) Spurious .unwrap() on non-Result types, (3) raise statements in non-Result functions. Proposed solution includes HIR enhancement with ExceptionScope struct, property analyzer updates, and scope-aware codegen. Complete with implementation checklist, test strategy, risk assessment, and 430 LOC estimate. DEPYLER-0327 COMMITTED (c6f2776): Fixed 2 of 4 errors (ValueError generation + String type inference), architectural improvements documented. All quality gates passing. Results: Test suite 661/661 passing (100%). Matrix Project 9/12 (75%). Quality: TDG A-, complexity ≤10, zero SATD, zero clippy warnings."
+  achievement: "🧪 COVERAGE IMPROVEMENT - Created annotation_analyzer.rs with 77 tests (99.13% coverage) - 2025-11-29"
+  latest_work: "Extracted pure analysis logic from interactive.rs into new testable annotation_analyzer.rs module. Fixed HIR type compatibility issues (Type::None vs Type::Unit, AssignTarget::Symbol, HirStmt variants with label fields). Coverage improved from 73.88% to 74.20%. Tests now 767 total passing (100%)."
   recent_completions:
+    - "✅ annotation_analyzer.rs CREATED: 77 unit tests, 99.13% coverage (2025-11-29)"
+    - "🔧 HIR FIX: Type::Unit → Type::None compatibility (2025-11-29)"
+    - "🔧 HIR FIX: AssignTarget::Symbol pattern for For loop targets (2025-11-29)"
+    - "🔧 HIR FIX: HirStmt::Continue/Break with label: Option<Symbol> (2025-11-29)"
+    - "📊 COVERAGE: 73.88% → 74.20% (+0.32%) (2025-11-29)"
+    - "📊 TESTING: 767 total tests passing (100%) (2025-11-29)"
     - "📋 DEPYLER-0333 CREATED: Exception scope tracking architecture (comprehensive ticket) (2025-10-31)"
     - "✅ DEPYLER-0327 COMMITTED (c6f2776): Try block analysis + String type inference (2025-10-31)"
     - "🏗️ ARCHITECTURAL: Try block exception type collection added to property analyzer (2025-10-31)"
     - "✅ E0433 FIXED: ValueError type generation via exception handler analysis (2025-10-31)"
     - "✅ E0605 FIXED: String type inference with heuristics (Session 2, 2025-10-31)"
-    - "📊 TESTING: 661 total tests passing, zero regressions (2025-10-31)"
-    - "🎯 MILESTONE: 75% Matrix Project pass rate maintained (9/12 compiling) (2025-10-31)"
-    - "✅ DEPYLER-0330: dict.get() Option handling & parameter mutability (3→0 errors) (2025-10-31)"
-    - "✅ DEPYLER-0328: sum() type inference from collection elements (1 error) (2025-10-31)"
-    - "✅ DEPYLER-0329: Double-borrowing regression fix (2 errors) (2025-10-31)"
-    - "✅ DEPYLER-0326: HashMap .contains_key() auto-borrowing (1 error) (2025-10-31)"
-  next_focus: "Fix 3 pre-existing test failures in class_attributes_test (serde_json::Value parsing). Add tests for DEPYLER-0327 improvements (Try block analysis + String type inference). Consider quality improvements: test coverage, documentation, complexity reduction."
-  current_status: "ACTIVE_DEVELOPMENT_QUALITY_AND_TESTING_FOCUS"
+  next_focus: "Continue coverage improvement toward 90% goal. Target high-value low-coverage modules: interactive.rs (3.01%), rust_gen.rs, expr_gen.rs, stmt_gen.rs. Consider extracting more pure logic from I/O-bound modules."
+  current_status: "ACTIVE_DEVELOPMENT_COVERAGE_IMPROVEMENT"
 
 # ============================================================================
 # v3.18.0 MODULARIZATION PROJECT

@@ -206,9 +206,26 @@ mod tests {
     }
 
     #[test]
-    fn test_reporter_format_iteration() {
-        let reporter = ConvergenceReporter::new(true);
-        let config = super::super::state::ConvergenceConfig {
+    fn test_truncate_exact_length() {
+        assert_eq!(truncate("exact", 5), "exact");
+    }
+
+    #[test]
+    fn test_truncate_path() {
+        assert_eq!(truncate_path("short", 10), "short");
+        let long = "/very/long/path/to/file.py";
+        let truncated = truncate_path(long, 15);
+        assert!(truncated.starts_with("..."));
+        assert!(truncated.len() <= 15);
+    }
+
+    #[test]
+    fn test_truncate_path_exact_length() {
+        assert_eq!(truncate_path("exact", 5), "exact");
+    }
+
+    fn make_test_config() -> super::super::state::ConvergenceConfig {
+        super::super::state::ConvergenceConfig {
             input_dir: PathBuf::from("/tmp"),
             target_rate: 100.0,
             max_iterations: 50,
@@ -218,13 +235,11 @@ mod tests {
             fix_confidence_threshold: 0.8,
             checkpoint_dir: None,
             parallel_jobs: 4,
-        };
+        }
+    }
 
-        let mut state = super::super::state::ConvergenceState::new(config);
-        state.iteration = 5;
-        state.compilation_rate = 75.0;
-
-        let cluster = ErrorCluster {
+    fn make_test_cluster() -> ErrorCluster {
+        ErrorCluster {
             root_cause: super::super::clusterer::RootCause::TranspilerGap {
                 gap_type: "missing_method".to_string(),
                 location: "expr_gen.rs".to_string(),
@@ -234,11 +249,172 @@ mod tests {
             sample_errors: vec![],
             fix_confidence: 0.9,
             suggested_fix: None,
-        };
+        }
+    }
+
+    #[test]
+    fn test_reporter_new() {
+        let reporter = ConvergenceReporter::new(true);
+        assert!(reporter.verbose);
+        let reporter2 = ConvergenceReporter::new(false);
+        assert!(!reporter2.verbose);
+    }
+
+    #[test]
+    fn test_reporter_format_iteration() {
+        let reporter = ConvergenceReporter::new(true);
+        let mut state = super::super::state::ConvergenceState::new(make_test_config());
+        state.iteration = 5;
+        state.compilation_rate = 75.0;
+
+        let cluster = make_test_cluster();
 
         let report = reporter.format_iteration(&state, &cluster);
         assert!(report.contains("Iteration 5"));
         assert!(report.contains("75.0%"));
         assert!(report.contains("E0599"));
+    }
+
+    #[test]
+    fn test_iteration_report_struct() {
+        let report = IterationReport {
+            iteration: 1,
+            compilation_rate: 50.0,
+            target_rate: 100.0,
+            total_examples: 10,
+            passing_examples: 5,
+            top_cluster: None,
+        };
+        assert_eq!(report.iteration, 1);
+        assert_eq!(report.compilation_rate, 50.0);
+    }
+
+    #[test]
+    fn test_iteration_report_with_cluster() {
+        let summary = ErrorClusterSummary {
+            error_code: "E0308".to_string(),
+            examples_blocked: 3,
+            fix_confidence: 0.85,
+            root_cause_description: "type mismatch".to_string(),
+        };
+        let report = IterationReport {
+            iteration: 2,
+            compilation_rate: 70.0,
+            target_rate: 100.0,
+            total_examples: 10,
+            passing_examples: 7,
+            top_cluster: Some(summary.clone()),
+        };
+        assert!(report.top_cluster.is_some());
+        let cluster = report.top_cluster.unwrap();
+        assert_eq!(cluster.error_code, "E0308");
+        assert_eq!(cluster.examples_blocked, 3);
+    }
+
+    #[test]
+    fn test_error_cluster_summary_clone() {
+        let summary = ErrorClusterSummary {
+            error_code: "E0277".to_string(),
+            examples_blocked: 5,
+            fix_confidence: 0.9,
+            root_cause_description: "trait not implemented".to_string(),
+        };
+        let cloned = summary.clone();
+        assert_eq!(summary.error_code, cloned.error_code);
+        assert_eq!(summary.examples_blocked, cloned.examples_blocked);
+    }
+
+    #[test]
+    fn test_reporter_report_start() {
+        let reporter = ConvergenceReporter::new(false);
+        let state = super::super::state::ConvergenceState::new(make_test_config());
+        // Just verify it doesn't panic
+        reporter.report_start(&state);
+    }
+
+    #[test]
+    fn test_reporter_report_iteration_verbose() {
+        let reporter = ConvergenceReporter::new(true);
+        let mut state = super::super::state::ConvergenceState::new(make_test_config());
+        state.iteration = 1;
+        let cluster = make_test_cluster();
+        // Just verify it doesn't panic
+        reporter.report_iteration(&state, &cluster);
+    }
+
+    #[test]
+    fn test_reporter_report_iteration_non_verbose() {
+        let reporter = ConvergenceReporter::new(false);
+        let mut state = super::super::state::ConvergenceState::new(make_test_config());
+        state.iteration = 1;
+        let cluster = make_test_cluster();
+        reporter.report_iteration(&state, &cluster);
+    }
+
+    #[test]
+    fn test_reporter_report_finish_target_reached() {
+        let reporter = ConvergenceReporter::new(false);
+        let mut state = super::super::state::ConvergenceState::new(make_test_config());
+        state.compilation_rate = 100.0;
+        reporter.report_finish(&state);
+    }
+
+    #[test]
+    fn test_reporter_report_finish_target_not_reached() {
+        let reporter = ConvergenceReporter::new(true);
+        let mut state = super::super::state::ConvergenceState::new(make_test_config());
+        state.compilation_rate = 50.0;
+        state.error_clusters.push(make_test_cluster());
+        reporter.report_finish(&state);
+    }
+
+    #[test]
+    fn test_reporter_report_finish_with_fixes() {
+        let reporter = ConvergenceReporter::new(true);
+        let mut state = super::super::state::ConvergenceState::new(make_test_config());
+        state.compilation_rate = 100.0;
+        state.fixes_applied.push(super::super::state::AppliedFix {
+            iteration: 1,
+            error_code: "E0599".to_string(),
+            description: "Added method".to_string(),
+            file_modified: PathBuf::from("expr_gen.rs"),
+            commit_hash: None,
+            verified: true,
+        });
+        reporter.report_finish(&state);
+    }
+
+    #[test]
+    fn test_reporter_report_iteration_with_sample_errors() {
+        let reporter = ConvergenceReporter::new(true);
+        let mut state = super::super::state::ConvergenceState::new(make_test_config());
+        state.iteration = 1;
+        let mut cluster = make_test_cluster();
+        cluster.sample_errors = vec![
+            super::super::compiler::CompilationError {
+                code: "E0599".to_string(),
+                message: "method not found".to_string(),
+                file: PathBuf::from("test.py"),
+                line: 10,
+                column: 5,
+            },
+        ];
+        reporter.report_iteration(&state, &cluster);
+    }
+
+    #[test]
+    fn test_reporter_report_iteration_unknown_root_cause() {
+        let reporter = ConvergenceReporter::new(true);
+        let mut state = super::super::state::ConvergenceState::new(make_test_config());
+        state.iteration = 1;
+        let cluster = ErrorCluster {
+            root_cause: super::super::clusterer::RootCause::Unknown,
+            error_code: "E0599".to_string(),
+            examples_blocked: vec![],
+            sample_errors: vec![],
+            fix_confidence: 0.5,
+            suggested_fix: None,
+        };
+        reporter.report_iteration(&state, &cluster);
     }
 }

@@ -819,7 +819,11 @@ impl Default for LifetimeInference {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::{FunctionProperties, HirFunction, HirParam, Literal, Type as PythonType};
+    use crate::hir::{
+        BinOp, FunctionProperties, HirComprehension, HirFunction, HirParam, Literal, Symbol,
+        Type as PythonType, UnaryOp,
+    };
+    use crate::type_mapper::PrimitiveType;
     use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
 
@@ -920,9 +924,9 @@ mod tests {
             params: smallvec![HirParam::new("s".to_string(), PythonType::String)],
             ret_type: PythonType::None,
             body: vec![HirStmt::Assign {
-                target: AssignTarget::Symbol("s".to_string()),
+                target: AssignTarget::Symbol(Symbol::from("s")),
                 value: HirExpr::Binary {
-                    op: crate::hir::BinOp::Add,
+                    op: BinOp::Add,
                     left: Box::new(HirExpr::Var("s".to_string())),
                     right: Box::new(HirExpr::Literal(Literal::String("!".to_string()))),
                 },
@@ -940,5 +944,736 @@ mod tests {
         let s_param = result.param_lifetimes.get("s").unwrap();
         assert!(!s_param.should_borrow); // Should take ownership
         assert!(!s_param.needs_mut); // Not a mutable borrow
+    }
+
+    #[test]
+    fn test_lifetime_info_construction() {
+        let info = LifetimeInfo {
+            name: "'a".to_string(),
+            is_static: false,
+            outlives: HashSet::new(),
+            source: LifetimeSource::Parameter("x".to_string()),
+        };
+        assert_eq!(info.name, "'a");
+        assert!(!info.is_static);
+        assert!(info.outlives.is_empty());
+    }
+
+    #[test]
+    fn test_lifetime_info_static() {
+        let info = LifetimeInfo {
+            name: "'static".to_string(),
+            is_static: true,
+            outlives: HashSet::new(),
+            source: LifetimeSource::StaticLiteral,
+        };
+        assert!(info.is_static);
+    }
+
+    #[test]
+    fn test_lifetime_info_with_outlives() {
+        let mut outlives = HashSet::new();
+        outlives.insert("'b".to_string());
+        outlives.insert("'c".to_string());
+        let info = LifetimeInfo {
+            name: "'a".to_string(),
+            is_static: false,
+            outlives,
+            source: LifetimeSource::Return,
+        };
+        assert_eq!(info.outlives.len(), 2);
+        assert!(info.outlives.contains("'b"));
+    }
+
+    #[test]
+    fn test_lifetime_source_variants() {
+        let param_src = LifetimeSource::Parameter("x".to_string());
+        let static_src = LifetimeSource::StaticLiteral;
+        let local_src = LifetimeSource::Local;
+        let return_src = LifetimeSource::Return;
+        let field_src = LifetimeSource::Field("name".to_string());
+
+        assert_eq!(param_src, LifetimeSource::Parameter("x".to_string()));
+        assert_eq!(static_src, LifetimeSource::StaticLiteral);
+        assert_eq!(local_src, LifetimeSource::Local);
+        assert_eq!(return_src, LifetimeSource::Return);
+        assert_eq!(field_src, LifetimeSource::Field("name".to_string()));
+    }
+
+    #[test]
+    fn test_lifetime_source_ne() {
+        let src1 = LifetimeSource::Parameter("x".to_string());
+        let src2 = LifetimeSource::Parameter("y".to_string());
+        assert_ne!(src1, src2);
+    }
+
+    #[test]
+    fn test_param_usage_default() {
+        let usage = ParamUsage::default();
+        assert!(!usage.is_mutated);
+        assert!(!usage.is_moved);
+        assert!(!usage.escapes);
+        assert!(!usage.is_read_only);
+        assert!(!usage.used_in_loop);
+        assert!(!usage.has_nested_borrows);
+    }
+
+    #[test]
+    fn test_param_usage_all_true() {
+        let usage = ParamUsage {
+            is_mutated: true,
+            is_moved: true,
+            escapes: true,
+            is_read_only: true,
+            used_in_loop: true,
+            has_nested_borrows: true,
+        };
+        assert!(usage.is_mutated);
+        assert!(usage.is_moved);
+        assert!(usage.escapes);
+    }
+
+    #[test]
+    fn test_lifetime_constraint_variants() {
+        let outlives = LifetimeConstraint::Outlives;
+        let equal = LifetimeConstraint::Equal;
+        let at_least = LifetimeConstraint::AtLeast;
+
+        // Just verify they can be constructed
+        assert!(matches!(outlives, LifetimeConstraint::Outlives));
+        assert!(matches!(equal, LifetimeConstraint::Equal));
+        assert!(matches!(at_least, LifetimeConstraint::AtLeast));
+    }
+
+    #[test]
+    fn test_lifetime_result_empty() {
+        let result = LifetimeResult {
+            param_lifetimes: IndexMap::new(),
+            return_lifetime: None,
+            lifetime_params: vec![],
+            lifetime_bounds: vec![],
+            borrowing_strategies: IndexMap::new(),
+        };
+        assert!(result.param_lifetimes.is_empty());
+        assert!(result.return_lifetime.is_none());
+        assert!(result.lifetime_params.is_empty());
+    }
+
+    #[test]
+    fn test_lifetime_result_with_data() {
+        let mut param_lifetimes = IndexMap::new();
+        param_lifetimes.insert(
+            "x".to_string(),
+            InferredParam {
+                should_borrow: true,
+                needs_mut: false,
+                lifetime: Some("'a".to_string()),
+                rust_type: RustType::String,
+            },
+        );
+        let result = LifetimeResult {
+            param_lifetimes,
+            return_lifetime: Some("'a".to_string()),
+            lifetime_params: vec!["'a".to_string()],
+            lifetime_bounds: vec![("'a".to_string(), "'b".to_string())],
+            borrowing_strategies: IndexMap::new(),
+        };
+        assert_eq!(result.param_lifetimes.len(), 1);
+        assert_eq!(result.return_lifetime, Some("'a".to_string()));
+        assert_eq!(result.lifetime_bounds.len(), 1);
+    }
+
+    #[test]
+    fn test_inferred_param_construction() {
+        let param = InferredParam {
+            should_borrow: true,
+            needs_mut: true,
+            lifetime: Some("'a".to_string()),
+            rust_type: RustType::String,
+        };
+        assert!(param.should_borrow);
+        assert!(param.needs_mut);
+        assert_eq!(param.lifetime, Some("'a".to_string()));
+    }
+
+    #[test]
+    fn test_inferred_param_owned() {
+        let param = InferredParam {
+            should_borrow: false,
+            needs_mut: false,
+            lifetime: None,
+            rust_type: RustType::Primitive(PrimitiveType::I64),
+        };
+        assert!(!param.should_borrow);
+        assert!(param.lifetime.is_none());
+    }
+
+    #[test]
+    fn test_lifetime_inference_default() {
+        let inference = LifetimeInference::default();
+        assert_eq!(inference.lifetime_counter, 0);
+        assert!(inference.variable_lifetimes.is_empty());
+    }
+
+    #[test]
+    fn test_add_constraint() {
+        let mut inference = LifetimeInference::new();
+        inference.add_constraint("'a", "'b", LifetimeConstraint::Outlives);
+        inference.add_constraint("'a", "'c", LifetimeConstraint::Equal);
+
+        let constraints = inference.lifetime_constraints.get("'a").unwrap();
+        assert!(constraints.contains("'b"));
+        assert!(constraints.contains("'c"));
+    }
+
+    #[test]
+    fn test_compute_lifetime_bounds() {
+        let mut inference = LifetimeInference::new();
+        inference.add_constraint("'a", "'b", LifetimeConstraint::Outlives);
+        inference.add_constraint("'c", "'return", LifetimeConstraint::Outlives);
+
+        let bounds = inference.compute_lifetime_bounds();
+        // Should include "'a: 'b" but not "'c: 'return" (internal marker)
+        assert!(bounds.iter().any(|(f, t)| f == "'a" && t == "'b"));
+        assert!(!bounds.iter().any(|(_, t)| t == "'return"));
+    }
+
+    #[test]
+    fn test_return_type_needs_lifetime_str() {
+        let inference = LifetimeInference::new();
+        let str_type = RustType::Str { lifetime: None };
+        assert!(inference.return_type_needs_lifetime(&str_type));
+    }
+
+    #[test]
+    fn test_return_type_needs_lifetime_reference() {
+        let inference = LifetimeInference::new();
+        let ref_type = RustType::Reference {
+            lifetime: None,
+            inner: Box::new(RustType::Primitive(PrimitiveType::I64)),
+            mutable: false,
+        };
+        assert!(inference.return_type_needs_lifetime(&ref_type));
+    }
+
+    #[test]
+    fn test_return_type_needs_lifetime_cow() {
+        let inference = LifetimeInference::new();
+        let cow_type = RustType::Cow {
+            lifetime: "'a".to_string(),
+        };
+        assert!(inference.return_type_needs_lifetime(&cow_type));
+    }
+
+    #[test]
+    fn test_return_type_needs_lifetime_vec_str() {
+        let inference = LifetimeInference::new();
+        let vec_str = RustType::Vec(Box::new(RustType::Str { lifetime: None }));
+        assert!(inference.return_type_needs_lifetime(&vec_str));
+    }
+
+    #[test]
+    fn test_return_type_needs_lifetime_option_i64() {
+        let inference = LifetimeInference::new();
+        let opt_i64 = RustType::Option(Box::new(RustType::Primitive(PrimitiveType::I64)));
+        assert!(!inference.return_type_needs_lifetime(&opt_i64));
+    }
+
+    #[test]
+    fn test_return_type_needs_lifetime_result() {
+        let inference = LifetimeInference::new();
+        let result_type = RustType::Result(
+            Box::new(RustType::Str { lifetime: None }),
+            Box::new(RustType::String),
+        );
+        assert!(inference.return_type_needs_lifetime(&result_type));
+    }
+
+    #[test]
+    fn test_return_type_needs_lifetime_tuple() {
+        let inference = LifetimeInference::new();
+        let tuple = RustType::Tuple(vec![
+            RustType::Primitive(PrimitiveType::I64),
+            RustType::Str { lifetime: None },
+        ]);
+        assert!(inference.return_type_needs_lifetime(&tuple));
+    }
+
+    #[test]
+    fn test_return_type_needs_lifetime_simple() {
+        let inference = LifetimeInference::new();
+        assert!(!inference.return_type_needs_lifetime(&RustType::Primitive(PrimitiveType::I64)));
+        assert!(!inference.return_type_needs_lifetime(&RustType::Primitive(PrimitiveType::F64)));
+        assert!(!inference.return_type_needs_lifetime(&RustType::Primitive(PrimitiveType::Bool)));
+        assert!(!inference.return_type_needs_lifetime(&RustType::Unit));
+    }
+
+    #[test]
+    fn test_is_reference_type() {
+        let inference = LifetimeInference::new();
+
+        let str_type = RustType::Str { lifetime: None };
+        assert!(inference.is_reference_type(&str_type));
+
+        let ref_type = RustType::Reference {
+            lifetime: None,
+            inner: Box::new(RustType::Primitive(PrimitiveType::I64)),
+            mutable: false,
+        };
+        assert!(inference.is_reference_type(&ref_type));
+
+        let cow_type = RustType::Cow {
+            lifetime: "'a".to_string(),
+        };
+        assert!(inference.is_reference_type(&cow_type));
+
+        assert!(!inference.is_reference_type(&RustType::String));
+        assert!(!inference.is_reference_type(&RustType::Primitive(PrimitiveType::I64)));
+    }
+
+    #[test]
+    fn test_analyze_stmt_for_param_assign() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol(Symbol::from("x")),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        };
+        inference.analyze_stmt_for_param("x", &stmt, &mut usage, false);
+        assert!(usage.is_mutated);
+    }
+
+    #[test]
+    fn test_analyze_stmt_for_param_if() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let stmt = HirStmt::If {
+            condition: HirExpr::Var("x".to_string()),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+            else_body: Some(vec![HirStmt::Pass]),
+        };
+        inference.analyze_stmt_for_param("x", &stmt, &mut usage, false);
+        assert!(usage.is_read_only);
+        assert!(usage.escapes);
+    }
+
+    #[test]
+    fn test_analyze_stmt_for_param_while() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let stmt = HirStmt::While {
+            condition: HirExpr::Var("x".to_string()),
+            body: vec![HirStmt::Expr(HirExpr::Var("x".to_string()))],
+        };
+        inference.analyze_stmt_for_param("x", &stmt, &mut usage, false);
+        assert!(usage.used_in_loop);
+    }
+
+    #[test]
+    fn test_analyze_stmt_for_param_for() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let stmt = HirStmt::For {
+            target: AssignTarget::Symbol(Symbol::from("i")),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![HirStmt::Pass],
+        };
+        inference.analyze_stmt_for_param("items", &stmt, &mut usage, false);
+        assert!(usage.used_in_loop);
+    }
+
+    #[test]
+    fn test_analyze_stmt_for_param_break_continue_pass() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        inference.analyze_stmt_for_param("x", &HirStmt::Break { label: None }, &mut usage, false);
+        inference.analyze_stmt_for_param("x", &HirStmt::Continue { label: None }, &mut usage, false);
+        inference.analyze_stmt_for_param("x", &HirStmt::Pass, &mut usage, false);
+
+        // These statements don't affect parameter usage
+        assert!(!usage.is_read_only);
+        assert!(!usage.is_mutated);
+    }
+
+    #[test]
+    fn test_analyze_stmt_for_param_block() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let stmt = HirStmt::Block(vec![
+            HirStmt::Expr(HirExpr::Var("x".to_string())),
+            HirStmt::Return(Some(HirExpr::Var("x".to_string()))),
+        ]);
+        inference.analyze_stmt_for_param("x", &stmt, &mut usage, false);
+        assert!(usage.is_read_only);
+        assert!(usage.escapes);
+    }
+
+    #[test]
+    fn test_analyze_stmt_for_param_assert() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let stmt = HirStmt::Assert {
+            test: HirExpr::Var("x".to_string()),
+            msg: Some(HirExpr::Literal(Literal::String("error".to_string()))),
+        };
+        inference.analyze_stmt_for_param("x", &stmt, &mut usage, false);
+        assert!(usage.is_read_only);
+    }
+
+    #[test]
+    fn test_analyze_stmt_for_param_raise() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let stmt = HirStmt::Raise {
+            exception: Some(HirExpr::Var("x".to_string())),
+            cause: None,
+        };
+        inference.analyze_stmt_for_param("x", &stmt, &mut usage, false);
+        assert!(usage.is_read_only);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_attribute() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "field".to_string(),
+        };
+        inference.analyze_expr_for_param("obj", &expr, &mut usage, false, false);
+        assert!(usage.is_read_only);
+        assert!(usage.has_nested_borrows);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_index() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        inference.analyze_expr_for_param("arr", &expr, &mut usage, false, false);
+        assert!(usage.is_read_only);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_call() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::Call {
+            func: Symbol::from("func"),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        };
+        inference.analyze_expr_for_param("x", &expr, &mut usage, false, false);
+        assert!(usage.is_moved);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_list() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::List(vec![
+            HirExpr::Var("x".to_string()),
+            HirExpr::Literal(Literal::Int(1)),
+        ]);
+        inference.analyze_expr_for_param("x", &expr, &mut usage, false, true);
+        assert!(usage.is_read_only);
+        assert!(usage.escapes);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_dict() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("key".to_string())),
+            HirExpr::Var("x".to_string()),
+        )]);
+        inference.analyze_expr_for_param("x", &expr, &mut usage, false, true);
+        assert!(usage.escapes);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_binary() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        inference.analyze_expr_for_param("x", &expr, &mut usage, false, false);
+        assert!(usage.is_read_only);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_unary() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Var("x".to_string())),
+        };
+        inference.analyze_expr_for_param("x", &expr, &mut usage, false, false);
+        assert!(usage.is_read_only);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_method_call() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".to_string())),
+            method: "method".to_string(),
+            args: vec![HirExpr::Var("arg".to_string())],
+            kwargs: vec![],
+        };
+        inference.analyze_expr_for_param("obj", &expr, &mut usage, false, false);
+        assert!(usage.is_read_only);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_slice() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::Slice {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            start: Some(Box::new(HirExpr::Var("start".to_string()))),
+            stop: Some(Box::new(HirExpr::Var("stop".to_string()))),
+            step: None,
+        };
+        inference.analyze_expr_for_param("arr", &expr, &mut usage, false, false);
+        assert!(usage.is_read_only);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_borrow() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::Borrow {
+            expr: Box::new(HirExpr::Var("x".to_string())),
+            mutable: false,
+        };
+        inference.analyze_expr_for_param("x", &expr, &mut usage, false, false);
+        assert!(usage.is_read_only);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_list_comp() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::ListComp {
+            element: Box::new(HirExpr::Var("x".to_string())),
+            generators: vec![HirComprehension {
+                target: Symbol::from("i"),
+                iter: Box::new(HirExpr::Var("items".to_string())),
+                conditions: vec![],
+            }],
+        };
+        inference.analyze_expr_for_param("items", &expr, &mut usage, false, false);
+        assert!(usage.used_in_loop);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_set() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::Set(vec![HirExpr::Var("x".to_string())]);
+        inference.analyze_expr_for_param("x", &expr, &mut usage, false, true);
+        assert!(usage.escapes);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_if_expr() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::IfExpr {
+            test: Box::new(HirExpr::Var("cond".to_string())),
+            body: Box::new(HirExpr::Var("x".to_string())),
+            orelse: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        inference.analyze_expr_for_param("x", &expr, &mut usage, false, true);
+        assert!(usage.escapes);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_lambda() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::Lambda {
+            params: vec![],
+            body: Box::new(HirExpr::Var("x".to_string())),
+        };
+        inference.analyze_expr_for_param("x", &expr, &mut usage, false, false);
+        assert!(usage.is_read_only);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_await() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::Await {
+            value: Box::new(HirExpr::Var("future".to_string())),
+        };
+        inference.analyze_expr_for_param("future", &expr, &mut usage, false, true);
+        assert!(usage.escapes);
+    }
+
+    #[test]
+    fn test_analyze_expr_for_param_yield() {
+        let mut inference = LifetimeInference::new();
+        let mut usage = ParamUsage::default();
+
+        let expr = HirExpr::Yield {
+            value: Some(Box::new(HirExpr::Var("val".to_string()))),
+        };
+        inference.analyze_expr_for_param("val", &expr, &mut usage, false, true);
+        assert!(usage.escapes);
+    }
+
+    #[test]
+    fn test_inferred_param_clone() {
+        let param = InferredParam {
+            should_borrow: true,
+            needs_mut: false,
+            lifetime: Some("'a".to_string()),
+            rust_type: RustType::String,
+        };
+        let cloned = param.clone();
+        assert_eq!(param.should_borrow, cloned.should_borrow);
+        assert_eq!(param.lifetime, cloned.lifetime);
+    }
+
+    #[test]
+    fn test_lifetime_result_clone() {
+        let result = LifetimeResult {
+            param_lifetimes: IndexMap::new(),
+            return_lifetime: Some("'a".to_string()),
+            lifetime_params: vec!["'a".to_string()],
+            lifetime_bounds: vec![],
+            borrowing_strategies: IndexMap::new(),
+        };
+        let cloned = result.clone();
+        assert_eq!(result.return_lifetime, cloned.return_lifetime);
+    }
+
+    #[test]
+    fn test_lifetime_info_clone() {
+        let info = LifetimeInfo {
+            name: "'a".to_string(),
+            is_static: false,
+            outlives: HashSet::new(),
+            source: LifetimeSource::Local,
+        };
+        let cloned = info.clone();
+        assert_eq!(info.name, cloned.name);
+    }
+
+    #[test]
+    fn test_param_usage_clone() {
+        let usage = ParamUsage {
+            is_mutated: true,
+            is_moved: false,
+            escapes: true,
+            is_read_only: false,
+            used_in_loop: true,
+            has_nested_borrows: false,
+        };
+        let cloned = usage.clone();
+        assert_eq!(usage.is_mutated, cloned.is_mutated);
+        assert_eq!(usage.escapes, cloned.escapes);
+    }
+
+    #[test]
+    fn test_lifetime_constraint_clone() {
+        let constraint = LifetimeConstraint::Outlives;
+        let _cloned = constraint.clone();
+    }
+
+    #[test]
+    fn test_lifetime_source_clone() {
+        let src = LifetimeSource::Field("name".to_string());
+        let cloned = src.clone();
+        assert_eq!(src, cloned);
+    }
+
+    #[test]
+    fn test_multiple_lifetime_generation() {
+        let mut inference = LifetimeInference::new();
+        let lifetimes: Vec<String> = (0..10).map(|_| inference.next_lifetime()).collect();
+
+        assert_eq!(lifetimes[0], "'a");
+        assert_eq!(lifetimes[1], "'b");
+        assert_eq!(lifetimes[2], "'c");
+        assert_eq!(lifetimes[3], "'l1");
+        assert_eq!(lifetimes[9], "'l7");
+    }
+
+    #[test]
+    fn test_analyze_function_with_no_params() {
+        let mut inference = LifetimeInference::new();
+        let type_mapper = crate::type_mapper::TypeMapper::new();
+
+        let func = HirFunction {
+            name: "no_params".to_string(),
+            params: smallvec![],
+            ret_type: PythonType::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let result = inference.analyze_function(&func, &type_mapper);
+        assert!(result.param_lifetimes.is_empty());
+    }
+
+    #[test]
+    fn test_elision_with_no_references() {
+        let mut inference = LifetimeInference::new();
+        let type_mapper = crate::type_mapper::TypeMapper::new();
+
+        let func = HirFunction {
+            name: "add".to_string(),
+            params: smallvec![
+                HirParam::new("a".to_string(), PythonType::Int),
+                HirParam::new("b".to_string(), PythonType::Int),
+            ],
+            ret_type: PythonType::Int,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let result = inference.apply_elision_rules(&func, &type_mapper).unwrap();
+        assert!(result.lifetime_params.is_empty());
+        assert!(result.return_lifetime.is_none());
     }
 }

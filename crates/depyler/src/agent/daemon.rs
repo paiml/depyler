@@ -661,3 +661,415 @@ impl AgentDaemon {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Test AgentConfig
+    #[test]
+    fn test_agent_config_default() {
+        let config = AgentConfig::default();
+        assert_eq!(config.port, 3000);
+        assert!(!config.debug);
+        assert!(config.auto_transpile);
+        assert_eq!(config.verification_level, "basic");
+    }
+
+    #[test]
+    fn test_agent_config_serialization() {
+        let config = AgentConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("3000"));
+        assert!(json.contains("basic"));
+    }
+
+    #[test]
+    fn test_agent_config_deserialization() {
+        let json = r#"{"port": 8080, "debug": true, "auto_transpile": false, "verification_level": "full"}"#;
+        let config: AgentConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.port, 8080);
+        assert!(config.debug);
+        assert!(!config.auto_transpile);
+        assert_eq!(config.verification_level, "full");
+    }
+
+    // Test DaemonConfig
+    #[test]
+    fn test_daemon_config_default() {
+        let config = DaemonConfig::default();
+        assert_eq!(config.mcp_port, 3000);
+        assert!(!config.debug);
+        assert_eq!(config.agent.port, 3000);
+    }
+
+    #[test]
+    fn test_daemon_config_serialization() {
+        let config = DaemonConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("mcp_port"));
+        assert!(json.contains("debug"));
+    }
+
+    // Test DaemonSettings
+    #[test]
+    fn test_daemon_settings_default() {
+        let settings = DaemonSettings::default();
+        assert!(settings.pid_file.is_none());
+        assert!(settings.log_file.is_none());
+        assert_eq!(settings.health_check_interval, Duration::from_secs(30));
+        assert_eq!(settings.max_memory_mb, 1000);
+        assert!(settings.auto_restart);
+        assert_eq!(settings.shutdown_timeout, Duration::from_secs(10));
+        assert!(settings.auto_transpile);
+        assert_eq!(settings.verification_level, VerificationLevel::Basic);
+    }
+
+    #[test]
+    fn test_daemon_settings_with_pid_file() {
+        let settings = DaemonSettings {
+            pid_file: Some(PathBuf::from("/tmp/depyler.pid")),
+            ..Default::default()
+        };
+        assert_eq!(
+            settings.pid_file,
+            Some(PathBuf::from("/tmp/depyler.pid"))
+        );
+    }
+
+    #[test]
+    fn test_daemon_settings_serialization() {
+        let settings = DaemonSettings::default();
+        let json = serde_json::to_string(&settings).unwrap();
+        assert!(json.contains("health_check_interval"));
+        assert!(json.contains("max_memory_mb"));
+        assert!(json.contains("auto_restart"));
+    }
+
+    // Test VerificationLevel
+    #[test]
+    fn test_verification_level_default() {
+        let level = VerificationLevel::default();
+        assert_eq!(level, VerificationLevel::Basic);
+    }
+
+    #[test]
+    fn test_verification_level_variants() {
+        assert_eq!(VerificationLevel::None, VerificationLevel::None);
+        assert_eq!(VerificationLevel::Basic, VerificationLevel::Basic);
+        assert_eq!(VerificationLevel::Full, VerificationLevel::Full);
+        assert_eq!(VerificationLevel::Strict, VerificationLevel::Strict);
+    }
+
+    #[test]
+    fn test_verification_level_serialization() {
+        let level = VerificationLevel::Full;
+        let json = serde_json::to_string(&level).unwrap();
+        assert!(json.contains("Full"));
+    }
+
+    #[test]
+    fn test_verification_level_deserialization() {
+        let json = r#""Strict""#;
+        let level: VerificationLevel = serde_json::from_str(json).unwrap();
+        assert_eq!(level, VerificationLevel::Strict);
+    }
+
+    #[test]
+    fn test_verification_level_clone() {
+        let level = VerificationLevel::Full;
+        let cloned = level.clone();
+        assert_eq!(level, cloned);
+    }
+
+    #[test]
+    fn test_verification_level_copy() {
+        let level = VerificationLevel::Strict;
+        let copied: VerificationLevel = level;
+        assert_eq!(level, copied);
+    }
+
+    // Test DaemonState
+    #[test]
+    fn test_daemon_state_default() {
+        let state = DaemonState::default();
+        assert_eq!(state.status, DaemonStatus::Starting);
+        assert_eq!(state.memory_usage_mb, 0);
+        assert_eq!(state.monitored_projects, 0);
+        assert_eq!(state.total_transpilations, 0);
+        assert_eq!(state.successful_transpilations, 0);
+        assert_eq!(state.failed_transpilations, 0);
+        assert!(state.last_error.is_none());
+    }
+
+    #[test]
+    fn test_daemon_state_with_error() {
+        let state = DaemonState {
+            last_error: Some("Test error".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(state.last_error, Some("Test error".to_string()));
+    }
+
+    #[test]
+    fn test_daemon_state_serialization() {
+        let state = DaemonState::default();
+        let json = serde_json::to_string(&state).unwrap();
+        assert!(json.contains("status"));
+        assert!(json.contains("memory_usage_mb"));
+    }
+
+    #[test]
+    fn test_daemon_state_clone() {
+        let state = DaemonState::default();
+        let cloned = state.clone();
+        assert_eq!(state.status, cloned.status);
+    }
+
+    // Test DaemonStatus
+    #[test]
+    fn test_daemon_status_variants() {
+        assert_eq!(DaemonStatus::Starting, DaemonStatus::Starting);
+        assert_eq!(DaemonStatus::Running, DaemonStatus::Running);
+        assert_eq!(DaemonStatus::Stopping, DaemonStatus::Stopping);
+        assert_eq!(DaemonStatus::Stopped, DaemonStatus::Stopped);
+        assert_eq!(DaemonStatus::Error, DaemonStatus::Error);
+        assert_eq!(DaemonStatus::Restarting, DaemonStatus::Restarting);
+    }
+
+    #[test]
+    fn test_daemon_status_serialization() {
+        let status = DaemonStatus::Running;
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(json.contains("Running"));
+    }
+
+    #[test]
+    fn test_daemon_status_deserialization() {
+        let json = r#""Stopped""#;
+        let status: DaemonStatus = serde_json::from_str(json).unwrap();
+        assert_eq!(status, DaemonStatus::Stopped);
+    }
+
+    #[test]
+    fn test_daemon_status_clone() {
+        let status = DaemonStatus::Running;
+        let cloned = status.clone();
+        assert_eq!(status, cloned);
+    }
+
+    #[test]
+    fn test_daemon_status_copy() {
+        let status = DaemonStatus::Running;
+        let copied: DaemonStatus = status;
+        assert_eq!(status, copied);
+    }
+
+    // Test AgentDaemon
+    #[test]
+    fn test_agent_daemon_new() {
+        let config = DaemonConfig::default();
+        let daemon = AgentDaemon::new(config);
+        assert!(daemon.mcp_server.is_none());
+        assert!(daemon.transpilation_monitor.is_none());
+        assert!(daemon.shutdown_tx.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_agent_daemon_get_state() {
+        let config = DaemonConfig::default();
+        let daemon = AgentDaemon::new(config);
+        let state = daemon.get_state().await;
+        assert_eq!(state.status, DaemonStatus::Starting);
+    }
+
+    #[test]
+    fn test_agent_daemon_stop_daemon_no_pid_file() {
+        // Should not error even if there's no PID file
+        let result = AgentDaemon::stop_daemon();
+        // Result depends on whether temp dir has a PID file
+        // In most cases it won't, so it should succeed
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_agent_daemon_daemon_status_no_pid_file() {
+        let result = AgentDaemon::daemon_status();
+        assert!(result.is_ok());
+        // No PID file means daemon is not running
+        assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn test_agent_daemon_tail_logs() {
+        let result = AgentDaemon::tail_logs();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_agent_daemon_show_logs_no_file() {
+        // Should not error even if there's no log file
+        let result = AgentDaemon::show_logs(10);
+        assert!(result.is_ok());
+    }
+
+    // Test config loading
+    #[test]
+    fn test_daemon_config_from_file_not_found() {
+        let result = DaemonConfig::from_file(std::path::Path::new("/nonexistent/path.json"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_daemon_config_from_file_invalid_json() {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("test_invalid_config.json");
+        std::fs::write(&temp_file, "not valid json").unwrap();
+
+        let result = DaemonConfig::from_file(&temp_file);
+        assert!(result.is_err());
+
+        // Cleanup
+        let _ = std::fs::remove_file(temp_file);
+    }
+
+    #[test]
+    fn test_daemon_config_from_file_valid() {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("test_valid_daemon_config.json");
+
+        let config = DaemonConfig::default();
+        let json = serde_json::to_string_pretty(&config).unwrap();
+        std::fs::write(&temp_file, json).unwrap();
+
+        let result = DaemonConfig::from_file(&temp_file);
+        assert!(result.is_ok());
+        let loaded = result.unwrap();
+        assert_eq!(loaded.mcp_port, 3000);
+
+        // Cleanup
+        let _ = std::fs::remove_file(temp_file);
+    }
+
+    // Test transpilation statistics tracking
+    #[tokio::test]
+    async fn test_daemon_state_counters() {
+        let config = DaemonConfig::default();
+        let daemon = AgentDaemon::new(config);
+
+        let state = daemon.get_state().await;
+        assert_eq!(state.total_transpilations, 0);
+        assert_eq!(state.successful_transpilations, 0);
+        assert_eq!(state.failed_transpilations, 0);
+    }
+
+    // Test DaemonState timing
+    #[test]
+    fn test_daemon_state_start_time() {
+        let before = SystemTime::now();
+        let state = DaemonState::default();
+        let after = SystemTime::now();
+
+        // Start time should be between before and after
+        assert!(state.start_time >= before);
+        assert!(state.start_time <= after);
+    }
+
+    #[test]
+    fn test_daemon_state_health_check_time() {
+        let state = DaemonState::default();
+        // Last health check should be close to start time
+        let diff = state.start_time
+            .duration_since(state.last_health_check)
+            .unwrap_or(Duration::ZERO);
+        // Should be within 1 second
+        assert!(diff.as_secs() < 1);
+    }
+
+    // Test serialization round-trip
+    #[test]
+    fn test_daemon_config_round_trip() {
+        let config = DaemonConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: DaemonConfig = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(config.mcp_port, deserialized.mcp_port);
+        assert_eq!(config.debug, deserialized.debug);
+    }
+
+    #[test]
+    fn test_daemon_settings_round_trip() {
+        let settings = DaemonSettings::default();
+        let json = serde_json::to_string(&settings).unwrap();
+        let deserialized: DaemonSettings = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(settings.max_memory_mb, deserialized.max_memory_mb);
+        assert_eq!(settings.auto_restart, deserialized.auto_restart);
+    }
+
+    #[test]
+    fn test_daemon_state_round_trip() {
+        let state = DaemonState {
+            status: DaemonStatus::Running,
+            total_transpilations: 100,
+            successful_transpilations: 95,
+            failed_transpilations: 5,
+            memory_usage_mb: 512,
+            monitored_projects: 3,
+            last_error: Some("Test error".to_string()),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string(&state).unwrap();
+        let deserialized: DaemonState = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(state.status, deserialized.status);
+        assert_eq!(state.total_transpilations, deserialized.total_transpilations);
+        assert_eq!(state.successful_transpilations, deserialized.successful_transpilations);
+        assert_eq!(state.failed_transpilations, deserialized.failed_transpilations);
+        assert_eq!(state.last_error, deserialized.last_error);
+    }
+
+    // Test Debug trait
+    #[test]
+    fn test_verification_level_debug() {
+        let level = VerificationLevel::Full;
+        let debug = format!("{:?}", level);
+        assert!(debug.contains("Full"));
+    }
+
+    #[test]
+    fn test_daemon_status_debug() {
+        let status = DaemonStatus::Running;
+        let debug = format!("{:?}", status);
+        assert!(debug.contains("Running"));
+    }
+
+    #[test]
+    fn test_daemon_settings_debug() {
+        let settings = DaemonSettings::default();
+        let debug = format!("{:?}", settings);
+        assert!(debug.contains("health_check_interval"));
+    }
+
+    #[test]
+    fn test_daemon_state_debug() {
+        let state = DaemonState::default();
+        let debug = format!("{:?}", state);
+        assert!(debug.contains("status"));
+    }
+
+    #[test]
+    fn test_agent_config_debug() {
+        let config = AgentConfig::default();
+        let debug = format!("{:?}", config);
+        assert!(debug.contains("port"));
+    }
+
+    #[test]
+    fn test_daemon_config_debug() {
+        let config = DaemonConfig::default();
+        let debug = format!("{:?}", config);
+        assert!(debug.contains("mcp_port"));
+    }
+}

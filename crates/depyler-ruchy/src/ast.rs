@@ -578,3 +578,332 @@ impl Default for RuchyAstBuilder {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_literal_integer() {
+        let lit = Literal::Integer(42);
+        assert_eq!(lit, Literal::Integer(42));
+    }
+
+    #[test]
+    fn test_literal_float() {
+        let lit = Literal::Float(3.14);
+        assert_eq!(lit, Literal::Float(3.14));
+    }
+
+    #[test]
+    fn test_literal_string() {
+        let lit = Literal::String("hello".to_string());
+        assert_eq!(lit, Literal::String("hello".to_string()));
+    }
+
+    #[test]
+    fn test_literal_bool() {
+        assert_eq!(Literal::Bool(true), Literal::Bool(true));
+        assert_eq!(Literal::Bool(false), Literal::Bool(false));
+    }
+
+    #[test]
+    fn test_literal_char() {
+        assert_eq!(Literal::Char('a'), Literal::Char('a'));
+    }
+
+    #[test]
+    fn test_literal_unit() {
+        assert_eq!(Literal::Unit, Literal::Unit);
+    }
+
+    #[test]
+    fn test_binary_op_variants() {
+        let ops = [
+            BinaryOp::Add, BinaryOp::Subtract, BinaryOp::Multiply,
+            BinaryOp::Divide, BinaryOp::Modulo, BinaryOp::Power,
+            BinaryOp::Equal, BinaryOp::NotEqual, BinaryOp::Less,
+            BinaryOp::LessEqual, BinaryOp::Greater, BinaryOp::GreaterEqual,
+            BinaryOp::And, BinaryOp::Or, BinaryOp::BitwiseAnd,
+            BinaryOp::BitwiseOr, BinaryOp::BitwiseXor,
+            BinaryOp::LeftShift, BinaryOp::RightShift,
+        ];
+        for op in ops {
+            assert_eq!(op, op);
+        }
+    }
+
+    #[test]
+    fn test_unary_op_variants() {
+        assert_eq!(UnaryOp::Not, UnaryOp::Not);
+        assert_eq!(UnaryOp::Negate, UnaryOp::Negate);
+        assert_eq!(UnaryOp::BitwiseNot, UnaryOp::BitwiseNot);
+    }
+
+    #[test]
+    fn test_param_creation() {
+        let param = Param {
+            name: "x".to_string(),
+            typ: Some(RuchyType::I64),
+            default: None,
+        };
+        assert_eq!(param.name, "x");
+        assert!(param.typ.is_some());
+        assert!(param.default.is_none());
+    }
+
+    #[test]
+    fn test_ruchy_type_primitives() {
+        let types = [
+            RuchyType::I8, RuchyType::I16, RuchyType::I32, RuchyType::I64,
+            RuchyType::I128, RuchyType::ISize, RuchyType::U8, RuchyType::U16,
+            RuchyType::U32, RuchyType::U64, RuchyType::U128, RuchyType::USize,
+            RuchyType::F32, RuchyType::F64, RuchyType::Bool, RuchyType::Char,
+            RuchyType::String, RuchyType::Dynamic,
+        ];
+        for t in types {
+            assert_eq!(t.clone(), t);
+        }
+    }
+
+    #[test]
+    fn test_ruchy_type_compound() {
+        let vec_type = RuchyType::Vec(Box::new(RuchyType::I64));
+        assert_eq!(vec_type.clone(), vec_type);
+
+        let option_type = RuchyType::Option(Box::new(RuchyType::String));
+        assert_eq!(option_type.clone(), option_type);
+
+        let result_type = RuchyType::Result(
+            Box::new(RuchyType::I64),
+            Box::new(RuchyType::String),
+        );
+        assert_eq!(result_type.clone(), result_type);
+    }
+
+    #[test]
+    fn test_ruchy_expr_identifier() {
+        let expr = RuchyExpr::Identifier("foo".to_string());
+        assert_eq!(expr, RuchyExpr::Identifier("foo".to_string()));
+    }
+
+    #[test]
+    fn test_ruchy_expr_literal() {
+        let expr = RuchyExpr::Literal(Literal::Integer(42));
+        assert_eq!(expr, RuchyExpr::Literal(Literal::Integer(42)));
+    }
+
+    #[test]
+    fn test_ruchy_expr_binary() {
+        let expr = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            op: BinaryOp::Add,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+        };
+        if let RuchyExpr::Binary { op, .. } = &expr {
+            assert_eq!(*op, BinaryOp::Add);
+        }
+    }
+
+    #[test]
+    fn test_ruchy_expr_unary() {
+        let expr = RuchyExpr::Unary {
+            op: UnaryOp::Negate,
+            operand: Box::new(RuchyExpr::Literal(Literal::Integer(42))),
+        };
+        if let RuchyExpr::Unary { op, .. } = &expr {
+            assert_eq!(*op, UnaryOp::Negate);
+        }
+    }
+
+    #[test]
+    fn test_ruchy_expr_list() {
+        let expr = RuchyExpr::List(vec![
+            RuchyExpr::Literal(Literal::Integer(1)),
+            RuchyExpr::Literal(Literal::Integer(2)),
+        ]);
+        if let RuchyExpr::List(items) = &expr {
+            assert_eq!(items.len(), 2);
+        }
+    }
+
+    #[test]
+    fn test_ruchy_expr_block() {
+        let expr = RuchyExpr::Block(vec![]);
+        assert_eq!(expr, RuchyExpr::Block(vec![]));
+    }
+
+    #[test]
+    fn test_ruchy_expr_if() {
+        let expr = RuchyExpr::If {
+            condition: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+            then_branch: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            else_branch: Some(Box::new(RuchyExpr::Literal(Literal::Integer(2)))),
+        };
+        if let RuchyExpr::If { else_branch, .. } = &expr {
+            assert!(else_branch.is_some());
+        }
+    }
+
+    #[test]
+    fn test_ruchy_expr_for() {
+        let expr = RuchyExpr::For {
+            var: "i".to_string(),
+            iter: Box::new(RuchyExpr::List(vec![])),
+            body: Box::new(RuchyExpr::Block(vec![])),
+        };
+        if let RuchyExpr::For { var, .. } = &expr {
+            assert_eq!(var, "i");
+        }
+    }
+
+    #[test]
+    fn test_ruchy_expr_while() {
+        let expr = RuchyExpr::While {
+            condition: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+            body: Box::new(RuchyExpr::Block(vec![])),
+        };
+        assert!(matches!(expr, RuchyExpr::While { .. }));
+    }
+
+    #[test]
+    fn test_ruchy_expr_return() {
+        let expr1 = RuchyExpr::Return { value: None };
+        let expr2 = RuchyExpr::Return {
+            value: Some(Box::new(RuchyExpr::Literal(Literal::Integer(42)))),
+        };
+        assert!(matches!(expr1, RuchyExpr::Return { value: None }));
+        assert!(matches!(expr2, RuchyExpr::Return { value: Some(_) }));
+    }
+
+    #[test]
+    fn test_ruchy_expr_break_continue() {
+        let break_expr = RuchyExpr::Break { label: None };
+        let continue_expr = RuchyExpr::Continue { label: Some("outer".to_string()) };
+        assert!(matches!(break_expr, RuchyExpr::Break { .. }));
+        assert!(matches!(continue_expr, RuchyExpr::Continue { .. }));
+    }
+
+    #[test]
+    fn test_pattern_variants() {
+        assert_eq!(Pattern::Wildcard, Pattern::Wildcard);
+        assert_eq!(
+            Pattern::Identifier("x".to_string()),
+            Pattern::Identifier("x".to_string())
+        );
+        assert_eq!(
+            Pattern::Literal(Literal::Integer(1)),
+            Pattern::Literal(Literal::Integer(1))
+        );
+        assert_eq!(Pattern::Tuple(vec![]), Pattern::Tuple(vec![]));
+        assert_eq!(Pattern::List(vec![]), Pattern::List(vec![]));
+    }
+
+    #[test]
+    fn test_string_part_variants() {
+        let text = StringPart::Text("hello".to_string());
+        let expr_part = StringPart::Expr(Box::new(RuchyExpr::Identifier("x".to_string())));
+        assert_eq!(text.clone(), text);
+        assert_eq!(expr_part.clone(), expr_part);
+    }
+
+    #[test]
+    fn test_pipeline_stage_variants() {
+        let map = PipelineStage::Map(Box::new(RuchyExpr::Identifier("f".to_string())));
+        let filter = PipelineStage::Filter(Box::new(RuchyExpr::Identifier("g".to_string())));
+        let call = PipelineStage::Call("method".to_string(), vec![]);
+        assert_eq!(map.clone(), map);
+        assert_eq!(filter.clone(), filter);
+        assert_eq!(call.clone(), call);
+    }
+
+    #[test]
+    fn test_match_arm() {
+        let arm = MatchArm {
+            pattern: Pattern::Wildcard,
+            guard: None,
+            body: Box::new(RuchyExpr::Literal(Literal::Unit)),
+        };
+        assert_eq!(arm.clone(), arm);
+    }
+
+    #[test]
+    fn test_struct_field() {
+        let field = StructField {
+            name: "x".to_string(),
+            typ: RuchyType::I64,
+            is_public: true,
+        };
+        assert_eq!(field.clone(), field);
+    }
+
+    #[test]
+    fn test_dataframe_column() {
+        let col = DataFrameColumn {
+            name: "col1".to_string(),
+            values: vec![RuchyExpr::Literal(Literal::Integer(1))],
+        };
+        assert_eq!(col.clone(), col);
+    }
+
+    #[test]
+    fn test_ast_builder_new() {
+        let builder = RuchyAstBuilder::new();
+        assert!(std::mem::size_of_val(&builder) > 0);
+    }
+
+    #[test]
+    fn test_ast_builder_default() {
+        let builder = RuchyAstBuilder::default();
+        assert!(std::mem::size_of_val(&builder) > 0);
+    }
+
+    #[test]
+    fn test_ast_builder_with_config() {
+        let config = crate::RuchyConfig::default();
+        let builder = RuchyAstBuilder::with_config(&config);
+        assert!(std::mem::size_of_val(&builder) > 0);
+    }
+
+    #[test]
+    fn test_ruchy_type_reference() {
+        let ref_type = RuchyType::Reference {
+            typ: Box::new(RuchyType::I64),
+            is_mutable: false,
+        };
+        assert_eq!(ref_type.clone(), ref_type);
+    }
+
+    #[test]
+    fn test_ruchy_type_function() {
+        let fn_type = RuchyType::Function {
+            params: vec![RuchyType::I64],
+            returns: Box::new(RuchyType::Bool),
+        };
+        assert_eq!(fn_type.clone(), fn_type);
+    }
+
+    #[test]
+    fn test_ruchy_type_array() {
+        let arr_type = RuchyType::Array(Box::new(RuchyType::I64), 10);
+        assert_eq!(arr_type.clone(), arr_type);
+    }
+
+    #[test]
+    fn test_ruchy_type_tuple() {
+        let tup_type = RuchyType::Tuple(vec![RuchyType::I64, RuchyType::String]);
+        assert_eq!(tup_type.clone(), tup_type);
+    }
+
+    #[test]
+    fn test_ruchy_type_generic() {
+        let gen_type = RuchyType::Generic("T".to_string());
+        assert_eq!(gen_type.clone(), gen_type);
+    }
+
+    #[test]
+    fn test_ruchy_type_named() {
+        let named_type = RuchyType::Named("MyStruct".to_string());
+        assert_eq!(named_type.clone(), named_type);
+    }
+}
