@@ -439,7 +439,23 @@ Session N: LLM generates fixes → patterns.apr captures (error, fix)
 Session N+1: Local oracle suggests fixes → no LLM needed for common cases
 ```
 
-### 6.2 entrenar Integration Point
+### 6.2 Format Distinction: .alm vs .apr
+
+| Format | Project | Purpose | Contents |
+|--------|---------|---------|----------|
+| `.alm` | alimentar | Training **corpus** | Raw examples, labels, metadata |
+| `.apr` | aprender | Trained **model** | Weights, indices, config |
+
+```
+Python corpus → alimentar (.alm) → entrenar train → aprender (.apr) → inference
+     ↑                                                      │
+     └──────────── decision traces feed back ───────────────┘
+```
+
+- **alimentar** structures raw training data (Python→Rust pairs, error contexts)
+- **aprender** persists the trained oracle (HNSW index, pattern embeddings)
+
+### 6.3 entrenar Integration Point
 
 The `DecisionPatternStore` in entrenar provides `.apr` persistence:
 
@@ -458,7 +474,7 @@ let store = DecisionPatternStore::load_apr("decision_patterns.apr")?;
 let suggestions = store.suggest_fix("E0308", &decision_context, 5)?;
 ```
 
-### 6.3 APR Format Details
+### 6.4 APR Format Details
 
 The `.apr` format provides:
 - **CRC32 checksum**: Integrity verification
@@ -483,7 +499,7 @@ The `.apr` format provides:
 └─────────────────────────────────────────┘
 ```
 
-### 6.4 Pattern Store Schema
+### 6.5 Pattern Store Schema
 
 ```rust
 /// Persisted pattern store data
@@ -505,7 +521,7 @@ struct FixPattern {
 }
 ```
 
-### 6.5 depyler Integration
+### 6.6 depyler Integration
 
 Add to depyler's overnight session workflow:
 
@@ -525,7 +541,7 @@ if [[ -f "$TRACE_FILE" ]]; then
 fi
 ```
 
-### 6.6 Cost Reduction Model
+### 6.7 Cost Reduction Model
 
 | Session | LLM Calls | Oracle Hits | Cost |
 |---------|-----------|-------------|------|
