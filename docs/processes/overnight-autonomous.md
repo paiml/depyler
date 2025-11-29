@@ -242,3 +242,73 @@ CITL and program synthesis literature:
 2. Direct bash loops for error collection proved reliable
 3. Session ran 13+ hours without context exhaustion
 4. Commit rate: ~1 commit/hour average
+
+---
+
+## Corpus Status Tracking
+
+### reprorusted-python-cli Metrics (2025-11-29)
+
+| Metric | Count | Rate |
+|--------|-------|------|
+| Total Examples | 298 | - |
+| Transpilation Pass | 194 | **65%** |
+| Transpilation Fail | 104 | 35% |
+| Compilation Pass | 0 | **0%** |
+| Compilation Fail | 194 | 100% |
+| Total rustc Errors | 4,583 | ~24 errors/example |
+
+### Error Distribution (Top 10)
+
+| Error Code | Count | Description | Root Cause |
+|------------|-------|-------------|------------|
+| E0308 | 1,050 | Type mismatch | Type inference gaps |
+| E0433 | 706 | Failed to resolve | Missing module mappings |
+| E0599 | 543 | Method not found | Incomplete stdlib mapping |
+| E0425 | 392 | Cannot find value | Missing variable declarations |
+| E0277 | 380 | Trait bound not satisfied | Type coercion issues |
+| E0432 | 365 | Unresolved import | Missing crate dependencies |
+| E0282 | 289 | Type annotations needed | Generic type inference |
+| E0061 | 188 | Wrong number of args | Function signature mismatch |
+| E0609 | 146 | No field found | Struct field mapping |
+| E0412 | 124 | Cannot find type | Missing type definitions |
+
+### Categories Failing Transpilation (104 examples)
+
+| Category | Examples | Blocker |
+|----------|----------|---------|
+| Async Patterns | `async_context`, `async_gather`, `async_iterator`, `async_queue` | `async`/`await` not implemented |
+| Decorators | `decorator_pattern`, `retry_decorator` | Decorator transformation |
+| Dataclasses | `dataclass`, `dataclass_*` | `@dataclass` not supported |
+| Comprehensions | `dict_comprehension`, `nested_comprehension` | Complex comprehension forms |
+| Context Managers | `contextlib`, `context_error` | `with` statement transforms |
+| Event Patterns | `event_emitter`, `event_observable`, `event_saga` | Complex callback patterns |
+
+### Blocking Issues (GitHub Tickets)
+
+| Issue | Description | Impact |
+|-------|-------------|--------|
+| [#168](https://github.com/paiml/depyler/issues/168) | pytest module mapping | Test file transpilation |
+| [#169](https://github.com/paiml/depyler/issues/169) | os module expansion | File/path operations |
+| [#170](https://github.com/paiml/depyler/issues/170) | Type inference improvement | 1,050+ E0308 errors |
+| [#171](https://github.com/paiml/depyler/issues/171) | subprocess module mapping | Process management |
+
+### Roadmap to 100% Compilation
+
+**Phase 1: Critical Infrastructure (Target: 50% compilation)**
+1. Fix type inference for collections (E0308)
+2. Complete os module mapping (E0433, E0432)
+3. Implement subprocess module (E0433)
+4. Add missing pytest patterns
+
+**Phase 2: Extended Coverage (Target: 80% compilation)**
+1. Implement async/await transformation
+2. Add decorator support
+3. Complete datetime module mapping
+4. Handle dataclasses
+
+**Phase 3: Full Coverage (Target: 100% compilation)**
+1. Advanced comprehension forms
+2. Context manager transforms
+3. Complex closure patterns
+4. Event-driven patterns
