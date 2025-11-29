@@ -1001,6 +1001,7 @@ pub fn generate_rust_file(
         in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
         subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
         hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
+        is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
     };
 
     // Analyze all functions first for string optimization
@@ -1231,6 +1232,7 @@ mod tests {
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
             subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields in match arm
             hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
+            is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
         }
     }
 
