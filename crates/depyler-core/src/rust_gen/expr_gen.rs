@@ -10735,6 +10735,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0413: Handle string methods FIRST before class instance check
         // String methods like upper/lower should be converted even for method parameters
         // that might be typed as class instances (due to how we track types)
+        // DEPYLER-0621: Added encode/decode to ensure bytes conversion works on any string
         if matches!(
             method,
             "upper"
@@ -10761,6 +10762,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 | "zfill"
                 | "hex"
                 | "format"
+                | "encode"  // DEPYLER-0621: str.encode() → .as_bytes().to_vec()
+                | "decode"  // DEPYLER-0621: bytes.decode() → String::from_utf8_lossy()
         ) {
             return self.convert_string_method(object, object_expr, method, arg_exprs, hir_args);
         }
