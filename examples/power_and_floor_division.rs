@@ -47,7 +47,10 @@ pub fn power_examples(base: i32, exponent: i32) -> i32 {
 }
 #[doc = "Demonstrate floor division with Python semantics"]
 #[doc = " Depyler: proven to terminate"]
-pub fn floor_division_examples(dividend: i32, divisor: i32) -> Result<i32, ZeroDivisionError> {
+pub fn floor_division_examples(
+    dividend: i32,
+    divisor: i32,
+) -> Result<i32, Box<dyn std::error::Error>> {
     let _cse_temp_0 = {
         let a = 17;
         let b = 5;
@@ -137,7 +140,7 @@ pub fn floor_division_examples(dividend: i32, divisor: i32) -> Result<i32, ZeroD
 }
 #[doc = "Combine power and floor division"]
 #[doc = " Depyler: proven to terminate"]
-pub fn combined_operations(a: i32, b: i32) -> Result<i32, ZeroDivisionError> {
+pub fn combined_operations(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let _cse_temp_0 = {
         if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
             (a as i32)
@@ -195,7 +198,7 @@ pub fn combined_operations(a: i32, b: i32) -> Result<i32, ZeroDivisionError> {
     Ok(result1 + result2)
 }
 #[doc = "Calculate sum of squares using both operators"]
-pub fn mathematical_sequence(n: i32) -> Result<i32, ZeroDivisionError> {
+pub fn mathematical_sequence(n: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut total = 0;
     let mut i = 1;
     while i <= n {

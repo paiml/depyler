@@ -13,7 +13,7 @@ impl Counter {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_counter() -> i32 {
+pub fn test_counter() {
     let mut c = Counter::new(10);
     let result = c.increment(5);
     result

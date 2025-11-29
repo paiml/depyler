@@ -1,11 +1,11 @@
 [package]
-name = "test_itertools_comprehensive"
+name = "simulation_combined"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "test_itertools_comprehensive"
-path = "test_itertools_comprehensive.rs"
+name = "simulation_combined"
+path = "simulation_combined.rs"
 
 [dependencies]
-itertools = "0.12"
+rand = "0.8"

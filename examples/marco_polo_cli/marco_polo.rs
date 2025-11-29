@@ -74,7 +74,7 @@ impl MarcoPoloGame {
                 let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
                     {
                         let mut guess_str = input("\nYour guess: ".to_string());
-                        let mut guess = int(guess_str);
+                        let mut guess = guess_str.parse::<i32>().unwrap_or(0);
                         if guess < min_val || guess > max_val {
                             println!(
                                 "{}",
@@ -113,7 +113,7 @@ impl MarcoPoloGame {
         if self.attempts == 0 {
             return "No games played".to_string();
         };
-        let mut avg_attempts = self.attempts / max(self.score, 1);
+        let mut avg_attempts = self.attempts / (self.score).max(1);
         if avg_attempts <= 5 {
             return "🏆 Expert".to_string();
         } else {
@@ -152,7 +152,7 @@ struct Args {
 #[doc = "Parse command line arguments."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn parse_arguments() -> Namespace {
+pub fn parse_arguments() -> Args {
     ()
 }
 #[doc = "Print welcome banner."]
@@ -235,7 +235,7 @@ pub fn main() -> i32 {
     );
     for round_num in 1..args.rounds + 1 {
         println!("{}", format!("\n{}", STR__.repeat(30 as usize)));
-        println!("{}", format!("Round {} of {}", round_num, args.rounds));
+        println!("{}", format!("Round {:?} of {}", round_num, args.rounds));
         println!("{}", format!("{}", STR__.repeat(30 as usize)));
         if !game.play_round() {
             println!("{}", "\nGame ended early.");

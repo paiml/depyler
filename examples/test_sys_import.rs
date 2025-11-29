@@ -4,8 +4,13 @@ use std as sys;
 #[doc = " Depyler: proven to terminate"]
 pub fn get_command_args() -> Vec<String> {
     {
-        let base = std::env::args().collect::<Vec<String>>();
-        let start = (1).max(0) as usize;
+        let base = &std::env::args().collect::<Vec<String>>();
+        let start_idx = 1 as isize;
+        let start = if start_idx < 0 {
+            (base.len() as isize + start_idx).max(0) as usize
+        } else {
+            start_idx as usize
+        };
         if start < base.len() {
             base[start..].to_vec()
         } else {
@@ -19,7 +24,7 @@ pub fn get_command_args() -> Vec<String> {
 pub fn exit_with_error(message: String, code: i32) {
     {
         use std::io::Write;
-        write!(std::io::stderr(), "{}", format!("Error: {:?}\n", message)).unwrap();
+        write!(std::io::stderr(), "{}", format!("Error: {}\n", message)).unwrap();
     };
     std::process::exit(code);
 }

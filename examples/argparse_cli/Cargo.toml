@@ -1,11 +1,11 @@
 [package]
-name = "test_kwargs"
+name = "simple_cli"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "test_kwargs"
-path = "test_kwargs.rs"
+name = "simple_cli"
+path = "simple_cli.rs"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }

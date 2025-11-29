@@ -1,5 +1,5 @@
 use serde_json;
-#[doc = "// TODO: Map Python module 'dataclasses'"]
+#[doc = "// NOTE: Map Python module 'dataclasses'(tracked in DEPYLER-0424)"]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Counter {}
 impl Counter {
@@ -16,6 +16,12 @@ impl Counter {
     pub fn create_with_value(val: i32) {
         return Counter::new(val);
     }
+}
+#[doc = r" Stub for local import from module: #module_name"]
+#[doc = r" DEPYLER-0615: Generated to allow standalone compilation"]
+#[allow(dead_code, unused_variables)]
+pub fn dataclass<T: Default>(_args: impl std::any::Any) -> T {
+    Default::default()
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

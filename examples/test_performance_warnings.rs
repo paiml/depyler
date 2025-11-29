@@ -20,15 +20,17 @@ impl IndexError {
 #[doc = "String concatenation in loop - O(n²) complexity."]
 #[doc = " Depyler: verified panic-free"]
 pub fn string_concat_in_loop(items: &serde_json::Value) -> String {
-    let mut result = "";
+    let mut result = "".to_string();
     for item in items.iter().cloned() {
-        result = format!("{}{}", result, item.to_string());
+        result = format!("{}{}", result, (item).to_string());
     }
-    result
+    result.to_string()
 }
 #[doc = "Deeply nested loops - O(n³) complexity."]
 #[doc = " Depyler: proven to terminate"]
-pub fn nested_loops_cubic(matrix: &serde_json::Value) -> Result<i32, IndexError> {
+pub fn nested_loops_cubic(
+    matrix: &Vec<serde_json::Value>,
+) -> Result<i32, Box<dyn std::error::Error>> {
     let mut total = 0;
     for i in 0..matrix.len() as i32 {
         for j in 0..matrix.get(i as usize).cloned().unwrap_or_default().len() as i32 {
@@ -49,7 +51,7 @@ pub fn nested_loops_cubic(matrix: &serde_json::Value) -> Result<i32, IndexError>
                         .get(j as usize)
                         .cloned()
                         .unwrap_or_default()
-                        .get(k as usize)
+                        .get(&k)
                         .cloned()
                         .unwrap_or_default();
             }
@@ -59,13 +61,13 @@ pub fn nested_loops_cubic(matrix: &serde_json::Value) -> Result<i32, IndexError>
 }
 #[doc = "Expensive operations in loop."]
 #[doc = " Depyler: verified panic-free"]
-pub fn repeated_expensive_computation(data: serde_json::Value) -> Vec<serde_json::Value> {
+pub fn repeated_expensive_computation(data: Vec<i32>) -> Vec<serde_json::Value> {
     let mut results = vec![];
     for item in data.iter().cloned() {
         let sorted_data = {
-            let mut __sorted_result = data.clone();
-            __sorted_result.sort();
-            __sorted_result
+            let mut sorted_vec = data.into_iter().collect::<Vec<_>>();
+            sorted_vec.sort();
+            sorted_vec
         };
         results.push(item * sorted_data.len() as i32);
     }
@@ -73,7 +75,7 @@ pub fn repeated_expensive_computation(data: serde_json::Value) -> Vec<serde_json
 }
 #[doc = "Inefficient list operations."]
 #[doc = " Depyler: verified panic-free"]
-pub fn inefficient_list_operations(items: &mut serde_json::Value) {
+pub fn inefficient_list_operations(items: &mut Vec<serde_json::Value>) {
     while items.len() as i32 > 0 {
         if let Some(pos) = items
             .iter()
@@ -91,7 +93,7 @@ pub fn inefficient_list_operations(items: &mut serde_json::Value) {
 pub fn large_list_in_loop(n: serde_json::Value) -> Vec<serde_json::Value> {
     let mut results = vec![];
     for _i in 0..n {
-        let temp = (0..1000).map(|j| j).collect::<Vec<_>>();
+        let temp = (0..1000).into_iter().map(|j| j).collect::<Vec<_>>();
         results.push(temp.iter().sum::<i32>());
     }
     results
@@ -99,12 +101,12 @@ pub fn large_list_in_loop(n: serde_json::Value) -> Vec<serde_json::Value> {
 #[doc = "Linear search in nested loop - O(n²)."]
 #[doc = " Depyler: verified panic-free"]
 pub fn linear_search_in_loop<'a, 'b>(
-    items: &'a mut serde_json::Value,
+    items: &'a mut str,
     targets: &'b serde_json::Value,
 ) -> Vec<serde_json::Value> {
     let mut found = vec![];
     for target in targets.iter().cloned() {
-        if items.contains_key(&target) {
+        if items.get(&target).is_some() {
             let idx = items
                 .iter()
                 .position(|x| x == &target)
@@ -127,14 +129,17 @@ pub fn power_in_tight_loop(values: &serde_json::Value) -> Vec<serde_json::Value>
 }
 #[doc = "Using range(len()) instead of enumerate."]
 #[doc = " Depyler: proven to terminate"]
-pub fn range_len_antipattern(items: &mut serde_json::Value) -> Result<(), IndexError> {
+pub fn range_len_antipattern(
+    items: &mut Vec<serde_json::Value>,
+) -> Result<(), Box<dyn std::error::Error>> {
     for i in 0..items.len() as i32 {
         process_item(i, items.get(i as usize).cloned().unwrap_or_default());
     }
+    Ok(())
 }
 #[doc = "Computing aggregates repeatedly."]
 #[doc = " Depyler: verified panic-free"]
-pub fn aggregate_in_nested_loop(matrix: &serde_json::Value) -> i32 {
+pub fn aggregate_in_nested_loop(matrix: &Vec<Vec<i32>>) -> i32 {
     let mut result = 0;
     for row in matrix.iter().cloned() {
         for col in row.iter().cloned() {
@@ -156,3 +161,25 @@ pub fn large_parameter_by_value<'a, 'b>(
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn process_item(idx: serde_json::Value, item: serde_json::Value) {}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_nested_loops_cubic_examples() {
+        assert_eq!(nested_loops_cubic(&vec![]), 0);
+        assert_eq!(nested_loops_cubic(&vec![1]), 1);
+        assert_eq!(nested_loops_cubic(&vec![1, 2, 3]), 3);
+    }
+    #[test]
+    fn test_repeated_expensive_computation_examples() {
+        assert_eq!(repeated_expensive_computation(vec![]), vec![]);
+        assert_eq!(repeated_expensive_computation(vec![1]), vec![1]);
+    }
+    #[test]
+    fn test_aggregate_in_nested_loop_examples() {
+        assert_eq!(aggregate_in_nested_loop(&vec![]), 0);
+        assert_eq!(aggregate_in_nested_loop(&vec![1]), 1);
+        assert_eq!(aggregate_in_nested_loop(&vec![1, 2, 3]), 3);
+    }
+}

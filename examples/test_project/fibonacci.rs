@@ -1,3 +1,4 @@
+use serde_json;
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct IndexError {
@@ -46,7 +47,7 @@ pub fn fibonacci_iterative(n: i32) -> i32 {
         }
     }
     let (mut prev, mut curr) = (0, 1);
-    for __ in 2..n + 1 {
+    for __sanitized in 2..n + 1 {
         (prev, curr) = (curr, prev + curr);
     }
     curr
@@ -61,7 +62,7 @@ pub fn fibonacci_sequence(limit: i32) -> Vec<i32> {
     }
     let mut sequence: Vec<i32> = vec![];
     let (mut a, mut b) = (0, 1);
-    for __ in 0..limit {
+    for __sanitized in 0..limit {
         sequence.push(a);
         (a, b) = (b, a + b);
     }
@@ -121,14 +122,17 @@ impl Iterator for FibonacciGeneratorState {
 #[doc = " Depyler: proven to terminate"]
 pub fn fibonacci_memoized(
     n: i32,
-    mut memo: Option<HashMap<i32, i32>>,
-) -> Result<i32, IndexError> {
+    mut memo: Option<HashMap<serde_json::Value, serde_json::Value>>,
+) -> Result<i32, Box<dyn std::error::Error>> {
     if memo.is_none() {
-        memo = Some(HashMap::new());
+        memo = {
+            let map = HashMap::new();
+            map
+        };
     }
-    let _cse_temp_0 = memo.as_ref().unwrap().get(&n).is_some();
+    let _cse_temp_0 = memo.get(&n).is_some();
     if _cse_temp_0 {
-        return Ok(*memo.as_ref().unwrap().get(&n).unwrap());
+        return Ok(memo.get(&n).cloned().unwrap_or_default());
     }
     let _cse_temp_1 = n <= 0;
     if _cse_temp_1 {
@@ -139,9 +143,9 @@ pub fn fibonacci_memoized(
             return Ok(1);
         }
     }
-    let _cse_temp_3 = fibonacci_memoized(n - 1, memo.clone())? + fibonacci_memoized(n - 2, memo.clone())?;
+    let _cse_temp_3 = fibonacci_memoized(n - 1, &memo)? + fibonacci_memoized(n - 2, &memo)?;
     let result = _cse_temp_3;
-    memo.as_mut().unwrap().insert(n, result);
+    memo.insert(n, serde_json::json!(result));
     Ok(result)
 }
 #[doc = "Find the index of a target value in Fibonacci sequence."]
@@ -167,15 +171,15 @@ pub fn find_fibonacci_index(target: i32) -> Option<i32> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn is_fibonacci_number(num: i32) -> bool {
+    let is_perfect_square = |x: i64| -> bool {
+        let root = ((x as f64).powf(0.5 as f64)) as i32;
+        root * root == x
+    };
     let _cse_temp_0 = num < 0;
     if _cse_temp_0 {
         return false;
     }
-    fn is_perfect_square(x: i64) -> bool {
-        let root = ((x as f64).powf(0.5 as f64)) as i32;
-        return i64::from(root * root) == x;
-    }
-    (is_perfect_square((5 * num * num + 4) as i64)) || (is_perfect_square((5 * num * num - 4) as i64))
+    (is_perfect_square(5 * num * num + 4)) || (is_perfect_square(5 * num * num - 4))
 }
 #[doc = "Test the Fibonacci functions."]
 #[doc = " Depyler: verified panic-free"]
@@ -191,23 +195,23 @@ pub fn main() {
     );
     println!(
         "{}",
-        format!("Fibonacci({}) memoized: {:?}", n, fibonacci_memoized(n, None))
+        format!("Fibonacci({}) memoized: {:?}", n, fibonacci_memoized(n))
     );
     println!(
         "{}",
-        format!("\nFirst {} Fibonacci numbers: {:?}", n, fibonacci_sequence(n))
+        format!("\nFirst {} Fibonacci numbers: {}", n, fibonacci_sequence(n))
     );
     println!("{}", "\nUsing generator:");
-    for (i, fib) in fibonacci_generator(&Some(n)).into_iter().enumerate() {
+    for (i, fib) in fibonacci_generator(n).iter().cloned().enumerate() {
         let i = i as i32;
-        println!("{}", format!("  F({}) = {}", i, fib));
+        println!("{}", format!("  F({:?}) = {:?}", i, fib));
     }
     let target = 21;
     let mut index = find_fibonacci_index(target);
     if index.is_some() {
         println!(
             "{}",
-            format!("\n{} is at index {} in Fibonacci sequence", target, index.unwrap())
+            format!("\n{} is at index {:?} in Fibonacci sequence", target, index)
         );
     } else {
         println!("{}", format!("\n{} is not in Fibonacci sequence", target));

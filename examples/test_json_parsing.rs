@@ -28,14 +28,12 @@ pub fn parse_json_with_default(
 #[doc = "Merge two JSON strings into one dictionary"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn merge_json_objects<'a, 'b>(
+pub fn merge_json_objects<'b, 'a>(
     json1: &'a str,
     json2: &'b str,
 ) -> HashMap<String, serde_json::Value> {
     let mut obj1 = serde_json::from_str::<serde_json::Value>(&json1).unwrap();
     let obj2 = serde_json::from_str::<serde_json::Value>(&json2).unwrap();
-    for (k, v) in obj2 {
-        obj1.insert(k, v);
-    }
+    obj1.update(&obj2);
     obj1
 }

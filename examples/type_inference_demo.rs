@@ -1,10 +1,9 @@
-use serde_json;
 #[doc = "Numeric operations suggest int/float types."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn process_numbers<'b, 'a>(a: &'a serde_json::Value, b: &'b serde_json::Value) -> i32 {
+pub fn process_numbers<'a, 'b>(a: i32, b: i32) -> i32 {
     let mut result = a + b;
-    let _cse_temp_0 = result * 2;
+    let _cse_temp_0 = result * 2f64;
     result = _cse_temp_0;
     result
 }
@@ -13,11 +12,11 @@ pub fn process_numbers<'b, 'a>(a: &'a serde_json::Value, b: &'b serde_json::Valu
 #[doc = " Depyler: proven to terminate"]
 pub fn handle_text(message: &str) -> String {
     let formatted = message.to_uppercase();
-    formatted
+    formatted.to_string()
 }
 #[doc = "List operations suggest list type."]
 #[doc = " Depyler: verified panic-free"]
-pub fn work_with_list(data: &mut serde_json::Value) -> i32 {
+pub fn work_with_list(data: &mut Vec<i32>) -> i32 {
     data.push(100);
     let mut total = 0;
     for item in data.iter().cloned() {
@@ -28,10 +27,21 @@ pub fn work_with_list(data: &mut serde_json::Value) -> i32 {
 #[doc = "Boolean context suggests bool type."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn check_condition(flag: &serde_json::Value) -> i32 {
+pub fn check_condition(flag: bool) -> i32 {
     if flag {
         1
     } else {
         0
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_work_with_list_examples() {
+        assert_eq!(work_with_list(&vec![]), 0);
+        assert_eq!(work_with_list(&vec![1]), 1);
+        assert_eq!(work_with_list(&vec![1, 2, 3]), 3);
     }
 }

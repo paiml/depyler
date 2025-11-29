@@ -22,7 +22,6 @@ pub fn compute_constants() -> i32 {
     let x = 5;
     let y = 10;
     let z = x + y;
-    let unused = 42;
     let _cse_temp_0 = z * 2;
     let result = _cse_temp_0;
     result
@@ -39,7 +38,7 @@ pub fn fibonacci(n: i32) -> i32 {
 }
 #[doc = "More constant folding examples"]
 #[doc = " Depyler: proven to terminate"]
-pub fn simple_math() -> Result<f64, ZeroDivisionError> {
+pub fn simple_math() -> Result<f64, Box<dyn std::error::Error>> {
     let a = 3.14;
     let b = 2.0;
     let _cse_temp_0 = a * b;

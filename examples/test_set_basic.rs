@@ -2,7 +2,6 @@ use std::collections::HashSet;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_creation() -> HashSet<i32> {
-    let s1 = HashSet::<i32>::new();
     let s2 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -12,16 +11,6 @@ pub fn test_set_creation() -> HashSet<i32> {
         set.insert(5);
         set
     };
-    let s3 = {
-        let mut set = HashSet::new();
-        set.insert("apple".to_string());
-        set.insert("banana".to_string());
-        set.insert("cherry".to_string());
-        set
-    };
-    let s4 = vec![1, 2, 3, 3, 4, 4, 5]
-        .into_iter()
-        .collect::<HashSet<_>>();
     s2
 }
 #[doc = " Depyler: verified panic-free"]

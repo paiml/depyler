@@ -16,7 +16,7 @@ impl IndexError {
     }
 }
 #[doc = " Depyler: proven to terminate"]
-pub fn test_arrays() -> Result<i32, IndexError> {
+pub fn test_arrays() -> Result<i32, Box<dyn std::error::Error>> {
     let arr1 = vec![1, 2, 3, 4, 5];
     let _cse_temp_0 = arr1.get(0usize).cloned().unwrap_or_default()
         + arr1.get(1usize).cloned().unwrap_or_default();

@@ -29,7 +29,7 @@ pub fn showcase_dictionary_assignment() -> (
         let map = HashMap::new();
         map
     };
-    d.insert("key".to_string(), "value");
+    d.insert("key".to_string().to_string(), serde_json::json!("value"));
     let nested = {
         let mut map = HashMap::new();
         map.insert("level1".to_string(), {
@@ -47,13 +47,13 @@ pub fn showcase_dictionary_assignment() -> (
         .unwrap()
         .get_mut(&"level2")
         .unwrap()
-        .insert("level3".to_string(), "deep value");
+        .insert("level3".to_string().to_string(), "deep value");
     let mut coords = {
         let map = HashMap::new();
         map
     };
-    coords.insert((10, 20), "location A");
-    coords.insert((30, 40), "location B");
+    coords.insert((10, 20), serde_json::json!("location A"));
+    coords.insert((30, 40), serde_json::json!("location B"));
     (nested, coords)
 }
 #[doc = "Showcase comprehensive set support"]
@@ -125,16 +125,16 @@ pub fn showcase_set_comprehensions() -> (
     HashSet<serde_json::Value>,
     HashSet<String>,
 ) {
-    let squares = (0..10).map(|x| x * x).collect::<HashSet<_>>();
+    let squares = (0..10).into_iter().map(|x| x * x).collect::<HashSet<_>>();
     let even_squares = (0..10)
+        .into_iter()
         .filter(|x| x % 2 == 0)
         .map(|x| x * x)
         .collect::<HashSet<_>>();
     let unique_chars = "hello world"
         .to_string()
-        .iter()
-        .filter(|&c| c.chars().all(|c| c.is_alphabetic()))
-        .cloned()
+        .into_iter()
+        .filter(|c| c.chars().all(|c| c.is_alphabetic()))
         .map(|c| c.to_uppercase())
         .collect::<HashSet<_>>();
     (squares, even_squares, unique_chars)
@@ -163,7 +163,7 @@ pub fn showcase_control_flow() -> Result<
         Vec<serde_json::Value>,
         Vec<serde_json::Value>,
     ),
-    ZeroDivisionError,
+    Box<dyn std::error::Error>,
 > {
     let mut result1 = vec![];
     for i in 0..10 {
@@ -224,6 +224,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         showcase_set_comprehensions()
     );
     println!("{} {}", "Frozen Sets:", showcase_frozen_sets());
-    println!("{} {}", "Control Flow:", showcase_control_flow());
+    println!("{} {:?}", "Control Flow:", showcase_control_flow());
     println!("{} {}", "Power Operator:", showcase_power_operator());
+    Ok(())
 }

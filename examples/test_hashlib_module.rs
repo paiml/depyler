@@ -11,8 +11,6 @@ pub fn test_sha256_basic() {
         hasher.update(data);
         hex::encode(hasher.finalize())
     };
-    let result = hash_obj.hexdigest();
-    let expected = "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f";
     assert!(result == expected);
     println!("{}", "PASS: test_sha256_basic");
 }
@@ -27,8 +25,6 @@ pub fn test_sha256_empty() {
         hasher.update(data);
         hex::encode(hasher.finalize())
     };
-    let result = hash_obj.hexdigest();
-    let expected = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     assert!(result == expected);
     println!("{}", "PASS: test_sha256_empty");
 }
@@ -37,18 +33,12 @@ pub fn test_sha256_empty() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sha256_update() {
     let mut hash_obj = {
+        use digest::DynDigest;
         use sha2::Digest;
-        let mut hasher = sha2::Sha256::new();
-        hex::encode(hasher.finalize())
+        Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>
     };
-    for (k, v) in b"Hello, " {
-        hash_obj.insert(k, v);
-    }
-    for (k, v) in b"World!" {
-        hash_obj.insert(k, v);
-    }
-    let result = hash_obj.hexdigest();
-    let expected = "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f";
+    hash_obj.update(&b"Hello, ");
+    hash_obj.update(&b"World!");
     assert!(result == expected);
     println!("{}", "PASS: test_sha256_update");
 }
@@ -63,8 +53,6 @@ pub fn test_sha1_basic() {
         hasher.update(data);
         hex::encode(hasher.finalize())
     };
-    let result = hash_obj.hexdigest();
-    let expected = "f48dd853820860816c75d54d0f584dc863327a7c";
     assert!(result == expected);
     println!("{}", "PASS: test_sha1_basic");
 }
@@ -79,8 +67,6 @@ pub fn test_md5_basic() {
         hasher.update(data);
         hex::encode(hasher.finalize())
     };
-    let result = hash_obj.hexdigest();
-    let expected = "098f6bcd4621d373cade4e832627b4f6";
     assert!(result == expected);
     println!("{}", "PASS: test_md5_basic");
 }
@@ -95,9 +81,9 @@ pub fn test_sha256_binary_data() {
         hasher.update(data);
         hex::encode(hasher.finalize())
     };
-    let result = hash_obj.hexdigest();
     assert!(result.len() as i32 == 64);
     assert!(result
+        .as_slice()
         .iter()
         .copied()
         .map(|c| "0123456789abcdef".to_string().contains(&c))
@@ -116,9 +102,9 @@ pub fn test_sha256_large_data() {
         hasher.update(data);
         hex::encode(hasher.finalize())
     };
-    let result = hash_obj.hexdigest();
     assert!(result.len() as i32 == 64);
     assert!(result
+        .as_slice()
         .iter()
         .copied()
         .map(|c| "0123456789abcdef".to_string().contains(&c))
@@ -129,20 +115,6 @@ pub fn test_sha256_large_data() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_hash_different_data() {
-    let hash1 = {
-        use sha2::Digest;
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(b"data1");
-        hex::encode(hasher.finalize())
-    }
-    .hexdigest();
-    let hash2 = {
-        use sha2::Digest;
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(b"data2");
-        hex::encode(hasher.finalize())
-    }
-    .hexdigest();
     assert!(hash1 != hash2);
     println!("{}", "PASS: test_hash_different_data");
 }
@@ -151,20 +123,6 @@ pub fn test_hash_different_data() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_hash_deterministic() {
     let data = b"deterministic test";
-    let hash1 = {
-        use sha2::Digest;
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(data);
-        hex::encode(hasher.finalize())
-    }
-    .hexdigest();
-    let hash2 = {
-        use sha2::Digest;
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(data);
-        hex::encode(hasher.finalize())
-    }
-    .hexdigest();
     assert!(hash1 == hash2);
     println!("{}", "PASS: test_hash_deterministic");
 }
@@ -180,9 +138,9 @@ pub fn test_sha256_text() {
         hasher.update(data);
         hex::encode(hasher.finalize())
     };
-    let result = hash_obj.hexdigest();
     assert!(result.len() as i32 == 64);
     assert!(result
+        .as_slice()
         .iter()
         .copied()
         .map(|c| "0123456789abcdef".to_string().contains(&c))

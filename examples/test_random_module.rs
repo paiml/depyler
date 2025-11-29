@@ -61,7 +61,7 @@ pub fn test_random_choice(items: &Vec<String>) -> String {
         return "".to_string();
     }
     let chosen: String = *items.choose(&mut rand::thread_rng()).unwrap();
-    chosen
+    chosen.to_string()
 }
 #[doc = "Test random sampling without replacement"]
 #[doc = " Depyler: verified panic-free"]
@@ -142,7 +142,7 @@ pub fn simulate_dice_roll() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn simulate_coin_flip() -> String {
     let result: i32 = rand::thread_rng().gen_range(0..=1);
-    let _cse_temp_0 = result == 0;
+    let _cse_temp_0 = result == 0.0;
     if _cse_temp_0 {
         "Heads".to_string()
     } else {
@@ -151,7 +151,7 @@ pub fn simulate_coin_flip() -> String {
 }
 #[doc = "Generate a random password from alphanumeric characters"]
 #[doc = " Depyler: proven to terminate"]
-pub fn generate_random_password(length: i32) -> Result<String, IndexError> {
+pub fn generate_random_password(length: i32) -> Result<String, Box<dyn std::error::Error>> {
     let mut password_chars: Vec<String> = vec![];
     let chars: String =
         "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".to_string();
@@ -161,13 +161,13 @@ pub fn generate_random_password(length: i32) -> Result<String, IndexError> {
         password_chars.push(char);
     }
     let password: String = password_chars.join("");
-    Ok(password)
+    Ok(password.to_string())
 }
 #[doc = "Simulate weighted random choice(manual implementation)"]
 pub fn weighted_random_choice<'b, 'a>(
     items: &'a Vec<String>,
     weights: &'b Vec<i32>,
-) -> Result<String, IndexError> {
+) -> Result<String, Box<dyn std::error::Error>> {
     let _cse_temp_0 = items.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     let _cse_temp_2 = weights.len() as i32;
@@ -201,7 +201,7 @@ pub fn weighted_random_choice<'b, 'a>(
 }
 #[doc = "Estimate pi using Monte Carlo method"]
 #[doc = " Depyler: proven to terminate"]
-pub fn monte_carlo_pi_estimation(num_samples: i32) -> Result<f64, ZeroDivisionError> {
+pub fn monte_carlo_pi_estimation(num_samples: i32) -> Result<f64, Box<dyn std::error::Error>> {
     let mut inside_circle: i32 = 0;
     for _i in 0..num_samples {
         let x: f64 = rand::random::<f64>();
@@ -220,7 +220,9 @@ pub fn monte_carlo_pi_estimation(num_samples: i32) -> Result<f64, ZeroDivisionEr
 }
 #[doc = "Test random boolean generation and calculate distribution"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_random_boolean_distribution(num_trials: i32) -> Result<f64, ZeroDivisionError> {
+pub fn test_random_boolean_distribution(
+    num_trials: i32,
+) -> Result<f64, Box<dyn std::error::Error>> {
     let mut true_count: i32 = 0;
     for _i in 0..num_trials {
         let rand_bool: bool = rand::random::<f64>() < 0.5;
@@ -305,35 +307,19 @@ pub fn test_triangular_distribution() -> f64 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_random_features() -> Result<(), Box<dyn std::error::Error>> {
-    let int_result: i32 = test_random_integers();
-    let float_result: f64 = test_random_floats();
     let colors: Vec<String> = vec![
         "red".to_string(),
         "green".to_string(),
         "blue".to_string(),
         "yellow".to_string(),
     ];
-    let chosen_color: String = test_random_choice(&colors);
     let numbers: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    let sampled: Vec<i32> = test_random_sample(&numbers, 3);
-    let shuffled: Vec<i32> = test_shuffle_list(&numbers);
-    let seeded_results: Vec<i32> = test_random_seed();
-    let range_result: i32 = test_random_range();
-    let dice: i32 = simulate_dice_roll();
-    let coin: String = simulate_coin_flip();
-    let password: String = generate_random_password(8)?;
     let items: Vec<String> = vec![
         "common".to_string(),
         "uncommon".to_string(),
         "rare".to_string(),
     ];
     let weights: Vec<i32> = vec![70, 25, 5];
-    let weighted: String = weighted_random_choice(&items, &weights)?;
-    let pi_est: f64 = monte_carlo_pi_estimation(1000)?;
-    let bool_dist: f64 = test_random_boolean_distribution(100)?;
-    let mut deck: Vec<String> = shuffle_deck();
-    let gauss_result: f64 = test_gauss_distribution();
-    let tri_result: f64 = test_triangular_distribution();
     println!("{}", "All random module tests completed successfully");
     Ok(())
 }
