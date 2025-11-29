@@ -245,6 +245,12 @@ impl BorrowingContext {
             HirStmt::Break { .. } | HirStmt::Continue { .. } | HirStmt::Pass => {
                 // Break, continue, and pass don't analyze any expressions
             }
+            // DEPYLER-0614: Recursively analyze Block statements
+            HirStmt::Block(stmts) => {
+                for s in stmts {
+                    self.analyze_statement(s);
+                }
+            }
             HirStmt::Assert { test, msg } => {
                 // Analyze the test expression and optional message
                 self.analyze_expression(test, 0);

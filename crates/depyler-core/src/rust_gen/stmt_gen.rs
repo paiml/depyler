@@ -4701,16 +4701,15 @@ fn try_generate_subcommand_match(
             // If so, get ALL subcommand fields since the handler accesses them internally
             // Pattern: the match arm body is `cmd_list(args)` which needs all `list` subcommand fields
             let calls_cmd_handler = body.iter().any(|stmt| {
-                if let HirStmt::Expr(expr) = stmt {
-                    if let HirExpr::Call { func: func_name, args: call_args, .. } = expr {
-                        // func is Symbol (String), not Box<HirExpr>
-                        // Check if it's a cmd_* or handle_* function call with args parameter
-                        let is_handler = func_name.starts_with("cmd_") || func_name.starts_with("handle_");
-                        let has_args_param = call_args.iter().any(|a| matches!(a, HirExpr::Var(v) if v == "args"));
-                        return is_handler && has_args_param;
-                    }
+                if let HirStmt::Expr(HirExpr::Call { func: func_name, args: call_args, .. }) = stmt {
+                    // func is Symbol (String), not Box<HirExpr>
+                    // Check if it's a cmd_* or handle_* function call with args parameter
+                    let is_handler = func_name.starts_with("cmd_") || func_name.starts_with("handle_");
+                    let has_args_param = call_args.iter().any(|a| matches!(a, HirExpr::Var(v) if v == "args"));
+                    is_handler && has_args_param
+                } else {
+                    false
                 }
-                false
             });
 
             if calls_cmd_handler && accessed_fields.is_empty() {
@@ -5179,6 +5178,14 @@ impl RustCodeGen for HirStmt {
             } => codegen_try_stmt(body, handlers, finalbody, ctx),
             HirStmt::Assert { test, msg } => codegen_assert_stmt(test, msg, ctx),
             HirStmt::Pass => codegen_pass_stmt(),
+            // DEPYLER-0614: Handle Block of statements (for multi-target assignment: i = j = 0)
+            HirStmt::Block(stmts) => {
+                let mut tokens = proc_macro2::TokenStream::new();
+                for stmt in stmts {
+                    tokens.extend(stmt.to_rust_tokens(ctx)?);
+                }
+                Ok(tokens)
+            }
             HirStmt::FunctionDef {
                 name,
                 params,
@@ -5328,9 +5335,27 @@ fn codegen_nested_function_def(
     // `-> ()` in closure definition which conflicted with actual return values.
     // Solution: Omit return type entirely, allowing Rust's type inference to
     // determine correct return type from closure body.
+    //
+    // DEPYLER-0613: Support hoisting - if variable is already declared, use assignment
+    let is_declared = ctx.is_declared(name);
+    
     Ok(if matches!(ret_type, Type::Unknown) {
+        if is_declared {
+            quote! {
+                #fn_name = |#(#param_tokens),*| {
+                    #(#body_tokens)*
+                };
+            }
+        } else {
+            quote! {
+                let #fn_name = |#(#param_tokens),*| {
+                    #(#body_tokens)*
+                };
+            }
+        }
+    } else if is_declared {
         quote! {
-            let #fn_name = |#(#param_tokens),*| {
+            #fn_name = |#(#param_tokens),*| -> #return_type {
                 #(#body_tokens)*
             };
         }

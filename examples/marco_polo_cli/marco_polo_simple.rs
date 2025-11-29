@@ -17,7 +17,7 @@ impl ZeroDivisionError {
 }
 #[doc = "Generate a number in range(simplified without random)."]
 #[doc = " Depyler: proven to terminate"]
-pub fn generate_number(min_val: i32, max_val: i32) -> Result<i32, ZeroDivisionError> {
+pub fn generate_number(min_val: i32, max_val: i32) -> Result<i32, Box<dyn std::error::Error>> {
     Ok({
         let a = min_val + max_val;
         let b = 2;
@@ -73,7 +73,7 @@ pub fn calculate_score(attempts: i32, rounds: i32) -> i32 {
 #[doc = "Get difficulty name from level."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_difficulty_name(level: i32) -> &'a str {
+pub fn get_difficulty_name(level: i32) -> String {
     let _cse_temp_0 = level == 1;
     if _cse_temp_0 {
         "Easy".to_string()
@@ -93,7 +93,7 @@ pub fn get_difficulty_name(level: i32) -> &'a str {
 }
 #[doc = "Calculate average with safety check."]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_average(total: i32, count: i32) -> Result<f64, ZeroDivisionError> {
+pub fn calculate_average(total: i32, count: i32) -> Result<f64, Box<dyn std::error::Error>> {
     let _cse_temp_0 = count == 0;
     if _cse_temp_0 {
         return Ok(0.0);
@@ -109,7 +109,7 @@ pub fn format_statistics(
     rounds: i32,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let avg = calculate_average(attempts, rounds)?;
-    let mut result = "Game Statistics:\n";
+    let mut result = "Game Statistics:\n".to_string();
     let _cse_temp_0 = (score).to_string();
     let _cse_temp_1 = format!("{}{}", format!("{}{}", result, "Score: "), _cse_temp_0);
     result = format!("{}{}", _cse_temp_1, "\n");

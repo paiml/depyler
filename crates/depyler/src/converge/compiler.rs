@@ -1,0 +1,357 @@
+//! Batch compilation and error collection
+//!
+//! Handles parallel compilation of Python examples through the transpiler
+//! and collects structured error information.
+
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+
+/// A single compilation error
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompilationError {
+    /// Rust error code (e.g., E0599, E0308)
+    pub code: String,
+    /// Error message
+    pub message: String,
+    /// File where error occurred
+    pub file: PathBuf,
+    /// Line number
+    pub line: usize,
+    /// Column number
+    pub column: usize,
+}
+
+/// Result of compiling a single example
+#[derive(Debug, Clone)]
+pub struct CompilationResult {
+    /// Source Python file
+    pub source_file: PathBuf,
+    /// Whether compilation succeeded
+    pub success: bool,
+    /// Compilation errors (if any)
+    pub errors: Vec<CompilationError>,
+    /// Generated Rust file (if transpilation succeeded)
+    pub rust_file: Option<PathBuf>,
+}
+
+/// Batch compiler for Python examples
+pub struct BatchCompiler {
+    /// Directory containing examples
+    input_dir: PathBuf,
+    /// Number of parallel jobs
+    parallel_jobs: usize,
+}
+
+impl BatchCompiler {
+    /// Create a new batch compiler
+    pub fn new(input_dir: &Path) -> Self {
+        Self {
+            input_dir: input_dir.to_path_buf(),
+            parallel_jobs: std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(4),
+        }
+    }
+
+    /// Set number of parallel jobs
+    pub fn with_parallel_jobs(mut self, jobs: usize) -> Self {
+        self.parallel_jobs = jobs;
+        self
+    }
+
+    /// Compile all Python files in the input directory
+    pub async fn compile_all(&self) -> Result<Vec<CompilationResult>> {
+        let mut results = Vec::new();
+
+        // Find all Python files
+        let python_files = self.find_python_files()?;
+
+        // Compile each file
+        for py_file in python_files {
+            let result = self.compile_one(&py_file).await?;
+            results.push(result);
+        }
+
+        Ok(results)
+    }
+
+    /// Find all Python files in input directory
+    fn find_python_files(&self) -> Result<Vec<PathBuf>> {
+        let mut files = Vec::new();
+
+        if self.input_dir.is_file() {
+            if self.input_dir.extension().is_some_and(|e| e == "py") {
+                files.push(self.input_dir.clone());
+            }
+        } else if self.input_dir.is_dir() {
+            self.find_python_files_recursive(&self.input_dir, &mut files)?;
+        }
+
+        Ok(files)
+    }
+
+    /// Recursively find Python files
+    fn find_python_files_recursive(&self, dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+        for entry in std::fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.is_dir() {
+                // Skip __pycache__ and hidden directories
+                let name = path.file_name().unwrap_or_default().to_string_lossy();
+                if !name.starts_with('.') && name != "__pycache__" {
+                    self.find_python_files_recursive(&path, files)?;
+                }
+            } else if path.extension().is_some_and(|e| e == "py") {
+                files.push(path);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Compile a single Python file
+    async fn compile_one(&self, py_file: &Path) -> Result<CompilationResult> {
+        // Step 1: Transpile Python to Rust
+        let transpile_result = self.transpile(py_file).await;
+
+        match transpile_result {
+            Ok(rust_file) => {
+                // Step 2: Compile Rust
+                let compile_result = self.compile_rust(&rust_file).await;
+
+                match compile_result {
+                    Ok(()) => Ok(CompilationResult {
+                        source_file: py_file.to_path_buf(),
+                        success: true,
+                        errors: vec![],
+                        rust_file: Some(rust_file),
+                    }),
+                    Err(errors) => Ok(CompilationResult {
+                        source_file: py_file.to_path_buf(),
+                        success: false,
+                        errors,
+                        rust_file: Some(rust_file),
+                    }),
+                }
+            }
+            Err(e) => {
+                // Transpilation failed
+                Ok(CompilationResult {
+                    source_file: py_file.to_path_buf(),
+                    success: false,
+                    errors: vec![CompilationError {
+                        code: "TRANSPILE".to_string(),
+                        message: e.to_string(),
+                        file: py_file.to_path_buf(),
+                        line: 0,
+                        column: 0,
+                    }],
+                    rust_file: None,
+                })
+            }
+        }
+    }
+
+    /// Transpile Python to Rust
+    async fn transpile(&self, py_file: &Path) -> Result<PathBuf> {
+        use std::process::Command;
+
+        let output_file = py_file.with_extension("rs");
+
+        let output = Command::new("depyler")
+            .arg("transpile")
+            .arg(py_file)
+            .arg("-o")
+            .arg(&output_file)
+            .output()?;
+
+        if output.status.success() {
+            Ok(output_file)
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("Transpilation failed: {}", stderr)
+        }
+    }
+
+    /// Compile Rust code
+    ///
+    /// Uses cargo build when Cargo.toml exists (to resolve external dependencies),
+    /// otherwise falls back to rustc for simple standalone files.
+    async fn compile_rust(
+        &self,
+        rust_file: &Path,
+    ) -> std::result::Result<(), Vec<CompilationError>> {
+        // Check if Cargo.toml exists in the same directory
+        let parent_dir = rust_file.parent().unwrap_or(rust_file);
+        let cargo_toml = parent_dir.join("Cargo.toml");
+
+        if cargo_toml.exists() {
+            // Use cargo build for projects with dependencies
+            self.compile_with_cargo(parent_dir, rust_file).await
+        } else {
+            // Use rustc for standalone files
+            self.compile_with_rustc(rust_file).await
+        }
+    }
+
+    /// Compile using cargo build (for projects with Cargo.toml)
+    async fn compile_with_cargo(
+        &self,
+        project_dir: &Path,
+        rust_file: &Path,
+    ) -> std::result::Result<(), Vec<CompilationError>> {
+        use std::process::Command;
+
+        let output = Command::new("cargo")
+            .arg("build")
+            .arg("--message-format=short")
+            .current_dir(project_dir)
+            .env("RUSTFLAGS", "-D warnings")
+            .output()
+            .map_err(|e| {
+                vec![CompilationError {
+                    code: "IO".to_string(),
+                    message: e.to_string(),
+                    file: rust_file.to_path_buf(),
+                    line: 0,
+                    column: 0,
+                }]
+            })?;
+
+        if output.status.success() {
+            Ok(())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let errors = self.parse_rustc_errors(&stderr, rust_file);
+            Err(errors)
+        }
+    }
+
+    /// Compile using rustc directly (for standalone files without dependencies)
+    async fn compile_with_rustc(
+        &self,
+        rust_file: &Path,
+    ) -> std::result::Result<(), Vec<CompilationError>> {
+        use std::process::Command;
+
+        let output = Command::new("rustc")
+            .arg("--crate-type")
+            .arg("lib")
+            .arg("--edition")
+            .arg("2021")
+            .arg("--deny")
+            .arg("warnings")
+            .arg(rust_file)
+            .arg("-o")
+            .arg("/dev/null")
+            .output()
+            .map_err(|e| {
+                vec![CompilationError {
+                    code: "IO".to_string(),
+                    message: e.to_string(),
+                    file: rust_file.to_path_buf(),
+                    line: 0,
+                    column: 0,
+                }]
+            })?;
+
+        if output.status.success() {
+            Ok(())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let errors = self.parse_rustc_errors(&stderr, rust_file);
+            Err(errors)
+        }
+    }
+
+    /// Parse rustc error output into structured errors
+    fn parse_rustc_errors(&self, stderr: &str, file: &Path) -> Vec<CompilationError> {
+        let mut errors = Vec::new();
+
+        // Parse rustc JSON output or text output
+        for line in stderr.lines() {
+            if let Some(error) = self.parse_error_line(line, file) {
+                errors.push(error);
+            }
+        }
+
+        // If no structured errors found, create a generic one
+        if errors.is_empty() && !stderr.is_empty() {
+            errors.push(CompilationError {
+                code: "UNKNOWN".to_string(),
+                message: stderr.to_string(),
+                file: file.to_path_buf(),
+                line: 0,
+                column: 0,
+            });
+        }
+
+        errors
+    }
+
+    /// Parse a single error line
+    fn parse_error_line(&self, line: &str, file: &Path) -> Option<CompilationError> {
+        // Look for patterns like "error[E0599]:"
+        if let Some(start) = line.find("error[E") {
+            let code_start = start + 6;
+            if let Some(code_end) = line[code_start..].find(']') {
+                let code = line[code_start..code_start + code_end].to_string();
+                let message = line[code_start + code_end + 2..].trim().to_string();
+
+                return Some(CompilationError {
+                    code,
+                    message,
+                    file: file.to_path_buf(),
+                    line: 0,
+                    column: 0,
+                });
+            }
+        }
+
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_batch_compiler_new() {
+        let compiler = BatchCompiler::new(Path::new("/tmp/examples"));
+        assert_eq!(compiler.input_dir, PathBuf::from("/tmp/examples"));
+    }
+
+    #[test]
+    fn test_parse_error_line() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"));
+        let line = "error[E0599]: no method named `foo` found";
+        let file = Path::new("test.rs");
+
+        let error = compiler.parse_error_line(line, file);
+        assert!(error.is_some());
+
+        let error = error.unwrap();
+        assert_eq!(error.code, "E0599");
+        assert!(error.message.contains("no method"));
+    }
+
+    #[tokio::test]
+    async fn test_find_python_files() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create some Python files
+        std::fs::write(temp_dir.path().join("test1.py"), "print('hello')").unwrap();
+        std::fs::write(temp_dir.path().join("test2.py"), "print('world')").unwrap();
+        std::fs::write(temp_dir.path().join("not_python.txt"), "text").unwrap();
+
+        let compiler = BatchCompiler::new(temp_dir.path());
+        let files = compiler.find_python_files().unwrap();
+
+        assert_eq!(files.len(), 2);
+        assert!(files.iter().all(|f| f.extension().unwrap() == "py"));
+    }
+}

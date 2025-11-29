@@ -325,6 +325,9 @@ impl TypeExtractor {
         // Extract the final attribute name (e.g., "Namespace" from "argparse.Namespace")
         let type_name = attr.attr.as_str();
 
+        // Extract module name for special handling
+        let module_name = Self::extract_module_name(&attr.value);
+
         // Special case: typing.Any → Unknown
         if type_name == "Any" {
             return Ok(Type::Unknown);
@@ -335,8 +338,82 @@ impl TypeExtractor {
             return Ok(ty);
         }
 
+        // DEPYLER-0609: Map known Python stdlib types to Rust equivalents
+        // This enables compilation even for unsupported modules
+        if let Some(module) = &module_name {
+            if let Some(rust_type) = Self::map_stdlib_type(module, type_name) {
+                return Ok(rust_type);
+            }
+        }
+
         // Otherwise, treat as custom type (module prefix discarded)
         // Examples: argparse.Namespace → Namespace, pathlib.Path → Path
         Ok(Type::Custom(type_name.to_string()))
+    }
+
+    /// Extract the module name from an expression (e.g., "threading" from "threading.Semaphore")
+    fn extract_module_name(expr: &ast::Expr) -> Option<String> {
+        match expr {
+            ast::Expr::Name(name) => Some(name.id.to_string()),
+            ast::Expr::Attribute(attr) => {
+                // Handle nested attributes like collections.abc
+                let parent = Self::extract_module_name(&attr.value)?;
+                Some(format!("{}.{}", parent, attr.attr))
+            }
+            _ => None,
+        }
+    }
+
+    /// Map known Python stdlib module types to Rust equivalents
+    /// DEPYLER-0609: Pragmatic compilation - map to types that compile
+    fn map_stdlib_type(module: &str, type_name: &str) -> Option<Type> {
+        match module {
+            // Threading module - map to serde_json::Value as universal placeholder
+            // Real sync primitives would need proper Rust equivalents
+            "threading" => match type_name {
+                "Lock" | "RLock" => Some(Type::Custom("std::sync::Mutex<()>".to_string())),
+                "Semaphore" | "BoundedSemaphore" => {
+                    // No stdlib Semaphore, use Mutex as placeholder
+                    Some(Type::Custom("std::sync::Mutex<i32>".to_string()))
+                }
+                "Event" => Some(Type::Custom("std::sync::Condvar".to_string())),
+                "Thread" => Some(Type::Custom("std::thread::JoinHandle<()>".to_string())),
+                _ => Some(Type::Custom("serde_json::Value".to_string())),
+            },
+            // Datetime module - map to chrono types
+            "datetime" => match type_name {
+                "datetime" | "date" | "time" => {
+                    Some(Type::Custom("chrono::DateTime<chrono::Utc>".to_string()))
+                }
+                "timedelta" => Some(Type::Custom("chrono::Duration".to_string())),
+                _ => Some(Type::Custom("serde_json::Value".to_string())),
+            },
+            // Queue module
+            "queue" => match type_name {
+                "Queue" | "LifoQueue" | "PriorityQueue" => {
+                    Some(Type::Custom("std::collections::VecDeque<serde_json::Value>".to_string()))
+                }
+                _ => Some(Type::Custom("serde_json::Value".to_string())),
+            },
+            // Multiprocessing
+            "multiprocessing" => Some(Type::Custom("serde_json::Value".to_string())),
+            // Asyncio types
+            "asyncio" => match type_name {
+                "Task" => Some(Type::Custom("tokio::task::JoinHandle<()>".to_string())),
+                "Event" => Some(Type::Custom("tokio::sync::Notify".to_string())),
+                "Queue" => Some(Type::Custom("tokio::sync::mpsc::Receiver<serde_json::Value>".to_string())),
+                "Lock" => Some(Type::Custom("tokio::sync::Mutex<()>".to_string())),
+                "Semaphore" => Some(Type::Custom("tokio::sync::Semaphore".to_string())),
+                _ => Some(Type::Custom("serde_json::Value".to_string())),
+            },
+            // Catch-all for other stdlib modules
+            "collections" | "collections.abc" | "typing" | "types" | "functools" | "itertools"
+            | "pathlib" | "os" | "sys" | "io" | "re" | "json" | "pickle" | "subprocess"
+            | "socket" | "ssl" | "http" | "urllib" => {
+                // For most stdlib types, use serde_json::Value as placeholder
+                Some(Type::Custom("serde_json::Value".to_string()))
+            }
+            _ => None, // Unknown module - let the default handling apply
+        }
     }
 }
