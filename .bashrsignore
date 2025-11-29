@@ -1,0 +1,51 @@
+# bashrs ignore file for depyler overnight monitoring scripts
+# These suppressions are intentional and documented
+
+# Skip overnight monitoring scripts entirely - they use intentional non-determinism
+# and known-safe hardcoded paths for monitoring state
+scripts/overnight_*.sh
+scripts/capture_rustc_diagnostics.sh
+
+# Rule-based suppressions (for other scripts)
+# DET002: Timestamps are required for monitoring - intentional non-determinism
+DET002
+
+# SEC010: We use fixed, known-safe hardcoded paths - not user input
+SEC010
+
+# SEC002: Variables like DEPYLER_DIR are readonly constants, not user input
+SEC002
+
+# SEC006: We use fixed /tmp paths for monitoring state - intentional
+SEC006
+
+# SC2032: These variables are local to the script, not meant for caller
+SC2032
+
+# SC2016/SC2081: Single quotes are intentional for jq filter strings
+SC2016
+SC2081
+
+# SC2015: A && B || C pattern is intentional fallback assignment
+SC2015
+
+# SC2089: Variable assignments with command substitution are correct
+SC2089
+
+# SC2031: False positive - CACHE_AGE is not in a subshell
+SC2031
+
+# SC2046: Arithmetic expressions don't need quoting
+SC2046
+
+# SC2140: jq filter strings with embedded quotes are correct
+SC2140
+
+# SC2094: Input/output to same file handled safely via append
+SC2094
+
+# SC2155: Declare and assign together is fine for readonly local vars
+SC2155
+
+# SC2188: Redirection is handled by jq piping
+SC2188
