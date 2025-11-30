@@ -3013,8 +3013,23 @@ impl<'a> ExprConverter<'a> {
                     Ok(
                         parse_quote! { #object_expr.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() },
                     )
+                } else if args.len() == 2 {
+                    // DEPYLER-0188: split(sep, maxsplit) -> splitn(maxsplit+1, sep)
+                    // Python maxsplit=N means at most N splits → N+1 parts
+                    // Rust splitn(n, pat) returns at most n parts
+                    let sep: syn::Expr = match &args[0] {
+                        HirExpr::Literal(Literal::String(s)) => {
+                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                            parse_quote! { #lit }
+                        }
+                        _ => self.convert(&args[0])?,
+                    };
+                    let maxsplit = self.convert(&args[1])?;
+                    Ok(
+                        parse_quote! { #object_expr.splitn((#maxsplit + 1) as usize, #sep).map(|s| s.to_string()).collect::<Vec<String>>() },
+                    )
                 } else {
-                    bail!("split() with maxsplit not supported");
+                    bail!("split() requires 0-2 arguments");
                 }
             }
             "join" => {
