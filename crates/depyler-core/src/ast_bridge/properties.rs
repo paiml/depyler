@@ -335,6 +335,20 @@ impl FunctionAnalyzer {
 
                 (left_fail || right_fail, all_errors)
             }
+            // DEPYLER-0624: Handle IfExpr (Python ternary) for can_fail analysis
+            // Example: `out = sys.stdout if verbose else open("log.txt", "w")`
+            // The open() in orelse can fail, so the whole expression can fail
+            HirExpr::IfExpr { test, body, orelse } => {
+                let (test_fail, test_errors) = Self::expr_can_fail(test);
+                let (body_fail, mut body_errors) = Self::expr_can_fail(body);
+                let (orelse_fail, mut orelse_errors) = Self::expr_can_fail(orelse);
+
+                let mut all_errors = test_errors;
+                all_errors.append(&mut body_errors);
+                all_errors.append(&mut orelse_errors);
+
+                (test_fail || body_fail || orelse_fail, all_errors)
+            }
             _ => (false, Vec::new()),
         }
     }
