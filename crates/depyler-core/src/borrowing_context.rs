@@ -265,6 +265,7 @@ impl BorrowingContext {
                 context,
                 target: _,
                 body,
+                ..
             } => {
                 // Analyze context expression
                 self.analyze_expression(context, 0);

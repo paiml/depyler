@@ -990,11 +990,13 @@ fn extract_exception_type(exception: &HirExpr) -> String {
 }
 
 /// Generate code for With (context manager) statement
+/// DEPYLER-0188: Now supports async with statements (is_async flag)
 #[inline]
 pub(crate) fn codegen_with_stmt(
     context: &HirExpr,
     target: &Option<String>,
     body: &[HirStmt],
+    is_async: bool,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
     // Convert context expression
@@ -1045,6 +1047,14 @@ pub(crate) fn codegen_with_stmt(
                 let mut #var_ident = #context_expr;
                 #(#body_stmts)*
             })
+        } else if is_async {
+            // DEPYLER-0188: For async context managers, call __aenter__().await
+            Ok(quote! {
+                let mut _context = #context_expr;
+                let #var_ident = _context.__aenter__().await;
+                #(#body_stmts)*
+                // Note: __aexit__().await should be called here (pending Drop trait async support)
+            })
         } else {
             // For custom context managers, call __enter__()
             // DEPYLER-0417: No block wrapper - Python allows accessing variables from with blocks
@@ -1058,10 +1068,18 @@ pub(crate) fn codegen_with_stmt(
     } else {
         // DEPYLER-0417: No block wrapper - Python allows accessing variables from with blocks
         // DEPYLER-0602: Context variable must be mutable for __enter__() if called
-        Ok(quote! {
-            let mut _context = #context_expr;
-            #(#body_stmts)*
-        })
+        if is_async {
+            Ok(quote! {
+                let mut _context = #context_expr;
+                let _ = _context.__aenter__().await;
+                #(#body_stmts)*
+            })
+        } else {
+            Ok(quote! {
+                let mut _context = #context_expr;
+                #(#body_stmts)*
+            })
+        }
     }
 }
 
@@ -5722,7 +5740,8 @@ impl RustCodeGen for HirStmt {
                 context,
                 target,
                 body,
-            } => codegen_with_stmt(context, target, body, ctx),
+                is_async,
+            } => codegen_with_stmt(context, target, body, *is_async, ctx),
             HirStmt::Try {
                 body,
                 handlers,

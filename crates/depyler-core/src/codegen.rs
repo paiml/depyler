@@ -566,6 +566,7 @@ fn stmt_to_rust_tokens_with_scope(
             context,
             target,
             body,
+            ..
         } => handle_with_stmt(context, target, body),
         HirStmt::Try {
             body,
