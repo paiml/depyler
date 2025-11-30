@@ -1135,6 +1135,19 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
             // The primary implementation is in crates/depyler-core/src/rust_gen.rs::convert_generator_expression()
             bail!("Generator expressions require rust_gen.rs (use DepylerPipeline instead of direct codegen)")
         }
+        // DEPYLER-0188: Walrus operator (assignment expression)
+        // Python: (x := expr) evaluates to expr and assigns to x
+        // Rust: { let x = expr; x }
+        HirExpr::NamedExpr { target, value } => {
+            let ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+            let value_tokens = expr_to_rust_tokens(value)?;
+            Ok(quote! {
+                {
+                    let #ident = #value_tokens;
+                    #ident
+                }
+            })
+        }
     }
 }
 
