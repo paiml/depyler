@@ -180,12 +180,13 @@ impl TypeMapper {
                         // Python `-> tuple` (without type parameters) maps to empty Rust tuple `()`
                         // This is a fallback - ideally type should be inferred from return value
                         "tuple" => RustType::Tuple(vec![]),
-                        // DEPYLER-0525: File-like objects that implement Write trait
-                        // Map to mutable reference to File for parameter positions
+                        // DEPYLER-0525/DEPYLER-0608: File-like objects that implement Write trait
+                        // Map to mutable reference to impl Write for parameter positions
+                        // This allows both File and Stdout to be passed as arguments
                         "File" => RustType::Reference {
                             lifetime: None,
                             mutable: true,
-                            inner: Box::new(RustType::Custom("std::fs::File".to_string())),
+                            inner: Box::new(RustType::Custom("impl std::io::Write".to_string())),
                         },
                         // DEPYLER-0580: argparse.Namespace maps to Args struct in clap
                         // Python: def cmd_step(args: argparse.Namespace) → Rust: fn cmd_step(args: Args)
