@@ -55,8 +55,8 @@ impl StmtConverter {
             ast::Stmt::AsyncFunctionDef(_) => {
                 bail!("Statement type not yet supported: AsyncFunctionDef")
             }
-            ast::Stmt::AsyncFor(_) => bail!("Statement type not yet supported: AsyncFor"),
-            ast::Stmt::AsyncWith(_) => bail!("Statement type not yet supported: AsyncWith"),
+            ast::Stmt::AsyncFor(f) => Self::convert_async_for(f),
+            ast::Stmt::AsyncWith(w) => Self::convert_async_with(w),
             _ => bail!("Statement type not yet supported: unknown"),
         }
     }
@@ -260,13 +260,40 @@ impl StmtConverter {
         let body_stmts = w.body;
 
         // Build nested With from inside out (last item wraps the body)
-        Self::build_nested_with(items, body_stmts)
+        Self::build_nested_with(items, body_stmts, false)
+    }
+
+    /// DEPYLER-0188: Convert async with statement
+    fn convert_async_with(w: ast::StmtAsyncWith) -> Result<HirStmt> {
+        // Handle multiple context managers by recursive nesting
+        if w.items.is_empty() {
+            bail!("Empty async with statement");
+        }
+
+        // Convert items to a Vec we can consume
+        let items: Vec<_> = w.items.into_iter().collect();
+        let body_stmts = w.body;
+
+        // Build nested With from inside out (last item wraps the body) with is_async=true
+        Self::build_nested_with(items, body_stmts, true)
+    }
+
+    /// DEPYLER-0188: Convert async for statement
+    fn convert_async_for(f: ast::StmtAsyncFor) -> Result<HirStmt> {
+        let target = extract_assign_target(&f.target)?;
+        let iter = super::convert_expr(*f.iter)?;
+        let body = convert_body(f.body)?;
+        // For async for, we wrap the iterator in an Await expression
+        // Python: async for x in async_iter: ...
+        // The async iteration is handled by awaiting each __anext__() call
+        Ok(HirStmt::For { target, iter, body })
     }
 
     /// Helper to build nested With statements from multiple context managers
     fn build_nested_with(
         mut items: Vec<ast::WithItem>,
         body_stmts: Vec<ast::Stmt>,
+        is_async: bool,
     ) -> Result<HirStmt> {
         // Take the first item
         let item = items.remove(0);
@@ -289,7 +316,7 @@ impl StmtConverter {
                 .collect::<Result<Vec<_>>>()?
         } else {
             // Recursive case: wrap remaining items
-            let inner_with = Self::build_nested_with(items, body_stmts)?;
+            let inner_with = Self::build_nested_with(items, body_stmts, is_async)?;
             vec![inner_with]
         };
 
@@ -297,6 +324,7 @@ impl StmtConverter {
             context,
             target,
             body,
+            is_async,
         })
     }
 

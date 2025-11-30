@@ -335,6 +335,8 @@ pub enum HirStmt {
         context: HirExpr,
         target: Option<Symbol>,
         body: Vec<HirStmt>,
+        /// DEPYLER-0188: True for `async with` statements
+        is_async: bool,
     },
     Try {
         body: Vec<HirStmt>,
