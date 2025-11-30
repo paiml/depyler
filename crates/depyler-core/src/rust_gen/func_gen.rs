@@ -1655,6 +1655,39 @@ fn infer_expr_type_with_env(
                 _ => Type::Unknown,
             }
         }
+        // DEPYLER-0609: Handle ListComp with JSON Value propagation for return type inference
+        HirExpr::ListComp { element, generators } => {
+            // Create extended environment with loop variable bindings
+            let mut extended_env = var_types.clone();
+
+            // Bind loop variables based on iterator type
+            for gen in generators {
+                let iter_type = infer_expr_type_with_env(&gen.iter, &extended_env);
+
+                // Determine the element type from the iterator
+                let elem_type = match &iter_type {
+                    // JSON Value iteration yields Value elements
+                    Type::Custom(s) if s == "serde_json::Value" || s.contains("Value") => {
+                        Type::Custom("serde_json::Value".to_string())
+                    }
+                    // List iteration yields element type
+                    Type::List(inner) => *inner.clone(),
+                    // Dict iteration yields keys
+                    Type::Dict(k, _) => *k.clone(),
+                    // Set iteration yields element type
+                    Type::Set(inner) => *inner.clone(),
+                    _ => Type::Unknown,
+                };
+
+                // Bind the target variable to the element type
+                // gen.target is a Symbol (String) representing the variable name
+                extended_env.insert(gen.target.clone(), elem_type);
+            }
+
+            // Infer element type with the extended environment
+            let elem_type = infer_expr_type_with_env(element, &extended_env);
+            Type::List(Box::new(elem_type))
+        }
         // For other cases, use the simple version
         _ => infer_expr_type_simple(expr),
     }
@@ -1665,7 +1698,8 @@ fn infer_expr_type_with_env(
 
 /// Simple expression type inference without context
 /// Handles common cases like literals, comparisons, and arithmetic
-fn infer_expr_type_simple(expr: &HirExpr) -> Type {
+/// DEPYLER-0600: Made pub(crate) for stmt_gen comprehension type tracking
+pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
     match expr {
         HirExpr::Literal(lit) => literal_to_type(lit),
         HirExpr::Binary { op, left, right } => {
@@ -1798,8 +1832,10 @@ fn infer_expr_type_simple(expr: &HirExpr) -> Type {
             // Check both qualified (json.load) and unqualified (load) names
             match func.as_str() {
                 // json module functions (qualified names)
+                // DEPYLER-0609: json.load/loads returns serde_json::Value (not Dict)
+                // because JSON can be dict, array, string, number, bool, or null
                 "json.load" | "json.loads" => {
-                    Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown))
+                    Type::Custom("serde_json::Value".to_string())
                 }
                 "json.dump" => Type::None,
                 "json.dumps" => Type::String,
