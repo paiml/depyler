@@ -632,8 +632,13 @@ fn codegen_single_param(
     // Use parameter name directly to ensure signature matches body references
     // DEPYLER-0357: Removed underscore prefixing logic that was causing compilation errors
     // Parameter names in signature must match exactly how they're referenced in function body
+    // DEPYLER-0611: Use raw identifiers for parameter names that are Rust keywords (e.g., override)
     let param_name = param.name.clone();
-    let param_ident = syn::Ident::new(&param_name, proc_macro2::Span::call_site());
+    let param_ident = if is_rust_keyword(&param_name) {
+        syn::Ident::new_raw(&param_name, proc_macro2::Span::call_site())
+    } else {
+        syn::Ident::new(&param_name, proc_macro2::Span::call_site())
+    };
 
     // DEPYLER-0477: Handle varargs parameters (*args in Python)
     // DEPYLER-0487: Generate &[T] instead of Vec<T> for better ergonomics
