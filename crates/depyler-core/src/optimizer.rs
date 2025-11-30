@@ -1097,6 +1097,25 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
                 }
             }
         }
+        // DEPYLER-0600 Bug #5: DictComp was missing from DCE analysis!
+        // This caused variables used only in dict comprehension iterators to be
+        // incorrectly removed. Example: `d = {str(n): n*n for n in nums}` lost `nums`
+        HirExpr::DictComp {
+            key,
+            value,
+            generators,
+        } => {
+            // Collect used vars from key and value expressions
+            collect_used_vars_expr_inner(key, used);
+            collect_used_vars_expr_inner(value, used);
+            // DEPYLER-0504: Support multiple generators
+            for gen in generators {
+                collect_used_vars_expr_inner(&gen.iter, used);
+                for cond in &gen.conditions {
+                    collect_used_vars_expr_inner(cond, used);
+                }
+            }
+        }
         HirExpr::Await { value } => {
             collect_used_vars_expr_inner(value, used);
         }
@@ -1143,6 +1162,14 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
                     collect_used_vars_expr_inner(expr, used);
                 }
             }
+        }
+        // DEPYLER-0618: Collect variables from ternary (if-expression) expressions
+        // Example: `out = sys.stdout if verbose else open(...)`
+        // Without this, DCE incorrectly removes `verbose = True`
+        HirExpr::IfExpr { test, body, orelse } => {
+            collect_used_vars_expr_inner(test, used);
+            collect_used_vars_expr_inner(body, used);
+            collect_used_vars_expr_inner(orelse, used);
         }
         _ => {}
     }
