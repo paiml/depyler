@@ -1,0 +1,55 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/noah/src/depyler/scripts/overnight_monitor.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); if echo \"$INPUT\" | jq -e '.tool_input.command | test(\"cargo test.*FAILED|error\\\\[E\")' >/dev/null 2>&1; then echo '{\"level\":\"error\",\"message\":\"Test or compile failure detected\"}' >> /tmp/depyler_andon_alerts.jsonl; fi",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "/home/noah/src/depyler/scripts/capture_rustc_diagnostics.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "printf '{\"hook_event_name\":\"Stop\",\"timestamp\":\"%s\"}' \"$(date -Iseconds)\" | /home/noah/src/depyler/scripts/overnight_monitor.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"level\":\"info\",\"message\":\"Overnight session started\",\"timestamp\":\"'$(date -Iseconds)'\"}' >> /tmp/depyler_andon_alerts.jsonl",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

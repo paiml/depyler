@@ -2007,6 +2007,10 @@ impl<'a> ExprConverter<'a> {
                 args,
                 ..
             } => self.convert_method_call(object, method, args),
+            // DEPYLER-0188: Dynamic function call (e.g., handlers[name](args))
+            HirExpr::DynamicCall { callee, args, .. } => {
+                self.convert_dynamic_call(callee, args)
+            }
             HirExpr::ListComp {
                 element,
                 generators,
@@ -3529,6 +3533,31 @@ impl<'a> ExprConverter<'a> {
         // DEPYLER-0596: Use make_ident to handle keywords like "match"
         let attr_ident = make_ident(attr);
         Ok(parse_quote! { #value_expr.#attr_ident })
+    }
+
+    /// DEPYLER-0188: Convert dynamic/subscript function call
+    /// Pattern: `handlers[name](args)` → `(handlers[&name])(args)` or `handlers.get(&name).unwrap()(args)`
+    ///
+    /// In Rust, calling a value from a HashMap requires:
+    /// 1. Index access with reference: `handlers[&name]`
+    /// 2. Parentheses to call the result: `(handlers[&name])(args)`
+    fn convert_dynamic_call(&self, callee: &HirExpr, args: &[HirExpr]) -> Result<syn::Expr> {
+        // Convert the callee expression (e.g., handlers[name])
+        let callee_expr = self.convert(callee)?;
+
+        // Convert arguments
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| self.convert(arg))
+            .collect::<Result<Vec<_>>>()?;
+
+        // Generate: (callee)(args)
+        // Wrap callee in parentheses to ensure correct parsing
+        if arg_exprs.is_empty() {
+            Ok(parse_quote! { (#callee_expr)() })
+        } else {
+            Ok(parse_quote! { (#callee_expr)(#(#arg_exprs),*) })
+        }
     }
 }
 

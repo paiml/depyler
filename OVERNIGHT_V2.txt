@@ -1,0 +1,141 @@
+You are running an OVERNIGHT AUTONOMOUS SESSION for the depyler Python→Rust transpiler.
+
+MONITORING: Every tool call writes status to /tmp/depyler_overnight_status.json (via hooks)
+
+## CRITICAL RULES
+- NEVER stop after one fix - continue to next error
+- NEVER ask for confirmation - decide autonomously
+- ALWAYS commit working changes with DEPYLER-06XX refs
+- ALWAYS work on master branch (NEVER create branches)
+- Track progress in TodoWrite
+
+## CONTEXT
+- Previous: DEPYLER-0614 (chained assign), DEPYLER-0615 (stub functions)
+- 22 files modified but uncommitted from previous session
+- Next ticket: DEPYLER-0616
+
+## PHASE 1: COMMIT PENDING WORK (5 min)
+
+```bash
+cd /home/noah/src/depyler
+git status
+git diff --stat HEAD | head -20
+```
+
+If there are uncommitted changes, commit them:
+```bash
+git add -A
+git commit -m "feat: Add HirStmt::Block and stub functions for cross-file imports (Refs DEPYLER-0614, DEPYLER-0615)
+
+- HirStmt::Block for chained assignments (i = j = 0)
+- UnresolvedImport tracking and stub generation
+- Updated exhaustive matches in 8 files
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+```
+
+## PHASE 2: GET ERROR BASELINE (10 min)
+
+DON'T use the broken `depyler converge`. Use direct transpilation:
+
+```bash
+cd /home/noah/src/depyler
+cargo build --release
+
+# Collect errors from all examples
+for dir in ../reprorusted-python-cli/examples/example_*/; do
+    for py in "$dir"/*.py; do
+        [[ "$py" == *test_* ]] && continue
+        [[ -f "$py" ]] || continue
+        ./target/release/depyler transpile "$py" 2>&1
+    done
+done 2>&1 | grep -oE "error\[E[0-9]+\]" | sort | uniq -c | sort -rn > /tmp/error_clusters.txt
+
+cat /tmp/error_clusters.txt
+```
+
+Record in TodoWrite:
+- Top 5 error codes with counts
+- Total unique error types
+
+## PHASE 3: FIX LOOP (ITERATE FOR HOURS)
+
+For EACH error type, starting with highest count:
+
+### 3.1 Sample the error
+```bash
+# Get a sample file that triggers this error
+ERROR_CODE="E0433"  # Replace with current target
+for dir in ../reprorusted-python-cli/examples/example_*/; do
+    for py in "$dir"/*.py; do
+        [[ "$py" == *test_* ]] && continue
+        ./target/release/depyler transpile "$py" 2>&1 | grep -q "$ERROR_CODE" && echo "$py" && break 2
+    done
+done
+```
+
+### 3.2 Trace the error
+```bash
+./target/release/depyler transpile [SAMPLE_FILE] --trace --explain 2>&1 | head -50
+```
+
+### 3.3 Locate fix
+Key files in `/home/noah/src/depyler/crates/depyler-core/src/`:
+
+| Error | Fix Location |
+|-------|--------------|
+| E0433 | rust_gen/import_gen.rs, cargo_toml_gen.rs |
+| E0599 | rust_gen/expr_gen.rs, builtin_conversions.rs |
+| E0308 | type_mapper.rs, rust_gen/expr_gen.rs |
+| E0277 | rust_gen/expr_gen.rs (Display→Debug) |
+| E0425 | rust_gen/func_gen.rs, stmt_gen.rs |
+| E0382 | borrowing_context.rs |
+
+### 3.4 Implement fix
+- Edit the appropriate file
+- Handle exhaustive matches in: hir.rs, converters.rs, stmt_gen.rs, borrowing_context.rs, codegen.rs, direct_rules.rs, lifetime_analysis.rs, type_flow.rs
+
+### 3.5 Validate
+```bash
+cargo test --package depyler-core --lib 2>&1 | tail -5
+cargo clippy --package depyler-core -- -D warnings 2>&1 | tail -5
+
+# Re-count this error
+./target/release/depyler transpile [SAMPLE_FILE] 2>&1 | grep -c "$ERROR_CODE" || echo "0"
+```
+
+### 3.6 Commit
+```bash
+git add -A
+git commit -m "fix: [DESCRIPTION] (Refs DEPYLER-06XX)
+
+- [Changes made]
+- Reduces $ERROR_CODE errors
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+```
+
+### 3.7 CONTINUE - move to next error type
+
+## TICKET NUMBERING
+- DEPYLER-0616, DEPYLER-0617, DEPYLER-0618...
+
+## SUCCESS METRICS
+- At least 5 commits (5 error types fixed)
+- Tests pass (3121/3123, 2 pre-existing failures OK)
+- Zero clippy warnings
+- Top error count reduced by 50%
+
+## WHEN TO STOP
+- All errors with count > 50 addressed
+- Tests broken and cannot fix
+- 6+ hours elapsed
+
+Otherwise: KEEP GOING.
+
+## START NOW
+Begin with Phase 1 - commit pending changes, then Phase 2 baseline.
