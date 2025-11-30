@@ -326,6 +326,7 @@ impl LifetimeInference {
                 context,
                 target: _,
                 body,
+                ..
             } => {
                 // Analyze context expression
                 self.analyze_expr_for_param(param, context, usage, in_loop, false);

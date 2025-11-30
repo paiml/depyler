@@ -1807,6 +1807,7 @@ fn convert_stmt_with_context(
             context,
             target,
             body,
+            ..
         } => {
             // Convert context expression
             let context_expr = convert_expr_with_context(context, type_mapper, is_classmethod)?;

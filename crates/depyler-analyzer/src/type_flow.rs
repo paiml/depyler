@@ -177,6 +177,7 @@ impl TypeInferencer {
                 context,
                 target: _,
                 body,
+                ..
             } => {
                 // Infer type of context expression
                 self.infer_expr(context)?;
