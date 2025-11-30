@@ -1,0 +1,502 @@
+[
+  {
+    "file": "test_004_file_handle_param.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_004_trait_object_conditional_return.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_021_json_dump_file.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_031_exception_in_context.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_012_value_dict_json_merge.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_003_option_path_or_fallback.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_011_value_json_conditional_access.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_010_value_json_nested_iteration.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_005_trait_object_ternary.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_029_class_context_manager.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_020_json_load_file.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_015_dict_get_default.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_019_json_dumps.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_023_dict_list_values.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_011_multiple_context_manager.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_027_suppress_context.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_028_multiple_with_items.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_000_sys_stdout_write.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_001_option_path_override.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_003_sys_stderr_write.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_013_file_iteration.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_017_dict_comprehension.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_018_json_loads.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_030_contextmanager_decorator.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_005_stdout_handle_param.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_022_nested_dict_access.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_001_print.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_008_trait_object_class_field.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_013_enter_returns_self.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_000_option_path_default.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_014_dict_literal.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_009_value_json_to_dict_field.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_007_conditional_io_type.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_016_dict_items_iteration.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_008_context_manager_write.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_002_option_path_dict_get.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_024_dynamic_key_access.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_002_file_write.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_010_nested_context_manager.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_026_basic_file_context.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_015_enter_nested_different_types.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_016_exit_exception_handling.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_012_readlines_iteration.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_007_trait_object_list_mixed.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_032_exception_suppression.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_025_json_mixed_types.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_006_file_handle_return.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_009_context_manager_read.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_006_trait_object_param_both_types.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  },
+  {
+    "file": "test_014_enter_returns_different.py",
+    "transpilers": {
+      "depyler": {
+        "compile_ok": false,
+        "status": "supported",
+        "transpile_ok": true
+      }
+    }
+  }
+]

@@ -564,6 +564,90 @@ Unified Corpus Statistics:
     ...
 ```
 
+## Rust-Based Corpus Extraction (TDD)
+
+The corpus extraction has been rewritten in Rust for type safety and proper deduplication. This replaces the legacy bash scripts.
+
+### Binary Usage
+
+```bash
+# Build the extraction binary
+cargo build --release -p depyler-oracle --bin extract-training-data
+
+# Run with defaults (verificar corpus → training_corpus/errors.jsonl)
+./target/release/extract-training-data
+
+# With options
+./target/release/extract-training-data \
+    --input-dir target/verificar/corpus \
+    --output-dir target/verificar/output \
+    --corpus training_corpus/errors.jsonl \
+    --cycle 5 \
+    --max-files 1000 \
+    --verbose
+```
+
+### Makefile Integration
+
+```bash
+# Harvest real transpilation errors using Rust binary
+make oracle-harvest
+
+# Full training cycle
+make oracle-cycle
+```
+
+### Library API
+
+```rust
+use depyler_oracle::corpus_extract::{TrainingCorpus, TrainingError};
+use std::path::Path;
+
+// Load existing corpus (deduplicates on load)
+let mut corpus = TrainingCorpus::load(Path::new("errors.jsonl"))?;
+println!("Loaded {} unique errors", corpus.len());
+
+// Add new error (auto-generates hash for deduplication)
+let error = TrainingError::new(
+    "E0308",                           // error_code
+    "mismatched types",                // message
+    "expected i32, found String",      // context
+    "examples/foo.py",                 // file
+    3,                                 // cycle
+);
+
+if corpus.insert(error) {
+    println!("New error added");
+} else {
+    println!("Duplicate, skipped");
+}
+
+// Merge another corpus (returns count of new unique errors)
+let other = TrainingCorpus::load(Path::new("other.jsonl"))?;
+let new_count = corpus.merge(other);
+println!("Added {} new unique errors", new_count);
+
+// Save
+corpus.save(Path::new("errors.jsonl"))?;
+```
+
+### Why Rust Instead of Bash?
+
+| Issue with Bash | Rust Solution |
+|-----------------|---------------|
+| `sort -u` on JSON doesn't dedupe by hash field | `HashSet<String>` with proper hash key |
+| Subshell variable loss (SC2031) | No subshells, explicit state |
+| md5sum differs across platforms | `DefaultHasher` (deterministic) |
+| Silent failures | `Result<T, E>` with proper errors |
+| 57K entries → 63 unique (bug) | Impossible with HashSet |
+
+### Example: Corpus Extraction Demo
+
+```bash
+# Run the extraction example
+cargo run --release -p depyler-oracle --example corpus_extract_demo
+```
+
 ## Advanced: Full Custom Pipeline
 
 For organizations with large codebases and compute budget:
