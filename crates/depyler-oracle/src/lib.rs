@@ -18,6 +18,7 @@ pub mod autofixer;
 pub mod automl_tuning;
 pub mod citl_fixer;
 pub mod classifier;
+pub mod corpus_citl;
 pub mod github_corpus;
 pub mod moe_oracle;
 pub mod data_store;
@@ -37,10 +38,12 @@ pub mod tuning;
 pub mod unified_training;
 pub mod verificar_integration;
 pub mod query_loop;
+pub mod corpus_extract;
 
 pub use autofixer::{AutoFixer, FixContext, FixResult, TransformRule};
 pub use automl_tuning::{automl_full, automl_optimize, automl_quick, AutoMLConfig, AutoMLResult};
 pub use citl_fixer::{CITLFixer, CITLFixerConfig, IterativeFixResult};
+pub use corpus_citl::{CorpusCITL, IngestionStats};
 pub use estimator::{message_to_features, samples_to_features, OracleEstimator};
 pub use params_persistence::{
     default_params_path, load_params, params_exist, save_params, OptimizedParams,
