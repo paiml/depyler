@@ -173,12 +173,13 @@ impl Optimizer {
                         finalbody: new_finalbody,
                     });
                 }
-                HirStmt::With { context, target, body: with_body } => {
+                HirStmt::With { context, target, body: with_body, is_async } => {
                     let new_with_body = self.hoist_walrus_in_body(with_body);
                     new_body.push(HirStmt::With {
                         context: context.clone(),
                         target: target.clone(),
                         body: new_with_body,
+                        is_async: *is_async,
                     });
                 }
                 _ => new_body.push(stmt.clone()),
