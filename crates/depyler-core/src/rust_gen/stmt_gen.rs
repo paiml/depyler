@@ -1042,16 +1042,18 @@ pub(crate) fn codegen_with_stmt(
         } else {
             // For custom context managers, call __enter__()
             // DEPYLER-0417: No block wrapper - Python allows accessing variables from with blocks
+            // DEPYLER-0602: Context variable must be mutable since __enter__ takes &mut self
             Ok(quote! {
-                let _context = #context_expr;
+                let mut _context = #context_expr;
                 let #var_ident = _context.__enter__();
                 #(#body_stmts)*
             })
         }
     } else {
         // DEPYLER-0417: No block wrapper - Python allows accessing variables from with blocks
+        // DEPYLER-0602: Context variable must be mutable for __enter__() if called
         Ok(quote! {
-            let _context = #context_expr;
+            let mut _context = #context_expr;
             #(#body_stmts)*
         })
     }
@@ -1780,6 +1782,56 @@ fn is_var_used_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
     }
 }
 
+/// DEPYLER-0607: Check if a method chain leads back to a dict.get() on HashMap<_, serde_json::Value>
+/// This handles patterns like: data.get("key").cloned().unwrap_or_default()
+/// Includes fallback for untracked local variables when serde_json is in use.
+fn is_json_value_method_chain_or_fallback(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
+    match expr {
+        // Reached the base: check if it's a dict.get() on Value-containing HashMap
+        HirExpr::MethodCall { object, method, .. } if method == "get" => {
+            if let HirExpr::Var(var_name) = object.as_ref() {
+                if let Some(t) = ctx.var_types.get(var_name) {
+                    // DEPYLER-0607: A dict with Unknown value type maps to HashMap<_, serde_json::Value>
+                    // So we should treat Unknown as potentially Value
+                    matches!(t, Type::Dict(_, v) if matches!(v.as_ref(),
+                        Type::Custom(n) if n.contains("Value") || n.contains("json"))
+                        || matches!(v.as_ref(), Type::Unknown))
+                } else {
+                    // DEPYLER-0607: Fallback for untracked local dicts
+                    ctx.needs_serde_json
+                }
+            } else {
+                false
+            }
+        }
+        // Continue traversing the chain
+        HirExpr::MethodCall { object, method, .. } => {
+            let is_chain_method = method == "cloned"
+                || method == "unwrap_or_default"
+                || method == "unwrap_or"
+                || method == "unwrap";
+            if is_chain_method {
+                is_json_value_method_chain_or_fallback(object.as_ref(), ctx)
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
+/// DEPYLER-0607: Check if a dict has Value type values (explicit Value or Unknown)
+fn is_dict_with_value_type(t: &Type) -> bool {
+    match t {
+        Type::Dict(_, v) => {
+            matches!(v.as_ref(),
+                Type::Custom(n) if n.contains("Value") || n.contains("json"))
+            || matches!(v.as_ref(), Type::Unknown)
+        }
+        _ => false,
+    }
+}
+
 /// Generate code for For loop statement
 #[inline]
 pub(crate) fn codegen_for_stmt(
@@ -1954,9 +2006,19 @@ pub(crate) fn codegen_for_stmt(
             || (n.ends_with("_text") && !n.ends_with("_texts"))
             };
 
+            // DEPYLER-0606: Check if iterating over serde_json::Value
+            // JSON values are represented as Custom("Value") or dict values from heterogeneous dicts
+            let is_json_value = ctx.var_types.get(var_name).is_some_and(|t| {
+                matches!(t, Type::Custom(name) if name == "Value" || name == "serde_json::Value" || name.contains("json"))
+            });
+
             if is_string_type || is_string_name {
                 // For strings, use .chars() to iterate over characters
                 iter_expr = parse_quote! { #iter_expr.chars() };
+            } else if is_json_value {
+                // DEPYLER-0606: serde_json::Value needs .as_array().unwrap() before iteration
+                // This handles: for item in json_value (where json_value is a JSON array)
+                iter_expr = parse_quote! { #iter_expr.as_array().unwrap().iter().cloned() };
             } else if ctx.iterator_vars.contains(var_name) {
                 // DEPYLER-0520: Variable is already an iterator (from .filter().map() etc.)
                 // Don't add .iter().cloned() - iterators don't have .iter() method
@@ -1970,6 +2032,76 @@ pub(crate) fn codegen_for_stmt(
                 // This matches Python semantics where loop variables are values, not references.
                 iter_expr = parse_quote! { #iter_expr.iter().cloned() };
             }
+        }
+    }
+
+    // DEPYLER-0607: Handle JSON Value iteration for dict index and method chains
+    // Patterns: data["items"], data.get("items").cloned().unwrap_or_default()
+    // serde_json::Value doesn't implement IntoIterator, need .as_array().unwrap().iter()
+    if !is_stdin_iter && !is_file_iter && !is_csv_reader {
+        // First check HIR-level patterns
+        let is_json_value_iteration = match iter {
+            // Case 1: dict["key"] - Index into HashMap<String, serde_json::Value>
+            HirExpr::Index { base, .. } => {
+                match base.as_ref() {
+                    HirExpr::Var(var_name) => {
+                        // Check if base is a HashMap with Value values (including Unknown → Value)
+                        if let Some(t) = ctx.var_types.get(var_name) {
+                            is_dict_with_value_type(t)
+                        } else {
+                            // DEPYLER-0607: For untracked local variables, check if serde_json is in use
+                            // If so, dict literals with heterogeneous values use serde_json::Value
+                            // This handles: data = {"key": [1,2,3]}; for item in data["key"]
+                            ctx.needs_serde_json
+                        }
+                    }
+                    HirExpr::Dict { .. } => true, // Dict literal - definitely has Value type
+                    _ => false,
+                }
+            }
+            // Case 2: dict.get("key")... method chain returning Value
+            HirExpr::MethodCall { object, method, .. } => {
+                // Check for common patterns: .cloned(), .unwrap_or_default(), .unwrap_or()
+                // that might be chained after dict.get()
+                let is_value_chain = method == "cloned"
+                    || method == "unwrap_or_default"
+                    || method == "unwrap_or"
+                    || method == "unwrap";
+
+                if is_value_chain {
+                    // Check if there's a get() call somewhere in the chain on a dict with Value
+                    is_json_value_method_chain_or_fallback(object.as_ref(), ctx)
+                } else if method == "get" {
+                    // Direct dict.get() call
+                    if let HirExpr::Var(var_name) = object.as_ref() {
+                        if let Some(t) = ctx.var_types.get(var_name) {
+                            is_dict_with_value_type(t)
+                        } else {
+                            // DEPYLER-0607: Fallback for untracked local dicts
+                            ctx.needs_serde_json
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        };
+
+        // DEPYLER-0607: Also detect from generated Rust code patterns
+        // This catches cases where dict index was converted to .get().cloned().unwrap_or_default()
+        let iter_expr_str = quote!(#iter_expr).to_string();
+        let has_value_pattern = iter_expr_str.contains("unwrap_or_default")
+            || iter_expr_str.contains("unwrap_or (")
+            || (iter_expr_str.contains(".get") && iter_expr_str.contains(".cloned"));
+
+        if is_json_value_iteration || (has_value_pattern && ctx.needs_serde_json) {
+            // DEPYLER-0607: Wrap JSON Value with .as_array().unwrap_or(&vec![]).iter().cloned()
+            iter_expr = parse_quote! {
+                #iter_expr.as_array().unwrap_or(&vec![]).iter().cloned()
+            };
         }
     }
 
@@ -2603,6 +2735,27 @@ pub(crate) fn codegen_assign_stmt(
                 ctx.var_types
                     .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
             }
+            // DEPYLER-0600 Bug #6: Track type from comprehension expressions
+            // Enables correct {:?} vs {} selection in println! for dict/list/set comprehensions
+            HirExpr::DictComp { key, value, .. } => {
+                // Use type inference from func_gen module for comprehension types
+                let key_type = crate::rust_gen::func_gen::infer_expr_type_simple(key);
+                let val_type = crate::rust_gen::func_gen::infer_expr_type_simple(value);
+                ctx.var_types.insert(
+                    var_name.clone(),
+                    Type::Dict(Box::new(key_type), Box::new(val_type)),
+                );
+            }
+            HirExpr::ListComp { element, .. } => {
+                let elem_type = crate::rust_gen::func_gen::infer_expr_type_simple(element);
+                ctx.var_types
+                    .insert(var_name.clone(), Type::List(Box::new(elem_type)));
+            }
+            HirExpr::SetComp { element, .. } => {
+                let elem_type = crate::rust_gen::func_gen::infer_expr_type_simple(element);
+                ctx.var_types
+                    .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
+            }
             HirExpr::Slice { base, .. } => {
                 // DEPYLER-0301: Track sliced lists as owned Vec types
                 // When rest = numbers[1:], mark rest as List(Int) so it gets borrowed on call
@@ -2822,7 +2975,31 @@ pub(crate) fn codegen_assign_symbol(
         }
     } else if ctx.is_declared(symbol) {
         // Variable already exists, just assign
-        Ok(quote! { #target_ident = #value_expr; })
+        // DEPYLER-0604: Check if variable has Optional type and wrap value in Some()
+        let final_value = if let Some(Type::Optional(inner_type)) = ctx.var_types.get(symbol) {
+            // Check if the value is already wrapped in Some or is None
+            let value_str = quote!(#value_expr).to_string();
+            if value_str.starts_with("Some") || value_str == "None" {
+                value_expr
+            } else {
+                // Wrap non-Optional value in Some()
+                // DEPYLER-0604: Handle string conversion for Optional<String>
+                if matches!(inner_type.as_ref(), Type::String) {
+                    // Check if it's a string literal that needs .to_string()
+                    let value_str = quote!(#value_expr).to_string();
+                    if value_str.starts_with('"') && value_str.ends_with('"') {
+                        parse_quote! { Some(#value_expr.to_string()) }
+                    } else {
+                        parse_quote! { Some(#value_expr) }
+                    }
+                } else {
+                    parse_quote! { Some(#value_expr) }
+                }
+            }
+        } else {
+            value_expr
+        };
+        Ok(quote! { #target_ident = #final_value; })
     } else {
         // First declaration - check if variable needs mut
         ctx.declare_var(symbol);
