@@ -59,6 +59,12 @@
 
 ---
 
+# Case Studies
+
+- [Corpus-Driven Development](./case-studies/corpus-driven-development.md)
+
+---
+
 # Development Guide
 
 - [Oracle: ML Error Classification](./oracle.md)
