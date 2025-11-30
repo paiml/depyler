@@ -397,6 +397,14 @@ pub enum HirExpr {
         /// Empty for calls without kwargs
         kwargs: Vec<(Symbol, HirExpr)>,
     },
+    /// DEPYLER-0188: Dynamic function call where the callee is an expression
+    /// E.g., `handlers[name](args)` where `handlers[name]` is the callee
+    /// Converts to Rust: `(handlers[&name])(args)` or `handlers.get(&name).unwrap()(args)`
+    DynamicCall {
+        callee: Box<HirExpr>,
+        args: Vec<HirExpr>,
+        kwargs: Vec<(Symbol, HirExpr)>,
+    },
     Index {
         base: Box<HirExpr>,
         index: Box<HirExpr>,

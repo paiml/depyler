@@ -570,6 +570,13 @@ impl BorrowingContext {
             HirExpr::NamedExpr { value, .. } => {
                 self.analyze_expression(value, borrow_depth);
             }
+            // DEPYLER-0188: Dynamic call - analyze callee and arguments
+            HirExpr::DynamicCall { callee, args, .. } => {
+                self.analyze_expression(callee, borrow_depth);
+                for arg in args {
+                    self.analyze_expression(arg, borrow_depth);
+                }
+            }
         }
     }
 

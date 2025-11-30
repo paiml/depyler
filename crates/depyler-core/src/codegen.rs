@@ -1148,6 +1148,15 @@ fn expr_to_rust_tokens(expr: &HirExpr) -> Result<proc_macro2::TokenStream> {
                 }
             })
         }
+        // DEPYLER-0188: Dynamic call: handlers[name](args) → (handlers[name])(args)
+        HirExpr::DynamicCall { callee, args, .. } => {
+            let callee_tokens = expr_to_rust_tokens(callee)?;
+            let args_tokens: Vec<_> = args
+                .iter()
+                .map(expr_to_rust_tokens)
+                .collect::<Result<Vec<_>>>()?;
+            Ok(quote! { (#callee_tokens)(#(#args_tokens),*) })
+        }
     }
 }
 

@@ -1044,7 +1044,8 @@ fn contains_owned_string_method(expr: &HirExpr) -> bool {
         | HirExpr::Yield { .. }
         | HirExpr::SortByKey { .. }
         | HirExpr::GeneratorExp { .. }
-        | HirExpr::NamedExpr { .. } => false,
+        | HirExpr::NamedExpr { .. }
+        | HirExpr::DynamicCall { .. } => false,
     }
 }
 

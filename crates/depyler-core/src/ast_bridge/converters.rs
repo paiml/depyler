@@ -646,6 +646,12 @@ impl ExprConverter {
                     kwargs,
                 })
             }
+            // DEPYLER-0188: Subscript function call: handlers[name](args)
+            // Converts to DynamicCall where callee is an Index expression
+            ast::Expr::Subscript(subscript) => {
+                let callee = Box::new(Self::convert_subscript(subscript.clone())?);
+                Ok(HirExpr::DynamicCall { callee, args, kwargs })
+            }
             _ => bail!("Unsupported function call type: {:?}", c.func),
         }
     }
