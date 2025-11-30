@@ -207,6 +207,11 @@ pub struct CodeGenContext<'a> {
     /// When true and calling cmd_*/handle_* with args, pass extracted fields instead
     pub in_subcommand_match_arm: bool,
 
+    /// DEPYLER-0625: Track variables that need Box<dyn Write> type
+    /// When a variable is assigned File in one if-branch and Stdout in another,
+    /// we need to use `Box<dyn std::io::Write>` as the type and wrap values with Box::new()
+    pub boxed_dyn_write_vars: HashSet<String>,
+
     /// DEPYLER-0608: Track extracted subcommand fields for match arm context
     /// These fields are bound via `ref field` patterns in the match arm
     pub subcommand_match_fields: Vec<String>,
@@ -220,6 +225,16 @@ pub struct CodeGenContext<'a> {
     /// When true, integer returns should become process::exit() or Ok(())
     /// because Rust main can only return () or Result<(), E>
     pub is_main_function: bool,
+
+    /// DEPYLER-0626: Track if current function returns Box<dyn Write>
+    /// When a function returns both File and Stdout, we need trait object return
+    /// Return statements should wrap values with Box::new()
+    pub function_returns_boxed_write: bool,
+
+    /// DEPYLER-0627: Track Option variables unwrapped via if-let pattern
+    /// Maps original variable name to unwrapped name (e.g., "override" -> "override_val")
+    /// Used inside if-let blocks to substitute variable references
+    pub option_unwrap_map: HashMap<String, String>,
 }
 
 impl<'a> CodeGenContext<'a> {

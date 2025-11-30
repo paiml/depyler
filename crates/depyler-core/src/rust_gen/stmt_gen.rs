@@ -630,6 +630,12 @@ pub(crate) fn codegen_return_stmt(
     if let Some(e) = expr {
         let mut expr_tokens = e.to_rust_expr(ctx)?;
 
+        // DEPYLER-0626: Wrap return value with Box::new() for heterogeneous IO types
+        // When function returns Box<dyn Write> (e.g., sys.stdout vs File), wrap the value
+        if ctx.function_returns_boxed_write {
+            expr_tokens = parse_quote! { Box::new(#expr_tokens) };
+        }
+
         // DEPYLER-0241: Apply type conversion if needed (e.g., usize -> i32 from enumerate())
         if let Some(return_type) = &ctx.current_return_type {
             // Unwrap Optional to get the underlying type
@@ -1297,18 +1303,28 @@ fn apply_truthiness_conversion(
 /// - os.environ.get() / std::env::var().ok()
 ///
 /// DEPYLER-0455: Enhanced to detect chained method calls like env::var(...).ok()
+/// DEPYLER-0632: dict.get(key, default) with default value returns concrete type, not Option
 fn looks_like_option_expr(expr: &HirExpr) -> bool {
     match expr {
         // Method call ending in .ok() → definitely Option
         HirExpr::MethodCall { method, .. } if method == "ok" => true,
-        // Method call to .get() → usually Option (dict/map lookup)
-        HirExpr::MethodCall { method, .. } if method == "get" => true,
+        // DEPYLER-0632: .get() only returns Option when no default value provided
+        // Python: dict.get(key) → Optional (None if missing)
+        // Python: dict.get(key, default) → concrete type (default if missing)
+        HirExpr::MethodCall { method, args, .. } if method == "get" => {
+            // Only 1 arg (the key) = returns Option
+            // 2 args (key + default) = returns concrete type
+            args.len() == 1
+        }
         // DEPYLER-0455: Check for chained calls like std::env::var(...).ok()
         // This handles cases where the RHS is a method chain
-        HirExpr::MethodCall { object, method, .. } => {
+        HirExpr::MethodCall { object, method, args, .. } => {
             // Recursively check if the object is an Option-returning expression
-            if method == "ok" || method == "get" {
+            if method == "ok" {
                 true
+            } else if method == "get" {
+                // DEPYLER-0632: Only Option if no default
+                args.len() == 1
             } else {
                 looks_like_option_expr(object)
             }
@@ -1473,6 +1489,16 @@ pub(crate) fn codegen_if_stmt(
         }
     }
 
+    // DEPYLER-0627: Detect Option variable truthiness check and generate if-let pattern
+    // Pattern: `if option_var:` -> `if let Some(ref val) = option_var { ... }`
+    if let HirExpr::Var(var_name) = condition {
+        if let Some(var_type) = ctx.var_types.get(var_name) {
+            if matches!(var_type, Type::Optional(_)) {
+                return codegen_option_if_let(var_name, then_body, else_body, ctx);
+            }
+        }
+    }
+
     let mut cond = condition.to_rust_expr(ctx)?;
 
     // DEPYLER-0308: Auto-unwrap Result<bool> in if conditions
@@ -1510,6 +1536,20 @@ pub(crate) fn codegen_if_stmt(
             continue;
         }
 
+        let var_ident = safe_ident(var_name); // DEPYLER-0023
+
+        // DEPYLER-0625: Check if variable needs Box<dyn Write> due to heterogeneous IO types
+        // (e.g., File in one branch, sys.stdout in another)
+        if let Some(else_stmts) = else_body {
+            if needs_boxed_dyn_write(var_name, then_body, else_stmts) {
+                // Generate Box<dyn Write> type for heterogeneous IO
+                hoisted_decls.push(quote! { let mut #var_ident: Box<dyn std::io::Write>; });
+                ctx.boxed_dyn_write_vars.insert(var_name.clone());
+                ctx.declare_var(var_name);
+                continue;
+            }
+        }
+
         // Find the variable's type from the first assignment in either branch
         let var_type = find_variable_type(var_name, then_body).or_else(|| {
             if let Some(else_stmts) = else_body {
@@ -1518,8 +1558,6 @@ pub(crate) fn codegen_if_stmt(
                 None
             }
         });
-
-        let var_ident = safe_ident(var_name); // DEPYLER-0023
 
         if let Some(ty) = var_type {
             let rust_type = ctx.type_mapper.map_type(&ty);
@@ -1579,6 +1617,71 @@ pub(crate) fn codegen_if_stmt(
     result
 }
 
+/// DEPYLER-0627: Generate if-let pattern for Option variable truthiness check
+///
+/// Pattern: `if option_var:` -> `if let Some(ref val) = option_var { ... }`
+///
+/// This fixes issues where:
+/// - Python: `if override: return override`
+/// - Wrong Rust: `if override.is_some() { return override.to_string(); }`
+/// - Correct Rust: `if let Some(ref val) = override { return val.clone(); }`
+///
+/// # Complexity
+/// 3 (body processing with scope management)
+fn codegen_option_if_let(
+    var_name: &str,
+    then_body: &[HirStmt],
+    else_body: &Option<Vec<HirStmt>>,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    // Generate the variable identifier (handle Rust keywords)
+    let var_ident = safe_ident(var_name);
+    // Generate the unwrapped variable name
+    let unwrapped_name = format!("{}_val", var_name);
+    let unwrapped_ident = safe_ident(&unwrapped_name);
+
+    // Add mapping so variable references inside body use unwrapped name
+    ctx.option_unwrap_map
+        .insert(var_name.to_string(), unwrapped_name.clone());
+
+    // Process then body with the mapping active
+    ctx.enter_scope();
+    let then_stmts: Vec<_> = then_body
+        .iter()
+        .map(|s| s.to_rust_tokens(ctx))
+        .collect::<Result<Vec<_>>>()?;
+    ctx.exit_scope();
+
+    // Remove the mapping
+    ctx.option_unwrap_map.remove(var_name);
+
+    // Generate if-let pattern
+    let result = if let Some(else_stmts) = else_body {
+        ctx.enter_scope();
+        let else_tokens: Vec<_> = else_stmts
+            .iter()
+            .map(|s| s.to_rust_tokens(ctx))
+            .collect::<Result<Vec<_>>>()?;
+        ctx.exit_scope();
+
+        quote! {
+            if let Some(ref #unwrapped_ident) = #var_ident {
+                #(#then_stmts)*
+            } else {
+                #(#else_tokens)*
+            }
+        }
+    } else {
+        quote! {
+            if let Some(ref #unwrapped_ident) = #var_ident {
+                #(#then_stmts)*
+            }
+        }
+    };
+
+    Ok(result)
+}
+
 /// DEPYLER-0379: Find the type annotation for a variable in a statement block
 ///
 /// Searches for the first Assign statement that assigns to the given variable
@@ -1600,6 +1703,74 @@ fn find_variable_type(var_name: &str, stmts: &[HirStmt]) -> Option<Type> {
         }
     }
     None
+}
+
+/// DEPYLER-0625: Check if expression creates a File (open() or File::create())
+fn is_file_creating_expr(expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::Call { func, .. } => func == "open",
+        HirExpr::MethodCall { object, method, .. } => {
+            if method == "create" || method == "open" {
+                if let HirExpr::Var(name) = object.as_ref() {
+                    return name == "File";
+                }
+                if let HirExpr::Attribute { attr, .. } = object.as_ref() {
+                    return attr == "File";
+                }
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+/// DEPYLER-0625: Check if expression is sys.stdout or sys.stderr
+fn is_stdio_expr(expr: &HirExpr) -> bool {
+    if let HirExpr::Attribute { value, attr } = expr {
+        if attr == "stdout" || attr == "stderr" {
+            if let HirExpr::Var(name) = value.as_ref() {
+                return name == "sys";
+            }
+        }
+    }
+    false
+}
+
+/// DEPYLER-0625: Find the expression assigned to a variable in a statement block
+fn find_assigned_expr<'a>(var_name: &str, stmts: &'a [HirStmt]) -> Option<&'a HirExpr> {
+    for stmt in stmts {
+        if let HirStmt::Assign {
+            target: AssignTarget::Symbol(name),
+            value,
+            ..
+        } = stmt
+        {
+            if name == var_name {
+                return Some(value);
+            }
+        }
+    }
+    None
+}
+
+/// DEPYLER-0625: Check if a variable needs Box<dyn Write> due to heterogeneous IO types
+/// Returns true if variable is assigned File in one branch and Stdout/Stderr in another
+fn needs_boxed_dyn_write(var_name: &str, then_body: &[HirStmt], else_body: &[HirStmt]) -> bool {
+    let then_expr = find_assigned_expr(var_name, then_body);
+    let else_expr = find_assigned_expr(var_name, else_body);
+
+    match (then_expr, else_expr) {
+        (Some(then_e), Some(else_e)) => {
+            let then_is_file = is_file_creating_expr(then_e);
+            let else_is_file = is_file_creating_expr(else_e);
+            let then_is_stdio = is_stdio_expr(then_e);
+            let else_is_stdio = is_stdio_expr(else_e);
+
+            // Heterogeneous: File in one branch, Stdio in another
+            (then_is_file && else_is_stdio) || (then_is_stdio && else_is_file)
+        }
+        _ => false,
+    }
 }
 
 /// Check if a variable is used in an expression
@@ -2932,6 +3103,15 @@ pub(crate) fn codegen_assign_stmt(
 
         if is_first_assignment && is_mutable && no_type_annotation && is_string_literal {
             value_expr = parse_quote! { #value_expr.to_string() };
+        }
+    }
+
+    // DEPYLER-0625: Wrap File/Stdout values in Box::new() for trait object unification
+    // When a variable is declared as Box<dyn Write> (heterogeneous IO types),
+    // wrap the assigned value with Box::new() to satisfy the type
+    if let AssignTarget::Symbol(var_name) = target {
+        if ctx.boxed_dyn_write_vars.contains(var_name) {
+            value_expr = parse_quote! { Box::new(#value_expr) };
         }
     }
 
