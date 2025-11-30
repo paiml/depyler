@@ -15,6 +15,10 @@ gpu = ["aprender/gpu"]  # Enable GPU acceleration for ML training
 compressed-models = ["aprender/format-compression"]  # Zstd compression (lossless, 14x smaller)
 local-llm = ["llama-cpp-2"]
 
+[[bin]]
+name = "extract-training-data"
+path = "src/bin/extract_training_data.rs"
+
 [dependencies]
 # Depyler core for error types
 depyler-core = { path = "../depyler-core" }
@@ -48,8 +52,17 @@ regex.workspace = true
 # Home directory detection
 dirs = "5"
 
+# Timestamps for training data
+chrono = "0.4"
+
 # UUID parsing for pattern IDs
-uuid = "1.8"
+uuid = "1.18"
+
+# Directory traversal for corpus extraction
+walkdir = "2"
+
+# CLI parsing for binary
+clap = { version = "4", features = ["derive"] }
 
 # HTTP client for API fallback
 ureq = { version = "2.9", features = ["json"] }
@@ -60,7 +73,6 @@ llama-cpp-2 = { version = "0.1", optional = true }
 [dev-dependencies]
 tempfile.workspace = true
 proptest.workspace = true
-clap = { version = "4", features = ["derive"] }
 
 # Synthetic data factory for corpus generation
 verificar = "0.3"
