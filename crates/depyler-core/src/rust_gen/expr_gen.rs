@@ -2107,7 +2107,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Python built-in type conversions → Rust casting
             "int" => self.convert_int_cast(&all_hir_args, &arg_exprs),
             "float" => self.convert_float_cast(&all_hir_args, &arg_exprs),
-            "str" => self.convert_str_conversion(&arg_exprs),
+            "str" => self.convert_str_conversion(&all_hir_args, &arg_exprs),
             "bool" => self.convert_bool_cast(&all_hir_args, &arg_exprs),
             // Other built-in functions
             "len" => self.convert_len_call(&arg_exprs),
@@ -2262,8 +2262,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
-    fn convert_str_conversion(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        builtin_conversions::convert_str_conversion(args)
+    /// DEPYLER-0188: Pass HirExpr to detect PathBuf for .display().to_string()
+    fn convert_str_conversion(&self, hir_args: &[HirExpr], args: &[syn::Expr]) -> Result<syn::Expr> {
+        builtin_conversions::convert_str_conversion(hir_args, args, |e| self.is_path_expr(e))
     }
 
     /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
@@ -13370,11 +13371,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 matches!(attr.as_str(), "parent" | "root" | "anchor")
             }
             // Variable named 'path' or with path-like semantics
+            // DEPYLER-0188: Include common module-level path constants (SCRIPT, FILE, etc.)
             HirExpr::Var(name) => {
                 let n = name.as_str();
-                matches!(n, "path" | "filepath" | "dir_path" | "file_path" | "base_path" | "root_path")
+                let n_lower = n.to_lowercase();
+                matches!(n, "path" | "filepath" | "dir_path" | "file_path" | "base_path" | "root_path"
+                         | "SCRIPT" | "SCRIPT_PATH" | "SCRIPT_DIR" | "SCRIPT_FILE"
+                         | "ROOT" | "ROOT_DIR" | "ROOT_PATH" | "BASE" | "BASE_DIR")
                     || n.starts_with("path_") || n.ends_with("_path")
                     || n.starts_with("dir_") || n.ends_with("_dir")
+                    || n_lower.ends_with("_path") || n_lower.ends_with("_dir")
+                    || n_lower.starts_with("script")
             }
             // Recursive: path / segment is still a path
             HirExpr::Binary { left, op: BinOp::Div, .. } => self.is_path_expr(left),

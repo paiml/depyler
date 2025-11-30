@@ -192,12 +192,24 @@ pub fn convert_float_cast(
 /// Without parens, `x as f32.to_string()` is invalid Rust syntax.
 /// With parens, `(x as f32).to_string()` is valid.
 ///
-/// # Complexity: 2
-pub fn convert_str_conversion(args: &[syn::Expr]) -> Result<syn::Expr> {
+/// # DEPYLER-0188: PathBuf doesn't implement Display, use .display().to_string()
+///
+/// # Complexity: 4
+pub fn convert_str_conversion(
+    hir_args: &[HirExpr],
+    args: &[syn::Expr],
+    is_path_expr_fn: impl Fn(&HirExpr) -> bool,
+) -> Result<syn::Expr> {
     if args.len() != 1 {
         bail!("str() requires exactly one argument");
     }
     let arg = &args[0];
+
+    // DEPYLER-0188: PathBuf/Path needs .display().to_string()
+    if !hir_args.is_empty() && is_path_expr_fn(&hir_args[0]) {
+        return Ok(parse_quote! { (#arg).display().to_string() });
+    }
+
     // DEPYLER-GH121: Wrap in parens to handle cast expressions
     Ok(parse_quote! { (#arg).to_string() })
 }
@@ -421,10 +433,21 @@ mod tests {
 
     #[test]
     fn test_convert_str_conversion() {
+        let hir_args: Vec<HirExpr> = vec![HirExpr::Literal(Literal::Int(42))];
         let args: Vec<syn::Expr> = vec![parse_quote! { 42 }];
-        let result = convert_str_conversion(&args).unwrap();
+        let result = convert_str_conversion(&hir_args, &args, |_| false).unwrap();
         let result_str = quote::quote!(#result).to_string();
         assert!(result_str.contains("to_string"));
+    }
+
+    #[test]
+    fn test_convert_str_conversion_path() {
+        let hir_args: Vec<HirExpr> = vec![HirExpr::Var("path".to_string())];
+        let args: Vec<syn::Expr> = vec![parse_quote! { path }];
+        // Simulate path detection
+        let result = convert_str_conversion(&hir_args, &args, |_| true).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("display"), "Expected .display(), got: {}", result_str);
     }
 
     #[test]
