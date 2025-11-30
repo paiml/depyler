@@ -1840,6 +1840,7 @@ mod tests {
                 args: vec![HirExpr::Var("f".to_string())],
                 kwargs: vec![],
             })],
+            is_async: false,
         };
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
         let code = tokens.to_string();
@@ -1863,6 +1864,7 @@ mod tests {
             body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String(
                 "critical".to_string(),
             )))],
+            is_async: false,
         };
         let tokens = stmt_to_rust_tokens_with_scope(&stmt, &mut scope).unwrap();
         let code = tokens.to_string();

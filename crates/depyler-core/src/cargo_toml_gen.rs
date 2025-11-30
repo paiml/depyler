@@ -460,6 +460,7 @@ mod tests {
             boxed_dyn_write_vars: std::collections::HashSet::new(),
             function_returns_boxed_write: false,
             option_unwrap_map: std::collections::HashMap::new(),
+            needs_completed_process: false,
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -581,6 +582,7 @@ mod tests {
             boxed_dyn_write_vars: std::collections::HashSet::new(),
             function_returns_boxed_write: false,
             option_unwrap_map: std::collections::HashMap::new(),
+            needs_completed_process: false,
         };
 
         let deps = extract_dependencies(&ctx);
@@ -699,6 +701,7 @@ mod tests {
             boxed_dyn_write_vars: std::collections::HashSet::new(),
             function_returns_boxed_write: false,
             option_unwrap_map: std::collections::HashMap::new(),
+            needs_completed_process: false,
         };
 
         let deps = extract_dependencies(&ctx);
@@ -821,6 +824,7 @@ mod tests {
             boxed_dyn_write_vars: std::collections::HashSet::new(),
             function_returns_boxed_write: false,
             option_unwrap_map: std::collections::HashMap::new(),
+            needs_completed_process: false,
         };
 
         let deps = extract_dependencies(&ctx);
