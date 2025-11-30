@@ -749,7 +749,7 @@ verificar-generate: ## Generate synthetic Python test corpus (1000+ variants)
 verificar-test: ## Run verificar corpus through depyler and check compilation
 	@echo "🧪 Testing depyler with verificar synthetic corpus..."
 	@which verificar > /dev/null 2>&1 || { echo "❌ verificar not found! Run: make verificar-install"; exit 1; }
-	@mkdir -p target/verificar/corpus target/verificar/output target/verificar/results
+	@mkdir -p target/verificar/corpus target/verificar/output target/verificar/results target/verificar/cargo_proj/src
 	@# Generate corpus if not exists
 	@if [ ! -d "target/verificar/corpus" ] || [ -z "$$(ls target/verificar/corpus/*.py 2>/dev/null)" ]; then \
 		echo "📝 Generating test corpus first..."; \
@@ -760,13 +760,38 @@ verificar-test: ## Run verificar corpus through depyler and check compilation
 	@PASS=0; FAIL=0; \
 	for py in target/verificar/corpus/*.py; do \
 		name=$$(basename "$$py" .py); \
+		rm -f target/verificar/output/Cargo.toml; \
 		if ./target/release/depyler transpile "$$py" -o "target/verificar/output/$$name.rs" 2>/dev/null; then \
-			if rustc --crate-type lib --edition 2021 "target/verificar/output/$$name.rs" -o "target/verificar/bin/$$name" 2>/dev/null; then \
-				PASS=$$((PASS + 1)); \
-				echo "✅ $$name"; \
+			if [ -f "target/verificar/output/Cargo.toml" ]; then \
+				DEPS=$$(grep -A100 '^\[dependencies\]' target/verificar/output/Cargo.toml | tail -n +2); \
+				echo "[package]" > target/verificar/cargo_proj/Cargo.toml; \
+				echo "name = \"test_lib\"" >> target/verificar/cargo_proj/Cargo.toml; \
+				echo "version = \"0.1.0\"" >> target/verificar/cargo_proj/Cargo.toml; \
+				echo "edition = \"2021\"" >> target/verificar/cargo_proj/Cargo.toml; \
+				echo "" >> target/verificar/cargo_proj/Cargo.toml; \
+				echo "[workspace]" >> target/verificar/cargo_proj/Cargo.toml; \
+				echo "" >> target/verificar/cargo_proj/Cargo.toml; \
+				echo "[lib]" >> target/verificar/cargo_proj/Cargo.toml; \
+				echo "path = \"src/lib.rs\"" >> target/verificar/cargo_proj/Cargo.toml; \
+				echo "" >> target/verificar/cargo_proj/Cargo.toml; \
+				echo "[dependencies]" >> target/verificar/cargo_proj/Cargo.toml; \
+				echo "$$DEPS" >> target/verificar/cargo_proj/Cargo.toml; \
+				cp "target/verificar/output/$$name.rs" target/verificar/cargo_proj/src/lib.rs; \
+				if (cd target/verificar/cargo_proj && cargo check --quiet 2>/dev/null); then \
+					PASS=$$((PASS + 1)); \
+					echo "✅ $$name (cargo)"; \
+				else \
+					FAIL=$$((FAIL + 1)); \
+					echo "❌ $$name (cargo fail)"; \
+				fi; \
 			else \
-				FAIL=$$((FAIL + 1)); \
-				echo "❌ $$name (compile fail)"; \
+				if rustc --crate-type lib --edition 2021 "target/verificar/output/$$name.rs" -o "target/verificar/bin/$$name" 2>/dev/null; then \
+					PASS=$$((PASS + 1)); \
+					echo "✅ $$name"; \
+				else \
+					FAIL=$$((FAIL + 1)); \
+					echo "❌ $$name (compile fail)"; \
+				fi; \
 			fi; \
 		else \
 			FAIL=$$((FAIL + 1)); \
@@ -889,3 +914,81 @@ oracle-extract: ## Extract training data only (no training)
 	./scripts/extract_training_data.sh
 	./scripts/extract_oip_training_data.sh
 	@echo "✅ Data extracted to training_corpus/"
+
+.PHONY: oracle-cycle
+oracle-cycle: ## Full idempotent oracle training cycle (extract + train + test)
+	@echo "🔄 Starting oracle training cycle at $$(date)"
+	$(MAKE) oracle-extract
+	$(MAKE) train-oracle
+	@cargo test --release -p depyler-oracle --lib -q
+	@echo "✅ Cycle complete. Model: $$(ls -lh depyler_oracle.apr | awk '{print $$5}')"
+
+# Cycle counter file for accumulating mode
+CYCLE_FILE := training_corpus/.cycle_count
+
+.PHONY: oracle-cycle-accumulate
+oracle-cycle-accumulate: ## Accumulating oracle cycle (corpus grows each cycle, uses Rust)
+	@mkdir -p training_corpus training_corpus/logs
+	@# Build binaries if needed
+	@if [ ! -f "target/release/extract-training-data" ] || [ ! -f "target/release/depyler" ]; then \
+		echo "📦 Building required binaries..."; \
+		cargo build --release -p depyler -p depyler-oracle --bin extract-training-data --quiet; \
+	fi
+	@# Read and increment cycle counter
+	@if [ -f "$(CYCLE_FILE)" ]; then \
+		CYCLE=$$(cat $(CYCLE_FILE)); \
+	else \
+		CYCLE=0; \
+	fi; \
+	CYCLE=$$((CYCLE + 1)); \
+	echo $$CYCLE > $(CYCLE_FILE); \
+	SEED=$$((42 + CYCLE * 1000 + $$(date +%s) % 1000)); \
+	echo "🔄 ACCUMULATING cycle $$CYCLE | seed=$$SEED | $$(date)"; \
+	./target/release/extract-training-data \
+		--input-dir /home/noah/src/reprorusted-python-cli/examples \
+		--corpus training_corpus/errors.jsonl \
+		--cycle $$CYCLE \
+		--max-files 500; \
+	cargo run --release --example train_unified_corpus -p depyler-oracle -- \
+		--errors training_corpus/errors.jsonl \
+		--output depyler_oracle.apr \
+		--seed $$SEED \
+		--balance --max-per-class 2000; \
+	cargo test --release -p depyler-oracle --lib -q; \
+	echo "✅ Cycle $$CYCLE complete. Corpus: $$(wc -l < training_corpus/errors.jsonl) | Model: $$(ls -lh depyler_oracle.apr | awk '{print $$5}')"
+
+.PHONY: oracle-overnight
+oracle-overnight: ## Run continuous accumulating training (Ctrl+C to stop)
+	@echo "🌙 Starting overnight oracle training loop..."
+	@echo "   Mode: ACCUMULATE (corpus grows each cycle)"
+	@echo "   Stop: Ctrl+C or 'pkill -f oracle-cycle-accumulate'"
+	@echo ""
+	@while true; do \
+		$(MAKE) oracle-cycle-accumulate 2>&1 | tee -a "training_corpus/logs/overnight_$$(date +%Y%m%d).log"; \
+		echo "--- Cycle complete: $$(date) ---" >> "training_corpus/logs/overnight_$$(date +%Y%m%d).log"; \
+	done
+
+.PHONY: oracle-harvest
+oracle-harvest: ## Harvest real transpilation errors from verificar corpus (Rust)
+	@echo "🔍 Harvesting real transpilation errors (Rust binary)..."
+	@# Build the extraction binary if needed
+	@if [ ! -f "target/release/extract-training-data" ]; then \
+		echo "📦 Building extract-training-data binary..."; \
+		cargo build --release -p depyler-oracle --bin extract-training-data; \
+	fi
+	@# Build depyler if needed
+	@if [ ! -f "target/release/depyler" ]; then \
+		echo "📦 Building depyler..."; \
+		cargo build --release -p depyler; \
+	fi
+	@# Generate verificar corpus if needed
+	@if [ ! -d "target/verificar/corpus" ] || [ -z "$$(ls target/verificar/corpus/*.py 2>/dev/null)" ]; then \
+		echo "📝 Generating verificar corpus..."; \
+		$(MAKE) verificar-generate 2>/dev/null || echo "⚠️  verificar not available"; \
+	fi
+	@mkdir -p training_corpus
+	./target/release/extract-training-data --verbose
+
+.PHONY: oracle-improve
+oracle-improve: oracle-harvest train-oracle ## Harvest real errors + retrain (recommended after overnight)
+	@echo "✅ Oracle improved with real errors!"

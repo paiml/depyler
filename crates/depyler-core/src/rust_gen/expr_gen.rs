@@ -8944,7 +8944,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // datetime.date.today() → Local::now().date_naive()
             // DEPYLER-0594: Also handle "date" and "time" when imported directly
             // (from datetime import date; date.today())
-            if module_name == "datetime" || module_name == "date" || module_name == "time" {
+            // DEPYLER-0188: Don't match module_name == "time" here - that's the time module!
+            // Only match "date" for `from datetime import date` pattern.
+            // The time module (import time; time.time()) is handled separately below.
+            if module_name == "datetime" || module_name == "date" {
                 return self.try_convert_datetime_method(method, args);
             }
 

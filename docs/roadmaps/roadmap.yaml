@@ -1185,7 +1185,7 @@ roadmap:
   priority: high
   assigned_to: Claude
   created: 2025-11-28T22:30:00+00:00
-  updated: 2025-11-28T22:30:00+00:00
+  updated: 2025-11-30T06:47:53.358966486+00:00
   spec: null
   acceptance_criteria:
   - Removed root Cargo.toml and Rust I/O equivalence tests
@@ -1300,6 +1300,115 @@ roadmap:
   assigned_to: null
   created: 2025-11-29T15:44:56.204839671+00:00
   updated: 2025-11-29T15:44:56.204839671+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0601
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0601'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-30T06:49:46.437167929+00:00
+  updated: 2025-11-30T06:49:46.437167929+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-187
+  github_issue: 187
+  item_type: task
+  title: 'feat(oracle): Implement Hybrid Retrieval with BM25 + TF-IDF RRF Fusion'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-30T13:37:23.856625215+00:00
+  updated: 2025-11-30T13:37:23.856625215+00:00
+  spec: null
+  acceptance_criteria:
+  - BM25 scoring implemented
+  - RRF fusion combines BM25 + TF-IDF results
+  - Property tests verify retrieval quality
+  - Integration with oracle query loop
+  - Documentation updated
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - enhancement
+  notes: null
+- id: GH-189
+  github_issue: 189
+  item_type: task
+  title: 'feat(oracle): Add TranspileHanseiAnalyzer for post-run reflection analysis'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-11-30T13:48:57.889213129+00:00
+  updated: 2025-11-30T13:54:41.536116047+00:00
+  spec: null
+  acceptance_criteria:
+  - '`TranspileHanseiAnalyzer` struct with analyze method'
+  - Issue severity levels (Critical/Error/Warning/Info)
+  - Trend detection for error categories
+  - Recommendation generation
+  - Property tests for analysis consistency
+  - Integration with CorpusCITL
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - enhancement
+  notes: null
+- id: GH-188
+  github_issue: 188
+  item_type: task
+  title: 'Tarantula Fault Localization: Priority Features from Corpus Analysis'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-30T15:09:06.669208870+00:00
+  updated: 2025-11-30T15:09:06.669208870+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: ORACLE-SYNTHETIC
+  github_issue: null
+  item_type: task
+  title: 'New task: ORACLE-SYNTHETIC'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-30T15:27:00.516537227+00:00
+  updated: 2025-11-30T15:27:00.516537227+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: ORACLE-WEAKSUP
+  github_issue: null
+  item_type: task
+  title: 'New task: ORACLE-WEAKSUP'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-11-30T15:27:09.942825527+00:00
+  updated: 2025-11-30T15:27:09.942825527+00:00
   spec: null
   acceptance_criteria: []
   phases: []

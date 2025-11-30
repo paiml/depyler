@@ -11601,6 +11601,7 @@ and this project adheres to
 ## [Unreleased]
 
 ### Added
+- feat(oracle): Add TranspileHanseiAnalyzer for post-run reflection analysis (#189)
 - feat: Oracle Query Loop (ROI Multiplier) (#172)
 - feat: Oracle Query Loop (ROI Multiplier) (#172)
 - feat: Oracle Query Loop (ROI Multiplier) (#172)

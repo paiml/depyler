@@ -1,0 +1,52 @@
+id: DEPYLER-0601
+title: "Implement Oracle ML Training Reporting (Scientific/Toyota Way)"
+description: |
+  Implement the structured YAML reporting system for ML training runs as defined in
+  `docs/specifications/training-runs-reporting-format.md` (v1.1.0).
+
+  This system replaces ad-hoc logging with a scientific, reproducible, and auditable
+  process that aligns with Toyota Way principles (Jidoka, Standardization, Visual Control)
+  and Green AI standards.
+
+priority: P1
+type: feature
+status: todo
+spec: docs/specifications/training-runs-reporting-format.md
+
+implementation_goals:
+  - **Jidoka (Pre-flight):** Implement `PreflightValidator` to block training on data/env defects.
+  - **Standardization:** Enforce strict JSON Schema v1.1 validation for all output reports.
+  - **Visual Control:** Metrics structured for downstream ingestion (Prometheus/Grafana).
+  - **Green AI:** Track and report estimated energy consumption (Joules/CO2).
+  - **Model Card:** Include model limitations and intended use in every report.
+
+technical_components:
+  data_structures:
+    - `TrainingReport`: Root struct matching schema.
+    - `PreflightCheck`: Trait for validation logic.
+    - `EnergyMetrics`: Struct for energy estimates.
+  
+  modules:
+    - `depyler-oracle/src/reporting.rs`: Core structs and serialization.
+    - `depyler-oracle/src/validation.rs`: Pre-flight check implementations.
+    - `depyler-oracle/src/bin/oracle-validate.rs`: CLI entry point for validation.
+
+acceptance_criteria:
+  - `make oracle-validate` fails if corpus has duplicates (Jidoka).
+  - Training produces a valid YAML report matching `training-report-v1.schema.json`.
+  - Report includes `energy` section with estimated Joules/CO2.
+  - Report includes `model_card` section.
+  - All artifacts (corpus, model, report) have SHA-256 checksums.
+  - Report explicitly links to the previous cycle (Lineage).
+
+references:
+  - Spec: docs/specifications/training-runs-reporting-format.md
+  - Green AI: Strubell et al. (2019)
+  - Model Cards: Mitchell et al. (2019)
+  - Reproducibility: Pineau et al. (2021)
+
+dependencies:
+  - serde (serialization)
+  - serde_yaml (output format)
+  - sha2 (checksums)
+  - jsonschema (validation)
